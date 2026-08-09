@@ -66,9 +66,15 @@ updates:
       # #2096). Re-bump deliberately once the Socket score recovers.
       - dependency-name: 'posthog-js'
       # google-auth-library 11 requires node >=22 at runtime; the backend image
-      # runs node 18 - unfreeze together with the runtime upgrade.
+      # runs node 18 - unfreeze together with the runtime upgrade (#2125).
       - dependency-name: 'google-auth-library'
         update-types: ['version-update:semver-major']
+      # playwright raised its node floor to >=20 in 1.62; the backend image runs
+      # node 18 and the security override pins playwright-core at EXACTLY 1.61.1,
+      # which every playwright release must match exactly. Fully frozen (even
+      # patches) so the pair only moves atomically with the runtime upgrade
+      # (#2125) - a patch bump here without the override recreates the mismatch.
+      - dependency-name: 'playwright'
     groups:
       # Every group is minor-and-patch only, including the named ones below. A
       # named group without `update-types` silently swallows MAJORS too, which is
