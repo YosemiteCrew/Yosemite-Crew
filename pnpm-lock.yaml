@@ -237,8 +237,8 @@ importers:
         specifier: ^13.6.0
         version: 13.6.0
       google-auth-library:
-        specifier: ^11.0.0
-        version: 11.0.0
+        specifier: ^10.9.1
+        version: 10.9.1
       helmet:
         specifier: ^8.3.0
         version: 8.3.0
@@ -20386,9 +20386,9 @@ packages:
     resolution: {integrity: sha512-uHJgbwAMwNFf5mLst7IWLNg14x1CkeqglJb/K3doi4dw6q2IvAAmM/Y81kevy83wP+Sst+nutFTYOGg3d1lsxg==}
     dev: true
 
-  /google-auth-library@11.0.0:
-    resolution: {integrity: sha512-WC5gkb2pElGhZKgGx9r799trH3ZUx90ecgIOIMmgiiHS/gzO3r4vvFoQWuKI0QmR2xU5uee2M4hDUxRZDh/x7w==}
-    engines: {node: '>=22'}
+  /google-auth-library@10.9.1:
+    resolution: {integrity: sha512-i1ydyHrqcIxXkWh/uBmVkzCvIuq5yiK2ATndIe5XxKholrG/MTYP9xGYka4sQhrbIAgGjL2B6NOE7rFaiF3fXw==}
+    engines: {node: '>=18'}
     dependencies:
       base64-js: 1.5.1
       ecdsa-sig-formatter: 1.0.11
