@@ -844,8 +844,8 @@ importers:
         specifier: ^1.5.0
         version: 1.5.3(react-native-svg@15.15.5)(react-native@0.81.4)(typescript@5.9.3)
       react-native-url-polyfill:
-        specifier: ^3.0.0
-        version: 3.0.0(react-native@0.81.4)
+        specifier: ^4.0.0
+        version: 4.0.0(react-native@0.81.4)
       react-native-vector-icons:
         specifier: ^10.3.0
         version: 10.3.0
@@ -27724,13 +27724,12 @@ packages:
       whatwg-url-without-unicode: 8.0.0-3
     dev: false
 
-  /react-native-url-polyfill@3.0.0(react-native@0.81.4):
-    resolution: {integrity: sha512-aA5CiuUCUb/lbrliVCJ6lZ17/RpNJzvTO/C7gC/YmDQhTUoRD5q5HlJfwLWcxz4VgAhHwXKzhxH+wUN24tAdqg==}
+  /react-native-url-polyfill@4.0.0(react-native@0.81.4):
+    resolution: {integrity: sha512-eqYM3wBAA0eL1sPYbBAoNfbES3+NkgcxUdelQ7QzmoVtqKB5qGG0U13MPTRUroAWK+y2EoJFS3MZUK0fwTf0pA==}
     peerDependencies:
       react-native: '*'
     dependencies:
       react-native: 0.81.4(@babel/core@7.29.7)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.2.11)(react@19.1.0)
-      whatwg-url-without-unicode: 8.0.0-3
     dev: false
 
   /react-native-vector-icons@10.3.0:
