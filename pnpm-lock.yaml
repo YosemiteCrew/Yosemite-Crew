@@ -120,8 +120,8 @@ importers:
         specifier: ^19.8.1
         version: 19.8.1
       '@secretlint/secretlint-rule-no-dotenv':
-        specifier: ^11.3.0
-        version: 11.3.1
+        specifier: ^13.0.4
+        version: 13.0.4
       '@secretlint/secretlint-rule-preset-recommend':
         specifier: ^13.0.4
         version: 13.0.4
@@ -11753,11 +11753,11 @@ packages:
     resolution: {integrity: sha512-+bGKntF0wXyPyhFe4wxPk3mxKLHE0sQVeF4FwOH2uFKUzXZJxF9NwISYWAmCzyzAxZbjBDjcpJAEtB2492ohbg==}
     dev: true
 
-  /@secretlint/secretlint-rule-no-dotenv@11.3.1:
-    resolution: {integrity: sha512-PdJntfanRaDXQ1xfaHF2Z1zZQkSOklF54J4jSY58tNFhG5nT+XHqhCT4NfbwCK5+YqFtfizRDqKdO3ndL+4rmQ==}
-    engines: {node: '>=20.0.0'}
+  /@secretlint/secretlint-rule-no-dotenv@13.0.4:
+    resolution: {integrity: sha512-jca+uo4EB9ZO3WA8y0QeQhS+MlfBFhYaVMQsOb0OPruhI3tyr/x6uIQwQg65nDKiBE2Hk1HI+HXV405M6lS5Gw==}
+    engines: {node: '>=22.0.0'}
     dependencies:
-      '@secretlint/types': 11.3.1
+      '@secretlint/types': 13.0.4
     dev: true
 
   /@secretlint/secretlint-rule-preset-recommend@13.0.4:
@@ -11776,6 +11776,11 @@ packages:
   /@secretlint/types@11.3.1:
     resolution: {integrity: sha512-6PU7JLivE6Swavrw1TxiPVbvk1Nafihm+v6hNpsEAt7raLlazoFXFK/O8YeSEK15u+4oofSBqwipy81HAbLnlg==}
     engines: {node: '>=20.0.0'}
+    dev: true
+
+  /@secretlint/types@13.0.4:
+    resolution: {integrity: sha512-on/DivRDZEFzRD2pZJO0wkIL+AvEY+KOoZLPCWcz4pjZnJ4NzMuHQjvTJc9KY0yht+ugcYg9AmtOUzpEk31IWA==}
+    engines: {node: '>=22.0.0'}
     dev: true
 
   /@sideway/address@4.1.5:
