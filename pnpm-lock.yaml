@@ -625,8 +625,8 @@ importers:
         specifier: ^7.1.1
         version: 7.1.1(eslint@9.39.2)
       eslint-plugin-sonarjs:
-        specifier: ^3.0.7
-        version: 3.0.7(eslint@9.39.2)
+        specifier: ^4.2.0
+        version: 4.2.0(eslint@9.39.2)
       jest:
         specifier: ^30.4.2
         version: 30.4.2(@types/node@20.19.31)(ts-node@10.9.2)
@@ -18912,22 +18912,25 @@ packages:
       string.prototype.repeat: 1.0.0
     dev: true
 
-  /eslint-plugin-sonarjs@3.0.7(eslint@9.39.2):
-    resolution: {integrity: sha512-62jB20krIPvcwBLAyG3VVKa2ce2j2lL1yCb8Y0ylMRR/dLvCCTiQx8gQbXb+G81k1alPZ2/I3muZinqWQdBbzw==}
+  /eslint-plugin-sonarjs@4.2.0(eslint@9.39.2):
+    resolution: {integrity: sha512-bqADfuNtTL7VK6RU29eoiFTtaaBKIpVPuX3bOl+rBpWSBa0zIBVZlqZNZQjfP6s4iXkAJokv5IsD8OsACkwApg==}
     peerDependencies:
-      eslint: ^8.0.0 || ^9.0.0
+      eslint: ^8.0.0 || ^9.0.0 || ^10.0.0
     dependencies:
       '@eslint-community/regexpp': 4.12.2
       builtin-modules: 3.3.0
       bytes: 3.1.2
       eslint: 9.39.2
       functional-red-black-tree: 1.0.1
+      globals: 17.9.0
       jsx-ast-utils-x: 0.1.0
       lodash.merge: 4.6.2
       minimatch: 10.2.3
       scslre: 0.3.0
-      semver: 7.7.4
+      semver: 7.8.5
+      ts-api-utils: 2.5.0(typescript@5.9.3)
       typescript: 5.9.3
+      yaml: 2.8.3
     dev: true
 
   /eslint-scope@5.1.1:
