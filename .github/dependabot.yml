@@ -55,8 +55,16 @@ updates:
         update-types: ['version-update:semver-minor', 'version-update:semver-major']
       - dependency-name: '@stripe/stripe-react-native'
         update-types: ['version-update:semver-minor', 'version-update:semver-major']
+      # react-test-renderer is fully frozen: @testing-library/react-native
+      # requires it to EXACTLY equal the react version RN pins, so even the
+      # 19.1.0 -> 19.1.9 PATCH failed every mobile suite (#2096). It moves
+      # only with a deliberate RN upgrade.
       - dependency-name: 'react-test-renderer'
-        update-types: ['version-update:semver-minor', 'version-update:semver-major']
+      # posthog-js is fully frozen at ^1.391.7: the React Doctor gate scores
+      # the lowest version a range allows via Socket, and every 1.4x range so
+      # far scores below the 50 minimum (1.413.x scored 31/100 on #2088 and
+      # #2096). Re-bump deliberately once the Socket score recovers.
+      - dependency-name: 'posthog-js'
     groups:
       # Every group is minor-and-patch only, including the named ones below. A
       # named group without `update-types` silently swallows MAJORS too, which is
