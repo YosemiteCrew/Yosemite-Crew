@@ -99,7 +99,11 @@ const Companions = () => {
   const activeCount = useMemo(() => getActiveCount(companions), [companions]);
   const speciesCounts = useMemo(() => getSpeciesCounts(companions), [companions]);
 
-  useEffect(() => {
+  // Render-phase adjustment: keep the active companion pointing at the latest
+  // store entry whenever the companions list changes.
+  const [prevCompanions, setPrevCompanions] = useState(companions);
+  if (prevCompanions !== companions) {
+    setPrevCompanions(companions);
     setActiveCompanion((prev) => {
       if (companions.length === 0) return null;
       if (prev?.companion.id) {
@@ -108,7 +112,7 @@ const Companions = () => {
       }
       return companions[0];
     });
-  }, [companions]);
+  }
 
   // Render-phase adjustment: open the companion view when a deep link points
   // at a companion we have loaded, once per companion id.

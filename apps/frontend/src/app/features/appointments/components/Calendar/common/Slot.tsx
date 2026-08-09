@@ -1,4 +1,4 @@
-import React, { useId, useLayoutEffect, useMemo, useState } from 'react';
+import React, { useId, useMemo, useState } from 'react';
 import { usePopoverManager } from '@/app/hooks/usePopoverManager';
 import { Appointment, Invoice } from '@yosemite-crew/types';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
@@ -273,12 +273,17 @@ const SlotComponent: React.FC<SlotProps> = ({
 
   const popoverStyle = getPopoverStyle(440, 490);
 
-  useLayoutEffect(() => {
-    if (!draggedAppointmentId) return;
-    setActivePopoverKey(null);
-    setDropPreviewMinute(null);
-    setContextMenu(null);
-  }, [draggedAppointmentId, setActivePopoverKey, setContextMenu]);
+  // Dismiss the popover, drop preview, and context menu the moment a drag starts —
+  // adjusted during render via a prev-compare rather than an effect.
+  const [prevDraggedAppointmentId, setPrevDraggedAppointmentId] = useState(draggedAppointmentId);
+  if (draggedAppointmentId !== prevDraggedAppointmentId) {
+    setPrevDraggedAppointmentId(draggedAppointmentId);
+    if (draggedAppointmentId) {
+      setActivePopoverKey(null);
+      setDropPreviewMinute(null);
+      setContextMenu(null);
+    }
+  }
 
   const getMinuteFromSlotPointer = (clientY: number, container: HTMLDivElement) =>
     minuteFromSlotPointer(clientY, container, dropHour);

@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 /**
  * Walk from `target` up to (but not including) `boundary`, returning true if
@@ -75,7 +75,9 @@ const scrollHorizontallyFromWheel = (
  */
 export const useWheelToHorizontalScroll = ({ ignoreAncestors = false } = {}) => {
   const ignoreAncestorsRef = useRef(ignoreAncestors);
-  ignoreAncestorsRef.current = ignoreAncestors;
+  useEffect(() => {
+    ignoreAncestorsRef.current = ignoreAncestors;
+  });
 
   return useCallback((e: React.WheelEvent<HTMLElement>) => {
     const boundary = e.currentTarget;

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import classNames from 'classnames';
 import {
   IoArrowForward,
@@ -84,12 +84,15 @@ const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
   const selectedCountryCode = phoneData.selectedCode;
   const localPhoneNumber = phoneData.localNumber;
 
-  useEffect(() => {
-    if (!errors) {
-      return;
+  // Sync parent-provided errors into local state during render, guarded by the
+  // previous prop so local edits from handleNext are not clobbered.
+  const [prevErrors, setPrevErrors] = useState<typeof errors | null>(null);
+  if (prevErrors !== errors) {
+    setPrevErrors(errors);
+    if (errors) {
+      setFormDataErrors(errors);
     }
-    setFormDataErrors(errors);
-  }, [errors]);
+  }
 
   const handleNext = () => {
     const { errors, normalizedData } = validateOrgBasics({

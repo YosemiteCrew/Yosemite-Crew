@@ -390,7 +390,9 @@ const addMedicationToTreatmentPlan = (schema: FormField[], medicationField: Form
 
 const useOutsideClick = (ref: React.RefObject<HTMLElement | null>, onClose: () => void) => {
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -782,9 +784,16 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({ field, 
   );
   const selectedMedicineSet = React.useMemo(() => new Set(selectedMedicines), [selectedMedicines]);
 
+  // Flip the loading flag as soon as the org context (re)arrives — render-time
+  // adjust so the fetch effect only talks to the external inventory service.
+  const [prevMedicinesOrgId, setPrevMedicinesOrgId] = useState<string | null>(null);
+  if (prevMedicinesOrgId !== primaryOrgId) {
+    setPrevMedicinesOrgId(primaryOrgId);
+    if (primaryOrgId) setLoadingMedicines(true);
+  }
+
   useEffect(() => {
     if (!primaryOrgId) return;
-    setLoadingMedicines(true);
     fetchInventoryItems(primaryOrgId)
       .then((items) => setMedicines(items.filter(isMedicineInventoryItem)))
       .catch((err) => console.error('Failed to load medicines:', err))

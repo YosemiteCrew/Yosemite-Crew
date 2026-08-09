@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { redirect, usePathname } from 'next/navigation';
 import { getStorageItem } from '@/app/lib/browserStorage';
 import { useAuthStore } from '@/app/stores/authStore';
@@ -19,30 +19,22 @@ const DevRouteGuard = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
   const authStore = useAuthStore();
   const { status, role } = authStore;
-  const [allowed, setAllowed] = useState(false);
   const isPending = status === 'idle' || status === 'checking';
   const isDevPath = pathname?.startsWith('/developers');
   const devFlag =
     isLocalDeveloperFallbackEnabled() && getStorageItem('session', 'devAuth') === 'true';
   const isDevRole = role === 'developer' || devFlag;
   const isAuthenticated = status === 'authenticated' || status === 'signin-authenticated';
+  // Derived during render: non-dev paths always pass; dev paths need an
+  // authenticated developer. While auth status is pending nothing renders.
+  const allowed = !isPending && (!isDevPath || (isAuthenticated && isDevRole));
 
   useEffect(() => {
     // Wait for auth status to be determined
     if (isPending) return;
 
-    if (!isDevPath) {
-      setAllowed(true);
-      return;
-    }
-
-    if (isAuthenticated && isDevRole) {
-      setAllowed(true);
-      return;
-    }
-
     // Authenticated but not a developer - sign out and redirect
-    if (isAuthenticated && !isDevRole) {
+    if (isDevPath && isAuthenticated && !isDevRole) {
       authStore.signout();
     }
   }, [isPending, isDevPath, isAuthenticated, isDevRole, authStore]);

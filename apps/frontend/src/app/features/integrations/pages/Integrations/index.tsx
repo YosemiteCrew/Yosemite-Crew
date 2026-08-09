@@ -506,7 +506,9 @@ const useIntegrationsPage = () => {
   const [merckSaving, setMerckSaving] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [validateState, setValidateState] = useState<ValidateState>('idle');
+  const [validateState, setValidateState] = useState<ValidateState>(() =>
+    resolveValidateState(idexxIntegration?.credentialsStatus)
+  );
   const [activeFilter, setActiveFilter] = useState<IntegrationFilterKey>('all');
   const [error, setError] = useState<string | null>(null);
 
@@ -553,9 +555,15 @@ const useIntegrationsPage = () => {
     run().catch(() => undefined);
   }, [primaryOrgId, idexxIntegration?.status, canViewLabs]);
 
-  useEffect(() => {
+  // Render-phase adjustment: follow the stored credentials status whenever it
+  // changes without clobbering later local validate-state updates.
+  const [syncedCredentialsStatus, setSyncedCredentialsStatus] = useState(
+    idexxIntegration?.credentialsStatus
+  );
+  if (idexxIntegration?.credentialsStatus !== syncedCredentialsStatus) {
+    setSyncedCredentialsStatus(idexxIntegration?.credentialsStatus);
     setValidateState(resolveValidateState(idexxIntegration?.credentialsStatus));
-  }, [idexxIntegration?.credentialsStatus]);
+  }
 
   const { handleManualRefresh, handleStoreCredentials, handleValidate, handleEnableDisable } =
     useIdexxActions({

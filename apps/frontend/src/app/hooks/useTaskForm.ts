@@ -60,19 +60,27 @@ export const useTaskForm = (options: UseTaskFormOptions = {}) => {
     setError(null);
   }, [emptyTask, initialTask]);
 
-  useEffect(() => {
-    if (!due) return;
-    const [hourValue, minuteValue] = String(dueTimeValue || '00:00')
-      .split(':')
-      .map((value) => Number.parseInt(value, 10));
-    const hour = Number.isFinite(hourValue) ? hourValue : 0;
-    const minute = Number.isFinite(minuteValue) ? minuteValue : 0;
-    setFormData((prev) => ({
-      ...prev,
-      dueAt: buildDateInPreferredTimeZone(due, hour * 60 + minute),
-      timezone: prev.timezone || getPreferredTimeZone(),
-    }));
-  }, [due, dueTimeValue]);
+  // Fold the date + time pickers into formData.dueAt during render (guarded by
+  // the previous inputs) rather than mirroring them through an effect.
+  const [prevDueInputs, setPrevDueInputs] = useState<{
+    due: Date | null;
+    dueTimeValue: string;
+  } | null>(null);
+  if (prevDueInputs?.due !== due || prevDueInputs?.dueTimeValue !== dueTimeValue) {
+    setPrevDueInputs({ due, dueTimeValue });
+    if (due) {
+      const [hourValue, minuteValue] = String(dueTimeValue || '00:00')
+        .split(':')
+        .map((value) => Number.parseInt(value, 10));
+      const hour = Number.isFinite(hourValue) ? hourValue : 0;
+      const minute = Number.isFinite(minuteValue) ? minuteValue : 0;
+      setFormData((prev) => ({
+        ...prev,
+        dueAt: buildDateInPreferredTimeZone(due, hour * 60 + minute),
+        timezone: prev.timezone || getPreferredTimeZone(),
+      }));
+    }
+  }
 
   // Load the org task templates (and YC library) up front so the single
   // "Load from template" picker is always populated — the form no longer

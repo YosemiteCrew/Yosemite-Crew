@@ -19,6 +19,16 @@ updates:
     # scope, so those PRs would fail pr-governance. 'repo' is the catch-all scope.
     commit-message:
       prefix: 'chore(repo)'
+    ignore:
+      # react-doctor gates CI (the React Doctor score check) and is still 0.x,
+      # where semver calls every new feature release a "minor" - so it slips
+      # into the minor-and-patch group and upgrades ITSELF inside a 90-package
+      # batch, bringing new rules that fail the very PR carrying it (0.2.14 ->
+      # 0.9.5 added low-supply-chain-score, which fired on this repo's own
+      # override pins). Patches still flow; feature releases of a CI-gating
+      # tool are deliberate, reviewed upgrades.
+      - dependency-name: 'react-doctor'
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']
     groups:
       # Every group is minor-and-patch only, including the named ones below. A
       # named group without `update-types` silently swallows MAJORS too, which is

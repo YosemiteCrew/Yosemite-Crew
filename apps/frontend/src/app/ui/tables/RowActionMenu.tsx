@@ -38,6 +38,12 @@ const RowActionMenu = ({
   const changeOpen = useCallback(
     (next: boolean) => {
       setOpen(next);
+      if (!next) {
+        // Reset for the next open cycle: drop the stale position and re-arm
+        // the once-per-open re-measure pass below.
+        setStyle(null);
+        measuredRef.current = false;
+      }
       onOpenChange?.(next);
     },
     [onOpenChange]
@@ -81,11 +87,7 @@ const RowActionMenu = ({
   }, []);
 
   useLayoutEffect(() => {
-    if (!open) {
-      setStyle(null);
-      measuredRef.current = false;
-      return;
-    }
+    if (!open) return;
     position();
   }, [open, position]);
 
@@ -105,7 +107,9 @@ const RowActionMenu = ({
   // once per open (deps: [open]) instead of re-subscribing whenever the parent
   // re-creates onOpenChange.
   const closeMenuRef = useRef(() => changeOpen(false));
-  closeMenuRef.current = () => changeOpen(false);
+  useEffect(() => {
+    closeMenuRef.current = () => changeOpen(false);
+  });
 
   useEffect(() => {
     if (!open) return;

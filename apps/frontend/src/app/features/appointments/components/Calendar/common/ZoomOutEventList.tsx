@@ -26,6 +26,35 @@ type ZoomOutEventListProps = {
   onDropPreviewClear: () => void;
 };
 
+/** Stack events top-to-bottom, spacing each by its gap from the running cursor. */
+const layoutZoomOutEvents = (
+  sortedSlotEvents: Appointment[],
+  height: number
+): Array<{ ev: Appointment; itemKey: string; marginTopPx: number; blockHeightPx: number }> => {
+  const laidOut: Array<{
+    ev: Appointment;
+    itemKey: string;
+    marginTopPx: number;
+    blockHeightPx: number;
+  }> = [];
+  let cursorMinute = 0;
+  for (const ev of sortedSlotEvents) {
+    const itemKey = getSlotEventKey(ev);
+    const startMinute = getDatePartsInPreferredTimeZone(ev.startTime).minute;
+    const rawDurationMinutes = Math.max(
+      5,
+      Math.round((ev.endTime.getTime() - ev.startTime.getTime()) / 60000)
+    );
+    const visibleDurationMinutes = Math.max(10, Math.min(rawDurationMinutes, 60 - startMinute));
+    const gapMinutes = Math.max(0, startMinute - cursorMinute);
+    const marginTopPx = (gapMinutes / 60) * height;
+    const blockHeightPx = Math.max((visibleDurationMinutes / 60) * height, 3);
+    cursorMinute = Math.max(cursorMinute, startMinute + visibleDurationMinutes);
+    laidOut.push({ ev, itemKey, marginTopPx, blockHeightPx });
+  }
+  return laidOut;
+};
+
 const ZoomOutEventList = ({
   sortedSlotEvents,
   height,
@@ -40,22 +69,10 @@ const ZoomOutEventList = ({
   onAppointmentDragEnd,
   onDropPreviewClear,
 }: ZoomOutEventListProps) => {
-  let cursorMinute = 0;
   return (
     <div className="flex flex-col px-1 py-0 h-full bg-transparent overflow-visible">
-      {sortedSlotEvents.map((ev) => {
-        const itemKey = getSlotEventKey(ev);
-        const startMinute = getDatePartsInPreferredTimeZone(ev.startTime).minute;
-        const rawDurationMinutes = Math.max(
-          5,
-          Math.round((ev.endTime.getTime() - ev.startTime.getTime()) / 60000)
-        );
-        const visibleDurationMinutes = Math.max(10, Math.min(rawDurationMinutes, 60 - startMinute));
-        const gapMinutes = Math.max(0, startMinute - cursorMinute);
-        const marginTopPx = (gapMinutes / 60) * height;
-        const blockHeightPx = Math.max((visibleDurationMinutes / 60) * height, 3);
-        cursorMinute = Math.max(cursorMinute, startMinute + visibleDurationMinutes);
-        return (
+      {layoutZoomOutEvents(sortedSlotEvents, height).map(
+        ({ ev, itemKey, marginTopPx, blockHeightPx }) => (
           <ZoomOutMarker
             key={itemKey}
             ev={ev}
@@ -73,8 +90,8 @@ const ZoomOutEventList = ({
             onAppointmentDragEnd={onAppointmentDragEnd}
             onDropPreviewClear={onDropPreviewClear}
           />
-        );
-      })}
+        )
+      )}
     </div>
   );
 };

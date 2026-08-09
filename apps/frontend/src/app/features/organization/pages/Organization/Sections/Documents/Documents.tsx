@@ -1,5 +1,5 @@
 import SectionCard from '@/app/ui/primitives/SectionCard/SectionCard';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { IoCreateOutline, IoDocumentTextOutline, IoEllipsisHorizontal } from 'react-icons/io5';
 import AddDocument from '@/app/features/organization/pages/Organization/Sections/Documents/AddDocument';
 import DocumentInfo from '@/app/features/organization/pages/Organization/Sections/Documents/DocumentInfo';
@@ -41,7 +41,11 @@ const Documents = () => {
     documents[0] ?? null
   );
 
-  useEffect(() => {
+  // Re-point the selection when the documents list changes (adjusted during
+  // render, per React's "adjusting state when a prop changes" pattern).
+  const [prevDocuments, setPrevDocuments] = useState(documents);
+  if (prevDocuments !== documents) {
+    setPrevDocuments(documents);
     setActiveDocument((prev) => {
       if (documents.length === 0) return null;
       if (prev?._id) {
@@ -50,7 +54,7 @@ const Documents = () => {
       }
       return documents[0];
     });
-  }, [documents]);
+  }
 
   const handleView = (document: OrganizationDocument) => {
     setActiveDocument(document);

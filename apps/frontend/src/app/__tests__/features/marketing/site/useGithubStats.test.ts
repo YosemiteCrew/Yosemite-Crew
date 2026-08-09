@@ -1,9 +1,13 @@
+import { createElement } from 'react';
+import { renderToString } from 'react-dom/server';
 import { renderHook, waitFor } from '@testing-library/react';
 import {
   useGithubStats,
   useLatestRelease,
   useMobileRelease,
   usePlatformRelease,
+  type GithubStats,
+  type ReleaseInfo,
 } from '@/app/features/marketing/site/useGithubStats';
 
 type FetchLike = typeof fetch;
@@ -85,6 +89,36 @@ describe('useGithubStats hooks', () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(result.current.stars).toBe('9k');
     expect(result.current.contributors).toBe('60');
+  });
+
+  it('server-renders the loading placeholders even when the session cache is seeded', () => {
+    sessionStorage.setItem('yc_marketing_stats_v1', JSON.stringify({ stars: '9k' }));
+    sessionStorage.setItem(
+      'yc_rel_platform_v1',
+      JSON.stringify({ tag: 'v9.9.9', date: 'Jan 1, 2026', url: 'https://x/cached' })
+    );
+    let stats: GithubStats | null = null;
+    let release: ReleaseInfo | null = null;
+    let mobile: ReleaseInfo | null = null;
+    const Probe = () => {
+      stats = useGithubStats();
+      release = useLatestRelease();
+      mobile = useMobileRelease();
+      return null;
+    };
+    renderToString(createElement(Probe));
+    expect(stats!.stars).toBeNull();
+    expect(release!.tag).toBeNull();
+    expect(mobile!.tag).toBeNull();
+  });
+
+  it('treats a corrupt session cache entry as the empty placeholders', async () => {
+    sessionStorage.setItem('yc_marketing_stats_v1', '{not json');
+    globalThis.fetch = jest.fn(() => Promise.resolve(notOk())) as unknown as FetchLike;
+    const { result } = renderHook(() => useGithubStats());
+    expect(result.current.stars).toBeNull();
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+    expect(result.current.stars).toBeNull();
   });
 
   it('refetches when the session cache is fresh but discord is still missing', async () => {

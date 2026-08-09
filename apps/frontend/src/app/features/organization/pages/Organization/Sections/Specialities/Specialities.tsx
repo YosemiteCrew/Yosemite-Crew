@@ -31,7 +31,11 @@ const Specialities = () => {
     specialities[0] ?? null
   );
 
-  useEffect(() => {
+  // Re-point the selection when the specialities list changes (adjusted during
+  // render, per React's "adjusting state when a prop changes" pattern).
+  const [prevSpecialities, setPrevSpecialities] = useState(specialities);
+  if (prevSpecialities !== specialities) {
+    setPrevSpecialities(specialities);
     setActiveSpeciality((prev) => {
       if (specialities.length === 0) return null;
       if (prev?._id) {
@@ -40,7 +44,7 @@ const Specialities = () => {
       }
       return specialities[0];
     });
-  }, [specialities]);
+  }
 
   useEffect(() => {
     if (!primaryOrgId) return;

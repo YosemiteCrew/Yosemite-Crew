@@ -1,3 +1,5 @@
+import { createElement } from 'react';
+import { renderToString } from 'react-dom/server';
 import { renderHook, act } from '@testing-library/react';
 import { useTheme } from '@/app/features/marketing/site/useTheme';
 
@@ -35,6 +37,17 @@ describe('useTheme', () => {
     expect(result.current.theme).toBe('light');
   });
 
+  it('server-renders the light default so hydration matches the server HTML', () => {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    let ssrTheme: string | null = null;
+    const Probe = () => {
+      ssrTheme = useTheme().theme;
+      return null;
+    };
+    renderToString(createElement(Probe));
+    expect(ssrTheme).toBe('light');
+  });
+
   it('toggle flips the theme, persists it, and dispatches yc-theme-change', () => {
     document.documentElement.setAttribute('data-theme', 'light');
     const seen: string[] = [];
@@ -58,6 +71,8 @@ describe('useTheme', () => {
     document.documentElement.setAttribute('data-theme', 'light');
     const { result } = renderHook(() => useTheme());
     act(() => {
+      // Another instance's applyTheme sets the html attribute, then broadcasts.
+      document.documentElement.setAttribute('data-theme', 'dark');
       globalThis.dispatchEvent(new CustomEvent('yc-theme-change', { detail: { theme: 'dark' } }));
     });
     expect(result.current.theme).toBe('dark');

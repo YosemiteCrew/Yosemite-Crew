@@ -265,10 +265,15 @@ function Parent({ setActiveLabel, formData, setFormData, ref }: ParentProps) {
     [results]
   );
 
+  const [prevQuery, setPrevQuery] = useState(query);
+  if (prevQuery !== query) {
+    setPrevQuery(query);
+    if (!query.trim()) setResults([]);
+  }
+
   useEffect(() => {
     const q = query.trim();
     if (!q) {
-      setResults([]);
       return;
     }
     const t = globalThis.setTimeout(async () => {

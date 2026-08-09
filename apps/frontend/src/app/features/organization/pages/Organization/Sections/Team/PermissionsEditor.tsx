@@ -1,7 +1,7 @@
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { Permission, PERMISSIONS, ROLE_PERMISSIONS, RoleCode } from '@/app/lib/permissions';
-import React, { useRef } from 'react';
+import React from 'react';
 import { uniq } from '@/app/features/organization/pages/Organization/Sections/Team/permissionsEditorUtils';
 
 type PermissionRow = {
@@ -327,10 +327,10 @@ const PermissionsEditor = ({ value, onSave, role, readOnly = false }: Permission
   const roleDefaults = React.useMemo(() => ROLE_PERMISSIONS[role] ?? [], [role]);
   const [draft, setDraft] = React.useState<Permission[]>(value);
   const [saving, setSaving] = React.useState(false);
-  const resetKeyRef = useRef<string>('');
   const resetKey = `${role}:${value.join('|')}`;
-  if (resetKeyRef.current !== resetKey) {
-    resetKeyRef.current = resetKey;
+  const [prevResetKey, setPrevResetKey] = React.useState(resetKey);
+  if (prevResetKey !== resetKey) {
+    setPrevResetKey(resetKey);
     if (!samePermissionSet(draft, value)) {
       setDraft(value);
     }

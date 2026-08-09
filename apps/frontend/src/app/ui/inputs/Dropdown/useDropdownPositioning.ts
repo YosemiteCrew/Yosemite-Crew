@@ -41,13 +41,20 @@ export function useDropdownPositioning({
   }, [dropdownRef]);
 
   const computePortalStyleRef = useRef(computePortalStyle);
-  computePortalStyleRef.current = computePortalStyle;
+  useLayoutEffect(() => {
+    computePortalStyleRef.current = computePortalStyle;
+  });
+
+  // Clear the floating style the moment the panel closes (render-time adjust,
+  // guarded so it only fires when open/portal actually change).
+  const [prevOpenPortal, setPrevOpenPortal] = useState({ open, portal });
+  if (prevOpenPortal.open !== open || prevOpenPortal.portal !== portal) {
+    setPrevOpenPortal({ open, portal });
+    if (!open || !portal) setPortalStyle(null);
+  }
 
   useLayoutEffect(() => {
-    if (!open || !portal) {
-      setPortalStyle(null);
-      return;
-    }
+    if (!open || !portal) return;
     computePortalStyleRef.current();
   }, [open, portal]);
 

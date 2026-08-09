@@ -596,17 +596,21 @@ const UniversalSearchPalette = () => {
   );
 
   const isOpenRef = useRef(isOpen);
-  isOpenRef.current = isOpen;
   const activeIndexRef = useRef(activeIndex);
-  activeIndexRef.current = activeIndex;
   const resultItemsRef = useRef(resultItems);
-  resultItemsRef.current = resultItems;
   const openRef = useRef(open);
-  openRef.current = open;
   const closeRef = useRef(close);
-  closeRef.current = close;
   const selectItemRef = useRef(selectItem);
-  selectItemRef.current = selectItem;
+  // No dep array: keep the latest values readable from the mount-only keydown
+  // listener below without resubscribing it on every render.
+  useEffect(() => {
+    isOpenRef.current = isOpen;
+    activeIndexRef.current = activeIndex;
+    resultItemsRef.current = resultItems;
+    openRef.current = open;
+    closeRef.current = close;
+    selectItemRef.current = selectItem;
+  });
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -649,15 +653,31 @@ const UniversalSearchPalette = () => {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, []);
 
+  // Render-phase adjustments (React's documented setState-during-render reset
+  // pattern): clear the query when the route changes, and reset the highlight +
+  // re-read persisted recents whenever the palette opens.
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
+    setQuery('');
+  }
+  // Seeded false (not isOpen) so mounting with the palette already open still
+  // runs the open reset, matching the old effect's mount run.
+  const [prevIsOpen, setPrevIsOpen] = useState(false);
+  if (prevIsOpen !== isOpen) {
+    setPrevIsOpen(isOpen);
+    if (isOpen) {
+      setActiveIndex(0);
+      setRecents(readRecents());
+    }
+  }
+
   useEffect(() => {
     close();
-    setQuery('');
   }, [pathname, close]);
 
   useEffect(() => {
     if (!isOpen) return;
-    setActiveIndex(0);
-    setRecents(readRecents());
     const timeout = globalThis.window?.setTimeout(() => {
       inputRef.current?.focus();
       inputRef.current?.select();

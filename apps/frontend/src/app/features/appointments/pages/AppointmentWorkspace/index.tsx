@@ -397,7 +397,12 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
   );
   const [dischargeOverrideReason, setDischargeOverrideReason] = useState('');
   const lifecycleEncounterIdRef = useRef<string | undefined>(appointment.encounterId);
-  const initializedEncounterKeyRef = useRef<string | null>(null);
+  // Render-readable mirror of lifecycleEncounterIdRef (refs must not be read during
+  // render); every write site updates both so they never diverge.
+  const [resolvedEncounterId, setResolvedEncounterId] = useState<string | undefined>(
+    appointment.encounterId
+  );
+  const [initializedEncounterKey, setInitializedEncounterKey] = useState<string | null>(null);
   const supportStaffMember = useMemo(() => {
     const leadName = (appointment.lead?.name ?? '').trim();
     return (appointment.supportStaff ?? []).find(
@@ -416,9 +421,9 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
         supportStaffMember?.name ?? '',
       ].join('|')
     : '';
-  if (appointmentId && initializedEncounterKeyRef.current !== encounterInitKey) {
-    initializedEncounterKeyRef.current = encounterInitKey;
-    lifecycleEncounterIdRef.current = appointment.encounterId;
+  if (appointmentId && initializedEncounterKey !== encounterInitKey) {
+    setInitializedEncounterKey(encounterInitKey);
+    setResolvedEncounterId(appointment.encounterId);
     const leadName = (appointment.lead?.name ?? '').trim();
     initEncounter(appointmentId, initialMode, {
       leadId: appointment.lead?.id,
@@ -427,6 +432,12 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
       nurseName: supportStaffMember?.name?.trim(),
     });
   }
+
+  // Ref half of the reset above — refs cannot be written during render, so the
+  // lifecycle id ref re-seeds in an effect keyed on the same init key.
+  useEffect(() => {
+    lifecycleEncounterIdRef.current = appointment.encounterId;
+  }, [appointment.encounterId, encounterInitKey]);
 
   useEffect(() => {
     const organisationId = appointment.organisationId;
@@ -488,6 +499,7 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
           lifecycleEncounterIdRef.current =
             getWorkspaceBootstrapEncounterId(aggregateResult.value) ??
             lifecycleEncounterIdRef.current;
+          setResolvedEncounterId(lifecycleEncounterIdRef.current);
         }
         mergeEncounterData(appointmentId, {
           ...(aggregateResult.status === 'fulfilled'
@@ -530,15 +542,18 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
   const encounterMode = encounter?.mode ?? initialMode;
   const lockWindow = useAppointmentLockWindow();
 
+  // Sampled once on mount (render must stay pure, so no Date.now() in the memo);
+  // the lock windows are hours-scale, so a session-age drift is immaterial.
+  const [lockCheckedAt] = useState(() => Date.now());
   const lockedByWindow = useMemo(
     () =>
       isPastLockWindow(
         appointment.startTime,
         encounterMode,
-        Date.now(),
+        lockCheckedAt,
         resolveLockHours(encounterMode, lockWindow)
       ),
-    [appointment.startTime, encounterMode, lockWindow]
+    [appointment.startTime, encounterMode, lockCheckedAt, lockWindow]
   );
 
   // Ready-for-billing is a monotonic milestone: once any invoice for this visit is
@@ -611,6 +626,15 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
         : undefined,
     [encounter, lockedByWindow]
   );
+  // Narrow fields pulled off effectiveEncounter so the memos/callbacks below
+  // depend on exactly the values they read (mixing `?.` and plain accesses makes
+  // the compiler infer the whole object as the dependency).
+  const encounterRoomId = effectiveEncounter?.roomId;
+  const encounterUnitId = effectiveEncounter?.unitId;
+  const encounterLeadId = effectiveEncounter?.leadId;
+  const encounterLeadName = effectiveEncounter?.leadName;
+  const encounterNurseId = effectiveEncounter?.nurseId;
+  const encounterNurseName = effectiveEncounter?.nurseName;
   const persistedPatientAlerts = useMemo(
     () => storedAlertsToCompanionAlerts(companionRecord?.alerts, 'patient-alert'),
     [companionRecord?.alerts]
@@ -668,15 +692,13 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
       return toAssignableRoomOptions(
         rooms,
         roomIndexes,
-        effectiveEncounter?.roomId,
-        effectiveEncounter?.unitId,
+        encounterRoomId,
+        encounterUnitId,
         encounterMode === 'INPATIENT'
       );
     }
-    return effectiveEncounter?.roomId
-      ? [{ label: 'Room 1', value: effectiveEncounter.roomId }]
-      : [];
-  }, [effectiveEncounter?.roomId, effectiveEncounter?.unitId, encounterMode, roomIndexes, rooms]);
+    return encounterRoomId ? [{ label: 'Room 1', value: encounterRoomId }] : [];
+  }, [encounterRoomId, encounterUnitId, encounterMode, roomIndexes, rooms]);
   const unitOptions = useMemo(() => {
     if (selectedRoomUnits.length) {
       return selectedRoomUnits.map((unit) => ({
@@ -684,10 +706,8 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
         value: unit.id,
       }));
     }
-    return effectiveEncounter?.unitId
-      ? [{ label: effectiveEncounter.unitId, value: effectiveEncounter.unitId }]
-      : [];
-  }, [effectiveEncounter?.unitId, selectedRoomUnits]);
+    return encounterUnitId ? [{ label: encounterUnitId, value: encounterUnitId }] : [];
+  }, [encounterUnitId, selectedRoomUnits]);
   const unitOptionsByRoomId = useMemo(() => {
     const optionsByRoom: Record<string, { label: string; value: string }[]> = {};
     for (const room of rooms) {
@@ -719,11 +739,11 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
       options.push({ label: trimmed, value: trimmedId });
     };
     (appointment.supportStaff ?? []).forEach((staff) => add(staff.id, staff.name));
-    if (effectiveEncounter?.nurseId && effectiveEncounter.nurseName) {
-      add(effectiveEncounter.nurseId, effectiveEncounter.nurseName);
+    if (encounterNurseId && encounterNurseName) {
+      add(encounterNurseId, encounterNurseName);
     }
     return options;
-  }, [appointment.supportStaff, effectiveEncounter?.nurseId, effectiveEncounter?.nurseName]);
+  }, [appointment.supportStaff, encounterNurseId, encounterNurseName]);
   const hospitalizationServicePackages = useMemo(() => {
     // Only INPATIENT-bookable items may be added on hospitalization. The backend derives
     // `supportsInpatient` from `isInpatientPreferred` and rejects anything else with a 400
@@ -797,7 +817,10 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
     if (!organisationId || !appointmentId) return undefined;
     const bootstrap = await getAppointmentWorkspaceBootstrap(organisationId, appointmentId);
     const encounterId = getWorkspaceBootstrapEncounterId(bootstrap);
-    if (encounterId) lifecycleEncounterIdRef.current = encounterId;
+    if (encounterId) {
+      lifecycleEncounterIdRef.current = encounterId;
+      setResolvedEncounterId(encounterId);
+    }
     mergeEncounterData(appointmentId, normalizeWorkspaceBootstrapForEncounter(bootstrap));
     return encounterId;
   }, [appointment.organisationId, appointmentId, mergeEncounterData]);
@@ -855,10 +878,10 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
       /* v8 ignore stop */
 
       const admittedAt = options?.admittedAt ?? new Date().toISOString();
-      const resolvedRoomId = roomId ?? effectiveEncounter?.roomId ?? appointment.room?.id;
-      const resolvedUnitId = unitId ?? effectiveEncounter?.unitId;
-      const leadName = (effectiveEncounter?.leadName ?? appointment.lead?.name ?? '').trim();
-      const leadId = (effectiveEncounter?.leadId ?? appointment.lead?.id ?? '').trim();
+      const resolvedRoomId = roomId ?? encounterRoomId ?? appointment.room?.id;
+      const resolvedUnitId = unitId ?? encounterUnitId;
+      const leadName = (encounterLeadName ?? appointment.lead?.name ?? '').trim();
+      const leadId = (encounterLeadId ?? appointment.lead?.id ?? '').trim();
       const supportStaff: RequiredStaffMember[] = (appointment.supportStaff ?? [])
         .map((staff) => ({
           id: (staff.id ?? '').trim(),
@@ -871,10 +894,10 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
       ) {
         supportStaff.push(options.supportStaffMember);
       }
-      if (!supportStaff.length && effectiveEncounter?.nurseId && effectiveEncounter.nurseName) {
+      if (!supportStaff.length && encounterNurseId && encounterNurseName) {
         supportStaff.push({
-          id: effectiveEncounter.nurseId,
-          name: effectiveEncounter.nurseName,
+          id: encounterNurseId,
+          name: encounterNurseName,
         });
       }
 
@@ -940,12 +963,12 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
       appointment.supportStaff,
       appointmentId,
       canAdmitAppointmentStatus,
-      effectiveEncounter?.leadId,
-      effectiveEncounter?.leadName,
-      effectiveEncounter?.nurseId,
-      effectiveEncounter?.nurseName,
-      effectiveEncounter?.roomId,
-      effectiveEncounter?.unitId,
+      encounterLeadId,
+      encounterLeadName,
+      encounterNurseId,
+      encounterNurseName,
+      encounterRoomId,
+      encounterUnitId,
       encounterMode,
       isAdmitting,
       mergeEncounterData,
@@ -1356,7 +1379,7 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
           { overrideReason }
         );
         await completeAppointmentStatus();
-        setRoomUnitOccupied(effectiveEncounter?.unitId, false);
+        setRoomUnitOccupied(encounterUnitId, false);
         await loadRoomsForOrgPrimaryOrg({ force: true, silent: true });
         markDischarged(appointmentId, dischargedAt);
         notify('success', {
@@ -1379,7 +1402,7 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
       isFinalizing,
       markDischarged,
       notify,
-      effectiveEncounter?.unitId,
+      encounterUnitId,
       terminologyText,
       setRoomUnitOccupied,
     ]
@@ -1527,7 +1550,7 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
           appointmentId={appointmentId}
           appointment={appointment}
           encounter={effectiveEncounter}
-          resolvedEncounterId={lifecycleEncounterIdRef.current ?? appointment.encounterId}
+          resolvedEncounterId={resolvedEncounterId ?? appointment.encounterId}
         />
       )}
     </>

@@ -38,7 +38,9 @@ const RichTextEditor = ({
   // `value`) must not destroy and rebuild the editor, which reset DOM focus and
   // the cursor after a single keystroke (the reported bug).
   const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  });
 
   // Create the editor ONCE (no dependency array) so it stays mounted across
   // keystrokes, preserving focus, cursor, and Enter behaviour.

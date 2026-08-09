@@ -363,6 +363,8 @@ const useAppointmentInfoView = ({
       ?.toLowerCase();
   }, []);
 
+  const activeLeadId = activeAppointment.lead?.id;
+  const activeLeadName = activeAppointment.lead?.name;
   const getLeadOptionsForSlot = useCallback(
     (slot: Slot | null) => {
       if (!teams?.length || !slot) return [];
@@ -399,19 +401,13 @@ const useAppointmentInfoView = ({
       const currentSlotEnd = toIsoTimePart(activeAppointment.endTime);
       const isCurrentAppointmentSlot =
         slot.startTime === currentSlotStart && slot.endTime === currentSlotEnd;
-      const activeLeadId = activeAppointment.lead?.id;
       const hasAssignedLeadInOptions = options.some(
         (option) => normalizeId(option.value) === normalizeId(activeLeadId)
       );
 
-      if (
-        isCurrentAppointmentSlot &&
-        activeLeadId &&
-        !hasAssignedLeadInOptions &&
-        activeAppointment.lead?.name
-      ) {
+      if (isCurrentAppointmentSlot && activeLeadId && !hasAssignedLeadInOptions && activeLeadName) {
         options.push({
-          label: activeAppointment.lead.name,
+          label: activeLeadName,
           value: activeLeadId,
         });
       }
@@ -424,8 +420,8 @@ const useAppointmentInfoView = ({
       normalizeId,
       activeAppointment.startTime,
       activeAppointment.endTime,
-      activeAppointment.lead?.id,
-      activeAppointment.lead?.name,
+      activeLeadId,
+      activeLeadName,
     ]
   );
 

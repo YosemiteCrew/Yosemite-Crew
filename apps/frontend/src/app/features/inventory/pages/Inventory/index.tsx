@@ -722,9 +722,9 @@ const resolveActiveInventory = (
 // its previous value — the null-sentinel derived-state pattern factored out so
 // each call site stays a single statement rather than an inline prev-compare.
 const useOnValueChange = <T,>(value: T, onChange: () => void): void => {
-  const prevRef = useRef<{ value: T }>(undefined);
-  if (prevRef.current?.value !== value) {
-    prevRef.current = { value };
+  const [prev, setPrev] = useState<{ value: T } | undefined>(undefined);
+  if (prev?.value !== value) {
+    setPrev({ value });
     onChange();
   }
 };
@@ -743,7 +743,7 @@ const useInventoryContent = () => {
   const rooms = useRoomsForPrimaryOrg();
   const headerSearchQuery = useSearchStore((s) => s.query);
   const searchParams = useSearchParams();
-  const handledDeepLinkRef = useRef<string | null>(null);
+  const [handledDeepLinkId, setHandledDeepLinkId] = useState<string | null>(null);
 
   const resolvedOrgType = primaryOrgId ? orgsById[primaryOrgId]?.type : undefined;
   const resolvedBusinessType: BusinessType =
@@ -759,27 +759,34 @@ const useInventoryContent = () => {
   const [filters, setFilters] = useState<InventoryFiltersState>(defaultFilters);
   const [dispensaryRecords, setDispensaryRecords] = useState<DispensaryRecord[]>([]);
 
-  const fetchDispensaryRecords = useCallback(async () => {
-    if (!primaryOrgId || !canViewPrescription) return;
-    const orgAtCallTime = primaryOrgId;
+  // Pure fetch (null = leave current state alone) so the refresh effect can apply
+  // the result in a subscription-style callback.
+  const resolveDispensaryRecords = useCallback(async (): Promise<DispensaryRecord[] | null> => {
+    if (!primaryOrgId || !canViewPrescription) return null;
     try {
-      const data = await listDispenseRequests(orgAtCallTime);
-      setDispensaryRecords((prev) => {
-        if (primaryOrgId === orgAtCallTime) {
-          return data.map(mapDispenseRequestToRecord);
-        }
-        /* v8 ignore next -- primaryOrgId and orgAtCallTime capture the same closure value, so this fallback is unreachable */
-        return prev;
-      });
+      const data = await listDispenseRequests(primaryOrgId);
+      return data.map(mapDispenseRequestToRecord);
     } catch {
       // silently fail — table shows empty state
+      return null;
     }
   }, [primaryOrgId, canViewPrescription]);
 
-  useEffect(() => {
+  const fetchDispensaryRecords = useCallback(async () => {
+    const records = await resolveDispensaryRecords();
+    if (records) setDispensaryRecords(records);
+  }, [resolveDispensaryRecords]);
+
+  // Org/permission changed: drop the previous org's rows during render, then
+  // refetch after commit.
+  useOnValueChange(resolveDispensaryRecords, () => {
     setDispensaryRecords([]);
-    fetchDispensaryRecords();
-  }, [fetchDispensaryRecords]);
+  });
+  useEffect(() => {
+    void resolveDispensaryRecords().then((records) => {
+      if (records) setDispensaryRecords(records);
+    });
+  }, [resolveDispensaryRecords]);
   const [activeDispensaryRecord, setActiveDispensaryRecord] = useState<DispensaryRecord | null>(
     null
   );
@@ -923,11 +930,11 @@ const useInventoryContent = () => {
 
   const deepLinkedInventoryId = String(searchParams.get('inventoryId') ?? '').trim();
   const deepLinkTarget =
-    deepLinkedInventoryId && handledDeepLinkRef.current !== deepLinkedInventoryId
+    deepLinkedInventoryId && handledDeepLinkId !== deepLinkedInventoryId
       ? inventory.find((item) => item.id === deepLinkedInventoryId)
       : undefined;
   if (deepLinkTarget !== undefined) {
-    handledDeepLinkRef.current = deepLinkedInventoryId;
+    setHandledDeepLinkId(deepLinkedInventoryId);
     setActiveInventory(deepLinkTarget);
     setViewInventory(true);
     setInfoInitialSection(undefined);

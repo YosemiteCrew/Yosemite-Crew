@@ -473,17 +473,23 @@ const TasksPanel = ({
     });
   }, []);
 
-  // Opened from a schedule row's "View": auto-open that task's edit form, then
-  // clear the focus flag so it doesn't re-trigger.
-  useEffect(() => {
-    if (!focusTaskId) return;
-    const task = tasksById[focusTaskId];
-    if (task) {
-      setEditingTask(task);
-      setFormOpen(true);
+  // Opened from a schedule row's "View": auto-open that task's edit form during
+  // render (prev-compare), then clear the focus flag in an effect so it doesn't
+  // re-trigger.
+  const [prevFocusTaskId, setPrevFocusTaskId] = useState<typeof focusTaskId>(null);
+  if (focusTaskId !== prevFocusTaskId) {
+    setPrevFocusTaskId(focusTaskId);
+    if (focusTaskId) {
+      const task = tasksById[focusTaskId];
+      if (task) {
+        setEditingTask(task);
+        setFormOpen(true);
+      }
     }
-    setFocusTaskId(null);
-  }, [focusTaskId, tasksById, setFocusTaskId]);
+  }
+  useEffect(() => {
+    if (focusTaskId) setFocusTaskId(null);
+  }, [focusTaskId, setFocusTaskId]);
 
   const isParent = tab === 'PARENT';
   const appointmentTasks = useMemo(

@@ -1,5 +1,5 @@
 'use client';
-import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useMemo, useState } from 'react';
 import type { SetStateAction } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
@@ -87,7 +87,7 @@ const Tasks = () => {
   const canEditTasks = permissions.can(PERMISSIONS.TASKS_EDIT_ANY);
   const query = useSearchStore((s) => s.query);
   const searchParams = useSearchParams();
-  const handledDeepLinkRef = useRef<string | null>(null);
+  const [handledDeepLink, setHandledDeepLink] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState('all');
   const [activeStatus, setActiveStatus] = useState('all');
   const [activeScope, setActiveScope] = useState('team');
@@ -168,7 +168,11 @@ const Tasks = () => {
     [activeCalendar]
   );
 
-  useEffect(() => {
+  // Reconcile the active task against the latest task list during render
+  // (guarded by the previous list) instead of through an effect.
+  const [prevTasks, setPrevTasks] = useState<Task[] | null>(null);
+  if (prevTasks !== tasks) {
+    setPrevTasks(tasks);
     setActiveTask((prev) => {
       if (tasks.length === 0) return null;
       if (prev?._id) {
@@ -177,20 +181,19 @@ const Tasks = () => {
       }
       return tasks[0];
     });
-  }, [tasks]);
+  }
 
-  useEffect(() => {
-    const taskId = String(searchParams.get('taskId') ?? '').trim();
-    if (!taskId) return;
-    if (handledDeepLinkRef.current === taskId) return;
-
-    const target = tasks.find((task) => task._id === taskId);
-    if (!target) return;
-
-    setActiveTask(target);
-    setViewPopup(true);
-    handledDeepLinkRef.current = taskId;
-  }, [tasks, searchParams]);
+  // Deep-link handling: open the task named in the query string once its data
+  // arrives, at most once per taskId.
+  const deepLinkTaskId = String(searchParams.get('taskId') ?? '').trim();
+  if (deepLinkTaskId && handledDeepLink !== deepLinkTaskId) {
+    const target = tasks.find((task) => task._id === deepLinkTaskId);
+    if (target) {
+      setActiveTask(target);
+      setViewPopup(true);
+      setHandledDeepLink(deepLinkTaskId);
+    }
+  }
 
   const filteredList = useMemo(() => {
     const q = query.trim().toLowerCase();

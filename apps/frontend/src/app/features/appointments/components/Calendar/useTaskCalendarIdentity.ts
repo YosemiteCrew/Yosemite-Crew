@@ -21,8 +21,6 @@ export const useTaskCalendarIdentity = (
   const { resolveMemberName } = useMemberMap();
   const normalizeId = useCallback((value?: string) => normalizeCalendarId(value), []);
 
-  const shiftDayKey = useCallback(shiftWeekdayKey, []);
-
   const resolveAssigneeId = useCallback(
     (candidateId?: string) => resolveTeamMemberPrimaryId(teams, candidateId, normalizeId),
     [normalizeId, teams]
@@ -54,7 +52,7 @@ export const useTaskCalendarIdentity = (
     canEditTask,
     resolveAssigneeId,
     resolveDisplayName,
-    shiftDayKey,
+    shiftDayKey: shiftWeekdayKey,
     shouldEnforceAvailability,
   };
 };

@@ -1,5 +1,5 @@
 'use client';
-import React, { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppointmentCentralModalShell from '@/app/features/appointments/components/AppointmentCentralModal/AppointmentCentralModalShell';
 import BottomSheet from '@/app/ui/layout/PhoneShell/BottomSheet';
@@ -329,7 +329,7 @@ const useAddCompanionCentralModalContent = ({
   const allCompanionParents = useCompanionsParentsForPrimaryOrg();
 
   // ── Edit-mode dirty tracking — snapshot of field values at the moment edit starts ──
-  const editSnapshotRef = useRef<EditSnapshot | null>(null);
+  const [editSnapshot, setEditSnapshot] = useState<EditSnapshot | null>(null);
 
   const companionResultsRef = useRef<StoredCompanion[]>([]);
 
@@ -360,17 +360,14 @@ const useAddCompanionCentralModalContent = ({
     [clearParentSearchTimeout, setParentResults]
   );
 
-  // ── Reset on close ──
-  const resetAll = useCallback(() => {
+  // ── Reset on close — modal state resets in the render-phase sync below; the
+  // search refs are cleared here after commit (refs must not change during render). ──
+  useEffect(() => {
+    if (showModal) return;
     parentSearchQueryRef.current = '';
     clearParentSearchTimeout();
     companionResultsRef.current = [];
-    dispatchModalState({
-      type: 'reset',
-      initialMode,
-      selectedCountryCode: defaultPhoneData.selectedCode,
-    });
-  }, [clearParentSearchTimeout, defaultPhoneData.selectedCode, initialMode]);
+  }, [showModal, clearParentSearchTimeout]);
 
   const populateEditForm = useCallback(
     (source: CompanionParent) => {
@@ -384,7 +381,7 @@ const useAddCompanionCentralModalContent = ({
       const pd = findPhoneData(p.phoneNumber || '', p.address.country);
       setSelectedCountryCode(pd.selectedCode);
       setLocalPhoneNumber(pd.localNumber);
-      editSnapshotRef.current = {
+      setEditSnapshot({
         companionName: c.name ?? '',
         companionType: c.type ?? '',
         companionBreed: c.breed ?? '',
@@ -392,7 +389,7 @@ const useAddCompanionCentralModalContent = ({
         lastName: p.lastName ?? '',
         email: p.email ?? '',
         phone: pd.localNumber,
-      };
+      });
     },
     [
       setCompanionFormData,
@@ -406,7 +403,13 @@ const useAddCompanionCentralModalContent = ({
   );
 
   const syncModalOpenState = () => {
-    if (!showModal) resetAll();
+    if (!showModal) {
+      dispatchModalState({
+        type: 'reset',
+        initialMode,
+        selectedCountryCode: defaultPhoneData.selectedCode,
+      });
+    }
     if (mode !== initialMode) setMode(initialMode);
     if (pendingStatus !== null) setPendingStatus(null);
   };
@@ -414,25 +417,19 @@ const useAddCompanionCentralModalContent = ({
     if (mode === 'edit' && viewCompanion) {
       populateEditForm(viewCompanion);
     } else if (mode !== 'edit') {
-      editSnapshotRef.current = null;
+      setEditSnapshot(null);
     }
   };
-  const modalSyncRef = useRef<ModalSyncState>({ initialMode, showModal });
-  if (
-    modalSyncRef.current.initialMode !== initialMode ||
-    modalSyncRef.current.showModal !== showModal
-  ) {
-    modalSyncRef.current = { initialMode, showModal };
+  const [prevModalSync, setPrevModalSync] = useState<ModalSyncState>({ initialMode, showModal });
+  if (prevModalSync.initialMode !== initialMode || prevModalSync.showModal !== showModal) {
+    setPrevModalSync({ initialMode, showModal });
     syncModalOpenState();
   }
 
   // ── Populate edit form from viewCompanion ──
-  const prevEditSyncRef = useRef({ mode, viewCompanion });
-  if (
-    prevEditSyncRef.current.mode !== mode ||
-    prevEditSyncRef.current.viewCompanion !== viewCompanion
-  ) {
-    prevEditSyncRef.current = { mode, viewCompanion };
+  const [prevEditSync, setPrevEditSync] = useState({ mode, viewCompanion });
+  if (prevEditSync.mode !== mode || prevEditSync.viewCompanion !== viewCompanion) {
+    setPrevEditSync({ mode, viewCompanion });
     syncEditForm();
   }
 
@@ -790,12 +787,12 @@ const useAddCompanionCentralModalContent = ({
     () =>
       mode !== 'view' &&
       computeHasUnsavedChanges(
-        editSnapshotRef.current ?? EMPTY_SNAPSHOT,
+        editSnapshot ?? EMPTY_SNAPSHOT,
         companionFormData,
         parentFormData,
         localPhoneNumber
       ),
-    [mode, companionFormData, parentFormData, localPhoneNumber]
+    [mode, editSnapshot, companionFormData, parentFormData, localPhoneNumber]
   );
 
   const canCloseModal = useCallback(() => {

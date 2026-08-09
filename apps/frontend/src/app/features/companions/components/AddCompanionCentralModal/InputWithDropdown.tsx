@@ -38,7 +38,7 @@ const InputWithDropdown = ({
   const uid = useId();
   // Only auto-open after the user has typed — prevents dropdown firing when
   // edit mode mounts with a pre-filled value that matches existing companions.
-  const userHasTypedRef = useRef(false);
+  const [userHasTyped, setUserHasTyped] = useState(false);
 
   const filtered = useFilteredOptions(options, value);
 
@@ -57,7 +57,7 @@ const InputWithDropdown = ({
   const [prevFilteredLength, setPrevFilteredLength] = useState(filtered.length);
   if (filtered.length !== prevFilteredLength) {
     setPrevFilteredLength(filtered.length);
-    if (userHasTypedRef.current) {
+    if (userHasTyped) {
       setOpen(filtered.length > 0);
     }
   }
@@ -78,13 +78,18 @@ const InputWithDropdown = ({
   }, []);
 
   const computeStyleRef = useRef(computeStyle);
-  computeStyleRef.current = computeStyle;
+  useEffect(() => {
+    computeStyleRef.current = computeStyle;
+  });
+
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
+    if (!open) setPortalStyle(null);
+  }
 
   useLayoutEffect(() => {
-    if (!open) {
-      setPortalStyle(null);
-      return;
-    }
+    if (!open) return;
     computeStyleRef.current();
   }, [open]);
 
@@ -138,11 +143,11 @@ const InputWithDropdown = ({
           value={value}
           autoComplete="off"
           onChange={(e) => {
-            userHasTypedRef.current = true;
+            setUserHasTyped(true);
             onChange(e.target.value);
           }}
           onFocus={() => {
-            if (userHasTypedRef.current && filtered.length > 0) setOpen(true);
+            if (userHasTyped && filtered.length > 0) setOpen(true);
           }}
           aria-invalid={Boolean(error)}
           className={`

@@ -99,19 +99,24 @@ const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFilters
     };
   }, [open]);
 
-  const panelStyle: React.CSSProperties | undefined =
-    open && triggerRef.current
-      ? (() => {
-          const rect = triggerRef.current.getBoundingClientRect();
-          return {
-            position: 'fixed',
-            top: rect.bottom + 6,
-            right: globalThis.window.innerWidth - rect.right,
-            minWidth: Math.max(rect.width, 200),
-            zIndex: 9999,
-          } satisfies React.CSSProperties;
-        })()
-      : undefined;
+  const [panelStyle, setPanelStyle] = useState<React.CSSProperties | undefined>(undefined);
+
+  // Measure the trigger in the click handler (not during render): the panel is
+  // portaled to <body>, so it is positioned from the trigger's viewport rect.
+  const toggleOpen = () => {
+    const next = !open;
+    if (next && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPanelStyle({
+        position: 'fixed',
+        top: rect.bottom + 6,
+        right: globalThis.window.innerWidth - rect.right,
+        minWidth: Math.max(rect.width, 200),
+        zIndex: 9999,
+      });
+    }
+    setOpen(next);
+  };
 
   const selectCategory = (value: string) => {
     onFiltersChange({ ...filters, category: value as FormsCategory | 'All' });
@@ -151,7 +156,7 @@ const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFilters
         <button
           ref={triggerRef}
           type="button"
-          onClick={() => setOpen((prev) => !prev)}
+          onClick={toggleOpen}
           // No aria-haspopup: the popup is a plain stack of buttons, not a
           // listbox or a menu, and it implements no keyboard model. aria-expanded
           // plus the label below already say what this control does.

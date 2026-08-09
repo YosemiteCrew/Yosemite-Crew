@@ -11,7 +11,9 @@ type CalBookingOverlayProps = {
 
 const CalBookingOverlay = ({ open, onClose }: CalBookingOverlayProps) => {
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
     if (!open) return;

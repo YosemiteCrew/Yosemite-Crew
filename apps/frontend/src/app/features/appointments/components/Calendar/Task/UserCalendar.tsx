@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import { HOURS_IN_DAY } from '@/app/features/appointments/components/Calendar/weekHelpers';
@@ -84,7 +84,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   const { handleNextDay, handlePrevDay } = useCalendarNavigation(setCurrentDate);
   const height = getHourRowHeightPx(zoomMode);
   const HOUR_ROW_TOP_OFFSET_PX = 8;
-  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [scrollContainer, setScrollContainer] = useState<HTMLDivElement | null>(null);
   const onWheelBoundary = useScrollBoundaryWheel();
   const onWheelHorizontal = useWheelToHorizontalScroll();
   const teamColumnsStyle = useMemo(
@@ -164,7 +164,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
     events: getTimedTaskProxyEvents(events),
     height,
     nowPosition,
-    scrollContainer: scrollRef.current,
+    scrollContainer,
     hourRowGapPx: HOUR_ROW_GAP_PX,
     hourRowTopOffsetPx: HOUR_ROW_TOP_OFFSET_PX,
   });
@@ -187,7 +187,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
           />
 
           <div
-            ref={scrollRef}
+            ref={setScrollContainer}
             className="relative flex-1 min-h-0"
             style={{
               height: '100%',

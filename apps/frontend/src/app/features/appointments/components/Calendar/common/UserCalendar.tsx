@@ -186,11 +186,13 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   const dateKey = date.toISOString();
 
   const nowPositionRef = useRef(nowPosition);
-  nowPositionRef.current = nowPosition;
   const eventsRef = useRef(events);
-  eventsRef.current = events;
   const visibleHourRangeRef = useRef(visibleHourRange);
-  visibleHourRangeRef.current = visibleHourRange;
+  useEffect(() => {
+    nowPositionRef.current = nowPosition;
+    eventsRef.current = events;
+    visibleHourRangeRef.current = visibleHourRange;
+  });
 
   useEffect(() => {
     const container = scrollRef.current;

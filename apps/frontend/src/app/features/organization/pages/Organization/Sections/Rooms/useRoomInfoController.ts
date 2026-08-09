@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNotify } from '@/app/hooks/useNotify';
 import { useSpecialitiesForPrimaryOrg } from '@/app/hooks/useSpecialities';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
@@ -202,7 +202,7 @@ export const useRoomInfoController = ({
     [roomUnitGroupIds, roomUnitGroupsById]
   );
   const roomStateKey = getRoomStateKey(activeRoom, showModal, roomUnitGroups);
-  const syncedRoomStateKeyRef = useRef(roomStateKey);
+  const [syncedRoomStateKey, setSyncedRoomStateKey] = useState(roomStateKey);
   const [mode, setMode] = useState<'view' | 'edit'>('view');
   const [formData, setFormData] = useState<ManagedRoom>(() =>
     getRoomForm(activeRoom, roomUnitGroups)
@@ -218,8 +218,8 @@ export const useRoomInfoController = ({
     equipment: true,
   });
 
-  if (syncedRoomStateKeyRef.current !== roomStateKey) {
-    syncedRoomStateKeyRef.current = roomStateKey;
+  if (syncedRoomStateKey !== roomStateKey) {
+    setSyncedRoomStateKey(roomStateKey);
     setMode('view');
     setFormData(getRoomForm(activeRoom, roomUnitGroups));
     setCustomEquipmentName('');

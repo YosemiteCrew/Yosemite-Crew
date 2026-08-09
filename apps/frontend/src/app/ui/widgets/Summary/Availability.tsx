@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import AvailabilityTable from '@/app/ui/tables/AvailabilityTable';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
@@ -35,7 +35,9 @@ const Availability = () => {
     });
   }, [teams, selectedLabel]);
 
-  useEffect(() => {
+  const [prevTeams, setPrevTeams] = useState(teams);
+  if (prevTeams !== teams) {
+    setPrevTeams(teams);
     setActiveTeam((prev) => {
       if (teams.length === 0) return null;
       if (prev?._id) {
@@ -44,7 +46,7 @@ const Availability = () => {
       }
       return teams[0];
     });
-  }, [teams]);
+  }
 
   return (
     <PermissionGate allOf={[PERMISSIONS.TEAMS_VIEW_ANY]}>
