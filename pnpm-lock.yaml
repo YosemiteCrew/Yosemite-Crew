@@ -884,8 +884,8 @@ importers:
         specifier: ^8.0.2
         version: 8.0.2(@babel/core@7.29.7)
       '@babel/runtime':
-        specifier: ^7.25.0
-        version: 7.28.6
+        specifier: ^8.0.0
+        version: 8.0.0
       '@react-native-community/cli':
         specifier: 20.0.2
         version: 20.0.2(typescript@5.9.3)
@@ -4659,6 +4659,10 @@ packages:
   /@babel/runtime@7.29.7:
     resolution: {integrity: sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw==}
     engines: {node: '>=6.9.0'}
+
+  /@babel/runtime@8.0.0:
+    resolution: {integrity: sha512-sL6cvO2IfkSu/iU+zs2S/w01B7A8V7suXSIKEN4hPFFdZoiPGxrj5pAG0lCaqLWiEIrjKzdznIWuaLcxPR53qw==}
+    dev: true
 
   /@babel/template@7.29.7:
     resolution: {integrity: sha512-puq+Gf35oI24FeN11LkoUQFqv9uwNeWpxXZi/Ji3rRIoKAzKnxRaZ+Gkj0vKS9ZCiTESfng1N9LyOyXvo+m+Gg==}
@@ -12624,7 +12628,7 @@ packages:
       react-test-renderer:
         optional: true
     dependencies:
-      '@babel/runtime': 7.28.6
+      '@babel/runtime': 7.29.7
       '@types/react': 19.2.11
       react: 19.1.0
       react-error-boundary: 3.1.4(react@19.1.0)
@@ -27143,7 +27147,7 @@ packages:
       typescript:
         optional: true
     dependencies:
-      '@babel/runtime': 7.28.6
+      '@babel/runtime': 7.29.7
       html-parse-stringify: 3.0.1
       i18next: 25.8.1(typescript@5.9.3)
       react: 19.1.0
