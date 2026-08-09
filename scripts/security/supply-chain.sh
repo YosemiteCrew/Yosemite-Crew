@@ -30,8 +30,10 @@ mkdir -p "${TOOL_DIR}" "${SBOM_DIR}" "${REPORT_DIR}"
 export PATH="${TOOL_DIR}:${PATH}"
 
 # Install an anchore tool at the exact pinned version if it is not already
-# present at that version. The anchore install script verifies the release
-# checksums before unpacking.
+# present at that version. No remote script is ever executed: the release
+# tarball is downloaded directly from the pinned GitHub release and its sha256
+# is verified against the checksums file published with that release before
+# the binary is unpacked.
 ensure_tool() {
   local name="$1" version="$2"
   if command -v "${name}" >/dev/null 2>&1; then
@@ -43,8 +45,36 @@ ensure_tool() {
     fi
   fi
   echo "installing ${name} ${version} into ${TOOL_DIR}" >&2
-  curl -sSfL "https://raw.githubusercontent.com/anchore/${name}/main/install.sh" |
-    sh -s -- -b "${TOOL_DIR}" "${version}"
+
+  local os arch ver tarball checksums tmp
+  os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+  case "$(uname -m)" in
+    x86_64) arch="amd64" ;;
+    aarch64 | arm64) arch="arm64" ;;
+    *)
+      echo "unsupported architecture: $(uname -m)" >&2
+      exit 1
+      ;;
+  esac
+  ver="${version#v}"
+  tarball="${name}_${ver}_${os}_${arch}.tar.gz"
+  checksums="${name}_${ver}_checksums.txt"
+  tmp="$(mktemp -d)"
+
+  curl -sSfL -o "${tmp}/${tarball}" \
+    "https://github.com/anchore/${name}/releases/download/${version}/${tarball}"
+  curl -sSfL -o "${tmp}/${checksums}" \
+    "https://github.com/anchore/${name}/releases/download/${version}/${checksums}"
+
+  if command -v sha256sum >/dev/null 2>&1; then
+    (cd "${tmp}" && grep " ${tarball}\$" "${checksums}" | sha256sum -c -)
+  else
+    (cd "${tmp}" && grep " ${tarball}\$" "${checksums}" | shasum -a 256 -c -)
+  fi
+
+  tar -xzf "${tmp}/${tarball}" -C "${tmp}" "${name}"
+  install -m 0755 "${tmp}/${name}" "${TOOL_DIR}/${name}"
+  rm -rf "${tmp}"
 }
 
 cmd_sbom() {

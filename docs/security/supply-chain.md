@@ -21,6 +21,10 @@ pnpm security:licenses   # grant over the SBOM - FAILS on non-allowlisted licens
 `pnpm install` must have run first: npm license metadata only exists in the
 installed packages, not in `pnpm-lock.yaml`.
 
+Tools are installed by downloading the pinned release tarball directly from
+GitHub and verifying its sha256 against the checksums file published with that
+release - no remote install script is ever executed.
+
 CI (`.github/workflows/supply-chain.yml`) runs the same
 `scripts/security/supply-chain.sh` on every PR and push to `dev`/`main`, and
 attaches both SBOMs to every published release. Tool versions (syft, grype,
