@@ -24,15 +24,14 @@ updates:
     commit-message:
       prefix: 'chore(repo)'
     ignore:
-      # react-doctor gates CI (the React Doctor score check) and is still 0.x,
-      # where semver calls every new feature release a "minor" - so it slips
-      # into the minor-and-patch group and upgrades ITSELF inside a 90-package
-      # batch, bringing new rules that fail the very PR carrying it (0.2.14 ->
-      # 0.9.5 added low-supply-chain-score, which fired on this repo's own
-      # override pins). Patches still flow; feature releases of a CI-gating
-      # tool are deliberate, reviewed upgrades.
+      # react-doctor is fully frozen for dependabot - not just minors/majors.
+      # The React Doctor CI action flags any bump of the react-doctor package
+      # itself with its low-supply-chain-score rule (even the 0.2.14 -> 0.2.16
+      # PATCH failed the gate on #2082), so every batch that touches it goes
+      # red on the tool's own judgement of itself. No update-types list means
+      # ignore ALL updates; upgrades are deliberate, manual, and reviewed
+      # together with the pinned CLI version in react-doctor.yml.
       - dependency-name: 'react-doctor'
-        update-types: ['version-update:semver-minor', 'version-update:semver-major']
     groups:
       # Every group is minor-and-patch only, including the named ones below. A
       # named group without `update-types` silently swallows MAJORS too, which is
