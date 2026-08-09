@@ -17,7 +17,11 @@
     "check:staged-secrets": "node scripts/check-staged-secrets.js",
     "check:overrides": "node scripts/ci/check-override-advisories.mjs",
     "test:scripts": "node --test \"scripts/ci/*.test.mjs\"",
-    "doctor": "pnpm exec react-doctor"
+    "doctor": "pnpm exec react-doctor",
+    "security:sbom": "./scripts/security/supply-chain.sh sbom",
+    "security:scan": "./scripts/security/supply-chain.sh scan",
+    "security:licenses": "./scripts/security/supply-chain.sh licenses",
+    "security:all": "./scripts/security/supply-chain.sh all"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",

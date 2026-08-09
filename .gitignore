@@ -162,3 +162,7 @@ chromatic.log
 chromatic-build-*.xml
 chromatic-diagnostics.json
 .jest-cache/
+
+# supply-chain tooling output (#1721) - generated SBOMs, reports, pinned tool binaries
+security/
+.security-tools/
