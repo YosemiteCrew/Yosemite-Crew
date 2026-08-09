@@ -32,6 +32,31 @@ updates:
       # ignore ALL updates; upgrades are deliberate, manual, and reviewed
       # together with the pinned CLI version in react-doctor.yml.
       - dependency-name: 'react-doctor'
+      # The React Native native cluster only ever updates by patch through
+      # dependabot. react-native is 0.x, so 0.81 -> 0.86 - five framework
+      # releases with native template changes and a moved jest environment -
+      # rode a "minor" batch (#2088) and broke type-check plus every mobile
+      # test suite; reanimated and worklets are pinned since the Android build
+      # fix (#2052); stripe-react-native and the nitro modules are 0.x native
+      # code; react-test-renderer must exactly match the react version RN pins
+      # (its 19.2.8 ride-along failed all 457 suites). RN upgrades are
+      # deliberate migrations with device builds, never weekly PRs.
+      - dependency-name: 'react-native'
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']
+      - dependency-name: '@react-native/*'
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']
+      - dependency-name: '@react-native-community/cli*'
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']
+      - dependency-name: 'react-native-reanimated'
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']
+      - dependency-name: 'react-native-worklets'
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']
+      - dependency-name: 'react-native-nitro-*'
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']
+      - dependency-name: '@stripe/stripe-react-native'
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']
+      - dependency-name: 'react-test-renderer'
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']
     groups:
       # Every group is minor-and-patch only, including the named ones below. A
       # named group without `update-types` silently swallows MAJORS too, which is
