@@ -26,7 +26,7 @@
     "@secretlint/secretlint-rule-preset-recommend": "^13.0.4",
     "aws-cdk-lib": "2.260.0",
     "constructs": "^10.6.0",
-    "eslint": "^9.33.0",
+    "eslint": "^10.8.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.3.0",
     "prettier": "^3.9.6",

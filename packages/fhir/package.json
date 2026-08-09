@@ -34,11 +34,11 @@
     "types"
   ],
   "devDependencies": {
-    "@types/node": "^22.15.21",
+    "@types/node": "^26.1.2",
     "@types/adm-zip": "^0.5.8",
     "adm-zip": "^0.6.0",
     "tar": "^7.5.22",
     "tsx": "^4.23.1",
-    "typescript": "5.0.4"
+    "typescript": "7.0.2"
   }
 }
