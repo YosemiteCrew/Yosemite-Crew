@@ -9,25 +9,49 @@ updates:
       timezone: 'UTC'
     target-branch: dev
     open-pull-requests-limit: 10
+    # Only labels that exist in the repo. Dependabot cannot create labels, so an
+    # unknown name makes it post a config error on every PR it opens instead of
+    # applying the label.
     labels:
       - dependencies
-      - automerge-candidate
     # Use a conventional type(scope) the PR-title gate accepts. A bare 'chore'
     # with include:scope yields 'chore(deps): …', and 'deps' is not an allowed
     # scope, so those PRs would fail pr-governance. 'repo' is the catch-all scope.
     commit-message:
       prefix: 'chore(repo)'
+    ignore:
+      # react-doctor gates CI (the React Doctor score check) and is still 0.x,
+      # where semver calls every new feature release a "minor" - so it slips
+      # into the minor-and-patch group and upgrades ITSELF inside a 90-package
+      # batch, bringing new rules that fail the very PR carrying it (0.2.14 ->
+      # 0.9.5 added low-supply-chain-score, which fired on this repo's own
+      # override pins). Patches still flow; feature releases of a CI-gating
+      # tool are deliberate, reviewed upgrades.
+      - dependency-name: 'react-doctor'
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']
     groups:
+      # Every group is minor-and-patch only, including the named ones below. A
+      # named group without `update-types` silently swallows MAJORS too, which is
+      # how a TypeScript 5 -> 7 bump landed inside "typescript-eslint" and a
+      # Jest 29 -> 30 bump inside "testing": each arrived as an unreviewable
+      # group PR that broke the build, instead of the individual PR a breaking
+      # major needs. Majors now always get their own PR and their own review.
       typescript-eslint:
         patterns:
           - 'typescript'
           - '@types/*'
           - 'eslint*'
           - '@typescript-eslint/*'
+        update-types:
+          - minor
+          - patch
       testing:
         patterns:
           - 'jest*'
           - '@testing-library/*'
+        update-types:
+          - minor
+          - patch
       build-tooling:
         patterns:
           - 'turbo'
@@ -35,6 +59,9 @@ updates:
           - 'prettier'
           - 'husky'
           - 'lint-staged'
+        update-types:
+          - minor
+          - patch
       # Catch-all. Must stay LAST: a dependency joins the first group it
       # matches, so an earlier '*' would swallow the named groups above.
       # Minor and patch only, so major bumps still get an individual PR
@@ -58,7 +85,7 @@ updates:
       prefix: 'ci(repo)'
     labels:
       - dependencies
-      - github-actions
+      - github_actions
     groups:
       # Action majors are routinely breaking, so keep them out of the group
       # and let each land on its own.
