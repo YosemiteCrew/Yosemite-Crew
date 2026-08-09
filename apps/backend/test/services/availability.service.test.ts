@@ -125,6 +125,39 @@ describe("AvailabilityService", () => {
       ]);
     });
 
+    it("getOrganisationBaseAvailability: should read and map rows for every user", async () => {
+      (prisma.baseAvailability.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          id: "base-2",
+          userId: "u2",
+          organisationId: "org1",
+          dayOfWeek: "WEDNESDAY",
+          slots: [{ startTime: "09:00", endTime: "12:00", isAvailable: true }],
+          createdAt: new Date("2026-03-03T00:00:00Z"),
+          updatedAt: new Date("2026-03-04T00:00:00Z"),
+        },
+      ]);
+
+      const res =
+        await AvailabilityService.getOrganisationBaseAvailability("org1");
+
+      expect(prisma.baseAvailability.findMany).toHaveBeenCalledWith({
+        where: { organisationId: "org1" },
+        orderBy: [{ userId: "asc" }, { dayOfWeek: "asc" }],
+      });
+      expect(res).toEqual([
+        {
+          _id: "base-2",
+          userId: "u2",
+          organisationId: "org1",
+          dayOfWeek: "WEDNESDAY",
+          slots: [{ startTime: "09:00", endTime: "12:00", isAvailable: true }],
+          createdAt: new Date("2026-03-03T00:00:00Z"),
+          updatedAt: new Date("2026-03-04T00:00:00Z"),
+        },
+      ]);
+    });
+
     it("deleteBaseAvailability: should delete via prisma", async () => {
       await AvailabilityService.deleteBaseAvailability("org1", "u1");
       expect(prisma.baseAvailability.deleteMany).toHaveBeenCalledWith({

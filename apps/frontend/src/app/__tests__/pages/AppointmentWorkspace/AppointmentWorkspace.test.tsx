@@ -1478,6 +1478,54 @@ describe('AppointmentWorkspace container', () => {
     expect(screen.getByText('Summary read only: true')).toBeInTheDocument();
   });
 
+  it('locks a workspace left open when the cutoff passes, without a remount', async () => {
+    jest.useFakeTimers();
+    try {
+      // Outpatient default window is 24h; open the workspace 5 minutes before
+      // the cutoff so the re-check timer is what flips the lock.
+      const start = new Date(Date.now() - (24 * 60 - 5) * 60 * 1000);
+      render(<AppointmentWorkspace appointment={makeAppointment(start)} />);
+
+      expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+
+      // Still inside the window: advancing 1 minute must not lock.
+      act(() => {
+        jest.advanceTimersByTime(60 * 1000);
+      });
+      expect(screen.getByText('SOAP read only: false')).toBeInTheDocument();
+
+      // Cross the cutoff (+ the re-check buffer): the lock engages in place.
+      act(() => {
+        jest.advanceTimersByTime(5 * 60 * 1000);
+      });
+      expect(screen.getByText('SOAP read only: true')).toBeInTheDocument();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('schedules no lock re-check when the start time is unparsable', async () => {
+    jest.useFakeTimers();
+    try {
+      const appointment = {
+        ...makeAppointment(new Date()),
+        startTime: 'not-a-date',
+      } as unknown as Appointment;
+      render(<AppointmentWorkspace appointment={appointment} />);
+
+      expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+
+      // An unparsable start can never pass the lock window, so time passing
+      // must not lock the workspace (and no re-check timer flips state).
+      act(() => {
+        jest.advanceTimersByTime(2 * 60 * 1000);
+      });
+      expect(screen.getByText('SOAP read only: false')).toBeInTheDocument();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('opens discharge date and time in a modal from the Summary control row', async () => {
     mockStepParam = 'SUMMARY';
     render(<AppointmentWorkspace appointment={makeAppointment(new Date(), true)} />);

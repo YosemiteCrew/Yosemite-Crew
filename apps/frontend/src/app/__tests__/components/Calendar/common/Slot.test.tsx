@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, createEvent, fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 
@@ -528,6 +528,14 @@ describe('Slot (Appointments)', () => {
 
     expect(screen.getByRole('menu', { name: 'Appointment context actions' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Open companion overview' })).toBeInTheDocument();
+
+    // Selecting an action fires it and closes the menu through onClose.
+    fireEvent.click(screen.getByRole('menuitem', { name: 'View appointment' }));
+
+    expect(handleViewAppointment).toHaveBeenCalledWith(event);
+    expect(
+      screen.queryByRole('menu', { name: 'Appointment context actions' })
+    ).not.toBeInTheDocument();
   });
 
   it('has no axe accessibility violations when the appointment popover is open', async () => {
@@ -815,9 +823,80 @@ describe('Slot (Appointments)', () => {
 
     const slot = screen.getByRole('region', { name: /Appointments slot for/i });
     fireEvent.dragOver(slot, { clientX: 10, clientY: 20 });
+    // relatedTarget still inside the region => the preview is kept. jsdom drops
+    // relatedTarget passed through fireEvent init, so define it on the event.
+    const leaveInside = createEvent.dragLeave(slot);
+    Object.defineProperty(leaveInside, 'relatedTarget', { value: slot });
+    fireEvent(slot, leaveInside);
+    // relatedTarget outside the region => the preview is cleared.
+    fireEvent.dragOver(slot, { clientX: 10, clientY: 20 });
+    const leaveOutside = createEvent.dragLeave(slot);
+    Object.defineProperty(leaveOutside, 'relatedTarget', { value: document.body });
+    fireEvent(slot, leaveOutside);
     // relatedTarget null => the drag left the region entirely.
+    fireEvent.dragOver(slot, { clientX: 10, clientY: 20 });
     fireEvent.dragLeave(slot, { relatedTarget: null });
 
     expect(slot).toBeInTheDocument();
+  });
+
+  it('dismisses the context menu the moment a drag starts', () => {
+    const slotProps = {
+      slotEvents: [event],
+      height: 120,
+      handleViewAppointment,
+      handleDetailAppointment,
+      handleRescheduleAppointment,
+      dayIndex: 0,
+      length: 1,
+      canEditAppointments: true,
+    };
+    const { rerender } = render(<Slot {...slotProps} />);
+
+    fireEvent.contextMenu(screen.getByRole('button', { name: /Rex/i }));
+    expect(screen.getByRole('menu', { name: 'Appointment context actions' })).toBeInTheDocument();
+
+    rerender(<Slot {...slotProps} draggedAppointmentId="appt-1" draggedAppointmentLabel="Rex" />);
+
+    expect(
+      screen.queryByRole('menu', { name: 'Appointment context actions' })
+    ).not.toBeInTheDocument();
+
+    // Drag ends - the prev-compare tracks the cleared id without dismissing anything.
+    rerender(<Slot {...slotProps} draggedAppointmentId={null} />);
+    expect(screen.getByRole('button', { name: /Rex/i })).toBeInTheDocument();
+  });
+
+  it('renders zoom-in markers via the patient fallback when companion is missing', () => {
+    const patientEvent: any = {
+      status: 'in_progress',
+      startTime: new Date('2025-01-06T09:00:00Z'),
+      endTime: new Date('2025-01-06T09:30:00Z'),
+      concern: 'Checkup',
+      lead: { name: 'Dr. Lee' },
+      appointmentType: { name: 'Exam' },
+      companion: undefined,
+      patient: { name: 'Bella', species: 'cat', parent: { name: 'Owner Smith' } },
+    };
+
+    render(
+      <Slot
+        slotEvents={[patientEvent]}
+        height={120}
+        handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        dayIndex={0}
+        length={1}
+        canEditAppointments
+      />
+    );
+
+    const marker = screen.getByRole('button', { name: /Bella/i });
+    expect(marker).toBeInTheDocument();
+
+    // Drag end on a zoom-in marker clears the drop preview via onDropPreviewClear.
+    fireEvent.dragEnd(marker);
+    expect(marker).toBeInTheDocument();
   });
 });

@@ -28,6 +28,7 @@ import {
   getInvoiceFinancialSummary,
 } from "./finance/payment";
 import { FinanceEventService } from "./finance/events";
+import { markInvoiceTreatmentItemsSettled } from "./finance/settlement";
 import { createRenderedDocumentRecord } from "./rendered-document.service";
 import { prisma } from "src/config/prisma";
 import { CatalogService, CatalogServiceError } from "./catalog.service";
@@ -1093,28 +1094,7 @@ const recordInvoicePaidState = async (invoice: PrismaInvoice, paidAt: Date) => {
       visitBillingStage: "SETTLED",
     },
   });
-  const invoiceRowIds = (Array.isArray(invoice.items) ? invoice.items : [])
-    .map((item) =>
-      typeof item === "object" &&
-      item !== null &&
-      "id" in item &&
-      typeof item.id === "string"
-        ? item.id
-        : null,
-    )
-    .filter((id): id is string => Boolean(id));
-  if (invoiceRowIds.length > 0) {
-    await prisma.workspaceTreatmentItem.updateMany({
-      where: {
-        appointmentId: invoice.appointmentId,
-        invoiceRowId: { in: invoiceRowIds },
-      },
-      data: {
-        settledInvoiceId: invoice.id,
-        settledAt: paidAt,
-      },
-    });
-  }
+  await markInvoiceTreatmentItemsSettled(invoice, invoice.id, paidAt);
 
   await recordInvoiceAuditForRow(updated, "INVOICE_PAID", updated.id, {
     status: updated.status,

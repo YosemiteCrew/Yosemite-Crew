@@ -117,17 +117,39 @@ describe('pure helpers', () => {
     expect(betaUpdater).toEqual({ channel: 'beta', allowPrerelease: true });
   });
 
-  test('honors an explicit preferred channel over env', () => {
+  test('the env override (managed control) beats a stored preference', () => {
     const updater: { channel?: string; allowPrerelease?: boolean } = {};
-    // env says beta, but the persisted preference (latest) wins.
+    // env says beta, so the persisted preference (latest) must lose.
     expect(configureUpdateChannel(updater, { [UPDATE_CHANNEL_ENV]: 'beta' }, 'latest')).toBe(
+      'beta'
+    );
+    expect(updater).toEqual({ channel: 'beta', allowPrerelease: true });
+
+    const pinnedUpdater: { channel?: string; allowPrerelease?: boolean } = {};
+    expect(configureUpdateChannel(pinnedUpdater, { [UPDATE_CHANNEL_ENV]: 'latest' }, 'beta')).toBe(
       'latest'
     );
-    expect(updater).toEqual({ channel: 'latest', allowPrerelease: false });
+    expect(pinnedUpdater).toEqual({ channel: 'latest', allowPrerelease: false });
+  });
 
-    const betaUpdater: { channel?: string; allowPrerelease?: boolean } = {};
-    expect(configureUpdateChannel(betaUpdater, {}, 'beta')).toBe('beta');
-    expect(betaUpdater).toEqual({ channel: 'beta', allowPrerelease: true });
+  test('the stored preference wins when the env var is unset', () => {
+    const updater: { channel?: string; allowPrerelease?: boolean } = {};
+    expect(configureUpdateChannel(updater, {}, 'beta')).toBe('beta');
+    expect(updater).toEqual({ channel: 'beta', allowPrerelease: true });
+
+    const latestUpdater: { channel?: string; allowPrerelease?: boolean } = {};
+    expect(configureUpdateChannel(latestUpdater, {}, 'latest', '0.1.0-beta.4')).toBe('latest');
+    expect(latestUpdater).toEqual({ channel: 'latest', allowPrerelease: false });
+  });
+
+  test('falls back to the version-derived channel when env and preference are unset', () => {
+    const betaBuild: { channel?: string; allowPrerelease?: boolean } = {};
+    expect(configureUpdateChannel(betaBuild, {}, undefined, '0.1.0-beta.4')).toBe('beta');
+    expect(betaBuild).toEqual({ channel: 'beta', allowPrerelease: true });
+
+    const stableBuild: { channel?: string; allowPrerelease?: boolean } = {};
+    expect(configureUpdateChannel(stableBuild, {}, undefined, '0.2.0')).toBe('latest');
+    expect(stableBuild).toEqual({ channel: 'latest', allowPrerelease: false });
   });
 
   test('accepts both named and default electron-updater exports', () => {
@@ -217,6 +239,21 @@ describe('initAutoUpdates', () => {
     });
     expect(updater.channel).toBe('beta');
     expect(updater.allowPrerelease).toBe(true);
+  });
+
+  test('the env override beats a stored preference during startup checks', async () => {
+    const updater = makeFakeUpdater();
+    await initAutoUpdates({
+      electron: {
+        app: { isPackaged: true, getVersion: () => '0.1.0-beta.4' },
+        dialog: { showMessageBox: () => Promise.resolve({ response: 1 }) },
+      },
+      autoUpdater: updater as never,
+      env: { [UPDATE_CHANNEL_ENV]: 'latest' },
+      preferredChannel: 'beta',
+    });
+    expect(updater.channel).toBe('latest');
+    expect(updater.allowPrerelease).toBe(false);
   });
 
   test('a stored Stable preference survives the version-derived default', async () => {
@@ -365,6 +402,21 @@ describe('checkForUpdatesManually', () => {
     });
     expect(updater.channel).toBe('beta');
     expect(updater.allowPrerelease).toBe(true);
+  });
+
+  test('the env override beats a stored preference during manual checks', async () => {
+    const updater = makeFakeUpdater();
+    await checkForUpdatesManually({
+      electron: {
+        app: { isPackaged: true, getVersion: () => '0.1.0-beta.4' },
+        dialog: { showMessageBox: () => undefined },
+      },
+      autoUpdater: updater as never,
+      env: { [UPDATE_CHANNEL_ENV]: 'latest' },
+      preferredChannel: 'beta',
+    });
+    expect(updater.channel).toBe('latest');
+    expect(updater.allowPrerelease).toBe(false);
   });
 
   test('each registered handler shows the matching dialog', async () => {

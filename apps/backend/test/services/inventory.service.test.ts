@@ -1082,4 +1082,74 @@ describe("Inventory service", () => {
       });
     });
   });
+
+  // These run last with reset mocks: earlier tests intentionally leave
+  // queued mockResolvedValueOnce values that later tests consume.
+  it("applies a status change during update", async () => {
+    (prisma.inventoryItem.findFirst as jest.Mock).mockReset();
+    (prisma.inventoryItem.update as jest.Mock).mockReset();
+    (prisma.inventoryBatch.findMany as jest.Mock).mockReset();
+    (prisma.inventoryBatch.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.inventoryItem.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "item-4",
+      organisationId: "org-1",
+      category: "Consumables",
+      businessType: "HOSPITAL",
+      itemType: "NON_MEDICAL",
+    });
+    (prisma.inventoryItem.update as jest.Mock).mockResolvedValueOnce({
+      id: "item-4",
+      organisationId: "org-1",
+      status: "HIDDEN",
+    });
+
+    const result = await InventoryService.updateItem(
+      "item-4",
+      {
+        status: "HIDDEN",
+      },
+      "org-1",
+    );
+
+    expect(prisma.inventoryItem.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "HIDDEN",
+        }),
+      }),
+    );
+    expect(result.item.status).toBe("HIDDEN");
+  });
+
+  it("translates business, category, and search filters into the prisma where clause", async () => {
+    (prisma.inventoryItem.findMany as jest.Mock).mockReset();
+    (prisma.inventoryBatch.findMany as jest.Mock).mockReset();
+    (prisma.inventoryItem.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.inventoryBatch.findMany as jest.Mock).mockResolvedValue([]);
+
+    const result = await InventoryService.listItems({
+      organisationId: "org-1",
+      businessType: "HOSPITAL",
+      category: "Consumables",
+      subCategory: "Bandages",
+      search: "band",
+    } as never);
+
+    expect(prisma.inventoryItem.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organisationId: "org-1",
+          businessType: "HOSPITAL",
+          category: "Consumables",
+          subCategory: "Bandages",
+          OR: [
+            { name: { contains: "band", mode: "insensitive" } },
+            { sku: { contains: "band", mode: "insensitive" } },
+            { description: { contains: "band", mode: "insensitive" } },
+          ],
+        }),
+      }),
+    );
+    expect(result).toEqual([]);
+  });
 });

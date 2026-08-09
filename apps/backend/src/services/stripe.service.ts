@@ -76,6 +76,41 @@ const resolveCapturedAmount = (
   return capturedMinorUnits / 100;
 };
 
+const settleAppointmentBookingInvoice = async (params: {
+  invoiceId: string;
+  appointmentId: string;
+  pi: Stripe.PaymentIntent;
+  charge: Stripe.Charge;
+  connectedAccountId?: string;
+}) => {
+  const { invoiceId, appointmentId, pi, charge, connectedAccountId } = params;
+
+  await FinancePaymentService.handleInvoicePaymentIntentSucceeded({
+    invoiceId,
+    paymentIntentId: pi.id,
+    chargeId: charge.id,
+    receiptUrl: charge.receipt_url ?? null,
+    currency: pi.currency ?? null,
+    amount: resolveCapturedAmount(pi, charge),
+    connectedAccountId: connectedAccountId ?? null,
+    allowUnboundAttempt: true,
+    rawProviderPayload: {
+      paymentIntentId: pi.id,
+      chargeId: charge.id,
+      source: "stripe._handleAppointmentBookingPayment",
+    },
+  });
+
+  await prisma.appointment.updateMany({
+    where: { id: appointmentId },
+    data: {
+      status: "REQUESTED",
+      updatedAt: new Date(),
+      expiresAt: null,
+    },
+  });
+};
+
 export const StripeService = {
   // ----------------------------
   // CONNECT (existing + improved)
@@ -657,29 +692,12 @@ export const StripeService = {
         ...(connectedAccountId ? { stripeAccount: connectedAccountId } : {}),
       });
 
-      await FinancePaymentService.handleInvoicePaymentIntentSucceeded({
+      await settleAppointmentBookingInvoice({
         invoiceId: openInvoice.id,
-        paymentIntentId: pi.id,
-        chargeId: charge.id,
-        receiptUrl: charge.receipt_url ?? null,
-        currency: pi.currency ?? null,
-        amount: resolveCapturedAmount(pi, charge),
-        connectedAccountId: connectedAccountId ?? null,
-        allowUnboundAttempt: true,
-        rawProviderPayload: {
-          paymentIntentId: pi.id,
-          chargeId: charge.id,
-          source: "stripe._handleAppointmentBookingPayment",
-        },
-      });
-
-      await prisma.appointment.updateMany({
-        where: { id: appointmentId },
-        data: {
-          status: "REQUESTED",
-          updatedAt: new Date(),
-          expiresAt: null,
-        },
+        appointmentId,
+        pi,
+        charge,
+        connectedAccountId,
       });
 
       logger.info(
@@ -732,29 +750,12 @@ export const StripeService = {
       },
     });
 
-    await FinancePaymentService.handleInvoicePaymentIntentSucceeded({
+    await settleAppointmentBookingInvoice({
       invoiceId: createdInvoice.id,
-      paymentIntentId: pi.id,
-      chargeId: charge.id,
-      receiptUrl: charge.receipt_url ?? null,
-      currency: pi.currency ?? null,
-      amount: resolveCapturedAmount(pi, charge),
-      connectedAccountId: connectedAccountId ?? null,
-      allowUnboundAttempt: true,
-      rawProviderPayload: {
-        paymentIntentId: pi.id,
-        chargeId: charge.id,
-        source: "stripe._handleAppointmentBookingPayment",
-      },
-    });
-
-    await prisma.appointment.updateMany({
-      where: { id: appointmentId },
-      data: {
-        status: "REQUESTED",
-        updatedAt: new Date(),
-        expiresAt: null,
-      },
+      appointmentId,
+      pi,
+      charge,
+      connectedAccountId,
     });
 
     logger.info(`Appointment ${appointmentId} booking PAID. Invoice created`);

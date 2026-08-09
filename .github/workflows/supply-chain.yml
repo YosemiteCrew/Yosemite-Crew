@@ -24,6 +24,16 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: >-
+          Attach SBOMs to an existing release with this tag (for releases
+          published via GITHUB_TOKEN that emit no release event). Run the
+          dispatch from the tag ref so the SBOM is built from the released
+          code.
+        type: string
+        required: false
+        default: ''
 
 concurrency:
   group: supply-chain-${{ github.event.pull_request.number || github.ref }}
@@ -131,17 +141,35 @@ jobs:
 
   publish-release-sboms:
     name: Attach SBOMs to the release
-    # Only the release event carries a release to attach assets to. Tag pushes
-    # from workflows publishing via GITHUB_TOKEN still get gated + archived
-    # SBOMs through the jobs above; attaching those is a manual rerun of this
-    # workflow from the release once it exists.
-    if: github.event_name == 'release'
+    # The release event carries the target tag itself. Releases published by
+    # workflows using GITHUB_TOKEN (desktop-release, release-notes) emit no
+    # release event, so those are covered by a workflow_dispatch run with
+    # release_tag set - dispatched FROM THE TAG REF, so the sbom job above
+    # builds from the released code and the assets match the release.
+    if: >-
+      github.event_name == 'release' ||
+      (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [sbom]
     permissions:
       contents: write
     steps:
+      - name: Ensure the dispatched ref is the release tag
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          REF: ${{ github.ref }}
+          TAG: ${{ inputs.release_tag }}
+        run: |
+          # The sbom job builds from the DISPATCHED ref while TAG names an
+          # existing release, and `gh release upload --clobber` replaces that
+          # release's assets - so a dispatch from any other ref would swap the
+          # release's SBOMs for ones built from different code. Fail closed.
+          if [ "${REF}" != "refs/tags/${TAG}" ]; then
+            echo "dispatch ref ${REF} does not match refs/tags/${TAG} - run this workflow FROM the release tag so the uploaded SBOMs describe the released code" >&2
+            exit 1
+          fi
+
       - name: Download the gated SBOM artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -151,7 +179,7 @@ jobs:
       - name: Upload SBOMs as release assets
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.event.release.tag_name }}
+          TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
           REPO: ${{ github.repository }}
         run: |
           gh release upload "$TAG" \
