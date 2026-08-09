@@ -26,7 +26,11 @@ export interface DesktopSettings {
 }
 
 export const DEFAULT_SETTINGS: DesktopSettings = {
-  updateChannel: 'latest',
+  // The desktop app currently ships only `-beta.N` builds, and the beta channel is a
+  // superset: electron-updater's prerelease path also picks up stable releases, so a
+  // beta default never misses one. Defaulting to `latest` instead resolves the
+  // repo-wide "latest release", which in this monorepo is usually another product.
+  updateChannel: 'beta',
   idleLockMinutes: 0,
   telemetryOptIn: false,
   theme: 'system',

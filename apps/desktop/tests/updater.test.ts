@@ -4,6 +4,8 @@ import {
   configureUpdateChannel,
   shouldCheckForUpdates,
   updateChannelFromEnv,
+  updateChannelOverrideFromEnv,
+  updateChannelForVersion,
   updateDownloadedDialog,
   manualResultDialog,
   initAutoUpdates,
@@ -64,6 +66,42 @@ describe('pure helpers', () => {
     expect(updateChannelFromEnv({ [UPDATE_CHANNEL_ENV]: 'latest' })).toBe('latest');
     expect(updateChannelFromEnv({ [UPDATE_CHANNEL_ENV]: 'stable' })).toBe('latest');
     expect(updateChannelFromEnv({ [UPDATE_CHANNEL_ENV]: 'BETA' })).toBe('beta');
+  });
+
+  test('distinguishes an unset channel env var from an explicit one', () => {
+    expect(updateChannelOverrideFromEnv({})).toBeNull();
+    expect(updateChannelOverrideFromEnv({ [UPDATE_CHANNEL_ENV]: '' })).toBeNull();
+    expect(updateChannelOverrideFromEnv({ [UPDATE_CHANNEL_ENV]: '   ' })).toBeNull();
+    expect(updateChannelOverrideFromEnv({ [UPDATE_CHANNEL_ENV]: 'latest' })).toBe('latest');
+    expect(updateChannelOverrideFromEnv({ [UPDATE_CHANNEL_ENV]: 'BETA' })).toBe('beta');
+  });
+
+  test('derives the channel from a -beta build version', () => {
+    expect(updateChannelForVersion('0.1.0-beta.4')).toBe('beta');
+    expect(updateChannelForVersion('1.2.3-beta')).toBe('beta');
+    expect(updateChannelForVersion('  0.1.0-BETA.1  ')).toBe('beta');
+    expect(updateChannelForVersion('0.2.0')).toBe('latest');
+    expect(updateChannelForVersion('0.2.0-rc.1')).toBe('latest');
+    expect(updateChannelForVersion('')).toBe('latest');
+    expect(updateChannelForVersion(undefined)).toBe('latest');
+  });
+
+  test('a beta build defaults to the beta channel when nothing else specifies one', () => {
+    const updater: { channel?: string; allowPrerelease?: boolean } = {};
+    expect(configureUpdateChannel(updater, {}, undefined, '0.1.0-beta.4')).toBe('beta');
+    expect(updater).toEqual({ channel: 'beta', allowPrerelease: true });
+
+    // An explicit env var still overrides the version-derived default.
+    const pinned: { channel?: string; allowPrerelease?: boolean } = {};
+    expect(
+      configureUpdateChannel(pinned, { [UPDATE_CHANNEL_ENV]: 'latest' }, undefined, '0.1.0-beta.4')
+    ).toBe('latest');
+    expect(pinned).toEqual({ channel: 'latest', allowPrerelease: false });
+
+    // As does a stored preference.
+    const preferred: { channel?: string; allowPrerelease?: boolean } = {};
+    expect(configureUpdateChannel(preferred, {}, 'latest', '0.1.0-beta.4')).toBe('latest');
+    expect(preferred).toEqual({ channel: 'latest', allowPrerelease: false });
   });
 
   test('configures the updater channel and prerelease flag', () => {
@@ -165,6 +203,49 @@ describe('initAutoUpdates', () => {
     });
     expect(updater.channel).toBe('beta');
     expect(updater.allowPrerelease).toBe(true);
+  });
+
+  test('a packaged beta build checks the beta channel without any env or preference', async () => {
+    const updater = makeFakeUpdater();
+    await initAutoUpdates({
+      electron: {
+        app: { isPackaged: true, getVersion: () => '0.1.0-beta.4' },
+        dialog: { showMessageBox: () => Promise.resolve({ response: 1 }) },
+      },
+      autoUpdater: updater as never,
+      env: {},
+    });
+    expect(updater.channel).toBe('beta');
+    expect(updater.allowPrerelease).toBe(true);
+  });
+
+  test('a stored Stable preference survives the version-derived default', async () => {
+    const updater = makeFakeUpdater();
+    await initAutoUpdates({
+      electron: {
+        app: { isPackaged: true, getVersion: () => '0.1.0-beta.4' },
+        dialog: { showMessageBox: () => Promise.resolve({ response: 1 }) },
+      },
+      autoUpdater: updater as never,
+      env: {},
+      preferredChannel: 'latest',
+    });
+    expect(updater.channel).toBe('latest');
+    expect(updater.allowPrerelease).toBe(false);
+  });
+
+  test('a packaged stable build stays on the latest channel', async () => {
+    const updater = makeFakeUpdater();
+    await initAutoUpdates({
+      electron: {
+        app: { isPackaged: true, getVersion: () => '0.2.0' },
+        dialog: { showMessageBox: () => Promise.resolve({ response: 1 }) },
+      },
+      autoUpdater: updater as never,
+      env: {},
+    });
+    expect(updater.channel).toBe('latest');
+    expect(updater.allowPrerelease).toBe(false);
   });
 
   test('restart prompt installs the update when the user accepts', async () => {

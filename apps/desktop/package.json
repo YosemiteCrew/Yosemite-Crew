@@ -1,6 +1,6 @@
 {
   "name": "@yosemite-crew/desktop",
-  "version": "0.1.0-beta.1",
+  "version": "0.1.0-beta.4",
   "private": true,
   "description": "Desktop shell for Yosemite Crew PIMS — Windows, macOS, Linux.",
   "author": "Yosemite Crew",
@@ -52,7 +52,6 @@
     "appId": "com.yosemitecrew.pims",
     "productName": "Yosemite Crew PIMS",
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
-    "generateUpdatesFilesForAllChannels": true,
     "asar": true,
     "asarUnpack": [
       "**/node_modules/sql.js/dist/*.wasm"
@@ -71,7 +70,8 @@
       {
         "provider": "github",
         "owner": "YosemiteCrew",
-        "repo": "Yosemite-Crew"
+        "repo": "Yosemite-Crew",
+        "releaseType": "draft"
       }
     ],
     "directories": {
