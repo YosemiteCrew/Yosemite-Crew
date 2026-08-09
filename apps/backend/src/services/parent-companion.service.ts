@@ -188,6 +188,62 @@ const asRecord = (doc: {
   updatedAt: Date;
 }): ParentPatientRecord => doc;
 
+const promoteLinkToPrimary = (
+  target: Pick<ParentPatientRecord, "id" | "acceptedAt">,
+  normalizedPatientId: string,
+  normalizedTargetParentId: string,
+  permissionsOverride?: Partial<ParentCompanionPermissions>,
+) =>
+  prisma.$transaction(async (tx) => {
+    const existingPrimary = await tx.parentPatient.findFirst({
+      where: {
+        patientId: normalizedPatientId,
+        role: "PRIMARY",
+        status: "ACTIVE",
+        parentId: { not: normalizedTargetParentId },
+      },
+      select: { id: true },
+    });
+
+    if (existingPrimary) {
+      await tx.parentPatient.update({
+        where: { id: existingPrimary.id },
+        data: {
+          role: "CO_PARENT",
+          permissions: {
+            ...BASE_PERMISSIONS,
+            assignAsPrimaryParent: false,
+          },
+        },
+      });
+    }
+
+    return tx.parentPatient.update({
+      where: { id: target.id },
+      data: {
+        role: "PRIMARY",
+        status: "ACTIVE",
+        permissions: buildPermissions(
+          "PRIMARY",
+          permissionsOverride,
+        ) as unknown as Prisma.InputJsonValue,
+        acceptedAt: target.acceptedAt ?? new Date(),
+      },
+      select: {
+        id: true,
+        parentId: true,
+        patientId: true,
+        role: true,
+        status: true,
+        permissions: true,
+        invitedByParentId: true,
+        acceptedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  });
+
 export const ParentCompanionService = {
   async linkParent({
     parentId,
@@ -375,55 +431,12 @@ export const ParentCompanionService = {
     const wantsPrimary = updates.assignAsPrimaryParent === true;
 
     if (wantsPrimary && !isCurrentlyPrimary) {
-      const promoted = await prisma.$transaction(async (tx) => {
-        const existingPrimary = await tx.parentPatient.findFirst({
-          where: {
-            patientId: normalizedPatientId,
-            role: "PRIMARY",
-            status: "ACTIVE",
-            parentId: { not: normalizedTargetParentId },
-          },
-          select: { id: true },
-        });
-
-        if (existingPrimary) {
-          await tx.parentPatient.update({
-            where: { id: existingPrimary.id },
-            data: {
-              role: "CO_PARENT",
-              permissions: {
-                ...BASE_PERMISSIONS,
-                assignAsPrimaryParent: false,
-              },
-            },
-          });
-        }
-
-        return tx.parentPatient.update({
-          where: { id: target.id },
-          data: {
-            role: "PRIMARY",
-            status: "ACTIVE",
-            permissions: buildPermissions(
-              "PRIMARY",
-              updates,
-            ) as unknown as Prisma.InputJsonValue,
-            acceptedAt: target.acceptedAt ?? new Date(),
-          },
-          select: {
-            id: true,
-            parentId: true,
-            patientId: true,
-            role: true,
-            status: true,
-            permissions: true,
-            invitedByParentId: true,
-            acceptedAt: true,
-            createdAt: true,
-            updatedAt: true,
-          },
-        });
-      });
+      const promoted = await promoteLinkToPrimary(
+        target,
+        normalizedPatientId,
+        normalizedTargetParentId,
+        updates,
+      );
 
       return loadLinkWithParent(asRecord(promoted));
     }
@@ -505,55 +518,12 @@ export const ParentCompanionService = {
       throw new ParentCompanionServiceError("Co-parent link not found.", 404);
     }
 
-    const promoted = await prisma.$transaction(async (tx) => {
-      const existingPrimary = await tx.parentPatient.findFirst({
-        where: {
-          patientId: normalizedPatientId,
-          role: "PRIMARY",
-          status: "ACTIVE",
-          parentId: { not: normalizedTargetParentId },
-        },
-        select: { id: true },
-      });
-
-      if (existingPrimary) {
-        await tx.parentPatient.update({
-          where: { id: existingPrimary.id },
-          data: {
-            role: "CO_PARENT",
-            permissions: {
-              ...BASE_PERMISSIONS,
-              assignAsPrimaryParent: false,
-            },
-          },
-        });
-      }
-
-      return tx.parentPatient.update({
-        where: { id: target.id },
-        data: {
-          role: "PRIMARY",
-          status: "ACTIVE",
-          permissions: buildPermissions(
-            "PRIMARY",
-            permissionsOverride,
-          ) as unknown as Prisma.InputJsonValue,
-          acceptedAt: target.acceptedAt ?? new Date(),
-        },
-        select: {
-          id: true,
-          parentId: true,
-          patientId: true,
-          role: true,
-          status: true,
-          permissions: true,
-          invitedByParentId: true,
-          acceptedAt: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-      });
-    });
+    const promoted = await promoteLinkToPrimary(
+      target,
+      normalizedPatientId,
+      normalizedTargetParentId,
+      permissionsOverride,
+    );
 
     return loadLinkWithParent(asRecord(promoted));
   },

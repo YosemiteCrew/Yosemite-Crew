@@ -507,6 +507,26 @@ describe("CompanionService", () => {
     await expect(CompanionService.getById("")).resolves.toBeNull();
   });
 
+  it("returns null when no companion matches the id", async () => {
+    mockedPrisma.patient.findUnique.mockResolvedValueOnce(null);
+
+    await expect(CompanionService.getById("missing-1")).resolves.toBeNull();
+    expect(mockedPrisma.patient.findUnique).toHaveBeenCalledWith({
+      where: { id: "missing-1" },
+    });
+  });
+
+  it("returns a mapped companion by id", async () => {
+    mockedPrisma.patient.findUnique.mockResolvedValueOnce(createdPatient);
+
+    const result = await CompanionService.getById("patient-1");
+
+    expect(mockedPrisma.patient.findUnique).toHaveBeenCalledWith({
+      where: { id: "patient-1" },
+    });
+    expect(result?.response).toMatchObject({ id: "patient-1" });
+  });
+
   it("rejects blank search terms", async () => {
     await expect(CompanionService.getByName("   ")).rejects.toEqual(
       expect.objectContaining({

@@ -300,6 +300,84 @@ describe("FormService", () => {
       expect(prisma.formField.createMany).toHaveBeenCalled();
       expect(anyRes.createdBy).toBe("John Doe");
     });
+
+    it("maps known businessType and requiredSigner values to prisma enums", async () => {
+      const req: any = {
+        name: "Form B",
+        category: "Cat",
+        visibilityType: "Internal",
+        businessType: "HOSPITAL",
+        requiredSigner: "CLIENT",
+        schema: [],
+      };
+
+      (prisma.form.create as jest.Mock).mockResolvedValue({
+        id: "form-2",
+        orgId: validId,
+        businessType: "HOSPITAL",
+        name: "Form B",
+        category: "Cat",
+        description: null,
+        visibilityType: "Internal",
+        serviceId: [],
+        speciesFilter: [],
+        requiredSigner: "CLIENT",
+        status: "draft",
+        schema: [],
+        createdBy: "u1",
+        updatedBy: "u1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      await FormService.create(validId, req, "u1");
+
+      expect(prisma.form.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            businessType: "HOSPITAL",
+            requiredSigner: "CLIENT",
+          }),
+        }),
+      );
+    });
+
+    it("drops businessType and requiredSigner values outside the prisma enums", async () => {
+      const req: any = {
+        name: "Form C",
+        category: "Cat",
+        visibilityType: "Internal",
+        businessType: "FOOD_TRUCK",
+        requiredSigner: "ACCOUNTANT",
+        schema: [],
+      };
+
+      (prisma.form.create as jest.Mock).mockResolvedValue({
+        id: "form-3",
+        orgId: validId,
+        businessType: null,
+        name: "Form C",
+        category: "Cat",
+        description: null,
+        visibilityType: "Internal",
+        serviceId: [],
+        speciesFilter: [],
+        requiredSigner: null,
+        status: "draft",
+        schema: [],
+        createdBy: "u1",
+        updatedBy: "u1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      await FormService.create(validId, req, "u1");
+
+      const createArgs = (prisma.form.create as jest.Mock).mock
+        .calls[0][0] as any;
+      expect(createArgs.data.businessType).toBeUndefined();
+      expect(createArgs.data.requiredSigner).toBeUndefined();
+    });
   });
 
   describe("getFormForAdmin", () => {

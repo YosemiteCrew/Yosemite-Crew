@@ -1016,6 +1016,138 @@ describe("ClinicalArtifactService", () => {
     ).not.toHaveProperty("medications");
   });
 
+  it("normalizes primitive prescription entries into medication-only line items", async () => {
+    mockedPrisma.clinicalArtifact.create.mockResolvedValueOnce({
+      id: artifactId,
+      organisationId,
+      kind: "PRESCRIPTION",
+      status: "DRAFT",
+      appointmentId: "appt-1",
+      caseId: null,
+      encounterId: "enc-1",
+      templateId: "tmpl-2",
+      templateVersion: 4,
+      templateVersionId: "tmpl-ver-2",
+      authorId: "author-1",
+      signedBy: null,
+      signedAt: null,
+      summary: "Rx summary",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+    mockedPrisma.prescription.create.mockResolvedValueOnce({
+      id: "prescription-primitive-1",
+      artifactId,
+      medications: null,
+      items: [
+        {
+          id: "line-primitive-1",
+          prescriptionId: "prescription-primitive-1",
+          sourceLineKey: null,
+          medication: "Amoxicillin 250mg",
+          strength: null,
+          dosage: null,
+          route: null,
+          frequency: null,
+          duration: null,
+          quantity: null,
+          instructions: null,
+          refill: null,
+          inventoryItemId: null,
+          inventoryItemSku: null,
+          batchId: null,
+          batchNumber: null,
+          lotNumber: null,
+          expiryDate: null,
+          metadata: null,
+          sortOrder: 0,
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+        },
+      ],
+      instructions: null,
+      notes: null,
+      metadata: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+    mockedPrisma.renderedDocument.create.mockResolvedValueOnce({
+      id: "doc-5",
+      organisationId,
+      sourceKind: "CLINICAL_ARTIFACT",
+      sourceId: artifactId,
+      templateInstanceId: null,
+      clinicalArtifactId: artifactId,
+      templateId: "tmpl-2",
+      templateVersion: 4,
+      templateVersionId: "tmpl-ver-2",
+      kind: "PRESCRIPTION",
+      version: 1,
+      title: "Prescription",
+      mimeType: "application/pdf",
+      status: "DRAFT",
+      signable: true,
+      pdfUrl: null,
+      pdf: null,
+      signedBy: null,
+      signedAt: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      signature: null,
+    });
+    mockClinicalRenderedDocumentPersistence({
+      id: "doc-5",
+      kind: "PRESCRIPTION",
+      title: "Prescription",
+      templateId: "tmpl-2",
+      templateVersion: 4,
+      templateVersionId: "tmpl-ver-2",
+    });
+
+    await ClinicalArtifactService.createPrescription({
+      organisationId,
+      appointmentId: "appt-1",
+      encounterId: "enc-1",
+      templateId: "tmpl-2",
+      templateVersion: 4,
+      templateVersionId: "tmpl-ver-2",
+      authorId: "author-1",
+      summary: "Rx summary",
+      medications: [
+        "Amoxicillin 250mg",
+        {
+          sourceLineKey: "line-record",
+          medication: "Drug C",
+          dosage: "1 tablet",
+        },
+      ] as never,
+      instructions: null,
+      notes: null,
+      metadata: null,
+    });
+
+    expect(mockedPrisma.prescription.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          items: {
+            create: [
+              expect.objectContaining({
+                medication: "Amoxicillin 250mg",
+                sortOrder: 0,
+              }),
+              expect.objectContaining({
+                medication: "Drug C",
+                sourceLineKey: "line-record",
+                dosage: "1 tablet",
+                sortOrder: 1,
+              }),
+            ],
+          },
+        }),
+      }),
+    );
+  });
+
   it("marks the dispense request not dispensed when a signed prescription is voided", async () => {
     const signedMedications = [
       { inventoryItemId: "item-1", quantity: 2, sourceLineKey: "line-1" },
@@ -1586,6 +1718,95 @@ describe("ClinicalArtifactService", () => {
           kind: "VITAL_RECORD",
           title: "Vital record",
           clinicalArtifactId: artifactId,
+        }),
+      }),
+    );
+    expect(result.artifact.kind).toBe("VITAL_RECORD");
+  });
+
+  it("defaults vital record vitals to an empty object when none are provided", async () => {
+    mockedPrisma.clinicalArtifact.create.mockResolvedValueOnce({
+      id: artifactId,
+      organisationId,
+      kind: "VITAL_RECORD",
+      status: "DRAFT",
+      appointmentId: "appt-1",
+      caseId: null,
+      encounterId: "enc-1",
+      templateId: "tmpl-4",
+      templateVersion: 6,
+      templateVersionId: "tmpl-ver-4",
+      authorId: "author-1",
+      signedBy: null,
+      signedAt: null,
+      summary: "Vitals summary",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+    mockedPrisma.vitalRecord.create.mockResolvedValueOnce({
+      id: "vital-2",
+      artifactId,
+      measuredAt: new Date("2026-01-01T00:00:00.000Z"),
+      recordedBy: "author-1",
+      vitals: {},
+      notes: null,
+      metadata: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+    mockedPrisma.renderedDocument.create.mockResolvedValueOnce({
+      id: "doc-6",
+      organisationId,
+      sourceKind: "CLINICAL_ARTIFACT",
+      sourceId: artifactId,
+      templateInstanceId: null,
+      clinicalArtifactId: artifactId,
+      templateId: "tmpl-4",
+      templateVersion: 6,
+      templateVersionId: "tmpl-ver-4",
+      kind: "VITAL_RECORD",
+      version: 1,
+      title: "Vital record",
+      mimeType: "application/pdf",
+      status: "DRAFT",
+      signable: true,
+      pdfUrl: null,
+      pdf: null,
+      signedBy: null,
+      signedAt: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      signature: null,
+    });
+    mockClinicalRenderedDocumentPersistence({
+      id: "doc-6",
+      kind: "VITAL_RECORD",
+      title: "Vital record",
+      templateId: "tmpl-4",
+      templateVersion: 6,
+      templateVersionId: "tmpl-ver-4",
+    });
+
+    const result = await ClinicalArtifactService.createVitalRecord({
+      organisationId,
+      appointmentId: "appt-1",
+      encounterId: "enc-1",
+      templateId: "tmpl-4",
+      templateVersion: 6,
+      templateVersionId: "tmpl-ver-4",
+      authorId: "author-1",
+      summary: "Vitals summary",
+      measuredAt: "2026-01-01T00:00:00.000Z",
+      recordedBy: "author-1",
+      vitals: null,
+      notes: null,
+      metadata: null,
+    });
+
+    expect(mockedPrisma.vitalRecord.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          vitals: {},
         }),
       }),
     );
