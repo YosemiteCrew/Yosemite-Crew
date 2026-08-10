@@ -459,25 +459,36 @@ const useSummaryStepContent = ({
   // signing state stay in sync without a full page reload.
   const refreshDocuments = useCallback(async () => {
     if (!organisationId) return;
-    try {
-      // The encounter id is the preferred scope, but an appointment whose visit
-      // has not been checked in yet has no encounter at all. Its documents are
-      // still readable by appointment, so fall back to the appointment-scoped
-      // read-model instead of silently rendering an empty "no documents" state.
-      const rows = await (encounterId
+    // The encounter id is the preferred scope, but an appointment whose visit
+    // has not been checked in yet has no encounter at all. Its documents are
+    // still readable by appointment, so fall back to the appointment-scoped
+    // read-model instead of silently rendering an empty "no documents" state.
+    await (
+      encounterId
         ? listEncounterWorkspaceDocuments(organisationId, encounterId)
-        : listAppointmentWorkspaceDocuments(organisationId, appointmentId));
-      setDocuments(rows);
-      setDocumentsError(null);
-    } catch (error) {
-      console.error('Unable to load documents:', error);
-      setDocumentsError('Unable to load documents.');
-    }
+        : listAppointmentWorkspaceDocuments(organisationId, appointmentId)
+    )
+      .then((rows) => {
+        setDocuments(rows);
+        setDocumentsError(null);
+      })
+      .catch((error) => {
+        console.error('Unable to load documents:', error);
+        setDocumentsError('Unable to load documents.');
+      });
   }, [organisationId, encounterId, appointmentId]);
 
   useEffect(() => {
     void refreshDocuments();
   }, [refreshDocuments]);
+
+  // The signing overlay has no completion callback, so treat closing it after a
+  // sign was started as the signal to refetch (the Documenso webhook has run
+  // server-side by then).
+  const signingInitiatedRef = useRef(false);
+  // The packet being signed, captured when signing starts so the post-close
+  // reconcile can pull server-side signing truth from Documenso directly.
+  const signingPacketIdRef = useRef<string | null>(null);
 
   // After a signing session closes, pull server truth so the documents list,
   // discharge artifact status, and finalization gate (ready-for-discharge /
@@ -510,13 +521,6 @@ const useSummaryStepContent = ({
     await refreshDocuments();
   }, [organisationId, appointmentId, mergeEncounterData, refreshDocuments]);
 
-  // The signing overlay has no completion callback, so treat closing it after a
-  // sign was started as the signal to refetch (the Documenso webhook has run
-  // server-side by then).
-  const signingInitiatedRef = useRef(false);
-  // The packet being signed, captured when signing starts so the post-close
-  // reconcile can pull server-side signing truth from Documenso directly.
-  const signingPacketIdRef = useRef<string | null>(null);
   const resolvedDischargeEncounterRef = useRef<string | null>(null);
   const dischargeResolveKey = encounterId ?? appointmentId;
   const companionId = appointment?.patient?.id;

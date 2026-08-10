@@ -166,9 +166,9 @@ const ChangeStatus = ({
   const [availableVetIds, setAvailableVetIds] = React.useState<string[] | null>(null);
   const [isLoadingAvailability, setIsLoadingAvailability] = React.useState(shouldLoadAvailability);
   const availabilityKey = `${showModal ? 'open' : 'closed'}:${currentStatus}:${serviceId}:${activeAppointment.startTime}`;
-  const previousAvailabilityKeyRef = React.useRef(availabilityKey);
-  if (previousAvailabilityKeyRef.current !== availabilityKey) {
-    previousAvailabilityKeyRef.current = availabilityKey;
+  const [previousAvailabilityKey, setPreviousAvailabilityKey] = React.useState(availabilityKey);
+  if (previousAvailabilityKey !== availabilityKey) {
+    setPreviousAvailabilityKey(availabilityKey);
     setAvailableVetIds(null);
     setIsLoadingAvailability(shouldLoadAvailability);
   }

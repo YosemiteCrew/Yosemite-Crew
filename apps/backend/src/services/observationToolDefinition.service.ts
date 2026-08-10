@@ -90,7 +90,7 @@ export const ObservationToolDefinitionService = {
           required: f.required ?? false,
           options: f.options,
           scoring: f.scoring,
-        })) as unknown as Prisma.InputJsonValue,
+        })),
         scoringRules: (input.scoringRules ??
           undefined) as unknown as Prisma.InputJsonValue,
         isActive: true,

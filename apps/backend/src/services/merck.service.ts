@@ -410,16 +410,12 @@ const normalizeFromFeedObject = (
   const feed = (payload as { feed?: Record<string, unknown> })?.feed ?? {};
   const entryNodes = ensureArray(
     (feed as { entry?: unknown }).entry as
-      | Array<Record<string, unknown>>
-      | Record<string, unknown>
-      | undefined,
+      Array<Record<string, unknown>> | Record<string, unknown> | undefined,
   );
 
   const categories = ensureArray(
     (feed as { category?: unknown }).category as
-      | Array<Record<string, string>>
-      | Record<string, string>
-      | undefined,
+      Array<Record<string, string>> | Record<string, string> | undefined,
   );
   const recipient = categories.find(
     (category) =>
@@ -568,7 +564,7 @@ const normalizeFromXml = (
           label: link.label,
           url: applyMediaMode(link.url, params.media),
         })),
-      } as MerckEntry;
+      };
     })
     .filter((entry): entry is MerckEntry => entry != null);
 

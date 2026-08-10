@@ -4,6 +4,7 @@ import type {
 } from "../models/base-availability";
 import type { UserAvailability, DayOfWeek } from "@yosemite-crew/types";
 import { prisma } from "src/config/prisma";
+import { pruneUndefined } from "src/utils/prune-undefined";
 import { Prisma } from "@prisma/client";
 
 export class BaseAvailabilityServiceError extends Error {
@@ -168,47 +169,6 @@ const sanitizeAvailabilityEntry = (
     dayOfWeek: dayOfWeekValue as DayOfWeek,
     slots,
   };
-};
-
-const pruneArrayUndefined = (arrayValue: unknown[]): void => {
-  for (let index = arrayValue.length - 1; index >= 0; index -= 1) {
-    const next = pruneUndefined(arrayValue[index]);
-
-    if (next === undefined) {
-      arrayValue.splice(index, 1);
-    } else {
-      arrayValue[index] = next;
-    }
-  }
-};
-
-const pruneRecordUndefined = (record: UnknownRecord): void => {
-  for (const key of Object.keys(record)) {
-    const next = pruneUndefined(record[key]);
-
-    if (next === undefined) {
-      delete record[key];
-    } else {
-      record[key] = next;
-    }
-  }
-};
-
-const isPlainObject = (value: unknown): value is UnknownRecord =>
-  Boolean(value) && typeof value === "object" && !(value instanceof Date);
-
-const pruneUndefined = <T>(value: T): T => {
-  if (Array.isArray(value)) {
-    pruneArrayUndefined(value as unknown[]);
-    return value;
-  }
-
-  if (isPlainObject(value)) {
-    pruneRecordUndefined(value);
-    return value;
-  }
-
-  return value;
 };
 
 const buildDomainAvailabilityFromPrisma = (row: {

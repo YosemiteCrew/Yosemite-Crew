@@ -193,8 +193,7 @@ export const TaskLibraryService = {
         category: input.category,
         name: safeName,
         defaultDescription: input.defaultDescription ?? undefined,
-        applicableSpecies: (input.applicableSpecies ??
-          []) as unknown as TaskLibrarySpecies[],
+        applicableSpecies: input.applicableSpecies ?? [],
         schema: toJsonInput({
           medicationFields: input.schema.medicationFields ?? {},
           requiresObservationTool:
@@ -254,7 +253,7 @@ export const TaskLibraryService = {
       where: {
         isActive: true,
         OR: [
-          { applicableSpecies: { has: species as TaskLibrarySpecies } },
+          { applicableSpecies: { has: species } },
           { applicableSpecies: { isEmpty: true } },
         ],
         kind: safeKind,

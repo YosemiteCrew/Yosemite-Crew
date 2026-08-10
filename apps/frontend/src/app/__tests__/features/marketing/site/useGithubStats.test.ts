@@ -1,19 +1,16 @@
+import { createElement } from 'react';
+import { renderToString } from 'react-dom/server';
 import { renderHook, waitFor } from '@testing-library/react';
-jest.mock('@/app/services/http', () => ({
-  http: {
-    get: jest.fn(),
-  },
-}));
-import { http } from '@/app/services/http';
 import {
   useGithubStats,
   useLatestRelease,
   useMobileRelease,
   usePlatformRelease,
+  type GithubStats,
+  type ReleaseInfo,
 } from '@/app/features/marketing/site/useGithubStats';
 
 type FetchLike = typeof fetch;
-const mockHttpGet = http.get as jest.Mock;
 
 const makeRes = (data: unknown, link?: string) =>
   ({
@@ -29,16 +26,31 @@ const notOk = () =>
     headers: { get: () => null },
   }) as unknown as Response;
 
+const DISCORD_ENDPOINT = '/api/community/discord-members';
+
+/**
+ * Member count served by the same-origin Discord route for the current test.
+ * Discord is read through plain `fetch` like every other stat, so tests wrap
+ * their handler in `withDiscord` and set this instead of mocking a client.
+ */
+let discordMembers: string | null = null;
+
+const withDiscord = (handler: (url: string) => Promise<Response>) =>
+  jest.fn((input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.includes(DISCORD_ENDPOINT)) return Promise.resolve(makeRes({ discordMembers }));
+    return handler(url);
+  });
+
 describe('useGithubStats hooks', () => {
   beforeEach(() => {
     sessionStorage.clear();
-    mockHttpGet.mockReset();
-    mockHttpGet.mockResolvedValue({ data: { discordMembers: null }, status: 200 });
+    discordMembers = null;
   });
 
   it('resolves stars, self-hosters, contributors and discord', async () => {
-    globalThis.fetch = jest.fn((input: RequestInfo | URL) => {
-      const url = String(input);
+    discordMembers = '3,210';
+    globalThis.fetch = withDiscord((url) => {
       if (url.includes('/releases')) return Promise.resolve(makeRes([]));
       if (url.includes('summary.json'))
         return Promise.resolve(makeRes({ clones: { total: 67134 } }));
@@ -48,7 +60,6 @@ describe('useGithubStats hooks', () => {
         return Promise.resolve(makeRes({ stargazers_count: 2431 }));
       return Promise.resolve(makeRes(null));
     }) as unknown as FetchLike;
-    mockHttpGet.mockResolvedValueOnce({ data: { discordMembers: '3,210' }, status: 200 });
 
     const { result } = renderHook(() => useGithubStats());
     await waitFor(() => expect(result.current.stars).toBe('2.4k'));
@@ -80,9 +91,39 @@ describe('useGithubStats hooks', () => {
     expect(result.current.contributors).toBe('60');
   });
 
+  it('server-renders the loading placeholders even when the session cache is seeded', () => {
+    sessionStorage.setItem('yc_marketing_stats_v1', JSON.stringify({ stars: '9k' }));
+    sessionStorage.setItem(
+      'yc_rel_platform_v1',
+      JSON.stringify({ tag: 'v9.9.9', date: 'Jan 1, 2026', url: 'https://x/cached' })
+    );
+    let stats: GithubStats | null = null;
+    let release: ReleaseInfo | null = null;
+    let mobile: ReleaseInfo | null = null;
+    const Probe = () => {
+      stats = useGithubStats();
+      release = useLatestRelease();
+      mobile = useMobileRelease();
+      return null;
+    };
+    renderToString(createElement(Probe));
+    expect(stats!.stars).toBeNull();
+    expect(release!.tag).toBeNull();
+    expect(mobile!.tag).toBeNull();
+  });
+
+  it('treats a corrupt session cache entry as the empty placeholders', async () => {
+    sessionStorage.setItem('yc_marketing_stats_v1', '{not json');
+    globalThis.fetch = jest.fn(() => Promise.resolve(notOk())) as unknown as FetchLike;
+    const { result } = renderHook(() => useGithubStats());
+    expect(result.current.stars).toBeNull();
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+    expect(result.current.stars).toBeNull();
+  });
+
   it('refetches when the session cache is fresh but discord is still missing', async () => {
-    const fetchMock = jest.fn((input: RequestInfo | URL) => {
-      const url = String(input);
+    discordMembers = '196';
+    const fetchMock = withDiscord((url) => {
       if (url.includes('summary.json'))
         return Promise.resolve(makeRes({ clones: { total: 67134 } }));
       if (url.includes('contributors'))
@@ -92,7 +133,6 @@ describe('useGithubStats hooks', () => {
       return Promise.resolve(makeRes(null));
     });
     globalThis.fetch = fetchMock as unknown as FetchLike;
-    mockHttpGet.mockResolvedValueOnce({ data: { discordMembers: '196' }, status: 200 });
     sessionStorage.setItem(
       'yc_marketing_stats_v1',
       JSON.stringify({
@@ -114,8 +154,8 @@ describe('useGithubStats hooks', () => {
   });
 
   it('refetches on mount in live mode even when the session cache is still fresh', async () => {
-    const fetchMock = jest.fn((input: RequestInfo | URL) => {
-      const url = String(input);
+    discordMembers = '3,210';
+    const fetchMock = withDiscord((url) => {
       if (url.includes('summary.json'))
         return Promise.resolve(makeRes({ clones: { total: 67134 } }));
       if (url.includes('contributors'))
@@ -125,7 +165,6 @@ describe('useGithubStats hooks', () => {
       return Promise.resolve(makeRes(null));
     });
     globalThis.fetch = fetchMock as unknown as FetchLike;
-    mockHttpGet.mockResolvedValueOnce({ data: { discordMembers: '3,210' }, status: 200 });
     sessionStorage.setItem(
       'yc_marketing_stats_v1',
       JSON.stringify({
@@ -159,11 +198,9 @@ describe('useGithubStats hooks', () => {
       })
     );
     sessionStorage.setItem('yc_marketing_stats_ts_v1', String(Date.now()));
-    globalThis.fetch = jest.fn((_input: RequestInfo | URL) => {
-      // Every other endpoint fails: stars, the self-hoster report, and contributors.
-      return Promise.resolve(notOk());
-    }) as unknown as FetchLike;
-    mockHttpGet.mockResolvedValueOnce({ data: { discordMembers: '3,210' }, status: 200 });
+    discordMembers = '3,210';
+    // Every other endpoint fails: stars, the self-hoster report, and contributors.
+    globalThis.fetch = withDiscord(() => Promise.resolve(notOk())) as unknown as FetchLike;
 
     const { result } = renderHook(() => useGithubStats({ live: true }));
 
@@ -178,8 +215,8 @@ describe('useGithubStats hooks', () => {
   });
 
   it('fires exactly one round of requests when several instances mount at once', async () => {
-    const fetchMock = jest.fn((input: RequestInfo | URL) => {
-      const url = String(input);
+    discordMembers = '3,210';
+    const fetchMock = withDiscord((url) => {
       if (url.includes('summary.json'))
         return Promise.resolve(makeRes({ clones: { total: 67134 } }));
       if (url.includes('contributors'))
@@ -189,7 +226,6 @@ describe('useGithubStats hooks', () => {
       return Promise.resolve(makeRes(null));
     });
     globalThis.fetch = fetchMock as unknown as FetchLike;
-    mockHttpGet.mockResolvedValue({ data: { discordMembers: '3,210' }, status: 200 });
 
     const { result } = renderHook(() => {
       useGithubStats();
@@ -204,8 +240,8 @@ describe('useGithubStats hooks', () => {
     expect(urls.filter((u) => u.endsWith('/Yosemite-Crew')).length).toBe(1);
     expect(countIncluding('summary.json')).toBe(1);
     expect(countIncluding('contributors')).toBe(1);
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(mockHttpGet).toHaveBeenCalledTimes(1);
+    expect(countIncluding(DISCORD_ENDPOINT)).toBe(1);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
 
     expect(result.current.selfHosters).toBe('67,134');
     expect(result.current.contributors).toBe('58');
@@ -226,14 +262,12 @@ describe('useGithubStats hooks', () => {
       }
       return Promise.resolve(notOk());
     }) as unknown as FetchLike;
-    mockHttpGet.mockResolvedValue({ data: { discordMembers: null }, status: 200 });
     const { result } = renderHook(() => useGithubStats());
     await waitFor(() => expect(result.current.selfHosters).toBe('67'));
   });
 
   it('shows no self-hoster count (placeholder) when the report is unavailable', async () => {
     globalThis.fetch = jest.fn(() => Promise.resolve(notOk())) as unknown as FetchLike;
-    mockHttpGet.mockResolvedValue({ data: { discordMembers: null }, status: 200 });
     const { result } = renderHook(() => useGithubStats());
     // No hard-coded fallback: a failed report leaves the placeholder, never a fake number.
     await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
@@ -316,7 +350,6 @@ describe('useGithubStats hooks', () => {
   it('yields no stats (all placeholders) when every request rejects', async () => {
     // Every fetch throwing exercises the fetchJson and fetchContributors catch paths.
     globalThis.fetch = jest.fn(() => Promise.reject(new Error('network'))) as unknown as FetchLike;
-    mockHttpGet.mockResolvedValue({ data: { discordMembers: null }, status: 200 });
     const { result } = renderHook(() => useGithubStats());
     await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
     expect(result.current.selfHosters).toBeNull();
@@ -330,7 +363,6 @@ describe('useGithubStats hooks', () => {
       if (url.includes('summary.json')) return Promise.resolve(makeRes({}));
       return Promise.resolve(notOk());
     }) as unknown as FetchLike;
-    mockHttpGet.mockResolvedValue({ data: { discordMembers: null }, status: 200 });
     const { result } = renderHook(() => useGithubStats());
     await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
     expect(result.current.selfHosters).toBeNull();

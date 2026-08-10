@@ -1,4 +1,5 @@
 import React from 'react';
+import { renderToString } from 'react-dom/server';
 import { render, screen, act, renderHook, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import {
@@ -157,6 +158,11 @@ describe('motion primitives', () => {
       fireEvent.scroll(globalThis.window);
     });
     expect(result.current).toBe(true);
+  });
+
+  it('useScrolled server-renders false so hydration matches the server HTML', () => {
+    const Probe = () => <span>{String(useScrolled(8))}</span>;
+    expect(renderToString(<Probe />)).toContain('false');
   });
 
   it('useMagnet, Tilt and Spotlight wire cursor handlers under rich motion', () => {

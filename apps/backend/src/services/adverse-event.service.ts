@@ -15,7 +15,7 @@ export class AdverseEventServiceError extends Error {
 
 const toInputJsonObject = (value: unknown): Prisma.InputJsonObject => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-  return value as unknown as Prisma.InputJsonObject;
+  return value;
 };
 
 const toDomainFromPrisma = (row: {

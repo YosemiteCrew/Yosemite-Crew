@@ -1278,13 +1278,14 @@ const AppoitmentInfo = ({
   const statusSummary = getAppointmentStateSummary(activeAppointment?.status);
   const statusLabel = toStatusLabel(activeAppointment?.status);
   const clinicalWorkspaceIntent = getClinicalNotesIntent(orgType);
+  const activeAppointmentId = activeAppointment?.id;
   const openWorkspaceIntent = useCallback(
     (intent: AppointmentViewIntent) => {
-      if (!activeAppointment?.id) return;
-      router.push(buildWorkspaceHrefForIntent(activeAppointment.id, intent));
+      if (!activeAppointmentId) return;
+      router.push(buildWorkspaceHrefForIntent(activeAppointmentId, intent));
       setShowModal(false);
     },
-    [activeAppointment?.id, router, setShowModal]
+    [activeAppointmentId, router, setShowModal]
   );
   const formsById = useFormsStore((s) => s.formsById);
   const signingOverlayOpen = useSigningOverlayStore((s) => s.open);

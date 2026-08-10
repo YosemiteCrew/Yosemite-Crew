@@ -26,7 +26,6 @@ type AppointmentModePillProps = {
   appointment: Appointment;
   className?: string;
   iconSize?: number;
-  tone?: 'default' | 'strong';
 };
 
 type EncounterModePillProps = {

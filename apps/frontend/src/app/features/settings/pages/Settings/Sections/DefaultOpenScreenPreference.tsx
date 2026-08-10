@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNotify } from '@/app/hooks/useNotify';
 import { setSavedDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
 import {
@@ -52,11 +52,11 @@ const DefaultOpenScreenPreference = () => {
   const [defaultView, setDefaultView] = useState<DefaultAppointmentsView>(savedView);
   const shouldShowDefaultView = selection === '/appointments';
 
-  const prevSavedRouteRef = useRef(savedRoute);
-  const prevSavedViewRef = useRef(savedView);
-  if (prevSavedRouteRef.current !== savedRoute || prevSavedViewRef.current !== savedView) {
-    prevSavedRouteRef.current = savedRoute;
-    prevSavedViewRef.current = savedView;
+  const [prevSavedRoute, setPrevSavedRoute] = useState(savedRoute);
+  const [prevSavedView, setPrevSavedView] = useState(savedView);
+  if (prevSavedRoute !== savedRoute || prevSavedView !== savedView) {
+    setPrevSavedRoute(savedRoute);
+    setPrevSavedView(savedView);
     setSelection(savedRoute);
     setDefaultView(savedView);
   }

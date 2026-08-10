@@ -73,6 +73,195 @@ describe("OrganizationDocumentService", () => {
     );
   });
 
+  it("defaults visibility to INTERNAL when none is provided on create", async () => {
+    mockedPrisma.organizationDocument.create.mockResolvedValueOnce({
+      id: "doc-10",
+      organisationId: "org-1",
+      title: "Handbook",
+      description: "",
+      category: "GENERAL",
+      fileUrl: null,
+      fileName: null,
+      fileType: null,
+      fileSize: null,
+      visibility: "INTERNAL",
+      version: 1,
+      createdAt: new Date("2026-03-01T00:00:00Z"),
+      updatedAt: new Date("2026-03-01T00:00:00Z"),
+    });
+
+    await OrganizationDocumentService.createDocument({
+      organisationId: "org-1",
+      title: "Handbook",
+      category: "GENERAL",
+    });
+
+    expect(mockedPrisma.organizationDocument.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        visibility: "INTERNAL",
+      }),
+    });
+  });
+
+  it("applies category and visibility filters when listing for an organisation", async () => {
+    mockedPrisma.organizationDocument.findMany.mockResolvedValueOnce([]);
+
+    await OrganizationDocumentService.listDocumentsForOrganisation({
+      organisationId: "org-1",
+      category: "GENERAL",
+      visibility: "INTERNAL",
+    });
+
+    expect(mockedPrisma.organizationDocument.findMany).toHaveBeenCalledWith({
+      where: {
+        organisationId: "org-1",
+        category: "GENERAL",
+        visibility: "INTERNAL",
+      },
+      orderBy: { updatedAt: "desc" },
+    });
+  });
+
+  it("ignores the ALL visibility filter when listing for an organisation", async () => {
+    mockedPrisma.organizationDocument.findMany.mockResolvedValueOnce([]);
+
+    await OrganizationDocumentService.listDocumentsForOrganisation({
+      organisationId: "org-1",
+      visibility: "ALL",
+    });
+
+    expect(mockedPrisma.organizationDocument.findMany).toHaveBeenCalledWith({
+      where: { organisationId: "org-1" },
+      orderBy: { updatedAt: "desc" },
+    });
+  });
+
+  it("upserts a policy document as PUBLIC when none exists", async () => {
+    mockedPrisma.organizationDocument.findFirst.mockResolvedValueOnce(null);
+    mockedPrisma.organizationDocument.create.mockResolvedValueOnce({
+      id: "doc-11",
+      organisationId: "org-1",
+      title: "Terms",
+      description: "",
+      category: "TERMS_AND_CONDITIONS",
+      fileUrl: null,
+      fileName: null,
+      fileType: null,
+      fileSize: null,
+      visibility: "PUBLIC",
+      version: 1,
+      createdAt: new Date("2026-03-01T00:00:00Z"),
+      updatedAt: new Date("2026-03-01T00:00:00Z"),
+    });
+
+    await OrganizationDocumentService.upsertPolicyDocument({
+      organisationId: "org-1",
+      title: "Terms",
+      category: "TERMS_AND_CONDITIONS",
+    });
+
+    expect(mockedPrisma.organizationDocument.findFirst).toHaveBeenCalledWith({
+      where: {
+        organisationId: "org-1",
+        category: "TERMS_AND_CONDITIONS",
+      },
+    });
+    expect(mockedPrisma.organizationDocument.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        category: "TERMS_AND_CONDITIONS",
+        visibility: "PUBLIC",
+      }),
+    });
+  });
+
+  it("keeps the existing visibility when upserting a policy document without one", async () => {
+    const existing = {
+      id: "doc-12",
+      organisationId: "org-1",
+      title: "Privacy",
+      description: "old",
+      category: "PRIVACY_POLICY",
+      fileUrl: null,
+      fileName: null,
+      fileType: null,
+      fileSize: null,
+      visibility: "INTERNAL",
+      version: 1,
+      createdAt: new Date("2026-03-01T00:00:00Z"),
+      updatedAt: new Date("2026-03-01T00:00:00Z"),
+    };
+    mockedPrisma.organizationDocument.findFirst
+      .mockResolvedValueOnce(existing)
+      .mockResolvedValueOnce(existing);
+    mockedPrisma.organizationDocument.update.mockResolvedValueOnce({
+      ...existing,
+      title: "Privacy updated",
+    });
+
+    await OrganizationDocumentService.upsertPolicyDocument({
+      organisationId: "org-1",
+      title: "Privacy updated",
+      category: "PRIVACY_POLICY",
+    });
+
+    expect(mockedPrisma.organizationDocument.update).toHaveBeenCalledWith({
+      where: { id: "doc-12" },
+      data: expect.objectContaining({
+        title: "Privacy updated",
+        visibility: "INTERNAL",
+      }),
+    });
+  });
+
+  it("overrides the existing visibility when upserting a policy document with one", async () => {
+    const existing = {
+      id: "doc-13",
+      organisationId: "org-1",
+      title: "Cancellation",
+      description: "",
+      category: "CANCELLATION_POLICY",
+      fileUrl: null,
+      fileName: null,
+      fileType: null,
+      fileSize: null,
+      visibility: "INTERNAL",
+      version: 1,
+      createdAt: new Date("2026-03-01T00:00:00Z"),
+      updatedAt: new Date("2026-03-01T00:00:00Z"),
+    };
+    mockedPrisma.organizationDocument.findFirst
+      .mockResolvedValueOnce(existing)
+      .mockResolvedValueOnce(existing);
+    mockedPrisma.organizationDocument.update.mockResolvedValueOnce({
+      ...existing,
+      visibility: "PUBLIC",
+    });
+
+    await OrganizationDocumentService.upsertPolicyDocument({
+      organisationId: "org-1",
+      title: "Cancellation",
+      category: "CANCELLATION_POLICY",
+      visibility: "PUBLIC",
+    });
+
+    expect(mockedPrisma.organizationDocument.update).toHaveBeenCalledWith({
+      where: { id: "doc-13" },
+      data: expect.objectContaining({
+        visibility: "PUBLIC",
+      }),
+    });
+  });
+
+  it("rejects upserts for non-policy categories", async () => {
+    await expect(
+      OrganizationDocumentService.upsertPolicyDocument({
+        organisationId: "org-1",
+        title: "Handbook",
+        category: "GENERAL",
+      }),
+    ).rejects.toThrow("upsertPolicyDocument is only for policy categories");
+  });
+
   it("updates documents with _id mapped from prisma id", async () => {
     mockedPrisma.organizationDocument.findFirst.mockResolvedValueOnce({
       id: "doc-2",

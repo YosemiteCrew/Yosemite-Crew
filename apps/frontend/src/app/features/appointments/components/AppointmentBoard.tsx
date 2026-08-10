@@ -393,7 +393,9 @@ const AppointmentBoardComponent = ({
   );
 
   const handleDroppedAppointmentStatusRef = useRef(handleDroppedAppointmentStatus);
-  handleDroppedAppointmentStatusRef.current = handleDroppedAppointmentStatus;
+  useEffect(() => {
+    handleDroppedAppointmentStatusRef.current = handleDroppedAppointmentStatus;
+  });
 
   useBoardDropTargets({
     boardRootRef,

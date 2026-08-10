@@ -1179,7 +1179,9 @@ const useIdexxWorkspaceActions = (s: IdexxWorkspaceActionsState) => {
   // Keep a stable ref to the latest state object so callbacks never need `s`
   // in their dep arrays (which would cause a new ref every render → infinite loop).
   const sRef = React.useRef(s);
-  sRef.current = s;
+  useEffect(() => {
+    sRef.current = s;
+  });
 
   const refresh = useCallback(async () => {
     const { primaryOrgId: orgId, integrationEnabled: enabled } = sRef.current;
@@ -1210,38 +1212,44 @@ const useIdexxWorkspaceActions = (s: IdexxWorkspaceActionsState) => {
     }
   }, []);
 
-  const getAppointmentLabsHref = useCallback((result: LabResult) => {
-    const { appointmentIdByOrderId: lookup } = sRef.current;
-    const raw = result.rawPayload as
-      | {
-          orderId?: string | number;
-          requisitionId?: string | number;
-          accessionId?: string | number;
-          alternateOrderId?: string | number;
-          alternateRequisitionId?: string | number;
-        }
-      | undefined;
-    const lookupIds = [
-      result.orderId,
-      result.requisitionId,
-      result.accessionId,
-      raw?.orderId,
-      raw?.requisitionId,
-      raw?.accessionId,
-      raw?.alternateOrderId,
-      raw?.alternateRequisitionId,
-    ]
-      .map((value) => String(value ?? '').trim())
-      .filter(Boolean);
-    const matchedOrderIdentifier = lookupIds.find((id) => lookup[id]) ?? '';
-    if (!matchedOrderIdentifier) return '';
-    const params = new URLSearchParams({
-      appointmentId: lookup[matchedOrderIdentifier],
-      open: 'labs',
-      subLabel: 'idexx-labs',
-    });
-    return `/appointments?${params.toString()}`;
-  }, []);
+  // Unlike the async actions below, this is called during render (to build row
+  // hrefs), so it must read the lookup from the current render, not the ref.
+  const { appointmentIdByOrderId } = s;
+  const getAppointmentLabsHref = useCallback(
+    (result: LabResult) => {
+      const lookup = appointmentIdByOrderId;
+      const raw = result.rawPayload as
+        | {
+            orderId?: string | number;
+            requisitionId?: string | number;
+            accessionId?: string | number;
+            alternateOrderId?: string | number;
+            alternateRequisitionId?: string | number;
+          }
+        | undefined;
+      const lookupIds = [
+        result.orderId,
+        result.requisitionId,
+        result.accessionId,
+        raw?.orderId,
+        raw?.requisitionId,
+        raw?.accessionId,
+        raw?.alternateOrderId,
+        raw?.alternateRequisitionId,
+      ]
+        .map((value) => String(value ?? '').trim())
+        .filter(Boolean);
+      const matchedOrderIdentifier = lookupIds.find((id) => lookup[id]) ?? '';
+      if (!matchedOrderIdentifier) return '';
+      const params = new URLSearchParams({
+        appointmentId: lookup[matchedOrderIdentifier],
+        open: 'labs',
+        subLabel: 'idexx-labs',
+      });
+      return `/appointments?${params.toString()}`;
+    },
+    [appointmentIdByOrderId]
+  );
 
   const handleLookupOrder = useCallback(async () => {
     const { primaryOrgId: orgId, orderLookupId: lookupId } = sRef.current;

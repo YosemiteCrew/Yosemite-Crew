@@ -244,7 +244,16 @@ const LabelDropdown = ({
 
   const filteredOptions = useFilteredOptions(options, searchQuery);
   const shouldPortal = portal && typeof document !== 'undefined';
-  const isTerminologyLocked = Boolean(dropdownRef.current?.closest(TERMINOLOGY_LOCK_SELECTOR));
+  // Terminology locks are static wrapper attributes, so measuring once when the
+  // trigger mounts is enough; the portal panel re-applies the marker itself.
+  const [isTerminologyLocked, setIsTerminologyLocked] = useState(false);
+  const attachDropdownRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      dropdownRef.current = node;
+      setIsTerminologyLocked(Boolean(node?.closest(TERMINOLOGY_LOCK_SELECTOR)));
+    },
+    [dropdownRef]
+  );
   const activeOptionId =
     activeIndex >= 0 && activeIndex < filteredOptions.length
       ? `${listboxId}-option-${filteredOptions[activeIndex].value}`
@@ -271,13 +280,20 @@ const LabelDropdown = ({
   }, [dropdownRef]);
 
   const computeStyleRef = useRef(computeStyle);
-  computeStyleRef.current = computeStyle;
+  useLayoutEffect(() => {
+    computeStyleRef.current = computeStyle;
+  });
+
+  // Clear the floating style the moment the panel closes (render-time adjust,
+  // guarded so it only fires when open/portal actually change).
+  const [prevOpenPortal, setPrevOpenPortal] = useState({ open, portal });
+  if (prevOpenPortal.open !== open || prevOpenPortal.portal !== portal) {
+    setPrevOpenPortal({ open, portal });
+    if (!open || !portal) setPortalStyle(null);
+  }
 
   useLayoutEffect(() => {
-    if (!open || !portal) {
-      setPortalStyle(null);
-      return;
-    }
+    if (!open || !portal) return;
     computeStyleRef.current();
   }, [open, portal]);
 
@@ -409,7 +425,7 @@ const LabelDropdown = ({
         {icon}
         {placeholder}
       </span>
-      <div className="w-full relative" ref={dropdownRef}>
+      <div className="w-full relative" ref={attachDropdownRef}>
         <button
           type="button"
           className={triggerClassName(open, Boolean(error || hasError))}

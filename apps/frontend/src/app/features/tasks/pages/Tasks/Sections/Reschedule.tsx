@@ -30,9 +30,9 @@ const RescheduleTask = ({ showModal, setShowModal, activeTask }: RescheduleTaskP
   // Holds the new due date while the series scope is chosen.
   const pendingDueAtRef = useRef<Date | null>(null);
 
-  const prevActiveTaskRef = useRef(activeTask);
-  if (prevActiveTaskRef.current !== activeTask) {
-    prevActiveTaskRef.current = activeTask;
+  const [prevActiveTask, setPrevActiveTask] = useState(activeTask);
+  if (prevActiveTask !== activeTask) {
+    setPrevActiveTask(activeTask);
     setSelectedDate(new Date(activeTask.dueAt));
     setDueTimeValue(getPreferredTimeValue(activeTask.dueAt, '00:00'));
   }

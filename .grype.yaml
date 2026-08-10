@@ -1,0 +1,20 @@
+# Vulnerability-scan configuration for the supply-chain gate (#1721).
+# scripts/security/supply-chain.sh scan runs grype over the repository SBOM
+# with --fail-on critical; CI runs the same script.
+#
+# EXCEPTION PROCESS - accepted findings go under `ignore:` below. Every entry
+# MUST carry a comment with: the reason it is acceptable, an owner, and an
+# expiry date at which it must be re-reviewed (mirror of the
+# scripts/ci/override-advisory-baseline.json process). Example:
+#
+# ignore:
+#   # GHSA-xxxx-xxxx-xxxx in foo@1.2.3: not reachable - the vulnerable code
+#   # path needs server-side rendering we never enable. Owner: ankit-yc.
+#   # Re-review by: YYYY-MM-DD. (a real date here - the placeholder is
+#   # deliberate so this example never trips the expiry guard)
+#   - vulnerability: GHSA-xxxx-xxxx-xxxx
+#     package:
+#       name: foo
+#       version: 1.2.3
+
+ignore: []

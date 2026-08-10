@@ -1,4 +1,4 @@
-import React, { useCallback, useId, useMemo, useRef } from 'react';
+import React, { useCallback, useId, useMemo, useState } from 'react';
 import ReactDatePicker from 'react-datepicker';
 import { IoIosWarning } from 'react-icons/io';
 import { IoCalendarOutline } from 'react-icons/io5';
@@ -93,15 +93,16 @@ const getComparableDateTime = (date: Date | null | undefined) => {
 };
 
 const useStableDate = (date: Date | null | undefined) => {
-  const dateRef = useRef<Date | null>(date ?? null);
+  const [stableDate, setStableDate] = useState<Date | null>(date ?? null);
   const time = getComparableDateTime(date);
-  const previousTime = getComparableDateTime(dateRef.current);
+  const previousTime = getComparableDateTime(stableDate);
 
   if (time !== previousTime) {
-    dateRef.current = date ?? null;
+    setStableDate(date ?? null);
+    return date ?? null;
   }
 
-  return dateRef.current;
+  return stableDate;
 };
 
 const Datepicker = ({

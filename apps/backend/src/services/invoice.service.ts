@@ -28,6 +28,7 @@ import {
   getInvoiceFinancialSummary,
 } from "./finance/payment";
 import { FinanceEventService } from "./finance/events";
+import { markInvoiceTreatmentItemsSettled } from "./finance/settlement";
 import { createRenderedDocumentRecord } from "./rendered-document.service";
 import { prisma } from "src/config/prisma";
 import { CatalogService, CatalogServiceError } from "./catalog.service";
@@ -54,8 +55,6 @@ export class InvoiceServiceError extends Error {
 
 const SUPPORT_EMAIL_ADDRESS =
   process.env.SUPPORT_EMAIL_ADDRESS ?? "support@yosemitecrew.com";
-
-type InvoiceVisitBillingStage = "DRAFT" | "READY_FOR_BILLING" | "SETTLED";
 
 type AppointmentLink = {
   patientId?: string;
@@ -312,13 +311,13 @@ const toInvoiceRecord = (row: InvoiceWithCreditNotes): Invoice => {
     taxTotal: row.taxTotal,
     discountTotal: row.discountTotal,
     billingCollectionMode: row.billingCollectionMode ?? undefined,
-    visitBillingStage: row.visitBillingStage as InvoiceVisitBillingStage,
+    visitBillingStage: row.visitBillingStage,
     readyForBillingAt: row.readyForBillingAt ?? undefined,
     readyForBillingActorId: row.readyForBillingActorId ?? undefined,
     depositTargetAmount: row.depositTargetAmount,
     depositCollectedAmount: row.depositCollectedAmount,
     paymentCollectionMethod: row.paymentCollectionMethod,
-    status: row.status as Invoice["status"],
+    status: row.status,
     creditNotes,
     metadata: normalizeInvoiceMetadata(row.metadata),
     paidAt: row.paidAt ?? undefined,
@@ -331,7 +330,7 @@ const withRenderedDocument = async <T extends Invoice>(
   invoice: T,
 ): Promise<T & Pick<Invoice, "renderedDocumentId" | "pdfUrl">> => {
   if (!invoice.id || !invoice.organisationId) {
-    return invoice as T & Pick<Invoice, "renderedDocumentId" | "pdfUrl">;
+    return invoice;
   }
   const document = await prisma.renderedDocument.findFirst({
     where: {
@@ -347,7 +346,7 @@ const withRenderedDocument = async <T extends Invoice>(
         renderedDocumentId: document.id,
         pdfUrl: document.pdfUrl,
       }
-    : (invoice as T & Pick<Invoice, "renderedDocumentId" | "pdfUrl">);
+    : invoice;
 };
 
 const buildInvoiceLineSnapshots = (items: DraftInvoiceItemInput[]) =>
@@ -931,7 +930,7 @@ const cancelUnpaidInvoice = async (invoice: PrismaInvoice, reason: string) =>
         metadata: {
           ...(normalizeInvoiceMetadata(invoice.metadata) ?? EMPTY_METADATA),
           cancellationReason: reason,
-        } as unknown as Prisma.InputJsonValue,
+        },
       },
     })
     .then(async (updated) => {
@@ -1095,28 +1094,7 @@ const recordInvoicePaidState = async (invoice: PrismaInvoice, paidAt: Date) => {
       visitBillingStage: "SETTLED",
     },
   });
-  const invoiceRowIds = (Array.isArray(invoice.items) ? invoice.items : [])
-    .map((item) =>
-      typeof item === "object" &&
-      item !== null &&
-      "id" in item &&
-      typeof item.id === "string"
-        ? item.id
-        : null,
-    )
-    .filter((id): id is string => Boolean(id));
-  if (invoiceRowIds.length > 0) {
-    await prisma.workspaceTreatmentItem.updateMany({
-      where: {
-        appointmentId: invoice.appointmentId,
-        invoiceRowId: { in: invoiceRowIds },
-      },
-      data: {
-        settledInvoiceId: invoice.id,
-        settledAt: paidAt,
-      },
-    });
-  }
+  await markInvoiceTreatmentItemsSettled(invoice, invoice.id, paidAt);
 
   await recordInvoiceAuditForRow(updated, "INVOICE_PAID", updated.id, {
     status: updated.status,
@@ -1597,7 +1575,7 @@ export const InvoiceService = {
             {}) as Record<string, string | number | boolean>),
           voidReason: reason ?? undefined,
           voidedAt: new Date().toISOString(),
-        } as unknown as Prisma.InputJsonValue,
+        },
       },
     });
 
@@ -1996,9 +1974,7 @@ export const InvoiceService = {
       where: { id: invoiceId },
       data: {
         taxProvider: totals.taxSnapshot!.provider,
-        items: buildInvoiceLineSnapshots(
-          mergedItems,
-        ) as unknown as Prisma.InputJsonValue,
+        items: buildInvoiceLineSnapshots(mergedItems),
         subtotal: totals.subtotal,
         discountTotal: totals.discountTotal,
         invoiceDiscountTotal: totals.invoiceDiscountTotal,

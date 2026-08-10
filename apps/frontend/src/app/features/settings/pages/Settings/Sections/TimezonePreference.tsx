@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   DEFAULT_TIMEZONE,
   getSystemTimeZone,
@@ -30,15 +30,18 @@ const TimezonePreference = () => {
   );
   const [selectedTimezone, setSelectedTimezone] = useState<string>(profileTimezone);
 
-  useEffect(() => {
+  // Render-phase adjustment (React's documented setState-during-render reset
+  // pattern): re-seed the pill whenever the org or the profile's saved timezone
+  // changes.
+  const [prevOrgId, setPrevOrgId] = useState(primaryOrgId);
+  const [prevProfileTimezone, setPrevProfileTimezone] = useState(profileTimezone);
+  if (prevOrgId !== primaryOrgId || prevProfileTimezone !== profileTimezone) {
+    setPrevOrgId(primaryOrgId);
+    setPrevProfileTimezone(profileTimezone);
     const nextSyncMode = getTimezoneSyncModeForOrg(primaryOrgId);
     setSyncMode(nextSyncMode);
-    if (nextSyncMode === 'device') {
-      setSelectedTimezone(getSystemTimeZone());
-      return;
-    }
-    setSelectedTimezone(profileTimezone);
-  }, [primaryOrgId, profileTimezone]);
+    setSelectedTimezone(nextSyncMode === 'device' ? getSystemTimeZone() : profileTimezone);
+  }
 
   // The design collapses the mode + zone pair into a single compact pill whose
   // first entry is the device zone ("Device · Europe/Berlin") and whose remaining

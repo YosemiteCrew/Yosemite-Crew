@@ -226,7 +226,7 @@ const normalizePrescriptionItemInputs = (
       return {
         medication: String(item ?? "").trim(),
         sortOrder: index,
-      } as PrescriptionItemInput;
+      };
     }
 
     return {
@@ -282,7 +282,7 @@ const normalizePrescriptionItemInputs = (
           : undefined,
       metadata: item.metadata === undefined ? undefined : item.metadata,
       sortOrder: index,
-    } as PrescriptionItemInput;
+    };
   });
 };
 
@@ -527,13 +527,13 @@ const toNullableJsonInput = (
 ): Prisma.InputJsonValue | Prisma.NullTypes.JsonNull | undefined => {
   if (value === undefined) return undefined;
   if (value === null) return Prisma.JsonNull;
-  return value as Prisma.InputJsonValue;
+  return value;
 };
 
 const toJsonInput = (
   value: unknown,
   fallback: Record<string, unknown> = {},
-): Prisma.InputJsonValue => (value ?? fallback) as Prisma.InputJsonValue;
+): Prisma.InputJsonValue => value ?? fallback;
 
 const toNullableString = (value: string | null | undefined) => {
   if (value === undefined) return undefined;
@@ -748,7 +748,7 @@ const persistClinicalArtifactRenderedDocumentPdf = async (
     where: { id: renderedDocument.id },
     data: {
       pdfUrl: upload.url,
-      pdf: nextPdf as Prisma.InputJsonValue,
+      pdf: nextPdf,
     },
   });
 };
@@ -928,7 +928,7 @@ export const hydrateMedications = (
           ? med.controlledItem
           : inv.controlledItem,
     };
-  }) as Prisma.JsonValue;
+  });
 };
 
 const hydratePrescriptionRecords = async (

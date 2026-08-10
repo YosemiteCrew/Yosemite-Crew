@@ -19,6 +19,7 @@ const Organizations = () => {
   const orgStatus = useOrgStore((s) => s.status);
 
   const [invites, setInvites] = useState<Invite[]>([]);
+  // Starts true — the mount-only effect below always begins loading immediately.
   const [invitesLoading, setInvitesLoading] = useState(true);
   // Separate flag for the accept flow — covers the async work + navigation delay
   const [accepting, setAccepting] = useState(false);
@@ -27,7 +28,6 @@ const Organizations = () => {
 
   useEffect(() => {
     let cancelled = false;
-    setInvitesLoading(true);
     loadInvites()
       .then((data) => {
         if (!cancelled) setInvites(data);

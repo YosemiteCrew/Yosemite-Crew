@@ -343,27 +343,39 @@ export const useDashboardAnalytics = (duration: DashboardDuration) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!primaryOrgId) {
+  // Render-phase adjustment (React's documented setState-during-render reset
+  // pattern): seed loading/cached state as soon as the org or duration changes.
+  // The sentinel forces one evaluation on the first render, matching the
+  // previous effect's mount run.
+  const cacheKey = primaryOrgId ? `${primaryOrgId}:${duration}` : null;
+  const [prevCacheKey, setPrevCacheKey] = useState<string | null>('__unsynced__');
+  if (prevCacheKey !== cacheKey) {
+    setPrevCacheKey(cacheKey);
+    if (cacheKey) {
+      const cached = analyticsCache.get(cacheKey);
+      if (cached) {
+        setData(cached.data);
+      }
+      setIsLoading(true);
+      setError(null);
+    } else {
       setData(DEFAULT_DATA);
       setIsLoading(false);
       setError(null);
+    }
+  }
+
+  useEffect(() => {
+    if (!primaryOrgId) {
       return;
     }
 
-    const cacheKey = `${primaryOrgId}:${duration}`;
-    const cached = analyticsCache.get(cacheKey);
-    if (cached) {
-      setData(cached.data);
-    }
-
+    const key = `${primaryOrgId}:${duration}`;
     let cancelled = false;
 
     (async () => {
       try {
-        setIsLoading(true);
-        setError(null);
-        const next = await loadAnalyticsData(primaryOrgId, duration, cacheKey);
+        const next = await loadAnalyticsData(primaryOrgId, duration, key);
         if (!cancelled) {
           setData(next);
         }

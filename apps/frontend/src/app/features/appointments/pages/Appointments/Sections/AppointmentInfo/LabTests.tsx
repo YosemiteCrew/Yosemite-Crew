@@ -232,6 +232,7 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
   const [pdfPreviewTitle, setPdfPreviewTitle] = useState('IDEXX PDF');
   const [pdfPreviewLoadingId, setPdfPreviewLoadingId] = useState<string | null>(null);
 
+  const appointmentId = activeAppointment?.id;
   const companionId = activeAppointment?.companion?.id;
   const parentId = activeAppointment?.companion?.parent?.id;
   const [prevAppointmentStaffKey, setPrevAppointmentStaffKey] = useState<string | null>(null);
@@ -239,7 +240,9 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
   // Stable ref so callbacks can read the latest appointmentOrders without
   // listing the array as a dep (new array ref every render → infinite loop).
   const appointmentOrdersRef = React.useRef(appointmentOrders);
-  appointmentOrdersRef.current = appointmentOrders;
+  useEffect(() => {
+    appointmentOrdersRef.current = appointmentOrders;
+  });
   const normalizedOrderStatus = getNormalizedLifecycleStatus(latestOrder);
   const needsInitialOrderPlacement = normalizedOrderStatus === 'CREATED';
 
@@ -350,7 +353,7 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
   const refreshResultsRef = React.useRef<() => Promise<void>>(async () => undefined);
 
   const refreshAppointmentOrders = useCallback(async () => {
-    if (!primaryOrgId || !integrationEnabled || !activeAppointment?.id) {
+    if (!primaryOrgId || !integrationEnabled || !appointmentId) {
       setAppointmentOrders([]);
       setLatestOrder(null);
       return;
@@ -358,11 +361,7 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
     setOrdersLoading(true);
     setError(null);
     try {
-      const orders = await listIdexxOrdersWithFallback(
-        primaryOrgId,
-        activeAppointment.id,
-        companionId
-      );
+      const orders = await listIdexxOrdersWithFallback(primaryOrgId, appointmentId, companionId);
       const normalized = normalizeOrders(orders);
       setAppointmentOrders(normalized);
       appointmentOrdersRef.current = normalized;
@@ -379,7 +378,7 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
     } finally {
       setOrdersLoading(false);
     }
-  }, [activeAppointment?.id, companionId, integrationEnabled, primaryOrgId]);
+  }, [appointmentId, companionId, integrationEnabled, primaryOrgId]);
 
   const refreshCensus = useCallback(async () => {
     if (!primaryOrgId || !integrationEnabled) return;
@@ -422,16 +421,27 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
   }, [companionId, integrationEnabled, primaryOrgId]);
 
   // Keep the ref current so refreshAppointmentOrders can call the latest version.
-  refreshResultsRef.current = refreshResults;
+  useEffect(() => {
+    refreshResultsRef.current = refreshResults;
+  });
 
   useEffect(() => {
-    void refreshResults();
+    const run = async () => {
+      await refreshResults();
+    };
+    void run();
   }, [refreshResults]);
   useEffect(() => {
-    void refreshCensus();
+    const run = async () => {
+      await refreshCensus();
+    };
+    void run();
   }, [refreshCensus]);
   useEffect(() => {
-    void refreshAppointmentOrders();
+    const run = async () => {
+      await refreshAppointmentOrders();
+    };
+    void run();
   }, [refreshAppointmentOrders]);
 
   useEffect(() => {
@@ -684,7 +694,7 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
     try {
       const payload = {
         patientId: companionId,
-        appointmentId: activeAppointment?.id,
+        appointmentId,
         tests: selectedTests.map((test) => test.code),
         modality,
         veterinarian: veterinarian || undefined,
@@ -712,7 +722,7 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
     primaryOrgId,
     companionId,
     selectedTests,
-    activeAppointment?.id,
+    appointmentId,
     modality,
     veterinarian,
     technician,

@@ -8,7 +8,14 @@ import {
 import { Slot } from '@/app/features/appointments/types/appointments';
 import { buildUtcDateFromDateAndTime, getDurationMinutes, toUtcCalendarDate } from '@/app/lib/date';
 import { Appointment } from '@yosemite-crew/types';
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useReducer,
+  useState,
+} from 'react';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import DateTimePickerSection from '@/app/features/appointments/components/DateTimePickerSection';
 import { allowReschedule } from '@/app/lib/appointments';
@@ -105,9 +112,9 @@ const Reschedule = ({ showModal, setShowModal, activeAppointment }: ReschedulePr
     [state.selectedSlot]
   );
 
-  const prevActiveAppointmentRef = useRef(activeAppointment);
-  if (prevActiveAppointmentRef.current !== activeAppointment) {
-    prevActiveAppointmentRef.current = activeAppointment;
+  const [prevActiveAppointment, setPrevActiveAppointment] = useState(activeAppointment);
+  if (prevActiveAppointment !== activeAppointment) {
+    setPrevActiveAppointment(activeAppointment);
     dispatch({
       type: 'PATCH',
       patch: {

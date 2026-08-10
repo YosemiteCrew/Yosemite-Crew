@@ -1,5 +1,5 @@
 'use client';
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import { IoInformationCircleOutline } from 'react-icons/io5';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
@@ -56,9 +56,12 @@ const DiscountsContent = () => {
 
   // Re-sync the field whenever the loaded/saved cap changes so the input always
   // reflects server truth. Keyed on the cap value, so a local edit is not clobbered.
-  useEffect(() => {
-    if (!loading) setCapInput(capToInput(maxOverallDiscountPercent));
-  }, [loading, maxOverallDiscountPercent]);
+  const syncedCap = loading ? null : capToInput(maxOverallDiscountPercent);
+  const [prevSyncedCap, setPrevSyncedCap] = useState(syncedCap);
+  if (prevSyncedCap !== syncedCap) {
+    setPrevSyncedCap(syncedCap);
+    if (syncedCap !== null) setCapInput(syncedCap);
+  }
 
   const handleSave = async () => {
     if (!primaryOrgId) return;

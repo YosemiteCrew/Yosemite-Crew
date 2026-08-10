@@ -144,7 +144,7 @@ const normalizeMeta = (value: unknown): ClinicalTermMeta => {
     return {};
   }
 
-  return value as ClinicalTermMeta;
+  return value;
 };
 
 const normalizeSynonyms = (value: unknown): string[] => {

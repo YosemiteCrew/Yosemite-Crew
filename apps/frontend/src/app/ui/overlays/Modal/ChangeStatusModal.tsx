@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
@@ -71,11 +71,11 @@ const ChangeStatusModal = <S extends string>({
   const [selectedStatus, setSelectedStatus] = useState<S>(preferredSelection);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const previousSelectionKeyRef = useRef<string | null>(null);
   const selectionKey = buildSelectionKey(showModal, currentStatus, preferredStatus, statusOptions);
+  const [previousSelectionKey, setPreviousSelectionKey] = useState(selectionKey);
 
-  if (previousSelectionKeyRef.current !== selectionKey) {
-    previousSelectionKeyRef.current = selectionKey;
+  if (previousSelectionKey !== selectionKey) {
+    setPreviousSelectionKey(selectionKey);
     const nextSelection = resolveSelectedStatus(
       currentStatus,
       preferredStatus,

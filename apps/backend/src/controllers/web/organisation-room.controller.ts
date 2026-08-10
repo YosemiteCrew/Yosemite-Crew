@@ -8,7 +8,6 @@ import {
 import {
   OrganisationRoomService,
   OrganisationRoomServiceError,
-  type OrganisationRoomInput,
 } from "../../services/organisation-room.service";
 import { OrgRequest } from "src/middlewares/rbac";
 
@@ -79,7 +78,7 @@ export const OrganisationRoomController = {
       const created = await OrganisationRoomService.create({
         ...payload,
         organisationId,
-      } as Partial<OrganisationRoomInput>);
+      });
 
       return res.status(201).json(toFHIROrganisationRoom(created));
     } catch (error) {
@@ -118,7 +117,7 @@ export const OrganisationRoomController = {
       const updated = await OrganisationRoomService.update(id, {
         ...payload,
         organisationId,
-      } as Partial<OrganisationRoomInput>);
+      });
 
       return res.status(200).json(toFHIROrganisationRoom(updated));
     } catch (error) {

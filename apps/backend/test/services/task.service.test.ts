@@ -1307,5 +1307,67 @@ describe("TaskService", () => {
 
       expect(txUpdate).toHaveBeenCalledTimes(2);
     });
+
+    it("splits the series on THIS_AND_FOLLOWING, capping the master and re-parenting future rows", async () => {
+      const occurrenceDueAt = new Date("2026-02-02T09:00:00.000Z");
+      const occurrence = seriesTask({
+        id: "task-2",
+        dueAt: occurrenceDueAt,
+        recurrence: { type: "DAILY", masterTaskId: "task-1" },
+      });
+      mockedPrisma.task.findFirst.mockResolvedValueOnce(occurrence as never);
+      mockedPrisma.task.findMany.mockResolvedValueOnce([
+        seriesTask({
+          recurrence: {
+            type: "DAILY",
+            isMaster: true,
+            cronExpression: "0 9 * * *",
+          },
+        }),
+        occurrence,
+        seriesTask({
+          id: "task-3",
+          dueAt: new Date("2026-02-03T09:00:00.000Z"),
+          recurrence: { type: "DAILY", masterTaskId: "task-1" },
+        }),
+      ] as never);
+      const txUpdate = jest
+        .fn()
+        .mockResolvedValue(seriesTask({ id: "task-2", name: "renamed" }));
+      mockedPrisma.$transaction.mockImplementationOnce(
+        async (cb: (tx: unknown) => Promise<unknown>) =>
+          cb({ task: { update: txUpdate } }),
+      );
+
+      const result = await TaskService.updateTask(
+        "task-2",
+        { name: "renamed" },
+        "actor-1",
+        "THIS_AND_FOLLOWING",
+        "org-1",
+      );
+
+      // current occurrence + old master + one future row
+      expect(txUpdate).toHaveBeenCalledTimes(3);
+      expect(txUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "task-1" },
+          data: expect.objectContaining({
+            recurrence: expect.objectContaining({
+              endDate: new Date(occurrenceDueAt.getTime() - 1),
+            }),
+          }),
+        }),
+      );
+      expect(txUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "task-3" },
+          data: expect.objectContaining({
+            recurrence: expect.objectContaining({ masterTaskId: "task-2" }),
+          }),
+        }),
+      );
+      expect(result.id).toBe("task-2");
+    });
   });
 });

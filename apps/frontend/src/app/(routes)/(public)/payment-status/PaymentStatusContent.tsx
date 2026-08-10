@@ -41,23 +41,26 @@ export function PaymentStatusContent() {
   const [state, setState] = useState<PaymentStatusState>({
     data: null,
     requestState: session_id ? 'loading' : 'missing_session',
-    stopped: false,
+    stopped: !session_id,
   });
   const stopPollingRef = useRef(false);
 
-  useEffect(() => {
+  // Render-phase adjustment: restart from a clean slate when the session id changes.
+  const [prevSessionId, setPrevSessionId] = useState(session_id);
+  if (prevSessionId !== session_id) {
+    setPrevSessionId(session_id);
     setState({
       data: null,
       requestState: session_id ? 'loading' : 'missing_session',
       stopped: !session_id,
     });
-    stopPollingRef.current = false;
-  }, [session_id]);
+  }
 
   useEffect(() => {
     if (!session_id) {
       return;
     }
+    stopPollingRef.current = false;
 
     const safeSessionId = session_id;
     let alive = true;

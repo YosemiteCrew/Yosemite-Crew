@@ -1,7 +1,7 @@
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { Permission, PERMISSIONS, ROLE_PERMISSIONS, RoleCode } from '@/app/lib/permissions';
-import React, { useRef } from 'react';
+import React from 'react';
 import { uniq } from '@/app/features/organization/pages/Organization/Sections/Team/permissionsEditorUtils';
 
 type PermissionRow = {
@@ -216,6 +216,68 @@ function pickEnablePermission(
   return enablePriority[0] ?? null;
 }
 
+/**
+ * Which permissions to add when a group is switched on: every baseline
+ * permission for an additive group, one tier otherwise.
+ */
+function pickEnablePermissions(
+  roleDefaults: Permission[],
+  enablePriority: Permission[] | undefined,
+  additive: boolean
+): Permission[] {
+  if (additive) return pickAdditiveEnablePermissions(roleDefaults, enablePriority);
+  const single = pickEnablePermission(roleDefaults, enablePriority);
+  return single ? [single] : [];
+}
+
+/** Rule: turning EDIT on also turns VIEW on. */
+function withViewEnabled(
+  next: Permission[],
+  row: PermissionRow,
+  roleDefaults: Permission[]
+): Permission[] {
+  const viewCandidates = row.view ?? [];
+  if (!viewCandidates.length || hasAny(next, viewCandidates)) return next;
+  const viewToAdd = pickEnablePermissions(
+    roleDefaults,
+    row.viewEnablePriority ?? viewCandidates,
+    row.additiveView === true
+  );
+  return viewToAdd.length ? uniq([...next, ...viewToAdd]) : next;
+}
+
+/** The permission set that results from toggling one row's view/edit switch. */
+function applyToggle(
+  prev: Permission[],
+  kind: 'view' | 'edit',
+  row: PermissionRow,
+  nextChecked: boolean,
+  roleDefaults: Permission[]
+): Permission[] {
+  const viewCandidates = row.view ?? [];
+  const editCandidates = row.edit ?? [];
+  const isView = kind === 'view';
+
+  // ✅ Rule: turning VIEW off also turns EDIT off
+  if (!nextChecked && isView) {
+    return removeAll(prev, uniq([...viewCandidates, ...editCandidates]));
+  }
+
+  const candidates = isView ? viewCandidates : editCandidates;
+  if (!candidates.length) return prev;
+
+  // Uncheck => remove all in that group
+  if (!nextChecked) return removeAll(prev, candidates);
+
+  // Check => remove conflicts in that group, then add back what applies.
+  const priority = isView ? row.viewEnablePriority : row.editEnablePriority;
+  const toAdd = pickEnablePermissions(roleDefaults, priority, isView && row.additiveView === true);
+  if (!toAdd.length) return prev;
+
+  const next = uniq([...removeAll(prev, candidates), ...toAdd]);
+  return isView ? next : withViewEnabled(next, row, roleDefaults);
+}
+
 const OWNER_LOCKED_PERMISSIONS: Permission[] = PERMISSION_ROWS.reduce<Permission[]>(
   (permissions, row) => {
     if (row.ownerLocked === true) permissions.push(...(row.view ?? []), ...(row.edit ?? []));
@@ -265,10 +327,10 @@ const PermissionsEditor = ({ value, onSave, role, readOnly = false }: Permission
   const roleDefaults = React.useMemo(() => ROLE_PERMISSIONS[role] ?? [], [role]);
   const [draft, setDraft] = React.useState<Permission[]>(value);
   const [saving, setSaving] = React.useState(false);
-  const resetKeyRef = useRef<string>('');
   const resetKey = `${role}:${value.join('|')}`;
-  if (resetKeyRef.current !== resetKey) {
-    resetKeyRef.current = resetKey;
+  const [prevResetKey, setPrevResetKey] = React.useState(resetKey);
+  if (prevResetKey !== resetKey) {
+    setPrevResetKey(resetKey);
     if (!samePermissionSet(draft, value)) {
       setDraft(value);
     }
@@ -281,49 +343,7 @@ const PermissionsEditor = ({ value, onSave, role, readOnly = false }: Permission
       // An owner never loses the permissions that gate the screens they would
       // use to reverse a change, so these rows cannot be switched off here.
       if (!nextChecked && row.ownerLocked && role === 'OWNER') return;
-      setDraft((prev) => {
-        const viewCandidates = row.view ?? [];
-        const editCandidates = row.edit ?? [];
-
-        // ✅ Rule: turning VIEW off also turns EDIT off
-        if (!nextChecked && kind === 'view') {
-          return removeAll(prev, uniq([...viewCandidates, ...editCandidates]));
-        }
-
-        const candidates = kind === 'view' ? viewCandidates : editCandidates;
-        const priority = kind === 'view' ? row.viewEnablePriority : row.editEnablePriority;
-
-        if (!candidates.length) return prev;
-
-        // Uncheck => remove all in that group
-        if (!nextChecked) {
-          return removeAll(prev, candidates);
-        }
-
-        // Check => remove conflicts in that group, then add back what applies:
-        // every baseline permission for an additive group, one tier otherwise.
-        const isAdditive = kind === 'view' && row.additiveView === true;
-        const single = pickEnablePermission(roleDefaults, priority);
-        const toAdd = isAdditive
-          ? pickAdditiveEnablePermissions(roleDefaults, priority)
-          : ((single ? [single] : []) as Permission[]);
-        if (!toAdd.length) return prev;
-
-        let next = uniq([...removeAll(prev, candidates), ...toAdd]);
-
-        // ✅ Rule: turning EDIT on also turns VIEW on
-        if (kind === 'edit' && viewCandidates.length && !hasAny(next, viewCandidates)) {
-          const viewPriority = row.viewEnablePriority ?? viewCandidates;
-          const viewToAdd = row.additiveView
-            ? pickAdditiveEnablePermissions(roleDefaults, viewPriority)
-            : ((pickEnablePermission(roleDefaults, viewPriority)
-                ? [pickEnablePermission(roleDefaults, viewPriority)]
-                : []) as Permission[]);
-          if (viewToAdd.length) next = uniq([...next, ...viewToAdd]);
-        }
-
-        return next;
-      });
+      setDraft((prev) => applyToggle(prev, kind, row, nextChecked, roleDefaults));
     },
     [role, roleDefaults]
   );

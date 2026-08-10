@@ -237,6 +237,40 @@ describe("OrganizationService", () => {
       });
     });
 
+    it("creates an organisation from a minimal payload without optional fields", async () => {
+      const minimalDto: any = {
+        resourceType: "Organization",
+        name: "Minimal Hospital",
+        phoneNo: "1234567890",
+        type: "HOSPITAL",
+        taxId: "TAX-456",
+      };
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce({
+        ...minimalDto,
+      });
+      (prisma.organization.create as jest.Mock).mockResolvedValueOnce(baseOrg);
+      (
+        prisma.organization.findUniqueOrThrow as jest.Mock
+      ).mockResolvedValueOnce(baseOrg);
+
+      const result = await OrganizationService.upsert(minimalDto);
+
+      expect(prisma.organization.findFirst).not.toHaveBeenCalled();
+      expect(prisma.organization.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            fhirId: undefined,
+            imageUrl: undefined,
+            appointmentLockWindowOutpatientMinutes: undefined,
+            appointmentLockWindowInpatientMinutes: undefined,
+            appointmentCheckInBufferMinutes: 5,
+            appointmentCheckInRadiusMeters: 200,
+          }),
+        }),
+      );
+      expect(result.created).toBe(true);
+    });
+
     it("updates an existing organisation", async () => {
       (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(
         baseOrg,

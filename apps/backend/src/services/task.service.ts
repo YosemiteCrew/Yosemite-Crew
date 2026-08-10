@@ -1,7 +1,5 @@
 import {
   Prisma,
-  TaskAudience as PrismaTaskAudience,
-  TaskSource as PrismaTaskSource,
   TaskKind as PrismaTaskKind,
   TaskStatus as PrismaTaskStatus,
   TaskPriority as PrismaTaskPriority,
@@ -99,7 +97,7 @@ const toNullableJsonInput = (
 ): Prisma.InputJsonValue | Prisma.NullTypes.DbNull | undefined => {
   if (value === undefined) return undefined;
   if (value === null) return Prisma.DbNull;
-  return value as Prisma.InputJsonValue;
+  return value;
 };
 
 const sanitizeStatusList = (value: unknown): TaskStatus[] | undefined => {
@@ -620,8 +618,8 @@ const buildCreateTaskData = (input: {
   assignedBy: input.assignedBy ?? input.createdBy,
   assignedTo: input.assignedTo,
   assignedGroupId: input.assignedGroupId ?? undefined,
-  audience: input.audience as PrismaTaskAudience,
-  source: input.source as PrismaTaskSource,
+  audience: input.audience,
+  source: input.source,
   libraryTaskId: input.libraryTaskId ?? undefined,
   templateId: input.templateId ?? undefined,
   category: input.category,
@@ -1738,7 +1736,7 @@ export const TaskService = {
                 ? ((task.recurrence as { endDate?: Date | null } | null)
                     ?.endDate ?? undefined)
                 : (updates.recurrence?.endDate ?? undefined),
-          } as Prisma.InputJsonValue,
+          },
         },
       });
 
@@ -1753,7 +1751,7 @@ export const TaskService = {
               masterTaskId: undefined,
               cronExpression: seriesCronExpression ?? undefined,
               endDate: new Date(splitDueAt.getTime() - 1),
-            } as Prisma.InputJsonValue,
+            },
           },
         });
 
@@ -1766,7 +1764,7 @@ export const TaskService = {
               recurrence: {
                 ...((row.recurrence as Record<string, unknown>) ?? {}),
                 masterTaskId: task.id,
-              } as Prisma.InputJsonValue,
+              },
             },
           });
         }

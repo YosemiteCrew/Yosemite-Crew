@@ -33,29 +33,15 @@ const toMs = (value?: string | Date): number | undefined => {
   return Number.isNaN(ms) ? undefined : ms;
 };
 
-/**
- * "In room HH:MM:SS" visit timer pill for the workspace header. Counts up once per
- * second from the best-available start. Three states, per the design's micro-states:
- * resting ("Not started"), running (green pulse dot), and over-booked (amber, past
- * the booked slot). Purely informational — it never gates any action.
- */
-const VisitTimer = ({
-  startAt,
-  bookedEndAt,
-  className = '',
-  variant = 'default',
-}: VisitTimerProps) => {
-  const isPhone = variant === 'phone';
-  const startMs = toMs(startAt);
-  const [nowMs, setNowMs] = useState(() => Date.now());
+type VisitTimerInnerProps = {
+  startMs?: number;
+  bookedEndAt?: string | Date;
+  className: string;
+  isPhone: boolean;
+};
 
-  // Re-sync immediately when the start changes, at render time rather than in an
-  // effect, so the displayed elapsed value never lags a frame behind the prop.
-  const [prevStartMs, setPrevStartMs] = useState(startMs);
-  if (startMs !== prevStartMs) {
-    setPrevStartMs(startMs);
-    setNowMs(Date.now());
-  }
+const VisitTimerInner = ({ startMs, bookedEndAt, className, isPhone }: VisitTimerInnerProps) => {
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {
     if (startMs === undefined) return;
@@ -143,6 +129,33 @@ const VisitTimer = ({
       />
       In room {elapsed}
     </span>
+  );
+};
+
+/**
+ * "In room HH:MM:SS" visit timer pill for the workspace header. Counts up once per
+ * second from the best-available start. Three states, per the design's micro-states:
+ * resting ("Not started"), running (green pulse dot), and over-booked (amber, past
+ * the booked slot). Purely informational — it never gates any action.
+ */
+const VisitTimer = ({
+  startAt,
+  bookedEndAt,
+  className = '',
+  variant = 'default',
+}: VisitTimerProps) => {
+  const startMs = toMs(startAt);
+  // Re-seed immediately when the start changes: the key remounts the inner timer,
+  // whose `nowMs` initializer reads the clock on its first render, so the displayed
+  // elapsed value never lags a frame behind the prop.
+  return (
+    <VisitTimerInner
+      key={startMs ?? 'unset'}
+      startMs={startMs}
+      bookedEndAt={bookedEndAt}
+      className={className}
+      isPhone={variant === 'phone'}
+    />
   );
 };
 

@@ -66,9 +66,7 @@ export const getOrganisationDiscountSettings = async (
   organisationId: string
 ): Promise<OrganisationDiscountSettings> => {
   if (!organisationId) throw new Error('Organisation ID missing');
-  const res = await getData<FinanceEnvelope<unknown> | unknown>(
-    discountSettingsPath(organisationId)
-  );
+  const res = await getData<unknown>(discountSettingsPath(organisationId));
   return normalizeSettings(unwrapFinanceData(res.data), organisationId);
 };
 
@@ -77,9 +75,6 @@ export const updateOrganisationDiscountSettings = async (
   input: { maxOverallDiscountPercent: number | null }
 ): Promise<OrganisationDiscountSettings> => {
   if (!organisationId) throw new Error('Organisation ID missing');
-  const res = await putData<FinanceEnvelope<unknown> | unknown>(
-    discountSettingsPath(organisationId),
-    input
-  );
+  const res = await putData<unknown>(discountSettingsPath(organisationId), input);
   return normalizeSettings(unwrapFinanceData(res.data), organisationId);
 };

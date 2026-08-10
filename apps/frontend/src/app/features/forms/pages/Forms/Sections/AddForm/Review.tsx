@@ -7,7 +7,7 @@ import {
   FormsUsageOptions,
   getFormCategoryDisplayLabel,
 } from '@/app/features/forms/types/forms';
-import React, { useRef } from 'react';
+import React from 'react';
 import FormRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRenderer';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { Organisation } from '@yosemite-crew/types';
@@ -85,9 +85,9 @@ const Review = ({
     buildInitialValues(formData.schema ?? [])
   );
   const schemaKey = JSON.stringify(formData.schema ?? []);
-  const prevSchemaKeyRef = useRef(schemaKey);
-  if (prevSchemaKeyRef.current !== schemaKey) {
-    prevSchemaKeyRef.current = schemaKey;
+  const [prevSchemaKey, setPrevSchemaKey] = React.useState(schemaKey);
+  if (prevSchemaKey !== schemaKey) {
+    setPrevSchemaKey(schemaKey);
     setValues(buildInitialValues(formData.schema ?? []));
   }
 

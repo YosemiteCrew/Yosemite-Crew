@@ -1,4 +1,4 @@
-import { Prisma, TaskTemplateRole } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 
 export class TaskTemplateServiceError extends Error {
@@ -120,7 +120,7 @@ export interface UpdateTaskTemplateInput {
 }
 
 const toDefaultRole = (value: "EMPLOYEE" | "PARENT") =>
-  (value === "EMPLOYEE" ? "EMPLOYEE" : "PARENT") as TaskTemplateRole;
+  value === "EMPLOYEE" ? "EMPLOYEE" : "PARENT";
 
 export const TaskTemplateService = {
   async create(input: CreateTaskTemplateInput): Promise<TaskTemplateDocument> {

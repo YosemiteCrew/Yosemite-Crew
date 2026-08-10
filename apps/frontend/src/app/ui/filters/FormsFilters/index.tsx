@@ -99,19 +99,24 @@ const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFilters
     };
   }, [open]);
 
-  const panelStyle: React.CSSProperties | undefined =
-    open && triggerRef.current
-      ? (() => {
-          const rect = triggerRef.current.getBoundingClientRect();
-          return {
-            position: 'fixed',
-            top: rect.bottom + 6,
-            right: globalThis.window.innerWidth - rect.right,
-            minWidth: Math.max(rect.width, 200),
-            zIndex: 9999,
-          } satisfies React.CSSProperties;
-        })()
-      : undefined;
+  const [panelStyle, setPanelStyle] = useState<React.CSSProperties | undefined>(undefined);
+
+  // Measure the trigger in the click handler (not during render): the panel is
+  // portaled to <body>, so it is positioned from the trigger's viewport rect.
+  const toggleOpen = () => {
+    const next = !open;
+    if (next && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPanelStyle({
+        position: 'fixed',
+        top: rect.bottom + 6,
+        right: globalThis.window.innerWidth - rect.right,
+        minWidth: Math.max(rect.width, 200),
+        zIndex: 9999,
+      });
+    }
+    setOpen(next);
+  };
 
   const selectCategory = (value: string) => {
     onFiltersChange({ ...filters, category: value as FormsCategory | 'All' });
@@ -151,8 +156,10 @@ const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFilters
         <button
           ref={triggerRef}
           type="button"
-          onClick={() => setOpen((prev) => !prev)}
-          aria-haspopup="listbox"
+          onClick={toggleOpen}
+          // No aria-haspopup: the popup is a plain stack of buttons, not a
+          // listbox or a menu, and it implements no keyboard model. aria-expanded
+          // plus the label below already say what this control does.
           aria-expanded={open}
           aria-label={`Category: ${selectedCategoryLabel}`}
           className="inline-flex items-center gap-1.5 rounded-full! border border-[var(--hairline)] px-[13px] py-1.5 text-[12px] font-semibold text-[var(--ink-muted)] transition-colors hover:border-[var(--divider)]"
@@ -169,8 +176,8 @@ const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFilters
           createPortal(
             <div
               ref={panelRef}
-              role="listbox"
               aria-label="Category"
+              data-testid="category-menu"
               className="yc-glass-overlay rounded-2xl max-h-64 overflow-y-auto py-1"
               style={panelStyle}
             >
@@ -180,8 +187,11 @@ const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFilters
                   <button
                     key={opt.value}
                     type="button"
-                    role="option"
-                    aria-selected={isSelected}
+                    // Single-select, so these are plain buttons per AGENTS.md, not
+                    // toggles: aria-pressed would expose eight independent
+                    // switches. aria-current marks the chosen one within the set
+                    // without claiming a listbox or menu widget.
+                    aria-current={isSelected ? 'true' : undefined}
                     data-testid={`option-${opt.value}`}
                     onClick={() => selectCategory(opt.value)}
                     className={clsx(

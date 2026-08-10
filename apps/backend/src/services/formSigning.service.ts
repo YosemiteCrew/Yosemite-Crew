@@ -332,7 +332,7 @@ export class FormSigningService {
             email: signerEmail,
             role: signerRole,
           },
-        } as unknown as Prisma.InputJsonValue,
+        },
       },
     });
 
@@ -356,15 +356,13 @@ export class FormSigningService {
 
     // 2️⃣ Validate signing state
     const signingStatus = FormSigningService.extractSigningStatus(
-      submission.signing as Prisma.JsonValue | null | undefined,
+      submission.signing,
     );
     if (signingStatus !== "SIGNED") {
       throw new Error("Submission is not signed yet");
     }
 
-    const documentId = FormSigningService.extractDocumentId(
-      submission.signing as Prisma.JsonValue | null | undefined,
-    );
+    const documentId = FormSigningService.extractDocumentId(submission.signing);
 
     if (!documentId) {
       throw new Error("No document associated with this submission");

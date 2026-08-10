@@ -415,7 +415,7 @@ export const ParentService = {
         profileImageUrl: parent.profileImageUrl ?? undefined,
         isProfileComplete: false,
         linkedUserId: parent.linkedUserId ?? undefined,
-        createdFrom: parent.createdFrom as ParentCreatedFrom,
+        createdFrom: parent.createdFrom,
         // Client alerts are staff-authored and only the PMS path may set them, matching
         // the update path. A mobile self-registration must not be able to seed its own
         // alerts through the public POST.
@@ -524,7 +524,7 @@ export const ParentService = {
         timezone: parent.timezone ?? undefined,
         profileImageUrl: parent.profileImageUrl ?? undefined,
         isProfileComplete: false,
-        createdFrom: parent.createdFrom as ParentCreatedFrom | undefined,
+        createdFrom: parent.createdFrom,
         // Only the PMS path manages client alerts: it sends the full alert set, so an
         // absent/empty set there means "cleared" (JsonNull, since Prisma treats undefined
         // as "leave unchanged"). Mobile self-service updates never carry alerts, so the

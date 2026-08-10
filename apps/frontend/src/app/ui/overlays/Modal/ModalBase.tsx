@@ -54,10 +54,14 @@ const ModalBase = ({
   }, [canClose, setShowModal, onClose]);
 
   const closeModalRef = useRef(closeModal);
-  closeModalRef.current = closeModal;
+  useEffect(() => {
+    closeModalRef.current = closeModal;
+  });
 
   const ignoreOutsideClickRef = useRef(ignoreOutsideClick);
-  ignoreOutsideClickRef.current = ignoreOutsideClick;
+  useEffect(() => {
+    ignoreOutsideClickRef.current = ignoreOutsideClick;
+  });
 
   // Sync inert state and body scroll lock with showModal.
   // Focus is moved in a separate effect that fires after isInert settles (below).

@@ -196,7 +196,7 @@ const ClinicBottomSheet = ({
         }
         ListEmptyComponent={emptyComponent}
         getItemLayout={(
-          _data: VetBusiness[] | null | undefined,
+          _data: ArrayLike<VetBusiness> | null | undefined,
           index: number,
         ) => ({
           length: ITEM_ESTIMATED_HEIGHT,

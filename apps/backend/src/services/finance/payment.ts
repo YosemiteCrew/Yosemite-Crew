@@ -13,6 +13,7 @@ import { prisma } from "src/config/prisma";
 import logger from "src/utils/logger";
 import { FinanceEventService } from "./events";
 import { roundMoney } from "./pricing";
+import { markInvoiceTreatmentItemsSettled } from "./settlement";
 
 type PaymentLineSummary = {
   id: string;
@@ -277,6 +278,33 @@ const applyCheckoutSessionTaxToInvoice = async (
   const taxPercent =
     subtotal > 0 ? roundMoney((taxAmount / subtotal) * 100) : 0;
 
+  const sessionAmounts = {
+    sessionId: input.sessionId,
+    amountSubtotal: input.amountSubtotal ?? null,
+    amountTotal: input.amountTotal ?? null,
+    amountTax: input.amountTax ?? null,
+    automaticTaxStatus: input.automaticTaxStatus ?? null,
+  };
+
+  const buildTaxSnapshotData = () => ({
+    provider: "STRIPE" as const,
+    providerReferenceId: input.sessionId,
+    jurisdictionCountry: null,
+    jurisdictionState: null,
+    taxBehavior: invoice.taxSnapshot?.taxBehavior ?? null,
+    taxableSubtotal: subtotal,
+    taxAmount,
+    taxBreakdown: {
+      subtotal,
+      taxableSubtotal: subtotal,
+      taxTotal: taxAmount,
+      totalAmount,
+      ...sessionAmounts,
+    },
+    rawProviderPayload: input.rawProviderPayload ?? sessionAmounts,
+    calculatedAt: new Date(),
+  });
+
   return prisma.invoice.update({
     where: { id: invoice.id },
     data: {
@@ -287,66 +315,8 @@ const applyCheckoutSessionTaxToInvoice = async (
       totalAmount,
       taxSnapshot: {
         upsert: {
-          create: {
-            provider: "STRIPE",
-            providerReferenceId: input.sessionId,
-            jurisdictionCountry: null,
-            jurisdictionState: null,
-            taxBehavior: invoice.taxSnapshot?.taxBehavior ?? null,
-            taxableSubtotal: subtotal,
-            taxAmount,
-            taxBreakdown: {
-              subtotal,
-              taxableSubtotal: subtotal,
-              taxTotal: taxAmount,
-              totalAmount,
-              sessionId: input.sessionId,
-              amountSubtotal: input.amountSubtotal ?? null,
-              amountTotal: input.amountTotal ?? null,
-              amountTax: input.amountTax ?? null,
-              automaticTaxStatus: input.automaticTaxStatus ?? null,
-            } as unknown as Prisma.InputJsonValue,
-            rawProviderPayload:
-              input.rawProviderPayload ??
-              ({
-                sessionId: input.sessionId,
-                amountSubtotal: input.amountSubtotal ?? null,
-                amountTotal: input.amountTotal ?? null,
-                amountTax: input.amountTax ?? null,
-                automaticTaxStatus: input.automaticTaxStatus ?? null,
-              } as Prisma.InputJsonValue),
-            calculatedAt: new Date(),
-          },
-          update: {
-            provider: "STRIPE",
-            providerReferenceId: input.sessionId,
-            jurisdictionCountry: null,
-            jurisdictionState: null,
-            taxBehavior: invoice.taxSnapshot?.taxBehavior ?? null,
-            taxableSubtotal: subtotal,
-            taxAmount,
-            taxBreakdown: {
-              subtotal,
-              taxableSubtotal: subtotal,
-              taxTotal: taxAmount,
-              totalAmount,
-              sessionId: input.sessionId,
-              amountSubtotal: input.amountSubtotal ?? null,
-              amountTotal: input.amountTotal ?? null,
-              amountTax: input.amountTax ?? null,
-              automaticTaxStatus: input.automaticTaxStatus ?? null,
-            } as unknown as Prisma.InputJsonValue,
-            rawProviderPayload:
-              input.rawProviderPayload ??
-              ({
-                sessionId: input.sessionId,
-                amountSubtotal: input.amountSubtotal ?? null,
-                amountTotal: input.amountTotal ?? null,
-                amountTax: input.amountTax ?? null,
-                automaticTaxStatus: input.automaticTaxStatus ?? null,
-              } as Prisma.InputJsonValue),
-            calculatedAt: new Date(),
-          },
+          create: buildTaxSnapshotData(),
+          update: buildTaxSnapshotData(),
         },
       },
     },
@@ -420,28 +390,7 @@ const updateInvoiceAfterPayment = async (params: {
           : {}),
       },
     });
-    const invoiceRowIds = (Array.isArray(invoice.items) ? invoice.items : [])
-      .map((item) =>
-        typeof item === "object" &&
-        item !== null &&
-        "id" in item &&
-        typeof item.id === "string"
-          ? item.id
-          : null,
-      )
-      .filter((id): id is string => Boolean(id));
-    if (invoiceRowIds.length > 0) {
-      await prisma.workspaceTreatmentItem.updateMany({
-        where: {
-          appointmentId: invoice.appointmentId,
-          invoiceRowId: { in: invoiceRowIds },
-        },
-        data: {
-          settledInvoiceId: invoiceId,
-          settledAt: receivedAt,
-        },
-      });
-    }
+    await markInvoiceTreatmentItemsSettled(invoice, invoiceId, receivedAt);
     return settledInvoice;
   }
 
@@ -979,7 +928,7 @@ export const FinancePaymentService = {
           sessionId: session.id,
           url: session.url ?? null,
           connectedAccountId: organisation.stripeAccountId,
-        } as Prisma.InputJsonValue,
+        },
       },
     });
 
@@ -1176,7 +1125,7 @@ export const FinancePaymentService = {
         connectedAccountId: organisation.stripeAccountId,
         collectionMode: options.collectionMode ?? null,
         settlementChannel: options.settlementChannel ?? null,
-      } as Prisma.InputJsonValue,
+      },
     });
 
     await prisma.invoice.update({
@@ -1259,7 +1208,7 @@ export const FinancePaymentService = {
           rawProviderPayload: {
             source: "finance.refundInvoicePayment",
             invoiceId,
-          } as Prisma.InputJsonValue,
+          },
         },
       });
     }
@@ -1323,7 +1272,7 @@ export const FinancePaymentService = {
           paymentId: payment.id,
           providerRefundId,
           refundStatus,
-        } as Prisma.InputJsonValue,
+        },
       },
     });
 
@@ -1336,7 +1285,7 @@ export const FinancePaymentService = {
           invoiceId,
           refundId: refund.id,
           providerRefundId,
-        } as Prisma.InputJsonValue,
+        },
       },
     });
 
@@ -1367,7 +1316,7 @@ export const FinancePaymentService = {
           refundId: providerRefundId ?? refund.id,
           amount: amountRefunded,
           refundDate: new Date().toISOString(),
-        } as unknown as Prisma.InputJsonValue,
+        },
       },
       include: { payments: true },
     });
@@ -1530,7 +1479,7 @@ export const FinancePaymentService = {
           providerRefundId,
           refundStatus,
           amount: refundAmount,
-        } as Prisma.InputJsonValue,
+        },
       },
     });
 
@@ -1932,15 +1881,13 @@ export const FinancePaymentService = {
       providerPaymentId: input.paymentIntentId ?? null,
       paymentAttemptId: paymentAttempt?.id ?? null,
       reference: input.receiptUrl ?? undefined,
-      rawProviderPayload:
-        input.rawProviderPayload ??
-        ({
-          sessionId: input.sessionId,
-          amountSubtotal: input.amountSubtotal ?? null,
-          amountTotal: input.amountTotal ?? null,
-          amountTax: input.amountTax ?? null,
-          automaticTaxStatus: input.automaticTaxStatus ?? null,
-        } as Prisma.InputJsonValue),
+      rawProviderPayload: input.rawProviderPayload ?? {
+        sessionId: input.sessionId,
+        amountSubtotal: input.amountSubtotal ?? null,
+        amountTotal: input.amountTotal ?? null,
+        amountTax: input.amountTax ?? null,
+        automaticTaxStatus: input.automaticTaxStatus ?? null,
+      },
     });
 
     return { action: "PAID" as const, ...applied };
@@ -1995,7 +1942,7 @@ export const FinancePaymentService = {
             invoiceId: invoice.id,
             paymentIntentId: input.paymentIntentId ?? null,
             chargeId: input.chargeId ?? null,
-          } as Prisma.InputJsonValue,
+          },
         },
       });
 
@@ -2016,7 +1963,7 @@ export const FinancePaymentService = {
           amount: input.amount,
           refundDate: new Date().toISOString(),
           cancellationReason: input.reason ?? undefined,
-        } as unknown as Prisma.InputJsonValue,
+        },
       },
     });
 

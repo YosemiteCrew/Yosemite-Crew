@@ -87,10 +87,22 @@ const CompanionInfo = ({
     scrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
   }, [activeLabel, activeSubLabel]);
 
-  useEffect(() => {
-    if (!showModal) return;
-    selectActiveLabel(initialLabel);
-  }, [showModal, initialLabel, activeCompanion?.companion.id, selectActiveLabel]);
+  const companionId = activeCompanion?.companion.id;
+  const [prevLabelSync, setPrevLabelSync] = useState<{
+    showModal: boolean;
+    initialLabel: LabelKey;
+    companionId: string | undefined;
+    selectActiveLabel: (labelKey: LabelKey) => void;
+  } | null>(null);
+  if (
+    prevLabelSync?.showModal !== showModal ||
+    prevLabelSync?.initialLabel !== initialLabel ||
+    prevLabelSync?.companionId !== companionId ||
+    prevLabelSync?.selectActiveLabel !== selectActiveLabel
+  ) {
+    setPrevLabelSync({ showModal, initialLabel, companionId, selectActiveLabel });
+    if (showModal) selectActiveLabel(initialLabel);
+  }
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>

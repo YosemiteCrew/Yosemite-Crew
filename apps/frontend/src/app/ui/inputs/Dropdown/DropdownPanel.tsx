@@ -15,9 +15,6 @@ type DropdownPanelProps = {
   handleKeyDown: (event: React.KeyboardEvent) => void;
   activeOptionId: string | undefined;
   filteredList: DropdownOption[];
-  /** Unfiltered option list. Part of the caller contract; the design's menu has
-   *  no per-row dividers, so the panel itself only renders `filteredList`. */
-  list: DropdownOption[];
   setActiveIndex: (index: number) => void;
   selectOption: (option: DropdownOption) => void;
 };

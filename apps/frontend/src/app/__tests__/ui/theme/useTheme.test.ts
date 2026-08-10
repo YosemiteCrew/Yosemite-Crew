@@ -58,6 +58,8 @@ describe('useTheme', () => {
     document.documentElement.setAttribute('data-theme', 'light');
     const { result } = renderHook(() => useTheme());
     act(() => {
+      // Another instance's applyTheme sets the html attribute, then broadcasts.
+      document.documentElement.setAttribute('data-theme', 'dark');
       globalThis.dispatchEvent(new CustomEvent('yc-theme-change', { detail: { theme: 'dark' } }));
     });
     expect(result.current.theme).toBe('dark');
@@ -202,7 +204,11 @@ describe('useTheme', () => {
     document.documentElement.setAttribute('data-theme', 'dark');
     mockMatchMedia(false);
     const { result } = renderHook(() => useTheme());
-    const spy = jest.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+    // Private mode blocks the whole Storage API — writes and reads alike.
+    const removeSpy = jest.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    const getSpy = jest.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('blocked');
     });
 
@@ -210,7 +216,8 @@ describe('useTheme', () => {
 
     expect(document.documentElement.getAttribute('data-theme')).toBe('light');
     expect(result.current.appearance).toBe('auto');
-    spy.mockRestore();
+    removeSpy.mockRestore();
+    getSpy.mockRestore();
   });
 
   it('reports auto appearance when reading the stored choice throws', () => {

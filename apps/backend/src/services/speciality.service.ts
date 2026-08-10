@@ -9,6 +9,7 @@ import {
 import { ServiceService } from "./service.service";
 import { sendEmailTemplate } from "src/utils/email";
 import logger from "src/utils/logger";
+import { pruneUndefined } from "src/utils/prune-undefined";
 import { prisma } from "src/config/prisma";
 
 export type SpecialityFHIRPayload = SpecialityRequestDTO;
@@ -85,36 +86,6 @@ const sendSpecialityHeadAssignmentEmail = async (params: {
   } catch (error) {
     logger.error("Failed to send speciality head assignment email.", error);
   }
-};
-
-const pruneUndefined = <T>(value: T): T => {
-  if (Array.isArray(value)) {
-    const cleaned = (value as unknown[])
-      .map((item) => pruneUndefined(item))
-      .filter((item) => item !== undefined);
-    return cleaned as unknown as T;
-  }
-
-  if (value && typeof value === "object") {
-    if (value instanceof Date) {
-      return value;
-    }
-
-    const record = value as Record<string, unknown>;
-    const cleanedRecord: Record<string, unknown> = {};
-
-    for (const [key, entryValue] of Object.entries(record)) {
-      const next = pruneUndefined(entryValue);
-
-      if (next !== undefined) {
-        cleanedRecord[key] = next;
-      }
-    }
-
-    return cleanedRecord as unknown as T;
-  }
-
-  return value;
 };
 
 const requireSafeString = (value: unknown, fieldName: string): string => {

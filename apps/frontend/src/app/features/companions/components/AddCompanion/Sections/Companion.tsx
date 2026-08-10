@@ -151,11 +151,18 @@ const useCompanionContent = ({
     [results]
   );
 
+  const [prevParentId, setPrevParentId] = useState(parentFormData.id);
+  if (prevParentId !== parentFormData.id) {
+    setPrevParentId(parentFormData.id);
+    if (!parentFormData.id) {
+      setResults([]);
+      setQuery('');
+    }
+  }
+
   useLayoutEffect(() => {
     const parentId = parentFormData.id;
     if (!parentId) {
-      setResults([]);
-      setQuery('');
       return;
     }
     let mounted = true;
@@ -195,10 +202,17 @@ const useCompanionContent = ({
     };
   }, []);
 
+  const [prevBreedSync, setPrevBreedSync] = useState({ type: formData.type, speciesOptions });
+  if (prevBreedSync.type !== formData.type || prevBreedSync.speciesOptions !== speciesOptions) {
+    setPrevBreedSync({ type: formData.type, speciesOptions });
+    if (!speciesOptions.some((option) => option.type === formData.type)) {
+      setBreedOptions([]);
+    }
+  }
+
   useLayoutEffect(() => {
     const selected = speciesOptions.find((option) => option.type === formData.type);
     if (!selected) {
-      setBreedOptions([]);
       return;
     }
     let mounted = true;

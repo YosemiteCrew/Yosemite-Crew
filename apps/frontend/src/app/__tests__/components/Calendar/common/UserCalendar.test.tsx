@@ -89,7 +89,6 @@ import {
 describe('UserCalendar (Appointments)', () => {
   const handleViewAppointment = jest.fn();
   const handleRescheduleAppointment = jest.fn();
-  const setCurrentDate = jest.fn();
 
   const team = [
     { _id: 'u1', name: 'Alex' },
@@ -116,7 +115,6 @@ describe('UserCalendar (Appointments)', () => {
         date={new Date('2025-01-06T00:00:00Z')}
         handleViewAppointment={handleViewAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
-        setCurrentDate={setCurrentDate}
         canEditAppointments
       />
     );
@@ -147,14 +145,12 @@ describe('UserCalendar (Appointments)', () => {
         date={new Date('2025-01-06T00:00:00Z')}
         handleViewAppointment={handleViewAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
-        setCurrentDate={setCurrentDate}
         canEditAppointments
       />
     );
 
     expect(screen.queryByText('PrevDay')).not.toBeInTheDocument();
     expect(screen.queryByText('NextDay')).not.toBeInTheDocument();
-    expect(setCurrentDate).not.toHaveBeenCalled();
   });
 
   it('renders zoom-out layout with availability, unavailable segments and the now indicator', () => {
@@ -180,7 +176,6 @@ describe('UserCalendar (Appointments)', () => {
         zoomMode="out"
         handleViewAppointment={handleViewAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
-        setCurrentDate={setCurrentDate}
         canEditAppointments
         availabilityLoaded
         getVisibleAvailabilityIntervals={getVisibleAvailabilityIntervals}
@@ -225,7 +220,6 @@ describe('UserCalendar (Appointments)', () => {
         date={new Date('2019-05-05T00:00:00Z')}
         handleViewAppointment={handleViewAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
-        setCurrentDate={setCurrentDate}
         canEditAppointments
       />
     );
@@ -241,7 +235,6 @@ describe('UserCalendar (Appointments)', () => {
         date={new Date('2019-05-05T00:00:00Z')}
         handleViewAppointment={handleViewAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
-        setCurrentDate={setCurrentDate}
         canEditAppointments
         draggedAppointmentId="drag-1"
       />
@@ -257,7 +250,6 @@ describe('UserCalendar (Appointments)', () => {
         date={new Date('2019-05-05T00:00:00Z')}
         handleViewAppointment={handleViewAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
-        setCurrentDate={setCurrentDate}
         canEditAppointments
         skipAutoScroll
       />
@@ -275,7 +267,6 @@ describe('UserCalendar (Appointments)', () => {
         zoomMode="in"
         handleViewAppointment={handleViewAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
-        setCurrentDate={setCurrentDate}
         canEditAppointments
       />
     );
@@ -291,7 +282,6 @@ describe('UserCalendar (Appointments)', () => {
         zoomMode="out"
         handleViewAppointment={handleViewAppointment}
         handleRescheduleAppointment={handleRescheduleAppointment}
-        setCurrentDate={setCurrentDate}
         canEditAppointments
       />
     );

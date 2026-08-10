@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
 import { IoEllipsisHorizontal, IoPersonAddOutline } from 'react-icons/io5';
 import AddTeam from '@/app/features/organization/pages/Organization/Sections/Team/AddTeam';
@@ -101,7 +101,11 @@ const Team = ({ isVerified = false }: { isVerified?: boolean }) => {
   const [activeTeam, setActiveTeam] = useState<TeamProp | null>(teams[0] ?? null);
   const showInvite = canEditTeam && isVerified;
 
-  useEffect(() => {
+  // Re-point the selection when the team list changes (adjusted during
+  // render, per React's "adjusting state when a prop changes" pattern).
+  const [prevTeams, setPrevTeams] = useState(teams);
+  if (prevTeams !== teams) {
+    setPrevTeams(teams);
     setActiveTeam((prev) => {
       if (teams.length === 0) return null;
       if (prev?._id) {
@@ -110,7 +114,7 @@ const Team = ({ isVerified = false }: { isVerified?: boolean }) => {
       }
       return teams[0];
     });
-  }, [teams]);
+  }
 
   const handleOpen = (team: TeamProp) => {
     setActiveTeam(team);

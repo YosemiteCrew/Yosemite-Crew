@@ -48,7 +48,6 @@ type UserCalendarProps = {
   handleViewAppointment: any;
   handleDetailAppointment?: any;
   handleOpenWorkspace?: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
-  setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   handleRescheduleAppointment: any;
   handleChangeRoomAppointment?: any;
   handleAcceptAppointment?: (appt: Appointment) => void;
@@ -86,8 +85,6 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   handleRescheduleAppointment,
   handleChangeRoomAppointment,
   handleAcceptAppointment,
-  // setCurrentDate stays on the props contract for callers, but day navigation
-  // now lives in the header toolbar's date-nav pill, which owns the setter.
   canEditAppointments,
   draggedAppointmentId,
   draggedAppointmentLabel,
@@ -189,11 +186,13 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   const dateKey = date.toISOString();
 
   const nowPositionRef = useRef(nowPosition);
-  nowPositionRef.current = nowPosition;
   const eventsRef = useRef(events);
-  eventsRef.current = events;
   const visibleHourRangeRef = useRef(visibleHourRange);
-  visibleHourRangeRef.current = visibleHourRange;
+  useEffect(() => {
+    nowPositionRef.current = nowPosition;
+    eventsRef.current = events;
+    visibleHourRangeRef.current = visibleHourRange;
+  });
 
   useEffect(() => {
     const container = scrollRef.current;

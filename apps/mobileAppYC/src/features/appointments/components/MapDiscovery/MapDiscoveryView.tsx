@@ -248,7 +248,7 @@ const MapDiscoveryView: React.FC<MapDiscoveryViewProps> = ({
     <View style={styles.container}>
       <MapView
         ref={mapRef}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
         provider={PROVIDER_GOOGLE}
         initialRegion={initialRegion}
         customMapStyle={YC_MAP_STYLE}

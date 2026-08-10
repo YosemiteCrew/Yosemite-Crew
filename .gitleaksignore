@@ -10,3 +10,4 @@ cf395318d9d1c0138322251ec864bb7062569c55:apps/backend/test/services/integration.
 # filename carries a content hash - refresh this fingerprint when the mirror is regenerated.
 apps/frontend/public/dev-docs/assets/js/7d8dc131.f6517124.js:curl-auth-header:1
 9e9934c30fe2b962840637544159f60d5f1cc7e5:apps/frontend/public/dev-docs/assets/js/7d8dc131.f6517124.js:curl-auth-header:1
+apps/frontend/public/dev-docs/assets/js/7d8dc131.33c51f1e.js:curl-auth-header:1

@@ -261,13 +261,12 @@ describe('AppointmentModePill', () => {
     });
   });
 
-  it('renders the inpatient pill in the strong tone with the supplied class and icon size', () => {
+  it('renders the inpatient pill with the supplied class and icon size', () => {
     render(
       <AppointmentModePill
         appointment={{ ...baseAppointment, appointmentKind: 'INPATIENT' }}
         className="custom-class"
         iconSize={20}
-        tone="strong"
       />
     );
 
@@ -277,8 +276,8 @@ describe('AppointmentModePill', () => {
     expect(screen.getByTestId('icon-bed')).toHaveAttribute('size', '20');
   });
 
-  it('renders the outpatient pill in the strong tone', () => {
-    render(<AppointmentModePill appointment={baseAppointment} tone="strong" />);
+  it('renders the outpatient pill on the neutral pill background', () => {
+    render(<AppointmentModePill appointment={baseAppointment} />);
 
     expect(screen.getByText('Outpatient').closest('[title="Outpatient"]')).toHaveStyle({
       backgroundColor: 'var(--color-pill-neutral-bg)',

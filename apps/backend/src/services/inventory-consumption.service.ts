@@ -1701,10 +1701,7 @@ const hydrateDispenseRequest = async (
 ) => {
   if (!request) return request;
 
-  const displayFields = await resolveDispenseRequestDisplayFields(
-    db,
-    request as never,
-  );
+  const displayFields = await resolveDispenseRequestDisplayFields(db, request);
   return {
     ...request,
     ...displayFields,
@@ -2142,7 +2139,7 @@ export const InventoryConsumptionService = {
       metadata: {
         voided: true,
         originalMetadata: params.metadata ?? null,
-      } as Prisma.InputJsonValue,
+      },
       action: "RELEASE",
       movementReason: "PRESCRIPTION_VOID_DISPENSE",
     });

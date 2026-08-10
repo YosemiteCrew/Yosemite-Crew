@@ -246,7 +246,7 @@ export const AuditTrailService = {
     const where: Prisma.AuditTrailWhereInput = {
       organisationId: filters.organisationId as string,
     };
-    if (filters.patientId) where.patientId = filters.patientId as string;
+    if (filters.patientId) where.patientId = filters.patientId;
     if (params.eventTypes?.length)
       where.eventType = {
         in: params.eventTypes.map(

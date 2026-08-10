@@ -135,16 +135,16 @@ const StatusFilterDropdown = ({
   setActiveStatus?: (v: string) => void;
   isMounted: boolean;
 }) => {
-  const dropdown = useAnchoredDropdown(180);
+  const { open, setOpen, style, triggerRef, panelRef } = useAnchoredDropdown(180);
   const selectedStatus = statusOptions.find((s) => s.key === activeStatus) ?? statusOptions[0];
   const isDefault = !selectedStatus || selectedStatus.key === 'all';
 
   return (
     <>
       <button
-        ref={dropdown.triggerRef}
+        ref={triggerRef}
         type="button"
-        onClick={() => dropdown.setOpen((v) => !v)}
+        onClick={() => setOpen((v) => !v)}
         className="flex shrink-0 items-center gap-1.5 rounded-full! transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
         style={
           isDefault
@@ -169,7 +169,7 @@ const StatusFilterDropdown = ({
                 {selectedStatus.name}
                 <IoChevronDown
                   size={12}
-                  className={clsx('shrink-0 transition-transform', dropdown.open && 'rotate-180')}
+                  className={clsx('shrink-0 transition-transform', open && 'rotate-180')}
                 />
               </>
             }
@@ -178,18 +178,18 @@ const StatusFilterDropdown = ({
         {isDefault && (
           <IoChevronDown
             size={12}
-            className={clsx('shrink-0 transition-transform', dropdown.open && 'rotate-180')}
+            className={clsx('shrink-0 transition-transform', open && 'rotate-180')}
           />
         )}
       </button>
 
       {isMounted &&
-        dropdown.open &&
+        open &&
         createPortal(
           <div
-            ref={dropdown.panelRef}
+            ref={panelRef}
             className="rounded-2xl border border-card-border bg-neutral-0 shadow-[0_8px_24px_var(--color-shadow-soft)] overflow-hidden"
-            style={dropdown.style}
+            style={style}
           >
             {statusOptions.map((status) => {
               const isActive = status.key === activeStatus;
@@ -199,7 +199,7 @@ const StatusFilterDropdown = ({
                   type="button"
                   onClick={() => {
                     setActiveStatus?.(status.key);
-                    dropdown.setOpen(false);
+                    setOpen(false);
                   }}
                   className={clsx(
                     'w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-left transition-colors',
@@ -406,7 +406,6 @@ type Headerprops = {
   currentDate: Date;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   /** Supplied by the week view so the header arrows step whole weeks. */
-  weekStart?: Date;
   setWeekStart?: React.Dispatch<React.SetStateAction<Date>>;
   zoomMode?: CalendarZoomMode;
   setZoomMode?: React.Dispatch<React.SetStateAction<CalendarZoomMode>>;

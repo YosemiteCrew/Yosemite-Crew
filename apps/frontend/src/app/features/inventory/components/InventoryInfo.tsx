@@ -693,8 +693,16 @@ const InventoryInfo = ({
   // one of those keys, so the lookup always hits.
   const currentLabelConfig = modalSections.find((l) => l.key === activeLabel)!;
 
-  useLayoutEffect(() => {
+  // Leave edit mode whenever the section or item changes — adjusted during render
+  // via a prev-compare (same pattern as the tab reset above); the imperative
+  // section/batch handles are cleared after commit since refs stay off-render.
+  const sectionResetKey = `${activeLabel}:${activeInventory?.id ?? ''}`;
+  const [prevSectionResetKey, setPrevSectionResetKey] = useState(sectionResetKey);
+  if (sectionResetKey !== prevSectionResetKey) {
+    setPrevSectionResetKey(sectionResetKey);
     setIsSectionEditing(false);
+  }
+  useLayoutEffect(() => {
     sectionActions.current = null;
     batchActions.current = null;
   }, [activeLabel, activeInventory?.id]);

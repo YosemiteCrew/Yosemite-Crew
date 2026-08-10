@@ -1,13 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import {
   getJsonStorageItem,
   getStorageItem,
   setJsonStorageItem,
   setStorageItem,
 } from '@/app/lib/browserStorage';
-import { http } from '@/app/services/http';
 import { GITHUB_API_REPO } from './assets';
 
 export interface GithubStats {
@@ -32,9 +31,56 @@ const EMPTY_STATS: GithubStats = {
   contributors: null,
   discord: null,
 };
+
+/**
+ * Session-cache subscription for useSyncExternalStore. The session cache is the
+ * external store the cached (non-live) hooks render from: the effects below refresh
+ * it over the network, every write emits, and each subscribed instance re-reads.
+ * Snapshots are memoized on the raw JSON so getSnapshot returns a stable reference
+ * until the underlying entry actually changes.
+ */
+const cacheListeners = new Set<() => void>();
+
+const subscribeToSessionCache = (onStoreChange: () => void): (() => void) => {
+  cacheListeners.add(onStoreChange);
+  return () => {
+    cacheListeners.delete(onStoreChange);
+  };
+};
+
+const emitSessionCacheChange = (): void => {
+  for (const listener of cacheListeners) listener();
+};
+
+const parseJson = <T>(raw: string | null): T | null => {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+};
+
+let statsSnapshotRaw: string | null = null;
+let statsSnapshot: GithubStats = EMPTY_STATS;
+
+const getStatsSnapshot = (): GithubStats => {
+  const raw = getStorageItem('session', STATS_CACHE_KEY);
+  if (raw !== statsSnapshotRaw) {
+    statsSnapshotRaw = raw;
+    const cached = parseJson<Partial<GithubStats>>(raw);
+    statsSnapshot = cached ? { ...EMPTY_STATS, ...cached } : EMPTY_STATS;
+  }
+  return statsSnapshot;
+};
+
+/** SSR (and the hydrating first client render) always shows the loading placeholders. */
+const getServerStats = (): GithubStats => EMPTY_STATS;
 const REPO_STATS_SUMMARY =
   'https://raw.githubusercontent.com/YosemiteCrew/Yosemite-Crew/github-repo-stats/YosemiteCrew/Yosemite-Crew/latest-report/summary.json';
-const DISCORD_MEMBERS_ENDPOINT = `${process.env.NEXT_PUBLIC_BASE_URL}v1/marketing/discord-members`;
+// Same-origin route handler, not the product API: see the comment on that route
+// for why the number kept breaking when it was read across origins.
+const DISCORD_MEMBERS_ENDPOINT = '/api/community/discord-members';
 const CONTRIBUTORS_API = `${GITHUB_API_REPO}/contributors?per_page=1&anon=true`;
 
 const formatCompact = (n: number): string =>
@@ -100,13 +146,11 @@ const fetchContributors = async (): Promise<Partial<GithubStats>> => {
 };
 
 const fetchDiscord = async (): Promise<Partial<GithubStats>> => {
-  try {
-    const response = await http.get<{ discordMembers: string | null }>(DISCORD_MEMBERS_ENDPOINT);
-    if (typeof response.data.discordMembers !== 'string') return {};
-    return { discord: response.data.discordMembers };
-  } catch {
-    return {};
-  }
+  const json = (await fetchJson(DISCORD_MEMBERS_ENDPOINT)) as {
+    discordMembers?: string | null;
+  } | null;
+  if (typeof json?.discordMembers !== 'string') return {};
+  return { discord: json.discordMembers };
 };
 
 /**
@@ -135,6 +179,7 @@ const runGithubStatsFetch = async (): Promise<Partial<GithubStats>> => {
   const cached = getJsonStorageItem<Partial<GithubStats>>('session', STATS_CACHE_KEY) ?? {};
   setJsonStorageItem('session', STATS_CACHE_KEY, { ...EMPTY_STATS, ...cached, ...fresh });
   setStorageItem('session', STATS_TS_KEY, String(Date.now()));
+  emitSessionCacheChange();
   return fresh;
 };
 
@@ -173,18 +218,21 @@ export interface LiveFetchOptions {
  */
 export function useGithubStats(options?: LiveFetchOptions): GithubStats {
   const live = options?.live ?? false;
-  const [stats, setStats] = useState<GithubStats>(EMPTY_STATS);
+  // Cached consumers render straight from the session cache (the external store):
+  // the server snapshot and the hydrating first paint are both the empty
+  // placeholders, so there is no hydration mismatch, and the cached value appears
+  // once hydration completes. Refreshes rewrite the cache, which emits.
+  const cachedStats = useSyncExternalStore(
+    subscribeToSessionCache,
+    getStatsSnapshot,
+    getServerStats
+  );
+  // Live mode never paints the cache under the "no cache" copy, so it keeps its
+  // own state fed exclusively from this-pass fetch results.
+  const [liveStats, setLiveStats] = useState<GithubStats>(EMPTY_STATS);
 
   useEffect(() => {
     let active = true;
-    // Seed from the session cache after mount, not in the useState initializer:
-    // reading storage during render makes the client's first paint diverge from the
-    // server HTML (which has no storage) and triggers a hydration mismatch. Live
-    // mode skips the seed so a stale value is never painted under the "no cache" copy.
-    if (!live) {
-      const cached = getJsonStorageItem<Partial<GithubStats>>('session', STATS_CACHE_KEY);
-      if (cached) setStats({ ...EMPTY_STATS, ...cached });
-    }
     const cached = getJsonStorageItem<Partial<GithubStats>>('session', STATS_CACHE_KEY);
     const needsDiscordRefresh = typeof cached?.discord !== 'string';
     if (live || !isStatsCacheFresh() || needsDiscordRefresh) {
@@ -193,8 +241,8 @@ export function useGithubStats(options?: LiveFetchOptions): GithubStats {
         if (!active) return;
         // Live: publish ONLY this-pass fields, so a failed fetcher stays as the
         // loading placeholder rather than a stale cached value under the "no cache"
-        // copy. Cached: keep last-known values for any field this pass did not return.
-        setStats((prev) => (live ? { ...EMPTY_STATS, ...fresh } : { ...prev, ...fresh }));
+        // copy. Cached consumers pick up the merged refresh via the cache emit.
+        if (live) setLiveStats({ ...EMPTY_STATS, ...fresh });
       })();
     }
     return () => {
@@ -202,7 +250,7 @@ export function useGithubStats(options?: LiveFetchOptions): GithubStats {
     };
   }, [live]);
 
-  return stats;
+  return live ? liveStats : cachedStats;
 }
 
 export interface ReleaseInfo {
@@ -214,6 +262,21 @@ export interface ReleaseInfo {
 }
 
 const EMPTY_RELEASE: ReleaseInfo = { tag: null, date: null, url: null };
+
+// Raw-string-memoized release snapshots per cache key (same contract as getStatsSnapshot).
+const releaseSnapshots = new Map<string, { raw: string | null; value: ReleaseInfo }>();
+
+const getReleaseSnapshot = (cacheKey: string): ReleaseInfo => {
+  const raw = getStorageItem('session', cacheKey);
+  const memo = releaseSnapshots.get(cacheKey);
+  if (memo && memo.raw === raw) return memo.value;
+  const value = parseJson<ReleaseInfo>(raw) ?? EMPTY_RELEASE;
+  releaseSnapshots.set(cacheKey, { raw, value });
+  return value;
+};
+
+/** SSR (and the hydrating first client render) always shows the loading placeholder. */
+const getServerRelease = (): ReleaseInfo => EMPTY_RELEASE;
 
 const formatReleaseDate = (iso?: string): string | null => {
   if (!iso) return null;
@@ -256,12 +319,17 @@ const useTaggedReleaseFromList = (
   cacheKey: string,
   matchesTag: (tag: string) => boolean
 ): ReleaseInfo => {
-  const [release, setRelease] = useState<ReleaseInfo>(EMPTY_RELEASE);
+  // Rendered straight from the session cache (the external store): the cached seed
+  // appears once hydration completes, and the refresh below rewrites the cache,
+  // which emits to every subscribed instance.
+  const release = useSyncExternalStore(
+    subscribeToSessionCache,
+    () => getReleaseSnapshot(cacheKey),
+    getServerRelease
+  );
 
   useEffect(() => {
     let active = true;
-    const cached = getJsonStorageItem<ReleaseInfo>('session', cacheKey);
-    if (cached) setRelease(cached);
     void (async () => {
       const list = (await fetchJson(
         `${GITHUB_API_REPO}/releases?per_page=30`,
@@ -270,9 +338,8 @@ const useTaggedReleaseFromList = (
       if (!active || !Array.isArray(list)) return;
       const match = list.find((entry) => matchesTag((entry.tag_name ?? '').toLowerCase()));
       if (!match?.html_url) return;
-      const next = toReleaseInfo(match);
-      setRelease(next);
-      setJsonStorageItem('session', cacheKey, next);
+      setJsonStorageItem('session', cacheKey, toReleaseInfo(match));
+      emitSessionCacheChange();
     })();
     return () => {
       active = false;
@@ -292,14 +359,17 @@ const useTaggedReleaseFromList = (
 export function useLatestRelease(options?: LiveFetchOptions): ReleaseInfo {
   const live = options?.live ?? false;
   const cacheKey = 'yc_rel_platform_v1';
-  const [release, setRelease] = useState<ReleaseInfo>(EMPTY_RELEASE);
+  // Cached consumers render straight from the session cache (see useTaggedReleaseFromList);
+  // live mode never paints the cache, so it keeps its own fetch-fed state.
+  const cachedRelease = useSyncExternalStore(
+    subscribeToSessionCache,
+    () => getReleaseSnapshot(cacheKey),
+    getServerRelease
+  );
+  const [liveRelease, setLiveRelease] = useState<ReleaseInfo>(EMPTY_RELEASE);
 
   useEffect(() => {
     let active = true;
-    if (!live) {
-      const cached = getJsonStorageItem<ReleaseInfo>('session', cacheKey);
-      if (cached) setRelease(cached);
-    }
     void (async () => {
       const json = (await fetchJson(
         `${GITHUB_API_REPO}/releases/latest`,
@@ -307,15 +377,16 @@ export function useLatestRelease(options?: LiveFetchOptions): ReleaseInfo {
       )) as RawRelease | null;
       if (!active || !json?.tag_name) return;
       const next = toReleaseInfo(json);
-      setRelease(next);
+      setLiveRelease(next);
       setJsonStorageItem('session', cacheKey, next);
+      emitSessionCacheChange();
     })();
     return () => {
       active = false;
     };
   }, [live]);
 
-  return release;
+  return live ? liveRelease : cachedRelease;
 }
 
 /**

@@ -228,6 +228,16 @@ const getPortalStyle = (el: HTMLElement | null): CSSProperties | null => {
   };
 };
 
+/** Equality guard so the measure-on-every-render layout effect settles instead of looping. */
+const isSamePortalStyle = (a: CSSProperties | null, b: CSSProperties | null): boolean =>
+  a === b ||
+  (a !== null &&
+    b !== null &&
+    a.left === b.left &&
+    a.width === b.width &&
+    a.top === b.top &&
+    a.bottom === b.bottom);
+
 // ─── PersonRow ─────────────────────────────────────────────────────────────────
 type PersonRowProps = {
   fieldId: string;
@@ -287,8 +297,13 @@ export const PersonRow = ({
   const isFloated = hasValue || visibleOpen;
   const inputValue = hasValue ? selectedName! : query;
 
-  // Read position synchronously from the DOM at render time — no state delay
-  const portalStyle = visibleOpen ? getPortalStyle(triggerRef.current) : null;
+  // Measure position in a layout effect when the menu opens (applied before
+  // paint, so no visible delay) — refs must not be read during render
+  const [portalStyle, setPortalStyle] = useState<CSSProperties | null>(null);
+  useLayoutEffect(() => {
+    const next = visibleOpen ? getPortalStyle(triggerRef.current) : null;
+    setPortalStyle((cur) => (isSamePortalStyle(cur, next) ? cur : next));
+  }, [visibleOpen]);
 
   const dropdownMenu =
     visibleOpen && portalStyle && typeof document !== 'undefined'
@@ -545,6 +560,13 @@ export const TimeSlotTriggerValue = ({ isLoading, selectedLabel }: TimeSlotTrigg
   return <span style={{ ...text16R, color: INPUT_PLACEHOLDER }} />;
 };
 
+/** Trigger border: open state wins over the error state, which wins over resting. */
+const timeSlotTriggerBorderClass = (open: boolean, error?: string): string => {
+  if (open) return 'border-[var(--blue)]! shadow-[0_0_0_3px_var(--glow-b10)]';
+  if (error) return 'border-[var(--danger)]!';
+  return 'border-[var(--hairline)]!';
+};
+
 export const TimeSlotDropdown = ({
   timeSlots,
   selectedSlot,
@@ -574,8 +596,13 @@ export const TimeSlotDropdown = ({
   const selectedLabel = selectedSlot
     ? formatUtcTimeToLocalLabel(selectedSlot.startTime)
     : (prefillLabel ?? null);
-  // Read position synchronously from the DOM at render time — no state delay
-  const portalStyle = open ? getPortalStyle(triggerRef.current) : null;
+  // Measure position in a layout effect when the menu opens (applied before
+  // paint, so no visible delay) — refs must not be read during render
+  const [portalStyle, setPortalStyle] = useState<CSSProperties | null>(null);
+  useLayoutEffect(() => {
+    const next = open ? getPortalStyle(triggerRef.current) : null;
+    setPortalStyle((cur) => (isSamePortalStyle(cur, next) ? cur : next));
+  }, [open]);
 
   const dropdownMenu =
     open && portalStyle && typeof document !== 'undefined'
@@ -616,11 +643,7 @@ export const TimeSlotDropdown = ({
         ref={triggerRef}
         className={clsx(
           'relative flex h-[44px] w-full items-center rounded-[12px]! border-[1.5px] bg-[var(--field-bg)] px-[13px] pr-9 text-left text-[13px] transition-colors duration-150 select-none focus:shadow-[0_0_0_3px_var(--glow-b10)]',
-          open
-            ? 'border-[var(--blue)]! shadow-[0_0_0_3px_var(--glow-b10)]'
-            : error
-              ? 'border-[var(--danger)]!'
-              : 'border-[var(--hairline)]!'
+          timeSlotTriggerBorderClass(open, error)
         )}
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
@@ -1118,7 +1141,7 @@ const useAddAppointmentCentralModalView = ({
     setVisitType(syncedVisitType);
   }
   const prevShowModalRef = useRef(showModal);
-  const prevPrefillKeyRef = useRef<string | null>(null);
+  const [prevPrefillKey, setPrevPrefillKey] = useState<string | null>(null);
   const autoSelectKeyRef = useRef<string | null>(null);
 
   const hasUnsavedChanges = useMemo(
@@ -1158,8 +1181,8 @@ const useAddAppointmentCentralModalView = ({
   }, [formData, selectedSlot, setFormDataErrors, uiState.submitAttempted, validateForm]);
 
   const prefillKey = computePrefillKey(prefill);
-  if (prefillKey !== prevPrefillKeyRef.current) {
-    prevPrefillKeyRef.current = prefillKey;
+  if (prefillKey !== prevPrefillKey) {
+    setPrevPrefillKey(prefillKey);
     dispatchUi({ type: 'reset' });
   }
 

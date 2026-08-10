@@ -13,6 +13,7 @@ import { StripeService } from "./stripe.service";
 import { sendFreePlanLimitReachedEmail } from "src/utils/org-usage-notifications";
 import { sendEmailTemplate } from "src/utils/email";
 import logger from "src/utils/logger";
+import { pruneUndefined } from "src/utils/prune-undefined";
 import { prisma } from "src/config/prisma";
 import type { UserOrganization as PrismaUserOrganization } from "@prisma/client";
 
@@ -134,37 +135,6 @@ function computeEffectivePermissions(
 
   return [...combined];
 }
-
-const pruneUndefined = <T>(value: T): T => {
-  if (Array.isArray(value)) {
-    const arrayValue = value as unknown[];
-    const cleaned: unknown[] = arrayValue
-      .map((item) => pruneUndefined(item))
-      .filter((item) => item !== undefined);
-    return cleaned as unknown as T;
-  }
-
-  if (value && typeof value === "object") {
-    if (value instanceof Date) {
-      return value;
-    }
-
-    const record = value as Record<string, unknown>;
-    const cleanedRecord: Record<string, unknown> = {};
-
-    for (const [key, entryValue] of Object.entries(record)) {
-      const next = pruneUndefined(entryValue);
-
-      if (next !== undefined) {
-        cleanedRecord[key] = next;
-      }
-    }
-
-    return cleanedRecord as unknown as T;
-  }
-
-  return value;
-};
 
 const requireSafeString = (value: unknown, fieldName: string): string => {
   if (value == null) {

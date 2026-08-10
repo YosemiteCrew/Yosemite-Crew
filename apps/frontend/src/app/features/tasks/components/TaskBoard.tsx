@@ -648,7 +648,9 @@ const TaskBoard = ({
   );
 
   const moveToStatusRef = useRef(moveToStatus);
-  moveToStatusRef.current = moveToStatus;
+  useEffect(() => {
+    moveToStatusRef.current = moveToStatus;
+  });
 
   const handleTaskCardDragStart = useCallback((event: React.DragEvent<HTMLElement>, task: Task) => {
     setDraggedTaskId(task._id ?? null);

@@ -153,7 +153,7 @@ export function LegalDoc({
               aria-controls="yc-toc-list"
               onClick={() => setTocOpen((open) => !open)}
             >
-              On this page
+              {'On this page'}
               <span aria-hidden="true">{tocOpen ? '–' : '+'}</span>
             </button>
             <nav id="yc-toc-list" className="yc-toc-list" data-open={tocOpen}>

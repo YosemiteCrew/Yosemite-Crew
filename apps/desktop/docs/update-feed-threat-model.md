@@ -22,7 +22,8 @@ This is the threat model for the desktop app's auto-update path (the GitHub Rele
 - Release feeds come from the configured GitHub repository.
 - macOS production artifacts are expected to be Developer ID signed, hardened, notarized, stapled, and Gatekeeper accepted.
 - Windows production artifacts are expected to be Authenticode signed.
-- Update channel selection is explicit: default `latest`, beta only with `YC_DESKTOP_UPDATE_CHANNEL=beta`.
+- Update channel selection is layered: the default is derived from the running version (a `-beta.N` build defaults to `beta`; the app currently ships only beta builds, and electron-updater's prerelease path is a superset that also picks up stable releases), the stored settings preference can change it, and the `YC_DESKTOP_UPDATE_CHANNEL` env var - the managed/MDM control - is authoritative over both.
+- Consequence for the beta-channel threat above: current installs follow the beta feed by default, so a compromised beta feed reaches the whole fleet rather than only opt-in testers - the signing, notarization, and release checks below are the controls that hold there, and a managed deployment can pin `YC_DESKTOP_UPDATE_CHANNEL=latest` to keep its fleet off prerelease artifacts regardless of local settings.
 
 ## Required Release Checks
 

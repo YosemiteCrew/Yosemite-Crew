@@ -632,10 +632,7 @@ export const ServiceService = {
     const orgIds = [...new Set(matchedServices.map((s) => s.organisationId))];
 
     if (!lat && !lng) {
-      const result = (await helpers.getGeoLocation(query!)) as {
-        lat: number;
-        lng: number;
-      };
+      const result = await helpers.getGeoLocation(query!);
       lat = result.lat;
       lng = result.lng;
     }

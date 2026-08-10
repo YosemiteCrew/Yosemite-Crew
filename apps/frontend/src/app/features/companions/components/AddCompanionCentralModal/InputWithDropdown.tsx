@@ -36,9 +36,6 @@ const InputWithDropdown = ({
   const [open, setOpen] = useState(false);
   const [portalStyle, setPortalStyle] = useState<React.CSSProperties | null>(null);
   const uid = useId();
-  // Only auto-open after the user has typed — prevents dropdown firing when
-  // edit mode mounts with a pre-filled value that matches existing companions.
-  const userHasTypedRef = useRef(false);
 
   const filtered = useFilteredOptions(options, value);
 
@@ -53,13 +50,14 @@ const InputWithDropdown = ({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Auto-open when results arrive, auto-close when empty — but only after user interaction
-  const [prevFilteredLength, setPrevFilteredLength] = useState(filtered.length);
-  if (filtered.length !== prevFilteredLength) {
+  // Auto-open when results arrive, auto-close when empty - but only after the user
+  // has typed. null until the first keystroke seeds it (in onChange), which prevents
+  // the dropdown firing when edit mode mounts with a pre-filled value that matches
+  // existing companions.
+  const [prevFilteredLength, setPrevFilteredLength] = useState<number | null>(null);
+  if (prevFilteredLength !== null && filtered.length !== prevFilteredLength) {
     setPrevFilteredLength(filtered.length);
-    if (userHasTypedRef.current) {
-      setOpen(filtered.length > 0);
-    }
+    setOpen(filtered.length > 0);
   }
 
   const computeStyle = useCallback(() => {
@@ -78,13 +76,18 @@ const InputWithDropdown = ({
   }, []);
 
   const computeStyleRef = useRef(computeStyle);
-  computeStyleRef.current = computeStyle;
+  useEffect(() => {
+    computeStyleRef.current = computeStyle;
+  });
+
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
+    if (!open) setPortalStyle(null);
+  }
 
   useLayoutEffect(() => {
-    if (!open) {
-      setPortalStyle(null);
-      return;
-    }
+    if (!open) return;
     computeStyleRef.current();
   }, [open]);
 
@@ -138,11 +141,11 @@ const InputWithDropdown = ({
           value={value}
           autoComplete="off"
           onChange={(e) => {
-            userHasTypedRef.current = true;
+            setPrevFilteredLength((prev) => prev ?? filtered.length);
             onChange(e.target.value);
           }}
           onFocus={() => {
-            if (userHasTypedRef.current && filtered.length > 0) setOpen(true);
+            if (prevFilteredLength !== null && filtered.length > 0) setOpen(true);
           }}
           aria-invalid={Boolean(error)}
           className={`

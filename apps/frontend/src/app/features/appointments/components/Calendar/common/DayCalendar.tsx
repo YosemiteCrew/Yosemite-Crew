@@ -1,12 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useId,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import { usePopoverManager } from '@/app/hooks/usePopoverManager';
 import { calcNearestAvailableMinute } from '@/app/features/appointments/components/Calendar/calendarDrop';
@@ -57,7 +49,6 @@ type DayCalendarProps = {
   handleViewAppointment: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
   handleDetailAppointment: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
   handleOpenWorkspace?: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
-  setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   handleRescheduleAppointment: (appointment: Appointment) => void;
   handleChangeRoomAppointment?: (appointment: Appointment) => void;
   handleAcceptAppointment?: (appointment: Appointment) => void;
@@ -484,8 +475,6 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
   handleChangeRoomAppointment,
   handleAcceptAppointment,
   canEditAppointments,
-  // setCurrentDate stays on the props contract for callers, but day navigation
-  // now lives in the header toolbar's date-nav pill, which owns the setter.
   draggedAppointmentId,
   draggedAppointmentLabel,
   canDragAppointment,
@@ -557,7 +546,9 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
   // Keep a ref to the latest focus position so the scroll effect can read it
   // without depending on it — prevents re-scroll on every availability update.
   const getFocusTopPxRef = useRef(getFocusTopPx);
-  getFocusTopPxRef.current = getFocusTopPx;
+  useEffect(() => {
+    getFocusTopPxRef.current = getFocusTopPx;
+  });
 
   useEffect(() => {
     if (!scrollRef.current || skipAutoScroll) return;
@@ -602,12 +593,15 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
 
   const popoverStyle = getPopoverStyle(440, 490);
 
-  useLayoutEffect(() => {
-    if (!draggedAppointmentId) return;
-    setActivePopoverKey(null);
-    setDropPreviewMinute(null);
-    setContextMenu(null);
-  }, [draggedAppointmentId, setActivePopoverKey, setContextMenu]);
+  const [prevDraggedAppointmentId, setPrevDraggedAppointmentId] = useState(draggedAppointmentId);
+  if (prevDraggedAppointmentId !== draggedAppointmentId) {
+    setPrevDraggedAppointmentId(draggedAppointmentId);
+    if (draggedAppointmentId) {
+      setActivePopoverKey(null);
+      setDropPreviewMinute(null);
+      setContextMenu(null);
+    }
+  }
 
   const availabilityIntervals = getDropAvailabilityIntervals?.(date) ?? [];
 
