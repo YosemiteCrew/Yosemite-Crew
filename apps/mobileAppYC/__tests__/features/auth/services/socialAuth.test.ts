@@ -248,7 +248,7 @@ describe('socialAuth', () => {
     });
   });
 
-  it('signs in with Apple on iOS using the authorization code flow', async () => {
+  it('signs in with Apple on iOS by exchanging the identity token as oAuthTokens', async () => {
     RN.Platform.OS = 'ios';
     mockAppleAuth.performRequest.mockResolvedValueOnce({
       identityToken: 'apple-id-token',
@@ -263,6 +263,19 @@ describe('socialAuth', () => {
     const result = await signInWithSocialProvider('apple');
 
     expect(mockAppleAuth.performRequest).toHaveBeenCalled();
+    // The signinup body must use the oAuthTokens path. The authorization-code
+    // flow (redirectURIInfo) breaks native sign-in: SuperTokens forwards the
+    // empty redirect_uri to Apple's token endpoint and Apple rejects the code.
+    const signInUpCall = (global.fetch as jest.Mock).mock.calls.find(([url]) =>
+      String(url).includes('/signinup'),
+    );
+    expect(signInUpCall).toBeDefined();
+    const body = JSON.parse(signInUpCall![1].body);
+    expect(body).toEqual({
+      thirdPartyId: 'apple',
+      oAuthTokens: {id_token: 'apple-id-token'},
+    });
+    expect(body.redirectURIInfo).toBeUndefined();
     expect(result.tokens.idToken).toBe('st-access-token');
     expect(result.user.firstName).toBe('Ada');
     expect(result.user.lastName).toBe('Lovelace');
