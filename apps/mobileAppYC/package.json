@@ -70,7 +70,7 @@
     "react-native-localize": "^3.7.0",
     "react-native-maps": "^1.29.0",
     "react-native-nitro-modules": "^0.31.5",
-    "react-native-nitro-sound": "^0.2.9",
+    "react-native-nitro-sound": "^0.2.18",
     "react-native-pdf": "^7.0.4",
     "react-native-permissions": "^5.6.1",
     "react-native-reanimated": "4.2.3",
@@ -120,7 +120,7 @@
     "prettier": "3.9.6",
     "react-test-renderer": "19.1.0",
     "redux-mock-store": "^1.5.5",
-    "tsx": "^4.23.9",
+    "tsx": "^4.23.10",
     "typescript": "^5.8.3"
   },
   "engines": {
