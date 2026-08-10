@@ -164,40 +164,56 @@ check_exception_expiry() {
 # ignore-packages entry whose comment lacks a dated 'Re-review by:' line would
 # suppress findings forever, so it fails the gate here. Each comment block
 # dates the run of entries directly below it (families share one block).
-# One parser for both exception files. Items in .grant.yaml's ignore-packages
-# are a flat list (any '- ' line is an entry); .grype.yaml's ignore entries are
-# nested maps, so only top-level '  - ' lines open an entry there - deeper
-# hyphens belong to the entry's own fields.
+# One parser for both exception files. Entries are the '- ' lines sharing the
+# section's item indent, learned from the FIRST hyphen line in the section, so
+# both the two-space and the equally-valid column-0 sequence layouts are
+# parsed; deeper hyphens are an entry's own nested fields. A non-empty
+# flow-style sequence ('ignore: [...]') cannot carry per-entry comments at
+# all, so it is rejected outright rather than silently under-parsed - the
+# guard must fail closed on layouts it cannot read.
 _undated_exception_entries() {
-  local file="$1" section="$2" itemre="$3"
-  awk -v sec="^${section}:" -v itemre="${itemre}" '
-    $0 ~ sec { insec = 1; next }
-    insec && /^[^[:space:]]/ { insec = 0 }
+  local file="$1" section="$2"
+  awk -v sec="^${section}:" '
+    !insec && $0 ~ sec {
+      insec = 1
+      rest = $0; sub(sec, "", rest); gsub(/[[:space:]]/, "", rest)
+      if (rest != "" && rest != "[]") { print "UNSUPPORTED_LAYOUT"; exit }
+      next
+    }
+    insec && /^[^[:space:]#-]/ { insec = 0 }
     !insec { next }
     /^[[:space:]]*#/ {
       if (prev == "item") have = 0
       if ($0 ~ /Re-review by: [0-9]{4}-[0-9]{2}-[0-9]{2}/) have = 1
       prev = "comment"; next
     }
-    $0 ~ itemre {
-      if (!have) { entry = $0; sub(/^[[:space:]]*-[[:space:]]*/, "", entry); print entry }
-      prev = "item"; next
+    /^[[:space:]]*$/ { next }
+    /^[[:space:]]*-([[:space:]]|$)/ {
+      ind = index($0, "-")
+      if (!itemind) itemind = ind
+      if (ind == itemind) {
+        if (!have) { entry = $0; sub(/^[[:space:]]*-[[:space:]]*/, "", entry); print entry }
+        prev = "item"
+      }
+      next
     }
   ' "${file}" 2>/dev/null
 }
 
 check_exception_dates() {
-  local undated_grant undated_grype failed=0
-  undated_grant="$(_undated_exception_entries "${REPO_ROOT}/.grant.yaml" 'ignore-packages' '^[[:space:]]*-[[:space:]]')" || true
-  undated_grype="$(_undated_exception_entries "${REPO_ROOT}/.grype.yaml" 'ignore' '^  -[[:space:]]')" || true
-  if [ -n "${undated_grant}" ]; then
-    echo "UNDATED security exceptions in .grant.yaml ignore-packages (no dated 'Re-review by: YYYY-MM-DD' comment): ${undated_grant}" >&2
-    failed=1
-  fi
-  if [ -n "${undated_grype}" ]; then
-    echo "UNDATED security exceptions in .grype.yaml ignore (no dated 'Re-review by: YYYY-MM-DD' comment): ${undated_grype}" >&2
-    failed=1
-  fi
+  local failed=0 file section label out
+  for label in "grant:.grant.yaml:ignore-packages" "grype:.grype.yaml:ignore"; do
+    file="${REPO_ROOT}/$(echo "${label}" | cut -d: -f2)"
+    section="$(echo "${label}" | cut -d: -f3)"
+    out="$(_undated_exception_entries "${file}" "${section}")" || true
+    if echo "${out}" | grep -q 'UNSUPPORTED_LAYOUT'; then
+      echo "UNSUPPORTED layout for '${section}:' in $(basename "${file}"): a non-empty flow-style sequence cannot carry the required per-entry comments - use the documented block layout." >&2
+      failed=1
+    elif [ -n "${out}" ]; then
+      echo "UNDATED security exceptions in $(basename "${file}") ${section} (no dated 'Re-review by: YYYY-MM-DD' comment): ${out}" >&2
+      failed=1
+    fi
+  done
   if [ "${failed}" -ne 0 ]; then
     echo "Every exception must carry a machine-readable re-review date so expiry stays enforced - date the entry's comment block." >&2
     return 1

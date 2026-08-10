@@ -176,6 +176,47 @@ test('a grype ignore entry without a dated re-review line fails the scan', () =>
   assert.match(output, /GHSA-xxxx-xxxx-xxxx/);
 });
 
+test('an undated grype ignore in column-0 sequence layout still fails', () => {
+  const root = fakeRoot();
+  writeFileSync(join(root, 'pnpm-lock.yaml'), "lockfileVersion: '6.0'\n");
+  writeFileSync(join(root, 'package.json'), '{}\n');
+  const sbomDir = join(root, 'security', 'sbom');
+  mkdirSync(sbomDir, { recursive: true });
+  writeFileSync(join(sbomDir, 'yosemite-crew.cdx.json'), '{}');
+  const past = new Date(Date.now() - 60_000);
+  utimesSync(join(root, 'pnpm-lock.yaml'), past, past);
+  utimesSync(join(root, 'package.json'), past, past);
+  // Valid YAML: sequence items at the same indent as the key.
+  writeFileSync(
+    join(root, '.grype.yaml'),
+    'ignore:\n' + '- vulnerability: GHSA-col0-col0-col0\n' + '  package:\n' + '    name: foo\n'
+  );
+  writeFileSync(join(root, '.grant.yaml'), 'allow: []\n');
+
+  const { status, output } = run(['scan'], { SUPPLY_CHAIN_REPO_ROOT: root });
+  assert.notEqual(status, 0);
+  assert.match(output, /UNDATED security exceptions in \.grype\.yaml/);
+  assert.match(output, /GHSA-col0-col0-col0/);
+});
+
+test('a non-empty flow-style ignore sequence is rejected as unsupported', () => {
+  const root = fakeRoot();
+  writeFileSync(join(root, 'pnpm-lock.yaml'), "lockfileVersion: '6.0'\n");
+  writeFileSync(join(root, 'package.json'), '{}\n');
+  const sbomDir = join(root, 'security', 'sbom');
+  mkdirSync(sbomDir, { recursive: true });
+  writeFileSync(join(sbomDir, 'yosemite-crew.cdx.json'), '{}');
+  const past = new Date(Date.now() - 60_000);
+  utimesSync(join(root, 'pnpm-lock.yaml'), past, past);
+  utimesSync(join(root, 'package.json'), past, past);
+  writeFileSync(join(root, '.grype.yaml'), 'ignore: [{vulnerability: GHSA-flow-flow-flow}]\n');
+  writeFileSync(join(root, '.grant.yaml'), 'allow: []\n');
+
+  const { status, output } = run(['scan'], { SUPPLY_CHAIN_REPO_ROOT: root });
+  assert.notEqual(status, 0);
+  assert.match(output, /UNSUPPORTED layout for 'ignore:' in \.grype\.yaml/);
+});
+
 test('the header example placeholder never trips the expiry or date guards', () => {
   const root = fakeRoot();
   writeFileSync(join(root, 'pnpm-lock.yaml'), "lockfileVersion: '6.0'\n");
