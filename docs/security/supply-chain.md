@@ -59,7 +59,9 @@ Gates fail closed; exceptions are explicit, reviewed, and expiring.
    an owner, and a `Re-review by: YYYY-MM-DD` date. Same discipline as
    `scripts/ci/override-advisory-baseline.json`. **Expiry is machine-enforced:
    the scan and license gates fail when any re-review date is in the past**,
-   so an exception cannot quietly outlive its justification.
+   so an exception cannot quietly outlive its justification - and they fail
+   just the same on any `ignore:` entry whose comment lacks a dated line, so
+   an undated vulnerability exception cannot escape enforcement either.
 2. **Licenses**: extend `allow:` in `.grant.yaml` only with the SPDX
    compatibility rationale in the PR, or add a package under
    `ignore-packages:` with a comment: the VERIFIED license (read the LICENSE
@@ -79,9 +81,11 @@ Gates fail closed; exceptions are explicit, reviewed, and expiring.
   automatically whenever `pnpm-lock.yaml`, the root `package.json`, or a
   mobile native lockfile (`android/app/gradle.lockfile`, `ios/Podfile.lock`)
   is newer than the cached copy, so a stale SBOM is never scanned silently.
-- The SBOM also catalogs the mobile native lockfiles (`android/
-app/gradle.lockfile` Maven deps, `ios/Podfile.lock` pods) - only build
-  output and vendored pods are excluded.
+- The SBOM also catalogs the Android native lockfile (`android/
+app/gradle.lockfile` Maven deps) - only build output and vendored pods are
+  excluded. The iOS `Podfile.lock` is NOT yet committed, so CocoaPods
+  dependencies are absent from the SBOM until #2129 lands (the staleness
+  check already watches its path).
 - Releases published by workflows authenticating with `GITHUB_TOKEN`
   (desktop-release, release-notes) do not emit a `release` event this
   workflow can observe. The user's tag push covers gating and SBOM artifacts

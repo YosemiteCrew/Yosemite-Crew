@@ -147,9 +147,11 @@ sbom_is_stale() {
 check_exception_expiry() {
   local today expired
   today="$(date +%Y-%m-%d)"
+  # `|| true`: zero dated lines anywhere makes grep exit 1, which pipefail +
+  # set -e would otherwise turn into a silent scan death.
   expired="$(grep -hoE 'Re-review by: [0-9]{4}-[0-9]{2}-[0-9]{2}' \
     "${REPO_ROOT}/.grype.yaml" "${REPO_ROOT}/.grant.yaml" 2>/dev/null |
-    awk -v today="${today}" '{ if ($3 < today) print $3 }')"
+    awk -v today="${today}" '{ if ($3 < today) print $3 }')" || true
   if [ -n "${expired}" ]; then
     echo "EXPIRED security exceptions (re-review dates in the past): ${expired}" >&2
     echo "Re-review each entry in .grype.yaml / .grant.yaml and either fix the finding or renew the date with a fresh justification." >&2
@@ -162,24 +164,57 @@ check_exception_expiry() {
 # ignore-packages entry whose comment lacks a dated 'Re-review by:' line would
 # suppress findings forever, so it fails the gate here. Each comment block
 # dates the run of entries directly below it (families share one block).
-check_exception_dates() {
-  local undated
-  undated="$(awk '
-    /^ignore-packages:/ { insec = 1; next }
-    insec && /^[^[:space:]]/ { insec = 0 }
+# One parser for both exception files. Entries are the '- ' lines sharing the
+# section's item indent, learned from the FIRST hyphen line in the section, so
+# both the two-space and the equally-valid column-0 sequence layouts are
+# parsed; deeper hyphens are an entry's own nested fields. A non-empty
+# flow-style sequence ('ignore: [...]') cannot carry per-entry comments at
+# all, so it is rejected outright rather than silently under-parsed - the
+# guard must fail closed on layouts it cannot read.
+_undated_exception_entries() {
+  local file="$1" section="$2"
+  awk -v sec="^${section}:" '
+    !insec && $0 ~ sec {
+      insec = 1
+      rest = $0; sub(sec, "", rest); gsub(/[[:space:]]/, "", rest)
+      if (rest != "" && rest != "[]") { print "UNSUPPORTED_LAYOUT"; exit }
+      next
+    }
+    insec && /^[^[:space:]#-]/ { insec = 0 }
     !insec { next }
     /^[[:space:]]*#/ {
       if (prev == "item") have = 0
       if ($0 ~ /Re-review by: [0-9]{4}-[0-9]{2}-[0-9]{2}/) have = 1
       prev = "comment"; next
     }
-    /^[[:space:]]*-[[:space:]]/ {
-      if (!have) { pkg = $0; sub(/^[[:space:]]*-[[:space:]]*/, "", pkg); print pkg }
-      prev = "item"; next
+    /^[[:space:]]*$/ { next }
+    /^[[:space:]]*-([[:space:]]|$)/ {
+      ind = index($0, "-")
+      if (!itemind) itemind = ind
+      if (ind == itemind) {
+        if (!have) { entry = $0; sub(/^[[:space:]]*-[[:space:]]*/, "", entry); print entry }
+        prev = "item"
+      }
+      next
     }
-  ' "${REPO_ROOT}/.grant.yaml" 2>/dev/null)"
-  if [ -n "${undated}" ]; then
-    echo "UNDATED security exceptions in .grant.yaml ignore-packages (no dated 'Re-review by: YYYY-MM-DD' comment): ${undated}" >&2
+  ' "${file}" 2>/dev/null
+}
+
+check_exception_dates() {
+  local failed=0 file section label out
+  for label in "grant:.grant.yaml:ignore-packages" "grype:.grype.yaml:ignore"; do
+    file="${REPO_ROOT}/$(echo "${label}" | cut -d: -f2)"
+    section="$(echo "${label}" | cut -d: -f3)"
+    out="$(_undated_exception_entries "${file}" "${section}")" || true
+    if echo "${out}" | grep -q 'UNSUPPORTED_LAYOUT'; then
+      echo "UNSUPPORTED layout for '${section}:' in $(basename "${file}"): a non-empty flow-style sequence cannot carry the required per-entry comments - use the documented block layout." >&2
+      failed=1
+    elif [ -n "${out}" ]; then
+      echo "UNDATED security exceptions in $(basename "${file}") ${section} (no dated 'Re-review by: YYYY-MM-DD' comment): ${out}" >&2
+      failed=1
+    fi
+  done
+  if [ "${failed}" -ne 0 ]; then
     echo "Every exception must carry a machine-readable re-review date so expiry stays enforced - date the entry's comment block." >&2
     return 1
   fi
@@ -197,7 +232,9 @@ cmd_sbom() {
   # means the store is where the real package.json files live. The native
   # lockfiles (android gradle.lockfile, ios Podfile.lock) stay IN scope - they
   # carry the mobile app's Maven and CocoaPods dependencies - while build
-  # output and vendored pods are excluded.
+  # output and vendored pods are excluded. NOTE: the iOS Podfile.lock is not
+  # yet committed (#2129), so pods are absent from the SBOM until it lands;
+  # the staleness check already watches its path for that day.
   local excludes=(
     --exclude './**/.next/**'
     --exclude './**/dist/**'

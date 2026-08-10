@@ -10,7 +10,8 @@
 # ignore:
 #   # GHSA-xxxx-xxxx-xxxx in foo@1.2.3: not reachable - the vulnerable code
 #   # path needs server-side rendering we never enable. Owner: ankit-yc.
-#   # Re-review by: 2026-12-01.
+#   # Re-review by: YYYY-MM-DD. (a real date here - the placeholder is
+#   # deliberate so this example never trips the expiry guard)
 #   - vulnerability: GHSA-xxxx-xxxx-xxxx
 #     package:
 #       name: foo
