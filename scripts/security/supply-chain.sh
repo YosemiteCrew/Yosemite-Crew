@@ -147,9 +147,11 @@ sbom_is_stale() {
 check_exception_expiry() {
   local today expired
   today="$(date +%Y-%m-%d)"
+  # `|| true`: zero dated lines anywhere makes grep exit 1, which pipefail +
+  # set -e would otherwise turn into a silent scan death.
   expired="$(grep -hoE 'Re-review by: [0-9]{4}-[0-9]{2}-[0-9]{2}' \
     "${REPO_ROOT}/.grype.yaml" "${REPO_ROOT}/.grant.yaml" 2>/dev/null |
-    awk -v today="${today}" '{ if ($3 < today) print $3 }')"
+    awk -v today="${today}" '{ if ($3 < today) print $3 }')" || true
   if [ -n "${expired}" ]; then
     echo "EXPIRED security exceptions (re-review dates in the past): ${expired}" >&2
     echo "Re-review each entry in .grype.yaml / .grant.yaml and either fix the finding or renew the date with a fresh justification." >&2
@@ -162,10 +164,14 @@ check_exception_expiry() {
 # ignore-packages entry whose comment lacks a dated 'Re-review by:' line would
 # suppress findings forever, so it fails the gate here. Each comment block
 # dates the run of entries directly below it (families share one block).
-check_exception_dates() {
-  local undated
-  undated="$(awk '
-    /^ignore-packages:/ { insec = 1; next }
+# One parser for both exception files. Items in .grant.yaml's ignore-packages
+# are a flat list (any '- ' line is an entry); .grype.yaml's ignore entries are
+# nested maps, so only top-level '  - ' lines open an entry there - deeper
+# hyphens belong to the entry's own fields.
+_undated_exception_entries() {
+  local file="$1" section="$2" itemre="$3"
+  awk -v sec="^${section}:" -v itemre="${itemre}" '
+    $0 ~ sec { insec = 1; next }
     insec && /^[^[:space:]]/ { insec = 0 }
     !insec { next }
     /^[[:space:]]*#/ {
@@ -173,13 +179,26 @@ check_exception_dates() {
       if ($0 ~ /Re-review by: [0-9]{4}-[0-9]{2}-[0-9]{2}/) have = 1
       prev = "comment"; next
     }
-    /^[[:space:]]*-[[:space:]]/ {
-      if (!have) { pkg = $0; sub(/^[[:space:]]*-[[:space:]]*/, "", pkg); print pkg }
+    $0 ~ itemre {
+      if (!have) { entry = $0; sub(/^[[:space:]]*-[[:space:]]*/, "", entry); print entry }
       prev = "item"; next
     }
-  ' "${REPO_ROOT}/.grant.yaml" 2>/dev/null)"
-  if [ -n "${undated}" ]; then
-    echo "UNDATED security exceptions in .grant.yaml ignore-packages (no dated 'Re-review by: YYYY-MM-DD' comment): ${undated}" >&2
+  ' "${file}" 2>/dev/null
+}
+
+check_exception_dates() {
+  local undated_grant undated_grype failed=0
+  undated_grant="$(_undated_exception_entries "${REPO_ROOT}/.grant.yaml" 'ignore-packages' '^[[:space:]]*-[[:space:]]')" || true
+  undated_grype="$(_undated_exception_entries "${REPO_ROOT}/.grype.yaml" 'ignore' '^  -[[:space:]]')" || true
+  if [ -n "${undated_grant}" ]; then
+    echo "UNDATED security exceptions in .grant.yaml ignore-packages (no dated 'Re-review by: YYYY-MM-DD' comment): ${undated_grant}" >&2
+    failed=1
+  fi
+  if [ -n "${undated_grype}" ]; then
+    echo "UNDATED security exceptions in .grype.yaml ignore (no dated 'Re-review by: YYYY-MM-DD' comment): ${undated_grype}" >&2
+    failed=1
+  fi
+  if [ "${failed}" -ne 0 ]; then
     echo "Every exception must carry a machine-readable re-review date so expiry stays enforced - date the entry's comment block." >&2
     return 1
   fi
@@ -197,7 +216,9 @@ cmd_sbom() {
   # means the store is where the real package.json files live. The native
   # lockfiles (android gradle.lockfile, ios Podfile.lock) stay IN scope - they
   # carry the mobile app's Maven and CocoaPods dependencies - while build
-  # output and vendored pods are excluded.
+  # output and vendored pods are excluded. NOTE: the iOS Podfile.lock is not
+  # yet committed (#2129), so pods are absent from the SBOM until it lands;
+  # the staleness check already watches its path for that day.
   local excludes=(
     --exclude './**/.next/**'
     --exclude './**/dist/**'

@@ -150,6 +150,60 @@ test('scan regenerates when the lockfile is newer than the SBOM', () => {
   assert.match(output, /node_modules missing/);
 });
 
+test('a grype ignore entry without a dated re-review line fails the scan', () => {
+  const root = fakeRoot();
+  writeFileSync(join(root, 'pnpm-lock.yaml'), "lockfileVersion: '6.0'\n");
+  writeFileSync(join(root, 'package.json'), '{}\n');
+  const sbomDir = join(root, 'security', 'sbom');
+  mkdirSync(sbomDir, { recursive: true });
+  writeFileSync(join(sbomDir, 'yosemite-crew.cdx.json'), '{}');
+  const past = new Date(Date.now() - 60_000);
+  utimesSync(join(root, 'pnpm-lock.yaml'), past, past);
+  utimesSync(join(root, 'package.json'), past, past);
+  writeFileSync(
+    join(root, '.grype.yaml'),
+    'ignore:\n' +
+      '  # Not reachable in our usage. Owner: ankit-yc.\n' +
+      '  - vulnerability: GHSA-xxxx-xxxx-xxxx\n' +
+      '    package:\n' +
+      '      name: foo\n'
+  );
+  writeFileSync(join(root, '.grant.yaml'), 'allow: []\n');
+
+  const { status, output } = run(['scan'], { SUPPLY_CHAIN_REPO_ROOT: root });
+  assert.notEqual(status, 0);
+  assert.match(output, /UNDATED security exceptions in \.grype\.yaml/);
+  assert.match(output, /GHSA-xxxx-xxxx-xxxx/);
+});
+
+test('the header example placeholder never trips the expiry or date guards', () => {
+  const root = fakeRoot();
+  writeFileSync(join(root, 'pnpm-lock.yaml'), "lockfileVersion: '6.0'\n");
+  writeFileSync(join(root, 'package.json'), '{}\n');
+  const sbomDir = join(root, 'security', 'sbom');
+  mkdirSync(sbomDir, { recursive: true });
+  writeFileSync(join(sbomDir, 'yosemite-crew.cdx.json'), '{}');
+  const past = new Date(Date.now() - 60_000);
+  utimesSync(join(root, 'pnpm-lock.yaml'), past, past);
+  utimesSync(join(root, 'package.json'), past, past);
+  // Mirrors the real .grype.yaml header: a commented example whose date is the
+  // YYYY-MM-DD placeholder. A literal date here once made every scan fail the
+  // day the sample "expired".
+  writeFileSync(
+    join(root, '.grype.yaml'),
+    '# Example:\n' +
+      '# ignore:\n' +
+      '#   # reason here. Owner: someone.\n' +
+      '#   # Re-review by: YYYY-MM-DD.\n' +
+      '#   - vulnerability: GHSA-xxxx-xxxx-xxxx\n' +
+      'ignore: []\n'
+  );
+  writeFileSync(join(root, '.grant.yaml'), 'allow: []\n');
+
+  const { status, output } = run(['scan'], { SUPPLY_CHAIN_REPO_ROOT: root });
+  assert.equal(status, 0, `scan should pass, got: ${output}`);
+});
+
 test('a tampered download is rejected by the pinned digest', () => {
   const root = fakeRoot({ syft: '1.50.0', grant: '0.6.8' }); // no grype -> install path
   // Stub curl that "downloads" attacker-controlled bytes.
