@@ -120,9 +120,10 @@ jobs:
         with:
           projectBaseDir: ${{ matrix.dir }}
           # Wait for the gate so a red quality gate reds this job, and therefore
-          # the aggregate required check, on merge_group as well as on a PR.
-          # SonarCloud decorates pull requests but posts no status on a merge
-          # group ref, so without this the queue would have no Sonar signal.
+          # the PR run's aggregate required check. That PR-run verdict is the
+          # only Sonar signal a merge queue gets: the caller skips this stage on
+          # merge_group refs (the SonarCloud plan analyzes each project's main
+          # branch only, so a queue's ephemeral ref can never publish).
           args: -Dsonar.qualitygate.wait=true
         env:
           SONAR_TOKEN: ${{ (matrix.app_key == 'frontend' && secrets.SONAR_TOKEN_FRONTEND) || (matrix.app_key == 'backend' && secrets.SONAR_TOKEN_API) || (matrix.app_key == 'mobile' && secrets.SONAR_TOKEN_MOBILE) || (matrix.app_key == 'desktop' && secrets.SONAR_TOKEN_DESKTOP) || '' }}
