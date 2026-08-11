@@ -197,13 +197,26 @@ check_exception_expiry() {
 # flow-style sequence ('ignore: [...]') cannot carry per-entry comments at
 # all, so it is rejected outright rather than silently under-parsed - the
 # guard must fail closed on layouts it cannot read.
+# The guard is a layout gate, not a YAML parser, so it cannot chase every
+# valid-YAML spelling of the same key (quotes, whitespace before the colon,
+# explicit-key form, ...). Instead it enforces the one canonical spelling and
+# REJECTS any other recognizable spelling of the section key outright - a
+# respelled section fails the gate instead of becoming invisible to it.
+_assert_canonical_section() {
+  local file="$1" section="$2" variants
+  variants="$(grep -nE "^[[:space:]]*\\??[[:space:]]*[\"']?${section}[\"']?[[:space:]]*(:|\$)" "${file}" 2>/dev/null |
+    grep -vE "^[0-9]+:${section}:")" || true
+  if [ -n "${variants}" ]; then
+    echo "NON-CANONICAL spelling of '${section}:' in $(basename "${file}") (${variants}) - the exception guard only inspects the documented layout; spell the key exactly '${section}:' at column 0." >&2
+    return 1
+  fi
+  return 0
+}
+
 _undated_exception_entries() {
   local file="$1" section="$2"
-  # The key regex accepts optional single or double quotes: "ignore": is the
-  # same setting to a YAML parser, so it must be the same section to us -
-  # otherwise a quoted spelling would skip the guard entirely.
   awk -v section="${section}" '
-    BEGIN { sec = "^[\"'\'']?" section "[\"'\'']?:" }
+    BEGIN { sec = "^" section ":" }
     !insec && $0 ~ sec {
       insec = 1
       rest = $0; sub(sec, "", rest); gsub(/[[:space:]]/, "", rest)
@@ -235,6 +248,10 @@ check_exception_dates() {
   for label in "grant:.grant.yaml:ignore-packages" "grype:.grype.yaml:ignore"; do
     file="${REPO_ROOT}/$(echo "${label}" | cut -d: -f2)"
     section="$(echo "${label}" | cut -d: -f3)"
+    if ! _assert_canonical_section "${file}" "${section}"; then
+      failed=1
+      continue
+    fi
     out="$(_undated_exception_entries "${file}" "${section}")" || true
     if echo "${out}" | grep -q 'UNSUPPORTED_LAYOUT'; then
       echo "UNSUPPORTED layout for '${section}:' in $(basename "${file}"): a non-empty flow-style sequence cannot carry the required per-entry comments - use the documented block layout." >&2

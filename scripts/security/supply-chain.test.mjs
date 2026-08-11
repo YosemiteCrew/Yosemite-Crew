@@ -260,7 +260,7 @@ const scanRootWithConfigs = (grypeYaml, grantYaml) => {
   return root;
 };
 
-test('a quoted "ignore": key cannot bypass the undated-entry guard', () => {
+test('a quoted "ignore": key is rejected as non-canonical, not silently skipped', () => {
   const root = scanRootWithConfigs(
     '"ignore":\n' +
       '  # No date here. Owner: someone.\n' +
@@ -271,8 +271,27 @@ test('a quoted "ignore": key cannot bypass the undated-entry guard', () => {
   );
   const { status, output } = run(['scan'], { SUPPLY_CHAIN_REPO_ROOT: root });
   assert.notEqual(status, 0);
-  assert.match(output, /UNDATED security exceptions in \.grype\.yaml/);
-  assert.match(output, /GHSA-quot-quot-quot/);
+  assert.match(output, /NON-CANONICAL spelling of 'ignore:' in \.grype\.yaml/);
+});
+
+test('whitespace before the colon is rejected as non-canonical', () => {
+  const root = scanRootWithConfigs(
+    '"ignore" :\n' + '  # No date. Owner: someone.\n' + '  - vulnerability: GHSA-sp-sp-sp\n',
+    'allow: []\n'
+  );
+  const { status, output } = run(['scan'], { SUPPLY_CHAIN_REPO_ROOT: root });
+  assert.notEqual(status, 0);
+  assert.match(output, /NON-CANONICAL spelling of 'ignore:' in \.grype\.yaml/);
+});
+
+test('the explicit-key YAML form is rejected as non-canonical', () => {
+  const root = scanRootWithConfigs(
+    '? ignore\n' + ':\n' + '  - vulnerability: GHSA-exp-exp-exp\n',
+    'allow: []\n'
+  );
+  const { status, output } = run(['scan'], { SUPPLY_CHAIN_REPO_ROOT: root });
+  assert.notEqual(status, 0);
+  assert.match(output, /NON-CANONICAL spelling of 'ignore:' in \.grype\.yaml/);
 });
 
 test('an impossible calendar date is rejected, not treated as forever-future', () => {
