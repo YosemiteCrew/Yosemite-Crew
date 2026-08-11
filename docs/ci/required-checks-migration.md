@@ -57,7 +57,13 @@ Two steps remain, both needing a green `merge_group` run first:
    itself SKIPS sonar deliberately, because the SonarCloud plan only analyzes
    each project's main branch and a queue's ephemeral ref can never publish -
    the same reason dev pushes skip it. A queue run therefore re-verifies build
-   and tests, not Sonar; the gate was already enforced at the PR head.
+   and tests, not Sonar; for most PRs the gate was already enforced at the PR
+   head. Three PR classes skip the PR-run scan and enter the queue with NO
+   Sonar verdict - Dependabot PRs (their secret store has no Sonar tokens),
+   fork PRs (same reason), and everything while the `DISABLE_SONAR` kill
+   switch is set - so their Sonar signal arrives only after merge, from the
+   push-to-main scan and the nightly. Weigh that residual gap before removing
+   `code_quality` from the required set.
 
 `strict_required_status_checks_policy` stays `false` deliberately: setting it
 forces every PR to rebase serially, which is the problem the queue solves.
