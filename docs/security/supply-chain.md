@@ -65,8 +65,10 @@ Gates fail closed; exceptions are explicit, reviewed, and expiring.
    must be real calendar days no more than two years out: an impossible value
    like 9999-99-99 or a decade-away date is rejected. The guard enforces the
    exact canonical layout - `ignore:` / `ignore-packages:` at column 0,
-   unquoted - and fails on any other spelling of the section keys rather than
-   silently skipping a section it cannot parse.
+   unquoted, and PRESENT (write `ignore: []` when there are no exceptions) -
+   and fails on any other spelling of the section keys or on a document form
+   it cannot inspect (a root flow mapping, a deleted section) rather than
+   silently passing what it could not examine.
 2. **Licenses**: extend `allow:` in `.grant.yaml` only with the SPDX
    compatibility rationale in the PR, or add a package under
    `ignore-packages:` with a comment: the VERIFIED license (read the LICENSE

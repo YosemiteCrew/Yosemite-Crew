@@ -210,6 +210,14 @@ _assert_canonical_section() {
     echo "NON-CANONICAL spelling of '${section}:' in $(basename "${file}") (${variants}) - the exception guard only inspects the documented layout; spell the key exactly '${section}:' at column 0." >&2
     return 1
   fi
+  # Presence is REQUIRED: a document that hides the section from line-level
+  # inspection (a root flow mapping, an exotic key form, or simply deleting
+  # the section) must fail rather than sail through unexaminable. Keep an
+  # empty '${section}: []' line when there are no exceptions.
+  if ! grep -qE "^${section}:" "${file}" 2>/dev/null; then
+    echo "MISSING canonical '${section}:' section in $(basename "${file}") - the guard requires it present at column 0 (use '${section}: []' when empty); a layout it cannot inspect fails closed." >&2
+    return 1
+  fi
   return 0
 }
 
