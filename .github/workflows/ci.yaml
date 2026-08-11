@@ -67,11 +67,21 @@ jobs:
     # Skip Sonar for them (the roll-up below counts a skipped stage as a pass);
     # the nightly sonar-cloud-analysis run remains the type-aware backstop and
     # every dependency change is re-scanned there once it lands on dev.
+    #
+    # Push events only analyze on main: the SonarCloud plan accepts analysis of
+    # each project's MAIN BRANCH only, so a push-to-dev scan can never publish
+    # anywhere and every leg fails with "Not authorized or project not found"
+    # at the quality-gate check. PR analysis carries the gate; the push-to-main
+    # scan and the nightly keep the dashboard current. (All four projects'
+    # SonarCloud main branches are named `main` - the Backend project's was
+    # named `dev` until 2026-08-11, which made its legs fail on main pushes and
+    # pass on dev pushes, the mirror image of the other three.)
     if: >
       vars.DISABLE_SONAR != 'true' &&
       needs.test.outputs.apps-with-coverage != '' &&
       needs.test.outputs.apps-with-coverage != '[]' &&
-      github.event.pull_request.user.login != 'dependabot[bot]'
+      github.event.pull_request.user.login != 'dependabot[bot]' &&
+      (github.event_name != 'push' || github.ref == 'refs/heads/main')
     # A reusable workflow cannot request more than its caller grants, and
     # startup validation checks this even when the job is skipped, so the Sonar
     # scan's checks:write / pull-requests:write are granted on the call here
