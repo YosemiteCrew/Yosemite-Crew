@@ -61,7 +61,14 @@ Gates fail closed; exceptions are explicit, reviewed, and expiring.
    the scan and license gates fail when any re-review date is in the past**,
    so an exception cannot quietly outlive its justification - and they fail
    just the same on any `ignore:` entry whose comment lacks a dated line, so
-   an undated vulnerability exception cannot escape enforcement either.
+   an undated vulnerability exception cannot escape enforcement either. Dates
+   must be real calendar days no more than two years out: an impossible value
+   like 9999-99-99 or a decade-away date is rejected. The guard enforces the
+   exact canonical layout - `ignore:` / `ignore-packages:` at column 0,
+   unquoted, and PRESENT (write `ignore: []` when there are no exceptions) -
+   and fails on any other spelling of the section keys or on a document form
+   it cannot inspect (a root flow mapping, a deleted section) rather than
+   silently passing what it could not examine.
 2. **Licenses**: extend `allow:` in `.grant.yaml` only with the SPDX
    compatibility rationale in the PR, or add a package under
    `ignore-packages:` with a comment: the VERIFIED license (read the LICENSE

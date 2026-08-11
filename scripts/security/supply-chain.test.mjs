@@ -72,7 +72,7 @@ test("scan fails when an exception's re-review date has expired", () => {
   utimesSync(join(root, 'pnpm-lock.yaml'), past, past);
   utimesSync(join(root, 'package.json'), past, past);
   writeFileSync(join(root, '.grype.yaml'), '# Re-review by: 2020-01-01\nignore: []\n');
-  writeFileSync(join(root, '.grant.yaml'), 'allow: []\n');
+  writeFileSync(join(root, '.grant.yaml'), 'allow: []\nignore-packages: []\n');
 
   const { status, output } = run(['scan'], { SUPPLY_CHAIN_REPO_ROOT: root });
   assert.notEqual(status, 0);
@@ -98,7 +98,7 @@ test('scan fails when an ignore-packages entry lacks a dated re-review line', ()
     [
       'allow: []',
       'ignore-packages:',
-      '  # Dated entry, fine. Re-review by: 2999-01-01.',
+      '  # Dated entry, fine. Re-review by: 2027-01-01.',
       '  - compliant-pkg',
       '  # Re-review: on version bump.',
       '  - missing-date-pkg',
@@ -168,7 +168,7 @@ test('a grype ignore entry without a dated re-review line fails the scan', () =>
       '    package:\n' +
       '      name: foo\n'
   );
-  writeFileSync(join(root, '.grant.yaml'), 'allow: []\n');
+  writeFileSync(join(root, '.grant.yaml'), 'allow: []\nignore-packages: []\n');
 
   const { status, output } = run(['scan'], { SUPPLY_CHAIN_REPO_ROOT: root });
   assert.notEqual(status, 0);
@@ -191,7 +191,7 @@ test('an undated grype ignore in column-0 sequence layout still fails', () => {
     join(root, '.grype.yaml'),
     'ignore:\n' + '- vulnerability: GHSA-col0-col0-col0\n' + '  package:\n' + '    name: foo\n'
   );
-  writeFileSync(join(root, '.grant.yaml'), 'allow: []\n');
+  writeFileSync(join(root, '.grant.yaml'), 'allow: []\nignore-packages: []\n');
 
   const { status, output } = run(['scan'], { SUPPLY_CHAIN_REPO_ROOT: root });
   assert.notEqual(status, 0);
@@ -210,7 +210,7 @@ test('a non-empty flow-style ignore sequence is rejected as unsupported', () => 
   utimesSync(join(root, 'pnpm-lock.yaml'), past, past);
   utimesSync(join(root, 'package.json'), past, past);
   writeFileSync(join(root, '.grype.yaml'), 'ignore: [{vulnerability: GHSA-flow-flow-flow}]\n');
-  writeFileSync(join(root, '.grant.yaml'), 'allow: []\n');
+  writeFileSync(join(root, '.grant.yaml'), 'allow: []\nignore-packages: []\n');
 
   const { status, output } = run(['scan'], { SUPPLY_CHAIN_REPO_ROOT: root });
   assert.notEqual(status, 0);
@@ -239,10 +239,104 @@ test('the header example placeholder never trips the expiry or date guards', () 
       '#   - vulnerability: GHSA-xxxx-xxxx-xxxx\n' +
       'ignore: []\n'
   );
-  writeFileSync(join(root, '.grant.yaml'), 'allow: []\n');
+  writeFileSync(join(root, '.grant.yaml'), 'allow: []\nignore-packages: []\n');
 
   const { status, output } = run(['scan'], { SUPPLY_CHAIN_REPO_ROOT: root });
   assert.equal(status, 0, `scan should pass, got: ${output}`);
+});
+
+const scanRootWithConfigs = (grypeYaml, grantYaml) => {
+  const root = fakeRoot();
+  writeFileSync(join(root, 'pnpm-lock.yaml'), "lockfileVersion: '6.0'\n");
+  writeFileSync(join(root, 'package.json'), '{}\n');
+  const sbomDir = join(root, 'security', 'sbom');
+  mkdirSync(sbomDir, { recursive: true });
+  writeFileSync(join(sbomDir, 'yosemite-crew.cdx.json'), '{}');
+  const past = new Date(Date.now() - 60_000);
+  utimesSync(join(root, 'pnpm-lock.yaml'), past, past);
+  utimesSync(join(root, 'package.json'), past, past);
+  writeFileSync(join(root, '.grype.yaml'), grypeYaml);
+  writeFileSync(join(root, '.grant.yaml'), grantYaml);
+  return root;
+};
+
+test('a quoted "ignore": key is rejected as non-canonical, not silently skipped', () => {
+  const root = scanRootWithConfigs(
+    '"ignore":\n' +
+      '  # No date here. Owner: someone.\n' +
+      '  - vulnerability: GHSA-quot-quot-quot\n' +
+      '    package:\n' +
+      '      name: foo\n',
+    'allow: []\nignore-packages: []\n'
+  );
+  const { status, output } = run(['scan'], { SUPPLY_CHAIN_REPO_ROOT: root });
+  assert.notEqual(status, 0);
+  assert.match(output, /NON-CANONICAL spelling of 'ignore:' in \.grype\.yaml/);
+});
+
+test('whitespace before the colon is rejected as non-canonical', () => {
+  const root = scanRootWithConfigs(
+    '"ignore" :\n' + '  # No date. Owner: someone.\n' + '  - vulnerability: GHSA-sp-sp-sp\n',
+    'allow: []\nignore-packages: []\n'
+  );
+  const { status, output } = run(['scan'], { SUPPLY_CHAIN_REPO_ROOT: root });
+  assert.notEqual(status, 0);
+  assert.match(output, /NON-CANONICAL spelling of 'ignore:' in \.grype\.yaml/);
+});
+
+test('the explicit-key YAML form is rejected as non-canonical', () => {
+  const root = scanRootWithConfigs(
+    '? ignore\n' + ':\n' + '  - vulnerability: GHSA-exp-exp-exp\n',
+    'allow: []\nignore-packages: []\n'
+  );
+  const { status, output } = run(['scan'], { SUPPLY_CHAIN_REPO_ROOT: root });
+  assert.notEqual(status, 0);
+  assert.match(output, /NON-CANONICAL spelling of 'ignore:' in \.grype\.yaml/);
+});
+
+test('an impossible calendar date is rejected, not treated as forever-future', () => {
+  const root = scanRootWithConfigs(
+    'ignore:\n' +
+      '  # Looks dated but 9999-99-99 is not a day that exists. Owner: x.\n' +
+      '  # Re-review by: 9999-99-99.\n' +
+      '  - vulnerability: GHSA-nope-nope-nope\n',
+    'allow: []\nignore-packages: []\n'
+  );
+  const { status, output } = run(['scan'], { SUPPLY_CHAIN_REPO_ROOT: root });
+  assert.notEqual(status, 0);
+  assert.match(output, /INVALID re-review dates/);
+  assert.match(output, /9999-99-99/);
+});
+
+test('a valid date more than two years out fails the horizon bound', () => {
+  const farOut = new Date(Date.now() + 3 * 365 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const root = scanRootWithConfigs(
+    'ignore:\n' +
+      `  # Bounded window dodge. Owner: x. Re-review by: ${farOut}.\n` +
+      '  - vulnerability: GHSA-farr-farr-farr\n',
+    'allow: []\nignore-packages: []\n'
+  );
+  const { status, output } = run(['scan'], { SUPPLY_CHAIN_REPO_ROOT: root });
+  assert.notEqual(status, 0);
+  assert.match(output, /OVER-HORIZON re-review dates/);
+  assert.match(output, new RegExp(farOut));
+});
+
+test('a root flow-mapping document cannot hide the ignore section', () => {
+  const root = scanRootWithConfigs(
+    '{ignore: [{vulnerability: GHSA-hide-hide-hide}]}\n',
+    'allow: []\nignore-packages: []\n'
+  );
+  const { status, output } = run(['scan'], { SUPPLY_CHAIN_REPO_ROOT: root });
+  assert.notEqual(status, 0);
+  assert.match(output, /MISSING canonical 'ignore:' section in \.grype\.yaml/);
+});
+
+test('deleting the section entirely fails rather than passing unexamined', () => {
+  const root = scanRootWithConfigs('# nothing to see\n', 'allow: []\nignore-packages: []\n');
+  const { status, output } = run(['scan'], { SUPPLY_CHAIN_REPO_ROOT: root });
+  assert.notEqual(status, 0);
+  assert.match(output, /MISSING canonical 'ignore:' section in \.grype\.yaml/);
 });
 
 test('a tampered download is rejected by the pinned digest', () => {
