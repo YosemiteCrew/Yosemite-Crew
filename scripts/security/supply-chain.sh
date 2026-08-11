@@ -145,15 +145,41 @@ sbom_is_stale() {
 # dates. An expired exception fails the gate instead of quietly outliving its
 # justification.
 check_exception_expiry() {
-  local today expired
+  local today horizon dates invalid over_horizon expired
   today="$(date +%Y-%m-%d)"
+  # Two years is the outer bound for any re-review date: "expiring exceptions"
+  # means a bounded window, and the cap also rejects never-reachable far-future
+  # dates. GNU date first (CI), BSD date fallback (macOS).
+  horizon="$(date -d '+2 years' +%Y-%m-%d 2>/dev/null || date -v+2y +%Y-%m-%d)"
   # `|| true`: zero dated lines anywhere makes grep exit 1, which pipefail +
   # set -e would otherwise turn into a silent scan death.
-  expired="$(grep -hoE 'Re-review by: [0-9]{4}-[0-9]{2}-[0-9]{2}' \
+  dates="$(grep -hoE 'Re-review by: [0-9]{4}-[0-9]{2}-[0-9]{2}' \
     "${REPO_ROOT}/.grype.yaml" "${REPO_ROOT}/.grant.yaml" 2>/dev/null |
-    awk -v today="${today}" '{ if ($3 < today) print $3 }')" || true
+    awk '{ print $3 }')" || true
+  # Digit shape alone is not a date: 9999-99-99 matches the pattern, compares
+  # lexically as forever-in-the-future, and would never expire. Reject anything
+  # that is not a real calendar day (leap years included).
+  invalid="$(awk '
+    NF == 0 { next }
+    {
+      split($0, p, "-"); y = p[1] + 0; m = p[2] + 0; d = p[3] + 0
+      split("31 28 31 30 31 30 31 31 30 31 30 31", dim, " ")
+      leap = (y % 4 == 0 && (y % 100 != 0 || y % 400 == 0))
+      maxd = (m >= 1 && m <= 12) ? dim[m] + ((m == 2 && leap) ? 1 : 0) : 0
+      if (m < 1 || m > 12 || d < 1 || d > maxd) print $0
+    }' <<<"${dates}")"
+  over_horizon="$(awk -v h="${horizon}" 'NF > 0 && $0 > h { print }' <<<"${dates}")"
+  expired="$(awk -v t="${today}" 'NF > 0 && $0 < t { print }' <<<"${dates}")"
+  if [ -n "${invalid}" ]; then
+    echo "INVALID re-review dates (not real calendar days): ${invalid}" >&2
+  fi
+  if [ -n "${over_horizon}" ]; then
+    echo "OVER-HORIZON re-review dates (more than 2 years out, max ${horizon}): ${over_horizon}" >&2
+  fi
   if [ -n "${expired}" ]; then
     echo "EXPIRED security exceptions (re-review dates in the past): ${expired}" >&2
+  fi
+  if [ -n "${invalid}${over_horizon}${expired}" ]; then
     echo "Re-review each entry in .grype.yaml / .grant.yaml and either fix the finding or renew the date with a fresh justification." >&2
     return 1
   fi
@@ -173,7 +199,11 @@ check_exception_expiry() {
 # guard must fail closed on layouts it cannot read.
 _undated_exception_entries() {
   local file="$1" section="$2"
-  awk -v sec="^${section}:" '
+  # The key regex accepts optional single or double quotes: "ignore": is the
+  # same setting to a YAML parser, so it must be the same section to us -
+  # otherwise a quoted spelling would skip the guard entirely.
+  awk -v section="${section}" '
+    BEGIN { sec = "^[\"'\'']?" section "[\"'\'']?:" }
     !insec && $0 ~ sec {
       insec = 1
       rest = $0; sub(sec, "", rest); gsub(/[[:space:]]/, "", rest)

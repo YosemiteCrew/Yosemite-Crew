@@ -98,7 +98,7 @@ test('scan fails when an ignore-packages entry lacks a dated re-review line', ()
     [
       'allow: []',
       'ignore-packages:',
-      '  # Dated entry, fine. Re-review by: 2999-01-01.',
+      '  # Dated entry, fine. Re-review by: 2027-01-01.',
       '  - compliant-pkg',
       '  # Re-review: on version bump.',
       '  - missing-date-pkg',
@@ -243,6 +243,64 @@ test('the header example placeholder never trips the expiry or date guards', () 
 
   const { status, output } = run(['scan'], { SUPPLY_CHAIN_REPO_ROOT: root });
   assert.equal(status, 0, `scan should pass, got: ${output}`);
+});
+
+const scanRootWithConfigs = (grypeYaml, grantYaml) => {
+  const root = fakeRoot();
+  writeFileSync(join(root, 'pnpm-lock.yaml'), "lockfileVersion: '6.0'\n");
+  writeFileSync(join(root, 'package.json'), '{}\n');
+  const sbomDir = join(root, 'security', 'sbom');
+  mkdirSync(sbomDir, { recursive: true });
+  writeFileSync(join(sbomDir, 'yosemite-crew.cdx.json'), '{}');
+  const past = new Date(Date.now() - 60_000);
+  utimesSync(join(root, 'pnpm-lock.yaml'), past, past);
+  utimesSync(join(root, 'package.json'), past, past);
+  writeFileSync(join(root, '.grype.yaml'), grypeYaml);
+  writeFileSync(join(root, '.grant.yaml'), grantYaml);
+  return root;
+};
+
+test('a quoted "ignore": key cannot bypass the undated-entry guard', () => {
+  const root = scanRootWithConfigs(
+    '"ignore":\n' +
+      '  # No date here. Owner: someone.\n' +
+      '  - vulnerability: GHSA-quot-quot-quot\n' +
+      '    package:\n' +
+      '      name: foo\n',
+    'allow: []\n'
+  );
+  const { status, output } = run(['scan'], { SUPPLY_CHAIN_REPO_ROOT: root });
+  assert.notEqual(status, 0);
+  assert.match(output, /UNDATED security exceptions in \.grype\.yaml/);
+  assert.match(output, /GHSA-quot-quot-quot/);
+});
+
+test('an impossible calendar date is rejected, not treated as forever-future', () => {
+  const root = scanRootWithConfigs(
+    'ignore:\n' +
+      '  # Looks dated but 9999-99-99 is not a day that exists. Owner: x.\n' +
+      '  # Re-review by: 9999-99-99.\n' +
+      '  - vulnerability: GHSA-nope-nope-nope\n',
+    'allow: []\n'
+  );
+  const { status, output } = run(['scan'], { SUPPLY_CHAIN_REPO_ROOT: root });
+  assert.notEqual(status, 0);
+  assert.match(output, /INVALID re-review dates/);
+  assert.match(output, /9999-99-99/);
+});
+
+test('a valid date more than two years out fails the horizon bound', () => {
+  const farOut = new Date(Date.now() + 3 * 365 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const root = scanRootWithConfigs(
+    'ignore:\n' +
+      `  # Bounded window dodge. Owner: x. Re-review by: ${farOut}.\n` +
+      '  - vulnerability: GHSA-farr-farr-farr\n',
+    'allow: []\n'
+  );
+  const { status, output } = run(['scan'], { SUPPLY_CHAIN_REPO_ROOT: root });
+  assert.notEqual(status, 0);
+  assert.match(output, /OVER-HORIZON re-review dates/);
+  assert.match(output, new RegExp(farOut));
 });
 
 test('a tampered download is rejected by the pinned digest', () => {
