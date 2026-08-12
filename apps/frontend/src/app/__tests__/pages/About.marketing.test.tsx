@@ -145,15 +145,15 @@ describe('About (marketing)', () => {
         name: /Harshvardhan Parmar, Contributor, on LinkedIn/i,
       })
     ).toHaveAttribute('href', 'https://www.linkedin.com/in/harshvardhan-parmar/');
-    expect(screen.getByRole('link', { name: /Sneha, Contributor, on LinkedIn/i })).toHaveAttribute(
-      'href',
-      'https://www.linkedin.com/in/snehadevc/'
-    );
+    // Departed members are no longer listed in the core team.
     expect(
-      screen.getByRole('link', {
+      screen.queryByRole('link', { name: /Sneha, Contributor, on LinkedIn/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', {
         name: /Vallirani Ravulapati, Contributor, on LinkedIn/i,
       })
-    ).toHaveAttribute('href', 'https://www.linkedin.com/in/vallirani-ravulapati/');
+    ).not.toBeInTheDocument();
     expect(
       container.querySelector(
         'img[src="https://d2il6osz49gpup.cloudfront.net/aboutus-page/Ankit_profile.png"]'

@@ -701,20 +701,6 @@ const CORE_TEAM: CrewMember[] = [
     slotId: 'crew-harshvardhan',
     delay: 80,
   },
-  {
-    name: 'Sneha',
-    role: 'Contributor',
-    href: 'https://www.linkedin.com/in/snehadevc/',
-    slotId: 'crew-sneha',
-    delay: 160,
-  },
-  {
-    name: 'Vallirani Ravulapati',
-    role: 'Contributor',
-    href: 'https://www.linkedin.com/in/vallirani-ravulapati/',
-    slotId: 'crew-vallirani',
-    delay: 240,
-  },
 ];
 
 function ProfileCard({
