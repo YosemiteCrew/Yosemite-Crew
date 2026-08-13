@@ -73,7 +73,7 @@
 
 .yc-pwo-title {
   margin: 0;
-  font-family: 'Newsreader', Georgia, serif;
+  font-family: var(--font-newsreader);
   font-size: 24px;
   font-weight: 400;
   letter-spacing: -0.015em;

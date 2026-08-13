@@ -19,7 +19,7 @@
 
 .dev-ph-greet-eyebrow {
   display: block;
-  font-family: var(--font-newsreader, 'Newsreader', Georgia, serif);
+  font-family: var(--font-newsreader);
   font-style: italic;
   font-size: 14px;
   color: var(--color-cyan-text);
@@ -27,7 +27,7 @@
 
 .dev-ph-greet-name {
   display: block;
-  font-family: var(--font-newsreader, 'Newsreader', Georgia, serif);
+  font-family: var(--font-newsreader);
   font-size: 24px;
   letter-spacing: -0.015em;
   color: var(--color-text-primary);

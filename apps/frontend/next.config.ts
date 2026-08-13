@@ -21,6 +21,17 @@ const DEV_DOCS_CSP = [
   "form-action 'self'",
 ].join('; ');
 
+// Files under /public are served with a fixed name and are only replaced by a
+// deploy, but Amplify hands them out with `max-age=5` — every visit re-fetches
+// the fonts and marketing art from the origin and CloudFront edges never stay
+// warm. Fonts are immutable (a new cut ships under a new filename); images can
+// be swapped in place, so they get a one-day freshness window and a month of
+// stale-while-revalidate rather than `immutable`.
+const IMMUTABLE_CACHE_CONTROL = 'public, max-age=31536000, immutable';
+const REVALIDATING_CACHE_CONTROL = 'public, max-age=86400, stale-while-revalidate=2592000';
+
+const cacheControl = (value: string) => [{ key: 'Cache-Control', value }];
+
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
@@ -47,9 +58,6 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'avatars.githubusercontent.com' },
     ],
   },
-  outputFileTracingExcludes: {
-    'apps/frontend/**': ['**/.pnpm/**', '**/node_modules/.pnpm/**', '**/.turbo/**'],
-  },
   experimental: {
     webpackMemoryOptimizations: true,
     serverSourceMaps: false,
@@ -66,6 +74,14 @@ const nextConfig: NextConfig = {
       {
         source: '/dev-docs/:path*',
         headers: [...securityHeaders, { key: 'Content-Security-Policy', value: DEV_DOCS_CSP }],
+      },
+      {
+        source: '/fonts/:path*',
+        headers: cacheControl(IMMUTABLE_CACHE_CONTROL),
+      },
+      {
+        source: '/images/:path*',
+        headers: cacheControl(REVALIDATING_CACHE_CONTROL),
       },
     ];
   },
