@@ -79,22 +79,11 @@ export interface CellWeatherSeries {
   forecast: DailyWeather[];
 }
 
-/**
- * Fetch the daily weather series for a grid cell centre.
- *
- * Splits the response at today so the models can compute a current index from
- * observed weather and a projected index from the forecast.
- */
-export async function fetchCellWeather(
+/** The daily block of a forecast response, or a provider error. */
+async function requestDailyBlock(
   lat: number,
   lon: number,
-): Promise<CellWeatherSeries> {
-  if (!isFiniteCoordinate(lat, 90) || !isFiniteCoordinate(lon, 180)) {
-    throw new OpenMeteoError(`Coordinate out of range: ${lat}, ${lon}`);
-  }
-
-  let payload: { daily?: OpenMeteoDailyPayload };
-
+): Promise<OpenMeteoDailyPayload> {
   try {
     const response = await getClient().get<{ daily?: OpenMeteoDailyPayload }>(
       FORECAST_PATH,
@@ -109,19 +98,19 @@ export async function fetchCellWeather(
         },
       },
     );
-    payload = response.data;
+
+    return response.data.daily ?? {};
   } catch (error) {
     logger.error("Open-Meteo request failed", { error });
     throw new OpenMeteoError("Weather provider is unavailable");
   }
+}
 
-  const daily = payload.daily ?? {};
-  const dates = asStringArray(daily.time);
-
-  if (dates.length === 0) {
-    throw new OpenMeteoError("Weather provider returned no daily series");
-  }
-
+/** Turn the provider's parallel arrays into the model's per-day shape. */
+function toDailySeries(
+  daily: OpenMeteoDailyPayload,
+  dates: readonly string[],
+): DailyWeather[] {
   const tMax = asNumberArray(daily.temperature_2m_max);
   const tMin = asNumberArray(daily.temperature_2m_min);
   const tMean = asNumberArray(daily.temperature_2m_mean);
@@ -129,7 +118,7 @@ export async function fetchCellWeather(
   const humidity = asNumberArray(daily.relative_humidity_2m_mean);
   const dewPoint = asNumberArray(daily.dew_point_2m_mean);
 
-  const days: DailyWeather[] = dates.flatMap((date, i) => {
+  return dates.flatMap((date, i) => {
     const meanTemp = tMean[i] ?? averageOf(tMax[i], tMin[i]);
     // A day with no usable temperature cannot contribute to any model.
     if (meanTemp === null) return [];
@@ -146,11 +135,18 @@ export async function fetchCellWeather(
       },
     ];
   });
+}
 
-  // Open-Meteo returns PAST_DAYS of history followed by the forecast block,
-  // whose first entry is the current day in the cell's own timezone. Split on
-  // that date rather than on an index, because dropping an unusable day above
-  // would otherwise shift the boundary. ISO dates sort lexicographically.
+/**
+ * Open-Meteo returns PAST_DAYS of history followed by the forecast block, whose
+ * first entry is the current day in the cell's own timezone. Split on that date
+ * rather than on an index, because dropping an unusable day would otherwise
+ * shift the boundary. ISO dates sort lexicographically.
+ */
+function splitAtCurrentDay(
+  days: readonly DailyWeather[],
+  dates: readonly string[],
+): CellWeatherSeries {
   const currentDate =
     dates[Math.max(0, dates.length - FORECAST_DAYS)] ?? dates[dates.length - 1];
 
@@ -158,6 +154,30 @@ export async function fetchCellWeather(
     past: days.filter((day) => day.date <= currentDate),
     forecast: days.filter((day) => day.date > currentDate),
   };
+}
+
+/**
+ * Fetch the daily weather series for a grid cell centre.
+ *
+ * Splits the response at today so the models can compute a current index from
+ * observed weather and a projected index from the forecast.
+ */
+export async function fetchCellWeather(
+  lat: number,
+  lon: number,
+): Promise<CellWeatherSeries> {
+  if (!isFiniteCoordinate(lat, 90) || !isFiniteCoordinate(lon, 180)) {
+    throw new OpenMeteoError(`Coordinate out of range: ${lat}, ${lon}`);
+  }
+
+  const daily = await requestDailyBlock(lat, lon);
+  const dates = asStringArray(daily.time);
+
+  if (dates.length === 0) {
+    throw new OpenMeteoError("Weather provider returned no daily series");
+  }
+
+  return splitAtCurrentDay(toDailySeries(daily, dates), dates);
 }
 
 function averageOf(a: number | null, b: number | null): number | null {

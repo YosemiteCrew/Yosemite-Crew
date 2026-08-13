@@ -62,6 +62,14 @@ describe("trapezoid", () => {
     expect(trapezoid(7.5, 5, 10, 20, 30)).toBeCloseTo(0.5);
     expect(trapezoid(25, 5, 10, 20, 30)).toBeCloseTo(0.5);
   });
+
+  it("stays finite when a shoulder has no width", () => {
+    // A spec whose absolute and optimum bounds coincide has no shoulder to
+    // interpolate across, and must not divide by zero.
+    expect(trapezoid(20, 10, 10, 30, 30)).toBe(1);
+    expect(trapezoid(10, 10, 10, 30, 30)).toBe(0);
+    expect(trapezoid(30, 10, 10, 30, 30)).toBe(0);
+  });
 });
 
 describe("saturation deficit", () => {
@@ -119,7 +127,7 @@ describe("heartworm degree-day model", () => {
 
     const heartworm = readingFor(result, "heartworm");
     expect(heartworm!.tier).toBe("LOW");
-    expect(heartworm!.index).toBeLessThan(25);
+    expect(heartworm!.index).toBe(0);
   });
 
   it("crosses into high risk once the thermal budget is met", () => {
@@ -139,16 +147,57 @@ describe("heartworm degree-day model", () => {
 
   it("is a step change either side of the threshold, not a smooth ramp", () => {
     // The life cycle either completes or it does not, so the index must not
-    // creep up through the middle tiers below the threshold.
+    // creep up while the thermal budget is still short.
     const below = computeCellReadings(
       "AU",
       BRISBANE.lat,
       BRISBANE.lon,
+      // 30 days at 18C = 4 above base = 120 HDU, just short of 130.
       days(30, { tMean: 18 }),
       [],
     );
+    const above = computeCellReadings(
+      "AU",
+      BRISBANE.lat,
+      BRISBANE.lon,
+      // 30 days at 19C = 150 HDU, just past it.
+      days(30, { tMean: 19 }),
+      [],
+    );
 
-    expect(readingFor(below, "heartworm")!.index).toBeLessThan(25);
+    expect(readingFor(below, "heartworm")!.index).toBe(0);
+    expect(readingFor(above, "heartworm")!.index).toBeGreaterThan(0);
+  });
+});
+
+describe("sandfly thermal activity model", () => {
+  it("is silent below the activity threshold and rises with warmth", () => {
+    const cold = computeCellReadings(
+      "EU",
+      ROME.lat,
+      ROME.lon,
+      days(14, { tMean: 12 }),
+      [],
+    );
+    const warm = computeCellReadings(
+      "EU",
+      ROME.lat,
+      ROME.lon,
+      days(14, { tMean: 20 }),
+      [],
+    );
+    const hot = computeCellReadings(
+      "EU",
+      ROME.lat,
+      ROME.lon,
+      days(14, { tMean: 26 }),
+      [],
+    );
+
+    expect(readingFor(cold, "sandfly_leishmania")!.index).toBe(0);
+    // 20C sits halfway between the 15C start and the 25C full-activity point.
+    expect(readingFor(warm, "sandfly_leishmania")!.index).toBe(50);
+    expect(readingFor(hot, "sandfly_leishmania")!.index).toBe(100);
   });
 });
 

@@ -89,6 +89,26 @@ interface SubscriptionRow {
 const cellKey = (row: SubscriptionRow): string =>
   `${row.latBucket}:${row.lonBucket}:${row.countryCode}`;
 
+/** One entry per grid cell, holding every subscription that follows it. */
+const groupByCell = (
+  rows: readonly SubscriptionRow[],
+): Map<string, SubscriptionRow[]> => {
+  const byCell = new Map<string, SubscriptionRow[]>();
+
+  for (const row of rows) {
+    const key = cellKey(row);
+    const existing = byCell.get(key);
+
+    if (existing) {
+      existing.push(row);
+    } else {
+      byCell.set(key, [row]);
+    }
+  }
+
+  return byCell;
+};
+
 /** Returns true only when a push was actually dispatched. */
 async function notifyParent(
   parentId: string,
@@ -117,6 +137,62 @@ export interface RefreshSummary {
   alertsSent: number;
 }
 
+/** Refresh the cell these rows share, or null when the weather fetch failed. */
+async function refreshCellForFollowers(
+  rows: readonly SubscriptionRow[],
+): Promise<ParasiteRiskCellReading | null> {
+  const [first] = rows;
+
+  try {
+    return await refreshCell(
+      first.latBucket,
+      first.lonBucket,
+      first.countryCode,
+    );
+  } catch (error) {
+    // One unreachable cell must not stop the rest of the sweep.
+    logger.error("Failed to refresh parasite risk cell", {
+      error,
+      lat: first.latBucket,
+      lon: first.lonBucket,
+    });
+    return null;
+  }
+}
+
+/**
+ * Apply the alert rule to one subscription and record its new alert state.
+ *
+ * Returns true only when a push was actually dispatched.
+ */
+async function processSubscription(
+  row: SubscriptionRow,
+  reading: ParasiteRiskCellReading,
+): Promise<boolean> {
+  const { alerts, nextState } = resolveAlerts(
+    reading.readings,
+    row.alertTier as RiskTier,
+    parseAlertedTiers(row.alertedTiers),
+  );
+
+  await prisma.parasiteRiskSubscription.update({
+    where: { id: row.id },
+    data: { alertedTiers: nextState as Prisma.InputJsonValue },
+  });
+
+  if (alerts.length === 0) return false;
+
+  try {
+    return await notifyParent(row.parentId, row.label, alerts);
+  } catch (error) {
+    logger.error("Failed to send parasite risk alert", {
+      error,
+      subscriptionId: row.id,
+    });
+    return false;
+  }
+}
+
 /**
  * Refresh every followed cell once, then alert the parents who follow it.
  *
@@ -138,63 +214,25 @@ export async function refreshFollowedCells(): Promise<RefreshSummary> {
       },
     });
 
-  const byCell = new Map<string, SubscriptionRow[]>();
-  for (const row of subscriptions) {
-    const key = cellKey(row);
-    byCell.set(key, [...(byCell.get(key) ?? []), row]);
-  }
-
   const summary: RefreshSummary = {
     cellsRefreshed: 0,
     cellsFailed: 0,
     alertsSent: 0,
   };
 
-  for (const rows of byCell.values()) {
-    const [first] = rows;
-    let reading: ParasiteRiskCellReading;
+  for (const rows of groupByCell(subscriptions).values()) {
+    const reading = await refreshCellForFollowers(rows);
 
-    try {
-      reading = await refreshCell(
-        first.latBucket,
-        first.lonBucket,
-        first.countryCode,
-      );
-      summary.cellsRefreshed += 1;
-    } catch (error) {
-      // One unreachable cell must not stop the rest of the sweep.
+    if (reading === null) {
       summary.cellsFailed += 1;
-      logger.error("Failed to refresh parasite risk cell", {
-        error,
-        lat: first.latBucket,
-        lon: first.lonBucket,
-      });
       continue;
     }
 
+    summary.cellsRefreshed += 1;
+
     for (const row of rows) {
-      const { alerts, nextState } = resolveAlerts(
-        reading.readings,
-        row.alertTier as RiskTier,
-        parseAlertedTiers(row.alertedTiers),
-      );
-
-      await prisma.parasiteRiskSubscription.update({
-        where: { id: row.id },
-        data: { alertedTiers: nextState as Prisma.InputJsonValue },
-      });
-
-      if (alerts.length === 0) continue;
-
-      try {
-        if (await notifyParent(row.parentId, row.label, alerts)) {
-          summary.alertsSent += 1;
-        }
-      } catch (error) {
-        logger.error("Failed to send parasite risk alert", {
-          error,
-          subscriptionId: row.id,
-        });
+      if (await processSubscription(row, reading)) {
+        summary.alertsSent += 1;
       }
     }
   }

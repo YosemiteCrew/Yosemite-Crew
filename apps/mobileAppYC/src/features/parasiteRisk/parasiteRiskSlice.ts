@@ -1,4 +1,4 @@
-import {createSlice, type PayloadAction} from '@reduxjs/toolkit';
+import {createSlice, isAnyOf, type PayloadAction} from '@reduxjs/toolkit';
 import type {ParasiteRiskState, RiskLocation} from './types';
 import {
   followLocation,
@@ -9,6 +9,9 @@ import {
 
 /** Keep the recents list short enough to stay a shortcut rather than a history. */
 const MAX_RECENT_LOCATIONS = 5;
+
+/** Used only when a thunk rejects without a message of its own. */
+const FALLBACK_ERROR = 'Something went wrong.';
 
 const initialState: ParasiteRiskState = {
   location: null,
@@ -57,9 +60,8 @@ export const parasiteRiskSlice = createSlice({
           ),
         ].slice(0, MAX_RECENT_LOCATIONS);
       })
-      .addCase(loadRiskForLocation.rejected, (state, action) => {
+      .addCase(loadRiskForLocation.rejected, state => {
         state.loading = false;
-        state.error = action.payload ?? 'Something went wrong.';
       })
       .addCase(loadSubscriptions.pending, state => {
         state.subscriptionsLoading = true;
@@ -68,9 +70,8 @@ export const parasiteRiskSlice = createSlice({
         state.subscriptionsLoading = false;
         state.subscriptions = action.payload;
       })
-      .addCase(loadSubscriptions.rejected, (state, action) => {
+      .addCase(loadSubscriptions.rejected, state => {
         state.subscriptionsLoading = false;
-        state.error = action.payload ?? 'Something went wrong.';
       })
       .addCase(followLocation.fulfilled, (state, action) => {
         state.subscriptions = [
@@ -80,9 +81,6 @@ export const parasiteRiskSlice = createSlice({
           action.payload,
         ];
       })
-      .addCase(followLocation.rejected, (state, action) => {
-        state.error = action.payload ?? 'Something went wrong.';
-      })
       .addCase(
         unfollowLocation.fulfilled,
         (state, action: PayloadAction<string>) => {
@@ -91,9 +89,19 @@ export const parasiteRiskSlice = createSlice({
           );
         },
       )
-      .addCase(unfollowLocation.rejected, (state, action) => {
-        state.error = action.payload ?? 'Something went wrong.';
-      });
+      // Every rejection surfaces its message the same way, so it is assigned in
+      // one place rather than repeated per thunk.
+      .addMatcher(
+        isAnyOf(
+          loadRiskForLocation.rejected,
+          loadSubscriptions.rejected,
+          followLocation.rejected,
+          unfollowLocation.rejected,
+        ),
+        (state, action) => {
+          state.error = action.payload ?? FALLBACK_ERROR;
+        },
+      );
   },
 });
 

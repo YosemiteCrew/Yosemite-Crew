@@ -80,6 +80,14 @@ export function saturationDeficitKpa(day: DailyWeather): number | null {
 }
 
 /**
+ * `offset` as a fraction of `span`, which is how the models normalise a raw
+ * measurement before clamping it. The span is floored just above zero so a spec
+ * whose bounds coincide cannot divide by zero.
+ */
+const fraction = (offset: number, span: number): number =>
+  offset / Math.max(span, Number.EPSILON);
+
+/**
  * Trapezoidal suitability curve: zero outside the absolute limits, one across
  * the optimum, linear on the shoulders. This is the standard shape for an
  * ectotherm's activity response to temperature.
@@ -93,8 +101,10 @@ export function trapezoid(
 ): number {
   if (value <= absMin || value >= absMax) return 0;
   if (value >= optMin && value <= optMax) return 1;
-  if (value < optMin) return (value - absMin) / (optMin - absMin);
-  return (absMax - value) / (absMax - optMax);
+  if (value < optMin) {
+    return clamp(fraction(value - absMin, optMin - absMin), 0, 1);
+  }
+  return clamp(fraction(absMax - value, absMax - optMax), 0, 1);
 }
 
 const trailing = <T>(series: readonly T[], count: number): readonly T[] =>
@@ -129,11 +139,10 @@ function degreeDayIndex(
   // Below the transmission threshold the life cycle cannot complete, so the
   // honest index is zero rather than a small positive number.
   if (units < spec.transmissionThreshold) {
-    const approach = units / spec.transmissionThreshold;
-    return { index: Math.round(clamp(approach, 0, 1) * 24), degraded: false };
+    return { index: 0, degraded: false };
   }
 
-  const ratio = units / spec.unitsForFullRisk;
+  const ratio = fraction(units, spec.unitsForFullRisk);
   return { index: Math.round(clamp(ratio, 0, 1) * 100), degraded: false };
 }
 
@@ -159,7 +168,7 @@ function questingIndex(
       return temperature * 0.75;
     }
 
-    const humidity = clamp(1 - deficit / spec.sdToleranceKpa, 0, 1);
+    const humidity = clamp(1 - fraction(deficit, spec.sdToleranceKpa), 0, 1);
     // Temperature gates activity outright; humidity modulates how much of the
     // population is willing to sit up on the vegetation.
     return temperature * (0.35 + 0.65 * humidity);
@@ -167,7 +176,7 @@ function questingIndex(
 
   const precipitation = rollingPrecipitation(series, spec.precipWindowDays);
   const moisture = clamp(
-    0.7 + 0.3 * (precipitation / spec.precipForFullMoistureMm),
+    0.7 + 0.3 * fraction(precipitation, spec.precipForFullMoistureMm),
     0.7,
     1,
   );
@@ -200,8 +209,10 @@ function developmentIndex(
     }
 
     const humidity = clamp(
-      (day.humidityPct - spec.humidityMinPct) /
-        (spec.humidityFullPct - spec.humidityMinPct),
+      fraction(
+        day.humidityPct - spec.humidityMinPct,
+        spec.humidityFullPct - spec.humidityMinPct,
+      ),
       0,
       1,
     );
@@ -222,7 +233,7 @@ function thermalActivityIndex(
 ): ModelOutcome {
   const window = trailing(series, spec.windowDays);
   const dayScores = window.map((day) =>
-    clamp((day.tMean - spec.tStart) / (spec.tFull - spec.tStart), 0, 1),
+    clamp(fraction(day.tMean - spec.tStart, spec.tFull - spec.tStart), 0, 1),
   );
 
   return { index: Math.round(mean(dayScores) * 100), degraded: false };
@@ -246,7 +257,11 @@ function moistureThermalIndex(
   );
 
   const precipitation = rollingPrecipitation(series, spec.precipWindowDays);
-  const moisture = clamp(precipitation / spec.precipForFullMoistureMm, 0, 1);
+  const moisture = clamp(
+    fraction(precipitation, spec.precipForFullMoistureMm),
+    0,
+    1,
+  );
   const combined =
     temperature * (1 - spec.moistureWeight + spec.moistureWeight * moisture);
 

@@ -98,6 +98,23 @@ describe('resolvePreventionCover', () => {
     expect(resolvePreventionCover([cancelled], NOW)).toEqual({status: 'none'});
   });
 
+  it('accepts the uppercase API status as cancelled', () => {
+    const cancelled = task({dueAt: daysAgo(30), status: 'CANCELLED'});
+    expect(resolvePreventionCover([cancelled], NOW)).toEqual({status: 'none'});
+  });
+
+  it('reports the newest completion when several tasks are done', () => {
+    const cover = resolvePreventionCover(
+      [
+        task({id: 'a', status: 'completed', completedAt: daysAgo(40)}),
+        task({id: 'b', status: 'COMPLETED', completedAt: daysAgo(6)}),
+      ],
+      NOW,
+    );
+
+    expect(cover).toEqual({status: 'covered', lastCompletedAt: daysAgo(6)});
+  });
+
   it('still reports lapsed when an older task was completed but a newer one is overdue', () => {
     const cover = resolvePreventionCover(
       [

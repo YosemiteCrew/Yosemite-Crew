@@ -219,4 +219,43 @@ describe("refreshFollowedCells", () => {
     expect(payload.body).toContain("paralysis tick");
     expect(payload.type).toBe("REMINDERS");
   });
+
+  it("lists every crossed parasite in one alert body", async () => {
+    (prisma.parasiteRiskSubscription.findMany as jest.Mock).mockResolvedValue([
+      subscription,
+    ]);
+    (refreshCell as jest.Mock).mockResolvedValue({
+      readings: [
+        reading("paralysis_tick", "EXTREME"),
+        reading("flea", "HIGH"),
+        reading("heartworm", "HIGH"),
+      ],
+    });
+
+    const summary = await refreshFollowedCells();
+
+    const [, payload] = (NotificationService.sendToUser as jest.Mock).mock
+      .calls[0];
+    expect(payload.body).toContain("paralysis tick, flea and heartworm");
+    // One push for the cell, not one per parasite.
+    expect(summary.alertsSent).toBe(1);
+  });
+
+  it("keeps sweeping when a push fails", async () => {
+    (prisma.parasiteRiskSubscription.findMany as jest.Mock).mockResolvedValue([
+      subscription,
+      { ...subscription, id: "sub-4", parentId: "parent-4" },
+    ]);
+    (refreshCell as jest.Mock).mockResolvedValue({
+      readings: [reading("paralysis_tick", "EXTREME")],
+    });
+    (NotificationService.sendToUser as jest.Mock)
+      .mockRejectedValueOnce(new Error("push service down"))
+      .mockResolvedValueOnce(undefined);
+
+    const summary = await refreshFollowedCells();
+
+    expect(NotificationService.sendToUser).toHaveBeenCalledTimes(2);
+    expect(summary.alertsSent).toBe(1);
+  });
 });

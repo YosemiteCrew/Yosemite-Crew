@@ -66,6 +66,9 @@ export const RegionSearchSheet: React.FC<RegionSearchSheetProps> = ({
   useEffect(() => {
     if (query.trim().length < MIN_QUERY_LENGTH) {
       setSuggestions([]);
+      // Shortening the query cancels the in-flight search, whose `finally` is
+      // then skipped, so the spinner has to be cleared here too.
+      setSearching(false);
       return;
     }
 

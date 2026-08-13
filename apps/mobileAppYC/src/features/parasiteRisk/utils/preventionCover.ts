@@ -23,11 +23,13 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const isParasitePreventionTask = (task: Task): boolean =>
   task.subcategory === 'parasite-prevention';
 
-const isCompleted = (task: Task): boolean =>
-  task.status === 'completed' || task.status === 'COMPLETED';
+// Task.status arrives in either the API's upper case form or the local lower
+// case one, so it is normalised once here rather than at every comparison.
+const statusOf = (task: Task): string => task.status.toLowerCase();
 
-const isCancelled = (task: Task): boolean =>
-  task.status === 'cancelled' || task.status === 'CANCELLED';
+const isCompleted = (task: Task): boolean => statusOf(task) === 'completed';
+
+const isCancelled = (task: Task): boolean => statusOf(task) === 'cancelled';
 
 const dueTimestamp = (task: Task): number | null => {
   const raw = task.dueAt ?? task.date;

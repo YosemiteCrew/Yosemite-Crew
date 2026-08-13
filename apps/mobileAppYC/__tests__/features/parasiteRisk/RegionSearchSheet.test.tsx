@@ -1,4 +1,5 @@
 import React from 'react';
+import {ActivityIndicator} from 'react-native';
 import {
   render,
   screen,
@@ -212,5 +213,54 @@ describe('RegionSearchSheet', () => {
     renderSheet();
     fireEvent.press(screen.getByLabelText('common.close'));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('stops the spinner when the query is shortened before the search runs', async () => {
+    renderSheet();
+    const input = screen.getByPlaceholderText(
+      'parasiteRisk.search.placeholder',
+    );
+
+    fireEvent.changeText(input, 'brisbane');
+    expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(1);
+
+    // Back below the minimum length before the debounce fires. The pending
+    // search is cancelled, so nothing else would turn the spinner off.
+    fireEvent.changeText(input, 'br');
+    await act(async () => {
+      jest.advanceTimersByTime(400);
+    });
+
+    expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
+    expect(mockFetchPlaceSuggestions).not.toHaveBeenCalled();
+  });
+
+  it('clears the query and results when it is closed', async () => {
+    const {rerender} = renderSheet();
+    await typeQuery('brisbane');
+    expect(await screen.findByText('Brisbane')).toBeTruthy();
+
+    rerender(
+      <RegionSearchSheet
+        visible={false}
+        onClose={onClose}
+        onSelect={onSelect}
+        recentLocations={[]}
+      />,
+    );
+    rerender(
+      <RegionSearchSheet
+        visible
+        onClose={onClose}
+        onSelect={onSelect}
+        recentLocations={[]}
+      />,
+    );
+
+    expect(
+      screen.getByPlaceholderText('parasiteRisk.search.placeholder').props
+        .value,
+    ).toBe('');
+    expect(screen.queryByText('Brisbane')).toBeNull();
   });
 });
