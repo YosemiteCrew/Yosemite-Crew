@@ -5,7 +5,7 @@ import { axe, toHaveNoViolations } from 'jest-axe';
 
 expect.extend(toHaveNoViolations);
 
-jest.mock('@iconify/react', () => ({
+jest.mock('@/app/ui/icons/Icon', () => ({
   __esModule: true,
   Icon: ({ icon }: any) => <span data-testid={`icon-${icon}`} />,
 }));

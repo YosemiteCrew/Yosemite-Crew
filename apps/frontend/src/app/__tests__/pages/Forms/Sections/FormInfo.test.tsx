@@ -88,7 +88,7 @@ jest.mock('@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRend
   default: () => <div>form-renderer</div>,
 }));
 
-jest.mock('@iconify/react', () => ({
+jest.mock('@/app/ui/icons/Icon', () => ({
   Icon: () => <span>icon</span>,
 }));
 
