@@ -168,3 +168,4 @@ chromatic-diagnostics.json
 # ignore scripts/security/ and silently drop the tooling from commits.
 /security/
 /.security-tools/
+
