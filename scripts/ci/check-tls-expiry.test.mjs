@@ -38,34 +38,28 @@ test('a certificate inside the fail window fails', () => {
 });
 
 test('an already-expired certificate fails - the dev.yosemitecrew.com case', () => {
-  // What the real host looked like on 2026-08-13: still answering, cert expired
-  // the previous midnight, so a reachability check would have stayed green.
+  // What the real host looked like on 2026-08-13: still answering 200, but the
+  // handshake fails verification, so a reachability check would have stayed green
+  // while this reports the exact reason.
   const [r] = evaluate(
-    [
-      healthy({
-        host: 'dev.yosemitecrew.com',
-        daysLeft: -1,
-        validTo: '2026-08-12T23:59:59.000Z',
-        authorized: false,
-        authorizationError: 'CERT_HAS_EXPIRED',
-      }),
-    ],
+    [{ host: 'dev.yosemitecrew.com', status: 'error', detail: 'CERT_HAS_EXPIRED' }],
     OPTS
   );
-  assert.equal(r.verdict, 'fail');
+  assert.equal(r.verdict, 'error');
 });
 
 test('a hostname the certificate does not cover fails even with time left', () => {
   const [r] = evaluate(
-    [
-      healthy({
-        daysLeft: 200,
-        authorized: false,
-        authorizationError: 'ERR_TLS_CERT_ALTNAME_INVALID',
-      }),
-    ],
+    [{ host: 'example.test', status: 'error', detail: 'ERR_TLS_CERT_ALTNAME_INVALID' }],
     OPTS
   );
+  assert.equal(r.verdict, 'error');
+});
+
+test('an untrusted result still fails if one ever reaches classify', () => {
+  // Defensive: inspectHost cannot produce this now that validation is on, but
+  // evaluate() is exported and must not grade an untrusted certificate a pass.
+  const [r] = evaluate([healthy({ daysLeft: 200, authorized: false })], OPTS);
   assert.equal(r.verdict, 'fail');
 });
 
@@ -98,4 +92,51 @@ test('an unknown flag exits 2 rather than scanning a default list unexpectedly',
     assert.equal(err.status, 2);
     assert.match(`${err.stderr}`, /unknown argument/);
   }
+});
+
+test('an empty --hosts exits 2 instead of passing having checked nothing', () => {
+  for (const args of [
+    [script, '--hosts', ''],
+    [script, '--hosts', ' , '],
+  ]) {
+    try {
+      execFileSync('node', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      assert.fail('expected a non-zero exit');
+    } catch (err) {
+      assert.equal(err.status, 2);
+      assert.match(`${err.stderr}`, /--hosts requires at least one hostname/);
+    }
+  }
+});
+
+test('negative thresholds are rejected, so advance notice cannot be disabled', () => {
+  try {
+    execFileSync('node', [script, '--warn-days', '-1', '--fail-days', '-2'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    assert.fail('expected a non-zero exit');
+  } catch (err) {
+    assert.equal(err.status, 2);
+    assert.match(`${err.stderr}`, /must not be negative/);
+  }
+});
+
+test('--json emits parseable JSON on stdout with no annotations mixed in', () => {
+  // A host that cannot resolve exercises the failure path, which is where the
+  // ::error:: lines used to be appended after the array.
+  let stdoutText = '';
+  try {
+    stdoutText = execFileSync('node', [script, '--json', '--hosts', 'no-such-host.invalid'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } catch (err) {
+    stdoutText = `${err.stdout ?? ''}`;
+  }
+  assert.doesNotMatch(stdoutText, /::(error|warning)::/);
+  const parsed = JSON.parse(stdoutText);
+  assert.equal(Array.isArray(parsed), true);
+  assert.equal(parsed[0].host, 'no-such-host.invalid');
+  assert.equal(parsed[0].verdict, 'error');
 });
