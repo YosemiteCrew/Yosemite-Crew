@@ -96,7 +96,11 @@ jobs:
           configPath: apps/frontend/lighthouserc.json
           uploadArtifacts: true
           temporaryPublicStorage: true
-          runs: 1
+          # This input overrides `numberOfRuns` in lighthouserc.json, so it has to
+          # be set here. Three runs means assertions are checked against a median
+          # rather than a single sample, which matters on shared runners where an
+          # individual performance score swings widely.
+          runs: 3
 
       - name: Stop frontend server
         if: always()
