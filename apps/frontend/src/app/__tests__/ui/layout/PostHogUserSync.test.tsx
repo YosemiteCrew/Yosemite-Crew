@@ -16,8 +16,11 @@ jest.mock('posthog-js', () => ({
   },
 }));
 
-jest.mock('@/app/stores/authStore', () => ({
-  useAuthStore: (selector: (state: unknown) => unknown) => mockUseAuthStore(selector),
+// This component reads auth through the lazy seam so the root layout doesn't put
+// the SuperTokens stack in every public page's bundle. Mock the seam
+// synchronously; its async loading is covered by useLazyAuthStore.test.ts.
+jest.mock('@/app/hooks/useLazyAuthStore', () => ({
+  useLazyAuthSlice: (selector: (state: unknown) => unknown) => mockUseAuthStore(selector),
 }));
 
 describe('PostHogUserSync', () => {

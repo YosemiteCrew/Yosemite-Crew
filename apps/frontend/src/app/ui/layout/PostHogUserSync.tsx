@@ -4,7 +4,8 @@ import { useEffect, useRef } from 'react';
 import { getStorageItem } from '@/app/lib/browserStorage';
 import { COOKIE_CONSENT_KEY, POSTHOG_READY_EVENT } from '@/app/lib/posthog';
 import { getLoadedPostHog } from '@/app/lib/posthogClient';
-import { useAuthStore } from '@/app/stores/authStore';
+import { useLazyAuthSlice } from '@/app/hooks/useLazyAuthStore';
+import type { AuthStore } from '@/app/stores/authStore';
 
 const hasConsent = () => getStorageItem('local', COOKIE_CONSENT_KEY) === 'true';
 // Null until PostHogBootstrap has loaded the analytics chunk, which only happens
@@ -22,9 +23,15 @@ const addDefinedValue = (
   }
 };
 
+const selectAttributes = (state: AuthStore) => state.attributes;
+const selectStatus = (state: AuthStore) => state.status;
+
 const PostHogUserSync = () => {
-  const attributes = useAuthStore((state) => state.attributes);
-  const status = useAuthStore((state) => state.status);
+  // Mounted in the root layout, so importing the auth store here would put the
+  // SuperTokens stack in every public page's bundle. Nothing is identified until
+  // analytics is both consented and ready, so loading it lazily costs nothing.
+  const attributes = useLazyAuthSlice(selectAttributes, null);
+  const status = useLazyAuthSlice(selectStatus, 'idle');
   const identifiedIdRef = useRef<string | null>(null);
   const consentedRef = useRef(false);
   const readyRef = useRef(false);

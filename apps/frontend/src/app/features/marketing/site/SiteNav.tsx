@@ -11,8 +11,8 @@ import {
 import Image from 'next/image';
 import Link from 'next/link';
 import { IoLogoGithub, IoMenuOutline, IoCloseOutline } from 'react-icons/io5';
-import { useShallow } from 'zustand/react/shallow';
-import { useAuthStore, type AuthUser } from '@/app/stores/authStore';
+import { ensureSessionChecked, useLazyAuthSlice } from '@/app/hooks/useLazyAuthStore';
+import type { AuthStore, AuthUser } from '@/app/stores/authStore';
 import { resolveDefaultOpenScreenRoute } from '@/app/lib/defaultOpenScreen';
 import { GITHUB_REPO_URL, MARKETING_LOGO } from './assets';
 import { useGithubStats } from './useGithubStats';
@@ -371,6 +371,16 @@ function useEscapeToClose(open: boolean, close: () => void): void {
   }, [open, close]);
 }
 
+type NavAuth = { status: AuthStore['status']; user: AuthUser | null; role: string | null };
+
+// What the nav renders before the auth store chunk has loaded: the same thing it
+// renders for a signed-out visitor, which is what an unauthenticated visitor -
+// the overwhelming majority on a marketing page - ends up seeing anyway.
+const IDLE_NAV_AUTH: NavAuth = { status: 'idle', user: null, role: null };
+const selectNavAuth = (s: AuthStore): NavAuth => ({ status: s.status, user: s.user, role: s.role });
+const isSameNavAuth = (a: NavAuth, b: NavAuth) =>
+  a.status === b.status && a.user === b.user && a.role === b.role;
+
 export function SiteNav({ active }: Readonly<SiteNavProps>) {
   const scrolled = useScrolled();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -379,9 +389,7 @@ export function SiteNav({ active }: Readonly<SiteNavProps>) {
   const starsLabel = stars ? `★ ${stars}` : '★';
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   const toggleMenu = useCallback(() => setMenuOpen((v) => !v), []);
-  const { status, user, role } = useAuthStore(
-    useShallow((s) => ({ status: s.status, user: s.user, role: s.role }))
-  );
+  const { status, user, role } = useLazyAuthSlice(selectNavAuth, IDLE_NAV_AUTH, isSameNavAuth);
   const defaultAppRoute =
     role === 'developer' ? '/developers/home' : resolveDefaultOpenScreenRoute(role);
 
@@ -392,7 +400,7 @@ export function SiteNav({ active }: Readonly<SiteNavProps>) {
   // so `user` resolves and the "Go to app" affordance is shown instead.
   useEffect(() => {
     if (status === 'idle') {
-      void useAuthStore.getState().checkSession();
+      void ensureSessionChecked();
     }
   }, [status]);
 

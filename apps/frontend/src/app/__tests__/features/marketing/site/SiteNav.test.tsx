@@ -13,11 +13,13 @@ jest.mock('@/app/features/marketing/site/useGithubStats', () => ({
 jest.mock('@/app/features/marketing/site/motion', () => ({
   useScrolled: () => scrolledValue,
 }));
-jest.mock('@/app/stores/authStore', () => {
-  const useAuthStore = (selector: (s: typeof mockAuthState) => unknown) => selector(mockAuthState);
-  useAuthStore.getState = () => ({ checkSession: mockCheckSession });
-  return { useAuthStore };
-});
+// The nav reads auth through the lazy seam so public pages don't bundle the
+// SuperTokens stack. Mock the seam synchronously here: its own async loading
+// behaviour is covered by useLazyAuthStore.test.ts.
+jest.mock('@/app/hooks/useLazyAuthStore', () => ({
+  useLazyAuthSlice: (selector: (s: typeof mockAuthState) => unknown) => selector(mockAuthState),
+  ensureSessionChecked: () => mockCheckSession(),
+}));
 jest.mock('next/image', () => ({
   __esModule: true,
   default: jest.requireActual('@/app/__tests__/support/marketingTestMocks').NextImageMock,
