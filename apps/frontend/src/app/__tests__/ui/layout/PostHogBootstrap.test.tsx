@@ -188,6 +188,41 @@ describe('PostHogBootstrap', () => {
     expect(posthog.opt_out_capturing).toHaveBeenCalled();
   });
 
+  it('still signals readiness when consent was withdrawn during initialization', async () => {
+    // Readiness means the client is initialized, not that we are capturing. If it
+    // is skipped here it is never emitted at all, because re-consenting takes the
+    // already-loaded path which only toggles capture - leaving anything that waits
+    // on the event permanently inactive.
+    globalThis.localStorage.setItem(COOKIE_CONSENT_KEY, 'true');
+    const onReady = jest.fn();
+    globalThis.addEventListener(POSTHOG_READY_EVENT, onReady);
+
+    render(<PostHogBootstrap />);
+    await waitFor(() => expect(posthog.init).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      globalThis.dispatchEvent(
+        new StorageEvent('storage', { key: COOKIE_CONSENT_KEY, newValue: 'false' })
+      );
+    });
+    act(() => {
+      getInitOptions().loaded?.(posthog);
+    });
+
+    expect(posthog.opt_in_capturing).not.toHaveBeenCalled();
+    expect(onReady).toHaveBeenCalledTimes(1);
+
+    // ...and re-consenting from the cached path opts back in.
+    act(() => {
+      globalThis.dispatchEvent(
+        new StorageEvent('storage', { key: COOKIE_CONSENT_KEY, newValue: 'true' })
+      );
+    });
+    await waitFor(() => expect(posthog.opt_in_capturing).toHaveBeenCalled());
+
+    globalThis.removeEventListener(POSTHOG_READY_EVENT, onReady);
+  });
+
   it('retries initialization after a failed analytics chunk load', async () => {
     const loadMock = posthogClient.loadPostHog as jest.Mock;
     loadMock.mockRejectedValueOnce(new Error('chunk load failed'));

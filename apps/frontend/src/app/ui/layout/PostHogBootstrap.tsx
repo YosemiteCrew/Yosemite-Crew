@@ -97,11 +97,18 @@ const PostHogBootstrap = () => {
         loaded: (ph) => {
           // init is async too, so re-check: consent may have been withdrawn
           // between the import resolving and this callback firing.
-          if (!latestConsent) {
+          if (latestConsent) {
+            ph.opt_in_capturing();
+          } else {
             ph.opt_out_capturing();
-            return;
           }
-          ph.opt_in_capturing();
+          // Readiness means "the client is initialized", not "we are capturing",
+          // and it is only ever emitted here. Returning early when consent had
+          // been withdrawn left it permanently unemitted: re-consenting takes
+          // the already-loaded path above, which only toggles capture, so
+          // anything waiting on this event could never become ready again.
+          // Consumers gate on consent separately, so emitting it while opted
+          // out captures nothing.
           globalThis.dispatchEvent(new Event(POSTHOG_READY_EVENT));
         },
       });
