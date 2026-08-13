@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import posthog from 'posthog-js';
 import { getStorageItem } from '@/app/lib/browserStorage';
+import { loadPostHog } from '@/app/lib/posthogClient';
 import {
   COOKIE_CONSENT_KEY,
   POSTHOG_PROPERTY_DENYLIST,
@@ -23,14 +23,17 @@ const PostHogBootstrap = () => {
   const initializedRef = useRef(false);
 
   useEffect(() => {
-    const applyConsent = (consented: boolean) => {
+    const applyConsent = async (consented: boolean) => {
       const { apiHost, projectToken } = getPostHogConfig();
       if (!projectToken || !apiHost) return;
 
       if (!initializedRef.current) {
         if (!consented) return;
 
+        // Set before awaiting so a consent event arriving while the chunk is in
+        // flight cannot start a second initialization.
         initializedRef.current = true;
+        const posthog = await loadPostHog();
         posthog.init(projectToken, {
           api_host: apiHost,
           autocapture: { capture_copied_text: false },
@@ -61,6 +64,8 @@ const PostHogBootstrap = () => {
         return;
       }
 
+      // Reached only once initialization has happened, so the chunk is cached.
+      const posthog = await loadPostHog();
       if (consented) {
         posthog.opt_in_capturing();
       } else {
@@ -68,11 +73,11 @@ const PostHogBootstrap = () => {
       }
     };
 
-    applyConsent(hasConsent());
+    void applyConsent(hasConsent());
 
     const onStorage = (event: StorageEvent) => {
       if (event.key === COOKIE_CONSENT_KEY) {
-        applyConsent(event.newValue === 'true');
+        void applyConsent(event.newValue === 'true');
       }
     };
 
