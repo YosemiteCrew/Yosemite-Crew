@@ -11,7 +11,11 @@ name: Promotion Guard
 # Mark it required on main's ruleset for it to block rather than merely report.
 on:
   pull_request_target:
-    types: [opened, reopened, synchronize, labeled, unlabeled]
+    # `edited` matters: retargeting an existing PR onto main emits edited (with
+    # changes.base), not opened or synchronize. Without it the guard never runs
+    # for a retargeted PR, which - once the check is required - leaves that PR
+    # waiting forever on a status instead of getting the actionable error.
+    types: [opened, reopened, synchronize, edited, labeled, unlabeled]
     branches: [main]
 
 concurrency:
