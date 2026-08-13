@@ -118,6 +118,32 @@ updates:
         update-types:
           - minor
           - patch
+  # Ruby lives only in the mobile app's CocoaPods toolchain. It had no entry at
+  # all, so bundler surfaced solely as SECURITY updates - and those always open
+  # against the default branch, which is how #2131 landed straight on main.
+  # A real entry keeps routine bundler bumps flowing through dev like everything
+  # else; the guard workflow is what stops security PRs merging into main.
+  - package-ecosystem: bundler
+    directory: /apps/mobileAppYC
+    schedule:
+      interval: weekly
+      day: monday
+      time: '05:15'
+      timezone: 'UTC'
+    target-branch: dev
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: 'chore(mobile)'
+    labels:
+      - dependencies
+      - ruby
+    groups:
+      bundler:
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch
   - package-ecosystem: github-actions
     directory: /
     schedule:
