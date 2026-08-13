@@ -102,5 +102,12 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)'],
+  // Matches the early-return list at the top of middleware(): those paths reached
+  // the function only to be skipped, so every font, image, manifest and API call
+  // paid an edge invocation to do nothing. Excluding them here means the
+  // middleware is never entered for them. Any path containing a dot is a file
+  // request, which is why the `[^?]*\.` clause is here rather than a list of
+  // extensions. next.config.ts headers() already applies the security headers to
+  // `/(.*)`, so nothing loses them by being skipped.
+  matcher: ['/((?!api|_next|fonts|favicon.ico|sitemap.xml|robots.txt|[^?]*\\.).*)'],
 };

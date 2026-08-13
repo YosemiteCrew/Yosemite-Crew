@@ -1,7 +1,7 @@
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 
-import { middleware } from '@/middleware';
+import { config, middleware } from '@/middleware';
 import { buildContentSecurityPolicy, securityHeaders } from '@/securityHeaders';
 import { NextResponse } from 'next/server';
 
@@ -164,5 +164,35 @@ describe('middleware', () => {
     expect(requestHeaders.get('x-nonce')).toBe('fixed-nonce');
     expect(scriptSrc).toContain("'nonce-fixed-nonce'");
     expect(scriptSrc).not.toContain("'unsafe-inline'");
+  });
+
+  describe('matcher', () => {
+    // Next compiles `config.matcher` to a path regex. These assertions pin the
+    // contract the matcher encodes: document routes still reach the middleware
+    // (so they get a nonce CSP), and the asset and API paths that used to enter
+    // it only to be skipped never do.
+    const matches = (pathname: string) =>
+      config.matcher.some((source) =>
+        new RegExp(`^${source.replace(/\(\?!/g, '(?!')}$`).test(pathname)
+      );
+
+    it.each(['/', '/signin', '/dashboard', '/appointments/123/workspace'])(
+      'still runs for the document route %s',
+      (pathname) => {
+        expect(matches(pathname)).toBe(true);
+      }
+    );
+
+    it.each([
+      '/api/community/discord-members',
+      '/_next/static/chunks/main.js',
+      '/fonts/satoshi-font/Satoshi-Variable.woff2',
+      '/images/marketing/logo.svg',
+      '/favicon.ico',
+      '/robots.txt',
+      '/sitemap.xml',
+    ])('does not run for %s', (pathname) => {
+      expect(matches(pathname)).toBe(false);
+    });
   });
 });
