@@ -363,6 +363,17 @@ const AU_COUNTRY_CODES = new Set(["AU", "NZ"]);
 const US_COUNTRY_CODES = new Set(["US", "CA"]);
 
 /**
+ * A region code is a legitimate input here as well as a country code: a saved
+ * location whose parent gave no country persists the resolved region in its
+ * country column, and the daily sweep reads that column back.
+ */
+const REGION_CODES = new Map<string, RiskRegion>([
+  ["AU", "AU"],
+  ["US", "US"],
+  ["EU", "EU"],
+]);
+
+/**
  * Map an ISO country code to the catalogue region.
  *
  * Returns null for countries we do not publish a catalogue for, so callers can
@@ -371,6 +382,8 @@ const US_COUNTRY_CODES = new Set(["US", "CA"]);
  */
 export function resolveRegion(countryCode: string): RiskRegion | null {
   const code = countryCode.trim().toUpperCase();
+  const region = REGION_CODES.get(code);
+  if (region) return region;
   if (AU_COUNTRY_CODES.has(code)) return "AU";
   if (US_COUNTRY_CODES.has(code)) return "US";
   if (EU_COUNTRY_CODES.has(code)) return "EU";
@@ -402,20 +415,34 @@ export function resolveRegionByCoordinate(
 }
 
 /**
- * Resolve the region from a country code when we have one, falling back to the
- * coordinate when we do not.
+ * Resolve the region for a cell from the country code when we have one, and
+ * from the coordinate when we do not.
+ *
+ * A supplied country is never quietly discarded, in either direction:
+ *
+ * - a country we publish no catalogue for resolves to null rather than falling
+ *   back to the envelopes, which are coarse boxes reaching well past the
+ *   countries they cover. Turkey and northern Africa both sit inside the
+ *   European box, so the fallback would hand them the EU catalogue as if it
+ *   applied there;
+ * - a supported country that contradicts the coordinate also resolves to null.
+ *   The cell it would select is shared with every other user in the same
+ *   square, so an unverified country code must not be able to decide which
+ *   catalogue any of them are shown.
  */
 export function resolveRegionFor(
   countryCode: string | null | undefined,
   lat: number,
   lon: number,
 ): RiskRegion | null {
-  if (countryCode) {
-    const fromCountry = resolveRegion(countryCode);
-    if (fromCountry) return fromCountry;
-  }
+  const fromCoordinate = resolveRegionByCoordinate(lat, lon);
+  if (!countryCode?.trim()) return fromCoordinate;
 
-  return resolveRegionByCoordinate(lat, lon);
+  const fromCountry = resolveRegion(countryCode);
+  if (fromCountry === null) return null;
+  if (fromCoordinate !== null && fromCoordinate !== fromCountry) return null;
+
+  return fromCountry;
 }
 
 /** The parasites that plausibly occur at a coordinate within a region. */

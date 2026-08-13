@@ -1,5 +1,5 @@
 import React from 'react';
-import {render, screen, fireEvent} from '@testing-library/react-native';
+import {render, screen, fireEvent, within} from '@testing-library/react-native';
 import {mockTheme} from '../../setup/mockTheme';
 import type {
   ParasiteRiskReading,
@@ -155,6 +155,32 @@ describe('LapsedCoverBanner', () => {
     fireEvent.press(screen.getByText('parasiteRisk.cover.addPrevention'));
     fireEvent.press(screen.getByText('parasiteRisk.cover.bookVisit'));
 
+    expect(handlers.onAddPrevention).toHaveBeenCalledTimes(1);
+    expect(handlers.onBookVisit).toHaveBeenCalledTimes(1);
+  });
+
+  it('announces the alert without swallowing either action', () => {
+    render(
+      <LapsedCoverBanner
+        cover={{status: 'none'}}
+        companionName="Milo"
+        {...handlers}
+      />,
+    );
+
+    const alert = screen.getByRole('alert');
+    expect(within(alert).getByText('parasiteRisk.cover.title')).toBeTruthy();
+
+    // `accessible` collapses a view and everything under it into one node, so
+    // anything the alert wraps stops being reachable on its own. The buttons
+    // therefore have to sit outside it.
+    expect(within(alert).queryAllByRole('button')).toHaveLength(0);
+
+    const actions = screen.getAllByRole('button');
+    expect(actions).toHaveLength(2);
+
+    fireEvent.press(actions[0]);
+    fireEvent.press(actions[1]);
     expect(handlers.onAddPrevention).toHaveBeenCalledTimes(1);
     expect(handlers.onBookVisit).toHaveBeenCalledTimes(1);
   });

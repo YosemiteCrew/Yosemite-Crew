@@ -1,17 +1,21 @@
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  Alert,
+  Platform,
   RefreshControl,
+  ToastAndroid,
 } from 'react-native';
 import {useTranslation} from 'react-i18next';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {NavigationProp} from '@react-navigation/native';
+import {isTierAtLeast} from '@yosemite-crew/types';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme, useAppDispatch, useAppSelector} from '@/hooks';
 import {fonts, typography} from '@/theme/typography';
@@ -20,6 +24,10 @@ import {
   selectCompanions,
   selectSelectedCompanionId,
 } from '@/features/companion';
+import type {
+  CoParentPermissions,
+  ParentCompanionAccess,
+} from '@/features/coParent/types';
 import {
   selectHasHydratedCompanion,
   selectTasksByCompanion,
@@ -47,9 +55,35 @@ import {
   TIER_PRESENTATION,
   TREND_PRESENTATION,
 } from '../../utils/riskPresentation';
-import type {RiskLocation} from '../../types';
+import type {ParasiteRiskCellReading, RiskLocation} from '../../types';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'ParasiteRisk'>;
+
+/**
+ * The tier from which the cover warning is worth raising.
+ *
+ * Its copy states that local risk is high right now, so it must not be shown
+ * against a low or moderate forecast just because a prevention task is missing.
+ */
+const COVER_WARNING_TIER = 'HIGH' as const;
+
+/**
+ * How old a stored reading may be before it is refetched on open.
+ *
+ * The API recomputes a cell once a day (`computedAt` carries the last run), and
+ * this slice is persisted, so a rehydrated forecast can be days old. One
+ * refresh cycle is the same window the API itself treats a cell as current for.
+ */
+const READING_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+const isReadingStale = (
+  reading: ParasiteRiskCellReading | null,
+  now: number,
+): boolean => {
+  if (!reading) return true;
+  const computedAt = Date.parse(reading.computedAt);
+  return Number.isNaN(computedAt) || now - computedAt >= READING_MAX_AGE_MS;
+};
 
 export const ParasiteRiskScreen: React.FC<Props> = ({navigation}) => {
   const {theme} = useTheme();
@@ -72,6 +106,21 @@ export const ParasiteRiskScreen: React.FC<Props> = ({navigation}) => {
     selectHasHydratedCompanion(selectedCompanionId),
   );
 
+  const accessEntry = useAppSelector(state =>
+    selectedCompanionId
+      ? (state.coParent?.accessByCompanionId?.[selectedCompanionId] ?? null)
+      : null,
+  );
+  const defaultAccess = useAppSelector(
+    state => state.coParent?.defaultAccess ?? null,
+  );
+  const globalRole = useAppSelector(
+    state => state.coParent?.lastFetchedRole ?? null,
+  );
+  const globalPermissions = useAppSelector(
+    state => state.coParent?.lastFetchedPermissions ?? null,
+  );
+
   const [searchVisible, setSearchVisible] = useState(false);
 
   const companion = useMemo(
@@ -90,6 +139,36 @@ export const ParasiteRiskScreen: React.FC<Props> = ({navigation}) => {
 
   const headline = readings[0] ?? null;
 
+  // Both banner actions leave this screen for a feature a co-parent may not
+  // hold, so they are guarded the same way the Home handlers are: the entry for
+  // the selected companion, then the account default, then whatever role and
+  // permissions were last fetched.
+  const canAccessFeature = useCallback(
+    (permission: keyof CoParentPermissions) => {
+      const entry: ParentCompanionAccess | null = accessEntry ?? defaultAccess;
+      const role = (entry?.role ?? globalRole ?? '').toUpperCase();
+      if (role.includes('PRIMARY')) return true;
+      const permissions = entry?.permissions ?? globalPermissions;
+      return Boolean(permissions?.[permission]);
+    },
+    [accessEntry, defaultAccess, globalPermissions, globalRole],
+  );
+
+  const guardFeature = useCallback(
+    (permission: keyof CoParentPermissions, label: string) => {
+      if (canAccessFeature(permission)) return true;
+
+      const message = `You don't have access to ${label}. Ask the primary parent to enable it.`;
+      if (Platform.OS === 'android') {
+        ToastAndroid.show(message, ToastAndroid.SHORT);
+      } else {
+        Alert.alert('Permission needed', message);
+      }
+      return false;
+    },
+    [canAccessFeature],
+  );
+
   const handleSelectLocation = useCallback(
     (next: RiskLocation) => {
       dispatch(loadRiskForLocation(next));
@@ -103,31 +182,42 @@ export const ParasiteRiskScreen: React.FC<Props> = ({navigation}) => {
 
   // Prevention tasks live in the Tasks tab, which is a sibling of this stack.
   const handleAddPrevention = useCallback(() => {
+    if (!guardFeature('tasks', 'tasks')) return;
+
     navigation
       .getParent<NavigationProp<TabParamList>>()
       ?.navigate('Tasks', {screen: 'AddTask'});
-  }, [navigation]);
+  }, [guardFeature, navigation]);
 
+  // Booking runs through the Appointments tab, the same destination the Home
+  // screen sends its booking CTA to. The LinkedBusinesses stack only attaches a
+  // clinic to a companion; nothing in it can book a visit.
   const handleBookVisit = useCallback(() => {
-    if (!companion) return;
+    if (!guardFeature('appointments', 'appointments')) return;
 
-    navigation.navigate('LinkedBusinesses', {
-      screen: 'BusinessSearch',
-      params: {
-        companionId: companion.id,
-        companionName: companion.name,
-        companionBreed: companion.breed?.breedName,
-        companionImage: companion.profileImage ?? undefined,
-        category: 'hospital',
-      },
-    });
-  }, [navigation, companion]);
+    navigation
+      .getParent<NavigationProp<TabParamList>>()
+      ?.navigate('Appointments', {screen: 'BrowseBusinesses'});
+  }, [guardFeature, navigation]);
 
   // Open the search immediately when there is nothing to show yet: the screen
   // is useless without a place, so do not make the user hunt for the control.
   useEffect(() => {
     if (!location && !loading) setSearchVisible(true);
   }, [location, loading]);
+
+  // A persisted location rehydrates with whatever reading was stored alongside
+  // it, which may be days old. Revalidate once when the screen opens so an
+  // expired forecast is not presented as the current one; pull-to-refresh stays
+  // the manual path.
+  const revalidatedOnOpen = useRef(false);
+  useEffect(() => {
+    if (revalidatedOnOpen.current || !location || loading) return;
+    revalidatedOnOpen.current = true;
+    if (isReadingStale(reading, Date.now())) {
+      dispatch(loadRiskForLocation(location));
+    }
+  }, [dispatch, loading, location, reading]);
 
   return (
     <SafeAreaView
@@ -202,7 +292,9 @@ export const ParasiteRiskScreen: React.FC<Props> = ({navigation}) => {
               </Text>
             ) : null}
 
-            {companion && cover ? (
+            {companion &&
+            cover &&
+            isTierAtLeast(headline.tier, COVER_WARNING_TIER) ? (
               <LapsedCoverBanner
                 cover={cover}
                 companionName={companion.name}

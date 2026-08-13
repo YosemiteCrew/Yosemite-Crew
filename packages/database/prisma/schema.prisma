@@ -703,6 +703,8 @@ model Parent {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
+  parasiteRiskSubscriptions ParasiteRiskSubscription[]
+
   @@index([email])
 }
 
@@ -3078,6 +3080,8 @@ model ParasiteRiskSubscription {
   alertedTiers Json?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
+
+  parent      Parent           @relation(fields: [parentId], references: [id], onDelete: Cascade)
 
   @@unique([parentId, latBucket, lonBucket])
   @@index([parentId])

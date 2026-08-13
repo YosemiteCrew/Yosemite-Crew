@@ -1,11 +1,22 @@
 import React from 'react';
-import {StyleSheet} from 'react-native';
+import {Alert, StyleSheet} from 'react-native';
 import {render, screen, fireEvent} from '@testing-library/react-native';
 import {typography} from '@/theme/typography';
 import {mockTheme} from '../../setup/mockTheme';
 
 let mockFakeState: Record<string, unknown> = {};
 const mockDispatch = jest.fn();
+
+// Dispatches are asserted by their argument, so the forecast thunk stands in as
+// a plain action creator rather than a real createAsyncThunk function.
+const mockLoadRiskForLocation = jest.fn((location: unknown) => ({
+  type: 'parasiteRisk/loadForLocation/mock',
+  payload: location,
+}));
+
+jest.mock('@/features/parasiteRisk/thunks', () => ({
+  loadRiskForLocation: (location: unknown) => mockLoadRiskForLocation(location),
+}));
 
 jest.mock('@/hooks', () => ({
   useTheme: () => ({theme: mockTheme, isDark: false}),
@@ -63,6 +74,12 @@ const readings = [
   },
 ];
 
+const HOUR_MS = 60 * 60 * 1000;
+
+// Relative to now, because the screen revalidates a reading against its own
+// age. A reading an hour old is inside the daily refresh cycle.
+const freshComputedAt = () => new Date(Date.now() - HOUR_MS).toISOString();
+
 const baseParasiteRisk = {
   location: {label: 'Brisbane', lat: -27.375, lon: 153.125, countryCode: 'AU'},
   reading: {
@@ -70,7 +87,7 @@ const baseParasiteRisk = {
     countryCode: 'AU',
     region: 'AU',
     modelVersion: '2026.07-1',
-    computedAt: '2026-07-29T00:00:00.000Z',
+    computedAt: freshComputedAt(),
     overallTier: 'HIGH',
     degraded: false,
     readings,
@@ -83,26 +100,69 @@ const baseParasiteRisk = {
   disclaimerAcknowledged: true,
 };
 
+const parentNavigate = jest.fn();
+
 const navigation = {
   navigate: jest.fn(),
   goBack: jest.fn(),
-  getParent: jest.fn(() => ({navigate: jest.fn()})),
+  getParent: jest.fn(() => ({navigate: parentNavigate})),
 } as any;
 
-const setState = (overrides: Record<string, unknown> = {}) => {
+// The account holder: a primary parent holds every permission.
+const primaryAccess = {
+  accessByCompanionId: {},
+  defaultAccess: null,
+  lastFetchedRole: 'PRIMARY',
+  lastFetchedPermissions: null,
+};
+
+const coParentAccess = (permissions: Record<string, boolean>) => ({
+  accessByCompanionId: {
+    c1: {
+      companionId: 'c1',
+      parentId: 'p1',
+      role: 'CO-PARENT',
+      permissions: {
+        assignAsPrimaryParent: false,
+        emergencyBasedPermissions: false,
+        appointments: false,
+        companionProfile: false,
+        documents: false,
+        expenses: false,
+        tasks: false,
+        chatWithVet: false,
+        ...permissions,
+      },
+    },
+  },
+  defaultAccess: null,
+  lastFetchedRole: 'CO-PARENT',
+  lastFetchedPermissions: null,
+});
+
+const setState = (
+  overrides: Record<string, unknown> = {},
+  coParent: Record<string, unknown> = primaryAccess,
+) => {
   mockFakeState = {
     parasiteRisk: {...baseParasiteRisk, ...overrides},
     companions: [{id: 'c1', name: 'Milo', breed: {breedName: 'Kelpie'}}],
     selectedCompanionId: 'c1',
     tasks: [],
     tasksHydrated: {c1: true},
+    coParent,
   };
 };
 
 describe('ParasiteRiskScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     setState();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   const renderScreen = () =>
@@ -175,21 +235,151 @@ describe('ParasiteRiskScreen', () => {
     expect(screen.getByText('parasiteRisk.cover.noneBody:Milo')).toBeTruthy();
 
     fireEvent.press(screen.getByText('parasiteRisk.cover.addPrevention'));
-    expect(navigation.getParent).toHaveBeenCalled();
+    expect(parentNavigate).toHaveBeenCalledWith('Tasks', {screen: 'AddTask'});
   });
 
-  it('routes to booking with the selected companion', () => {
+  it('sends the book-a-visit CTA to the booking flow, not business linking', () => {
     renderScreen();
 
     fireEvent.press(screen.getByText('parasiteRisk.cover.bookVisit'));
 
-    expect(navigation.navigate).toHaveBeenCalledWith('LinkedBusinesses', {
-      screen: 'BusinessSearch',
-      params: expect.objectContaining({
-        companionId: 'c1',
-        companionName: 'Milo',
-      }),
+    expect(parentNavigate).toHaveBeenCalledWith('Appointments', {
+      screen: 'BrowseBusinesses',
     });
+    // BusinessSearch only links a clinic to a companion; it cannot book.
+    expect(navigation.navigate).not.toHaveBeenCalledWith(
+      'LinkedBusinesses',
+      expect.anything(),
+    );
+  });
+
+  it('withholds the cover warning when local risk is not high', () => {
+    setState({
+      reading: {
+        ...baseParasiteRisk.reading,
+        overallTier: 'MODERATE',
+        readings: [
+          {
+            parasiteId: 'flea',
+            group: 'FLEA',
+            index: 30,
+            tier: 'MODERATE',
+            trend: 'STEADY',
+          },
+          {
+            parasiteId: 'heartworm',
+            group: 'WORM',
+            index: 10,
+            tier: 'LOW',
+            trend: 'FALLING',
+          },
+        ],
+      },
+    });
+    renderScreen();
+
+    // Cover is still missing, but the banner asserts risk is high right now.
+    expect(screen.queryByText('parasiteRisk.cover.noneBody:Milo')).toBeNull();
+    expect(screen.queryByText('parasiteRisk.cover.title')).toBeNull();
+    // The forecast itself is unaffected.
+    expect(screen.getByText('parasiteRisk.parasite.flea.name')).toBeTruthy();
+  });
+
+  it('still warns above the high threshold', () => {
+    setState({
+      reading: {
+        ...baseParasiteRisk.reading,
+        overallTier: 'EXTREME',
+        readings: [{...readings[0], tier: 'EXTREME', index: 91}],
+      },
+    });
+    renderScreen();
+
+    expect(screen.getByText('parasiteRisk.cover.noneBody:Milo')).toBeTruthy();
+  });
+
+  it('blocks a co-parent without the tasks permission from adding prevention', () => {
+    setState({}, coParentAccess({appointments: true}));
+    renderScreen();
+
+    fireEvent.press(screen.getByText('parasiteRisk.cover.addPrevention'));
+
+    expect(parentNavigate).not.toHaveBeenCalled();
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Permission needed',
+      expect.stringContaining('tasks'),
+    );
+  });
+
+  it('blocks a co-parent without the appointments permission from booking', () => {
+    setState({}, coParentAccess({tasks: true}));
+    renderScreen();
+
+    fireEvent.press(screen.getByText('parasiteRisk.cover.bookVisit'));
+
+    expect(parentNavigate).not.toHaveBeenCalled();
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Permission needed',
+      expect.stringContaining('appointments'),
+    );
+  });
+
+  it('lets a permitted co-parent through both CTAs', () => {
+    setState({}, coParentAccess({tasks: true, appointments: true}));
+    renderScreen();
+
+    fireEvent.press(screen.getByText('parasiteRisk.cover.addPrevention'));
+    fireEvent.press(screen.getByText('parasiteRisk.cover.bookVisit'));
+
+    expect(parentNavigate).toHaveBeenCalledWith('Tasks', {screen: 'AddTask'});
+    expect(parentNavigate).toHaveBeenCalledWith('Appointments', {
+      screen: 'BrowseBusinesses',
+    });
+    expect(Alert.alert).not.toHaveBeenCalled();
+  });
+
+  it('refetches a rehydrated reading that is past its daily refresh', () => {
+    setState({
+      reading: {
+        ...baseParasiteRisk.reading,
+        computedAt: new Date(Date.now() - 72 * HOUR_MS).toISOString(),
+      },
+    });
+    renderScreen();
+
+    expect(mockLoadRiskForLocation).toHaveBeenCalledWith(
+      baseParasiteRisk.location,
+    );
+  });
+
+  it('leaves a reading inside the refresh window alone', () => {
+    renderScreen();
+
+    expect(mockLoadRiskForLocation).not.toHaveBeenCalled();
+  });
+
+  it('loads a forecast for a location that rehydrated without one', () => {
+    setState({reading: null});
+    renderScreen();
+
+    expect(mockLoadRiskForLocation).toHaveBeenCalledWith(
+      baseParasiteRisk.location,
+    );
+  });
+
+  it('revalidates only once per open', () => {
+    setState({
+      reading: {
+        ...baseParasiteRisk.reading,
+        computedAt: new Date(Date.now() - 72 * HOUR_MS).toISOString(),
+      },
+    });
+    const view = renderScreen();
+    view.rerender(
+      <ParasiteRiskScreen navigation={navigation} route={{} as any} />,
+    );
+
+    expect(mockLoadRiskForLocation).toHaveBeenCalledTimes(1);
   });
 
   it('says nothing about cover while the pet tasks are still loading', () => {

@@ -10,6 +10,7 @@ import {
   OpenMeteoError,
   __resetOpenMeteoClient,
 } from "../../src/integrations/openMeteo";
+import { computeCellReadings } from "../../src/services/parasite-risk.model";
 
 /**
  * The API returns PAST_DAYS of history followed by a forecast block whose
@@ -35,6 +36,16 @@ const payload = (overrides: Record<string, unknown> = {}) => ({
     },
   },
 });
+
+/**
+ * A variable can be missing from the response altogether, not just nulled out:
+ * the provider drops a series it has no data for.
+ */
+const payloadWithout = (...variables: string[]) => {
+  const daily: Record<string, unknown> = { ...payload().data.daily };
+  for (const variable of variables) delete daily[variable];
+  return { data: { daily } };
+};
 
 describe("fetchCellWeather", () => {
   beforeEach(() => {
@@ -114,6 +125,70 @@ describe("fetchCellWeather", () => {
 
     expect(all[0].humidityPct).toBeNull();
     expect(all[0].dewPointC).toBeNull();
+  });
+
+  it("reports an omitted humidity series as absent, not as undefined", async () => {
+    get.mockResolvedValue(
+      payloadWithout("relative_humidity_2m_mean", "dew_point_2m_mean"),
+    );
+
+    const { past, forecast } = await fetchCellWeather(0, 0);
+    const all = [...past, ...forecast];
+
+    // The models use null as the "no data" sentinel, so undefined here would be
+    // read as a measurement and turn every downstream index into NaN.
+    expect(all).not.toHaveLength(0);
+    for (const day of all) {
+      expect(day.humidityPct).toBeNull();
+      expect(day.dewPointC).toBeNull();
+    }
+  });
+
+  it("falls back to dew point when only the humidity series is omitted", async () => {
+    get.mockResolvedValue(payloadWithout("relative_humidity_2m_mean"));
+
+    const { past, forecast } = await fetchCellWeather(0, 0);
+    const all = [...past, ...forecast];
+
+    expect(all[0].humidityPct).toBeNull();
+    expect(all[0].dewPointC).toBe(16);
+  });
+
+  it("degrades rather than reporting extreme risk when humidity is omitted", async () => {
+    get.mockResolvedValue({
+      data: {
+        daily: {
+          ...payloadWithout("relative_humidity_2m_mean", "dew_point_2m_mean")
+            .data.daily,
+          temperature_2m_mean: [12, 12, 12, 12, 12],
+          temperature_2m_max: [17, 17, 17, 17, 17],
+          temperature_2m_min: [7, 7, 7, 7, 7],
+        },
+      },
+    });
+
+    const { past, forecast } = await fetchCellWeather(-27.375, 153.125);
+    const result = computeCellReadings("AU", -27.375, 153.125, past, forecast);
+
+    // Missing humidity must take the neutral-term path. Grading a missing
+    // input as EXTREME is the worst possible direction for a health signal.
+    expect(result.readings.every((r) => Number.isFinite(r.index))).toBe(true);
+    expect(result.readings.some((r) => r.tier === "EXTREME")).toBe(false);
+    expect(result.degraded).toBe(true);
+  });
+
+  it("raises a typed error when no day has a usable temperature", async () => {
+    get.mockResolvedValue(
+      payloadWithout(
+        "temperature_2m_mean",
+        "temperature_2m_max",
+        "temperature_2m_min",
+      ),
+    );
+
+    // An empty series would otherwise be modelled as a confident low reading
+    // and cached under that answer for a day.
+    await expect(fetchCellWeather(0, 0)).rejects.toBeInstanceOf(OpenMeteoError);
   });
 
   it("raises a typed error when the provider fails", async () => {

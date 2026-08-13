@@ -11,6 +11,7 @@ import {resetLinkedBusinesses} from '@/features/linkedBusinesses';
 import {resetCoParentState} from '@/features/coParent';
 import {resetNotificationState} from '@/features/notifications';
 import {resetFormsState} from '@/features/forms';
+import {resetParasiteRiskState} from '@/features/parasiteRisk/parasiteRiskSlice';
 import {signOutEverywhere} from '@/features/auth/services/passwordlessAuth';
 import {initSuperTokens} from '@/features/auth/services/superTokensClient';
 import {DeviceEventEmitter} from 'react-native';
@@ -276,6 +277,7 @@ export const logout = createAsyncThunk<
   dispatch(resetCoParentState());
   dispatch(resetNotificationState());
   dispatch(resetFormsState());
+  dispatch(resetParasiteRiskState());
 });
 
 export const clearAuthError = createAsyncThunk(

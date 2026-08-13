@@ -64,6 +64,20 @@ const asNumberArray = (value: unknown): (number | null)[] =>
     ? value.map((entry) => (typeof entry === "number" ? entry : null))
     : [];
 
+/**
+ * A provider series is sparse in two ways: an entry can be an explicit null,
+ * and the series itself can be missing, which leaves every index undefined.
+ * Both have to read as null, because the models use null as their "no data"
+ * sentinel and would take undefined for a measurement.
+ */
+const valueAt = (
+  series: readonly (number | null)[],
+  index: number,
+): number | null => {
+  const value = series[index];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+};
+
 const asStringArray = (value: unknown): string[] =>
   Array.isArray(value)
     ? value.filter((entry): entry is string => typeof entry === "string")
@@ -119,7 +133,9 @@ function toDailySeries(
   const dewPoint = asNumberArray(daily.dew_point_2m_mean);
 
   return dates.flatMap((date, i) => {
-    const meanTemp = tMean[i] ?? averageOf(tMax[i], tMin[i]);
+    const maxTemp = valueAt(tMax, i);
+    const minTemp = valueAt(tMin, i);
+    const meanTemp = valueAt(tMean, i) ?? averageOf(maxTemp, minTemp);
     // A day with no usable temperature cannot contribute to any model.
     if (meanTemp === null) return [];
 
@@ -127,11 +143,11 @@ function toDailySeries(
       {
         date,
         tMean: meanTemp,
-        tMax: tMax[i] ?? meanTemp,
-        tMin: tMin[i] ?? meanTemp,
-        precipitationMm: precipitation[i] ?? 0,
-        humidityPct: humidity[i],
-        dewPointC: dewPoint[i],
+        tMax: maxTemp ?? meanTemp,
+        tMin: minTemp ?? meanTemp,
+        precipitationMm: valueAt(precipitation, i) ?? 0,
+        humidityPct: valueAt(humidity, i),
+        dewPointC: valueAt(dewPoint, i),
       },
     ];
   });
@@ -177,7 +193,18 @@ export async function fetchCellWeather(
     throw new OpenMeteoError("Weather provider returned no daily series");
   }
 
-  return splitAtCurrentDay(toDailySeries(daily, dates), dates);
+  const days = toDailySeries(daily, dates);
+
+  // Every day was unusable. Modelling an empty series would produce a
+  // confident-looking low reading that the caller then caches for a day, so
+  // this is a provider failure rather than a result.
+  if (days.length === 0) {
+    throw new OpenMeteoError(
+      "Weather provider returned no usable daily series",
+    );
+  }
+
+  return splitAtCurrentDay(days, dates);
 }
 
 function averageOf(a: number | null, b: number | null): number | null {

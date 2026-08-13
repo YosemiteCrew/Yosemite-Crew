@@ -142,6 +142,27 @@ describe("refreshFollowedCells", () => {
         ),
     );
     (prisma.parasiteRiskSubscription.update as jest.Mock).mockResolvedValue({});
+    (NotificationService.sendToUser as jest.Mock).mockResolvedValue([
+      { token: "device-1", success: true },
+    ]);
+  });
+
+  it("addresses the push to the parent, which is what device tokens are keyed by", async () => {
+    (prisma.parasiteRiskSubscription.findMany as jest.Mock).mockResolvedValue([
+      subscription,
+    ]);
+    (refreshCell as jest.Mock).mockResolvedValue({
+      readings: [reading("paralysis_tick", "HIGH")],
+    });
+
+    await refreshFollowedCells();
+
+    // The mobile client registers its token under Parent.id, so sending to the
+    // linked auth user id resolves no tokens and delivers nothing.
+    expect(NotificationService.sendToUser).toHaveBeenCalledWith(
+      "parent-1",
+      expect.objectContaining({ type: "REMINDERS" }),
+    );
   });
 
   it("refreshes each cell once even when many parents follow it", async () => {
@@ -282,7 +303,7 @@ describe("refreshFollowedCells", () => {
     expect(payload.type).toBe("REMINDERS");
   });
 
-  it("lists every crossed parasite in one alert body", async () => {
+  it("lists every crossed parasite under its own tier", async () => {
     (prisma.parasiteRiskSubscription.findMany as jest.Mock).mockResolvedValue([
       subscription,
     ]);
@@ -298,9 +319,47 @@ describe("refreshFollowedCells", () => {
 
     const [, payload] = (NotificationService.sendToUser as jest.Mock).mock
       .calls[0];
-    expect(payload.body).toContain("paralysis tick, flea and heartworm");
+    // The tick is extreme and the other two are not; the copy must not promote
+    // them to the leading parasite's tier.
+    expect(payload.body).toBe(
+      "Modelled risk in Brisbane is now extreme for paralysis tick, and high for flea and heartworm. Check that preventative cover is up to date.",
+    );
     // One push for the cell, not one per parasite.
     expect(summary.alertsSent).toBe(1);
+  });
+
+  it("states a shared tier once when every parasite crossed together", async () => {
+    (prisma.parasiteRiskSubscription.findMany as jest.Mock).mockResolvedValue([
+      subscription,
+    ]);
+    (refreshCell as jest.Mock).mockResolvedValue({
+      readings: [reading("flea", "HIGH"), reading("heartworm", "HIGH")],
+    });
+
+    await refreshFollowedCells();
+
+    const [, payload] = (NotificationService.sendToUser as jest.Mock).mock
+      .calls[0];
+    expect(payload.body).toBe(
+      "Modelled risk in Brisbane is now high for flea and heartworm. Check that preventative cover is up to date.",
+    );
+  });
+
+  it("does not record the tier when the send reached no device", async () => {
+    (prisma.parasiteRiskSubscription.findMany as jest.Mock).mockResolvedValue([
+      subscription,
+    ]);
+    (refreshCell as jest.Mock).mockResolvedValue({
+      readings: [reading("paralysis_tick", "HIGH")],
+    });
+    // sendToUser resolves an empty array when the parent has no registered
+    // device, and success:false entries when every send is rejected.
+    (NotificationService.sendToUser as jest.Mock).mockResolvedValueOnce([]);
+
+    const summary = await refreshFollowedCells();
+
+    expect(summary.alertsSent).toBe(0);
+    expect(prisma.parasiteRiskSubscription.update).not.toHaveBeenCalled();
   });
 
   it("keeps sweeping when a push fails", async () => {
@@ -313,7 +372,7 @@ describe("refreshFollowedCells", () => {
     });
     (NotificationService.sendToUser as jest.Mock)
       .mockRejectedValueOnce(new Error("push service down"))
-      .mockResolvedValueOnce(undefined);
+      .mockResolvedValueOnce([{ token: "device-1", success: true }]);
 
     const summary = await refreshFollowedCells();
 

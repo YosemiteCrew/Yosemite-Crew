@@ -53,22 +53,27 @@ export const LapsedCoverBanner: React.FC<LapsedCoverBannerProps> = ({
           backgroundColor: theme.colors.riskHighSurface,
           borderColor: theme.colors.riskHigh,
         },
-      ]}
-      accessible
-      accessibilityRole="alert">
-      <View style={styles.headerRow}>
-        <Ionicons
-          name="shield-half-outline"
-          size={19}
-          color={theme.colors.riskHigh}
-          accessibilityElementsHidden
-        />
-        <Text style={[styles.title, {color: theme.colors.ink}]}>
-          {t('parasiteRisk.cover.title')}
+      ]}>
+      {/* Only the message is grouped: `accessible` collapses everything below
+          it into one node, so the actions have to stay outside to remain
+          individually focusable. */}
+      <View style={styles.message} accessible accessibilityRole="alert">
+        <View style={styles.headerRow}>
+          <Ionicons
+            name="shield-half-outline"
+            size={19}
+            color={theme.colors.riskHigh}
+            accessibilityElementsHidden
+          />
+          <Text style={[styles.title, {color: theme.colors.ink}]}>
+            {t('parasiteRisk.cover.title')}
+          </Text>
+        </View>
+
+        <Text style={[styles.body, {color: theme.colors.inkMuted}]}>
+          {body}
         </Text>
       </View>
-
-      <Text style={[styles.body, {color: theme.colors.inkMuted}]}>{body}</Text>
 
       <View style={styles.actions}>
         <PressableOpacity
@@ -100,6 +105,9 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 10,
     marginBottom: 16,
+  },
+  message: {
+    gap: 10,
   },
   headerRow: {
     flexDirection: 'row',

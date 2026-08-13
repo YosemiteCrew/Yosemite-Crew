@@ -55,22 +55,44 @@ export function resolveAlerts(
   return { alerts, nextState };
 }
 
+const parasiteName = (alert: ParasiteRiskReading): string =>
+  PARASITE_ALERT_LABELS[alert.parasiteId] ?? alert.parasiteId;
+
+const joinWithAnd = (parts: readonly string[], separator: string): string =>
+  parts.length === 1
+    ? parts[0]
+    : `${parts.slice(0, -1).join(", ")}${separator}${parts[parts.length - 1]}`;
+
 const buildAlertBody = (
   label: string,
   alerts: readonly ParasiteRiskReading[],
 ): string => {
-  const names = alerts.map(
-    (alert) => PARASITE_ALERT_LABELS[alert.parasiteId] ?? alert.parasiteId,
-  );
-
-  const highest = alerts[0];
-  const tierWord = highest.tier.toLowerCase();
-
-  if (names.length === 1) {
-    return `Modelled ${names[0]} risk in ${label} is now ${tierWord}. Check that preventative cover is up to date.`;
+  if (alerts.length === 1) {
+    const [only] = alerts;
+    return `Modelled ${parasiteName(only)} risk in ${label} is now ${only.tier.toLowerCase()}. Check that preventative cover is up to date.`;
   }
 
-  return `Modelled risk in ${label} is now ${tierWord} for ${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}. Check that preventative cover is up to date.`;
+  // One clause per tier: naming a single tier for the whole list would tell a
+  // parent their high-risk flea is extreme whenever a tick leads the list.
+  const byTier = new Map<RiskTier, string[]>();
+
+  for (const alert of alerts) {
+    const named = byTier.get(alert.tier);
+
+    if (named) {
+      named.push(parasiteName(alert));
+    } else {
+      byTier.set(alert.tier, [parasiteName(alert)]);
+    }
+  }
+
+  // `alerts` arrives most severe first, so the clauses do too.
+  const clauses = [...byTier].map(
+    ([tier, names]) =>
+      `${tier.toLowerCase()} for ${joinWithAnd(names, " and ")}`,
+  );
+
+  return `Modelled risk in ${label} is now ${joinWithAnd(clauses, ", and ")}. Check that preventative cover is up to date.`;
 };
 
 interface SubscriptionRow {
@@ -108,38 +130,44 @@ const groupByCell = (
 };
 
 /**
- * Resolve every parent's auth user in one query.
+ * The parents reachable by push, resolved in one query for the whole sweep.
  *
  * A parent following several locations appears once per subscription, so a
- * per-subscription lookup re-reads the same row repeatedly across a sweep.
+ * per-subscription lookup re-reads the same row repeatedly across a sweep. A
+ * parent with no linked mobile user has no device token to send to, so those
+ * are dropped here rather than costing a token lookup per subscription.
  */
-async function loadLinkedUserIds(
+async function loadNotifiableParentIds(
   rows: readonly SubscriptionRow[],
-): Promise<Map<string, string | null>> {
+): Promise<Set<string>> {
   const parentIds = [...new Set(rows.map((row) => row.parentId))];
   const parents = await prisma.parent.findMany({
     where: { id: { in: parentIds } },
     select: { id: true, linkedUserId: true },
   });
 
-  return new Map(parents.map((parent) => [parent.id, parent.linkedUserId]));
+  return new Set(
+    parents.filter((parent) => parent.linkedUserId).map((parent) => parent.id),
+  );
 }
 
-/** Returns true only when a push was actually dispatched. */
+/** Returns true only when a push reached at least one device. */
 async function notifyParent(
-  linkedUserId: string | null | undefined,
+  parentId: string,
   label: string,
   alerts: readonly ParasiteRiskReading[],
 ): Promise<boolean> {
-  if (!linkedUserId) return false;
-
-  await NotificationService.sendToUser(linkedUserId, {
+  // Device tokens are keyed by the parent id the mobile client registers, not
+  // by the auth user behind it, so the push has to be addressed to the parent.
+  const results = await NotificationService.sendToUser(parentId, {
     title: "Parasite risk has risen near you",
     body: buildAlertBody(label, alerts),
     type: "REMINDERS",
   });
 
-  return true;
+  // An empty result means the parent has no registered device; all-false means
+  // every send was rejected. Neither is a delivered alert.
+  return results.some((result) => result.success);
 }
 
 export interface RefreshSummary {
@@ -174,12 +202,12 @@ async function refreshCellForFollowers(
 /**
  * Apply the alert rule to one subscription and record its new alert state.
  *
- * Returns true only when a push was actually dispatched.
+ * Returns true only when a push reached at least one device.
  */
 async function processSubscription(
   row: SubscriptionRow,
   reading: ParasiteRiskCellReading,
-  linkedUserIds: ReadonlyMap<string, string | null>,
+  notifiableParentIds: ReadonlySet<string>,
 ): Promise<boolean> {
   const { alerts, nextState } = resolveAlerts(
     reading.readings,
@@ -200,17 +228,15 @@ async function processSubscription(
     return false;
   }
 
+  if (!notifiableParentIds.has(row.parentId)) return false;
+
   // Notify BEFORE recording the tiers as alerted. Recording first means a failed
   // send still marks the crossing as delivered, so that threshold would never
   // notify again. nextState is rebuilt from the current readings on every run, so
   // skipping the write here costs nothing but a retry next cycle.
   let notified = false;
   try {
-    notified = await notifyParent(
-      linkedUserIds.get(row.parentId),
-      row.label,
-      alerts,
-    );
+    notified = await notifyParent(row.parentId, row.label, alerts);
   } catch (error) {
     logger.error("Failed to send parasite risk alert", {
       error,
@@ -246,7 +272,7 @@ export async function refreshFollowedCells(): Promise<RefreshSummary> {
       },
     });
 
-  const linkedUserIds = await loadLinkedUserIds(subscriptions);
+  const notifiableParentIds = await loadNotifiableParentIds(subscriptions);
 
   const summary: RefreshSummary = {
     cellsRefreshed: 0,
@@ -265,7 +291,7 @@ export async function refreshFollowedCells(): Promise<RefreshSummary> {
     summary.cellsRefreshed += 1;
 
     for (const row of rows) {
-      if (await processSubscription(row, reading, linkedUserIds)) {
+      if (await processSubscription(row, reading, notifiableParentIds)) {
         summary.alertsSent += 1;
       }
     }

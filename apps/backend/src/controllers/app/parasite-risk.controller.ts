@@ -1,7 +1,6 @@
 import type { Request, Response } from "express";
 import { RISK_TIERS, type RiskTier } from "@yosemite-crew/types";
-import { prisma } from "src/config/prisma";
-import type { AuthenticatedRequest } from "src/middlewares/auth";
+import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import {
   deleteSubscription,
   getCellRisk,
@@ -10,24 +9,23 @@ import {
   upsertSubscription,
 } from "src/services/parasite-risk.service";
 import logger from "src/utils/logger";
+import { resolveVerifiedUserId } from "src/utils/request";
 
-const resolveAuthenticatedUserId = (req: Request): string | undefined => {
-  const userId = (req as AuthenticatedRequest).userId;
-  if (typeof userId !== "string") return undefined;
-  return userId.trim() || undefined;
-};
-
-/** Saved locations belong to the pet parent, not the auth user directly. */
+/**
+ * Saved locations belong to the pet parent, not the auth user directly.
+ *
+ * `req.userId` is the auth provider's user id, while `Parent.linkedUserId`
+ * holds the internal AuthUserMobile row id, so the parent is reached through
+ * the AuthUserMobile record rather than by matching the two ids directly.
+ */
 const resolveParentId = async (req: Request): Promise<string | undefined> => {
-  const userId = resolveAuthenticatedUserId(req);
-  if (!userId) return undefined;
+  const providerUserId = resolveVerifiedUserId(req);
+  if (!providerUserId) return undefined;
 
-  const parent = await prisma.parent.findFirst({
-    where: { linkedUserId: userId },
-    select: { id: true },
-  });
+  const authUser =
+    await AuthUserMobileService.getByProviderUserId(providerUserId);
 
-  return parent?.id;
+  return authUser?.parentId ?? undefined;
 };
 
 /**

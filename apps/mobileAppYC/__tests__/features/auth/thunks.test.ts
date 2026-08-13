@@ -4,6 +4,10 @@ import {themeReducer} from '@/features/theme';
 import {companionReducer} from '@/features/companion';
 import formsReducer from '@/features/forms/formsSlice';
 import {
+  parasiteRiskInitialState,
+  parasiteRiskReducer,
+} from '@/features/parasiteRisk/parasiteRiskSlice';
+import {
   initializeAuth,
   refreshSession,
   establishSession,
@@ -31,6 +35,7 @@ const createTestStore = () => {
       theme: themeReducer,
       companion: companionReducer,
       forms: formsReducer,
+      parasiteRisk: parasiteRiskReducer,
     },
   });
 };
@@ -658,6 +663,38 @@ describe('auth thunks', () => {
       expect(state.status).toBe('unauthenticated');
       expect(state.user).toBeNull();
       expect(store.getState().forms.byAppointmentId).toEqual({});
+    });
+
+    it('clears the parasite risk state so it cannot follow the next account', async () => {
+      jest.spyOn(passwordlessAuth, 'signOutEverywhere').mockResolvedValue();
+      (sessionManager.clearSessionData as jest.Mock).mockResolvedValue(
+        undefined,
+      );
+      (sessionManager.resetAuthLifecycle as jest.Mock).mockImplementation(
+        () => {},
+      );
+
+      // The slice is persisted, so whatever survives here is what the next
+      // person to sign in on this device would see.
+      store.dispatch({
+        type: 'parasiteRisk/loadForLocation/fulfilled',
+        payload: {
+          location: {
+            label: 'Rome',
+            lat: 41.875,
+            lon: 12.375,
+            countryCode: 'IT',
+          },
+          reading: {cell: {lat: 41.875, lon: 12.375}, readings: []},
+        },
+        meta: {requestId: 'req-1'},
+      });
+      expect(store.getState().parasiteRisk.location).not.toBeNull();
+
+      const dispatch = store.dispatch as any;
+      await dispatch(logout());
+
+      expect(store.getState().parasiteRisk).toEqual(parasiteRiskInitialState);
     });
 
     it('re-initializes SuperTokens against the default API domain', async () => {

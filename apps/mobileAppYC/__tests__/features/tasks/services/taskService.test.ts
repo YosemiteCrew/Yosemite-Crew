@@ -178,6 +178,38 @@ describe('taskService', () => {
       expect(result.calendarProvider).toBe('GOOGLE');
     });
 
+    it('preserves the subcategory the API returned', () => {
+      expect(
+        mapApiTaskToTask({
+          category: 'CUSTOM',
+          subcategory: 'parasite-prevention',
+        }).subcategory,
+      ).toBe('parasite-prevention');
+      expect(
+        mapApiTaskToTask({category: 'CUSTOM', subcategory: 'vaccination'})
+          .subcategory,
+      ).toBe('vaccination');
+      expect(
+        mapApiTaskToTask({
+          category: 'CUSTOM',
+          subcategory: 'chronic-conditions',
+        }).subcategory,
+      ).toBe('chronic-conditions');
+    });
+
+    it('falls back to none when the subcategory is absent or unknown', () => {
+      expect(mapApiTaskToTask({category: 'CUSTOM'}).subcategory).toBe('none');
+      expect(
+        mapApiTaskToTask({category: 'CUSTOM', subcategory: null}).subcategory,
+      ).toBe('none');
+      // The backend column is free-form, so values the local union does not
+      // model must not leak through as a subcategory.
+      expect(
+        mapApiTaskToTask({category: 'CUSTOM', subcategory: 'checkup'})
+          .subcategory,
+      ).toBe('none');
+    });
+
     it('maps Categories correctly', () => {
       expect(mapApiTaskToTask({category: 'HYGIENE'}).category).toBe('hygiene');
       expect(mapApiTaskToTask({category: 'DIET'}).category).toBe('dietary');
@@ -397,6 +429,28 @@ describe('taskService', () => {
       expect(payload.dueAt).toContain('2025-05-05');
       expect(payload.recurrence?.type).toBe('ONCE');
       expect(payload.reminder).toBeNull();
+    });
+
+    it('sends the selected subcategory so the server can return it', () => {
+      const payload = buildTaskDraftFromForm({
+        formData: {
+          ...baseForm,
+          category: 'health',
+          subcategory: 'parasite-prevention',
+        } as unknown as TaskFormData,
+        companionId: 'c1',
+      });
+
+      expect(payload.subcategory).toBe('parasite-prevention');
+    });
+
+    it('omits the subcategory when the form has none', () => {
+      const payload = buildTaskDraftFromForm({
+        formData: {...baseForm, subcategory: null} as unknown as TaskFormData,
+        companionId: 'c1',
+      });
+
+      expect(payload.subcategory).toBeUndefined();
     });
 
     it('maps Reminder options correctly', () => {

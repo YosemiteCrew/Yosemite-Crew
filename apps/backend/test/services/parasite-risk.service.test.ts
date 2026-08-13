@@ -24,11 +24,15 @@ import {
   deleteSubscription,
   getCellRisk,
   ParasiteRiskServiceError,
+  refreshCell,
   upsertSubscription,
 } from "../../src/services/parasite-risk.service";
 import { MODEL_VERSION } from "../../src/services/parasite-risk.model";
 
 const BRISBANE = { lat: -27.47, lon: 153.03 };
+const ROME = { lat: 41.9, lon: 12.5 };
+/** Inside the coarse US envelope, and not a country we publish for. */
+const MONTERREY = { lat: 25.67, lon: -100.31 };
 
 const weatherDays = (count: number, tMean: number) =>
   Array.from({ length: count }, (_, i) => ({
@@ -156,6 +160,97 @@ describe("getCellRisk", () => {
       getCellRisk(BRISBANE.lat, BRISBANE.lon),
     ).resolves.toBeDefined();
   });
+
+  it("refuses a country we publish no catalogue for before touching the cell", async () => {
+    (prisma.parasiteRiskCell.findUnique as jest.Mock).mockResolvedValue(null);
+
+    await expect(
+      getCellRisk(MONTERREY.lat, MONTERREY.lon, "MX"),
+    ).rejects.toBeInstanceOf(ParasiteRiskServiceError);
+
+    // Nothing is read or written: the coordinate falls inside the US envelope,
+    // so any fallback would answer with a catalogue that does not apply there.
+    expect(prisma.parasiteRiskCell.findUnique).not.toHaveBeenCalled();
+    expect(fetchCellWeather).not.toHaveBeenCalled();
+    expect(prisma.parasiteRiskCell.upsert).not.toHaveBeenCalled();
+  });
+
+  it("refuses a country code that contradicts the coordinate", async () => {
+    (prisma.parasiteRiskCell.findUnique as jest.Mock).mockResolvedValue(null);
+
+    await expect(
+      getCellRisk(BRISBANE.lat, BRISBANE.lon, "US"),
+    ).rejects.toBeInstanceOf(ParasiteRiskServiceError);
+
+    // The cell is shared, so a caller must not be able to store the US
+    // catalogue against an Australian square.
+    expect(prisma.parasiteRiskCell.upsert).not.toHaveBeenCalled();
+  });
+
+  it("ignores a fresh cached cell computed under another region", async () => {
+    (prisma.parasiteRiskCell.findUnique as jest.Mock).mockResolvedValue({
+      ...cellRow(new Date()),
+      countryCode: "US",
+      region: "US",
+    });
+
+    const result = await getCellRisk(BRISBANE.lat, BRISBANE.lon, "AU");
+
+    expect(fetchCellWeather).toHaveBeenCalledTimes(1);
+    expect(result.region).toBe("AU");
+  });
+
+  it("does not fall back to another region's cell when the provider is down", async () => {
+    (prisma.parasiteRiskCell.findUnique as jest.Mock).mockResolvedValue({
+      ...cellRow(new Date(Date.now() - 25 * 60 * 60 * 1000)),
+      countryCode: "US",
+      region: "US",
+    });
+    (fetchCellWeather as jest.Mock).mockRejectedValue(
+      new Error("provider down"),
+    );
+
+    // A stale reading beats an error page, but only one for this region.
+    await expect(
+      getCellRisk(BRISBANE.lat, BRISBANE.lon, "AU"),
+    ).rejects.toThrow();
+  });
+});
+
+describe("refreshCell", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (fetchCellWeather as jest.Mock).mockResolvedValue({
+      past: weatherDays(30, 18),
+      forecast: weatherDays(7, 18),
+    });
+    (prisma.parasiteRiskCell.upsert as jest.Mock).mockImplementation(
+      async ({ create, update }) => ({
+        ...cellRow(new Date()),
+        ...create,
+        ...update,
+      }),
+    );
+  });
+
+  it("refreshes a location saved with a region code in its country column", async () => {
+    // A coordinate-only save persists the resolved region there, and the daily
+    // sweep hands that value straight back to this function.
+    await refreshCell(ROME.lat, ROME.lon, "EU");
+
+    const [{ create }] = (prisma.parasiteRiskCell.upsert as jest.Mock).mock
+      .calls[0];
+    expect(create.region).toBe("EU");
+  });
+
+  it("stores the region the cell was actually modelled under", async () => {
+    await refreshCell(BRISBANE.lat, BRISBANE.lon, "AU");
+
+    const [{ create }] = (prisma.parasiteRiskCell.upsert as jest.Mock).mock
+      .calls[0];
+    expect(create.region).toBe("AU");
+    expect(create.countryCode).toBe("AU");
+  });
 });
 
 describe("upsertSubscription", () => {
@@ -215,6 +310,19 @@ describe("upsertSubscription", () => {
         countryCode: "AU",
       }),
     ).resolves.toBeDefined();
+  });
+
+  it("refuses a location in a country we publish no catalogue for", async () => {
+    await expect(
+      upsertSubscription("parent-1", {
+        lat: MONTERREY.lat,
+        lon: MONTERREY.lon,
+        label: "Monterrey",
+        countryCode: "MX",
+      }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+
+    expect(prisma.parasiteRiskSubscription.upsert).not.toHaveBeenCalled();
   });
 
   it("stores the snapped cell rather than the exact coordinate", async () => {

@@ -1,5 +1,5 @@
-jest.mock("src/config/prisma", () => ({
-  prisma: { parent: { findFirst: jest.fn() } },
+jest.mock("src/services/authUserMobile.service", () => ({
+  AuthUserMobileService: { getByProviderUserId: jest.fn() },
 }));
 
 jest.mock("../../src/services/parasite-risk.service", () => ({
@@ -18,7 +18,7 @@ jest.mock("../../src/services/parasite-risk.service", () => ({
 }));
 
 import type { Request, Response } from "express";
-import { prisma } from "src/config/prisma";
+import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { ParasiteRiskController } from "../../src/controllers/app/parasite-risk.controller";
 import {
   deleteSubscription,
@@ -35,14 +35,27 @@ const mockResponse = () => {
   return res;
 };
 
+// `userId` is what the session middleware stamps on the request: the auth
+// provider's user id, not the AuthUserMobile row id and not the parent id.
 const request = (overrides: Partial<Request> = {}) =>
   ({
     query: {},
     body: {},
     params: {},
-    userId: "user-1",
+    userId: "provider-user-1",
     ...overrides,
   }) as unknown as Request;
+
+const mockAuthUser = (parentId: string | null) =>
+  (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue({
+    id: "auth-user-1",
+    parentId,
+  });
+
+const mockNoAuthUser = () =>
+  (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue(
+    null,
+  );
 
 describe("ParasiteRiskController.getRiskForCell", () => {
   beforeEach(() => {
@@ -110,10 +123,29 @@ describe("ParasiteRiskController.getRiskForCell", () => {
 describe("ParasiteRiskController.createSubscription", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (prisma.parent.findFirst as jest.Mock).mockResolvedValue({
-      id: "parent-1",
-    });
+    mockAuthUser("parent-1");
     (upsertSubscription as jest.Mock).mockResolvedValue({ id: "sub-1" });
+  });
+
+  it("resolves the parent through the caller's mobile auth user", async () => {
+    // The session id is not stored on Parent.linkedUserId (that holds the
+    // AuthUserMobile row id), so the parent has to be reached through the
+    // AuthUserMobile record keyed by provider user id.
+    const res = mockResponse();
+
+    await ParasiteRiskController.createSubscription(
+      request({ body: { lat: 0, lon: 0, label: "Somewhere" } }),
+      res,
+    );
+
+    expect(AuthUserMobileService.getByProviderUserId).toHaveBeenCalledWith(
+      "provider-user-1",
+    );
+    expect(upsertSubscription).toHaveBeenCalledWith(
+      "parent-1",
+      expect.anything(),
+    );
+    expect(res.status).toHaveBeenCalledWith(201);
   });
 
   it("accepts numeric coordinates from a JSON body", async () => {
@@ -195,7 +227,7 @@ describe("ParasiteRiskController.createSubscription", () => {
   });
 
   it("requires a parent record for the signed-in user", async () => {
-    (prisma.parent.findFirst as jest.Mock).mockResolvedValue(null);
+    mockAuthUser(null);
     const res = mockResponse();
 
     await ParasiteRiskController.createSubscription(
@@ -205,14 +237,43 @@ describe("ParasiteRiskController.createSubscription", () => {
 
     expect(res.status).toHaveBeenCalledWith(401);
   });
+
+  it("requires a mobile auth user for the signed-in session", async () => {
+    mockNoAuthUser();
+    const res = mockResponse();
+
+    await ParasiteRiskController.createSubscription(
+      request({ body: { lat: 0, lon: 0, label: "Somewhere" } }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(401);
+  });
+
+  it("passes the followed-location cap through as a 409", async () => {
+    const { ParasiteRiskServiceError } = jest.requireMock(
+      "../../src/services/parasite-risk.service",
+    ) as {
+      ParasiteRiskServiceError: new (m: string, s?: number) => Error;
+    };
+    (upsertSubscription as jest.Mock).mockRejectedValue(
+      new ParasiteRiskServiceError("You can follow at most 5 locations", 409),
+    );
+    const res = mockResponse();
+
+    await ParasiteRiskController.createSubscription(
+      request({ body: { lat: 0, lon: 0, label: "Somewhere" } }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(409);
+  });
 });
 
 describe("ParasiteRiskController subscription list and delete", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (prisma.parent.findFirst as jest.Mock).mockResolvedValue({
-      id: "parent-1",
-    });
+    mockAuthUser("parent-1");
   });
 
   it("returns the parent's followed locations", async () => {
@@ -226,7 +287,7 @@ describe("ParasiteRiskController subscription list and delete", () => {
   });
 
   it("rejects an unauthenticated list request", async () => {
-    (prisma.parent.findFirst as jest.Mock).mockResolvedValue(null);
+    mockNoAuthUser();
     const res = mockResponse();
 
     await ParasiteRiskController.listSubscriptions(request(), res);
@@ -247,8 +308,27 @@ describe("ParasiteRiskController subscription list and delete", () => {
     expect(res.status).toHaveBeenCalledWith(204);
   });
 
+  it("passes an unknown location through as a 404", async () => {
+    const { ParasiteRiskServiceError } = jest.requireMock(
+      "../../src/services/parasite-risk.service",
+    ) as {
+      ParasiteRiskServiceError: new (m: string, s?: number) => Error;
+    };
+    (deleteSubscription as jest.Mock).mockRejectedValue(
+      new ParasiteRiskServiceError("Location not found", 404),
+    );
+    const res = mockResponse();
+
+    await ParasiteRiskController.deleteSubscription(
+      request({ params: { subscriptionId: "sub-9" } }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(404);
+  });
+
   it("rejects an unauthenticated delete request", async () => {
-    (prisma.parent.findFirst as jest.Mock).mockResolvedValue(null);
+    mockNoAuthUser();
     const res = mockResponse();
 
     await ParasiteRiskController.deleteSubscription(

@@ -184,18 +184,25 @@ describe('RegionSearchSheet', () => {
     expect(await screen.findByText('parasiteRisk.search.error')).toBeTruthy();
   });
 
-  it('uses the current position without a country code', async () => {
+  it('snaps the current position to its cell, without a country code', async () => {
     renderSheet();
 
     fireEvent.press(screen.getByText('parasiteRisk.search.useCurrentLocation'));
 
+    // The selected location is persisted, so the raw device fix (41.9, 12.5)
+    // must never leave this handler: it is snapped to the centre of its 0.25
+    // degree cell first.
     await waitFor(() =>
       expect(onSelect).toHaveBeenCalledWith({
         label: 'parasiteRisk.search.currentLocation',
-        lat: 41.9,
-        lon: 12.5,
+        lat: 41.875,
+        lon: 12.625,
       }),
     );
+
+    const [stored] = onSelect.mock.calls[0];
+    expect(stored.lat).not.toBe(41.9);
+    expect(stored.lon).not.toBe(12.5);
   });
 
   it('explains when location permission is refused', async () => {

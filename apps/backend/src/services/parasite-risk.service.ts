@@ -50,17 +50,17 @@ const isFresh = (cell: ParasiteRiskCell, now: number): boolean =>
   now - cell.computedAt.getTime() < CACHE_TTL_MS;
 
 /**
- * Compute a cell from live weather and persist it.
+ * The region a cell is modelled under, or a refusal.
  *
- * Exported so the daily worker can force a refresh without going through the
- * cache check.
+ * Every path resolves the region here, on the snapped cell, so the region a
+ * reading is computed under and the region a cached row is checked against are
+ * always the same decision.
  */
-export async function refreshCell(
-  lat: number,
-  lon: number,
+function regionForCell(
+  latBucket: number,
+  lonBucket: number,
   countryCode?: string | null,
-): Promise<ParasiteRiskCellReading> {
-  const { lat: latBucket, lon: lonBucket } = snapToRiskCell(lat, lon);
+): RiskRegion {
   const region = resolveRegionFor(countryCode, latBucket, lonBucket);
 
   if (region === null) {
@@ -70,6 +70,16 @@ export async function refreshCell(
     );
   }
 
+  return region;
+}
+
+/** Fetch weather for an already-snapped cell, model it, and persist it. */
+async function computeCell(
+  latBucket: number,
+  lonBucket: number,
+  region: RiskRegion,
+  countryCode?: string | null,
+): Promise<ParasiteRiskCellReading> {
   const { past, forecast } = await fetchCellWeather(latBucket, lonBucket);
   const result = computeCellReadings(
     region,
@@ -103,6 +113,23 @@ export async function refreshCell(
   return toResponse(cell);
 }
 
+/**
+ * Compute a cell from live weather and persist it.
+ *
+ * Exported so the daily worker can force a refresh without going through the
+ * cache check.
+ */
+export async function refreshCell(
+  lat: number,
+  lon: number,
+  countryCode?: string | null,
+): Promise<ParasiteRiskCellReading> {
+  const { lat: latBucket, lon: lonBucket } = snapToRiskCell(lat, lon);
+  const region = regionForCell(latBucket, lonBucket, countryCode);
+
+  return computeCell(latBucket, lonBucket, region, countryCode);
+}
+
 /** Serve a cell from cache when it is fresh, otherwise recompute it. */
 export async function getCellRisk(
   lat: number,
@@ -110,6 +137,9 @@ export async function getCellRisk(
   countryCode?: string | null,
 ): Promise<ParasiteRiskCellReading> {
   const { lat: latBucket, lon: lonBucket } = snapToRiskCell(lat, lon);
+  // Resolved before the cache is consulted, so a location we do not publish is
+  // refused outright rather than answered from whatever is stored for the cell.
+  const region = regionForCell(latBucket, lonBucket, countryCode);
 
   const cached = await prisma.parasiteRiskCell.findUnique({
     where: {
@@ -121,16 +151,21 @@ export async function getCellRisk(
     },
   });
 
-  if (cached && isFresh(cached, Date.now())) {
-    return toResponse(cached);
+  // One row is shared by every caller in the square and carries the region it
+  // was computed under, so a row from another region is not an answer to this
+  // request, fresh or stale.
+  const usable = cached && cached.region === region ? cached : null;
+
+  if (usable && isFresh(usable, Date.now())) {
+    return toResponse(usable);
   }
 
   try {
-    return await refreshCell(lat, lon, countryCode);
+    return await computeCell(latBucket, lonBucket, region, countryCode);
   } catch (error) {
     // A stale reading is far more useful than an error page, and the models
     // move slowly enough that yesterday's answer is still broadly right.
-    if (cached) return toResponse(cached);
+    if (usable) return toResponse(usable);
     throw error;
   }
 }
@@ -191,14 +226,7 @@ export async function upsertSubscription(
     input.lat,
     input.lon,
   );
-  const region = resolveRegionFor(input.countryCode, latBucket, lonBucket);
-
-  if (region === null) {
-    throw new ParasiteRiskServiceError(
-      "Parasite risk is not published for this location yet",
-      404,
-    );
-  }
+  const region = regionForCell(latBucket, lonBucket, input.countryCode);
 
   const existing = await prisma.parasiteRiskSubscription.findUnique({
     where: {

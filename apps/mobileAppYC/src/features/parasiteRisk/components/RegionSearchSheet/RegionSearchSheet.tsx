@@ -11,6 +11,7 @@ import {
 import {useTranslation} from 'react-i18next';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import {snapToRiskCell} from '@yosemite-crew/types';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 import {fonts} from '@/theme/typography';
@@ -135,13 +136,17 @@ export const RegionSearchSheet: React.FC<RegionSearchSheetProps> = ({
 
     try {
       const coords = await LocationService.getCurrentPosition();
+      // Snapped here rather than at the API boundary: the chosen location is
+      // persisted to AsyncStorage, and the precise device fix must not be. The
+      // forecast is per cell anyway, so nothing is lost by rounding early.
+      const cell = snapToRiskCell(coords.latitude, coords.longitude);
 
       // No country code here: there is no reverse geocoder on this path, and
       // the API resolves the region from the coordinate instead.
       onSelect({
         label: t('parasiteRisk.search.currentLocation'),
-        lat: coords.latitude,
-        lon: coords.longitude,
+        lat: cell.lat,
+        lon: cell.lon,
       });
       onClose();
     } catch {

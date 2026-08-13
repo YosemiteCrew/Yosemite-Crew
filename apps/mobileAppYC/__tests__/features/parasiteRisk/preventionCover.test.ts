@@ -2,7 +2,22 @@ import {
   resolvePreventionCover,
   shouldWarnAboutCover,
 } from '@/features/parasiteRisk/utils/preventionCover';
+import apiClient from '@/shared/services/apiClient';
+import {
+  getFreshStoredTokens,
+  isTokenExpired,
+} from '@/features/auth/sessionManager';
+import {taskApi} from '@/features/tasks/services/taskService';
+import tasksReducer from '@/features/tasks/taskSlice';
+import {fetchTasksForCompanion} from '@/features/tasks/thunks';
+import {selectTasksByCompanion} from '@/features/tasks/selectors';
+import type {RootState} from '@/app/store';
 import type {Task} from '@/features/tasks/types';
+
+jest.mock('@/shared/services/apiClient');
+jest.mock('@/features/auth/sessionManager');
+jest.mock('@/features/observationalTools/services/observationToolService');
+jest.mock('@/shared/utils/cdnHelpers');
 
 const NOW = Date.parse('2026-07-29T12:00:00.000Z');
 const daysAgo = (n: number) =>
@@ -133,6 +148,59 @@ describe('resolvePreventionCover', () => {
       status: 'lapsed',
       daysOverdue: 2,
     });
+  });
+});
+
+// The cover check is only as good as what survives hydration, so this walks a
+// server task all the way through the mapper, the reducer and the selector.
+describe('prevention cover after hydration from the API', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (getFreshStoredTokens as jest.Mock).mockResolvedValue({
+      accessToken: 'access-token',
+      userId: 'user-1',
+      expiresAt: Date.now() + 60_000,
+    });
+    (isTokenExpired as jest.Mock).mockReturnValue(false);
+  });
+
+  it('keeps parasite-prevention from the API response through to covered', async () => {
+    (apiClient.get as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          _id: 'api-task-1',
+          patientId: 'companion-1',
+          category: 'CUSTOM',
+          subcategory: 'parasite-prevention',
+          name: 'Flea and tick prevention',
+          status: 'COMPLETED',
+          dueAt: daysAgo(10),
+          completedAt: daysAgo(10),
+        },
+      ],
+    });
+
+    const fetched = await taskApi.list({companionId: 'companion-1'});
+    expect(fetched[0].subcategory).toBe('parasite-prevention');
+
+    const state = tasksReducer(
+      undefined,
+      fetchTasksForCompanion.fulfilled(
+        {companionId: 'companion-1', tasks: fetched},
+        'request-1',
+        {companionId: 'companion-1'},
+      ),
+    );
+    const stored = selectTasksByCompanion('companion-1')({
+      tasks: state,
+    } as unknown as RootState);
+
+    expect(stored).toHaveLength(1);
+    expect(stored[0].subcategory).toBe('parasite-prevention');
+
+    const cover = resolvePreventionCover(stored, NOW);
+    expect(cover).toMatchObject({status: 'covered'});
+    expect(shouldWarnAboutCover(cover)).toBe(false);
   });
 });
 
