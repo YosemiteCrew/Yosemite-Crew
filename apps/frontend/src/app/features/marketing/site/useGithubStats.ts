@@ -7,7 +7,6 @@ import {
   setJsonStorageItem,
   setStorageItem,
 } from '@/app/lib/browserStorage';
-import { GITHUB_API_REPO } from './assets';
 
 export interface GithubStats {
   /** Compact star count, e.g. '2.4k'. */
@@ -76,15 +75,12 @@ const getStatsSnapshot = (): GithubStats => {
 
 /** SSR (and the hydrating first client render) always shows the loading placeholders. */
 const getServerStats = (): GithubStats => EMPTY_STATS;
-const REPO_STATS_SUMMARY =
-  'https://raw.githubusercontent.com/YosemiteCrew/Yosemite-Crew/github-repo-stats/YosemiteCrew/Yosemite-Crew/latest-report/summary.json';
-// Same-origin route handler, not the product API: see the comment on that route
-// for why the number kept breaking when it was read across origins.
+// Same-origin route handlers, not the third-party APIs directly: see the comments
+// on those routes for why reading them across origins kept breaking, and why the
+// lookups belong on the server.
 const DISCORD_MEMBERS_ENDPOINT = '/api/community/discord-members';
-const CONTRIBUTORS_API = `${GITHUB_API_REPO}/contributors?per_page=1&anon=true`;
-
-const formatCompact = (n: number): string =>
-  n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(n);
+const GITHUB_STATS_ENDPOINT = '/api/community/github-stats';
+const GITHUB_RELEASES_ENDPOINT = '/api/community/github-releases';
 
 const fetchJson = async (url: string, accept?: string): Promise<unknown> => {
   try {
@@ -96,53 +92,14 @@ const fetchJson = async (url: string, accept?: string): Promise<unknown> => {
   }
 };
 
-const readSelfHostersTotal = (summary: unknown): number | null => {
-  if (!summary || typeof summary !== 'object') return null;
-  const data = summary as {
-    clones?: { total?: number };
-    charts?: Record<string, { datasets?: Record<string, Array<{ clones_total?: number }>> }>;
-  };
-  if (typeof data.clones?.total === 'number') return data.clones.total;
-  const dataset = data.charts?.['#clones_total']?.datasets;
-  if (dataset) {
-    const series = Object.values(dataset)[0];
-    if (Array.isArray(series)) {
-      return series.reduce((sum, point) => sum + (point.clones_total ?? 0), 0);
-    }
-  }
-  return null;
-};
-
-const fetchStars = async (): Promise<Partial<GithubStats>> => {
-  const repo = (await fetchJson(GITHUB_API_REPO)) as { stargazers_count?: number } | null;
-  if (typeof repo?.stargazers_count !== 'number') return {};
-  return {
-    stars: formatCompact(repo.stargazers_count),
-    starsFull: repo.stargazers_count.toLocaleString('en-US'),
-  };
-};
-
-const fetchSelfHosters = async (): Promise<Partial<GithubStats>> => {
-  const summary = await fetchJson(REPO_STATS_SUMMARY);
-  const total = readSelfHostersTotal(summary);
-  // Contribute nothing on failure (like the other fetchers), so a transient outage
-  // keeps the cached value for cached consumers and shows the loading placeholder on
-  // the live Insights surface -- never a hard-coded number presented as live/uncached.
-  if (total === null) return {};
-  return { selfHosters: total.toLocaleString('en-US') };
-};
-
-const fetchContributors = async (): Promise<Partial<GithubStats>> => {
-  try {
-    const res = await fetch(CONTRIBUTORS_API);
-    if (!res.ok) return {};
-    const link = res.headers.get('Link') ?? '';
-    const match = /[?&]page=(\d+)>; rel="last"/.exec(link);
-    if (!match) return {};
-    return { contributors: Number.parseInt(match[1], 10).toLocaleString('en-US') };
-  } catch {
-    return {};
-  }
+const fetchGithubStats = async (): Promise<Partial<GithubStats>> => {
+  const json = (await fetchJson(GITHUB_STATS_ENDPOINT)) as Partial<GithubStats> | null;
+  if (!json) return {};
+  // Only contribute keys that actually resolved, so a partial upstream failure
+  // leaves the previously cached values in place rather than blanking them.
+  return Object.fromEntries(
+    Object.entries(json).filter(([, value]) => typeof value === 'string')
+  ) as Partial<GithubStats>;
 };
 
 const fetchDiscord = async (): Promise<Partial<GithubStats>> => {
@@ -169,12 +126,7 @@ const fetchDiscord = async (): Promise<Partial<GithubStats>> => {
 let inFlight: Promise<Partial<GithubStats>> | null = null;
 
 const runGithubStatsFetch = async (): Promise<Partial<GithubStats>> => {
-  const parts = await Promise.all([
-    fetchStars(),
-    fetchSelfHosters(),
-    fetchContributors(),
-    fetchDiscord(),
-  ]);
+  const parts = await Promise.all([fetchGithubStats(), fetchDiscord()]);
   const fresh = parts.reduce<Partial<GithubStats>>((acc, part) => ({ ...acc, ...part }), {});
   const cached = getJsonStorageItem<Partial<GithubStats>>('session', STATS_CACHE_KEY) ?? {};
   setJsonStorageItem('session', STATS_CACHE_KEY, { ...EMPTY_STATS, ...cached, ...fresh });
@@ -331,10 +283,7 @@ const useTaggedReleaseFromList = (
   useEffect(() => {
     let active = true;
     void (async () => {
-      const list = (await fetchJson(
-        `${GITHUB_API_REPO}/releases?per_page=30`,
-        'application/vnd.github+json'
-      )) as RawRelease[] | null;
+      const list = (await fetchJson(`${GITHUB_RELEASES_ENDPOINT}?list=1`)) as RawRelease[] | null;
       if (!active || !Array.isArray(list)) return;
       const match = list.find((entry) => matchesTag((entry.tag_name ?? '').toLowerCase()));
       if (!match?.html_url) return;
@@ -371,10 +320,7 @@ export function useLatestRelease(options?: LiveFetchOptions): ReleaseInfo {
   useEffect(() => {
     let active = true;
     void (async () => {
-      const json = (await fetchJson(
-        `${GITHUB_API_REPO}/releases/latest`,
-        'application/vnd.github+json'
-      )) as RawRelease | null;
+      const json = (await fetchJson(GITHUB_RELEASES_ENDPOINT)) as RawRelease | null;
       if (!active || !json?.tag_name) return;
       const next = toReleaseInfo(json);
       setLiveRelease(next);
