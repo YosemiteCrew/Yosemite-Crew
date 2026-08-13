@@ -1,0 +1,61 @@
+name: Promotion Guard
+
+# main takes changes from dev, and only from dev.
+#
+# Config alone cannot enforce this. `target-branch: dev` aims Dependabot VERSION
+# updates at dev, but Dependabot SECURITY updates always open against the default
+# branch and ignore it - which is exactly how the json security bump (#2131)
+# arrived as a PR into main on 2026-08-13 and was merged there, leaving dev still
+# on the vulnerable version. This job is the part that actually holds the line.
+#
+# Mark it required on main's ruleset for it to block rather than merely report.
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, labeled, unlabeled]
+    branches: [main]
+
+concurrency:
+  group: promotion-guard-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+# pull_request_target runs against the BASE repository, so it must never check
+# out or execute the pull request's code. It only reads branch metadata below.
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: Only dev may merge into main
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check the head branch
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
+          # A deliberate, human-applied escape hatch for the rare direct-to-main
+          # change (an emergency hotfix, or a dependabot.yml sync that has to
+          # take effect before the next promotion). Dependabot cannot apply it:
+          # it only sets the labels listed in dependabot.yml, and this is not
+          # one of them.
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          set -euo pipefail
+
+          if [[ ",${LABELS}," == *",main-direct,"* ]]; then
+            echo "::notice::'main-direct' label present - a human has explicitly allowed this direct merge."
+            exit 0
+          fi
+
+          if [[ "${HEAD_REPO}" != "${BASE_REPO}" ]]; then
+            echo "::error::A fork branch (${HEAD_REPO}:${HEAD_REF}) cannot merge into main. Target dev instead."
+            exit 1
+          fi
+
+          if [[ "${HEAD_REF}" != "dev" ]]; then
+            echo "::error::main only accepts merges from dev, but this PR's head is '${HEAD_REF}'. Retarget it at dev and let the usual dev-to-main promotion carry it. If this genuinely must land on main first, add the 'main-direct' label."
+            exit 1
+          fi
+
+          echo "Head branch is dev - promotion allowed."
