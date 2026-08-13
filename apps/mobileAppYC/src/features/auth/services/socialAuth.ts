@@ -139,7 +139,6 @@ const cacheAppleProfile = async (
 type NativeCredential = {
   accessToken?: string;
   idToken?: string;
-  authorizationCode?: string;
   email?: string | null;
   firstName?: string | null;
   lastName?: string | null;
@@ -286,7 +285,6 @@ const signInWithAppleIOS = async (): Promise<NativeCredential> => {
 
   return {
     idToken: appleAuthRequestResponse.identityToken,
-    authorizationCode: appleAuthRequestResponse.authorizationCode ?? undefined,
     firstName: appleAuthRequestResponse.fullName?.givenName ?? null,
     lastName: appleAuthRequestResponse.fullName?.familyName ?? null,
     email: appleAuthRequestResponse.email ?? null,
@@ -442,24 +440,13 @@ const buildSignInUpBody = (
   provider: SocialProvider,
   credential: NativeCredential,
 ): Record<string, unknown> => {
-  if (
-    provider === 'apple' &&
-    Platform.OS === 'ios' &&
-    credential.authorizationCode
-  ) {
-    // Apple requires the authorization-code flow on the backend.
-    return {
-      thirdPartyId: 'apple',
-      redirectURIInfo: {
-        redirectURIOnProviderDashboard: '',
-        redirectURIQueryParams: {
-          code: credential.authorizationCode,
-          id_token: credential.idToken,
-        },
-      },
-    };
-  }
-
+  // Apple iOS deliberately uses the same oAuthTokens path as every other
+  // provider. The authorization-code flow (redirectURIInfo) is wrong for a
+  // native app: SuperTokens forwards redirectURIOnProviderDashboard verbatim
+  // as redirect_uri to Apple's token endpoint, and a code minted by native
+  // Sign in with Apple has no redirect URI, so Apple rejects the exchange.
+  // The id_token alone is enough — the backend verifies it against Apple's
+  // JWKS with the app bundle id as the audience.
   const oAuthTokens: Record<string, string> = {};
   if (credential.accessToken) {
     oAuthTokens.access_token = credential.accessToken;
