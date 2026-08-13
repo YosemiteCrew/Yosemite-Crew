@@ -2,6 +2,15 @@ import React from 'react';
 import { act, render, waitFor } from '@testing-library/react';
 import posthog from 'posthog-js';
 import { COOKIE_CONSENT_KEY, POSTHOG_READY_EVENT } from '@/app/lib/posthog';
+import * as posthogClient from '@/app/lib/posthogClient';
+import { resetPostHogClientForTests } from '@/app/lib/posthogClient';
+
+// Delegates to the real client so the cached-handle behaviour stays intact, while
+// letting a single test simulate a failed chunk load.
+jest.mock('@/app/lib/posthogClient', () => {
+  const actual = jest.requireActual('@/app/lib/posthogClient');
+  return { ...actual, loadPostHog: jest.fn(() => actual.loadPostHog()) };
+});
 import PostHogBootstrap from '@/app/ui/layout/PostHogBootstrap';
 
 jest.mock('posthog-js', () => ({
@@ -33,6 +42,10 @@ describe('PostHogBootstrap', () => {
     };
     globalThis.localStorage.clear();
     jest.clearAllMocks();
+    // Each test starts like a fresh page load, with the analytics chunk not yet
+    // fetched. Without this the cached client leaks between tests and the
+    // already-loaded path is taken instead of initialization.
+    resetPostHogClientForTests();
   });
 
   afterAll(() => {
@@ -137,5 +150,59 @@ describe('PostHogBootstrap', () => {
     render(<PostHogBootstrap />);
 
     await waitFor(() => expect(posthog.init).not.toHaveBeenCalled());
+  });
+
+  it('does not opt in when consent is withdrawn while the analytics chunk loads', async () => {
+    globalThis.localStorage.setItem(COOKIE_CONSENT_KEY, 'true');
+
+    render(<PostHogBootstrap />);
+    // Revoke in the same tick the mount effect starts loading the chunk, before
+    // the dynamic import resolves.
+    act(() => {
+      globalThis.dispatchEvent(
+        new StorageEvent('storage', { key: COOKIE_CONSENT_KEY, newValue: 'false' })
+      );
+    });
+
+    await waitFor(() => expect(posthog.init).not.toHaveBeenCalled());
+    expect(posthog.opt_in_capturing).not.toHaveBeenCalled();
+  });
+
+  it('opts out instead of opting in when consent is withdrawn before the loaded callback runs', async () => {
+    globalThis.localStorage.setItem(COOKIE_CONSENT_KEY, 'true');
+
+    render(<PostHogBootstrap />);
+    await waitFor(() => expect(posthog.init).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      globalThis.dispatchEvent(
+        new StorageEvent('storage', { key: COOKIE_CONSENT_KEY, newValue: 'false' })
+      );
+    });
+    // PostHog calls `loaded` asynchronously; by now consent is gone.
+    act(() => {
+      getInitOptions().loaded?.(posthog);
+    });
+
+    expect(posthog.opt_in_capturing).not.toHaveBeenCalled();
+    expect(posthog.opt_out_capturing).toHaveBeenCalled();
+  });
+
+  it('retries initialization after a failed analytics chunk load', async () => {
+    const loadMock = posthogClient.loadPostHog as jest.Mock;
+    loadMock.mockRejectedValueOnce(new Error('chunk load failed'));
+    globalThis.localStorage.setItem(COOKIE_CONSENT_KEY, 'true');
+
+    render(<PostHogBootstrap />);
+    await waitFor(() => expect(loadMock).toHaveBeenCalledTimes(1));
+    expect(posthog.init).not.toHaveBeenCalled();
+
+    act(() => {
+      globalThis.dispatchEvent(
+        new StorageEvent('storage', { key: COOKIE_CONSENT_KEY, newValue: 'true' })
+      );
+    });
+
+    await waitFor(() => expect(posthog.init).toHaveBeenCalledTimes(1));
   });
 });

@@ -2,7 +2,8 @@
 
 import { useEffect, useRef } from 'react';
 import { getStorageItem } from '@/app/lib/browserStorage';
-import { loadPostHog } from '@/app/lib/posthogClient';
+import { logger } from '@/app/lib/logger';
+import { getLoadedPostHog, loadPostHog } from '@/app/lib/posthogClient';
 import {
   COOKIE_CONSENT_KEY,
   POSTHOG_PROPERTY_DENYLIST,
@@ -23,54 +24,87 @@ const PostHogBootstrap = () => {
   const initializedRef = useRef(false);
 
   useEffect(() => {
+    // The consent the visitor has actually given right now. Consent can be
+    // withdrawn while the analytics chunk is still downloading, and the in-flight
+    // call would otherwise act on the stale value it was invoked with.
+    let latestConsent = hasConsent();
+
     const applyConsent = async (consented: boolean) => {
       const { apiHost, projectToken } = getPostHogConfig();
       if (!projectToken || !apiHost) return;
 
-      if (!initializedRef.current) {
-        if (!consented) return;
+      latestConsent = consented;
 
-        // Set before awaiting so a consent event arriving while the chunk is in
-        // flight cannot start a second initialization.
-        initializedRef.current = true;
-        const posthog = await loadPostHog();
-        posthog.init(projectToken, {
-          api_host: apiHost,
-          autocapture: { capture_copied_text: false },
-          before_send: sanitizePostHogEvent,
-          capture_pageview: 'history_change',
-          defaults: '2026-01-30',
-          enable_heatmaps: true,
-          enable_recording_console_log: false,
-          mask_all_element_attributes: true,
-          mask_all_text: true,
-          opt_out_capturing_by_default: true,
-          person_profiles: 'identified_only',
-          property_denylist: POSTHOG_PROPERTY_DENYLIST,
-          session_recording: {
-            blockSelector: '[data-ph-no-capture]',
-            maskInputOptions: { password: true },
-            maskTextSelector: '[data-ph-mask]',
-          },
-          // Use loaded callback so opt_in fires only after init fully completes
-          // (including applying defaults + endpoint routing). Calling opt_in_capturing
-          // synchronously after posthog.init() fires before defaults are applied,
-          // causing the $opt_in event to hit /e/ with no token and return 401.
-          loaded: (ph) => {
-            ph.opt_in_capturing();
-            globalThis.dispatchEvent(new Event(POSTHOG_READY_EVENT));
-          },
-        });
+      // Once the client is cached, opting in and out stays synchronous. That
+      // matters: PostHogUserSync listens for the same storage event and runs
+      // straight after this handler, so an await here would let it identify
+      // while capturing was still opted out and PostHog would drop the event.
+      const cached = getLoadedPostHog();
+      if (cached) {
+        if (consented) {
+          cached.opt_in_capturing();
+        } else {
+          cached.opt_out_capturing();
+        }
         return;
       }
 
-      // Reached only once initialization has happened, so the chunk is cached.
-      const posthog = await loadPostHog();
-      if (consented) {
-        posthog.opt_in_capturing();
-      } else {
-        posthog.opt_out_capturing();
+      if (!consented || initializedRef.current) return;
+
+      // Set before awaiting so a consent event arriving while the chunk is in
+      // flight cannot start a second initialization; cleared again if the load
+      // fails, so a later consent event can retry rather than being stuck
+      // opting in on a client that was never initialized.
+      initializedRef.current = true;
+      let posthog;
+      try {
+        posthog = await loadPostHog();
+      } catch (error) {
+        initializedRef.current = false;
+        logger.warn('Failed to load analytics', error);
+        return;
       }
+
+      // Consent withdrawn while the chunk was downloading: leave PostHog
+      // uninitialized entirely rather than initializing and opting straight out.
+      if (!latestConsent) {
+        initializedRef.current = false;
+        return;
+      }
+
+      posthog.init(projectToken, {
+        api_host: apiHost,
+        autocapture: { capture_copied_text: false },
+        before_send: sanitizePostHogEvent,
+        capture_pageview: 'history_change',
+        defaults: '2026-01-30',
+        enable_heatmaps: true,
+        enable_recording_console_log: false,
+        mask_all_element_attributes: true,
+        mask_all_text: true,
+        opt_out_capturing_by_default: true,
+        person_profiles: 'identified_only',
+        property_denylist: POSTHOG_PROPERTY_DENYLIST,
+        session_recording: {
+          blockSelector: '[data-ph-no-capture]',
+          maskInputOptions: { password: true },
+          maskTextSelector: '[data-ph-mask]',
+        },
+        // Use loaded callback so opt_in fires only after init fully completes
+        // (including applying defaults + endpoint routing). Calling opt_in_capturing
+        // synchronously after posthog.init() fires before defaults are applied,
+        // causing the $opt_in event to hit /e/ with no token and return 401.
+        loaded: (ph) => {
+          // init is async too, so re-check: consent may have been withdrawn
+          // between the import resolving and this callback firing.
+          if (!latestConsent) {
+            ph.opt_out_capturing();
+            return;
+          }
+          ph.opt_in_capturing();
+          globalThis.dispatchEvent(new Event(POSTHOG_READY_EVENT));
+        },
+      });
     };
 
     void applyConsent(hasConsent());
