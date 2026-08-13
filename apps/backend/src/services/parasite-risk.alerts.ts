@@ -175,15 +175,26 @@ async function processSubscription(
     parseAlertedTiers(row.alertedTiers),
   );
 
-  await prisma.parasiteRiskSubscription.update({
-    where: { id: row.id },
-    data: { alertedTiers: nextState as Prisma.InputJsonValue },
-  });
+  const persistAlertedTiers = () =>
+    prisma.parasiteRiskSubscription.update({
+      where: { id: row.id },
+      data: { alertedTiers: nextState as Prisma.InputJsonValue },
+    });
 
-  if (alerts.length === 0) return false;
+  // Nothing to send: persist the bookkeeping on its own, which is what forgets
+  // parasites that fell back below the parent's threshold.
+  if (alerts.length === 0) {
+    await persistAlertedTiers();
+    return false;
+  }
 
+  // Notify BEFORE recording the tiers as alerted. Recording first means a failed
+  // send still marks the crossing as delivered, so that threshold would never
+  // notify again. nextState is rebuilt from the current readings on every run, so
+  // skipping the write here costs nothing but a retry next cycle.
+  let notified = false;
   try {
-    return await notifyParent(row.parentId, row.label, alerts);
+    notified = await notifyParent(row.parentId, row.label, alerts);
   } catch (error) {
     logger.error("Failed to send parasite risk alert", {
       error,
@@ -191,6 +202,11 @@ async function processSubscription(
     });
     return false;
   }
+
+  if (!notified) return false;
+
+  await persistAlertedTiers();
+  return true;
 }
 
 /**

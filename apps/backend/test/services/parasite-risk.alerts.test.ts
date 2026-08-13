@@ -169,6 +169,44 @@ describe("refreshFollowedCells", () => {
     expect(summary.alertsSent).toBe(0);
   });
 
+  it("does not mark tiers alerted when the push fails, so it retries next run", async () => {
+    (prisma.parasiteRiskSubscription.findMany as jest.Mock).mockResolvedValue([
+      subscription,
+    ]);
+    (refreshCell as jest.Mock).mockResolvedValue({
+      readings: [reading("paralysis_tick", "HIGH")],
+    });
+    (NotificationService.sendToUser as jest.Mock).mockRejectedValueOnce(
+      new Error("push gateway down"),
+    );
+
+    const summary = await refreshFollowedCells();
+
+    expect(summary.alertsSent).toBe(0);
+    // Recording the tier before a confirmed send would suppress this crossing
+    // forever; the row must be left untouched so the next sweep tries again.
+    expect(prisma.parasiteRiskSubscription.update).not.toHaveBeenCalled();
+  });
+
+  it("records the alerted tier once the push succeeds", async () => {
+    (prisma.parasiteRiskSubscription.findMany as jest.Mock).mockResolvedValue([
+      subscription,
+    ]);
+    (refreshCell as jest.Mock).mockResolvedValue({
+      readings: [reading("paralysis_tick", "HIGH")],
+    });
+
+    const summary = await refreshFollowedCells();
+
+    expect(summary.alertsSent).toBe(1);
+    expect(prisma.parasiteRiskSubscription.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "sub-1" },
+        data: { alertedTiers: { paralysis_tick: "HIGH" } },
+      }),
+    );
+  });
+
   it("keeps sweeping when one cell fails to refresh", async () => {
     (prisma.parasiteRiskSubscription.findMany as jest.Mock).mockResolvedValue([
       subscription,
