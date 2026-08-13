@@ -69,6 +69,10 @@ updates:
       # runs node 18 - unfreeze together with the runtime upgrade (#2125).
       - dependency-name: 'google-auth-library'
         update-types: ['version-update:semver-major']
+      # react-native-nitro-sound added engines node >=22.21.0 in 0.2.18; the repo
+      # and CI run node 20, so an engine-strict install fails outright. Frozen at
+      # 0.2.17 until the runtime upgrade (#2125).
+      - dependency-name: 'react-native-nitro-sound'
       # playwright raised its node floor to >=20 in 1.62; the backend image runs
       # node 18 and the security override pins playwright-core at EXACTLY 1.61.1,
       # which every playwright release must match exactly. Fully frozen (even
