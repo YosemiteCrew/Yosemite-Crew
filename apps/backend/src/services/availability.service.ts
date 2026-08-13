@@ -710,8 +710,13 @@ export const AvailabilityService = {
       "organisationId",
     );
     const ids = Array.from(
-      new Set(userIds.map((id) => asNonEmptyString(id)).filter(Boolean)),
-    ) as string[];
+      new Set(
+        userIds.flatMap((id) => {
+          const trimmed = asNonEmptyString(id);
+          return trimmed ? [trimmed] : [];
+        }),
+      ),
+    );
 
     const statuses = new Map<
       string,
