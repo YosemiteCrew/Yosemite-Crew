@@ -1,11 +1,12 @@
 {
   "ci": {
     "collect": {
-      "numberOfRuns": 1,
+      "numberOfRuns": 3,
       "url": [
         "http://127.0.0.1:3001/pet-businesses",
         "http://127.0.0.1:3001/privacy-policy",
-        "http://127.0.0.1:3001/terms-and-conditions"
+        "http://127.0.0.1:3001/terms-and-conditions",
+        "http://127.0.0.1:3001/signin"
       ],
       "settings": {
         "chromeFlags": "--no-sandbox --disable-dev-shm-usage"
@@ -14,9 +15,9 @@
     "assert": {
       "assertions": {
         "categories:performance": [
-          "warn",
+          "error",
           {
-            "minScore": 0.7
+            "minScore": 0.65
           }
         ],
         "categories:accessibility": [
@@ -32,9 +33,9 @@
           }
         ],
         "categories:seo": [
-          "warn",
+          "error",
           {
-            "minScore": 0.8
+            "minScore": 0.85
           }
         ]
       }
