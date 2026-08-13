@@ -269,15 +269,16 @@ const getStaffOnDutyCount = async (organisationId: string) => {
 
   if (staffIds.length === 0) return 0;
 
-  const statuses = await Promise.all(
-    staffIds.map((staffId) =>
-      AvailabilityService.getCurrentStatus(organisationId, staffId).catch(
-        () => "Unavailable",
-      ),
-    ),
-  );
+  // One batched read rather than four sequential queries per staff member: this
+  // tile alone cost 4N queries, so a 20-person clinic issued 80 for a count.
+  const statuses = await AvailabilityService.getCurrentStatusBulk(
+    organisationId,
+    staffIds,
+  ).catch(() => new Map<string, string>());
 
-  return statuses.filter((status) => isOnDutyStatus(status)).length;
+  return staffIds.filter((staffId) =>
+    isOnDutyStatus(statuses.get(staffId) ?? "Unavailable"),
+  ).length;
 };
 
 /**

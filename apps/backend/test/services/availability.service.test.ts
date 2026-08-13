@@ -14,6 +14,7 @@ jest.mock("src/config/prisma", () => ({
     weeklyAvailabilityOverride: {
       findUnique: jest.fn(),
       findFirst: jest.fn(),
+      findMany: jest.fn(),
       deleteMany: jest.fn(),
       upsert: jest.fn(),
     },
@@ -593,6 +594,111 @@ describe("AvailabilityService", () => {
       expect(res.date).toBe("2026-03-09");
       expect(res.dayOfWeek).toBe("MONDAY");
       expect(res.windows).toHaveLength(2);
+    });
+  });
+
+  describe("getCurrentStatusBulk", () => {
+    const ORG = "org-1";
+    // A Wednesday, 10:30 UTC - inside the 09:00-12:00 slot below.
+    const NOW = new Date("2026-03-11T10:30:00.000Z");
+    const BASE_SLOTS = [
+      { startTime: "09:00", endTime: "12:00", isAvailable: true },
+    ];
+
+    const baseRow = (userId: string) => ({
+      id: `base-${userId}`,
+      userId,
+      organisationId: ORG,
+      dayOfWeek: "WEDNESDAY",
+      slots: BASE_SLOTS,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    beforeEach(() => {
+      jest.useFakeTimers().setSystemTime(NOW);
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it("returns the same status the per-user call returns, for every user", async () => {
+      const users = ["u-available", "u-consulting", "u-offduty"];
+      const rows = [baseRow("u-available"), baseRow("u-consulting")];
+      const occupiedNow = [
+        {
+          id: "occ-1",
+          userId: "u-consulting",
+          organisationId: ORG,
+          startTime: new Date("2026-03-11T10:00:00.000Z"),
+          endTime: new Date("2026-03-11T11:00:00.000Z"),
+        },
+      ];
+
+      // Bulk path: four batched reads.
+      (prisma.baseAvailability.findMany as jest.Mock).mockResolvedValue(rows);
+      (
+        prisma.weeklyAvailabilityOverride.findMany as jest.Mock
+      ).mockResolvedValue([]);
+      (prisma.occupancy.findMany as jest.Mock).mockResolvedValue(occupiedNow);
+
+      const bulk = await AvailabilityService.getCurrentStatusBulk(ORG, users);
+
+      // Per-user path, driven off the same fixtures, one user at a time.
+      const perUser = new Map<string, string>();
+      for (const userId of users) {
+        (prisma.baseAvailability.findMany as jest.Mock).mockResolvedValue(
+          rows.filter((row) => row.userId === userId),
+        );
+        (
+          prisma.weeklyAvailabilityOverride.findFirst as jest.Mock
+        ).mockResolvedValue(null);
+        (prisma.occupancy.findMany as jest.Mock).mockResolvedValue(
+          occupiedNow.filter((occ) => occ.userId === userId),
+        );
+        (prisma.occupancy.findFirst as jest.Mock).mockResolvedValue(
+          occupiedNow.find((occ) => occ.userId === userId) ?? null,
+        );
+        perUser.set(
+          userId,
+          await AvailabilityService.getCurrentStatus(ORG, userId),
+        );
+      }
+
+      expect(Object.fromEntries(bulk)).toEqual(Object.fromEntries(perUser));
+      // and the statuses are the ones the fixtures describe
+      expect(bulk.get("u-consulting")).toBe("Consulting");
+      expect(bulk.get("u-available")).toBe("Available");
+      expect(bulk.get("u-offduty")).toBe("Off-Duty");
+    });
+
+    it("issues a fixed number of queries regardless of roster size", async () => {
+      (prisma.baseAvailability.findMany as jest.Mock).mockResolvedValue([]);
+      (
+        prisma.weeklyAvailabilityOverride.findMany as jest.Mock
+      ).mockResolvedValue([]);
+      (prisma.occupancy.findMany as jest.Mock).mockResolvedValue([]);
+
+      const twenty = Array.from({ length: 20 }, (_, i) => `staff-${i}`);
+      const statuses = await AvailabilityService.getCurrentStatusBulk(
+        ORG,
+        twenty,
+      );
+
+      expect(statuses.size).toBe(20);
+      expect(prisma.baseAvailability.findMany).toHaveBeenCalledTimes(1);
+      expect(prisma.weeklyAvailabilityOverride.findMany).toHaveBeenCalledTimes(
+        1,
+      );
+      expect(prisma.occupancy.findMany).toHaveBeenCalledTimes(2);
+    });
+
+    it("returns an empty map when given no users, without querying", async () => {
+      const statuses = await AvailabilityService.getCurrentStatusBulk(ORG, []);
+
+      expect(statuses.size).toBe(0);
+      expect(prisma.baseAvailability.findMany).not.toHaveBeenCalled();
     });
   });
 });

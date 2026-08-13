@@ -9,6 +9,7 @@ import { prisma } from "src/config/prisma";
 jest.mock("../../src/services/availability.service", () => ({
   AvailabilityService: {
     getCurrentStatus: jest.fn(),
+    getCurrentStatusBulk: jest.fn(),
   },
 }));
 
@@ -45,6 +46,9 @@ describe("DashboardService", () => {
     jest.clearAllMocks();
     (AvailabilityService.getCurrentStatus as jest.Mock).mockResolvedValue(
       "Off-Duty",
+    );
+    (AvailabilityService.getCurrentStatusBulk as jest.Mock).mockResolvedValue(
+      new Map(),
     );
     (prisma.userOrganization.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.$queryRaw as jest.Mock).mockResolvedValue([]);
@@ -101,9 +105,14 @@ describe("DashboardService", () => {
         { practitionerReference: "staff-2" },
         { practitionerReference: null },
       ]);
-      (AvailabilityService.getCurrentStatus as jest.Mock)
-        .mockResolvedValueOnce("Consulting")
-        .mockResolvedValueOnce("Off-Duty");
+      (
+        AvailabilityService.getCurrentStatusBulk as jest.Mock
+      ).mockResolvedValueOnce(
+        new Map([
+          ["staff-1", "Consulting"],
+          ["staff-2", "Off-Duty"],
+        ]),
+      );
       (prisma.appointment.count as jest.Mock).mockResolvedValueOnce(0);
       (prisma.task.count as jest.Mock).mockResolvedValueOnce(0);
       (prisma.invoice.aggregate as jest.Mock).mockResolvedValueOnce({

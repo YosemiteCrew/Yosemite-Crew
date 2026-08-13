@@ -219,6 +219,107 @@ export function generateBookableWindows(
   return results;
 }
 
+type WeekSlotSource = { dayOfWeek: DayOfWeek; slots: AvailabilitySlotMongo[] };
+type OccupancyWindow = { startTime: Date; endTime: Date };
+
+/** Monday-anchored (UTC) week containing `referenceDate`, plus its seven days. */
+const resolveWeekBounds = (referenceDate: Date) => {
+  const weekStart = dayjs(referenceDate)
+    .utc()
+    .startOf("week") // Sunday
+    .add(1, "day") // => Monday
+    .startOf("day")
+    .toDate();
+
+  const weekDates = Array.from({ length: 7 }).map((_, i) => {
+    const d = dayjs(weekStart).add(i, "day").toDate();
+    return {
+      date: d,
+      dateStr: getDateString(d),
+      dayOfWeek: getDayOfWeekFromDate(d),
+    };
+  });
+
+  return { weekStart, weekDates };
+};
+
+/**
+ * Merge one user's base availability, weekly override and occupancies into the
+ * final week. Pure: the caller decides how the three inputs were fetched, which
+ * is what lets a single user and a whole roster share this logic verbatim.
+ */
+const computeWeekAvailability = (
+  weekDates: ReturnType<typeof resolveWeekBounds>["weekDates"],
+  base: WeekSlotSource[],
+  override: { overrides: WeekSlotSource[] } | null,
+  occupancies: OccupancyWindow[],
+) => {
+  // Convert base into map: { MONDAY → [...slots] }
+  const map = new Map<DayOfWeek, AvailabilitySlotMongo[]>();
+
+  for (const row of base) {
+    map.set(row.dayOfWeek, row.slots);
+  }
+
+  if (override) {
+    for (const ov of override.overrides) {
+      map.set(ov.dayOfWeek, ov.slots);
+    }
+  }
+
+  // Now remove overlapping slots
+  for (const occ of occupancies) {
+    const occStart = dayjs(occ.startTime).utc();
+    const occEnd = dayjs(occ.endTime).utc();
+
+    // Which day does occupancy belong to?
+    const occDayStr = occStart.format("dddd").toUpperCase() as DayOfWeek;
+
+    // Get that day's availability
+    const slots = map.get(occDayStr) || [];
+    const dateStr = occStart.format("YYYY-MM-DD");
+
+    const newSlots: AvailabilitySlotMongo[] = [];
+
+    for (const slot of slots) {
+      const split = splitSlotAroundOccupancy(slot, occStart, occEnd, dateStr);
+      newSlots.push(...split);
+    }
+
+    map.set(occDayStr, newSlots);
+  }
+
+  // Build final return structure
+  return weekDates.map((w) => ({
+    date: w.dateStr,
+    dayOfWeek: w.dayOfWeek,
+    slots: map.get(w.dayOfWeek) || [],
+  }));
+};
+
+/** Same rule getCurrentStatus applies, over already-resolved inputs. */
+const resolveStatusFromSlots = (
+  nowUtc: dayjs.Dayjs,
+  date: string,
+  slots: AvailabilitySlotMongo[],
+  isOccupiedNow: boolean,
+): "Consulting" | "Available" | "Off-Duty" | "Unavailable" => {
+  if (isOccupiedNow) return "Consulting";
+
+  const activeSlot = slots.some((s) => {
+    const slotStart = dayjs.utc(`${date}T${s.startTime}:00`);
+    const slotEnd = dayjs.utc(`${date}T${s.endTime}:00`);
+    const startsNowOrEarlier =
+      nowUtc.isSame(slotStart) || nowUtc.isAfter(slotStart);
+    return startsNowOrEarlier && nowUtc.isBefore(slotEnd);
+  });
+
+  if (activeSlot) return "Available";
+  if (slots.length === 0) return "Off-Duty";
+
+  return "Unavailable";
+};
+
 export const AvailabilityService = {
   // Base Availabilites
 
@@ -506,32 +607,10 @@ export const AvailabilityService = {
     const safeUserId = ensureNonEmptyString(userId, "userId");
     const safeReferenceDate = ensureValidDate(referenceDate, "referenceDate");
 
-    // Always calculate week starting Monday (UTC)
-    const weekStart = dayjs(safeReferenceDate)
-      .utc()
-      .startOf("week") // Sunday
-      .add(1, "day") // => Monday
-      .startOf("day")
-      .toDate();
-
-    const weekDates = Array.from({ length: 7 }).map((_, i) => {
-      const d = dayjs(weekStart).add(i, "day").toDate();
-      return {
-        date: d,
-        dateStr: getDateString(d),
-        dayOfWeek: getDayOfWeekFromDate(d),
-      };
-    });
+    const { weekStart, weekDates } = resolveWeekBounds(safeReferenceDate);
 
     // Load base availability
     const base = await this.getBaseAvailability(safeOrganisationId, safeUserId);
-
-    // Convert base into map: { MONDAY → [...slots] }
-    const map = new Map<DayOfWeek, AvailabilitySlotMongo[]>();
-
-    for (const row of base) {
-      map.set(row.dayOfWeek, row.slots);
-    }
 
     // Load weekly override (if exists)
     const override = await this.getWeeklyAvailabilityOverride(
@@ -539,12 +618,6 @@ export const AvailabilityService = {
       safeUserId,
       weekStart,
     );
-
-    if (override) {
-      for (const ov of override.overrides) {
-        map.set(ov.dayOfWeek, ov.slots);
-      }
-    }
 
     // Load occupancies for the week
     const weekEnd = dayjs(weekStart).add(7, "day").endOf("day").toDate();
@@ -558,34 +631,7 @@ export const AvailabilityService = {
       },
     });
 
-    // Now remove overlapping slots
-    for (const occ of occupancies) {
-      const occStart = dayjs(occ.startTime).utc();
-      const occEnd = dayjs(occ.endTime).utc();
-
-      // Which day does occupancy belong to?
-      const occDayStr = occStart.format("dddd").toUpperCase() as DayOfWeek;
-
-      // Get that day's availability
-      const slots = map.get(occDayStr) || [];
-      const dateStr = occStart.format("YYYY-MM-DD");
-
-      const newSlots: AvailabilitySlotMongo[] = [];
-
-      for (const slot of slots) {
-        const split = splitSlotAroundOccupancy(slot, occStart, occEnd, dateStr);
-        newSlots.push(...split);
-      }
-
-      map.set(occDayStr, newSlots);
-    }
-
-    // Build final return structure
-    return weekDates.map((w) => ({
-      date: w.dateStr,
-      dayOfWeek: w.dayOfWeek,
-      slots: map.get(w.dayOfWeek) || [],
-    }));
+    return computeWeekAvailability(weekDates, base, override, occupancies);
   },
 
   async getFinalAvailabilityForDate(
@@ -642,20 +688,119 @@ export const AvailabilityService = {
       select: { id: true },
     });
 
-    if (occupied) return "Consulting";
+    return resolveStatusFromSlots(nowUtc, date, slots, Boolean(occupied));
+  },
 
-    const activeSlot = slots.some((s) => {
-      const slotStart = dayjs.utc(`${date}T${s.startTime}:00`);
-      const slotEnd = dayjs.utc(`${date}T${s.endTime}:00`);
-      const startsNowOrEarlier =
-        nowUtc.isSame(slotStart) || nowUtc.isAfter(slotStart);
-      return startsNowOrEarlier && nowUtc.isBefore(slotEnd);
-    });
+  /**
+   * `getCurrentStatus` for a whole roster in a fixed number of queries.
+   *
+   * Called per user it costs 4 sequential queries each, so a dashboard tile for
+   * a 20-person clinic issued 80 of them. This fetches the same four datasets
+   * once for every user and applies the identical merge and status rules in
+   * memory, so the result matches the per-user call by construction.
+   */
+  async getCurrentStatusBulk(
+    organisationId: string,
+    userIds: string[],
+  ): Promise<
+    Map<string, "Consulting" | "Available" | "Off-Duty" | "Unavailable">
+  > {
+    const safeOrganisationId = ensureNonEmptyString(
+      organisationId,
+      "organisationId",
+    );
+    const ids = Array.from(
+      new Set(userIds.map((id) => asNonEmptyString(id)).filter(Boolean)),
+    ) as string[];
 
-    if (activeSlot) return "Available";
-    if (slots.length === 0) return "Off-Duty";
+    const statuses = new Map<
+      string,
+      "Consulting" | "Available" | "Off-Duty" | "Unavailable"
+    >();
+    if (ids.length === 0) return statuses;
 
-    return "Unavailable";
+    const nowUtc = dayjs.utc();
+    const now = nowUtc.toDate();
+    const { weekStart, weekDates } = resolveWeekBounds(now);
+    const weekEnd = dayjs(weekStart).add(7, "day").endOf("day").toDate();
+
+    const [baseRows, overrideRows, weekOccupancies, currentOccupancies] =
+      await Promise.all([
+        prisma.baseAvailability.findMany({
+          where: { organisationId: safeOrganisationId, userId: { in: ids } },
+          orderBy: { dayOfWeek: "asc" },
+        }),
+        prisma.weeklyAvailabilityOverride.findMany({
+          where: {
+            organisationId: safeOrganisationId,
+            userId: { in: ids },
+            weekStartDate: normalizeWeekStart(weekStart),
+          },
+        }),
+        prisma.occupancy.findMany({
+          where: {
+            organisationId: safeOrganisationId,
+            userId: { in: ids },
+            startTime: { lte: weekEnd },
+            endTime: { gte: weekStart },
+          },
+        }),
+        prisma.occupancy.findMany({
+          where: {
+            organisationId: safeOrganisationId,
+            userId: { in: ids },
+            startTime: { lte: now },
+            endTime: { gte: now },
+          },
+          select: { userId: true },
+        }),
+      ]);
+
+    const groupByUser = <T extends { userId: string }>(rows: T[]) => {
+      const grouped = new Map<string, T[]>();
+      for (const row of rows) {
+        const existing = grouped.get(row.userId);
+        if (existing) existing.push(row);
+        else grouped.set(row.userId, [row]);
+      }
+      return grouped;
+    };
+
+    const baseByUser = groupByUser(baseRows);
+    const overrideByUser = groupByUser(overrideRows);
+    const occupancyByUser = groupByUser(weekOccupancies);
+    const occupiedNow = new Set(currentOccupancies.map((row) => row.userId));
+
+    const dayOfWeek = getDayOfWeekFromDate(now);
+    const dateStr = getDateString(now);
+
+    for (const id of ids) {
+      const base = (baseByUser.get(id) ?? []).map((row) => ({
+        dayOfWeek: row.dayOfWeek,
+        slots: row.slots as unknown as AvailabilitySlotMongo[],
+      }));
+      const overrideRow = overrideByUser.get(id)?.[0];
+      const override = overrideRow
+        ? {
+            overrides: overrideRow.overrides as unknown as WeekSlotSource[],
+          }
+        : null;
+
+      const week = computeWeekAvailability(
+        weekDates,
+        base,
+        override,
+        occupancyByUser.get(id) ?? [],
+      );
+      const slots = week.find((d) => d.dayOfWeek === dayOfWeek)?.slots ?? [];
+
+      statuses.set(
+        id,
+        resolveStatusFromSlots(nowUtc, dateStr, slots, occupiedNow.has(id)),
+      );
+    }
+
+    return statuses;
   },
 
   // Get Bookable slots
