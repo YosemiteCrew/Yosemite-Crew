@@ -1,6 +1,6 @@
 // __tests__/screens/PlaceholderScreens.snapshot.test.tsx
 import React from 'react';
-import renderer from 'react-test-renderer';
+import {cleanupSnapshotTrees, renderSnapshot} from '../setup/snapshotRenderer';
 import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
 
@@ -85,20 +85,9 @@ describe('Placeholder Screens Snapshots', () => {
     jest.clearAllMocks();
   });
 
-  // These trees used to be created and left mounted. React 19 keeps scheduler
-  // work queued for an un-unmounted tree, and from Jest 30 that callback firing
-  // after the environment is torn down fails whichever suite the worker picks
-  // up next ("trying to `require` a file after the Jest environment has been
-  // torn down"). Unmounting inside act drains that work here instead. The tree
-  // is serialised before the act so these remain first-render snapshots.
-  const renderSnapshot = (ui: React.ReactElement) => {
-    const tree = renderer.create(ui);
-    const json = tree.toJSON();
-    renderer.act(() => {
-      tree.unmount();
-    });
-    return json;
-  };
+  // Unmount in afterEach rather than inline, so a failing snapshot cannot
+  // leave a tree mounted and leak into the next suite.
+  afterEach(cleanupSnapshotTrees);
 
   describe('TasksMainScreen', () => {
     it('should render correctly', () => {
