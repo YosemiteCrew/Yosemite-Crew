@@ -24,9 +24,7 @@ import { PARASITE_ALERT_LABELS } from "src/utils/parasiteLabels";
 type AlertedTiers = Partial<Record<ParasiteId, RiskTier>>;
 
 const parseAlertedTiers = (value: Prisma.JsonValue | null): AlertedTiers =>
-  value && typeof value === "object" && !Array.isArray(value)
-    ? (value as AlertedTiers)
-    : {};
+  value && typeof value === "object" && !Array.isArray(value) ? value : {};
 
 /**
  * Decide which readings warrant a notification, and what the new alert state is.
@@ -178,7 +176,7 @@ async function processSubscription(
   const persistAlertedTiers = () =>
     prisma.parasiteRiskSubscription.update({
       where: { id: row.id },
-      data: { alertedTiers: nextState as Prisma.InputJsonValue },
+      data: { alertedTiers: nextState },
     });
 
   // Nothing to send: persist the bookkeeping on its own, which is what forgets

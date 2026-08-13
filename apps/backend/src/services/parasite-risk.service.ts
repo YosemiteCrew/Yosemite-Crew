@@ -41,7 +41,7 @@ const toResponse = (cell: ParasiteRiskCell): ParasiteRiskCellReading => ({
   region: cell.region as RiskRegion,
   modelVersion: cell.modelVersion,
   computedAt: cell.computedAt.toISOString(),
-  overallTier: cell.overallTier as RiskTier,
+  overallTier: cell.overallTier,
   readings: toReadings(cell.readings),
   degraded: cell.degraded,
 });
