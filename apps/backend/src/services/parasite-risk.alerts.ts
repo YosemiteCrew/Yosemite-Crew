@@ -107,20 +107,33 @@ const groupByCell = (
   return byCell;
 };
 
+/**
+ * Resolve every parent's auth user in one query.
+ *
+ * A parent following several locations appears once per subscription, so a
+ * per-subscription lookup re-reads the same row repeatedly across a sweep.
+ */
+async function loadLinkedUserIds(
+  rows: readonly SubscriptionRow[],
+): Promise<Map<string, string | null>> {
+  const parentIds = [...new Set(rows.map((row) => row.parentId))];
+  const parents = await prisma.parent.findMany({
+    where: { id: { in: parentIds } },
+    select: { id: true, linkedUserId: true },
+  });
+
+  return new Map(parents.map((parent) => [parent.id, parent.linkedUserId]));
+}
+
 /** Returns true only when a push was actually dispatched. */
 async function notifyParent(
-  parentId: string,
+  linkedUserId: string | null | undefined,
   label: string,
   alerts: readonly ParasiteRiskReading[],
 ): Promise<boolean> {
-  const parent = await prisma.parent.findUnique({
-    where: { id: parentId },
-    select: { linkedUserId: true },
-  });
+  if (!linkedUserId) return false;
 
-  if (!parent?.linkedUserId) return false;
-
-  await NotificationService.sendToUser(parent.linkedUserId, {
+  await NotificationService.sendToUser(linkedUserId, {
     title: "Parasite risk has risen near you",
     body: buildAlertBody(label, alerts),
     type: "REMINDERS",
@@ -166,6 +179,7 @@ async function refreshCellForFollowers(
 async function processSubscription(
   row: SubscriptionRow,
   reading: ParasiteRiskCellReading,
+  linkedUserIds: ReadonlyMap<string, string | null>,
 ): Promise<boolean> {
   const { alerts, nextState } = resolveAlerts(
     reading.readings,
@@ -192,7 +206,11 @@ async function processSubscription(
   // skipping the write here costs nothing but a retry next cycle.
   let notified = false;
   try {
-    notified = await notifyParent(row.parentId, row.label, alerts);
+    notified = await notifyParent(
+      linkedUserIds.get(row.parentId),
+      row.label,
+      alerts,
+    );
   } catch (error) {
     logger.error("Failed to send parasite risk alert", {
       error,
@@ -228,6 +246,8 @@ export async function refreshFollowedCells(): Promise<RefreshSummary> {
       },
     });
 
+  const linkedUserIds = await loadLinkedUserIds(subscriptions);
+
   const summary: RefreshSummary = {
     cellsRefreshed: 0,
     cellsFailed: 0,
@@ -245,7 +265,7 @@ export async function refreshFollowedCells(): Promise<RefreshSummary> {
     summary.cellsRefreshed += 1;
 
     for (const row of rows) {
-      if (await processSubscription(row, reading)) {
+      if (await processSubscription(row, reading, linkedUserIds)) {
         summary.alertsSent += 1;
       }
     }

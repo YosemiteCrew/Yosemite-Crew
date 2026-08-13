@@ -7,7 +7,7 @@ jest.mock("src/config/prisma", () => ({
       update: jest.fn(),
     },
     parent: {
-      findUnique: jest.fn(),
+      findMany: jest.fn(),
     },
   },
 }));
@@ -133,9 +133,14 @@ describe("refreshFollowedCells", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (prisma.parent.findUnique as jest.Mock).mockResolvedValue({
-      linkedUserId: "user-1",
-    });
+    // Resolve whoever the batch asks for, which is what the old per-row
+    // findUnique mock did implicitly.
+    (prisma.parent.findMany as jest.Mock).mockImplementation(
+      ({ where }: { where: { id: { in: string[] } } }) =>
+        Promise.resolve(
+          where.id.in.map((id) => ({ id, linkedUserId: `user-${id}` })),
+        ),
+    );
     (prisma.parasiteRiskSubscription.update as jest.Mock).mockResolvedValue({});
   });
 
@@ -207,6 +212,25 @@ describe("refreshFollowedCells", () => {
     );
   });
 
+  it("looks each parent up once, however many locations they follow", async () => {
+    (prisma.parasiteRiskSubscription.findMany as jest.Mock).mockResolvedValue([
+      subscription,
+      { ...subscription, id: "sub-2", latBucket: 41.875, lonBucket: 12.375 },
+      { ...subscription, id: "sub-3", latBucket: 51.5, lonBucket: -0.125 },
+    ]);
+    (refreshCell as jest.Mock).mockResolvedValue({
+      readings: [reading("paralysis_tick", "HIGH")],
+    });
+
+    await refreshFollowedCells();
+
+    // One batched read for the whole sweep, not one per subscription.
+    expect(prisma.parent.findMany).toHaveBeenCalledTimes(1);
+    expect(prisma.parent.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: ["parent-1"] } } }),
+    );
+  });
+
   it("keeps sweeping when one cell fails to refresh", async () => {
     (prisma.parasiteRiskSubscription.findMany as jest.Mock).mockResolvedValue([
       subscription,
@@ -227,9 +251,9 @@ describe("refreshFollowedCells", () => {
     (prisma.parasiteRiskSubscription.findMany as jest.Mock).mockResolvedValue([
       subscription,
     ]);
-    (prisma.parent.findUnique as jest.Mock).mockResolvedValue({
-      linkedUserId: null,
-    });
+    (prisma.parent.findMany as jest.Mock).mockResolvedValue([
+      { id: "parent-1", linkedUserId: null },
+    ]);
     (refreshCell as jest.Mock).mockResolvedValue({
       readings: [reading("paralysis_tick", "EXTREME")],
     });
