@@ -30,7 +30,24 @@ const rome: RiskLocation = {
   countryCode: 'IT',
 };
 
-const reading = (): ParasiteRiskCellReading => ({
+// Two real places that share a name but sit in different forecast cells.
+const springfieldIl: RiskLocation = {
+  label: 'Springfield',
+  lat: 39.8,
+  lon: -89.65,
+  countryCode: 'US',
+};
+
+const springfieldMa: RiskLocation = {
+  label: 'Springfield',
+  lat: 42.1,
+  lon: -72.59,
+  countryCode: 'US',
+};
+
+const reading = (
+  overrides: Partial<ParasiteRiskCellReading> = {},
+): ParasiteRiskCellReading => ({
   cell: {lat: -27.375, lon: 153.125},
   countryCode: 'AU',
   region: 'AU',
@@ -47,6 +64,7 @@ const reading = (): ParasiteRiskCellReading => ({
       trend: 'RISING',
     },
   ],
+  ...overrides,
 });
 
 const subscription = (id: string, label: string) => ({
@@ -121,11 +139,69 @@ describe('parasiteRiskSlice', () => {
     expect(state.recentLocations).toHaveLength(1);
   });
 
+  it('keeps two same-named places that sit in different cells', () => {
+    let state = parasiteRiskReducer(
+      parasiteRiskInitialState,
+      loadRiskForLocation.fulfilled(
+        {location: springfieldIl, reading: reading()},
+        'id',
+        springfieldIl,
+      ),
+    );
+    state = parasiteRiskReducer(
+      state,
+      loadRiskForLocation.fulfilled(
+        {location: springfieldMa, reading: reading()},
+        'id',
+        springfieldMa,
+      ),
+    );
+
+    expect(state.recentLocations).toHaveLength(2);
+    expect(state.recentLocations.map(entry => entry.lat)).toEqual([
+      springfieldMa.lat,
+      springfieldIl.lat,
+    ]);
+  });
+
+  it('collapses two coordinates from the same cell into one recent entry', () => {
+    const nearby = {
+      ...brisbane,
+      label: 'Brisbane CBD',
+      lat: brisbane.lat + 0.01,
+      lon: brisbane.lon + 0.01,
+    };
+    let state = parasiteRiskReducer(
+      parasiteRiskInitialState,
+      loadRiskForLocation.fulfilled(
+        {location: brisbane, reading: reading()},
+        'id',
+        brisbane,
+      ),
+    );
+    state = parasiteRiskReducer(
+      state,
+      loadRiskForLocation.fulfilled(
+        {location: nearby, reading: reading()},
+        'id',
+        nearby,
+      ),
+    );
+
+    expect(state.recentLocations).toHaveLength(1);
+    expect(state.recentLocations[0].label).toBe('Brisbane CBD');
+  });
+
   it('caps recent locations at five', () => {
     let state = parasiteRiskInitialState;
 
     for (let i = 0; i < 8; i += 1) {
-      const location = {...brisbane, label: `Place ${i}`};
+      // Half a degree apart so each place lands in its own forecast cell.
+      const location = {
+        ...brisbane,
+        label: `Place ${i}`,
+        lat: brisbane.lat + i * 0.5,
+      };
       state = parasiteRiskReducer(
         state,
         loadRiskForLocation.fulfilled(
@@ -213,11 +289,69 @@ describe('parasiteRiskSlice', () => {
   it('marks loading and clears a stale error when a lookup starts', () => {
     const state = parasiteRiskReducer(
       {...parasiteRiskInitialState, error: 'previous failure'},
-      {type: loadRiskForLocation.pending.type},
+      loadRiskForLocation.pending('req-1', brisbane),
     );
 
     expect(state.loading).toBe(true);
     expect(state.error).toBeNull();
+  });
+
+  describe('overlapping lookups', () => {
+    /** Brisbane is asked for first, then Rome while Brisbane is still open. */
+    const twoInFlight = () => {
+      const first = parasiteRiskReducer(
+        parasiteRiskInitialState,
+        loadRiskForLocation.pending('req-brisbane', brisbane),
+      );
+      return parasiteRiskReducer(
+        first,
+        loadRiskForLocation.pending('req-rome', rome),
+      );
+    };
+
+    it('keeps the newest location when an older response lands last', () => {
+      let state = parasiteRiskReducer(
+        twoInFlight(),
+        loadRiskForLocation.fulfilled(
+          {location: rome, reading: reading({countryCode: 'IT'})},
+          'req-rome',
+          rome,
+        ),
+      );
+      state = parasiteRiskReducer(
+        state,
+        loadRiskForLocation.fulfilled(
+          {location: brisbane, reading: reading()},
+          'req-brisbane',
+          brisbane,
+        ),
+      );
+
+      expect(state.location).toEqual(rome);
+      expect(state.reading?.countryCode).toBe('IT');
+      expect(state.recentLocations.map(entry => entry.label)).toEqual(['Rome']);
+      expect(state.loading).toBe(false);
+    });
+
+    it('leaves the newest lookup running when the superseded one fails', () => {
+      const state = parasiteRiskReducer(
+        twoInFlight(),
+        loadRiskForLocation.rejected(null, 'req-brisbane', brisbane, 'offline'),
+      );
+
+      expect(state.error).toBeNull();
+      expect(state.loading).toBe(true);
+    });
+
+    it('still reports a failure of the newest lookup', () => {
+      const state = parasiteRiskReducer(
+        twoInFlight(),
+        loadRiskForLocation.rejected(null, 'req-rome', rome, 'offline'),
+      );
+
+      expect(state.error).toBe('offline');
+      expect(state.loading).toBe(false);
+    });
   });
 
   it('marks subscriptions loading while they are fetched', () => {

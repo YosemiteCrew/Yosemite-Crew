@@ -1,4 +1,5 @@
 import {createSlice, isAnyOf, type PayloadAction} from '@reduxjs/toolkit';
+import {snapToRiskCell} from '@yosemite-crew/types';
 import type {ParasiteRiskState, RiskLocation} from './types';
 import {
   followLocation,
@@ -13,7 +14,16 @@ const MAX_RECENT_LOCATIONS = 5;
 /** Used only when a thunk rejects without a message of its own. */
 const FALLBACK_ERROR = 'Something went wrong.';
 
-const initialState: ParasiteRiskState = {
+/**
+ * The shared shape plus the id of the newest forecast request. Lookups can
+ * overlap - the user can pick a second place while the first is still in
+ * flight - so the id is kept to tell a current response from a stale one.
+ */
+interface ParasiteRiskSliceState extends ParasiteRiskState {
+  latestRiskRequestId: string | null;
+}
+
+const initialState: ParasiteRiskSliceState = {
   location: null,
   reading: null,
   recentLocations: [],
@@ -22,12 +32,33 @@ const initialState: ParasiteRiskState = {
   subscriptionsLoading: false,
   error: null,
   disclaimerAcknowledged: false,
+  latestRiskRequestId: null,
 };
 
 export const parasiteRiskInitialState = initialState;
 
-const sameCell = (a: RiskLocation, b: RiskLocation): boolean =>
-  a.label === b.label && a.countryCode === b.countryCode;
+/**
+ * Two places are the same recent entry when they fall in the same forecast
+ * cell. Labels are not identity: different towns share a name, and the reading
+ * is per cell rather than per address.
+ */
+const sameCell = (a: RiskLocation, b: RiskLocation): boolean => {
+  const cellA = snapToRiskCell(a.lat, a.lon);
+  const cellB = snapToRiskCell(b.lat, b.lon);
+  return cellA.lat === cellB.lat && cellA.lon === cellB.lon;
+};
+
+/**
+ * True when a newer lookup started after this one, which makes the response
+ * stale no matter which order the network resolved them in. A state rehydrated
+ * from before this field existed knows of no newer request, so it accepts.
+ */
+const isSupersededRiskResponse = (
+  state: ParasiteRiskSliceState,
+  action: {meta: {requestId: string}},
+): boolean =>
+  Boolean(state.latestRiskRequestId) &&
+  action.meta.requestId !== state.latestRiskRequestId;
 
 export const parasiteRiskSlice = createSlice({
   name: 'parasiteRisk',
@@ -45,11 +76,15 @@ export const parasiteRiskSlice = createSlice({
   },
   extraReducers: builder => {
     builder
-      .addCase(loadRiskForLocation.pending, state => {
+      .addCase(loadRiskForLocation.pending, (state, action) => {
+        state.latestRiskRequestId = action.meta.requestId;
         state.loading = true;
         state.error = null;
       })
       .addCase(loadRiskForLocation.fulfilled, (state, action) => {
+        if (isSupersededRiskResponse(state, action)) {
+          return;
+        }
         state.loading = false;
         state.location = action.payload.location;
         state.reading = action.payload.reading;
@@ -60,7 +95,10 @@ export const parasiteRiskSlice = createSlice({
           ),
         ].slice(0, MAX_RECENT_LOCATIONS);
       })
-      .addCase(loadRiskForLocation.rejected, state => {
+      .addCase(loadRiskForLocation.rejected, (state, action) => {
+        if (isSupersededRiskResponse(state, action)) {
+          return;
+        }
         state.loading = false;
       })
       .addCase(loadSubscriptions.pending, state => {
@@ -99,6 +137,12 @@ export const parasiteRiskSlice = createSlice({
           unfollowLocation.rejected,
         ),
         (state, action) => {
+          if (
+            loadRiskForLocation.rejected.match(action) &&
+            isSupersededRiskResponse(state, action)
+          ) {
+            return;
+          }
           state.error = action.payload ?? FALLBACK_ERROR;
         },
       );

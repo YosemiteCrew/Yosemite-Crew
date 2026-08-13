@@ -13,9 +13,29 @@ export interface PlaceLocation {
   longitude: number;
 }
 
+/** Street-level types, for callers that are capturing a postal address. */
+const ADDRESS_PRIMARY_TYPES: readonly string[] = [
+  'street_address',
+  'premise',
+  'route',
+];
+
+/**
+ * Google's "(regions)" collection: suburb, town, postcode and the
+ * administrative areas above them. A collection cannot be mixed with
+ * individual types, and autocomplete caps `includedPrimaryTypes` at five, so
+ * the collection is the only way to cover every region level at once.
+ */
+export const REGION_PRIMARY_TYPES: readonly string[] = ['(regions)'];
+
 export interface FetchPlaceSuggestionsParams {
   query: string;
   location?: PlaceLocation | null;
+  /**
+   * Google autocomplete primary types. Defaults to street-level results, so
+   * address-entry callers keep the behaviour they were written against.
+   */
+  includedPrimaryTypes?: readonly string[];
 }
 
 export interface PlaceDetails {
@@ -130,6 +150,7 @@ const findAddressComponent = (components: any[], type: string) =>
 export const fetchPlaceSuggestions = async ({
   query,
   location,
+  includedPrimaryTypes = ADDRESS_PRIMARY_TYPES,
 }: FetchPlaceSuggestionsParams): Promise<PlaceSuggestion[]> => {
   const apiKey = ensureApiKey();
 
@@ -153,7 +174,7 @@ export const fetchPlaceSuggestions = async ({
       },
       body: JSON.stringify({
         input: trimmedQuery,
-        includedPrimaryTypes: ['street_address', 'premise', 'route'],
+        includedPrimaryTypes,
         locationBias: location
           ? {
               circle: {

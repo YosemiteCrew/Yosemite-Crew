@@ -1,5 +1,7 @@
 import React from 'react';
+import {StyleSheet} from 'react-native';
 import {render, screen, fireEvent} from '@testing-library/react-native';
+import {typography} from '@/theme/typography';
 import {mockTheme} from '../../setup/mockTheme';
 
 let mockFakeState: Record<string, unknown> = {};
@@ -37,6 +39,8 @@ jest.mock('@/features/companion', () => ({
 
 jest.mock('@/features/tasks/selectors', () => ({
   selectTasksByCompanion: () => (s: any) => s.tasks ?? [],
+  selectHasHydratedCompanion: (companionId: string | null) => (s: any) =>
+    companionId ? Boolean(s.tasksHydrated?.[companionId]) : false,
 }));
 
 import {ParasiteRiskScreen} from '@/features/parasiteRisk/screens/ParasiteRiskScreen/ParasiteRiskScreen';
@@ -91,6 +95,7 @@ const setState = (overrides: Record<string, unknown> = {}) => {
     companions: [{id: 'c1', name: 'Milo', breed: {breedName: 'Kelpie'}}],
     selectedCompanionId: 'c1',
     tasks: [],
+    tasksHydrated: {c1: true},
   };
 };
 
@@ -187,6 +192,30 @@ describe('ParasiteRiskScreen', () => {
     });
   });
 
+  it('says nothing about cover while the pet tasks are still loading', () => {
+    setState();
+    mockFakeState = {...mockFakeState, tasksHydrated: {}};
+    renderScreen();
+
+    // An empty task list before hydration is unknown, not uncovered.
+    expect(screen.queryByText('parasiteRisk.cover.title')).toBeNull();
+    expect(screen.queryByText('parasiteRisk.cover.noneBody:Milo')).toBeNull();
+  });
+
+  it('warns once the tasks have loaded with no prevention on file', () => {
+    setState();
+    mockFakeState = {...mockFakeState, tasksHydrated: {}};
+    const view = renderScreen();
+    expect(screen.queryByText('parasiteRisk.cover.noneBody:Milo')).toBeNull();
+
+    mockFakeState = {...mockFakeState, tasksHydrated: {c1: true}};
+    view.rerender(
+      <ParasiteRiskScreen navigation={navigation} route={{} as any} />,
+    );
+
+    expect(screen.getByText('parasiteRisk.cover.noneBody:Milo')).toBeTruthy();
+  });
+
   it('hides the cover banner when there is no selected companion', () => {
     mockFakeState = {
       parasiteRisk: baseParasiteRisk,
@@ -252,5 +281,15 @@ describe('ParasiteDetailScreen', () => {
   it('carries the disclaimer too', () => {
     renderDetail();
     expect(screen.getByText('parasiteRisk.disclaimer')).toBeTruthy();
+  });
+
+  it('takes its page title from the shared title token, not a raw font', () => {
+    renderDetail();
+
+    const title = screen.getByText('parasiteRisk.parasite.paralysis_tick.name');
+    expect(StyleSheet.flatten(title.props.style)).toMatchObject({
+      fontFamily: typography.serifTitleSmall.fontFamily,
+      fontSize: typography.serifTitleSmall.fontSize,
+    });
   });
 });

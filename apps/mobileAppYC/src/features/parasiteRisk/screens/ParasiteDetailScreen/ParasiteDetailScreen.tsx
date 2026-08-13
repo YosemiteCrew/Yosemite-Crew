@@ -6,7 +6,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme, useAppSelector} from '@/hooks';
-import {fonts} from '@/theme/typography';
+import {fonts, typography} from '@/theme/typography';
 import type {HomeStackParamList} from '@/navigation/types';
 import {RiskDisclaimerNotice, RiskTierBadge} from '../../components';
 import {selectReadingForParasite, selectRiskLocation} from '../../selectors';
@@ -121,9 +121,7 @@ const styles = StyleSheet.create({
   headerSpacer: {width: 24},
   content: {paddingHorizontal: 20, paddingBottom: 40, gap: 14},
   title: {
-    fontFamily: fonts.NEWSREADER_REGULAR,
-    fontSize: 28,
-    lineHeight: 34,
+    ...typography.serifTitleSmall,
   },
   statusRow: {
     flexDirection: 'row',

@@ -2,6 +2,7 @@ import {configureStore, combineReducers} from '@reduxjs/toolkit';
 import {
   persistStore,
   persistReducer,
+  createTransform,
   FLUSH,
   REHYDRATE,
   PAUSE,
@@ -57,7 +58,10 @@ import {linkedBusinessesReducer} from '@/features/linkedBusinesses';
 import {notificationReducer} from '@/features/notifications';
 import formsReducer from '@/features/forms/formsSlice';
 import preferencesReducer from '@/features/preferences/preferencesSlice';
-import {parasiteRiskReducer} from '@/features/parasiteRisk';
+import {
+  parasiteRiskReducer,
+  type ParasiteRiskState,
+} from '@/features/parasiteRisk';
 
 const migrateV1ToV2 = (_state: any) => {
   console.log(
@@ -159,10 +163,27 @@ const MIGRATIONS_BY_FROM_VERSION: Record<number, (state: any) => void> = {
   7: migrateV7ToV8,
 };
 
+// In-flight request flags must never reach storage: an app killed mid-request would
+// rehydrate with them true and show a spinner no running request is left to clear.
+const parasiteRiskTransform = createTransform<
+  ParasiteRiskState,
+  Omit<ParasiteRiskState, 'loading' | 'subscriptionsLoading'>
+>(
+  ({loading: _loading, subscriptionsLoading: _subscriptionsLoading, ...rest}) =>
+    rest,
+  persisted => ({
+    ...persisted,
+    loading: false,
+    subscriptionsLoading: false,
+  }),
+  {whitelist: ['parasiteRisk']},
+);
+
 const persistConfig = {
   key: 'root',
   version: 8,
   storage: storageForPersist,
+  transforms: [parasiteRiskTransform],
   whitelist: [
     'auth',
     'theme',
@@ -207,7 +228,13 @@ const rootReducer = combineReducers({
   parasiteRisk: parasiteRiskReducer,
 });
 
-const persistedReducer = persistReducer(persistConfig, rootReducer);
+// The state type is pinned explicitly: with `transforms` present, redux-persist's
+// config generic gives inference a second candidate and every slice on RootState
+// would otherwise widen to `| undefined`.
+const persistedReducer = persistReducer<ReturnType<typeof rootReducer>>(
+  persistConfig,
+  rootReducer,
+);
 
 export const store = configureStore({
   reducer: persistedReducer,

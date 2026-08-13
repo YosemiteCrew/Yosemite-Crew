@@ -17,6 +17,7 @@ import {fonts} from '@/theme/typography';
 import {
   fetchPlaceDetails,
   fetchPlaceSuggestions,
+  REGION_PRIMARY_TYPES,
   type PlaceSuggestion,
 } from '@/shared/services/maps/googlePlaces';
 import LocationService from '@/shared/services/LocationService';
@@ -76,7 +77,9 @@ export const RegionSearchSheet: React.FC<RegionSearchSheetProps> = ({
     setSearching(true);
 
     const timer = setTimeout(() => {
-      fetchPlaceSuggestions({query})
+      // Region-level types, not the wrapper's street-level default: this sheet
+      // searches by suburb, town or postcode.
+      fetchPlaceSuggestions({query, includedPrimaryTypes: REGION_PRIMARY_TYPES})
         .then(results => {
           if (!cancelled) setSuggestions(results);
         })

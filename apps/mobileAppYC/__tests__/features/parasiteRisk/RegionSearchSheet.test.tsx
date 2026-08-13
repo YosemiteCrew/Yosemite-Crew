@@ -26,7 +26,10 @@ jest.mock('react-i18next', () => ({
 
 jest.mock('react-native-vector-icons/Ionicons', () => 'Ionicons');
 
+// Spread the real module so REGION_PRIMARY_TYPES is the value the wrapper
+// actually sends, not a copy that could drift from it.
 jest.mock('@/shared/services/maps/googlePlaces', () => ({
+  ...jest.requireActual('@/shared/services/maps/googlePlaces'),
   fetchPlaceSuggestions: (...a: unknown[]) => mockFetchPlaceSuggestions(...a),
   fetchPlaceDetails: (...a: unknown[]) => mockFetchPlaceDetails(...a),
 }));
@@ -37,6 +40,7 @@ jest.mock('@/shared/services/LocationService', () => ({
 }));
 
 import {RegionSearchSheet} from '@/features/parasiteRisk/components/RegionSearchSheet/RegionSearchSheet';
+import {REGION_PRIMARY_TYPES} from '@/shared/services/maps/googlePlaces';
 
 const onSelect = jest.fn();
 const onClose = jest.fn();
@@ -98,9 +102,20 @@ describe('RegionSearchSheet', () => {
     await waitFor(() =>
       expect(mockFetchPlaceSuggestions).toHaveBeenCalledWith({
         query: 'brisbane',
+        includedPrimaryTypes: REGION_PRIMARY_TYPES,
       }),
     );
     expect(await screen.findByText('Brisbane')).toBeTruthy();
+  });
+
+  it('asks for region-level predictions, not street addresses', async () => {
+    renderSheet();
+    await typeQuery('4000');
+
+    await waitFor(() => expect(mockFetchPlaceSuggestions).toHaveBeenCalled());
+    const {includedPrimaryTypes} = mockFetchPlaceSuggestions.mock.calls[0][0];
+    expect(includedPrimaryTypes).toEqual(['(regions)']);
+    expect(includedPrimaryTypes).not.toContain('street_address');
   });
 
   it('resolves a suggestion to a coordinate and closes', async () => {

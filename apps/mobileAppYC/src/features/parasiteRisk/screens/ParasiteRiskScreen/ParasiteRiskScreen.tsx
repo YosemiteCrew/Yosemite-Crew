@@ -14,13 +14,16 @@ import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {NavigationProp} from '@react-navigation/native';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme, useAppDispatch, useAppSelector} from '@/hooks';
-import {fonts} from '@/theme/typography';
+import {fonts, typography} from '@/theme/typography';
 import type {HomeStackParamList, TabParamList} from '@/navigation/types';
 import {
   selectCompanions,
   selectSelectedCompanionId,
 } from '@/features/companion';
-import {selectTasksByCompanion} from '@/features/tasks/selectors';
+import {
+  selectHasHydratedCompanion,
+  selectTasksByCompanion,
+} from '@/features/tasks/selectors';
 import {
   LapsedCoverBanner,
   ParasiteRiskCard,
@@ -65,6 +68,9 @@ export const ParasiteRiskScreen: React.FC<Props> = ({navigation}) => {
   const companionTasks = useAppSelector(
     selectTasksByCompanion(selectedCompanionId),
   );
+  const tasksHydrated = useAppSelector(
+    selectHasHydratedCompanion(selectedCompanionId),
+  );
 
   const [searchVisible, setSearchVisible] = useState(false);
 
@@ -73,9 +79,13 @@ export const ParasiteRiskScreen: React.FC<Props> = ({navigation}) => {
     [companions, selectedCompanionId],
   );
 
+  // Tasks are fetched by the Home screen, so this screen can open while that
+  // request is still in flight. Until it lands, an empty task list means "not
+  // loaded yet" rather than "no cover", so hold the verdict back instead of
+  // telling someone their pet is unprotected when it may well be.
   const cover = useMemo(
-    () => resolvePreventionCover(companionTasks),
-    [companionTasks],
+    () => (tasksHydrated ? resolvePreventionCover(companionTasks) : null),
+    [companionTasks, tasksHydrated],
   );
 
   const headline = readings[0] ?? null;
@@ -192,7 +202,7 @@ export const ParasiteRiskScreen: React.FC<Props> = ({navigation}) => {
               </Text>
             ) : null}
 
-            {companion ? (
+            {companion && cover ? (
               <LapsedCoverBanner
                 cover={cover}
                 companionName={companion.name}
@@ -246,7 +256,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   title: {
-    fontFamily: fonts.NEWSREADER_REGULAR,
+    ...typography.serifTitleSmall,
     fontSize: 22,
     lineHeight: 28,
   },

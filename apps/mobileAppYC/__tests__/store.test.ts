@@ -117,6 +117,65 @@ describe('Redux Store', () => {
     ]);
   });
 
+  describe('Parasite risk transform', () => {
+    const getTransform = () => capturedConfig.persistConfig.transforms[0];
+
+    const stateWithFlags = {
+      location: {label: 'Berlin', countryCode: 'DE'},
+      reading: null,
+      recentLocations: [],
+      subscriptions: [],
+      loading: true,
+      subscriptionsLoading: true,
+      error: null,
+      disclaimerAcknowledged: true,
+    };
+
+    it('registers the transform on the persist config', () => {
+      expect(capturedConfig.persistConfig.transforms).toHaveLength(1);
+    });
+
+    it('strips in-flight flags before writing to storage', () => {
+      const persisted = getTransform().in(stateWithFlags, 'parasiteRisk', {});
+
+      expect(persisted).not.toHaveProperty('loading');
+      expect(persisted).not.toHaveProperty('subscriptionsLoading');
+      expect(persisted).toEqual({
+        location: {label: 'Berlin', countryCode: 'DE'},
+        reading: null,
+        recentLocations: [],
+        subscriptions: [],
+        error: null,
+        disclaimerAcknowledged: true,
+      });
+    });
+
+    it('rehydrates in-flight flags as false', () => {
+      const persisted = getTransform().in(stateWithFlags, 'parasiteRisk', {});
+      const rehydrated = getTransform().out(persisted, 'parasiteRisk', {});
+
+      expect(rehydrated).toEqual({
+        ...stateWithFlags,
+        loading: false,
+        subscriptionsLoading: false,
+      });
+    });
+
+    it('forces stale persisted flags to false on rehydrate', () => {
+      const rehydrated = getTransform().out(stateWithFlags, 'parasiteRisk', {});
+
+      expect(rehydrated.loading).toBe(false);
+      expect(rehydrated.subscriptionsLoading).toBe(false);
+    });
+
+    it('leaves other slices untouched', () => {
+      const otherSlice = {loading: true};
+
+      expect(getTransform().in(otherSlice, 'auth', {})).toBe(otherSlice);
+      expect(getTransform().out(otherSlice, 'auth', {})).toBe(otherSlice);
+    });
+  });
+
   it('configures middleware ignored redux-persist actions', () => {
     expect(capturedToolkit.middlewareBuilder).toBeDefined();
 
@@ -397,6 +456,38 @@ describe('Redux Store', () => {
         weightOverride: 'lbs',
         distanceOverride: 'mi',
         currencyOverride: 'USD',
+      });
+    });
+
+    it('handles v7 -> v8 migration and initializes parasite risk', async () => {
+      const newState = await runMigrate(7, {});
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Migrating from v7 to v8'),
+      );
+      expect(newState.parasiteRisk).toEqual({
+        location: null,
+        reading: null,
+        recentLocations: [],
+        subscriptions: [],
+        loading: false,
+        subscriptionsLoading: false,
+        error: null,
+        disclaimerAcknowledged: false,
+      });
+    });
+
+    it('handles v7 -> v8 migration and keeps existing parasite risk', async () => {
+      const oldState = {
+        parasiteRisk: {
+          disclaimerAcknowledged: true,
+        },
+      };
+
+      const newState = await runMigrate(7, oldState);
+
+      expect(newState.parasiteRisk).toEqual({
+        disclaimerAcknowledged: true,
       });
     });
 
