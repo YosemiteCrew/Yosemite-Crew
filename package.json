@@ -21,7 +21,8 @@
     "security:sbom": "./scripts/security/supply-chain.sh sbom",
     "security:scan": "./scripts/security/supply-chain.sh scan",
     "security:licenses": "./scripts/security/supply-chain.sh licenses",
-    "security:all": "./scripts/security/supply-chain.sh all"
+    "security:all": "./scripts/security/supply-chain.sh all",
+    "check:tls": "node scripts/ci/check-tls-expiry.mjs"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",
