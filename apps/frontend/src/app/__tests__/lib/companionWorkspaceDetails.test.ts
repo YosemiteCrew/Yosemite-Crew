@@ -21,6 +21,10 @@ const valueFor = (label: string, companion?: StoredCompanion) =>
   buildCompanionDetails(fallback, companion).find((row) => row.label === label)?.value;
 
 describe('buildCompanionDetails', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('falls back to the appointment summary before the companion record loads', () => {
     expect(valueFor('Name')).toBe('Gigi');
     expect(valueFor('Patient ID')).toBe('PT-1');
@@ -74,9 +78,13 @@ describe('buildCompanionDetails', () => {
   });
 
   // Bug 35: a pet under a year old reads in months, never a misleading "0 years".
+  // "Today" is pinned because subtracting months from the real clock rolls over
+  // short months: on a real Jul 29 it lands on the non-existent Feb 29 and
+  // JavaScript moves it to Mar 1, which then reads as four months.
   it('reads an under-one-year-old age in months', () => {
-    const dob = new Date();
-    dob.setMonth(dob.getMonth() - 5);
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date(2026, 6, 29));
+    const dob = new Date(2026, 1, 12);
     expect(valueFor('Age / DOB', baseCompanion({ dateOfBirth: dob }))).toMatch(/^5 months \/ /);
   });
 

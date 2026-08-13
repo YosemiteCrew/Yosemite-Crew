@@ -1100,7 +1100,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
         type: 'p',
         content: [
           'Our website can be accessed at:  ',
-          { text: 'https://discord.gg/YVzMa9j7BK', href: 'https://discord.gg/YVzMa9j7BK', k: 'r0' },
+          { text: 'https://discord.gg/SwM6mX85KD', href: 'https://discord.gg/SwM6mX85KD', k: 'r0' },
         ],
         k: 'b18',
       },
