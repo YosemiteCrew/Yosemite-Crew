@@ -26,4 +26,14 @@ describe('mobile legal data updates', () => {
     expect(combined).toContain('privacy@supabase.com');
     expect(combined).not.toContain('MongoDB');
   });
+
+  it('carries the current Discord invite and none of the retired ones', () => {
+    // The mobile copy is bundled separately from the web policy, so without this
+    // the two can drift and only the web test would notice.
+    const combined = `${JSON.stringify(TERMS_SECTIONS)} ${JSON.stringify(PRIVACY_POLICY_SECTIONS)}`;
+
+    expect(combined).toContain('https://discord.gg/SwM6mX85KD');
+    expect(combined).not.toContain('YVzMa9j7BK');
+    expect(combined).not.toContain('YVzMq97Bk');
+  });
 });

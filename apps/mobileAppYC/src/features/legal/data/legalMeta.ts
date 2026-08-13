@@ -5,7 +5,7 @@ import type {LegalDocumentMeta} from './legalContentTypes';
 // display title and the "Last updated" pill, they are NOT legal content.
 export const TERMS_META: LegalDocumentMeta = {
   displayTitle: 'Terms of service',
-  lastUpdated: '10 Jul 2026',
+  lastUpdated: '13 Aug 2026',
   version: 'v1.0',
 };
 

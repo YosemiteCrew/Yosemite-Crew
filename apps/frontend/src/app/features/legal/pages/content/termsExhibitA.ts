@@ -69,7 +69,7 @@ export const TERMS_EXHIBIT_A_SECTIONS: LegalSection[] = [
           'DuneXploration will provide Support Services to Customer through an online form (  ',
           { text: 'support@yosemitecrew.com', href: 'mailto:support@yosemitecrew.com', k: 'r0' },
           '  ) and a discord chat (  ',
-          { text: 'https://discord.gg/YVzMq97Bk', href: 'https://discord.gg/YVzMq97Bk', k: 'r1' },
+          { text: 'https://discord.gg/SwM6mX85KD', href: 'https://discord.gg/SwM6mX85KD', k: 'r1' },
           '  ) or through other customer support center contacts, set forth below (the ',
           { text: '“Customer Support Center”', bold: true, k: 'r2' },
           '). Customer will receive Updates, other software modifications or additions, procedures, or routine or configuration changes that may solve, bypass or eliminate the practical adverse effect of the Error. Customer will designate a certain number of employees or agents that will interface with the Customer Support Center, and submit Errors, requests or support tickets (the ',
@@ -202,8 +202,8 @@ export const TERMS_EXHIBIT_A_SECTIONS: LegalSection[] = [
               {
                 content: [
                   {
-                    text: 'https://discord.gg/YVzMq97Bk',
-                    href: 'https://discord.gg/YVzMq97Bk',
+                    text: 'https://discord.gg/SwM6mX85KD',
+                    href: 'https://discord.gg/SwM6mX85KD',
                     k: 'r0',
                   },
                 ],

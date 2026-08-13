@@ -77,6 +77,13 @@ jobs:
           FORCE_PUSH_BASE: ${{ inputs.force_push_base }}
         run: ./scripts/ci/compute-base-sha.sh >> "$GITHUB_OUTPUT"
 
+      # The repository root is deliberately absent from the workspace inventory,
+      # so nothing in the workspace matrix ever runs scripts/ci or
+      # scripts/security tests. They gate CI behaviour and the supply-chain
+      # exception policy, so they run here, in the one job every event reaches.
+      - name: Test the CI and security scripts
+        run: pnpm run test:scripts
+
       - name: Resolve workspace inventory
         run: pnpm ls -r --depth -1 --json > workspaces.json
 

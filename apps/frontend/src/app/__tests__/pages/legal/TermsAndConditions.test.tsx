@@ -15,6 +15,17 @@ describe('TermsAndConditions', () => {
     ).toBeInTheDocument();
   });
 
+  it('renders the contractual Discord invite in Exhibit A, at both occurrences', () => {
+    // Exhibit A states the support channel as a contractual commitment and
+    // repeats it, so a mistyped or dropped invite in a later edit must fail here
+    // rather than silently changing what the terms promise.
+    const links = screen
+      .getAllByRole('link', { name: 'https://discord.gg/SwM6mX85KD' })
+      .filter((el) => el.getAttribute('href') === 'https://discord.gg/SwM6mX85KD');
+
+    expect(links).toHaveLength(2);
+  });
+
   it('keeps the acceptable-use restrictions on prompt injection and generated output', () => {
     expect(screen.getByText(/prompt-injection attacks/)).toBeInTheDocument();
     // section 12's clauses were duplicated as a nested sublist on the old page

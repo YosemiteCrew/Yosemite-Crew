@@ -1,0 +1,110 @@
+name: TLS Expiry
+
+# dev.yosemitecrew.com served an expired certificate to every visitor on
+# 2026-08-13: the Amplify/ACM renewal had failed silently (ACM only renews while
+# the domain's DNS validation CNAME resolves, and this zone is hosted away from
+# Route 53), and the only warning was AWS email. The site answered 200 throughout,
+# so an uptime check would have stayed green. This runs daily so the warning
+# arrives weeks early, in the same place as every other build signal.
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      warn_days:
+        description: Warn when a certificate expires within this many days.
+        required: false
+        default: '30'
+        type: string
+      fail_days:
+        description: Fail when a certificate expires within this many days.
+        required: false
+        default: '14'
+        type: string
+
+concurrency:
+  group: tls-expiry-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  check:
+    name: Check public certificates
+    # Forks have no reason to probe our hostnames on a schedule.
+    if: github.repository_owner == 'YosemiteCrew'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v6.0.0
+        with:
+          node-version: 22
+
+      # No install step: the check deliberately uses only node:tls, so a broken
+      # lockfile can never stop a certificate warning from being delivered.
+      - name: Check TLS expiry
+        id: check
+        run: |
+          set -o pipefail
+          node scripts/ci/check-tls-expiry.mjs \
+            --warn-days "${WARN_DAYS}" \
+            --fail-days "${FAIL_DAYS}" | tee tls-report.txt
+        env:
+          WARN_DAYS: ${{ inputs.warn_days || '30' }}
+          FAIL_DAYS: ${{ inputs.fail_days || '14' }}
+
+      - name: Open or update the tracking issue
+        # Runs on failure only. The job still fails afterwards - the issue is the
+        # notification, not a way to swallow the red.
+        if: failure()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        with:
+          script: |
+            const fs = require('fs');
+            let report = 'The report could not be read; see the job log.';
+            try {
+              report = fs.readFileSync('tls-report.txt', 'utf8');
+            } catch {}
+            const marker = '<!-- tls-expiry-tracker -->';
+            const title = 'TLS certificate expiring or untrusted';
+            const body = [
+              marker,
+              '',
+              'The daily TLS expiry check failed. Latest report:',
+              '',
+              '```',
+              report.trim(),
+              '```',
+              '',
+              'For an Amplify or ACM managed domain, renewal succeeds only while the',
+              "domain's DNS validation CNAME resolves. Add it in the zone's DNS and",
+              'leave it there permanently, otherwise every future renewal fails the',
+              'same silent way.',
+              '',
+              `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            ].join('\n');
+            const existing = await github.rest.search.issuesAndPullRequests({
+              q: `repo:${context.repo.owner}/${context.repo.repo} is:issue is:open in:body "${marker}"`,
+            });
+            if (existing.data.total_count > 0) {
+              const number = existing.data.items[0].number;
+              await github.rest.issues.createComment({ ...context.repo, issue_number: number, body });
+              core.info(`commented on existing issue #${number}`);
+            } else {
+              const created = await github.rest.issues.create({
+                ...context.repo,
+                title,
+                body,
+                labels: ['security'],
+              });
+              core.info(`opened issue #${created.data.number}`);
+            }

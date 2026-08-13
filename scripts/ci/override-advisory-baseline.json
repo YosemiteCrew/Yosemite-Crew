@@ -6,14 +6,5 @@
     "raise the override, or let a new advisory land against the same pin, and the",
     "check goes red again. Adding an entry is a deliberate decision that needs a reason."
   ],
-  "accepted": [
-    {
-      "package": "brace-expansion",
-      "pinned": "1.1.16",
-      "advisory": "GHSA-mh99-v99m-4gvg",
-      "severity": "high",
-      "fixedIn": "5.0.8",
-      "reason": "1.1.16 is the highest 1.x release and it clears GHSA-3jxr-9vmj-r5cp, but this advisory covers <=5.0.7 across every major line and is only patched in 5.0.8. brace-expansion 5.x is not drop-in for the 1.x line: 1.x is 'module.exports = expandTop' while 5.x exports a named 'expand', and the consumer of this pin (minimatch@3.1.4) does 'var expand = require(\"brace-expansion\")' and calls it, so forcing 5.0.8 here throws at runtime. Raising it needs its own compatibility-tested PR. The separate 'brace-expansion@>=5.0.0' override was raised to 5.0.8 and is clean."
-    }
-  ]
+  "accepted": []
 }
