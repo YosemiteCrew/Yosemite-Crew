@@ -1,7 +1,7 @@
 'use client';
 import React, { useMemo } from 'react';
 import Link from 'next/link';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/app/ui/icons/Icon';
 
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { useAuthStore } from '@/app/stores/authStore';

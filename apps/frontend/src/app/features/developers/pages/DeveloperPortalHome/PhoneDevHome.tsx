@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 import Link from 'next/link';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/app/ui/icons/Icon';
 
 import type { ActivityEntry } from '@/app/features/developers/pages/DeveloperPortalHome/DeveloperPortalHome';
 

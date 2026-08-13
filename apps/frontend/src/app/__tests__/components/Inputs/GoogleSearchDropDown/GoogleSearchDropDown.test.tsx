@@ -6,7 +6,7 @@ import { logger } from '@/app/lib/logger';
 // --- Mocks ---
 
 // Mock Icons
-jest.mock('@iconify/react/dist/iconify.js', () => ({
+jest.mock('@/app/ui/icons/Icon', () => ({
   Icon: () => <div data-testid="error-icon" />,
 }));
 

@@ -22,7 +22,7 @@ import FormRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/comp
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
 import { useErrorTost } from '@/app/ui/overlays/Toast/Toast';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/app/ui/icons/Icon';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { Organisation } from '@yosemite-crew/types';
 

@@ -11,7 +11,7 @@ jest.mock('next/image', () => ({
   },
 }));
 
-jest.mock('@iconify/react/dist/iconify.js', () => ({
+jest.mock('@/app/ui/icons/Icon', () => ({
   Icon: (props: any) => <i data-testid="mock-icon" data-icon={props.icon} />,
 }));
 

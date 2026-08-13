@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/app/ui/icons/Icon';
 
 import { Primary } from '@/app/ui/primitives/Buttons';
 import DevRouteGuard from '@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard';
