@@ -100,14 +100,19 @@ function fail(message) {
 export function splitOverrideKey(key) {
   const trimmed = key.trim();
 
-  // Scan right to left for the parent>child separator. A '>' belonging to a
-  // range selector ('@>=5.0.0', '@>1.2.3') is followed by '=' or a digit; a real
-  // separator is followed by the first character of a package name.
+  // Scan right to left for the parent>child separator. A '>' can also be a range
+  // operator, and telling them apart needs more than the next character: the
+  // supported spellings include '@>=5.0.0', '@>1.2.3', '@>v1.2.3' and '@> 1.2.3'.
+  // A '>' preceded by '@' is always an operator, never a separator - reading
+  // 'pkg@>v1.2.3' as parent>child would index the entry under 'v1.2.3' and skip
+  // every advisory for pkg.
   let child = trimmed;
   let parent = null;
   for (let i = trimmed.length - 1; i >= 0; i -= 1) {
+    if (trimmed[i] !== '>') continue;
+    if (trimmed[i - 1] === '@' || trimmed[i - 1] === '<' || trimmed[i - 1] === '>') continue;
     const next = trimmed[i + 1];
-    if (trimmed[i] === '>' && next && !/[=\d]/.test(next)) {
+    if (next && !/[=\d]/.test(next)) {
       child = trimmed.slice(i + 1);
       parent = trimmed.slice(0, i);
       break;
@@ -204,6 +209,15 @@ export function selectorCovers(selector, version) {
   if (!selector) return true;
   const trimmed = selector.trim();
 
+  // semver keeps a prerelease out of every ordinary range, not just the bare
+  // ones: `<2.0.0` does not admit 1.2.3-alpha.1 either. Checked once here so
+  // the comparator and caret/tilde branches cannot return true past it. A
+  // selector that names a prerelease itself is the exception and is handled by
+  // the exact-point branch below.
+  const versionIsPrerelease = /-/.test(String(version).split('+')[0]);
+  const selectorNamesPrerelease = /-/.test(trimmed.split('+')[0]);
+  if (versionIsPrerelease && !selectorNamesPrerelease) return false;
+
   const comparator = COMPARATOR.exec(trimmed);
   if (comparator) {
     const [, operator, bound] = comparator;
@@ -265,10 +279,6 @@ export function selectorCovers(selector, version) {
 
   const parts = trimmed.replace(/^v/, '').split('.');
   if (parts.length <= 3 && parts.every((part) => /^(?:\d+|[xX*])$/.test(part))) {
-    // A selector with no prerelease tag never matches a prerelease version:
-    // semver keeps 1.2.3-alpha.1 out of the 1.2.3 range, and so does pnpm, so an
-    // exact `pkg@1.2.3` key genuinely would not be applied to that copy.
-    if (/-/.test(version.split('+')[0])) return false;
     const want = [];
     for (const part of parts) {
       if (/^[xX*]$/.test(part)) break; // everything from here on is a wildcard
@@ -290,15 +300,38 @@ export function selectorCovers(selector, version) {
 // sibling here) would be read as covering every jest-environment-node in the
 // tree. When no path information is available the parent cannot be disproved,
 // so the key is credited - silence rather than a guess.
-export function overrideKeyCovers(key, version, paths = null) {
+// True when this key applies to ONE dependency path of the version. The
+// quantifiers matter and are easy to get backwards: coverage of a version is
+// "for every path, SOME key covers that path", so the per-path question asked
+// here has to stay per-path. Folding `every` in here instead made two keys like
+// `foo>child` and `bar>child` each fail on the other's path, reporting an
+// uncovered copy that the pair actually covers between them.
+export function overrideKeyCoversPath(key, version, path) {
   const { selector, parent } = splitOverrideKey(key);
   if (!selectorCovers(selector, version)) return false;
   if (!parent) return true;
-  if (!paths || paths.length === 0) return true;
-  // EVERY path, not some. The same vulnerable version can arrive both under the
-  // scoped parent and elsewhere; crediting the key because one path matched
-  // would suppress the finding for the occurrence the override cannot rewrite.
-  return paths.every((entry) => String(entry).includes(parent));
+  if (!path) return true;
+  // Compare package identities, not substrings: `foo` must not match the
+  // `foobar` segment of 'app > foobar > child@1.0.0', which would credit an
+  // override pnpm cannot apply and swallow the finding.
+  const parentName = splitOverrideKey(parent).name;
+  return String(path)
+    .split('>')
+    .map((segment) => segment.trim())
+    .some((segment) => segment === parentName || segment.startsWith(`${parentName}@`));
+}
+
+export function overrideKeyCovers(key, version, paths = null) {
+  if (!paths || paths.length === 0) return overrideKeyCoversPath(key, version, null);
+  return paths.every((path) => overrideKeyCoversPath(key, version, path));
+}
+
+// The version-level question, asked with the quantifiers the right way round.
+export function versionIsCovered(pins, version, paths) {
+  if (!paths || paths.length === 0) {
+    return pins.some((pin) => overrideKeyCoversPath(pin.key, version, null));
+  }
+  return paths.every((path) => pins.some((pin) => overrideKeyCoversPath(pin.key, version, path)));
 }
 
 // package name -> [{ key, pinned }], because a single package is routinely
@@ -350,7 +383,7 @@ export function baselineKey(finding) {
 // as '<2.0.0 || >=2.0.5' has no single such bound - suggesting "<2.0.0": "2.0.0"
 // there would both miss a vulnerable 2.0.3 and pin copies to a version outside
 // the patched set. Better to print no suggestion and let the advisory be read.
-const SIMPLE_PATCHED_RANGE = /^\s*>=?\s*v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?\s*$/;
+const SIMPLE_PATCHED_RANGE = /^\s*>=\s*v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?\s*$/;
 
 export function suggestRangeKey(packageName, fixedIn, patchedVersions = '') {
   if (!fixedIn) return null;
@@ -391,8 +424,7 @@ export function findVulnerablePins(overrides, audit) {
     }
     const uncovered = installed.filter(
       (version) =>
-        !pinnedValues.has(version) &&
-        !pins.some((pin) => overrideKeyCovers(pin.key, version, pathsByVersion.get(version)))
+        !pinnedValues.has(version) && !versionIsCovered(pins, version, pathsByVersion.get(version))
     );
     if (uncovered.length > 0) {
       const fixedIn = fixedVersionFrom(advisory.patched_versions);

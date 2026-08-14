@@ -22,10 +22,12 @@ import {
   isExactVersion,
   main,
   overrideKeyCovers,
+  overrideKeyCoversPath,
   parseOverrideKey,
   selectorCovers,
   splitOverrideKey,
   suggestRangeKey,
+  versionIsCovered,
 } from './check-override-advisories.mjs';
 
 const workdir = mkdtempSync(path.join(tmpdir(), 'override-advisories-'));
@@ -105,6 +107,15 @@ describe('parseOverrideKey', () => {
 
   it('handles a parent>child key whose child carries a range selector', () => {
     assert.equal(parseOverrideKey('parent>child@>=1.0.0'), 'child');
+  });
+
+  // A '>' straight after '@' is always an operator. Reading 'pkg@>v1.2.3' as
+  // parent>child would index the entry under 'v1.2.3' and skip every advisory
+  // for pkg, which is silent and total.
+  it('does not mistake >v or "> " spellings for a parent separator', () => {
+    assert.equal(parseOverrideKey('pkg@>v1.2.3'), 'pkg');
+    assert.equal(parseOverrideKey('pkg@> 1.2.3'), 'pkg');
+    assert.equal(parseOverrideKey('pkg@>=v1.2.3'), 'pkg');
   });
 });
 
@@ -251,6 +262,11 @@ describe('selectorCovers', () => {
     assert.equal(selectorCovers('1.2.3', '1.2.3'), true);
     assert.equal(selectorCovers('3', '3.3.18-rc.1'), false);
     assert.equal(selectorCovers('3', '3.3.18'), true);
+    // Not just the bare branch: semver keeps a prerelease out of every ordinary
+    // range, so the comparator and caret/tilde paths must refuse it too.
+    assert.equal(selectorCovers('<2.0.0', '1.2.3-alpha.1'), false);
+    assert.equal(selectorCovers('^1.0.0', '1.2.3-alpha.1'), false);
+    assert.equal(selectorCovers('~1.2.0', '1.2.3-alpha.1'), false);
   });
 
   // A selector that IS a prerelease is a point and has to be compared as one.
@@ -370,6 +386,44 @@ describe('overrideKeyCovers with a parent-scoped key', () => {
       false
     );
   });
+
+  // Package identity, not substring: 'foo' must not match the 'foobar' segment,
+  // which would credit an override pnpm cannot apply and swallow the finding.
+  it('matches a parent segment by identity, not by substring', () => {
+    assert.equal(overrideKeyCoversPath('foo>child', '1.0.0', 'app > foobar > child@1.0.0'), false);
+    assert.equal(overrideKeyCoversPath('foo>child', '1.0.0', 'app > foo > child@1.0.0'), true);
+    assert.equal(overrideKeyCoversPath('foo>child', '1.0.0', 'app > foo@2.1.0 > child@1.0.0'), true);
+  });
+});
+
+describe('versionIsCovered', () => {
+  // The quantifiers are the whole point and are easy to inverse: coverage is
+  // "for EVERY path, SOME key covers it". Asking "some key covers every path"
+  // makes two sibling parent-scoped keys each fail on the other's path and
+  // reports an uncovered copy the pair actually covers between them.
+  it('lets two parent-scoped keys cover a version between them', () => {
+    const pins = [
+      { key: 'foo>child', pinned: '2.0.0' },
+      { key: 'bar>child', pinned: '2.0.0' },
+    ];
+    assert.equal(
+      versionIsCovered(pins, '1.0.0', ['a > foo > child@1.0.0', 'a > bar > child@1.0.0']),
+      true
+    );
+  });
+
+  it('reports a version whose path no key reaches', () => {
+    const pins = [{ key: 'foo>child', pinned: '2.0.0' }];
+    assert.equal(
+      versionIsCovered(pins, '1.0.0', ['a > foo > child@1.0.0', 'a > baz > child@1.0.0']),
+      false
+    );
+  });
+
+  it('falls back to the key check when there are no paths', () => {
+    assert.equal(versionIsCovered([{ key: 'child', pinned: '2.0.0' }], '1.0.0', []), true);
+    assert.equal(versionIsCovered([{ key: 'child@9.9.9', pinned: '2.0.0' }], '1.0.0', []), false);
+  });
 });
 
 describe('suggestRangeKey', () => {
@@ -386,6 +440,13 @@ describe('suggestRangeKey', () => {
   // patched set, so no suggestion is better than a wrong one.
   it('suggests nothing for a disjoint patched range', () => {
     assert.equal(suggestRangeKey('pkg', '2.0.0', '<2.0.0 || >=2.0.5'), null);
+  });
+
+  // '>1.2.3' says the fix is ABOVE 1.2.3, so 1.2.3 itself is still vulnerable.
+  // Only '>=' names a release that can be pasted straight into package.json.
+  it('suggests nothing for an exclusive patched bound', () => {
+    assert.equal(suggestRangeKey('pkg', '1.2.3', '>1.2.3'), null);
+    assert.equal(suggestRangeKey('pkg', '1.2.3', '>=1.2.3'), '"pkg@<1.2.3": "1.2.3"');
   });
 });
 
