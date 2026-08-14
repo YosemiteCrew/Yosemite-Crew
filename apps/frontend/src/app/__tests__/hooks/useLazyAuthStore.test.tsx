@@ -18,13 +18,23 @@ const setState = (partial: Partial<FakeState>) => {
   listeners.forEach((listener) => listener());
 };
 
+const mockModule = {
+  get useAuthStore() {
+    return realStore;
+  },
+};
+
+const realStore = {
+  getState: () => state,
+  subscribe: (listener: () => void) => {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+  },
+};
+
 jest.mock('@/app/stores/authStore', () => ({
-  useAuthStore: {
-    getState: () => state,
-    subscribe: (listener: () => void) => {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
+  get useAuthStore() {
+    return mockModule.useAuthStore;
   },
 }));
 
@@ -104,6 +114,59 @@ describe('useLazyAuthStore', () => {
     unmount();
 
     expect(listeners.size).toBe(0);
+  });
+
+  it('fetches nothing while disabled, and subscribes once enabled', async () => {
+    // The point of the gate: a public visitor who never consents must not pay for
+    // the auth chunk just because a root-layout component is mounted.
+    const Probe = ({ enabled }: { enabled: boolean }) => {
+      const role = useLazyAuthSlice(
+        selectRole as never,
+        'pending' as string | null,
+        Object.is,
+        enabled
+      );
+      return <span data-testid="role">{role ?? 'none'}</span>;
+    };
+
+    setState({ role: 'vet' });
+    const { rerender } = render(<Probe enabled={false} />);
+    await act(async () => {});
+
+    expect(screen.getByTestId('role')).toHaveTextContent('pending');
+    expect(listeners.size).toBe(0);
+
+    await act(async () => {
+      rerender(<Probe enabled />);
+    });
+
+    expect(screen.getByTestId('role')).toHaveTextContent('vet');
+    expect(listeners.size).toBe(1);
+  });
+
+  it('neither reads nor subscribes when unmounted before the import resolves', async () => {
+    // Unmount synchronously, before the dynamic import's microtask runs. Without
+    // the active guard this would read state after unmount and leave a
+    // subscription that cleanup can no longer remove.
+    const { unmount } = render(<RoleProbe />);
+    unmount();
+
+    await act(async () => {});
+
+    expect(listeners.size).toBe(0);
+  });
+
+  it('retries after a failed chunk load instead of caching the rejection', async () => {
+    const spy = jest.spyOn(mockModule, 'useAuthStore', 'get').mockImplementationOnce(() => {
+      throw new Error('chunk load failed');
+    });
+
+    await expect(ensureSessionChecked()).rejects.toThrow('chunk load failed');
+    spy.mockRestore();
+
+    // The cached promise must have been cleared, so this attempt succeeds.
+    await ensureSessionChecked();
+    expect(mockCheckSession).toHaveBeenCalledTimes(1);
   });
 
   it('starts the session check only when the status is idle', async () => {

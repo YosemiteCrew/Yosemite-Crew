@@ -14,7 +14,17 @@ import type { AuthStore } from '@/app/stores/authStore';
 // type import above is erased at build time and adds nothing to the bundle.
 let storeModulePromise: Promise<typeof import('@/app/stores/authStore')> | null = null;
 
-const loadAuthStoreModule = () => (storeModulePromise ??= import('@/app/stores/authStore'));
+const loadAuthStoreModule = () => {
+  // On failure the cached promise is cleared, so a later subscription or session
+  // check retries. Caching a rejected promise would strand an authenticated
+  // visitor on the signed-out UI for the life of the page after one flaky chunk
+  // fetch or a deploy that moved the file.
+  storeModulePromise ??= import('@/app/stores/authStore').catch((error) => {
+    storeModulePromise = null;
+    throw error;
+  });
+  return storeModulePromise;
+};
 
 /**
  * Subscribe to a slice of the auth store without importing it eagerly.
@@ -25,7 +35,11 @@ const loadAuthStoreModule = () => (storeModulePromise ??= import('@/app/stores/a
 export function useLazyAuthSlice<T>(
   select: (state: AuthStore) => T,
   initial: T,
-  isEqual: (a: T, b: T) => boolean = Object.is
+  isEqual: (a: T, b: T) => boolean = Object.is,
+  // Loading the store is the expensive part, so a caller that cannot use the
+  // value yet should not trigger it. Passing false keeps the fallback and fetches
+  // nothing; flipping it to true subscribes then.
+  enabled = true
 ): T {
   const [value, setValue] = useState<T>(initial);
   const selectRef = useRef(select);
@@ -39,6 +53,8 @@ export function useLazyAuthSlice<T>(
   });
 
   useEffect(() => {
+    if (!enabled) return undefined;
+
     let active = true;
     let unsubscribe: (() => void) | undefined;
 
@@ -58,7 +74,7 @@ export function useLazyAuthSlice<T>(
       active = false;
       unsubscribe?.();
     };
-  }, []);
+  }, [enabled]);
 
   return value;
 }
