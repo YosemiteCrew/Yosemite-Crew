@@ -44,31 +44,49 @@ export function useLazyAuthSlice<T>(
   const [value, setValue] = useState<T>(initial);
   const selectRef = useRef(select);
   const isEqualRef = useRef(isEqual);
+  const initialRef = useRef(initial);
 
   // No dep array: refresh the closures after every render, before the
   // subscribing effect below (declaration order) ever reads them.
   useEffect(() => {
     selectRef.current = select;
     isEqualRef.current = isEqual;
+    initialRef.current = initial;
   });
 
   useEffect(() => {
-    if (!enabled) return undefined;
+    if (!enabled) {
+      // Drop back to the fallback rather than keeping the last slice read. A
+      // caller disables this hook because it is no longer entitled to the value
+      // - PostHogUserSync does it when analytics consent is revoked - and
+      // retaining it would hand back the previous session's auth state. If the
+      // user then signs out and re-consents, the stale value would identify
+      // analytics events to the account that just left.
+      setValue(initialRef.current);
+      return undefined;
+    }
 
     let active = true;
     let unsubscribe: (() => void) | undefined;
 
-    void loadAuthStoreModule().then(({ useAuthStore }) => {
-      if (!active) return;
-      const read = () =>
-        setValue((previous) => {
-          const next = selectRef.current(useAuthStore.getState());
-          return isEqualRef.current(previous, next) ? previous : next;
-        });
+    loadAuthStoreModule()
+      .then(({ useAuthStore }) => {
+        if (!active) return;
+        const read = () =>
+          setValue((previous) => {
+            const next = selectRef.current(useAuthStore.getState());
+            return isEqualRef.current(previous, next) ? previous : next;
+          });
 
-      read();
-      unsubscribe = useAuthStore.subscribe(read);
-    });
+        read();
+        unsubscribe = useAuthStore.subscribe(read);
+      })
+      // A failed chunk fetch leaves the caller on its fallback, which is the
+      // signed-out affordance - degraded but correct. Swallowing it here is what
+      // keeps it from surfacing as an unhandled rejection; loadAuthStoreModule
+      // has already dropped the cached promise, so the next mount or `enabled`
+      // flip fetches again rather than replaying the failure.
+      .catch(() => {});
 
     return () => {
       active = false;
@@ -84,11 +102,20 @@ export function useLazyAuthSlice<T>(
  *
  * Public pages do not otherwise bootstrap it, so an already authenticated
  * visitor would keep being shown the signed-out affordances.
+ *
+ * Best-effort, and never rejects: every caller is fire-and-forget (`void
+ * ensureSessionChecked()`), so a rejection here would be unhandled. If the chunk
+ * or the session check fails the visitor keeps the signed-out affordances, and
+ * the cleared module cache means the next caller retries.
  */
 export const ensureSessionChecked = async (): Promise<void> => {
-  const { useAuthStore } = await loadAuthStoreModule();
-  if (useAuthStore.getState().status !== 'idle') return;
-  await useAuthStore.getState().checkSession();
+  try {
+    const { useAuthStore } = await loadAuthStoreModule();
+    if (useAuthStore.getState().status !== 'idle') return;
+    await useAuthStore.getState().checkSession();
+  } catch {
+    // Intentionally swallowed - see the contract above.
+  }
 };
 
 // Test seam: the cached module promise is module-level state that a jest

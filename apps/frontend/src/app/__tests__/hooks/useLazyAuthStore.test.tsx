@@ -161,12 +161,71 @@ describe('useLazyAuthStore', () => {
       throw new Error('chunk load failed');
     });
 
-    await expect(ensureSessionChecked()).rejects.toThrow('chunk load failed');
+    // Resolves rather than rejects: SiteNav calls this as `void
+    // ensureSessionChecked()`, so a rejection would surface as an unhandled one.
+    await expect(ensureSessionChecked()).resolves.toBeUndefined();
+    expect(mockCheckSession).not.toHaveBeenCalled();
     spy.mockRestore();
 
     // The cached promise must have been cleared, so this attempt succeeds.
     await ensureSessionChecked();
     expect(mockCheckSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the fallback and stays quiet when the chunk fails for a subscriber', async () => {
+    const rejections: unknown[] = [];
+    const onUnhandled = (reason: unknown) => rejections.push(reason);
+    process.on('unhandledRejection', onUnhandled);
+    const spy = jest.spyOn(mockModule, 'useAuthStore', 'get').mockImplementationOnce(() => {
+      throw new Error('chunk load failed');
+    });
+
+    setState({ role: 'vet' });
+    render(<RoleProbe />);
+    await act(async () => {});
+    // Let any unhandled rejection be reported before asserting on it.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(screen.getByTestId('role')).toHaveTextContent('pending');
+    expect(listeners.size).toBe(0);
+    expect(rejections).toEqual([]);
+
+    process.off('unhandledRejection', onUnhandled);
+    spy.mockRestore();
+  });
+
+  it('drops back to the fallback when the caller disables it', async () => {
+    // Retaining the last slice would hand a revoked caller the previous
+    // session's auth state - PostHogUserSync would then identify analytics
+    // events to an account that has since signed out.
+    const Probe = ({ enabled }: { enabled: boolean }) => {
+      const role = useLazyAuthSlice(
+        selectRole as never,
+        'pending' as string | null,
+        Object.is,
+        enabled
+      );
+      return <span data-testid="role">{role ?? 'none'}</span>;
+    };
+
+    setState({ role: 'vet' });
+    const { rerender } = render(<Probe enabled />);
+    await waitFor(() => expect(screen.getByTestId('role')).toHaveTextContent('vet'));
+
+    await act(async () => {
+      rerender(<Probe enabled={false} />);
+    });
+
+    expect(screen.getByTestId('role')).toHaveTextContent('pending');
+    expect(listeners.size).toBe(0);
+
+    // Re-enabling must re-read rather than replay the value it held before.
+    setState({ role: 'nurse' });
+    await act(async () => {
+      rerender(<Probe enabled />);
+    });
+
+    expect(screen.getByTestId('role')).toHaveTextContent('nurse');
   });
 
   it('starts the session check only when the status is idle', async () => {
