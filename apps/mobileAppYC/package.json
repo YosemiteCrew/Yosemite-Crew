@@ -45,7 +45,7 @@
     "@yosemite-crew/fhir": "workspace:*",
     "@yosemite-crew/types": "workspace:*",
     "axios": "^1.19.0",
-    "i18next": "^25.4.1",
+    "i18next": "^26.3.6",
     "js-sha256": "^0.11.1",
     "posthog-react-native": "^4.62.0",
     "react": "19.1.0",
