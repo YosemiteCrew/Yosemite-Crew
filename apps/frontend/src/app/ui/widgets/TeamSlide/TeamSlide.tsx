@@ -26,11 +26,6 @@ const teamImages = [
     alt: 'Harshvardhan',
     linkedin: 'https://www.linkedin.com/in/harshvardhan-parmar/',
   },
-  {
-    src: MEDIA_SOURCES.team.sneha,
-    alt: 'Sneha',
-    linkedin: 'https://www.linkedin.com/in/snehadevc/',
-  },
 ];
 
 const TeamSlide = () => {

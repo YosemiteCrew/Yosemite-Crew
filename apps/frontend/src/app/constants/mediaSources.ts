@@ -59,7 +59,6 @@ export const MEDIA_SOURCES = {
     harshit: ycCdn('aboutus-page/harshit.png'),
     anna: ycCdn('aboutus-page/anna.png'),
     harshvardhan: ycCdn('aboutus-page/harshvardhan.png'),
-    sneha: ycCdn('aboutus-page/sneha.png'),
   },
   aboutUs: {
     storyImage: ycCdn('aboutus-page/aboutnew.png'),
