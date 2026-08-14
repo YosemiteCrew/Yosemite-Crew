@@ -126,7 +126,13 @@ export const config = {
   //    `.segments/....segment.rsc`) AFTER this source when it compiles the
   //    matcher, so a `[^?]*\.` lookahead also swallows those: `/dashboard.rsc`
   //    would stop matching and that RSC request would lose its nonce CSP.
+  //
+  // The escaped `\\.` cannot become String.raw here, whatever Sonar's S7780
+  // says: Next statically analyses this object at build time and a tagged
+  // template is not a literal it can evaluate, so `next build` fails outright
+  // with "can't recognize the exported `config` field". The rule is turned off
+  // for this file in sonar-project.properties.
   matcher: [
-    String.raw`/((?!(?:api|_next|fonts|images|assets|dev-docs|static)(?:/|$)|.*\.(?:ico|png|jpg|jpeg|gif|svg|webp|woff2?|ttf|eot|css|js|map|json|txt|xml|csv|yaml|html|webmanifest)$).*)`,
+    '/((?!(?:api|_next|fonts|images|assets|dev-docs|static)(?:/|$)|.*\\.(?:ico|png|jpg|jpeg|gif|svg|webp|woff2?|ttf|eot|css|js|map|json|txt|xml|csv|yaml|html|webmanifest)$).*)',
   ],
 };
