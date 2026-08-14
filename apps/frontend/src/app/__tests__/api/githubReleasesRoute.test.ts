@@ -90,19 +90,33 @@ describe('github-releases route handler', () => {
   // quota-exhaustion path open that rejecting unknown parameters closes: the
   // shared cache keys on the whole URL, so `?list=<random>` misses it every time
   // and repeats the upstream call, exactly as `?nonce=<random>` would.
-  it.each(['?list=0', '?list=', '?list=1&list=1', '?list=1&nonce=abc'])(
-    'refuses %s without calling upstream',
-    async (query) => {
-      const fetchMock = jest.fn((_input: RequestInfo | URL) => Promise.resolve(makeRes(RELEASE)));
-      globalThis.fetch = fetchMock as unknown as FetchLike;
+  it.each([
+    '?list=0',
+    '?list=',
+    '?list=1&list=1',
+    '?list=1&nonce=abc',
+    // Separator-only variants parse to no extra key but are distinct URLs, so a
+    // shared cache misses on each one.
+    '?&',
+    '?&&',
+    '?list=1&&',
+    // A percent-encoded spelling of an accepted pair is likewise a distinct URL.
+    '?list=%31',
+    // Inherited Object.prototype members must not be read as an allowlist entry;
+    // calling .includes on one would throw and return 500 instead of 400.
+    '?constructor=1',
+    '?__proto__=1',
+    '?toString=1',
+  ])('refuses %s without calling upstream', async (query) => {
+    const fetchMock = jest.fn((_input: RequestInfo | URL) => Promise.resolve(makeRes(RELEASE)));
+    globalThis.fetch = fetchMock as unknown as FetchLike;
 
-      const res = await call(`${BASE}${query}`);
+    const res = await call(`${BASE}${query}`);
 
-      expect(fetchMock).not.toHaveBeenCalled();
-      expect(res.init?.status).toBe(400);
-      expect(res.init?.headers?.['Cache-Control']).toBe('no-store');
-    }
-  );
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.init?.status).toBe(400);
+    expect(res.init?.headers?.['Cache-Control']).toBe('no-store');
+  });
 
   it('serves the latest release when no query is present', async () => {
     const fetchMock = jest.fn((_input: RequestInfo | URL) => Promise.resolve(makeRes(RELEASE)));

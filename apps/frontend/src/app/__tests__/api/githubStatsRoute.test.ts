@@ -238,4 +238,22 @@ describe('github-stats route handler', () => {
     expect(res.init?.headers?.['Cache-Control']).toBe('no-store');
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  // This route takes no query at all, so anything after `?` is a distinct
+  // shared-cache key for identical work. Separator-only forms parse to zero
+  // keys, and inherited Object.prototype names must not be read out of the
+  // allowlist object - doing so throws and turns a 400 into a 500.
+  it.each(['?&', '?&&', '?constructor=1', '?__proto__=1', '?toString=1', '?valueOf=1'])(
+    'refuses %s with a 400 and no upstream call',
+    async (query) => {
+      const fetchMock = jest.fn(() => Promise.resolve(notOk()));
+      globalThis.fetch = fetchMock as unknown as FetchLike;
+
+      const res = await call(`https://yosemitecrew.com/api/community/github-stats${query}`);
+
+      expect(res.init?.status).toBe(400);
+      expect(res.init?.headers?.['Cache-Control']).toBe('no-store');
+      expect(fetchMock).not.toHaveBeenCalled();
+    }
+  );
 });

@@ -47,25 +47,36 @@ export const rejectUnexpectedParams = (
   request: Request,
   allowed: Readonly<Record<string, readonly string[]>>
 ): NextResponse | null => {
-  const params = new URL(request.url).searchParams;
+  const { search, searchParams } = new URL(request.url);
   const rejectedKeys = new Set<string>();
 
-  for (const key of params.keys()) {
-    const permitted = allowed[key];
-    const values = params.getAll(key);
+  for (const key of searchParams.keys()) {
+    // Own-property check, not a plain index: `?constructor=x` or `?__proto__=x`
+    // would otherwise read an inherited Object.prototype member, and calling
+    // `.includes` on it throws - turning attacker-controlled input into a 500
+    // instead of the 400 below.
+    const permitted = Object.hasOwn(allowed, key) ? allowed[key] : undefined;
+    const values = searchParams.getAll(key);
     if (!permitted || values.length > 1 || !permitted.includes(values[0])) {
       rejectedKeys.add(key);
     }
   }
 
-  if (rejectedKeys.size === 0) return null;
+  // Requiring the canonical serialization closes what the loop above cannot see.
+  // Separator-only queries (`?&`, `?list=1&&`) parse to no extra key, and
+  // `?list=%31` parses to an accepted pair, yet each is a distinct URL and so a
+  // distinct shared-cache key - which is the whole cache-busting path this
+  // guard exists to close.
+  const isCanonical = search.replace(/^\?/, '') === searchParams.toString();
 
-  return NextResponse.json(
-    {
-      error: `Unsupported query parameter: ${[...rejectedKeys]
-        .toSorted((a, b) => a.localeCompare(b))
-        .join(', ')}`,
-    },
-    { status: 400, headers: UNCACHED_HEADERS }
-  );
+  if (rejectedKeys.size === 0 && isCanonical) return null;
+
+  const error =
+    rejectedKeys.size > 0
+      ? `Unsupported query parameter: ${[...rejectedKeys]
+          .toSorted((a, b) => a.localeCompare(b))
+          .join(', ')}`
+      : 'Unsupported query string';
+
+  return NextResponse.json({ error }, { status: 400, headers: UNCACHED_HEADERS });
 };
