@@ -16,8 +16,20 @@ jest.mock('posthog-js', () => ({
   },
 }));
 
-jest.mock('@/app/stores/authStore', () => ({
-  useAuthStore: (selector: (state: unknown) => unknown) => mockUseAuthStore(selector),
+// This component reads auth through the lazy seam so the root layout doesn't put
+// the SuperTokens stack in every public page's bundle. Mock the seam
+// synchronously; its async loading is covered by useLazyAuthStore.test.ts.
+//
+// The `enabled` argument is honoured rather than ignored: returning the live
+// slice regardless would make this component look correct while consent is
+// revoked, which is exactly the state the real hook falls back in.
+jest.mock('@/app/hooks/useLazyAuthStore', () => ({
+  useLazyAuthSlice: <T,>(
+    selector: (state: unknown) => T,
+    initial: T,
+    _isEqual?: (a: T, b: T) => boolean,
+    enabled = true
+  ): T => (enabled ? (mockUseAuthStore(selector) as T) : initial),
 }));
 
 describe('PostHogUserSync', () => {
@@ -138,6 +150,55 @@ describe('PostHogUserSync', () => {
     });
 
     await waitFor(() => expect(posthog.reset).toHaveBeenCalledTimes(1));
+  });
+
+  it('does not identify the previous account when consent returns after a sign-out', async () => {
+    // Revoking consent disables the lazy auth slices, so they fall back. If they
+    // held their last value instead, re-consenting after the user switched
+    // accounts would attribute the new session's events to the old account.
+    globalThis.localStorage.setItem(COOKIE_CONSENT_KEY, 'true');
+    const asUser = (sub: string, status = 'authenticated') =>
+      mockUseAuthStore.mockImplementation((selector: (state: unknown) => unknown) =>
+        selector({ attributes: { sub, email: `${sub}@example.com` }, status })
+      );
+
+    asUser('user-sub-1');
+    render(<PostHogUserSync />);
+
+    act(() => {
+      (posthog as { __loaded?: boolean }).__loaded = true;
+      globalThis.dispatchEvent(new Event(POSTHOG_READY_EVENT));
+    });
+    await waitFor(() =>
+      expect(posthog.identify).toHaveBeenCalledWith('user-sub-1', {
+        email: 'user-sub-1@example.com',
+      })
+    );
+
+    act(() => {
+      globalThis.dispatchEvent(
+        new StorageEvent('storage', { key: COOKIE_CONSENT_KEY, newValue: 'false' })
+      );
+    });
+    await waitFor(() => expect(posthog.reset).toHaveBeenCalled());
+
+    // The visitor signs out and a different account signs in while analytics is off.
+    (posthog.identify as jest.Mock).mockClear();
+    asUser('user-sub-2');
+
+    act(() => {
+      globalThis.localStorage.setItem(COOKIE_CONSENT_KEY, 'true');
+      globalThis.dispatchEvent(
+        new StorageEvent('storage', { key: COOKIE_CONSENT_KEY, newValue: 'true' })
+      );
+    });
+
+    await waitFor(() =>
+      expect(posthog.identify).toHaveBeenCalledWith('user-sub-2', {
+        email: 'user-sub-2@example.com',
+      })
+    );
+    expect(posthog.identify).not.toHaveBeenCalledWith('user-sub-1', expect.anything());
   });
 
   it('uses email as a fallback distinct id', async () => {

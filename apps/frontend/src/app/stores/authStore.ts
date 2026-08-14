@@ -63,7 +63,7 @@ type UserProfileResponse = {
   lastName?: string;
 };
 
-type AuthStore = {
+export type AuthStore = {
   user: AuthUser | null;
   attributes: Record<string, string> | null;
   status: Status;

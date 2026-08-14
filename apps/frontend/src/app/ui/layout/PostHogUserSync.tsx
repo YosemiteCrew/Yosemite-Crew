@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getStorageItem } from '@/app/lib/browserStorage';
 import { COOKIE_CONSENT_KEY, POSTHOG_READY_EVENT } from '@/app/lib/posthog';
 import { getLoadedPostHog } from '@/app/lib/posthogClient';
-import { useAuthStore } from '@/app/stores/authStore';
+import { useLazyAuthSlice } from '@/app/hooks/useLazyAuthStore';
+import type { AuthStore } from '@/app/stores/authStore';
 
 const hasConsent = () => getStorageItem('local', COOKIE_CONSENT_KEY) === 'true';
 // Null until PostHogBootstrap has loaded the analytics chunk, which only happens
@@ -22,9 +23,19 @@ const addDefinedValue = (
   }
 };
 
+const selectAttributes = (state: AuthStore) => state.attributes;
+const selectStatus = (state: AuthStore) => state.status;
+
 const PostHogUserSync = () => {
-  const attributes = useAuthStore((state) => state.attributes);
-  const status = useAuthStore((state) => state.status);
+  // Mounted in the root layout, so importing the auth store here would put the
+  // SuperTokens stack on every route. Lazy-loading alone is not enough: the
+  // subscription would still fetch that chunk after hydration for every public
+  // visitor, including the ones who never consent. Nothing here can identify
+  // anyone until analytics is both consented and running, so the auth store is
+  // not fetched until then either.
+  const [analyticsActive, setAnalyticsActive] = useState(false);
+  const attributes = useLazyAuthSlice(selectAttributes, null, Object.is, analyticsActive);
+  const status = useLazyAuthSlice(selectStatus, 'idle', Object.is, analyticsActive);
   const identifiedIdRef = useRef<string | null>(null);
   const consentedRef = useRef(false);
   const readyRef = useRef(false);
@@ -77,16 +88,22 @@ const PostHogUserSync = () => {
   useEffect(() => {
     consentedRef.current = hasConsent();
     readyRef.current = isPostHogLoaded();
+    // Mirrors the refs into state, which is what actually releases the auth
+    // store fetch above.
+    const refreshActive = () => setAnalyticsActive(consentedRef.current && readyRef.current);
+    refreshActive();
     syncIdentityRef.current();
 
     const onStorage = (event: StorageEvent) => {
       if (event.key === COOKIE_CONSENT_KEY) {
         consentedRef.current = event.newValue === 'true';
+        refreshActive();
         syncIdentityRef.current();
       }
     };
     const onPostHogReady = () => {
       readyRef.current = true;
+      refreshActive();
       syncIdentityRef.current();
     };
 
