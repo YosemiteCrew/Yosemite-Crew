@@ -21,7 +21,7 @@ import {
 import { AuditTrailService } from "./audit-trail.service";
 import { ParentService } from "./parent.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
-import escapeStringRegexp from "escape-string-regexp";
+import { escapeRegExp } from "../utils/escape-regexp";
 import logger from "src/utils/logger";
 import { TaskLibraryService } from "./taskLibrary.service";
 import { CreateFromLibraryInput, TaskService } from "./task.service";
@@ -565,7 +565,7 @@ export const CompanionService = {
       throw new CompanionServiceError("Name is required for searching.", 400);
     }
 
-    const safe = escapeStringRegexp(trimmed);
+    const safe = escapeRegExp(trimmed);
     const documents = await prisma.patient.findMany({
       where: { name: { contains: safe, mode: "insensitive" } },
     });
