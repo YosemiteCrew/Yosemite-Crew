@@ -253,6 +253,16 @@ describe('selectorCovers', () => {
     assert.equal(selectorCovers('3', '3.3.18'), true);
   });
 
+  // A selector that IS a prerelease is a point and has to be compared as one.
+  // Its tag is not a numeric part, so without an explicit branch it reaches the
+  // permissive fallback and reads as covering the entire tree.
+  it('matches an exact prerelease selector as a point', () => {
+    assert.equal(selectorCovers('1.2.3-alpha.1', '1.2.3-alpha.1'), true);
+    assert.equal(selectorCovers('1.2.3-alpha.1', '1.2.3-alpha.2'), false);
+    assert.equal(selectorCovers('1.2.3-alpha.1', '9.9.9'), false);
+    assert.equal(selectorCovers('1.2.3-alpha.1', '1.2.3'), false);
+  });
+
   // ^ and ~ are handled rather than left to the catch-all, because the catch-all
   // direction is a false negative: a '^8.0.0' key silently treated as covering a
   // 7.0.3 copy is exactly the uuid failure again, one operator along.
@@ -346,6 +356,19 @@ describe('overrideKeyCovers with a parent-scoped key', () => {
   it('credits the key when no path information is available', () => {
     assert.equal(overrideKeyCovers(key, '1.2.3', null), true);
     assert.equal(overrideKeyCovers(key, '1.2.3', []), true);
+  });
+
+  // The same version can arrive both under the scoped parent and elsewhere.
+  // Crediting the key because one path matched would suppress the finding for
+  // the occurrence the override cannot rewrite.
+  it('requires every path to go through the parent, not just one', () => {
+    assert.equal(
+      overrideKeyCovers(key, '1.2.3', [
+        'apps/m > react-native > jest-environment-node@1.2.3',
+        'apps/m > jest > jest-environment-node@1.2.3',
+      ]),
+      false
+    );
   });
 });
 

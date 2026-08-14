@@ -255,6 +255,14 @@ export function selectorCovers(selector, version) {
   // have to be understood, because `uuid@8` and `uuid@8.x` express one intent
   // and letting the second fall through to the catch-all would reinstate the
   // exact blind spot this check was added to close.
+  // An exact selector carrying a prerelease tag is a point, and has to be
+  // compared as one. It matches none of the branches above and its tag is not a
+  // plain numeric part, so without this it would reach the permissive fallback
+  // and be read as covering every version in the tree.
+  if (isExactVersion(trimmed.replace(/^v/, ''))) {
+    return compareVersions(version, trimmed.replace(/^v/, '')) === 0;
+  }
+
   const parts = trimmed.replace(/^v/, '').split('.');
   if (parts.length <= 3 && parts.every((part) => /^(?:\d+|[xX*])$/.test(part))) {
     // A selector with no prerelease tag never matches a prerelease version:
@@ -287,7 +295,10 @@ export function overrideKeyCovers(key, version, paths = null) {
   if (!selectorCovers(selector, version)) return false;
   if (!parent) return true;
   if (!paths || paths.length === 0) return true;
-  return paths.some((entry) => String(entry).includes(parent));
+  // EVERY path, not some. The same vulnerable version can arrive both under the
+  // scoped parent and elsewhere; crediting the key because one path matched
+  // would suppress the finding for the occurrence the override cannot rewrite.
+  return paths.every((entry) => String(entry).includes(parent));
 }
 
 // package name -> [{ key, pinned }], because a single package is routinely
@@ -684,9 +695,15 @@ export function main(argv, { readAudit = readAuditJson } = {}) {
   }
 
   if (unaccepted.length === 0) {
+    // Deliberately phrased as "nothing unreviewed" rather than "everything is
+    // patched". Baselined findings are still live vulnerabilities, and claiming
+    // they are patched would contradict the accepted-drift block printed just
+    // above it.
     console.log(
-      '\ncheck-override-advisories: OK - every override pins a patched version and covers ' +
-        'every vulnerable copy'
+      known.length > 0
+        ? `\ncheck-override-advisories: OK - no unreviewed findings (${known.length} accepted in the baseline, still vulnerable)`
+        : '\ncheck-override-advisories: OK - every override pins a patched version and covers ' +
+            'every vulnerable copy'
     );
     return 0;
   }
