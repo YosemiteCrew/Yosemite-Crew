@@ -694,6 +694,28 @@ describe("AvailabilityService", () => {
       expect(prisma.occupancy.findMany).toHaveBeenCalledTimes(2);
     });
 
+    it("downgrades only the member whose availability data is malformed", async () => {
+      // Regression: a single bad Json row used to fail the whole batch, so a
+      // clinic with one corrupt record reported everybody off duty.
+      (prisma.baseAvailability.findMany as jest.Mock).mockResolvedValue([
+        baseRow("u-good"),
+        // `slots` is read through a cast; a non-iterable value throws in the merge.
+        { ...baseRow("u-broken"), slots: { not: "an array" } },
+      ]);
+      (
+        prisma.weeklyAvailabilityOverride.findMany as jest.Mock
+      ).mockResolvedValue([]);
+      (prisma.occupancy.findMany as jest.Mock).mockResolvedValue([]);
+
+      const statuses = await AvailabilityService.getCurrentStatusBulk(ORG, [
+        "u-good",
+        "u-broken",
+      ]);
+
+      expect(statuses.get("u-good")).toBe("Available");
+      expect(statuses.get("u-broken")).toBe("Unavailable");
+    });
+
     it("returns an empty map when given no users, without querying", async () => {
       const statuses = await AvailabilityService.getCurrentStatusBulk(ORG, []);
 

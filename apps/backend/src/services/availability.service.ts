@@ -780,29 +780,38 @@ export const AvailabilityService = {
     const dateStr = getDateString(now);
 
     for (const id of ids) {
-      const base = (baseByUser.get(id) ?? []).map((row) => ({
-        dayOfWeek: row.dayOfWeek,
-        slots: row.slots as unknown as AvailabilitySlotMongo[],
-      }));
-      const overrideRow = overrideByUser.get(id)?.[0];
-      const override = overrideRow
-        ? {
-            overrides: overrideRow.overrides as unknown as WeekSlotSource[],
-          }
-        : null;
+      // Isolated per member on purpose. `slots` and `overrides` are Json columns
+      // read through casts, so one malformed record can throw during the merge.
+      // The per-member call this replaced caught that and downgraded only the
+      // affected member; failing the whole batch instead would report an entire
+      // clinic as off duty because of one bad row.
+      try {
+        const base = (baseByUser.get(id) ?? []).map((row) => ({
+          dayOfWeek: row.dayOfWeek,
+          slots: row.slots as unknown as AvailabilitySlotMongo[],
+        }));
+        const overrideRow = overrideByUser.get(id)?.[0];
+        const override = overrideRow
+          ? {
+              overrides: overrideRow.overrides as unknown as WeekSlotSource[],
+            }
+          : null;
 
-      const week = computeWeekAvailability(
-        weekDates,
-        base,
-        override,
-        occupancyByUser.get(id) ?? [],
-      );
-      const slots = week.find((d) => d.dayOfWeek === dayOfWeek)?.slots ?? [];
+        const week = computeWeekAvailability(
+          weekDates,
+          base,
+          override,
+          occupancyByUser.get(id) ?? [],
+        );
+        const slots = week.find((d) => d.dayOfWeek === dayOfWeek)?.slots ?? [];
 
-      statuses.set(
-        id,
-        resolveStatusFromSlots(nowUtc, dateStr, slots, occupiedNow.has(id)),
-      );
+        statuses.set(
+          id,
+          resolveStatusFromSlots(nowUtc, dateStr, slots, occupiedNow.has(id)),
+        );
+      } catch {
+        statuses.set(id, "Unavailable");
+      }
     }
 
     return statuses;
