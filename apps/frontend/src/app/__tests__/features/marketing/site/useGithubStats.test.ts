@@ -27,6 +27,15 @@ const notOk = () =>
   }) as unknown as Response;
 
 const DISCORD_ENDPOINT = '/api/community/discord-members';
+const GITHUB_STATS_ENDPOINT = '/api/community/github-stats';
+
+/**
+ * Stars, self-hosters and contributors are now resolved server-side by the
+ * github-stats route handler and arrive as one payload, so tests stub that
+ * endpoint rather than the three upstream URLs. The upstream parsing those URLs
+ * needed is covered by the route handler's own test.
+ */
+const statsResponse = (stats: Partial<GithubStats>) => makeRes(stats);
 
 /**
  * Member count served by the same-origin Discord route for the current test.
@@ -52,12 +61,15 @@ describe('useGithubStats hooks', () => {
     discordMembers = '3,210';
     globalThis.fetch = withDiscord((url) => {
       if (url.includes('/releases')) return Promise.resolve(makeRes([]));
-      if (url.includes('summary.json'))
-        return Promise.resolve(makeRes({ clones: { total: 67134 } }));
-      if (url.includes('contributors'))
-        return Promise.resolve(makeRes([], '<u&page=58>; rel="last"'));
-      if (url.endsWith('/Yosemite-Crew'))
-        return Promise.resolve(makeRes({ stargazers_count: 2431 }));
+      if (url.includes(GITHUB_STATS_ENDPOINT))
+        return Promise.resolve(
+          statsResponse({
+            stars: '2.4k',
+            starsFull: '2,431',
+            selfHosters: '67,134',
+            contributors: '58',
+          })
+        );
       return Promise.resolve(makeRes(null));
     }) as unknown as FetchLike;
 
@@ -124,12 +136,15 @@ describe('useGithubStats hooks', () => {
   it('refetches when the session cache is fresh but discord is still missing', async () => {
     discordMembers = '196';
     const fetchMock = withDiscord((url) => {
-      if (url.includes('summary.json'))
-        return Promise.resolve(makeRes({ clones: { total: 67134 } }));
-      if (url.includes('contributors'))
-        return Promise.resolve(makeRes([], '<u&page=58>; rel="last"'));
-      if (url.endsWith('/Yosemite-Crew'))
-        return Promise.resolve(makeRes({ stargazers_count: 2431 }));
+      if (url.includes(GITHUB_STATS_ENDPOINT))
+        return Promise.resolve(
+          statsResponse({
+            stars: '2.4k',
+            starsFull: '2,431',
+            selfHosters: '67,134',
+            contributors: '58',
+          })
+        );
       return Promise.resolve(makeRes(null));
     });
     globalThis.fetch = fetchMock as unknown as FetchLike;
@@ -156,12 +171,15 @@ describe('useGithubStats hooks', () => {
   it('refetches on mount in live mode even when the session cache is still fresh', async () => {
     discordMembers = '3,210';
     const fetchMock = withDiscord((url) => {
-      if (url.includes('summary.json'))
-        return Promise.resolve(makeRes({ clones: { total: 67134 } }));
-      if (url.includes('contributors'))
-        return Promise.resolve(makeRes([], '<u&page=58>; rel="last"'));
-      if (url.endsWith('/Yosemite-Crew'))
-        return Promise.resolve(makeRes({ stargazers_count: 2431 }));
+      if (url.includes(GITHUB_STATS_ENDPOINT))
+        return Promise.resolve(
+          statsResponse({
+            stars: '2.4k',
+            starsFull: '2,431',
+            selfHosters: '67,134',
+            contributors: '58',
+          })
+        );
       return Promise.resolve(makeRes(null));
     });
     globalThis.fetch = fetchMock as unknown as FetchLike;
@@ -217,12 +235,15 @@ describe('useGithubStats hooks', () => {
   it('fires exactly one round of requests when several instances mount at once', async () => {
     discordMembers = '3,210';
     const fetchMock = withDiscord((url) => {
-      if (url.includes('summary.json'))
-        return Promise.resolve(makeRes({ clones: { total: 67134 } }));
-      if (url.includes('contributors'))
-        return Promise.resolve(makeRes([], '<u&page=58>; rel="last"'));
-      if (url.endsWith('/Yosemite-Crew'))
-        return Promise.resolve(makeRes({ stargazers_count: 2431 }));
+      if (url.includes(GITHUB_STATS_ENDPOINT))
+        return Promise.resolve(
+          statsResponse({
+            stars: '2.4k',
+            starsFull: '2,431',
+            selfHosters: '67,134',
+            contributors: '58',
+          })
+        );
       return Promise.resolve(makeRes(null));
     });
     globalThis.fetch = fetchMock as unknown as FetchLike;
@@ -237,28 +258,24 @@ describe('useGithubStats hooks', () => {
 
     const urls = fetchMock.mock.calls.map((call) => String(call[0]));
     const countIncluding = (needle: string) => urls.filter((u) => u.includes(needle)).length;
-    expect(urls.filter((u) => u.endsWith('/Yosemite-Crew')).length).toBe(1);
-    expect(countIncluding('summary.json')).toBe(1);
-    expect(countIncluding('contributors')).toBe(1);
+    // Three mounts, and the browser makes two same-origin requests in total: the
+    // three GitHub lookups are now one server-side call.
+    expect(countIncluding(GITHUB_STATS_ENDPOINT)).toBe(1);
     expect(countIncluding(DISCORD_ENDPOINT)).toBe(1);
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
 
     expect(result.current.selfHosters).toBe('67,134');
     expect(result.current.contributors).toBe('58');
     expect(result.current.discord).toBe('3,210');
   });
 
-  it('reads self-hosters from the chart dataset shape', async () => {
+  it('surfaces the self-hoster count the stats route returns', async () => {
+    // Parsing the upstream clone-traffic report is the route handler's job now
+    // and is covered by its own test; the hook just surfaces the value.
     globalThis.fetch = jest.fn((input: RequestInfo | URL) => {
       const url = String(input);
-      if (url.includes('summary.json')) {
-        return Promise.resolve(
-          makeRes({
-            charts: {
-              '#clones_total': { datasets: { a: [{ clones_total: 40 }, { clones_total: 27 }] } },
-            },
-          })
-        );
+      if (url.includes(GITHUB_STATS_ENDPOINT)) {
+        return Promise.resolve(statsResponse({ selfHosters: '67' }));
       }
       return Promise.resolve(notOk());
     }) as unknown as FetchLike;
