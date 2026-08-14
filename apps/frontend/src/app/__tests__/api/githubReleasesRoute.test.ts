@@ -85,11 +85,30 @@ describe('github-releases route handler', () => {
     expect(res.init?.headers?.['Cache-Control']).toContain('s-maxage=300');
   });
 
-  it('treats any other list value as the latest request', async () => {
+  // `list` is the only accepted parameter and `1` its only accepted value.
+  // Treating any other value as "the latest request" would leave the
+  // quota-exhaustion path open that rejecting unknown parameters closes: the
+  // shared cache keys on the whole URL, so `?list=<random>` misses it every time
+  // and repeats the upstream call, exactly as `?nonce=<random>` would.
+  it.each(['?list=0', '?list=', '?list=1&list=1', '?list=1&nonce=abc'])(
+    'refuses %s without calling upstream',
+    async (query) => {
+      const fetchMock = jest.fn((_input: RequestInfo | URL) => Promise.resolve(makeRes(RELEASE)));
+      globalThis.fetch = fetchMock as unknown as FetchLike;
+
+      const res = await call(`${BASE}${query}`);
+
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(res.init?.status).toBe(400);
+      expect(res.init?.headers?.['Cache-Control']).toBe('no-store');
+    }
+  );
+
+  it('serves the latest release when no query is present', async () => {
     const fetchMock = jest.fn((_input: RequestInfo | URL) => Promise.resolve(makeRes(RELEASE)));
     globalThis.fetch = fetchMock as unknown as FetchLike;
 
-    await call(`${BASE}?list=0`);
+    await call(BASE);
 
     expect(String(fetchMock.mock.calls[0][0])).toContain('/releases/latest');
   });

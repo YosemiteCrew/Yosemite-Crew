@@ -46,7 +46,7 @@ const pickReleaseFields = (release: GithubRelease): GithubRelease => ({
 });
 
 export async function GET(request: Request): Promise<NextResponse> {
-  const rejected = rejectUnexpectedParams(request, ['list']);
+  const rejected = rejectUnexpectedParams(request, { list: ['1'] });
   if (rejected) return rejected;
 
   const wantsList = new URL(request.url).searchParams.get('list') === '1';

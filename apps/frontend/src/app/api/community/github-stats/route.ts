@@ -120,7 +120,7 @@ const fetchContributors = async (): Promise<string | null> => {
 
 export async function GET(request: Request): Promise<NextResponse> {
   // No parameters are supported, so anything present is a cache-busting variant.
-  const rejected = rejectUnexpectedParams(request, []);
+  const rejected = rejectUnexpectedParams(request, {});
   if (rejected) return rejected;
 
   const [starCounts, selfHosters, contributors] = await Promise.all([
