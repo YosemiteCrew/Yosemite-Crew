@@ -741,7 +741,7 @@ importers:
         version: 0.11.1
       posthog-react-native:
         specifier: ^4.62.0
-        version: 4.62.0(@react-native-async-storage/async-storage@2.2.0)(@react-navigation/native@7.3.15)(react-native-device-info@14.1.1)(react-native-localize@3.7.0)(react-native-safe-area-context@5.8.1)(react-native-svg@15.15.5)
+        version: 4.62.0(@react-native-async-storage/async-storage@2.2.0)(@react-navigation/native@7.3.15)(react-native-device-info@15.0.2)(react-native-localize@3.7.0)(react-native-safe-area-context@5.8.1)(react-native-svg@15.15.5)
       react:
         specifier: 19.1.0
         version: 19.1.0
@@ -770,8 +770,8 @@ importers:
         specifier: ^2.2.0
         version: 2.2.0(react-native@0.81.6)
       react-native-device-info:
-        specifier: ^14.1.1
-        version: 14.1.1(react-native@0.81.6)
+        specifier: ^15.0.2
+        version: 15.0.2(react-native@0.81.6)
       react-native-fbsdk-next:
         specifier: ^13.4.1
         version: 13.4.3(react-native@0.81.6)
@@ -26415,7 +26415,7 @@ packages:
       - preact-render-to-string
     dev: false
 
-  /posthog-react-native@4.62.0(@react-native-async-storage/async-storage@2.2.0)(@react-navigation/native@7.3.15)(react-native-device-info@14.1.1)(react-native-localize@3.7.0)(react-native-safe-area-context@5.8.1)(react-native-svg@15.15.5):
+  /posthog-react-native@4.62.0(@react-native-async-storage/async-storage@2.2.0)(@react-navigation/native@7.3.15)(react-native-device-info@15.0.2)(react-native-localize@3.7.0)(react-native-safe-area-context@5.8.1)(react-native-svg@15.15.5):
     resolution: {integrity: sha512-ZYEJr30C1q/4W+gX+dmItdZkO4eEAivtRrBFBHgu4ih9P+j8tkmcMW9kLZautPrj5hbeaBjPFLsw/72/Mb7jkw==}
     hasBin: true
     peerDependencies:
@@ -26464,7 +26464,7 @@ packages:
       '@posthog/types': 1.402.2
       '@react-native-async-storage/async-storage': 2.2.0(react-native@0.81.6)
       '@react-navigation/native': 7.3.15(react-native@0.81.6)(react@19.1.0)
-      react-native-device-info: 14.1.1(react-native@0.81.6)
+      react-native-device-info: 15.0.2(react-native@0.81.6)
       react-native-localize: 3.7.0(react-native@0.81.6)(react@19.1.0)
       react-native-safe-area-context: 5.8.1(react-native@0.81.6)(react@19.1.0)
       react-native-svg: 15.15.5(react-native@0.81.6)(react@19.1.0)
@@ -27247,8 +27247,8 @@ packages:
       react-native: 0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.0.2)(@react-native/metro-config@0.81.6)(@types/react@19.2.11)(react@19.1.0)
     dev: false
 
-  /react-native-device-info@14.1.1(react-native@0.81.6):
-    resolution: {integrity: sha512-lXFpe6DJmzbQXNLWxlMHP2xuTU5gwrKAvI8dCAZuERhW9eOXSubOQIesk9lIBnsi9pI19GMrcpJEvs4ARPRYmw==}
+  /react-native-device-info@15.0.2(react-native@0.81.6):
+    resolution: {integrity: sha512-dd71eXG2l3Cwp66IvKNadMTB8fhU3PEjyVddI97sYan+D4bgIAUmgGDhbSOFvHcGavksb2U17kiQYaDiK2WK2g==}
     peerDependencies:
       react-native: '*'
     dependencies:
