@@ -25,7 +25,7 @@
     "check:tls": "node scripts/ci/check-tls-expiry.mjs"
   },
   "devDependencies": {
-    "@commitlint/cli": "^19.8.1",
+    "@commitlint/cli": "^21.2.1",
     "@commitlint/config-conventional": "^19.8.1",
     "@secretlint/secretlint-rule-no-dotenv": "^13.0.4",
     "@secretlint/secretlint-rule-preset-recommend": "^13.0.4",
