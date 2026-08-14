@@ -73,7 +73,7 @@ const Settings = () => {
         <div className="flex min-w-0 flex-col gap-[3px]">
           <h1
             className="m-0! flex items-center gap-2 text-[22px] md:text-[26px] leading-[1.05] tracking-[-0.015em] text-[var(--ink)]"
-            style={{ fontFamily: "'Newsreader', Georgia, serif", fontWeight: 400 }}
+            style={{ fontFamily: 'var(--font-newsreader)', fontWeight: 400 }}
           >
             Settings
             <IoInformationCircleOutline

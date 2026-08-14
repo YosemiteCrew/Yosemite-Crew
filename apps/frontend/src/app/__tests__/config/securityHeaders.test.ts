@@ -30,10 +30,12 @@ describe('security headers', () => {
 
     const routes = await nextConfig.headers?.();
     expect(routes).toBeDefined();
-    expect(routes).toHaveLength(2);
 
-    const routeHeaders = routes?.[0];
-    expect(routeHeaders?.source).toBe('/(.*)');
+    // Look the catch-all up by source rather than by position, so adding
+    // narrower rules (for example the static-asset cache policies) cannot
+    // silently move the security headers out from under this assertion.
+    const routeHeaders = routes?.find((route) => route.source === '/(.*)');
+    expect(routeHeaders).toBeDefined();
 
     const headers = routeHeaders?.headers as HeaderEntry[];
     expect(findHeader(headers, 'X-Frame-Options')).toBe('SAMEORIGIN');
@@ -42,6 +44,22 @@ describe('security headers', () => {
     expect(findHeader(headers, 'Referrer-Policy')).toBe('strict-origin-when-cross-origin');
     expect(findHeader(headers, 'Permissions-Policy')).toBe(
       'camera=(), microphone=(), geolocation=(self)'
+    );
+  });
+
+  test('caches static assets long enough for the CDN to keep them', async () => {
+    const routes = await nextConfig.headers?.();
+
+    const fonts = routes?.find((route) => route.source === '/fonts/:path*');
+    expect(findHeader(fonts?.headers as HeaderEntry[], 'Cache-Control')).toBe(
+      'public, max-age=31536000, immutable'
+    );
+
+    // Images can be replaced in place, so they get a freshness window and
+    // stale-while-revalidate rather than being marked immutable.
+    const images = routes?.find((route) => route.source === '/images/:path*');
+    expect(findHeader(images?.headers as HeaderEntry[], 'Cache-Control')).toBe(
+      'public, max-age=86400, stale-while-revalidate=2592000'
     );
   });
 
