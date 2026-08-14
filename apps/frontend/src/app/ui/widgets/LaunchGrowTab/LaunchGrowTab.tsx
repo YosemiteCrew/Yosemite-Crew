@@ -1,7 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { Icon } from '@iconify/react/dist/iconify.js';
+import { Icon } from '@/app/ui/icons/Icon';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
 import './LaunchGrowTab.css';

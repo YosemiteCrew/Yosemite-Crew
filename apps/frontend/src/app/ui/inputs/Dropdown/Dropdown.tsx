@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 
 import { createPortal } from 'react-dom';
 import { IoChevronDown } from 'react-icons/io5';
 import classNames from 'classnames';
-import { Icon } from '@iconify/react/dist/iconify.js';
+import { Icon } from '@/app/ui/icons/Icon';
 
 import countries from '@/app/lib/data/countryList';
 import DropdownPanel from './DropdownPanel';

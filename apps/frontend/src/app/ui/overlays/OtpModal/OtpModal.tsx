@@ -2,7 +2,7 @@
 import React, { useState, useId } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { Icon } from '@iconify/react/dist/iconify.js';
+import { Icon } from '@/app/ui/icons/Icon';
 import { useAuthStore } from '@/app/stores/authStore';
 import { logger } from '@/app/lib/logger';
 import { provisionBackendUser } from '@/app/features/auth/services/userProvisioningService';
