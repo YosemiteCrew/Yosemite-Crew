@@ -59,3 +59,234 @@ ignore:
     package:
       name: extract-zip
       version: 2.0.1
+  # 7-Zip 16.04 and 20.02 in electron-winstaller@5.4.0.
+  # 136 alerts across 44 CVEs, all from six vendored binaries in one package:
+  # the x64 pair under electron-winstaller/vendor is 7-Zip 16.04 (2016-10-04)
+  # and the arm64 pair is 20.02.
+  #
+  # No version to raise to: electron-winstaller 5.4.4, the current release,
+  # ships byte-identical binaries (sha256-compared against 5.4.0), so upstream
+  # has no fix and bumping the package changes nothing.
+  #
+  # Not reachable either. It arrives only as a transitive peer, through
+  # electron-builder to app-builder-lib to electron-builder-squirrel-windows,
+  # and electron-builder is an apps/desktop devDependency. That chain builds
+  # Squirrel.Windows installers, which this repository does not produce: the
+  # build.win.target block in apps/desktop/package.json lists nsis and portable
+  # only. Nothing here executes these binaries and they ship in no release
+  # artifact; they sit in the store because auto-install-peers materialises a
+  # non-optional peer.
+  #
+  # Removing the package outright was tried and rejected as the riskier fix:
+  # the peer is baked into the lockfile resolution keys, so dropping it needs a
+  # full re-resolution across every workspace to delete build-time tooling that
+  # never runs. Owner: ankit-yc. Re-review by: 2026-11-14.
+  - vulnerability: CVE-2017-17969
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2018-10115
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2018-10172
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2018-5996
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2022-29072
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2022-29072
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2023-31102
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2023-31102
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2023-40481
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2023-40481
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2023-52169
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2023-52169
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2024-11477
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2024-11477
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2024-11612
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2024-11612
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2025-0411
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2025-0411
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2025-53816
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2025-53816
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2025-53817
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2025-53817
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2025-55188
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2025-55188
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2026-14266
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2026-14266
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2026-48092
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2026-48092
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2026-48095
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2026-48095
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2026-48101
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2026-48101
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2026-48102
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2026-48102
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2026-48103
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2026-48103
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2026-48104
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2026-48104
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2026-48111
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2026-48111
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2026-48112
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2026-48112
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2026-58052
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2026-58052
+    package:
+      name: 7-Zip
+      version: 20.02
+  # lodash 4.17.21 bundled inside fhir@4.12.0.
+  # Not reachable by an override. fhir@4.12.0 declares bundledDependencies of
+  # lodash, path, q and xml-js, so its lodash ships inside the published tarball
+  # rather than as a dependency edge: pnpm-lock.yaml holds no /lodash@4.17.21
+  # entry at all, and the root lodash 4.18.0 override cannot apply to it. 4.12.0
+  # is also the newest release of fhir on npm and still bundles 4.17.21, so
+  # there is no version to move to. Owner: ankit-yc. Re-review by: 2026-11-14.
+  - vulnerability: GHSA-f23m-r3pf-42rh
+    package:
+      name: lodash
+      version: 4.17.21
+  - vulnerability: GHSA-r5fr-rjxr-66jc
+    package:
+      name: lodash
+      version: 4.17.21
+  - vulnerability: GHSA-xxjr-mmjv-4gpg
+    package:
+      name: lodash
+      version: 4.17.21
+  # aws-sdk 2.1693.0.
+  # GHSA-j965-2qgj-vjmq (low) has no patched version; the advisory's remedy is
+  # to validate the region parameter or migrate to v3. Region is never
+  # caller-supplied here - every construction reads it from the deployment
+  # environment (process.env.AWS_REGION in middlewares/upload.ts,
+  # services/rendered-document.service.ts,
+  # services/marketing-unsubscribe.service.ts and utils/email.ts), so the
+  # parameter an attacker would need to influence is not reachable from a
+  # request. Migrating apps/backend to AWS SDK v3 is the real fix and wants its
+  # own change. Owner: ankit-yc. Re-review by: 2026-11-14.
+  - vulnerability: GHSA-j965-2qgj-vjmq
+    package:
+      name: aws-sdk
+      version: 2.1693.0
