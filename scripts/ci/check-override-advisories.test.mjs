@@ -125,24 +125,34 @@ describe('isExactVersion', () => {
 
 describe('splitOverrideKey', () => {
   it('separates the name from an exact-version selector', () => {
-    assert.deepEqual(splitOverrideKey('axios@1.15.2'), { name: 'axios', selector: '1.15.2' });
+    assert.deepEqual(splitOverrideKey('axios@1.15.2'), {
+      name: 'axios',
+      selector: '1.15.2',
+      parent: null,
+    });
   });
 
   it('separates the name from a range selector on a scoped package', () => {
     assert.deepEqual(splitOverrideKey('@tiptap/core@<=3.27.0'), {
       name: '@tiptap/core',
       selector: '<=3.27.0',
+      parent: null,
     });
   });
 
   it('reports no selector for a blanket override', () => {
-    assert.deepEqual(splitOverrideKey('protobufjs'), { name: 'protobufjs', selector: null });
+    assert.deepEqual(splitOverrideKey('protobufjs'), {
+      name: 'protobufjs',
+      selector: null,
+      parent: null,
+    });
   });
 
-  it('takes the child of a parent>child key and keeps its selector', () => {
+  it('takes the child of a parent>child key and keeps its selector and parent', () => {
     assert.deepEqual(splitOverrideKey('parent>child@>=1.0.0'), {
       name: 'child',
       selector: '>=1.0.0',
+      parent: 'parent',
     });
   });
 });
@@ -217,6 +227,32 @@ describe('selectorCovers', () => {
     assert.equal(selectorCovers('>=v5.0.0', '4.9.9'), false);
   });
 
+  // A partial bound names a whole line, not a zero-padded point. semver reads
+  // '>1' as "from 2.0.0" and '<=1.2' as "all of 1.2.x"; zero-padding gets both
+  // backwards, calling 1.5.0 covered by '>1' and 1.2.5 uncovered by '<=1.2'.
+  it('expands a partial comparator bound the way semver does', () => {
+    assert.equal(selectorCovers('>1', '1.5.0'), false);
+    assert.equal(selectorCovers('>1', '2.0.0'), true);
+    assert.equal(selectorCovers('<=1.2', '1.2.5'), true);
+    assert.equal(selectorCovers('<=1.2', '1.3.0'), false);
+    assert.equal(selectorCovers('<1.2', '1.1.9'), true);
+    assert.equal(selectorCovers('<1.2', '1.2.0'), false);
+    assert.equal(selectorCovers('>=1.2', '1.2.0'), true);
+    assert.equal(selectorCovers('>=1.2', '1.1.9'), false);
+    assert.equal(selectorCovers('=1.2', '1.2.9'), true);
+    assert.equal(selectorCovers('=1.2', '1.3.0'), false);
+  });
+
+  // semver keeps a prerelease out of an ordinary range, and so does pnpm, so an
+  // exact 'pkg@1.2.3' key genuinely would not be applied to 1.2.3-alpha.1.
+  // Claiming coverage there would let a vulnerable prerelease pass unreported.
+  it('does not let a plain selector cover a prerelease', () => {
+    assert.equal(selectorCovers('1.2.3', '1.2.3-alpha.1'), false);
+    assert.equal(selectorCovers('1.2.3', '1.2.3'), true);
+    assert.equal(selectorCovers('3', '3.3.18-rc.1'), false);
+    assert.equal(selectorCovers('3', '3.3.18'), true);
+  });
+
   // ^ and ~ are handled rather than left to the catch-all, because the catch-all
   // direction is a false negative: a '^8.0.0' key silently treated as covering a
   // 7.0.3 copy is exactly the uuid failure again, one operator along.
@@ -286,13 +322,47 @@ describe('overrideKeyCovers', () => {
   });
 });
 
+describe('overrideKeyCovers with a parent-scoped key', () => {
+  const key = 'react-native>jest-environment-node';
+
+  it('covers a copy reached through that parent', () => {
+    assert.equal(
+      overrideKeyCovers(key, '1.2.3', ['apps/m > react-native > jest-environment-node@1.2.3']),
+      true
+    );
+  });
+
+  // A parent-scoped override only rewrites the copy under that parent, so it
+  // must not be credited with covering one that arrives another way. This key
+  // has no blanket sibling in the repo, so without the check every
+  // jest-environment-node in the tree would look covered.
+  it('does not cover a copy reached through a different parent', () => {
+    assert.equal(
+      overrideKeyCovers(key, '1.2.3', ['apps/m > jest > jest-environment-node@1.2.3']),
+      false
+    );
+  });
+
+  it('credits the key when no path information is available', () => {
+    assert.equal(overrideKeyCovers(key, '1.2.3', null), true);
+    assert.equal(overrideKeyCovers(key, '1.2.3', []), true);
+  });
+});
+
 describe('suggestRangeKey', () => {
   it('suggests a range key bounded by the first patched release', () => {
-    assert.equal(suggestRangeKey('uuid', '11.1.1'), '"uuid@<11.1.1": "11.1.1"');
+    assert.equal(suggestRangeKey('uuid', '11.1.1', '>=11.1.1'), '"uuid@<11.1.1": "11.1.1"');
   });
 
   it('suggests nothing when no fix has been published', () => {
     assert.equal(suggestRangeKey('uuid', null), null);
+  });
+
+  // '<2.0.0 || >=2.0.5' has no single lower bound. Suggesting "<2.0.0": "2.0.0"
+  // would miss a vulnerable 2.0.3 and pin copies to a version outside the
+  // patched set, so no suggestion is better than a wrong one.
+  it('suggests nothing for a disjoint patched range', () => {
+    assert.equal(suggestRangeKey('pkg', '2.0.0', '<2.0.0 || >=2.0.5'), null);
   });
 });
 
@@ -624,6 +694,33 @@ describe('applyBaseline', () => {
       accepted: [finding],
     });
     assert.equal(result.unaccepted.length, 1);
+  });
+
+  // pnpm audit lists findings in whatever order it likes. An order-sensitive key
+  // would make an accepted entry go stale the day that order changes, failing CI
+  // on an advisory nobody touched.
+  it('accepts an uncovered-copy entry regardless of version order', () => {
+    const finding = {
+      kind: 'uncovered-copy',
+      package: 'uuid',
+      pinned: '11.1.1',
+      uncovered: ['8.3.2', '7.0.3'],
+      advisory: 'GHSA-uuid',
+    };
+    const baseline = {
+      accepted: [
+        {
+          kind: 'uncovered-copy',
+          package: 'uuid',
+          uncovered: ['7.0.3', '8.3.2'],
+          advisory: 'GHSA-uuid',
+          reason: 'blocked upstream',
+        },
+      ],
+    };
+    const { unaccepted, known } = applyBaseline([finding], baseline);
+    assert.deepEqual(unaccepted, []);
+    assert.equal(known.length, 1);
   });
 
   it('reports every finding when there is no baseline', () => {

@@ -104,10 +104,12 @@ export function splitOverrideKey(key) {
   // range selector ('@>=5.0.0', '@>1.2.3') is followed by '=' or a digit; a real
   // separator is followed by the first character of a package name.
   let child = trimmed;
+  let parent = null;
   for (let i = trimmed.length - 1; i >= 0; i -= 1) {
     const next = trimmed[i + 1];
     if (trimmed[i] === '>' && next && !/[=\d]/.test(next)) {
       child = trimmed.slice(i + 1);
+      parent = trimmed.slice(0, i);
       break;
     }
   }
@@ -116,8 +118,8 @@ export function splitOverrideKey(key) {
   // separator is the *next* '@'.
   const searchFrom = child.startsWith('@') ? 1 : 0;
   const at = child.indexOf('@', searchFrom);
-  if (at === -1) return { name: child, selector: null };
-  return { name: child.slice(0, at), selector: child.slice(at + 1) || null };
+  if (at === -1) return { name: child, selector: null, parent };
+  return { name: child.slice(0, at), selector: child.slice(at + 1) || null, parent };
 }
 
 export function parseOverrideKey(key) {
@@ -164,6 +166,20 @@ const VERSION_PREFIX = /^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?/;
 // element. Worth supporting rather than leaving to the catch-all, because these
 // are the two commonest range operators and the catch-all direction is a false
 // negative: a `^8.0.0` key would silently be treated as covering a 7.x copy.
+// Expand a possibly-partial bound to a full version. `next` gives the exclusive
+// end of the line the bound names: '1' -> 2.0.0, '1.2' -> 1.3.0, and a complete
+// version is already a point so it is returned unchanged.
+function padVersion(bound, next) {
+  const core = bound.split('+')[0].split('-')[0];
+  const suffix = bound.slice(core.length);
+  const parts = core.split('.').map((n) => Number.parseInt(n, 10));
+  const [major = 0, minor = 0, patch = 0] = parts;
+  if (!next) return `${major}.${minor}.${patch}${parts.length === 3 ? suffix : ''}`;
+  if (parts.length === 1) return `${major + 1}.0.0`;
+  if (parts.length === 2) return `${major}.${minor + 1}.0`;
+  return `${major}.${minor}.${patch}${suffix}`;
+}
+
 function caretTildeUpperBound(operator, major, minor, patch, minorGiven, patchGiven) {
   if (operator === '~') {
     return minorGiven ? `${major}.${minor + 1}.0` : `${major + 1}.0.0`;
@@ -191,12 +207,29 @@ export function selectorCovers(selector, version) {
   const comparator = COMPARATOR.exec(trimmed);
   if (comparator) {
     const [, operator, bound] = comparator;
-    const order = compareVersions(version, bound);
-    if (operator === '<') return order < 0;
-    if (operator === '<=') return order <= 0;
-    if (operator === '>') return order > 0;
-    if (operator === '>=') return order >= 0;
-    return order === 0;
+    // A partial bound is a whole line, not a zero-padded point. semver reads
+    // '>1' as "everything from 2.0.0" and '<=1.2' as "all of 1.2.x", so padding
+    // with zeros would call 1.5.0 covered by '>1' and 1.2.5 uncovered by '<=1.2'
+    // - wrong in both directions.
+    const given = bound.split('+')[0].split('-')[0].split('.').length;
+    const lower = padVersion(bound, false);
+    const upper = padVersion(bound, true); // exclusive end of the named line
+    if (operator === '<') return compareVersions(version, lower) < 0;
+    if (operator === '>=') return compareVersions(version, lower) >= 0;
+    if (operator === '<=') {
+      return given === 3
+        ? compareVersions(version, lower) <= 0
+        : compareVersions(version, upper) < 0;
+    }
+    if (operator === '>') {
+      return given === 3
+        ? compareVersions(version, lower) > 0
+        : compareVersions(version, upper) >= 0;
+    }
+    // '=' is a point on a complete bound, and the whole line on a partial one
+    // ('=1.2' means all of 1.2.x), same as a bare prefix.
+    if (given === 3) return compareVersions(version, lower) === 0;
+    return compareVersions(version, lower) >= 0 && compareVersions(version, upper) < 0;
   }
 
   const caretTilde = CARET_TILDE.exec(trimmed);
@@ -224,6 +257,10 @@ export function selectorCovers(selector, version) {
   // exact blind spot this check was added to close.
   const parts = trimmed.replace(/^v/, '').split('.');
   if (parts.length <= 3 && parts.every((part) => /^(?:\d+|[xX*])$/.test(part))) {
+    // A selector with no prerelease tag never matches a prerelease version:
+    // semver keeps 1.2.3-alpha.1 out of the 1.2.3 range, and so does pnpm, so an
+    // exact `pkg@1.2.3` key genuinely would not be applied to that copy.
+    if (/-/.test(version.split('+')[0])) return false;
     const want = [];
     for (const part of parts) {
       if (/^[xX*]$/.test(part)) break; // everything from here on is a wildcard
@@ -236,8 +273,21 @@ export function selectorCovers(selector, version) {
   return true;
 }
 
-export function overrideKeyCovers(key, version) {
-  return selectorCovers(splitOverrideKey(key).selector, version);
+// `paths` is the advisory's dependency paths for this specific version, e.g.
+// 'apps/backend > react-native > jest-environment-node@1.2.3'.
+//
+// A parent-scoped key only rewrites the copy reached through that parent, so it
+// cannot be credited with covering a copy that arrives some other way. Without
+// the path check, 'react-native>jest-environment-node' (which has no blanket
+// sibling here) would be read as covering every jest-environment-node in the
+// tree. When no path information is available the parent cannot be disproved,
+// so the key is credited - silence rather than a guess.
+export function overrideKeyCovers(key, version, paths = null) {
+  const { selector, parent } = splitOverrideKey(key);
+  if (!selectorCovers(selector, version)) return false;
+  if (!parent) return true;
+  if (!paths || paths.length === 0) return true;
+  return paths.some((entry) => String(entry).includes(parent));
 }
 
 // package name -> [{ key, pinned }], because a single package is routinely
@@ -272,7 +322,11 @@ export function advisoryId(advisory) {
 // entries keep their original shape so existing baseline records still match.
 export function baselineKey(finding) {
   if (finding.kind === 'uncovered-copy') {
-    return `${finding.package}@uncovered:${finding.uncovered.join(',')}:${finding.advisory}`;
+    // Sorted, because the versions arrive in whatever order pnpm audit listed
+    // its findings. An unsorted join would make an accepted entry go stale the
+    // day that order changes, failing CI on an advisory nobody touched.
+    const versions = [...finding.uncovered].sort((a, b) => a.localeCompare(b));
+    return `${finding.package}@uncovered:${versions.join(',')}:${finding.advisory}`;
   }
   return `${finding.package}@${finding.pinned}:${finding.advisory}`;
 }
@@ -280,8 +334,17 @@ export function baselineKey(finding) {
 // The key a human should paste into package.json to actually cover the copies
 // that are currently escaping. `<fixedIn` is the honest bound: everything below
 // the first patched release needs forcing up to it.
-export function suggestRangeKey(packageName, fixedIn) {
-  return fixedIn ? `"${packageName}@<${fixedIn}": "${fixedIn}"` : null;
+//
+// Only offered for a simple lower-bounded patched range. A disjoint range such
+// as '<2.0.0 || >=2.0.5' has no single such bound - suggesting "<2.0.0": "2.0.0"
+// there would both miss a vulnerable 2.0.3 and pin copies to a version outside
+// the patched set. Better to print no suggestion and let the advisory be read.
+const SIMPLE_PATCHED_RANGE = /^\s*>=?\s*v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?\s*$/;
+
+export function suggestRangeKey(packageName, fixedIn, patchedVersions = '') {
+  if (!fixedIn) return null;
+  if (patchedVersions && !SIMPLE_PATCHED_RANGE.test(patchedVersions)) return null;
+  return `"${packageName}@<${fixedIn}": "${fixedIn}"`;
 }
 
 // Cross-reference the overrides against the audited tree.
@@ -309,9 +372,16 @@ export function findVulnerablePins(overrides, audit) {
     // finding printed beside it. That case is already covered, correctly, by the
     // stale-pin check below.
     const pinnedValues = new Set(pins.map((pin) => pin.pinned));
+    const pathsByVersion = new Map();
+    for (const entry of advisory.findings ?? []) {
+      if (!entry?.version) continue;
+      const seen = pathsByVersion.get(entry.version) ?? [];
+      pathsByVersion.set(entry.version, seen.concat(entry.paths ?? []));
+    }
     const uncovered = installed.filter(
       (version) =>
-        !pinnedValues.has(version) && !pins.some((pin) => overrideKeyCovers(pin.key, version))
+        !pinnedValues.has(version) &&
+        !pins.some((pin) => overrideKeyCovers(pin.key, version, pathsByVersion.get(version)))
     );
     if (uncovered.length > 0) {
       const fixedIn = fixedVersionFrom(advisory.patched_versions);
@@ -323,7 +393,7 @@ export function findVulnerablePins(overrides, audit) {
         pinIsRange: false,
         installed,
         uncovered,
-        suggestedKey: suggestRangeKey(advisory.module_name, fixedIn),
+        suggestedKey: suggestRangeKey(advisory.module_name, fixedIn, advisory.patched_versions),
         advisory: advisoryId(advisory),
         severity: advisory.severity ?? 'unknown',
         title: advisory.title ?? '',
