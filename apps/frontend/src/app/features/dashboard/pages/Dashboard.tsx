@@ -6,6 +6,7 @@ import DashboardProfile from '@/app/ui/widgets/DashboardProfile/DashboardProfile
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
+import Fallback from '@/app/ui/overlays/Fallback';
 import { PERMISSIONS } from '@/app/lib/permissions';
 
 const DASHBOARD_PAGE_SKELETON = <PageSkeleton variant="dashboard" />;
@@ -62,7 +63,10 @@ const Dashboard = () => {
       <DashboardProfile />
       <DashboardSteps />
       <VideosCard />
-      <PermissionGate allOf={[PERMISSIONS.ANALYTICS_VIEW_ANY]}>
+      <PermissionGate
+        allOf={[PERMISSIONS.ANALYTICS_VIEW_ANY]}
+        fallback={<Fallback resource="practice analytics" />}
+      >
         <Explorecard />
         {/* Vertical day charts: tablet (>=768) and desktop only. The 390px phone
             frames omit them and jump from the stat tiles straight to the schedule. */}
@@ -74,7 +78,10 @@ const Dashboard = () => {
       {/* Schedule follows the charts row, matching the design scroll order
           (explore -> charts -> schedule -> leaders -> turnover -> availability). */}
       <AppointmentTask />
-      <PermissionGate allOf={[PERMISSIONS.ANALYTICS_VIEW_ANY]}>
+      <PermissionGate
+        allOf={[PERMISSIONS.ANALYTICS_VIEW_ANY]}
+        fallback={<Fallback resource="practice analytics" />}
+      >
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-3 xl:gap-3.5">
           <AppointmentLeadersStat />
           <RevenueLeadersStat />

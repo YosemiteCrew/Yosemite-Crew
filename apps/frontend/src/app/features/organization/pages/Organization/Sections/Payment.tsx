@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { IoCardOutline } from 'react-icons/io5';
 import { useSubscriptionForPrimaryOrg } from '@/app/hooks/useBilling';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
+import Fallback from '@/app/ui/overlays/Fallback';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { usePermissions } from '@/app/hooks/usePermissions';
 
@@ -36,7 +37,10 @@ const Payment = () => {
   const showManage = canManageStripe && !!orgId;
 
   return (
-    <PermissionGate allOf={[PERMISSIONS.SUBSCRIPTION_VIEW_ANY]}>
+    <PermissionGate
+      allOf={[PERMISSIONS.SUBSCRIPTION_VIEW_ANY]}
+      fallback={<Fallback resource="billing and subscription" />}
+    >
       <div className="flex items-center gap-3 rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] px-5! py-[15px]! shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
         <span className="flex size-9 flex-none items-center justify-center rounded-[11px] bg-[var(--blue-soft)] text-[var(--blue-text)]">
           <IoCardOutline size={16} aria-hidden="true" />

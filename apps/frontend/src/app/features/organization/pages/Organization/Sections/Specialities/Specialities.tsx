@@ -6,6 +6,7 @@ import SpecialityInfo from '@/app/features/organization/pages/Organization/Secti
 import { useSpecialitiesWithServiceNamesForPrimaryOrg } from '@/app/hooks/useSpecialities';
 import { SpecialityWeb } from '@/app/features/organization/types/speciality';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
+import Fallback from '@/app/ui/overlays/Fallback';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -70,7 +71,10 @@ const Specialities = () => {
     : [];
 
   return (
-    <PermissionGate allOf={[PERMISSIONS.SPECIALITIES_VIEW_ANY]}>
+    <PermissionGate
+      allOf={[PERMISSIONS.SPECIALITIES_VIEW_ANY]}
+      fallback={<Fallback resource="specialities, services and packages" />}
+    >
       <SectionCard
         title="Specialties, services & packages"
         buttonTitle="Manage"

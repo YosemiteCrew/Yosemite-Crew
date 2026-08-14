@@ -11,7 +11,6 @@ const config: StorybookConfig = {
     autodocs: 'tag',
   },
   staticDirs: [
-    { from: '../public/assets', to: '/assets' },
     { from: '../public/fonts', to: '/fonts' },
     { from: '../public/images', to: '/images' },
     { from: '../public/static', to: '/static' },
