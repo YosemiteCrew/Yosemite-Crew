@@ -1,5 +1,6 @@
 import {TERMS_SECTIONS} from '@/features/legal/data/termsData';
 import {PRIVACY_POLICY_SECTIONS} from '@/features/legal/data/privacyPolicyData';
+import {PRIVACY_META, TERMS_META} from '@/features/legal/data/legalMeta';
 
 describe('mobile legal data updates', () => {
   it('includes trademark notice in terms and privacy sections', () => {
@@ -35,5 +36,13 @@ describe('mobile legal data updates', () => {
     expect(combined).toContain('https://discord.gg/SwM6mX85KD');
     expect(combined).not.toContain('YVzMa9j7BK');
     expect(combined).not.toContain('YVzMq97Bk');
+  });
+
+  it('dates each document from the copy that actually changed', () => {
+    // The Discord invite change touched the privacy copy only, so advancing the
+    // terms date instead would tell users the terms were revised when they were
+    // not - and leave the revised privacy policy showing a stale date.
+    expect(PRIVACY_META.lastUpdated).toBe('13 Aug 2026');
+    expect(TERMS_META.lastUpdated).toBe('10 Jul 2026');
   });
 });

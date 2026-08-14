@@ -815,8 +815,8 @@ importers:
         specifier: ^0.31.5
         version: 0.31.10(react-native@0.81.6)(react@19.1.0)
       react-native-nitro-sound:
-        specifier: ^0.2.18
-        version: 0.2.18(react-native-nitro-modules@0.31.10)(react-native@0.81.6)(react@19.1.0)
+        specifier: 0.2.17
+        version: 0.2.17(react-native-nitro-modules@0.31.10)(react-native@0.81.6)(react@19.1.0)
       react-native-pdf:
         specifier: ^7.0.4
         version: 7.0.4(react-native-blob-util@0.24.10)(react-native@0.81.6)(react@19.1.0)
@@ -864,7 +864,7 @@ importers:
         version: 7.8.5
       stream-chat-react-native:
         specifier: ^8.13.17
-        version: 8.13.17(@react-native-clipboard/clipboard@1.16.3)(@react-native-community/netinfo@11.5.2)(@react-native-documents/picker@11.0.4)(@types/react@19.2.11)(react-native-blob-util@0.24.10)(react-native-gesture-handler@2.32.0)(react-native-haptic-feedback@2.3.3)(react-native-image-picker@8.2.1)(react-native-nitro-sound@0.2.18)(react-native-reanimated@4.2.3)(react-native-safe-area-context@5.8.1)(react-native-share@12.3.1)(react-native-svg@15.15.5)(react-native-video@6.19.2)(react-native@0.81.6)(react@19.1.0)(typescript@5.9.3)
+        version: 8.13.17(@react-native-clipboard/clipboard@1.16.3)(@react-native-community/netinfo@11.5.2)(@react-native-documents/picker@11.0.4)(@types/react@19.2.11)(react-native-blob-util@0.24.10)(react-native-gesture-handler@2.32.0)(react-native-haptic-feedback@2.3.3)(react-native-image-picker@8.2.1)(react-native-nitro-sound@0.2.17)(react-native-reanimated@4.2.3)(react-native-safe-area-context@5.8.1)(react-native-share@12.3.1)(react-native-svg@15.15.5)(react-native-video@6.19.2)(react-native@0.81.6)(react@19.1.0)(typescript@5.9.3)
       supertokens-react-native:
         specifier: ^5.1.5
         version: 5.1.5(@react-native-async-storage/async-storage@2.2.0)(axios@1.18.0)(react-native@0.81.6)
@@ -27503,9 +27503,8 @@ packages:
       react-native: 0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.0.2)(@react-native/metro-config@0.81.6)(@types/react@19.2.11)(react@19.1.0)
     dev: false
 
-  /react-native-nitro-sound@0.2.18(react-native-nitro-modules@0.31.10)(react-native@0.81.6)(react@19.1.0):
-    resolution: {integrity: sha512-++wXJDjJz90GIbjeA37K7DWfDVvbdd8PkJPKdJbT/2xbGBGmInv7W+R8bZyJL72SntobI0ncr8IDHdfsxxLTuw==}
-    engines: {node: '>=22.21.0'}
+  /react-native-nitro-sound@0.2.17(react-native-nitro-modules@0.31.10)(react-native@0.81.6)(react@19.1.0):
+    resolution: {integrity: sha512-I8XyqI9yiLba52WMok0/veIJm7uAJdvoQzqH1u5M4eTRUmBCDMOZ32FN6jLCADQGoH3/IXJ++WkWGZw0ZyR8DA==}
     peerDependencies:
       react: '*'
       react-native: '*'
@@ -29547,7 +29546,7 @@ packages:
       - utf-8-validate
     dev: false
 
-  /stream-chat-react-native@8.13.17(@react-native-clipboard/clipboard@1.16.3)(@react-native-community/netinfo@11.5.2)(@react-native-documents/picker@11.0.4)(@types/react@19.2.11)(react-native-blob-util@0.24.10)(react-native-gesture-handler@2.32.0)(react-native-haptic-feedback@2.3.3)(react-native-image-picker@8.2.1)(react-native-nitro-sound@0.2.18)(react-native-reanimated@4.2.3)(react-native-safe-area-context@5.8.1)(react-native-share@12.3.1)(react-native-svg@15.15.5)(react-native-video@6.19.2)(react-native@0.81.6)(react@19.1.0)(typescript@5.9.3):
+  /stream-chat-react-native@8.13.17(@react-native-clipboard/clipboard@1.16.3)(@react-native-community/netinfo@11.5.2)(@react-native-documents/picker@11.0.4)(@types/react@19.2.11)(react-native-blob-util@0.24.10)(react-native-gesture-handler@2.32.0)(react-native-haptic-feedback@2.3.3)(react-native-image-picker@8.2.1)(react-native-nitro-sound@0.2.17)(react-native-reanimated@4.2.3)(react-native-safe-area-context@5.8.1)(react-native-share@12.3.1)(react-native-svg@15.15.5)(react-native-video@6.19.2)(react-native@0.81.6)(react@19.1.0)(typescript@5.9.3):
     resolution: {integrity: sha512-f7Uh5ZgImALnD3LqImSxJgNk0IPgc36yZ3t+ymoSpDki+4GdQZRvD9yXt5B1iEviMOPFzLFNCf7zxDotIBZ8IA==}
     peerDependencies:
       '@react-native-camera-roll/camera-roll': '>=7.8.0'
@@ -29594,7 +29593,7 @@ packages:
       react-native-blob-util: 0.24.10(react-native@0.81.6)(react@19.1.0)
       react-native-haptic-feedback: 2.3.3(react-native@0.81.6)
       react-native-image-picker: 8.2.1(react-native@0.81.6)(react@19.1.0)
-      react-native-nitro-sound: 0.2.18(react-native-nitro-modules@0.31.10)(react-native@0.81.6)(react@19.1.0)
+      react-native-nitro-sound: 0.2.17(react-native-nitro-modules@0.31.10)(react-native@0.81.6)(react@19.1.0)
       react-native-share: 12.3.1
       react-native-video: 6.19.2(react-native@0.81.6)(react@19.1.0)
       stream-chat-react-native-core: 8.13.17(@react-native-community/netinfo@11.5.2)(@types/react@19.2.11)(react-native-gesture-handler@2.32.0)(react-native-reanimated@4.2.3)(react-native-safe-area-context@5.8.1)(react-native-svg@15.15.5)(react-native@0.81.6)(react@19.1.0)(typescript@5.9.3)
