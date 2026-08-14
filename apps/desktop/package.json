@@ -43,7 +43,7 @@
     "@typescript-eslint/parser": "^8.67.0",
     "electron": "^39.2.7",
     "electron-builder": "^26.0.12",
-    "globals": "^17.9.0",
+    "globals": "^17.10.0",
     "jest": "^30.4.2",
     "ts-jest": "^29.4.12",
     "typescript": "^6.0.3"
