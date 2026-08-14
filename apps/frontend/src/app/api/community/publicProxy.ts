@@ -44,7 +44,11 @@ export const rejectUnexpectedParams = (
   if (extra.length === 0) return null;
 
   return NextResponse.json(
-    { error: `Unsupported query parameter: ${extra.sort().join(', ')}` },
+    {
+      error: `Unsupported query parameter: ${extra
+        .toSorted((a, b) => a.localeCompare(b))
+        .join(', ')}`,
+    },
     { status: 400, headers: UNCACHED_HEADERS }
   );
 };
