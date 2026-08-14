@@ -1,4 +1,9 @@
 import { NextResponse } from 'next/server';
+import {
+  CACHED_HEADERS,
+  UNCACHED_HEADERS,
+  rejectUnexpectedParams,
+} from '@/app/api/community/publicProxy';
 
 /**
  * Public GitHub-derived stats for the marketing surfaces (nav star count,
@@ -25,8 +30,6 @@ const REPO_STATS_SUMMARY =
 
 // GitHub asks for a descriptive User-Agent and throttles generic ones.
 const GITHUB_USER_AGENT = 'YosemiteCrew-Web (https://www.yosemitecrew.com, 1.0)';
-
-const CACHE_TTL_SECONDS = 300;
 
 export interface GithubStatsResponse {
   /** Compact star count, e.g. '2.4k'. Null when the lookup failed. */
@@ -115,7 +118,11 @@ const fetchContributors = async (): Promise<string | null> => {
   }
 };
 
-export async function GET(): Promise<NextResponse<GithubStatsResponse>> {
+export async function GET(request: Request): Promise<NextResponse> {
+  // No parameters are supported, so anything present is a cache-busting variant.
+  const rejected = rejectUnexpectedParams(request, []);
+  if (rejected) return rejected;
+
   const [starCounts, selfHosters, contributors] = await Promise.all([
     fetchStars(),
     fetchSelfHosters(),
@@ -129,10 +136,6 @@ export async function GET(): Promise<NextResponse<GithubStatsResponse>> {
   const hasAnyValue = Object.values(stats).some((value) => value !== null);
 
   return NextResponse.json(hasAnyValue ? stats : EMPTY, {
-    headers: {
-      'Cache-Control': hasAnyValue
-        ? `public, max-age=${CACHE_TTL_SECONDS}, stale-while-revalidate=${CACHE_TTL_SECONDS}`
-        : 'no-store',
-    },
+    headers: hasAnyValue ? CACHED_HEADERS : UNCACHED_HEADERS,
   });
 }

@@ -1,4 +1,9 @@
 import { NextResponse } from 'next/server';
+import {
+  CACHED_HEADERS,
+  UNCACHED_HEADERS,
+  rejectUnexpectedParams,
+} from '@/app/api/community/publicProxy';
 
 /**
  * Public release metadata for the marketing release pill.
@@ -15,7 +20,6 @@ import { NextResponse } from 'next/server';
 
 const GITHUB_API_REPO = 'https://api.github.com/repos/YosemiteCrew/Yosemite-Crew';
 const GITHUB_USER_AGENT = 'YosemiteCrew-Web (https://www.yosemitecrew.com, 1.0)';
-const CACHE_TTL_SECONDS = 300;
 const RELEASE_PAGE_SIZE = 30;
 
 export interface GithubRelease {
@@ -42,35 +46,34 @@ const pickReleaseFields = (release: GithubRelease): GithubRelease => ({
 });
 
 export async function GET(request: Request): Promise<NextResponse> {
+  const rejected = rejectUnexpectedParams(request, ['list']);
+  if (rejected) return rejected;
+
   const wantsList = new URL(request.url).searchParams.get('list') === '1';
   const target = wantsList
     ? `${GITHUB_API_REPO}/releases?per_page=${RELEASE_PAGE_SIZE}`
     : `${GITHUB_API_REPO}/releases/latest`;
 
-  const cached = {
-    'Cache-Control': `public, max-age=${CACHE_TTL_SECONDS}, stale-while-revalidate=${CACHE_TTL_SECONDS}`,
-  };
-
   try {
     const res = await githubFetch(target);
     if (!res.ok) {
-      return NextResponse.json(wantsList ? [] : null, { headers: { 'Cache-Control': 'no-store' } });
+      return NextResponse.json(wantsList ? [] : null, { headers: UNCACHED_HEADERS });
     }
     const json = (await res.json()) as GithubRelease | GithubRelease[];
 
     if (wantsList) {
       const list = Array.isArray(json) ? json.map((entry) => pickReleaseFields(entry)) : [];
       return NextResponse.json(list, {
-        headers: list.length > 0 ? cached : { 'Cache-Control': 'no-store' },
+        headers: list.length > 0 ? CACHED_HEADERS : UNCACHED_HEADERS,
       });
     }
 
     const release = json as GithubRelease;
     if (!release?.tag_name) {
-      return NextResponse.json(null, { headers: { 'Cache-Control': 'no-store' } });
+      return NextResponse.json(null, { headers: UNCACHED_HEADERS });
     }
-    return NextResponse.json(pickReleaseFields(release), { headers: cached });
+    return NextResponse.json(pickReleaseFields(release), { headers: CACHED_HEADERS });
   } catch {
-    return NextResponse.json(wantsList ? [] : null, { headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json(wantsList ? [] : null, { headers: UNCACHED_HEADERS });
   }
 }
