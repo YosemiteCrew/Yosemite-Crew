@@ -50,5 +50,29 @@ module.exports = {
         isolatedModules: true,
       },
     ],
+    // jwks-rsa 4 depends on jose 6, which is ESM-only ("type": "module", no
+    // require condition). This backend is CommonJS, so Jest cannot parse it and
+    // every suite that transitively reaches the auth stack fails on
+    // `Unexpected token 'export'`. Transpile it for the test run only; the
+    // application build is unaffected because tsc never touches node_modules.
+    "^.+\\.m?js$": [
+      "ts-jest",
+      {
+        diagnostics: false,
+        isolatedModules: true,
+        tsconfig: {
+          allowJs: true,
+          module: "CommonJS",
+          target: "ES2022",
+          esModuleInterop: true,
+        },
+      },
+    ],
   },
+  // Everything in node_modules stays untransformed except jose. The alternation
+  // covers both segments of the pnpm layout: the store directory
+  // (node_modules/.pnpm/jose@6.2.8/) and the link inside it
+  // (.../node_modules/jose/), so neither position matches and the files are
+  // handed to the transform above.
+  transformIgnorePatterns: ["node_modules/(?!\\.pnpm/jose@|jose/)"],
 };
