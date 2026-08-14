@@ -40,7 +40,7 @@
     "cron-parser": "^5.7.0",
     "csv-parse": "^5.6.0",
     "dotenv": "16.4.7",
-    "escape-string-regexp": "2",
+    "escape-string-regexp": "5",
     "express": "4.21.2",
     "express-fileupload": "1.5.2",
     "express-mongo-sanitize": "^2.2.0",
