@@ -112,6 +112,14 @@ describe('parseOverrideKey', () => {
   // A '>' straight after '@' is always an operator. Reading 'pkg@>v1.2.3' as
   // parent>child would index the entry under 'v1.2.3' and skip every advisory
   // for pkg, which is silent and total.
+  // A child package name may start with a digit ('2fa' is a real package).
+  // Rejecting the separator on that basis indexed the whole key as one name and
+  // skipped every advisory for the child.
+  it('accepts a child package name that starts with a digit', () => {
+    assert.equal(parseOverrideKey('foo>2fa'), '2fa');
+    assert.deepEqual(splitOverrideKey('foo>2fa'), { name: '2fa', selector: null, parent: 'foo' });
+  });
+
   it('does not mistake >v or "> " spellings for a parent separator', () => {
     assert.equal(parseOverrideKey('pkg@>v1.2.3'), 'pkg');
     assert.equal(parseOverrideKey('pkg@> 1.2.3'), 'pkg');
@@ -427,6 +435,21 @@ describe('overrideKeyCovers with a parent-scoped key', () => {
       overrideKeyCoversPath('foo>child', '1.0.0', 'app > foo > mid > child@1.0.0'),
       false
     );
+  });
+
+  // pnpm applies a version-scoped parent key only when the parent's own version
+  // satisfies the selector, so foo@1>child must not be credited for foo@2.0.0.
+  it("honours the parent selector's version", () => {
+    assert.equal(
+      overrideKeyCoversPath('foo@1>child', '1.0.0', 'app > foo@2.0.0 > child@1.0.0'),
+      false
+    );
+    assert.equal(
+      overrideKeyCoversPath('foo@1>child', '1.0.0', 'app > foo@1.5.0 > child@1.0.0'),
+      true
+    );
+    // No version in the path segment means there is nothing to disprove.
+    assert.equal(overrideKeyCoversPath('foo@1>child', '1.0.0', 'app > foo > child@1.0.0'), true);
   });
 
   it('matches a parent segment by identity, not by substring', () => {

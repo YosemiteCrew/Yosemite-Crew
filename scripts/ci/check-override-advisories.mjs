@@ -46,14 +46,17 @@
 //                   any pin stale" misses that entirely; the second question is
 //                   "does any pin fail to COVER a vulnerable copy".
 //
-// Deciding the second question needs the override key compared as a semver
-// range, so this file carries a small comparator rather than taking a
-// dependency. It handles the selector shapes the override block uses today plus
-// the two commonest operators it does not: no selector, a bare major, a
-// major.minor, an exact version, the < <= > >= = comparators, and ^ / ~ ranges.
-// An unrecognised selector (a compound range, an x-range, a workspace protocol)
-// is treated as covering the version, which errs towards silence rather than a
-// false alarm; the stale-pin check still watches that key on its own.
+// Deciding the second question means comparing the override key as a semver
+// range, which is delegated to `semver` - the same implementation pnpm resolves
+// with. An earlier revision hand-rolled it to keep this file dependency-free
+// and review found eight defects in that comparator, every one a silent false
+// negative, so the constraint was dropped; other scripts here already take
+// dependencies. Every range form semver understands is therefore evaluated,
+// including compound ranges, x-ranges, caret and tilde, and prereleases.
+//
+// A selector semver cannot parse as a range at all - a workspace protocol, an
+// npm alias - is treated as covering the version, which errs towards silence
+// rather than a false alarm; the stale-pin check still watches that key.
 //
 // Known limitation: an override pinning a package that nothing actually resolves
 // to is invisible here, because it never appears in the audited tree. Such an
@@ -102,23 +105,22 @@ function fail(message) {
 export function splitOverrideKey(key) {
   const trimmed = key.trim();
 
-  // Scan right to left for the parent>child separator. A '>' can also be a range
-  // operator, and telling them apart needs more than the next character: the
-  // supported spellings include '@>=5.0.0', '@>1.2.3', '@>v1.2.3' and '@> 1.2.3'.
-  // A '>' preceded by '@' is always an operator, never a separator - reading
-  // 'pkg@>v1.2.3' as parent>child would index the entry under 'v1.2.3' and skip
-  // every advisory for pkg.
+  // Scan right to left for the parent>child separator. A '>' can also be a
+  // range operator, and the two are told apart by the character BEFORE it, not
+  // after: an operator '>' always follows '@', '<', '>' or '='. Keying off the
+  // character after instead would reject a perfectly valid child whose name
+  // starts with a digit, such as 'foo>2fa', and index the whole string as a
+  // package name so every advisory for that child is skipped.
   let child = trimmed;
   let parent = null;
   for (let i = trimmed.length - 1; i >= 0; i -= 1) {
     if (trimmed[i] !== '>') continue;
-    if (trimmed[i - 1] === '@' || trimmed[i - 1] === '<' || trimmed[i - 1] === '>') continue;
-    const next = trimmed[i + 1];
-    if (next && !/[=\d]/.test(next)) {
-      child = trimmed.slice(i + 1);
-      parent = trimmed.slice(0, i);
-      break;
-    }
+    const prev = trimmed[i - 1];
+    if (prev === '@' || prev === '<' || prev === '>' || prev === '=') continue;
+    if (i + 1 >= trimmed.length) continue;
+    child = trimmed.slice(i + 1);
+    parent = trimmed.slice(0, i);
+    break;
   }
 
   // On a scoped name the leading '@' is part of the name, so the selector
@@ -208,15 +210,25 @@ export function overrideKeyCoversPath(key, version, path) {
   //
   // Segments are compared as package identities rather than substrings, so
   // `foo` does not match a `foobar` segment.
-  const parentName = splitOverrideKey(parent).name;
+  const { name: parentName, selector: parentSelector } = splitOverrideKey(parent);
   const segments = String(path)
     .split('>')
     .map((segment) => segment.trim());
-  const isPkg = (segment, pkg) => segment === pkg || segment.startsWith(`${pkg}@`);
 
-  return segments.some(
-    (segment, i) => isPkg(segment, parentName) && isPkg(segments[i + 1] ?? '', name)
-  );
+  // A version-scoped parent key only applies when the parent's own version
+  // satisfies that selector, so `foo@1>child` must not be credited for a path
+  // through foo@2.0.0. Where the path carries no version for the segment there
+  // is nothing to disprove, so the selector passes.
+  const isParent = (segment) => {
+    if (segment !== parentName && !segment.startsWith(`${parentName}@`)) return false;
+    if (!parentSelector) return true;
+    const at = segment.indexOf('@', segment.startsWith('@') ? 1 : 0);
+    if (at === -1) return true;
+    return selectorCovers(parentSelector, segment.slice(at + 1));
+  };
+  const isChild = (segment) => segment === name || segment.startsWith(`${name}@`);
+
+  return segments.some((segment, i) => isParent(segment) && isChild(segments[i + 1] ?? ''));
 }
 
 // package name -> [{ key, pinned }], because a single package is routinely
