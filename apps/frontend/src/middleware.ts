@@ -116,6 +116,6 @@ export const config = {
   // stop matching and that RSC request would lose its nonce CSP. Anchoring on
   // `$` with known asset extensions keeps the transport forms matchable.
   matcher: [
-    '/((?!api|_next|fonts|images|assets|dev-docs|.*\\.(?:ico|png|jpg|jpeg|gif|svg|webp|woff2?|ttf|eot|css|js|map|json|txt|xml|webmanifest)$).*)',
+    String.raw`/((?!api|_next|fonts|images|assets|dev-docs|.*\.(?:ico|png|jpg|jpeg|gif|svg|webp|woff2?|ttf|eot|css|js|map|json|txt|xml|webmanifest)$).*)`,
   ],
 };
