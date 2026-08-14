@@ -79,6 +79,31 @@ updates:
       # patches) so the pair only moves atomically with the runtime upgrade
       # (#2125) - a patch bump here without the override recreates the mismatch.
       - dependency-name: 'playwright'
+      # @babel/core 8 cannot be installed while the app is on React Native
+      # 0.81: @react-native/babel-preset asserts Babel "^7.0.0-0" at load time
+      # and throws "Requires Babel ^7.0.0-0, but was loaded with 8.0.1" for
+      # every mobile file (#2116). This is a hard assertion inside the preset,
+      # not something a config can work around. Unfreeze with the React Native
+      # upgrade that ships a Babel 8 compatible preset.
+      - dependency-name: '@babel/core'
+        update-types: ['version-update:semver-major']
+      # eslint 10 is blocked in two workspaces at once (#2180), so the repo
+      # stays on 9 until both clear:
+      #   frontend - eslint-config-next 15.x loads @rushstack/eslint-patch,
+      #     which refuses to patch an ESLint it does not recognise and fails
+      #     with "Failed to patch ESLint because the calling module was not
+      #     recognized". eslint-config-next 16 drops the patch and declares
+      #     eslint >=9, so this clears with the Next 16 upgrade.
+      #   mobileAppYC - @react-native/eslint-config parses with
+      #     @babel/eslint-parser, whose scope manager ESLint 10 rejects
+      #     ("scopeManager.addGlobals is not a function"). Only
+      #     @babel/eslint-parser 8 supports ESLint 10, and it requires
+      #     @babel/core ^8, which React Native blocks per the entry above.
+      # Backend and desktop were verified to lint clean on 10 already; the hold
+      # is only so all four workspaces move together rather than splitting the
+      # toolchain across two ESLint majors.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
     groups:
       # Every group is minor-and-patch only, including the named ones below. A
       # named group without `update-types` silently swallows MAJORS too, which is
