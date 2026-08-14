@@ -150,9 +150,11 @@ export function isExactVersion(value) {
 // already take dependencies (scripts/ci/coverage uses istanbul-lib-*), so the
 // constraint was self-imposed and not worth the correctness cost.
 export function compareVersions(a, b) {
-  const left = semver.coerce(a, { includePrerelease: true }) ? String(a) : null;
-  const right = semver.coerce(b, { includePrerelease: true }) ? String(b) : null;
-  if (!left || !right || !semver.valid(left) || !semver.valid(right)) return 0;
+  const left = String(a);
+  const right = String(b);
+  // Unorderable input sorts equal rather than throwing: callers compare audit
+  // findings, and one malformed version should not abort the whole check.
+  if (!semver.valid(left) || !semver.valid(right)) return 0;
   return semver.compare(left, right);
 }
 
