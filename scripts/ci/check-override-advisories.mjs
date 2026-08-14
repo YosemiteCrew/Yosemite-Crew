@@ -64,6 +64,8 @@
 //   1  at least one does (or the manifest/baseline could not be read)
 //   2  advisory data was unavailable and --strict was passed
 
+import semver from 'semver';
+
 import { existsSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
@@ -137,63 +139,21 @@ export function isExactVersion(value) {
   return EXACT_VERSION.test(value);
 }
 
-// Deliberately small: enough to order the versions that appear in override keys
-// and in `pnpm audit` findings, and nothing more. Build metadata is ignored, as
-// semver requires. A prerelease sorts below the release it precedes, so
-// 3.3.18-rc.1 < 3.3.18; two prereleases fall back to a string compare of their
-// tags, which is right for the numeric-suffix tags in practice.
+// Version ordering and range matching are delegated to `semver`, the same
+// implementation pnpm resolves with. An earlier revision hand-rolled both to
+// keep this file dependency-free, and review found four separate defects in it:
+// partial comparator bounds padded with zeros rather than expanded, prereleases
+// admitted into ordinary ranges, caret/tilde selectors carrying a prerelease
+// falling through to the permissive fallback, and prerelease identifiers
+// compared lexicographically so 1.0.0-alpha.10 sorted below 1.0.0-alpha.2.
+// Each was a silent false negative in a security check. Other scripts here
+// already take dependencies (scripts/ci/coverage uses istanbul-lib-*), so the
+// constraint was self-imposed and not worth the correctness cost.
 export function compareVersions(a, b) {
-  const parse = (value) => {
-    const [core, pre = ''] = String(value).split('+')[0].split('-');
-    const parts = core.split('.').map((n) => Number.parseInt(n, 10));
-    return { parts, pre };
-  };
-  const left = parse(a);
-  const right = parse(b);
-
-  for (let i = 0; i < 3; i += 1) {
-    const l = Number.isFinite(left.parts[i]) ? left.parts[i] : 0;
-    const r = Number.isFinite(right.parts[i]) ? right.parts[i] : 0;
-    if (l !== r) return l < r ? -1 : 1;
-  }
-  if (left.pre === right.pre) return 0;
-  if (!left.pre) return 1; // a release outranks any prerelease of itself
-  if (!right.pre) return -1;
-  return left.pre < right.pre ? -1 : 1;
-}
-
-const COMPARATOR = /^(<=|>=|<|>|=)\s*v?(\d+(?:\.\d+){0,2}(?:[-+][0-9A-Za-z.-]+)?)$/;
-const CARET_TILDE = /^([\^~])\s*v?(\d+)(?:\.(\d+))?(?:\.(\d+))?$/;
-const VERSION_PREFIX = /^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?/;
-
-// The exclusive upper bound of a ^ or ~ range, following npm's rules: ~ allows
-// patch drift, ^ allows changes that do not modify the left-most non-zero
-// element. Worth supporting rather than leaving to the catch-all, because these
-// are the two commonest range operators and the catch-all direction is a false
-// negative: a `^8.0.0` key would silently be treated as covering a 7.x copy.
-// Expand a possibly-partial bound to a full version. `next` gives the exclusive
-// end of the line the bound names: '1' -> 2.0.0, '1.2' -> 1.3.0, and a complete
-// version is already a point so it is returned unchanged.
-function padVersion(bound, next) {
-  const core = bound.split('+')[0].split('-')[0];
-  const suffix = bound.slice(core.length);
-  const parts = core.split('.').map((n) => Number.parseInt(n, 10));
-  const [major = 0, minor = 0, patch = 0] = parts;
-  if (!next) return `${major}.${minor}.${patch}${parts.length === 3 ? suffix : ''}`;
-  if (parts.length === 1) return `${major + 1}.0.0`;
-  if (parts.length === 2) return `${major}.${minor + 1}.0`;
-  return `${major}.${minor}.${patch}${suffix}`;
-}
-
-function caretTildeUpperBound(operator, major, minor, patch, minorGiven, patchGiven) {
-  if (operator === '~') {
-    return minorGiven ? `${major}.${minor + 1}.0` : `${major + 1}.0.0`;
-  }
-  if (major !== 0) return `${major + 1}.0.0`;
-  if (!minorGiven) return '1.0.0';
-  if (minor !== 0) return `0.${minor + 1}.0`;
-  if (!patchGiven) return '0.1.0';
-  return `0.0.${patch + 1}`;
+  const left = semver.coerce(a, { includePrerelease: true }) ? String(a) : null;
+  const right = semver.coerce(b, { includePrerelease: true }) ? String(b) : null;
+  if (!left || !right || !semver.valid(left) || !semver.valid(right)) return 0;
+  return semver.compare(left, right);
 }
 
 // Does an override key's selector actually match this installed version?
@@ -202,123 +162,20 @@ function caretTildeUpperBound(operator, major, minor, patch, minorGiven, patchGi
 // version and nothing else, so it can never apply to an installed 8.3.2, which
 // is precisely how three vulnerable uuid copies stayed put behind a patched pin.
 //
-// A null selector is a blanket override and covers everything. Anything this
-// does not recognise returns true, so an unusual key produces silence rather
-// than a false alarm; the stale-pin check still covers that key on its own.
+// A null selector is a blanket override and covers everything. A selector
+// semver cannot parse as a range returns true, so an unusual key produces
+// silence rather than a false alarm; the stale-pin check still covers that key
+// on its own.
 export function selectorCovers(selector, version) {
   if (!selector) return true;
   const trimmed = selector.trim();
-
-  // semver keeps a prerelease out of every ordinary range, not just the bare
-  // ones: `<2.0.0` does not admit 1.2.3-alpha.1 either. Checked once here so
-  // the comparator and caret/tilde branches cannot return true past it. A
-  // selector that names a prerelease itself is the exception and is handled by
-  // the exact-point branch below.
-  const versionIsPrerelease = /-/.test(String(version).split('+')[0]);
-  const selectorNamesPrerelease = /-/.test(trimmed.split('+')[0]);
-  if (versionIsPrerelease && !selectorNamesPrerelease) return false;
-
-  const comparator = COMPARATOR.exec(trimmed);
-  if (comparator) {
-    const [, operator, bound] = comparator;
-    // A partial bound is a whole line, not a zero-padded point. semver reads
-    // '>1' as "everything from 2.0.0" and '<=1.2' as "all of 1.2.x", so padding
-    // with zeros would call 1.5.0 covered by '>1' and 1.2.5 uncovered by '<=1.2'
-    // - wrong in both directions.
-    const given = bound.split('+')[0].split('-')[0].split('.').length;
-    const lower = padVersion(bound, false);
-    const upper = padVersion(bound, true); // exclusive end of the named line
-    if (operator === '<') return compareVersions(version, lower) < 0;
-    if (operator === '>=') return compareVersions(version, lower) >= 0;
-    if (operator === '<=') {
-      return given === 3
-        ? compareVersions(version, lower) <= 0
-        : compareVersions(version, upper) < 0;
-    }
-    if (operator === '>') {
-      return given === 3
-        ? compareVersions(version, lower) > 0
-        : compareVersions(version, upper) >= 0;
-    }
-    // '=' is a point on a complete bound, and the whole line on a partial one
-    // ('=1.2' means all of 1.2.x), same as a bare prefix.
-    if (given === 3) return compareVersions(version, lower) === 0;
-    return compareVersions(version, lower) >= 0 && compareVersions(version, upper) < 0;
-  }
-
-  const caretTilde = CARET_TILDE.exec(trimmed);
-  if (caretTilde) {
-    const [, operator, majorRaw, minorRaw, patchRaw] = caretTilde;
-    const major = Number(majorRaw);
-    const minor = minorRaw === undefined ? 0 : Number(minorRaw);
-    const patch = patchRaw === undefined ? 0 : Number(patchRaw);
-    const lower = `${major}.${minor}.${patch}`;
-    const upper = caretTildeUpperBound(
-      operator,
-      major,
-      minor,
-      patch,
-      minorRaw !== undefined,
-      patchRaw !== undefined
-    );
-    return compareVersions(version, lower) >= 0 && compareVersions(version, upper) < 0;
-  }
-
-  // A bare `3` or `3.3` is a prefix selector covering that whole line, and so is
-  // the x-range spelling of the same thing: `3.x`, `3.*`, `3.x.x`. Both forms
-  // have to be understood, because `uuid@8` and `uuid@8.x` express one intent
-  // and letting the second fall through to the catch-all would reinstate the
-  // exact blind spot this check was added to close.
-  // An exact selector carrying a prerelease tag is a point, and has to be
-  // compared as one. It matches none of the branches above and its tag is not a
-  // plain numeric part, so without this it would reach the permissive fallback
-  // and be read as covering every version in the tree.
-  if (isExactVersion(trimmed.replace(/^v/, ''))) {
-    return compareVersions(version, trimmed.replace(/^v/, '')) === 0;
-  }
-
-  const parts = trimmed.replace(/^v/, '').split('.');
-  if (parts.length <= 3 && parts.every((part) => /^(?:\d+|[xX*])$/.test(part))) {
-    const want = [];
-    for (const part of parts) {
-      if (/^[xX*]$/.test(part)) break; // everything from here on is a wildcard
-      want.push(part);
-    }
-    const got = VERSION_PREFIX.exec(version)?.slice(1) ?? [];
-    return want.every((part, i) => part === got[i]);
-  }
-
-  return true;
-}
-
-// `paths` is the advisory's dependency paths for this specific version, e.g.
-// 'apps/backend > react-native > jest-environment-node@1.2.3'.
-//
-// A parent-scoped key only rewrites the copy reached through that parent, so it
-// cannot be credited with covering a copy that arrives some other way. Without
-// the path check, 'react-native>jest-environment-node' (which has no blanket
-// sibling here) would be read as covering every jest-environment-node in the
-// tree. When no path information is available the parent cannot be disproved,
-// so the key is credited - silence rather than a guess.
-// True when this key applies to ONE dependency path of the version. The
-// quantifiers matter and are easy to get backwards: coverage of a version is
-// "for every path, SOME key covers that path", so the per-path question asked
-// here has to stay per-path. Folding `every` in here instead made two keys like
-// `foo>child` and `bar>child` each fail on the other's path, reporting an
-// uncovered copy that the pair actually covers between them.
-export function overrideKeyCoversPath(key, version, path) {
-  const { selector, parent } = splitOverrideKey(key);
-  if (!selectorCovers(selector, version)) return false;
-  if (!parent) return true;
-  if (!path) return true;
-  // Compare package identities, not substrings: `foo` must not match the
-  // `foobar` segment of 'app > foobar > child@1.0.0', which would credit an
-  // override pnpm cannot apply and swallow the finding.
-  const parentName = splitOverrideKey(parent).name;
-  return String(path)
-    .split('>')
-    .map((segment) => segment.trim())
-    .some((segment) => segment === parentName || segment.startsWith(`${parentName}@`));
+  if (!semver.valid(version)) return true;
+  if (!semver.validRange(trimmed)) return true;
+  // includePrerelease is deliberately NOT set: semver keeps a prerelease out of
+  // an ordinary range, and so does pnpm, so `pkg@<2.0.0` genuinely would not be
+  // applied to 1.2.3-alpha.1. A selector naming a prerelease still matches its
+  // own, which is what `semver.satisfies` does by default.
+  return semver.satisfies(version, trimmed);
 }
 
 export function overrideKeyCovers(key, version, paths = null) {
@@ -326,12 +183,38 @@ export function overrideKeyCovers(key, version, paths = null) {
   return paths.every((path) => overrideKeyCoversPath(key, version, path));
 }
 
-// The version-level question, asked with the quantifiers the right way round.
+// The version-level question, asked with the quantifiers the right way round:
+// a version is covered when EVERY path it arrives by is covered by SOME key.
 export function versionIsCovered(pins, version, paths) {
   if (!paths || paths.length === 0) {
     return pins.some((pin) => overrideKeyCoversPath(pin.key, version, null));
   }
   return paths.every((path) => pins.some((pin) => overrideKeyCoversPath(pin.key, version, path)));
+}
+
+export function overrideKeyCoversPath(key, version, path) {
+  const { name, selector, parent } = splitOverrideKey(key);
+  if (!selectorCovers(selector, version)) return false;
+  if (!parent) return true;
+  if (!path) return true;
+
+  // A pnpm parent selector overrides the matched parent's OWN dependency, so
+  // `foo>child` cannot reach a child that some intermediate package depends on:
+  // in 'app > foo > intermediate > child@1.0.0' the direct parent is
+  // `intermediate`, not `foo`. Requiring adjacency keeps a patched pin from
+  // suppressing a copy the override never rewrites.
+  //
+  // Segments are compared as package identities rather than substrings, so
+  // `foo` does not match a `foobar` segment.
+  const parentName = splitOverrideKey(parent).name;
+  const segments = String(path)
+    .split('>')
+    .map((segment) => segment.trim());
+  const isPkg = (segment, pkg) => segment === pkg || segment.startsWith(`${pkg}@`);
+
+  return segments.some(
+    (segment, i) => isPkg(segment, parentName) && isPkg(segments[i + 1] ?? '', name)
+  );
 }
 
 // package name -> [{ key, pinned }], because a single package is routinely
@@ -770,12 +653,27 @@ export function main(argv, { readAudit = readAuditJson } = {}) {
     );
   }
   if (unacceptedUncovered.length > 0) {
+    const withSuggestion = unacceptedUncovered.filter((finding) => finding.suggestedKey);
     console.error(
-      'For an uncovered copy, the pinned value is already patched but the override KEY is too ' +
-        'narrow to select the versions listed under "NOT covered", so the override never applies ' +
-        'to them. Replace the exact-version keys with a range key, then re-run pnpm install. ' +
-        'The suggested key is printed with each finding.'
+      'For an uncovered copy, the override KEY is too narrow to select the versions listed under ' +
+        '"NOT covered", so the override never applies to them.'
     );
+    if (withSuggestion.length > 0) {
+      console.error(
+        'Where a "suggested key" is printed, the pinned value is already patched: replace the ' +
+          'narrow keys with that range key and re-run pnpm install.'
+      );
+    }
+    // Without a suggestion there is no release to pin to, so telling anyone to
+    // paste a range key would be advice that cannot be followed - and the pin
+    // itself may still be vulnerable.
+    if (withSuggestion.length < unacceptedUncovered.length) {
+      console.error(
+        'Where none is printed, the advisory publishes no single patched release to pin to ' +
+          '(no fix, a disjoint range, or an exclusive bound). Read the advisory and either raise ' +
+          'the dependency that pulls the copy in, drop it, or record it in the baseline.'
+      );
+    }
   }
   console.error(
     'If a fix is genuinely blocked, record it in ' +

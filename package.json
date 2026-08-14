@@ -37,6 +37,7 @@
     "prettier": "^3.9.6",
     "react-doctor": "^0.2.14",
     "secretlint": "^11.3.0",
+    "semver": "7.8.5",
     "turbo": "^2.10.9"
   },
   "packageManager": "pnpm@8.15.6",

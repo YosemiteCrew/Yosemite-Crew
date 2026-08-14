@@ -147,6 +147,9 @@ importers:
       secretlint:
         specifier: ^11.3.0
         version: 11.3.1
+      semver:
+        specifier: 7.8.5
+        version: 7.8.5
       turbo:
         specifier: ^2.10.9
         version: 2.10.9

@@ -272,6 +272,24 @@ describe('selectorCovers', () => {
   // A selector that IS a prerelease is a point and has to be compared as one.
   // Its tag is not a numeric part, so without an explicit branch it reaches the
   // permissive fallback and reads as covering the entire tree.
+  // SemVer precedence compares dot-separated identifiers numerically, so
+  // alpha.10 outranks alpha.2. A lexicographic compare reverses that and lets
+  // `<1.0.0-alpha.2` claim to cover an installed 1.0.0-alpha.10.
+  it('orders prerelease identifiers by SemVer precedence, not lexically', () => {
+    assert.equal(compareVersions('1.0.0-alpha.10', '1.0.0-alpha.2'), 1);
+    assert.equal(compareVersions('1.0.0-alpha.2', '1.0.0-alpha.10'), -1);
+    assert.equal(selectorCovers('<1.0.0-alpha.2', '1.0.0-alpha.10'), false);
+  });
+
+  // A caret or tilde selector carrying a prerelease is a real range and must be
+  // evaluated, not dropped to the permissive fallback where it would cover
+  // every installed version.
+  it('evaluates caret and tilde selectors that carry a prerelease', () => {
+    assert.equal(selectorCovers('^1.2.3-alpha.1', '9.9.9'), false);
+    assert.equal(selectorCovers('^1.2.3-alpha.1', '1.2.3'), true);
+    assert.equal(selectorCovers('~1.2.3-alpha.1', '9.9.9'), false);
+  });
+
   it('matches an exact prerelease selector as a point', () => {
     assert.equal(selectorCovers('1.2.3-alpha.1', '1.2.3-alpha.1'), true);
     assert.equal(selectorCovers('1.2.3-alpha.1', '1.2.3-alpha.2'), false);
@@ -303,13 +321,23 @@ describe('selectorCovers', () => {
     assert.equal(selectorCovers('~1', '2.0.0'), false);
   });
 
-  // Erring towards silence: an unfamiliar selector must not manufacture a
-  // finding, because the stale-pin check still covers that key on its own.
-  it('treats an unrecognised selector as covering the version', () => {
+  // Erring towards silence: a selector semver cannot parse as a range must not
+  // manufacture a finding, because the stale-pin check still covers that key.
+  it('treats an unparseable selector as covering the version', () => {
     assert.equal(selectorCovers('workspace:*', '1.0.0'), true);
     assert.equal(selectorCovers('npm:other@1.0.0', '1.0.0'), true);
     assert.equal(selectorCovers('*', '1.0.0'), true);
-    assert.equal(selectorCovers('>=1 <2', '9.9.9'), true);
+  });
+
+  // A compound range IS parseable, so it is evaluated rather than waved through.
+  // The hand-rolled predicate this replaced let '>=1 <2' cover every version.
+  it('evaluates a compound range instead of waving it through', () => {
+    assert.equal(selectorCovers('>=1 <2', '9.9.9'), false);
+    assert.equal(selectorCovers('>=1 <2', '1.5.0'), true);
+    assert.equal(selectorCovers('1.0.0 - 2.0.0', '1.5.0'), true);
+    assert.equal(selectorCovers('1.0.0 - 2.0.0', '9.9.9'), false);
+    assert.equal(selectorCovers('11 || 12', '7.0.3'), false);
+    assert.equal(selectorCovers('11 || 12', '12.1.0'), true);
   });
 
   // Regression guard on the prefix branch: a bare '1' selects the 1.x line and
@@ -389,10 +417,25 @@ describe('overrideKeyCovers with a parent-scoped key', () => {
 
   // Package identity, not substring: 'foo' must not match the 'foobar' segment,
   // which would credit an override pnpm cannot apply and swallow the finding.
+  // pnpm's parent selector overrides the matched parent's OWN dependency, so
+  // `foo>child` cannot reach a child that an intermediate package depends on.
+  // Crediting it there would let a patched pin suppress a copy the override
+  // never rewrites.
+  it('requires the parent to directly own the child', () => {
+    assert.equal(overrideKeyCoversPath('foo>child', '1.0.0', 'app > foo > child@1.0.0'), true);
+    assert.equal(
+      overrideKeyCoversPath('foo>child', '1.0.0', 'app > foo > mid > child@1.0.0'),
+      false
+    );
+  });
+
   it('matches a parent segment by identity, not by substring', () => {
     assert.equal(overrideKeyCoversPath('foo>child', '1.0.0', 'app > foobar > child@1.0.0'), false);
     assert.equal(overrideKeyCoversPath('foo>child', '1.0.0', 'app > foo > child@1.0.0'), true);
-    assert.equal(overrideKeyCoversPath('foo>child', '1.0.0', 'app > foo@2.1.0 > child@1.0.0'), true);
+    assert.equal(
+      overrideKeyCoversPath('foo>child', '1.0.0', 'app > foo@2.1.0 > child@1.0.0'),
+      true
+    );
   });
 });
 
@@ -613,14 +656,13 @@ describe('findVulnerablePins', () => {
       }
     );
     assert.equal(findings.length, 2);
-    assert.deepEqual(
-      findings.map((finding) => finding.kind).sort(),
-      ['stale-pin', 'uncovered-copy']
-    );
-    assert.deepEqual(
-      findings.find((finding) => finding.kind === 'uncovered-copy').uncovered,
-      ['7.0.3']
-    );
+    assert.deepEqual(findings.map((finding) => finding.kind).sort(), [
+      'stale-pin',
+      'uncovered-copy',
+    ]);
+    assert.deepEqual(findings.find((finding) => finding.kind === 'uncovered-copy').uncovered, [
+      '7.0.3',
+    ]);
   });
 
   // The commonest override shape in this repo: an exact-version key pinned to a
@@ -868,7 +910,10 @@ describe('main', () => {
       '--no-baseline',
     ]);
     assert.equal(code, 0);
-    assert.match(output, /OK - every override pins a patched version and covers every vulnerable copy/);
+    assert.match(
+      output,
+      /OK - every override pins a patched version and covers every vulnerable copy/
+    );
   });
 
   it('passes when the only finding is recorded in the baseline', () => {
