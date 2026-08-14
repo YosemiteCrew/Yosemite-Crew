@@ -103,14 +103,14 @@ const FINANCE_BASE_PATH = '/v1/finance';
 const APPOINTMENT_ID_EXTENSION_URL =
   'https://yosemitecrew.com/fhir/StructureDefinition/appointment-id';
 
-const withFreshFinanceParams = <T extends Record<string, unknown>>(
-  params: T
-): T & {
-  _cacheBust: number;
-} => ({
-  ...params,
-  _cacheBust: Date.now(),
-});
+// Finance reads must never come back stale, but a `Date.now()` query parameter
+// was an expensive way to guarantee it: a unique URL per call misses the CORS
+// preflight cache (so every read pays an extra round trip), defeats the
+// in-flight GET dedupe, and prevents conditional revalidation. The API sets no
+// Cache-Control on these responses, so freshness is already guaranteed; the only
+// thing worth keeping is not piggybacking on an older in-flight request, which
+// `dedupe: false` expresses directly.
+const FRESH_FINANCE_READ = { dedupe: false } as const;
 
 const normalizeReferenceTail = (value: unknown): string | undefined => {
   let raw = '';
@@ -311,9 +311,8 @@ export const loadInvoicesForOrgPrimaryOrg = async (opts?: {
   try {
     const res = await getData<FinanceEnvelope<unknown[]> | unknown[]>(
       `${FINANCE_BASE_PATH}/invoices`,
-      withFreshFinanceParams({
-        organisationId: primaryOrgId,
-      })
+      { organisationId: primaryOrgId },
+      FRESH_FINANCE_READ
     );
     const invoicePayload = unwrapFinanceData(res.data) ?? [];
     const invoices = invoicePayload.map((invoice) =>
@@ -341,10 +340,8 @@ export const loadInvoicesForAppointment = async (appointmentId: string): Promise
   try {
     const res = await getData<FinanceEnvelope<unknown[]> | unknown[]>(
       `${FINANCE_BASE_PATH}/invoices`,
-      withFreshFinanceParams({
-        organisationId: primaryOrgId,
-        appointmentId,
-      })
+      { organisationId: primaryOrgId, appointmentId },
+      FRESH_FINANCE_READ
     );
     const invoicePayload = unwrapFinanceData(res.data) ?? [];
     const invoices = invoicePayload.map((invoice) =>
@@ -427,7 +424,8 @@ export const loadAppointmentBilling = async (
 
   const res = await getData<FinanceEnvelope<unknown[]> | unknown[]>(
     `${FINANCE_BASE_PATH}/invoices`,
-    withFreshFinanceParams({ organisationId, appointmentId })
+    { organisationId, appointmentId },
+    FRESH_FINANCE_READ
   );
   const invoicePayload = unwrapFinanceData(res.data) ?? [];
   // The backend scopes `GET /invoices?organisationId&appointmentId` to the
