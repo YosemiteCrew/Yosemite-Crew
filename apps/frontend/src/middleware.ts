@@ -58,9 +58,20 @@ const createNonce = () => {
 // the CSP is concerned, so strip the suffix before matching the prefix list -
 // otherwise `/dashboard.rsc` matches no prefix and the RSC response is served
 // with the permissive inline-script CSP instead of the nonce one.
-const TRANSPORT_SUFFIX = /(?:\.segments\/.*)?\.rsc$/;
+// Deliberately not a regex. `/(?:\.segments\/.*)?\.rsc$/` backtracks
+// polynomially on a path with many repetitions of `.segments/`, and this runs at
+// the edge on an attacker-supplied pathname for every request (CodeQL
+// js/polynomial-redos). These three string operations are linear.
+const RSC_SUFFIX = '.rsc';
+const SEGMENTS_MARKER = '.segments/';
 
-const toDocumentPath = (pathname: string) => pathname.replace(TRANSPORT_SUFFIX, '');
+const toDocumentPath = (pathname: string) => {
+  if (!pathname.endsWith(RSC_SUFFIX)) return pathname;
+
+  const withoutSuffix = pathname.slice(0, -RSC_SUFFIX.length);
+  const segmentsAt = withoutSuffix.indexOf(SEGMENTS_MARKER);
+  return segmentsAt === -1 ? withoutSuffix : withoutSuffix.slice(0, segmentsAt);
+};
 
 const usesStrictContentSecurityPolicy = (pathname: string) => {
   const documentPath = toDocumentPath(pathname);

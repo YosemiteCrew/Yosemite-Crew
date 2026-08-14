@@ -226,6 +226,45 @@ describe('middleware', () => {
     });
   });
 
+  describe('transport paths resolve to the document they belong to', () => {
+    const nonceFor = (pathname: string) => {
+      const response = createResponse();
+      mockNext.mockReturnValue(response);
+      middleware(createRequest(pathname));
+      return getScriptSrc(response.headers.get('Content-Security-Policy') ?? '');
+    };
+
+    it.each([
+      '/dashboard.rsc',
+      '/appointments/123/workspace.rsc',
+      '/appointments.segments/_tree.segment.rsc',
+      // Repeated markers resolve to the first one, same as the plain form.
+      '/dashboard.segments/a.segments/b.segment.rsc',
+    ])('gives %s the strict CSP of its document route', (pathname) => {
+      expect(nonceFor(pathname)).toContain("'nonce-fixed-nonce'");
+    });
+
+    it.each([
+      // Public route: transport form must stay permissive, not accidentally strict.
+      '/pricing.rsc',
+      // Not a transport suffix at all.
+      '/dashboard.rscx',
+    ])('does not mistake %s for a strict app route', (pathname) => {
+      expect(nonceFor(pathname)).not.toContain("'nonce-");
+    });
+
+    it('normalises a pathological transport path in linear time', () => {
+      // The regex this replaced backtracked polynomially here - seconds of edge
+      // CPU on an attacker-supplied path, on every request (js/polynomial-redos).
+      const evil = `/${'.segments/'.repeat(20_000)}x`;
+
+      const started = performance.now();
+      middleware(createRequest(evil));
+
+      expect(performance.now() - started).toBeLessThan(250);
+    });
+  });
+
   describe('no second static-asset filter in the body', () => {
     // A dotted path that the matcher admits must reach the CSP logic. This is
     // the contradiction that made the matcher fix a no-op: the body skipped
