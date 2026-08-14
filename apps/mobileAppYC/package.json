@@ -115,7 +115,7 @@
     "babel-plugin-transform-remove-console": "^6.9.4",
     "detox": "^20.51.4",
     "esbuild": "^0.28.1",
-    "eslint": "^8.57.1",
+    "eslint": "^10.8.1",
     "jest": "^30.4.2",
     "prettier": "3.9.6",
     "react-test-renderer": "19.1.0",
