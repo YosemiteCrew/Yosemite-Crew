@@ -168,6 +168,42 @@ describe('PostHogBootstrap', () => {
     expect(posthog.opt_in_capturing).not.toHaveBeenCalled();
   });
 
+  it('initializes on renewed consent after an abandoned load left the module cached', async () => {
+    // Abandoning init still leaves loadPostHog's module cached, so a later
+    // consent event sees a non-null handle. Treating that as "already
+    // initialized" would only toggle capture on a client init() never ran on:
+    // no ready event, and analytics dead until a reload.
+    globalThis.localStorage.setItem(COOKIE_CONSENT_KEY, 'true');
+    const onReady = jest.fn();
+    globalThis.addEventListener(POSTHOG_READY_EVENT, onReady);
+
+    render(<PostHogBootstrap />);
+    act(() => {
+      globalThis.dispatchEvent(
+        new StorageEvent('storage', { key: COOKIE_CONSENT_KEY, newValue: 'false' })
+      );
+    });
+    await waitFor(() => expect(posthog.init).not.toHaveBeenCalled());
+    // The abandoned load cached the module all the same.
+    expect(posthogClient.getLoadedPostHog()).not.toBeNull();
+
+    act(() => {
+      globalThis.localStorage.setItem(COOKIE_CONSENT_KEY, 'true');
+      globalThis.dispatchEvent(
+        new StorageEvent('storage', { key: COOKIE_CONSENT_KEY, newValue: 'true' })
+      );
+    });
+
+    await waitFor(() => expect(posthog.init).toHaveBeenCalledTimes(1));
+    act(() => {
+      getInitOptions().loaded?.(posthog);
+    });
+
+    expect(posthog.opt_in_capturing).toHaveBeenCalled();
+    expect(onReady).toHaveBeenCalled();
+    globalThis.removeEventListener(POSTHOG_READY_EVENT, onReady);
+  });
+
   it('opts out instead of opting in when consent is withdrawn before the loaded callback runs', async () => {
     globalThis.localStorage.setItem(COOKIE_CONSENT_KEY, 'true');
 

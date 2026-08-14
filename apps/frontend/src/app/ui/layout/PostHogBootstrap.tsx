@@ -39,8 +39,15 @@ const PostHogBootstrap = () => {
       // matters: PostHogUserSync listens for the same storage event and runs
       // straight after this handler, so an await here would let it identify
       // while capturing was still opted out and PostHog would drop the event.
+      //
+      // `initializedRef` is part of the condition because a cached module is not
+      // the same thing as an initialized client. Withdrawing consent while the
+      // chunk is still downloading abandons init below, but loadPostHog has
+      // already cached the module - so this branch would toggle capture on a
+      // client that was never initialized, emit no ready event, and leave
+      // analytics dead until a reload.
       const cached = getLoadedPostHog();
-      if (cached) {
+      if (cached && initializedRef.current) {
         if (consented) {
           cached.opt_in_capturing();
         } else {
