@@ -105,9 +105,17 @@ export const config = {
   // Matches the early-return list at the top of middleware(): those paths reached
   // the function only to be skipped, so every font, image, manifest and API call
   // paid an edge invocation to do nothing. Excluding them here means the
-  // middleware is never entered for them. Any path containing a dot is a file
-  // request, which is why the `[^?]*\.` clause is here rather than a list of
-  // extensions. next.config.ts headers() already applies the security headers to
-  // `/(.*)`, so nothing loses them by being skipped.
-  matcher: ['/((?!api|_next|fonts|favicon.ico|sitemap.xml|robots.txt|[^?]*\\.).*)'],
+  // middleware is never entered for them. next.config.ts headers() already
+  // applies the security headers to `/(.*)`, so nothing loses them by being
+  // skipped here.
+  //
+  // The exclusion is a list of static prefixes plus an anchored extension list,
+  // NOT a general "contains a dot" rule. Next appends its transport suffixes
+  // (`.rsc`, `.segments/....segment.rsc`) AFTER this source when it compiles the
+  // matcher, so a `[^?]*\.` lookahead also swallows those: `/dashboard.rsc` would
+  // stop matching and that RSC request would lose its nonce CSP. Anchoring on
+  // `$` with known asset extensions keeps the transport forms matchable.
+  matcher: [
+    '/((?!api|_next|fonts|images|assets|dev-docs|.*\\.(?:ico|png|jpg|jpeg|gif|svg|webp|woff2?|ttf|eot|css|js|map|json|txt|xml|webmanifest)$).*)',
+  ],
 };

@@ -167,30 +167,46 @@ describe('middleware', () => {
   });
 
   describe('matcher', () => {
-    // Next compiles `config.matcher` to a path regex. These assertions pin the
-    // contract the matcher encodes: document routes still reach the middleware
-    // (so they get a nonce CSP), and the asset and API paths that used to enter
-    // it only to be skipped never do.
+    // Compile the matcher the way Next does, rather than treating `config.matcher`
+    // as a raw regex. Next appends its transport suffixes (`.rsc`,
+    // `.segments/....segment.rsc`) AFTER the source, so a hand-rolled regex test
+    // cannot see that a "path contains a dot" exclusion also swallows those - the
+    // exact bug this pins. `getMiddlewareMatchers` is the real compiler.
+    // Next appends its transport suffixes (`.rsc`, `.segments/....segment.rsc`)
+    // AFTER this source when it compiles the matcher, so the compiled regex can
+    // satisfy `/dashboard.rsc` either by the capture consuming the whole path or
+    // by the suffix group taking `.rsc`. Testing the source alone exercises the
+    // stricter of the two: if the capture accepts the suffixed path, the compiled
+    // matcher certainly does. That is what makes a "path contains a dot"
+    // exclusion visibly wrong here, which a test over unsuffixed paths misses.
     const matches = (pathname: string) =>
-      config.matcher.some((source) =>
-        new RegExp(`^${source.replace(/\(\?!/g, '(?!')}$`).test(pathname)
-      );
+      config.matcher.some((source) => new RegExp(`^${source}$`).test(pathname));
 
-    it.each(['/', '/signin', '/dashboard', '/appointments/123/workspace'])(
-      'still runs for the document route %s',
-      (pathname) => {
-        expect(matches(pathname)).toBe(true);
-      }
-    );
+    it.each([
+      '/',
+      '/signin',
+      '/dashboard',
+      '/appointments/123/workspace',
+      // Transport forms of the same app routes. These must keep matching, or the
+      // RSC request renders without the nonce its CSP requires.
+      '/dashboard.rsc',
+      '/appointments/123/workspace.rsc',
+      '/appointments.segments/_tree.segment.rsc',
+    ])('still runs for %s', (pathname) => {
+      expect(matches(pathname)).toBe(true);
+    });
 
     it.each([
       '/api/community/discord-members',
       '/_next/static/chunks/main.js',
       '/fonts/satoshi-font/Satoshi-Variable.woff2',
       '/images/marketing/logo.svg',
+      '/assets/hero.jpg',
+      '/dev-docs/openapi-ui.html',
       '/favicon.ico',
       '/robots.txt',
       '/sitemap.xml',
+      '/site.webmanifest',
     ])('does not run for %s', (pathname) => {
       expect(matches(pathname)).toBe(false);
     });
