@@ -30,7 +30,7 @@ jest.mock('@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard', () => ({
   default: ({ children }: any) => <div data-testid="dev-guard">{children}</div>,
 }));
 
-jest.mock('@iconify/react', () => ({
+jest.mock('@/app/ui/icons/Icon', () => ({
   __esModule: true,
   Icon: ({ icon }: any) => <span data-testid={`icon-${icon}`} />,
 }));

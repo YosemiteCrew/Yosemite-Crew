@@ -1,7 +1,7 @@
 'use client';
 import { useState, type CSSProperties, type SyntheticEvent } from 'react';
 import Link from 'next/link';
-import { Icon } from '@iconify/react/dist/iconify.js';
+import { Icon } from '@/app/ui/icons/Icon';
 import {
   IoMailOutline,
   IoKeyOutline,

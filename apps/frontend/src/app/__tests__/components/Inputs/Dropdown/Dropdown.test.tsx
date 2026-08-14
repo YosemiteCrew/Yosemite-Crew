@@ -43,7 +43,7 @@ jest.mock(
       }
     )
 );
-jest.mock('@iconify/react/dist/iconify.js', () => ({
+jest.mock('@/app/ui/icons/Icon', () => ({
   Icon: () => <span data-testid="icon-error">ErrorIcon</span>,
 }));
 

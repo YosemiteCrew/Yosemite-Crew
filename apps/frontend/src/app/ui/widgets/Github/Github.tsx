@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { IoCloseSharp } from 'react-icons/io5';
 import { usePathname } from 'next/navigation';
-import { Icon } from '@iconify/react/dist/iconify.js';
+import { Icon } from '@/app/ui/icons/Icon';
 import { publicRoutes } from '@/app/lib/const';
 import { getJsonStorageItem, setJsonStorageItem } from '@/app/lib/browserStorage';
 

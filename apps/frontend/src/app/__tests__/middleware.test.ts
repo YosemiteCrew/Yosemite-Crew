@@ -1,7 +1,7 @@
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 
-import { middleware } from '@/middleware';
+import { config, middleware } from '@/middleware';
 import { buildContentSecurityPolicy, securityHeaders } from '@/securityHeaders';
 import { NextResponse } from 'next/server';
 
@@ -80,19 +80,9 @@ describe('middleware', () => {
     });
   });
 
-  it('skips internal, api, font, and static file requests', () => {
-    for (const pathname of [
-      '/_next/static/app.js',
-      '/api/health',
-      '/fonts/satoshi.woff2',
-      '/logo.png',
-    ]) {
-      const response = middleware(createRequest(pathname));
-
-      expect(response).toBe(mockNext.mock.results.at(-1)?.value);
-      expect(mockNext).toHaveBeenLastCalledWith();
-    }
-  });
+  // Internal, api, font and static-file requests are excluded by `config.matcher`
+  // rather than by a guard in this function, so middleware() is never entered for
+  // them at all. The `matcher` describe block below is what pins that.
 
   it('adds nonce-backed CSP and security headers for strict app routes', () => {
     const response = middleware(createRequest('/appointments/abc')) as ReturnType<
@@ -164,5 +154,130 @@ describe('middleware', () => {
     expect(requestHeaders.get('x-nonce')).toBe('fixed-nonce');
     expect(scriptSrc).toContain("'nonce-fixed-nonce'");
     expect(scriptSrc).not.toContain("'unsafe-inline'");
+  });
+
+  describe('matcher', () => {
+    // Compile the matcher the way Next does, rather than treating `config.matcher`
+    // as a raw regex. Next appends its transport suffixes (`.rsc`,
+    // `.segments/....segment.rsc`) AFTER the source, so a hand-rolled regex test
+    // cannot see that a "path contains a dot" exclusion also swallows those - the
+    // exact bug this pins. `getMiddlewareMatchers` is the real compiler.
+    // Next appends its transport suffixes (`.rsc`, `.segments/....segment.rsc`)
+    // AFTER this source when it compiles the matcher, so the compiled regex can
+    // satisfy `/dashboard.rsc` either by the capture consuming the whole path or
+    // by the suffix group taking `.rsc`. Testing the source alone exercises the
+    // stricter of the two: if the capture accepts the suffixed path, the compiled
+    // matcher certainly does. That is what makes a "path contains a dot"
+    // exclusion visibly wrong here, which a test over unsuffixed paths misses.
+    const matches = (pathname: string) =>
+      config.matcher.some((source) => new RegExp(`^${source}$`).test(pathname));
+
+    it.each([
+      '/',
+      '/signin',
+      '/dashboard',
+      '/appointments/123/workspace',
+      // Transport forms of the same app routes. These must keep matching, or the
+      // RSC request renders without the nonce its CSP requires.
+      '/dashboard.rsc',
+      '/appointments/123/workspace.rsc',
+      '/appointments.segments/_tree.segment.rsc',
+    ])('still runs for %s', (pathname) => {
+      expect(matches(pathname)).toBe(true);
+    });
+
+    it.each([
+      '/api/community/discord-members',
+      '/_next/static/chunks/main.js',
+      '/fonts/satoshi-font/Satoshi-Variable.woff2',
+      '/images/marketing/logo.svg',
+      '/assets/hero.jpg',
+      '/dev-docs/openapi-ui.html',
+      '/favicon.ico',
+      '/robots.txt',
+      '/sitemap.xml',
+      '/site.webmanifest',
+      // Committed under public/static, and the only .csv the app serves.
+      '/static/bulk_invite_users_header.csv',
+    ])('does not run for %s', (pathname) => {
+      expect(matches(pathname)).toBe(false);
+    });
+
+    // The prefix exclusions are bounded to a path segment. Unbounded, these
+    // document routes would be skipped and their HTML would be served with no
+    // CSP, because next.config.ts headers() sets no CSP of its own.
+    it.each(['/images-foo', '/assets-library', '/static-pages', '/dev-docs-archive', '/apixyz'])(
+      'still runs for the document route %s',
+      (pathname) => {
+        expect(matches(pathname)).toBe(true);
+      }
+    );
+
+    // Every top-level entry in public/ must be excluded, or it pays an edge
+    // invocation on every request. Reading the directory keeps this honest when
+    // a new asset folder is added.
+    it('excludes every top-level public/ entry', () => {
+      const publicDir = path.join(__dirname, '..', '..', '..', 'public');
+      const served = readdirSync(publicDir, { withFileTypes: true }).map((entry) =>
+        entry.isDirectory() ? `/${entry.name}/probe` : `/${entry.name}`
+      );
+
+      expect(served.filter((pathname) => matches(pathname))).toEqual([]);
+    });
+  });
+
+  describe('transport paths resolve to the document they belong to', () => {
+    const nonceFor = (pathname: string) => {
+      const response = createResponse();
+      mockNext.mockReturnValue(response);
+      middleware(createRequest(pathname));
+      return getScriptSrc(response.headers.get('Content-Security-Policy') ?? '');
+    };
+
+    it.each([
+      '/dashboard.rsc',
+      '/appointments/123/workspace.rsc',
+      '/appointments.segments/_tree.segment.rsc',
+      // Repeated markers resolve to the first one, same as the plain form.
+      '/dashboard.segments/a.segments/b.segment.rsc',
+    ])('gives %s the strict CSP of its document route', (pathname) => {
+      expect(nonceFor(pathname)).toContain("'nonce-fixed-nonce'");
+    });
+
+    it.each([
+      // Public route: transport form must stay permissive, not accidentally strict.
+      '/pricing.rsc',
+      // Not a transport suffix at all.
+      '/dashboard.rscx',
+    ])('does not mistake %s for a strict app route', (pathname) => {
+      expect(nonceFor(pathname)).not.toContain("'nonce-");
+    });
+
+    it('normalises a pathological transport path in linear time', () => {
+      // The regex this replaced backtracked polynomially here - seconds of edge
+      // CPU on an attacker-supplied path, on every request (js/polynomial-redos).
+      const evil = `/${'.segments/'.repeat(20_000)}x`;
+
+      const started = performance.now();
+      middleware(createRequest(evil));
+
+      expect(performance.now() - started).toBeLessThan(250);
+    });
+  });
+
+  describe('no second static-asset filter in the body', () => {
+    // A dotted path that the matcher admits must reach the CSP logic. This is
+    // the contradiction that made the matcher fix a no-op: the body skipped
+    // anything containing a dot, which is every transport request.
+    it('applies the strict CSP to a transport request for an app route', () => {
+      const response = createResponse();
+      mockNext.mockReturnValue(response);
+
+      middleware(createRequest('/dashboard.rsc'));
+
+      const csp = response.headers.get('Content-Security-Policy');
+      expect(csp).toContain("'nonce-");
+      expect(csp).not.toContain("'unsafe-inline' https://js.stripe.com");
+    });
   });
 });

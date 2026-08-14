@@ -96,7 +96,16 @@ jobs:
           configPath: apps/frontend/lighthouserc.json
           uploadArtifacts: true
           temporaryPublicStorage: true
-          runs: 1
+          # This input overrides `numberOfRuns` in lighthouserc.json, so it has to
+          # be set here. Three runs matter on shared runners, where a single
+          # performance score swings widely.
+          #
+          # Three runs alone would make the gate WEAKER, not steadier: Lighthouse
+          # CI defaults `aggregationMethod` to `optimistic`, which for a minScore
+          # assertion takes the best run, so a flaky pass would count as a pass.
+          # lighthouserc.json sets it to `median` for that reason; the two settings
+          # only do the intended thing together.
+          runs: 3
 
       - name: Stop frontend server
         if: always()

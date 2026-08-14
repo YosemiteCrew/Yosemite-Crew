@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Icon } from '@iconify/react/dist/iconify.js';
+import { Icon } from '@/app/ui/icons/Icon';
 
 import './Toast.css';
 

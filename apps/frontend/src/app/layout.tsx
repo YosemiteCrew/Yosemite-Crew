@@ -23,6 +23,20 @@ import RouteAnnouncer from '@/app/ui/layout/RouteAnnouncer';
 import SkipLink from '@/app/ui/layout/SkipLink';
 import Cookies from '@/app/ui/widgets/Cookies/Cookies';
 
+// The API lives on its own origin, so only its origin (not the full base path)
+// is useful to preconnect. An unset or malformed value simply skips the hint.
+const resolveApiOrigin = (): string | null => {
+  const base = process.env.NEXT_PUBLIC_BASE_URL;
+  if (!base) return null;
+  try {
+    return new URL(base).origin;
+  } catch {
+    return null;
+  }
+};
+
+const apiOrigin = resolveApiOrigin();
+
 export const metadata: Metadata = {
   title: 'Yosemite Crew',
   description: 'Get Yosemite Crew for your pet business',
@@ -52,6 +66,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning className={newsreader.variable}>
+      <head>
+        {/* The session check is the first thing the app does after hydration and
+            it goes cross-origin to the API, so the DNS lookup, TCP handshake and
+            TLS negotiation all sit on the critical path. Warming the connection
+            while the document is still parsing takes them off it. */}
+        {apiOrigin ? (
+          <>
+            <link rel="preconnect" href={apiOrigin} crossOrigin="use-credentials" />
+            <link rel="dns-prefetch" href={apiOrigin} />
+          </>
+        ) : null}
+      </head>
       <body>
         <SkipLink />
         <Cookies />

@@ -91,7 +91,7 @@ const Guides = () => {
         <div className="flex flex-col gap-[3px]">
           <h1
             className="flex items-center gap-2 text-[var(--ink)] text-[26px] leading-tight tracking-[-0.015em]"
-            style={{ fontFamily: "'Newsreader', Georgia, serif", fontWeight: 400 }}
+            style={{ fontFamily: 'var(--font-newsreader)', fontWeight: 400 }}
           >
             {'Guides'}
             <span className="text-[17px]" style={{ color: 'var(--ink-faint)' }}>

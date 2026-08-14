@@ -137,9 +137,6 @@ export const buildContentSecurityPolicy = ({
       'https://api.github.com',
       'https://raw.githubusercontent.com',
       'https://discord.com',
-      'https://api.iconify.design',
-      'https://api.unisvg.com',
-      'https://api.simplesvg.com',
       isDevelopment ? 'http:' : undefined,
       isDevelopment ? 'ws:' : undefined,
     ]

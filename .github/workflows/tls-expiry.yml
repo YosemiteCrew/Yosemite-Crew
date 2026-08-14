@@ -44,13 +44,15 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Node
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v6.0.0
-        with:
-          node-version: 22
-
-      # No install step: the check deliberately uses only node:tls, so a broken
-      # lockfile can never stop a certificate warning from being delivered.
+      # Deliberately no setup-node and no install step. The check imports only
+      # node: builtins, so the runner's preinstalled Node is enough, and nothing
+      # about the workspace can stop a certificate warning from being delivered.
+      #
+      # setup-node was here and broke the job every day: the root package.json
+      # declares `packageManager: pnpm@...`, which setup-node v6 auto-detects and
+      # then fails on with "Unable to locate executable file: pnpm" because pnpm
+      # is not installed at that point. The check never ran, and the handler below
+      # filed a certificate issue about it.
       - name: Check TLS expiry
         id: check
         run: |
@@ -66,32 +68,57 @@ jobs:
         # Runs on failure only. The job still fails afterwards - the issue is the
         # notification, not a way to swallow the red.
         if: failure()
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const fs = require('fs');
-            let report = 'The report could not be read; see the job log.';
+            let report = '';
             try {
-              report = fs.readFileSync('tls-report.txt', 'utf8');
+              report = fs.readFileSync('tls-report.txt', 'utf8').trim();
             } catch {}
-            const marker = '<!-- tls-expiry-tracker -->';
-            const title = 'TLS certificate expiring or untrusted';
-            const body = [
-              marker,
-              '',
-              'The daily TLS expiry check failed. Latest report:',
-              '',
-              '```',
-              report.trim(),
-              '```',
-              '',
-              'For an Amplify or ACM managed domain, renewal succeeds only while the',
-              "domain's DNS validation CNAME resolves. Add it in the zone's DNS and",
-              'leave it there permanently, otherwise every future renewal fails the',
-              'same silent way.',
-              '',
-              `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
-            ].join('\n');
+
+            // A job failure means one of two very different things, and saying
+            // "certificate expiring or untrusted" for both is how a broken runner
+            // gets reported as a security incident. The report file is the
+            // discriminator: the check writes it before it can fail on a finding,
+            // so no report means the check never got that far.
+            const checkRan = report.length > 0;
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            const marker = checkRan
+              ? '<!-- tls-expiry-tracker -->'
+              : '<!-- tls-expiry-tooling -->';
+            const title = checkRan
+              ? 'TLS certificate expiring or untrusted'
+              : 'TLS expiry check could not run';
+            const labels = checkRan ? ['security'] : ['CI/CD'];
+
+            const body = checkRan
+              ? [
+                  marker,
+                  '',
+                  'The daily TLS expiry check reported a problem:',
+                  '',
+                  '```',
+                  report,
+                  '```',
+                  '',
+                  'For an Amplify or ACM managed domain, renewal succeeds only while the',
+                  "domain's DNS validation CNAME resolves. Add it in the zone's DNS and",
+                  'leave it there permanently, otherwise every future renewal fails the',
+                  'same silent way.',
+                  '',
+                  `Run: ${run}`,
+                ].join('\n')
+              : [
+                  marker,
+                  '',
+                  'The daily TLS expiry job failed **before** it could check any',
+                  'certificate, so this says nothing about their validity. Read the job',
+                  'log for the real cause.',
+                  '',
+                  `Run: ${run}`,
+                ].join('\n');
             const existing = await github.rest.search.issuesAndPullRequests({
               q: `repo:${context.repo.owner}/${context.repo.repo} is:issue is:open in:body "${marker}"`,
             });
@@ -104,7 +131,7 @@ jobs:
                 ...context.repo,
                 title,
                 body,
-                labels: ['security'],
+                labels,
               });
               core.info(`opened issue #${created.data.number}`);
             }

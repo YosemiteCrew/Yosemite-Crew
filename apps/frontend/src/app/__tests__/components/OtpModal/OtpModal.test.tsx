@@ -26,7 +26,7 @@ jest.mock('@/app/stores/authStore', () => ({
 }));
 
 // Mock Iconify
-jest.mock('@iconify/react/dist/iconify.js', () => ({
+jest.mock('@/app/ui/icons/Icon', () => ({
   Icon: () => <span data-testid="mock-icon" />,
 }));
 
