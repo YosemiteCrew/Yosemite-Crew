@@ -45,7 +45,6 @@
     "express-fileupload": "1.5.2",
     "express-mongo-sanitize": "^2.2.0",
     "express-rate-limit": "^8.6.2",
-    "fhir": "4.12.0",
     "firebase-admin": "^13.6.0",
     "google-auth-library": "^10.9.1",
     "helmet": "^8.3.0",

@@ -257,25 +257,6 @@ ignore:
     package:
       name: 7-Zip
       version: 20.02
-  # lodash 4.17.21 bundled inside fhir@4.12.0.
-  # Not reachable by an override. fhir@4.12.0 declares bundledDependencies of
-  # lodash, path, q and xml-js, so its lodash ships inside the published tarball
-  # rather than as a dependency edge: pnpm-lock.yaml holds no /lodash@4.17.21
-  # entry at all, and the root lodash 4.18.0 override cannot apply to it. 4.12.0
-  # is also the newest release of fhir on npm and still bundles 4.17.21, so
-  # there is no version to move to. Owner: ankit-yc. Re-review by: 2026-11-14.
-  - vulnerability: GHSA-f23m-r3pf-42rh
-    package:
-      name: lodash
-      version: 4.17.21
-  - vulnerability: GHSA-r5fr-rjxr-66jc
-    package:
-      name: lodash
-      version: 4.17.21
-  - vulnerability: GHSA-xxjr-mmjv-4gpg
-    package:
-      name: lodash
-      version: 4.17.21
   # aws-sdk 2.1693.0.
   # GHSA-j965-2qgj-vjmq (low) has no patched version; the advisory's remedy is
   # to validate the region parameter or migrate to v3. Region is never
