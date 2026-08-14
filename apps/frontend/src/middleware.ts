@@ -52,24 +52,32 @@ const createNonce = () => {
   return btoa(String.fromCodePoint(...bytes));
 };
 
-const usesStrictContentSecurityPolicy = (pathname: string) =>
-  STRICT_CSP_PATH_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+// Next requests the RSC payload for a route at a transport URL derived from the
+// route: `/dashboard` becomes `/dashboard.rsc`, and a segment prefetch becomes
+// `/dashboard.segments/_tree.segment.rsc`. Those are the same document as far as
+// the CSP is concerned, so strip the suffix before matching the prefix list -
+// otherwise `/dashboard.rsc` matches no prefix and the RSC response is served
+// with the permissive inline-script CSP instead of the nonce one.
+const TRANSPORT_SUFFIX = /(?:\.segments\/.*)?\.rsc$/;
+
+const toDocumentPath = (pathname: string) => pathname.replace(TRANSPORT_SUFFIX, '');
+
+const usesStrictContentSecurityPolicy = (pathname: string) => {
+  const documentPath = toDocumentPath(pathname);
+  return STRICT_CSP_PATH_PREFIXES.some(
+    (prefix) => documentPath === prefix || documentPath.startsWith(`${prefix}/`)
   );
+};
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip Next.js internal routes and static files
-  if (
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/api') ||
-    pathname.startsWith('/fonts') ||
-    pathname.includes('.')
-  ) {
-    return NextResponse.next();
-  }
-
+  // No static-asset guard here on purpose: `config.matcher` below is the single
+  // place that decides what middleware runs for. A second filter in this body
+  // used to skip any path containing a dot, which silently contradicted the
+  // matcher - Next's transport requests (`/dashboard.rsc`) all contain one, so
+  // they could never reach the nonce/CSP logic the matcher was letting them in
+  // for.
   const usesStrictCsp = usesStrictContentSecurityPolicy(pathname);
   const nonce = usesStrictCsp ? createNonce() : undefined;
   const csp = buildContentSecurityPolicy({
@@ -102,20 +110,23 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Matches the early-return list at the top of middleware(): those paths reached
-  // the function only to be skipped, so every font, image, manifest and API call
-  // paid an edge invocation to do nothing. Excluding them here means the
-  // middleware is never entered for them. next.config.ts headers() already
-  // applies the security headers to `/(.*)`, so nothing loses them by being
-  // skipped here.
+  // The only place that decides whether middleware runs. Static assets used to
+  // reach middleware() just to hit an early return, so every font, image,
+  // manifest and API call paid an edge invocation to do nothing. next.config.ts
+  // headers() already applies the security headers to `/(.*)`, so nothing loses
+  // them by being skipped here.
   //
-  // The exclusion is a list of static prefixes plus an anchored extension list,
-  // NOT a general "contains a dot" rule. Next appends its transport suffixes
-  // (`.rsc`, `.segments/....segment.rsc`) AFTER this source when it compiles the
-  // matcher, so a `[^?]*\.` lookahead also swallows those: `/dashboard.rsc` would
-  // stop matching and that RSC request would lose its nonce CSP. Anchoring on
-  // `$` with known asset extensions keeps the transport forms matchable.
+  // Two deliberate details:
+  //
+  // 1. Prefixes are bounded with `(?:/|$)`. Unbounded, `images` would also
+  //    exclude a document route like `/images-foo`, whose 404 HTML would then be
+  //    served with no CSP at all.
+  // 2. Extensions are anchored on `$` and listed, rather than a general
+  //    "contains a dot" rule. Next appends its transport suffixes (`.rsc`,
+  //    `.segments/....segment.rsc`) AFTER this source when it compiles the
+  //    matcher, so a `[^?]*\.` lookahead also swallows those: `/dashboard.rsc`
+  //    would stop matching and that RSC request would lose its nonce CSP.
   matcher: [
-    String.raw`/((?!api|_next|fonts|images|assets|dev-docs|.*\.(?:ico|png|jpg|jpeg|gif|svg|webp|woff2?|ttf|eot|css|js|map|json|txt|xml|webmanifest)$).*)`,
+    String.raw`/((?!(?:api|_next|fonts|images|assets|dev-docs|static)(?:/|$)|.*\.(?:ico|png|jpg|jpeg|gif|svg|webp|woff2?|ttf|eot|css|js|map|json|txt|xml|csv|yaml|html|webmanifest)$).*)`,
   ],
 };

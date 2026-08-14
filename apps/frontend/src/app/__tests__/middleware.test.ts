@@ -80,19 +80,9 @@ describe('middleware', () => {
     });
   });
 
-  it('skips internal, api, font, and static file requests', () => {
-    for (const pathname of [
-      '/_next/static/app.js',
-      '/api/health',
-      '/fonts/satoshi.woff2',
-      '/logo.png',
-    ]) {
-      const response = middleware(createRequest(pathname));
-
-      expect(response).toBe(mockNext.mock.results.at(-1)?.value);
-      expect(mockNext).toHaveBeenLastCalledWith();
-    }
-  });
+  // Internal, api, font and static-file requests are excluded by `config.matcher`
+  // rather than by a guard in this function, so middleware() is never entered for
+  // them at all. The `matcher` describe block below is what pins that.
 
   it('adds nonce-backed CSP and security headers for strict app routes', () => {
     const response = middleware(createRequest('/appointments/abc')) as ReturnType<
@@ -207,8 +197,48 @@ describe('middleware', () => {
       '/robots.txt',
       '/sitemap.xml',
       '/site.webmanifest',
+      // Committed under public/static, and the only .csv the app serves.
+      '/static/bulk_invite_users_header.csv',
     ])('does not run for %s', (pathname) => {
       expect(matches(pathname)).toBe(false);
+    });
+
+    // The prefix exclusions are bounded to a path segment. Unbounded, these
+    // document routes would be skipped and their HTML would be served with no
+    // CSP, because next.config.ts headers() sets no CSP of its own.
+    it.each(['/images-foo', '/assets-library', '/static-pages', '/dev-docs-archive', '/apixyz'])(
+      'still runs for the document route %s',
+      (pathname) => {
+        expect(matches(pathname)).toBe(true);
+      }
+    );
+
+    // Every top-level entry in public/ must be excluded, or it pays an edge
+    // invocation on every request. Reading the directory keeps this honest when
+    // a new asset folder is added.
+    it('excludes every top-level public/ entry', () => {
+      const publicDir = path.join(__dirname, '..', '..', '..', 'public');
+      const served = readdirSync(publicDir, { withFileTypes: true }).map((entry) =>
+        entry.isDirectory() ? `/${entry.name}/probe` : `/${entry.name}`
+      );
+
+      expect(served.filter((pathname) => matches(pathname))).toEqual([]);
+    });
+  });
+
+  describe('no second static-asset filter in the body', () => {
+    // A dotted path that the matcher admits must reach the CSP logic. This is
+    // the contradiction that made the matcher fix a no-op: the body skipped
+    // anything containing a dot, which is every transport request.
+    it('applies the strict CSP to a transport request for an app route', () => {
+      const response = createResponse();
+      mockNext.mockReturnValue(response);
+
+      middleware(createRequest('/dashboard.rsc'));
+
+      const csp = response.headers.get('Content-Security-Policy');
+      expect(csp).toContain("'nonce-");
+      expect(csp).not.toContain("'unsafe-inline' https://js.stripe.com");
     });
   });
 });
