@@ -20,7 +20,7 @@
   "dependencies": {
     "supertokens-node": "^24.0.3",
     "jsonwebtoken": "9.0.3",
-    "jwks-rsa": "^3.2.0"
+    "jwks-rsa": "^4.1.0"
   },
   "peerDependencies": {
     "cors": "^2.8.5",
