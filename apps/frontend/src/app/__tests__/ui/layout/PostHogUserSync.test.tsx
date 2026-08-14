@@ -2,6 +2,7 @@ import React from 'react';
 import { act, render, waitFor } from '@testing-library/react';
 import posthog from 'posthog-js';
 import { COOKIE_CONSENT_KEY, POSTHOG_READY_EVENT } from '@/app/lib/posthog';
+import { loadPostHog, resetPostHogClientForTests } from '@/app/lib/posthogClient';
 import PostHogUserSync from '@/app/ui/layout/PostHogUserSync';
 
 const mockUseAuthStore = jest.fn();
@@ -20,9 +21,14 @@ jest.mock('@/app/stores/authStore', () => ({
 }));
 
 describe('PostHogUserSync', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
     globalThis.localStorage.clear();
+    // PostHogBootstrap owns loading the analytics chunk; this component only
+    // reads the already-loaded handle. Prime it so these tests exercise the
+    // consent/readiness/status logic rather than the loading seam.
+    resetPostHogClientForTests();
+    await loadPostHog();
     (posthog as { __loaded?: boolean }).__loaded = false;
   });
 

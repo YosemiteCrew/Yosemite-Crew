@@ -1,13 +1,17 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import posthog from 'posthog-js';
 import { getStorageItem } from '@/app/lib/browserStorage';
 import { COOKIE_CONSENT_KEY, POSTHOG_READY_EVENT } from '@/app/lib/posthog';
+import { getLoadedPostHog } from '@/app/lib/posthogClient';
 import { useAuthStore } from '@/app/stores/authStore';
 
 const hasConsent = () => getStorageItem('local', COOKIE_CONSENT_KEY) === 'true';
-const isPostHogLoaded = () => (posthog as { __loaded?: boolean }).__loaded === true;
+// Null until PostHogBootstrap has loaded the analytics chunk, which only happens
+// after consent. Every call below is already gated on that, so reading the
+// handle synchronously is safe and keeps this component's sync path intact.
+const isPostHogLoaded = () =>
+  (getLoadedPostHog() as { __loaded?: boolean } | null)?.__loaded === true;
 const addDefinedValue = (
   properties: Record<string, string>,
   key: string,
@@ -36,9 +40,11 @@ const PostHogUserSync = () => {
       const consented = consentedRef.current;
       const ready = readyRef.current;
 
+      const posthog = getLoadedPostHog();
+
       if (!consented || !ready) {
         if (identifiedIdRef.current && ready) {
-          posthog.reset();
+          posthog?.reset();
         }
         identifiedIdRef.current = null;
         return;
@@ -46,7 +52,7 @@ const PostHogUserSync = () => {
 
       if (status !== 'authenticated' && status !== 'signin-authenticated') {
         if (identifiedIdRef.current) {
-          posthog.reset();
+          posthog?.reset();
           identifiedIdRef.current = null;
         }
         return;
@@ -63,7 +69,7 @@ const PostHogUserSync = () => {
       addDefinedValue(personProperties, 'last_name', attributes?.family_name);
       addDefinedValue(personProperties, 'role', attributes?.['custom:role']);
 
-      posthog.identify(distinctId, personProperties);
+      posthog?.identify(distinctId, personProperties);
       identifiedIdRef.current = distinctId;
     };
   });
