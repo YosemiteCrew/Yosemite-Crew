@@ -10,13 +10,10 @@ export async function registerIdexxReferenceScheduler() {
     { jobId: "idexx-reference-startup" },
   );
 
-  await IdexxReferenceQueue.add(
-    "sync",
-    {},
-    {
-      repeat: { every: WEEK_MS },
-      jobId: "idexx-reference-weekly",
-    },
+  await IdexxReferenceQueue.upsertJobScheduler(
+    "idexx-reference-weekly",
+    { every: WEEK_MS },
+    { name: "sync", data: {} },
   );
 
   logger.info("✅ IDEXX reference scheduler registered");

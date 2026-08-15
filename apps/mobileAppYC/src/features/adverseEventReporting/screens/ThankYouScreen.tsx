@@ -13,10 +13,14 @@ import {
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
+import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useTheme} from '@/hooks';
 import {SafeArea} from '@/shared/components/common';
 import {Checkbox} from '@/shared/components/common/Checkbox/Checkbox';
-import type {AdverseEventStackParamList} from '@/navigation/types';
+import type {
+  AdverseEventStackParamList,
+  HomeStackParamList,
+} from '@/navigation/types';
 import {useSelector} from 'react-redux';
 import type {RootState} from '@/app/store';
 import {useAdverseEventReport} from '@/features/adverseEventReporting/state/AdverseEventReportContext';
@@ -97,7 +101,9 @@ export const ThankYouScreen: React.FC<Props> = ({navigation}) => {
   };
 
   const handleBack = () => {
-    navigation.navigate('Home' as never);
+    navigation
+      .getParent<NativeStackNavigationProp<HomeStackParamList>>()
+      ?.navigate('Home');
   };
 
   const requireContactConsent = async (action: () => void | Promise<void>) => {

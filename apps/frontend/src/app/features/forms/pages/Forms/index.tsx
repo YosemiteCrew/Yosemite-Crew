@@ -21,7 +21,6 @@ import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
-import Fallback from '@/app/ui/overlays/Fallback';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
 
@@ -288,7 +287,11 @@ const Forms = () => {
       </div>
 
       <MobileSearchBar placeholder="Search templates" />
-      <PermissionGate allOf={[PERMISSIONS.FORMS_VIEW_ANY]} fallback={<Fallback />}>
+      <PermissionGate
+        allOf={[PERMISSIONS.FORMS_VIEW_ANY]}
+        deniedResource="Templates"
+        deniedDetail="form and document templates"
+      >
         <div className={wrapperClassName}>
           <FormsFilters
             filters={filters}

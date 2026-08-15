@@ -2,6 +2,8 @@ import {Platform} from 'react-native';
 import {mockTheme} from '../../../../setup/mockTheme';
 import {
   getInputContainerBaseStyle,
+  getInputErrorStyle,
+  getInputLabelStyle,
   getValueTextStyle,
 } from '@/shared/components/common/shared/floatingLabelStyles';
 
@@ -23,6 +25,25 @@ describe('floatingLabelStyles', () => {
         borderColor: mockTheme.colors.hairline,
       }),
     );
+  });
+
+  it('returns the static label style above the field in dark ink', () => {
+    expect(getInputLabelStyle(mockTheme)).toEqual({
+      ...mockTheme.typography.inputLabel,
+      color: mockTheme.colors.inkBody,
+      marginBottom: mockTheme.spacing['2'],
+      marginLeft: mockTheme.spacing['1'],
+    });
+  });
+
+  it('returns the red error message style below the field', () => {
+    expect(getInputErrorStyle(mockTheme)).toEqual({
+      ...mockTheme.typography.labelXxsBold,
+      color: mockTheme.colors.error,
+      marginTop: mockTheme.spacing['1'],
+      marginBottom: mockTheme.spacing['3'],
+      marginLeft: mockTheme.spacing['1'],
+    });
   });
 
   it('returns platform-specific value text spacing for filled and empty states', () => {

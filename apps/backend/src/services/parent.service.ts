@@ -10,7 +10,7 @@ import { AuditTrailService } from "./audit-trail.service";
 import { AuthUserMobileService } from "./authUserMobile.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
 import logger from "src/utils/logger";
-import escapeStringRegexp from "escape-string-regexp";
+import { escapeRegExp } from "../utils/escape-regexp";
 
 export class ParentServiceError extends Error {
   constructor(
@@ -639,7 +639,7 @@ export const ParentService = {
       throw new ParentServiceError("Name is required for searching.", 400);
     }
 
-    const safe = escapeStringRegexp(trimmed);
+    const safe = escapeRegExp(trimmed);
 
     const docs = await prisma.parent.findMany({
       where: {

@@ -26,19 +26,48 @@
 // `pnpm audit` reports advisories against the *resolved* tree, which is exactly
 // the tree the overrides produced. So an advisory whose installed version equals
 // an override's pinned value is, by construction, an override pinning a
-// vulnerable version. Matching on the exact installed version rather than on
-// semver ranges keeps the check precise and dependency-free: `uuid` has an
-// advisory for the 7.x/8.x copies in the tree, but the two `uuid` overrides pin
-// 11.1.1, so they are correctly left alone.
+// vulnerable version.
+//
+// There are two ways an override block can leave an advisory open, and this
+// script reports both:
+//
+//   stale-pin       The pin itself is vulnerable. `fast-uri` was raised
+//                   3.1.2 -> 3.1.3 to clear the advisory of the day; 3.1.4
+//                   superseded it and the override held 3.1.3 in place.
+//
+//   uncovered-copy  The pin is patched, but the override *key* is too narrow to
+//                   match the copies that are actually vulnerable, so the
+//                   override never applies to them. `uuid` was pinned to a
+//                   patched 11.1.1 under the exact keys `uuid@11.1.0` and
+//                   `uuid@9.0.1`, while the vulnerable copies resolved at 7.0.3,
+//                   8.0.0 and 8.3.2 via xcode, aws-sdk and sockjs. Neither key
+//                   matches anything in the 7.x or 8.x lines, so six high alerts
+//                   sat open while this check stayed silent. Answering only "is
+//                   any pin stale" misses that entirely; the second question is
+//                   "does any pin fail to COVER a vulnerable copy".
+//
+// Deciding the second question means comparing the override key as a semver
+// range, which is delegated to `semver` - the same implementation pnpm resolves
+// with. An earlier revision hand-rolled it to keep this file dependency-free
+// and review found eight defects in that comparator, every one a silent false
+// negative, so the constraint was dropped; other scripts here already take
+// dependencies. Every range form semver understands is therefore evaluated,
+// including compound ranges, x-ranges, caret and tilde, and prereleases.
+//
+// A selector semver cannot parse as a range at all - a workspace protocol, an
+// npm alias - is treated as covering the version, which errs towards silence
+// rather than a false alarm; the stale-pin check still watches that key.
 //
 // Known limitation: an override pinning a package that nothing actually resolves
 // to is invisible here, because it never appears in the audited tree. Such an
 // override is also inert, so it carries no runtime risk.
 //
 // Exit codes:
-//   0  no un-accepted override pins a vulnerable version
+//   0  no un-accepted override pins or fails to cover a vulnerable version
 //   1  at least one does (or the manifest/baseline could not be read)
 //   2  advisory data was unavailable and --strict was passed
+
+import semver from 'semver';
 
 import { existsSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -73,32 +102,133 @@ function fail(message) {
 //   '@aws-cdk/toolkit-lib>yaml' -> yaml            (parent>child form)
 //   'brace-expansion@>=5.0.0'   -> brace-expansion (the '>' is a range operator,
 //                                                   not a parent separator)
-export function parseOverrideKey(key) {
+export function splitOverrideKey(key) {
   const trimmed = key.trim();
 
-  // Scan right to left for the parent>child separator. A '>' belonging to a
-  // range selector ('@>=5.0.0', '@>1.2.3') is followed by '=' or a digit; a real
-  // separator is followed by the first character of a package name.
+  // Scan right to left for the parent>child separator. A '>' can also be a
+  // range operator, and the two are told apart by the character BEFORE it, not
+  // after: an operator '>' always follows '@', '<', '>' or '='. Keying off the
+  // character after instead would reject a perfectly valid child whose name
+  // starts with a digit, such as 'foo>2fa', and index the whole string as a
+  // package name so every advisory for that child is skipped.
   let child = trimmed;
+  let parent = null;
   for (let i = trimmed.length - 1; i >= 0; i -= 1) {
-    const next = trimmed[i + 1];
-    if (trimmed[i] === '>' && next && !/[=\d]/.test(next)) {
-      child = trimmed.slice(i + 1);
-      break;
-    }
+    if (trimmed[i] !== '>') continue;
+    const prev = trimmed[i - 1];
+    if (prev === '@' || prev === '<' || prev === '>' || prev === '=') continue;
+    if (i + 1 >= trimmed.length) continue;
+    child = trimmed.slice(i + 1);
+    parent = trimmed.slice(0, i);
+    break;
   }
 
   // On a scoped name the leading '@' is part of the name, so the selector
   // separator is the *next* '@'.
   const searchFrom = child.startsWith('@') ? 1 : 0;
   const at = child.indexOf('@', searchFrom);
-  return at === -1 ? child : child.slice(0, at);
+  if (at === -1) return { name: child, selector: null, parent };
+  return { name: child.slice(0, at), selector: child.slice(at + 1) || null, parent };
+}
+
+export function parseOverrideKey(key) {
+  return splitOverrideKey(key).name;
 }
 
 const EXACT_VERSION = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
 
 export function isExactVersion(value) {
   return EXACT_VERSION.test(value);
+}
+
+// Version ordering and range matching are delegated to `semver`, the same
+// implementation pnpm resolves with. An earlier revision hand-rolled both to
+// keep this file dependency-free, and review found four separate defects in it:
+// partial comparator bounds padded with zeros rather than expanded, prereleases
+// admitted into ordinary ranges, caret/tilde selectors carrying a prerelease
+// falling through to the permissive fallback, and prerelease identifiers
+// compared lexicographically so 1.0.0-alpha.10 sorted below 1.0.0-alpha.2.
+// Each was a silent false negative in a security check. Other scripts here
+// already take dependencies (scripts/ci/coverage uses istanbul-lib-*), so the
+// constraint was self-imposed and not worth the correctness cost.
+export function compareVersions(a, b) {
+  const left = String(a);
+  const right = String(b);
+  // Unorderable input sorts equal rather than throwing: callers compare audit
+  // findings, and one malformed version should not abort the whole check.
+  if (!semver.valid(left) || !semver.valid(right)) return 0;
+  return semver.compare(left, right);
+}
+
+// Does an override key's selector actually match this installed version?
+//
+// This is the question the stale-pin check never asks. `uuid@9.0.1` selects one
+// version and nothing else, so it can never apply to an installed 8.3.2, which
+// is precisely how three vulnerable uuid copies stayed put behind a patched pin.
+//
+// A null selector is a blanket override and covers everything. A selector
+// semver cannot parse as a range returns true, so an unusual key produces
+// silence rather than a false alarm; the stale-pin check still covers that key
+// on its own.
+export function selectorCovers(selector, version) {
+  if (!selector) return true;
+  const trimmed = selector.trim();
+  if (!semver.valid(version)) return true;
+  if (!semver.validRange(trimmed)) return true;
+  // includePrerelease is deliberately NOT set: semver keeps a prerelease out of
+  // an ordinary range, and so does pnpm, so `pkg@<2.0.0` genuinely would not be
+  // applied to 1.2.3-alpha.1. A selector naming a prerelease still matches its
+  // own, which is what `semver.satisfies` does by default.
+  return semver.satisfies(version, trimmed);
+}
+
+export function overrideKeyCovers(key, version, paths = null) {
+  if (!paths || paths.length === 0) return overrideKeyCoversPath(key, version, null);
+  return paths.every((path) => overrideKeyCoversPath(key, version, path));
+}
+
+// The version-level question, asked with the quantifiers the right way round:
+// a version is covered when EVERY path it arrives by is covered by SOME key.
+export function versionIsCovered(pins, version, paths) {
+  if (!paths || paths.length === 0) {
+    return pins.some((pin) => overrideKeyCoversPath(pin.key, version, null));
+  }
+  return paths.every((path) => pins.some((pin) => overrideKeyCoversPath(pin.key, version, path)));
+}
+
+export function overrideKeyCoversPath(key, version, path) {
+  const { name, selector, parent } = splitOverrideKey(key);
+  if (!selectorCovers(selector, version)) return false;
+  if (!parent) return true;
+  if (!path) return true;
+
+  // A pnpm parent selector overrides the matched parent's OWN dependency, so
+  // `foo>child` cannot reach a child that some intermediate package depends on:
+  // in 'app > foo > intermediate > child@1.0.0' the direct parent is
+  // `intermediate`, not `foo`. Requiring adjacency keeps a patched pin from
+  // suppressing a copy the override never rewrites.
+  //
+  // Segments are compared as package identities rather than substrings, so
+  // `foo` does not match a `foobar` segment.
+  const { name: parentName, selector: parentSelector } = splitOverrideKey(parent);
+  const segments = String(path)
+    .split('>')
+    .map((segment) => segment.trim());
+
+  // A version-scoped parent key only applies when the parent's own version
+  // satisfies that selector, so `foo@1>child` must not be credited for a path
+  // through foo@2.0.0. Where the path carries no version for the segment there
+  // is nothing to disprove, so the selector passes.
+  const isParent = (segment) => {
+    if (segment !== parentName && !segment.startsWith(`${parentName}@`)) return false;
+    if (!parentSelector) return true;
+    const at = segment.indexOf('@', segment.startsWith('@') ? 1 : 0);
+    if (at === -1) return true;
+    return selectorCovers(parentSelector, segment.slice(at + 1));
+  };
+  const isChild = (segment) => segment === name || segment.startsWith(`${name}@`);
+
+  return segments.some((segment, i) => isParent(segment) && isChild(segments[i + 1] ?? ''));
 }
 
 // package name -> [{ key, pinned }], because a single package is routinely
@@ -128,8 +258,34 @@ export function advisoryId(advisory) {
   return advisory.github_advisory_id || (advisory.id != null ? String(advisory.id) : 'unknown');
 }
 
+// An uncovered-copy finding is not identified by a pinned version - the pin is
+// fine, the key is not - so it is keyed on the versions left uncovered. Stale-pin
+// entries keep their original shape so existing baseline records still match.
 export function baselineKey(finding) {
+  if (finding.kind === 'uncovered-copy') {
+    // Sorted, because the versions arrive in whatever order pnpm audit listed
+    // its findings. An unsorted join would make an accepted entry go stale the
+    // day that order changes, failing CI on an advisory nobody touched.
+    const versions = [...finding.uncovered].sort((a, b) => a.localeCompare(b));
+    return `${finding.package}@uncovered:${versions.join(',')}:${finding.advisory}`;
+  }
   return `${finding.package}@${finding.pinned}:${finding.advisory}`;
+}
+
+// The key a human should paste into package.json to actually cover the copies
+// that are currently escaping. `<fixedIn` is the honest bound: everything below
+// the first patched release needs forcing up to it.
+//
+// Only offered for a simple lower-bounded patched range. A disjoint range such
+// as '<2.0.0 || >=2.0.5' has no single such bound - suggesting "<2.0.0": "2.0.0"
+// there would both miss a vulnerable 2.0.3 and pin copies to a version outside
+// the patched set. Better to print no suggestion and let the advisory be read.
+const SIMPLE_PATCHED_RANGE = /^\s*>=\s*v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?\s*$/;
+
+export function suggestRangeKey(packageName, fixedIn, patchedVersions = '') {
+  if (!fixedIn) return null;
+  if (patchedVersions && !SIMPLE_PATCHED_RANGE.test(patchedVersions)) return null;
+  return `"${packageName}@<${fixedIn}": "${fixedIn}"`;
 }
 
 // Cross-reference the overrides against the audited tree.
@@ -143,6 +299,51 @@ export function findVulnerablePins(overrides, audit) {
 
     const installed = [...new Set((advisory.findings ?? []).map((f) => f.version).filter(Boolean))];
 
+    // Second class of finding: the pins may all be patched, yet none of the
+    // override KEYS selects the copies that are actually vulnerable, so the
+    // override never applies to them. Reported once per advisory rather than
+    // once per pin, because it is the key set as a whole that fell short.
+    //
+    // A version equal to one of the pinned values is excluded first. An override
+    // rewrites resolution TO its pinned value, so that version being installed
+    // is proof the override applied - and an exact-version key never selects its
+    // own target ('vite@7.3.3': '7.3.5' installs 7.3.5, which 'vite@7.3.3' does
+    // not match). Without this, every ordinary stale pin would also be reported
+    // as an uncovered copy, with remediation prose contradicting the stale-pin
+    // finding printed beside it. That case is already covered, correctly, by the
+    // stale-pin check below.
+    const pinnedValues = new Set(pins.map((pin) => pin.pinned));
+    const pathsByVersion = new Map();
+    for (const entry of advisory.findings ?? []) {
+      if (!entry?.version) continue;
+      const seen = pathsByVersion.get(entry.version) ?? [];
+      pathsByVersion.set(entry.version, seen.concat(entry.paths ?? []));
+    }
+    const uncovered = installed.filter(
+      (version) =>
+        !pinnedValues.has(version) && !versionIsCovered(pins, version, pathsByVersion.get(version))
+    );
+    if (uncovered.length > 0) {
+      const fixedIn = fixedVersionFrom(advisory.patched_versions);
+      findings.push({
+        kind: 'uncovered-copy',
+        package: advisory.module_name,
+        overrideKey: pins.map((pin) => pin.key).join(', '),
+        pinned: [...new Set(pins.map((pin) => pin.pinned))].join(', '),
+        pinIsRange: false,
+        installed,
+        uncovered,
+        suggestedKey: suggestRangeKey(advisory.module_name, fixedIn, advisory.patched_versions),
+        advisory: advisoryId(advisory),
+        severity: advisory.severity ?? 'unknown',
+        title: advisory.title ?? '',
+        vulnerableVersions: advisory.vulnerable_versions ?? 'unknown',
+        patchedVersions: advisory.patched_versions ?? '',
+        fixedIn,
+        url: advisory.url ?? '',
+      });
+    }
+
     for (const pin of pins) {
       const exact = isExactVersion(pin.pinned);
       // An exact pin is vulnerable when the tree actually resolved to it. A
@@ -152,6 +353,7 @@ export function findVulnerablePins(overrides, audit) {
       if (!hit) continue;
 
       findings.push({
+        kind: 'stale-pin',
         package: advisory.module_name,
         overrideKey: pin.key,
         pinned: pin.pinned,
@@ -181,10 +383,21 @@ export function findVulnerablePins(overrides, audit) {
 // ones it does not. A baseline entry is keyed on package + pinned version +
 // advisory id, so it expires by construction: bump the override, or let a new
 // advisory land against the same pin, and the entry stops matching.
+//
+// An uncovered-copy entry is keyed on the uncovered versions instead, and
+// expires the same way: cover one of them, or let a new copy appear, and the
+// entry stops matching. Entries are run through the same baselineKey() the
+// findings use, so the two can never drift apart.
 export function applyBaseline(findings, baseline) {
   const accepted = new Map(
     (baseline?.accepted ?? []).map((entry) => [
-      `${entry.package}@${entry.pinned}:${entry.advisory}`,
+      baselineKey({
+        kind: entry.kind ?? 'stale-pin',
+        package: entry.package,
+        pinned: entry.pinned,
+        uncovered: entry.uncovered ?? [],
+        advisory: entry.advisory,
+      }),
       entry,
     ])
   );
@@ -210,13 +423,20 @@ export function applyBaseline(findings, baseline) {
 }
 
 export function formatFinding(finding) {
+  const uncoveredCopy = finding.kind === 'uncovered-copy';
   const lines = [
-    `  ${finding.package}  [${finding.severity}]`,
-    `    override key:  ${JSON.stringify(finding.overrideKey)}`,
+    `  ${finding.package}  [${finding.severity}]` +
+      (uncoveredCopy ? '  - vulnerable copies no override key covers' : ''),
+    uncoveredCopy
+      ? `    override keys: ${JSON.stringify(finding.overrideKey)}`
+      : `    override key:  ${JSON.stringify(finding.overrideKey)}`,
     `    pinned at:     ${finding.pinned}${finding.pinIsRange ? ' (range, not an exact pin)' : ''}`,
     `    installed:     ${finding.installed.join(', ') || 'unknown'}`,
-    `    advisory:      ${finding.advisory}`,
   ];
+  if (uncoveredCopy) {
+    lines.push(`    NOT covered:   ${finding.uncovered.join(', ')}`);
+  }
+  lines.push(`    advisory:      ${finding.advisory}`);
   if (finding.title) lines.push(`    title:         ${finding.title}`);
   lines.push(`    vulnerable:    ${finding.vulnerableVersions}`);
   lines.push(
@@ -224,6 +444,9 @@ export function formatFinding(finding) {
       ? `    fixed in:      ${finding.fixedIn}  (patched range ${finding.patchedVersions})`
       : `    fixed in:      no patched version published (${finding.patchedVersions || 'none'})`
   );
+  if (uncoveredCopy && finding.suggestedKey) {
+    lines.push(`    suggested key: ${finding.suggestedKey}`);
+  }
   if (finding.url) lines.push(`    url:           ${finding.url}`);
   return lines.join('\n');
 }
@@ -373,9 +596,13 @@ export function main(argv, { readAudit = readAuditJson } = {}) {
     args.useBaseline && existsSync(args.baseline) ? readJson(args.baseline, 'baseline') : null;
   const { unaccepted, known, stale } = applyBaseline(findings, baseline);
 
+  const stalePins = findings.filter((finding) => finding.kind !== 'uncovered-copy');
+  const uncoveredCopies = findings.filter((finding) => finding.kind === 'uncovered-copy');
+
   console.log(`check-override-advisories: ${overrideCount} override entries checked`);
   console.log(`  advisories in tree:  ${Object.keys(audit.advisories ?? {}).length}`);
-  console.log(`  vulnerable pins:     ${findings.length}`);
+  console.log(`  vulnerable pins:     ${stalePins.length}`);
+  console.log(`  uncovered copies:    ${uncoveredCopies.length}`);
   if (baseline) console.log(`  accepted (baseline): ${known.length}`);
 
   for (const entry of stale) {
@@ -397,25 +624,73 @@ export function main(argv, { readAudit = readAuditJson } = {}) {
   }
 
   if (unaccepted.length === 0) {
+    // Deliberately phrased as "nothing unreviewed" rather than "everything is
+    // patched". Baselined findings are still live vulnerabilities, and claiming
+    // they are patched would contradict the accepted-drift block printed just
+    // above it.
     console.log(
-      '\ncheck-override-advisories: OK - no unreviewed override pins a vulnerable version'
+      known.length > 0
+        ? `\ncheck-override-advisories: OK - no unreviewed findings (${known.length} accepted in the baseline, still vulnerable)`
+        : '\ncheck-override-advisories: OK - every override pins a patched version and covers ' +
+            'every vulnerable copy'
     );
     return 0;
   }
 
-  console.error(
-    `\ncheck-override-advisories: ${unaccepted.length} override entr` +
-      `${unaccepted.length === 1 ? 'y pins' : 'ies pin'} a version with a known advisory\n`
-  );
+  const unacceptedStale = unaccepted.filter((finding) => finding.kind !== 'uncovered-copy');
+  const unacceptedUncovered = unaccepted.filter((finding) => finding.kind === 'uncovered-copy');
+  const parts = [];
+  if (unacceptedStale.length > 0) {
+    parts.push(
+      `${unacceptedStale.length} override entr${unacceptedStale.length === 1 ? 'y pins' : 'ies pin'} ` +
+        'a version with a known advisory'
+    );
+  }
+  if (unacceptedUncovered.length > 0) {
+    parts.push(
+      `${unacceptedUncovered.length} advisor${unacceptedUncovered.length === 1 ? 'y has' : 'ies have'} ` +
+        'a vulnerable copy that no override key covers'
+    );
+  }
+  console.error(`\ncheck-override-advisories: ${parts.join(', and ')}\n`);
+
   for (const finding of unaccepted) {
     console.error(formatFinding(finding));
     console.error('');
   }
+
+  if (unacceptedStale.length > 0) {
+    console.error(
+      'For a stale pin, raise the value in the pnpm.overrides block of package.json to the ' +
+        "'fixed in' version above, then re-run pnpm install. Bumping the dependent " +
+        'package alone will not work: the override pins resolution regardless.'
+    );
+  }
+  if (unacceptedUncovered.length > 0) {
+    const withSuggestion = unacceptedUncovered.filter((finding) => finding.suggestedKey);
+    console.error(
+      'For an uncovered copy, the override KEY is too narrow to select the versions listed under ' +
+        '"NOT covered", so the override never applies to them.'
+    );
+    if (withSuggestion.length > 0) {
+      console.error(
+        'Where a "suggested key" is printed, the pinned value is already patched: replace the ' +
+          'narrow keys with that range key and re-run pnpm install.'
+      );
+    }
+    // Without a suggestion there is no release to pin to, so telling anyone to
+    // paste a range key would be advice that cannot be followed - and the pin
+    // itself may still be vulnerable.
+    if (withSuggestion.length < unacceptedUncovered.length) {
+      console.error(
+        'Where none is printed, the advisory publishes no single patched release to pin to ' +
+          '(no fix, a disjoint range, or an exclusive bound). Read the advisory and either raise ' +
+          'the dependency that pulls the copy in, drop it, or record it in the baseline.'
+      );
+    }
+  }
   console.error(
-    'Fix by raising the value in the pnpm.overrides block of package.json to the ' +
-      "'fixed in' version above, then re-running pnpm install. Bumping the dependent " +
-      'package alone will not work: the override pins resolution regardless.\n' +
-      'If a bump is genuinely blocked, record it in ' +
+    'If a fix is genuinely blocked, record it in ' +
       `${path.relative(REPO_ROOT, args.baseline)} with a reason.`
   );
   return 1;

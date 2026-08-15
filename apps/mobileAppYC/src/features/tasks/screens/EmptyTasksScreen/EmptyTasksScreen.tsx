@@ -1,5 +1,5 @@
 import React from 'react';
-import {View, StyleSheet} from 'react-native';
+import {View} from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {useTranslation} from 'react-i18next';
 import {useNavigation} from '@react-navigation/native';
@@ -8,7 +8,7 @@ import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {EmptyState} from '@/shared/components/common/EmptyState/EmptyState';
 import {useTheme} from '@/hooks';
-import type {Theme} from '@/theme';
+import {createEmptyGateScreenStyles} from '@/shared/styles/emptyGateScreenStyles';
 import type {TaskStackParamList} from '@/navigation/types';
 
 type TasksNavigationProp = NativeStackNavigationProp<TaskStackParamList>;
@@ -17,7 +17,10 @@ export const EmptyTasksScreen: React.FC = () => {
   const {theme} = useTheme();
   const {t} = useTranslation();
   const navigation = useNavigation<TasksNavigationProp>();
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const styles = React.useMemo(
+    () => createEmptyGateScreenStyles(theme),
+    [theme],
+  );
 
   // Tasks always belong to a companion. If none exists yet, the "AddTask"
   // form has no companion to attach to and can't be submitted — send the
@@ -65,19 +68,5 @@ export const EmptyTasksScreen: React.FC = () => {
     </LiquidGlassHeaderScreen>
   );
 };
-
-const createStyles = (theme: Theme) =>
-  StyleSheet.create({
-    safeArea: {
-      flex: 1,
-      backgroundColor: theme.colors.screen,
-    },
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.screen,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-  });
 
 export default EmptyTasksScreen;

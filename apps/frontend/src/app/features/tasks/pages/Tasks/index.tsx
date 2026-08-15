@@ -22,7 +22,6 @@ import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
-import Fallback from '@/app/ui/overlays/Fallback';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
 import { usePhonePrimaryAction } from '@/app/ui/layout/PhoneShell/usePhonePrimaryAction';
@@ -346,7 +345,11 @@ const Tasks = () => {
         />
         <MobileSearchBar placeholder="Search tasks" />
 
-        <PermissionGate allOf={[PERMISSIONS.TASKS_VIEW_ANY]} fallback={<Fallback />}>
+        <PermissionGate
+          allOf={[PERMISSIONS.TASKS_VIEW_ANY]}
+          deniedResource="Tasks"
+          deniedDetail="tasks and assignments"
+        >
           <div className={wrapperClassName}>
             {showsTaskFilterBar && (
               <TaskFilterBar

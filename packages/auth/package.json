@@ -20,7 +20,7 @@
   "dependencies": {
     "supertokens-node": "^24.0.3",
     "jsonwebtoken": "9.0.3",
-    "jwks-rsa": "^3.2.0"
+    "jwks-rsa": "^4.1.0"
   },
   "peerDependencies": {
     "cors": "^2.8.5",
@@ -29,7 +29,7 @@
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
-    "@types/node": "^22.19.8",
+    "@types/node": "^26.2.0",
     "typescript": "5.0.4",
     "@types/jsonwebtoken": "^9.0.9"
   }

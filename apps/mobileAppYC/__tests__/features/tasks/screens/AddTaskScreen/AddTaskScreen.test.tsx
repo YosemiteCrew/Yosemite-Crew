@@ -12,12 +12,14 @@ import {mockTheme} from '../../../../setup/mockTheme';
 // 1. Navigation
 const mockGoBack = jest.fn();
 const mockNavigate = jest.fn();
+const mockPopTo = jest.fn();
 const mockCanGoBack = jest.fn().mockReturnValue(true);
 let mockRouteParams: Record<string, unknown> = {};
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({
     goBack: mockGoBack,
     navigate: mockNavigate,
+    popTo: mockPopTo,
     canGoBack: mockCanGoBack,
   }),
   useRoute: () => ({
@@ -894,8 +896,10 @@ describe('AddTaskScreen', () => {
       });
 
       // eventId null → no setTaskCalendarEventId, but navigation still happens
-      expect(mockNavigate).toHaveBeenCalledWith(
-        expect.objectContaining({name: 'TasksMain'}),
+      expect(mockPopTo).toHaveBeenCalledWith(
+        'TasksMain',
+        expect.objectContaining({}),
+        {merge: true},
       );
     });
 
