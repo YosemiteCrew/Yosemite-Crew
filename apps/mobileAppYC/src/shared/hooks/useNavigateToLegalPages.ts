@@ -30,7 +30,7 @@ export const useNavigateToLegalPages = () => {
     (screen: 'TermsAndConditions' | 'PrivacyPolicy') => {
       const navWithTarget = findNavigatorWithRoute(screen);
       if (navWithTarget) {
-        navWithTarget.navigate?.(screen as never);
+        navWithTarget.navigate?.(screen);
         return;
       }
 

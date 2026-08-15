@@ -15,7 +15,12 @@ import {mockTheme} from '../../../setup/mockTheme';
 
 // 1. Navigation
 const mockNavigate = jest.fn();
-const mockNavigation = {navigate: mockNavigate} as any;
+const mockParentNavigate = jest.fn();
+const mockGetParent = jest.fn(() => ({navigate: mockParentNavigate}));
+const mockNavigation = {
+  navigate: mockNavigate,
+  getParent: mockGetParent,
+} as any;
 
 // 2. React Native Linking
 // We do NOT mock the whole 'react-native' module. logic handles inside beforeEach.
@@ -147,7 +152,17 @@ describe('ThankYouScreen', () => {
       <ThankYouScreen navigation={mockNavigation} route={{} as any} />,
     );
     fireEvent.press(getByTestId('back-to-home'));
-    expect(mockNavigate).toHaveBeenCalledWith('Home');
+    expect(mockGetParent).toHaveBeenCalled();
+    expect(mockParentNavigate).toHaveBeenCalledWith('Home');
+  });
+
+  it('does not throw on footer button press when no parent navigator exists', () => {
+    mockGetParent.mockReturnValueOnce(undefined as any);
+    const {getByTestId} = render(
+      <ThankYouScreen navigation={mockNavigation} route={{} as any} />,
+    );
+    fireEvent.press(getByTestId('back-to-home'));
+    expect(mockParentNavigate).not.toHaveBeenCalled();
   });
 
   it('toggles checkbox and validates consent error', () => {
@@ -207,7 +222,7 @@ describe('ThankYouScreen', () => {
       expect.stringContaining('manufacturer'),
     );
     expect(mockResetDraft).toHaveBeenCalled();
-    expect(mockNavigate).toHaveBeenCalledWith('Home');
+    expect(mockParentNavigate).toHaveBeenCalledWith('Home');
   });
 
   it('submits report successfully to hospital (no returned files)', async () => {

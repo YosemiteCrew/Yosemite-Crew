@@ -1,5 +1,5 @@
 import React from 'react';
-import {View, StyleSheet} from 'react-native';
+import {View} from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
@@ -7,7 +7,7 @@ import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {EmptyState} from '@/shared/components/common/EmptyState/EmptyState';
 import {useTheme} from '@/hooks';
-import type {Theme} from '@/theme';
+import {createEmptyGateScreenStyles} from '@/shared/styles/emptyGateScreenStyles';
 import type {DocumentStackParamList} from '@/navigation/types';
 
 type DocumentsNavigationProp =
@@ -16,7 +16,10 @@ type DocumentsNavigationProp =
 export const EmptyDocumentsScreen: React.FC = () => {
   const {theme} = useTheme();
   const navigation = useNavigation<DocumentsNavigationProp>();
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const styles = React.useMemo(
+    () => createEmptyGateScreenStyles(theme),
+    [theme],
+  );
 
   // Documents always belong to a companion. If none exists yet, the
   // "AddDocument" form has no companion to attach to and can't be
@@ -64,17 +67,3 @@ export const EmptyDocumentsScreen: React.FC = () => {
     </LiquidGlassHeaderScreen>
   );
 };
-
-const createStyles = (theme: Theme) =>
-  StyleSheet.create({
-    safeArea: {
-      flex: 1,
-      backgroundColor: theme.colors.screen,
-    },
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.screen,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-  });

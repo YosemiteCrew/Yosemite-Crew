@@ -39,6 +39,7 @@ import {
 } from '@/features/forms/utils';
 import type {FormField} from '@yosemite-crew/types';
 import {createFormStyles} from '@/shared/utils/formStyles';
+import {createScreenHeaderStyles} from '@/shared/styles/screenHeaderStyles';
 import {formatDateToISODate} from '@/shared/utils/dateHelpers';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import type {Appointment} from '@/features/appointments/types';
@@ -1074,6 +1075,7 @@ const renderValueForDisplay = (field: FormField, value: any): string => {
 
 const createStyles = (theme: any) => {
   const formStyles = createFormStyles(theme);
+  const headerStyles = createScreenHeaderStyles(theme);
   return StyleSheet.create({
     keyboardAvoidingView: {
       flex: 1,
@@ -1081,40 +1083,10 @@ const createStyles = (theme: any) => {
     flex: {
       flex: 1,
     },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: theme.spacing['3'],
-      paddingHorizontal: theme.spacing['5'],
-      paddingVertical: theme.spacing['2'],
-    },
-    circleButton: {
-      width: theme.spacing['10'],
-      height: theme.spacing['10'],
-      borderRadius: theme.borderRadius.full,
-      backgroundColor: theme.colors.screen2,
-      borderWidth: 1,
-      borderColor: theme.colors.hairline,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    headerTitleBlock: {
-      flex: 1,
-      alignItems: 'center',
-    },
+    ...headerStyles,
     headerTitle: {
-      ...theme.typography.labelSmall,
-      fontSize: 15.5,
+      ...headerStyles.headerTitle,
       fontWeight: '600',
-      letterSpacing: -0.2,
-      color: theme.colors.ink,
-      textAlign: 'center',
-    },
-    headerSubtitle: {
-      ...theme.typography.body12,
-      color: theme.colors.inkFaint,
-      textAlign: 'center',
-      marginTop: 1,
     },
     headerRightSlot: {
       width: theme.spacing['10'],

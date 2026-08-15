@@ -17,6 +17,23 @@ export const getInputContainerBaseStyle = (theme: Theme, error?: string) => ({
   justifyContent: 'center' as const,
 });
 
+// Static label sits above the field in dark ink; the error is carried by the
+// red field border and the red message below (matching the design).
+export const getInputLabelStyle = (theme: Theme): TextStyle => ({
+  ...theme.typography.inputLabel,
+  color: theme.colors.inkBody,
+  marginBottom: theme.spacing['2'],
+  marginLeft: theme.spacing['1'],
+});
+
+export const getInputErrorStyle = (theme: Theme): TextStyle => ({
+  ...theme.typography.labelXxsBold,
+  color: theme.colors.error,
+  marginTop: theme.spacing['1'],
+  marginBottom: theme.spacing['3'],
+  marginLeft: theme.spacing['1'],
+});
+
 export const getValueTextStyle = (
   theme: Theme,
   hasValue: boolean,
