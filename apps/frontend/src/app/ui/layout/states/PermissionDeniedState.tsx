@@ -16,6 +16,12 @@ export type PermissionDeniedStateProps = {
   role?: string;
   /** Org whose membership role is shown; defaults to the primary org. */
   orgId?: string | null;
+  /**
+   * `page` (default) renders the centered card for a whole route.
+   * `inline` renders a compact notice sized for a section or panel, where a
+   * full-page card would overwhelm the surrounding layout.
+   */
+  variant?: 'page' | 'inline';
   onRequestAccess?: () => void;
   onBack?: () => void;
 };
@@ -25,6 +31,7 @@ const PermissionDeniedState = ({
   detail,
   role,
   orgId,
+  variant = 'page',
   onRequestAccess,
   onBack,
 }: PermissionDeniedStateProps) => {
@@ -40,6 +47,22 @@ const PermissionDeniedState = ({
 
   const handleRequestAccess = onRequestAccess ?? (() => router.push('/organization'));
   const handleBack = onBack ?? (() => router.back());
+
+  if (variant === 'inline') {
+    return (
+      <div className="yc-state-inline" role="status">
+        <span className="yc-state-inline-icon" aria-hidden>
+          <IoLockClosedOutline size={15} />
+        </span>
+        <span className="yc-state-inline-text">
+          Your role ({resolvedRole}) can&apos;t view {resolvedDetail}.{' '}
+          <button type="button" className="yc-state-inline-link" onClick={handleRequestAccess}>
+            Request access
+          </button>
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div className="yc-state-wrap">

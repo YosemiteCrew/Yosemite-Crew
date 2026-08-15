@@ -6,6 +6,7 @@ import TeamInfo from '@/app/features/organization/pages/Organization/Sections/Te
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { Team as TeamProp } from '@/app/features/organization/types/team';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
+import Fallback from '@/app/ui/overlays/Fallback';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { getSafeImageUrl } from '@/app/lib/urls';
@@ -122,7 +123,10 @@ const Team = ({ isVerified = false }: { isVerified?: boolean }) => {
   };
 
   return (
-    <PermissionGate allOf={[PERMISSIONS.TEAMS_VIEW_ANY]}>
+    <PermissionGate
+      allOf={[PERMISSIONS.TEAMS_VIEW_ANY]}
+      fallback={<Fallback resource="the team roster" />}
+    >
       <section className="flex flex-col overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
         <div className="flex items-center justify-between gap-3 px-5! pt-4! pb-3!">
           <h2 className="text-[15.5px] font-bold tracking-[-0.01em] text-[var(--ink)]">

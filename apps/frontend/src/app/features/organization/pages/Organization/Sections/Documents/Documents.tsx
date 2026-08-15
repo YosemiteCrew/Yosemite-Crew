@@ -8,6 +8,7 @@ import { OrganizationDocument } from '@/app/features/documents/types/document';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
+import Fallback from '@/app/ui/overlays/Fallback';
 import { toTitle } from '@/app/lib/validators';
 import StatusPill, { type StatusPillTokens } from '@/app/ui/primitives/StatusPill/StatusPill';
 import {
@@ -62,7 +63,10 @@ const Documents = () => {
   };
 
   return (
-    <PermissionGate allOf={[PERMISSIONS.DOCUMENT_VIEW_ANY]}>
+    <PermissionGate
+      allOf={[PERMISSIONS.DOCUMENT_VIEW_ANY]}
+      fallback={<Fallback resource="documents" />}
+    >
       <SectionCard
         title="Documents"
         buttonTitle="Add"

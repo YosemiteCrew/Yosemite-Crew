@@ -57,7 +57,6 @@ import {
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
-import Fallback from '@/app/ui/overlays/Fallback';
 import { resolveDefaultAppointmentsView } from '@/app/lib/defaultAppointmentsView';
 import { allowReschedule, normalizeAppointmentStatus } from '@/app/lib/appointments';
 import { useNotify } from '@/app/hooks/useNotify';
@@ -586,7 +585,11 @@ const useAppointmentsView = () => {
         />
         <MobileSearchBar placeholder="Search appointments" />
 
-        <PermissionGate allOf={[PERMISSIONS.APPOINTMENTS_VIEW_ANY]} fallback={<Fallback />}>
+        <PermissionGate
+          allOf={[PERMISSIONS.APPOINTMENTS_VIEW_ANY]}
+          deniedResource="Appointments"
+          deniedDetail="the appointment schedule"
+        >
           <div className={wrapperClassName}>
             {activeView === 'list' && (
               <Filters
