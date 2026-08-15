@@ -50,7 +50,9 @@ const PermissionDeniedState = ({
 
   if (variant === 'inline') {
     return (
-      <div className="yc-state-inline" role="status">
+      // <output> carries an implicit `status` role and is announced more
+      // reliably than role="status" across assistive tech (sonar Web:S6819).
+      <output className="yc-state-inline">
         <span className="yc-state-inline-icon" aria-hidden>
           <IoLockClosedOutline size={15} />
         </span>
@@ -60,7 +62,7 @@ const PermissionDeniedState = ({
             Request access
           </button>
         </span>
-      </div>
+      </output>
     );
   }
 
