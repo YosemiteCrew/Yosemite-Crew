@@ -31,12 +31,22 @@ const TERM_FORMS: Record<CompanionTerminologyOption, CompanionTermForms> = {
   PATIENT: { singular: 'patient', plural: 'patients' },
 };
 
-// "Pet parent" / "pet parents" is the fixed term for the owner and must never be
-// rewritten (e.g. it must not become "patient parent"), so only "pet" is exempt
-// before "parent"/"parents". The other nouns still rewrite there, otherwise
-// authored copy such as "companion parent chat" would never track the org's term.
-const SINGULAR_PATTERN = /\b(?:pet\b(?!\s+parents?\b)|(?:animal|companion|patient)\b)/gi;
-const PLURAL_PATTERN = /\b(?:pets\b(?!\s+parents?\b)|(?:animals|companions|patients)\b)/gi;
+// Fixed product terms that must never track the org's companion noun:
+//  - "pet parent(s)" is the owner (it must not become "patient parent"),
+//  - "pet business(es)" is the audience and the account type on the sign-in tabs,
+//  - "animal health" is the brand tagline.
+// The rewrite walks every text node in the document and the chosen option is
+// persisted per org in localStorage, so it also runs after sign-out on public
+// routes. Without these exemptions an org set to "Patients" rewrote the public
+// sign-in page to "Patient business" and
+// "OPEN-SOURCE OPERATING SYSTEM FOR PATIENT HEALTH".
+// Only "pet" and "animal" are exempt, and only before those words. The other
+// nouns still rewrite there, otherwise authored copy such as
+// "companion parent chat" would never track the org's term.
+const SINGULAR_PATTERN =
+  /\b(?:pet\b(?!\s+(?:parents?|business(?:es)?)\b)|animal\b(?!\s+health\b)|(?:companion|patient)\b)/gi;
+const PLURAL_PATTERN =
+  /\b(?:pets\b(?!\s+parents?\b)|animals\b(?!\s+health\b)|(?:companions|patients)\b)/gi;
 
 const normalizeOrgId = (orgId?: string | null) => String(orgId ?? '').trim();
 const normalizeOrgType = (orgType?: string | null) =>
