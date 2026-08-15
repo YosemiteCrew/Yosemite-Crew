@@ -5,6 +5,8 @@ import {PressableOpacity} from '@/shared/components/common/PressableOpacity/Pres
 import {useTheme} from '@/hooks';
 import {
   getInputContainerBaseStyle,
+  getInputErrorStyle,
+  getInputLabelStyle,
   getValueTextStyle,
 } from '../shared/floatingLabelStyles';
 
@@ -49,23 +51,6 @@ export const TouchableInput: React.FC<TouchableInputProps> = ({
 
   const valueStyle = getValueTextStyle(theme, hasValue);
 
-  // Static label sits above the field in dark ink; the error is carried by the
-  // red field border and the red message below (matching the design).
-  const getLabelStyle = (): TextStyle => ({
-    ...theme.typography.inputLabel,
-    color: theme.colors.inkBody,
-    marginBottom: theme.spacing['2'],
-    marginLeft: theme.spacing['1'],
-  });
-
-  const getErrorStyle = (): TextStyle => ({
-    ...theme.typography.labelXxsBold,
-    color: theme.colors.error,
-    marginTop: theme.spacing['1'],
-    marginBottom: theme.spacing['3'],
-    marginLeft: theme.spacing['1'],
-  });
-
   const leftComponentWrapperStyle = {
     marginRight: theme.spacing['3'],
   };
@@ -76,7 +61,9 @@ export const TouchableInput: React.FC<TouchableInputProps> = ({
 
   return (
     <View style={containerStyle}>
-      {label && <Text style={[getLabelStyle(), labelStyle]}>{label}</Text>}
+      {label && (
+        <Text style={[getInputLabelStyle(theme), labelStyle]}>{label}</Text>
+      )}
       <PressableOpacity
         onPress={onPress}
         activeOpacity={0.7}
@@ -99,7 +86,9 @@ export const TouchableInput: React.FC<TouchableInputProps> = ({
         </View>
       </PressableOpacity>
 
-      {error && <Text style={[getErrorStyle(), errorStyle]}>{error}</Text>}
+      {error && (
+        <Text style={[getInputErrorStyle(theme), errorStyle]}>{error}</Text>
+      )}
     </View>
   );
 };

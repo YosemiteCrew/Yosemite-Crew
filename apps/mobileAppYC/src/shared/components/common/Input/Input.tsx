@@ -19,6 +19,8 @@ import {PressableOpacity} from '@/shared/components/common/PressableOpacity/Pres
 import {useTheme} from '@/hooks';
 import {
   getInputContainerBaseStyle,
+  getInputErrorStyle,
+  getInputLabelStyle,
   getValueTextStyle,
 } from '@/shared/components/common/shared/floatingLabelStyles';
 
@@ -133,23 +135,6 @@ export const Input: React.FC<InputProps> = ({
     };
   };
 
-  // Static label sits above the field in dark ink; the error is carried by the
-  // red field border and the red message below (matching the design).
-  const getLabelStyle = (): TextStyle => ({
-    ...theme.typography.inputLabel,
-    color: theme.colors.inkBody,
-    marginBottom: theme.spacing['2'],
-    marginLeft: theme.spacing['1'],
-  });
-
-  const getErrorStyle = (): TextStyle => ({
-    ...theme.typography.labelXxsBold,
-    color: theme.colors.error,
-    marginTop: theme.spacing['1'],
-    marginBottom: theme.spacing['3'],
-    marginLeft: theme.spacing['1'],
-  });
-
   let IconWrapper = null;
   if (icon) {
     IconWrapper = onIconPress ? PressableOpacity : View;
@@ -157,7 +142,9 @@ export const Input: React.FC<InputProps> = ({
 
   return (
     <View style={containerStyle}>
-      {label && <Text style={[getLabelStyle(), labelStyle]}>{label}</Text>}
+      {label && (
+        <Text style={[getInputLabelStyle(theme), labelStyle]}>{label}</Text>
+      )}
       <View style={getInputContainerStyle()}>
         {leftComponent}
         <TextInput
@@ -186,7 +173,9 @@ export const Input: React.FC<InputProps> = ({
           </IconWrapper>
         )}
       </View>
-      {error && <Text style={[getErrorStyle(), errorStyle]}>{error}</Text>}
+      {error && (
+        <Text style={[getInputErrorStyle(theme), errorStyle]}>{error}</Text>
+      )}
     </View>
   );
 };

@@ -325,11 +325,11 @@ export const AddTaskScreen: React.FC = () => {
         }
       }
 
-      navigation.navigate({
-        name: 'TasksMain',
-        params: {autoSelectDate: created.date},
-        merge: true,
-      });
+      navigation.popTo(
+        'TasksMain',
+        {autoSelectDate: created.date},
+        {merge: true},
+      );
     } catch (error) {
       showErrorAlert('Unable to add task', error);
     } finally {

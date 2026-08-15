@@ -14,6 +14,7 @@ import type {DocumentStackParamList} from '@/navigation/types';
 import type {DocumentFile} from '@/features/documents/types';
 import type {Theme} from '@/theme';
 import {createAllCommonStyles} from '@/shared/utils/screenStyles';
+import {createScreenHeaderStyles} from '@/shared/styles/screenHeaderStyles';
 import DocumentAttachmentViewer from '@/features/documents/components/DocumentAttachmentViewer';
 import {fetchDocumentView} from '@/features/documents/documentSlice';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
@@ -445,40 +446,7 @@ const createStyles = (theme: any) => {
       paddingHorizontal: theme.spacing['5'],
       paddingBottom: theme.spacing['4'],
     },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: theme.spacing['3'],
-      paddingHorizontal: theme.spacing['5'],
-      paddingVertical: theme.spacing['2'],
-    },
-    circleButton: {
-      width: theme.spacing['10'],
-      height: theme.spacing['10'],
-      borderRadius: theme.borderRadius.full,
-      backgroundColor: theme.colors.screen2,
-      borderWidth: 1,
-      borderColor: theme.colors.hairline,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    headerTitleBlock: {
-      flex: 1,
-      alignItems: 'center',
-    },
-    headerTitle: {
-      ...theme.typography.labelSmall,
-      fontSize: 15.5,
-      letterSpacing: -0.2,
-      color: theme.colors.ink,
-      textAlign: 'center',
-    },
-    headerSubtitle: {
-      ...theme.typography.body12,
-      color: theme.colors.inkFaint,
-      textAlign: 'center',
-      marginTop: 1,
-    },
+    ...createScreenHeaderStyles(theme),
     documentPage: {
       backgroundColor: theme.colors.screen2,
       borderWidth: 1,
