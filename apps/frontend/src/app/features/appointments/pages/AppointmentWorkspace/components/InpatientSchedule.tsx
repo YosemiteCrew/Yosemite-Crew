@@ -15,7 +15,10 @@ import { getAppointmentStatusTone, getStatusStyle } from '@/app/config/statusCon
 import type { ScheduleTask, ScheduleTaskStatus } from '@/app/features/appointments/types/workspace';
 import type { TemplateLike } from '@yosemite-crew/types';
 import { formatStampDate } from '@/app/lib/appointmentWorkspace';
-import { formatDateInPreferredTimeZone } from '@/app/lib/timezone';
+import {
+  buildPreferredTimeZoneDayInstant,
+  formatDateInPreferredTimeZone,
+} from '@/app/lib/timezone';
 
 type AssigneeOption = { label: string; value: string };
 
@@ -220,7 +223,18 @@ const InpatientSchedule = ({
   }, []);
 
   const dateLabel = useMemo(() => {
-    const formatted = formatDateInPreferredTimeZone(selectedDate, {
+    // `selectedDate` is a browser-local midnight, so formatting that instant in
+    // a different preferred zone can land on the previous calendar day (an
+    // Aug 15 midnight in Europe/Berlin is still Aug 14 in America/Los_Angeles).
+    // Re-anchor the picked calendar day at noon in the preferred zone first;
+    // noon is far enough from either boundary that no offset or DST shift can
+    // move it onto a neighbouring date.
+    const anchored = buildPreferredTimeZoneDayInstant(
+      selectedDate.getFullYear(),
+      selectedDate.getMonth() + 1,
+      selectedDate.getDate()
+    );
+    const formatted = formatDateInPreferredTimeZone(anchored, {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
