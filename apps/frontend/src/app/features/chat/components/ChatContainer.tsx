@@ -126,6 +126,7 @@ const ChatBackContext = createContext<{ showBack: boolean; onBack: () => void }>
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
+import { useConfirm } from '@/app/ui/overlays/Modal/ConfirmModal';
 
 const CHAT_PAGE_SKELETON = <PageSkeleton variant="list" />;
 
@@ -350,6 +351,7 @@ const ChannelHeaderWithCounterpart: FC<{
     appointmentId ? s.appointmentsById[appointmentId] : undefined
   );
   const companion = useCompanionStore((s) => (patientId ? s.companionsById[patientId] : undefined));
+  const { confirm, confirmDialog } = useConfirm();
 
   const {
     sessionClosed,
@@ -367,6 +369,7 @@ const ChannelHeaderWithCounterpart: FC<{
     appointmentId,
     backendStatus,
     refreshStatuses,
+    confirm,
   });
 
   const {
@@ -391,6 +394,7 @@ const ChannelHeaderWithCounterpart: FC<{
 
   return (
     <>
+      {confirmDialog}
       <ChannelHeaderBar
         title={title}
         statusText={statusText}
@@ -1085,6 +1089,7 @@ const useChatContainerView = ({
     []
   );
   const groupModalBackendIdRef = useRef<string | undefined>(undefined);
+  const { confirm, confirmDialog } = useConfirm();
   // Rendered into the modal, so state (not a ref); only written in the open
   // handlers below.
   const [groupModalOwner, setGroupModalOwner] = useState<string | undefined>(undefined);
@@ -1819,7 +1824,12 @@ const useChatContainerView = ({
       });
       return;
     }
-    const confirmed = confirm('Delete this group? This cannot be undone.');
+    const confirmed = await confirm({
+      title: 'Delete this group?',
+      body: 'The group and its messages are removed for everyone. This cannot be undone.',
+      confirmLabel: 'Delete group',
+      tone: 'danger',
+    });
     if (!confirmed) return;
     setGroupModalBusy(true);
     try {
@@ -1849,7 +1859,7 @@ const useChatContainerView = ({
     } finally {
       setGroupModalBusy(false);
     }
-  }, [groupModalChannel, onChannelSelect, notify, setGroupModalBusy, setGroupModalOpen]);
+  }, [groupModalChannel, onChannelSelect, notify, setGroupModalBusy, setGroupModalOpen, confirm]);
 
   const groupModalContextValue = useMemo(
     () => ({
@@ -2002,6 +2012,7 @@ const useChatContainerView = ({
 
   return (
     <ChatSessionStatusContext.Provider value={chatSessionStatusContextValue}>
+      {confirmDialog}
       <GroupModalContext.Provider value={groupModalContextValue}>
         <ChatShareContext.Provider value={shareContextValue}>
           <div className={className}>
