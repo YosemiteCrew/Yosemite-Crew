@@ -3,6 +3,12 @@ import {
   CatalogService,
   CatalogServiceError,
 } from "../../src/services/catalog.service";
+import logger from "../../src/utils/logger";
+
+jest.mock("../../src/utils/logger", () => ({
+  __esModule: true,
+  default: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+}));
 
 jest.mock("../../src/services/catalog.service", () => ({
   CatalogService: {
@@ -56,6 +62,19 @@ const createResponse = () => {
   };
 
   return res;
+};
+
+const mockedLogger = logger as unknown as { error: jest.Mock };
+
+const noIfMatch = () => undefined;
+
+const healthcareServiceBody = {
+  resourceType: "HealthcareService",
+  id: "prod_1",
+  providedBy: { reference: "Organization/org_1" },
+  name: "Consultation",
+  active: true,
+  type: [{ coding: [{ code: "CONSULTATION" }] }],
 };
 
 describe("CatalogController", () => {
@@ -988,8 +1007,11 @@ describe("CatalogController", () => {
     expect(CatalogService.listProducts).not.toHaveBeenCalled();
   });
 
-  it("maps the supportsInpatient tri-state onto a boolean for package lists", async () => {
-    (CatalogService.listProducts as jest.Mock).mockResolvedValue([]);
+  it("maps the supportsInpatient tri-state onto a boolean and keeps every package when no status is given", async () => {
+    (CatalogService.listProducts as jest.Mock).mockResolvedValue([
+      { id: "pkg_1", kind: "PACKAGE", isActive: true },
+      { id: "pkg_2", kind: "PACKAGE", isActive: false },
+    ]);
 
     const req = {
       params: { organisationId: "org_1", specialityId: "spec_1" },
@@ -1005,7 +1027,12 @@ describe("CatalogController", () => {
     expect(CatalogService.listProducts).toHaveBeenCalledWith(
       expect.objectContaining({ supportsInpatient: true }),
     );
-    expect(res.json).toHaveBeenCalledWith({ items: [] });
+    expect(res.json).toHaveBeenCalledWith({
+      items: [
+        { id: "pkg_1", kind: "PACKAGE", isActive: true },
+        { id: "pkg_2", kind: "PACKAGE", isActive: false },
+      ],
+    });
   });
 
   it("creates, updates, restores, and deletes packages", async () => {
@@ -1310,5 +1337,1313 @@ describe("CatalogController", () => {
       expect(CatalogService.getProductById).not.toHaveBeenCalled();
       expect(res.status).toHaveBeenCalledWith(400);
     });
+
+    it("refuses to read a package for an unscoped request", async () => {
+      const req = { params: { id: "pkg_1" }, query: {} };
+      const res = createResponse();
+
+      await CatalogController.getPackageDetail(req as never, res as never);
+
+      expect(CatalogService.getPackageDetail).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Organisation identifier is required.",
+      });
+    });
+
+    it("refuses a FHIR resolve operation for an unscoped request", async () => {
+      const req = {
+        body: {
+          resourceType: "Parameters",
+          parameter: [{ name: "productItemId", valueString: "prod_1" }],
+        },
+      };
+      const res = createResponse();
+
+      await CatalogController.resolveProductOperation(
+        req as never,
+        res as never,
+      );
+
+      expect(CatalogService.resolveSelection).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Organisation identifier is required.",
+      });
+    });
+
+    it("refuses to update a speciality routed through another organisation", async () => {
+      const req = {
+        organisationId: "org_1",
+        params: { organisationId: "org_victim", specialityId: "spec_1" },
+        body: { name: "Cardio" },
+      };
+      const res = createResponse();
+
+      await CatalogController.updateSpeciality(req as never, res as never);
+
+      expect(CatalogService.updateSpeciality).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Organisation does not match the authorized organisation.",
+      });
+    });
+  });
+
+  describe("If-Match handling", () => {
+    it("rejects an If-Match header without a version number", async () => {
+      const req = {
+        params: { organisationId: "org_1", id: "prod_1" },
+        body: {},
+        header: () => 'W/"not-a-version"',
+      };
+      const res = createResponse();
+
+      await CatalogController.updateService(req as never, res as never);
+
+      expect(CatalogService.updateProduct).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Invalid If-Match header.",
+      });
+    });
+  });
+
+  describe("catalog error shapes", () => {
+    it("defaults a detail-only catalog error to the CONFLICT code", async () => {
+      (CatalogService.getPackageDetail as jest.Mock).mockRejectedValue(
+        new CatalogServiceError("Package is locked.", 409, undefined, {
+          lockedBy: "user_1",
+        }),
+      );
+
+      const req = {
+        organisationId: "org_1",
+        params: { id: "pkg_1" },
+        query: {},
+      };
+      const res = createResponse();
+
+      await CatalogController.getPackageDetail(req as never, res as never);
+
+      expect(res.status).toHaveBeenCalledWith(409);
+      expect(res.json).toHaveBeenCalledWith({
+        error: {
+          code: "CONFLICT",
+          message: "Package is locked.",
+          details: { lockedBy: "user_1" },
+        },
+      });
+    });
+
+    it("omits the details key for a code-only catalog error", async () => {
+      (CatalogService.getPackageDetail as jest.Mock).mockRejectedValue(
+        new CatalogServiceError("Package is archived.", 410, "PACKAGE_GONE"),
+      );
+
+      const req = {
+        organisationId: "org_1",
+        params: { id: "pkg_1" },
+        query: {},
+      };
+      const res = createResponse();
+
+      await CatalogController.getPackageDetail(req as never, res as never);
+
+      expect(res.status).toHaveBeenCalledWith(410);
+      expect(res.json).toHaveBeenCalledWith({
+        error: { code: "PACKAGE_GONE", message: "Package is archived." },
+      });
+    });
+  });
+
+  describe("query and payload mapping", () => {
+    it("drops an all-empty kinds filter instead of sending it to the service", async () => {
+      (CatalogService.listProducts as jest.Mock).mockResolvedValue([]);
+
+      const req = {
+        organisationId: "org_1",
+        params: { organisationId: "org_1" },
+        query: { kinds: " , , " },
+        baseUrl: "/web/catalog",
+      };
+      const res = createResponse();
+
+      await CatalogController.listProducts(req as never, res as never);
+
+      expect(CatalogService.listProducts).toHaveBeenCalledWith(
+        expect.objectContaining({ kinds: undefined }),
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it("fails the list when the kinds filter names an unknown product kind", async () => {
+      const req = {
+        organisationId: "org_1",
+        params: { organisationId: "org_1" },
+        query: { kinds: "TELEPORTATION" },
+        baseUrl: "/web/catalog",
+      };
+      const res = createResponse();
+
+      await CatalogController.listProducts(req as never, res as never);
+
+      expect(CatalogService.listProducts).not.toHaveBeenCalled();
+      expect(mockedLogger.error).toHaveBeenCalledWith(
+        "Unable to list catalog products.",
+        expect.anything(),
+      );
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Unable to list catalog products.",
+      });
+    });
+
+    it("clears the bookable profile when a service is marked non-bookable", async () => {
+      (CatalogService.createProduct as jest.Mock).mockResolvedValue({
+        id: "svc_1",
+      });
+
+      const req = {
+        params: { organisationId: "org_1", specialityId: "spec_1" },
+        body: { name: "Lab Panel", kind: "LAB_TEST", isBookable: false },
+      };
+      const res = createResponse();
+
+      await CatalogController.createService(req as never, res as never);
+
+      expect(CatalogService.createProduct).toHaveBeenCalledWith(
+        expect.objectContaining({ bookable: null }),
+      );
+      expect(res.status).toHaveBeenCalledWith(201);
+    });
+
+    it("derives the bookable profile from appointment modes and duration", async () => {
+      (CatalogService.createProduct as jest.Mock).mockResolvedValue({
+        id: "svc_1",
+      });
+
+      const req = {
+        params: { organisationId: "org_1", specialityId: "spec_1" },
+        body: {
+          name: "Surgery",
+          kind: "PROCEDURE",
+          durationMinutes: 45,
+          appointmentModes: ["INPATIENT"],
+        },
+      };
+      const res = createResponse();
+
+      await CatalogController.createService(req as never, res as never);
+
+      expect(CatalogService.createProduct).toHaveBeenCalledWith(
+        expect.objectContaining({
+          bookable: {
+            durationMinutes: 45,
+            supportsOutpatient: false,
+            supportsInpatient: true,
+          },
+        }),
+      );
+    });
+
+    it("defaults duration and outpatient support when only isBookable is set", async () => {
+      (CatalogService.createProduct as jest.Mock).mockResolvedValue({
+        id: "svc_1",
+      });
+
+      const req = {
+        params: { organisationId: "org_1", specialityId: "spec_1" },
+        body: { name: "Consult", kind: "CONSULTATION", isBookable: true },
+      };
+      const res = createResponse();
+
+      await CatalogController.createService(req as never, res as never);
+
+      expect(CatalogService.createProduct).toHaveBeenCalledWith(
+        expect.objectContaining({
+          bookable: {
+            durationMinutes: 30,
+            supportsOutpatient: true,
+            supportsInpatient: false,
+          },
+        }),
+      );
+    });
+
+    it("builds a zero-priced policy when only a currency is supplied", async () => {
+      (CatalogService.createProduct as jest.Mock).mockResolvedValue({
+        id: "svc_1",
+      });
+
+      const req = {
+        params: { organisationId: "org_1", specialityId: "spec_1" },
+        body: { name: "Consult", kind: "CONSULTATION", currency: "USD" },
+      };
+      const res = createResponse();
+
+      await CatalogController.createService(req as never, res as never);
+
+      expect(CatalogService.createProduct).toHaveBeenCalledWith(
+        expect.objectContaining({
+          price: {
+            unitPrice: 0,
+            currency: "USD",
+            defaultDiscountPercent: null,
+            maxDiscountPercent: null,
+          },
+        }),
+      );
+    });
+
+    it("sends an empty name when a service update omits it", async () => {
+      (CatalogService.updateProduct as jest.Mock).mockResolvedValue({
+        id: "prod_1",
+        version: 2,
+      });
+
+      const req = {
+        params: { organisationId: "org_1", id: "prod_1" },
+        body: { isActive: false },
+        header: noIfMatch,
+      };
+      const res = createResponse();
+
+      await CatalogController.updateService(req as never, res as never);
+
+      expect(CatalogService.updateProduct).toHaveBeenCalledWith("prod_1", {
+        organisationId: "org_1",
+        specialityId: undefined,
+        name: "",
+        description: null,
+        code: null,
+        kind: "CONSULTATION",
+        isActive: false,
+        price: undefined,
+        bookable: undefined,
+        expectedVersion: undefined,
+      });
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it("sends an empty name when a package update omits it", async () => {
+      (CatalogService.updateProduct as jest.Mock).mockResolvedValue({
+        id: "pkg_1",
+        version: 5,
+      });
+
+      const req = {
+        params: { organisationId: "org_1", id: "pkg_1" },
+        body: { isActive: false },
+        header: noIfMatch,
+      };
+      const res = createResponse();
+
+      await CatalogController.updatePackage(req as never, res as never);
+
+      expect(CatalogService.updateProduct).toHaveBeenCalledWith(
+        "pkg_1",
+        expect.objectContaining({
+          name: "",
+          kind: "PACKAGE",
+          packageItems: [],
+          package: undefined,
+        }),
+      );
+      expect(res.setHeader).toHaveBeenCalledWith("ETag", 'W/"5"');
+    });
+
+    it("maps a package breakdown and defaults the lead count", async () => {
+      (CatalogService.createProduct as jest.Mock).mockResolvedValue({
+        id: "pkg_1",
+        version: 1,
+      });
+
+      const req = {
+        params: { organisationId: "org_1", specialityId: "spec_1" },
+        body: {
+          name: "Wellness",
+          supportCount: 2,
+          breakdown: [
+            {
+              childItemId: "svc_1",
+              quantity: 2,
+              pricingMode: "OVERRIDE_PRICE",
+              overridePrice: 40,
+              discountPercent: 5,
+              sortOrder: 1,
+              isOptional: true,
+            },
+            {
+              childItemId: "svc_2",
+              quantity: 1,
+              pricingMode: "INCLUDED",
+            },
+          ],
+        },
+      };
+      const res = createResponse();
+
+      await CatalogController.createPackage(req as never, res as never);
+
+      expect(CatalogService.createProduct).toHaveBeenCalledWith(
+        expect.objectContaining({
+          packageItems: [
+            {
+              childProductItemId: "svc_1",
+              quantity: 2,
+              pricingMode: "OVERRIDE_PRICE",
+              overridePrice: 40,
+              discountPercent: 5,
+              sortOrder: 1,
+              isOptional: true,
+            },
+            {
+              childProductItemId: "svc_2",
+              quantity: 1,
+              pricingMode: "INCLUDED",
+              overridePrice: null,
+              discountPercent: null,
+              sortOrder: undefined,
+              isOptional: undefined,
+            },
+          ],
+          package: {
+            leadCount: 1,
+            supportCount: 2,
+            additionalDiscountPercent: 0,
+            grossAmount: 0,
+            itemDiscountAmount: 0,
+            additionalDiscountAmount: 0,
+            breakdownItemCount: 2,
+          },
+        }),
+      );
+      expect(res.status).toHaveBeenCalledWith(201);
+    });
+
+    it("narrows the speciality service list to a single kind and keeps every match", async () => {
+      (CatalogService.listProducts as jest.Mock).mockResolvedValue([
+        { id: "svc_1", kind: "PROCEDURE", isActive: true },
+        { id: "svc_2", kind: "PROCEDURE", isActive: false },
+        { id: "pkg_1", kind: "PACKAGE", isActive: true },
+      ]);
+
+      const req = {
+        params: { organisationId: "org_1", specialityId: "spec_1" },
+        query: { kind: "PROCEDURE" },
+      };
+      const res = createResponse();
+
+      await CatalogController.listServicesBySpeciality(
+        req as never,
+        res as never,
+      );
+
+      expect(CatalogService.listProducts).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kinds: ["PROCEDURE"],
+          includeInactive: false,
+        }),
+      );
+      expect(res.json).toHaveBeenCalledWith({
+        items: [
+          { id: "svc_1", kind: "PROCEDURE", isActive: true },
+          { id: "svc_2", kind: "PROCEDURE", isActive: false },
+        ],
+      });
+    });
+
+    it("keeps only non-bookable services when isBookable=false", async () => {
+      (CatalogService.listProducts as jest.Mock).mockResolvedValue([
+        {
+          id: "svc_1",
+          kind: "CONSULTATION",
+          isActive: true,
+          bookable: { durationMinutes: 30 },
+        },
+        { id: "svc_2", kind: "CONSULTATION", isActive: true, bookable: null },
+      ]);
+
+      const req = {
+        params: { organisationId: "org_1", specialityId: "spec_1" },
+        query: { isBookable: "false" },
+      };
+      const res = createResponse();
+
+      await CatalogController.listServicesBySpeciality(
+        req as never,
+        res as never,
+      );
+
+      expect(res.json).toHaveBeenCalledWith({
+        items: [
+          { id: "svc_2", kind: "CONSULTATION", isActive: true, bookable: null },
+        ],
+      });
+    });
+
+    it("keeps only active services when status=ACTIVE", async () => {
+      (CatalogService.listProducts as jest.Mock).mockResolvedValue([
+        { id: "svc_1", kind: "CONSULTATION", isActive: true },
+        { id: "svc_2", kind: "CONSULTATION", isActive: false },
+      ]);
+
+      const req = {
+        params: { organisationId: "org_1", specialityId: "spec_1" },
+        query: { status: "ACTIVE" },
+      };
+      const res = createResponse();
+
+      await CatalogController.listServicesBySpeciality(
+        req as never,
+        res as never,
+      );
+
+      expect(res.json).toHaveBeenCalledWith({
+        items: [{ id: "svc_1", kind: "CONSULTATION", isActive: true }],
+      });
+    });
+
+    it("keeps only bookable services when isBookable=true", async () => {
+      (CatalogService.listProducts as jest.Mock).mockResolvedValue([
+        {
+          id: "svc_1",
+          kind: "CONSULTATION",
+          isActive: true,
+          bookable: { durationMinutes: 30 },
+        },
+        { id: "svc_2", kind: "CONSULTATION", isActive: true, bookable: null },
+      ]);
+
+      const req = {
+        params: { organisationId: "org_1", specialityId: "spec_1" },
+        query: { isBookable: "true" },
+      };
+      const res = createResponse();
+
+      await CatalogController.listServicesBySpeciality(
+        req as never,
+        res as never,
+      );
+
+      expect(res.json).toHaveBeenCalledWith({
+        items: [
+          {
+            id: "svc_1",
+            kind: "CONSULTATION",
+            isActive: true,
+            bookable: { durationMinutes: 30 },
+          },
+        ],
+      });
+    });
+
+    it("keeps only archived packages when status=ARCHIVED", async () => {
+      (CatalogService.listProducts as jest.Mock).mockResolvedValue([
+        { id: "pkg_1", kind: "PACKAGE", isActive: true },
+        { id: "pkg_2", kind: "PACKAGE", isActive: false },
+      ]);
+
+      const req = {
+        params: { organisationId: "org_1", specialityId: "spec_1" },
+        query: { status: "ARCHIVED" },
+      };
+      const res = createResponse();
+
+      await CatalogController.listPackagesBySpeciality(
+        req as never,
+        res as never,
+      );
+
+      expect(res.json).toHaveBeenCalledWith({
+        items: [{ id: "pkg_2", kind: "PACKAGE", isActive: false }],
+      });
+    });
+
+    it("omits the archive search filter when the query has none", async () => {
+      (CatalogService.getArchiveCatalog as jest.Mock).mockResolvedValue({
+        services: [],
+        packages: [],
+      });
+
+      const req = {
+        params: { organisationId: "org_1", specialityId: "spec_1" },
+        query: {},
+      };
+      const res = createResponse();
+
+      await CatalogController.getArchiveCatalog(req as never, res as never);
+
+      expect(CatalogService.getArchiveCatalog).toHaveBeenCalledWith(
+        "org_1",
+        "spec_1",
+        undefined,
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it("accepts the legacy serviceId alias for bookable slots", async () => {
+      (CatalogService.getBookableSlotsService as jest.Mock).mockResolvedValue({
+        windows: [],
+      });
+
+      const req = {
+        params: { organisationId: "org_1" },
+        body: { serviceId: "prod_legacy", date: "2026-03-04" },
+      };
+      const res = createResponse();
+
+      await CatalogController.getCatalogBookableSlots(
+        req as never,
+        res as never,
+      );
+
+      expect(CatalogService.getBookableSlotsService).toHaveBeenCalledWith(
+        "prod_legacy",
+        "org_1",
+        new Date("2026-03-04T00:00:00.000Z"),
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it("accepts the legacy serviceIds alias for calendar prefill", async () => {
+      (CatalogService.getCalendarPrefillMatches as jest.Mock).mockResolvedValue(
+        [],
+      );
+
+      const req = {
+        organisationId: "org_1",
+        params: { organisationId: "org_1" },
+        body: {
+          organisationId: "org_1",
+          date: "2026-03-04",
+          minuteOfDay: 480,
+          serviceIds: ["prod_legacy"],
+          leadId: "vet_1",
+        },
+      };
+      const res = createResponse();
+
+      await CatalogController.getCatalogCalendarPrefill(
+        req as never,
+        res as never,
+      );
+
+      expect(CatalogService.getCalendarPrefillMatches).toHaveBeenCalledWith({
+        organisationId: "org_1",
+        date: new Date("2026-03-04T00:00:00.000Z"),
+        minuteOfDay: 480,
+        leadId: "vet_1",
+        serviceIds: ["prod_legacy"],
+      });
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        data: { matches: [] },
+      });
+    });
+  });
+
+  describe("restore and delete flows", () => {
+    it("restores a service and publishes the new version", async () => {
+      (CatalogService.restoreProduct as jest.Mock).mockResolvedValue({
+        id: "svc_1",
+        version: 9,
+      });
+
+      const req = {
+        params: { organisationId: "org_1", id: "svc_1" },
+        header: () => 'W/"8"',
+      };
+      const res = createResponse();
+
+      await CatalogController.restoreService(req as never, res as never);
+
+      expect(CatalogService.restoreProduct).toHaveBeenCalledWith(
+        "svc_1",
+        "org_1",
+        8,
+      );
+      expect(res.setHeader).toHaveBeenCalledWith("ETag", 'W/"9"');
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ id: "svc_1", version: 9 });
+    });
+
+    it("archives a package and publishes the new version", async () => {
+      (CatalogService.archiveProduct as jest.Mock).mockResolvedValue({
+        id: "pkg_1",
+        version: 4,
+      });
+
+      const req = {
+        params: { organisationId: "org_1", id: "pkg_1" },
+        header: () => 'W/"3"',
+      };
+      const res = createResponse();
+
+      await CatalogController.archivePackage(req as never, res as never);
+
+      expect(CatalogService.archiveProduct).toHaveBeenCalledWith(
+        "pkg_1",
+        "org_1",
+        3,
+      );
+      expect(res.setHeader).toHaveBeenCalledWith("ETag", 'W/"4"');
+      expect(res.json).toHaveBeenCalledWith({ id: "pkg_1", version: 4 });
+    });
+
+    it("returns 204 once a service is permanently deleted", async () => {
+      (CatalogService.deleteProduct as jest.Mock).mockResolvedValue(undefined);
+
+      const req = {
+        params: { organisationId: "org_1", id: "svc_1" },
+        header: noIfMatch,
+      };
+      const res = createResponse();
+
+      await CatalogController.deleteService(req as never, res as never);
+
+      expect(CatalogService.deleteProduct).toHaveBeenCalledWith(
+        "svc_1",
+        "org_1",
+        undefined,
+      );
+      expect(res.status).toHaveBeenCalledWith(204);
+      expect(res.json).toHaveBeenCalledWith({});
+    });
+  });
+
+  describe("payload and query validation", () => {
+    const validationCases = [
+      {
+        name: "updateProduct rejects a non-HealthcareService body",
+        run: CatalogController.updateProduct,
+        req: {
+          organisationId: "org_1",
+          params: { id: "prod_1" },
+          body: { resourceType: "Patient" },
+          header: noIfMatch,
+        },
+        service: () => CatalogService.updateProduct as jest.Mock,
+        message: "Invalid payload. Expected FHIR HealthcareService resource.",
+      },
+      {
+        name: "getSpecialityCatalog rejects an unknown tab",
+        run: CatalogController.getSpecialityCatalog,
+        req: {
+          params: { organisationId: "org_1", specialityId: "spec_1" },
+          query: { tab: "bogus" },
+        },
+        service: () => CatalogService.getSpecialityCatalog as jest.Mock,
+        message: "Invalid speciality catalog query.",
+      },
+      {
+        name: "resolveProductOperation rejects a non-Parameters body",
+        run: CatalogController.resolveProductOperation,
+        req: { organisationId: "org_1", body: { resourceType: "Bundle" } },
+        service: () => CatalogService.resolveSelection as jest.Mock,
+        message: "Invalid FHIR Parameters payload.",
+      },
+      {
+        name: "searchCatalogOperation rejects a non-Parameters body",
+        run: CatalogController.searchCatalogOperation,
+        req: { organisationId: "org_1", body: { resourceType: "Bundle" } },
+        service: () => CatalogService.searchItems as jest.Mock,
+        message: "Invalid FHIR Parameters payload.",
+      },
+      {
+        name: "getOrganisationSummary rejects a tri-state flag it cannot parse",
+        run: CatalogController.getOrganisationSummary,
+        req: {
+          params: { organisationId: "org_1" },
+          query: { includeArchived: "maybe" },
+        },
+        service: () => CatalogService.getOrganisationSummary as jest.Mock,
+        message: "Invalid organisation catalog summary query.",
+      },
+      {
+        name: "listSpecialities rejects a non-positive page",
+        run: CatalogController.listSpecialities,
+        req: { params: { organisationId: "org_1" }, query: { page: "0" } },
+        service: () => CatalogService.listSpecialities as jest.Mock,
+        message: "Invalid specialities list query.",
+      },
+      {
+        name: "createSpeciality rejects a blank name",
+        run: CatalogController.createSpeciality,
+        req: { params: { organisationId: "org_1" }, body: { name: "" } },
+        service: () => CatalogService.createSpeciality as jest.Mock,
+        message: "Invalid speciality payload.",
+      },
+      {
+        name: "updateSpeciality rejects a malformed head avatar URL",
+        run: CatalogController.updateSpeciality,
+        req: {
+          organisationId: "org_1",
+          params: { organisationId: "org_1", specialityId: "spec_1" },
+          body: { headProfilePicUrl: "not-a-url" },
+        },
+        service: () => CatalogService.updateSpeciality as jest.Mock,
+        message: "Invalid speciality payload.",
+      },
+      {
+        name: "updateService rejects an unknown service kind",
+        run: CatalogController.updateService,
+        req: {
+          params: { organisationId: "org_1", id: "prod_1" },
+          body: { kind: "TELEPORTATION" },
+          header: noIfMatch,
+        },
+        service: () => CatalogService.updateProduct as jest.Mock,
+        message: "Invalid service payload.",
+      },
+      {
+        name: "createService rejects a negative unit price",
+        run: CatalogController.createService,
+        req: {
+          params: { organisationId: "org_1", specialityId: "spec_1" },
+          body: { name: "Consult", kind: "CONSULTATION", unitPrice: -1 },
+        },
+        service: () => CatalogService.createProduct as jest.Mock,
+        message: "Invalid service payload.",
+      },
+      {
+        name: "createService rejects an empty appointment mode list",
+        run: CatalogController.createService,
+        req: {
+          params: { organisationId: "org_1", specialityId: "spec_1" },
+          body: {
+            name: "Consult",
+            kind: "CONSULTATION",
+            appointmentModes: [],
+          },
+        },
+        service: () => CatalogService.createProduct as jest.Mock,
+        message: "Invalid service payload.",
+      },
+      {
+        name: "createPackage rejects a blank name",
+        run: CatalogController.createPackage,
+        req: {
+          params: { organisationId: "org_1", specialityId: "spec_1" },
+          body: { name: "" },
+        },
+        service: () => CatalogService.createProduct as jest.Mock,
+        message: "Invalid package payload.",
+      },
+      {
+        name: "updatePackage rejects a breakdown row without a child item",
+        run: CatalogController.updatePackage,
+        req: {
+          params: { organisationId: "org_1", id: "pkg_1" },
+          body: {
+            breakdown: [
+              { childItemId: "", quantity: 1, pricingMode: "INCLUDED" },
+            ],
+          },
+          header: noIfMatch,
+        },
+        service: () => CatalogService.updateProduct as jest.Mock,
+        message: "Invalid package payload.",
+      },
+      {
+        name: "searchItems rejects a non-positive page size",
+        run: CatalogController.searchItems,
+        req: { params: { organisationId: "org_1" }, query: { pageSize: "0" } },
+        service: () => CatalogService.searchItems as jest.Mock,
+        message: "Invalid catalog search query.",
+      },
+      {
+        name: "getCatalogNearbyOrganisations rejects a non-numeric latitude",
+        run: CatalogController.getCatalogNearbyOrganisations,
+        req: { params: { organisationId: "org_1" }, query: { lat: "north" } },
+        service: () =>
+          CatalogService.listOrganisationsProvidingServiceNearby as jest.Mock,
+        message: "Invalid catalog nearby search query.",
+      },
+      {
+        name: "getCatalogBookableSlots rejects a date it cannot parse",
+        run: CatalogController.getCatalogBookableSlots,
+        req: {
+          params: { organisationId: "org_1" },
+          body: { productItemId: "prod_1", date: "not-a-date" },
+        },
+        service: () => CatalogService.getBookableSlotsService as jest.Mock,
+        message: "Invalid catalog bookable slots payload.",
+      },
+      {
+        name: "getCatalogCalendarPrefill rejects an out-of-range minute",
+        run: CatalogController.getCatalogCalendarPrefill,
+        req: {
+          organisationId: "org_1",
+          params: { organisationId: "org_1" },
+          body: {
+            organisationId: "org_1",
+            date: "2026-03-04",
+            minuteOfDay: 2000,
+            productItemIds: ["prod_1"],
+          },
+        },
+        service: () => CatalogService.getCalendarPrefillMatches as jest.Mock,
+        message: "Invalid catalog calendar prefill payload.",
+      },
+    ];
+
+    it.each(validationCases)(
+      "$name",
+      async ({ run, req, service, message }) => {
+        const res = createResponse();
+
+        await run(req as never, res as never);
+
+        expect(service()).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith(
+          expect.objectContaining({ message, errors: expect.anything() }),
+        );
+      },
+    );
+
+    it("reports the missing name when a speciality payload parses but is empty", async () => {
+      const res = createResponse();
+
+      await CatalogController.createSpeciality(
+        { params: { organisationId: "org_1" }, body: {} } as never,
+        res as never,
+      );
+
+      expect(CatalogService.createSpeciality).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Invalid speciality payload.",
+        errors: { fieldErrors: { name: ["Name is required."] } },
+      });
+    });
+
+    it("reports the missing name when a package payload parses but is empty", async () => {
+      const res = createResponse();
+
+      await CatalogController.createPackage(
+        {
+          params: { organisationId: "org_1", specialityId: "spec_1" },
+          body: {},
+        } as never,
+        res as never,
+      );
+
+      expect(CatalogService.createProduct).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Invalid package payload.",
+        errors: { fieldErrors: { name: ["Name is required."] } },
+      });
+    });
+
+    it.each([
+      [{}, { name: ["Name is required."], kind: ["Kind is required."] }],
+      [{ name: "Consult" }, { kind: ["Kind is required."] }],
+      [{ kind: "PROCEDURE" }, { name: ["Name is required."] }],
+    ])(
+      "reports the missing service fields for %p",
+      async (body, fieldErrors) => {
+        const res = createResponse();
+
+        await CatalogController.createService(
+          {
+            params: { organisationId: "org_1", specialityId: "spec_1" },
+            body,
+          } as never,
+          res as never,
+        );
+
+        expect(CatalogService.createProduct).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({
+          message: "Invalid service payload.",
+          errors: { fieldErrors },
+        });
+      },
+    );
+
+    it("rejects bookable slots that name neither a product nor a service", async () => {
+      const res = createResponse();
+
+      await CatalogController.getCatalogBookableSlots(
+        {
+          params: { organisationId: "org_1" },
+          body: { date: "2026-03-04" },
+        } as never,
+        res as never,
+      );
+
+      expect(CatalogService.getBookableSlotsService).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "productItemId is required.",
+      });
+    });
+
+    it("rejects calendar prefill that names no catalog items", async () => {
+      const res = createResponse();
+
+      await CatalogController.getCatalogCalendarPrefill(
+        {
+          organisationId: "org_1",
+          params: { organisationId: "org_1" },
+          body: {
+            organisationId: "org_1",
+            date: "2026-03-04",
+            minuteOfDay: 600,
+          },
+        } as never,
+        res as never,
+      );
+
+      expect(CatalogService.getCalendarPrefillMatches).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "productItemIds is required.",
+      });
+    });
+  });
+
+  describe("service failures", () => {
+    const failureCases = [
+      {
+        name: "createProduct",
+        run: CatalogController.createProduct,
+        service: () => CatalogService.createProduct as jest.Mock,
+        req: { body: healthcareServiceBody },
+        message: "Unable to create catalog product.",
+      },
+      {
+        name: "updateProduct",
+        run: CatalogController.updateProduct,
+        service: () => CatalogService.updateProduct as jest.Mock,
+        req: {
+          organisationId: "org_1",
+          params: { id: "prod_1" },
+          body: healthcareServiceBody,
+          header: noIfMatch,
+        },
+        message: "Unable to update catalog product.",
+      },
+      {
+        name: "getProductById",
+        run: CatalogController.getProductById,
+        service: () => CatalogService.getProductById as jest.Mock,
+        req: {
+          organisationId: "org_1",
+          params: { id: "prod_1" },
+          query: {},
+        },
+        message: "Unable to fetch catalog product.",
+      },
+      {
+        name: "getPackageDetail",
+        run: CatalogController.getPackageDetail,
+        service: () => CatalogService.getPackageDetail as jest.Mock,
+        req: { organisationId: "org_1", params: { id: "pkg_1" }, query: {} },
+        message: "Unable to fetch catalog package.",
+      },
+      {
+        name: "listProducts",
+        run: CatalogController.listProducts,
+        service: () => CatalogService.listProducts as jest.Mock,
+        req: {
+          organisationId: "org_1",
+          params: { organisationId: "org_1" },
+          query: {},
+          baseUrl: "/web/catalog",
+        },
+        message: "Unable to list catalog products.",
+      },
+      {
+        name: "getSpecialityCatalog",
+        run: CatalogController.getSpecialityCatalog,
+        service: () => CatalogService.getSpecialityCatalog as jest.Mock,
+        req: {
+          params: { organisationId: "org_1", specialityId: "spec_1" },
+          query: {},
+        },
+        message: "Unable to fetch speciality catalog.",
+      },
+      {
+        name: "resolveProduct",
+        run: CatalogController.resolveProduct,
+        service: () => CatalogService.resolveSelection as jest.Mock,
+        req: { organisationId: "org_1", body: { productItemId: "prod_1" } },
+        message: "Unable to resolve catalog product.",
+      },
+      {
+        name: "resolveProductOperation",
+        run: CatalogController.resolveProductOperation,
+        service: () => CatalogService.resolveSelection as jest.Mock,
+        req: {
+          organisationId: "org_1",
+          body: {
+            resourceType: "Parameters",
+            parameter: [{ name: "productItemId", valueString: "prod_1" }],
+          },
+        },
+        message: "Unable to resolve healthcare service operation.",
+      },
+      {
+        name: "searchCatalogOperation",
+        run: CatalogController.searchCatalogOperation,
+        service: () => CatalogService.searchItems as jest.Mock,
+        req: {
+          organisationId: "org_1",
+          body: {
+            resourceType: "Parameters",
+            parameter: [
+              { name: "organization", valueString: "Organization/org_1" },
+            ],
+          },
+        },
+        message: "Unable to execute healthcare service search operation.",
+      },
+      {
+        name: "getOrganisationSummary",
+        run: CatalogController.getOrganisationSummary,
+        service: () => CatalogService.getOrganisationSummary as jest.Mock,
+        req: { params: { organisationId: "org_1" }, query: {} },
+        message: "Unable to fetch organisation catalog summary.",
+      },
+      {
+        name: "listSpecialities",
+        run: CatalogController.listSpecialities,
+        service: () => CatalogService.listSpecialities as jest.Mock,
+        req: { params: { organisationId: "org_1" }, query: {} },
+        message: "Unable to list catalog specialities.",
+      },
+      {
+        name: "createSpeciality",
+        run: CatalogController.createSpeciality,
+        service: () => CatalogService.createSpeciality as jest.Mock,
+        req: { params: { organisationId: "org_1" }, body: { name: "Cardio" } },
+        message: "Unable to create catalog speciality.",
+      },
+      {
+        name: "updateSpeciality",
+        run: CatalogController.updateSpeciality,
+        service: () => CatalogService.updateSpeciality as jest.Mock,
+        req: {
+          organisationId: "org_1",
+          params: { organisationId: "org_1", specialityId: "spec_1" },
+          body: { name: "Cardio" },
+        },
+        message: "Unable to update catalog speciality.",
+      },
+      {
+        name: "archiveSpeciality",
+        run: CatalogController.archiveSpeciality,
+        service: () => CatalogService.archiveSpeciality as jest.Mock,
+        req: { params: { organisationId: "org_1", specialityId: "spec_1" } },
+        message: "Unable to archive catalog speciality.",
+      },
+      {
+        name: "restoreSpeciality",
+        run: CatalogController.restoreSpeciality,
+        service: () => CatalogService.restoreSpeciality as jest.Mock,
+        req: { params: { organisationId: "org_1", specialityId: "spec_1" } },
+        message: "Unable to restore catalog speciality.",
+      },
+      {
+        name: "deleteSpeciality",
+        run: CatalogController.deleteSpeciality,
+        service: () => CatalogService.deleteSpeciality as jest.Mock,
+        req: { params: { organisationId: "org_1", specialityId: "spec_1" } },
+        message: "Unable to delete catalog speciality.",
+      },
+      {
+        name: "listServicesBySpeciality",
+        run: CatalogController.listServicesBySpeciality,
+        service: () => CatalogService.listProducts as jest.Mock,
+        req: {
+          params: { organisationId: "org_1", specialityId: "spec_1" },
+          query: {},
+        },
+        message: "Unable to list speciality services.",
+      },
+      {
+        name: "createService",
+        run: CatalogController.createService,
+        service: () => CatalogService.createProduct as jest.Mock,
+        req: {
+          params: { organisationId: "org_1", specialityId: "spec_1" },
+          body: { name: "X-Ray", kind: "DIAGNOSTIC" },
+        },
+        message: "Unable to create service.",
+      },
+      {
+        name: "updateService",
+        run: CatalogController.updateService,
+        service: () => CatalogService.updateProduct as jest.Mock,
+        req: {
+          params: { organisationId: "org_1", id: "prod_1" },
+          body: {},
+          header: noIfMatch,
+        },
+        message: "Unable to update service.",
+      },
+      {
+        name: "archiveService",
+        run: CatalogController.archiveService,
+        service: () => CatalogService.archiveProduct as jest.Mock,
+        req: {
+          params: { organisationId: "org_1", id: "prod_1" },
+          header: noIfMatch,
+        },
+        message: "Unable to archive service.",
+      },
+      {
+        name: "restoreService",
+        run: CatalogController.restoreService,
+        service: () => CatalogService.restoreProduct as jest.Mock,
+        req: {
+          params: { organisationId: "org_1", id: "prod_1" },
+          header: noIfMatch,
+        },
+        message: "Unable to restore service.",
+      },
+      {
+        name: "deleteService",
+        run: CatalogController.deleteService,
+        service: () => CatalogService.deleteProduct as jest.Mock,
+        req: {
+          params: { organisationId: "org_1", id: "prod_1" },
+          header: noIfMatch,
+        },
+        message: "Unable to delete service.",
+      },
+      {
+        name: "listPackagesBySpeciality",
+        run: CatalogController.listPackagesBySpeciality,
+        service: () => CatalogService.listProducts as jest.Mock,
+        req: {
+          params: { organisationId: "org_1", specialityId: "spec_1" },
+          query: {},
+        },
+        message: "Unable to list speciality packages.",
+      },
+      {
+        name: "createPackage",
+        run: CatalogController.createPackage,
+        service: () => CatalogService.createProduct as jest.Mock,
+        req: {
+          params: { organisationId: "org_1", specialityId: "spec_1" },
+          body: { name: "Wellness" },
+        },
+        message: "Unable to create package.",
+      },
+      {
+        name: "updatePackage",
+        run: CatalogController.updatePackage,
+        service: () => CatalogService.updateProduct as jest.Mock,
+        req: {
+          params: { organisationId: "org_1", id: "pkg_1" },
+          body: {},
+          header: noIfMatch,
+        },
+        message: "Unable to update package.",
+      },
+      {
+        name: "archivePackage",
+        run: CatalogController.archivePackage,
+        service: () => CatalogService.archiveProduct as jest.Mock,
+        req: {
+          params: { organisationId: "org_1", id: "pkg_1" },
+          header: noIfMatch,
+        },
+        message: "Unable to archive package.",
+      },
+      {
+        name: "restorePackage",
+        run: CatalogController.restorePackage,
+        service: () => CatalogService.restoreProduct as jest.Mock,
+        req: {
+          params: { organisationId: "org_1", id: "pkg_1" },
+          header: noIfMatch,
+        },
+        message: "Unable to restore package.",
+      },
+      {
+        name: "deletePackage",
+        run: CatalogController.deletePackage,
+        service: () => CatalogService.deleteProduct as jest.Mock,
+        req: {
+          params: { organisationId: "org_1", id: "pkg_1" },
+          header: noIfMatch,
+        },
+        message: "Unable to delete package.",
+      },
+      {
+        name: "searchItems",
+        run: CatalogController.searchItems,
+        service: () => CatalogService.searchItems as jest.Mock,
+        req: { params: { organisationId: "org_1" }, query: {} },
+        message: "Unable to search catalog items.",
+      },
+      {
+        name: "getArchiveCatalog",
+        run: CatalogController.getArchiveCatalog,
+        service: () => CatalogService.getArchiveCatalog as jest.Mock,
+        req: {
+          params: { organisationId: "org_1", specialityId: "spec_1" },
+          query: {},
+        },
+        message: "Unable to fetch archived catalog items.",
+      },
+      {
+        name: "getCatalogNearbyOrganisations",
+        run: CatalogController.getCatalogNearbyOrganisations,
+        service: () =>
+          CatalogService.listOrganisationsProvidingServiceNearby as jest.Mock,
+        req: { params: { organisationId: "org_1" }, query: {} },
+        message: "Unable to fetch nearby catalog organisations.",
+      },
+      {
+        name: "getCatalogBookableSlots",
+        run: CatalogController.getCatalogBookableSlots,
+        service: () => CatalogService.getBookableSlotsService as jest.Mock,
+        req: {
+          params: { organisationId: "org_1" },
+          body: { productItemId: "prod_1", date: "2026-03-04" },
+        },
+        message: "Unable to fetch catalog bookable slots.",
+      },
+      {
+        name: "getCatalogCalendarPrefill",
+        run: CatalogController.getCatalogCalendarPrefill,
+        service: () => CatalogService.getCalendarPrefillMatches as jest.Mock,
+        req: {
+          organisationId: "org_1",
+          params: { organisationId: "org_1" },
+          body: {
+            organisationId: "org_1",
+            date: "2026-03-04",
+            minuteOfDay: 600,
+            productItemIds: ["prod_1"],
+          },
+        },
+        message: "Unable to fetch catalog calendar prefill.",
+      },
+    ];
+
+    it.each(failureCases)(
+      "$name logs and answers 500 when the service throws",
+      async ({ run, req, service, message }) => {
+        const failure = new Error("boom");
+        service().mockRejectedValueOnce(failure);
+        const res = createResponse();
+
+        await run(req as never, res as never);
+
+        expect(mockedLogger.error).toHaveBeenCalledWith(message, failure);
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.json).toHaveBeenCalledWith({ message });
+      },
+    );
   });
 });

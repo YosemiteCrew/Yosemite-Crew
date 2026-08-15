@@ -79,6 +79,26 @@ describe("Task Controllers", () => {
     (mockFn as any).mockRejectedValue(error);
   };
 
+  // `jest.mock(...)` automocks the service module, so the controller's
+  // `instanceof TaskServiceError` check runs against the MOCKED class. Build
+  // the rejection from that class (and stamp the fields the real constructor
+  // would have set) so the status-mapping branch is actually reached.
+  const mockTypedServiceError = (
+    mockFn: jest.Mock,
+    statusCode: number,
+    message: string,
+  ) => {
+    const { TaskServiceError: MockedTaskServiceError } = jest.requireMock(
+      "../../src/services/task.service",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ) as any;
+    const error = new MockedTaskServiceError();
+    error.statusCode = statusCode;
+    error.message = message;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (mockFn as any).mockRejectedValue(error);
+  };
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mockGenericError = (mockFn: jest.Mock) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -753,6 +773,91 @@ describe("Task Controllers", () => {
         expect(statusMock).toHaveBeenCalledWith(500);
       });
     });
+
+    describe("create", () => {
+      it("persists the definition verbatim and answers 201 with it", async () => {
+        req.body = { name: "Hydration", kind: "CARE", category: "CARE" };
+        const created = { id: "lib-1", name: "Hydration" };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (mockedTaskLibraryService.create as any).mockResolvedValue(created);
+
+        await TaskLibraryController.create(req as any, res as Response);
+
+        expect(mockedTaskLibraryService.create).toHaveBeenCalledWith(req.body);
+        expect(statusMock).toHaveBeenCalledWith(201);
+        expect(jsonMock).toHaveBeenCalledWith(created);
+      });
+
+      it("maps a service error to its status code", async () => {
+        mockTypedServiceError(
+          mockedTaskLibraryService.create as jest.Mock,
+          409,
+          "Duplicate library task",
+        );
+
+        await TaskLibraryController.create(req as any, res as Response);
+
+        expect(statusMock).toHaveBeenCalledWith(409);
+        expect(jsonMock).toHaveBeenCalledWith({
+          message: "Duplicate library task",
+        });
+      });
+
+      it("maps an unexpected failure to a 500", async () => {
+        mockGenericError(mockedTaskLibraryService.create as jest.Mock);
+
+        await TaskLibraryController.create(req as any, res as Response);
+
+        expect(statusMock).toHaveBeenCalledWith(500);
+        expect(jsonMock).toHaveBeenCalledWith({
+          message: "Internal Server Error",
+        });
+      });
+    });
+
+    describe("update", () => {
+      it("updates the addressed definition and returns it", async () => {
+        req.params = { libraryId: "lib-1" };
+        req.body = { name: "Hydration v2" };
+        const updated = { id: "lib-1", name: "Hydration v2" };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (mockedTaskLibraryService.update as any).mockResolvedValue(updated);
+
+        await TaskLibraryController.update(req as any, res as Response);
+
+        expect(mockedTaskLibraryService.update).toHaveBeenCalledWith(
+          "lib-1",
+          req.body,
+        );
+        expect(jsonMock).toHaveBeenCalledWith(updated);
+        expect(statusMock).not.toHaveBeenCalled();
+      });
+
+      it("maps a not-found service error to a 404", async () => {
+        req.params = { libraryId: "lib-missing" };
+        mockTypedServiceError(
+          mockedTaskLibraryService.update as jest.Mock,
+          404,
+          "Library task not found",
+        );
+
+        await TaskLibraryController.update(req as any, res as Response);
+
+        expect(statusMock).toHaveBeenCalledWith(404);
+        expect(jsonMock).toHaveBeenCalledWith({
+          message: "Library task not found",
+        });
+      });
+
+      it("maps an unexpected failure to a 500", async () => {
+        req.params = { libraryId: "lib-1" };
+        mockGenericError(mockedTaskLibraryService.update as jest.Mock);
+
+        await TaskLibraryController.update(req as any, res as Response);
+
+        expect(statusMock).toHaveBeenCalledWith(500);
+      });
+    });
   });
 
   /* ========================================================================
@@ -830,6 +935,44 @@ describe("Task Controllers", () => {
         ).toHaveBeenCalledWith("o1", "CUSTOM", {
           inpatientOnly: true,
           search: "care",
+        });
+      });
+
+      it("leaves inpatientOnly unset for anything other than the literal flags", async () => {
+        req.params = { organisationId: "o1" };
+        // "1" is deliberately NOT accepted here: the filter is tri-state, and
+        // an unrecognised value must mean "no filter", not "false".
+        req.query = { kind: "CUSTOM", inpatientOnly: "1" };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (
+          mockedTaskTemplateService.listForOrganisation as any
+        ).mockResolvedValue([]);
+
+        await TaskTemplateController.list(req as any, res as Response);
+
+        expect(
+          mockedTaskTemplateService.listForOrganisation,
+        ).toHaveBeenCalledWith("o1", "CUSTOM", {
+          inpatientOnly: undefined,
+          search: undefined,
+        });
+      });
+
+      it("passes inpatientOnly=false straight through", async () => {
+        req.params = { organisationId: "o1" };
+        req.query = { inpatientOnly: "false" };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (
+          mockedTaskTemplateService.listForOrganisation as any
+        ).mockResolvedValue([]);
+
+        await TaskTemplateController.list(req as any, res as Response);
+
+        expect(
+          mockedTaskTemplateService.listForOrganisation,
+        ).toHaveBeenCalledWith("o1", undefined, {
+          inpatientOnly: false,
+          search: undefined,
         });
       });
 

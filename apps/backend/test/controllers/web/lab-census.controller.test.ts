@@ -265,4 +265,193 @@ describe("LabCensusController", () => {
     );
     expect(statusMock).toHaveBeenCalledWith(200);
   });
+
+  it("prefers the organisation authorized by the middleware", async () => {
+    req.params = { provider: "idexx" };
+    (req as unknown as { organisationId: string }).organisationId = "org-mw";
+    (mockedService.listIvlsDevices as any).mockResolvedValue({ devices: [] });
+
+    await LabCensusController.listIvlsDevices(req as Request, res);
+
+    expect(mockedService.listIvlsDevices).toHaveBeenCalledWith(
+      "idexx",
+      "org-mw",
+    );
+  });
+
+  describe("guard rejections per handler", () => {
+    const handlers = [
+      ["listCensus", "listCensus"],
+      ["deleteCensus", "deleteCensus"],
+      ["getCensusById", "getCensusById"],
+      ["deleteCensusById", "deleteCensusById"],
+      ["getCensusPatient", "getCensusPatient"],
+      ["addCensusPatient", "addCensusPatient"],
+      ["deleteCensusPatient", "deleteCensusPatient"],
+    ] as const;
+
+    it.each(handlers)(
+      "%s stops at the organisation guard",
+      async (handler, serviceMethod) => {
+        req.params = { provider: "idexx" };
+
+        await (LabCensusController as any)[handler](req as Request, res);
+
+        expect(statusMock).toHaveBeenCalledWith(400);
+        expect(jsonMock).toHaveBeenCalledWith({
+          message: "organisationId is required.",
+        });
+        expect((mockedService as any)[serviceMethod]).not.toHaveBeenCalled();
+      },
+    );
+
+    it("deleteCensusById requires a censusId", async () => {
+      await LabCensusController.deleteCensusById(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "censusId is required.",
+      });
+      expect(mockedService.deleteCensusById).not.toHaveBeenCalled();
+    });
+
+    it("deleteCensusPatient requires a patientId", async () => {
+      await LabCensusController.deleteCensusPatient(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "patientId is required.",
+      });
+      expect(mockedService.deleteCensusPatient).not.toHaveBeenCalled();
+    });
+
+    it("getCensusPatient rejects a body without a patientId string", async () => {
+      req.method = "POST";
+      req.body = undefined;
+
+      await LabCensusController.getCensusPatient(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "patientId is required.",
+      });
+
+      req.body = { patientId: 42 };
+
+      await LabCensusController.getCensusPatient(req as Request, res);
+
+      expect(jsonMock).toHaveBeenLastCalledWith({
+        message: "patientId is required.",
+      });
+      expect(mockedService.getCensusPatient).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("error mapping per handler", () => {
+    const cases = [
+      ["deleteCensus", "deleteCensus", "Failed to delete census."],
+      ["getCensusById", "getCensusById", "Failed to fetch census by id."],
+      [
+        "deleteCensusById",
+        "deleteCensusById",
+        "Failed to delete census by id.",
+      ],
+      [
+        "getCensusPatient",
+        "getCensusPatient",
+        "Failed to fetch census patient.",
+      ],
+      ["addCensusPatient", "addCensusPatient", "Failed to add census patient."],
+      [
+        "deleteCensusPatient",
+        "deleteCensusPatient",
+        "Failed to delete census patient.",
+      ],
+    ] as const;
+
+    it.each(cases)(
+      "%s maps unexpected errors to 500",
+      async (handler, serviceMethod, message) => {
+        req.params = {
+          organisationId: "org-1",
+          provider: "idexx",
+          censusId: "census-1",
+          patientId: "patient-1",
+        };
+        req.method = "POST";
+        req.body = { patientId: "patient-1" };
+        (mockedService as any)[serviceMethod].mockRejectedValue(
+          new Error("boom"),
+        );
+
+        await (LabCensusController as any)[handler](req as Request, res);
+
+        expect(statusMock).toHaveBeenCalledWith(500);
+        expect(jsonMock).toHaveBeenCalledWith({ message });
+      },
+    );
+
+    it("addCensusPatient maps upstream axios failures", async () => {
+      req.body = { patientId: "patient-1" };
+      (mockedService.addCensusPatient as any).mockRejectedValue(
+        new Error("boom"),
+      );
+      mockedMapAxiosError.mockReturnValueOnce({
+        status: 503,
+        message: "IDEXX request failed",
+        details: { retryable: true },
+      });
+
+      await LabCensusController.addCensusPatient(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(503);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "IDEXX request failed",
+        details: { retryable: true },
+      });
+    });
+  });
+
+  it("adds a census patient forwarding every supplied field", async () => {
+    req.body = {
+      patientId: "patient-1",
+      parentId: "parent-1",
+      veterinarian: "Dr Vet",
+      ivls: [{ serialNumber: "S1" }],
+    };
+    (mockedService.addCensusPatient as any).mockResolvedValue({ ok: true });
+
+    await LabCensusController.addCensusPatient(req as Request, res);
+
+    expect(mockedService.addCensusPatient).toHaveBeenCalledWith(
+      "idexx",
+      "org-1",
+      {
+        patientId: "patient-1",
+        parentId: "parent-1",
+        veterinarian: "Dr Vet",
+        ivls: [{ serialNumber: "S1" }],
+      },
+    );
+    expect(statusMock).toHaveBeenCalledWith(200);
+    expect(jsonMock).toHaveBeenCalledWith({ ok: true });
+  });
+
+  it("defaults a missing patientId to an empty string on add", async () => {
+    req.body = {};
+    (mockedService.addCensusPatient as any).mockResolvedValue({ ok: true });
+
+    await LabCensusController.addCensusPatient(req as Request, res);
+
+    expect(mockedService.addCensusPatient).toHaveBeenCalledWith(
+      "idexx",
+      "org-1",
+      {
+        patientId: "",
+        parentId: undefined,
+        veterinarian: null,
+        ivls: undefined,
+      },
+    );
+  });
 });

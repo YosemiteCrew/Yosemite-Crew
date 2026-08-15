@@ -218,6 +218,23 @@ describe("Inventory Controllers", () => {
           expect(generatePresignedUrl).not.toHaveBeenCalled();
         },
       );
+
+      it("returns 500 when the presigner fails", async () => {
+        req = mockRequest({
+          params: { organisationId: "org1" },
+          body: { mimeType: "image/png" },
+        });
+        (generatePresignedUrl as jest.Mock).mockRejectedValueOnce(
+          new Error("S3 down"),
+        );
+
+        await InventoryController.getItemImageUploadUrl(req as any, res);
+
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.json).toHaveBeenCalledWith({
+          message: "Unable to generate inventory image upload URL.",
+        });
+      });
     });
 
     describe("createItem", () => {
@@ -332,6 +349,33 @@ describe("Inventory Controllers", () => {
         await InventoryController.toggleItemStatus(req as any, res);
         expect(InventoryService.hideItem).toHaveBeenCalledWith("1", "org1");
       });
+
+      it("hides an item when the body carries no active flag", async () => {
+        req = mockRequest({
+          params: { itemId: "1" },
+          organisationId: "org1",
+        } as any);
+        (InventoryService.hideItem as jest.Mock).mockResolvedValueOnce({
+          id: "1",
+        });
+        await InventoryController.toggleItemStatus(req as any, res);
+        expect(InventoryService.hideItem).toHaveBeenCalledWith("1", "org1");
+        expect(InventoryService.activeItem).not.toHaveBeenCalled();
+      });
+
+      it("catches errors", async () => {
+        req = mockRequest({
+          params: { itemId: "1" },
+          organisationId: "org1",
+          body: { active: true },
+        } as any);
+        (InventoryService.activeItem as jest.Mock).mockRejectedValueOnce(
+          new InventoryServiceError("Item not found", 404),
+        );
+        await InventoryController.toggleItemStatus(req as any, res);
+        expect(res.status).toHaveBeenCalledWith(404);
+        expect(res.json).toHaveBeenCalledWith({ message: "Item not found" });
+      });
     });
 
     describe("archiveItem", () => {
@@ -399,11 +443,53 @@ describe("Inventory Controllers", () => {
         );
       });
 
+      it("parses a single stockStatus value", async () => {
+        req = mockRequest({
+          params: { organisationId: "org1" },
+          query: { stockStatus: "Low stock" },
+        });
+        await InventoryController.listItems(req as any, res);
+        expect(InventoryService.listItems).toHaveBeenCalledWith(
+          expect.objectContaining({ stockStatus: "Low stock" }),
+        );
+      });
+
+      it("parses multiple comma-separated stockStatus values", async () => {
+        req = mockRequest({
+          params: { organisationId: "org1" },
+          query: { stockStatus: "Low stock, Expired" },
+        });
+        await InventoryController.listItems(req as any, res);
+        expect(InventoryService.listItems).toHaveBeenCalledWith(
+          expect.objectContaining({ stockStatus: ["Low stock", "Expired"] }),
+        );
+      });
+
+      it("forwards numeric pagination params", async () => {
+        req = mockRequest({
+          params: { organisationId: "org1" },
+          query: { page: "3", pageSize: "50" },
+        });
+        await InventoryController.listItems(req as any, res);
+        expect(InventoryService.listItems).toHaveBeenCalledWith(
+          expect.objectContaining({ page: 3, pageSize: 50 }),
+        );
+      });
+
       it("handles completely empty query params safely", async () => {
         req = mockRequest({ params: { organisationId: "org1" }, query: {} });
         await InventoryController.listItems(req as any, res);
         expect(InventoryService.listItems).toHaveBeenCalledWith(
-          expect.objectContaining({ organisationId: "org1" }),
+          expect.objectContaining({
+            organisationId: "org1",
+            stockStatus: undefined,
+            status: undefined,
+            page: undefined,
+            pageSize: undefined,
+            expiringWithinDays: undefined,
+            lowStockOnly: false,
+            expiredOnly: false,
+          }),
         );
       });
 
@@ -653,6 +739,18 @@ describe("Inventory Controllers", () => {
         expect(res.status).toHaveBeenCalledWith(400);
         expect(res.json).toHaveBeenCalledWith({ message: "Turnover err" });
       });
+
+      it("returns a generic 500 for unexpected failures", async () => {
+        req = mockRequest({ params: { organisationId: "1" }, query: {} });
+        (
+          InventoryService.getInventoryTurnoverByItem as jest.Mock
+        ).mockRejectedValueOnce(new Error("boom"));
+        await InventoryController.getInventoryTurnOver(req, res);
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.json).toHaveBeenCalledWith({
+          message: "Failed to load inventory turnover",
+        });
+      });
     });
 
     describe("getCategories", () => {
@@ -664,6 +762,18 @@ describe("Inventory Controllers", () => {
         await InventoryController.getCategories(req as any, res);
         expect(res.json).toHaveBeenCalledWith({
           categories: [{ name: "Medicine" }],
+        });
+      });
+
+      it("catches errors", async () => {
+        req = mockRequest();
+        (InventoryService.getCategories as jest.Mock).mockRejectedValueOnce(
+          new InventoryServiceError("Catalog unavailable", 503),
+        );
+        await InventoryController.getCategories(req as any, res);
+        expect(res.status).toHaveBeenCalledWith(503);
+        expect(res.json).toHaveBeenCalledWith({
+          message: "Catalog unavailable",
         });
       });
     });

@@ -430,4 +430,249 @@ describe("LabOrderController", () => {
       });
     });
   });
+
+  describe("organisation guard across handlers", () => {
+    const handlers = [
+      ["searchOrders", "listOrders"],
+      ["listProviderTests", "listProviderTests"],
+      ["createIdexxOrder", "createOrder"],
+      ["getOrder", "getOrder"],
+      ["updateOrder", "updateOrder"],
+      ["cancelOrder", "cancelOrder"],
+    ] as const;
+
+    it.each(handlers)(
+      "%s stops before the service when organisationId is missing",
+      async (handler, serviceMethod) => {
+        req.params = { provider: "idexx", idexxOrderId: "id-1" };
+
+        await (LabOrderController as any)[handler](req as Request, res);
+
+        expect(statusMock).toHaveBeenCalledWith(400);
+        expect(jsonMock).toHaveBeenCalledWith({
+          message: "organisationId is required.",
+        });
+        expect(
+          (mockedLabOrderService as any)[serviceMethod],
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([["updateOrder"], ["cancelOrder"]] as const)(
+      "%s requires an idexxOrderId",
+      async (handler) => {
+        await (LabOrderController as any)[handler](req as Request, res);
+
+        expect(statusMock).toHaveBeenCalledWith(400);
+        expect(jsonMock).toHaveBeenCalledWith({
+          message: "idexxOrderId is required.",
+        });
+      },
+    );
+
+    it("uses the organisation authorized by the middleware", async () => {
+      req.params = { provider: "idexx" };
+      (req as unknown as { organisationId: string }).organisationId = "org-mw";
+      (mockedLabOrderService.listOrders as any).mockResolvedValue([]);
+
+      await LabOrderController.listOrders(req as Request, res);
+
+      expect(mockedLabOrderService.listOrders).toHaveBeenCalledWith({
+        organisationId: "org-mw",
+        provider: "idexx",
+      });
+    });
+  });
+
+  describe("search body coercion", () => {
+    it("treats a null body as an empty filter set", async () => {
+      req.body = null;
+      (mockedLabOrderService.listOrders as any).mockResolvedValue([]);
+
+      await LabOrderController.searchOrders(req as Request, res);
+
+      expect(mockedLabOrderService.listOrders).toHaveBeenCalledWith({
+        organisationId: "org-1",
+        appointmentId: undefined,
+        patientId: undefined,
+        provider: "idexx",
+        status: undefined,
+        limit: undefined,
+      });
+      expect(statusMock).toHaveBeenCalledWith(200);
+    });
+
+    it("coerces a numeric string limit", async () => {
+      req.body = { limit: "25" };
+      (mockedLabOrderService.listOrders as any).mockResolvedValue([]);
+
+      await LabOrderController.searchOrders(req as Request, res);
+
+      expect(mockedLabOrderService.listOrders).toHaveBeenCalledWith(
+        expect.objectContaining({ limit: 25 }),
+      );
+    });
+
+    it("ignores a blank string limit", async () => {
+      req.body = { limit: "   " };
+      (mockedLabOrderService.listOrders as any).mockResolvedValue([]);
+
+      await LabOrderController.searchOrders(req as Request, res);
+
+      expect(mockedLabOrderService.listOrders).toHaveBeenCalledWith(
+        expect.objectContaining({ limit: undefined }),
+      );
+      expect(statusMock).toHaveBeenCalledWith(200);
+    });
+
+    it("rejects a non-numeric limit as an invalid body", async () => {
+      req.body = { limit: "many" };
+
+      await LabOrderController.searchOrders(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Invalid request body.",
+      });
+      expect(mockedLabOrderService.listOrders).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("listProviderTests coercion", () => {
+    it("drops non-string and non-numeric filters", async () => {
+      req.body = { query: 5, limit: "10", page: "2", codes: "A,B" };
+      (mockedLabOrderService.listProviderTests as any).mockResolvedValue({
+        tests: [],
+      });
+
+      await LabOrderController.listProviderTests(req as Request, res);
+
+      expect(mockedLabOrderService.listProviderTests).toHaveBeenCalledWith(
+        "idexx",
+        {
+          query: undefined,
+          limit: undefined,
+          page: undefined,
+          codes: undefined,
+        },
+      );
+    });
+
+    it("trims and compacts the codes array", async () => {
+      req.body = { codes: [" A ", "", "B"] };
+      (mockedLabOrderService.listProviderTests as any).mockResolvedValue({
+        tests: [],
+      });
+
+      await LabOrderController.listProviderTests(req as Request, res);
+
+      expect(mockedLabOrderService.listProviderTests).toHaveBeenCalledWith(
+        "idexx",
+        expect.objectContaining({ codes: ["A", "B"] }),
+      );
+    });
+
+    it("handles an absent body", async () => {
+      req.body = undefined;
+      (mockedLabOrderService.listProviderTests as any).mockResolvedValue({
+        tests: [],
+      });
+
+      await LabOrderController.listProviderTests(req as Request, res);
+
+      expect(mockedLabOrderService.listProviderTests).toHaveBeenCalledWith(
+        "idexx",
+        {
+          query: undefined,
+          limit: undefined,
+          page: undefined,
+          codes: undefined,
+        },
+      );
+      expect(statusMock).toHaveBeenCalledWith(200);
+    });
+  });
+
+  describe("createIdexxOrder", () => {
+    it("stamps the acting user and forwards every optional field", async () => {
+      (req as unknown as { userId: string }).userId = "user-9";
+      req.body = {
+        patientId: "patient-1",
+        appointmentId: "appt-1",
+        tests: ["T1"],
+        modality: "IN_HOUSE",
+        ivls: [{ serialNumber: "S1" }],
+        veterinarian: "vet-1",
+        technician: "tech-1",
+        notes: "note",
+        specimenCollectionDate: "2026-01-02",
+      };
+      (mockedLabOrderService.createOrder as any).mockResolvedValue({
+        idexxOrderId: "id-1",
+      });
+
+      await LabOrderController.createIdexxOrder(req as Request, res);
+
+      expect(mockedLabOrderService.createOrder).toHaveBeenCalledWith("idexx", {
+        organisationId: "org-1",
+        patientId: "patient-1",
+        appointmentId: "appt-1",
+        createdByUserId: "user-9",
+        tests: ["T1"],
+        modality: "IN_HOUSE",
+        ivls: [{ serialNumber: "S1" }],
+        veterinarian: "vet-1",
+        technician: "tech-1",
+        notes: "note",
+        specimenCollectionDate: "2026-01-02",
+      });
+      expect(statusMock).toHaveBeenCalledWith(201);
+    });
+
+    it("defaults an empty body to blank identifiers", async () => {
+      req.body = {};
+      (mockedLabOrderService.createOrder as any).mockResolvedValue({});
+
+      await LabOrderController.createIdexxOrder(req as Request, res);
+
+      expect(mockedLabOrderService.createOrder).toHaveBeenCalledWith("idexx", {
+        organisationId: "org-1",
+        patientId: "",
+        appointmentId: undefined,
+        createdByUserId: undefined,
+        tests: [],
+        modality: undefined,
+        ivls: undefined,
+        veterinarian: null,
+        technician: null,
+        notes: null,
+        specimenCollectionDate: null,
+      });
+    });
+  });
+
+  describe("updateOrder", () => {
+    it("passes an empty body through as explicit nulls", async () => {
+      req.params = { ...req.params, idexxOrderId: "id-1" };
+      req.body = {};
+      (mockedLabOrderService.updateOrder as any).mockResolvedValue({});
+
+      await LabOrderController.updateOrder(req as Request, res);
+
+      expect(mockedLabOrderService.updateOrder).toHaveBeenCalledWith(
+        "idexx",
+        "org-1",
+        "id-1",
+        {
+          tests: undefined,
+          modality: undefined,
+          ivls: undefined,
+          veterinarian: null,
+          technician: null,
+          notes: null,
+          specimenCollectionDate: null,
+        },
+      );
+    });
+  });
 });

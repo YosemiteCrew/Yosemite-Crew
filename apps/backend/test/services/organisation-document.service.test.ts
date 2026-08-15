@@ -27,6 +27,23 @@ jest.mock("../../src/middlewares/upload", () => ({
 const mockedPrisma = prisma as any;
 const mockedGetURLForKey = getURLForKey as jest.Mock;
 
+const buildPrismaDoc = (overrides: Record<string, unknown> = {}) => ({
+  id: "doc-100",
+  organisationId: "org-1",
+  title: "Policy",
+  description: null,
+  category: "GENERAL",
+  fileUrl: null,
+  fileName: null,
+  fileType: null,
+  fileSize: null,
+  visibility: "INTERNAL",
+  version: 1,
+  createdAt: new Date("2026-03-01T00:00:00Z"),
+  updatedAt: new Date("2026-03-01T00:00:00Z"),
+  ...overrides,
+});
+
 describe("OrganizationDocumentService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -576,6 +593,446 @@ describe("OrganizationDocumentService", () => {
       acknowledged: false,
       version: 4,
       acknowledgedAt: undefined,
+    });
+  });
+
+  describe("identifier validation", () => {
+    // requireSafeString is the mongo-operator guard: anything that could reach a
+    // Prisma string filter as an operator object must be refused before the query.
+    it.each([
+      ["an empty id", ""],
+      ["a whitespace-only id", "   "],
+      ["an id carrying a mongo operator", "$ne"],
+    ])("refuses %s on every id-addressed read/write", async (_label, id) => {
+      await expect(
+        OrganizationDocumentService.getDocumentById(id),
+      ).rejects.toThrow("Invalid documentId");
+      await expect(
+        OrganizationDocumentService.deleteDocument(id),
+      ).rejects.toThrow("Invalid documentId");
+      await expect(
+        OrganizationDocumentService.updateDocument(id, { title: "x" }),
+      ).rejects.toThrow("Invalid documentId");
+
+      expect(
+        mockedPrisma.organizationDocument.findFirst,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockedPrisma.organizationDocument.deleteMany,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("refuses acknowledgement identifiers that carry mongo operators", async () => {
+      await expect(
+        OrganizationDocumentService.acknowledgeDocument({
+          organisationId: "$ne",
+          documentId: "doc-1",
+          userId: "user-1",
+          category: "TERMS_AND_CONDITIONS",
+          version: 1,
+        }),
+      ).rejects.toThrow("Invalid organisationId");
+
+      await expect(
+        OrganizationDocumentService.getAcknowledgementStatus({
+          organisationId: "org-1",
+          documentId: "doc-1",
+          userId: "",
+        }),
+      ).rejects.toThrow("Invalid userId");
+
+      expect(
+        mockedPrisma.organizationDocument.findFirst,
+      ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("createDocument", () => {
+    it.each([
+      [
+        "organisationId is required",
+        { organisationId: "", title: "Terms", category: "GENERAL" as const },
+      ],
+      [
+        "title is required",
+        { organisationId: "org-1", title: "", category: "GENERAL" as const },
+      ],
+    ])("rejects a create without %s", async (message, input) => {
+      await expect(
+        OrganizationDocumentService.createDocument(input),
+      ).rejects.toThrow(message);
+
+      expect(mockedPrisma.organizationDocument.create).not.toHaveBeenCalled();
+    });
+
+    it("signs the uploaded key and persists every optional field", async () => {
+      mockedPrisma.organizationDocument.create.mockResolvedValueOnce(
+        buildPrismaDoc({
+          id: "doc-20",
+          description: "Fire drill",
+          category: "FIRE_SAFETY",
+          fileUrl: "https://cdn.example/uploads/fire.pdf",
+          fileName: "fire.pdf",
+          fileType: "application/pdf",
+          fileSize: 2048,
+          visibility: "PUBLIC",
+        }),
+      );
+
+      const result = await OrganizationDocumentService.createDocument({
+        organisationId: "org-1",
+        title: "Fire safety",
+        description: "Fire drill",
+        category: "FIRE_SAFETY",
+        fileUrl: "uploads/fire.pdf",
+        fileName: "fire.pdf",
+        fileType: "application/pdf",
+        fileSize: 2048,
+        visibility: "PUBLIC",
+      });
+
+      expect(mockedGetURLForKey).toHaveBeenCalledWith("uploads/fire.pdf");
+      expect(mockedPrisma.organizationDocument.create).toHaveBeenCalledWith({
+        data: {
+          organisationId: "org-1",
+          title: "Fire safety",
+          description: "Fire drill",
+          category: "FIRE_SAFETY",
+          fileUrl: "https://cdn.example/uploads/fire.pdf",
+          fileName: "fire.pdf",
+          fileType: "application/pdf",
+          fileSize: 2048,
+          visibility: "PUBLIC",
+          version: 1,
+        },
+      });
+      // A stored PDF is served straight from its own URL, not the generated slug.
+      expect(result.pdfUrl).toBe("https://cdn.example/uploads/fire.pdf");
+    });
+
+    it("falls back to the generated slug url when the stored file is not a pdf", async () => {
+      mockedPrisma.organizationDocument.create.mockResolvedValueOnce(
+        buildPrismaDoc({
+          id: "doc-21",
+          category: "FIRE_SAFETY",
+          fileUrl: "https://cdn.example/uploads/plan.png",
+          fileType: "image/png",
+          version: 1,
+        }),
+      );
+
+      const result = await OrganizationDocumentService.createDocument({
+        organisationId: "org-1",
+        title: "Plan",
+        category: "FIRE_SAFETY",
+      });
+
+      expect(result.pdfUrl).toBe(
+        "https://cdn.example/org-docs/org-1/fire-safety-v1.pdf",
+      );
+    });
+
+    it("generates the slug url when the pdf row has no stored file url", async () => {
+      mockedPrisma.organizationDocument.create.mockResolvedValueOnce(
+        buildPrismaDoc({
+          id: "doc-22",
+          category: "PRIVACY_POLICY",
+          fileType: "application/pdf",
+          fileUrl: null,
+          version: 3,
+        }),
+      );
+
+      const result = await OrganizationDocumentService.createDocument({
+        organisationId: "org-1",
+        title: "Privacy",
+        category: "PRIVACY_POLICY",
+      });
+
+      expect(result.pdfUrl).toBe(
+        "https://cdn.example/org-docs/org-1/privacy-policy-v3.pdf",
+      );
+    });
+  });
+
+  describe("updateDocument", () => {
+    it("throws 404 when the document does not exist", async () => {
+      mockedPrisma.organizationDocument.findFirst.mockResolvedValueOnce(null);
+
+      await expect(
+        OrganizationDocumentService.updateDocument("doc-404", {
+          title: "New",
+        }),
+      ).rejects.toMatchObject({
+        message: "Document not found",
+        statusCode: 404,
+      });
+
+      expect(mockedPrisma.organizationDocument.update).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["fileUrl", { fileUrl: "uploads/new.pdf" }],
+      ["fileName", { fileName: "new.pdf" }],
+      ["fileType", { fileType: "application/pdf" }],
+      ["fileSize", { fileSize: 99 }],
+    ])("bumps the version when %s changes", async (_label, updates) => {
+      mockedPrisma.organizationDocument.findFirst.mockResolvedValueOnce(
+        buildPrismaDoc({ id: "doc-30", version: 4 }),
+      );
+      mockedPrisma.organizationDocument.update.mockResolvedValueOnce(
+        buildPrismaDoc({ id: "doc-30", version: 5 }),
+      );
+
+      await OrganizationDocumentService.updateDocument("doc-30", updates);
+
+      expect(mockedPrisma.organizationDocument.update).toHaveBeenCalledWith({
+        where: { id: "doc-30" },
+        data: expect.objectContaining({ version: 5 }),
+      });
+    });
+
+    it("keeps the version and the stored values for a metadata-only edit", async () => {
+      mockedPrisma.organizationDocument.findFirst.mockResolvedValueOnce(
+        buildPrismaDoc({
+          id: "doc-31",
+          version: 7,
+          description: "old",
+          fileUrl: "https://cdn.example/old.pdf",
+          fileName: "old.pdf",
+          fileType: "application/pdf",
+          fileSize: 12,
+        }),
+      );
+      mockedPrisma.organizationDocument.update.mockResolvedValueOnce(
+        buildPrismaDoc({ id: "doc-31", version: 7 }),
+      );
+
+      await OrganizationDocumentService.updateDocument("doc-31", {});
+
+      expect(mockedPrisma.organizationDocument.update).toHaveBeenCalledWith({
+        where: { id: "doc-31" },
+        data: {
+          title: "Policy",
+          description: "old",
+          category: "GENERAL",
+          visibility: "INTERNAL",
+          fileUrl: "https://cdn.example/old.pdf",
+          fileName: "old.pdf",
+          fileType: "application/pdf",
+          fileSize: 12,
+          version: 7,
+        },
+      });
+      expect(mockedGetURLForKey).not.toHaveBeenCalledWith(undefined);
+    });
+
+    it("treats a missing stored version as 1 and blanks a null description", async () => {
+      mockedPrisma.organizationDocument.findFirst.mockResolvedValueOnce(
+        buildPrismaDoc({ id: "doc-32", version: null, description: null }),
+      );
+      mockedPrisma.organizationDocument.update.mockResolvedValueOnce(
+        buildPrismaDoc({ id: "doc-32", version: 2 }),
+      );
+
+      await OrganizationDocumentService.updateDocument("doc-32", {
+        fileName: "next.pdf",
+      });
+
+      expect(mockedPrisma.organizationDocument.update).toHaveBeenCalledWith({
+        where: { id: "doc-32" },
+        data: expect.objectContaining({
+          description: "",
+          fileUrl: undefined,
+          fileName: "next.pdf",
+          fileType: undefined,
+          fileSize: undefined,
+          version: 2,
+        }),
+      });
+    });
+
+    it("overwrites category and visibility when the caller supplies them", async () => {
+      mockedPrisma.organizationDocument.findFirst.mockResolvedValueOnce(
+        buildPrismaDoc({ id: "doc-33" }),
+      );
+      mockedPrisma.organizationDocument.update.mockResolvedValueOnce(
+        buildPrismaDoc({
+          id: "doc-33",
+          category: "PRIVACY_POLICY",
+          visibility: "PUBLIC",
+        }),
+      );
+
+      await OrganizationDocumentService.updateDocument("doc-33", {
+        title: "Privacy",
+        description: "new",
+        category: "PRIVACY_POLICY",
+        visibility: "PUBLIC",
+      });
+
+      expect(mockedPrisma.organizationDocument.update).toHaveBeenCalledWith({
+        where: { id: "doc-33" },
+        data: expect.objectContaining({
+          title: "Privacy",
+          description: "new",
+          category: "PRIVACY_POLICY",
+          visibility: "PUBLIC",
+          version: 1,
+        }),
+      });
+    });
+  });
+
+  describe("deleteDocument", () => {
+    it("deletes the addressed document", async () => {
+      mockedPrisma.organizationDocument.deleteMany.mockResolvedValueOnce({
+        count: 1,
+      });
+
+      await expect(
+        OrganizationDocumentService.deleteDocument("  doc-40  "),
+      ).resolves.toBeUndefined();
+
+      expect(mockedPrisma.organizationDocument.deleteMany).toHaveBeenCalledWith(
+        {
+          where: { id: "doc-40" },
+        },
+      );
+    });
+
+    it("throws 404 when nothing was deleted", async () => {
+      mockedPrisma.organizationDocument.deleteMany.mockResolvedValueOnce({
+        count: 0,
+      });
+
+      await expect(
+        OrganizationDocumentService.deleteDocument("doc-41"),
+      ).rejects.toMatchObject({
+        message: "Document not found",
+        statusCode: 404,
+      });
+    });
+  });
+
+  describe("reads that address a missing document", () => {
+    it("throws 404 from getDocumentById", async () => {
+      mockedPrisma.organizationDocument.findFirst.mockResolvedValueOnce(null);
+
+      await expect(
+        OrganizationDocumentService.getDocumentById("doc-50"),
+      ).rejects.toMatchObject({
+        message: "Document not found",
+        statusCode: 404,
+      });
+    });
+
+    it("throws 404 from acknowledgeDocument without writing an acknowledgement", async () => {
+      mockedPrisma.organizationDocument.findFirst.mockResolvedValueOnce(null);
+
+      await expect(
+        OrganizationDocumentService.acknowledgeDocument({
+          organisationId: "org-1",
+          documentId: "doc-51",
+          userId: "user-1",
+          category: "TERMS_AND_CONDITIONS",
+          version: 1,
+        }),
+      ).rejects.toMatchObject({
+        message: "Document not found",
+        statusCode: 404,
+      });
+
+      expect(
+        mockedPrisma.organizationDocumentAcknowledgement.upsert,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("throws 404 from getAcknowledgementStatus", async () => {
+      mockedPrisma.organizationDocument.findFirst.mockResolvedValueOnce(null);
+
+      await expect(
+        OrganizationDocumentService.getAcknowledgementStatus({
+          organisationId: "org-1",
+          documentId: "doc-52",
+          userId: "user-1",
+        }),
+      ).rejects.toMatchObject({
+        message: "Document not found",
+        statusCode: 404,
+      });
+
+      expect(
+        mockedPrisma.organizationDocumentAcknowledgement.findFirst,
+      ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("acknowledgeDocument version guard", () => {
+    it.each([
+      ["zero", 0],
+      ["negative", -1],
+      ["fractional", 1.5],
+      ["not a number", Number.NaN],
+    ])("rejects a %s version", async (_label, version) => {
+      await expect(
+        OrganizationDocumentService.acknowledgeDocument({
+          organisationId: "org-1",
+          documentId: "doc-60",
+          userId: "user-1",
+          category: "TERMS_AND_CONDITIONS",
+          version,
+        }),
+      ).rejects.toMatchObject({ message: "Invalid version", statusCode: 400 });
+
+      expect(
+        mockedPrisma.organizationDocument.findFirst,
+      ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("organisation-scoped listings", () => {
+    it.each([
+      [
+        "listDocumentsForOrganisation",
+        () =>
+          OrganizationDocumentService.listDocumentsForOrganisation({
+            organisationId: "",
+          }),
+      ],
+      [
+        "listPublicDocumentsForOrganisation",
+        () =>
+          OrganizationDocumentService.listPublicDocumentsForOrganisation({
+            organisationId: "",
+          }),
+      ],
+    ])("refuses an unscoped %s", async (_label, call) => {
+      await expect(call()).rejects.toMatchObject({
+        message: "organisationId is required",
+        statusCode: 400,
+      });
+
+      expect(mockedPrisma.organizationDocument.findMany).not.toHaveBeenCalled();
+    });
+
+    it("applies the public category and visibility filters", async () => {
+      mockedPrisma.organizationDocument.findMany.mockResolvedValueOnce([]);
+
+      await OrganizationDocumentService.listPublicDocumentsForOrganisation({
+        organisationId: "org-1",
+        category: "PRIVACY_POLICY",
+        visibility: "PUBLIC",
+      });
+
+      expect(mockedPrisma.organizationDocument.findMany).toHaveBeenCalledWith({
+        where: {
+          organisationId: "org-1",
+          category: "PRIVACY_POLICY",
+          visibility: "PUBLIC",
+        },
+        orderBy: { updatedAt: "desc" },
+      });
     });
   });
 });

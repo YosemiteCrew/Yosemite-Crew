@@ -383,5 +383,185 @@ describe("LabResultController", () => {
         mockedIdexxResultsQueryService.getResultPdf,
       ).not.toHaveBeenCalled();
     });
+
+    it("requires an organisation identifier", async () => {
+      req.params = { provider: "IDEXX" };
+      req.query = { resultIds: "r1" };
+
+      await LabResultController.getCombinedPdf(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "organisationId required.",
+      });
+      expect(mockedLabResultService.getByResultId).not.toHaveBeenCalled();
+    });
+
+    it("requires a provider", async () => {
+      req.params = { organisationId: "org-1" };
+      req.query = { resultIds: "r1" };
+
+      await LabResultController.getCombinedPdf(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({ message: "provider required." });
+    });
+
+    it("rejects providers other than IDEXX", async () => {
+      req.params = { organisationId: "org-1", provider: "VETSCAN" };
+      req.query = { resultIds: "r1" };
+
+      await LabResultController.getCombinedPdf(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Unsupported provider.",
+      });
+    });
+
+    it("maps unexpected failures to 500", async () => {
+      req.query = { resultIds: "r1" };
+      mockedLabResultService.getByResultId.mockRejectedValue(new Error("boom"));
+
+      await LabResultController.getCombinedPdf(req as Request, res);
+
+      expect(mockedLogger.error).toHaveBeenCalledWith(
+        "Failed to build combined results PDF",
+        expect.any(Error),
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Failed to build combined results PDF.",
+      });
+    });
+  });
+
+  describe("shared PDF guards", () => {
+    it("rejects a PDF request without an organisation", async () => {
+      req.params = { provider: "IDEXX", resultId: "result-1" };
+
+      await LabResultController.getPdf(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "organisationId required.",
+      });
+      expect(mockedLabResultService.getByResultId).not.toHaveBeenCalled();
+    });
+
+    it("rejects a PDF request without a resultId", async () => {
+      req.params = { organisationId: "org-1", provider: "IDEXX" };
+
+      await LabResultController.getNotificationsPdf(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "provider and resultId required.",
+      });
+      expect(
+        mockedIdexxResultsQueryService.getResultNotificationsPdf,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("maps notification PDF failures to 500", async () => {
+      mockedLabResultService.getByResultId.mockResolvedValue({
+        id: "result-1",
+      });
+      mockedIdexxResultsQueryService.getResultNotificationsPdf.mockRejectedValue(
+        new Error("boom"),
+      );
+
+      await LabResultController.getNotificationsPdf(req as Request, res);
+
+      expect(mockedLogger.error).toHaveBeenCalledWith(
+        "Failed to fetch result notifications PDF",
+        expect.any(Error),
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Failed to fetch result notifications PDF.",
+      });
+    });
+  });
+
+  describe("error paths", () => {
+    it("get maps unexpected errors to 500", async () => {
+      mockedLabResultService.getByResultId.mockRejectedValue(new Error("boom"));
+
+      await LabResultController.get(req as Request, res);
+
+      expect(mockedLogger.error).toHaveBeenCalledWith(
+        "Failed to fetch lab result",
+        expect.any(Error),
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Failed to fetch lab result.",
+      });
+    });
+
+    it("search requires an organisation and rejects other providers", async () => {
+      req.params = { provider: "IDEXX", resultId: "result-1" };
+
+      await LabResultController.search(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "organisationId required.",
+      });
+
+      req.params = { organisationId: "org-1", provider: "VETSCAN" };
+
+      await LabResultController.search(req as Request, res);
+
+      expect(jsonMock).toHaveBeenLastCalledWith({
+        message: "Unsupported provider.",
+      });
+      expect(mockedLabResultService.list).not.toHaveBeenCalled();
+    });
+
+    it("search maps unexpected errors to 500", async () => {
+      mockedLabResultService.list.mockRejectedValue(new Error("boom"));
+
+      await LabResultController.search(req as Request, res);
+
+      expect(mockedLogger.error).toHaveBeenCalledWith(
+        "Failed to search lab results",
+        expect.any(Error),
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Failed to search lab results.",
+      });
+    });
+  });
+
+  describe("organisation resolution", () => {
+    it("uses the middleware organisation and omits an absent limit", async () => {
+      req.params = { provider: "IDEXX", resultId: "result-1" };
+      (req as unknown as { organisationId: string }).organisationId = "org-mw";
+      req.query = {};
+      mockedLabResultService.list.mockResolvedValue([]);
+
+      await LabResultController.list(req as Request, res);
+
+      expect(mockedLabResultService.list).toHaveBeenCalledWith({
+        organisationId: "org-mw",
+        provider: "IDEXX",
+        orderId: undefined,
+        patientId: undefined,
+        limit: undefined,
+      });
+
+      await LabResultController.search(req as Request, res);
+
+      expect(mockedLabResultService.list).toHaveBeenLastCalledWith({
+        organisationId: "org-mw",
+        provider: "IDEXX",
+        orderId: undefined,
+        patientId: undefined,
+        limit: undefined,
+      });
+    });
   });
 });

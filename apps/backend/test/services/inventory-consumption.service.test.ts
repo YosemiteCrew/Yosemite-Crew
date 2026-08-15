@@ -240,6 +240,34 @@ describe("InventoryConsumptionService", () => {
     ).rejects.toThrow("quantity must be a positive integer");
   });
 
+  it.each([
+    ["NaN", Number.NaN],
+    ["Infinity", Number.POSITIVE_INFINITY],
+  ])(
+    "rejects direct consumption when quantity is %s",
+    async (_label, quantity) => {
+      await expect(
+        InventoryConsumptionService.consume({
+          organisationId: "org-1",
+          sourceType: "PRESCRIPTION",
+          sourceId: "rx-1",
+          lines: [
+            {
+              sourceLineKey: "line-1",
+              inventoryItemId: "item-1",
+              quantity,
+            },
+          ],
+        }),
+      ).rejects.toThrow("quantity must be a positive integer");
+
+      expect(
+        mockedPrisma.inventoryConsumptionEvent.create,
+      ).not.toHaveBeenCalled();
+      expect(mockedPrisma.inventoryItem.update).not.toHaveBeenCalled();
+    },
+  );
+
   it("consumes prescription lines through a mapping rule", async () => {
     mockedPrisma.inventoryConsumptionRule.findFirst.mockResolvedValueOnce({
       inventoryItemId: "item-1",

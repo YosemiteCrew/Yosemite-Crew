@@ -237,6 +237,52 @@ describe("AppointmentController", () => {
       ).toHaveBeenCalledWith({} as AppointmentRequestDTO, false, undefined);
     });
 
+    it("should prefer the query paymentCollectionMethod over the body", async () => {
+      req.query = {
+        createPayment: "false",
+        paymentCollectionMethod: "PAYMENT_LINK",
+      };
+      req.body = { paymentCollectionMethod: "PAYMENT_AT_CLINIC" };
+      mockedAppointmentService.createAppointmentFromPms.mockResolvedValue({
+        id: "a1",
+      } as any);
+
+      await AppointmentController.createFromPms(req as any, res as Response);
+
+      expect(
+        mockedAppointmentService.createAppointmentFromPms,
+      ).toHaveBeenCalledWith(req.body, false, "PAYMENT_LINK");
+      expect(statusMock).toHaveBeenCalledWith(201);
+    });
+
+    it("should fall back to the body paymentCollectionMethod when the query omits it", async () => {
+      req.query = { createPayment: "false" };
+      req.body = { paymentCollectionMethod: "PAYMENT_AT_CLINIC" };
+      mockedAppointmentService.createAppointmentFromPms.mockResolvedValue({
+        id: "a1",
+      } as any);
+
+      await AppointmentController.createFromPms(req as any, res as Response);
+
+      expect(
+        mockedAppointmentService.createAppointmentFromPms,
+      ).toHaveBeenCalledWith(req.body, false, "PAYMENT_AT_CLINIC");
+    });
+
+    it("should ignore a non-string paymentCollectionMethod on either side", async () => {
+      req.query = { createPayment: "false", paymentCollectionMethod: ["a"] };
+      req.body = { paymentCollectionMethod: 42 };
+      mockedAppointmentService.createAppointmentFromPms.mockResolvedValue({
+        id: "a1",
+      } as any);
+
+      await AppointmentController.createFromPms(req as any, res as Response);
+
+      expect(
+        mockedAppointmentService.createAppointmentFromPms,
+      ).toHaveBeenCalledWith(req.body, false, undefined);
+    });
+
     it("should handle error", async () => {
       mockedAppointmentService.createAppointmentFromPms.mockRejectedValue(
         throwErrorWithStatus("Err", 400),

@@ -1417,13 +1417,7 @@ const getParentOwnedAppointment = async (
     current as AppointmentRow | null,
     "Appointment not found",
   );
-  const ownerId = (row.patient as { parent?: { id?: string } }).parent?.id;
-  if (ownerId !== parentId) {
-    throw new AppointmentPrismaServiceError(
-      "You are not allowed to modify this appointment.",
-      403,
-    );
-  }
+  assertParentOwnsAppointment(row, parentId);
 
   return row;
 };
