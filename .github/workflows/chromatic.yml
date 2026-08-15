@@ -43,10 +43,16 @@ jobs:
     # The vars gate keeps this dormant until the project token is configured.
     # The repo check skips pull requests from forks, which cannot read secrets:
     # without it every external contributor gets a red check they cannot fix.
+    # Dependabot is excluded for the same reason - its head repo IS this repo,
+    # so the fork check does not catch it, but GitHub still withholds Actions
+    # secrets from Dependabot-triggered runs, which would fail every dependency
+    # PR that touches package.json or the lockfile.
     if: >-
       vars.CHROMATIC_CONFIGURED == 'true' &&
+      github.actor != 'dependabot[bot]' &&
       (github.event_name != 'pull_request' ||
-       github.event.pull_request.head.repo.full_name == github.repository)
+       (github.event.pull_request.head.repo.full_name == github.repository &&
+        github.event.pull_request.user.login != 'dependabot[bot]'))
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

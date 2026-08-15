@@ -9,10 +9,18 @@
  * noon sits far enough from either boundary that no UTC offset and no DST shift
  * can move it onto a neighbouring date.
  *
- * These tests drive the REAL preferred-zone storage rather than mocking
- * getPreferredTimeZone. Mocking it does not work here: the module's own
- * formatters close over the real function, so a `requireActual` spread leaves
- * them reading the true zone and the test silently checks nothing.
+ * Two deliberate choices here:
+ *
+ * 1. These drive the REAL preferred-zone storage rather than mocking
+ *    getPreferredTimeZone. Mocking does not work: the module's own formatters
+ *    close over the real function, so a `requireActual` spread leaves them
+ *    reading the true zone and the test silently checks nothing.
+ *
+ * 2. Nothing depends on the runner's own time zone. The suite sets no TZ, so an
+ *    assertion written around a browser-local midnight only distinguishes the
+ *    anchored and naive paths on a machine east of the preferred zone - it goes
+ *    vacuous on a UTC runner. The divergence is proved with an explicitly
+ *    constructed UTC instant instead.
  */
 import {
   buildPreferredTimeZoneDayInstant,
@@ -21,16 +29,21 @@ import {
   setPreferredTimeZone,
 } from '@/app/lib/timezone';
 
+const DAY_FORMAT: Intl.DateTimeFormatOptions = {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+};
+
 /** The label InpatientSchedule renders, with the anchoring applied. */
 const dayLabel = (picked: Date) =>
   formatDateInPreferredTimeZone(
     buildPreferredTimeZoneDayInstant(picked.getFullYear(), picked.getMonth() + 1, picked.getDate()),
-    { day: 'numeric', month: 'short', year: 'numeric' }
+    DAY_FORMAT
   );
 
-/** Formatting the picked instant directly, i.e. the behaviour before the fix. */
-const naiveLabel = (picked: Date) =>
-  formatDateInPreferredTimeZone(picked, { day: 'numeric', month: 'short', year: 'numeric' });
+/** Formatting an instant directly, i.e. the behaviour before the fix. */
+const naiveLabel = (instant: Date) => formatDateInPreferredTimeZone(instant, DAY_FORMAT);
 
 describe('preferred-time-zone calendar day anchoring', () => {
   beforeEach(() => globalThis.localStorage?.clear());
@@ -42,7 +55,7 @@ describe('preferred-time-zone calendar day anchoring', () => {
     'Europe/Berlin',
     'Asia/Kolkata',
     'Pacific/Auckland',
-  ])('keeps the picked day intact in %s', (zone) => {
+  ])('keeps the picked day intact in %s, whatever the runner zone is', (zone) => {
     expect(setPreferredTimeZone(zone)).toBe(true);
     expect(getPreferredTimeZone()).toBe(zone);
 
@@ -51,23 +64,33 @@ describe('preferred-time-zone calendar day anchoring', () => {
     expect(dayLabel(picked)).toBe('Aug 15, 2026');
   });
 
-  it('anchors a day that the naive formatting would have slipped', () => {
-    // The test process runs at TZ=Europe/Berlin (see the npm test script), so a
-    // local midnight is 22:00Z the previous day and lands on the 14th in
-    // Los Angeles. This is the reviewer's exact scenario.
+  it('proves an unanchored instant slips a day in a westward zone', () => {
     expect(setPreferredTimeZone('America/Los_Angeles')).toBe(true);
-    const picked = new Date(2026, 7, 15, 0, 0, 0, 0);
 
-    const naive = naiveLabel(picked);
-    const anchored = dayLabel(picked);
+    // 15 Aug 02:00 UTC is still 14 Aug in Los Angeles (UTC-7), and this instant
+    // is constructed in UTC, so the claim holds on every runner. This is the
+    // shape of the bug: format the raw instant and the header shows the wrong
+    // day while the list filters the right one.
+    const instant = new Date(Date.UTC(2026, 7, 15, 2, 0, 0));
+    expect(naiveLabel(instant)).toBe('Aug 14, 2026');
 
-    expect(anchored).toBe('Aug 15, 2026');
-    // Assert the bug is genuinely reachable, so this test fails loudly if the
-    // anchoring is ever removed rather than passing vacuously.
-    if (picked.getTime() < Date.UTC(2026, 7, 15)) {
-      expect(naive).toBe('Aug 14, 2026');
-      expect(anchored).not.toBe(naive);
-    }
+    // Anchoring the same calendar day at noon in the preferred zone lands on
+    // the intended date.
+    expect(
+      formatDateInPreferredTimeZone(buildPreferredTimeZoneDayInstant(2026, 8, 15), DAY_FORMAT)
+    ).toBe('Aug 15, 2026');
+  });
+
+  it('proves an unanchored instant slips forward in a far-east zone', () => {
+    expect(setPreferredTimeZone('Pacific/Auckland')).toBe(true);
+
+    // 15 Aug 22:00 UTC is already 16 Aug in Auckland (UTC+12).
+    const instant = new Date(Date.UTC(2026, 7, 15, 22, 0, 0));
+    expect(naiveLabel(instant)).toBe('Aug 16, 2026');
+
+    expect(
+      formatDateInPreferredTimeZone(buildPreferredTimeZoneDayInstant(2026, 8, 15), DAY_FORMAT)
+    ).toBe('Aug 15, 2026');
   });
 
   it('survives a spring-forward DST transition', () => {
@@ -113,6 +136,7 @@ describe('chat surfaces agree on one clock', () => {
     });
 
     // 01:00Z is the previous evening in Los Angeles: both must say Jun 24, 6 PM.
+    // The instant is absolute, so this holds on any runner.
     expect(picker).toContain('Jun 24');
     expect(header).toContain('Jun 24');
     expect(picker).toContain('6:00');
