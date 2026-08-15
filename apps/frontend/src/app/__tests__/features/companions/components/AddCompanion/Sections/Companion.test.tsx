@@ -757,4 +757,30 @@ describe('Companion section', () => {
     const arg = setFormData.mock.calls.at(-1)?.[0];
     expect(arg.ageWhenNeutered).toBe('25');
   });
+
+  // 20. clearing the linked parent resets the companion search state
+  it('clears companion search results when the parent id is removed', async () => {
+    mockGetCompanionForParent.mockResolvedValue([]);
+    const props = {
+      setActiveLabel: jest.fn(),
+      formData: makeFormData(),
+      setFormData: jest.fn(),
+      setParentFormData: jest.fn(),
+      setShowModal: jest.fn(),
+      mode: 'default' as const,
+      onCompanionCreated: jest.fn(),
+    };
+
+    let view!: ReturnType<typeof render>;
+    await act(async () => {
+      view = render(<Companion {...props} parentFormData={makeParentData({ id: 'parent-1' })} />);
+    });
+
+    // Dropping the parent id runs the render-time reset that clears results/query.
+    await act(async () => {
+      view.rerender(<Companion {...props} parentFormData={makeParentData({ id: '' })} />);
+    });
+
+    expect((screen.getByTestId('search-input') as HTMLInputElement).value).toBe('');
+  });
 });

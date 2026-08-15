@@ -1,60 +1,28 @@
 'use client';
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { IoCaretDown } from 'react-icons/io5';
 import clsx from 'clsx';
+import { statusLabel, type StatusLabel } from '@/app/constants/status';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
+import StatusOptionButtons from '@/app/ui/filters/StatusOptionButtons';
+import { useFilterDropdownDismiss } from '@/app/ui/filters/useFilterDropdownDismiss';
 
-const STATUS_OPTIONS = [
-  {
-    name: 'All',
-    key: 'ALL',
-    bg: 'var(--color-badge-blue-bg)',
-    text: 'var(--color-badge-blue-text)',
-    border: 'var(--color-primary-500)',
-  },
-  {
-    name: 'Excellent',
-    key: 'EXCELLENT',
-    bg: 'var(--color-pill-success-bg)',
-    text: 'var(--color-pill-success-text)',
-    border: 'var(--color-pill-success-border)',
-  },
-  {
-    name: 'Healthy',
-    key: 'HEALTHY',
-    bg: 'var(--color-pill-success-bg)',
-    text: 'var(--color-pill-success-text)',
-    border: 'var(--color-pill-success-border)',
-  },
-  {
-    name: 'Moderate',
-    key: 'MODERATE',
-    bg: 'var(--color-pill-progress-bg)',
-    text: 'var(--color-pill-progress-text)',
-    border: 'var(--color-pill-progress-border)',
-  },
-  {
-    name: 'Low',
-    key: 'LOW',
-    bg: 'var(--color-pill-warning-bg)',
-    text: 'var(--color-pill-warning-text)',
-    border: 'var(--color-pill-warning-border)',
-  },
-  {
-    name: 'Out of stock',
-    key: 'OUT OF STOCK',
-    bg: 'var(--color-pill-warning-bg)',
-    text: 'var(--color-pill-warning-text)',
-    border: 'var(--color-pill-warning-border)',
-  },
+const STATUS_OPTIONS: StatusLabel[] = [
+  statusLabel('All', 'ALL', 'color-badge-blue', 'var(--color-primary-500)'),
+  statusLabel('Excellent', 'EXCELLENT', 'color-pill-success'),
+  statusLabel('Healthy', 'HEALTHY', 'color-pill-success'),
+  statusLabel('Moderate', 'MODERATE', 'color-pill-progress'),
+  statusLabel('Low', 'LOW', 'color-pill-warning'),
+  statusLabel('Out of stock', 'OUT OF STOCK', 'color-pill-warning'),
 ];
 
 const DEFAULT_CATEGORIES: string[] = [];
 
-const getTurnoverStatusButtonStyle = (
-  option: (typeof STATUS_OPTIONS)[number]
-): React.CSSProperties => {
+const getTurnoverDropdownTextColor = (option: StatusLabel): string =>
+  option.key === 'ALL' ? 'var(--color-text-primary)' : option.text;
+
+const getTurnoverStatusButtonStyle = (option: StatusLabel): React.CSSProperties => {
   if (option.key === 'ALL') {
     return {
       borderWidth: '1px',
@@ -130,24 +98,7 @@ const InventoryTurnoverFilters = ({
     if (dropdownOpen) positionPanel();
   }, [dropdownOpen, positionPanel]);
 
-  useEffect(() => {
-    if (!dropdownOpen) return;
-    const handleClose = (e: MouseEvent) => {
-      if (
-        triggerRef.current?.contains(e.target as Node) ||
-        panelRef.current?.contains(e.target as Node)
-      )
-        return;
-      setDropdownOpen(false);
-    };
-    const handleScroll = () => setDropdownOpen(false);
-    document.addEventListener('mousedown', handleClose);
-    window.addEventListener('scroll', handleScroll, { passive: true, capture: true });
-    return () => {
-      document.removeEventListener('mousedown', handleClose);
-      window.removeEventListener('scroll', handleScroll, { capture: true });
-    };
-  }, [dropdownOpen]);
+  useFilterDropdownDismiss(dropdownOpen, setDropdownOpen, triggerRef, panelRef);
 
   const selectedStatus = STATUS_OPTIONS.find((o) => o.key === filters.status) ?? STATUS_OPTIONS[0];
 
@@ -176,44 +127,16 @@ const InventoryTurnoverFilters = ({
               className="yc-glass-overlay rounded-2xl overflow-hidden"
               style={dropdownStyle}
             >
-              {STATUS_OPTIONS.map((option) => {
-                const isSelected = option.key === filters.status;
-                const dropdownTextColor =
-                  option.key === 'ALL' ? 'var(--color-text-primary)' : option.text;
-                return (
-                  <button
-                    key={option.key}
-                    type="button"
-                    onClick={() => {
-                      setActiveStatus(option.key);
-                      setDropdownOpen(false);
-                    }}
-                    className={clsx(
-                      'w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-left transition-colors',
-                      isSelected && option.key !== 'ALL' ? 'font-medium' : 'hover:bg-card-hover'
-                    )}
-                  >
-                    <span
-                      className="inline-block size-2 rounded-full shrink-0"
-                      style={{
-                        backgroundColor: option.border,
-                        borderWidth: '1px',
-                        borderStyle: 'solid',
-                        borderColor: option.border,
-                      }}
-                    />
-                    <span style={{ color: dropdownTextColor }}>{option.name}</span>
-                    {isSelected && (
-                      <span
-                        className="ml-auto text-[12px] font-semibold"
-                        style={{ color: dropdownTextColor }}
-                      >
-                        ✓
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+              <StatusOptionButtons
+                options={STATUS_OPTIONS}
+                activeKey={filters.status}
+                allKey="ALL"
+                onSelect={(key) => {
+                  setActiveStatus(key);
+                  setDropdownOpen(false);
+                }}
+                getTextColor={getTurnoverDropdownTextColor}
+              />
             </div>,
             document.body
           )}

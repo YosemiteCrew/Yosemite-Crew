@@ -1,12 +1,19 @@
-import { InventoryFormConfig } from '@/app/features/inventory/components/AddInventory/InventoryConfig';
 import {
+  InventoryFormConfig,
+  SectionConfig,
+} from '@/app/features/inventory/components/AddInventory/InventoryConfig';
+import {
+  AdminstrationOptions,
   CategoryOptionsByBusiness,
+  FormOptions,
+  SpeciesOptions,
   SubCategoryOptions,
+  UnitOptions,
 } from '@/app/features/inventory/pages/Inventory/types';
 import { BusinessType } from '@/app/features/organization/types/org';
 
 describe('InventoryFormConfig', () => {
-  const businessTypes: BusinessType[] = ['HOSPITAL', 'GROOMER', 'BREEDER'];
+  const businessTypes: BusinessType[] = ['HOSPITAL', 'GROOMER', 'BREEDER', 'BOARDER'];
 
   // Helper function to correctly extract field names regardless of 'field' or 'row' kind
   const extractFieldNames = (configSection: any) => {
@@ -320,6 +327,74 @@ describe('InventoryFormConfig', () => {
       ];
       expect(batchFields).toEqual(expectedFields);
     });
+  });
+
+  // --- BOARDER Tests ---
+  describe('BOARDER Configuration', () => {
+    const config = InventoryFormConfig.BOARDER;
+
+    it('should contain all expected sections for BOARDER', () => {
+      const expectedSections = [
+        'basicInfo',
+        'classification',
+        'pricing',
+        'vendor',
+        'stock',
+        'batch',
+      ];
+      expect(Object.keys(config)).toEqual(expectedSections);
+    });
+
+    it('should have the correct field structure in the classification section', () => {
+      const classificationFields = extractFieldNames(config.classification!);
+      const expectedFields = [
+        'intakeType',
+        'form',
+        'species',
+        'administration',
+        'unitofMeasure',
+        'safetyClassification',
+        'brand',
+        'shelfLife',
+      ];
+      expect(classificationFields).toEqual(expectedFields);
+    });
+  });
+
+  // --- Shared classification descriptors (GROOMER + BOARDER) ---
+  describe('shared classification descriptors', () => {
+    const findFieldDef = (items: SectionConfig<'classification'>, name: string) =>
+      items
+        .flatMap((item) => (item.kind === 'field' ? [item.field] : item.fields))
+        .find((fieldDef) => fieldDef.name === name);
+
+    it.each(['GROOMER', 'BOARDER'] as const)(
+      'keeps the shared classification descriptors intact for %s',
+      (businessType) => {
+        const items = InventoryFormConfig[businessType].classification!;
+
+        expect(findFieldDef(items, 'form')).toMatchObject({
+          placeholder: 'Form / Presentation',
+          component: 'dropdown',
+          options: FormOptions,
+        });
+        expect(findFieldDef(items, 'species')).toMatchObject({
+          placeholder: 'Species',
+          component: 'multiSelect',
+          options: SpeciesOptions,
+        });
+        expect(findFieldDef(items, 'administration')).toMatchObject({
+          placeholder: 'Administration',
+          component: 'dropdown',
+          options: AdminstrationOptions,
+        });
+        expect(findFieldDef(items, 'unitofMeasure')).toMatchObject({
+          placeholder: 'Unit of Measure (Base)',
+          component: 'dropdown',
+          options: UnitOptions,
+        });
+      }
+    );
   });
 
   // Test the configuration types for generic code coverage

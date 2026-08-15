@@ -17,12 +17,14 @@ jest.mock('@/app/features/appointments/components/Calendar/weekHelpers', () => (
   HOURS_IN_DAY: 2,
 }));
 
+const mockComputeUnavailableSegments = jest.fn<any, any[]>(() => []);
+
 jest.mock('@/app/features/appointments/components/Calendar/helpers', () => ({
   DEFAULT_CALENDAR_FOCUS_MINUTES: 540,
   EVENT_VERTICAL_GAP_PX: 2,
   MINUTES_PER_STEP: 60,
   PIXELS_PER_STEP: 60,
-  computeUnavailableSegments: jest.fn(() => []),
+  computeUnavailableSegments: (...args: any[]) => mockComputeUnavailableSegments(...args),
   getFirstRelevantTimedEventStart: jest.fn(() => null),
   getNowTopPxForHourRange: jest.fn((_: Date, __: number, ___: number, height: number) => height),
   getTopPxForMinutes: jest.fn((minutes: number, hourHeight: number, gap: number, offset = 0) => {
@@ -99,6 +101,32 @@ describe('WeekCalendar (Appointments)', () => {
     mockEventsForDayHour.mockReturnValue([events[1]]);
     mockGetPrevWeek.mockReturnValue(new Date('2024-12-30T00:00:00Z'));
     mockGetNextWeek.mockReturnValue(new Date('2025-01-13T00:00:00Z'));
+    mockComputeUnavailableSegments.mockReturnValue([]);
+  });
+
+  it('shades unavailable hour segments from the visible availability intervals', () => {
+    const getVisibleAvailabilityIntervals = jest.fn(() => [{ startMinute: 30, endMinute: 120 }]);
+    mockComputeUnavailableSegments.mockReturnValue([{ startMinute: 0, endMinute: 30 }]);
+
+    const { container } = render(
+      <WeekCalendar
+        events={events}
+        handleViewAppointment={handleViewAppointment}
+        weekStart={weekStart}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        canEditAppointments
+        getVisibleAvailabilityIntervals={getVisibleAvailabilityIntervals}
+        availabilityLoaded
+      />
+    );
+
+    // One dim overlay per day for hour 0 (the segment ends before hour 1 starts).
+    const overlays = container.querySelectorAll('[style*="calendar-dim-overlay"]');
+    expect(overlays).toHaveLength(days.length);
+    expect((overlays[0] as HTMLElement).style.top).toBe('0%');
+    expect((overlays[0] as HTMLElement).style.height).toBe('50%');
+    expect(getVisibleAvailabilityIntervals).toHaveBeenCalled();
+    expect(mockComputeUnavailableSegments).toHaveBeenCalled();
   });
 
   it('renders day headers and all-day events', () => {

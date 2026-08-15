@@ -221,7 +221,7 @@ const releaseSnapshots = new Map<string, { raw: string | null; value: ReleaseInf
 const getReleaseSnapshot = (cacheKey: string): ReleaseInfo => {
   const raw = getStorageItem('session', cacheKey);
   const memo = releaseSnapshots.get(cacheKey);
-  if (memo && memo.raw === raw) return memo.value;
+  if (memo?.raw === raw) return memo.value;
   const value = parseJson<ReleaseInfo>(raw) ?? EMPTY_RELEASE;
   releaseSnapshots.set(cacheKey, { raw, value });
   return value;

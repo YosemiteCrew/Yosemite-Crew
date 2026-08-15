@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Appointment } from '@yosemite-crew/types';
 import { Team } from '@/app/features/organization/types/team';
 import { Slot } from '@/app/features/appointments/types/appointments';
@@ -13,6 +13,9 @@ import {
   supportsSpeciality,
   toLocalDayKey,
 } from './appointmentCalendarHelpers';
+
+const readCachedStarts = (cache: Partial<Record<string, number[]>>, key: string): number[] =>
+  cache[key] ?? [];
 
 export const useDragAvailability = ({
   dragContext,
@@ -61,14 +64,13 @@ export const useDragAvailability = ({
   );
 
   const buildAvailableStartMinutes = useCallback(
-    async (date: Date, targetLeadId?: string) => {
-      if (!dragContext) return [];
-      const appointment = allAppointments.find((item) => item.id === dragContext.appointmentId);
+    async (context: DragContext, date: Date, targetLeadId?: string) => {
+      const appointment = allAppointments.find((item) => item.id === context.appointmentId);
       if (!appointment) return [];
       if (targetLeadId && !supportsSpeciality(teams, targetLeadId, appointment)) {
         return [];
       }
-      const serviceId = dragContext.serviceId || appointment.appointmentType?.id;
+      const serviceId = context.serviceId || appointment.appointmentType?.id;
       const targetPractitionerId = resolvePractitionerId(
         teams,
         targetLeadId || appointment.lead?.id
@@ -77,7 +79,7 @@ export const useDragAvailability = ({
 
       const slots = await getSlotsForMoveValidation(serviceId, date);
       const normalizedTargetPractitionerId = normalizeId(targetPractitionerId);
-      const durationMs = Math.max(5 * 60 * 1000, dragContext.durationMinutes * 60 * 1000);
+      const durationMs = Math.max(5 * 60 * 1000, context.durationMinutes * 60 * 1000);
       const nowMs = Date.now();
       const minutesSet = new Set<number>();
 
@@ -88,7 +90,7 @@ export const useDragAvailability = ({
           allAppointments,
           normalizedTargetPractitionerId,
           targetPractitionerId,
-          durationMinutes: dragContext.durationMinutes,
+          durationMinutes: context.durationMinutes,
           durationMs,
           nowMs,
           minutesSet,
@@ -97,7 +99,7 @@ export const useDragAvailability = ({
 
       return Array.from(minutesSet).sort((a, b) => a - b);
     },
-    [allAppointments, dragContext, getSlotsForMoveValidation, teams]
+    [allAppointments, getSlotsForMoveValidation, teams]
   );
 
   const ensureDragAvailability = useCallback(
@@ -109,11 +111,11 @@ export const useDragAvailability = ({
       }
       if (dragAvailabilityPendingRef.current[key]) {
         await dragAvailabilityPendingRef.current[key];
-        return dragAvailabilityCacheRef.current[key] ?? [];
+        return readCachedStarts(dragAvailabilityCacheRef.current, key);
       }
       const task = (async () => {
         try {
-          const starts = await buildAvailableStartMinutes(date, targetLeadId);
+          const starts = await buildAvailableStartMinutes(dragContext, date, targetLeadId);
           dragAvailabilityCacheRef.current[key] = starts;
           setAvailabilityVersion((version) => version + 1);
         } catch {
@@ -124,7 +126,7 @@ export const useDragAvailability = ({
       dragAvailabilityPendingRef.current[key] = task;
       await task;
       delete dragAvailabilityPendingRef.current[key];
-      return dragAvailabilityCacheRef.current[key] ?? [];
+      return readCachedStarts(dragAvailabilityCacheRef.current, key);
     },
     [buildAvailableStartMinutes, dragContext, getAvailabilityKey]
   );
@@ -132,7 +134,7 @@ export const useDragAvailability = ({
   const getDropAvailabilityIntervals = useCallback(
     (date: Date, targetLeadId?: string): DropAvailabilityInterval[] => {
       const key = getAvailabilityKey(date, targetLeadId);
-      const starts = dragAvailabilityCacheRef.current[key] || [];
+      const starts = readCachedStarts(dragAvailabilityCacheRef.current, key);
       return buildDropIntervalsFromStarts(starts);
     },
     [getAvailabilityKey]
@@ -146,51 +148,5 @@ export const useDragAvailability = ({
   };
 };
 
-export const useDragEdgeAutoScroll = (
-  draggedAppointmentId: string | null,
-  availabilityVersion: number
-) => {
-  useEffect(() => {
-    if (!draggedAppointmentId) return;
-    const edgeThreshold = 72;
-    const scrollAmount = 28;
-    const handleDragOver = (event: DragEvent) => {
-      const x = event.clientX;
-      const y = event.clientY;
-      const viewportWidth = globalThis.innerWidth;
-      const viewportHeight = globalThis.innerHeight;
-
-      if (x >= 0 && x < edgeThreshold) {
-        globalThis.scrollBy({ left: -scrollAmount });
-      } else if (x > viewportWidth - edgeThreshold) {
-        globalThis.scrollBy({ left: scrollAmount });
-      }
-      if (y >= 0 && y < edgeThreshold) {
-        globalThis.scrollBy({ top: -scrollAmount });
-      } else if (y > viewportHeight - edgeThreshold) {
-        globalThis.scrollBy({ top: scrollAmount });
-      }
-
-      const hoveredElement = document.elementFromPoint(x, y) as HTMLElement | null;
-      const scrollContainer = hoveredElement?.closest?.(
-        "[data-calendar-scroll='true']"
-      ) as HTMLElement | null;
-      if (!scrollContainer) return;
-      const rect = scrollContainer.getBoundingClientRect();
-      let deltaX = 0;
-      let deltaY = 0;
-      if (x - rect.left < edgeThreshold) deltaX = -scrollAmount;
-      else if (rect.right - x < edgeThreshold) deltaX = scrollAmount;
-      if (y - rect.top < edgeThreshold) deltaY = -scrollAmount;
-      else if (rect.bottom - y < edgeThreshold) deltaY = scrollAmount;
-      if (deltaX !== 0 || deltaY !== 0) {
-        scrollContainer.scrollBy({ left: deltaX, top: deltaY });
-      }
-    };
-
-    globalThis.addEventListener('dragover', handleDragOver);
-    return () => {
-      globalThis.removeEventListener('dragover', handleDragOver);
-    };
-  }, [draggedAppointmentId, availabilityVersion]);
-};
+// Single source of truth for the edge auto-scroll behaviour lives in useAppointmentDragAutoScroll.
+export { useAppointmentDragAutoScroll as useDragEdgeAutoScroll } from '@/app/features/appointments/components/Calendar/useAppointmentDragAutoScroll';

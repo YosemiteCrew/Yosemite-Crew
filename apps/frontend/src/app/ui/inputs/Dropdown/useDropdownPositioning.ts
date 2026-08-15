@@ -6,6 +6,8 @@ type UseDropdownPositioningArgs = {
   portal: boolean;
   dropdownRef: React.RefObject<HTMLDivElement | null>;
   onOuterScrollDismiss: () => void;
+  /** Gap between the trigger's bottom edge and the panel; defaults to a 1px overlap. */
+  topOffset?: number;
 };
 
 /**
@@ -18,10 +20,12 @@ export function useDropdownPositioning({
   portal,
   dropdownRef,
   onOuterScrollDismiss,
+  topOffset = -1,
 }: UseDropdownPositioningArgs) {
   const [portalStyle, setPortalStyle] = useState<React.CSSProperties | null>(null);
 
   const computePortalStyle = useCallback(() => {
+    /* v8 ignore next 2 -- dropdownRef is always mounted while the dropdown is open (computePortalStyle only runs behind an `open` guard), so getBoundingClientRect never returns undefined */
     const rect = dropdownRef.current?.getBoundingClientRect();
     if (!rect) return;
     const viewportHeight = globalThis.window.innerHeight;
@@ -34,11 +38,11 @@ export function useDropdownPositioning({
       position: 'absolute',
       left: rect.left + globalThis.window.scrollX,
       width: rect.width,
-      top: rect.bottom + globalThis.window.scrollY - 1,
+      top: rect.bottom + globalThis.window.scrollY + topOffset,
       maxHeight: panelMaxHeight,
       zIndex: 5000,
     });
-  }, [dropdownRef]);
+  }, [dropdownRef, topOffset]);
 
   const computePortalStyleRef = useRef(computePortalStyle);
   useLayoutEffect(() => {

@@ -198,6 +198,58 @@ describe('ServiceSearch Component', () => {
     // This is correct behavior (don't add empty).
   });
 
+  it('leaves other specialities untouched and skips duplicates when selecting', async () => {
+    render(<ServiceSearch speciality={defaultSpeciality} setSpecialities={mockSetSpecialities} />);
+
+    fireEvent.focus(screen.getByPlaceholderText('Search or create service'));
+    await act(async () => {
+      fireEvent.click(screen.getByText('Vaccination'));
+    });
+
+    const updateFn = mockSetSpecialities.mock.calls[0][0];
+    const otherSpeciality = { name: 'Dentistry', services: [] } as any;
+    const duplicateHolder = {
+      name: 'General Practice',
+      services: [{ name: 'Vaccination' }],
+    } as any;
+    const bareSpeciality = { name: 'General Practice', services: undefined } as any;
+
+    const newState = updateFn([otherSpeciality, duplicateHolder, bareSpeciality]);
+
+    // Non-matching speciality passes through by reference.
+    expect(newState[0]).toBe(otherSpeciality);
+    // A speciality already holding the service is left untouched.
+    expect(newState[1]).toBe(duplicateHolder);
+    // A matching speciality without a services array gets one created.
+    expect(newState[2].services).toHaveLength(1);
+    expect(newState[2].services[0]).toEqual(expect.objectContaining({ name: 'Vaccination' }));
+  });
+
+  it('leaves other specialities untouched and skips duplicates when adding a custom service', async () => {
+    render(<ServiceSearch speciality={defaultSpeciality} setSpecialities={mockSetSpecialities} />);
+
+    const input = screen.getByPlaceholderText('Search or create service');
+    fireEvent.change(input, { target: { value: 'Custom' } });
+    await act(async () => {
+      fireEvent.click(screen.getByText(/Add service.*Custom/));
+    });
+
+    const updateFn = mockSetSpecialities.mock.calls[0][0];
+    const otherSpeciality = { name: 'Dentistry', services: [] } as any;
+    const duplicateHolder = {
+      name: 'General Practice',
+      services: [{ name: 'custom' }],
+    } as any;
+    const bareSpeciality = { name: 'General Practice', services: undefined } as any;
+
+    const newState = updateFn([otherSpeciality, duplicateHolder, bareSpeciality]);
+
+    expect(newState[0]).toBe(otherSpeciality);
+    expect(newState[1]).toBe(duplicateHolder);
+    expect(newState[2].services).toHaveLength(1);
+    expect(newState[2].services[0]).toEqual(expect.objectContaining({ name: 'Custom' }));
+  });
+
   // --- 5. Interaction: Close on Outside Click ---
 
   it('closes dropdown when clicking outside', () => {

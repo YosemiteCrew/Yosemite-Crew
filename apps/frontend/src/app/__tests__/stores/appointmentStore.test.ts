@@ -243,5 +243,32 @@ describe('Appointment Store', () => {
       expect(state.status).toBe('idle');
       expect(state.lastFetchedAt).toBeNull();
     });
+
+    it('setAppointmentsForOrg replaces existing org entries and seeds a fresh org', () => {
+      useAppointmentStore.getState().setAppointments([mockAppt1]);
+
+      useAppointmentStore.getState().setAppointmentsForOrg('org-A', [mockAppt2]);
+      let state = useAppointmentStore.getState();
+      expect(state.appointmentIdsByOrgId['org-A']).toEqual(['appt-2']);
+      expect(state.appointmentsById['appt-1']).toBeUndefined();
+
+      useAppointmentStore.getState().setAppointmentsForOrg('org-B', [mockAppt3]);
+      state = useAppointmentStore.getState();
+      expect(state.appointmentIdsByOrgId['org-B']).toEqual(['appt-3']);
+      expect(state.appointmentIdsByOrgId['org-A']).toEqual(['appt-2']);
+    });
+
+    it('removeAppointment tolerates an appointment whose org index is missing', () => {
+      useAppointmentStore.setState({
+        appointmentsById: { 'appt-1': mockAppt1 },
+        appointmentIdsByOrgId: {},
+      });
+
+      useAppointmentStore.getState().removeAppointment('appt-1');
+
+      const state = useAppointmentStore.getState();
+      expect(state.appointmentsById['appt-1']).toBeUndefined();
+      expect(state.appointmentIdsByOrgId['org-A']).toEqual([]);
+    });
   });
 });

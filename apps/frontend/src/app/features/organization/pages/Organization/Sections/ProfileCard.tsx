@@ -6,7 +6,7 @@ import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import MultiSelectDropdown from '@/app/ui/inputs/MultiSelectDropdown';
 import LogoUpdator from '@/app/ui/widgets/UploadImage/LogoUpdator';
-import GoogleSearchDropDown from '@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown';
+import GoogleAddressFieldRenderer from '@/app/ui/primitives/Accordion/googleAddressFieldRenderer';
 import { usePrimaryOrg } from '@/app/hooks/useOrgSelectors';
 import { usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
 import { updateOrg } from '@/app/features/organization/services/orgService';
@@ -176,26 +176,7 @@ const FieldComponents: Record<
       />
     );
   },
-  googleAddress: ({ field, value, onChange, onMultiChange, error }) => (
-    <GoogleSearchDropDown
-      intype="text"
-      inname={field.key}
-      value={value ?? ''}
-      inlabel={field.label}
-      error={error}
-      onChange={(e) => onChange(e.target.value)}
-      onlyAddress={true}
-      onAddressSelect={(address) => {
-        onChange(address.addressLine);
-        onMultiChange?.({
-          city: address.city,
-          state: address.state,
-          postalCode: address.postalCode,
-          ...(address.country ? { country: address.country } : {}),
-        });
-      }}
-    />
-  ),
+  googleAddress: GoogleAddressFieldRenderer,
 };
 
 const FieldValueRow: React.FC<{

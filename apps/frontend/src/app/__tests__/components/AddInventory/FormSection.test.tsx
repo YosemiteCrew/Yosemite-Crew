@@ -200,6 +200,12 @@ jest.mock('@/app/features/inventory/components/AddInventory/InventoryConfig', ()
           field: { name: 'withdrawlPeriod', component: 'text', placeholder: 'Withdrawal period' },
         },
       ],
+      pricing: [
+        {
+          kind: 'item',
+          field: { name: 'purchaseCost', component: 'text', placeholder: 'Unit cost' },
+        },
+      ],
       // Exercises every renderer branch, including placeholder-less fields.
       misc: [
         { kind: 'item', field: { name: 'plainText', component: 'text' } },
@@ -289,6 +295,14 @@ describe('FormSection Component', () => {
     // Textarea (inside Row)
     const textarea = screen.getByTestId('textarea-description');
     expect(textarea).toHaveValue('Test Desc');
+
+    fireEvent.change(textarea, { target: { value: 'Updated Desc' } });
+    expect(mockOnFieldChange).toHaveBeenLastCalledWith(
+      'basicInfo',
+      'description',
+      'Updated Desc',
+      undefined
+    );
   });
 
   it('handles Date parsing and changes correctly', () => {
@@ -696,6 +710,41 @@ describe('FormSection Component', () => {
     // Both derived and numeric coercion fail -> '0' (line 193 final fallback).
     expect(screen.getAllByText('0').length).toBeGreaterThan(0);
     expect(screen.queryByText('xyz')).not.toBeInTheDocument();
+  });
+
+  it('renders the pricing summary for the pricing section', () => {
+    render(
+      <FormSection
+        {...defaultProps}
+        sectionKey={'pricing' as any}
+        sectionTitle="Pricing"
+        formData={
+          { pricing: { purchaseCost: '10', selling: '20' }, stock: { current: '5' } } as any
+        }
+        errors={{} as any}
+      />
+    );
+    // PricingSummary renders below the pricing fields.
+    expect(screen.getByText('Gross profit per unit :')).toBeInTheDocument();
+    expect(screen.getByText('$10')).toBeInTheDocument();
+    expect(screen.getByText('Margin :')).toBeInTheDocument();
+    expect(screen.getByText('50%')).toBeInTheDocument();
+    expect(screen.getByText('Total stock value')).toBeInTheDocument();
+    expect(screen.getByText('$50')).toBeInTheDocument();
+  });
+
+  it('coerces unsupported multiselect value types to an empty list', () => {
+    render(
+      <FormSection
+        {...defaultProps}
+        sectionKey={'misc' as any}
+        sectionTitle="Misc"
+        formData={{ misc: { plainMulti: { nested: true } } } as any}
+        errors={{} as any}
+      />
+    );
+    // Object values fall through to the empty-list branch of getMultiSelectValues.
+    expect(screen.getByTestId('ms-value')).toHaveTextContent('[]');
   });
 
   it('renders nothing configured for an unknown business type', () => {

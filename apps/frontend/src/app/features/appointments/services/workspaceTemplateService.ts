@@ -17,26 +17,11 @@ import type {
   SoapTemplate,
 } from '@/app/features/appointments/types/workspace';
 import { getTaskCategoryLabel } from '@/app/features/tasks/constants/taskTaxonomy';
-
-type TemplateListParams = {
-  kind?: TemplateKind;
-  status?: string;
-  scope?: string;
-};
-
-const listTemplates = async (url: string, params: TemplateListParams = {}) => {
-  const res = await getData<TemplateLike[]>(url, params);
-  return Array.isArray(res.data) ? res.data : [];
-};
-
-const dedupeTemplates = (templates: TemplateLike[]) => {
-  const byId = new Map<string, TemplateLike>();
-  for (const template of templates) {
-    if (!template?.id) continue;
-    byId.set(template.id, template);
-  }
-  return [...byId.values()];
-};
+import {
+  dedupeTemplates,
+  listTemplates,
+  type TemplateListParams,
+} from '@/app/features/forms/services/templateListShared';
 
 export const listWorkspaceTemplates = async (
   organisationId: string,
@@ -201,17 +186,17 @@ export const templateToSoapTemplate = (template: TemplateLike): SoapTemplate => 
 };
 
 /**
- * Resolve the SOAP template that best matches the encounter context via the shared
- * `GET /pms/resolve` endpoint (kind `SOAP_NOTE`). Returns the resolved template as a
- * `SoapTemplate` (content snapshot + version) or `null` when none is configured —
- * the backend answers 404, which we treat as "no default", so the editor stays blank.
+ * Build the `GET /pms/resolve` query params for a template kind from the encounter
+ * context, including only the context fields that are set. Shared by the SOAP,
+ * discharge, and prescription resolvers.
  */
-export const resolveSoapTemplate = async (
-  context: TemplateResolveContext
-): Promise<SoapTemplate | null> => {
+const buildResolveParams = (
+  context: TemplateResolveContext,
+  kind: TemplateKind
+): Record<string, string> => {
   const params: Record<string, string> = {
     organisationId: context.organisationId,
-    kind: 'SOAP_NOTE',
+    kind,
   };
   if (context.appointmentId) params.appointmentId = context.appointmentId;
   if (context.encounterId) params.encounterId = context.encounterId;
@@ -220,6 +205,19 @@ export const resolveSoapTemplate = async (
   if (context.serviceId) params.serviceId = context.serviceId;
   if (context.packageId) params.packageId = context.packageId;
   if (context.mode) params.mode = context.mode;
+  return params;
+};
+
+/**
+ * Resolve the SOAP template that best matches the encounter context via the shared
+ * `GET /pms/resolve` endpoint (kind `SOAP_NOTE`). Returns the resolved template as a
+ * `SoapTemplate` (content snapshot + version) or `null` when none is configured —
+ * the backend answers 404, which we treat as "no default", so the editor stays blank.
+ */
+export const resolveSoapTemplate = async (
+  context: TemplateResolveContext
+): Promise<SoapTemplate | null> => {
+  const params = buildResolveParams(context, 'SOAP_NOTE');
 
   try {
     const res = await getData<TemplateResolveResponse>('/v1/templates/pms/resolve', params);
@@ -378,17 +376,7 @@ export type TemplateResolveContext = {
 export const resolveDischargeTemplate = async (
   context: TemplateResolveContext
 ): Promise<TemplateResolveResponse | null> => {
-  const params: Record<string, string> = {
-    organisationId: context.organisationId,
-    kind: 'DISCHARGE_SUMMARY',
-  };
-  if (context.appointmentId) params.appointmentId = context.appointmentId;
-  if (context.encounterId) params.encounterId = context.encounterId;
-  if (context.companionId) params.companionId = context.companionId;
-  if (context.species) params.species = context.species;
-  if (context.serviceId) params.serviceId = context.serviceId;
-  if (context.packageId) params.packageId = context.packageId;
-  if (context.mode) params.mode = context.mode;
+  const params = buildResolveParams(context, 'DISCHARGE_SUMMARY');
 
   try {
     const res = await getData<TemplateResolveResponse>('/v1/templates/pms/resolve', params);
@@ -597,17 +585,7 @@ export const listPrescriptionTemplatesForWorkspace = async (
 export const resolvePrescriptionTemplate = async (
   context: TemplateResolveContext
 ): Promise<Array<Omit<PrescriptionItem, 'id'>>> => {
-  const params: Record<string, string> = {
-    organisationId: context.organisationId,
-    kind: 'PRESCRIPTION',
-  };
-  if (context.appointmentId) params.appointmentId = context.appointmentId;
-  if (context.encounterId) params.encounterId = context.encounterId;
-  if (context.companionId) params.companionId = context.companionId;
-  if (context.species) params.species = context.species;
-  if (context.serviceId) params.serviceId = context.serviceId;
-  if (context.packageId) params.packageId = context.packageId;
-  if (context.mode) params.mode = context.mode;
+  const params = buildResolveParams(context, 'PRESCRIPTION');
 
   try {
     const res = await getData<TemplateResolveResponse>('/v1/templates/pms/resolve', params);

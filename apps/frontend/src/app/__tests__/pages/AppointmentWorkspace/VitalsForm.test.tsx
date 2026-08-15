@@ -343,6 +343,33 @@ describe('VitalsForm', () => {
     expect(await screen.findByText(/-5 lbs since/)).toBeInTheDocument();
   });
 
+  it('expands and collapses a recorded vitals entry and resolves the recorder from the roster', () => {
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([
+      { _id: 'member-1', practionerId: 'pract-1', name: 'Nurse Ann' },
+      { _id: 'member-2', name: '   ' },
+    ]);
+    const vitals = [
+      {
+        id: 'v1',
+        code: 'VIT-1',
+        recordedByName: 'Clinician',
+        recordedById: 'pract-1',
+        recordedAt: '2026-05-01T10:00:00Z',
+        weightLbs: 42,
+      },
+    ] as Vitals[];
+    render(<VitalsForm {...baseProps} vitals={vitals} />);
+
+    // The stored generic "Clinician" name resolves against the team roster.
+    expect(screen.getByText('Nurse Ann')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'View VIT-1' }));
+    expect(screen.getByText('Weight: 42 lbs')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hide VIT-1' }));
+    expect(screen.queryByText('Weight: 42 lbs')).not.toBeInTheDocument();
+  });
+
   describe('vitalsFormDraftReducer', () => {
     it('returns the same state reference when RESET is dispatched on an already-empty state', () => {
       expect(vitalsFormDraftReducer(INITIAL_VITALS_FORM_DRAFT_STATE, { type: 'RESET' })).toBe(

@@ -5,6 +5,7 @@ import AppointmentCentralModalShell from '@/app/features/appointments/components
 import BottomSheet from '@/app/ui/layout/PhoneShell/BottomSheet';
 import useIsPhone from '@/app/ui/layout/PhoneShell/useIsPhone';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
+import { primaryButtonGlowHandlers } from '@/app/ui/primitives/buttonGlowHandlers';
 import { useNotify } from '@/app/hooks/useNotify';
 import { useCompanionsParentsForPrimaryOrg } from '@/app/hooks/useCompanion';
 import {
@@ -942,16 +943,7 @@ const useAddCompanionCentralModalContent = ({
             type="button"
             onClick={handleDiscardAndClose}
             className="yc-primary-button rounded-2xl! px-4 py-[11px] font-satoshi text-base font-medium leading-[1.5rem]"
-            onPointerDown={(e) => {
-              const r = e.currentTarget.getBoundingClientRect();
-              e.currentTarget.style.setProperty('--yc-button-x', `${e.clientX - r.left}px`);
-              e.currentTarget.style.setProperty('--yc-button-y', `${e.clientY - r.top}px`);
-            }}
-            onPointerMove={(e) => {
-              const r = e.currentTarget.getBoundingClientRect();
-              e.currentTarget.style.setProperty('--yc-button-x', `${e.clientX - r.left}px`);
-              e.currentTarget.style.setProperty('--yc-button-y', `${e.clientY - r.top}px`);
-            }}
+            {...primaryButtonGlowHandlers}
           >
             Discard
           </button>

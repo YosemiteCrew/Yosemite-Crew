@@ -21,6 +21,7 @@ import {
   DISCORD_INVITE_URL,
 } from '@/app/features/marketing/site';
 import { postData } from '@/app/services/axios';
+import { makeOptions } from '@/app/lib/options';
 
 const NEWSREADER = 'var(--font-newsreader)';
 const EASE = 'cubic-bezier(0.16,1,0.3,1)';
@@ -86,106 +87,43 @@ const queryTypes: TicketCategory[] = [
   'Complaint',
 ];
 
-const subrequestOptions: { label: string; value: DsraRequesterType }[] = [
-  {
-    value: 'SELF',
-    label: 'The person whose name appears above',
-  },
-  {
-    value: 'PARENT_GUARDIAN',
-    label: 'The parent / guardian of the person whose name appears above',
-  },
-  {
-    value: 'AUTHORIZED_AGENT',
-    label: 'An agent authorized by the consumer to make this request on their behalf',
-  },
-];
+const subrequestOptions: { label: string; value: DsraRequesterType }[] = makeOptions([
+  ['The person whose name appears above', 'SELF'],
+  ['The parent / guardian of the person whose name appears above', 'PARENT_GUARDIAN'],
+  ['An agent authorized by the consumer to make this request on their behalf', 'AUTHORIZED_AGENT'],
+]);
 
-const requestOptions: { label: string; value: DsraRight }[] = [
-  {
-    label: 'Know what information is being collected from you',
-    value: 'KNOW_INFORMATION_COLLECTED',
-  },
-  {
-    label: 'Have your information deleted',
-    value: 'DELETE_DATA',
-  },
-  {
-    label: 'Opt-out of having your data sold to third-parties',
-    value: 'OPT_OUT_SELLING_SHARING',
-  },
-  {
-    label: 'Opt-in to the sale of your personal data to third-parties',
-    value: 'OTHER',
-  },
-  {
-    label: 'Access your personal information',
-    value: 'ACCESS_PERSONAL_INFORMATION',
-  },
-  {
-    label: 'Fix inaccurate information',
-    value: 'RECTIFY_INACCURATE_INFORMATION',
-  },
-  {
-    label: 'Receive a copy of your personal information',
-    value: 'PORTABILITY_COPY',
-  },
-  {
-    label: 'Opt-out of having your data shared for cross-context behavioral advertising',
-    value: 'OPT_OUT_SELLING_SHARING',
-  },
-  {
-    label: 'Limit the use and disclosure of your sensitive personal information',
-    value: 'LIMIT_SENSITIVE_PROCESSING',
-  },
-  {
-    label: 'Others (please specify in the comment box below)',
-    value: 'OTHER',
-  },
-];
+const requestOptions: { label: string; value: DsraRight }[] = makeOptions([
+  ['Know what information is being collected from you', 'KNOW_INFORMATION_COLLECTED'],
+  ['Have your information deleted', 'DELETE_DATA'],
+  ['Opt-out of having your data sold to third-parties', 'OPT_OUT_SELLING_SHARING'],
+  ['Opt-in to the sale of your personal data to third-parties', 'OTHER'],
+  ['Access your personal information', 'ACCESS_PERSONAL_INFORMATION'],
+  ['Fix inaccurate information', 'RECTIFY_INACCURATE_INFORMATION'],
+  ['Receive a copy of your personal information', 'PORTABILITY_COPY'],
+  [
+    'Opt-out of having your data shared for cross-context behavioral advertising',
+    'OPT_OUT_SELLING_SHARING',
+  ],
+  [
+    'Limit the use and disclosure of your sensitive personal information',
+    'LIMIT_SENSITIVE_PROCESSING',
+  ],
+  ['Others (please specify in the comment box below)', 'OTHER'],
+]);
 
-const areaOptions: Option[] = [
-  {
-    value: 'GDPR',
-    label: 'EU GDPR (General Data Protection Regulation)',
-  },
-  {
-    value: 'UK_GDPR',
-    label: 'UK GDPR / Data Protection Act 2018',
-  },
-  {
-    value: 'CCPA',
-    label: 'CCPA / CPRA (California Consumer Privacy Act)',
-  },
-  {
-    value: 'LGPD',
-    label: 'LGPD (Brazilian General Data Protection Law)',
-  },
-  {
-    value: 'PIPEDA',
-    label: 'PIPEDA (Personal Information Protection and Electronic Documents Act, Canada)',
-  },
-  {
-    value: 'POPIA',
-    label: 'POPIA (Protection of Personal Information Act, South Africa)',
-  },
-  {
-    value: 'PDPA',
-    label: 'PDPA (Personal Data Protection Act, Singapore)',
-  },
-  {
-    value: 'PIPL',
-    label: 'PIPL (Personal Information Protection Law, China)',
-  },
-  {
-    value: 'PA_1988_AU',
-    label: 'Privacy Act 1988 (Australia)',
-  },
-  {
-    value: 'OTHER',
-    label: 'Other',
-  },
-];
+const areaOptions: Option[] = makeOptions([
+  ['EU GDPR (General Data Protection Regulation)', 'GDPR'],
+  ['UK GDPR / Data Protection Act 2018', 'UK_GDPR'],
+  ['CCPA / CPRA (California Consumer Privacy Act)', 'CCPA'],
+  ['LGPD (Brazilian General Data Protection Law)', 'LGPD'],
+  ['PIPEDA (Personal Information Protection and Electronic Documents Act, Canada)', 'PIPEDA'],
+  ['POPIA (Protection of Personal Information Act, South Africa)', 'POPIA'],
+  ['PDPA (Personal Data Protection Act, Singapore)', 'PDPA'],
+  ['PIPL (Personal Information Protection Law, China)', 'PIPL'],
+  ['Privacy Act 1988 (Australia)', 'PA_1988_AU'],
+  ['Other', 'OTHER'],
+]);
 
 const confirmOptions = [
   'Under penalty of perjury, I declare all the above information to be true and accurate.',

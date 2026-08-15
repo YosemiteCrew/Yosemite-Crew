@@ -382,6 +382,28 @@ describe('MultiSelectDropdown', () => {
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
   });
 
+  it('highlights the option under the pointer', () => {
+    render(
+      <MultiSelectDropdown
+        placeholder="Select"
+        value={[]}
+        onChange={jest.fn()}
+        options={['One', 'Two']}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Select/i }));
+
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Two', pressed: false }));
+
+    expect(screen.getByRole('button', { name: 'Two', pressed: false })).toHaveClass(
+      'bg-card-hover'
+    );
+    expect(screen.getByRole('button', { name: 'One', pressed: false })).not.toHaveClass(
+      'bg-card-hover'
+    );
+  });
+
   it('renders the empty state when no options prop is provided', () => {
     render(<MultiSelectDropdown placeholder="Select" value={[]} onChange={jest.fn()} />);
 

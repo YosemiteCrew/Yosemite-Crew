@@ -1289,6 +1289,13 @@ describe('ChatContainer', () => {
       expect(filter([unknown])).toContain(unknown);
     });
 
+    it('treats an unstamped channel without an id as outside the org allowlist', async () => {
+      const idless = { ...clientChannel('idless', {}), id: undefined };
+      const filter = await renderForFilter();
+
+      expect(filter([idless])).not.toContain(idless);
+    });
+
     it('scopes to the organisation switched into rather than the one loaded before', async () => {
       const theirs = clientChannel('theirs', { organisationId: 'org-2' });
       const filter = await renderForFilter();
@@ -2170,6 +2177,31 @@ describe('ChatContainer', () => {
     expect(onChannelSelect).not.toHaveBeenCalled();
 
     mockClient.queryChannels.mockResolvedValue([defaultMockChannel]);
+  });
+
+  it('closes the network directory without starting a chat', async () => {
+    mockUseOrgStore.mockImplementation((selector: any) =>
+      selector({
+        primaryOrgId: 'org-1',
+        status: 'loaded',
+        getPrimaryOrg: () => ({ crossOrgMessagingEnabled: true }),
+      })
+    );
+
+    await act(async () => {
+      render(<ChatContainer scope="colleagues" />);
+    });
+    await waitFor(() =>
+      expect(screen.getByText('Message a colleague at another clinic')).toBeInTheDocument()
+    );
+    fireEvent.click(screen.getByText('Message a colleague at another clinic'));
+    await waitFor(() => expect(screen.getByTestId('network-modal')).toBeInTheDocument());
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Close Network'));
+    });
+
+    expect(screen.queryByTestId('network-modal')).not.toBeInTheDocument();
   });
 
   it('goes back to the conversation list from the mobile chat view', async () => {

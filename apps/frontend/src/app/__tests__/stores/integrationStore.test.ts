@@ -1,4 +1,5 @@
 import { useIntegrationStore } from '@/app/stores/integrationStore';
+import type { OrgIntegration } from '@/app/features/integrations/services/types';
 
 describe('integrationStore', () => {
   beforeEach(() => {
@@ -113,5 +114,50 @@ describe('integrationStore', () => {
     store.endLoading();
     expect(useIntegrationStore.getState().status).toBe('loaded');
     expect(useIntegrationStore.getState().error).toBeNull();
+  });
+
+  it('skips integrations without any id when setting for an org', () => {
+    const store = useIntegrationStore.getState();
+    store.setIntegrationsForOrg('org-1', [
+      {
+        organisationId: 'org-1',
+        provider: 'IDEXX',
+        status: 'enabled',
+      } as unknown as OrgIntegration,
+      {
+        id: 'i9',
+        organisationId: 'org-1',
+        provider: 'MERCK_MANUALS',
+        status: 'enabled',
+      } as unknown as OrgIntegration,
+    ]);
+
+    expect(useIntegrationStore.getState().integrationIdsByOrgId['org-1']).toEqual(['i9']);
+  });
+
+  it('ignores an upsert without any id', () => {
+    const store = useIntegrationStore.getState();
+    store.upsertIntegration({
+      organisationId: 'org-1',
+      provider: 'IDEXX',
+    } as unknown as OrgIntegration);
+
+    expect(useIntegrationStore.getState().integrationIdsByOrgId['org-1']).toBeUndefined();
+    expect(useIntegrationStore.getState().status).toBe('idle');
+  });
+
+  it('treats a missing provider as an empty string when matching by provider', () => {
+    const store = useIntegrationStore.getState();
+    store.upsertIntegration({ _id: 'i1', organisationId: 'org-1' } as unknown as OrgIntegration);
+
+    expect(store.getIntegrationByProvider('org-1', 'IDEXX' as any)).toBeNull();
+  });
+
+  it('clears an org with no stored integrations without crashing', () => {
+    const store = useIntegrationStore.getState();
+    store.clearIntegrationsForOrg('org-none');
+
+    expect(useIntegrationStore.getState().integrationIdsByOrgId['org-none']).toBeUndefined();
+    expect(useIntegrationStore.getState().status).toBe('loaded');
   });
 });

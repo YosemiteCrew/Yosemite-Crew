@@ -611,6 +611,24 @@ describe('SummaryStep', () => {
     printSpy.mockRestore();
   });
 
+  it('reopens the saved summary from the edit pencil while the locked date field stays inert', () => {
+    const enc = { ...seedAndGet(), dischargeSavedAt: '2026-04-20T10:00:00Z' };
+    renderSummary(enc);
+
+    // The read-only Datepicker gets a noop setter — picking a date must not
+    // record a follow-up on the store.
+    const lockedField = screen
+      .getAllByRole('button', { name: /^Follow up date:/ })[0]
+      .closest<HTMLElement>('[aria-disabled="true"]')!;
+    fireEvent.click(within(lockedField).getByRole('button', { name: 'mock pick date' }));
+    expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.followUpAt).toBeUndefined();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit discharge summary' }));
+    expect(
+      useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.dischargeSavedAt
+    ).toBeUndefined();
+  });
+
   it('dims the follow-up date once the summary is saved so it does not read as editable', () => {
     // The saved state locks the field (the Edit pencil reopens it). Without the
     // dimming it still renders as a live input, so the date looks broken rather

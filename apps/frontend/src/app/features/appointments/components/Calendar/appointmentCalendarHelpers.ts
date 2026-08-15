@@ -10,6 +10,11 @@ import {
   DropAvailabilityInterval,
   resolveAvailabilityIntervalsForDay,
 } from '@/app/features/appointments/components/Calendar/availabilityIntervals';
+import {
+  getErrorMessageFromCandidate,
+  hasAppointmentConflict,
+  teamSupportsSpeciality,
+} from '@/app/features/appointments/components/Calendar/appointmentCalendarDragUtils';
 
 export type DragContext = {
   appointmentId: string;
@@ -45,59 +50,9 @@ export const getDayOfWeekKey = (date: Date) =>
 export const toLocalClockFromUtcTime = (utcTime: string) =>
   utcClockTimeToPreferredTimeZoneClock(utcTime);
 
-export const getErrorMessageFromCandidate = (
-  candidate: { response?: { data?: unknown } } | { data?: unknown } | { message?: string },
-  fallback: string
-) => {
-  const asRecord = (value: unknown): Record<string, unknown> | null =>
-    value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
-  const getTrimmedMessage = (value: unknown) =>
-    typeof value === 'string' && value.trim() ? value.trim() : null;
-  const getResponseMessage = (value: unknown) => {
-    const data = asRecord(value);
-    if (!data) return getTrimmedMessage(value);
-    return (
-      getTrimmedMessage(data.message) ||
-      getTrimmedMessage(data.error) ||
-      getTrimmedMessage(data.details)
-    );
-  };
-
-  const candidateRecord = asRecord(candidate);
-  const responseRecord = asRecord(candidateRecord?.response);
-  const responseData = responseRecord?.data;
-  const candidateMessage = candidateRecord?.message;
-
-  return getResponseMessage(responseData) || getTrimmedMessage(candidateMessage) || fallback;
-};
-
-export const hasAppointmentConflict = (
-  moved: Appointment,
-  nextStart: Date,
-  nextEnd: Date,
-  sourceAppointments: Appointment[],
-  targetLeadId?: string
-) => {
-  return sourceAppointments.some((existing) => {
-    if (!existing.id || existing.id === moved.id) return false;
-    if (existing.status === 'CANCELLED' || existing.status === 'NO_SHOW') return false;
-    const existingStart = new Date(existing.startTime);
-    const existingEnd = new Date(existing.endTime);
-    const overlaps =
-      nextStart.getTime() < existingEnd.getTime() && nextEnd.getTime() > existingStart.getTime();
-    if (!overlaps) return false;
-
-    const movedLead = targetLeadId || moved.lead?.id;
-    const existingLead = existing.lead?.id;
-    const leadConflict = !!movedLead && movedLead === existingLead;
-
-    const movedRoom = moved.room?.id;
-    const existingRoom = existing.room?.id;
-    const roomConflict = !!movedRoom && movedRoom === existingRoom;
-
-    return leadConflict || roomConflict;
-  });
-};
+// Single source of truth for these drag helpers lives in appointmentCalendarDragUtils.
+export { getErrorMessageFromCandidate, hasAppointmentConflict };
+export { teamSupportsSpeciality as supportsSpeciality };
 
 export const normalizeId = (value?: string) =>
   String(value ?? '')
@@ -129,30 +84,6 @@ export const findCurrentUserPractitionerId = (teams: Team[], authUserId: string)
       normalizeId((team as any).userOrganisation?.userId) === normalizedCurrentUser
   );
   return member?.practionerId || member?._id;
-};
-
-export const supportsSpeciality = (
-  teams: Team[],
-  targetLeadId: string,
-  appointment: Appointment
-) => {
-  const normalizedTarget = normalizeId(targetLeadId);
-  const target = teams.find(
-    (member) =>
-      normalizeId(member.practionerId || '') === normalizedTarget ||
-      normalizeId(member._id || '') === normalizedTarget
-  );
-  if (!target) return false;
-  const appointmentSpeciality = appointment.appointmentType?.speciality;
-  if (!appointmentSpeciality) return true;
-  if (!Array.isArray(target.speciality) || target.speciality.length === 0) return true;
-  const expectedId = String((appointmentSpeciality as any).id ?? '').toLowerCase();
-  const expectedName = String((appointmentSpeciality as any).name ?? '').toLowerCase();
-  return target.speciality.some((spec: any) => {
-    const id = String(spec?._id ?? spec?.id ?? '').toLowerCase();
-    const name = String(spec?.name ?? spec ?? '').toLowerCase();
-    return (expectedId && id === expectedId) || (expectedName && name === expectedName);
-  });
 };
 
 export const buildAppointmentStartFromCalendarMinutes = (date: Date, minuteOfDay: number) => {

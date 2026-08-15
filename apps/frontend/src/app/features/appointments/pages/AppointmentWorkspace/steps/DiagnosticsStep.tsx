@@ -43,6 +43,7 @@ import {
   getTestSpecimen,
   toTitleCase,
 } from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/labTestsUtils';
+import { getIdexxTestSearchProps } from '@/app/features/appointments/pages/AppointmentWorkspace/steps/idexxTestSearchProps';
 import type { IdexxTest } from '@/app/features/integrations/services/types';
 import type { DiagnosticOrder } from '@/app/features/appointments/types/workspace';
 import { getSafeIdexxIframeUrl } from '@/app/lib/urls';
@@ -336,22 +337,8 @@ const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
     <div className="flex flex-col gap-4">
       <SearchDropdown
         placeholder="Search for lab tests"
-        options={s.tests.map((test) => ({
-          value: test.code,
-          label: `${test.display} (${test.code})`,
-          meta: test,
-        }))}
+        {...getIdexxTestSearchProps(s)}
         onSelect={s.selectSearchResult}
-        query={s.selectedTestLabel || s.query}
-        setQuery={(value: string) => {
-          s.setSelectedTestLabel(value);
-          s.setQuery(value);
-        }}
-        minChars={0}
-        onReachEnd={s.loadMoreTests}
-        hasMore={s.testsHasMore}
-        isLoadingMore={s.testsLoadingMore}
-        optionClassName="w-full text-start rounded-2xl! border border-card-border bg-neutral-0 px-3 py-2 mb-2 last:mb-0 hover:bg-neutral-0 transition-colors"
         renderOption={(option) => {
           const test = option.meta as IdexxTest | undefined;
           if (!test) return option.label;

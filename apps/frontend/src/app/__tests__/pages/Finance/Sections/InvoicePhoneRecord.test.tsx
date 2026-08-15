@@ -2,6 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import InvoicePhoneRecord from '@/app/features/finance/pages/Finance/Sections/InvoicePhoneRecord';
+import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
 
 jest.mock('next/image', () => ({
   __esModule: true,
@@ -13,8 +14,8 @@ jest.mock('@/app/lib/money', () => ({
 }));
 
 jest.mock('@/app/lib/forms', () => ({
-  formatDateLabel: () => '12 Jun',
-  formatTimeLabel: () => '10:31',
+  formatDateLabel: jest.fn(() => '12 Jun'),
+  formatTimeLabel: jest.fn(() => '10:31'),
 }));
 
 jest.mock('@/app/lib/invoice', () => ({
@@ -79,6 +80,8 @@ const baseProps = {
 describe('InvoicePhoneRecord', () => {
   beforeEach(() => {
     getAppointmentCompanionMock.mockReturnValue({ species: 'dog', name: 'Poppy', parent: {} });
+    (formatDateLabel as jest.Mock).mockReturnValue('12 Jun');
+    (formatTimeLabel as jest.Mock).mockReturnValue('10:31');
   });
 
   it('renders the header with number, status and subtitle', () => {
@@ -209,6 +212,13 @@ describe('InvoicePhoneRecord', () => {
     render(<InvoicePhoneRecord {...baseProps} statusLabel="" />);
     expect(screen.getByRole('heading', { name: '#2038' })).toBeInTheDocument();
     expect(screen.queryByText('Paid')).not.toBeInTheDocument();
+  });
+
+  it('omits the timestamp from the ledger caption when no date or time is available', () => {
+    (formatDateLabel as jest.Mock).mockReturnValue('');
+    (formatTimeLabel as jest.Mock).mockReturnValue('');
+    render(<InvoicePhoneRecord {...baseProps} />);
+    expect(screen.getByText('Stripe · Lena Hartmann')).toBeInTheDocument();
   });
 
   it('builds the ledger caption without a payer name or method', () => {

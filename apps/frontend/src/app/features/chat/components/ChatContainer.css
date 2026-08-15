@@ -128,12 +128,6 @@
   gap: 2px;
 }
 
-/* NOTE: Stream's own channel-preview styling is intentionally absent. Its class
-   only ships on ChannelPreviewMessenger, which we replace with ConversationRow;
-   the design's conversation list is a stack of rounded rows separated by a 2px
-   gap, NOT a ruled list, so no divider or left-stripe rules belong here. Row
-   styling lives in ConversationRow.tsx. */
-
 .chat-preview-trigger {
   display: block;
   width: 100%;

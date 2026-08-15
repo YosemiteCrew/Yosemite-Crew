@@ -496,6 +496,31 @@ describe('workspaceTemplateService', () => {
     ]);
   });
 
+  it('resolves no staged rows when the schedule template defines no task blocks', async () => {
+    getDataMock.mockResolvedValueOnce({
+      data: {
+        ...template('tpl-schedule-2', 'Empty pathway'),
+        kind: 'TASK_ASSIGNMENT',
+        versions: [
+          {
+            version: 1,
+            schemaSnapshot: {
+              sections: [
+                {
+                  id: 'other',
+                  title: 'Other',
+                  fields: [{ key: 'notes', type: 'text', label: 'Notes' }],
+                },
+              ],
+            },
+          },
+        ],
+      },
+    });
+
+    await expect(resolveScheduleTasksFromTemplate('org-1', 'tpl-schedule-2')).resolves.toEqual([]);
+  });
+
   it('updates catalog links for a workspace template', async () => {
     patchDataMock.mockResolvedValueOnce({
       data: { ...template('tpl-1'), catalogItemIds: ['svc-2'] },
@@ -674,6 +699,20 @@ describe('workspaceTemplateService', () => {
     it('rejects a non-finite follow-up offset', () => {
       expect(extractFollowUpInDays(withFollowUp(Infinity) as never)).toBeUndefined();
     });
+
+    it('returns undefined when no field is keyed followUpInDays', () => {
+      expect(
+        extractFollowUpInDays({
+          sections: [
+            {
+              id: 'summary',
+              title: 'Summary',
+              fields: [{ key: 'notes', label: 'Notes', type: 'text' }],
+            },
+          ],
+        } as never)
+      ).toBeUndefined();
+    });
   });
 
   describe('schemaSnapshotToPrescriptionItems', () => {
@@ -732,6 +771,48 @@ describe('workspaceTemplateService', () => {
       };
       expect(schemaSnapshotToPrescriptionItems(snapshot as never)).toEqual([]);
       expect(schemaSnapshotToPrescriptionItems(undefined)).toEqual([]);
+    });
+
+    it('walks nested group fields and normalises boolean-like row strings', () => {
+      const snapshot = {
+        sections: [
+          {
+            id: 'rx',
+            title: 'Prescription',
+            fields: [
+              {
+                key: 'group_1',
+                label: 'Medication group',
+                type: 'group',
+                fields: [
+                  {
+                    key: 'medicationLine',
+                    label: 'Medication lines',
+                    type: 'medicationLine',
+                    defaultValue: [
+                      {
+                        inventoryItemId: 'inv-9',
+                        medicineName: 'Carprofen',
+                        controlledSubstance: 'no',
+                        prescriptionRequired: 'maybe',
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      expect(schemaSnapshotToPrescriptionItems(snapshot as never)).toEqual([
+        expect.objectContaining({
+          inventoryItemId: 'inv-9',
+          medicineName: 'Carprofen',
+          controlledSubstance: false,
+          prescriptionRequired: undefined,
+        }),
+      ]);
     });
   });
 
@@ -841,6 +922,17 @@ describe('workspaceTemplateService', () => {
 
       getDataMock.mockRejectedValueOnce(new Error('nope'));
       await expect(resolvePrescriptionTemplate(context)).resolves.toEqual([]);
+    });
+
+    it('sends only the organisation and kind when the context has no optional fields', async () => {
+      getDataMock.mockResolvedValueOnce({ data: undefined });
+
+      await expect(resolvePrescriptionTemplate({ organisationId: 'org-1' })).resolves.toEqual([]);
+
+      expect(getDataMock).toHaveBeenCalledWith('/v1/templates/pms/resolve', {
+        organisationId: 'org-1',
+        kind: 'PRESCRIPTION',
+      });
     });
   });
 });

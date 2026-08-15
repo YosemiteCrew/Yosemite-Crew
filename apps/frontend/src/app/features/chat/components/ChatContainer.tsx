@@ -1473,6 +1473,36 @@ const useChatContainerView = ({
     [client, onChannelSelect]
   );
 
+  /**
+   * Shared post-create activation for backend chat sessions: query the
+   * session's channel so it appears in lists, stamp the chat metadata on it,
+   * and select it (falling back to activateChannelById when the query misses).
+   */
+  const activateSessionChannel = useCallback(
+    async (chatClient: StreamChat, channelId: string, metadata: Record<string, unknown>) => {
+      const applyMetadata = async (chan: StreamChannel) => {
+        await chan.update(metadata, {});
+      };
+      const queried = await chatClient.queryChannels(
+        { id: { $eq: channelId } },
+        [{ last_message_at: -1 }],
+        { watch: true, state: true, presence: true, limit: 1 }
+      );
+      if (queried[0]) {
+        await queried[0].watch();
+        await applyMetadata(queried[0]);
+        setIsChannelSelected(true);
+        setShowEmptyPlaceholder(false);
+        onChannelSelect?.(queried[0]);
+      } else {
+        await activateChannelById(channelId);
+        const chan = chatClient.channel('team', channelId);
+        await applyMetadata(chan);
+      }
+    },
+    [activateChannelById, onChannelSelect]
+  );
+
   const handleStartDirectChat = useCallback(
     async (user: OrgUserOption) => {
       if (!primaryOrgId || !client) return;
@@ -1591,37 +1621,15 @@ const useChatContainerView = ({
             organisationId: primaryOrgId,
             otherUserId,
           });
-          const applyMetadata = async (chan: StreamChannel) => {
-            await chan.update(
-              {
-                directId: session._id,
-                title: session.title,
-                description: session.description,
-                type: session.type,
-                chatCategory: 'colleagues',
-                organisationId: session.organisationId,
-                createdBy: session.createdBy,
-              } as Record<string, unknown>,
-              {}
-            );
-          };
-          // Try to load the channel via query to ensure it appears in lists
-          const queried = await client.queryChannels(
-            { id: { $eq: session.channelId } },
-            [{ last_message_at: -1 }],
-            { watch: true, state: true, presence: true, limit: 1 }
-          );
-          if (queried[0]) {
-            await queried[0].watch();
-            await applyMetadata(queried[0]);
-            setIsChannelSelected(true);
-            setShowEmptyPlaceholder(false);
-            onChannelSelect?.(queried[0]);
-          } else {
-            await activateChannelById(session.channelId);
-            const chan = client.channel('team', session.channelId);
-            await applyMetadata(chan);
-          }
+          await activateSessionChannel(client, session.channelId, {
+            directId: session._id,
+            title: session.title,
+            description: session.description,
+            type: session.type,
+            chatCategory: 'colleagues',
+            organisationId: session.organisationId,
+            createdBy: session.createdBy,
+          });
           success = true;
           break;
         } catch (err) {
@@ -1637,7 +1645,7 @@ const useChatContainerView = ({
       }
       setCreatingChat(false);
     },
-    [primaryOrgId, client, activateChannelById, onChannelSelect, notify]
+    [primaryOrgId, client, activateSessionChannel, onChannelSelect, notify]
   );
 
   const handleNetworkChatStarted = useCallback(
@@ -1682,36 +1690,15 @@ const useChatContainerView = ({
           memberIds: allMembers,
           isPrivate: true,
         });
-        const applyMetadata = async (chan: StreamChannel) => {
-          await chan.update(
-            {
-              groupId: session._id,
-              title: session.title || title,
-              description: session.description,
-              type: session.type,
-              chatCategory: 'group',
-              organisationId: session.organisationId,
-              createdBy: session.createdBy,
-            } as Record<string, unknown>,
-            {}
-          );
-        };
-        const queried = await client.queryChannels(
-          { id: { $eq: session.channelId } },
-          [{ last_message_at: -1 }],
-          { watch: true, state: true, presence: true, limit: 1 }
-        );
-        if (queried[0]) {
-          await queried[0].watch();
-          await applyMetadata(queried[0]);
-          setIsChannelSelected(true);
-          setShowEmptyPlaceholder(false);
-          onChannelSelect?.(queried[0]);
-        } else {
-          await activateChannelById(session.channelId);
-          const chan = client.channel('team', session.channelId);
-          await applyMetadata(chan);
-        }
+        await activateSessionChannel(client, session.channelId, {
+          groupId: session._id,
+          title: session.title || title,
+          description: session.description,
+          type: session.type,
+          chatCategory: 'group',
+          organisationId: session.organisationId,
+          createdBy: session.createdBy,
+        });
         setGroupModalOpen(false);
       } catch (err) {
         console.error('Failed to create group', err);
@@ -1723,15 +1710,7 @@ const useChatContainerView = ({
         setGroupModalBusy(false);
       }
     },
-    [
-      primaryOrgId,
-      client,
-      activateChannelById,
-      onChannelSelect,
-      notify,
-      setGroupModalBusy,
-      setGroupModalOpen,
-    ]
+    [primaryOrgId, client, activateSessionChannel, notify, setGroupModalBusy, setGroupModalOpen]
   );
 
   const handleModalUpdateTitle = useCallback(

@@ -34,6 +34,7 @@ import {
   LabResultTest,
   LabResult,
 } from '@/app/features/integrations/services/types';
+import { getIdexxTestSearchProps } from '@/app/features/appointments/pages/AppointmentWorkspace/steps/idexxTestSearchProps';
 import { formatDateTimeLocal } from '@/app/lib/date';
 import {
   formatTestPrice,
@@ -981,22 +982,8 @@ const ReferenceLabForm = ({ s }: { s: UseLabTestsReturn }) => (
     </div>
     <SearchDropdown
       placeholder="Search IDEXX tests"
-      options={s.tests.map((test) => ({
-        value: test.code,
-        label: `${test.display} (${test.code})`,
-        meta: test,
-      }))}
+      {...getIdexxTestSearchProps(s)}
       onSelect={s.addTest}
-      query={s.selectedTestLabel || s.query}
-      setQuery={(value: string) => {
-        s.setSelectedTestLabel(value);
-        s.setQuery(value);
-      }}
-      minChars={0}
-      onReachEnd={s.loadMoreTests}
-      hasMore={s.testsHasMore}
-      isLoadingMore={s.testsLoadingMore}
-      optionClassName="w-full text-start rounded-2xl! border border-card-border bg-neutral-0 px-3 py-2 mb-2 last:mb-0 hover:bg-neutral-0 transition-colors"
       renderOption={(option) => {
         const test = option.meta as IdexxTest | undefined;
         if (!test) return option.label;
