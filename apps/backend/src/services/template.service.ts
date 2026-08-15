@@ -1299,10 +1299,9 @@ export const TemplateService = {
         }
       }
 
-      matches.sort((left, right) =>
+      const bestMatch = matches.sort((left, right) =>
         compareResolverMatches(left.matched, right.matched),
-      );
-      const bestMatch = matches[0];
+      )[0];
 
       if (!bestMatch) {
         return null;

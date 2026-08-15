@@ -519,7 +519,11 @@ describe("CompanionHistoryService", () => {
 
     expect(logger.warn).toHaveBeenCalledWith(
       "Companion history appointments failed",
-      expect.objectContaining({ organisationId, patientId: companionId }),
+      expect.objectContaining({ organisationId }),
+    );
+    expect(logger.warn).not.toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ patientId: companionId }),
     );
   });
 });

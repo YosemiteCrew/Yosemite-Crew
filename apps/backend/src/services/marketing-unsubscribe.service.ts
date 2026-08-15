@@ -96,18 +96,8 @@ export const createMarketingUnsubscribeToken = (email: string): string => {
   ].join(TOKEN_SEPARATOR);
 };
 
-const stripTrailingSlashes = (value: string): string => {
-  let end = value.length;
-  while (end > 0 && value[end - 1] === "/") {
-    end -= 1;
-  }
-  return value.slice(0, end);
-};
-
 export const buildMarketingUnsubscribeUrl = (email: string): string => {
-  const apiUrl = stripTrailingSlashes(
-    requireEnvironmentValue("PUBLIC_API_URL"),
-  );
+  const apiUrl = requireEnvironmentValue("PUBLIC_API_URL").replace(/\/+$/, "");
   const token = createMarketingUnsubscribeToken(email);
   return `${apiUrl}/v1/email-preferences/unsubscribe?token=${encodeURIComponent(token)}`;
 };

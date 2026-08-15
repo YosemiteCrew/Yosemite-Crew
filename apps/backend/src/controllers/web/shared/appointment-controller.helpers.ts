@@ -8,13 +8,11 @@ export const parseError = (
   err: unknown,
   fallbackMessage: string,
 ): { status: number; message: string } => {
-  const status =
-    typeof err === "object" &&
-    err !== null &&
-    "statusCode" in err &&
-    typeof (err as ErrorWithStatus).statusCode === "number"
-      ? ((err as ErrorWithStatus).statusCode ?? 500)
-      : 500;
+  const statusCode =
+    typeof err === "object" && err !== null && "statusCode" in err
+      ? (err as ErrorWithStatus).statusCode
+      : undefined;
+  const status = typeof statusCode === "number" ? statusCode : 500;
 
   const message =
     err instanceof Error && err.message ? err.message : fallbackMessage;

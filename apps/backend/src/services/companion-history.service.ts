@@ -717,10 +717,11 @@ const appendRequestedHistorySections = async (
     try {
       await loader.append(ctx);
     } catch (error) {
+      // No patientId: the failure label plus the organisation is enough to
+      // locate the fault, and the log must not carry a patient identifier.
       logger.warn(`Companion history ${loader.failureLabel} failed`, {
         error,
         organisationId: ctx.organisationId,
-        patientId: ctx.patientId,
       });
     }
   }

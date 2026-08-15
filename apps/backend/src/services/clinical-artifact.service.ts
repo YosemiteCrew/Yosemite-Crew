@@ -939,14 +939,20 @@ const collectPrescriptionInventoryItemIds = (
   inventoryItemIds: Set<string>,
 ) => {
   const items = Array.isArray(record.items) ? record.items : [];
+  let foundInItems = false;
   for (const item of items) {
     const id = firstNonEmptyString(item.inventoryItemId);
     if (id) {
       inventoryItemIds.add(id);
+      foundInItems = true;
     }
   }
 
-  if (inventoryItemIds.size > 0 || !Array.isArray(record.medications)) {
+  // The medications fallback is per record: it applies when THIS prescription
+  // carries no item-level inventory reference. Testing the shared accumulator
+  // here would skip the fallback for every record after the first one that
+  // contributed an id.
+  if (foundInItems || !Array.isArray(record.medications)) {
     return;
   }
   for (const med of record.medications) {

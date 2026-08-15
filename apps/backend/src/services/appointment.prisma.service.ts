@@ -2230,21 +2230,7 @@ export const AppointmentPrismaService = {
   },
 
   async cancelAppointmentFromParent(appointmentId: string, parentId: string) {
-    if (!appointmentId) {
-      throw new AppointmentPrismaServiceError("appointmentId is required", 400);
-    }
-    if (!parentId) {
-      throw new AppointmentPrismaServiceError("parentId is required", 400);
-    }
-
-    const current = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
-    });
-    const row = assertExists(
-      current as AppointmentRow | null,
-      "Appointment not found",
-    );
-    assertParentOwnsAppointment(row, parentId);
+    const row = await getParentOwnedAppointment(appointmentId, parentId);
 
     assertAppointmentTransition(
       row.status,
