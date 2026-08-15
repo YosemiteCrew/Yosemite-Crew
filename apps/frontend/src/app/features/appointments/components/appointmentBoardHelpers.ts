@@ -8,7 +8,7 @@ export type BoardStatus =
 export const BOARD_COLUMNS: Array<{ key: BoardStatus; label: string }> = [
   { key: 'REQUESTED', label: 'Requested' },
   { key: 'UPCOMING', label: 'Upcoming' },
-  { key: 'CHECKED_IN', label: 'Checked-in' },
+  { key: 'CHECKED_IN', label: 'Checked in' },
   { key: 'IN_PROGRESS', label: 'In progress' },
   { key: 'COMPLETED', label: 'Completed' },
   { key: 'CANCELLED', label: 'Cancelled' },

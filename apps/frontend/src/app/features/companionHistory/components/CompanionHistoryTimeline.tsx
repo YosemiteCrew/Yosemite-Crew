@@ -138,7 +138,7 @@ const ALL_STATUS_OPTION: StatusFilterOption = {
 const APPOINTMENT_STATUS_FILTERS: StatusFilterOption[] = [
   { label: 'Requested', value: 'requested', match: ['REQUESTED'] },
   { label: 'Upcoming', value: 'upcoming', match: ['UPCOMING'] },
-  { label: 'Checked-in', value: 'checked_in', match: ['CHECKED_IN'] },
+  { label: 'Checked in', value: 'checked_in', match: ['CHECKED_IN'] },
   { label: 'In progress', value: 'in_progress', match: ['IN_PROGRESS'] },
   { label: 'Completed', value: 'completed', match: ['COMPLETED'] },
   { label: 'Cancelled', value: 'cancelled', match: ['CANCELLED'] },

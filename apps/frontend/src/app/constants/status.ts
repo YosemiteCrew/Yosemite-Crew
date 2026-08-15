@@ -118,7 +118,7 @@ export const statusLabel = (
 export const AppointmentLabels: StatusLabel[] = [
   statusLabel('Requested', 'requested', 'status-requested'),
   statusLabel('Upcoming', 'upcoming', 'status-upcoming'),
-  statusLabel('Checked-in', 'checked_in', 'status-checked-in'),
+  statusLabel('Checked in', 'checked_in', 'status-checked-in'),
   statusLabel('In progress', 'in_progress', 'status-in-progress'),
   statusLabel('Completed', 'completed', 'status-completed'),
   statusLabel('Cancelled', 'cancelled', 'status-cancelled'),

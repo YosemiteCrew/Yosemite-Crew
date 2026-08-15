@@ -45,7 +45,7 @@ describe('appointments types', () => {
         dropdownText: undefined,
       },
       {
-        name: 'Checked-in',
+        name: 'Checked in',
         key: 'checked_in',
         bg: 'var(--status-checked-in-bg)',
         text: 'var(--status-checked-in-text)',
