@@ -203,3 +203,21 @@ jobs:
           # a dynamic index exposes the whole secrets context to the expression,
           # which CodeQL reports as excessive secret exposure.
           SONAR_TOKEN: ${{ (matrix.app == 'frontend' && secrets.SONAR_TOKEN_FRONTEND) || (matrix.app == 'backend' && secrets.SONAR_TOKEN_API) || (matrix.app == 'mobile' && secrets.SONAR_TOKEN_MOBILE) || (matrix.app == 'desktop' && secrets.SONAR_TOKEN_DESKTOP) || '' }}
+
+      # Hold the nightly to the same bar as the per-PR and per-push _sonar
+      # stage: 95% coverage, zero duplication, zero open issues
+      # (docs/ci/sonar-quality-bar.md). This scan does not pass
+      # qualitygate.wait, so the script polls the compute engine itself before
+      # reading the measures. Run FROM the scanned directory: the scanner
+      # leaves report-task.txt there, and the script reads that constant
+      # relative path rather than taking a path argument.
+      - name: Enforce the Sonar quality bar
+        working-directory: ${{ matrix.dir }}
+        env:
+          SONAR_TOKEN: ${{ (matrix.app == 'frontend' && secrets.SONAR_TOKEN_FRONTEND) || (matrix.app == 'backend' && secrets.SONAR_TOKEN_API) || (matrix.app == 'mobile' && secrets.SONAR_TOKEN_MOBILE) || (matrix.app == 'desktop' && secrets.SONAR_TOKEN_DESKTOP) || '' }}
+        run: |
+          set -euo pipefail
+          node "$GITHUB_WORKSPACE/scripts/ci/sonar-thresholds.mjs" \
+            --coverage 95 \
+            --duplication 0 \
+            --issues 0
