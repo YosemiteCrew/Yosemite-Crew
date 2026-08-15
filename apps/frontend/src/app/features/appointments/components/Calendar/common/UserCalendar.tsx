@@ -40,6 +40,7 @@ import {
   useSlotOffsetMinutes,
 } from '@/app/features/appointments/components/Calendar/useCalendarSlots';
 import type { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
+import type { AppointmentCalendarInteractionProps } from '@/app/features/appointments/components/Calendar/common/calendarInteractionProps';
 
 type UserCalendarProps = {
   events: Appointment[];
@@ -51,29 +52,8 @@ type UserCalendarProps = {
   handleRescheduleAppointment: any;
   handleChangeRoomAppointment?: any;
   handleAcceptAppointment?: (appt: Appointment) => void;
-  canEditAppointments: boolean;
-  draggedAppointmentId?: string | null;
-  draggedAppointmentLabel?: string | null;
-  canDragAppointment?: (appointment: Appointment) => boolean;
-  onAppointmentDragStart?: (appointment: Appointment) => void;
-  onAppointmentDragEnd?: () => void;
-  onAppointmentDropAt?: (date: Date, minuteOfDay: number, targetLeadId?: string) => void;
-  onDragHoverTarget?: (date: Date, targetLeadId?: string) => void;
-  onCreateAppointmentAt?: (date: Date, minuteOfDay: number, targetLeadId?: string) => void;
-  getDropAvailabilityIntervals?: (
-    date: Date,
-    targetLeadId?: string
-  ) => Array<{ startMinute: number; endMinute: number }>;
-  getVisibleAvailabilityIntervals?: (
-    date: Date,
-    targetLeadId?: string
-  ) => Array<{ startMinute: number; endMinute: number }>;
-  draggedAppointmentDurationMinutes?: number;
   forceFullDayInZoomIn?: boolean;
-  slotStepMinutes?: number;
-  availabilityLoaded?: boolean;
-  skipAutoScroll?: boolean;
-};
+} & AppointmentCalendarInteractionProps;
 
 const UserCalendar: React.FC<UserCalendarProps> = ({
   events,

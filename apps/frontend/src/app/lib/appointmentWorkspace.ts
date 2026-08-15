@@ -10,6 +10,7 @@ import type {
 import type { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 import { WORKSPACE_STEPS } from '@/app/features/appointments/types/workspace';
 import { normalizeAppointmentStatus, toStatusLabel } from '@/app/lib/appointments';
+import { isRichTextEmpty } from '@/app/lib/richText';
 import { formatDateInPreferredTimeZone, getDateKeyInPreferredTimeZone } from '@/app/lib/timezone';
 
 /** Default lock/edit window (hours) used until the org preference is wired. */
@@ -156,47 +157,8 @@ export const formatStampDate = (iso?: string): string => {
   return formatDateInPreferredTimeZone(date, { month: 'short', day: 'numeric' });
 };
 
-const stripHtmlTags = (html: string): string => {
-  let result = '';
-  let inTag = false;
-
-  for (const char of html) {
-    if (char === '<') {
-      inTag = true;
-      continue;
-    }
-    if (char === '>') {
-      inTag = false;
-      continue;
-    }
-    if (!inTag) {
-      result += char;
-    }
-  }
-
-  return result;
-};
-
-const replaceNbsp = (value: string): string => {
-  let result = '';
-  for (let index = 0; index < value.length; index += 1) {
-    if (value[index] === '&' && value.slice(index, index + 6) === '&nbsp;') {
-      result += ' ';
-      index += 5;
-      continue;
-    }
-    result += value[index];
-  }
-
-  return result;
-};
-
 /** Strip HTML tags to test whether a rich-text value carries any content. */
-export const richTextIsEmpty = (value: string | undefined): boolean => {
-  if (!value) return true;
-  const stripped = replaceNbsp(stripHtmlTags(value)).trim();
-  return stripped.length === 0;
-};
+export const richTextIsEmpty = (value: string | undefined): boolean => isRichTextEmpty(value);
 
 const pad2 = (value: number): string => String(value).padStart(2, '0');
 

@@ -8,12 +8,12 @@ import {
   RoomEquipmentOptions,
   RoomSpeciesOptions,
   RoomsTypes,
-  RoomUnitSizeOptions,
 } from '@/app/features/organization/pages/Organization/types';
 import { OrganisationRoom } from '@yosemite-crew/types';
 import { FiPlus } from 'react-icons/fi';
 import type { ManagedRoom, RoomUnitDetails } from './RoomInfo.types';
 import { SectionHeader, ToggleSwitch } from './roomSectionPrimitives';
+import RoomUnitFieldsEditor from './RoomUnitFieldsEditor';
 
 type SelectOption = { label: string; value: string };
 type OpenSections = Record<'details' | 'availability' | 'units' | 'equipment', boolean>;
@@ -275,31 +275,7 @@ const RoomInfoSections = ({
               </fieldset>
             ) : (
               <div key={unit.id} className="rounded-2xl border border-blue-text p-3">
-                <div className="grid grid-cols-1 gap-3">
-                  <FormInput
-                    intype="text"
-                    value={unit.name}
-                    inlabel="Name"
-                    onChange={(event) => onUpdateUnit(unit.id, { name: event.target.value })}
-                  />
-                  <LabelDropdown
-                    placeholder="Size"
-                    options={RoomUnitSizeOptions}
-                    defaultOption={unit.size}
-                    onSelect={(option) => onUpdateUnit(unit.id, { size: option.value })}
-                  />
-                  <FormInput
-                    intype="number"
-                    value={String(unit.count)}
-                    inlabel="Units"
-                    onChange={(event) => {
-                      const parsed = Number(event.target.value);
-                      onUpdateUnit(unit.id, {
-                        count: Number.isNaN(parsed) ? 0 : Math.max(0, parsed),
-                      });
-                    }}
-                  />
-                </div>
+                <RoomUnitFieldsEditor unit={unit} onUpdateUnit={onUpdateUnit} />
               </div>
             )
           )}

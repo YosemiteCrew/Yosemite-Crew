@@ -1,8 +1,18 @@
 'use client';
 
-import { useCallback, useEffect, useSyncExternalStore } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
+import {
+  THEME_STORAGE_KEY,
+  applyTheme,
+  getServerTheme,
+  readTheme,
+  subscribeToThemeChange,
+  toggleTheme,
+  useThemeLifecycle,
+  type Theme,
+} from './themeCore';
 
-export type Theme = 'light' | 'dark';
+export type { Theme } from './themeCore';
 
 /**
  * Three-way appearance preference exposed to settings UIs. `auto` means "no explicit
@@ -10,19 +20,10 @@ export type Theme = 'light' | 'dark';
  */
 export type Appearance = 'auto' | 'light' | 'dark';
 
-const STORAGE_KEY = 'yc-theme';
-const THEME_CHANGE_EVENT = 'yc-theme-change';
-
-/** The current theme, read from the source of truth: <html data-theme>. */
-const readTheme = (): Theme => {
-  const attr = globalThis.document?.documentElement.dataset.theme;
-  return attr === 'dark' ? 'dark' : 'light';
-};
-
 /** The current appearance preference, derived from the presence of an explicit stored choice. */
 const readAppearance = (): Appearance => {
   try {
-    const saved = globalThis.localStorage?.getItem(STORAGE_KEY);
+    const saved = globalThis.localStorage?.getItem(THEME_STORAGE_KEY);
     return saved === 'dark' || saved === 'light' ? saved : 'auto';
   } catch {
     return 'auto';
@@ -33,43 +34,7 @@ const readAppearance = (): Appearance => {
 const osTheme = (): Theme =>
   globalThis.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 
-/** Keep the browser-chrome color (mobile address bar) in step with the page surface. */
-const syncMetaThemeColor = () => {
-  const doc = globalThis.document;
-  if (!doc) return;
-  let meta = doc.querySelector('meta[name="theme-color"]');
-  if (!meta) {
-    meta = doc.createElement('meta');
-    meta.setAttribute('name', 'theme-color');
-    doc.head.appendChild(meta);
-  }
-  const page = globalThis.getComputedStyle(doc.documentElement).getPropertyValue('--page').trim();
-  meta.setAttribute('content', page || (readTheme() === 'dark' ? '#201c18' : '#efe8dc'));
-};
-
-const applyTheme = (theme: Theme, persist: boolean) => {
-  const root = globalThis.document.documentElement;
-  root.dataset.theme = theme;
-  root.dataset.themeReady = '1';
-  if (persist) {
-    try {
-      globalThis.localStorage.setItem(STORAGE_KEY, theme);
-    } catch {
-      /* private mode: fall back to OS following */
-    }
-  }
-  syncMetaThemeColor();
-  globalThis.dispatchEvent(new CustomEvent(THEME_CHANGE_EVENT, { detail: { theme } }));
-};
-
-/** Re-read theme + appearance whenever any toggle instance broadcasts a change (for useSyncExternalStore). */
-const subscribeToThemeChange = (onStoreChange: () => void): (() => void) => {
-  globalThis.addEventListener(THEME_CHANGE_EVENT, onStoreChange);
-  return () => globalThis.removeEventListener(THEME_CHANGE_EVENT, onStoreChange);
-};
-
-/** SSR always renders the defaults; the client re-reads the real values on hydration. */
-const getServerTheme = (): Theme => 'light';
+/** SSR always renders the default; the client re-reads the real value on hydration. */
 const getServerAppearance = (): Appearance => 'auto';
 
 /**
@@ -81,7 +46,7 @@ const getServerAppearance = (): Appearance => 'auto';
  * transition shortly after first paint.
  *
  * It shares the `yc-theme` storage key and `yc-theme-change` event with the marketing
- * surface so a single theme choice is honored across the whole product.
+ * surface (via themeCore) so a single theme choice is honored across the whole product.
  */
 export function useTheme() {
   const theme = useSyncExternalStore(subscribeToThemeChange, readTheme, getServerTheme);
@@ -91,40 +56,7 @@ export function useTheme() {
     getServerAppearance
   );
 
-  useEffect(() => {
-    syncMetaThemeColor();
-
-    // Enable the flip transition after first paint so the initial paint never animates.
-    const readyTimer = globalThis.setTimeout(() => {
-      globalThis.document.documentElement.dataset.themeReady = '1';
-    }, 60);
-
-    // Follow OS changes only while the visitor hasn't explicitly chosen a theme.
-    // applyTheme broadcasts the change event, so every subscribed instance re-reads.
-    const mq = globalThis.matchMedia?.('(prefers-color-scheme: dark)');
-    const onOSChange = (event: MediaQueryListEvent) => {
-      let saved: string | null = null;
-      try {
-        saved = globalThis.localStorage.getItem(STORAGE_KEY);
-      } catch {
-        /* ignore */
-      }
-      if (!saved) {
-        applyTheme(event.matches ? 'dark' : 'light', false);
-      }
-    };
-    mq?.addEventListener('change', onOSChange);
-
-    return () => {
-      globalThis.clearTimeout(readyTimer);
-      mq?.removeEventListener('change', onOSChange);
-    };
-  }, []);
-
-  const toggle = useCallback(() => {
-    const next: Theme = readTheme() === 'dark' ? 'light' : 'dark';
-    applyTheme(next, true);
-  }, []);
+  useThemeLifecycle();
 
   /**
    * Set the three-way appearance preference. `auto` clears the stored choice and
@@ -134,7 +66,7 @@ export function useTheme() {
   const setAppearance = useCallback((next: Appearance) => {
     if (next === 'auto') {
       try {
-        globalThis.localStorage.removeItem(STORAGE_KEY);
+        globalThis.localStorage.removeItem(THEME_STORAGE_KEY);
       } catch {
         /* private mode: nothing persisted to clear */
       }
@@ -144,5 +76,5 @@ export function useTheme() {
     }
   }, []);
 
-  return { theme, toggle, appearance, setAppearance };
+  return { theme, toggle: toggleTheme, appearance, setAppearance };
 }

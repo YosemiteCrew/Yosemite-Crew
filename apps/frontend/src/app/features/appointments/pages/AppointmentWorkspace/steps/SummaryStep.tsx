@@ -29,6 +29,7 @@ import PdfPreviewOverlay from '@/app/ui/overlays/PdfPreviewOverlay';
 import SigningOverlay from '@/app/ui/overlays/SigningOverlay';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import { useSigningOverlayStore } from '@/app/stores/signingOverlayStore';
+import { getTemplateSchemaSnapshot } from '@/app/features/appointments/pages/AppointmentWorkspace/templateSchemaSnapshot';
 import { isRichTextEmpty, sanitizeRichText } from '@/app/lib/richText';
 import type { AppointmentEncounter } from '@/app/features/appointments/types/workspace';
 import { formatStampDate, formatStampTime } from '@/app/lib/appointmentWorkspace';
@@ -87,20 +88,6 @@ const escapeHtml = (value: string): string =>
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
-
-const hasTemplateSchemaSnapshot = (value: unknown): value is TemplateSchemaSnapshot =>
-  Boolean(
-    value && typeof value === 'object' && Array.isArray((value as { sections?: unknown }).sections)
-  );
-
-const getTemplateSchemaSnapshot = (template: TemplateLike): TemplateSchemaSnapshot | undefined => {
-  const rootSnapshot = (template as TemplateLike & { schemaSnapshot?: unknown }).schemaSnapshot;
-  if (hasTemplateSchemaSnapshot(rootSnapshot)) return rootSnapshot;
-  const version = template.versions?.find(
-    (item) => item.version === template.publishedVersion || item.version === template.latestVersion
-  );
-  return hasTemplateSchemaSnapshot(version?.schemaSnapshot) ? version.schemaSnapshot : undefined;
-};
 
 const DISCHARGE_META_FIELD_KEYS = new Set(['followUpInDays', 'followUpDate']);
 

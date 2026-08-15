@@ -1,14 +1,17 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import StatCardShell from '@/app/ui/widgets/Stats/StatCardShell';
 
 jest.mock('@/app/ui/cards/CardHeader/CardHeader', () => ({
   __esModule: true,
-  default: ({ title, options, selected }: any) => (
+  default: ({ title, options, selected, onSelect }: any) => (
     <div data-testid="card-header" data-selected={selected} data-options={options.join('|')}>
       {title}
+      <button type="button" onClick={() => onSelect?.(options.at(-1))}>
+        pick-last
+      </button>
     </div>
   ),
 }));
@@ -60,6 +63,56 @@ describe('StatCardShell', () => {
     const svg = container.querySelector('svg') as SVGElement;
     expect(svg).toHaveAttribute('aria-hidden', 'true');
     expect(svg.querySelectorAll('rect')).toHaveLength(3);
+  });
+
+  it('forwards an explicit selected option to the header instead of the first one', () => {
+    render(
+      <StatCardShell
+        title="Any"
+        options={['Last 6 months', 'Last 1 year']}
+        selected="Last 1 year"
+        isEmpty={false}
+      >
+        <div>body</div>
+      </StatCardShell>
+    );
+
+    expect(screen.getByTestId('card-header')).toHaveAttribute('data-selected', 'Last 1 year');
+  });
+
+  it('forwards onSelect so the header can change the duration', () => {
+    const onSelect = jest.fn();
+    render(
+      <StatCardShell
+        title="Any"
+        options={['Last week', 'Last month']}
+        onSelect={onSelect}
+        isEmpty={false}
+      >
+        <div>body</div>
+      </StatCardShell>
+    );
+
+    fireEvent.click(screen.getByText('pick-last'));
+    expect(onSelect).toHaveBeenCalledWith('Last month');
+  });
+
+  it('applies a caller-supplied card surface class instead of the default sizing', () => {
+    const { container } = render(
+      <StatCardShell
+        title="Any"
+        options={['Last week']}
+        isEmpty={false}
+        cardClassName="gap-3.5 overflow-hidden min-h-89"
+      >
+        <div>body</div>
+      </StatCardShell>
+    );
+
+    const surface = container.querySelector('.min-h-89') as HTMLElement;
+    expect(surface).toHaveClass('gap-3.5', 'overflow-hidden', 'rounded-[18px]');
+    expect(surface).not.toHaveClass('min-h-75');
+    expect(surface).not.toHaveClass('gap-2.5');
   });
 
   it('wraps the body in the shared warm-bone card surface', () => {

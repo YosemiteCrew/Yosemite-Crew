@@ -12,7 +12,7 @@ import { formatDateLocal } from '@/app/lib/date';
 import { toTitleCase } from '@/app/lib/validators';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import { CountriesOptions } from '@/app/features/companions/components/AddCompanion/type';
-import GoogleSearchDropDown from '@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown';
+import GoogleAddressFieldRenderer from '@/app/ui/primitives/Accordion/googleAddressFieldRenderer';
 
 export type FieldConfig = {
   label: string;
@@ -229,26 +229,7 @@ const FieldComponents: Record<string, React.FC<EditableFieldProps>> = {
       onChange={onChange}
     />
   ),
-  googleAddress: ({ field, value, onChange, onMultiChange, error }) => (
-    <GoogleSearchDropDown
-      intype="text"
-      inname={field.key}
-      value={value ?? ''}
-      inlabel={field.label}
-      error={error}
-      onChange={(e) => onChange(e.target.value)}
-      onlyAddress={true}
-      onAddressSelect={(address) => {
-        onChange(address.addressLine);
-        onMultiChange?.({
-          city: address.city,
-          state: address.state,
-          postalCode: address.postalCode,
-          ...(address.country ? { country: address.country } : {}),
-        });
-      }}
-    />
-  ),
+  googleAddress: GoogleAddressFieldRenderer,
 };
 
 const normalizeOptions = (options?: Array<string | { label: string; value: string }>) =>

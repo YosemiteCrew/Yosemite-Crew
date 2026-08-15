@@ -1,5 +1,6 @@
 import { Appointment } from '@yosemite-crew/types';
 import { create } from 'zustand';
+import { loadingStatusActions } from '@/app/stores/loadingStatusActions';
 
 type StoreStatus = 'idle' | 'loading' | 'loaded' | 'error';
 
@@ -159,14 +160,5 @@ export const useAppointmentStore = create<AppointmentState>()((set, get) => ({
       lastFetchedAt: null,
     })),
 
-  startLoading: () => set(() => ({ status: 'loading', error: null })),
-
-  endLoading: () =>
-    set(() => ({
-      status: 'loaded',
-      error: null,
-      lastFetchedAt: new Date().toISOString(),
-    })),
-
-  setError: (message) => set(() => ({ status: 'error', error: message })),
+  ...loadingStatusActions(set),
 }));

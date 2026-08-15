@@ -506,6 +506,23 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
     expect(hook.openResultPdfPreview).toHaveBeenCalledWith('r1');
   });
 
+  it('opens a result PDF preview from the share action', () => {
+    const { hook } = renderStep();
+
+    fireEvent.click(screen.getByRole('button', { name: /share results pdf for result r1/i }));
+
+    expect(hook.openResultPdfPreview).toHaveBeenCalledWith('r1');
+  });
+
+  it('labels an IVLS device without a display name with the generic IVLS label', () => {
+    renderStep({
+      modality: 'INHOUSE',
+      devices: [{ deviceSerialNumber: '99887', displayName: '' }],
+    } as unknown as Partial<UseLabTestsReturn>);
+
+    expect(screen.getByText(/In-house IDEXX workflow/i)).toBeInTheDocument();
+  });
+
   it('toggles the result breakdown with the view action', () => {
     renderStep();
 

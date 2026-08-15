@@ -2,6 +2,7 @@ import {
   CategoryOptions,
   HealthCategoryOptions,
   HygieneCategoryOptions,
+  VisitTypeOptions,
   emptyCompanionRecord,
   type Category,
   type Subcategory,
@@ -55,6 +56,19 @@ describe('companionDocuments types', () => {
         { label: 'Dental cleaning', value: 'DENTAL_CLEANING' },
         { label: 'Skin care', value: 'SKIN_CARE' },
         { label: 'Anal gland expression', value: 'ANAL_GLAND_EXPRESSION' },
+        { label: 'Other', value: 'OTHER' },
+      ]);
+    });
+  });
+
+  describe('VisitTypeOptions', () => {
+    it('matches the approved visit type list', () => {
+      expect(VisitTypeOptions).toEqual([
+        { label: 'Hospital', value: 'HOSPITAL' },
+        { label: 'Groomer', value: 'GROOMER' },
+        { label: 'Boarder', value: 'BOARDER' },
+        { label: 'Breeder', value: 'BREEDER' },
+        { label: 'Shop', value: 'SHOP' },
         { label: 'Other', value: 'OTHER' },
       ]);
     });

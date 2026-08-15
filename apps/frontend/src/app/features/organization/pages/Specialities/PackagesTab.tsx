@@ -37,6 +37,52 @@ type PackagesTabProps = Readonly<{
 
 type ActionMode = null | 'edit' | 'archive';
 
+const PackageCardActions = ({
+  pkgName,
+  showBreakdown,
+  onToggleBreakdown,
+  onEdit,
+  onArchive,
+}: {
+  pkgName: string;
+  showBreakdown: boolean;
+  onToggleBreakdown: () => void;
+  onEdit: () => void;
+  onArchive: () => void;
+}) => (
+  <>
+    <CircleIconButton
+      label={`${showBreakdown ? 'Hide' : 'View'} breakdown of ${pkgName}`}
+      tooltip={showBreakdown ? 'Hide breakdown' : 'View breakdown'}
+      onClick={onToggleBreakdown}
+      variant="dark"
+      icon={
+        <IoChevronDown
+          size={20}
+          aria-hidden="true"
+          style={{
+            transform: showBreakdown ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 150ms ease',
+          }}
+        />
+      }
+    />
+    <CircleIconButton
+      label={`Edit ${pkgName}`}
+      tooltip="Edit"
+      onClick={onEdit}
+      icon={<IoCreateOutline size={20} aria-hidden="true" />}
+    />
+    <CircleIconButton
+      label={`Archive ${pkgName}`}
+      tooltip="Archive"
+      onClick={onArchive}
+      variant="danger"
+      icon={<IoArchiveOutline size={20} aria-hidden="true" />}
+    />
+  </>
+);
+
 const PackageCard = ({
   pkg,
   index,
@@ -92,34 +138,12 @@ const PackageCard = ({
         <div className="@container">
           {/* Action buttons on narrow containers */}
           <div className="flex @2xl:hidden items-center justify-end gap-2 mb-3">
-            <CircleIconButton
-              label={`${showBreakdown ? 'Hide' : 'View'} breakdown of ${pkg.name}`}
-              tooltip={showBreakdown ? 'Hide breakdown' : 'View breakdown'}
-              onClick={handleToggleBreakdown}
-              variant="dark"
-              icon={
-                <IoChevronDown
-                  size={20}
-                  aria-hidden="true"
-                  style={{
-                    transform: showBreakdown ? 'rotate(180deg)' : 'rotate(0deg)',
-                    transition: 'transform 150ms ease',
-                  }}
-                />
-              }
-            />
-            <CircleIconButton
-              label={`Edit ${pkg.name}`}
-              tooltip="Edit"
-              onClick={onEdit}
-              icon={<IoCreateOutline size={20} aria-hidden="true" />}
-            />
-            <CircleIconButton
-              label={`Archive ${pkg.name}`}
-              tooltip="Archive"
-              onClick={onArchive}
-              variant="danger"
-              icon={<IoArchiveOutline size={20} aria-hidden="true" />}
+            <PackageCardActions
+              pkgName={pkg.name}
+              showBreakdown={showBreakdown}
+              onToggleBreakdown={handleToggleBreakdown}
+              onEdit={onEdit}
+              onArchive={onArchive}
             />
           </div>
 
@@ -207,34 +231,12 @@ const PackageCard = ({
 
             {/* Action buttons — hidden on narrow (shown above) */}
             <div className="hidden @2xl:flex items-center gap-2 shrink-0">
-              <CircleIconButton
-                label={`${showBreakdown ? 'Hide' : 'View'} breakdown of ${pkg.name}`}
-                tooltip={showBreakdown ? 'Hide breakdown' : 'View breakdown'}
-                onClick={handleToggleBreakdown}
-                variant="dark"
-                icon={
-                  <IoChevronDown
-                    size={20}
-                    aria-hidden="true"
-                    style={{
-                      transform: showBreakdown ? 'rotate(180deg)' : 'rotate(0deg)',
-                      transition: 'transform 150ms ease',
-                    }}
-                  />
-                }
-              />
-              <CircleIconButton
-                label={`Edit ${pkg.name}`}
-                tooltip="Edit"
-                onClick={onEdit}
-                icon={<IoCreateOutline size={20} aria-hidden="true" />}
-              />
-              <CircleIconButton
-                label={`Archive ${pkg.name}`}
-                tooltip="Archive"
-                onClick={onArchive}
-                variant="danger"
-                icon={<IoArchiveOutline size={20} aria-hidden="true" />}
+              <PackageCardActions
+                pkgName={pkg.name}
+                showBreakdown={showBreakdown}
+                onToggleBreakdown={handleToggleBreakdown}
+                onEdit={onEdit}
+                onArchive={onArchive}
               />
             </div>
           </div>

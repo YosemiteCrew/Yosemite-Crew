@@ -320,6 +320,13 @@ describe('Header Component', () => {
     expect(trigger).toHaveStyle({ borderColor: 'var(--hairline)' });
   });
 
+  it('falls back to the first status option when the active status matches none', () => {
+    render(<Header {...defaultProps} activeStatus="missing" statusOptions={statusOptions} />);
+
+    // selectedStatus falls back to statusOptions[0] ('all') → neutral trigger.
+    expect(screen.getByRole('button', { name: /All statuses/i })).toBeInTheDocument();
+  });
+
   it('keeps the selected status chevron inside the coloured pill', () => {
     render(
       <Header

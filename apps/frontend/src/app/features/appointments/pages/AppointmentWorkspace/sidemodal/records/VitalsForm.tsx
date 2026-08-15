@@ -22,12 +22,9 @@ import {
   type DraftVitals,
 } from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/records/vitalsFormDraft';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
+import { getTemplateSchemaSnapshot } from '@/app/features/appointments/pages/AppointmentWorkspace/templateSchemaSnapshot';
 import type { FormField } from '@/app/features/forms/types/forms';
-import type {
-  TemplateFieldDefinition,
-  TemplateLike,
-  TemplateSchemaSnapshot,
-} from '@yosemite-crew/types';
+import type { TemplateFieldDefinition, TemplateLike } from '@yosemite-crew/types';
 
 type VitalsFormProps = {
   appointmentId: string;
@@ -118,20 +115,6 @@ const resolveDraftKey = (field: { key?: string; id?: string; label?: string }) =
   if (value.includes('pain')) return 'painScore';
   if (value.includes('bcs') || value.includes('bodyscore')) return 'bcs';
   return undefined;
-};
-
-const hasTemplateSchemaSnapshot = (value: unknown): value is TemplateSchemaSnapshot =>
-  Boolean(
-    value && typeof value === 'object' && Array.isArray((value as { sections?: unknown }).sections)
-  );
-
-const getTemplateSchemaSnapshot = (template: TemplateLike): TemplateSchemaSnapshot | undefined => {
-  const rootSnapshot = (template as TemplateLike & { schemaSnapshot?: unknown }).schemaSnapshot;
-  if (hasTemplateSchemaSnapshot(rootSnapshot)) return rootSnapshot;
-  const version = template.versions?.find(
-    (item) => item.version === template.publishedVersion || item.version === template.latestVersion
-  );
-  return hasTemplateSchemaSnapshot(version?.schemaSnapshot) ? version.schemaSnapshot : undefined;
 };
 
 const flattenFormFields = (fields: FormField[] = []): FormField[] =>

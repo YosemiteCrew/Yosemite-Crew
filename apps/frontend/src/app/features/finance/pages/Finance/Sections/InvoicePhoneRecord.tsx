@@ -2,14 +2,7 @@
 import React from 'react';
 import Image from 'next/image';
 import { Appointment, Invoice } from '@yosemite-crew/types';
-import {
-  IoCardOutline,
-  IoCheckmarkCircle,
-  IoClose,
-  IoDownloadOutline,
-  IoOpenOutline,
-  IoPhonePortraitOutline,
-} from 'react-icons/io5';
+import { IoCheckmarkCircle, IoClose, IoDownloadOutline, IoOpenOutline } from 'react-icons/io5';
 import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 import { formatMoney } from '@/app/lib/money';
 import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
@@ -18,6 +11,7 @@ import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { getAppointmentCompanion, getAppointmentCompanionPhotoUrl } from '@/app/lib/appointments';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
+import { getLedgerChannel } from '@/app/features/finance/pages/Finance/Sections/ledgerChannel';
 
 type InvoicePhoneRecordProps = {
   titleId: string;
@@ -52,26 +46,6 @@ const buildSubtitle = (invoice: Invoice, appointment?: Appointment): string => {
     .map((part) => part.trim())
     .filter(Boolean)
     .join(' · ');
-};
-
-type LedgerChannel = {
-  Icon: typeof IoCardOutline;
-  title: string;
-};
-
-/**
- * Mirrors the desktop record: the payment row is labelled by the channel the
- * payment came through, so the same invoice reads the same way at every width.
- */
-const getLedgerChannel = (invoice: Invoice): LedgerChannel => {
-  const method = invoice.paymentCollectionMethod;
-  if (method === 'PAYMENT_INTENT' || method === 'PAYMENT_LINK') {
-    return { Icon: IoPhonePortraitOutline, title: 'Paid in the pet-parent app' };
-  }
-  if (method === 'PAYMENT_AT_CLINIC') {
-    return { Icon: IoCardOutline, title: 'Paid at the clinic' };
-  }
-  return { Icon: IoCardOutline, title: 'Payment recorded' };
 };
 
 const buildLedgerCaption = (invoice: Invoice, payerName?: string): string => {

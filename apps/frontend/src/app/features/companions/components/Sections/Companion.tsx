@@ -23,6 +23,7 @@ import {
 } from '@/app/features/companions/components/AddCompanion/type';
 import { CompanionType } from '@yosemite-crew/types';
 import type { RecordStatus } from '@yosemite-crew/types';
+import { BLOOD_GROUP_OPTIONS_BY_SPECIES } from '@/app/features/companions/components/companionBloodGroups';
 import {
   fetchBreedCodeEntries,
   fetchSpeciesCodeEntries,
@@ -73,37 +74,6 @@ const SPECIES_QUERY_BY_TYPE: Record<CompanionType, string> = {
   cat: 'feline',
   horse: 'equine',
   other: 'other',
-};
-
-const BLOOD_GROUP_OPTIONS_BY_SPECIES: Record<CompanionType, OptionProp[]> = {
-  cat: ['A', 'B', 'AB', 'Unknown'].map((group) => ({
-    value: group,
-    label: group,
-  })),
-  dog: [
-    'DEA 1.1 Positive',
-    'DEA 1.1 Negative',
-    'DEA 1.2 Positive',
-    'DEA 1.2 Negative',
-    'DEA 3 Positive',
-    'DEA 3 Negative',
-    'DEA 4 Positive',
-    'DEA 4 Negative',
-    'DEA 5 Positive',
-    'DEA 5 Negative',
-    'DEA 7 Positive',
-    'DEA 7 Negative',
-    'Universal Donor',
-    'Unknown',
-  ].map((group) => ({
-    value: group,
-    label: group,
-  })),
-  horse: ['Aa', 'Ca', 'Da', 'Ka', 'Pa', 'Qa', 'Ua', 'Universal Donor', 'Unknown'].map((group) => ({
-    value: group,
-    label: group,
-  })),
-  other: [{ value: 'Unknown', label: 'Unknown' }],
 };
 
 const COMPANION_STATUS_OPTIONS: OptionProp[] = [
@@ -263,8 +233,8 @@ const resolvePayloadBreedCode = (
 };
 
 const resolvePayloadDateOfBirth = (companion: CompanionParent, currentDate: Date | null): Date => {
+  /* v8 ignore next 3 -- the null fallback is unreachable: validateCompanionForm reports "Date of birth is required" and blocks the save whenever currentDate is null, so the payload is only ever built with a date */
   if (currentDate) return currentDate;
-  /* v8 ignore next -- unreachable: validateCompanionForm reports "Date of birth is required" and blocks the save whenever currentDate is null, so the payload is only ever built with a date */
   return companion.companion.dateOfBirth;
 };
 

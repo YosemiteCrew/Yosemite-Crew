@@ -5,10 +5,11 @@ import {
   getFormCategoryOptionsForOrgType,
 } from '@/app/features/forms/types/forms';
 import type { FormsCategory, FormsStatus } from '@/app/features/forms/types/forms';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { IoChevronDown } from 'react-icons/io5';
 import clsx from 'clsx';
+import { useFilterDropdownDismiss } from '@/app/ui/filters/useFilterDropdownDismiss';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { Organisation } from '@yosemite-crew/types';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
@@ -80,24 +81,7 @@ const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFilters
   const panelRef = useRef<HTMLDivElement>(null);
   const isMounted = typeof document !== 'undefined';
 
-  useEffect(() => {
-    if (!open) return;
-    const handleClose = (e: MouseEvent) => {
-      if (
-        triggerRef.current?.contains(e.target as Node) ||
-        panelRef.current?.contains(e.target as Node)
-      )
-        return;
-      setOpen(false);
-    };
-    const handleScroll = () => setOpen(false);
-    document.addEventListener('mousedown', handleClose);
-    window.addEventListener('scroll', handleScroll, { passive: true, capture: true });
-    return () => {
-      document.removeEventListener('mousedown', handleClose);
-      window.removeEventListener('scroll', handleScroll, { capture: true });
-    };
-  }, [open]);
+  useFilterDropdownDismiss(open, setOpen, triggerRef, panelRef);
 
   const [panelStyle, setPanelStyle] = useState<React.CSSProperties | undefined>(undefined);
 

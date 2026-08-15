@@ -100,6 +100,18 @@ describe('InventoryFilters', () => {
     expect(screen.getByRole('button', { name: /Healthy/ })).toBeInTheDocument();
   });
 
+  it('falls back to the first stock health option when the status matches none', () => {
+    render(
+      <InventoryFilters
+        filters={{ status: 'MYSTERY', visibility: 'ALL', category: 'all' } as any}
+        onChange={jest.fn()}
+        categories={['Food']}
+      />
+    );
+    // selectedStockHealth falls back to the ALL option, so the pill shows the placeholder.
+    expect(screen.getByRole('button', { name: /Stock health/ })).toBeInTheDocument();
+  });
+
   it('opens the stock health dropdown and selects an option', () => {
     const onChange = jest.fn();
     render(

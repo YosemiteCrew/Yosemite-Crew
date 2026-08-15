@@ -13,6 +13,17 @@ jest.mock('@/app/hooks/useTeam', () => ({
   useTeamForPrimaryOrg: jest.fn(),
 }));
 
+jest.mock('@/app/lib/timezone', () => ({
+  getHourInPreferredTimeZone: (value: Date) => value.getHours(),
+  getMinutesSinceStartOfDayInPreferredTimeZone: (value: Date) =>
+    value.getHours() * 60 + value.getMinutes(),
+  formatDateInPreferredTimeZone: jest.fn(() => 'Mon'),
+  isOnPreferredTimeZoneCalendarDay: (value: Date, day: Date) =>
+    value.getFullYear() === day.getFullYear() &&
+    value.getMonth() === day.getMonth() &&
+    value.getDate() === day.getDate(),
+}));
+
 jest.mock('@/app/features/appointments/components/Calendar/helpers', () => ({
   eventsForUser: jest.fn(),
   DEFAULT_CALENDAR_FOCUS_MINUTES: 540,
@@ -119,6 +130,43 @@ describe('UserCalendar (Task)', () => {
         height: 180,
       })
     );
+  });
+
+  it('groups due tasks into the assigned team member column for the matching hour', () => {
+    const midnightTaskA = {
+      name: 'Midnight Task A',
+      assignedTo: 'user-1',
+      dueAt: new Date(2025, 0, 6, 0, 15),
+      status: 'PENDING',
+      _id: 'midnight-a',
+      audience: 'EMPLOYEE_TASK',
+      source: 'CUSTOM',
+      category: '',
+    } as Task;
+    const midnightTaskB = {
+      name: 'Midnight Task B',
+      assignedTo: 'user-1',
+      dueAt: new Date(2025, 0, 6, 0, 45),
+      status: 'PENDING',
+      _id: 'midnight-b',
+      audience: 'EMPLOYEE_TASK',
+      source: 'CUSTOM',
+      category: '',
+    } as Task;
+
+    render(
+      <UserCalendar
+        events={[midnightTaskA, midnightTaskB]}
+        date={new Date(2025, 0, 6, 12)}
+        handleViewTask={handleViewTask}
+        setCurrentDate={setCurrentDate}
+      />
+    );
+
+    const slotEventsByCall = taskSlotSpy.mock.calls.map(([props]) => props.slotEvents);
+    expect(slotEventsByCall).toContainEqual([midnightTaskA, midnightTaskB]);
+    // The unassigned column stays empty.
+    expect(slotEventsByCall).toContainEqual([]);
   });
 
   it('changes the current date when navigating', () => {

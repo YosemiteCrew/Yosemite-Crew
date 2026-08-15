@@ -24,6 +24,24 @@ export type Subprocessor = {
   location: string;
 };
 
+/** One-line builder for a certification rendered with a badge image. */
+const cert = (
+  name: string,
+  status: CertStatus,
+  description: string,
+  badge: string
+): Certification => ({ name, status, description, badge });
+
+/** One-line builder for a certification rendered as a tinted ion-icon tile. */
+const iconCert = (
+  name: string,
+  status: CertStatus,
+  description: string,
+  icon: string,
+  iconBg: string,
+  iconColor: string
+): Certification => ({ name, status, description, icon, iconBg, iconColor });
+
 export const trustCenterData = {
   hero: {
     eyebrow: 'Security',
@@ -52,70 +70,65 @@ export const trustCenterData = {
   ],
 
   certifications: [
-    {
-      name: 'GDPR',
-      status: 'COMPLIANT',
-      description: 'Fully compliant data processing with EU hosting.',
-      badge: CERT_BADGES.gdpr,
-    },
-    {
-      name: 'SOC 2 Type I',
-      status: 'COMPLIANT',
-      description: 'Audited security, availability and confidentiality controls.',
-      badge: CERT_BADGES.soc2,
-    },
-    {
-      name: 'ISO 27001:2022',
-      status: 'COMPLIANT',
-      description: 'Certified information-security management.',
-      badge: CERT_BADGES.iso,
-    },
-    {
-      name: '21 CFR Part 11',
-      status: 'COMPLIANT',
-      description: 'FDA rules for electronic records and signatures.',
-      badge: CERT_BADGES.fda,
-    },
-    {
-      name: 'ESIGN Act',
-      status: 'COMPLIANT',
-      description: 'US federal law on the validity of e-signatures.',
-      icon: 'create-outline',
-      iconBg: '#e6f2ff',
-      iconColor: '#257bed',
-    },
-    {
-      name: 'UETA',
-      status: 'COMPLIANT',
-      description: 'US state law for electronic transactions.',
-      icon: 'swap-horizontal-outline',
-      iconBg: '#f5f3ff',
-      iconColor: '#5b21b6',
-    },
-    {
-      name: 'eIDAS (SES)',
-      status: 'COMPLIANT',
-      description: 'EU electronic identification, Level 1.',
-      icon: 'finger-print-outline',
-      iconBg: '#e6f4ef',
-      iconColor: '#006642',
-    },
-    {
-      name: 'ZertES',
-      status: 'PLANNED',
-      description: 'Swiss federal law on electronic signatures.',
-      icon: 'ribbon-outline',
-      iconBg: '#fef3e9',
-      iconColor: '#af5e19',
-    },
-    {
-      name: 'HIPAA',
-      status: 'PLANNED',
-      description: 'US protection for patient health information.',
-      icon: 'medkit-outline',
-      iconBg: '#e6f2ff',
-      iconColor: '#257bed',
-    },
+    cert('GDPR', 'COMPLIANT', 'Fully compliant data processing with EU hosting.', CERT_BADGES.gdpr),
+    cert(
+      'SOC 2 Type I',
+      'COMPLIANT',
+      'Audited security, availability and confidentiality controls.',
+      CERT_BADGES.soc2
+    ),
+    cert(
+      'ISO 27001:2022',
+      'COMPLIANT',
+      'Certified information-security management.',
+      CERT_BADGES.iso
+    ),
+    cert(
+      '21 CFR Part 11',
+      'COMPLIANT',
+      'FDA rules for electronic records and signatures.',
+      CERT_BADGES.fda
+    ),
+    iconCert(
+      'ESIGN Act',
+      'COMPLIANT',
+      'US federal law on the validity of e-signatures.',
+      'create-outline',
+      '#e6f2ff',
+      '#257bed'
+    ),
+    iconCert(
+      'UETA',
+      'COMPLIANT',
+      'US state law for electronic transactions.',
+      'swap-horizontal-outline',
+      '#f5f3ff',
+      '#5b21b6'
+    ),
+    iconCert(
+      'eIDAS (SES)',
+      'COMPLIANT',
+      'EU electronic identification, Level 1.',
+      'finger-print-outline',
+      '#e6f4ef',
+      '#006642'
+    ),
+    iconCert(
+      'ZertES',
+      'PLANNED',
+      'Swiss federal law on electronic signatures.',
+      'ribbon-outline',
+      '#fef3e9',
+      '#af5e19'
+    ),
+    iconCert(
+      'HIPAA',
+      'PLANNED',
+      'US protection for patient health information.',
+      'medkit-outline',
+      '#e6f2ff',
+      '#257bed'
+    ),
   ] satisfies readonly Certification[],
 
   securityPillars: [

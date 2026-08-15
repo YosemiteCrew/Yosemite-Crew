@@ -792,6 +792,41 @@ describe('AddAppointmentCentralModal', () => {
     expect(handleSupportStaffChangeMock).toHaveBeenCalled();
   });
 
+  it('renders support staff values defensively when entries lack ids or the list is missing', () => {
+    mockAppointmentForm.formData = {
+      ...mockFormData,
+      supportStaff: [{}],
+    } as unknown as typeof mockFormData;
+    const { unmount } = render(<AddAppointmentCentralModal {...defaultProps} />);
+    expect(screen.getByTestId('multi-select-dropdown')).toBeInTheDocument();
+    unmount();
+
+    mockAppointmentForm.formData = {
+      ...mockFormData,
+      supportStaff: undefined,
+    } as unknown as typeof mockFormData;
+    render(<AddAppointmentCentralModal {...defaultProps} />);
+    expect(screen.getByTestId('multi-select-dropdown')).toBeInTheDocument();
+  });
+
+  it('clears the add-companion target when the fast-track modal jumps to the appointment', async () => {
+    render(<AddAppointmentCentralModal {...defaultProps} />);
+
+    const newButtons = screen.getAllByText('+ New');
+    await act(async () => {
+      fireEvent.click(newButtons[0]);
+    });
+
+    const addCompanionProps = addCompanionSpy.mock.calls[addCompanionSpy.mock.calls.length - 1][0];
+    expect(addCompanionProps.onGoToAppointment).toBeInstanceOf(Function);
+
+    await act(async () => {
+      addCompanionProps.onGoToAppointment();
+    });
+
+    expect(screen.queryByTestId('add-companion-modal')).not.toBeInTheDocument();
+  });
+
   it('excludes the selected lead from the support staff options', () => {
     mockAppointmentForm.formData = {
       ...mockFormData,

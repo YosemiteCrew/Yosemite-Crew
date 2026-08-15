@@ -110,6 +110,21 @@ describe('LabelDropdown', () => {
     expect(screen.getByText('Canine')).toBeInTheDocument();
   });
 
+  it('keeps the placeholder when the default option matches nothing', () => {
+    render(
+      <LabelDropdown
+        placeholder="Species"
+        options={options}
+        defaultOption="wolf"
+        onSelect={jest.fn()}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'Species' })).toBeInTheDocument();
+    expect(screen.queryByText('Canine')).not.toBeInTheDocument();
+    expect(screen.queryByText('Feline')).not.toBeInTheDocument();
+  });
+
   it('preselects default option by label', () => {
     render(
       <LabelDropdown
@@ -282,6 +297,33 @@ describe('LabelDropdown', () => {
 
     fireEvent.click(chevron as SVGElement);
     expect(screen.queryByRole('textbox', { name: 'Search Species' })).not.toBeInTheDocument();
+  });
+
+  it('highlights the option under the pointer', () => {
+    render(<LabelDropdown placeholder="Species" options={options} onSelect={jest.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Species/i }));
+
+    const felineOption = screen.getByText('Feline').closest('button')!;
+    fireEvent.mouseEnter(felineOption);
+
+    expect(felineOption).toHaveClass('bg-[var(--nav-active-bg)]');
+    expect(screen.getByText('Canine').closest('button')).not.toHaveClass(
+      'bg-[var(--nav-active-bg)]'
+    );
+  });
+
+  it('navigates and confirms options from the search input', () => {
+    const onSelect = jest.fn();
+    render(<LabelDropdown placeholder="Species" options={options} onSelect={onSelect} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Species/i }));
+
+    const search = screen.getByRole('textbox', { name: 'Search Species' });
+    fireEvent.keyDown(search, { key: 'ArrowDown' });
+    fireEvent.keyDown(search, { key: 'Enter' });
+
+    expect(onSelect).toHaveBeenCalledWith({ label: 'Feline', value: 'cat' });
   });
 
   it('renders a badge pill next to options that provide one', () => {
