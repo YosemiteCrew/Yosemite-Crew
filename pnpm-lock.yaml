@@ -336,7 +336,7 @@ importers:
         version: link:../../packages/types
       chromium-bidi:
         specifier: ^17.0.2
-        version: 17.0.2(devtools-protocol@0.0.1679354)
+        version: 17.0.2(devtools-protocol@0.0.1680125)
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2
@@ -475,8 +475,8 @@ importers:
         specifier: ^3.4.4
         version: 3.4.4(@stripe/connect-js@3.4.6)(react-dom@19.2.4)(react@19.2.4)
       '@testing-library/user-event':
-        specifier: ^14.6.3
-        version: 14.6.3(@testing-library/dom@10.4.1)
+        specifier: ^14.6.4
+        version: 14.6.4(@testing-library/dom@10.4.1)
       '@tiptap/extension-underline':
         specifier: ^3.30.0
         version: 3.30.0(@tiptap/core@3.30.0)
@@ -12919,8 +12919,8 @@ packages:
       react-dom: 19.2.4(react@19.2.4)
     dev: true
 
-  /@testing-library/user-event@14.6.3(@testing-library/dom@10.4.1):
-    resolution: {integrity: sha512-6dBq67jT8lE+JTE8Exm02Kt6ze43hz1jdiSpSJwtTZiT1xQQ6b7nZYTTQ9njdArdU8XklOwaDp/AbT/eYSKF4g==}
+  /@testing-library/user-event@14.6.4(@testing-library/dom@10.4.1):
+    resolution: {integrity: sha512-QCGwP6QrjypBLwyj5cuyfVamkaIEy/XGY+1VDehbtbQqOggYmTFpFOdWR5mPz14vX8vXLMVjDHlRNBcClyO9ew==}
     engines: {node: '>=12', npm: '>=6'}
     peerDependencies:
       '@testing-library/dom': '>=7.21.4'
@@ -16641,13 +16641,13 @@ packages:
     engines: {node: '>=6.0'}
     dev: false
 
-  /chromium-bidi@17.0.2(devtools-protocol@0.0.1679354):
+  /chromium-bidi@17.0.2(devtools-protocol@0.0.1680125):
     resolution: {integrity: sha512-5v9GQFhTktFvotn/OFNJBmKLKRAb6n9r0bVCwf7sHgWc3/JryK0bj1nn93L3pHFrfgcsu6Be6EWsDi+1XHTGDg==}
     engines: {node: '>=20.19.0 <22.0.0 || >=22.12.0'}
     peerDependencies:
       devtools-protocol: '*'
     dependencies:
-      devtools-protocol: 0.0.1679354
+      devtools-protocol: 0.0.1680125
       mitt: 3.0.1
       zod: 3.25.76
     dev: true
@@ -18017,8 +18017,8 @@ packages:
       dequal: 2.0.3
     dev: false
 
-  /devtools-protocol@0.0.1679354:
-    resolution: {integrity: sha512-ml80h806FGbZqo1e2aonL6pu5slXp4B6GUXw1J5LORLVneKvuxGYRJ7rFgJ87+RuNRVv9IJ6+XNVcd5tFFq3+g==}
+  /devtools-protocol@0.0.1680125:
+    resolution: {integrity: sha512-rVARKAvOFJCFkvgX01VLvYqKIvt+cRCqvUxIhB2oAqVGPalxk3w3sb5TUGDagpow/EFblBpm/Zl/29QA2dd+jA==}
     dev: true
 
   /dfa@1.2.0:
@@ -29449,7 +29449,7 @@ packages:
       '@storybook/icons': 2.1.0(react@19.2.4)
       '@testing-library/dom': 10.4.1
       '@testing-library/jest-dom': 6.9.1
-      '@testing-library/user-event': 14.6.3(@testing-library/dom@10.4.1)
+      '@testing-library/user-event': 14.6.4(@testing-library/dom@10.4.1)
       '@types/react': 19.2.11
       '@vitest/expect': 3.2.4
       '@vitest/spy': 3.2.4
