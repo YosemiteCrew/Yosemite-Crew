@@ -15,6 +15,7 @@ import { getAppointmentStatusTone, getStatusStyle } from '@/app/config/statusCon
 import type { ScheduleTask, ScheduleTaskStatus } from '@/app/features/appointments/types/workspace';
 import type { TemplateLike } from '@yosemite-crew/types';
 import { formatStampDate } from '@/app/lib/appointmentWorkspace';
+import { formatDateInPreferredTimeZone } from '@/app/lib/timezone';
 
 type AssigneeOption = { label: string; value: string };
 
@@ -219,11 +220,10 @@ const InpatientSchedule = ({
   }, []);
 
   const dateLabel = useMemo(() => {
-    const formatted = selectedDate.toLocaleDateString('en-US', {
+    const formatted = formatDateInPreferredTimeZone(selectedDate, {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
-      timeZone: 'Asia/Kolkata',
     });
     return isSameDay(selectedDate, todayAtMidnight) ? `Today ${formatted}` : formatted;
   }, [selectedDate, todayAtMidnight]);
