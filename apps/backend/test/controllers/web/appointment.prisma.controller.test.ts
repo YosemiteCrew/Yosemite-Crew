@@ -310,6 +310,60 @@ describe("AppointmentPrismaController", () => {
     );
   });
 
+  it("checks in an appointment for the authenticated parent", async () => {
+    (req as any).userId = "user_1";
+    req.params = { appointmentId: "appt_1" };
+    mockedAuth.getByProviderUserId.mockResolvedValue({
+      parentId: "parent_1",
+    } as any);
+    mockedService.checkInAppointmentParent.mockResolvedValue({
+      id: "appt_1",
+    } as any);
+
+    await AppointmentController.checkInAppointment(req as any, res as any);
+
+    expect(mockedService.checkInAppointmentParent).toHaveBeenCalledWith(
+      "appt_1",
+      "parent_1",
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Appointment checked in",
+      data: { id: "appt_1" },
+    });
+  });
+
+  it("rejects parent check-in when the caller is not authenticated", async () => {
+    req.params = { appointmentId: "appt_1" };
+
+    await AppointmentController.checkInAppointment(req as any, res as any);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "User not authenticated",
+    });
+    expect(mockedService.checkInAppointmentParent).not.toHaveBeenCalled();
+  });
+
+  it("maps parent check-in service failures to the error response", async () => {
+    (req as any).userId = "user_1";
+    req.params = { appointmentId: "appt_1" };
+    mockedAuth.getByProviderUserId.mockResolvedValue({
+      parentId: "parent_1",
+    } as any);
+    mockedService.checkInAppointmentParent.mockRejectedValue(
+      Object.assign(new Error("Appointment not found"), { statusCode: 404 }),
+    );
+
+    await AppointmentController.checkInAppointment(req as any, res as any);
+
+    expect(mockedLogger.error).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Appointment not found",
+    });
+  });
+
   it("marks appointments ready for billing from PMS", async () => {
     req.params = { appointmentId: "appt_1", organisationId: "org_1" };
     (req as any).userId = "user-1";

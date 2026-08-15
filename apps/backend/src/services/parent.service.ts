@@ -532,8 +532,8 @@ export const ParentService = {
         ...(ctx?.source === "pms"
           ? {
               alerts:
-                ((parent as Parent & { alerts?: Parent["alerts"] }).alerts as
-                  Prisma.InputJsonValue | undefined) ?? Prisma.JsonNull,
+                (parent.alerts as Prisma.InputJsonValue | undefined) ??
+                Prisma.JsonNull,
             }
           : {}),
       },

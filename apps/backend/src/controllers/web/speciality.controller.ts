@@ -28,6 +28,31 @@ const isFHIRSpecialityPayload = (
   );
 };
 
+const resolveOrganisationIdentifier = (
+  organizationQuery: unknown,
+  fallback: unknown,
+): string | undefined => {
+  if (typeof organizationQuery === "string") {
+    return organizationQuery.replace(/^Organization\//, "");
+  }
+  if (typeof fallback === "string") {
+    return fallback;
+  }
+  return undefined;
+};
+
+const resolveStatusFilter = (
+  active: string | undefined,
+): "ACTIVE" | "ARCHIVED" | undefined => {
+  if (active === "false") {
+    return "ARCHIVED";
+  }
+  if (active === "true") {
+    return "ACTIVE";
+  }
+  return undefined;
+};
+
 const requireParam = (
   res: Response,
   value: string | undefined,
@@ -218,12 +243,10 @@ export const SpecialityController = {
       // `organization` is not one of the keys the org extractor reads, so a
       // value supplied here was never authorized. Honour it only when it agrees
       // with the organisation the caller was authorized for.
-      const requestedOrganisationId =
-        typeof req.query.organization === "string"
-          ? req.query.organization.replace(/^Organization\//, "")
-          : typeof req.query.organisationId === "string"
-            ? req.query.organisationId
-            : undefined;
+      const requestedOrganisationId = resolveOrganisationIdentifier(
+        req.query.organization,
+        req.query.organisationId,
+      );
 
       if (
         requestedOrganisationId &&
@@ -255,12 +278,10 @@ export const SpecialityController = {
 
   getAllByOrganizationId: async (req: Request, res: Response) => {
     try {
-      const organisationId =
-        typeof req.query.organization === "string"
-          ? req.query.organization.replace(/^Organization\//, "")
-          : typeof req.params.organisationId === "string"
-            ? req.params.organisationId
-            : undefined;
+      const organisationId = resolveOrganisationIdentifier(
+        req.query.organization,
+        req.params.organisationId,
+      );
 
       if (
         !requireParam(
@@ -278,12 +299,7 @@ export const SpecialityController = {
         typeof req.query.name === "string" ? req.query.name : undefined;
       const summary = await CatalogService.listSpecialities(organisationId, {
         search,
-        status:
-          active === "false"
-            ? "ARCHIVED"
-            : active === "true"
-              ? "ACTIVE"
-              : undefined,
+        status: resolveStatusFilter(active),
         page:
           typeof req.query.page === "string"
             ? Number.parseInt(req.query.page, 10)

@@ -956,6 +956,58 @@ describe("CatalogController", () => {
     });
   });
 
+  it("rejects an invalid speciality services list query", async () => {
+    const req = {
+      params: { organisationId: "org_1", specialityId: "spec_1" },
+      query: { status: "BOGUS" },
+    };
+    const res = createResponse();
+
+    await CatalogController.listServicesBySpeciality(
+      req as never,
+      res as never,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(CatalogService.listProducts).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invalid speciality packages list query", async () => {
+    const req = {
+      params: { organisationId: "org_1", specialityId: "spec_1" },
+      query: { supportsInpatient: "maybe" },
+    };
+    const res = createResponse();
+
+    await CatalogController.listPackagesBySpeciality(
+      req as never,
+      res as never,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(CatalogService.listProducts).not.toHaveBeenCalled();
+  });
+
+  it("maps the supportsInpatient tri-state onto a boolean for package lists", async () => {
+    (CatalogService.listProducts as jest.Mock).mockResolvedValue([]);
+
+    const req = {
+      params: { organisationId: "org_1", specialityId: "spec_1" },
+      query: { supportsInpatient: "true" },
+    };
+    const res = createResponse();
+
+    await CatalogController.listPackagesBySpeciality(
+      req as never,
+      res as never,
+    );
+
+    expect(CatalogService.listProducts).toHaveBeenCalledWith(
+      expect.objectContaining({ supportsInpatient: true }),
+    );
+    expect(res.json).toHaveBeenCalledWith({ items: [] });
+  });
+
   it("creates, updates, restores, and deletes packages", async () => {
     (CatalogService.createProduct as jest.Mock).mockResolvedValue({
       id: "pkg_1",

@@ -28,36 +28,20 @@ type CalendarPrefillPayload = {
 import helpers from "src/utils/helper";
 import { resolveUserIdFromRequest } from "src/utils/request";
 import { getParentAddressForAuthUser } from "src/utils/location";
+import {
+  calendarPrefillBaseSchema,
+  utcDateStringSchema,
+} from "src/controllers/web/shared/catalog-service.schemas";
 
 dayjs.extend(utc);
 
 const BookableSlotsPayloadSchema = z.object({
   serviceId: z.string().trim().min(1),
   organisationId: z.string().trim().min(1),
-  date: z
-    .string()
-    .trim()
-    .refine(
-      (value) => dayjs.utc(value, "YYYY-MM-DD", true).isValid(),
-      "Invalid date format (use YYYY-MM-DD)",
-    ),
+  date: utcDateStringSchema,
 });
 
-const CalendarPrefillPayloadSchema = z.object({
-  organisationId: z.string().trim().min(1),
-  date: z
-    .string()
-    .trim()
-    .refine(
-      (value) => dayjs.utc(value, "YYYY-MM-DD", true).isValid(),
-      "Invalid date format (use YYYY-MM-DD)",
-    ),
-  minuteOfDay: z
-    .number()
-    .int()
-    .min(0)
-    .max(24 * 60 - 1),
-  leadId: z.string().trim().min(1).optional(),
+const CalendarPrefillPayloadSchema = calendarPrefillBaseSchema.extend({
   serviceIds: z.array(z.string().trim().min(1)).min(1),
 });
 
@@ -141,6 +125,16 @@ type ServiceSearchContext = {
     | "missing-address"
     | "unresolved"
     | null;
+};
+
+const SEARCH_CONTEXT_ERROR_MESSAGES: Record<
+  "invalid-coordinates" | "missing-address" | "unresolved",
+  string
+> = {
+  "invalid-coordinates": "lat and lng must be valid numbers",
+  "missing-address":
+    "Location not provided and user has no saved city/pincode.",
+  unresolved: "Unable to resolve location from city and postal code.",
 };
 
 const resolveServiceSearchContext = async (
@@ -327,12 +321,7 @@ export const ServiceController = {
       }
 
       if (locationContext.error) {
-        const message =
-          locationContext.error === "invalid-coordinates"
-            ? "lat and lng must be valid numbers"
-            : locationContext.error === "missing-address"
-              ? "Location not provided and user has no saved city/pincode."
-              : "Unable to resolve location from city and postal code.";
+        const message = SEARCH_CONTEXT_ERROR_MESSAGES[locationContext.error];
         return res.status(400).json({ message });
       }
 

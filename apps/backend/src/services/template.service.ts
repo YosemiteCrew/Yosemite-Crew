@@ -850,6 +850,24 @@ const compareResolverMatches = (
   return Number(right.defaultForKind) - Number(left.defaultForKind);
 };
 
+const buildTemplateUpdateFields = (
+  parsed: z.infer<typeof updateTemplateSchema>,
+  template: Awaited<ReturnType<typeof loadTemplateForWriteOrThrow>>,
+) => ({
+  ownership: parsed.ownership ?? template.ownership,
+  organisationId: template.organisationId,
+  ownerUserId: template.ownerUserId,
+  updatedBy: parsed.updatedBy ?? template.updatedBy,
+  name: parsed.name ?? template.name,
+  description:
+    parsed.description === undefined
+      ? template.description
+      : (parsed.description ?? undefined),
+  scope: parsed.scope ?? template.scope,
+  status: parsed.status ?? template.status,
+  rules: parsed.rules === undefined ? template.rules : (parsed.rules ?? null),
+});
+
 export const TemplateService = {
   async create(input: CreateTemplateInput) {
     assertWritableOwnership((input as { ownership?: unknown }).ownership);
@@ -914,19 +932,8 @@ export const TemplateService = {
     );
     const { createNewVersion, targetVersion } = resolveVersionPayload(template);
 
-    const nextOwnership = parsed.ownership ?? template.ownership;
-    const nextOrganisationId = template.organisationId;
-    const nextOwnerUserId = template.ownerUserId;
-    const nextUpdatedBy = parsed.updatedBy ?? template.updatedBy;
-    const nextName = parsed.name ?? template.name;
-    const nextDescription =
-      parsed.description === undefined
-        ? template.description
-        : (parsed.description ?? undefined);
-    const nextScope = parsed.scope ?? template.scope;
-    const nextStatus = parsed.status ?? template.status;
-    const nextRules =
-      parsed.rules === undefined ? template.rules : (parsed.rules ?? null);
+    const nextFields = buildTemplateUpdateFields(parsed, template);
+    const nextUpdatedBy = nextFields.updatedBy;
     const hasVersionChanges =
       parsed.schemaSnapshot !== undefined ||
       parsed.renderConfigSnapshot !== undefined ||
@@ -956,16 +963,9 @@ export const TemplateService = {
         await tx.template.update({
           where: { id: template.id },
           data: {
-            ownership: nextOwnership,
-            organisationId: nextOrganisationId,
-            ownerUserId: nextOwnerUserId,
-            name: nextName,
-            description: nextDescription,
-            scope: nextScope,
-            status: nextStatus,
-            rules: toNullableJsonInput(nextRules),
+            ...nextFields,
+            rules: toNullableJsonInput(nextFields.rules),
             latestVersion: nextVersion,
-            updatedBy: nextUpdatedBy,
           },
         });
 
@@ -1017,15 +1017,8 @@ export const TemplateService = {
     await prisma.template.update({
       where: { id: template.id },
       data: {
-        ownership: nextOwnership,
-        organisationId: nextOrganisationId,
-        ownerUserId: nextOwnerUserId,
-        name: nextName,
-        description: nextDescription,
-        scope: nextScope,
-        status: nextStatus,
-        rules: toNullableJsonInput(nextRules),
-        updatedBy: nextUpdatedBy,
+        ...nextFields,
+        rules: toNullableJsonInput(nextFields.rules),
       },
     });
 
@@ -1306,9 +1299,10 @@ export const TemplateService = {
         }
       }
 
-      const bestMatch = matches.sort((left, right) =>
+      matches.sort((left, right) =>
         compareResolverMatches(left.matched, right.matched),
-      )[0];
+      );
+      const bestMatch = matches[0];
 
       if (!bestMatch) {
         return null;

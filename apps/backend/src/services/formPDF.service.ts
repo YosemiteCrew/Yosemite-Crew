@@ -95,7 +95,7 @@ const renderBranding = (branding?: PdfBranding | null): string => {
     : "";
 
   const contactLines = [branding.phoneNo, branding.website]
-    .filter((line): line is string => Boolean(line && line.trim()))
+    .filter((line): line is string => Boolean(line?.trim()))
     .map((line) => `<div class="brand-contact-line">${escapeHtml(line)}</div>`)
     .join("");
 

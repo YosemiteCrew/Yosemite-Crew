@@ -1,11 +1,13 @@
 import { Request, Response } from "express";
 import { AppointmentService } from "src/services/appointment.service";
 import { AppointmentRequestDTO } from "@yosemite-crew/types";
-import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import logger from "src/utils/logger";
 import { AppointmentStatus } from "src/models/appointment";
 import { generatePresignedUrl } from "src/middlewares/upload";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import {
+  parseError,
+  resolveAuthedParentId,
+} from "./shared/appointment-controller.helpers";
 
 type RescheduleRequestBody = {
   startTime: string | Date;
@@ -18,26 +20,6 @@ type CancelBody = { reason?: string };
 
 type UploadUrlBody = { patientId?: string; mimeType?: string };
 type AttachFormsBody = { formIds?: string[] };
-
-type ErrorWithStatus = Error & { statusCode?: number };
-
-const parseError = (
-  err: unknown,
-  fallbackMessage: string,
-): { status: number; message: string } => {
-  const status =
-    typeof err === "object" &&
-    err !== null &&
-    "statusCode" in err &&
-    typeof (err as ErrorWithStatus).statusCode === "number"
-      ? ((err as ErrorWithStatus).statusCode ?? 500)
-      : 500;
-
-  const message =
-    err instanceof Error && err.message ? err.message : fallbackMessage;
-
-  return { status, message };
-};
 
 export const AppointmentController = {
   createRequestedFromMobile: async (
@@ -69,16 +51,9 @@ export const AppointmentController = {
     res: Response,
   ) => {
     try {
-      const authUserId = resolveUserIdFromRequest(req);
-      if (!authUserId) {
-        return res.status(401).json({ message: "User not authenticated" });
-      }
-      const authUser =
-        await AuthUserMobileService.getByProviderUserId(authUserId);
-      if (!authUser?.parentId) {
-        return res
-          .status(400)
-          .json({ message: "Parent information missing for user" });
+      const parentId = await resolveAuthedParentId(req, res);
+      if (!parentId) {
+        return;
       }
 
       const { appointmentId } = req.params;
@@ -93,7 +68,7 @@ export const AppointmentController = {
 
       const result = await AppointmentService.rescheduleFromParent(
         appointmentId,
-        authUser.parentId.toString(),
+        parentId,
         { startTime, endTime, concern, isEmergency },
       );
 
@@ -211,21 +186,14 @@ export const AppointmentController = {
   ) => {
     try {
       const { appointmentId } = req.params;
-      const authUserId = resolveUserIdFromRequest(req);
-      if (!authUserId) {
-        return res.status(401).json({ message: "User not authenticated" });
-      }
-      const authUser =
-        await AuthUserMobileService.getByProviderUserId(authUserId);
-      if (!authUser?.parentId) {
-        return res
-          .status(400)
-          .json({ message: "Parent information missing for user" });
+      const parentId = await resolveAuthedParentId(req, res);
+      if (!parentId) {
+        return;
       }
 
       const result = await AppointmentService.checkInAppointmentParent(
         appointmentId,
-        authUser.parentId.toString(),
+        parentId,
       );
 
       return res
@@ -330,23 +298,16 @@ export const AppointmentController = {
     res: Response,
   ) => {
     try {
-      const authUserId = resolveUserIdFromRequest(req);
-      if (!authUserId) {
-        return res.status(401).json({ message: "User not authenticated" });
-      }
-      const authUser =
-        await AuthUserMobileService.getByProviderUserId(authUserId);
-      if (!authUser?.parentId) {
-        return res
-          .status(400)
-          .json({ message: "Parent information missing for user" });
+      const parentId = await resolveAuthedParentId(req, res);
+      if (!parentId) {
+        return;
       }
 
       const { appointmentId } = req.params;
       const { reason } = req.body;
       const result = await AppointmentService.cancelAppointmentFromParent(
         appointmentId,
-        authUser.parentId.toString(),
+        parentId,
         reason!,
       );
 

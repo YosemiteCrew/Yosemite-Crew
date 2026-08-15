@@ -759,6 +759,24 @@ describe("WorkspaceService", () => {
         createdAt: new Date("2026-06-15T00:00:00.000Z"),
         updatedAt: new Date("2026-06-15T00:00:00.000Z"),
       },
+      {
+        id: "ti-1b",
+        organisationId: "org-1",
+        appointmentId: "appt-1",
+        encounterId: "enc-1",
+        productId: "prod-1b",
+        productVersion: 1,
+        productSnapshot: { name: "Bandage" },
+        servicePackageKind: "PROCEDURE",
+        quantity: 1,
+        priceSnapshot: { totalAmount: 10 },
+        billingStatus: "UNBILLED",
+        invoiceRowId: null,
+        lockState: "LOCKED",
+        prescriptionId: null,
+        createdAt: new Date("2026-06-15T00:00:00.000Z"),
+        updatedAt: new Date("2026-06-15T00:00:00.000Z"),
+      },
     ]);
     mockedPrisma.workspaceTreatmentItem.create.mockResolvedValue({
       id: "ti-2",
@@ -804,7 +822,9 @@ describe("WorkspaceService", () => {
       organisationId: "org-1",
       encounterId: "enc-1",
     });
-    expect(items).toHaveLength(1);
+    expect(items).toHaveLength(2);
+    expect(items[0].lockState).toEqual({ locked: false });
+    expect(items[1].lockState).toBe("LOCKED");
 
     const created = await WorkspaceService.createEncounterTreatmentItem({
       organisationId: "org-1",

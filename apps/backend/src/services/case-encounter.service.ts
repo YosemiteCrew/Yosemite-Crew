@@ -12,8 +12,10 @@ import type {
   Encounter as EncounterDomain,
   EncounterClass,
   EncounterStatus,
+  ResolvedCatalogItem,
   WorkspaceFinalizationGate,
 } from "@yosemite-crew/types";
+import { isSpeciesCompatible } from "./shared/normalize-tokens";
 
 type CaseRow = {
   id: string;
@@ -506,11 +508,9 @@ const getPackageMetadata = (
     typeof item.kind === "string" && item.kind.trim()
       ? item.kind.trim()
       : undefined,
-  sourceVersion:
-    typeof item.sourceVersion === "number" &&
-    Number.isFinite(item.sourceVersion)
-      ? item.sourceVersion
-      : null,
+  // The only call site builds `item` without a sourceVersion, so package
+  // expansion metadata always records null here.
+  sourceVersion: null,
 });
 
 const createPackageTemplateInstances = async (params: {
@@ -686,6 +686,31 @@ const maybeExpandPackageTreatmentItems = async (params: {
   await expandPackageTreatmentItems(params);
 };
 
+const buildPackageItemPriceSnapshot = (
+  item: ResolvedCatalogItem,
+  included: boolean,
+  packageProductItemId: string,
+  packageMetadata: ReturnType<typeof getPackageMetadata>,
+) => ({
+  productItemId: item.productItemId,
+  code: item.code,
+  name: item.name,
+  kind: item.kind,
+  quantity: item.quantity,
+  currency: item.currency,
+  unitPrice: included ? 0 : item.unitPrice,
+  referenceUnitPrice: item.referenceUnitPrice ?? null,
+  defaultDiscountPercent: item.defaultDiscountPercent ?? null,
+  maxDiscountPercent: item.maxDiscountPercent ?? null,
+  discountPercent: included ? 0 : item.discountPercent,
+  grossAmount: included ? 0 : item.grossAmount,
+  discountAmount: included ? 0 : item.discountAmount,
+  finalAmount: included ? 0 : item.finalAmount,
+  isPackageComponent: item.isPackageComponent,
+  packageProductItemId,
+  ...packageMetadata,
+});
+
 const expandPackageTreatmentItems = async (params: {
   tx: {
     workspaceTreatmentItem: WorkspaceTreatmentItemDelegate;
@@ -780,25 +805,12 @@ const expandPackageTreatmentItems = async (params: {
       },
       packageProductItemId,
     );
-    const priceSnapshot = {
-      productItemId: item.productItemId,
-      code: item.code,
-      name: item.name,
-      kind: item.kind,
-      quantity: item.quantity,
-      currency: item.currency,
-      unitPrice: included ? 0 : item.unitPrice,
-      referenceUnitPrice: item.referenceUnitPrice ?? null,
-      defaultDiscountPercent: item.defaultDiscountPercent ?? null,
-      maxDiscountPercent: item.maxDiscountPercent ?? null,
-      discountPercent: included ? 0 : item.discountPercent,
-      grossAmount: included ? 0 : item.grossAmount,
-      discountAmount: included ? 0 : item.discountAmount,
-      finalAmount: included ? 0 : item.finalAmount,
-      isPackageComponent: item.isPackageComponent,
+    const priceSnapshot = buildPackageItemPriceSnapshot(
+      item,
+      included,
       packageProductItemId,
-      ...packageMetadata,
-    };
+      packageMetadata,
+    );
 
     await params.tx.workspaceTreatmentItem.create({
       data: {
@@ -893,63 +905,11 @@ const assertPeriod = (start?: Date, end?: Date) => {
   }
 };
 
-const normalizeStringTokens = (value: unknown): string[] => {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return [
-    ...new Set(
-      value
-        .map((item) =>
-          typeof item === "string" ? item.trim().toLowerCase() : "",
-        )
-        .filter((item) => item.length > 0),
-    ),
-  ];
-};
-
-const getCompanionSpeciesTokens = (companion: CompanionRow) => {
-  const tokens = new Set<string>();
-  const type = companion.type.trim().toLowerCase();
-
-  if (type) {
-    tokens.add(type);
-  }
-
-  if (companion.speciesCode?.trim()) {
-    tokens.add(companion.speciesCode.trim().toLowerCase());
-  }
-
-  const aliases: Record<string, string[]> = {
-    dog: ["canine"],
-    cat: ["feline"],
-    horse: ["equine"],
-    other: ["other"],
-  };
-
-  for (const alias of aliases[type] ?? []) {
-    tokens.add(alias);
-  }
-
-  return tokens;
-};
-
 const assertRoomUnitSpeciesCompatibility = (
   unit: RoomUnitRow,
   companion: CompanionRow,
 ) => {
-  const constraints = normalizeStringTokens(unit.speciesConstraints);
-  if (constraints.length === 0) {
-    return;
-  }
-
-  const allowedSpecies = getCompanionSpeciesTokens(companion);
-  const isCompatible = constraints.some((constraint) =>
-    allowedSpecies.has(constraint),
-  );
-
-  if (!isCompatible) {
+  if (!isSpeciesCompatible(unit.speciesConstraints, companion)) {
     throw new CaseEncounterServiceError(
       "Room unit is not compatible with this companion's species.",
       409,
@@ -961,17 +921,7 @@ const assertRoomUnitGroupSpeciesCompatibility = (
   group: RoomUnitGroupRow,
   companion: CompanionRow,
 ) => {
-  const constraints = normalizeStringTokens(group.speciesConstraints);
-  if (constraints.length === 0) {
-    return;
-  }
-
-  const allowedSpecies = getCompanionSpeciesTokens(companion);
-  const isCompatible = constraints.some((constraint) =>
-    allowedSpecies.has(constraint),
-  );
-
-  if (!isCompatible) {
+  if (!isSpeciesCompatible(group.speciesConstraints, companion)) {
     throw new CaseEncounterServiceError(
       "Room unit group is not compatible with this companion's species.",
       409,

@@ -312,4 +312,122 @@ describe("LabOrderController", () => {
       expect(statusMock).toHaveBeenCalledWith(200);
     });
   });
+
+  describe("request validation", () => {
+    it("returns 400 when organisationId is missing", async () => {
+      req.params = { provider: "idexx" };
+
+      await LabOrderController.listOrders(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "organisationId is required.",
+      });
+      expect(mockedLabOrderService.listOrders).not.toHaveBeenCalled();
+    });
+
+    it("returns 400 when provider is missing", async () => {
+      req.params = { organisationId: "org-1" };
+
+      await LabOrderController.listOrders(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "provider is required.",
+      });
+      expect(mockedLabOrderService.listOrders).not.toHaveBeenCalled();
+    });
+
+    it("returns 400 when idexxOrderId is missing", async () => {
+      await LabOrderController.getOrder(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "idexxOrderId is required.",
+      });
+      expect(mockedLabOrderService.getOrder).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("error responses", () => {
+    it("searchOrders maps unexpected errors to 500", async () => {
+      (mockedLabOrderService.listOrders as any).mockRejectedValue(
+        new Error("boom"),
+      );
+
+      await LabOrderController.searchOrders(req as Request, res);
+
+      expect(mockedLogger.error).toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(500);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Failed to search lab orders.",
+      });
+    });
+
+    it("listProviderTests maps unexpected errors to 500", async () => {
+      (mockedLabOrderService.listProviderTests as any).mockRejectedValue(
+        new Error("boom"),
+      );
+
+      await LabOrderController.listProviderTests(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(500);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Failed to list lab tests.",
+      });
+    });
+
+    it("createIdexxOrder maps service errors to their status", async () => {
+      (mockedLabOrderService.createOrder as any).mockRejectedValue(
+        new LabOrderServiceError("IDEXX credentials missing.", 400),
+      );
+
+      await LabOrderController.createIdexxOrder(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "IDEXX credentials missing.",
+      });
+    });
+
+    it("getOrder maps service errors to their status", async () => {
+      req.params = { ...req.params, idexxOrderId: "id-1" };
+      (mockedLabOrderService.getOrder as any).mockRejectedValue(
+        new LabOrderServiceError("Order not found.", 404),
+      );
+
+      await LabOrderController.getOrder(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(404);
+      expect(jsonMock).toHaveBeenCalledWith({ message: "Order not found." });
+    });
+
+    it("updateOrder maps unexpected errors to 500", async () => {
+      req.params = { ...req.params, idexxOrderId: "id-1" };
+      (mockedLabOrderService.updateOrder as any).mockRejectedValue(
+        new Error("boom"),
+      );
+
+      await LabOrderController.updateOrder(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(500);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Failed to update lab order.",
+      });
+    });
+
+    it("cancelOrder maps unexpected errors to 500", async () => {
+      req.params = { ...req.params, idexxOrderId: "id-1" };
+      (mockedLabOrderService.cancelOrder as any).mockRejectedValue(
+        new Error("boom"),
+      );
+
+      await LabOrderController.cancelOrder(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(500);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Failed to cancel lab order.",
+      });
+    });
+  });
 });

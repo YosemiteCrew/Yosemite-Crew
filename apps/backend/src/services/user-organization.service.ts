@@ -15,6 +15,10 @@ import { sendEmailTemplate } from "src/utils/email";
 import logger from "src/utils/logger";
 import { pruneUndefined } from "src/utils/prune-undefined";
 import { prisma } from "src/config/prisma";
+import {
+  markFreeLimitReachedAt,
+  type OrgUsageCountersDoc,
+} from "./shared/org-usage-limit";
 import type { UserOrganization as PrismaUserOrganization } from "@prisma/client";
 
 export type UserOrganizationFHIRPayload = UserOrganizationRequestDTO;
@@ -288,38 +292,6 @@ const isFreePlan = async (orgId: string) => {
   return !billing || billing.plan === "free";
 };
 
-type OrgUsageCountersDoc = {
-  id: string;
-  orgId: string;
-  freeLimitReachedAt?: Date | null;
-  usersActiveCount?: number | null;
-  usersBillableCount?: number | null;
-  appointmentsUsed?: number | null;
-  toolsUsed?: number | null;
-  freeAppointmentsLimit?: number | null;
-  freeToolsLimit?: number | null;
-  freeUsersLimit?: number | null;
-};
-
-const markFreeLimitReachedAt = async (usage: OrgUsageCountersDoc | null) => {
-  if (
-    !usage ||
-    usage.freeLimitReachedAt ||
-    ((usage.usersActiveCount ?? 0) < (usage.freeUsersLimit ?? 0) &&
-      (usage.appointmentsUsed ?? 0) < (usage.freeAppointmentsLimit ?? 0) &&
-      (usage.toolsUsed ?? 0) < (usage.freeToolsLimit ?? 0))
-  ) {
-    return false;
-  }
-
-  const updated = await prisma.organizationUsageCounter.updateMany({
-    where: { id: usage.id, freeLimitReachedAt: null },
-    data: { freeLimitReachedAt: new Date() },
-  });
-
-  return updated.count > 0;
-};
-
 const resolveOrganisationObjectId = async (
   reference: string,
 ): Promise<string> => {
@@ -368,7 +340,10 @@ const reserveMemberSlot = async (orgId: string) => {
     });
 
     const updatedUsage = updated as unknown as OrgUsageCountersDoc | null;
-    const didReachLimit = await markFreeLimitReachedAt(updatedUsage);
+    const didReachLimit = await markFreeLimitReachedAt(
+      updatedUsage,
+      (counters) => ({ id: counters.id }),
+    );
     if (didReachLimit && updatedUsage) {
       void sendFreePlanLimitReachedEmail({ orgId, usage: updatedUsage });
     }

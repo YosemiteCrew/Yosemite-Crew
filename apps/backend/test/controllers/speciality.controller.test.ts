@@ -117,6 +117,86 @@ describe("SpecialityController", () => {
     );
   });
 
+  it("falls back to the organisationId route param and maps active=false to the archived filter", async () => {
+    (CatalogService.listSpecialities as jest.Mock).mockResolvedValue({
+      organisationId: "org_2",
+      page: 1,
+      pageSize: 50,
+      total: 0,
+      items: [],
+    });
+
+    const req = {
+      params: { organisationId: "org_2" },
+      query: { active: "false" },
+      baseUrl: "/fhir/v1/speciality",
+    };
+    const res = createResponse();
+
+    await SpecialityController.getAllByOrganizationId(
+      req as never,
+      res as never,
+    );
+
+    expect(CatalogService.listSpecialities).toHaveBeenCalledWith("org_2", {
+      search: undefined,
+      status: "ARCHIVED",
+      page: undefined,
+      pageSize: undefined,
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("omits the status filter when active is not supplied", async () => {
+    (CatalogService.listSpecialities as jest.Mock).mockResolvedValue({
+      organisationId: "org_3",
+      page: 1,
+      pageSize: 50,
+      total: 0,
+      items: [],
+    });
+
+    const req = {
+      params: { organisationId: "org_3" },
+      query: {},
+      baseUrl: "/fhir/v1/speciality",
+    };
+    const res = createResponse();
+
+    await SpecialityController.getAllByOrganizationId(
+      req as never,
+      res as never,
+    );
+
+    expect(CatalogService.listSpecialities).toHaveBeenCalledWith("org_3", {
+      search: undefined,
+      status: undefined,
+      page: undefined,
+      pageSize: undefined,
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("rejects a speciality search without any organisation identifier", async () => {
+    const req = {
+      params: {},
+      query: {},
+      baseUrl: "/fhir/v1/speciality",
+    };
+    const res = createResponse();
+
+    await SpecialityController.getAllByOrganizationId(
+      req as never,
+      res as never,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Organization identifier is required.",
+    });
+    expect(CatalogService.listSpecialities).not.toHaveBeenCalled();
+  });
+
   it("returns a FHIR speciality resource by id", async () => {
     (CatalogService.getSpecialityById as jest.Mock).mockResolvedValue({
       id: "spec_1",

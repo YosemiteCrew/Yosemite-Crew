@@ -364,16 +364,18 @@ const updateInvoiceAfterPayment = async (params: {
     input.settlementChannel === "DEPOSIT" ||
     invoice.billingCollectionMode === "DEPOSIT_THEN_SETTLE";
 
-  const nextDepositCollectedAmount = isDepositPayment
-    ? roundMoney(
-        invoice.depositTargetAmount > 0
-          ? Math.min(
-              (invoice.depositCollectedAmount ?? 0) + appliedAmount,
-              invoice.depositTargetAmount,
-            )
-          : (invoice.depositCollectedAmount ?? 0) + appliedAmount,
-      )
-    : roundMoney(invoice.depositCollectedAmount ?? 0);
+  let nextDepositCollectedAmount = roundMoney(
+    invoice.depositCollectedAmount ?? 0,
+  );
+  if (isDepositPayment) {
+    const collectedWithPayment =
+      (invoice.depositCollectedAmount ?? 0) + appliedAmount;
+    nextDepositCollectedAmount = roundMoney(
+      invoice.depositTargetAmount > 0
+        ? Math.min(collectedWithPayment, invoice.depositTargetAmount)
+        : collectedWithPayment,
+    );
+  }
 
   if (appliedAmount >= balance) {
     const settledInvoice = await prisma.invoice.update({
@@ -614,6 +616,23 @@ const findInvoiceByPaymentIntentId = async (paymentIntentId: string) => {
   return null;
 };
 
+// Webhook payloads may name the invoice directly or only carry the provider's
+// payment-intent reference; resolve whichever identifier is present.
+const findInvoiceForPaymentEvent = async (input: {
+  invoiceId?: string | null;
+  paymentIntentId?: string | null;
+}) => {
+  if (input.invoiceId) {
+    return prisma.invoice.findFirst({ where: { id: input.invoiceId } });
+  }
+
+  if (input.paymentIntentId) {
+    return findInvoiceByPaymentIntentId(input.paymentIntentId);
+  }
+
+  return null;
+};
+
 const findInvoiceByCheckoutSessionId = async (sessionId: string) => {
   const paymentAttempt = await prisma.paymentAttempt.findFirst({
     where: { providerCheckoutSessionId: sessionId },
@@ -641,6 +660,202 @@ const mapRefundStatus = (status: string): PrismaRefundStatus => {
     default:
       return "PENDING";
   }
+};
+
+type CheckoutLineItemSource = {
+  name?: string;
+  description?: string;
+  total?: number;
+  quantity?: number;
+  unitPrice?: number;
+  discountPercent?: number;
+};
+
+// Charge the full bill as itemised, pre-tax lines (letting Stripe apply tax)
+// UNLESS we must charge a remaining/adjusted balance instead: when a prior
+// payment or credit has been applied, or when an invoice-level adjustment makes
+// the (discount-adjusted) item sum differ from the invoice's pre-tax total. In
+// those cases we charge a single, tax-inclusive balance line with automatic tax
+// disabled so the balance is never taxed twice. Comparing against the PRE-TAX
+// total (not the balance) is what stops a plain tax line from dropping itemisation.
+const buildCheckoutSessionLineItems = (params: {
+  invoice: { id: string; totalAmount: number; taxTotal: number | null };
+  items: unknown[];
+  summary: InvoiceFinancialSummary;
+  invoiceCurrency: string;
+}) => {
+  const { invoice, items, summary, invoiceCurrency } = params;
+
+  const discountedItemSum = roundMoney(
+    items.reduce((sum: number, item) => {
+      const typed = item as CheckoutLineItemSource;
+      if (typeof typed.total === "number") {
+        return sum + typed.total;
+      }
+      const unitPrice =
+        typeof typed.unitPrice === "number" ? typed.unitPrice : 0;
+      const quantity = typeof typed.quantity === "number" ? typed.quantity : 0;
+      const discountPercent =
+        typeof typed.discountPercent === "number" ? typed.discountPercent : 0;
+      return sum + unitPrice * quantity * (1 - discountPercent / 100);
+    }, 0),
+  );
+  const preTaxInvoiceTotal = roundMoney(
+    invoice.totalAmount -
+      (typeof invoice.taxTotal === "number" ? invoice.taxTotal : 0),
+  );
+  const useBalanceLine =
+    summary.paid > 0 ||
+    summary.credited > 0 ||
+    discountedItemSum !== preTaxInvoiceTotal;
+
+  if (useBalanceLine) {
+    return {
+      useBalanceLine,
+      lineItems: [
+        {
+          price_data: {
+            currency: invoiceCurrency,
+            product_data: {
+              name: `Outstanding balance for invoice ${invoice.id}`,
+            },
+            unit_amount: Math.round(summary.balance * 100),
+          },
+          quantity: 1,
+        },
+      ],
+    };
+  }
+
+  return {
+    useBalanceLine,
+    lineItems: items.map((item) => {
+      const typed = item as CheckoutLineItemSource;
+      const unitPrice =
+        typeof typed.unitPrice === "number" ? typed.unitPrice : 0;
+      const discountPercent =
+        typeof typed.discountPercent === "number" ? typed.discountPercent : 0;
+      const effectiveUnitAmount = Math.round(
+        roundMoney(unitPrice * (1 - discountPercent / 100)) * 100,
+      );
+      return {
+        price_data: {
+          currency: invoiceCurrency,
+          product_data: {
+            name: typed.name ?? typed.description ?? "Service",
+            description: typed.description ?? undefined,
+          },
+          unit_amount: effectiveUnitAmount,
+        },
+        quantity:
+          typeof typed.quantity === "number" && typed.quantity > 0
+            ? typed.quantity
+            : 1,
+      };
+    }),
+  };
+};
+
+// A PAYMENT_LINK invoice switching to an in-app PaymentIntent must first
+// retire its open Checkout Sessions so the same balance cannot be paid twice.
+const cancelOpenCheckoutSessionAttempts = async (invoiceId: string) => {
+  const staleSessionAttempts = await prisma.paymentAttempt.findMany({
+    where: {
+      invoiceId,
+      provider: "STRIPE",
+      providerCheckoutSessionId: { not: null },
+      status: { notIn: ["CANCELED", "FAILED", "SUCCEEDED"] },
+    },
+    select: {
+      id: true,
+      providerCheckoutSessionId: true,
+      rawProviderPayload: true,
+    },
+  });
+
+  for (const staleAttempt of staleSessionAttempts) {
+    if (!staleAttempt.providerCheckoutSessionId) continue;
+    await expireCheckoutSessionAtProvider({
+      invoiceId,
+      sessionId: staleAttempt.providerCheckoutSessionId,
+      rawProviderPayload: staleAttempt.rawProviderPayload,
+    });
+  }
+
+  await prisma.paymentAttempt.updateMany({
+    where: {
+      invoiceId,
+      provider: "STRIPE",
+      providerCheckoutSessionId: { not: null },
+    },
+    data: {
+      status: "CANCELED",
+    },
+  });
+};
+
+// Reuse the latest open PaymentIntent attempt when it still matches the
+// outstanding balance; otherwise cancel it so a fresh intent can be issued.
+const reuseOrCancelExistingPaymentIntentAttempt = async (
+  invoiceId: string,
+  invoice: {
+    totalAmount: number;
+    depositCollectedAmount: number | null;
+    currency: string;
+  },
+): Promise<PaymentIntentResult | null> => {
+  const existingPaymentIntentAttempt = await prisma.paymentAttempt.findFirst({
+    where: {
+      invoiceId,
+      provider: "STRIPE",
+      providerPaymentIntentId: { not: null },
+      status: { notIn: ["SUCCEEDED", "CANCELED"] },
+    },
+    select: {
+      id: true,
+      amountRequested: true,
+      providerPaymentIntentId: true,
+      rawProviderPayload: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (!existingPaymentIntentAttempt?.providerPaymentIntentId) {
+    return null;
+  }
+
+  const summary = await getInvoiceFinancialSummary(
+    invoiceId,
+    invoice.totalAmount,
+    invoice.depositCollectedAmount ?? 0,
+  );
+  if (
+    roundMoney(existingPaymentIntentAttempt.amountRequested ?? 0) ===
+    summary.balance
+  ) {
+    const rawProviderPayload = readJsonRecord(
+      existingPaymentIntentAttempt.rawProviderPayload,
+    );
+    return {
+      paymentIntentId: existingPaymentIntentAttempt.providerPaymentIntentId,
+      clientSecret:
+        typeof rawProviderPayload.clientSecret === "string"
+          ? rawProviderPayload.clientSecret
+          : null,
+      connectedAccountId:
+        typeof rawProviderPayload.connectedAccountId === "string"
+          ? rawProviderPayload.connectedAccountId
+          : null,
+      amount: summary.balance,
+      currency: invoice.currency,
+    };
+  }
+
+  await prisma.paymentAttempt.update({
+    where: { id: existingPaymentIntentAttempt.id },
+    data: { status: "CANCELED" },
+  });
+  return null;
 };
 
 let stripeClient: StripeCheckoutSessionClient | null = null;
@@ -794,86 +1009,12 @@ export const FinancePaymentService = {
       throw new FinancePaymentError("Invoice items are missing", 400);
     }
 
-    // Charge the full bill as itemised, pre-tax lines (letting Stripe apply tax)
-    // UNLESS we must charge a remaining/adjusted balance instead: when a prior
-    // payment or credit has been applied, or when an invoice-level adjustment makes
-    // the (discount-adjusted) item sum differ from the invoice's pre-tax total. In
-    // those cases we charge a single, tax-inclusive balance line with automatic tax
-    // disabled so the balance is never taxed twice. Comparing against the PRE-TAX
-    // total (not the balance) is what stops a plain tax line from dropping itemisation.
-    const discountedItemSum = roundMoney(
-      items.reduce((sum: number, item) => {
-        const typed = item as {
-          total?: number;
-          unitPrice?: number;
-          quantity?: number;
-          discountPercent?: number;
-        };
-        if (typeof typed.total === "number") {
-          return sum + typed.total;
-        }
-        const unitPrice =
-          typeof typed.unitPrice === "number" ? typed.unitPrice : 0;
-        const quantity =
-          typeof typed.quantity === "number" ? typed.quantity : 0;
-        const discountPercent =
-          typeof typed.discountPercent === "number" ? typed.discountPercent : 0;
-        return sum + unitPrice * quantity * (1 - discountPercent / 100);
-      }, 0),
-    );
-    const preTaxInvoiceTotal = roundMoney(
-      invoice.totalAmount -
-        (typeof invoice.taxTotal === "number" ? invoice.taxTotal : 0),
-    );
-    const useBalanceLine =
-      summary.paid > 0 ||
-      summary.credited > 0 ||
-      discountedItemSum !== preTaxInvoiceTotal;
-    const lineItems = useBalanceLine
-      ? [
-          {
-            price_data: {
-              currency: invoiceCurrency,
-              product_data: {
-                name: `Outstanding balance for invoice ${invoice.id}`,
-              },
-              unit_amount: Math.round(summary.balance * 100),
-            },
-            quantity: 1,
-          },
-        ]
-      : items.map((item) => {
-          const typed = item as {
-            name?: string;
-            description?: string;
-            quantity?: number;
-            unitPrice?: number;
-            discountPercent?: number;
-          };
-          const unitPrice =
-            typeof typed.unitPrice === "number" ? typed.unitPrice : 0;
-          const discountPercent =
-            typeof typed.discountPercent === "number"
-              ? typed.discountPercent
-              : 0;
-          const effectiveUnitAmount = Math.round(
-            roundMoney(unitPrice * (1 - discountPercent / 100)) * 100,
-          );
-          return {
-            price_data: {
-              currency: invoiceCurrency,
-              product_data: {
-                name: typed.name ?? typed.description ?? "Service",
-                description: typed.description ?? undefined,
-              },
-              unit_amount: effectiveUnitAmount,
-            },
-            quantity:
-              typeof typed.quantity === "number" && typed.quantity > 0
-                ? typed.quantity
-                : 1,
-          };
-        });
+    const { useBalanceLine, lineItems } = buildCheckoutSessionLineItems({
+      invoice,
+      items,
+      summary,
+      invoiceCurrency,
+    });
 
     const stripe = getStripeClient();
     const expiresAt = Math.floor((Date.now() + 24 * 60 * 60 * 1000) / 1000);
@@ -973,92 +1114,15 @@ export const FinancePaymentService = {
     }
 
     if (invoice.paymentCollectionMethod === "PAYMENT_LINK") {
-      const staleSessionAttempts = await prisma.paymentAttempt.findMany({
-        where: {
-          invoiceId,
-          provider: "STRIPE",
-          providerCheckoutSessionId: { not: null },
-          status: { notIn: ["CANCELED", "FAILED", "SUCCEEDED"] },
-        },
-        select: {
-          id: true,
-          providerCheckoutSessionId: true,
-          rawProviderPayload: true,
-        },
-      });
-
-      for (const staleAttempt of staleSessionAttempts) {
-        if (!staleAttempt.providerCheckoutSessionId) continue;
-        await expireCheckoutSessionAtProvider({
-          invoiceId,
-          sessionId: staleAttempt.providerCheckoutSessionId,
-          rawProviderPayload: staleAttempt.rawProviderPayload,
-        });
-      }
-
-      await prisma.paymentAttempt.updateMany({
-        where: {
-          invoiceId,
-          provider: "STRIPE",
-          providerCheckoutSessionId: { not: null },
-        },
-        data: {
-          status: "CANCELED",
-        },
-      });
+      await cancelOpenCheckoutSessionAttempts(invoiceId);
     }
 
-    const existingPaymentIntentAttempt = await prisma.paymentAttempt.findFirst({
-      where: {
-        invoiceId,
-        provider: "STRIPE",
-        providerPaymentIntentId: { not: null },
-        status: { notIn: ["SUCCEEDED", "CANCELED"] },
-      },
-      select: {
-        id: true,
-        amountRequested: true,
-        providerPaymentIntentId: true,
-        rawProviderPayload: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    if (existingPaymentIntentAttempt?.providerPaymentIntentId) {
-      const summary = await getInvoiceFinancialSummary(
-        invoiceId,
-        invoice.totalAmount,
-        invoice.depositCollectedAmount ?? 0,
-      );
-      if (
-        roundMoney(existingPaymentIntentAttempt.amountRequested ?? 0) ===
-        summary.balance
-      ) {
-        const rawProviderPayload =
-          existingPaymentIntentAttempt.rawProviderPayload &&
-          typeof existingPaymentIntentAttempt.rawProviderPayload === "object" &&
-          !Array.isArray(existingPaymentIntentAttempt.rawProviderPayload)
-            ? existingPaymentIntentAttempt.rawProviderPayload
-            : {};
-        return {
-          paymentIntentId: existingPaymentIntentAttempt.providerPaymentIntentId,
-          clientSecret:
-            typeof rawProviderPayload.clientSecret === "string"
-              ? rawProviderPayload.clientSecret
-              : null,
-          connectedAccountId:
-            typeof rawProviderPayload.connectedAccountId === "string"
-              ? rawProviderPayload.connectedAccountId
-              : null,
-          amount: summary.balance,
-          currency: invoice.currency,
-        };
-      }
-
-      await prisma.paymentAttempt.update({
-        where: { id: existingPaymentIntentAttempt.id },
-        data: { status: "CANCELED" },
-      });
+    const reusedPaymentIntent = await reuseOrCancelExistingPaymentIntentAttempt(
+      invoiceId,
+      invoice,
+    );
+    if (reusedPaymentIntent) {
+      return reusedPaymentIntent;
     }
 
     const summary = await getInvoiceFinancialSummary(
@@ -1707,13 +1771,7 @@ export const FinancePaymentService = {
     allowUnboundAttempt?: boolean;
     rawProviderPayload?: Prisma.InputJsonValue | null;
   }) {
-    const invoice = input.invoiceId
-      ? await prisma.invoice.findFirst({
-          where: { id: input.invoiceId },
-        })
-      : input.paymentIntentId
-        ? await findInvoiceByPaymentIntentId(input.paymentIntentId)
-        : null;
+    const invoice = await findInvoiceForPaymentEvent(input);
 
     if (!invoice) {
       return { action: "NO_INVOICE" as const };
@@ -1901,13 +1959,7 @@ export const FinancePaymentService = {
     currency: string;
     reason?: string;
   }) {
-    const invoice = input.invoiceId
-      ? await prisma.invoice.findFirst({
-          where: { id: input.invoiceId },
-        })
-      : input.paymentIntentId
-        ? await findInvoiceByPaymentIntentId(input.paymentIntentId)
-        : null;
+    const invoice = await findInvoiceForPaymentEvent(input);
 
     if (!invoice) {
       return { action: "NO_INVOICE" as const };
@@ -1975,13 +2027,7 @@ export const FinancePaymentService = {
     appointmentId?: string | null;
     paymentIntentId?: string | null;
   }) {
-    const invoice = input.invoiceId
-      ? await prisma.invoice.findFirst({
-          where: { id: input.invoiceId },
-        })
-      : input.paymentIntentId
-        ? await findInvoiceByPaymentIntentId(input.paymentIntentId)
-        : null;
+    const invoice = await findInvoiceForPaymentEvent(input);
 
     if (!invoice) {
       return { action: "NO_INVOICE" as const };

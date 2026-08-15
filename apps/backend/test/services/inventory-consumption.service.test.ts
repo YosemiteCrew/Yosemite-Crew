@@ -3538,4 +3538,119 @@ describe("InventoryConsumptionService", () => {
       }),
     );
   });
+
+  it("derives frequency from keyword and interval descriptions", async () => {
+    mockedPrisma.inventoryItem.findMany.mockResolvedValueOnce([]);
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce(
+      null,
+    );
+    mockedPrisma.prescriptionDispenseRequest.create.mockResolvedValueOnce({
+      id: "request-keyword-freq",
+    });
+
+    await InventoryConsumptionService.createPrescriptionDispenseRequest({
+      organisationId: "org-1",
+      prescriptionId: "rx-keyword-freq",
+      medications: [
+        {
+          inventoryItemId: "item-freq-sid",
+          frequency: "SID WITH FOOD",
+          sourceLineKey: "line-freq-sid",
+        },
+        {
+          inventoryItemId: "item-freq-twice",
+          frequency: "TWICE DAILY",
+          sourceLineKey: "line-freq-twice",
+        },
+        {
+          inventoryItemId: "item-freq-four",
+          frequency: "FOUR TIMES DAILY",
+          sourceLineKey: "line-freq-four",
+        },
+        {
+          inventoryItemId: "item-freq-weekly",
+          frequency: "ONCE WEEKLY",
+          sourceLineKey: "line-freq-weekly",
+        },
+        {
+          inventoryItemId: "item-freq-meals",
+          frequency: "AFTER MEALS",
+          sourceLineKey: "line-freq-meals",
+        },
+        {
+          inventoryItemId: "item-freq-hours",
+          frequency: "EVERY 6 HOURS",
+          sourceLineKey: "line-freq-hours",
+        },
+        {
+          inventoryItemId: "item-freq-invalid",
+          frequency: "EVERY 0 HOURS",
+          sourceLineKey: "line-freq-invalid",
+        },
+      ],
+    });
+
+    const createArgs = mockedPrisma.prescriptionDispenseRequest.create.mock
+      .calls[0][0] as {
+      data: {
+        medications: Array<{
+          inventoryItemId: string;
+          frequencyPerDay?: number;
+        }>;
+      };
+    };
+    const byItemId = new Map(
+      createArgs.data.medications.map((med) => [med.inventoryItemId, med]),
+    );
+    expect(byItemId.get("item-freq-sid")?.frequencyPerDay).toBe(1);
+    expect(byItemId.get("item-freq-twice")?.frequencyPerDay).toBe(2);
+    expect(byItemId.get("item-freq-four")?.frequencyPerDay).toBe(4);
+    expect(byItemId.get("item-freq-weekly")?.frequencyPerDay).toBeCloseTo(
+      1 / 7,
+    );
+    expect(byItemId.get("item-freq-meals")?.frequencyPerDay).toBe(3);
+    expect(byItemId.get("item-freq-hours")?.frequencyPerDay).toBe(4);
+    expect(byItemId.get("item-freq-invalid")?.frequencyPerDay).toBeUndefined();
+  });
+
+  it("falls back to the encounter snapshot when the appointment is missing", async () => {
+    mockedPrisma.appointment.findFirst.mockResolvedValueOnce(null);
+    mockedPrisma.encounter.findFirst.mockResolvedValueOnce({
+      patientId: "patient-fallback-1",
+    });
+    mockedPrisma.patient.findFirst.mockResolvedValueOnce({
+      type: "horse",
+    });
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce(
+      null,
+    );
+    mockedPrisma.prescriptionDispenseRequest.create.mockResolvedValueOnce({
+      id: "request-fallback-1",
+    });
+
+    await InventoryConsumptionService.createPrescriptionDispenseRequest({
+      organisationId: "org-1",
+      prescriptionId: "rx-fallback-1",
+      medications: [],
+      context: { appointmentId: "appt-missing-1", encounterId: "enc-fb-1" },
+    });
+
+    expect(mockedPrisma.appointment.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "appt-missing-1", organisationId: "org-1" },
+      }),
+    );
+    expect(
+      mockedPrisma.prescriptionDispenseRequest.create,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          metadata: expect.objectContaining({
+            petSpecies: "Equine",
+            appointmentKind: "OUTPATIENT",
+          }),
+        }),
+      }),
+    );
+  });
 });

@@ -18,26 +18,19 @@ import {
   normalizeTemplateKind,
   toLegacyTemplateKind,
 } from "@yosemite-crew/types";
-import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc.js";
 import { Prisma } from "@prisma/client";
-import { AvailabilitySlotMongo } from "src/models/base-availability";
 import { prisma } from "src/config/prisma";
 import { AvailabilityService } from "./availability.service";
-import {
-  addCachedPromise,
-  type CachedPromise,
-} from "src/utils/cached-promise-cache";
 import logger from "src/utils/logger";
 import {
   buildBookableWindowsForVets,
   mapOrganisationWithAddress,
-  normalizeSlotForSelectedDay,
-  resolveOrganisationTimezone,
 } from "src/utils/scheduling";
+import {
+  createCalendarPrefillCache,
+  getCalendarPrefillMatchesCached,
+} from "./shared/service-availability";
 import { filterWithinRadius, getBoundingDeltas } from "src/utils/geo";
-
-dayjs.extend(utc);
 
 export type CatalogPackageItemInput = {
   childProductItemId: string;
@@ -286,28 +279,8 @@ type CatalogCalendarPrefillRequest = {
   serviceIds: string[];
 };
 
-type CatalogCalendarPrefillMatch = {
-  serviceId: string;
-  slot: {
-    startTime: string;
-    endTime: string;
-    vetIds: string[];
-  };
-  meta: {
-    localStartMinute: number;
-    localEndMinute: number;
-  };
-};
-
-const SLOT_MATCH_TOLERANCE_MINUTES = 5;
-const CALENDAR_PREFILL_CACHE_TTL_MS = 15_000;
-const CALENDAR_PREFILL_CACHE_MAX_ENTRIES = 2_000;
-const CALENDAR_PREFILL_CACHE_PRUNE_INTERVAL_MS = 15_000;
 const NEARBY_ORGANISATION_LIMIT = 100;
-const calendarPrefillCache = new Map<
-  string,
-  CachedPromise<CatalogCalendarPrefillMatch[]>
->();
+const calendarPrefillCache = createCalendarPrefillCache();
 
 export const requireSafeString = (value: unknown, field: string) => {
   if (typeof value !== "string") {
@@ -1311,6 +1284,27 @@ type ProductPackageChildRecord = {
   isActive: boolean;
 };
 
+const computeListRowTotalAmount = (params: {
+  product: ProductRecord;
+  packageSummary: ReturnType<typeof computePackageFinancials> | null;
+  unitPrice: number | null;
+  defaultDiscountPercent: number | null;
+}): number => {
+  if (params.product.kind === "PACKAGE") {
+    return params.packageSummary?.finalAmount ?? 0;
+  }
+
+  if (params.unitPrice == null) {
+    return 0;
+  }
+
+  return computeLineAmounts({
+    unitPrice: params.unitPrice,
+    quantity: 1,
+    discountPercent: params.defaultDiscountPercent ?? 0,
+  }).finalAmount;
+};
+
 const mapProductRecordToCatalogListRow = (
   product: ProductRecord,
 ): CatalogListRow => {
@@ -1332,16 +1326,12 @@ const mapProductRecordToCatalogListRow = (
         })
       : null;
 
-  const totalAmount =
-    product.kind === "PACKAGE"
-      ? (packageSummary?.finalAmount ?? 0)
-      : unitPrice == null
-        ? 0
-        : computeLineAmounts({
-            unitPrice,
-            quantity: 1,
-            discountPercent: defaultDiscountPercent ?? 0,
-          }).finalAmount;
+  const totalAmount = computeListRowTotalAmount({
+    product,
+    packageSummary,
+    unitPrice,
+    defaultDiscountPercent,
+  });
 
   return {
     id: product.id,
@@ -1651,6 +1641,26 @@ const resolveNonPackageCatalogSelection = (params: {
   };
 };
 
+const requireActivePackageChild = (
+  item: ProductPackageItemRecord,
+): ProductPackageChildRecord => {
+  const child = resolvePackageChildRecord(item);
+  if (!child) {
+    throw new CatalogServiceError(
+      "One or more package child items are unavailable.",
+      409,
+      "PACKAGE_CHILD_UNAVAILABLE",
+    );
+  }
+  if (!child.isActive) {
+    throw new CatalogServiceError(
+      `Package component ${child.name} is inactive.`,
+      400,
+    );
+  }
+  return child;
+};
+
 const resolvePackageCatalogSelection = (params: {
   product: ProductRecord;
   parentPrice: ReturnType<typeof getDefaultPrice>;
@@ -1685,21 +1695,7 @@ const resolvePackageCatalogSelection = (params: {
   const includedItems: ResolvedCatalogItem[] = [];
 
   for (const item of params.product.package.items) {
-    const child = resolvePackageChildRecord(item);
-    if (!child) {
-      throw new CatalogServiceError(
-        "One or more package child items are unavailable.",
-        409,
-        "PACKAGE_CHILD_UNAVAILABLE",
-      );
-    }
-    if (!child.isActive) {
-      throw new CatalogServiceError(
-        `Package component ${child.name} is inactive.`,
-        400,
-      );
-    }
-
+    const child = requireActivePackageChild(item);
     const childPrice = getDefaultPrice(child.prices);
 
     if (item.pricingMode === "INCLUDED") {
@@ -1907,6 +1903,201 @@ const loadTemplateBindingsForProduct = async (params: {
   }));
 };
 
+type CatalogSearchKindFilter =
+  "CONSULTATION" | "PROCEDURE" | "LAB" | "MEDICATION" | "INVENTORY" | "PACKAGE";
+
+const expandCatalogSearchKinds = (
+  kinds: CatalogSearchKindFilter[] | undefined,
+): ProductKind[] | undefined => {
+  if (!kinds || kinds.length === 0) {
+    return undefined;
+  }
+
+  return kinds.flatMap((kind) => {
+    switch (kind) {
+      case "LAB":
+        return ["LAB_TEST", "DIAGNOSTIC"] as ProductKind[];
+      case "INVENTORY":
+        return ["INVENTORY_ITEM"] as ProductKind[];
+      default:
+        return [kind] as ProductKind[];
+    }
+  });
+};
+
+const resolvePackageBlockReason = (params: {
+  product: Pick<ProductRecord, "id" | "kind">;
+  excludePackageId: string | undefined;
+  packageGraph: Map<string, string[]> | null;
+}): string | null => {
+  if (!params.excludePackageId || params.product.kind !== "PACKAGE") {
+    return null;
+  }
+
+  if (params.product.id === params.excludePackageId) {
+    return "Current package cannot include itself.";
+  }
+
+  if (
+    params.packageGraph &&
+    packageContainsTarget(
+      params.packageGraph,
+      params.product.id,
+      params.excludePackageId,
+    )
+  ) {
+    return "Adding this package would create a cycle.";
+  }
+
+  return null;
+};
+
+const applyProductPriceUpdate = async (
+  tx: Prisma.TransactionClient,
+  productId: string,
+  price: CatalogPricePolicy | null | undefined,
+) => {
+  if (price === undefined) {
+    return;
+  }
+
+  const defaultPrice = await tx.productPrice.findFirst({
+    where: { productItemId: productId, isDefault: true },
+  });
+
+  if (price === null) {
+    if (defaultPrice) {
+      await tx.productPrice.delete({ where: { id: defaultPrice.id } });
+    }
+    return;
+  }
+
+  if (defaultPrice) {
+    await tx.productPrice.update({
+      where: { id: defaultPrice.id },
+      data: {
+        unitPrice: price.unitPrice,
+        currency: price.currency ?? null,
+        defaultDiscountPercent: price.defaultDiscountPercent ?? null,
+        maxDiscountPercent: price.maxDiscountPercent ?? null,
+      },
+    });
+    return;
+  }
+
+  await tx.productPrice.create({
+    data: {
+      productItemId: productId,
+      unitPrice: price.unitPrice,
+      currency: price.currency ?? undefined,
+      defaultDiscountPercent: price.defaultDiscountPercent ?? undefined,
+      maxDiscountPercent: price.maxDiscountPercent ?? undefined,
+      isDefault: true,
+    },
+  });
+};
+
+const applyProductBookableUpdate = async (
+  tx: Prisma.TransactionClient,
+  productId: string,
+  bookable: CatalogBookableInput | null | undefined,
+) => {
+  if (bookable === undefined) {
+    return;
+  }
+
+  if (bookable === null) {
+    await tx.productBookable.deleteMany({
+      where: { productItemId: productId },
+    });
+    return;
+  }
+
+  await tx.productBookable.upsert({
+    where: { productItemId: productId },
+    update: {
+      durationMinutes: bookable.durationMinutes,
+      supportsOutpatient: bookable.supportsOutpatient ?? true,
+      supportsInpatient: bookable.supportsInpatient ?? false,
+    },
+    create: {
+      productItemId: productId,
+      durationMinutes: bookable.durationMinutes,
+      supportsOutpatient: bookable.supportsOutpatient ?? true,
+      supportsInpatient: bookable.supportsInpatient ?? false,
+    },
+  });
+};
+
+const applyProductPackageState = async (
+  tx: Prisma.TransactionClient,
+  params: {
+    productId: string;
+    nextKind: ProductKind;
+    packageSummary: CatalogPackageSummary | null | undefined;
+    hasPackageItemsUpdate: boolean;
+    resolvedPackageItems:
+      Awaited<ReturnType<typeof resolvePackageItemPersistenceData>> | undefined;
+  },
+) => {
+  if (params.nextKind !== "PACKAGE") {
+    const pkg = await tx.productPackage.findUnique({
+      where: { productItemId: params.productId },
+    });
+    if (pkg) {
+      await tx.productPackage.delete({ where: { id: pkg.id } });
+    }
+    return;
+  }
+
+  const pkg = await tx.productPackage.upsert({
+    where: { productItemId: params.productId },
+    update:
+      params.packageSummary === undefined
+        ? {}
+        : ({
+            leadCount: params.packageSummary?.leadCount ?? 1,
+            supportCount: params.packageSummary?.supportCount ?? 0,
+            additionalDiscountPercent:
+              params.packageSummary?.additionalDiscountPercent ?? 0,
+          } satisfies Prisma.ProductPackageUpdateWithoutProductItemInput),
+    create: {
+      productItem: {
+        connect: { id: params.productId },
+      },
+      leadCount: params.packageSummary?.leadCount ?? 1,
+      supportCount: params.packageSummary?.supportCount ?? 0,
+      additionalDiscountPercent:
+        params.packageSummary?.additionalDiscountPercent ?? 0,
+    } satisfies Prisma.ProductPackageCreateInput,
+  });
+
+  if (!params.hasPackageItemsUpdate) {
+    return;
+  }
+
+  const nextPackageItems = params.resolvedPackageItems ?? [];
+  await tx.productPackageItem.deleteMany({
+    where: { packageId: pkg.id },
+  });
+
+  if (nextPackageItems.length > 0) {
+    await tx.productPackageItem.createMany({
+      data: nextPackageItems.map((item): PackageItemCreateData => ({
+        packageId: pkg.id,
+        childProductItemId: item.childProductItemId,
+        inventoryItemId: item.inventoryItemId,
+        quantity: item.quantity,
+        pricingMode: item.pricingMode,
+        overridePrice: item.overridePrice,
+        discountPercent: item.discountPercent,
+        sortOrder: item.sortOrder,
+        isOptional: item.isOptional,
+      })),
+    });
+  }
+};
+
 export const CatalogService = {
   async createProduct(input: CatalogProductUpsertInput) {
     const organisationId = requireSafeString(
@@ -2077,12 +2268,14 @@ export const CatalogService = {
       input.code === undefined &&
       input.kind !== undefined &&
       input.kind !== existing.kind;
-    const nextCode =
-      input.code === undefined
-        ? shouldAutoUpdateCode
-          ? null
-          : existing.code
-        : optionalSafeString(input.code);
+    let nextCode: string | null;
+    if (input.code !== undefined) {
+      nextCode = optionalSafeString(input.code);
+    } else if (shouldAutoUpdateCode) {
+      nextCode = null;
+    } else {
+      nextCode = existing.code;
+    }
     const resolvedCode =
       nextCode ?? (await generateProductCode(organisationId, nextKind));
     await ensureCodeUniqueness({
@@ -2120,116 +2313,15 @@ export const CatalogService = {
         data: updateData,
       });
 
-      if (input.price !== undefined) {
-        const defaultPrice = await tx.productPrice.findFirst({
-          where: { productItemId: productId, isDefault: true },
-        });
-        if (input.price === null) {
-          if (defaultPrice) {
-            await tx.productPrice.delete({ where: { id: defaultPrice.id } });
-          }
-        } else if (defaultPrice) {
-          await tx.productPrice.update({
-            where: { id: defaultPrice.id },
-            data: {
-              unitPrice: input.price.unitPrice,
-              currency: input.price.currency ?? null,
-              defaultDiscountPercent:
-                input.price.defaultDiscountPercent ?? null,
-              maxDiscountPercent: input.price.maxDiscountPercent ?? null,
-            },
-          });
-        } else {
-          await tx.productPrice.create({
-            data: {
-              productItemId: productId,
-              unitPrice: input.price.unitPrice,
-              currency: input.price.currency ?? undefined,
-              defaultDiscountPercent:
-                input.price.defaultDiscountPercent ?? undefined,
-              maxDiscountPercent: input.price.maxDiscountPercent ?? undefined,
-              isDefault: true,
-            },
-          });
-        }
-      }
-
-      if (input.bookable !== undefined) {
-        if (input.bookable === null) {
-          await tx.productBookable.deleteMany({
-            where: { productItemId: productId },
-          });
-        } else {
-          await tx.productBookable.upsert({
-            where: { productItemId: productId },
-            update: {
-              durationMinutes: input.bookable.durationMinutes,
-              supportsOutpatient: input.bookable.supportsOutpatient ?? true,
-              supportsInpatient: input.bookable.supportsInpatient ?? false,
-            },
-            create: {
-              productItemId: productId,
-              durationMinutes: input.bookable.durationMinutes,
-              supportsOutpatient: input.bookable.supportsOutpatient ?? true,
-              supportsInpatient: input.bookable.supportsInpatient ?? false,
-            },
-          });
-        }
-      }
-
-      if (nextKind === "PACKAGE") {
-        const pkg = await tx.productPackage.upsert({
-          where: { productItemId: productId },
-          update:
-            packageSummary === undefined
-              ? {}
-              : ({
-                  leadCount: packageSummary?.leadCount ?? 1,
-                  supportCount: packageSummary?.supportCount ?? 0,
-                  additionalDiscountPercent:
-                    packageSummary?.additionalDiscountPercent ?? 0,
-                } satisfies Prisma.ProductPackageUpdateWithoutProductItemInput),
-          create: {
-            productItem: {
-              connect: { id: productId },
-            },
-            leadCount: packageSummary?.leadCount ?? 1,
-            supportCount: packageSummary?.supportCount ?? 0,
-            additionalDiscountPercent:
-              packageSummary?.additionalDiscountPercent ?? 0,
-          } satisfies Prisma.ProductPackageCreateInput,
-        });
-
-        if (packageItems !== undefined) {
-          const nextPackageItems = resolvedPackageItems ?? [];
-          await tx.productPackageItem.deleteMany({
-            where: { packageId: pkg.id },
-          });
-
-          if (nextPackageItems.length > 0) {
-            await tx.productPackageItem.createMany({
-              data: nextPackageItems.map((item): PackageItemCreateData => ({
-                packageId: pkg.id,
-                childProductItemId: item.childProductItemId,
-                inventoryItemId: item.inventoryItemId,
-                quantity: item.quantity,
-                pricingMode: item.pricingMode,
-                overridePrice: item.overridePrice,
-                discountPercent: item.discountPercent,
-                sortOrder: item.sortOrder,
-                isOptional: item.isOptional,
-              })),
-            });
-          }
-        }
-      } else {
-        const pkg = await tx.productPackage.findUnique({
-          where: { productItemId: productId },
-        });
-        if (pkg) {
-          await tx.productPackage.delete({ where: { id: pkg.id } });
-        }
-      }
+      await applyProductPriceUpdate(tx, productId, input.price);
+      await applyProductBookableUpdate(tx, productId, input.bookable);
+      await applyProductPackageState(tx, {
+        productId,
+        nextKind,
+        packageSummary,
+        hasPackageItemsUpdate: packageItems !== undefined,
+        resolvedPackageItems,
+      });
 
       return (await tx.productItem.findUnique({
         where: { id: productId },
@@ -2286,6 +2378,13 @@ export const CatalogService = {
       "organisationId",
     );
 
+    const activeFilter: { isActive?: boolean } = {};
+    if (typeof filters.active === "boolean") {
+      activeFilter.isActive = filters.active;
+    } else if (!filters.includeInactive) {
+      activeFilter.isActive = true;
+    }
+
     const products = (await prisma.productItem.findMany({
       where: {
         organisationId,
@@ -2300,11 +2399,7 @@ export const CatalogService = {
         ...(filters.kinds && filters.kinds.length > 0
           ? { kind: { in: filters.kinds } }
           : {}),
-        ...(typeof filters.active === "boolean"
-          ? { isActive: filters.active }
-          : filters.includeInactive
-            ? {}
-            : { isActive: true }),
+        ...activeFilter,
         ...(filters.search
           ? {
               OR: [
@@ -2446,158 +2541,24 @@ export const CatalogService = {
   },
 
   async getCalendarPrefillMatches(input: CatalogCalendarPrefillRequest) {
-    const serviceIds = Array.from(
-      new Set(
-        input.serviceIds
-          .map((serviceId) => requireSafeString(serviceId, "serviceId"))
-          .filter(Boolean),
-      ),
-    ).sort((a, b) => a.localeCompare(b));
-
-    if (serviceIds.length === 0) {
-      return [];
-    }
-
-    const safeOrganisationId = requireSafeString(
-      input.organisationId,
-      "organisationId",
-    );
-    const safeLeadId = input.leadId
-      ? requireSafeString(input.leadId, "leadId")
-      : undefined;
-
-    const cacheKey = JSON.stringify({
-      organisationId: safeOrganisationId,
-      date: dayjs(input.date).utc().format("YYYY-MM-DD"),
-      minuteOfDay: input.minuteOfDay,
-      leadId: safeLeadId ?? "",
-      serviceIds,
-    });
-
-    return addCachedPromise(
-      calendarPrefillCache,
-      cacheKey,
-      CALENDAR_PREFILL_CACHE_TTL_MS,
-      async () => {
-        const timezone = await resolveOrganisationTimezone({
-          organisationId: safeOrganisationId,
-          leadId: safeLeadId,
-          getLeadPersonalDetails: async (organisationId, leadId) =>
-            (
-              await prisma.userProfile.findFirst({
-                where: {
-                  organizationId: organisationId,
-                  userId: leadId,
-                },
-                select: {
-                  personalDetails: true,
-                },
-              })
-            )?.personalDetails,
-          getOrganisationPersonalDetails: async (organisationId) =>
-            (
-              await prisma.userProfile.findFirst({
-                where: {
-                  organizationId: organisationId,
-                },
-                select: {
-                  personalDetails: true,
-                },
-              })
-            )?.personalDetails,
-        });
-
-        const slotCache = new Map<
-          string,
-          Promise<{
-            date: string;
-            dayOfWeek: string;
-            windows: AvailabilitySlotMongo[];
-          }>
-        >();
-
-        const serviceContexts = await Promise.all(
-          serviceIds.map((serviceId) =>
-            resolveCatalogSchedulingContext(serviceId, input.organisationId),
-          ),
+    return getCalendarPrefillMatchesCached({
+      input,
+      cache: calendarPrefillCache,
+      requireSafeString,
+      resolveSchedulingContext: async (serviceId, organisationId) => {
+        const context = await resolveCatalogSchedulingContext(
+          serviceId,
+          organisationId,
         );
 
-        const utcDateShifts = [-1, 0, 1] as const;
-        const matches: CatalogCalendarPrefillMatch[] = [];
-
-        for (const context of serviceContexts) {
-          for (const utcDateShift of utcDateShifts) {
-            const referenceDate = dayjs(input.date)
-              .utc()
-              .add(utcDateShift, "day")
-              .toDate();
-
-            const result = await buildBookableWindowsForVets({
-              organisationId: context.organisationId,
-              vetIds: context.vetIds,
-              durationMinutes: context.durationMinutes,
-              referenceDate,
-              slotCache,
-              getBookableSlotsForDate: (...args) =>
-                AvailabilityService.getBookableSlotsForDate(...args),
-            });
-
-            for (const slot of result.windows) {
-              if (
-                input.leadId &&
-                !(slot.vetIds ?? []).includes(
-                  requireSafeString(input.leadId, "leadId"),
-                )
-              ) {
-                continue;
-              }
-
-              const meta = normalizeSlotForSelectedDay({
-                timezone,
-                utcDateShift,
-                slot,
-              });
-              if (!meta) {
-                continue;
-              }
-
-              if (
-                Math.abs(meta.localStartMinute - input.minuteOfDay) >
-                SLOT_MATCH_TOLERANCE_MINUTES
-              ) {
-                continue;
-              }
-
-              matches.push({
-                serviceId: context.productItemId,
-                slot: {
-                  startTime: slot.startTime,
-                  endTime: slot.endTime,
-                  vetIds: slot.vetIds ?? [],
-                },
-                meta,
-              });
-            }
-          }
-        }
-
-        matches.sort((a, b) => {
-          if (a.meta.localStartMinute !== b.meta.localStartMinute) {
-            return a.meta.localStartMinute - b.meta.localStartMinute;
-          }
-          if (a.meta.localEndMinute !== b.meta.localEndMinute) {
-            return a.meta.localEndMinute - b.meta.localEndMinute;
-          }
-          return a.serviceId.localeCompare(b.serviceId);
-        });
-
-        return matches;
+        return {
+          serviceId: context.productItemId,
+          organisationId: context.organisationId,
+          durationMinutes: context.durationMinutes,
+          vetIds: context.vetIds,
+        };
       },
-      {
-        maxEntries: CALENDAR_PREFILL_CACHE_MAX_ENTRIES,
-        pruneIntervalMs: CALENDAR_PREFILL_CACHE_PRUNE_INTERVAL_MS,
-      },
-    );
+    });
   },
 
   async listOrganisationsProvidingServiceNearby(
@@ -3002,14 +2963,7 @@ export const CatalogService = {
     organisationId: string;
     q?: string;
     specialityId?: string;
-    kinds?: Array<
-      | "CONSULTATION"
-      | "PROCEDURE"
-      | "LAB"
-      | "MEDICATION"
-      | "INVENTORY"
-      | "PACKAGE"
-    >;
+    kinds?: CatalogSearchKindFilter[];
     includeArchived?: boolean;
     excludePackageId?: string;
     includeNestedBreakdown?: boolean;
@@ -3026,19 +2980,7 @@ export const CatalogService = {
     const query = optionalSafeString(params.q);
     const specialityId = optionalSafeString(params.specialityId);
     const wantsInventory = !params.kinds || params.kinds.includes("INVENTORY");
-    const productKinds =
-      params.kinds && params.kinds.length > 0
-        ? params.kinds.flatMap((kind) => {
-            switch (kind) {
-              case "LAB":
-                return ["LAB_TEST", "DIAGNOSTIC"] as ProductKind[];
-              case "INVENTORY":
-                return ["INVENTORY_ITEM"] as ProductKind[];
-              default:
-                return [kind] as ProductKind[];
-            }
-          })
-        : undefined;
+    const productKinds = expandCatalogSearchKinds(params.kinds);
 
     const [products, inventoryItems, packageGraph] = await Promise.all([
       prisma.productItem.findMany({
@@ -3091,19 +3033,11 @@ export const CatalogService = {
       products as unknown as ProductRecord[]
     ).map<CatalogSearchItem>((product) => {
       const row = mapProductRecordToCatalogListRow(product);
-      const blockReason =
-        params.excludePackageId && product.kind === "PACKAGE"
-          ? product.id === params.excludePackageId
-            ? "Current package cannot include itself."
-            : packageGraph &&
-                packageContainsTarget(
-                  packageGraph,
-                  product.id,
-                  params.excludePackageId,
-                )
-              ? "Adding this package would create a cycle."
-              : null
-          : null;
+      const blockReason = resolvePackageBlockReason({
+        product,
+        excludePackageId: params.excludePackageId,
+        packageGraph,
+      });
 
       return {
         id: product.id,

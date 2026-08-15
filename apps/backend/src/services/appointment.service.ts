@@ -25,6 +25,7 @@ import { resolvePaymentCollectionMethod } from "src/utils/payment";
 import { assertEmail } from "src/utils/sanitize";
 import { CatalogService, CatalogServiceError } from "./catalog.service";
 import { CompanionOrganisationService } from "./companion-organisation.service";
+import { markFreeLimitReachedAt } from "./shared/org-usage-limit";
 
 export class AppointmentServiceError extends Error {
   constructor(
@@ -291,6 +292,47 @@ export const resolveCatalogSelectionSafe = async (
   }
 };
 
+/**
+ * Resolve the booked selection to a catalog entry and/or legacy service row,
+ * rejecting selections that are unknown or not bookable as an outpatient
+ * appointment. `invalidServiceMessage` keeps the caller-specific 404 wording.
+ */
+const resolveBookableOutpatientSelection = async (
+  selectionId: string,
+  organisationId: string,
+  invalidServiceMessage: string,
+) => {
+  const catalogSelection = await resolveCatalogSelectionSafe(
+    selectionId,
+    organisationId,
+  );
+  const legacyServiceId = catalogSelection?.legacyServiceId ?? selectionId;
+  const service = await prisma.service.findFirst({
+    where: {
+      id: legacyServiceId,
+      organisationId,
+      isActive: true,
+    },
+  });
+
+  if (!catalogSelection && !service) {
+    throw new AppointmentServiceError(invalidServiceMessage, 404);
+  }
+
+  if (
+    catalogSelection &&
+    (!catalogSelection.isBookable ||
+      !catalogSelection.appointmentKinds.includes("OUTPATIENT"))
+  ) {
+    throw new AppointmentServiceError(
+      "Selected product is not bookable for outpatient appointments.",
+      400,
+    );
+  }
+
+  return { catalogSelection, service };
+};
+
 const assertParentCanCancelAppointment = (params: {
   appointment: ParentCancelableAppointment;
   parentId: string;
@@ -451,11 +493,11 @@ const parsePmsAppointmentUpdate = (
   const concernProvided =
     typeof dtoAny.concern === "string" ||
     typeof dtoAny.description === "string";
-  const nextConcern = concernProvided
-    ? typeof dtoAny.concern === "string"
-      ? dtoAny.concern
-      : extracted.concern
-    : undefined;
+  let nextConcern: string | undefined;
+  if (concernProvided) {
+    nextConcern =
+      typeof dtoAny.concern === "string" ? dtoAny.concern : extracted.concern;
+  }
 
   const statusProvided = typeof dtoAny.status === "string";
 
@@ -946,37 +988,6 @@ const isFreePlan = async (orgId: string) => {
   return !billing || billing.plan === "free";
 };
 
-type OrgUsageCountersDoc = {
-  orgId: string;
-  freeLimitReachedAt?: Date | null;
-  usersActiveCount?: number | null;
-  usersBillableCount?: number | null;
-  appointmentsUsed?: number | null;
-  toolsUsed?: number | null;
-  freeAppointmentsLimit?: number | null;
-  freeToolsLimit?: number | null;
-  freeUsersLimit?: number | null;
-};
-
-const markFreeLimitReachedAt = async (usage: OrgUsageCountersDoc | null) => {
-  if (
-    !usage ||
-    usage.freeLimitReachedAt ||
-    ((usage.usersActiveCount ?? 0) < (usage.freeUsersLimit ?? 0) &&
-      (usage.appointmentsUsed ?? 0) < (usage.freeAppointmentsLimit ?? 0) &&
-      (usage.toolsUsed ?? 0) < (usage.freeToolsLimit ?? 0))
-  ) {
-    return false;
-  }
-
-  const reachedAt = new Date();
-  const updated = await prisma.organizationUsageCounter.updateMany({
-    where: { orgId: usage.orgId, freeLimitReachedAt: null },
-    data: { freeLimitReachedAt: reachedAt },
-  });
-  return updated.count > 0;
-};
-
 const SUPPORT_EMAIL_ADDRESS =
   process.env.SUPPORT_EMAIL ??
   process.env.SUPPORT_EMAIL_ADDRESS ??
@@ -1163,7 +1174,9 @@ const reserveAppointmentUsage = async (
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
 
-    const didReachLimit = await markFreeLimitReachedAt(updated);
+    const didReachLimit = await markFreeLimitReachedAt(updated, (counters) => ({
+      orgId: counters.orgId,
+    }));
     if (didReachLimit) {
       void sendFreePlanLimitReachedEmail({
         orgId,
@@ -1207,11 +1220,11 @@ const releaseAppointmentUsage = async (reservation: {
 const buildAppointmentDomain = (input: {
   id?: string;
   patient: Appointment["patient"];
-  companion?: Appointment["companion"];
-  lead?: Appointment["lead"];
-  supportStaff?: Appointment["supportStaff"];
-  room?: Appointment["room"];
-  appointmentType?: Appointment["appointmentType"];
+  companion?: NonNullable<Appointment["companion"]>;
+  lead?: NonNullable<Appointment["lead"]>;
+  supportStaff?: NonNullable<Appointment["supportStaff"]>;
+  room?: NonNullable<Appointment["room"]>;
+  appointmentType?: NonNullable<Appointment["appointmentType"]>;
   organisationId: string;
   appointmentDate: Date;
   startTime: Date;
@@ -1223,7 +1236,7 @@ const buildAppointmentDomain = (input: {
   concern?: string | null;
   createdAt: Date;
   updatedAt: Date;
-  attachments?: Appointment["attachments"];
+  attachments?: NonNullable<Appointment["attachments"]>;
   formIds?: string[];
 }): Appointment => ({
   id: input.id,
@@ -1485,33 +1498,12 @@ export const AppointmentService = {
     if (!selectionId) {
       throw new AppointmentServiceError("serviceId is required", 400);
     }
-    const catalogSelection = await resolveCatalogSelectionSafe(
-      selectionId,
-      input.organisationId,
-    );
-    const legacyServiceId = catalogSelection?.legacyServiceId ?? selectionId;
-    const service = await prisma.service.findFirst({
-      where: {
-        id: legacyServiceId,
-        organisationId: input.organisationId,
-        isActive: true,
-      },
-    });
-
-    if (!catalogSelection && !service) {
-      throw new AppointmentServiceError("Invalid service selected", 404);
-    }
-
-    if (
-      catalogSelection &&
-      (!catalogSelection.isBookable ||
-        !catalogSelection.appointmentKinds.includes("OUTPATIENT"))
-    ) {
-      throw new AppointmentServiceError(
-        "Selected product is not bookable for outpatient appointments.",
-        400,
+    const { catalogSelection, service } =
+      await resolveBookableOutpatientSelection(
+        selectionId,
+        input.organisationId,
+        "Invalid service selected",
       );
-    }
 
     const usageReservation = await reserveAppointmentUsage(
       input.organisationId,
@@ -1652,37 +1644,12 @@ export const AppointmentService = {
       );
     }
 
-    const selectionId = input.appointmentType!.id;
-    const catalogSelection = await resolveCatalogSelectionSafe(
-      selectionId,
-      input.organisationId,
-    );
-    const legacyServiceId = catalogSelection?.legacyServiceId ?? selectionId;
-    const service = await prisma.service.findFirst({
-      where: {
-        id: legacyServiceId,
-        organisationId: input.organisationId,
-        isActive: true,
-      },
-    });
-
-    if (!catalogSelection && !service) {
-      throw new AppointmentServiceError(
+    const { catalogSelection, service } =
+      await resolveBookableOutpatientSelection(
+        input.appointmentType!.id,
+        input.organisationId,
         "Invalid or inactive service for this organisation.",
-        404,
       );
-    }
-
-    if (
-      catalogSelection &&
-      (!catalogSelection.isBookable ||
-        !catalogSelection.appointmentKinds.includes("OUTPATIENT"))
-    ) {
-      throw new AppointmentServiceError(
-        "Selected product is not bookable for outpatient appointments.",
-        400,
-      );
-    }
 
     const usageReservation = await reserveAppointmentUsage(
       input.organisationId,
@@ -1806,19 +1773,12 @@ export const AppointmentService = {
         }
       }
 
-      if (
-        service &&
-        service.serviceType === "OBSERVATION_TOOL" &&
-        service.observationToolId
-      ) {
-        await createObservationToolTaskForAppointment({
-          appointmentId: appointmentRow.id,
-          organisationId: appointment.organisationId,
-          patientId: appointment.patient.id,
-          parentId: appointment.patient.parent.id,
-          observationToolId: service.observationToolId,
-          appointmentStartTime: appointment.startTime,
-        });
+      if (service) {
+        await maybeCreateObservationToolTask(
+          service,
+          appointment,
+          appointmentRow.id,
+        );
       }
 
       const notificationPayload = NotificationTemplates.Appointment.APPROVED(

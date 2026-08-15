@@ -28,6 +28,7 @@ jest.mock("../../src/services/document.service", () => {
       create: jest.fn(),
       listForParent: jest.fn(),
       listForAppointmentParent: jest.fn(),
+      listForAppointmentPms: jest.fn(),
       update: jest.fn(),
       listForPms: jest.fn(),
       getByIdForParent: jest.fn(),
@@ -323,6 +324,39 @@ describe("DocumentController", () => {
       expect(res.status).toHaveBeenCalledWith(200);
     });
 
+    it("should list via the organisation scope when there is no parent profile", async () => {
+      req.params.appointmentId = "a1";
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValueOnce({ parentId: null });
+      (
+        DocumentService.listForAppointmentPms as jest.Mock
+      ).mockResolvedValueOnce(["pms_docs"]);
+
+      await DocumentController.listForAppointment(req, res);
+
+      expect(DocumentService.listForAppointmentPms).toHaveBeenCalledWith({
+        appointmentId: "a1",
+        organisationId: "org1",
+      });
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(["pms_docs"]);
+    });
+
+    it("should return 401 when there is neither a parent profile nor an organisation", async () => {
+      req.params.appointmentId = "a1";
+      req.organisationId = undefined;
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValueOnce(null);
+
+      await DocumentController.listForAppointment(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(DocumentService.listForAppointmentParent).not.toHaveBeenCalled();
+      expect(DocumentService.listForAppointmentPms).not.toHaveBeenCalled();
+    });
+
     it("should handle errors", async () => {
       req.params.appointmentId = "a1";
       (DocumentService.listForAppointmentParent as jest.Mock).mockRejectedValue(
@@ -567,6 +601,34 @@ describe("DocumentController", () => {
       expect(res.send).toHaveBeenCalledWith("signed_url");
     });
 
+    it("should resolve the url via the organisation scope when there is no parent profile", async () => {
+      req.body = { key: "k1" };
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValueOnce({ parentId: null });
+      (
+        DocumentService.getAttachmentUrlByKey as jest.Mock
+      ).mockResolvedValueOnce("org_signed_url");
+      await DocumentController.getSignedDownloadUrl(req, res);
+      expect(DocumentService.getAttachmentUrlByKey).toHaveBeenCalledWith({
+        key: "k1",
+        organisationId: "org1",
+      });
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.send).toHaveBeenCalledWith("org_signed_url");
+    });
+
+    it("should return 401 when there is neither a parent profile nor an organisation", async () => {
+      req.body = { key: "k1" };
+      req.organisationId = undefined;
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValueOnce(null);
+      await DocumentController.getSignedDownloadUrl(req, res);
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(DocumentService.getAttachmentUrlByKey).not.toHaveBeenCalled();
+    });
+
     it("should handle errors", async () => {
       req.body = { key: "k1" };
       (
@@ -597,6 +659,38 @@ describe("DocumentController", () => {
       await DocumentController.getDocumentDownloadUrl(req, res);
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(["url1"]);
+    });
+
+    it("should resolve urls via the organisation scope when there is no parent profile", async () => {
+      req.params.documentId = "d1";
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValueOnce({ parentId: null });
+      (DocumentService.getAllAttachmentUrls as jest.Mock).mockResolvedValueOnce(
+        ["org_url"],
+      );
+
+      await DocumentController.getDocumentDownloadUrl(req, res);
+
+      expect(DocumentService.getAllAttachmentUrls).toHaveBeenCalledWith({
+        documentId: "d1",
+        organisationId: "org1",
+      });
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(["org_url"]);
+    });
+
+    it("should return 401 when there is neither a parent profile nor an organisation", async () => {
+      req.params.documentId = "d1";
+      req.organisationId = undefined;
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValueOnce(null);
+
+      await DocumentController.getDocumentDownloadUrl(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(DocumentService.getAllAttachmentUrls).not.toHaveBeenCalled();
     });
 
     it("should handle errors", async () => {

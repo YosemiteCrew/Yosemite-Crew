@@ -264,6 +264,68 @@ const resolveInvoiceScope = async (req: Request) => {
   return { organisationId: null, parentId };
 };
 
+type SubscriptionRequestContext = {
+  organisationId: string;
+  provider: string;
+};
+
+// Shared prologue for the subscription relay handlers: require the
+// organisation path param, then validate and normalise the provider. Writes
+// the 400 response and returns null when any check fails.
+const parseSubscriptionRequest = (
+  req: Request,
+  res: Response,
+): SubscriptionRequestContext | null => {
+  const organisationId = req.params.organisationId;
+  if (!organisationId) {
+    res.status(400).json({ message: "Organisation Id is required" });
+    return null;
+  }
+
+  const providerResult = ProviderParamsSchema.safeParse(req.params);
+  if (!providerResult.success) {
+    res.status(400).json({ message: "Invalid provider" });
+    return null;
+  }
+
+  const provider = normalizeProvider(providerResult.data.provider);
+  if (!isSupportedSubscriptionProvider(provider)) {
+    res.status(400).json({ message: "Unsupported provider" });
+    return null;
+  }
+
+  return { organisationId, provider };
+};
+
+// The lifecycle relays (deleted / invoice paid / invoice failed) additionally
+// share the SubscriptionLifecycleBodySchema request body.
+const parseSubscriptionLifecycleRequest = (
+  req: Request,
+  res: Response,
+):
+  | (SubscriptionRequestContext & {
+      subscriptionId: string;
+      invoiceId: string | null;
+    })
+  | null => {
+  const context = parseSubscriptionRequest(req, res);
+  if (!context) {
+    return null;
+  }
+
+  const body = SubscriptionLifecycleBodySchema.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ message: "Invalid request body" });
+    return null;
+  }
+
+  return {
+    ...context,
+    subscriptionId: body.data.subscriptionId,
+    invoiceId: body.data.invoiceId ?? null,
+  };
+};
+
 export const FinanceController = {
   async getDiscountSettings(this: void, req: Request, res: Response) {
     try {
@@ -715,11 +777,10 @@ export const FinanceController = {
       return res.status(200).json(toFinanceSuccess(invoice));
     } catch (error) {
       const statusCode =
-        error instanceof InvoiceServiceError
+        error instanceof InvoiceServiceError ||
+        error instanceof FinancePaymentError
           ? error.statusCode
-          : error instanceof FinancePaymentError
-            ? error.statusCode
-            : 500;
+          : 500;
       const message =
         error instanceof InvoiceServiceError ||
         error instanceof FinancePaymentError
@@ -877,19 +938,9 @@ export const FinanceController = {
 
   async recordSubscriptionCustomer(this: void, req: Request, res: Response) {
     try {
-      const organisationId = req.params.organisationId;
-      if (!organisationId) {
-        return res.status(400).json({ message: "Organisation Id is required" });
-      }
-
-      const providerResult = ProviderParamsSchema.safeParse(req.params);
-      if (!providerResult.success) {
-        return res.status(400).json({ message: "Invalid provider" });
-      }
-
-      const provider = normalizeProvider(providerResult.data.provider);
-      if (!isSupportedSubscriptionProvider(provider)) {
-        return res.status(400).json({ message: "Unsupported provider" });
+      const context = parseSubscriptionRequest(req, res);
+      if (!context) {
+        return res;
       }
 
       const body = SubscriptionCustomerBodySchema.safeParse(req.body);
@@ -898,14 +949,14 @@ export const FinanceController = {
       }
 
       await FinanceSubscriptionService.recordBusinessCheckoutCustomer({
-        orgId: organisationId,
+        orgId: context.organisationId,
         externalCustomerId: body.data.externalCustomerId,
       });
 
       return res.status(200).json(
         toFinanceSuccess({
-          organisationId,
-          provider,
+          organisationId: context.organisationId,
+          provider: context.provider,
           externalCustomerId: body.data.externalCustomerId,
         }),
       );
@@ -1104,19 +1155,9 @@ export const FinanceController = {
     res: Response,
   ) {
     try {
-      const organisationId = req.params.organisationId;
-      if (!organisationId) {
-        return res.status(400).json({ message: "Organisation Id is required" });
-      }
-
-      const providerResult = ProviderParamsSchema.safeParse(req.params);
-      if (!providerResult.success) {
-        return res.status(400).json({ message: "Invalid provider" });
-      }
-
-      const provider = normalizeProvider(providerResult.data.provider);
-      if (!isSupportedSubscriptionProvider(provider)) {
-        return res.status(400).json({ message: "Unsupported provider" });
+      const context = parseSubscriptionRequest(req, res);
+      if (!context) {
+        return res;
       }
 
       const body = SubscriptionCheckoutCompletedBodySchema.safeParse(req.body);
@@ -1145,8 +1186,8 @@ export const FinanceController = {
 
       return res.status(201).json(
         toFinanceSuccess({
-          organisationId,
-          provider,
+          organisationId: context.organisationId,
+          provider: context.provider,
           subscriptionId: body.data.subscriptionId,
         }),
       );
@@ -1158,19 +1199,9 @@ export const FinanceController = {
 
   async recordSubscriptionUpdated(this: void, req: Request, res: Response) {
     try {
-      const organisationId = req.params.organisationId;
-      if (!organisationId) {
-        return res.status(400).json({ message: "Organisation Id is required" });
-      }
-
-      const providerResult = ProviderParamsSchema.safeParse(req.params);
-      if (!providerResult.success) {
-        return res.status(400).json({ message: "Invalid provider" });
-      }
-
-      const provider = normalizeProvider(providerResult.data.provider);
-      if (!isSupportedSubscriptionProvider(provider)) {
-        return res.status(400).json({ message: "Unsupported provider" });
+      const context = parseSubscriptionRequest(req, res);
+      if (!context) {
+        return res;
       }
 
       const body = SubscriptionUpdatedBodySchema.safeParse(req.body);
@@ -1196,8 +1227,8 @@ export const FinanceController = {
 
       return res.status(200).json(
         toFinanceSuccess({
-          organisationId,
-          provider,
+          organisationId: context.organisationId,
+          provider: context.provider,
           subscriptionId: body.data.subscriptionId,
         }),
       );
@@ -1209,35 +1240,20 @@ export const FinanceController = {
 
   async recordSubscriptionDeleted(this: void, req: Request, res: Response) {
     try {
-      const organisationId = req.params.organisationId;
-      if (!organisationId) {
-        return res.status(400).json({ message: "Organisation Id is required" });
-      }
-
-      const providerResult = ProviderParamsSchema.safeParse(req.params);
-      if (!providerResult.success) {
-        return res.status(400).json({ message: "Invalid provider" });
-      }
-
-      const provider = normalizeProvider(providerResult.data.provider);
-      if (!isSupportedSubscriptionProvider(provider)) {
-        return res.status(400).json({ message: "Unsupported provider" });
-      }
-
-      const body = SubscriptionLifecycleBodySchema.safeParse(req.body);
-      if (!body.success) {
-        return res.status(400).json({ message: "Invalid request body" });
+      const context = parseSubscriptionLifecycleRequest(req, res);
+      if (!context) {
+        return res;
       }
 
       await FinanceSubscriptionService.recordSubscriptionDeleted(
-        body.data.subscriptionId,
+        context.subscriptionId,
       );
 
       return res.status(200).json(
         toFinanceSuccess({
-          organisationId,
-          provider,
-          subscriptionId: body.data.subscriptionId,
+          organisationId: context.organisationId,
+          provider: context.provider,
+          subscriptionId: context.subscriptionId,
         }),
       );
     } catch (error) {
@@ -1248,37 +1264,22 @@ export const FinanceController = {
 
   async recordSubscriptionInvoicePaid(this: void, req: Request, res: Response) {
     try {
-      const organisationId = req.params.organisationId;
-      if (!organisationId) {
-        return res.status(400).json({ message: "Organisation Id is required" });
-      }
-
-      const providerResult = ProviderParamsSchema.safeParse(req.params);
-      if (!providerResult.success) {
-        return res.status(400).json({ message: "Invalid provider" });
-      }
-
-      const provider = normalizeProvider(providerResult.data.provider);
-      if (!isSupportedSubscriptionProvider(provider)) {
-        return res.status(400).json({ message: "Unsupported provider" });
-      }
-
-      const body = SubscriptionLifecycleBodySchema.safeParse(req.body);
-      if (!body.success) {
-        return res.status(400).json({ message: "Invalid request body" });
+      const context = parseSubscriptionLifecycleRequest(req, res);
+      if (!context) {
+        return res;
       }
 
       await FinanceSubscriptionService.recordSubscriptionInvoicePaid({
-        subscriptionId: body.data.subscriptionId,
-        invoiceId: body.data.invoiceId ?? null,
+        subscriptionId: context.subscriptionId,
+        invoiceId: context.invoiceId,
       });
 
       return res.status(200).json(
         toFinanceSuccess({
-          organisationId,
-          provider,
-          subscriptionId: body.data.subscriptionId,
-          invoiceId: body.data.invoiceId ?? null,
+          organisationId: context.organisationId,
+          provider: context.provider,
+          subscriptionId: context.subscriptionId,
+          invoiceId: context.invoiceId,
         }),
       );
     } catch (error) {
@@ -1293,37 +1294,22 @@ export const FinanceController = {
     res: Response,
   ) {
     try {
-      const organisationId = req.params.organisationId;
-      if (!organisationId) {
-        return res.status(400).json({ message: "Organisation Id is required" });
-      }
-
-      const providerResult = ProviderParamsSchema.safeParse(req.params);
-      if (!providerResult.success) {
-        return res.status(400).json({ message: "Invalid provider" });
-      }
-
-      const provider = normalizeProvider(providerResult.data.provider);
-      if (!isSupportedSubscriptionProvider(provider)) {
-        return res.status(400).json({ message: "Unsupported provider" });
-      }
-
-      const body = SubscriptionLifecycleBodySchema.safeParse(req.body);
-      if (!body.success) {
-        return res.status(400).json({ message: "Invalid request body" });
+      const context = parseSubscriptionLifecycleRequest(req, res);
+      if (!context) {
+        return res;
       }
 
       await FinanceSubscriptionService.recordSubscriptionInvoiceFailed({
-        subscriptionId: body.data.subscriptionId,
-        invoiceId: body.data.invoiceId ?? null,
+        subscriptionId: context.subscriptionId,
+        invoiceId: context.invoiceId,
       });
 
       return res.status(200).json(
         toFinanceSuccess({
-          organisationId,
-          provider,
-          subscriptionId: body.data.subscriptionId,
-          invoiceId: body.data.invoiceId ?? null,
+          organisationId: context.organisationId,
+          provider: context.provider,
+          subscriptionId: context.subscriptionId,
+          invoiceId: context.invoiceId,
         }),
       );
     } catch (error) {

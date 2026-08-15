@@ -1,6 +1,7 @@
 import { UserOrganizationService } from "../../src/services/user-organization.service";
 import { AvailabilityService } from "../../src/services/availability.service";
 import * as EmailUtils from "../../src/utils/email";
+import { sendFreePlanLimitReachedEmail } from "../../src/utils/org-usage-notifications";
 import { prisma } from "src/config/prisma";
 
 jest.mock("../../src/services/availability.service", () => ({
@@ -174,6 +175,50 @@ describe("UserOrganizationService", () => {
         data: { usersActiveCount: { increment: 1 } },
       });
       expect(prisma.organizationUsageCounter.update).not.toHaveBeenCalled();
+    });
+
+    it("stamps freeLimitReachedAt by row id and notifies when the seat fills the plan", async () => {
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: orgId,
+      });
+      (prisma.organizationBilling.findFirst as jest.Mock).mockResolvedValueOnce(
+        { plan: "free" },
+      );
+      (
+        prisma.organizationUsageCounter.upsert as jest.Mock
+      ).mockResolvedValueOnce({ orgId });
+      // First updateMany reserves the seat, second stamps the limit.
+      (prisma.organizationUsageCounter.updateMany as jest.Mock)
+        .mockResolvedValueOnce({ count: 1 })
+        .mockResolvedValueOnce({ count: 1 });
+      (
+        prisma.organizationUsageCounter.findUnique as jest.Mock
+      ).mockResolvedValueOnce({
+        id: "usage-1",
+        orgId,
+        freeLimitReachedAt: null,
+        usersActiveCount: 10,
+        freeUsersLimit: 10,
+        appointmentsUsed: 0,
+        freeAppointmentsLimit: 120,
+        toolsUsed: 0,
+        freeToolsLimit: 200,
+      });
+      (prisma.userOrganization.create as jest.Mock).mockResolvedValueOnce(
+        prismaMapping,
+      );
+
+      await UserOrganizationService.create(payload);
+
+      expect(
+        prisma.organizationUsageCounter.updateMany,
+      ).toHaveBeenLastCalledWith({
+        where: { id: "usage-1", freeLimitReachedAt: null },
+        data: { freeLimitReachedAt: expect.any(Date) },
+      });
+      expect(sendFreePlanLimitReachedEmail).toHaveBeenCalledWith(
+        expect.objectContaining({ orgId }),
+      );
     });
 
     it("rejects the join when the conditional seat reservation matches no row", async () => {
@@ -521,6 +566,44 @@ describe("UserOrganizationService", () => {
           },
         },
       });
+    });
+  });
+
+  describe("getMappingByUserAndOrganization", () => {
+    it("returns null when no mapping exists", async () => {
+      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
+
+      const result =
+        await UserOrganizationService.getMappingByUserAndOrganization(
+          userId,
+          orgId,
+        );
+
+      expect(result).toBeNull();
+      expect(prisma.userOrganization.findFirst).toHaveBeenCalledWith({
+        where: {
+          practitionerReference: {
+            in: [userId, `Practitioner/${userId}`, `User/${userId}`],
+          },
+          organizationReference: { in: [orgId, `Organization/${orgId}`] },
+        },
+      });
+    });
+
+    it("maps an existing mapping to a response DTO", async () => {
+      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValueOnce(
+        prismaMapping,
+      );
+
+      const result =
+        await UserOrganizationService.getMappingByUserAndOrganization(
+          userId,
+          orgId,
+        );
+
+      expect((result as any)?._id).toBe(mappingId);
     });
   });
 });

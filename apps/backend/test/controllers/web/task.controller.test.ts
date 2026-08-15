@@ -3,6 +3,7 @@ import type { Request, Response } from "express";
 import { TaskController } from "../../../src/controllers/web/task.controller";
 import {
   TaskService,
+  TaskServiceError,
   type CompleteTaskInput,
 } from "../../../src/services/task.service";
 
@@ -241,6 +242,52 @@ describe("TaskController", () => {
           assignedTo: "other-user-id",
         }),
       );
+    });
+
+    it("parses shared list filters and drops junk values", async () => {
+      req.userId = "auth-user-id";
+      req.organisationId = "org-1";
+      req.userPermissions = ["tasks:view:any"];
+      req.query = {
+        appointmentId: ["appt-1", "appt-2"],
+        encounterId: "enc-1",
+        status: "PENDING,COMPLETED,NOT_A_STATUS",
+        kind: "MEDICATION",
+        subcategory: "dental",
+        fromDueAt: "2026-01-01T00:00:00.000Z",
+        dueTo: "2026-01-31T00:00:00.000Z",
+        includeCompleted: "junk",
+      } as any;
+
+      await TaskController.listEmployeeTasks(req as Request, res);
+
+      expect(mockedTaskService.listForEmployee).toHaveBeenCalledWith(
+        expect.objectContaining({
+          appointmentId: "appt-1",
+          encounterId: "enc-1",
+          status: ["PENDING", "COMPLETED"],
+          kind: "MEDICATION",
+          subcategory: "dental",
+          dueFrom: new Date("2026-01-01T00:00:00.000Z"),
+          dueTo: new Date("2026-01-31T00:00:00.000Z"),
+          includeCompleted: undefined,
+        }),
+      );
+    });
+
+    it("maps a TaskServiceError from the service to its status code", async () => {
+      req.userId = "auth-user-id";
+      req.organisationId = "org-1";
+      req.userPermissions = ["tasks:view:any"];
+      req.query = {} as any;
+      mockedTaskService.listForEmployee.mockRejectedValueOnce(
+        new TaskServiceError("Not allowed", 403) as never,
+      );
+
+      await TaskController.listEmployeeTasks(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(403);
+      expect(jsonMock).toHaveBeenCalledWith({ message: "Not allowed" });
     });
 
     it("passes a valid priority filter through and drops an invalid one", async () => {

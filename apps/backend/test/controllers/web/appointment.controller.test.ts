@@ -652,6 +652,57 @@ describe("AppointmentController", () => {
       ).toHaveBeenCalledWith("org_1", "appt_1", ["form_1"]);
       expect(statusMock).toHaveBeenCalledWith(200);
     });
+
+    it("should handle service error with status code", async () => {
+      req.params = { organisationId: "org_1", appointmentId: "appt_1" };
+      req.body = { formIds: ["form_1"] };
+      mockedAppointmentService.attachFormsToAppointment.mockRejectedValue(
+        throwErrorWithStatus("Form not found", 404),
+      );
+
+      await AppointmentController.attachFormsToAppointment(
+        req as any,
+        res as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(404);
+      expect(jsonMock).toHaveBeenCalledWith({ message: "Form not found" });
+    });
+  });
+
+  describe("listByCompanionForOrganisation", () => {
+    it("should success (200)", async () => {
+      req.params = { organisationId: "org_1", patientId: "pet_1" };
+      mockedAppointmentService.getAppointmentsForCompanionByOrganisation.mockResolvedValue(
+        [],
+      );
+
+      await AppointmentController.listByCompanionForOrganisation(
+        req as any,
+        res as Response,
+      );
+
+      expect(
+        mockedAppointmentService.getAppointmentsForCompanionByOrganisation,
+      ).toHaveBeenCalledWith("pet_1", "org_1");
+      expect(statusMock).toHaveBeenCalledWith(200);
+      expect(jsonMock).toHaveBeenCalledWith({ data: [] });
+    });
+
+    it("should handle error", async () => {
+      req.params = { organisationId: "org_1", patientId: "pet_1" };
+      mockedAppointmentService.getAppointmentsForCompanionByOrganisation.mockRejectedValue(
+        new Error("Fail"),
+      );
+
+      await AppointmentController.listByCompanionForOrganisation(
+        req as any,
+        res as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(500);
+      expect(jsonMock).toHaveBeenCalledWith({ message: "Fail" });
+    });
   });
 
   describe("listByLead", () => {

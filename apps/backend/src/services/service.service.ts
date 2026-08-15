@@ -1,29 +1,22 @@
-import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc.js";
 import {
   toServiceResponseDTO,
   fromServiceRequestDTO,
   ServiceRequestDTO,
   Service,
 } from "@yosemite-crew/types";
-import { AvailabilitySlotMongo } from "src/models/base-availability";
 import { AvailabilityService } from "./availability.service";
 import helpers from "src/utils/helper";
 import { prisma } from "src/config/prisma";
 import { ServiceType } from "@prisma/client";
 import {
-  addCachedPromise,
-  type CachedPromise,
-} from "src/utils/cached-promise-cache";
-import {
   buildBookableWindowsForVets,
   mapOrganisationWithAddress,
-  normalizeSlotForSelectedDay,
-  resolveOrganisationTimezone,
 } from "src/utils/scheduling";
+import {
+  createCalendarPrefillCache,
+  getCalendarPrefillMatchesCached,
+} from "./shared/service-availability";
 import { filterWithinRadius, getBoundingDeltas } from "src/utils/geo";
-
-dayjs.extend(utc);
 
 type CalendarPrefillRequest = {
   organisationId: string;
@@ -31,23 +24,6 @@ type CalendarPrefillRequest = {
   minuteOfDay: number;
   leadId?: string;
   serviceIds: string[];
-};
-
-type CalendarPrefillMatch = {
-  serviceId: string;
-  slot: {
-    startTime: string;
-    endTime: string;
-    vetIds: string[];
-  };
-  meta: {
-    localStartMinute: number;
-    localEndMinute: number;
-  };
-};
-
-type AvailabilityWindow = AvailabilitySlotMongo & {
-  vetIds?: string[];
 };
 
 type ServiceSchedulingContext = {
@@ -73,14 +49,7 @@ type ServiceRecord = {
   updatedAt: Date;
 };
 
-const SLOT_MATCH_TOLERANCE_MINUTES = 5;
-const CALENDAR_PREFILL_CACHE_TTL_MS = 15_000;
-const CALENDAR_PREFILL_CACHE_MAX_ENTRIES = 2_000;
-const CALENDAR_PREFILL_CACHE_PRUNE_INTERVAL_MS = 15_000;
-const calendarPrefillCache = new Map<
-  string,
-  CachedPromise<CalendarPrefillMatch[]>
->();
+const calendarPrefillCache = createCalendarPrefillCache();
 
 export class ServiceServiceError extends Error {
   constructor(
@@ -170,99 +139,6 @@ const getServiceSchedulingContext = async (
     durationMinutes: service.durationMinutes,
     vetIds: speciality.memberUserIds || [],
   };
-};
-
-const collectCalendarPrefillMatches = async (params: {
-  input: CalendarPrefillRequest;
-  timezone: string;
-  serviceContexts: ServiceSchedulingContext[];
-  slotCache: Map<
-    string,
-    Promise<{
-      date: string;
-      dayOfWeek: string;
-      windows: AvailabilitySlotMongo[];
-    }>
-  >;
-}) => {
-  const { input, timezone, serviceContexts, slotCache } = params;
-  const utcDateShifts = [-1, 0, 1] as const;
-  const matches: CalendarPrefillMatch[] = [];
-  const safeLeadId =
-    input.leadId == null
-      ? undefined
-      : requireSafeString(input.leadId, "leadId");
-
-  const addMatch = (
-    context: ServiceSchedulingContext,
-    slot: AvailabilityWindow,
-    meta: { localStartMinute: number; localEndMinute: number },
-  ) => {
-    matches.push({
-      serviceId: context.serviceId,
-      slot: {
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-        vetIds: slot.vetIds ?? [],
-      },
-      meta,
-    });
-  };
-
-  for (const context of serviceContexts) {
-    for (const utcDateShift of utcDateShifts) {
-      const referenceDate = dayjs(input.date)
-        .utc()
-        .add(utcDateShift, "day")
-        .toDate();
-
-      const result = await buildBookableWindowsForVets({
-        organisationId: context.organisationId,
-        vetIds: context.vetIds,
-        durationMinutes: context.durationMinutes,
-        referenceDate,
-        slotCache,
-        getBookableSlotsForDate: (...args) =>
-          AvailabilityService.getBookableSlotsForDate(...args),
-      });
-
-      for (const slot of result.windows as AvailabilityWindow[]) {
-        if (safeLeadId && !(slot.vetIds ?? []).includes(safeLeadId)) {
-          continue;
-        }
-
-        const meta = normalizeSlotForSelectedDay({
-          timezone,
-          utcDateShift,
-          slot,
-        });
-        if (!meta) {
-          continue;
-        }
-
-        if (
-          Math.abs(meta.localStartMinute - input.minuteOfDay) >
-          SLOT_MATCH_TOLERANCE_MINUTES
-        ) {
-          continue;
-        }
-
-        addMatch(context, slot, meta);
-      }
-    }
-  }
-
-  matches.sort((a, b) => {
-    if (a.meta.localStartMinute !== b.meta.localStartMinute) {
-      return a.meta.localStartMinute - b.meta.localStartMinute;
-    }
-    if (a.meta.localEndMinute !== b.meta.localEndMinute) {
-      return a.meta.localEndMinute - b.meta.localEndMinute;
-    }
-    return a.serviceId.localeCompare(b.serviceId);
-  });
-
-  return matches;
 };
 
 export const ServiceService = {
@@ -522,95 +398,12 @@ export const ServiceService = {
   },
 
   async getCalendarPrefillMatches(input: CalendarPrefillRequest) {
-    const serviceIds = Array.from(
-      new Set(
-        input.serviceIds
-          .map((serviceId) => requireSafeString(serviceId, "serviceId"))
-          .filter(Boolean),
-      ),
-    ).sort((a, b) => a.localeCompare(b));
-
-    if (serviceIds.length === 0) {
-      return [];
-    }
-
-    const safeOrganisationId = requireSafeString(
-      input.organisationId,
-      "organisationId",
-    );
-    const safeLeadId = input.leadId
-      ? requireSafeString(input.leadId, "leadId")
-      : undefined;
-
-    const cacheKey = JSON.stringify({
-      organisationId: safeOrganisationId,
-      date: dayjs(input.date).utc().format("YYYY-MM-DD"),
-      minuteOfDay: input.minuteOfDay,
-      leadId: safeLeadId ?? "",
-      serviceIds,
+    return getCalendarPrefillMatchesCached({
+      input,
+      cache: calendarPrefillCache,
+      requireSafeString,
+      resolveSchedulingContext: getServiceSchedulingContext,
     });
-
-    return addCachedPromise(
-      calendarPrefillCache,
-      cacheKey,
-      CALENDAR_PREFILL_CACHE_TTL_MS,
-      async () => {
-        const timezone = await resolveOrganisationTimezone({
-          organisationId: safeOrganisationId,
-          leadId: safeLeadId,
-          getLeadPersonalDetails: async (organisationId, leadId) =>
-            (
-              await prisma.userProfile.findFirst({
-                where: {
-                  organizationId: organisationId,
-                  userId: leadId,
-                },
-                select: {
-                  personalDetails: true,
-                },
-              })
-            )?.personalDetails,
-          getOrganisationPersonalDetails: async (organisationId) =>
-            (
-              await prisma.userProfile.findFirst({
-                where: {
-                  organizationId: organisationId,
-                },
-                select: {
-                  personalDetails: true,
-                },
-              })
-            )?.personalDetails,
-        });
-
-        const slotCache = new Map<
-          string,
-          Promise<{
-            date: string;
-            dayOfWeek: string;
-            windows: AvailabilitySlotMongo[];
-          }>
-        >();
-
-        const serviceContexts = await Promise.all(
-          serviceIds.map((serviceId) =>
-            getServiceSchedulingContext(serviceId, input.organisationId),
-          ),
-        );
-        return collectCalendarPrefillMatches({
-          input,
-          timezone,
-          serviceContexts: serviceContexts.filter(
-            (context): context is ServiceSchedulingContext => Boolean(context),
-          ),
-          slotCache,
-        });
-      },
-      {
-        maxEntries: CALENDAR_PREFILL_CACHE_MAX_ENTRIES,
-        pruneIntervalMs: CALENDAR_PREFILL_CACHE_PRUNE_INTERVAL_MS,
-      },
-    );
   },
 
   async listOrganisationsProvidingServiceNearby(

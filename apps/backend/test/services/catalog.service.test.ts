@@ -1883,6 +1883,130 @@ describe("CatalogService", () => {
     expect(updated.kind).toBe("PROCEDURE");
   });
 
+  it("creates a default price and rewrites package items when updating a package", async () => {
+    (prisma.productItem.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "pkg_1",
+      version: 1,
+      organisationId: "org_1",
+      name: "Bundle",
+      description: null,
+      code: "PK-0001",
+      kind: "PACKAGE",
+      specialityId: "spec_1",
+      legacyServiceId: null,
+      isActive: true,
+      prices: [],
+      bookable: null,
+      package: {
+        id: "package_1",
+        leadCount: 1,
+        supportCount: 0,
+        additionalDiscountPercent: 0,
+        items: [],
+      },
+    });
+    (prisma.productItem.findMany as jest.Mock)
+      // ensurePackageItemsValid child lookup
+      .mockResolvedValueOnce([
+        {
+          id: "child_1",
+          isActive: true,
+          prices: [{ id: "cp_1", unitPrice: 10, isDefault: true }],
+          package: null,
+        },
+      ])
+      // buildPackageGraph package scan
+      .mockResolvedValueOnce([])
+      // resolvePackageItemPersistenceData child lookup
+      .mockResolvedValueOnce([{ id: "child_1" }]);
+    (prisma.productItem.update as jest.Mock).mockResolvedValue({});
+    (prisma.productPrice.findFirst as jest.Mock).mockResolvedValue(null);
+    (prisma.productPrice.create as jest.Mock).mockResolvedValue({});
+    (prisma.productPackage.upsert as jest.Mock).mockResolvedValue({
+      id: "package_1",
+    });
+    (prisma.productPackageItem.deleteMany as jest.Mock).mockResolvedValue({});
+    (prisma.productPackageItem.createMany as jest.Mock).mockResolvedValue({});
+    (prisma.productItem.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "pkg_1",
+      organisationId: "org_1",
+      name: "Bundle",
+      description: null,
+      code: "PK-0001",
+      kind: "PACKAGE",
+      specialityId: "spec_1",
+      legacyServiceId: null,
+      isActive: true,
+      version: 2,
+      prices: [
+        {
+          unitPrice: 50,
+          currency: "USD",
+          defaultDiscountPercent: null,
+          maxDiscountPercent: null,
+          isDefault: true,
+        },
+      ],
+      bookable: null,
+      package: {
+        leadCount: 2,
+        supportCount: 1,
+        additionalDiscountPercent: 5,
+        items: [],
+      },
+    });
+
+    const updated = await CatalogService.updateProduct("pkg_1", {
+      organisationId: "org_1",
+      price: { unitPrice: 50, currency: "USD" },
+      package: {
+        leadCount: 2,
+        supportCount: 1,
+        additionalDiscountPercent: 5,
+        grossAmount: 0,
+        itemDiscountAmount: 0,
+        additionalDiscountAmount: 0,
+        breakdownItemCount: 1,
+      },
+      packageItems: [
+        { childProductItemId: "child_1", quantity: 2, pricingMode: "INCLUDED" },
+      ],
+    });
+
+    expect(prisma.productPrice.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        productItemId: "pkg_1",
+        unitPrice: 50,
+        currency: "USD",
+        isDefault: true,
+      }),
+    });
+    expect(prisma.productPackage.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { productItemId: "pkg_1" },
+        update: expect.objectContaining({
+          leadCount: 2,
+          supportCount: 1,
+          additionalDiscountPercent: 5,
+        }),
+      }),
+    );
+    expect(prisma.productPackageItem.deleteMany).toHaveBeenCalledWith({
+      where: { packageId: "package_1" },
+    });
+    expect(prisma.productPackageItem.createMany).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          packageId: "package_1",
+          childProductItemId: "child_1",
+          quantity: 2,
+          pricingMode: "INCLUDED",
+        }),
+      ],
+    });
+    expect(updated.kind).toBe("PACKAGE");
+  });
+
   it("does not update a product owned by another organisation", async () => {
     (prisma.productItem.findFirst as jest.Mock).mockResolvedValueOnce(null);
 

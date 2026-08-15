@@ -10,6 +10,11 @@ import {
 } from "src/services/catalog.service";
 import type { OrgRequest } from "src/middlewares/rbac";
 import {
+  calendarPrefillBaseSchema,
+  parseTristateFlag,
+  utcDateStringSchema,
+} from "src/controllers/web/shared/catalog-service.schemas";
+import {
   fromCatalogRequestDTO,
   fromCatalogResolveOperationRequestDTO,
   fromCatalogSearchOperationRequestDTO,
@@ -211,30 +216,10 @@ const catalogNearbySearchQuerySchema = z.object({
 const catalogBookableSlotsSchema = z.object({
   productItemId: z.string().trim().min(1).optional(),
   serviceId: z.string().trim().min(1).optional(),
-  date: z
-    .string()
-    .trim()
-    .refine(
-      (value) => dayjs.utc(value, "YYYY-MM-DD", true).isValid(),
-      "Invalid date format (use YYYY-MM-DD)",
-    ),
+  date: utcDateStringSchema,
 });
 
-const catalogCalendarPrefillSchema = z.object({
-  organisationId: z.string().trim().min(1),
-  date: z
-    .string()
-    .trim()
-    .refine(
-      (value) => dayjs.utc(value, "YYYY-MM-DD", true).isValid(),
-      "Invalid date format (use YYYY-MM-DD)",
-    ),
-  minuteOfDay: z
-    .number()
-    .int()
-    .min(0)
-    .max(24 * 60 - 1),
-  leadId: z.string().trim().min(1).optional(),
+const catalogCalendarPrefillSchema = calendarPrefillBaseSchema.extend({
   productItemIds: z.array(z.string().trim().min(1)).min(1).optional(),
   serviceIds: z.array(z.string().trim().min(1)).min(1).optional(),
 });
@@ -540,18 +525,10 @@ export const CatalogController = {
         specialityId:
           queryResult.data.specialty ?? queryResult.data.specialityId,
         kinds: parseKinds(queryResult.data.kind ?? queryResult.data.kinds),
-        active:
-          queryResult.data.active === "true"
-            ? true
-            : queryResult.data.active === "false"
-              ? false
-              : undefined,
-        supportsInpatient:
-          queryResult.data.supportsInpatient === "true"
-            ? true
-            : queryResult.data.supportsInpatient === "false"
-              ? false
-              : undefined,
+        active: parseTristateFlag(queryResult.data.active),
+        supportsInpatient: parseTristateFlag(
+          queryResult.data.supportsInpatient,
+        ),
         includeInactive:
           queryResult.data.includeInactive === "true" ||
           (isFhirRoute && queryResult.data.active === undefined),
@@ -904,12 +881,7 @@ export const CatalogController = {
         includeInactive:
           parsed.data.status === "ALL" || parsed.data.status === "ARCHIVED",
         search: parsed.data.search,
-        supportsInpatient:
-          parsed.data.supportsInpatient === "true"
-            ? true
-            : parsed.data.supportsInpatient === "false"
-              ? false
-              : undefined,
+        supportsInpatient: parseTristateFlag(parsed.data.supportsInpatient),
       });
 
       return res.status(200).json({
@@ -1058,12 +1030,7 @@ export const CatalogController = {
         includeInactive:
           parsed.data.status === "ALL" || parsed.data.status === "ARCHIVED",
         search: parsed.data.search,
-        supportsInpatient:
-          parsed.data.supportsInpatient === "true"
-            ? true
-            : parsed.data.supportsInpatient === "false"
-              ? false
-              : undefined,
+        supportsInpatient: parseTristateFlag(parsed.data.supportsInpatient),
       });
 
       return res.status(200).json({
