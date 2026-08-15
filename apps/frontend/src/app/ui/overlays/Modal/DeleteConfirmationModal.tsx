@@ -76,7 +76,16 @@ const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
     setShowModal(false);
   };
 
+  // Gate on consent only. The email field keeps its own inline validation, so
+  // folding it in here would make "Email is required" unreachable. Consent was
+  // the actual hole: it was read by nothing, so a user could delete an
+  // organization or a profile without ever ticking "this is permanent".
+  const canDelete = consent;
+
   const handleDelete = async () => {
+    // Defence in depth: the button is disabled without consent, but this modal
+    // fronts irreversible actions so the guard is enforced here as well.
+    if (!consent) return;
     if (!validateEmail()) return;
     try {
       await onDelete();
@@ -120,7 +129,6 @@ const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
           <input
             type="checkbox"
             aria-label="Confirm deletion consent"
-            placeholder="Demo"
             id="consent-checkbox"
             checked={consent}
             onChange={(e) => setConsent(e.target.checked)}
@@ -132,7 +140,7 @@ const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
         </div>
         <div className="grid grid-cols-2 gap-2">
           <Secondary href="#" text="Cancel" onClick={handleCancel} />
-          <Delete href="#" onClick={handleDelete} text="Delete" />
+          <Delete href="#" onClick={handleDelete} text="Delete" isDisabled={!canDelete} />
         </div>
         <div className="text-caption-1 text-text-primary">
           <span className="text-blue-text">Note : </span> {noteText}
