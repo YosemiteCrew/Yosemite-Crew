@@ -79,6 +79,14 @@ updates:
       # patches) so the pair only moves atomically with the runtime upgrade
       # (#2125) - a patch bump here without the override recreates the mismatch.
       - dependency-name: 'playwright'
+      # ioredis 6 raised its node floor to >=20; the backend image runs node 18.
+      # 5.11.1 is the last 5.x release and carries AIKIDO-2026-538318 (medium)
+      # with no 5.x fix available, so the advisory only clears by taking 6.x,
+      # which the runtime upgrade (#2125) has to come first for. This is the
+      # same version main already runs, so the freeze holds parity rather than
+      # accepting anything new.
+      - dependency-name: 'ioredis'
+        update-types: ['version-update:semver-major']
       # @babel/core 8 cannot be installed while the app is on React Native
       # 0.81: @react-native/babel-preset asserts Babel "^7.0.0-0" at load time
       # and throws "Requires Babel ^7.0.0-0, but was loaded with 8.0.1" for
