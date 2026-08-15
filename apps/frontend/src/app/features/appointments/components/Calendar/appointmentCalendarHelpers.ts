@@ -10,11 +10,7 @@ import {
   DropAvailabilityInterval,
   resolveAvailabilityIntervalsForDay,
 } from '@/app/features/appointments/components/Calendar/availabilityIntervals';
-import {
-  getErrorMessageFromCandidate,
-  hasAppointmentConflict,
-  teamSupportsSpeciality,
-} from '@/app/features/appointments/components/Calendar/appointmentCalendarDragUtils';
+import { hasAppointmentConflict } from '@/app/features/appointments/components/Calendar/appointmentCalendarDragUtils';
 
 export type DragContext = {
   appointmentId: string;
@@ -51,8 +47,11 @@ export const toLocalClockFromUtcTime = (utcTime: string) =>
   utcClockTimeToPreferredTimeZoneClock(utcTime);
 
 // Single source of truth for these drag helpers lives in appointmentCalendarDragUtils.
-export { getErrorMessageFromCandidate, hasAppointmentConflict };
-export { teamSupportsSpeciality as supportsSpeciality };
+export {
+  getErrorMessageFromCandidate,
+  teamSupportsSpeciality as supportsSpeciality,
+} from '@/app/features/appointments/components/Calendar/appointmentCalendarDragUtils';
+export { hasAppointmentConflict };
 
 export const normalizeId = (value?: string) =>
   String(value ?? '')
