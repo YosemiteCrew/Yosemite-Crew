@@ -4685,4 +4685,31 @@ describe("FinancePaymentService", () => {
     );
     expect(result.sessionId).toBe("cs_new_w");
   });
+
+  it("throws when refunded payments no longer link back to an invoice", async () => {
+    (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: "pay_orphan", amount: 40 },
+    ]);
+    const refundSpy = jest
+      .spyOn(FinancePaymentService, "refundPaymentById")
+      .mockResolvedValueOnce({
+        payment: { invoice: null },
+        refund: {
+          refundId: "re_orphan",
+          providerRefundId: "re_orphan",
+          status: "succeeded",
+          amountRefunded: 40,
+          paymentId: "pay_orphan",
+        },
+      } as never);
+
+    await expect(
+      FinancePaymentService.refundInvoicePayments("inv_orphan", "cleanup"),
+    ).rejects.toMatchObject({
+      message: "Invoice has no refundable payment",
+      statusCode: 409,
+    });
+
+    refundSpy.mockRestore();
+  });
 });

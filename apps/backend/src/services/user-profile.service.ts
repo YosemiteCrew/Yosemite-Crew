@@ -584,6 +584,19 @@ const syncUserProfileAddress = async (
   });
 };
 
+const buildAddressFromPrismaRelation = (
+  address: NonNullable<PrismaUserProfileWithAddress["address"]>,
+) =>
+  pruneUndefined({
+    addressLine: address.addressLine ?? undefined,
+    country: address.country ?? undefined,
+    city: address.city ?? undefined,
+    state: address.state ?? undefined,
+    postalCode: address.postalCode ?? undefined,
+    latitude: address.latitude ?? undefined,
+    longitude: address.longitude ?? undefined,
+  });
+
 const buildPersonalDetailsFromPrisma = (
   profile: PrismaUserProfileWithAddress,
 ): UserProfilePersonalDetailsMongo | undefined => {
@@ -596,39 +609,26 @@ const buildPersonalDetailsFromPrisma = (
 
   if (!rawPersonalDetails && profile.address) {
     return {
-      address: pruneUndefined({
-        addressLine: profile.address.addressLine ?? undefined,
-        country: profile.address.country ?? undefined,
-        city: profile.address.city ?? undefined,
-        state: profile.address.state ?? undefined,
-        postalCode: profile.address.postalCode ?? undefined,
-        latitude: profile.address.latitude ?? undefined,
-        longitude: profile.address.longitude ?? undefined,
-      }),
+      address: buildAddressFromPrismaRelation(profile.address),
     };
+  }
+
+  let address: UserProfilePersonalDetailsMongo["address"];
+  if (profile.address) {
+    address = buildAddressFromPrismaRelation(profile.address);
+  } else if (rawPersonalDetails?.address) {
+    address = pruneUndefined(rawPersonalDetails.address);
   }
 
   return {
     ...rawPersonalDetails,
-    address: profile.address
-      ? pruneUndefined({
-          addressLine: profile.address.addressLine ?? undefined,
-          country: profile.address.country ?? undefined,
-          city: profile.address.city ?? undefined,
-          state: profile.address.state ?? undefined,
-          postalCode: profile.address.postalCode ?? undefined,
-          latitude: profile.address.latitude ?? undefined,
-          longitude: profile.address.longitude ?? undefined,
-        })
-      : rawPersonalDetails?.address
-        ? pruneUndefined(rawPersonalDetails.address)
-        : undefined,
+    address,
   };
 };
 
 const buildDomainProfileFromPrisma = (
   profile: PrismaUserProfileWithAddress,
-  options?: { statusOverride?: UserProfileMongo["status"] },
+  options?: { statusOverride?: NonNullable<UserProfileMongo["status"]> },
 ): UserProfileType => {
   const rawProfessionalDetails = profile.professionalDetails as
     UserProfileProfessionalDetailsMongo | undefined;
@@ -948,19 +948,24 @@ export const UserProfileService = {
     // would silently keep the old address instead of deleting it. Resolve that
     // as `undefined` here so syncUserProfileAddress takes its delete branch.
     const existingPersonalDetails = buildPersonalDetailsFromPrisma(existing);
-    const personalDetails = attributes.personalDetails
-      ? {
-          ...attributes.personalDetails,
-          address: personalDetailsAddressCleared
-            ? undefined
-            : personalDetailsAddressProvided
-              ? {
-                  ...existingPersonalDetails?.address,
-                  ...attributes.personalDetails.address,
-                }
-              : existingPersonalDetails?.address,
-        }
-      : existingPersonalDetails;
+    let personalDetails = existingPersonalDetails;
+    if (attributes.personalDetails) {
+      let mergedAddress: UserProfilePersonalDetailsMongo["address"];
+      if (personalDetailsAddressCleared) {
+        mergedAddress = undefined;
+      } else if (personalDetailsAddressProvided) {
+        mergedAddress = {
+          ...existingPersonalDetails?.address,
+          ...attributes.personalDetails.address,
+        };
+      } else {
+        mergedAddress = existingPersonalDetails?.address;
+      }
+      personalDetails = {
+        ...attributes.personalDetails,
+        address: mergedAddress,
+      };
+    }
     await syncUserProfileAddress(updated.id, personalDetails?.address);
 
     let availability: UserAvailability[] = [];

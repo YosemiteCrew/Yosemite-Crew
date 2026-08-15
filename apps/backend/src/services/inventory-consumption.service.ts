@@ -1,4 +1,4 @@
-import { createHash } from "crypto";
+import { createHash } from "node:crypto";
 import {
   InventoryConsumptionAction,
   InventoryConsumptionSourceType,
@@ -288,28 +288,24 @@ const resolveDurationUnitLabel = (item: {
   return getDurationUnitDefinition(unit)?.label;
 };
 
-const resolveFrequencyPerDay = (frequency?: string | null) => {
-  const normalized = frequency?.trim().toUpperCase();
-  if (!normalized) return undefined;
+const FREQUENCY_DIRECT_MAP: Record<string, number> = {
+  OD: 1,
+  QD: 1,
+  SID: 1,
+  DAILY: 1,
+  QDLY: 1,
+  Q24H: 1,
+  BID: 2,
+  TID: 3,
+  QID: 4,
+  Q6H: 4,
+  Q8H: 3,
+  Q12H: 2,
+};
 
-  const directMap: Record<string, number> = {
-    OD: 1,
-    QD: 1,
-    SID: 1,
-    DAILY: 1,
-    QDLY: 1,
-    Q24H: 1,
-    BID: 2,
-    TID: 3,
-    QID: 4,
-    Q6H: 4,
-    Q8H: 3,
-    Q12H: 2,
-  };
-  if (Object.prototype.hasOwnProperty.call(directMap, normalized)) {
-    return directMap[normalized];
-  }
-
+const resolveFrequencyFromKeywords = (
+  normalized: string,
+): number | undefined => {
   if (
     normalized.includes("SID") ||
     (normalized.includes("ONCE") && !normalized.includes("WEEKLY"))
@@ -338,20 +334,33 @@ const resolveFrequencyPerDay = (frequency?: string | null) => {
   ) {
     return 3;
   }
+  return undefined;
+};
 
+const dosesPerDayFromHours = (rawHours: string): number | undefined => {
+  const hours = Number(rawHours);
+  if (Number.isFinite(hours) && hours > 0) {
+    return Math.max(1, Math.ceil(24 / hours));
+  }
+  return undefined;
+};
+
+const resolveFrequencyFromPatterns = (
+  normalized: string,
+): number | undefined => {
   const everyHoursText = /EVERY\s+(\d+)\s+HOURS?/.exec(normalized);
   if (everyHoursText) {
-    const hours = Number(everyHoursText[1]);
-    if (Number.isFinite(hours) && hours > 0) {
-      return Math.max(1, Math.ceil(24 / hours));
+    const fromText = dosesPerDayFromHours(everyHoursText[1]);
+    if (fromText !== undefined) {
+      return fromText;
     }
   }
 
   const everyNhours = /^Q(\d+)H$/.exec(normalized);
   if (everyNhours) {
-    const hours = Number(everyNhours[1]);
-    if (Number.isFinite(hours) && hours > 0) {
-      return Math.max(1, Math.ceil(24 / hours));
+    const fromCode = dosesPerDayFromHours(everyNhours[1]);
+    if (fromCode !== undefined) {
+      return fromCode;
     }
   }
 
@@ -364,6 +373,20 @@ const resolveFrequencyPerDay = (frequency?: string | null) => {
   }
 
   return undefined;
+};
+
+const resolveFrequencyPerDay = (frequency?: string | null) => {
+  const normalized = frequency?.trim().toUpperCase();
+  if (!normalized) return undefined;
+
+  if (Object.hasOwn(FREQUENCY_DIRECT_MAP, normalized)) {
+    return FREQUENCY_DIRECT_MAP[normalized];
+  }
+
+  return (
+    resolveFrequencyFromKeywords(normalized) ??
+    resolveFrequencyFromPatterns(normalized)
+  );
 };
 
 const resolvePriceCents = (item: {
@@ -449,6 +472,16 @@ const resolveDispenseStockSourceFromMetadata = (
 
 const normalizeKey = (value: string) => value.trim().toLowerCase();
 
+const coerceDate = (value: unknown): Date | undefined => {
+  if (value instanceof Date) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim()) {
+    return new Date(value);
+  }
+  return undefined;
+};
+
 const toRecord = (value: unknown): Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -464,12 +497,7 @@ const toTitleCase = (value: string) =>
     .join(" ");
 
 const formatPetAge = (dateOfBirth: unknown): string | undefined => {
-  const birthDate =
-    dateOfBirth instanceof Date
-      ? dateOfBirth
-      : typeof dateOfBirth === "string" && dateOfBirth.trim()
-        ? new Date(dateOfBirth)
-        : null;
+  const birthDate = coerceDate(dateOfBirth);
 
   if (!birthDate || Number.isNaN(birthDate.getTime())) {
     return undefined;
@@ -583,54 +611,50 @@ const resolvePetParentName = (patient: Record<string, unknown>) => {
   return undefined;
 };
 
-const loadPetSnapshot = async (
-  db: Pick<typeof prisma, "appointment" | "encounter" | "patient">,
-  params: {
-    organisationId: string;
-    context?: PrescriptionDispenseRequestContext;
-  },
+const loadPetSnapshotFromAppointment = async (
+  db: Pick<typeof prisma, "appointment">,
+  organisationId: string,
+  appointmentId: string,
 ): Promise<{
   snapshot: Record<string, unknown>;
-  appointmentKind?: AppointmentKindValue;
-}> => {
-  const appointmentId = asNonEmptyString(params.context?.appointmentId);
-  if (appointmentId) {
-    const appointment = await db.appointment.findFirst({
-      where: {
-        id: appointmentId,
-        organisationId: params.organisationId,
-      },
-      select: {
-        patient: true,
-        appointmentKind: true,
-      },
-    });
+  appointmentKind: AppointmentKindValue;
+} | null> => {
+  const appointment = await db.appointment.findFirst({
+    where: {
+      id: appointmentId,
+      organisationId,
+    },
+    select: {
+      patient: true,
+      appointmentKind: true,
+    },
+  });
 
-    if (appointment) {
-      const patientRecord = toRecord(appointment.patient);
-      const petParentName = resolvePetParentName(patientRecord);
-      return {
-        snapshot: {
-          ...buildPetSnapshot(patientRecord),
-          ...(petParentName ? { petParentName } : {}),
-        },
-        appointmentKind:
-          appointment.appointmentKind === "INPATIENT"
-            ? "INPATIENT"
-            : "OUTPATIENT",
-      };
-    }
+  if (!appointment) {
+    return null;
   }
 
-  const encounterId = asNonEmptyString(params.context?.encounterId);
-  if (!encounterId) {
-    return { snapshot: {} };
-  }
+  const patientRecord = toRecord(appointment.patient);
+  const petParentName = resolvePetParentName(patientRecord);
+  return {
+    snapshot: {
+      ...buildPetSnapshot(patientRecord),
+      ...(petParentName ? { petParentName } : {}),
+    },
+    appointmentKind:
+      appointment.appointmentKind === "INPATIENT" ? "INPATIENT" : "OUTPATIENT",
+  };
+};
 
+const loadPetSnapshotFromEncounter = async (
+  db: Pick<typeof prisma, "encounter" | "patient">,
+  organisationId: string,
+  encounterId: string,
+): Promise<Record<string, unknown>> => {
   const encounter = await db.encounter.findFirst({
     where: {
       id: encounterId,
-      organisationId: params.organisationId,
+      organisationId,
     },
     select: {
       patientId: true,
@@ -638,7 +662,7 @@ const loadPetSnapshot = async (
   });
 
   if (!encounter?.patientId) {
-    return { snapshot: {} };
+    return {};
   }
 
   const patient = await db.patient.findFirst({
@@ -655,20 +679,52 @@ const loadPetSnapshot = async (
     },
   });
 
-  const patientRecord = patient ? toRecord(patient) : undefined;
-  const petParentName = patientRecord
-    ? resolvePetParentName(patientRecord)
-    : undefined;
+  if (!patient) {
+    return {};
+  }
+
+  const patientRecord = toRecord(patient);
+  const snapshot = buildPetSnapshot(patientRecord);
+  const petParentName = resolvePetParentName(patientRecord);
+  if (petParentName) {
+    snapshot.petParentName = petParentName;
+  }
+  return snapshot;
+};
+
+const loadPetSnapshot = async (
+  db: Pick<typeof prisma, "appointment" | "encounter" | "patient">,
+  params: {
+    organisationId: string;
+    context?: PrescriptionDispenseRequestContext;
+  },
+): Promise<{
+  snapshot: Record<string, unknown>;
+  appointmentKind?: AppointmentKindValue;
+}> => {
+  const appointmentId = asNonEmptyString(params.context?.appointmentId);
+  if (appointmentId) {
+    const fromAppointment = await loadPetSnapshotFromAppointment(
+      db,
+      params.organisationId,
+      appointmentId,
+    );
+    if (fromAppointment) {
+      return fromAppointment;
+    }
+  }
+
+  const encounterId = asNonEmptyString(params.context?.encounterId);
+  if (!encounterId) {
+    return { snapshot: {} };
+  }
+
   return {
-    snapshot:
-      patientRecord && petParentName
-        ? {
-            ...buildPetSnapshot(patientRecord),
-            petParentName,
-          }
-        : patientRecord
-          ? buildPetSnapshot(patientRecord)
-          : {},
+    snapshot: await loadPetSnapshotFromEncounter(
+      db,
+      params.organisationId,
+      encounterId,
+    ),
   };
 };
 
@@ -906,21 +962,42 @@ const createInventoryConsumptionAppliedEvent = (
     status: "APPLIED",
   });
 
-const applyInventoryRelease = async (
+type InventoryConsumptionApplyParams = {
+  organisationId: string;
+  inventoryItemId: string;
+  quantity: number;
+  metadata?: Prisma.InputJsonValue;
+  sourceType: InventoryConsumptionSourceType;
+  sourceId: string;
+  sourceLineKey: string;
+  idempotencyKey: string;
+  batchId?: string;
+  movementReason?: string;
+  stockSource?: DispenseStockSource;
+};
+
+type ConsumeInventoryItemParams = InventoryConsumptionApplyParams & {
+  action: InventoryConsumptionAction;
+};
+
+const toConsumptionEventParams = (params: ConsumeInventoryItemParams) => ({
+  organisationId: params.organisationId,
+  sourceType: params.sourceType,
+  sourceId: params.sourceId,
+  sourceLineKey: params.sourceLineKey,
+  action: params.action,
+  idempotencyKey: params.idempotencyKey,
+  inventoryItemId: params.inventoryItemId,
+  quantity: params.quantity,
+  metadata: params.metadata,
+});
+
+const requireInventoryItemForAdjustment = async (
   tx: Prisma.TransactionClient,
-  params: {
-    organisationId: string;
-    inventoryItemId: string;
-    quantity: number;
-    metadata?: Prisma.InputJsonValue;
-    sourceType: InventoryConsumptionSourceType;
-    sourceId: string;
-    sourceLineKey: string;
-    idempotencyKey: string;
-    batchId?: string;
-    movementReason?: string;
-    stockSource?: DispenseStockSource;
-  },
+  params: Pick<
+    InventoryConsumptionApplyParams,
+    "organisationId" | "inventoryItemId"
+  >,
 ) => {
   const item = await tx.inventoryItem.findFirst({
     where: {
@@ -931,6 +1008,45 @@ const applyInventoryRelease = async (
   if (!item) {
     throw new InventoryConsumptionServiceError("Inventory item not found", 404);
   }
+  return item;
+};
+
+const finalizeInventoryAdjustment = async (
+  tx: Prisma.TransactionClient,
+  params: InventoryConsumptionApplyParams,
+  item: { allocated: number | null },
+  allocatedDirection: 1 | -1,
+  action: InventoryConsumptionAction,
+) => {
+  const onHand = await updateInventoryItemOnHand(
+    tx,
+    params.organisationId,
+    params.inventoryItemId,
+  );
+  const allocated =
+    params.stockSource === "ALLOCATED"
+      ? Math.max(
+          0,
+          (item.allocated ?? 0) + allocatedDirection * params.quantity,
+        )
+      : (item.allocated ?? 0);
+  await tx.inventoryItem.update({
+    where: { id: params.inventoryItemId },
+    data:
+      params.stockSource === "ALLOCATED" ? { onHand, allocated } : { onHand },
+  });
+
+  return createInventoryConsumptionAppliedEvent(
+    tx,
+    toConsumptionEventParams({ ...params, action }),
+  );
+};
+
+const applyInventoryRelease = async (
+  tx: Prisma.TransactionClient,
+  params: InventoryConsumptionApplyParams,
+) => {
+  const item = await requireInventoryItemForAdjustment(tx, params);
 
   const movements = await tx.inventoryStockMovement.findMany({
     where: {
@@ -984,59 +1100,14 @@ const applyInventoryRelease = async (
     );
   }
 
-  const onHand = await updateInventoryItemOnHand(
-    tx,
-    params.organisationId,
-    params.inventoryItemId,
-  );
-  const allocated =
-    params.stockSource === "ALLOCATED"
-      ? Math.max(0, (item.allocated ?? 0) + params.quantity)
-      : (item.allocated ?? 0);
-  await tx.inventoryItem.update({
-    where: { id: params.inventoryItemId },
-    data:
-      params.stockSource === "ALLOCATED" ? { onHand, allocated } : { onHand },
-  });
-
-  return createInventoryConsumptionAppliedEvent(tx, {
-    organisationId: params.organisationId,
-    sourceType: params.sourceType,
-    sourceId: params.sourceId,
-    sourceLineKey: params.sourceLineKey,
-    action: "RELEASE",
-    idempotencyKey: params.idempotencyKey,
-    inventoryItemId: params.inventoryItemId,
-    quantity: params.quantity,
-    metadata: params.metadata,
-  });
+  return finalizeInventoryAdjustment(tx, params, item, 1, "RELEASE");
 };
 
 const applyInventoryConsumption = async (
   tx: Prisma.TransactionClient,
-  params: {
-    organisationId: string;
-    inventoryItemId: string;
-    quantity: number;
-    metadata?: Prisma.InputJsonValue;
-    sourceType: InventoryConsumptionSourceType;
-    sourceId: string;
-    sourceLineKey: string;
-    idempotencyKey: string;
-    batchId?: string;
-    movementReason?: string;
-    stockSource?: DispenseStockSource;
-  },
+  params: InventoryConsumptionApplyParams,
 ) => {
-  const item = await tx.inventoryItem.findFirst({
-    where: {
-      id: params.inventoryItemId,
-      organisationId: params.organisationId,
-    },
-  });
-  if (!item) {
-    throw new InventoryConsumptionServiceError("Inventory item not found", 404);
-  }
+  const item = await requireInventoryItemForAdjustment(tx, params);
   if ((item.onHand ?? 0) < params.quantity) {
     throw new InventoryConsumptionServiceError("Insufficient stock", 400);
   }
@@ -1083,113 +1154,39 @@ const applyInventoryConsumption = async (
     );
   }
 
-  const onHand = await updateInventoryItemOnHand(
-    tx,
-    params.organisationId,
-    params.inventoryItemId,
-  );
-  const allocated =
-    params.stockSource === "ALLOCATED"
-      ? Math.max(0, (item.allocated ?? 0) - params.quantity)
-      : (item.allocated ?? 0);
-  await tx.inventoryItem.update({
-    where: { id: params.inventoryItemId },
-    data:
-      params.stockSource === "ALLOCATED" ? { onHand, allocated } : { onHand },
-  });
-
-  return createInventoryConsumptionAppliedEvent(tx, {
-    organisationId: params.organisationId,
-    sourceType: params.sourceType,
-    sourceId: params.sourceId,
-    sourceLineKey: params.sourceLineKey,
-    action: "CONSUME",
-    idempotencyKey: params.idempotencyKey,
-    inventoryItemId: params.inventoryItemId,
-    quantity: params.quantity,
-    metadata: params.metadata,
-  });
+  return finalizeInventoryAdjustment(tx, params, item, -1, "CONSUME");
 };
 
 const consumeInventoryItem = async (
   tx: Prisma.TransactionClient,
-  organisationId: string,
-  inventoryItemId: string,
-  quantity: number,
-  metadata: Prisma.InputJsonValue | undefined,
-  sourceType: InventoryConsumptionSourceType,
-  sourceId: string,
-  sourceLineKey: string,
-  action: InventoryConsumptionAction,
-  idempotencyKey: string,
-  batchId?: string,
-  movementReason?: string,
-  stockSource?: DispenseStockSource,
+  params: ConsumeInventoryItemParams,
 ) => {
   const existingEvent = await tx.inventoryConsumptionEvent.findUnique({
-    where: { idempotencyKey },
+    where: { idempotencyKey: params.idempotencyKey },
   });
   if (existingEvent) {
     return existingEvent;
   }
 
-  if (action === "RESERVE") {
-    return createInventoryConsumptionAppliedEvent(tx, {
-      organisationId,
-      sourceType,
-      sourceId,
-      sourceLineKey,
-      action,
-      idempotencyKey,
-      inventoryItemId,
-      quantity,
-      metadata,
-    });
+  if (params.action === "RESERVE") {
+    return createInventoryConsumptionAppliedEvent(
+      tx,
+      toConsumptionEventParams(params),
+    );
   }
 
-  if (action === "RELEASE") {
-    return applyInventoryRelease(tx, {
-      organisationId,
-      sourceType,
-      sourceId,
-      sourceLineKey,
-      idempotencyKey,
-      inventoryItemId,
-      quantity,
-      metadata,
-      batchId,
-      movementReason,
-      stockSource,
-    });
+  if (params.action === "RELEASE") {
+    return applyInventoryRelease(tx, params);
   }
 
-  if (action !== "CONSUME") {
-    return createInventoryConsumptionSkippedEvent(tx, {
-      organisationId,
-      sourceType,
-      sourceId,
-      sourceLineKey,
-      action,
-      idempotencyKey,
-      inventoryItemId,
-      quantity,
-      metadata,
-    });
+  if (params.action !== "CONSUME") {
+    return createInventoryConsumptionSkippedEvent(
+      tx,
+      toConsumptionEventParams(params),
+    );
   }
 
-  return applyInventoryConsumption(tx, {
-    organisationId,
-    sourceType,
-    sourceId,
-    sourceLineKey,
-    idempotencyKey,
-    inventoryItemId,
-    quantity,
-    metadata,
-    batchId,
-    movementReason,
-    stockSource,
-  });
+  return applyInventoryConsumption(tx, params);
 };
 
 const resolveInventoryItemFromRule = async (
@@ -1222,6 +1219,23 @@ const resolveInventoryItemIdBySku = async (
   return item?.id ?? null;
 };
 
+const buildBatchIdentifierWhere = (identifiers: {
+  batchId?: string;
+  batchNumber?: string;
+  lotNumber?: string;
+}): Prisma.InventoryBatchWhereInput => {
+  if (identifiers.batchId) {
+    return { id: identifiers.batchId };
+  }
+  if (identifiers.batchNumber) {
+    return { batchNumber: identifiers.batchNumber };
+  }
+  if (identifiers.lotNumber) {
+    return { lotNumber: identifiers.lotNumber };
+  }
+  return {};
+};
+
 const resolveInventoryItemIdByBatch = async (
   tx: Prisma.TransactionClient,
   organisationId: string,
@@ -1235,13 +1249,7 @@ const resolveInventoryItemIdByBatch = async (
   const batchId = asNonEmptyString(batchSelector.batchId);
   const batchNumber = asNonEmptyString(batchSelector.batchNumber);
   const lotNumber = asNonEmptyString(batchSelector.lotNumber);
-  const expiryDate =
-    batchSelector.expiryDate instanceof Date
-      ? batchSelector.expiryDate
-      : typeof batchSelector.expiryDate === "string" &&
-          batchSelector.expiryDate.trim()
-        ? new Date(batchSelector.expiryDate)
-        : undefined;
+  const expiryDate = coerceDate(batchSelector.expiryDate);
 
   if (!batchId && !batchNumber && !lotNumber && !expiryDate) {
     return null;
@@ -1250,13 +1258,7 @@ const resolveInventoryItemIdByBatch = async (
   const batch = await tx.inventoryBatch.findFirst({
     where: {
       organisationId,
-      ...(batchId
-        ? { id: batchId }
-        : batchNumber
-          ? { batchNumber }
-          : lotNumber
-            ? { lotNumber }
-            : {}),
+      ...buildBatchIdentifierWhere({ batchId, batchNumber, lotNumber }),
       ...(expiryDate && !Number.isNaN(expiryDate.getTime())
         ? { expiryDate }
         : {}),
@@ -1341,21 +1343,20 @@ const consumeResolvedLines = async (
         400,
       );
     }
-    const event = await consumeInventoryItem(
-      tx,
+    const event = await consumeInventoryItem(tx, {
       organisationId,
       inventoryItemId,
       quantity,
-      line.metadata ?? request.metadata,
-      request.sourceType,
+      metadata: line.metadata ?? request.metadata,
+      sourceType: request.sourceType,
       sourceId,
-      line.sourceLineKey,
+      sourceLineKey: line.sourceLineKey,
       action,
-      `${idempotencyBase}:${line.sourceLineKey}:${inventoryItemId}`,
-      line.batchId,
-      options?.movementReason,
-      options?.stockSource,
-    );
+      idempotencyKey: `${idempotencyBase}:${line.sourceLineKey}:${inventoryItemId}`,
+      batchId: line.batchId,
+      movementReason: options?.movementReason,
+      stockSource: options?.stockSource,
+    });
     events.push(event);
   }
   return events;
@@ -2042,21 +2043,19 @@ export const InventoryConsumptionService = {
           );
         }
 
-        const event = await consumeInventoryItem(
-          tx,
+        const event = await consumeInventoryItem(tx, {
           organisationId,
-          resolvedInventoryItemId,
+          inventoryItemId: resolvedInventoryItemId,
           quantity,
-          line.metadata ?? request.metadata,
-          request.sourceType,
+          metadata: line.metadata ?? request.metadata,
+          sourceType: request.sourceType,
           sourceId,
-          line.sourceLineKey,
+          sourceLineKey: line.sourceLineKey,
           action,
-          `${idempotencyBase}:${line.sourceLineKey}:${resolvedInventoryItemId}`,
-          line.batchId,
-          undefined,
+          idempotencyKey: `${idempotencyBase}:${line.sourceLineKey}:${resolvedInventoryItemId}`,
+          batchId: line.batchId,
           stockSource,
-        );
+        });
         events.push(event);
       }
       return events;
@@ -2179,7 +2178,7 @@ export const InventoryConsumptionService = {
         },
       },
     });
-    if (!product || !product.package) {
+    if (!product?.package) {
       throw new InventoryConsumptionServiceError(
         "Package product not found",
         404,

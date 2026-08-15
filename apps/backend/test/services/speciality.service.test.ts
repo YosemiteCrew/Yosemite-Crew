@@ -138,6 +138,117 @@ describe("SpecialityService", () => {
         .calls[0][0];
       expect(persisted.data.services).toEqual(["Service A"]);
     });
+
+    it("should reject a non-string speciality name", async () => {
+      await expect(
+        SpecialityService.createOne({ ...validPayload, name: 123 }),
+      ).rejects.toThrow("Speciality name must be a string.");
+
+      expect(prisma.speciality.create).not.toHaveBeenCalled();
+    });
+
+    it("should reject a whitespace-only speciality name", async () => {
+      await expect(
+        SpecialityService.createOne({ ...validPayload, name: "   " }),
+      ).rejects.toThrow("Speciality name cannot be empty.");
+
+      expect(prisma.speciality.create).not.toHaveBeenCalled();
+    });
+
+    it("should reject a non-string optional field", async () => {
+      await expect(
+        SpecialityService.createOne({ ...validPayload, headUserId: 42 }),
+      ).rejects.toThrow("Head user identifier must be a string.");
+
+      expect(prisma.speciality.create).not.toHaveBeenCalled();
+    });
+
+    it("should reject an optional field carrying an operator character", async () => {
+      await expect(
+        SpecialityService.createOne({
+          ...validPayload,
+          headName: "Dr $ne",
+        }),
+      ).rejects.toThrow("Invalid character in Head name.");
+
+      expect(prisma.speciality.create).not.toHaveBeenCalled();
+    });
+
+    it("should drop whitespace-only optional fields instead of persisting them", async () => {
+      await SpecialityService.createOne({
+        ...validPayload,
+        headName: "   ",
+        headProfilePicUrl: "  ",
+      });
+
+      const persisted = (prisma.speciality.create as jest.Mock).mock
+        .calls[0][0];
+      expect(persisted.data.name).toBe("Cardiology");
+      expect(persisted.data.headName).toBeUndefined();
+      expect(persisted.data.headProfilePicUrl).toBeUndefined();
+    });
+
+    it("should drop a services array whose entries are all blank", async () => {
+      await SpecialityService.createOne({
+        ...validPayload,
+        services: ["   ", null],
+      });
+
+      const persisted = (prisma.speciality.create as jest.Mock).mock
+        .calls[0][0];
+      expect(persisted.data.services).toBeUndefined();
+    });
+
+    it("should skip blank team members and de-duplicate the rest", async () => {
+      await SpecialityService.createOne({
+        ...validPayload,
+        teamMemberIds: ["  ", "member-1", "member-1", "member-2"],
+      });
+
+      const persisted = (prisma.speciality.create as jest.Mock).mock
+        .calls[0][0];
+      expect(persisted.data.memberUserIds).toEqual(["member-1", "member-2"]);
+    });
+
+    it("should drop a team member array whose entries are all blank", async () => {
+      await SpecialityService.createOne({
+        ...validPayload,
+        teamMemberIds: ["   ", null],
+      });
+
+      const persisted = (prisma.speciality.create as jest.Mock).mock
+        .calls[0][0];
+      expect(persisted.data.memberUserIds).toBeUndefined();
+    });
+
+    it("should forward Date timestamps supplied by the payload", async () => {
+      const createdAt = new Date("2026-01-01T00:00:00.000Z");
+      const updatedAt = new Date("2026-02-02T00:00:00.000Z");
+
+      await SpecialityService.createOne({
+        ...validPayload,
+        createdAt,
+        updatedAt,
+      });
+
+      const persisted = (prisma.speciality.create as jest.Mock).mock
+        .calls[0][0];
+      expect(persisted.data.createdAt).toBe(createdAt);
+      expect(persisted.data.updatedAt).toBe(updatedAt);
+    });
+
+    it("should ignore non-Date timestamps supplied by the payload", async () => {
+      await SpecialityService.createOne({
+        ...validPayload,
+        createdAt: "2026-01-01",
+        updatedAt: 1735689600000,
+      });
+
+      const persisted = (prisma.speciality.create as jest.Mock).mock
+        .calls[0][0];
+      expect(persisted.data.createdAt).toBeUndefined();
+      expect(persisted.data.updatedAt).toBeUndefined();
+    });
   });
 
   describe("createOne", () => {
@@ -218,6 +329,49 @@ describe("SpecialityService", () => {
 
       expect(EmailUtils.sendEmailTemplate).toHaveBeenCalledWith(
         expect.objectContaining({ templateId: "specialityHeadAssigned" }),
+      );
+    });
+
+    it("should create without looking for an existing row when the payload carries no identifier", async () => {
+      const {
+        id: _ignoredId,
+        headUserId: _ignoredHead,
+        ...payload
+      } = validPayload;
+
+      const res = await SpecialityService.createOne(payload);
+
+      expect(prisma.speciality.findFirst).not.toHaveBeenCalled();
+      expect(prisma.speciality.create).toHaveBeenCalled();
+
+      const persisted = (prisma.speciality.create as jest.Mock).mock
+        .calls[0][0];
+      expect(persisted.data.fhirId).toBeUndefined();
+      expect(persisted.data.headUserId).toBeUndefined();
+      expect(res.created).toBe(true);
+    });
+
+    it("should skip the organisation lookup when the stored row has no organisation", async () => {
+      (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.speciality.create as jest.Mock).mockResolvedValueOnce(
+        createPrismaSpeciality({
+          id: mockSpecId,
+          organisationId: "",
+          headUserId: "user-123",
+        }),
+      );
+
+      await SpecialityService.createOne(validPayload);
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(prisma.organization.findFirst).not.toHaveBeenCalled();
+      expect(EmailUtils.sendEmailTemplate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          templateData: expect.objectContaining({
+            organisationName: undefined,
+            specialityName: "Cardiology",
+          }),
+        }),
       );
     });
   });
@@ -357,6 +511,29 @@ describe("SpecialityService", () => {
       await expect(SpecialityService.getById("bad$id")).rejects.toThrow(
         "Invalid character in Speciality identifier",
       );
+    });
+
+    it("should throw when the identifier is blank", async () => {
+      await expect(SpecialityService.getById("   ")).rejects.toThrow(
+        "Speciality identifier is required.",
+      );
+
+      expect(prisma.speciality.findFirst).not.toHaveBeenCalled();
+    });
+
+    it("should default null collections to empty arrays", async () => {
+      (prisma.speciality.findFirst as jest.Mock).mockResolvedValueOnce(
+        createPrismaSpeciality({
+          id: mockSpecId,
+          services: null,
+          memberUserIds: null,
+        }),
+      );
+
+      const res = (await SpecialityService.getById(mockSpecId)) as any;
+
+      expect(res.services).toEqual([]);
+      expect(res.teamMemberIds).toEqual([]);
     });
   });
 

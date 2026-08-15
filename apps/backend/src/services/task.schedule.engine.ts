@@ -56,6 +56,12 @@ const isNonEmptyStringArray = (value: unknown): value is string[] =>
   value.length > 0 &&
   value.every((item) => typeof item === "string" && item.trim().length > 0);
 
+const asOptionalString = (value: unknown): string | undefined =>
+  typeof value === "string" ? value : undefined;
+
+const parseSeedSource = (value: unknown): StoredTaskWorkflowSeed["source"] =>
+  value === "YC_LIBRARY" || value === "CUSTOM" ? value : "ORG_TEMPLATE";
+
 function assertTaskWorkflowSeedShape(
   seed: Record<string, unknown>,
 ): asserts seed is Record<string, unknown> & {
@@ -141,51 +147,34 @@ const parseSeed = (value: unknown): StoredTaskWorkflowSeed => {
   assertTaskWorkflowSeedShape(seed);
 
   return {
-    source:
-      seed.source === "YC_LIBRARY" || seed.source === "CUSTOM"
-        ? seed.source
-        : "ORG_TEMPLATE",
-    templateId:
-      typeof seed.templateId === "string" ? seed.templateId : undefined,
+    source: parseSeedSource(seed.source),
+    templateId: asOptionalString(seed.templateId),
     organisationId: seed.organisationId,
-    appointmentId:
-      typeof seed.appointmentId === "string" ? seed.appointmentId : undefined,
-    patientId: typeof seed.patientId === "string" ? seed.patientId : undefined,
+    appointmentId: asOptionalString(seed.appointmentId),
+    patientId: asOptionalString(seed.patientId),
     createdBy: seed.createdBy,
-    assignedBy:
-      typeof seed.assignedBy === "string" ? seed.assignedBy : undefined,
+    assignedBy: asOptionalString(seed.assignedBy),
     assignedTo: seed.assignedTo,
     audience: seed.audience === "PARENT_TASK" ? "PARENT_TASK" : "EMPLOYEE_TASK",
-    libraryTaskId:
-      typeof seed.libraryTaskId === "string" ? seed.libraryTaskId : undefined,
+    libraryTaskId: asOptionalString(seed.libraryTaskId),
     category: seed.category,
     name: seed.name,
-    description:
-      typeof seed.description === "string" ? seed.description : undefined,
-    additionalNotes:
-      typeof seed.additionalNotes === "string"
-        ? seed.additionalNotes
-        : undefined,
+    description: asOptionalString(seed.description),
+    additionalNotes: asOptionalString(seed.additionalNotes),
     medication:
       seed.medication && typeof seed.medication === "object"
         ? seed.medication
         : undefined,
-    observationToolId:
-      typeof seed.observationToolId === "string"
-        ? seed.observationToolId
-        : undefined,
+    observationToolId: asOptionalString(seed.observationToolId),
     dueAt: seed.dueAt,
-    timezone: typeof seed.timezone === "string" ? seed.timezone : undefined,
+    timezone: asOptionalString(seed.timezone),
     recurrence: normalizeWorkflowRecurrence(seed.recurrence),
     reminder: normalizeWorkflowReminder(seed.reminder),
     syncWithCalendar:
       typeof seed.syncWithCalendar === "boolean"
         ? seed.syncWithCalendar
         : undefined,
-    calendarEventId:
-      typeof seed.calendarEventId === "string"
-        ? seed.calendarEventId
-        : undefined,
+    calendarEventId: asOptionalString(seed.calendarEventId),
     attachments: Array.isArray(seed.attachments)
       ? (seed.attachments as Array<{ id: string; name: string }>)
       : undefined,

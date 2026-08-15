@@ -1,6 +1,8 @@
 import { TemplateKind } from "@prisma/client";
 import { CANONICAL_PRESCRIPTION_ROW_KEYS } from "@yosemite-crew/types";
 import {
+  blueprintOptionsMatch,
+  blueprintRulesMatch,
   buildClinicalTemplateSchemaSnapshot,
   getClinicalTemplateBlueprint,
   normalizeClinicalTemplateSchemaSnapshot,
@@ -260,5 +262,57 @@ describe("clinical template blueprints", () => {
 
     expect(result.missingSectionIds).toHaveLength(0);
     expect(result.requiredSectionIds).toHaveLength(0);
+  });
+
+  describe("blueprintOptionsMatch", () => {
+    it("matches when snapshot options mirror the expected options", () => {
+      expect(
+        blueprintOptionsMatch({ options: [{ label: "A", value: "a" }] }, [
+          { label: "A", value: "a" },
+        ]),
+      ).toBe(true);
+    });
+
+    it("treats missing snapshot options as empty", () => {
+      expect(blueprintOptionsMatch({}, [{ label: "A", value: "a" }])).toBe(
+        false,
+      );
+      expect(blueprintOptionsMatch({}, [])).toBe(true);
+    });
+
+    it("rejects label or value mismatches", () => {
+      expect(
+        blueprintOptionsMatch({ options: [{ label: "A", value: "b" }] }, [
+          { label: "A", value: "a" },
+        ]),
+      ).toBe(false);
+      expect(
+        blueprintOptionsMatch({ options: [{ label: "B", value: "a" }] }, [
+          { label: "A", value: "a" },
+        ]),
+      ).toBe(false);
+    });
+  });
+
+  describe("blueprintRulesMatch", () => {
+    it("rejects snapshot fields without a rules object", () => {
+      expect(blueprintRulesMatch({}, { unit: "kg" })).toBe(false);
+    });
+
+    it("matches when every expected rule is mirrored in the snapshot", () => {
+      expect(
+        blueprintRulesMatch(
+          { rules: { unit: "kg", extra: 1 } },
+          { unit: "kg" },
+        ),
+      ).toBe(true);
+    });
+
+    it("rejects missing or differing rule values", () => {
+      expect(blueprintRulesMatch({ rules: {} }, { unit: "kg" })).toBe(false);
+      expect(
+        blueprintRulesMatch({ rules: { unit: "lb" } }, { unit: "kg" }),
+      ).toBe(false);
+    });
   });
 });

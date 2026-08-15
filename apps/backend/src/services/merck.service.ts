@@ -202,43 +202,37 @@ const isUsCanadaTimezone = (value: string): boolean => {
   return US_CANADA_TIMEZONES.has(value);
 };
 
+const isHtmlWhitespace = (char: string): boolean =>
+  char === " " || char === "\n" || char === "\t" || char === "\r";
+
 const stripHtml = (value: string): string => {
   const input = String(value ?? "");
   let output = "";
   let inTag = false;
   let wroteSpace = false;
 
+  const appendSeparator = () => {
+    if (!wroteSpace && output.length > 0) {
+      output += " ";
+      wroteSpace = true;
+    }
+  };
+
   for (const char of input) {
     if (inTag) {
       if (char === ">") {
         inTag = false;
-        if (!wroteSpace && output.length > 0) {
-          output += " ";
-          wroteSpace = true;
-        }
+        appendSeparator();
       }
-      continue;
-    }
-
-    if (char === "<") {
+    } else if (char === "<") {
       inTag = true;
-      if (!wroteSpace && output.length > 0) {
-        output += " ";
-        wroteSpace = true;
-      }
-      continue;
+      appendSeparator();
+    } else if (isHtmlWhitespace(char)) {
+      appendSeparator();
+    } else {
+      output += char;
+      wroteSpace = false;
     }
-
-    if (char === " " || char === "\n" || char === "\t" || char === "\r") {
-      if (!wroteSpace && output.length > 0) {
-        output += " ";
-        wroteSpace = true;
-      }
-      continue;
-    }
-
-    output += char;
-    wroteSpace = false;
   }
 
   return output.trim();
@@ -449,54 +443,82 @@ const extractXmlTagValue = (xml: string, tag: string): string | null => {
   return match[1].trim();
 };
 
+const isXmlNameChar = (char: string): boolean =>
+  (char >= "a" && char <= "z") ||
+  (char >= "A" && char <= "Z") ||
+  (char >= "0" && char <= "9") ||
+  char === "_" ||
+  char === ":" ||
+  char === "." ||
+  char === "-";
+
+type XmlScanCursor = { input: string; index: number };
+
+const skipToXmlNameChar = (cursor: XmlScanCursor): boolean => {
+  while (
+    cursor.index < cursor.input.length &&
+    !isXmlNameChar(cursor.input[cursor.index])
+  ) {
+    cursor.index += 1;
+  }
+  return cursor.index < cursor.input.length;
+};
+
+const readXmlName = (cursor: XmlScanCursor): string => {
+  const start = cursor.index;
+  while (
+    cursor.index < cursor.input.length &&
+    isXmlNameChar(cursor.input[cursor.index])
+  ) {
+    cursor.index += 1;
+  }
+  return cursor.input.slice(start, cursor.index);
+};
+
+const skipXmlSpaces = (cursor: XmlScanCursor): void => {
+  while (
+    cursor.index < cursor.input.length &&
+    cursor.input[cursor.index] === " "
+  ) {
+    cursor.index += 1;
+  }
+};
+
+const consumeXmlChar = (cursor: XmlScanCursor, char: string): boolean => {
+  if (cursor.input[cursor.index] !== char) return false;
+  cursor.index += 1;
+  return true;
+};
+
+const readXmlQuotedValue = (cursor: XmlScanCursor): string => {
+  const start = cursor.index;
+  while (
+    cursor.index < cursor.input.length &&
+    cursor.input[cursor.index] !== '"'
+  ) {
+    cursor.index += 1;
+  }
+  const value = cursor.input.slice(start, cursor.index);
+  consumeXmlChar(cursor, '"');
+  return value;
+};
+
 const parseXmlAttributes = (tag: string): Record<string, string> => {
   const attrs: Record<string, string> = {};
-  const input = String(tag ?? "");
-  const isNameChar = (char: string) =>
-    (char >= "a" && char <= "z") ||
-    (char >= "A" && char <= "Z") ||
-    (char >= "0" && char <= "9") ||
-    char === "_" ||
-    char === ":" ||
-    char === "." ||
-    char === "-";
+  const cursor: XmlScanCursor = { input: String(tag ?? ""), index: 0 };
 
-  let index = 0;
-  while (index < input.length) {
-    while (index < input.length && !isNameChar(input[index])) {
-      index += 1;
-    }
-    if (index >= input.length) break;
+  while (skipToXmlNameChar(cursor)) {
+    const name = readXmlName(cursor);
 
-    const nameStart = index;
-    while (index < input.length && isNameChar(input[index])) {
-      index += 1;
-    }
-    const name = input.slice(nameStart, index);
+    skipXmlSpaces(cursor);
+    if (!consumeXmlChar(cursor, "=")) continue;
 
-    while (index < input.length && input[index] === " ") {
-      index += 1;
-    }
-    if (input[index] !== "=") continue;
-    index += 1;
+    skipXmlSpaces(cursor);
+    if (!consumeXmlChar(cursor, '"')) continue;
 
-    while (index < input.length && input[index] === " ") {
-      index += 1;
-    }
-    if (input[index] !== '"') continue;
-    index += 1;
-
-    const valueStart = index;
-    while (index < input.length && input[index] !== '"') {
-      index += 1;
-    }
-    const value = input.slice(valueStart, index);
+    const value = readXmlQuotedValue(cursor);
     if (name) {
       attrs[name] = value;
-    }
-
-    if (input[index] === '"') {
-      index += 1;
     }
   }
   return attrs;
@@ -664,13 +686,29 @@ const selectMerckBaseUrl = (timezone?: string) => {
   }
 
   const selected = normalizeBase(globalBase || usCaBase);
-  const reason = timezone
-    ? isValidIanaTimezone(timezone)
+  let reason = "timezone-missing";
+  if (timezone) {
+    reason = isValidIanaTimezone(timezone)
       ? "timezone-global"
-      : "timezone-invalid"
-    : "timezone-missing";
+      : "timezone-invalid";
+  }
 
   return { baseUrl: selected, host: new URL(selected).hostname, reason };
+};
+
+const applyCodeSystemParams = (
+  params: Record<string, string>,
+  codeSystem: string | undefined,
+): void => {
+  if (!codeSystem) return;
+  if (/^\d+(\.\d+)+$/.test(codeSystem)) {
+    params["mainSearchCriteria.v.cs"] = codeSystem;
+    return;
+  }
+  const normalized = codeSystem.toUpperCase().replaceAll(/\s+/g, "");
+  if (CODE_SYSTEM_NAMES.has(normalized)) {
+    params["mainSearchCriteria.v.csn"] = normalized;
+  }
 };
 
 const buildSearchParams = (input: MerckSearchBaseParams) => {
@@ -700,16 +738,7 @@ const buildSearchParams = (input: MerckSearchBaseParams) => {
 
   if (code) params["mainSearchCriteria.v.c"] = code;
 
-  if (codeSystem) {
-    if (/^\d+(\.\d+)+$/.test(codeSystem)) {
-      params["mainSearchCriteria.v.cs"] = codeSystem;
-    } else {
-      const normalized = codeSystem.toUpperCase().replaceAll(/\s+/g, "");
-      if (CODE_SYSTEM_NAMES.has(normalized)) {
-        params["mainSearchCriteria.v.csn"] = normalized;
-      }
-    }
-  }
+  applyCodeSystemParams(params, codeSystem);
 
   if (displayName) params["mainSearchCriteria.v.dn"] = displayName;
   if (originalText) params["mainSearchCriteria.v.ot"] = originalText;

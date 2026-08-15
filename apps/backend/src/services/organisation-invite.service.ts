@@ -1,4 +1,4 @@
-import validator from "validator";
+import isEmail from "validator/lib/isEmail";
 
 import { type CreateOrganisationInviteInput } from "../models/organisationInvite";
 import { type OrganizationMongo } from "../models/organization";
@@ -120,7 +120,7 @@ const normalizeIdentifier = (value: unknown, fieldName: string): string => {
 const normalizeEmail = (value: unknown): string => {
   const email = requireString(value, "Invitee email").toLowerCase();
 
-  if (!validator.isEmail(email)) {
+  if (!isEmail(email)) {
     throw new OrganisationInviteServiceError(
       "Invalid invitee email address.",
       400,
@@ -460,6 +460,35 @@ const assertInviteIsActionable = async (
   }
 };
 
+const findActionableInviteByToken = async ({
+  token,
+  userId,
+  userEmail,
+}: AcceptInvitePayload): Promise<{
+  invite: PrismaOrganisationInvite;
+  safeUserId: string;
+}> => {
+  const safeToken = requireString(token, "Invite token");
+  const safeUserId = requireString(userId, "User identifier");
+  const safeEmail = normalizeEmail(userEmail);
+
+  const invite = await prisma.organisationInvite.findFirst({
+    where: { token: safeToken },
+  });
+
+  if (!invite) {
+    throw new OrganisationInviteServiceError("Invitation not found.", 404);
+  }
+  await assertInviteIsActionable(invite, safeEmail, () =>
+    prisma.organisationInvite.update({
+      where: { id: invite.id },
+      data: { status: "EXPIRED" },
+    }),
+  );
+
+  return { invite, safeUserId };
+};
+
 export const OrganisationInviteService = {
   async createInvite(
     payload: CreateInvitePayload,
@@ -589,28 +618,10 @@ export const OrganisationInviteService = {
     return results;
   },
 
-  async acceptInvite({
-    token,
-    userId,
-    userEmail,
-  }: AcceptInvitePayload): Promise<OrganisationInviteResponse> {
-    const safeToken = requireString(token, "Invite token");
-    const safeUserId = requireString(userId, "User identifier");
-    const safeEmail = normalizeEmail(userEmail);
-
-    const invite = await prisma.organisationInvite.findFirst({
-      where: { token: safeToken },
-    });
-
-    if (!invite) {
-      throw new OrganisationInviteServiceError("Invitation not found.", 404);
-    }
-    await assertInviteIsActionable(invite, safeEmail, () =>
-      prisma.organisationInvite.update({
-        where: { id: invite.id },
-        data: { status: "EXPIRED" },
-      }),
-    );
+  async acceptInvite(
+    payload: AcceptInvitePayload,
+  ): Promise<OrganisationInviteResponse> {
+    const { invite, safeUserId } = await findActionableInviteByToken(payload);
 
     await findOrganisationOrThrow(invite.organisationId);
     const departments = await Promise.all(
@@ -665,28 +676,10 @@ export const OrganisationInviteService = {
     return buildInviteResponseFromPrisma(updatedInvite);
   },
 
-  async rejectInvite({
-    token,
-    userId,
-    userEmail,
-  }: AcceptInvitePayload): Promise<OrganisationInviteResponse> {
-    const safeToken = requireString(token, "Invite token");
-    const safeUserId = requireString(userId, "User identifier");
-    const safeEmail = normalizeEmail(userEmail);
-
-    const invite = await prisma.organisationInvite.findFirst({
-      where: { token: safeToken },
-    });
-
-    if (!invite) {
-      throw new OrganisationInviteServiceError("Invitation not found.", 404);
-    }
-    await assertInviteIsActionable(invite, safeEmail, () =>
-      prisma.organisationInvite.update({
-        where: { id: invite.id },
-        data: { status: "EXPIRED" },
-      }),
-    );
+  async rejectInvite(
+    payload: AcceptInvitePayload,
+  ): Promise<OrganisationInviteResponse> {
+    const { invite, safeUserId } = await findActionableInviteByToken(payload);
 
     const updatedInvite = await prisma.organisationInvite.update({
       where: { id: invite.id },

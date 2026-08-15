@@ -20,6 +20,7 @@ import { InvoiceService } from "./invoice.service";
 import { FinancePaymentService } from "./finance/payment";
 import { resolvePaymentCollectionMethod } from "src/utils/payment";
 import { CompanionOrganisationService } from "./companion-organisation.service";
+import { isSpeciesCompatible } from "./shared/normalize-tokens";
 
 type AppointmentStatus = AppointmentDomain["status"];
 
@@ -278,7 +279,7 @@ const toJsonValue = <T>(value: T): Prisma.InputJsonValue =>
 const toNullableJsonValue = (
   value: Prisma.JsonValue | null | undefined,
 ): Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput | undefined =>
-  value == null ? Prisma.JsonNull : value;
+  value ?? Prisma.JsonNull;
 
 const normalizeOptionalString = (value?: string | null) => {
   if (typeof value !== "string") return undefined;
@@ -351,7 +352,7 @@ const assertCaseEncounterConsistency = (input: {
 };
 
 const resolveCatalogSelectionForAppointment = async (input: {
-  appointmentType?: AppointmentDomain["appointmentType"];
+  appointmentType: AppointmentDomain["appointmentType"];
   organisationId: string;
 }) => {
   const selectionId = input.appointmentType?.id?.trim();
@@ -524,63 +525,11 @@ const getParentIdFromPatient = (
 const isAppointmentAdmissible = (status: AppointmentStatus) =>
   status === "CHECKED_IN" || status === "IN_PROGRESS";
 
-const normalizeStringTokens = (value: unknown): string[] => {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return [
-    ...new Set(
-      value
-        .map((item) =>
-          typeof item === "string" ? item.trim().toLowerCase() : "",
-        )
-        .filter((item) => item.length > 0),
-    ),
-  ];
-};
-
-const getCompanionSpeciesTokens = (companion: CompanionRow) => {
-  const tokens = new Set<string>();
-  const type = companion.type.trim().toLowerCase();
-
-  if (type) {
-    tokens.add(type);
-  }
-
-  if (companion.speciesCode?.trim()) {
-    tokens.add(companion.speciesCode.trim().toLowerCase());
-  }
-
-  const aliases: Record<string, string[]> = {
-    dog: ["canine"],
-    cat: ["feline"],
-    horse: ["equine"],
-    other: ["other"],
-  };
-
-  for (const alias of aliases[type] ?? []) {
-    tokens.add(alias);
-  }
-
-  return tokens;
-};
-
 const assertRoomUnitSpeciesCompatibility = (
   unit: RoomUnitRow,
   companion: CompanionRow,
 ) => {
-  const constraints = normalizeStringTokens(unit.speciesConstraints);
-  if (constraints.length === 0) {
-    return;
-  }
-
-  const allowedSpecies = getCompanionSpeciesTokens(companion);
-  const isCompatible = constraints.some((constraint) =>
-    allowedSpecies.has(constraint),
-  );
-
-  if (!isCompatible) {
+  if (!isSpeciesCompatible(unit.speciesConstraints, companion)) {
     throw new AppointmentPrismaServiceError(
       "Room unit is not compatible with this companion's species.",
       409,
@@ -592,17 +541,7 @@ const assertRoomUnitGroupSpeciesCompatibility = (
   group: RoomUnitGroupRow,
   companion: CompanionRow,
 ) => {
-  const constraints = normalizeStringTokens(group.speciesConstraints);
-  if (constraints.length === 0) {
-    return;
-  }
-
-  const allowedSpecies = getCompanionSpeciesTokens(companion);
-  const isCompatible = constraints.some((constraint) =>
-    allowedSpecies.has(constraint),
-  );
-
-  if (!isCompatible) {
+  if (!isSpeciesCompatible(group.speciesConstraints, companion)) {
     throw new AppointmentPrismaServiceError(
       "Room unit group is not compatible with this companion's species.",
       409,
@@ -653,27 +592,82 @@ const assertInpatientAdmissionCanProceed = (params: {
   return { encounterId: resolvedEncounterId, nextCaseId };
 };
 
+const resolveAdmitJsonOverride = <T>(
+  currentValue: Prisma.JsonValue | null,
+  override: T | undefined,
+) => {
+  if (override === undefined) {
+    return toNullableJsonValue(currentValue);
+  }
+
+  return override ? toJsonValue(override) : Prisma.JsonNull;
+};
+
 const resolveInpatientAdmissionFields = (
   row: AppointmentRow,
   input: AdmitRequestInput | undefined,
 ) => ({
-  nextLead:
-    input?.lead === undefined
-      ? toNullableJsonValue(row.lead)
-      : input.lead
-        ? toJsonValue(input.lead)
-        : Prisma.JsonNull,
+  nextLead: resolveAdmitJsonOverride(row.lead, input?.lead),
   nextSupportStaff:
     input?.supportStaff === undefined
       ? toNullableJsonValue(row.supportStaff)
       : toJsonValue(input.supportStaff ?? []),
-  nextRoom:
-    input?.room === undefined
-      ? toNullableJsonValue(row.room)
-      : input.room
-        ? toJsonValue(input.room)
-        : Prisma.JsonNull,
+  nextRoom: resolveAdmitJsonOverride(row.room, input?.room),
 });
+
+const assertAdmissionUnitIsUsable = async (params: {
+  tx: TransactionClient;
+  row: AppointmentRow;
+  unitId: string;
+  companion: CompanionRow | null;
+}) => {
+  const { tx, row, unitId, companion } = params;
+  const roomUnitDelegate = (tx as unknown as { roomUnit: RoomUnitDelegate })
+    .roomUnit;
+  const roomUnitGroupDelegate = (
+    tx as unknown as { roomUnitGroup: RoomUnitGroupDelegate }
+  ).roomUnitGroup;
+
+  const unit = await roomUnitDelegate.findUnique({ where: { id: unitId } });
+  if (!unit) {
+    throw new AppointmentPrismaServiceError("Room unit not found.", 404);
+  }
+
+  if (unit.organisationId !== row.organisationId) {
+    throw new AppointmentPrismaServiceError("Unit organisation mismatch.", 409);
+  }
+
+  if (!unit.isActive) {
+    throw new AppointmentPrismaServiceError("Selected unit is inactive.", 409);
+  }
+
+  if (!companion) {
+    throw new AppointmentPrismaServiceError("Companion not found.", 404);
+  }
+
+  assertRoomUnitSpeciesCompatibility(unit, companion);
+
+  if (!unit.unitGroupId) {
+    return;
+  }
+
+  const group = await roomUnitGroupDelegate.findUnique({
+    where: { id: unit.unitGroupId },
+  });
+
+  if (!group) {
+    throw new AppointmentPrismaServiceError("Room unit group not found.", 404);
+  }
+
+  if (group.organisationId !== row.organisationId) {
+    throw new AppointmentPrismaServiceError(
+      "Room unit group organisation mismatch.",
+      409,
+    );
+  }
+
+  assertRoomUnitGroupSpeciesCompatibility(group, companion);
+};
 
 const admitInpatientRoomUnit = async (params: {
   tx: TransactionClient;
@@ -699,55 +693,11 @@ const admitInpatientRoomUnit = async (params: {
     throw new AppointmentPrismaServiceError("roomUnitId is required.", 400);
   }
 
-  const roomUnitDelegate = (tx as unknown as { roomUnit: RoomUnitDelegate })
-    .roomUnit;
-  const roomUnitGroupDelegate = (
-    tx as unknown as { roomUnitGroup: RoomUnitGroupDelegate }
-  ).roomUnitGroup;
   const assignmentDelegate = (
     tx as unknown as { roomUnitAssignment: RoomUnitAssignmentDelegate }
   ).roomUnitAssignment;
 
-  const unit = await roomUnitDelegate.findUnique({ where: { id: unitId } });
-  if (!unit) {
-    throw new AppointmentPrismaServiceError("Room unit not found.", 404);
-  }
-
-  if (unit.organisationId !== row.organisationId) {
-    throw new AppointmentPrismaServiceError("Unit organisation mismatch.", 409);
-  }
-
-  if (!unit.isActive) {
-    throw new AppointmentPrismaServiceError("Selected unit is inactive.", 409);
-  }
-
-  if (!companion) {
-    throw new AppointmentPrismaServiceError("Companion not found.", 404);
-  }
-
-  assertRoomUnitSpeciesCompatibility(unit, companion);
-
-  if (unit.unitGroupId) {
-    const group = await roomUnitGroupDelegate.findUnique({
-      where: { id: unit.unitGroupId },
-    });
-
-    if (!group) {
-      throw new AppointmentPrismaServiceError(
-        "Room unit group not found.",
-        404,
-      );
-    }
-
-    if (group.organisationId !== row.organisationId) {
-      throw new AppointmentPrismaServiceError(
-        "Room unit group organisation mismatch.",
-        409,
-      );
-    }
-
-    assertRoomUnitGroupSpeciesCompatibility(group, companion);
-  }
+  await assertAdmissionUnitIsUsable({ tx, row, unitId, companion });
 
   const conflictingAssignment = await assignmentDelegate.findFirst({
     where: {
@@ -788,7 +738,7 @@ const admitInpatientRoomUnit = async (params: {
   }
 
   const unitAssignment =
-    !activeAssignment || activeAssignment.unitId !== unitId
+    activeAssignment?.unitId !== unitId
       ? await assignmentDelegate.create({
           data: {
             encounterId,
@@ -1232,6 +1182,57 @@ type AppointmentPaymentStateMaps = {
   bookingPaymentStatusMap: Map<string, AppointmentBookingPaymentStatus>;
 };
 
+type InvoicePaymentRow = {
+  appointmentId: string | null;
+  status: string;
+  depositCollectedAmount: number | null;
+  paymentAttempts: Array<{ id: string }>;
+  payments: Array<{ id: string }>;
+};
+
+type InvoicePaymentSignals = {
+  hasPaid: boolean;
+  hasUnpaid: boolean;
+  hasBookingPayment: boolean;
+};
+
+const applyInvoicePaymentSignals = (
+  entry: InvoicePaymentSignals,
+  invoice: InvoicePaymentRow,
+) => {
+  const hasSuccessfulPayment =
+    (invoice.payments?.length ?? 0) > 0 ||
+    (invoice.paymentAttempts?.length ?? 0) > 0;
+
+  if (invoice.status === "PAID") {
+    entry.hasPaid = true;
+  }
+  if (UNPAID_INVOICE_STATUSES.has(invoice.status)) {
+    entry.hasUnpaid = true;
+  }
+  if (hasSuccessfulPayment || (invoice.depositCollectedAmount ?? 0) > 0) {
+    entry.hasBookingPayment = true;
+  }
+};
+
+const buildInvoicePaymentTracker = (invoices: InvoicePaymentRow[]) => {
+  const tracker = new Map<string, InvoicePaymentSignals>();
+
+  for (const invoice of invoices) {
+    if (!invoice.appointmentId) continue;
+    const entry = tracker.get(invoice.appointmentId) ?? {
+      hasPaid: false,
+      hasUnpaid: false,
+      hasBookingPayment: false,
+    };
+
+    applyInvoicePaymentSignals(entry, invoice);
+    tracker.set(invoice.appointmentId, entry);
+  }
+
+  return tracker;
+};
+
 const resolveAppointmentPaymentStateMaps = async (
   appointmentIds: string[],
 ): Promise<AppointmentPaymentStateMaps> => {
@@ -1265,43 +1266,7 @@ const resolveAppointmentPaymentStateMaps = async (
     },
   });
 
-  const tracker = new Map<
-    string,
-    {
-      hasPaid: boolean;
-      hasUnpaid: boolean;
-      hasBookingPayment: boolean;
-    }
-  >();
-
-  for (const invoice of invoices) {
-    if (!invoice.appointmentId) continue;
-    const entry = tracker.get(invoice.appointmentId) ?? {
-      hasPaid: false,
-      hasUnpaid: false,
-      hasBookingPayment: false,
-    };
-
-    const hasSuccessfulPayment =
-      (invoice.payments?.length ?? 0) > 0 ||
-      (invoice.paymentAttempts?.length ?? 0) > 0;
-    const hasBookingPayment =
-      hasSuccessfulPayment || (invoice.depositCollectedAmount ?? 0) > 0;
-    const isPaid = invoice.status === "PAID";
-    const isUnpaid = UNPAID_INVOICE_STATUSES.has(invoice.status);
-
-    if (isPaid) {
-      entry.hasPaid = true;
-    }
-    if (isUnpaid) {
-      entry.hasUnpaid = true;
-    }
-    if (hasBookingPayment) {
-      entry.hasBookingPayment = true;
-    }
-
-    tracker.set(invoice.appointmentId, entry);
-  }
+  const tracker = buildInvoicePaymentTracker(invoices);
 
   for (const [appointmentId, entry] of tracker) {
     paymentStatusMap.set(
@@ -1428,6 +1393,33 @@ const assertParentOwnsAppointment = (row: AppointmentRow, parentId: string) => {
       403,
     );
   }
+};
+
+/**
+ * Shared prologue for parent-initiated mutations: validates the ids, loads the
+ * appointment, and proves the caller's parent owns it.
+ */
+const getParentOwnedAppointment = async (
+  appointmentId: string,
+  parentId: string,
+): Promise<AppointmentRow> => {
+  if (!appointmentId) {
+    throw new AppointmentPrismaServiceError("appointmentId is required", 400);
+  }
+  if (!parentId) {
+    throw new AppointmentPrismaServiceError("parentId is required", 400);
+  }
+
+  const current = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+  });
+  const row = assertExists(
+    current as AppointmentRow | null,
+    "Appointment not found",
+  );
+  assertParentOwnsAppointment(row, parentId);
+
+  return row;
 };
 
 const createAppointment = async (
@@ -1785,27 +1777,7 @@ export const AppointmentPrismaService = {
   },
 
   async checkInAppointmentParent(appointmentId: string, parentId: string) {
-    if (!appointmentId) {
-      throw new AppointmentPrismaServiceError("appointmentId is required", 400);
-    }
-    if (!parentId) {
-      throw new AppointmentPrismaServiceError("parentId is required", 400);
-    }
-
-    const current = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
-    });
-    const row = assertExists(
-      current as AppointmentRow | null,
-      "Appointment not found",
-    );
-    const ownerId = (row.patient as { parent?: { id?: string } }).parent?.id;
-    if (ownerId !== parentId) {
-      throw new AppointmentPrismaServiceError(
-        "You are not allowed to modify this appointment.",
-        403,
-      );
-    }
+    const row = await getParentOwnedAppointment(appointmentId, parentId);
 
     assertAppointmentTransition(
       row.status,
@@ -2032,27 +2004,7 @@ export const AppointmentPrismaService = {
     parentId: string,
     changes: RescheduleChanges,
   ) {
-    if (!appointmentId) {
-      throw new AppointmentPrismaServiceError("appointmentId is required", 400);
-    }
-    if (!parentId) {
-      throw new AppointmentPrismaServiceError("parentId is required", 400);
-    }
-
-    const current = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
-    });
-    const row = assertExists(
-      current as AppointmentRow | null,
-      "Appointment not found",
-    );
-    const ownerId = (row.patient as { parent?: { id?: string } }).parent?.id;
-    if (ownerId !== parentId) {
-      throw new AppointmentPrismaServiceError(
-        "You are not allowed to modify this appointment.",
-        403,
-      );
-    }
+    const row = await getParentOwnedAppointment(appointmentId, parentId);
 
     if (row.status === "COMPLETED" || row.status === "CANCELLED") {
       throw new AppointmentPrismaServiceError(
@@ -2272,21 +2224,7 @@ export const AppointmentPrismaService = {
   },
 
   async cancelAppointmentFromParent(appointmentId: string, parentId: string) {
-    if (!appointmentId) {
-      throw new AppointmentPrismaServiceError("appointmentId is required", 400);
-    }
-    if (!parentId) {
-      throw new AppointmentPrismaServiceError("parentId is required", 400);
-    }
-
-    const current = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
-    });
-    const row = assertExists(
-      current as AppointmentRow | null,
-      "Appointment not found",
-    );
-    assertParentOwnsAppointment(row, parentId);
+    const row = await getParentOwnedAppointment(appointmentId, parentId);
 
     assertAppointmentTransition(
       row.status,
@@ -2386,9 +2324,7 @@ export const AppointmentPrismaService = {
     }
 
     const rows = (await prisma.appointment.findMany({
-      where: {
-        patient: { path: ["id"], equals: patientId } as never,
-      },
+      where: buildWhereFromFilters({ patientId }),
       orderBy: { startTime: "desc" },
     })) as AppointmentRow[];
 
@@ -2410,10 +2346,7 @@ export const AppointmentPrismaService = {
     }
 
     const rows = (await prisma.appointment.findMany({
-      where: {
-        organisationId,
-        patient: { path: ["id"], equals: patientId } as never,
-      },
+      where: buildWhereFromFilters({ organisationId, patientId }),
       orderBy: { startTime: "desc" },
     })) as AppointmentRow[];
 
@@ -2428,9 +2361,7 @@ export const AppointmentPrismaService = {
     }
 
     const rows = (await prisma.appointment.findMany({
-      where: {
-        patient: { path: ["parent", "id"], equals: parentId } as never,
-      },
+      where: buildWhereFromFilters({ parentId }),
       orderBy: { startTime: "desc" },
     })) as AppointmentRow[];
 

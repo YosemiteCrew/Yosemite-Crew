@@ -524,6 +524,16 @@ describe("AvailabilityService", () => {
       jest.useRealTimers();
     });
 
+    it("should reject blank identifiers with a 400 service error", async () => {
+      await expect(
+        AvailabilityService.getCurrentStatus("  ", "u"),
+      ).rejects.toMatchObject({
+        name: "AvailabilityServiceError",
+        message: "Invalid organisationId",
+        statusCode: 400,
+      });
+    });
+
     it("should return Consulting if occupancy exists", async () => {
       finalSpy.mockResolvedValue({ date: "2026-03-09", slots: [] });
       (prisma.occupancy.findFirst as jest.Mock).mockResolvedValueOnce({

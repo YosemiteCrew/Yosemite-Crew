@@ -105,12 +105,6 @@ const resolveRange = (range: SummaryRange) => {
       const y = now.subtract(1, "day");
       return { from: y.startOf("day").toDate(), to: y.endOf("day").toDate() };
     }
-    case "last_week":
-    case "last_7_days":
-      return {
-        from: now.subtract(7, "day").startOf("day").toDate(),
-        to: now.endOf("day").toDate(),
-      };
     case "last_month":
       return {
         from: now.subtract(1, "month").startOf("day").toDate(),
@@ -141,6 +135,8 @@ const resolveRange = (range: SummaryRange) => {
         from: now.startOf("month").toDate(),
         to: now.endOf("day").toDate(),
       };
+    case "last_week":
+    case "last_7_days":
     default:
       return {
         from: now.subtract(7, "day").startOf("day").toDate(),

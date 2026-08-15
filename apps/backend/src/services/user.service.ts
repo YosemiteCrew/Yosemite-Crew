@@ -1,4 +1,4 @@
-import validator from "validator";
+import isEmail from "validator/lib/isEmail";
 import { User } from "@yosemite-crew/types";
 import { getAuthService } from "@yosemite-crew/auth";
 import { OrganizationService } from "./organization.service";
@@ -83,7 +83,7 @@ const sanitizeUserAttributes = (payload: User) => {
   const firstName = requireString(payload.firstName, "First name");
   const lastName = requireString(payload.lastName, "Last name");
 
-  if (!validator.isEmail(email)) {
+  if (!isEmail(email)) {
     throw new UserServiceError("Invalid email address.", 400);
   }
 

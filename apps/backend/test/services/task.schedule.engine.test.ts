@@ -205,6 +205,113 @@ describe("TaskScheduleEngine", () => {
     errorSpy.mockRestore();
   });
 
+  it("rejects non-object seed payloads and strictly parses optional fields", async () => {
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    mockedPrisma.taskSchedule.findMany.mockResolvedValueOnce([
+      {
+        id: "schedule-null-seed",
+        templateKind: "CARE_PATHWAY",
+        status: "ACTIVE",
+        generatedTaskIds: null,
+        materializedSeeds: [null],
+      },
+      {
+        id: "schedule-string-seed",
+        templateKind: "CARE_PATHWAY",
+        status: "ACTIVE",
+        generatedTaskIds: null,
+        materializedSeeds: ["not-an-object"],
+      },
+      {
+        id: "schedule-library",
+        templateKind: "CARE_PATHWAY",
+        status: "ACTIVE",
+        generatedTaskIds: null,
+        materializedSeeds: [
+          {
+            source: "YC_LIBRARY",
+            templateId: 123,
+            organisationId: "org-1",
+            createdBy: "creator-1",
+            assignedTo: "employee-1",
+            audience: "EMPLOYEE_TASK",
+            category: "Care",
+            name: "Library task",
+            dueAt: "2026-01-02T08:00:00.000Z",
+            timezone: 42,
+            recurrence: {
+              type: "UNKNOWN",
+              isMaster: 0,
+              masterTaskId: 5,
+              cronExpression: null,
+              endDate: 7,
+            },
+            reminder: {
+              enabled: 1,
+              offsetMinutes: "soon",
+              scheduledNotificationId: 9,
+            },
+            syncWithCalendar: "yes",
+            attachments: "nope",
+          },
+        ],
+      },
+    ]);
+    mockedTaskService.createFromWorkflowSeed.mockResolvedValueOnce({
+      id: "task-3",
+    });
+    mockedPrisma.taskSchedule.update.mockResolvedValueOnce({
+      id: "schedule-library",
+    });
+
+    await TaskScheduleEngine.run();
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      "Failed to process task schedule",
+      "schedule-null-seed",
+      expect.any(Error),
+    );
+    expect(errorSpy).toHaveBeenCalledWith(
+      "Failed to process task schedule",
+      "schedule-string-seed",
+      expect.any(Error),
+    );
+    expect(mockedTaskService.createFromWorkflowSeed).toHaveBeenCalledTimes(1);
+    expect(mockedTaskService.createFromWorkflowSeed).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "YC_LIBRARY",
+        templateId: undefined,
+        timezone: undefined,
+        recurrence: expect.objectContaining({
+          type: "ONCE",
+          isMaster: false,
+          masterTaskId: undefined,
+          cronExpression: undefined,
+          endDate: undefined,
+        }),
+        reminder: expect.objectContaining({
+          enabled: true,
+          offsetMinutes: 0,
+          scheduledNotificationId: undefined,
+        }),
+        syncWithCalendar: undefined,
+        attachments: undefined,
+      }),
+      expect.objectContaining({ notify: false }),
+    );
+    expect(mockedPrisma.taskSchedule.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "schedule-library" },
+        data: expect.objectContaining({
+          generatedTaskIds: ["task-3"],
+          status: "ACTIVE",
+          completedAt: null,
+        }),
+      }),
+    );
+    errorSpy.mockRestore();
+  });
+
   it("skips schedules that already have generated task ids", async () => {
     mockedPrisma.taskSchedule.findMany.mockResolvedValueOnce([
       {

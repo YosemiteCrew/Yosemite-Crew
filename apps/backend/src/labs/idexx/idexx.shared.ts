@@ -5,6 +5,12 @@ import { IdexxClient } from "src/integrations/idexx/idexx.client";
 
 export type IdexxLookupField = "species" | "breed" | "providerCode";
 
+const MAPPING_ERROR_CODES: Record<IdexxLookupField, string> = {
+  species: "DIAGNOSTIC_SPECIES_MAPPING_UNSUPPORTED",
+  breed: "DIAGNOSTIC_BREED_MAPPING_UNSUPPORTED",
+  providerCode: "DIAGNOSTIC_PROVIDER_CODE_MAPPING_UNSUPPORTED",
+};
+
 export const lookupIdexxMapping = async (
   yosemiteCode: string,
   field: IdexxLookupField = "providerCode",
@@ -22,11 +28,7 @@ export const lookupIdexxMapping = async (
     throw new LabOrderServiceError(
       `Missing IDEXX mapping for code ${yosemiteCode}.`,
       400,
-      field === "species"
-        ? "DIAGNOSTIC_SPECIES_MAPPING_UNSUPPORTED"
-        : field === "breed"
-          ? "DIAGNOSTIC_BREED_MAPPING_UNSUPPORTED"
-          : "DIAGNOSTIC_PROVIDER_CODE_MAPPING_UNSUPPORTED",
+      MAPPING_ERROR_CODES[field],
       {
         provider: "IDEXX",
         field,

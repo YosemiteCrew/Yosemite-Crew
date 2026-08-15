@@ -237,10 +237,10 @@ const buildOrganizationAddressLines = (
       organization.address?.state,
       organization.address?.postalCode,
     ]
-      .filter((line): line is string => Boolean(line && line.trim()))
+      .filter((line): line is string => Boolean(line?.trim()))
       .join(", "),
     organization.address?.country,
-  ].filter((line): line is string => Boolean(line && line.trim()));
+  ].filter((line): line is string => Boolean(line?.trim()));
 
 const buildOrganizationBranding = (
   organization: OrganizationBrand,

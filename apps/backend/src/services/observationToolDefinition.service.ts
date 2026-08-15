@@ -54,7 +54,9 @@ export interface UpdateObservationToolDefinitionInput {
   description?: string;
   category?: string;
   fields?: CreateObservationToolDefinitionInput["fields"];
-  scoringRules?: CreateObservationToolDefinitionInput["scoringRules"];
+  scoringRules?: NonNullable<
+    CreateObservationToolDefinitionInput["scoringRules"]
+  >;
   isActive?: boolean;
 }
 

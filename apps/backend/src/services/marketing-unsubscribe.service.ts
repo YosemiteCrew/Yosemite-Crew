@@ -119,7 +119,7 @@ const readLegacyToken = (payload: string, signature: string): string => {
   }
 
   const email = Buffer.from(payload, "base64url").toString("utf8");
-  if (!email || !email.includes("@")) {
+  if (!email?.includes("@")) {
     throw new InvalidMarketingUnsubscribeTokenError();
   }
   return email;

@@ -28,7 +28,7 @@ export const resolveActorDisplayName = async (
     return null;
   }
   const name = [user.firstName, user.lastName]
-    .filter((part): part is string => Boolean(part && part.trim()))
+    .filter((part): part is string => Boolean(part?.trim()))
     .join(" ")
     .trim();
   return name || user.email || null;

@@ -1,7 +1,9 @@
 import {
+  DEFAULT_TAX_BEHAVIOR,
   DEFAULT_TAX_PROVIDER,
   __setFinanceTaxStripeClientForTests,
   finalizeInvoiceTaxSnapshot,
+  getInvoiceTaxProviderAdapter,
   previewInvoiceTaxSnapshot,
   resolveConfiguredTaxProvider,
 } from "../../src/services/finance/tax";
@@ -19,6 +21,51 @@ describe("finance tax helpers", () => {
 
   it("accepts the explicit Stripe tax provider", () => {
     expect(resolveConfiguredTaxProvider("stripe")).toBe("STRIPE");
+  });
+
+  it("defaults the provider and tax behavior when the adapter input omits them", async () => {
+    const pricing = {
+      subtotal: 100,
+      lineDiscountTotal: 0,
+      taxableSubtotal: 100,
+      taxTotal: 0,
+      invoiceDiscountTotal: 0,
+      totalAmount: 100,
+      lines: [
+        {
+          grossAmount: 100,
+          lineDiscountAmount: 0,
+          netAmount: 100,
+          taxableAmount: 100,
+          taxAmount: 0,
+          totalAmount: 100,
+        },
+      ],
+    };
+    const lineItems = [
+      { description: "Consultation", quantity: 1, unitPrice: 100 },
+    ];
+
+    const adapter = getInvoiceTaxProviderAdapter(null);
+    expect(adapter.provider).toBe(DEFAULT_TAX_PROVIDER);
+
+    const previewSnapshot = await adapter.preview({
+      taxRatePercent: 0,
+      currency: "usd",
+      pricing,
+      lineItems,
+    });
+    expect(previewSnapshot.provider).toBe(DEFAULT_TAX_PROVIDER);
+    expect(previewSnapshot.taxBehavior).toBe(DEFAULT_TAX_BEHAVIOR);
+
+    const finalizeSnapshot = await adapter.finalize({
+      taxRatePercent: 0,
+      currency: "usd",
+      pricing,
+      lineItems,
+    });
+    expect(finalizeSnapshot.provider).toBe(DEFAULT_TAX_PROVIDER);
+    expect(finalizeSnapshot.taxBehavior).toBe(DEFAULT_TAX_BEHAVIOR);
   });
 
   it("builds a provider-neutral tax snapshot payload when no customer address exists", async () => {

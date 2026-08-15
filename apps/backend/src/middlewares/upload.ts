@@ -200,7 +200,7 @@ async function uploadBufferAsFile(
   if (extension && !safeOriginal.endsWith(extension)) {
     originalnameWithExtension = `${safeOriginal}${extension}`;
   }
-  const { location, key } = await uploadToS3(fileName, buffer, mimeType);
+  const { key } = await uploadToS3(fileName, buffer, mimeType);
 
   return {
     url: getURLForKey(key),

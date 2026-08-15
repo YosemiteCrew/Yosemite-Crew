@@ -257,6 +257,59 @@ const normalizePlanCode = (planCode: string) => {
   return cleaned.endsWith("_PLAN") ? cleaned : `${cleaned}_PLAN`;
 };
 
+// invoice.paid and invoice.payment_failed relays share the same fan-out: stamp
+// the outcome on every linked organisation's provider link, then record one
+// finance event per event type against the first linked organisation.
+const recordSubscriptionInvoiceOutcome = async (
+  service: {
+    upsertSubscriptionProviderLink(
+      input: SubscriptionProviderLinkInput,
+    ): Promise<unknown>;
+  },
+  input: SubscriptionLifecycleInput,
+  outcome: {
+    paymentStatus: "paid" | "failed";
+    eventTypes: string[];
+  },
+) => {
+  const rows: Array<{ orgId: string }> =
+    (await prisma.financeProviderLink.findMany({
+      where: {
+        provider: "STRIPE",
+        externalSubscriptionId: input.subscriptionId,
+      },
+      select: { orgId: true },
+    })) ?? [];
+
+  await Promise.all(
+    rows.map((row) =>
+      service.upsertSubscriptionProviderLink({
+        orgId: row.orgId,
+        provider: "STRIPE",
+        externalSubscriptionId: input.subscriptionId,
+        metadata: {
+          lastInvoiceId: input.invoiceId ?? null,
+          lastPaymentStatus: outcome.paymentStatus,
+          lastPaymentAt: new Date().toISOString(),
+        },
+      }),
+    ),
+  );
+
+  for (const eventType of outcome.eventTypes) {
+    await FinanceEventService.recordEvent({
+      organisationId: rows[0]?.orgId ?? input.subscriptionId,
+      eventType,
+      entityType: "SUBSCRIPTION",
+      entityId: input.subscriptionId,
+      payload: {
+        invoiceId: input.invoiceId ?? null,
+        paymentStatus: outcome.paymentStatus,
+      },
+    });
+  }
+};
+
 export const FinanceSubscriptionService = {
   async recordUsageEvent(input: UsageEventInput) {
     const event = await prisma.usageEvent.create({
@@ -1040,87 +1093,16 @@ export const FinanceSubscriptionService = {
   },
 
   async recordSubscriptionInvoicePaid(input: SubscriptionLifecycleInput) {
-    const rows: Array<{ orgId: string }> =
-      (await prisma.financeProviderLink.findMany({
-        where: {
-          provider: "STRIPE",
-          externalSubscriptionId: input.subscriptionId,
-        },
-        select: { orgId: true },
-      })) ?? [];
-
-    await Promise.all(
-      rows.map((row) =>
-        this.upsertSubscriptionProviderLink({
-          orgId: row.orgId,
-          provider: "STRIPE",
-          externalSubscriptionId: input.subscriptionId,
-          metadata: {
-            lastInvoiceId: input.invoiceId ?? null,
-            lastPaymentStatus: "paid",
-            lastPaymentAt: new Date().toISOString(),
-          },
-        }),
-      ),
-    );
-
-    await FinanceEventService.recordEvent({
-      organisationId: rows[0]?.orgId ?? input.subscriptionId,
-      eventType: "SUBSCRIPTION_INVOICE_PAID",
-      entityType: "SUBSCRIPTION",
-      entityId: input.subscriptionId,
-      payload: {
-        invoiceId: input.invoiceId ?? null,
-        paymentStatus: "paid",
-      },
-    });
-
-    await FinanceEventService.recordEvent({
-      organisationId: rows[0]?.orgId ?? input.subscriptionId,
-      eventType: "SUBSCRIPTION_RENEWED",
-      entityType: "SUBSCRIPTION",
-      entityId: input.subscriptionId,
-      payload: {
-        invoiceId: input.invoiceId ?? null,
-        paymentStatus: "paid",
-      },
+    await recordSubscriptionInvoiceOutcome(this, input, {
+      paymentStatus: "paid",
+      eventTypes: ["SUBSCRIPTION_INVOICE_PAID", "SUBSCRIPTION_RENEWED"],
     });
   },
 
   async recordSubscriptionInvoiceFailed(input: SubscriptionLifecycleInput) {
-    const rows: Array<{ orgId: string }> =
-      (await prisma.financeProviderLink.findMany({
-        where: {
-          provider: "STRIPE",
-          externalSubscriptionId: input.subscriptionId,
-        },
-        select: { orgId: true },
-      })) ?? [];
-
-    await Promise.all(
-      rows.map((row) =>
-        this.upsertSubscriptionProviderLink({
-          orgId: row.orgId,
-          provider: "STRIPE",
-          externalSubscriptionId: input.subscriptionId,
-          metadata: {
-            lastInvoiceId: input.invoiceId ?? null,
-            lastPaymentStatus: "failed",
-            lastPaymentAt: new Date().toISOString(),
-          },
-        }),
-      ),
-    );
-
-    await FinanceEventService.recordEvent({
-      organisationId: rows[0]?.orgId ?? input.subscriptionId,
-      eventType: "SUBSCRIPTION_INVOICE_FAILED",
-      entityType: "SUBSCRIPTION",
-      entityId: input.subscriptionId,
-      payload: {
-        invoiceId: input.invoiceId ?? null,
-        paymentStatus: "failed",
-      },
+    await recordSubscriptionInvoiceOutcome(this, input, {
+      paymentStatus: "failed",
+      eventTypes: ["SUBSCRIPTION_INVOICE_FAILED"],
     });
   },
 };

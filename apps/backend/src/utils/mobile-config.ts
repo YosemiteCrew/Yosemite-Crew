@@ -100,6 +100,36 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isNonEmpty = (value: Record<string, unknown>): boolean =>
   Object.keys(value).length > 0;
 
+const parseNonNegativeInt = (value: unknown): number | undefined =>
+  parseNumberLike(value, { min: 0 });
+
+const parsePositiveInt = (value: unknown): number | undefined =>
+  parseNumberLike(value, { min: 1 });
+
+/**
+ * Parses one raw field: records an issue when a supplied value fails to parse,
+ * and hands the parsed value to `assign` when there is one. An absent field is
+ * neither an issue nor an assignment.
+ */
+const applyParsedField = <T>(
+  rawValue: unknown,
+  parse: (value: unknown) => T | undefined,
+  fieldPath: string,
+  issues: string[],
+  assign: (value: T) => void,
+): void => {
+  const parsed = parse(rawValue);
+
+  if (rawValue !== undefined && parsed === undefined) {
+    issues.push(`${fieldPath} is invalid`);
+    return;
+  }
+
+  if (parsed !== undefined) {
+    assign(parsed);
+  }
+};
+
 const normalizePolicy = (
   source: Record<string, unknown>,
   options: { allowAppStoreId: boolean; path: string; issues: string[] },
@@ -107,100 +137,136 @@ const normalizePolicy = (
   const policy: AppUpdatePolicy = {};
   const { allowAppStoreId, path, issues } = options;
 
-  const enabled = parseBooleanLike(source.enabled);
-  if (source.enabled !== undefined && enabled === undefined) {
-    issues.push(`${path}.enabled is invalid`);
-  } else if (enabled !== undefined) {
-    policy.enabled = enabled;
-  }
-
-  const force = parseBooleanLike(source.force);
-  if (source.force !== undefined && force === undefined) {
-    issues.push(`${path}.force is invalid`);
-  } else if (force !== undefined) {
-    policy.force = force;
-  }
-
-  const title = parseString(source.title);
-  if (source.title !== undefined && title === undefined) {
-    issues.push(`${path}.title is invalid`);
-  } else if (title !== undefined) {
-    policy.title = title;
-  }
-
-  const message = parseString(source.message);
-  if (source.message !== undefined && message === undefined) {
-    issues.push(`${path}.message is invalid`);
-  } else if (message !== undefined) {
-    policy.message = message;
-  }
-
-  const minimumSupportedVersion = parseString(source.minimumSupportedVersion);
-  if (
-    source.minimumSupportedVersion !== undefined &&
-    minimumSupportedVersion === undefined
-  ) {
-    issues.push(`${path}.minimumSupportedVersion is invalid`);
-  } else if (minimumSupportedVersion !== undefined) {
-    policy.minimumSupportedVersion = minimumSupportedVersion;
-  }
-
-  const latestVersion = parseString(source.latestVersion);
-  if (source.latestVersion !== undefined && latestVersion === undefined) {
-    issues.push(`${path}.latestVersion is invalid`);
-  } else if (latestVersion !== undefined) {
-    policy.latestVersion = latestVersion;
-  }
-
-  const minimumSupportedBuildNumber = parseNumberLike(
-    source.minimumSupportedBuildNumber,
-    { min: 0 },
+  applyParsedField(
+    source.enabled,
+    parseBooleanLike,
+    `${path}.enabled`,
+    issues,
+    (value) => {
+      policy.enabled = value;
+    },
   );
-  if (
-    source.minimumSupportedBuildNumber !== undefined &&
-    minimumSupportedBuildNumber === undefined
-  ) {
-    issues.push(`${path}.minimumSupportedBuildNumber is invalid`);
-  } else if (minimumSupportedBuildNumber !== undefined) {
-    policy.minimumSupportedBuildNumber = minimumSupportedBuildNumber;
-  }
-
-  const latestBuildNumber = parseNumberLike(source.latestBuildNumber, {
-    min: 0,
-  });
-  if (
-    source.latestBuildNumber !== undefined &&
-    latestBuildNumber === undefined
-  ) {
-    issues.push(`${path}.latestBuildNumber is invalid`);
-  } else if (latestBuildNumber !== undefined) {
-    policy.latestBuildNumber = latestBuildNumber;
-  }
-
-  const remindAfterHours = parseNumberLike(source.remindAfterHours, { min: 1 });
-  if (source.remindAfterHours !== undefined && remindAfterHours === undefined) {
-    issues.push(`${path}.remindAfterHours is invalid`);
-  } else if (remindAfterHours !== undefined) {
-    policy.remindAfterHours = remindAfterHours;
-  }
-
-  const storeUrl = parseString(source.storeUrl);
-  if (source.storeUrl !== undefined && storeUrl === undefined) {
-    issues.push(`${path}.storeUrl is invalid`);
-  } else if (storeUrl !== undefined) {
-    policy.storeUrl = storeUrl;
-  }
+  applyParsedField(
+    source.force,
+    parseBooleanLike,
+    `${path}.force`,
+    issues,
+    (value) => {
+      policy.force = value;
+    },
+  );
+  applyParsedField(
+    source.title,
+    parseString,
+    `${path}.title`,
+    issues,
+    (value) => {
+      policy.title = value;
+    },
+  );
+  applyParsedField(
+    source.message,
+    parseString,
+    `${path}.message`,
+    issues,
+    (value) => {
+      policy.message = value;
+    },
+  );
+  applyParsedField(
+    source.minimumSupportedVersion,
+    parseString,
+    `${path}.minimumSupportedVersion`,
+    issues,
+    (value) => {
+      policy.minimumSupportedVersion = value;
+    },
+  );
+  applyParsedField(
+    source.latestVersion,
+    parseString,
+    `${path}.latestVersion`,
+    issues,
+    (value) => {
+      policy.latestVersion = value;
+    },
+  );
+  applyParsedField(
+    source.minimumSupportedBuildNumber,
+    parseNonNegativeInt,
+    `${path}.minimumSupportedBuildNumber`,
+    issues,
+    (value) => {
+      policy.minimumSupportedBuildNumber = value;
+    },
+  );
+  applyParsedField(
+    source.latestBuildNumber,
+    parseNonNegativeInt,
+    `${path}.latestBuildNumber`,
+    issues,
+    (value) => {
+      policy.latestBuildNumber = value;
+    },
+  );
+  applyParsedField(
+    source.remindAfterHours,
+    parsePositiveInt,
+    `${path}.remindAfterHours`,
+    issues,
+    (value) => {
+      policy.remindAfterHours = value;
+    },
+  );
+  applyParsedField(
+    source.storeUrl,
+    parseString,
+    `${path}.storeUrl`,
+    issues,
+    (value) => {
+      policy.storeUrl = value;
+    },
+  );
 
   if (allowAppStoreId) {
-    const appStoreId = parseString(source.appStoreId);
-    if (source.appStoreId !== undefined && appStoreId === undefined) {
-      issues.push(`${path}.appStoreId is invalid`);
-    } else if (appStoreId !== undefined) {
-      policy.appStoreId = appStoreId;
-    }
+    applyParsedField(
+      source.appStoreId,
+      parseString,
+      `${path}.appStoreId`,
+      issues,
+      (value) => {
+        policy.appStoreId = value;
+      },
+    );
   }
 
   return policy;
+};
+
+const applyPlatformPolicy = (
+  rawValue: unknown,
+  platform: "ios" | "android",
+  config: AppUpdateConfig,
+  issues: string[],
+): void => {
+  if (rawValue === undefined) {
+    return;
+  }
+
+  if (!isRecord(rawValue)) {
+    issues.push(`appUpdate.${platform} must be an object`);
+    return;
+  }
+
+  const policy = normalizePolicy(rawValue, {
+    allowAppStoreId: platform === "ios",
+    path: `appUpdate.${platform}`,
+    issues,
+  });
+
+  if (isNonEmpty(policy as Record<string, unknown>)) {
+    config[platform] = policy;
+  }
 };
 
 export const parseAppUpdateConfig = (input: unknown): ParsedAppUpdate => {
@@ -221,65 +287,45 @@ export const parseAppUpdateConfig = (input: unknown): ParsedAppUpdate => {
 
   const config: AppUpdateConfig = { ...basePolicy };
 
-  const iosStoreUrl = parseString(input.iosStoreUrl);
-  if (input.iosStoreUrl !== undefined && iosStoreUrl === undefined) {
-    issues.push("appUpdate.iosStoreUrl is invalid");
-  } else if (iosStoreUrl !== undefined) {
-    config.iosStoreUrl = iosStoreUrl;
-  }
+  applyParsedField(
+    input.iosStoreUrl,
+    parseString,
+    "appUpdate.iosStoreUrl",
+    issues,
+    (value) => {
+      config.iosStoreUrl = value;
+    },
+  );
+  applyParsedField(
+    input.androidStoreUrl,
+    parseString,
+    "appUpdate.androidStoreUrl",
+    issues,
+    (value) => {
+      config.androidStoreUrl = value;
+    },
+  );
+  applyParsedField(
+    input.storeUrl,
+    parseString,
+    "appUpdate.storeUrl",
+    issues,
+    (value) => {
+      config.storeUrl = value;
+    },
+  );
+  applyParsedField(
+    input.appStoreId,
+    parseString,
+    "appUpdate.appStoreId",
+    issues,
+    (value) => {
+      config.appStoreId = value;
+    },
+  );
 
-  const androidStoreUrl = parseString(input.androidStoreUrl);
-  if (input.androidStoreUrl !== undefined && androidStoreUrl === undefined) {
-    issues.push("appUpdate.androidStoreUrl is invalid");
-  } else if (androidStoreUrl !== undefined) {
-    config.androidStoreUrl = androidStoreUrl;
-  }
-
-  const storeUrl = parseString(input.storeUrl);
-  if (input.storeUrl !== undefined && storeUrl === undefined) {
-    issues.push("appUpdate.storeUrl is invalid");
-  } else if (storeUrl !== undefined) {
-    config.storeUrl = storeUrl;
-  }
-
-  const appStoreId = parseString(input.appStoreId);
-  if (input.appStoreId !== undefined && appStoreId === undefined) {
-    issues.push("appUpdate.appStoreId is invalid");
-  } else if (appStoreId !== undefined) {
-    config.appStoreId = appStoreId;
-  }
-
-  if (input.ios !== undefined) {
-    if (isRecord(input.ios)) {
-      const iosPolicy = normalizePolicy(input.ios, {
-        allowAppStoreId: true,
-        path: "appUpdate.ios",
-        issues,
-      });
-
-      if (isNonEmpty(iosPolicy as Record<string, unknown>)) {
-        config.ios = iosPolicy;
-      }
-    } else {
-      issues.push("appUpdate.ios must be an object");
-    }
-  }
-
-  if (input.android !== undefined) {
-    if (isRecord(input.android)) {
-      const androidPolicy = normalizePolicy(input.android, {
-        allowAppStoreId: false,
-        path: "appUpdate.android",
-        issues,
-      });
-
-      if (isNonEmpty(androidPolicy as Record<string, unknown>)) {
-        config.android = androidPolicy;
-      }
-    } else {
-      issues.push("appUpdate.android must be an object");
-    }
-  }
+  applyPlatformPolicy(input.ios, "ios", config, issues);
+  applyPlatformPolicy(input.android, "android", config, issues);
 
   if (!isNonEmpty(config as Record<string, unknown>)) {
     return { config: undefined, issues };

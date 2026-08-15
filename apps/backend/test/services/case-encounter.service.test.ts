@@ -1372,6 +1372,35 @@ describe("CaseEncounterService", () => {
     });
   });
 
+  it("falls back to startedAt when an already-started encounter has no recorded start", async () => {
+    // An in-progress/onleave encounter normally keeps its recorded start, but
+    // when none was ever stamped the transition time is the best real start.
+    mockedPrisma.encounter.findFirst.mockResolvedValue({
+      ...baseEncounterRow,
+      status: "onleave",
+      periodStart: null,
+    } as never);
+    mockedPrisma.encounter.update.mockResolvedValue({
+      ...baseEncounterRow,
+      status: "in-progress",
+      periodStart: new Date("2026-06-11T12:00:00.000Z"),
+    } as never);
+    mockedPrisma.appointment.findMany.mockResolvedValue([] as never);
+    mockedPrisma.admission.findMany.mockResolvedValue([] as never);
+
+    await CaseEncounterService.startEncounter("enc_1", "org_1", {
+      startedAt: new Date("2026-06-11T12:00:00.000Z"),
+    });
+
+    expect(mockedPrisma.encounter.update).toHaveBeenCalledWith({
+      where: { id: "enc_1" },
+      data: {
+        status: "in-progress",
+        periodStart: new Date("2026-06-11T12:00:00.000Z"),
+      },
+    });
+  });
+
   it("marks an encounter ready for discharge", async () => {
     mockedPrisma.encounter.findFirst.mockResolvedValue({
       ...baseEncounterRow,

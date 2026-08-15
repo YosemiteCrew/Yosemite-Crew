@@ -25,6 +25,7 @@ export type TaskAudience = "EMPLOYEE_TASK" | "PARENT_TASK";
 export type TaskSource = "YC_LIBRARY" | "ORG_TEMPLATE" | "CUSTOM";
 export type TaskStatus = PrismaTaskStatus;
 export type TaskPriority = PrismaTaskPriority;
+export type TaskRecurrenceType = "ONCE" | "DAILY" | "WEEKLY" | "CUSTOM";
 
 export type MedicationDoseInput = {
   time?: string;
@@ -401,7 +402,7 @@ const assertCompanionRequirement = (input: {
 };
 
 type BuildRecurrenceInput = {
-  type: "ONCE" | "DAILY" | "WEEKLY" | "CUSTOM";
+  type: TaskRecurrenceType;
   endDate?: Date;
   cronExpression?: string;
 };
@@ -431,7 +432,7 @@ const buildRecurrence = (input?: BuildRecurrenceInput) => {
 const mergeRecurrence = (
   existing: unknown,
   input?: {
-    type: "ONCE" | "DAILY" | "WEEKLY" | "CUSTOM";
+    type: TaskRecurrenceType;
     endDate?: Date | null;
     cronExpression?: string | null;
   } | null,
@@ -522,7 +523,13 @@ const toOccurrenceDueAt = (source: Date, template: Date): Date => {
   return dueAt;
 };
 
-const buildSeriesUpdateData = (task: TaskRow, updates: TaskUpdateInput) => ({
+/**
+ * Field-by-field merge of a PATCH payload over the stored row: an absent field
+ * keeps the stored value, a present field (including an explicit `null` clear)
+ * wins. Shared by the single-row and series update paths; `dueAt` and
+ * `assignedBy` are resolved by each caller because their semantics differ.
+ */
+const buildTaskUpdatePatch = (task: TaskRow, updates: TaskUpdateInput) => ({
   name: updates.name ?? task.name,
   description:
     updates.description === undefined
@@ -549,10 +556,6 @@ const buildSeriesUpdateData = (task: TaskRow, updates: TaskUpdateInput) => ({
     updates.assignedGroupId === undefined
       ? (task.assignedGroupId ?? undefined)
       : (updates.assignedGroupId ?? undefined),
-  assignedBy:
-    updates.assignedTo !== undefined || updates.assignedGroupId !== undefined
-      ? (task.assignedBy ?? task.createdBy)
-      : (task.assignedBy ?? undefined),
   medication:
     updates.medication === undefined
       ? (task.medication ?? undefined)
@@ -573,6 +576,214 @@ const buildSeriesUpdateData = (task: TaskRow, updates: TaskUpdateInput) => ({
       : toNullableJsonInput(updates.attachments),
   recurrence: mergeRecurrence(task.recurrence, updates.recurrence),
 });
+
+const buildSeriesUpdateData = (task: TaskRow, updates: TaskUpdateInput) => ({
+  ...buildTaskUpdatePatch(task, updates),
+  assignedBy:
+    updates.assignedTo !== undefined || updates.assignedGroupId !== undefined
+      ? (task.assignedBy ?? task.createdBy)
+      : (task.assignedBy ?? undefined),
+});
+
+/**
+ * `updateTask` historically took the organisation as its fourth argument;
+ * recurrence scopes reuse that slot, so a non-scope value there is treated as
+ * an organisation filter and the scope falls back to THIS.
+ */
+const resolveUpdateTaskScope = (
+  scopeOrOrganisationId: string,
+  organisationId?: string,
+) => {
+  const inferredScope = normalizeRecurrenceScope(scopeOrOrganisationId);
+  const scope: RecurrenceScope =
+    scopeOrOrganisationId === inferredScope ? inferredScope : "THIS";
+  const orgScope = asNonEmptyString(
+    organisationId ??
+      (scope === "THIS" && scopeOrOrganisationId !== "THIS"
+        ? scopeOrOrganisationId
+        : undefined),
+  );
+  return { scope, orgScope };
+};
+
+const resolveTaskReassignmentFlags = (
+  task: TaskRow,
+  updates: TaskUpdateInput,
+  isCreator: boolean,
+) => {
+  // Clients PATCH the whole entity, so `assignedTo` is present even when it
+  // is unchanged. Only a real change of assignee counts as a reassignment.
+  const isReassigningUser =
+    updates.assignedTo !== undefined && updates.assignedTo !== task.assignedTo;
+
+  // `assignedGroupId` is nullable, so it has three input states: absent
+  // (no-op), `null` (an explicit clear, which IS a reassignment), or an id.
+  // Only an absent field or an unchanged value is exempt.
+  const isReassigningGroup =
+    updates.assignedGroupId !== undefined &&
+    updates.assignedGroupId !== task.assignedGroupId;
+
+  if ((isReassigningUser || isReassigningGroup) && !isCreator) {
+    throw new TaskServiceError("Only task creator can reassign task", 403);
+  }
+
+  return { isReassigningUser, isReassigningGroup };
+};
+
+const recordTaskReassignedAudit = async (
+  previous: TaskRow,
+  mapped: TaskLike,
+  actorId: string,
+) =>
+  recordTaskAudit({
+    organisationId: mapped.organisationId,
+    patientId: mapped.patientId,
+    actorId,
+    eventType: "TASK_REASSIGNED",
+    entityId: mapped.id,
+    metadata: {
+      previousAssignedTo: previous.assignedTo,
+      previousAssignedGroupId: previous.assignedGroupId ?? null,
+      assignedTo: mapped.assignedTo,
+      assignedGroupId: mapped.assignedGroupId ?? null,
+      assignedBy: mapped.assignedBy ?? null,
+    },
+  });
+
+type SeriesUpdateContext = {
+  task: TaskRow;
+  master: TaskRow;
+  updates: TaskUpdateInput;
+  seriesRows: TaskRow[];
+  futureRows: TaskRow[];
+  seriesType: TaskRecurrenceType;
+  seriesCronExpression: string | null;
+  splitDueAt: Date;
+  normalizedScope: RecurrenceScope;
+};
+
+const buildSeriesUpdateContext = (
+  task: TaskRow,
+  updates: TaskUpdateInput,
+  seriesRows: TaskRow[],
+  seriesMasterId: string,
+  normalizedScope: RecurrenceScope,
+): SeriesUpdateContext => {
+  const master = seriesRows.find((row) => row.id === seriesMasterId) ?? task;
+  const seriesType =
+    (master.recurrence as { type?: TaskRecurrenceType } | null)?.type ?? "ONCE";
+  const seriesCronExpression =
+    (master.recurrence as { cronExpression?: string | null } | null)
+      ?.cronExpression ?? null;
+
+  return {
+    task,
+    master,
+    updates,
+    seriesRows,
+    futureRows: seriesRows.filter(
+      (row) => row.id !== task.id && row.dueAt >= task.dueAt,
+    ),
+    seriesType,
+    seriesCronExpression,
+    splitDueAt: updates.dueAt ?? task.dueAt,
+    normalizedScope,
+  };
+};
+
+const applyAllScopeSeriesUpdates = async (
+  tx: Prisma.TransactionClient,
+  ctx: SeriesUpdateContext,
+) => {
+  const rows: TaskRow[] = [];
+  for (const row of ctx.seriesRows) {
+    const updated = await tx.task.update({
+      where: { id: row.id },
+      data: {
+        ...buildSeriesUpdateData(row, ctx.updates),
+        dueAt: toOccurrenceDueAt(row.dueAt, ctx.splitDueAt),
+      },
+    });
+    rows.push(updated);
+  }
+  return rows;
+};
+
+const splitSeriesAtTask = async (
+  tx: Prisma.TransactionClient,
+  ctx: SeriesUpdateContext,
+) => {
+  const {
+    task,
+    master,
+    updates,
+    seriesType,
+    seriesCronExpression,
+    splitDueAt,
+  } = ctx;
+
+  const currentUpdated = await tx.task.update({
+    where: { id: task.id },
+    data: {
+      ...buildSeriesUpdateData(task, updates),
+      dueAt: splitDueAt,
+      recurrence: {
+        ...(task.recurrence as Record<string, unknown>),
+        type: seriesType,
+        isMaster: true,
+        masterTaskId: undefined,
+        cronExpression:
+          updates.recurrence?.cronExpression === undefined
+            ? (seriesCronExpression ?? undefined)
+            : (updates.recurrence?.cronExpression ?? undefined),
+        endDate:
+          updates.recurrence?.endDate === undefined
+            ? ((task.recurrence as { endDate?: Date | null } | null)?.endDate ??
+              undefined)
+            : (updates.recurrence?.endDate ?? undefined),
+      },
+    },
+  });
+
+  if (ctx.normalizedScope === "THIS_AND_FOLLOWING") {
+    await tx.task.update({
+      where: { id: master.id },
+      data: {
+        recurrence: {
+          ...(master.recurrence as Record<string, unknown>),
+          type: seriesType,
+          isMaster: true,
+          masterTaskId: undefined,
+          cronExpression: seriesCronExpression ?? undefined,
+          endDate: new Date(splitDueAt.getTime() - 1),
+        },
+      },
+    });
+
+    for (const row of ctx.futureRows) {
+      await tx.task.update({
+        where: { id: row.id },
+        data: {
+          ...buildSeriesUpdateData(row, updates),
+          dueAt: toOccurrenceDueAt(row.dueAt, splitDueAt),
+          recurrence: {
+            ...(row.recurrence as Record<string, unknown>),
+            masterTaskId: task.id,
+          },
+        },
+      });
+    }
+  }
+
+  return [currentUpdated];
+};
+
+const applySeriesUpdates = (ctx: SeriesUpdateContext) =>
+  prisma.$transaction(async (tx) =>
+    ctx.normalizedScope === "ALL"
+      ? applyAllScopeSeriesUpdates(tx, ctx)
+      : splitSeriesAtTask(tx, ctx),
+  );
 
 const buildCreateTaskData = (input: {
   organisationId?: string;
@@ -596,7 +807,7 @@ const buildCreateTaskData = (input: {
   dueAt: Date;
   timezone?: string;
   recurrence?: {
-    type: "ONCE" | "DAILY" | "WEEKLY" | "CUSTOM";
+    type: TaskRecurrenceType;
     endDate?: Date;
     cronExpression?: string;
   };
@@ -655,34 +866,7 @@ const createTaskRow = async (
 
 const updateTaskRow = async (
   taskId: string,
-  updates: {
-    name?: string;
-    description?: string;
-    additionalNotes?: string;
-    subcategory?: string;
-    priority?: TaskPriority;
-    dueAt?: Date;
-    timezone?: string | null;
-    assignedTo?: string;
-    assignedGroupId?: string | null;
-    assignedBy?: string;
-    medication?: MedicationInput | null;
-    observationToolId?: string | null;
-    reminder?: {
-      enabled: boolean;
-      offsetMinutes: number;
-    } | null;
-    syncWithCalendar?: boolean;
-    attachments?: {
-      id: string;
-      name: string;
-    }[];
-    recurrence?: {
-      type: "ONCE" | "DAILY" | "WEEKLY" | "CUSTOM";
-      endDate?: Date | null;
-      cronExpression?: string | null;
-    } | null;
-  },
+  updates: TaskUpdateInput & { assignedBy?: string },
   task: TaskRow & {
     recurrence: Prisma.JsonValue | null;
   },
@@ -690,58 +874,12 @@ const updateTaskRow = async (
   prisma.task.update({
     where: { id: taskId },
     data: {
-      name: updates.name ?? task.name,
-      description:
-        updates.description === undefined
-          ? (task.description ?? undefined)
-          : (updates.description ?? undefined),
-      additionalNotes:
-        updates.additionalNotes === undefined
-          ? (task.additionalNotes ?? undefined)
-          : (updates.additionalNotes ?? undefined),
-      subcategory:
-        updates.subcategory === undefined
-          ? (task.subcategory ?? undefined)
-          : (updates.subcategory ?? undefined),
-      priority:
-        updates.priority === undefined
-          ? (task.priority ?? undefined)
-          : (sanitizeTaskPriority(updates.priority) ??
-            task.priority ??
-            undefined),
+      ...buildTaskUpdatePatch(task, updates),
       dueAt: updates.dueAt ?? task.dueAt,
-      timezone:
-        updates.timezone === undefined
-          ? (task.timezone ?? undefined)
-          : (updates.timezone ?? undefined),
-      assignedTo: updates.assignedTo ?? task.assignedTo,
-      assignedGroupId:
-        updates.assignedGroupId === undefined
-          ? (task.assignedGroupId ?? undefined)
-          : (updates.assignedGroupId ?? undefined),
       assignedBy:
         updates.assignedBy === undefined
           ? (task.assignedBy ?? undefined)
           : (updates.assignedBy ?? undefined),
-      medication:
-        updates.medication === undefined
-          ? (task.medication ?? undefined)
-          : toNullableJsonInput(sanitizeMedication(updates.medication)),
-      observationToolId:
-        updates.observationToolId === undefined
-          ? (task.observationToolId ?? undefined)
-          : (updates.observationToolId ?? undefined),
-      reminder:
-        updates.reminder === undefined
-          ? (task.reminder ?? undefined)
-          : toNullableJsonInput(buildReminder(updates.reminder)),
-      syncWithCalendar:
-        updates.syncWithCalendar ?? task.syncWithCalendar ?? undefined,
-      attachments:
-        updates.attachments === undefined
-          ? (task.attachments ?? undefined)
-          : toNullableJsonInput(updates.attachments),
-      recurrence: mergeRecurrence(task.recurrence, updates.recurrence),
     },
   });
 
@@ -1220,6 +1358,42 @@ const buildTaskScalarFilters = (params: {
   return baseWhere;
 };
 
+/**
+ * Applies the filters shared by the simple list endpoints (parent and group
+ * scoped lists) on top of a caller-provided base `where`, then runs the query.
+ */
+const listTasksMatching = async (
+  where: Prisma.TaskWhereInput,
+  params: {
+    patientId?: string;
+    status?: TaskStatus[];
+    fromDueAt?: Date;
+    toDueAt?: Date;
+  },
+): Promise<TaskLike[]> => {
+  const patientId = asNonEmptyString(params.patientId);
+  if (patientId) where.patientId = patientId;
+
+  const status = sanitizeStatusList(params.status);
+  if (status) where.status = { in: status };
+
+  const fromDueAt = isValidDate(params.fromDueAt)
+    ? params.fromDueAt
+    : undefined;
+  const toDueAt = isValidDate(params.toDueAt) ? params.toDueAt : undefined;
+  if (fromDueAt || toDueAt) {
+    where.dueAt = {};
+    if (fromDueAt) where.dueAt.gte = fromDueAt;
+    if (toDueAt) where.dueAt.lte = toDueAt;
+  }
+
+  const tasks = await prisma.task.findMany({
+    where,
+    orderBy: { dueAt: "asc" },
+  });
+  return tasks.map(toTaskLike);
+};
+
 export interface BaseTaskCreateInput {
   organisationId?: string;
   appointmentId?: string;
@@ -1233,7 +1407,7 @@ export interface BaseTaskCreateInput {
   medication?: MedicationInput;
   observationToolId?: string;
   recurrence?: {
-    type: "ONCE" | "DAILY" | "WEEKLY" | "CUSTOM";
+    type: TaskRecurrenceType;
     endDate?: Date;
     cronExpression?: string;
   };
@@ -1298,7 +1472,7 @@ export interface TaskUpdateInput {
     name: string;
   }[];
   recurrence?: {
-    type: "ONCE" | "DAILY" | "WEEKLY" | "CUSTOM";
+    type: TaskRecurrenceType;
     endDate?: Date | null;
     cronExpression?: string | null;
   } | null;
@@ -1402,7 +1576,7 @@ export const TaskService = {
         ? {
             type: (
               template.defaultRecurrence as {
-                type: "ONCE" | "DAILY" | "WEEKLY" | "CUSTOM";
+                type: TaskRecurrenceType;
               }
             ).type,
             endDate:
@@ -1579,14 +1753,9 @@ export const TaskService = {
     scopeOrOrganisationId: string = "THIS",
     organisationId?: string,
   ): Promise<TaskLike> {
-    const inferredScope = normalizeRecurrenceScope(scopeOrOrganisationId);
-    const scope: RecurrenceScope =
-      scopeOrOrganisationId === inferredScope ? inferredScope : "THIS";
-    const orgScope = asNonEmptyString(
-      organisationId ??
-        (scope === "THIS" && scopeOrOrganisationId !== "THIS"
-          ? scopeOrOrganisationId
-          : undefined),
+    const { scope, orgScope } = resolveUpdateTaskScope(
+      scopeOrOrganisationId,
+      organisationId,
     );
     const task = await prisma.task.findFirst({
       where: orgScope
@@ -1599,24 +1768,9 @@ export const TaskService = {
     const isAssignee = task.assignedTo === actorId;
     assertCanUpdateTask(isCreator, isAssignee);
 
-    // Clients PATCH the whole entity, so `assignedTo` is present even when it
-    // is unchanged. Only a real change of assignee counts as a reassignment.
-    const isReassigningUser =
-      updates.assignedTo !== undefined &&
-      updates.assignedTo !== task.assignedTo;
-    if (isReassigningUser && !isCreator) {
-      throw new TaskServiceError("Only task creator can reassign task", 403);
-    }
-
-    // `assignedGroupId` is nullable, so it has three input states: absent
-    // (no-op), `null` (an explicit clear, which IS a reassignment), or an id.
-    // Only an absent field or an unchanged value is exempt.
-    const isReassigningGroup =
-      updates.assignedGroupId !== undefined &&
-      updates.assignedGroupId !== task.assignedGroupId;
-    if (isReassigningGroup && !isCreator) {
-      throw new TaskServiceError("Only task creator can reassign task", 403);
-    }
+    const { isReassigningUser, isReassigningGroup } =
+      resolveTaskReassignmentFlags(task, updates, isCreator);
+    const isReassigning = isReassigningUser || isReassigningGroup;
 
     const seriesMasterId = getSeriesMasterId(task);
     const normalizedScope = normalizeRecurrenceScope(scope);
@@ -1625,44 +1779,16 @@ export const TaskService = {
       const updated = await updateTaskRow(
         taskId,
         {
-          name: updates.name,
-          description: updates.description,
-          additionalNotes: updates.additionalNotes,
-          subcategory: updates.subcategory,
-          priority: updates.priority,
-          dueAt: updates.dueAt,
-          timezone: updates.timezone,
-          assignedTo: updates.assignedTo,
-          assignedGroupId: updates.assignedGroupId,
-          assignedBy:
-            isReassigningUser || isReassigningGroup ? actorId : undefined,
-          medication: updates.medication,
-          observationToolId: updates.observationToolId,
-          reminder: updates.reminder,
-          syncWithCalendar: updates.syncWithCalendar,
-          attachments: updates.attachments,
-          recurrence: updates.recurrence,
+          ...updates,
+          assignedBy: isReassigning ? actorId : undefined,
         },
         task,
       );
 
       const mapped = toTaskLike(updated);
 
-      if (isReassigningUser || isReassigningGroup) {
-        await recordTaskAudit({
-          organisationId: mapped.organisationId,
-          patientId: mapped.patientId,
-          actorId,
-          eventType: "TASK_REASSIGNED",
-          entityId: mapped.id,
-          metadata: {
-            previousAssignedTo: task.assignedTo,
-            previousAssignedGroupId: task.assignedGroupId ?? null,
-            assignedTo: mapped.assignedTo,
-            assignedGroupId: mapped.assignedGroupId ?? null,
-            assignedBy: mapped.assignedBy ?? null,
-          },
-        });
+      if (isReassigning) {
+        await recordTaskReassignedAudit(task, mapped, actorId);
       }
 
       return mapped;
@@ -1679,119 +1805,27 @@ export const TaskService = {
       orderBy: { dueAt: "asc" },
     });
 
-    const master = seriesRows.find((row) => row.id === seriesMasterId) ?? task;
-    const seriesType =
-      (
-        master.recurrence as {
-          type?: "ONCE" | "DAILY" | "WEEKLY" | "CUSTOM";
-        } | null
-      )?.type ?? "ONCE";
-    const seriesCronExpression =
-      (master.recurrence as { cronExpression?: string | null } | null)
-        ?.cronExpression ?? null;
-    const splitDueAt = updates.dueAt ?? task.dueAt;
-    const shiftDueAt = (row: TaskRow) =>
-      toOccurrenceDueAt(row.dueAt, splitDueAt);
-    const futureRows = seriesRows.filter(
-      (row) => row.id !== task.id && row.dueAt >= task.dueAt,
+    const seriesContext = buildSeriesUpdateContext(
+      task,
+      updates,
+      seriesRows,
+      seriesMasterId,
+      normalizedScope,
     );
 
     assertActorOwnsSeriesRows(
-      normalizedScope === "ALL" ? seriesRows : [master, ...futureRows],
+      normalizedScope === "ALL"
+        ? seriesRows
+        : [seriesContext.master, ...seriesContext.futureRows],
       actorId,
     );
 
-    const updatedRows = await prisma.$transaction(async (tx) => {
-      if (normalizedScope === "ALL") {
-        const rows: TaskRow[] = [];
-        for (const row of seriesRows) {
-          const updated = await tx.task.update({
-            where: { id: row.id },
-            data: {
-              ...buildSeriesUpdateData(row, updates),
-              dueAt: shiftDueAt(row),
-            },
-          });
-          rows.push(updated);
-        }
-        return rows;
-      }
+    const updatedRows = await applySeriesUpdates(seriesContext);
 
-      const currentUpdated = await tx.task.update({
-        where: { id: task.id },
-        data: {
-          ...buildSeriesUpdateData(task, updates),
-          dueAt: splitDueAt,
-          recurrence: {
-            ...((task.recurrence as Record<string, unknown>) ?? {}),
-            type: seriesType,
-            isMaster: true,
-            masterTaskId: undefined,
-            cronExpression:
-              updates.recurrence?.cronExpression === undefined
-                ? (seriesCronExpression ?? undefined)
-                : (updates.recurrence?.cronExpression ?? undefined),
-            endDate:
-              updates.recurrence?.endDate === undefined
-                ? ((task.recurrence as { endDate?: Date | null } | null)
-                    ?.endDate ?? undefined)
-                : (updates.recurrence?.endDate ?? undefined),
-          },
-        },
-      });
+    const mapped = toTaskLike(updatedRows[0]);
 
-      if (normalizedScope === "THIS_AND_FOLLOWING") {
-        await tx.task.update({
-          where: { id: master.id },
-          data: {
-            recurrence: {
-              ...((master.recurrence as Record<string, unknown>) ?? {}),
-              type: seriesType,
-              isMaster: true,
-              masterTaskId: undefined,
-              cronExpression: seriesCronExpression ?? undefined,
-              endDate: new Date(splitDueAt.getTime() - 1),
-            },
-          },
-        });
-
-        for (const row of futureRows) {
-          await tx.task.update({
-            where: { id: row.id },
-            data: {
-              ...buildSeriesUpdateData(row, updates),
-              dueAt: shiftDueAt(row),
-              recurrence: {
-                ...((row.recurrence as Record<string, unknown>) ?? {}),
-                masterTaskId: task.id,
-              },
-            },
-          });
-        }
-      }
-
-      return [currentUpdated];
-    });
-
-    const updated = updatedRows[0];
-
-    const mapped = toTaskLike(updated);
-
-    if (isReassigningUser || isReassigningGroup) {
-      await recordTaskAudit({
-        organisationId: mapped.organisationId,
-        patientId: mapped.patientId,
-        actorId,
-        eventType: "TASK_REASSIGNED",
-        entityId: mapped.id,
-        metadata: {
-          previousAssignedTo: task.assignedTo,
-          previousAssignedGroupId: task.assignedGroupId ?? null,
-          assignedTo: mapped.assignedTo,
-          assignedGroupId: mapped.assignedGroupId ?? null,
-          assignedBy: mapped.assignedBy ?? null,
-        },
-      });
+    if (isReassigning) {
+      await recordTaskReassignedAudit(task, mapped, actorId);
     }
 
     return mapped;
@@ -1872,7 +1906,7 @@ export const TaskService = {
               type:
                 (
                   task.recurrence as {
-                    type?: "ONCE" | "DAILY" | "WEEKLY" | "CUSTOM";
+                    type?: TaskRecurrenceType;
                   } | null
                 )?.type ?? "ONCE",
               endDate: new Date(task.dueAt.getTime() - 1),
@@ -1979,32 +2013,13 @@ export const TaskService = {
       throw new TaskServiceError("Invalid parentId");
     }
 
-    const where: Prisma.TaskWhereInput = {
-      audience: "PARENT_TASK",
-      OR: [{ assignedTo: parentId }, { createdBy: parentId }],
-    };
-
-    const patientId = asNonEmptyString(params.patientId);
-    if (patientId) where.patientId = patientId;
-
-    const status = sanitizeStatusList(params.status);
-    if (status) where.status = { in: status };
-
-    const fromDueAt = isValidDate(params.fromDueAt)
-      ? params.fromDueAt
-      : undefined;
-    const toDueAt = isValidDate(params.toDueAt) ? params.toDueAt : undefined;
-    if (fromDueAt || toDueAt) {
-      where.dueAt = {};
-      if (fromDueAt) where.dueAt.gte = fromDueAt;
-      if (toDueAt) where.dueAt.lte = toDueAt;
-    }
-
-    const tasks = await prisma.task.findMany({
-      where,
-      orderBy: { dueAt: "asc" },
-    });
-    return tasks.map(toTaskLike);
+    return listTasksMatching(
+      {
+        audience: "PARENT_TASK",
+        OR: [{ assignedTo: parentId }, { createdBy: parentId }],
+      },
+      params,
+    );
   },
 
   async listForEmployee(params: {
@@ -2098,32 +2113,13 @@ export const TaskService = {
       throw new TaskServiceError("Invalid groupId");
     }
 
-    const where: Prisma.TaskWhereInput = {
-      organisationId,
-      assignedGroupId: groupId,
-    };
-
-    const patientId = asNonEmptyString(params.patientId);
-    if (patientId) where.patientId = patientId;
-
-    const status = sanitizeStatusList(params.status);
-    if (status) where.status = { in: status };
-
-    const fromDueAt = isValidDate(params.fromDueAt)
-      ? params.fromDueAt
-      : undefined;
-    const toDueAt = isValidDate(params.toDueAt) ? params.toDueAt : undefined;
-    if (fromDueAt || toDueAt) {
-      where.dueAt = {};
-      if (fromDueAt) where.dueAt.gte = fromDueAt;
-      if (toDueAt) where.dueAt.lte = toDueAt;
-    }
-
-    const tasks = await prisma.task.findMany({
-      where,
-      orderBy: { dueAt: "asc" },
-    });
-    return tasks.map(toTaskLike);
+    return listTasksMatching(
+      {
+        organisationId,
+        assignedGroupId: groupId,
+      },
+      params,
+    );
   },
 
   async listForCompanion(params: {
