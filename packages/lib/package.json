@@ -27,6 +27,6 @@
     "@types/pdfkit": "^0.17.1",
     "@types/node": "^26.2.0",
     "@types/validator": "^13.15.2",
-    "typescript": "5.0.4"
+    "typescript": "7.0.2"
   }
 }
