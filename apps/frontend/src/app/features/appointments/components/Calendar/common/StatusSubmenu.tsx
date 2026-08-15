@@ -23,7 +23,7 @@ const StatusSubmenu = ({
     role="menu"
     aria-label="Change appointment status"
     data-context-menu="true"
-    className="fixed z-[1002] overflow-hidden rounded-[22px] border border-white/45 bg-white/36 px-1.5 py-2 shadow-[0_20px_60px_rgba(16,24,40,0.18)] backdrop-blur-2xl"
+    className="yc-glass-overlay fixed z-[1002] overflow-hidden rounded-[22px] px-1.5 py-2"
     style={submenuStyle}
   >
     <div className="flex flex-col gap-0.5">

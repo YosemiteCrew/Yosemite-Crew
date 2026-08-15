@@ -207,16 +207,16 @@
   min-width: 220px;
   flex-direction: column;
   gap: 5px;
-  /* Warm liquid-glass popover — unified with the shared overlay recipe. */
-  border: 1px solid var(--hairline-soft);
+  /* Opaque overlay. `--glass-93` + backdrop-filter did not composite in this
+     stacking context, so 7% of the page read through the panel and menu items
+     sat on top of ghosted page text. Overlays that carry content are solid. */
+  border: 1px solid var(--hairline);
   border-radius: 16px;
-  background: var(--glass-93);
+  background: var(--screen);
   box-shadow:
     0 18px 44px var(--sh12),
     inset 0 1px 0 var(--glass-inset-hi);
   padding: 8px;
-  backdrop-filter: blur(24px) saturate(1.4);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
 }
 
 .yc-profile-panel {

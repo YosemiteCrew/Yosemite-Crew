@@ -1612,19 +1612,11 @@ html[data-theme='dark'] [data-yc-app] ::selection {
  * bg/border/shadow utilities on the same element.
  * ------------------------------------------------------------------ */
 .yc-glass-overlay {
-  background: var(--glass-93);
-  border: 1px solid var(--hairline-soft);
+  background: var(--screen);
+  border: 1px solid var(--hairline);
   box-shadow:
     0 12px 34px var(--sh12),
     inset 0 1px 0 var(--glass-inset-hi);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
-  backdrop-filter: blur(24px) saturate(1.4);
-}
-
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .yc-glass-overlay {
-    background: var(--screen);
-  }
 }
 
 /* Material-luxury edge for ELEVATED in-flow cards & stat tiles. NOT a frost:
@@ -1642,14 +1634,12 @@ html[data-theme='dark'] [data-yc-app] ::selection {
    selector beats the library's single-class defaults regardless of import order;
    react-toastify keeps its own layout, positioning, and progress bar. */
 .Toastify .Toastify__toast {
-  background: var(--glass-93);
-  border: 1px solid var(--hairline-soft);
+  background: var(--screen);
+  border: 1px solid var(--hairline);
   border-radius: 14px;
   box-shadow:
     0 12px 34px var(--sh12),
     inset 0 1px 0 var(--glass-inset-hi);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
-  backdrop-filter: blur(24px) saturate(1.4);
   color: var(--ink);
 }
 
