@@ -27,7 +27,7 @@ const GoogleAddressFieldRenderer = ({
     inlabel={field.label}
     error={error}
     onChange={(e) => onChange(e.target.value)}
-    onlyAddress={true}
+    onlyAddress
     onAddressSelect={(address) => {
       onChange(address.addressLine);
       onMultiChange?.({

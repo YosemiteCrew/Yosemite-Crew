@@ -1480,9 +1480,7 @@ const useChatContainerView = ({
    */
   const activateSessionChannel = useCallback(
     async (chatClient: StreamChat, channelId: string, metadata: Record<string, unknown>) => {
-      const applyMetadata = async (chan: StreamChannel) => {
-        await chan.update(metadata, {});
-      };
+      const applyMetadata = (chan: StreamChannel) => chan.update(metadata, {});
       const queried = await chatClient.queryChannels(
         { id: { $eq: channelId } },
         [{ last_message_at: -1 }],

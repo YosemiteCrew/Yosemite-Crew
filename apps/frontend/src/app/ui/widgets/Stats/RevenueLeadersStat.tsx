@@ -33,7 +33,7 @@ const RevenueLeadersStat = () => {
 
   return (
     <StatCardShell
-      title={'Revenue leaders'}
+      title="Revenue leaders"
       options={durationOptions}
       selected={selectedDuration}
       onSelect={(next) => setSelectedDuration(next as DashboardDurationOption)}
