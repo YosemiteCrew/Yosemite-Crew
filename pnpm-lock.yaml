@@ -333,7 +333,7 @@ importers:
         version: link:../../packages/types
       chromium-bidi:
         specifier: ^17.0.2
-        version: 17.0.2(devtools-protocol@0.0.1679354)
+        version: 17.0.2(devtools-protocol@0.0.1680125)
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2
@@ -620,8 +620,8 @@ importers:
         specifier: ^30.4.2
         version: 30.4.2(@types/node@26.2.0)(ts-node@10.9.2)
       jest-axe:
-        specifier: ^10.0.0
-        version: 10.0.0
+        specifier: ^11.0.0
+        version: 11.0.0
       jest-environment-jsdom:
         specifier: ^30.4.1
         version: 30.4.1
@@ -15603,11 +15603,6 @@ packages:
     engines: {node: '>=4'}
     dev: true
 
-  /axe-core@4.10.2:
-    resolution: {integrity: sha512-RE3mdQ7P3FRSe7eqCWoeQ/Z9QXrtniSjp1wUjt5nRC3WIpz5rSCve6o3fsZ2aCpJtrZjSZgjwXAoTO5k4tEI0w==}
-    engines: {node: '>=4'}
-    dev: true
-
   /axe-core@4.12.1:
     resolution: {integrity: sha512-s7iGf5GaVMxEG0ENN9x+xTr7GFZCb1ZP/1uATUpCEK2X78nDB3RwbtFCo9pGAf9ru+VwoQ464DkaLEeRM08wJA==}
     engines: {node: '>=4'}
@@ -16633,13 +16628,13 @@ packages:
     engines: {node: '>=6.0'}
     dev: false
 
-  /chromium-bidi@17.0.2(devtools-protocol@0.0.1679354):
+  /chromium-bidi@17.0.2(devtools-protocol@0.0.1680125):
     resolution: {integrity: sha512-5v9GQFhTktFvotn/OFNJBmKLKRAb6n9r0bVCwf7sHgWc3/JryK0bj1nn93L3pHFrfgcsu6Be6EWsDi+1XHTGDg==}
     engines: {node: '>=20.19.0 <22.0.0 || >=22.12.0'}
     peerDependencies:
       devtools-protocol: '*'
     dependencies:
-      devtools-protocol: 0.0.1679354
+      devtools-protocol: 0.0.1680125
       mitt: 3.0.1
       zod: 3.25.76
     dev: true
@@ -17281,13 +17276,6 @@ packages:
   /create-require@1.1.1:
     resolution: {integrity: sha512-dcKFX3jn0MpIaXjisoRvexIJVEKzaq7z2rZKxf+MSr9TkdmHmsU4m2lcLojrj/FHl8mk5VxMmYA+ftRkP/3oKQ==}
     dev: true
-
-  /cron-parser@5.7.0:
-    resolution: {integrity: sha512-iSpDHpwwW/GhIg4JVODYlWUEpMNSimaHvqOhHpOz1W+Y97z1lL1nf+dpcF17cNwFRpTtKN9devgi1fxflp3Phw==}
-    engines: {node: '>=18'}
-    dependencies:
-      luxon: 3.7.2
-    dev: false
 
   /cron-parser@5.8.1:
     resolution: {integrity: sha512-fVw5nGEkTVmiPKo3fY0j28Thq6jR00VKWyL22llWrsbII4sDHI+8Kx1kcL+QzGQJfCfk64bbMotrgTZRpzYpLQ==}
@@ -18006,8 +17994,8 @@ packages:
       dequal: 2.0.3
     dev: false
 
-  /devtools-protocol@0.0.1679354:
-    resolution: {integrity: sha512-ml80h806FGbZqo1e2aonL6pu5slXp4B6GUXw1J5LORLVneKvuxGYRJ7rFgJ87+RuNRVv9IJ6+XNVcd5tFFq3+g==}
+  /devtools-protocol@0.0.1680125:
+    resolution: {integrity: sha512-rVARKAvOFJCFkvgX01VLvYqKIvt+cRCqvUxIhB2oAqVGPalxk3w3sb5TUGDagpow/EFblBpm/Zl/29QA2dd+jA==}
     dev: true
 
   /dfa@1.2.0:
@@ -21975,13 +21963,13 @@ packages:
       picocolors: 1.1.1
     dev: true
 
-  /jest-axe@10.0.0:
-    resolution: {integrity: sha512-9QR0M7//o5UVRnEUUm68IsGapHrcKGakYy9dKWWMX79LmeUKguDI6DREyljC5I13j78OUmtKLF5My6ccffLFBg==}
-    engines: {node: '>= 16.0.0'}
+  /jest-axe@11.0.0:
+    resolution: {integrity: sha512-JuLD/QzqDn5QxpFUMkbmf55GiI+sdutpryRD//rIRuyEefYAuMfQbQZ53TsNtZXKV3rjgfD4KKTKPY+2Ga1mGw==}
+    engines: {node: '>= 18.0.0'}
     dependencies:
-      axe-core: 4.10.2
+      axe-core: 4.12.1
       chalk: 4.1.2
-      jest-matcher-utils: 29.2.2
+      jest-matcher-utils: 30.4.1
       lodash.merge: 4.6.2
     dev: true
 
@@ -22254,16 +22242,6 @@ packages:
     dependencies:
       '@jest/get-type': 30.1.0
       pretty-format: 30.4.1
-    dev: true
-
-  /jest-matcher-utils@29.2.2:
-    resolution: {integrity: sha512-4DkJ1sDPT+UX2MR7Y3od6KtvRi9Im1ZGLGgdLFLm4lPexbTaCgJW5NN3IOXlQHF7NSHY/VHhflQ+WoKtD/vyCw==}
-    engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
-    dependencies:
-      chalk: 4.1.2
-      jest-diff: 29.7.0
-      jest-get-type: 29.6.3
-      pretty-format: 29.7.0
     dev: true
 
   /jest-matcher-utils@29.7.0:
