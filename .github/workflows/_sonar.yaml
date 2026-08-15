@@ -1,12 +1,20 @@
 name: Sonar
 
-# Reusable Sonar stage: scan only.
+# Reusable Sonar stage: scan, then hold the result to this repository's numbers.
 #
 # The previous workflow reinstalled dependencies, regenerated the Prisma client
 # and reran every suite with coverage purely so the scanner had something to
 # read. The test stage already produces that coverage, so this stage downloads it
-# and does nothing else. There is no pnpm install, no prisma generate and no jest
-# run here by design.
+# and scans. There is no pnpm install, no prisma generate and no jest run here
+# by design.
+#
+# The scan waits on SonarCloud's built-in "Sonar way" gate, which is the only
+# gate this organisation's plan allows. That gate passes at 80% coverage and 3%
+# duplication on new code and carries no issue condition, so the final step
+# reads the published measures and enforces 95% coverage, zero duplication and
+# zero open issues. See scripts/ci/sonar-thresholds.mjs for why that is a
+# separate step rather than a gate configured on the server, and
+# docs/ci/sonar-quality-bar.md for what the bar means on each analysis scope.
 #
 # The cost of scanning without an install is that rules needing type resolution
 # from node_modules see less than they would (backend and desktop set
@@ -127,3 +135,37 @@ jobs:
           args: -Dsonar.qualitygate.wait=true
         env:
           SONAR_TOKEN: ${{ (matrix.app_key == 'frontend' && secrets.SONAR_TOKEN_FRONTEND) || (matrix.app_key == 'backend' && secrets.SONAR_TOKEN_API) || (matrix.app_key == 'mobile' && secrets.SONAR_TOKEN_MOBILE) || (matrix.app_key == 'desktop' && secrets.SONAR_TOKEN_DESKTOP) || '' }}
+
+      # The bar, enforced. "Sonar way" passes at 80% coverage and 3% duplication
+      # on new code and has no issue condition at all, so the step above proves
+      # much less than it looks like it proves. This one reads the measures the
+      # analysis just published and holds every leg to 95% coverage, zero
+      # duplication and zero open issues (docs/ci/sonar-quality-bar.md).
+      # `always()` is deliberately absent: if the scan itself failed there are
+      # no measures to read, and the job is already red.
+      # Run FROM the scanned directory rather than passing it in. The scanner
+      # leaves report-task.txt under the directory it scanned, so this way the
+      # script reads a constant relative path and takes no path argument at all -
+      # a path assembled from an argument and then read is a file-inclusion sink
+      # whether or not anything hostile can reach the argument, and bounding it
+      # does not change that.
+      - name: Enforce the Sonar quality bar
+        working-directory: ${{ matrix.dir }}
+        env:
+          SONAR_TOKEN: ${{ (matrix.app_key == 'frontend' && secrets.SONAR_TOKEN_FRONTEND) || (matrix.app_key == 'backend' && secrets.SONAR_TOKEN_API) || (matrix.app_key == 'mobile' && secrets.SONAR_TOKEN_MOBILE) || (matrix.app_key == 'desktop' && secrets.SONAR_TOKEN_DESKTOP) || '' }}
+        run: |
+          set -euo pipefail
+          # On a pull_request event this workflow file resolves from the merge
+          # ref while the checkout above is the PR head, so a branch cut before
+          # the bar landed runs this step against a tree without the script.
+          # Fail with the actual fix rather than MODULE_NOT_FOUND.
+          SCRIPT="$GITHUB_WORKSPACE/scripts/ci/sonar-thresholds.mjs"
+          if [ ! -f "$SCRIPT" ]; then
+            echo "scripts/ci/sonar-thresholds.mjs is not in this checkout: the branch predates" >&2
+            echo "the Sonar quality bar. Update the branch from dev (rebase) and push again." >&2
+            exit 1
+          fi
+          node "$SCRIPT" \
+            --coverage 95 \
+            --duplication 0 \
+            --issues 0
