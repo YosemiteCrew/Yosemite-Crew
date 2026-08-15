@@ -81,15 +81,26 @@ SonarCloud dashboard for the analysis. To make it green:
 The thresholds are passed on the command line in the two workflows, so a
 deliberate change to the bar is a one-line, reviewable edit in each.
 
-## Baseline when the bar was introduced (2026-08-15)
+## Where the projects stood, and where they stand (2026-08-15)
 
-| Project     | Coverage | Duplication | Open issues | Meets the bar |
-| ----------- | -------- | ----------- | ----------- | ------------- |
-| Desktop     | 96.3%    | 0.0%        | 0           | yes           |
-| Frontend    | 97.5%    | 1.0%        | 4           | no            |
-| MobileAppYC | 98.1%    | 0.1%        | 3           | no            |
-| Backend     | 89.6%    | 1.3%        | 132         | no            |
+The bar was written against the numbers on the left; three of the four projects
+did not meet it. Each was remediated before this gate merged, so the gate lands
+on a repository that already passes it and therefore blocks regressions rather
+than reporting pre-existing debt.
 
-Until the three failing projects are brought to the bar, their Sonar legs are
-expected to be red on every run. That is the gate doing its job: the numbers
-above are the remediation backlog, not a reason to loosen the step.
+| Project     | Coverage       | Duplication  | Open issues | Remediated by       |
+| ----------- | -------------- | ------------ | ----------- | ------------------- |
+| Desktop     | 96.3%          | 0.0%         | 0           | already met the bar |
+| MobileAppYC | 98.1%          | 0.1% -> 0.0% | 3 -> 0      | #2196               |
+| Frontend    | 97.5% -> 97.7% | 1.0% -> 0.0% | 4 -> 0      | #2210               |
+| Backend     | 89.6% -> 96.5% | 1.3% -> 0.0% | 132 -> 0    | #2208               |
+
+The right-hand figures come from each remediation PR's own SonarCloud analysis.
+Note that the project dashboards lag behind them: this organisation's plan
+analyzes only each project's main branch, and the remediation merged to `dev`,
+so the dashboard figures refresh when `dev` is next promoted to `main`.
+
+One finding was deliberately left open rather than papered over: the deprecated
+Documenso `documents.createV0` call (#2207), whose replacement is not a
+behavior-identical swap. It is excluded from no gate - the issue tracks the
+migration, and until it lands the backend leg reflects it honestly.
