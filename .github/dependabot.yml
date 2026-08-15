@@ -87,6 +87,18 @@ updates:
       # accepting anything new.
       - dependency-name: 'ioredis'
         update-types: ['version-update:semver-major']
+      # typescript 7 is the native compiler rewrite and nothing in the toolchain
+      # admits it yet: ts-jest 29.4.12 peers "typescript >=4.3 <7" (no published
+      # release, stable or next, allows 7), and typescript-eslint peers
+      # ">=4.8.4 <6.1.0" on BOTH latest and its canary channel. Because .npmrc
+      # sets auto-install-peers without strict-peer-dependencies, an install
+      # stays green while both contracts are violated, so the breakage only
+      # appears at compile and test time (#2200). TS 7 also removed baseUrl and
+      # made rootDir mandatory alongside outDir, which fails the shared package
+      # builds before any app code compiles. Migration is tracked in #1992 and
+      # has to move with ts-jest and typescript-eslint, not ahead of them.
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
       # @babel/core 8 cannot be installed while the app is on React Native
       # 0.81: @react-native/babel-preset asserts Babel "^7.0.0-0" at load time
       # and throws "Requires Babel ^7.0.0-0, but was loaded with 8.0.1" for
