@@ -1,6 +1,19 @@
 name: Chromatic
 
+# Runs on pull requests so a visual regression is caught BEFORE it lands, and on
+# pushes to the long-lived branches so the accepted baseline moves forward after
+# a merge. Previously this only ran on push, which meant every regression shipped
+# first and was reported afterwards.
 on:
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'apps/frontend/**'
+      - 'packages/design-tokens/**'
+      - 'pnpm-lock.yaml'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/chromatic.yml'
   push:
     branches: [main, dev]
     paths:
@@ -13,7 +26,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: chromatic-${{ github.ref }}
+  group: chromatic-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -27,11 +40,19 @@ jobs:
     name: Chromatic Publish & Visual Tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    if: vars.CHROMATIC_CONFIGURED == 'true'
+    # The vars gate keeps this dormant until the project token is configured.
+    # The repo check skips pull requests from forks, which cannot read secrets:
+    # without it every external contributor gets a red check they cannot fix.
+    if: >-
+      vars.CHROMATIC_CONFIGURED == 'true' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # Chromatic needs full history to find the baseline commit; onlyChanged
+          # (TurboSnap) also walks the git graph to decide what to re-snapshot.
           fetch-depth: 0
           persist-credentials: false
 
@@ -56,6 +77,10 @@ jobs:
           workingDir: apps/frontend
           buildScriptName: 'storybook:build'
           onlyChanged: true
+          # On main/dev the merged result IS the new baseline, so accept
+          # automatically. On a pull request nothing is auto-accepted: unreviewed
+          # visual changes fail the job and a human accepts them in Chromatic.
+          autoAcceptChanges: ${{ github.event_name == 'push' && github.ref_name || '' }}
           externals: |
             packages/design-tokens/**
             apps/frontend/public/**
