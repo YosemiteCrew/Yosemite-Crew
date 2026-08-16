@@ -171,19 +171,47 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
     expect(mismatches).toEqual([]);
   });
 
-  it('has no text component reaching for the raw ramp steps', () => {
-    // `text-neutral-500` was the call site that exposed the whole bug. The ramp
-    // steps are not scoped, so a text utility built on one silently opts out of
-    // the readable ink.
-    const files = fs
-      .readdirSync(path.join(process.cwd(), 'src/app'), { recursive: true, encoding: 'utf8' })
-      .filter((f) => f.endsWith('.tsx') && !f.includes('__tests__') && !f.includes('.stories.'));
+  it('has nothing painting text with a raw neutral ramp step', () => {
+    // `text-neutral-500` in the chat panes is what exposed the whole bug, and
+    // the first version of this guard only looked for that one shape - Tailwind
+    // classes, in .tsx. That missed stylesheets (`color: var(--color-neutral-600)`)
+    // and inline styles, which is most of them. All three forms are checked now.
+    //
+    // Only TEXT positions count. The same tokens are legitimate as backgrounds,
+    // borders, dividers and scrollbar thumbs, and are deliberately left light
+    // there, so `background:`/`border:`/`scrollbar-color:` are not matched.
+    // Only the FAINT band. The ramp runs dark-to-light, and 700-900 (and
+    // neutral-0 on dark surfaces) are legitimate text colours - it is 300-600
+    // that lands in the unreadable range on bone and is not scoped.
+    const FAINT = '(?:300|400|500|600)';
+    const TEXT_USES = [
+      new RegExp(`(?:^|[^-\\w])color:\\s*var\\(--color-neutral-${FAINT}\\)`), // CSS + inline styles
+      new RegExp(`color=["']var\\(--color-neutral-${FAINT}\\)["']`), // react-icons style prop
+      new RegExp(`\\btext-neutral-${FAINT}\\b`), // Tailwind utility
+    ];
 
-    const offenders = files.filter((f) =>
-      /\btext-neutral-(500|600)\b/.test(
-        fs.readFileSync(path.join(process.cwd(), 'src/app', f), 'utf8')
-      )
-    );
+    /** Text on a DARK surface wants the light end of the ramp; that is correct. */
+    const ON_DARK_SURFACE = new Set([
+      'features/appointments/pages/AppointmentWorkspace/components/PackageBreakdownTooltip.tsx',
+    ]);
+
+    const root = path.join(process.cwd(), 'src/app');
+    const files = fs
+      .readdirSync(root, { recursive: true, encoding: 'utf8' })
+      .filter((f) => /\.(tsx|css)$/.test(f))
+      .filter((f) => !f.includes('__tests__') && !f.includes('.stories.'))
+      .filter((f) => !ON_DARK_SURFACE.has(f))
+      // globals.css is where the ramp is DEFINED; its own declarations are not uses.
+      .filter((f) => f !== 'globals.css');
+
+    const offenders: string[] = [];
+    for (const file of files) {
+      const lines = fs.readFileSync(path.join(root, file), 'utf8').split('\n');
+      lines.forEach((line, i) => {
+        if (line.trimStart().startsWith('*') || line.trimStart().startsWith('//')) return;
+        if (TEXT_USES.some((re) => re.test(line))) offenders.push(`${file}:${i + 1}`);
+      });
+    }
 
     expect(offenders).toEqual([]);
   });

@@ -14,7 +14,7 @@
   letter-spacing: -0.66px;
 }
 .summary-title span {
-  color: var(--color-neutral-600);
+  color: var(--color-text-tertiary);
 }
 .summary-labels {
   display: flex;

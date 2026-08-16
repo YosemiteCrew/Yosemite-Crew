@@ -141,7 +141,7 @@ const InventoryFilters = ({
                 className="relative z-10 h-full transition-colors duration-200 cursor-pointer"
                 style={{
                   width: 'calc(100% / 3)',
-                  color: isCurrent ? 'var(--color-neutral-0)' : 'var(--color-neutral-600)',
+                  color: isCurrent ? 'var(--color-neutral-0)' : 'var(--color-text-tertiary)',
                   fontWeight: 500,
                   lineHeight: '120%',
                   letterSpacing: '-0.28px',

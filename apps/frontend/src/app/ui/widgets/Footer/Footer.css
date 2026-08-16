@@ -92,7 +92,7 @@
   position: relative;
   display: inline-block;
   text-decoration: none;
-  color: var(--color-neutral-600);
+  color: var(--color-text-tertiary);
   font-family: var(--font-satoshi), sans-serif;
   font-size: 16px;
   font-weight: 400;
