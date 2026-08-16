@@ -422,7 +422,7 @@ const AppointmentBoardCard = ({
       className={clsx(
         'relative w-full shrink-0 overflow-hidden rounded-[13px]! bg-neutral-0 px-[14px] py-[12px] text-left transition-colors flex flex-col items-stretch justify-start gap-2 border',
         emphasisClass,
-        isMuted ? 'opacity-[0.72] shadow-none' : emphasisShadowClass,
+        isMuted ? 'shadow-none' : emphasisShadowClass,
         isDragging
           ? 'opacity-60 shadow-none'
           : 'hover:border-input-border-active! hover:bg-card-hover!',

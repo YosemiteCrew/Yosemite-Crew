@@ -140,11 +140,11 @@ describe('PhoneMonthOverview — dot map', () => {
     expect(screen.getAllByRole('button')).toHaveLength(40);
   });
 
-  it('fades padding days and quiet days by different amounts', () => {
+  it('separates padding and quiet days by ink, not by fading them', () => {
     renderOverview({ appointments: appointmentsOn(1, 2) });
 
-    expect(dayButton('2026-06-29', 0).className).toContain('opacity-[0.35]');
-    expect(dayButton('2026-07-05', 0).className).toContain('opacity-[0.45]');
+    expect(dayButton('2026-06-29', 0).className).not.toContain('opacity-');
+    expect(dayButton('2026-07-05', 0).className).not.toContain('opacity-');
     expect(dayButton('2026-07-01', 2).className).not.toContain('opacity-');
   });
 

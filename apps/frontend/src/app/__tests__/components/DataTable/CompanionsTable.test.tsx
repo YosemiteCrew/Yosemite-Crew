@@ -231,7 +231,7 @@ describe('CompanionsTable', () => {
     );
   });
 
-  it('fades inactive rows and defaults a missing status to inactive', () => {
+  it('marks inactive rows with the status pill, not a dim, and defaults a missing status to inactive', () => {
     const inactive = {
       ...companion,
       companion: { ...companion.companion, status: undefined },
@@ -239,7 +239,7 @@ describe('CompanionsTable', () => {
     const { container } = render(<CompanionsTable {...baseProps} filteredList={[inactive]} />);
 
     expect(screen.getByText('inactive')).toBeInTheDocument();
-    expect(container.innerHTML).toContain('opacity-[0.62]');
+    expect(container.innerHTML).not.toContain('opacity-');
   });
 
   it('renders the grid view when viewMode is grid and its empty state', () => {
@@ -447,7 +447,7 @@ describe('CompanionsTable', () => {
     expect(screen.getByText('Jan 6, 2025')).toBeInTheDocument();
   });
 
-  it('fades an inactive grid card and keys it by name when the id is missing', () => {
+  it('marks an inactive grid card with the status pill and keys it by name when the id is missing', () => {
     const inactiveNoId: any = {
       companion: {
         name: 'Nimbus',
@@ -466,7 +466,7 @@ describe('CompanionsTable', () => {
 
     // Missing status defaults to inactive and fades the card.
     expect(screen.getByText('inactive')).toBeInTheDocument();
-    expect(container.innerHTML).toContain('opacity-[0.62]');
+    expect(container.innerHTML).not.toContain('opacity-');
     expect(screen.getByText(/Nimbus/)).toBeInTheDocument();
   });
 
@@ -492,7 +492,7 @@ describe('CompanionsTable', () => {
     // the card fades, and the subline still renders (blank breed dropped).
     expect(screen.getByText('+ CO-PARENT')).toBeInTheDocument();
     expect(screen.getByText(/inactive/)).toBeInTheDocument();
-    expect(container.innerHTML).toContain('opacity-[0.62]');
+    expect(container.innerHTML).not.toContain('opacity-');
     expect(screen.getByText(/Willow/)).toBeInTheDocument();
   });
 

@@ -136,7 +136,7 @@ const ChangeStatusModal = <S extends string>({
       <div className="flex flex-col gap-4 w-full">
         <ModalHeader title="Change status" onClose={handleCancel} />
         <div className="flex flex-col gap-2">
-          <div className={saving ? 'pointer-events-none opacity-60' : ''}>
+          <div className={saving ? 'pointer-events-none' : ''}>
             <LabelDropdown
               placeholder={placeholder}
               options={statusOptions}

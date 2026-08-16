@@ -232,6 +232,17 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
         'aria-hidden spinner geometry',
       'features/forms/pages/Forms/Sections/AddForm/components/BuildWrapper.tsx::50':
         'drag-handle icon glyph, no text',
+      // Verified individually in the state-dim audit.
+      'ui/primitives/Buttons/BaseButton.tsx::60': 'the disabled branch of the shared button',
+      'features/companions/components/AddCompanionCentralModal/AddCompanionViewMode.tsx::40':
+        'pointer-events-none while a save is in flight - transient',
+      'features/companions/pages/Companions/InClinicTodayBand.tsx::14':
+        'decorative 72px background glyph behind the band',
+      'features/appointments/components/Calendar/common/MenuActionsList.tsx::55': 'menu separator',
+      'features/appointments/components/Calendar/common/RoomSubmenu.tsx::60':
+        'disabled room option',
+      'features/appointments/pages/AppointmentWorkspace/steps/SummaryStep.tsx::60':
+        'disabled action while the summary saves',
     };
 
     for (const file of tsx) {
@@ -241,7 +252,10 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
       // its meta line used text-text-tertiary three hundred lines away, so the
       // guard passed over 3.16:1 text. If a component paints faint text
       // anywhere, every dim inside it is suspect until named otherwise.
-      if (!FAINT_TEXT.test(source)) continue;
+      // A dim at or below 65% sinks even --ink (15:1 -> under 4.5), so heavy
+      // dims are checked everywhere; lighter ones only where the component
+      // paints faint text, which is where they actually bite.
+      const heavyOnly = !FAINT_TEXT.test(source);
       const lines = source.split('\n');
       lines.forEach((line, i) => {
         // `cursor-not-allowed` marks the disabled branch of a clsx ternary,
@@ -251,11 +265,24 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
         // Transient interaction feedback while the pointer moves an element,
         // like a keyframe step rather than a state anyone reads.
         if (/isDragging|is-dragging|dragging/i.test(line)) return;
-        for (const m of line.matchAll(/(^|[\s"'`:])opacity-(\d{1,3})\b/g)) {
+        // Two forms: the scale (opacity-70) and the arbitrary value
+        // (opacity-[0.55], opacity-[.66]). Missing the second let a whole
+        // family through - including a card whose 0.55 nested inside a
+        // disabled link's 0.6 and composited --ink itself down to 1.90:1.
+        const utilities = [
+          ...line.matchAll(/(^|[\s"'`:])opacity-(\d{1,3})\b/g),
+          ...line.matchAll(/(^|[\s"'`:])opacity-\[(0?\.\d+)\]/g),
+        ];
+        for (const m of utilities) {
           if (m[1].endsWith(':')) continue; // hover: / disabled: / group-hover:
-          if (Number(m[2]) >= 100 || Number(m[2]) === 0) continue; // 0 = hidden
-          if (`${file}::${m[2]}` in CLEARED) continue;
-          offenders.push(`${file}:${i + 1}  faint text + opacity-${m[2]}`);
+          const pct =
+            m[2].startsWith('.') || m[2].startsWith('0.')
+              ? Math.round(Number(m[2]) * 100)
+              : Number(m[2]);
+          if (pct >= 100 || pct === 0) continue; // 0 = hidden, nothing to read
+          if (heavyOnly && pct > 65) continue;
+          if (`${file}::${pct}` in CLEARED) continue;
+          offenders.push(`${file}:${i + 1}  opacity ${pct}%`);
         }
       });
     }
