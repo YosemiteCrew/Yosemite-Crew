@@ -25,6 +25,9 @@ const InvoiceBilledItems = ({ items, currency }: InvoiceBilledItemsProps) => {
           track={gridTemplate}
           gap="10px"
           sticky={false}
+          // Rows below use px-4; the recipe's 20px would start every heading
+          // 4px right of its values and narrow the flexible track by 8px.
+          className="px-4!"
         />
         {items.length === 0 ? (
           <output className="block px-4 py-3 text-[13px] text-text-tertiary border-t border-card-border">

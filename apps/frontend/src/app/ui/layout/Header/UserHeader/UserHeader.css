@@ -347,10 +347,10 @@
      reintroduces the pink. */
   background: var(--blue);
   border: 1.5px solid var(--screen);
-  animation: ycPulseDot 3.4s cubic-bezier(0.4, 0, 0.2, 1) 1s infinite;
+  animation: ycPulseNotificationDot 3.4s cubic-bezier(0.4, 0, 0.2, 1) 1s infinite;
 }
 
-@keyframes ycPulseDot {
+@keyframes ycPulseNotificationDot {
   0% {
     box-shadow: 0 0 0 0 color-mix(in srgb, var(--blue) 45%, transparent);
   }

@@ -1,7 +1,6 @@
 import React from 'react';
 import UserLabels from '@/app/features/appointments/components/Calendar/common/UserLabels';
 import { Team } from '@/app/features/organization/types/team';
-import '@/app/ui/tables/GenericTable/Generictable.css';
 
 type CalendarTeamNamesRowProps = {
   team: Team[];
@@ -9,13 +8,16 @@ type CalendarTeamNamesRowProps = {
 };
 
 export const CalendarTeamNamesRow = ({ team, teamColumnsStyle }: CalendarTeamNamesRowProps) => (
-  // --flush: the practitioner labels must line up column-for-column with the
-  // body grid, so the recipe's 20px container padding would desynchronise them.
-  // --static: the gutter spacers below are `sticky` against the horizontal
-  // scroller, and making this band sticky would trap them in a new stacking
-  // context. It also closed on --color-neutral-200 while every sibling band
-  // closes on --hairline.
-  <div className="yc-table-head yc-table-head--static yc-table-head--flush grid grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
+  // Takes the shared BAND, not the shared TYPE. This strip's labels are
+  // practitioner names - "Dr. Sarah Weber" and a speciality subline - which are
+  // data, not column nouns, and UserLabels resets neither casing nor tracking.
+  // Applying the full recipe here rendered every name in wide-tracked capitals.
+  // The band itself was still wrong though: it closed on --color-neutral-200
+  // while every sibling calendar band closes on --hairline.
+  <div
+    className="grid grid-cols-[64px_minmax(0,1fr)_64px] border-b border-[var(--hairline)] min-w-max"
+    style={{ background: 'var(--screen-2)' }}
+  >
     <div className="sticky left-0 z-30" style={{ background: 'inherit' }} />
     <UserLabels team={team} columnsStyle={teamColumnsStyle} />
     <div className="sticky right-0 z-30" style={{ background: 'inherit' }} />
