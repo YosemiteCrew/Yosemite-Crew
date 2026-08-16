@@ -54,6 +54,17 @@ against `--screen` alone passes things that fail in the wild. The light ramp is
 want text fainter than `--ink-faint`, the answer is not a lighter ink; it is
 less text, or a larger size, or a different surface.
 
+That 4.56 ramp is the **app** value. The faint inks are the one deliberately
+two-valued pair in the palette: PIMS gets `#66635f` under
+`body:has([data-yc-app])`, while `:root` keeps `#9d9285` for the marketing
+pages, whose `--spot` sections are always dark and would drop to 2.85:1 if
+darkened. Two consequences, both of which have already shipped as bugs: the
+hook is on `body` via `:has()` because overlays `createPortal` out of the shell,
+and the whole `@theme` alias closure (`--color-neutral-600` and everything
+downstream) must be re-declared with it, since an alias resolves where it is
+declared - on `:root` - and will not recompute just because its dependency
+changed lower down. See `src/app/ui/tokens.md` for the table and the guard.
+
 **Column headers come from one recipe.** `<GenericTable>` for real tabular
 markup; `<TableHead>` (`src/app/ui/tables/TableHead.tsx`) for grid or flex
 shells. Do not hand-roll a `--screen-2` band with uppercase micro-type - PIMS

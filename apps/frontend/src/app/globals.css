@@ -1781,8 +1781,31 @@ html[data-theme='dark'] [data-yc-app] ::selection {
 body:has([data-yc-app]) {
   --ink-faint: #66635f;
   --ink-faint2: #66635f;
+  /* The @theme layer aliases these, and those aliases are COMPUTED ON :root -
+     so overriding only the short tokens here leaves every alias consumer on the
+     old value. `text-neutral-500` in the chat panes kept resolving #a9a39e.
+     The transitive text closure is re-declared with them.
+     Deliberately excluded: --color-grey-border / --greyborder, which resolve
+     from the same inks but are borders, not text - darkening those would be a
+     visible change with no contrast argument behind it. */
+  --color-neutral-600: #66635f;
+  --color-neutral-500: #66635f;
+  --color-text-tertiary: #66635f;
+  --color-text-extra: #66635f;
+  --color-grey-text: #66635f;
+  --color-grey-bg: #66635f;
+  --black-grey: #66635f;
+  --black-grey-Text: #66635f;
 }
 html[data-theme='dark'] body:has([data-yc-app]) {
   --ink-faint: #9d9285;
   --ink-faint2: #998f82;
+  --color-neutral-600: #9d9285;
+  --color-neutral-500: #998f82;
+  --color-text-tertiary: #9d9285;
+  --color-text-extra: #998f82;
+  --color-grey-text: #9d9285;
+  --color-grey-bg: #9d9285;
+  --black-grey: #9d9285;
+  --black-grey-Text: #9d9285;
 }
