@@ -27,12 +27,17 @@ describe('CalendarTeamNamesRow', () => {
     );
   });
 
-  it('paints the header band with the warm --screen-2 surface, not a blue tint or white', () => {
+  it('takes the shared header recipe rather than restating the band inline', () => {
     const { container } = render(<CalendarTeamNamesRow team={team} teamColumnsStyle={{}} />);
 
     const band = container.firstChild as HTMLElement;
-    expect(band.style.background).toContain('var(--screen-2)');
-    expect(band.style.background).not.toContain('white');
-    expect(band.style.background).not.toContain('brand');
+    // The --screen-2 surface now comes from `.yc-table-head`, which also carries
+    // the type, tracking and closing rule. Restating any of it inline is how
+    // this band drifted to 9.5px/0.08em against the table's 10.5px/0.1em.
+    expect(band).toHaveClass('yc-table-head');
+    expect(band.style.background).toBe('');
+    // Flush, or the labels stop lining up with the body columns; static,
+    // because the gutter spacers below are sticky against the scroller.
+    expect(band).toHaveClass('yc-table-head--flush', 'yc-table-head--static');
   });
 });

@@ -106,6 +106,14 @@
 /* Appearance without the sticky contract: inside a drawer, a modal, or any
    transformed parent, `position: sticky` resolves against the wrong container
    and strands the band mid-panel. */
+/* Appearance with no container padding. Calendar strips are two-column shells
+   (gutter + day track) that must line up column-for-column with the body grid
+   below them; the recipe's 20px would inset the whole track and desynchronise
+   header from body. Per-cell padding stays on the cells. */
+.yc-table-head--flush {
+  padding: 0;
+}
+
 .yc-table-head--static {
   position: static;
 }

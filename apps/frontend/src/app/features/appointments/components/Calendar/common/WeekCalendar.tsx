@@ -41,6 +41,7 @@ import {
 import type { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 import type { AppointmentCalendarInteractionProps } from '@/app/features/appointments/components/Calendar/common/calendarInteractionProps';
 import './WeekCalendar.css';
+import '@/app/ui/tables/GenericTable/Generictable.css';
 
 const HOUR_ROW_TOP_OFFSET_PX = 0;
 
@@ -187,10 +188,7 @@ const WeekDayHeaderRow = ({
   now: Date;
   dayColumnsStyle: React.CSSProperties;
 }) => (
-  <div
-    className="yc-week-grid__shell yc-week-grid__track border-b"
-    style={{ borderColor: 'var(--hairline)', backgroundColor: 'var(--screen-2)' }}
-  >
+  <div className="yc-table-head yc-table-head--static yc-table-head--flush yc-week-grid__shell yc-week-grid__track">
     <div className="sticky left-0 z-40" style={{ backgroundColor: 'var(--screen-2)' }} />
     <div className="grid" style={dayColumnsStyle}>
       {days.map((day) => {
@@ -208,21 +206,21 @@ const WeekDayHeaderRow = ({
               backgroundColor: isToday ? 'var(--nav-active-bg)' : undefined,
             }}
           >
-            <div
-              className="text-[9.5px] font-bold uppercase tracking-[0.08em]"
-              style={{ color: isToday ? 'var(--nav-active)' : 'var(--ink-faint)' }}
-            >
+            <div style={{ color: isToday ? 'var(--nav-active)' : 'var(--ink-faint)' }}>
               {weekday}
             </div>
             {isToday ? (
               <div
-                className="flex size-6 items-center justify-center rounded-full text-[13px] font-bold text-white"
-                style={{ backgroundColor: 'var(--blue)' }}
+                className="flex size-6 items-center justify-center rounded-full text-[13px] font-bold normal-case tracking-normal text-white"
+                style={{ backgroundColor: 'var(--blue-strong)' }}
               >
                 {dateNumber}
               </div>
             ) : (
-              <div className="text-[14px] font-bold" style={{ color: 'var(--ink)' }}>
+              <div
+                className="text-[14px] font-bold normal-case tracking-normal"
+                style={{ color: 'var(--ink)' }}
+              >
                 {dateNumber}
               </div>
             )}
