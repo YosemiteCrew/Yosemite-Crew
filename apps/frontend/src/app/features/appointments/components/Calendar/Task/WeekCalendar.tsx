@@ -258,7 +258,9 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                               {nowTimeLabel && (
                                 <div
                                   className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold whitespace-nowrap"
-                                  style={{ color: 'var(--color-danger-700)' }}
+                                  // --danger-text, not the 700 fill: at 10px on
+                                  // the calendar ground the fill read 4.00:1.
+                                  style={{ color: 'var(--danger-text)' }}
                                 >
                                   {nowTimeLabel}
                                 </div>

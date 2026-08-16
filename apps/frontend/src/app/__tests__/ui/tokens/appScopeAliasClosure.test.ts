@@ -243,6 +243,20 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
         'disabled room option',
       'features/appointments/pages/AppointmentWorkspace/steps/SummaryStep.tsx::60':
         'disabled action while the summary saves',
+      // Inline-style form, each read individually.
+      'ui/layout/PageSkeleton.tsx::80': 'skeleton row, no text',
+      'ui/layout/PageSkeleton.tsx::60': 'skeleton row, no text',
+      'features/integrations/pages/IdexxWorkspace/index.tsx::75': 'SKELETON_ROWS, no text',
+      'features/integrations/pages/IdexxWorkspace/index.tsx::50': 'SKELETON_ROWS, no text',
+      'features/integrations/pages/IdexxWorkspace/index.tsx::28': 'SKELETON_ROWS, no text',
+      'features/appointments/components/Calendar/common/WeekCalendar.tsx::75':
+        'the now-line border, decoration with no text',
+      'features/organization/pages/Specialities/PackageBreakdownTable.tsx::50':
+        'dark glass tooltip',
+      'features/organization/pages/Specialities/PackageBreakdownTable.tsx::70':
+        'dark glass tooltip',
+      'features/organization/pages/Specialities/PackageBreakdownTable.tsx::80':
+        'dark glass tooltip',
     };
 
     for (const file of tsx) {
@@ -276,6 +290,9 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
         const utilities = [
           ...line.matchAll(/(^|[\s"'`:])opacity-(\d{1,3})\b/g),
           ...line.matchAll(/(^|[\s"'`:])opacity-\[(0?\.\d+)\]/g),
+          // Inline style objects: style={{ opacity: 0.8 }}. A third spelling,
+          // and the one behind the calendar's "Due:" line at 3.98:1.
+          ...line.matchAll(/()opacity:\s*(0?\.\d+)/g),
         ];
         for (const m of utilities) {
           if (m[1].endsWith(':')) continue; // hover: / disabled: / group-hover:
