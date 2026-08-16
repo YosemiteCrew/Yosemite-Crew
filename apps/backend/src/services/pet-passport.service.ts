@@ -394,6 +394,42 @@ const hashPublicToken = (raw: string): string =>
   createHash("sha256").update(raw).digest("hex");
 
 /** 256 bits of entropy - a public QR credential must not be guessable. */
+/**
+ * Proves the caller is the pet's primary parent and returns the organisation to
+ * assemble against. The mobile app has no org context, so the org is derived
+ * from the pet's own membership rather than trusted from the request.
+ */
+const assertParentOfPatient = async (
+  patientId: string,
+  userId: string | null,
+): Promise<string> => {
+  if (!userId) {
+    throw new PetPassportServiceError("Companion not found.", 404);
+  }
+  const link = await prisma.parentPatient.findFirst({
+    where: { patientId, role: "PRIMARY", status: "ACTIVE" },
+    select: { parentId: true },
+  });
+  const parent = link
+    ? await prisma.parent.findUnique({
+        where: { id: link.parentId },
+        select: { linkedUserId: true },
+      })
+    : null;
+  // Uniform 404 so this cannot be used to probe which patient ids exist.
+  if (!parent?.linkedUserId || parent.linkedUserId !== userId) {
+    throw new PetPassportServiceError("Companion not found.", 404);
+  }
+  const membership = await prisma.patientOrganisation.findFirst({
+    where: { patientId, status: { in: ["ACTIVE", "PENDING"] } },
+    select: { organisationId: true },
+  });
+  if (!membership?.organisationId) {
+    throw new PetPassportServiceError("Companion not found.", 404);
+  }
+  return membership.organisationId;
+};
+
 const generatePublicToken = (): string => randomBytes(32).toString("base64url");
 
 export const PetPassportService = {
@@ -442,6 +478,22 @@ export const PetPassportService = {
   ): Promise<PetPassportDTO> {
     await assertOrgMembership(patientId, organisationId);
     return assemblePassport(patientId, organisationId, true);
+  },
+
+  /**
+   * The pet parent's own view, for the mobile app.
+   *
+   * Authenticated as the owner rather than gated by a share token, so the app
+   * never has to hold a bearer credential, and scoped "owner" so the parent
+   * sees every practice's signed records - which is theirs to see, and is the
+   * same view the public QR renders.
+   */
+  async getPassportForParent(
+    patientId: string,
+    userId: string | null,
+  ): Promise<PetPassportDTO> {
+    const organisationId = await assertParentOfPatient(patientId, userId);
+    return assemblePassport(patientId, organisationId, true, "owner");
   },
 
   // Public, unauthenticated verification. Only formally-issued passports are

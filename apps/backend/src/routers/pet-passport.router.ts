@@ -103,6 +103,29 @@ router.get(
   PassportConsentController.listConsents,
 );
 
+// PET PARENT (mobile) surface. No organisation in the path and no staff
+// permission gate: the service proves the caller is the pet's primary parent
+// and derives the org from the pet's own membership. Wallet passes are served
+// here rather than from the public token route so the app never has to hold a
+// bearer credential.
+router.get(
+  "/mobile/companion/:patientId",
+  requireMobileAuth,
+  PetPassportController.getPassportForParent,
+);
+
+router.get(
+  "/mobile/companion/:patientId/wallet/apple",
+  requireMobileAuth,
+  PetPassportController.getApplePassForParent,
+);
+
+router.get(
+  "/mobile/companion/:patientId/wallet/google",
+  requireMobileAuth,
+  PetPassportController.getGooglePassForParent,
+);
+
 // Granting is the PET PARENT's action, so this is a mobile-authenticated route
 // and carries no staff permission gate. The service verifies the caller is the
 // pet's primary parent; a practice must never be able to authorise its own

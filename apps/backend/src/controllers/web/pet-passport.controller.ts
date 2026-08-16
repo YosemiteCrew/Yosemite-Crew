@@ -98,6 +98,13 @@ const ExamBodySchema = z.object({
   temperatureC: z.number().optional(),
 });
 
+// The mobile app has no org context: the pet parent is authenticated and the
+// organisation is derived from the pet's own membership.
+const ParentParamsSchema = z.object({ patientId: IdSchema });
+
+const passFileName = (name: string): string =>
+  name.replaceAll(/[^a-z0-9]+/gi, "-") || "passport";
+
 const RecordParamsSchema = ParamsSchema.extend({ recordId: IdSchema });
 
 const AttestBodySchema = z.object({
@@ -423,6 +430,80 @@ export const PetPassportController = {
 
   // Public, unauthenticated QR verification. No org scope on the request; a
   // uniform 404 for anything unresolved keeps the surface unprobeable.
+  /**
+   * Pet-parent (mobile) surface: the passport plus its two wallet passes.
+   *
+   * Authenticated as the owner rather than gated by a share token, so the app
+   * never has to store a bearer credential. No org in the path - the service
+   * derives it from the pet's own membership after proving parentage.
+   */
+  getPassportForParent: async (
+    req: Request,
+    res: Response,
+  ): Promise<Response> => {
+    try {
+      const typedReq = req as OrgRequest;
+      const params = ParentParamsSchema.safeParse(req.params);
+      if (!params.success) {
+        return res.status(400).json({ message: "Invalid route parameters" });
+      }
+      const passport = await PetPassportService.getPassportForParent(
+        params.data.patientId,
+        typedReq.userId ?? null,
+      );
+      return res.status(200).json(passport);
+    } catch (err) {
+      return handleError(err, res, "Pet passport read failed");
+    }
+  },
+
+  getApplePassForParent: async (
+    req: Request,
+    res: Response,
+  ): Promise<Response> => {
+    try {
+      const typedReq = req as OrgRequest;
+      const params = ParentParamsSchema.safeParse(req.params);
+      if (!params.success) {
+        return res.status(400).json({ message: "Invalid route parameters" });
+      }
+      const passport = await PetPassportService.getPassportForParent(
+        params.data.patientId,
+        typedReq.userId ?? null,
+      );
+      const pkpass = await WalletPassService.buildApplePass(passport);
+      res.setHeader("Content-Type", "application/vnd.apple.pkpass");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${passFileName(passport.identity.name)}.pkpass"`,
+      );
+      return res.status(200).send(pkpass);
+    } catch (err) {
+      return handleError(err, res, "Apple Wallet pass generation failed");
+    }
+  },
+
+  getGooglePassForParent: async (
+    req: Request,
+    res: Response,
+  ): Promise<Response> => {
+    try {
+      const typedReq = req as OrgRequest;
+      const params = ParentParamsSchema.safeParse(req.params);
+      if (!params.success) {
+        return res.status(400).json({ message: "Invalid route parameters" });
+      }
+      const passport = await PetPassportService.getPassportForParent(
+        params.data.patientId,
+        typedReq.userId ?? null,
+      );
+      const saveUrl = WalletPassService.buildGoogleSaveUrl(passport);
+      return res.status(200).json({ saveUrl });
+    } catch (err) {
+      return handleError(err, res, "Google Wallet pass generation failed");
+    }
+  },
+
   getPublicPassportByToken: async (
     req: Request,
     res: Response,

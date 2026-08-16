@@ -19,6 +19,9 @@ const PetPassportController = {
   getGooglePass: jest.fn(),
   issuePublicToken: jest.fn(),
   revokePublicToken: jest.fn(),
+  getPassportForParent: jest.fn(),
+  getApplePassForParent: jest.fn(),
+  getGooglePassForParent: jest.fn(),
 };
 
 const PassportConsentController = {
@@ -129,6 +132,18 @@ describe("pet-passport.router", () => {
     // passport:edit:any is held by every staff role including RECEPTIONIST, so
     // signing must use the narrower passport:attest:any.
     expect(requirePermission).toHaveBeenCalledWith("passport:attest:any");
+  });
+
+  it("exposes the pet-parent passport + wallet routes behind mobile auth only", () => {
+    const MOB = "/mobile/companion/:patientId";
+    for (const path of [MOB, `${MOB}/wallet/apple`, `${MOB}/wallet/google`]) {
+      const route = findRoute(path, "get");
+      expect(route?.stack).toHaveLength(2);
+      const handles = route?.stack.map((l) => l.handle);
+      expect(handles).toContain(requireMobileAuth);
+      // No staff session and no org permission gate on the parent's own view.
+      expect(handles).not.toContain(requireWebAuth);
+    }
   });
 
   it("no longer exposes the legacy list (get) routes", () => {

@@ -522,3 +522,42 @@ describe("PetPassportService public share link", () => {
     ).rejects.toMatchObject({ statusCode: 404 });
   });
 });
+
+describe("PetPassportService.getPassportForParent", () => {
+  const asParent = (linkedUserId: string | null = "user-1") => {
+    prismaMock.parentPatient.findFirst.mockResolvedValue({ parentId: "par-1" });
+    prismaMock.parent.findUnique.mockResolvedValue({ linkedUserId });
+  };
+
+  it("404s an unauthenticated caller", async () => {
+    await expect(
+      PetPassportService.getPassportForParent("pat-1", null),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("404s a caller who is not the pet's parent", async () => {
+    asParent("someone-else");
+    await expect(
+      PetPassportService.getPassportForParent("pat-1", "user-1"),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("404s when the pet has no linked parent account", async () => {
+    prismaMock.parentPatient.findFirst.mockResolvedValue(null);
+    await expect(
+      PetPassportService.getPassportForParent("pat-1", "user-1"),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("assembles the owner view for the pet's parent", async () => {
+    asParent();
+    prismaMock.patientOrganisation.findFirst.mockResolvedValue({
+      organisationId: "org-1",
+    });
+    const passport = await PetPassportService.getPassportForParent(
+      "pat-1",
+      "user-1",
+    );
+    expect(passport.identity.name).toBe("Doggy");
+  });
+});

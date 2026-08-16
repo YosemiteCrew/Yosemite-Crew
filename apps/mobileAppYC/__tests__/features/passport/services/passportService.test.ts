@@ -19,7 +19,7 @@ describe('passportApi', () => {
     jest.clearAllMocks();
   });
 
-  it('fetches the passport for a patient from the public endpoint', async () => {
+  it('fetches the passport from the owner-scoped authenticated endpoint', async () => {
     const mockPassport = {
       identity: {
         id: mockPatientId,
@@ -38,7 +38,7 @@ describe('passportApi', () => {
     const result = await passportApi.fetchPassport(mockPatientId);
 
     expect(apiClient.get).toHaveBeenCalledWith(
-      `/public/pet-passport/${mockPatientId}`,
+      `/v1/pet-passport/mobile/companion/${mockPatientId}`,
     );
     expect(result).toEqual(mockPassport);
   });
@@ -56,14 +56,14 @@ describe('passportApi', () => {
       const url = passportApi.getApplePassUrl(mockPatientId);
 
       expect(url).toBe(
-        `https://test-api.example.com/public/pet-passport/${mockPatientId}/wallet/apple`,
+        `https://test-api.example.com/v1/pet-passport/mobile/companion/${mockPatientId}/wallet/apple`,
       );
       expect(apiClient.get).not.toHaveBeenCalled();
     });
   });
 
   describe('getGoogleWalletUrl', () => {
-    it('fetches the Google Wallet save URL from the public endpoint', async () => {
+    it('fetches the Google Wallet save URL from the owner-scoped endpoint', async () => {
       (apiClient.get as jest.Mock).mockResolvedValue({
         data: {saveUrl: 'https://pay.google.com/gp/v/save/mock-jwt'},
       });
@@ -71,7 +71,7 @@ describe('passportApi', () => {
       const result = await passportApi.getGoogleWalletUrl(mockPatientId);
 
       expect(apiClient.get).toHaveBeenCalledWith(
-        `/public/pet-passport/${mockPatientId}/wallet/google`,
+        `/v1/pet-passport/mobile/companion/${mockPatientId}/wallet/google`,
       );
       expect(result).toBe('https://pay.google.com/gp/v/save/mock-jwt');
     });
