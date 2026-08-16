@@ -14,8 +14,17 @@ For the shared UI overview see [`README.md`](./README.md); for the full componen
 
 ## Colors
 
-- Use `--color-*` tokens for all UI colors.
-- Semantic aliases live under `--color-text-*`, `--color-surface-*`, `--color-border-*`, `--color-action-*`, `--color-status-*`, `--color-input-*`.
+Two layers, both live:
+
+- **`@theme` (`--color-*`)** - what Tailwind utilities compile against, e.g. `text-blue-text`, `bg-card-hover`. Semantic aliases live under `--color-text-*`, `--color-surface-*`, `--color-border-*`, `--color-action-*`, `--color-status-*`, `--color-input-*`.
+- **Warm-bone runtime (`--blue`, `--ink`, `--screen`, `--hairline`, ...)** - used by `var(--x)` and arbitrary values such as `text-[var(--ink-muted)]`. These outnumber `--color-*` in the app about 3:1.
+
+Rules:
+
+- Use whichever layer the surrounding code uses; neither is deprecated.
+- **Where one concept has both spellings, alias - never hold a literal in both.** `--blue-text: var(--color-blue-text)`. Hand-maintaining both is how the utility form kept resolving to a sub-AA colour after the variable form was fixed.
+- **A fill token is not a text token.** `--blue` is a fill and has no contrast duty of its own; `--blue-text` must clear 4.5:1 on the bone surfaces. Using a fill as text (or a text token as a fill) is the most common colour bug in this app.
+- **A fill under white text has two duties**: 4.5:1 for the label, and 3:1 against its own surface, because a selected control may drop its border and let the fill alone carry the state. `--blue-strong` exists for this and is the only value that satisfies both in each theme.
 - Never hardcode hex values in components. Use a CSS variable or a Tailwind token class.
 
 ## Component status labels

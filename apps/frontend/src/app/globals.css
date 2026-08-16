@@ -610,7 +610,11 @@ textarea:focus-visible {
      the brand's own darker blue and clears AA on all five (4.94-5.86:1).
      --blue stays #257bed: it is the FILL token, and fills carry no contrast
      requirement of their own. */
-  --blue-text: #1657c9;
+  /* Aliased, never re-stated: this token is also spelled --color-blue-text in
+     the @theme block for the Tailwind utility form, and maintaining a literal
+     in both layers is exactly how the two drifted apart - the utility kept
+     resolving to --blue (3.12-3.70:1) after the variable had been fixed. */
+  --blue-text: var(--color-blue-text);
   --blue-soft: #e6f2ff;
   /* For fills that carry white text (count badges, selected slots). Two
      constraints, not one: white on the fill needs 4.5:1, AND the fill itself
@@ -753,7 +757,7 @@ html[data-theme='dark'] {
      light. #2f74d9 is the value that clears both - 4.54:1 white, 3.19-3.72:1
      against every dark surface. */
   --blue-strong: #2f74d9;
-  --blue-text: #8fb6f5;
+  --blue-text: var(--color-blue-text);
   --blue-soft: rgba(143, 182, 245, 0.16);
   --pink: #ff90d4;
   --cyan: #5ce1e6;
@@ -867,7 +871,7 @@ html[data-theme='dark'] {
      light. #2f74d9 is the value that clears both - 4.54:1 white, 3.19-3.72:1
      against every dark surface. */
   --blue-strong: #2f74d9;
-  --blue-text: #8fb6f5;
+  --blue-text: var(--color-blue-text);
   --blue-soft: rgba(143, 182, 245, 0.16);
   --pink: #ff90d4;
   --cyan: #5ce1e6;

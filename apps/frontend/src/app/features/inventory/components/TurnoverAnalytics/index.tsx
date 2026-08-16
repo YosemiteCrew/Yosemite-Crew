@@ -273,7 +273,7 @@ const AbcTable = ({ rows, onSelectClass }: AbcTableProps) => (
       </div>
     ) : (
       <>
-        <div className="hidden grid-cols-[64px_1fr_130px_120px_110px] gap-2.5 bg-[var(--screen-2)] px-[18px] py-[9px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--ink-faint)] sm:grid">
+        <div className="yc-table-head yc-table-head--static hidden grid-cols-[64px_1fr_130px_120px_110px] gap-2.5 px-[18px]! sm:grid">
           <span>Class</span>
           <span>Share of value</span>
           <span>Products</span>

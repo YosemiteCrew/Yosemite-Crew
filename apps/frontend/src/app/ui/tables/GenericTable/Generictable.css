@@ -97,15 +97,22 @@
   line-height: 120%;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+  /* Mirrors the th above: without it a multiword label in a narrow drawer
+     column wraps and grows the whole band, which is the defect nowrap was
+     added to `.TableDiv thead tr th` to prevent. */
+  white-space: nowrap;
   position: sticky;
   top: 0;
   z-index: 10;
   box-shadow: 0 1px 0 var(--hairline);
 }
+/* Clipping sits on the cells so each ellipses independently, as table cells do;
+   on the container it would clip the band instead. */
+.yc-table-head > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
-/* Appearance without the sticky contract: inside a drawer, a modal, or any
-   transformed parent, `position: sticky` resolves against the wrong container
-   and strands the band mid-panel. */
 /* Appearance with no container padding. Calendar strips are two-column shells
    (gutter + day track) that must line up column-for-column with the body grid
    below them; the recipe's 20px would inset the whole track and desynchronise
@@ -114,6 +121,9 @@
   padding: 0;
 }
 
+/* Appearance without the sticky contract: inside a drawer, a modal, or any
+   transformed parent, `position: sticky` resolves against the wrong container
+   and strands the band mid-panel. */
 .yc-table-head--static {
   position: static;
 }

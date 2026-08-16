@@ -31,7 +31,25 @@ src/app/ui/
 
 Import from barrel: `import { Button, Card } from '@/app/ui'`
 
-Design-token source of truth: `src/app/globals.css` (`@theme`). `src/app/ui/tokens.md` is reference material only. Never hardcode colors - use `--color-*` CSS tokens.
+Design-token source of truth: `src/app/globals.css`. `src/app/ui/tokens.md` is reference material only. Never hardcode colors.
+
+**There are two token layers and they must agree.** The `@theme` block defines
+`--color-*`, which is what Tailwind utilities compile against (`text-blue-text`,
+`bg-card-hover`). The warm-bone layer below it defines the short runtime names
+(`--blue`, `--ink`, `--screen`, `--hairline`) used by `var(--x)` and arbitrary
+values like `text-[var(--ink-muted)]`. The short forms outnumber `--color-*` in
+the app roughly 3:1, so "use `--color-*`" is not the rule - **use whichever
+layer the surrounding code uses, and never let the two spellings of one concept
+hold separate literals.** Alias one to the other (`--blue-text:
+var(--color-blue-text)`), because a token maintained by hand in both places
+drifts: `--color-blue-text` sat at `var(--blue)` and kept resolving to a
+sub-AA value after `--blue-text` had been fixed.
+
+**Fill tokens and text tokens are not interchangeable.** `--blue` is a fill and
+carries no contrast duty; `--blue-text` must clear 4.5:1 on the bone surfaces.
+A fill that carries white text has two duties at once - 4.5:1 for the label and
+3:1 against its own surface, since a selected control may drop its border and
+let the fill alone signal state. That is what `--blue-strong` is for.
 
 ---
 

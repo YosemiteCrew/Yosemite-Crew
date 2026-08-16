@@ -62,8 +62,10 @@ const CLASS_ATTRIBUTE = /className=\{?[`"'][^`"']*[`"']/g;
 const isHeaderStyling = (chunk: string): boolean => {
   if (!/uppercase/.test(chunk)) return false;
   // Either the arbitrary-value spelling...
+  // Any arbitrary tracking, not just 0.1em: the inventory ABC header used
+  // 0.08em and the first version of this check sailed straight past it.
   const arbitrary =
-    /tracking-\[0\.1/.test(chunk) && /text-\[(9|10|10\.5|11)(\.\d+)?px\]/.test(chunk);
+    /tracking-\[0?\.\d/.test(chunk) && /text-\[(9|10|10\.5|11)(\.\d+)?px\]/.test(chunk);
   // ...or the semantic-class one. The AppointmentWorkspace side modals used
   // `text-caption-2 font-medium tracking-wide` - 12px/500/0.025em, an order of
   // magnitude short on tracking - and the first version of this guard walked
