@@ -311,7 +311,13 @@ export function AuthShell({ brand, topRight, children }: Readonly<AuthShellProps
         </div>
       </div>
 
+      {/* The form column is a bone surface (--page -> --band), so it needs the
+          readable faint inks - see body:has([data-yc-app]) in globals.css. The
+          marker goes here and NOT on the shell root: the brand panel to the left
+          is deliberately dark and wants the lighter values, exactly like the
+          marketing --spot sections. */}
       <div
+        data-yc-app
         style={{
           position: 'relative',
           background: 'linear-gradient(180deg, var(--page), var(--band))',

@@ -192,7 +192,7 @@ const Dropdown = ({
         >
           <span className="select-input-selected">{selected ? selected.label : ''}</span>
           <span className="select-input-drop-icon" aria-hidden="true">
-            <IoChevronDown color="var(--color-neutral-600)" size={14} />
+            <IoChevronDown color="var(--color-text-tertiary)" size={14} />
           </span>
         </button>
 

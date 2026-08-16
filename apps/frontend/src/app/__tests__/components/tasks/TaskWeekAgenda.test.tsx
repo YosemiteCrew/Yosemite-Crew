@@ -219,8 +219,11 @@ describe('TaskWeekAgenda', () => {
     expect(parentCard.getAttribute('style')).toContain('var(--pink)');
     expect(screen.getByText(/^Parent task/)).toBeInTheDocument();
 
+    // Completed recedes through line-through and its own --status-completed-*
+    // palette, NOT by dimming the card: the card stays clickable and every text
+    // descendant is on a faint token, so 0.75 sank the meta line to 3.23:1.
     const doneCard = screen.getByRole('button', { name: 'Open task Done Task' });
-    expect(doneCard).toHaveClass('opacity-75');
+    expect(doneCard.className).not.toMatch(/\bopacity-\d/);
     expect(screen.getByText('Done Task').parentElement?.className).toContain('line-through');
   });
 

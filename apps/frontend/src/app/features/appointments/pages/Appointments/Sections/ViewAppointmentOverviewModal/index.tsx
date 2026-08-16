@@ -355,7 +355,7 @@ const OverviewRightColumn = ({
             className="font-satoshi text-2xl font-bold"
             style={{
               color:
-                estimateDisplay === '-' ? 'var(--color-neutral-500)' : 'var(--color-primary-600)',
+                estimateDisplay === '-' ? 'var(--color-text-tertiary)' : 'var(--color-primary-600)',
               letterSpacing: '-0.48px',
             }}
           >

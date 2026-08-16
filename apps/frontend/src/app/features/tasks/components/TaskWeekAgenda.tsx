@@ -46,7 +46,6 @@ const AgendaCard = ({ task, isFutureDay, assigneeName, onOpen }: AgendaCardProps
   const variant = getTaskCardVariant(task, isFutureDay);
   const isParent = variant === 'parent';
   const isCompleted = task.status === 'COMPLETED';
-  const isMuted = isCompleted || task.status === 'CANCELLED';
   const style = getAgendaCardStyle(variant);
 
   const timeLabel = formatDateInPreferredTimeZone(new Date(task.dueAt), {
@@ -63,8 +62,12 @@ const AgendaCard = ({ task, isFutureDay, assigneeName, onOpen }: AgendaCardProps
       aria-label={`Open task ${task.name || '-'}`}
       onClick={() => onOpen(task)}
       className={clsx(
-        'w-full text-left rounded-[11px] border px-[11px] py-[9px] transition-transform hover:-translate-y-px',
-        isMuted && 'opacity-75'
+        // No dim for the muted state. The card stays clickable, and every text
+        // descendant is on a faint token: at 0.75 the --ink-faint meta fell to
+        // 3.23:1 and the status-token title to 3.86-4.03:1. Completed/cancelled
+        // already recede twice - line-through on the title, plus their own
+        // --status-* background, border and text family.
+        'w-full text-left rounded-[11px] border px-[11px] py-[9px] transition-transform hover:-translate-y-px'
       )}
       style={{
         background: style.background,
@@ -88,10 +91,7 @@ const AgendaCard = ({ task, isFutureDay, assigneeName, onOpen }: AgendaCardProps
         )}
         <span className="min-w-0 break-words">{task.name || '-'}</span>
       </span>
-      <span
-        className="mt-0.5 block text-[10px] leading-4"
-        style={{ color: style.metaColor, opacity: isParent ? 1 : 0.8 }}
-      >
+      <span className="mt-0.5 block text-[10px] leading-4" style={{ color: style.metaColor }}>
         {metaParts.join(' · ')}
       </span>
     </button>

@@ -598,6 +598,11 @@ textarea:focus-visible {
      5.87:1 light / 6.34:1 dark. */
   --table-head-ink: var(--ink-muted);
   --ink-soft: #423f3c;
+  /* The bone palette's faint inks. These values are correct on the always-dark
+     --spot sections the marketing pages use (6.82:1) but unreadable on bone:
+     2.64:1 and 1.90:1 against --band. They are therefore left alone here and
+     overridden for the app shell below, rather than darkened globally - which
+     would have fixed PIMS and broken every --spot section on the public site. */
   --ink-faint: #8f8984;
   --ink-faint2: #a9a39e;
   --ink-6b: #6b6763;
@@ -752,7 +757,11 @@ html[data-theme='dark'] {
   --ink-muted: #a89e90;
   --ink-soft: #cabfb0;
   --ink-faint: #9d9285;
-  --ink-faint2: #8b8173;
+  /* #8b8173 passed only on --spot: it was 3.78:1 on --inset (the marketing
+     footer), 3.84 on --screen and 4.10 on --band. #998f82 clears 4.5 on every
+     dark surface (4.56-5.78) and is the value the app scope already used, so
+     the two agree now instead of the app being the only readable one. */
+  --ink-faint2: #998f82;
   --ink-6b: #a1968a;
   --cta: #f2ece1;
   --cta-hover: #fbf8f1;
@@ -870,7 +879,11 @@ html[data-theme='dark'] {
   --ink-muted: #a89e90;
   --ink-soft: #cabfb0;
   --ink-faint: #9d9285;
-  --ink-faint2: #8b8173;
+  /* #8b8173 passed only on --spot: it was 3.78:1 on --inset (the marketing
+     footer), 3.84 on --screen and 4.10 on --band. #998f82 clears 4.5 on every
+     dark surface (4.56-5.78) and is the value the app scope already used, so
+     the two agree now instead of the app being the only readable one. */
+  --ink-faint2: #998f82;
   --ink-6b: #a1968a;
   --cta: #f2ece1;
   --cta-hover: #fbf8f1;
@@ -1753,4 +1766,80 @@ html[data-theme='dark'] [data-yc-app] ::selection {
   .yc-page-content {
     padding: 26px 30px;
   }
+}
+
+/* PIMS runs entirely on bone surfaces, where the faint inks above are
+   unreadable - roughly 476 usages measured between 1.90:1 and 2.64:1 against
+   --band, the darkest bone surface: nav labels, metadata lines, counts,
+   weekday labels, empty states. #66635f is the LIGHTEST warm grey that clears
+   4.5 on every bone surface (4.56 on --band, 5.40 on --screen), so it stays as faint as the palette
+   allows while being legible, and stays lighter than --ink-muted (5.31) so the
+   hierarchy still reads.
+
+   Scoped rather than global: the public marketing pages put this same token on
+   always-dark --spot panels, where the lighter value is the correct one.
+
+   The hook is `body:has([data-yc-app])`, not the shell element itself: modals,
+   dropdowns and row-action menus mount through createPortal into document.body,
+   so they are siblings of the shell rather than descendants and would have kept
+   the unreadable values. Marketing pages never render the shell, so body does
+   not match there and they are untouched.
+   --ink-faint2 collapses onto --ink-faint here because between the 4.56 ceiling
+   and --ink-muted there is no room for two passing steps below muted. */
+body:has([data-yc-app]) {
+  --ink-faint: #66635f;
+  --ink-faint2: #66635f;
+  /* The @theme layer aliases these inks, and those aliases are COMPUTED ON
+     :root - so overriding only the short tokens here leaves every alias
+     consumer on the old value.
+
+     These re-declarations are ALIASES, never literals. Every one is on this
+     same element as the inks above, so `var(--ink-faint)` resolves to the
+     scoped value; writing the hex again would be a fourth place to keep in
+     step, which is the drift this whole change exists to stop.
+
+     Only TEXT tokens appear here. Two groups are deliberately absent:
+       - --color-grey-border / --greyborder are borders (OtpModal,
+         UploadImage). Darkening a border is a visible change with no contrast
+         argument behind it.
+       - --color-neutral-500 / -600 are raw ramp steps, not text semantics.
+         neutral-500 also backs `border-neutral-500` in three components and
+         the scrollbar thumb at :216 and :245, so bending it here would darken
+         outlines and scrollbars to fix text. The handful of call sites that
+         reached for `text-neutral-500` directly now use `text-text-tertiary`
+         instead - the semantic token is the one that carries the guarantee. */
+  --color-text-tertiary: var(--ink-faint);
+  --color-text-extra: var(--ink-faint2);
+  --color-grey-text: var(--ink-faint);
+  --color-grey-bg: var(--ink-faint);
+  --black-grey: var(--ink-faint);
+  --black-grey-Text: var(--ink-faint);
+}
+/* Fixed-light product surfaces.
+   /payment-status, /success and /accessibility/report paint on literal white
+   and #e6f2ff regardless of the chosen theme, so the theme-aware scope below
+   is wrong for them: in dark mode it handed them #9d9285, which is 3.05:1 on
+   white and 2.69:1 on the footer band - the light-mode fix reversing itself.
+   These pin the light inks in BOTH themes. Declared on the surface element
+   rather than on body, so it wins for that subtree by proximity. */
+[data-yc-surface='light'] {
+  --ink-faint: #66635f;
+  --ink-faint2: #66635f;
+  --color-text-tertiary: var(--ink-faint);
+  --color-text-extra: var(--ink-faint2);
+  --color-grey-text: var(--ink-faint);
+  --color-grey-bg: var(--ink-faint);
+  --black-grey: var(--ink-faint);
+  --black-grey-Text: var(--ink-faint);
+}
+
+html[data-theme='dark'] body:has([data-yc-app]) {
+  --ink-faint: #9d9285;
+  --ink-faint2: #998f82;
+  --color-text-tertiary: var(--ink-faint);
+  --color-text-extra: var(--ink-faint2);
+  --color-grey-text: var(--ink-faint);
+  --color-grey-bg: var(--ink-faint);
+  --black-grey: var(--ink-faint);
+  --black-grey-Text: var(--ink-faint);
 }

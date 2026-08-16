@@ -31,9 +31,16 @@
   box-shadow: 0 6px 16px var(--glow-b26);
 }
 
-/* Frame: a day with no load recedes to 45%. */
-.yc-day-strip__cell--quiet {
-  opacity: 0.45;
+/* Frame: a day with no load recedes.
+   The frame said 45% opacity, but opacity composites the TEXT as well, and
+   this cell is a live tappable button: at 0.45 the 9px weekday landed at
+   1.81:1 on --band and the 14px date at 2.69:1, and no alpha below 1.0 gets
+   the weekday back to 4.5. So the recede is expressed in ink instead - the
+   date steps back to --ink-muted (5.31:1) while the weekday stays on the
+   faintest ink that still passes. The real "no load" signal is the dot row,
+   which a quiet day does not render at all. */
+.yc-day-strip__cell--quiet .yc-day-strip__date {
+  color: var(--ink-muted);
 }
 
 /* Frame: font-size 9px; font-weight 700; letter-spacing 0.06em; --ink-faint. */

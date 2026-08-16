@@ -39,7 +39,7 @@ const StatusSubmenu = ({
           >
             <span className="truncate">{toStatusLabel(status)}</span>
             {savingKey === `status-${status}` ? (
-              <span className="shrink-0 text-[8px] opacity-60">Saving</span>
+              <span className="shrink-0 text-[8px]">Saving</span>
             ) : null}
           </button>
         </React.Fragment>

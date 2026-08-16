@@ -93,13 +93,13 @@ const CompletedAppointmentCard = ({
   <button
     type="button"
     onClick={() => onSelect?.(entry.appointment)}
-    className="flex flex-1 items-center gap-[9px] rounded-xl border border-l-[3px] border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] px-[11px] py-[9px] text-left opacity-85"
+    className="flex flex-1 items-center gap-[9px] rounded-xl border border-l-[3px] border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] px-[11px] py-[9px] text-left"
   >
     <span className="min-w-0 flex-1">
       <span className="block truncate text-[11.5px] font-bold text-[var(--status-completed-text)]">
         {buildAppointmentTitle(entry.appointment)}
       </span>
-      <span className="block truncate text-[9.5px] text-[var(--status-completed-text)] opacity-75">
+      <span className="block truncate text-[9.5px] text-[var(--status-completed-text)]">
         {buildAppointmentSubtitle(entry)}
       </span>
     </span>
@@ -125,7 +125,7 @@ const UpcomingAppointmentCard = ({
       <span className="block truncate text-[11.5px] font-bold text-[var(--status-upcoming-text)]">
         {buildAppointmentTitle(entry.appointment)}
       </span>
-      <span className="block truncate text-[9.5px] text-[var(--status-upcoming-text)] opacity-75">
+      <span className="block truncate text-[9.5px] text-[var(--status-upcoming-text)]">
         {buildAppointmentSubtitle(entry)}
       </span>
     </span>

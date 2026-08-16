@@ -55,9 +55,12 @@ const ZoomInMarker = ({
     ? 'cursor-grab active:cursor-grabbing'
     : 'cursor-pointer';
 
-  // Frame subtitle: 11px in the status text colour at 0.75 opacity.
+  // Frame subtitle: 11px in the status text colour. The frame asked for 0.75
+  // opacity, but these are --status-<x>-text tokens on their own fill, which
+  // only clear AA at full strength; font-normal against the title's weight is
+  // what separates them.
   const subtitleClass =
-    'truncate font-satoshi text-[11px] font-normal leading-[1.2] tracking-[-0.22px] opacity-75';
+    'truncate font-satoshi text-[11px] font-normal leading-[1.2] tracking-[-0.22px]';
   let subtitleNode: React.ReactNode = null;
   if (tall) {
     subtitleNode = (

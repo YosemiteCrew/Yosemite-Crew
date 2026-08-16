@@ -156,7 +156,7 @@ export function ChatCommandPalette({
                     >
                       {title}
                     </Text>
-                    <IoReturnDownBackOutline className="h-3.5 w-3.5 shrink-0 text-neutral-300" />
+                    <IoReturnDownBackOutline className="h-3.5 w-3.5 shrink-0 text-text-tertiary" />
                   </button>
                 </li>
               );

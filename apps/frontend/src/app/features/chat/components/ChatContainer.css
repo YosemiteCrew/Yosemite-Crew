@@ -527,5 +527,5 @@
 
 .chat-empty-state__subtitle {
   max-width: 360px;
-  color: var(--color-neutral-600);
+  color: var(--color-text-tertiary);
 }
