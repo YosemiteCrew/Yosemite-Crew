@@ -32,10 +32,14 @@ Rules:
 
 `--ink-faint` / `--ink-faint2` are the one place where a token deliberately differs by surface, so read the value off the scope you are in rather than off the `:root` declaration:
 
-| scope                                               | light     | dark                  | why                                                                                                                                                                                             |
-| --------------------------------------------------- | --------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `:root` (public marketing pages)                    | `#9d9285` | same                  | the marketing `--spot` sections are always dark; darkening the ink there drops 19 of them from 6.82:1 to 2.85:1                                                                                 |
-| `body:has([data-yc-app])` (PIMS, auth form, embeds) | `#66635f` | `#9d9285` / `#998f82` | bone surfaces - `#66635f` is 4.56:1 on `--band`, the bottom of the light ramp. `--ink-faint2` collapses onto it because there is no room for a second passing step below `--ink-muted` (5.31:1) |
+| scope                                               | token          | light     | dark      |
+| --------------------------------------------------- | -------------- | --------- | --------- |
+| `:root` (public marketing pages)                    | `--ink-faint`  | `#8f8984` | `#9d9285` |
+| `:root` (public marketing pages)                    | `--ink-faint2` | `#a9a39e` | `#8b8173` |
+| `body:has([data-yc-app])` (PIMS, auth form, embeds) | `--ink-faint`  | `#66635f` | `#9d9285` |
+| `body:has([data-yc-app])` (PIMS, auth form, embeds) | `--ink-faint2` | `#66635f` | `#998f82` |
+
+Why the two scopes cannot share one value: the marketing `--spot` sections are always dark, and darkening the ink there drops 19 of them from 6.82:1 to 2.85:1. Inside PIMS the same tokens land on bone, where `#66635f` is 4.56:1 on `--band` - the bottom of the light ramp. In the app's light theme `--ink-faint2` collapses onto `--ink-faint` because there is no room for a second passing step below `--ink-muted` (5.31:1); at `:root` and in dark they stay distinct.
 
 Two things follow, both of which have already bitten:
 

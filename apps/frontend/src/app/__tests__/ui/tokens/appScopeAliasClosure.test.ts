@@ -128,6 +128,49 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
     );
   });
 
+  it('documents the real faint values in tokens.md', () => {
+    // The table in tokens.md is what the next person reads before choosing an
+    // ink, and it was wrong on its first outing: it listed the root light value
+    // as the dark one and claimed both themes matched. A doc that states four
+    // specific hexes can be checked, so it is.
+    const doc = fs.readFileSync(path.join(process.cwd(), 'src/app/ui/tokens.md'), 'utf8');
+
+    const chunkFor = (scope: 'root' | 'scoped', theme: 'light' | 'dark') => {
+      if (scope === 'scoped') return CSS.match(theme === 'light' ? APP_SCOPE : APP_SCOPE_DARK)![1];
+      const before = CSS.slice(0, CSS.indexOf('body:has([data-yc-app])'));
+      const cut = before.indexOf("html[data-theme='dark']");
+      return theme === 'light' ? before.slice(0, cut) : before.slice(cut);
+    };
+    const declared = (chunk: string, token: string) =>
+      [...chunk.matchAll(new RegExp(`^\\s*${token}:\\s*([^;]+);`, 'gm'))].at(-1)?.[1].trim();
+
+    // | scope | --token | light | dark |
+    const rows = [
+      ...doc.matchAll(
+        // The scope cell carries a prose tail after the selector, e.g.
+        // "`:root` (public marketing pages)", so allow anything up to the pipe.
+        /^\|\s*`([^`]+)`[^|]*\|\s*`(--ink-faint2?)`\s*\|\s*`(#[0-9a-f]{6})`\s*\|\s*`(#[0-9a-f]{6})`\s*\|/gim
+      ),
+    ];
+    expect(rows.length).toBe(4);
+
+    const mismatches: string[] = [];
+    for (const [, scopeLabel, token, light, dark] of rows) {
+      const scope = scopeLabel.startsWith(':root') ? 'root' : 'scoped';
+      for (const [theme, documented] of [
+        ['light', light],
+        ['dark', dark],
+      ] as const) {
+        const actual = declared(chunkFor(scope, theme), token);
+        if (actual !== documented) {
+          mismatches.push(`${scopeLabel} ${token} ${theme}: doc ${documented}, css ${actual}`);
+        }
+      }
+    }
+
+    expect(mismatches).toEqual([]);
+  });
+
   it('has no text component reaching for the raw ramp steps', () => {
     // `text-neutral-500` was the call site that exposed the whole bug. The ramp
     // steps are not scoped, so a text utility built on one silently opts out of
