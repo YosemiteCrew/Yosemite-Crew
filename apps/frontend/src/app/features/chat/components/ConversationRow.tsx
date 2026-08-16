@@ -108,7 +108,7 @@ export function ConversationRow({
         // left-stripe (see design "Chat extended", conversation list).
         'group relative flex items-center pr-1 rounded-[13px] xl:rounded-[14px]',
         active
-          ? 'border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_3px_var(--sh05)] xl:border-transparent xl:bg-[var(--surface-soft)] xl:shadow-[inset_3px_0_0_var(--pink)]'
+          ? 'border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_3px_var(--sh05)] xl:border-transparent xl:bg-[var(--surface-soft)] xl:shadow-[inset_3px_0_0_var(--blue)]'
           : 'hover:bg-[var(--screen)] xl:hover:bg-[var(--surface-soft)]',
         muted && !active && 'opacity-[0.62]'
       )}

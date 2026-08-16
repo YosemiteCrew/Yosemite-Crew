@@ -571,7 +571,7 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
             >
               <IoOptionsOutline size={18} />
             </button>
-            {copied ? <span className="text-body-4 text-green-700">URL copied</span> : null}
+            {copied ? <span className="text-body-4 text-pill-success-text">URL copied</span> : null}
           </div>
         </div>
 

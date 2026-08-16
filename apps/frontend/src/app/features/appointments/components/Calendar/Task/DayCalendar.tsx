@@ -100,7 +100,7 @@ const DayCalendar = ({
         <Back onClick={handlePrevDay} />
         <div className="flex items-center gap-2 text-center">
           <div className="text-body-4 text-(--color-primary-700)">{weekday}</div>
-          <div className="text-body-4-emphasis text-white size-10 flex items-center justify-center rounded-full bg-text-brand">
+          <div className="text-body-4-emphasis text-white size-10 flex items-center justify-center rounded-full bg-[var(--blue)]">
             {dateNumber}
           </div>
         </div>
@@ -188,8 +188,8 @@ const DayCalendar = ({
                         {nowTimeLabel}
                       </div>
                     )}
-                    <div className="absolute left-[-5px] size-3 rounded-full bg-red-500 translate-y-[-50%]" />
-                    <div className="border-t-2 border-t-red-500 translate-y-[-50%]" />
+                    <div className="absolute left-[-5px] size-3 rounded-full bg-danger-700 translate-y-[-50%]" />
+                    <div className="border-t-2 border-t-danger-700 translate-y-[-50%]" />
                   </div>
                 </div>
               </div>

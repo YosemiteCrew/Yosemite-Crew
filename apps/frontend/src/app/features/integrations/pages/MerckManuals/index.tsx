@@ -887,7 +887,9 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
               </div>
             ) : null}
             {copied ? (
-              <output className="text-body-4 text-green-700">Copied URL to clipboard.</output>
+              <output className="text-body-4 text-pill-success-text">
+                Copied URL to clipboard.
+              </output>
             ) : null}
 
             {resultsCountLabel ? (

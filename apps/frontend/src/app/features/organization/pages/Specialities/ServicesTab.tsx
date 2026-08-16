@@ -74,12 +74,12 @@ const ServiceStatusPill = ({ status }: { status: string }) => (
 
 const BookableCell = ({ isBookable }: { isBookable: boolean }) =>
   isBookable ? (
-    <span className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-[var(--pink)]">
+    <span className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-[var(--pink-text)]">
       <IoPhonePortraitOutline size={12} aria-hidden="true" />
       In app
     </span>
   ) : (
-    <span className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-[var(--ink-faint)]">
+    <span className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-[var(--ink-muted)]">
       <IoCallOutline size={12} aria-hidden="true" />
       Desk only
     </span>

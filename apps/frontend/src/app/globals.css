@@ -595,7 +595,14 @@ textarea:focus-visible {
   --dl-btn-hover: #302f2e;
   /* accents */
   --blue: #257bed;
-  --blue-text: #257bed;
+  /* The text-weight blue. In dark this already lightens to #8fb6f5 so it can be
+     read on the espresso page, but in light it was left identical to --blue and
+     never earned its name: #257bed is 3.12-3.70:1 on the bone surfaces, i.e.
+     under AA on every one of them, across ~150 usages. --color-accent-deep is
+     the brand's own darker blue and clears AA on all five (4.94-5.86:1).
+     --blue stays #257bed: it is the FILL token, and fills carry no contrast
+     requirement of their own. */
+  --blue-text: #1657c9;
   --blue-soft: #e6f2ff;
   --pink: #ff90d4;
   --cyan: #5ce1e6;

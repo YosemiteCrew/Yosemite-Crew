@@ -103,7 +103,7 @@ const DispensaryItemRow = ({ item, idx }: Readonly<DispensaryItemRowProps>) => {
         <div className="flex flex-1 items-center gap-2 min-w-0">
           <span className="text-body-4 font-semibold text-text-primary truncate">{item.name}</span>
           {item.isRx && (
-            <span className="inline-flex size-6 items-center justify-center rounded-full bg-blue-text text-white text-[10px] font-bold shrink-0">
+            <span className="inline-flex size-6 items-center justify-center rounded-full bg-[var(--blue)] text-white text-[10px] font-bold shrink-0">
               Rx
             </span>
           )}

@@ -552,7 +552,7 @@ export const ResultDetailBody = ({
                     >
                       <td className="py-2 pr-2 text-caption-1 text-text-primary">{test.name}</td>
                       <td
-                        className={`py-2 pr-2 text-caption-1 ${test.outOfRange ? 'text-red-600' : 'text-text-primary'}`}
+                        className={`py-2 pr-2 text-caption-1 ${test.outOfRange ? 'text-text-error' : 'text-text-primary'}`}
                       >
                         <LabResultValue test={test} />
                       </td>

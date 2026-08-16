@@ -63,7 +63,7 @@ const FilterSectionHeader = ({
       <div className="flex items-center gap-2">
         <span className="text-body-4 text-text-primary">{title}</span>
         {count > 0 && (
-          <span className="inline-flex size-5 items-center justify-center rounded-full bg-blue-text text-[10px] font-bold text-white">
+          <span className="inline-flex size-5 items-center justify-center rounded-full bg-[var(--blue)] text-[10px] font-bold text-white">
             {count}
           </span>
         )}

@@ -341,22 +341,26 @@
   width: 7px;
   height: 7px;
   border-radius: 9999px;
-  background: var(--pink);
+  /* Blue, not pink: this badge says "you have unread notifications" and carries
+     no pet-parent meaning, so it is PIMS chrome. The keyframe is renamed with
+     it - a pink-named keyframe tinting a blue dot is how the next person
+     reintroduces the pink. */
+  background: var(--blue);
   border: 1.5px solid var(--screen);
-  animation: ycPulsePink 3.4s cubic-bezier(0.4, 0, 0.2, 1) 1s infinite;
+  animation: ycPulseDot 3.4s cubic-bezier(0.4, 0, 0.2, 1) 1s infinite;
 }
 
-@keyframes ycPulsePink {
+@keyframes ycPulseDot {
   0% {
-    box-shadow: 0 0 0 0 rgba(255, 144, 212, 0.45);
+    box-shadow: 0 0 0 0 rgba(37, 123, 237, 0.45);
   }
 
   60% {
-    box-shadow: 0 0 0 6px rgba(255, 144, 212, 0);
+    box-shadow: 0 0 0 6px rgba(37, 123, 237, 0);
   }
 
   100% {
-    box-shadow: 0 0 0 0 rgba(255, 144, 212, 0);
+    box-shadow: 0 0 0 0 rgba(37, 123, 237, 0);
   }
 }
 

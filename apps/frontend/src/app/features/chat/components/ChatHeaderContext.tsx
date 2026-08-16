@@ -59,7 +59,7 @@ function PinnedBanner({
         onClick={onOpen}
         className="flex w-full items-center gap-[9px] rounded-xl border border-[var(--hairline)] bg-[var(--surface-soft)] px-3.5 py-[7px] text-left"
       >
-        <IoPin className="h-3 w-3 shrink-0 text-[var(--pink)]" />
+        <IoPin className="h-3 w-3 shrink-0 text-[var(--blue-text)]" />
         <Text
           as="span"
           variant="caption-1"

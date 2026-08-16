@@ -56,7 +56,7 @@ const NestedBreakdownTooltip = ({
           {items.map((item, i) => {
             const { net } = computePackageBreakdownItem(item);
             return (
-              <tr key={item.id} style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+              <tr key={item.id} style={{ borderTop: '1px solid var(--hairline)' }}>
                 <td style={{ padding: '3px 6px', opacity: 0.5 }}>{i + 1}.</td>
                 <td style={{ padding: '3px 6px', opacity: 0.7 }}>
                   {TYPE_LABELS[item.type] ?? item.type}
@@ -78,7 +78,7 @@ const NestedBreakdownTooltip = ({
         </tbody>
         <tfoot>
           {additionalDiscount > 0 && (
-            <tr style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
+            <tr style={{ borderTop: '1px solid var(--hairline-hover)' }}>
               <td
                 colSpan={6}
                 style={{ padding: '3px 6px', textAlign: 'right', opacity: 0.6, fontSize: 12 }}
@@ -90,7 +90,7 @@ const NestedBreakdownTooltip = ({
               </td>
             </tr>
           )}
-          <tr style={{ borderTop: '1px solid rgba(255,255,255,0.2)' }}>
+          <tr style={{ borderTop: '1px solid var(--hairline-hover)' }}>
             <td
               colSpan={6}
               style={{ padding: '4px 6px', textAlign: 'right', opacity: 0.7, fontSize: 12 }}

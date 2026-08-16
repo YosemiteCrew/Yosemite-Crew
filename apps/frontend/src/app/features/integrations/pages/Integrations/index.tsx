@@ -181,7 +181,7 @@ const getValidateStateMeta = (
 ): { text: string; className: string } | null => {
   if (validateState === 'idle') return null;
   if (validateState === 'valid') {
-    return { text: 'Credentials validated successfully.', className: 'text-green-700' };
+    return { text: 'Credentials validated successfully.', className: 'text-pill-success-text' };
   }
   return { text: 'Credentials are invalid or not available.', className: 'text-text-error' };
 };

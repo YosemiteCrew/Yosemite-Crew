@@ -1,4 +1,5 @@
 import React from 'react';
+import { IoAlertCircle, IoCheckmarkCircle } from 'react-icons/io5';
 import SubLabels from '@/app/ui/widgets/Labels/SubLabels';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 
@@ -65,11 +66,25 @@ const Labels = ({
           >
             <span className="flex items-center justify-center gap-1.5 text-center w-full">
               {label.name}
+              {/* Shape, not just hue: --success and --danger differ by 0.0005 in
+                  relative luminance, so in greyscale (or to a red-green
+                  colourblind user) a saved section and a failed one were the
+                  same dot. */}
               {statuses[label.key] === 'valid' && (
-                <span className="text-sm text-[var(--success)]">•</span>
+                <IoCheckmarkCircle
+                  role="img"
+                  title="Section complete"
+                  aria-label="Section complete"
+                  className="size-4 shrink-0 text-[var(--color-pill-success-text)]"
+                />
               )}
               {statuses[label.key] === 'error' && (
-                <span className="text-sm text-[var(--danger)]">•</span>
+                <IoAlertCircle
+                  role="img"
+                  title="Section has errors"
+                  aria-label="Section has errors"
+                  className="size-4 shrink-0 text-[var(--color-pill-danger-text)]"
+                />
               )}
             </span>
           </button>

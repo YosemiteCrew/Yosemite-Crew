@@ -30,7 +30,7 @@ const DashboardProfile = () => {
     <div className="flex w-full flex-col gap-3">
       <div className="flex w-full flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-0.5">
-          <span className="font-newsreader text-[16px] italic" style={{ color: 'var(--pink)' }}>
+          <span className="font-newsreader text-[16px] italic text-[var(--blue-text)]">
             Welcome back,
           </span>
           <span className="flex items-center gap-[9px]">
