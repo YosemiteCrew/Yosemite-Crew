@@ -53,7 +53,7 @@
   --str-chat__disabled-color: var(--hairline);
   --str-chat__on-disabled-color: var(--screen);
   --str-chat__danger-color: var(--danger-text);
-  --str-chat__info-color: var(--success);
+  --str-chat__info-color: var(--success-text);
   --str-chat__message-highlight-color: var(--blue-soft);
   --str-chat__unread-badge-color: var(--blue);
   --str-chat__on-unread-badge-color: #ffffff;

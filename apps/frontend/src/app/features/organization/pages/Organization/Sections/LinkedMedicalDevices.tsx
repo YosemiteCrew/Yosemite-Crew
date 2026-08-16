@@ -153,7 +153,7 @@ const LinkedMedicalDevices = () => {
                   </span>
                 </span>
                 {online ? (
-                  <span className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--success)]">
+                  <span className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--success-text)]">
                     <span className="size-[7px] rounded-full bg-[var(--success)] animate-pulse" />
                     {'ONLINE'}
                   </span>

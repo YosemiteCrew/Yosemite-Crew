@@ -122,7 +122,7 @@ const DashboardSteps = () => {
                   {step.isCompleted ? (
                     <IoCheckmarkCircle
                       title="Step complete"
-                      className="size-5 shrink-0 text-[var(--success)]"
+                      className="size-5 shrink-0 text-[var(--success-text)]"
                     />
                   ) : (
                     <span

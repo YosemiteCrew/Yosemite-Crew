@@ -70,7 +70,7 @@ const ChannelHeaderBar: FC<ChannelHeaderBarProps> = ({
       </span>
       {chat.showPresence ? (
         /* Design (thread header, online): 11.5px --success with a 6px pulsing dot. */
-        <span className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-[var(--success)]">
+        <span className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-[var(--success-text)]">
           <span className="chat-presence-dot h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--success)]" />
           <span className="truncate">{statusText}</span>
         </span>

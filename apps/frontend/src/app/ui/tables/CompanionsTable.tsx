@@ -121,7 +121,7 @@ const CompanionAvatar = ({
 );
 
 const CoParentPill = () => (
-  <span className="ml-1 inline-flex items-center rounded-full border border-[var(--pink)] bg-[var(--glow-p12)] px-[7px] py-px text-[9px] font-bold text-[var(--pink)]">
+  <span className="ml-1 inline-flex items-center rounded-full border border-[var(--pink)] bg-[var(--glow-p12)] px-[7px] py-px text-[9px] font-bold text-[var(--pink-text)]">
     + CO-PARENT
   </span>
 );

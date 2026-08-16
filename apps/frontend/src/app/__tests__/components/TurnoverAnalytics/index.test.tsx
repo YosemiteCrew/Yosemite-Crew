@@ -137,7 +137,7 @@ describe('TurnoverAnalytics', () => {
     const delta = screen.getByText(/\+1\.5 vs 2025/);
     expect(delta).toBeInTheDocument();
     // A RISE is good news and reads as success.
-    expect(delta.closest('span')).toHaveClass('text-[var(--success)]');
+    expect(delta.closest('span')).toHaveClass('text-[var(--success-text)]');
   });
 
   it('renders the month chart bars', () => {
@@ -233,7 +233,7 @@ describe('TurnoverAnalytics', () => {
     // the colour said "good" while the number said the opposite. Asserting the
     // value alone passes either way - the class is the thing under test.
     expect(delta.closest('span')).toHaveClass('text-[var(--danger-text)]');
-    expect(delta.closest('span')).not.toHaveClass('text-[var(--success)]');
+    expect(delta.closest('span')).not.toHaveClass('text-[var(--success-text)]');
   });
 
   it('selects the low-stock representative when the Class A row is clicked', () => {

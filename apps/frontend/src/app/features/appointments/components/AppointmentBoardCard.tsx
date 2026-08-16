@@ -467,7 +467,7 @@ const AppointmentBoardCard = ({
               openAppointmentWorkspace(appointment);
             }}
             className="ml-auto rounded-full px-2.5 py-1 text-[10.5px] font-bold text-white"
-            style={{ background: 'var(--blue)' }}
+            style={{ background: 'var(--blue-strong)' }}
           >
             Start visit
           </button>

@@ -166,7 +166,7 @@ span.cell-overflow-count {
    badge-only ramp. Declared unlayered so they beat Tailwind's utility layer and
    stay theme-live in both light and dark. */
 .cell-ink-success {
-  color: var(--success);
+  color: var(--success-text);
 }
 .cell-ink-warn {
   color: var(--warn-text);

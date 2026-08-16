@@ -378,7 +378,10 @@ textarea:focus-visible {
   --color-error-500: #ef4444;
   --color-error-700: #b91c1c;
   --color-delete: var(--color-danger-700);
-  --color-pending-text: #f68523;
+  /* Painted as text by .OrgStatus, where #f68523 was 1.93:1 on --band and
+     2.29:1 on --screen. Darkened to clear AA; the pill's own --pendingbg
+     (#fef3e9) is unchanged, so only the label moves. */
+  --color-pending-text: #9d4c06;
   --color-danger-soft: #fee7e7;
   --color-calendar-line-strong: #c3cedc;
   --color-calendar-line-soft: #e9edf3;
@@ -641,6 +644,10 @@ textarea:focus-visible {
   --cyan: #5ce1e6;
   --cyan-text: #38ccd8;
   --success: #008f5d;
+  /* --success is a FILL (status dots, bars) and carries no contrast duty; it is
+     3.15:1 on --band, so it must not paint text. This is its text twin, the
+     same pairing as --danger/--danger-text and --blue/--blue-text. */
+  --success-text: #006642;
   --warn: #f59e0b;
   /* always-dark spotlight blocks (manifesto / code / phone bezel) */
   --spot: #1d1c1b;
@@ -653,7 +660,7 @@ textarea:focus-visible {
   --avatar-green-bg: #e6f4ef;
   --avatar-green-ink: #006642;
   --avatar-amber-bg: #fef3e9;
-  --avatar-amber-ink: #af5e19;
+  --avatar-amber-ink: #965115;
   /* glassy nav bits */
   --nav-hover: rgba(255, 255, 255, 0.5);
   --glass-btn: linear-gradient(180deg, rgba(255, 253, 250, 0.9), rgba(250, 246, 239, 0.8));
@@ -781,6 +788,7 @@ html[data-theme='dark'] {
   --cyan: #5ce1e6;
   --cyan-text: #5ce1e6;
   --success: #2bbd86;
+  --success-text: #2bbd86;
   --warn: #f5a83c;
   --spot: #17140f;
   --spot-ink: #f4efe6;
@@ -899,6 +907,7 @@ html[data-theme='dark'] {
   --cyan: #5ce1e6;
   --cyan-text: #5ce1e6;
   --success: #2bbd86;
+  --success-text: #2bbd86;
   --avatar-violet-bg: rgba(167, 139, 250, 0.2);
   --avatar-violet-ink: #cbb2f4;
   --avatar-green-bg: rgba(74, 205, 155, 0.17);
