@@ -315,8 +315,13 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
         // where --ink-faint labels still land at 3.23:1 on --screen. There is no
         // safe cutoff: the faint inks pass by so little that any compositing at
         // all can drop them under 4.5.
-        const m = /^\s*opacity:\s*(0?\.\d+|0)\s*;/.exec(line);
+        // Decimal AND percentage: `opacity: 60%` is the same thing written the
+        // other way, and it was the spelling on the rule that dimmed every span
+        // in every table cell across PIMS.
+        const m = /^\s*opacity:\s*(0?\.\d+|0|\d{1,3}%)\s*;/.exec(line);
         if (!m) return;
+        const pct = m[1].endsWith('%') ? Number(m[1].slice(0, -1)) : Number(m[1]) * 100;
+        if (pct >= 100 || pct === 0) return;
 
         // Walk back to the selector this declaration belongs to.
         let selector = '';
