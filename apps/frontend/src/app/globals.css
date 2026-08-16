@@ -533,6 +533,12 @@ textarea:focus-visible {
   --blue-text: var(--color-blue-text);
   --light-blue: var(--color-primary-100);
   --white-text: #ffffff;
+  /* Its counterpart. Some surfaces are a FIXED colour in both themes -
+     brand illustration fills, a LinkedIn-blue avatar - so their text must
+     be fixed too. A themed ink on a fixed surface inverts in dark: the
+     LaunchGrowTab tabs are permanently light blue, and their heading went
+     from 15:1 to 1.11:1 the moment the theme flipped. */
+  --ink-fixed: #1d1c1b;
   --whitebg: var(--color-white-bg);
   --greyborder: var(--color-grey-border);
   --lightgrey: var(--color-grey-light);
@@ -1024,6 +1030,11 @@ html[data-theme='dark'] {
   --status-completed-border: rgba(74, 205, 155, 0.55);
   --status-cancelled-bg: rgba(249, 115, 22, 0.15);
   --status-cancelled-text: #f0a36c;
+  /* The alert pill's inks. The 100 tints already had dark values but these did
+     not, so darkening them for light mode left them dark-on-dark in the other
+     theme - 1.75 and 1.98 on the composited tints. Existing ramp steps. */
+  --color-warning-900: #f9ad6c;
+  --color-danger-800: #f5a39d;
   --status-cancelled-border: rgba(249, 115, 22, 0.5);
   --status-no-show-bg: rgba(249, 115, 22, 0.15);
   --status-no-show-text: #f0a36c;

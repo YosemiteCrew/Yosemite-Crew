@@ -125,7 +125,7 @@ const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
           {isUploading ? 'Uploading...' : title}
         </div>
         {error && (
-          <div className="text-red-600 text-sm" role="alert">
+          <div className="text-[var(--danger-text)] text-sm" role="alert">
             {error}
           </div>
         )}

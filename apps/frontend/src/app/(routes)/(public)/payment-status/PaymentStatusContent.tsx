@@ -204,9 +204,9 @@ export function PaymentStatusContent() {
             )}
             {(requestState === 'loading' || data?.status === 'unpaid') && (
               <div className="flex gap-2" aria-hidden>
-                <span className="size-3.5 rounded-full bg-slate-900 animate-[pulse-dot_1s_cubic-bezier(0.16,1,0.3,1)_infinite]" />
-                <span className="size-3.5 rounded-full bg-slate-900 animate-[pulse-dot_1s_cubic-bezier(0.16,1,0.3,1)_infinite_150ms]" />
-                <span className="size-3.5 rounded-full bg-slate-900 animate-[pulse-dot_1s_cubic-bezier(0.16,1,0.3,1)_infinite_300ms]" />
+                <span className="size-3.5 rounded-full bg-[var(--color-neutral-900)] animate-[pulse-dot_1s_cubic-bezier(0.16,1,0.3,1)_infinite]" />
+                <span className="size-3.5 rounded-full bg-[var(--color-neutral-900)] animate-[pulse-dot_1s_cubic-bezier(0.16,1,0.3,1)_infinite_150ms]" />
+                <span className="size-3.5 rounded-full bg-[var(--color-neutral-900)] animate-[pulse-dot_1s_cubic-bezier(0.16,1,0.3,1)_infinite_300ms]" />
               </div>
             )}
             {data?.status === 'no_payment_required' && (

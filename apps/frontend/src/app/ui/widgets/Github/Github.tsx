@@ -159,7 +159,7 @@ const Github = () => {
       aria-label="GitHub repository"
       className={`${publicRoutes.has(pathname) ? 'flex!' : 'hidden!'} fixed left-0 bottom-7.5 z-9999 flex items-center justify-center w-full pointer-events-none`}
     >
-      <div className="px-6 py-3 flex items-center justify-center gap-2 bg-text-primary pointer-events-auto rounded-2xl">
+      <div className="px-6 py-3 flex items-center justify-center gap-2 bg-[var(--ink-fixed)] pointer-events-auto rounded-2xl">
         <div className="text-body-2 text-white">Star us on Github</div>
         <a
           href="https://github.com/YosemiteCrew/Yosemite-Crew"
@@ -169,15 +169,15 @@ const Github = () => {
         >
           <div className="flex items-center gap-1">
             <Icon icon="mdi:github" width="28" height="28" color="var(--color-neutral-900)" />
-            <div className="text-caption-1 text-text-primary">Stars</div>
+            <div className="text-caption-1 text-[var(--ink-fixed)]">Stars</div>
           </div>
-          <div className="h-3.75 w-px bg-text-tertiary"></div>
-          <div className="text-caption-1 text-text-primary">
+          <div className="h-3.75 w-px bg-[var(--color-neutral-300)]"></div>
+          <div className="text-caption-1 text-[var(--ink-fixed)]">
             {error ?? (stars === null ? '…' : formatStars(stars))}
           </div>
         </a>
         <button
-          className="border-none bg-text-primary"
+          className="border-none bg-[var(--ink-fixed)]"
           onClick={onClose}
           aria-label="Close"
           type="button"

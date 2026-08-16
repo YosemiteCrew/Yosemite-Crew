@@ -352,6 +352,34 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
     expect(offenders).toEqual([]);
   });
 
+  it("uses the design system palette, not Tailwind's stock one", () => {
+    // Tailwind ships its own red/green/slate/amber scales. They are fixed
+    // colours that know nothing about the warm-bone themes, so a `text-red-600`
+    // is a semantic-looking class that never changes between light and dark -
+    // and it sidesteps every contrast decision the token set has made.
+    // Fifteen had crept in, including the DynamicSelect and uploader error text.
+    const STOCK =
+      /\b(?:text|bg|border)-(?:red|green|blue|yellow|orange|purple|pink|gray|slate|zinc|stone|amber|emerald|teal|cyan|indigo|violet|rose)-(?:50|[1-9]00)\b/;
+
+    const root = path.join(process.cwd(), 'src/app');
+    const offenders: string[] = [];
+    for (const file of fs
+      .readdirSync(root, { recursive: true, encoding: 'utf8' })
+      .filter((f) => /\.(tsx|css)$/.test(f))
+      .filter((f) => !f.includes('__tests__') && !f.includes('.stories.'))) {
+      fs.readFileSync(path.join(root, file), 'utf8')
+        .split('\n')
+        .forEach((line, i) => {
+          const trimmed = line.trimStart();
+          if (trimmed.startsWith('//') || trimmed.startsWith('*')) return;
+          const m = STOCK.exec(line);
+          if (m) offenders.push(`${file}:${i + 1}  ${m[0]}`);
+        });
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
   it('never puts a theme transition on every element', () => {
     // `[data-yc-app] *` and `[data-yc-theme] *` each transitioned four properties
     // on EVERY element. A theme flip started ~700 simultaneous transitions, and

@@ -21,7 +21,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-neutral-0);
+  /* Fixed LinkedIn blue, so the glyph stays white in both themes - the surface
+     token went dark-on-blue at 2.58:1 in dark. */
+  color: var(--white-text);
   background: var(--color-linkedin-blue);
   border-radius: 50%;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
