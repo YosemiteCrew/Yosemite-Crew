@@ -583,6 +583,11 @@ textarea:focus-visible {
   --ink: #1d1c1b;
   --ink-body: #302f2e;
   --ink-muted: #5c5956;
+  /* Column-header ink. The header recipe used --ink-faint, which is 2.91:1 on
+     the --screen-2 band - under AA at 10.5px, and true of every PIMS table
+     header long before the shared recipe existed. --ink-muted clears it at
+     5.87:1 light / 6.34:1 dark. */
+  --table-head-ink: var(--ink-muted);
   --ink-soft: #423f3c;
   --ink-faint: #8f8984;
   --ink-faint2: #a9a39e;
@@ -702,7 +707,7 @@ textarea:focus-visible {
   --warn-text: #b45309;
   --warn-border: rgba(245, 158, 11, 0.3);
   --pink-soft: #ffe8f6;
-  --pink-text: #c43d94;
+  --pink-text: #b3307f;
 }
 
 html[data-theme='dark'] {

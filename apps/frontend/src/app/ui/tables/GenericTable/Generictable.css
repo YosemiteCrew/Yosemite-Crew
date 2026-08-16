@@ -68,7 +68,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: var(--ink-faint);
+  color: var(--table-head-ink);
   font-size: 10.5px;
   font-weight: 700;
   font-family: var(--font-satoshi);
@@ -90,7 +90,7 @@
 .yc-table-head {
   padding: 11px 20px;
   background: var(--screen-2);
-  color: var(--ink-faint);
+  color: var(--table-head-ink);
   font-family: var(--font-satoshi);
   font-size: 10.5px;
   font-weight: 700;

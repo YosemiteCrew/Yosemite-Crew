@@ -132,6 +132,9 @@ describe('table header consistency', () => {
       'letter-spacing: 0.1em',
       'text-transform: uppercase',
       'background: var(--screen-2)',
+      // Not --ink-faint: that is 2.91:1 on this band, under AA at 10.5px, and
+      // was the header ink across PIMS long before the shared recipe existed.
+      'color: var(--table-head-ink)',
       'position: sticky',
       'box-shadow: 0 1px 0 var(--hairline)',
     ]) {
