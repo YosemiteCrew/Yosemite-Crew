@@ -45,6 +45,16 @@ var(--color-blue-text)`), because a token maintained by hand in both places
 drifts: `--color-blue-text` sat at `var(--blue)` and kept resolving to a
 sub-AA value after `--blue-text` had been fixed.
 
+**Column headers come from one recipe.** `<GenericTable>` for real tabular
+markup; `<TableHead>` (`src/app/ui/tables/TableHead.tsx`) for grid or flex
+shells. Do not hand-roll a `--screen-2` band with uppercase micro-type - PIMS
+grew five separate recipes that way, and a single page was rendering three of
+them. `src/app/__tests__/ui/tables/tableHeadConsistency.test.ts` fails the build
+if you do, and `Tables/TableHead` in Storybook stacks the table header against
+the shell header so drift shows up as a Chromatic diff. If a shell needs the
+band but NOT the header type - because its labels are proper names rather than
+column nouns - take the band alone; the recipe's uppercase would eat them.
+
 **Fill tokens and text tokens are not interchangeable.** `--blue` is a fill and
 carries no contrast duty; `--blue-text` must clear 4.5:1 on the bone surfaces.
 A fill that carries white text has two duties at once - 4.5:1 for the label and

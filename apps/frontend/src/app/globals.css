@@ -358,6 +358,15 @@ textarea:focus-visible {
      `text-blue-text` stayed at 3.12-3.70:1 on the bone surfaces even after
      --blue-text was fixed. Both spellings must resolve to the same value. */
   --color-blue-text: var(--color-accent-deep);
+  /* Utility-form twins for the tokens this app uses as fills in markup. Without
+     them `bg-blue-strong` compiles to nothing - silently no colour - while
+     `bg-[var(--blue-strong)]` works, which is a trap for the next person.
+     Aliased, never literal, per the rule in ui/tokens.md. */
+  --color-blue-strong: var(--blue-strong);
+  --color-chip-selected-bg: var(--chip-selected-bg);
+  --color-chip-selected-ink: var(--chip-selected-ink);
+  --color-chip-selected-border: var(--chip-selected-border);
+  --color-table-head-ink: var(--table-head-ink);
   --color-blue-light: var(--color-primary-100);
   --color-blue-sky: #428bec;
   --color-white-text: var(--color-neutral-100);
