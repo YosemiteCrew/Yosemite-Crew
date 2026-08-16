@@ -308,7 +308,7 @@ const ServiceRow = ({
 };
 
 const ServicesTableHeader = () => (
-  <div className={`hidden @3xl:grid ${GRID_COLS} items-center gap-[10px] yc-table-head`}>
+  <div className={`hidden @3xl:grid ${GRID_COLS} items-center gap-[10px] yc-table-head px-[22px]!`}>
     <span>Service</span>
     <span>Practitioners</span>
     <span className="text-right">Duration</span>
