@@ -115,7 +115,7 @@ const DayCell = ({
     )}
   >
     {cell.isSelected ? (
-      <span className="flex size-[26px] items-center justify-center rounded-full bg-[var(--blue)] text-[12.5px] font-bold text-white shadow-[0_4px_12px_var(--glow-b26)]">
+      <span className="flex size-[26px] items-center justify-center rounded-full bg-[var(--blue-strong)] text-[12.5px] font-bold text-white shadow-[0_4px_12px_var(--glow-b26)]">
         {cell.dayOfMonth}
       </span>
     ) : (

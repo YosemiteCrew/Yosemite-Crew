@@ -64,7 +64,7 @@ const kpiCaptionClass = 'text-[11px] text-[var(--ink-faint)]';
 const insetBoxClass = 'bg-[var(--inset)] border border-[var(--divider)]';
 
 const abcTileClass: Record<AbcClass, string> = {
-  'Class A': 'bg-[var(--blue)] text-white',
+  'Class A': 'bg-[var(--blue-strong)] text-white',
   'Class B': 'bg-[var(--blue-soft)] text-[var(--blue-text)]',
   'Class C': 'bg-[var(--inset)] text-[var(--ink-muted)] border border-[var(--divider)]',
 };
@@ -157,7 +157,14 @@ const KpiCards = ({
       <span className={kpiLabelClass}>Annual turnover</span>
       <span className={kpiValueClass}>{formatTurns(annualTurnover)}</span>
       {annualDelta !== null ? (
-        <span className="flex items-center gap-1 text-[11px] font-semibold text-[var(--success)]">
+        <span
+          className={clsx(
+            'flex items-center gap-1 text-[11px] font-semibold',
+            // The arrow already flips on this exact comparison; the colour
+            // did not, so a fall in turnover was reported in success green.
+            annualDelta >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger-text)]'
+          )}
+        >
           {annualDelta >= 0 ? (
             <IoTrendingUpOutline size={12} aria-hidden="true" />
           ) : (
@@ -266,7 +273,7 @@ const AbcTable = ({ rows, onSelectClass }: AbcTableProps) => (
       </div>
     ) : (
       <>
-        <div className="hidden grid-cols-[64px_1fr_130px_120px_110px] gap-2.5 bg-[var(--screen-2)] px-[18px] py-[9px] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--ink-faint)] sm:grid">
+        <div className="yc-table-head yc-table-head--static hidden grid-cols-[64px_1fr_130px_120px_110px] gap-2.5 px-[18px]! sm:grid">
           <span>Class</span>
           <span>Share of value</span>
           <span>Products</span>

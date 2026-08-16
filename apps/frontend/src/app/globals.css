@@ -354,7 +354,19 @@ textarea:focus-visible {
   --color-grey-noti: var(--color-neutral-700);
   /* The design's blue (#257bed), not the brighter brand-ramp primary-500
      (#007cf5) — links, active states and badges read as --blue in every frame. */
-  --color-blue-text: var(--blue);
+  /* The utility form of the text blue. This pointed at --blue (the FILL), so
+     `text-blue-text` stayed at 3.12-3.70:1 on the bone surfaces even after
+     --blue-text was fixed. Both spellings must resolve to the same value. */
+  --color-blue-text: var(--color-accent-deep);
+  /* Utility-form twins for the tokens this app uses as fills in markup. Without
+     them `bg-blue-strong` compiles to nothing - silently no colour - while
+     `bg-[var(--blue-strong)]` works, which is a trap for the next person.
+     Aliased, never literal, per the rule in ui/tokens.md. */
+  --color-blue-strong: var(--blue-strong);
+  --color-chip-selected-bg: var(--chip-selected-bg);
+  --color-chip-selected-ink: var(--chip-selected-ink);
+  --color-chip-selected-border: var(--chip-selected-border);
+  --color-table-head-ink: var(--table-head-ink);
   --color-blue-light: var(--color-primary-100);
   --color-blue-sky: #428bec;
   --color-white-text: var(--color-neutral-100);
@@ -580,6 +592,11 @@ textarea:focus-visible {
   --ink: #1d1c1b;
   --ink-body: #302f2e;
   --ink-muted: #5c5956;
+  /* Column-header ink. The header recipe used --ink-faint, which is 2.91:1 on
+     the --screen-2 band - under AA at 10.5px, and true of every PIMS table
+     header long before the shared recipe existed. --ink-muted clears it at
+     5.87:1 light / 6.34:1 dark. */
+  --table-head-ink: var(--ink-muted);
   --ink-soft: #423f3c;
   --ink-faint: #8f8984;
   --ink-faint2: #a9a39e;
@@ -595,8 +612,26 @@ textarea:focus-visible {
   --dl-btn-hover: #302f2e;
   /* accents */
   --blue: #257bed;
-  --blue-text: #257bed;
+  /* The text-weight blue. In dark this already lightens to #8fb6f5 so it can be
+     read on the espresso page, but in light it was left identical to --blue and
+     never earned its name: #257bed is 3.12-3.70:1 on the bone surfaces, i.e.
+     under AA on every one of them, across ~150 usages. --color-accent-deep is
+     the brand's own darker blue and clears AA on all five (4.94-5.86:1).
+     --blue stays #257bed: it is the FILL token, and fills carry no contrast
+     requirement of their own. */
+  /* Aliased, never re-stated: this token is also spelled --color-blue-text in
+     the @theme block for the Tailwind utility form, and maintaining a literal
+     in both layers is exactly how the two drifted apart - the utility kept
+     resolving to --blue (3.12-3.70:1) after the variable had been fixed. */
+  --blue-text: var(--color-blue-text);
   --blue-soft: #e6f2ff;
+  /* For fills that carry white text (count badges, selected slots). Two
+     constraints, not one: white on the fill needs 4.5:1, AND the fill itself
+     needs 3:1 against its surface, because selected controls like Slotpicker
+     drop their border and let the fill alone carry the state. Holding one value
+     for both themes satisfied the first and broke the second - #1657c9 is only
+     2.23:1 on the dark page. Light: 6.48 white / 5.04-5.86 surface. */
+  --blue-strong: var(--color-accent-deep);
   --pink: #ff90d4;
   --cyan: #5ce1e6;
   --cyan-text: #38ccd8;
@@ -685,7 +720,7 @@ textarea:focus-visible {
   --warn-text: #b45309;
   --warn-border: rgba(245, 158, 11, 0.3);
   --pink-soft: #ffe8f6;
-  --pink-text: #c43d94;
+  --pink-text: #b3307f;
 }
 
 html[data-theme='dark'] {
@@ -727,7 +762,11 @@ html[data-theme='dark'] {
   --dl-btn-sub: #6b6155;
   --dl-btn-hover: #ffffff;
   --blue: #257bed;
-  --blue-text: #8fb6f5;
+  /* The window is narrow: white needs the fill dark, the espresso page needs it
+     light. #2f74d9 is the value that clears both - 4.54:1 white, 3.19-3.72:1
+     against every dark surface. */
+  --blue-strong: #2f74d9;
+  --blue-text: var(--color-blue-text);
   --blue-soft: rgba(143, 182, 245, 0.16);
   --pink: #ff90d4;
   --cyan: #5ce1e6;
@@ -837,7 +876,11 @@ html[data-theme='dark'] {
   --cta-hover: #fbf8f1;
   --cta-text: #201c18;
   --blue: #257bed;
-  --blue-text: #8fb6f5;
+  /* The window is narrow: white needs the fill dark, the espresso page needs it
+     light. #2f74d9 is the value that clears both - 4.54:1 white, 3.19-3.72:1
+     against every dark surface. */
+  --blue-strong: #2f74d9;
+  --blue-text: var(--color-blue-text);
   --blue-soft: rgba(143, 182, 245, 0.16);
   --pink: #ff90d4;
   --cyan: #5ce1e6;

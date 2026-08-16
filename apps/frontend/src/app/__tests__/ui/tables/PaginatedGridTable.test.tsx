@@ -46,7 +46,7 @@ describe('PaginatedGridTable', () => {
     expect(screen.getByText('Name')).not.toHaveClass('text-right');
     expect(screen.getByText('Amount')).toHaveClass('text-right');
     // The blank-label column still renders a span (keyed by index fallback).
-    const header = container.querySelector('.sticky') as HTMLElement;
+    const header = container.querySelector('.yc-table-head') as HTMLElement;
     expect(header.querySelectorAll('span')).toHaveLength(3);
   });
 
@@ -72,7 +72,7 @@ describe('PaginatedGridTable', () => {
 
   it('applies the caller grid track to the header', () => {
     const { container } = renderTable(makeRows(1));
-    const header = container.querySelector('.sticky') as HTMLElement;
+    const header = container.querySelector('.yc-table-head') as HTMLElement;
     expect(header).toHaveStyle({ gridTemplateColumns: GRID_COLUMNS });
   });
 

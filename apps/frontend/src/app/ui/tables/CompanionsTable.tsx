@@ -34,6 +34,7 @@ import {
 } from '@/app/features/companions/pages/Companions/companionsDirectory';
 
 import './DataTable.css';
+import './GenericTable/Generictable.css';
 
 const SPECIES_LABEL: Record<string, string> = {
   dog: 'Dog',
@@ -513,9 +514,7 @@ const CompanionsTable = ({
           ) : (
             <>
               {/* Header row */}
-              <div
-                className={`${GRID_COLS} shrink-0 bg-[var(--screen-2)] px-5 py-[11px] text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]`}
-              >
+              <div className={`${GRID_COLS} yc-table-head shrink-0`}>
                 <span>{terminologyText('Patient')}</span>
                 <span>Parent</span>
                 <span>Breed</span>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { InvoiceItem } from '@yosemite-crew/types';
 import { formatMoney } from '@/app/lib/money';
+import TableHead from '@/app/ui/tables/TableHead';
 
 type InvoiceBilledItemsProps = {
   items: InvoiceItem[];
@@ -14,15 +15,20 @@ const InvoiceBilledItems = ({ items, currency }: InvoiceBilledItemsProps) => {
     <section className="flex flex-col gap-3" aria-label="Billed items">
       <h3 className="text-[13px] font-bold text-[var(--ink)]">Billed items</h3>
       <div className="rounded-[14px] border border-card-border overflow-hidden">
-        <div
-          className="grid gap-2.5 px-4 py-[9px] bg-card-hover text-[10px] font-bold text-text-tertiary uppercase tracking-[0.1em]"
-          style={{ gridTemplateColumns: gridTemplate }}
-        >
-          <span>Item</span>
-          <span>Qty</span>
-          <span className="text-right">Gross</span>
-          <span className="text-right">Amount</span>
-        </div>
+        <TableHead
+          columns={[
+            { key: 'item', label: 'Item' },
+            { key: 'qty', label: 'Qty' },
+            { key: 'gross', label: 'Gross', align: 'right' },
+            { key: 'amount', label: 'Amount', align: 'right' },
+          ]}
+          track={gridTemplate}
+          gap="10px"
+          sticky={false}
+          // Rows below use px-4; the recipe's 20px would start every heading
+          // 4px right of its values and narrow the flexible track by 8px.
+          className="px-4!"
+        />
         {items.length === 0 ? (
           <output className="block px-4 py-3 text-[13px] text-text-tertiary border-t border-card-border">
             No billed items recorded for this invoice.

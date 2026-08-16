@@ -909,7 +909,7 @@ const TreatmentStep = ({
             onAddVisit={() => setActiveSideAction('TASKS')}
           />
         )}
-        {scheduleError && <p className="text-caption-1 text-red-600">{scheduleError}</p>}
+        {scheduleError && <p className="text-caption-1 text-text-error">{scheduleError}</p>}
 
         <ServicesPackagesEditor
           items={encounter.services}
@@ -936,10 +936,10 @@ const TreatmentStep = ({
           onRemoveItem={(id) => void handleRemovePrescription(id)}
           onPrint={() => void handlePrintPrescriptionLabels()}
         />
-        {prescriptionError && <p className="text-caption-1 text-red-600">{prescriptionError}</p>}
+        {prescriptionError && <p className="text-caption-1 text-text-error">{prescriptionError}</p>}
 
         {treatmentSaveError && (
-          <p role="alert" className="text-caption-1 text-red-600">
+          <p role="alert" className="text-caption-1 text-text-error">
             {treatmentSaveError}
           </p>
         )}

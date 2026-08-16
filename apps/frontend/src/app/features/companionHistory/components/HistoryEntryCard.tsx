@@ -67,7 +67,7 @@ const getTypeIcon = (type: HistoryEntryType): React.ReactNode => {
 const ACTIVE_ROW_STYLE: React.CSSProperties = {
   background: 'var(--surface-soft)',
   borderColor: 'var(--blue)',
-  boxShadow: '0 0 0 3px rgba(37,123,237,0.10)',
+  boxShadow: '0 0 0 3px var(--glow-b10)',
 };
 
 const formatStatusLabel = (status?: string): string => {

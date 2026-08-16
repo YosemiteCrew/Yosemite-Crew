@@ -246,7 +246,7 @@ export function ConversationInfoPanel({
                 key={item.id}
                 className="flex items-start gap-2 rounded-xl border border-[var(--hairline)] bg-[var(--surface-soft)] px-3 py-[9px]"
               >
-                <IoPin className="mt-0.5 h-[11px] w-[11px] shrink-0 text-[var(--pink)]" />
+                <IoPin className="mt-0.5 h-[11px] w-[11px] shrink-0 text-[var(--blue-text)]" />
                 <Text
                   as="span"
                   variant="caption-1"

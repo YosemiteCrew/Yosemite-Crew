@@ -191,7 +191,7 @@ describe('PhoneMonthOverview — dot map', () => {
 
     const selected = dayButton('2026-07-07', 14);
     expect(selected).toHaveAttribute('aria-pressed', 'true');
-    expect(within(selected).getByText('7').className).toContain('bg-[var(--blue)]');
+    expect(within(selected).getByText('7').className).toContain('bg-[var(--blue-strong)]');
     expect(dayButton('2026-07-08', 0)).toHaveAttribute('aria-pressed', 'false');
   });
 

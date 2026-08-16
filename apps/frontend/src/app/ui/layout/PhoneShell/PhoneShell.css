@@ -118,7 +118,9 @@
     height: 6px;
     border: 1.5px solid var(--screen);
     border-radius: 999px;
-    background: var(--pink);
+    /* Twin of .yc-notification-dot in UserHeader.css - same badge, same
+       meaning, so the same blue at both breakpoints. */
+    background: var(--blue);
   }
 
   /* -------------------------------------------------------------- tab bar */

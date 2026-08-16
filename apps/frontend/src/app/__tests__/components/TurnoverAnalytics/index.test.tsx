@@ -134,7 +134,10 @@ describe('TurnoverAnalytics', () => {
   it('shows the year-over-year delta when both years have data', () => {
     renderComponent();
     // current avg (5,6)=5.5, previous (4) → +1.5 vs 2025
-    expect(screen.getByText(/\+1\.5 vs 2025/)).toBeInTheDocument();
+    const delta = screen.getByText(/\+1\.5 vs 2025/);
+    expect(delta).toBeInTheDocument();
+    // A RISE is good news and reads as success.
+    expect(delta.closest('span')).toHaveClass('text-[var(--success)]');
   });
 
   it('renders the month chart bars', () => {
@@ -224,7 +227,13 @@ describe('TurnoverAnalytics', () => {
       })
     );
     renderComponent();
-    expect(screen.getByText(/-5\.0 vs 2025/)).toBeInTheDocument();
+    const delta = screen.getByText(/-5\.0 vs 2025/);
+    expect(delta).toBeInTheDocument();
+    // A FALL in turnover was painted success-green regardless of direction, so
+    // the colour said "good" while the number said the opposite. Asserting the
+    // value alone passes either way - the class is the thing under test.
+    expect(delta.closest('span')).toHaveClass('text-[var(--danger-text)]');
+    expect(delta.closest('span')).not.toHaveClass('text-[var(--success)]');
   });
 
   it('selects the low-stock representative when the Class A row is clicked', () => {

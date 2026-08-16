@@ -57,6 +57,7 @@ import {
 } from 'react-icons/io5';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
+import TableHead from '@/app/ui/tables/TableHead';
 
 const PAGE_SIZE_OPTIONS = [5, 10, 25, 50];
 const MODALITY_FILTERS = [
@@ -552,7 +553,7 @@ export const ResultDetailBody = ({
                     >
                       <td className="py-2 pr-2 text-caption-1 text-text-primary">{test.name}</td>
                       <td
-                        className={`py-2 pr-2 text-caption-1 ${test.outOfRange ? 'text-red-600' : 'text-text-primary'}`}
+                        className={`py-2 pr-2 text-caption-1 ${test.outOfRange ? 'text-text-error' : 'text-text-primary'}`}
                       >
                         <LabResultValue test={test} />
                       </td>
@@ -985,15 +986,17 @@ const SyncingSkeleton = ({ lastRefreshedAt }: { lastRefreshedAt: string | null }
         Last sync {formatDateTimeLocal(lastRefreshedAt, '—')}
       </span>
     </div>
-    <div
-      className="grid grid-cols-[1.4fr_1fr_1fr_90px] gap-3 px-5 py-[11px] text-[10.5px] font-bold tracking-[0.1em] uppercase"
-      style={{ background: 'var(--screen-2)', color: 'var(--ink-faint)' }}
-    >
-      <span>Patient</span>
-      <span>Accession #</span>
-      <span>Device</span>
-      <span>Status</span>
-    </div>
+    <TableHead
+      columns={[
+        { key: 'patient', label: 'Patient' },
+        { key: 'accession', label: 'Accession #' },
+        { key: 'device', label: 'Device' },
+        { key: 'status', label: 'Status' },
+      ]}
+      track="1.4fr 1fr 1fr 90px"
+      gap="12px"
+      sticky={false}
+    />
     {SKELETON_ROWS.map((row) => (
       <div
         key={row.width}

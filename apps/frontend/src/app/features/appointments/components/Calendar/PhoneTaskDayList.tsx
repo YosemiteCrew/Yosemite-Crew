@@ -89,7 +89,7 @@ const TaskCheckbox = ({
     <span
       className={clsx(
         'flex size-[22px] items-center justify-center rounded-md border-[1.5px] border-[var(--divider)]',
-        entry.isDone && 'border-[var(--blue)] bg-[var(--blue)] text-white'
+        entry.isDone && 'border-[var(--blue)] bg-[var(--blue-strong)] text-white'
       )}
     >
       {entry.isDone && <IoCheckmark size={14} aria-hidden="true" />}

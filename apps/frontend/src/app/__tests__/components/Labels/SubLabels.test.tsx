@@ -56,4 +56,37 @@ describe('SubLabels', () => {
     expect(redirectLink.closest('div')).toHaveClass('rounded-2xl!');
     expect(redirectLink.closest('div')).toHaveClass('gap-0');
   });
+
+  it('marks sub-sections by shape, not only by hue', () => {
+    render(
+      <SubLabels
+        labels={[
+          { key: 'core', name: 'Core' },
+          { key: 'history', name: 'History' },
+        ]}
+        activeLabel="core"
+        setActiveLabel={jest.fn()}
+        statuses={{ core: 'valid', history: 'error' }}
+      />
+    );
+
+    // The old markers were a green dot and a red dot whose relative luminance
+    // differs by 0.0005 - the same shade in greyscale.
+    expect(screen.getByLabelText('Section complete')).toBeInTheDocument();
+    expect(screen.getByLabelText('Section has errors')).toBeInTheDocument();
+    expect(screen.queryByText('•')).not.toBeInTheDocument();
+  });
+
+  it('marks nothing when no statuses are supplied', () => {
+    render(
+      <SubLabels
+        labels={[{ key: 'core', name: 'Core' }]}
+        activeLabel="core"
+        setActiveLabel={jest.fn()}
+      />
+    );
+
+    expect(screen.queryByLabelText('Section complete')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Section has errors')).not.toBeInTheDocument();
+  });
 });

@@ -266,7 +266,7 @@ const Slotpicker = ({
                 type="button"
                 key={slot.startTime + i}
                 onClick={() => setSelectedSlot(slot)}
-                className={`${selected ? 'bg-blue-text! text-white border-transparent! shadow-[0_6px_16px_var(--glow-b26)]' : 'border-input-border-default! bg-neutral-0 text-text-primary'} px-3.5 h-10 flex items-center justify-center border-[1.5px] rounded-[11px]! font-satoshi text-[12.5px]! font-semibold tabular-nums`}
+                className={`${selected ? 'bg-[var(--blue-strong)] text-white border-transparent! shadow-[0_6px_16px_var(--glow-b26)]' : 'border-input-border-default! bg-neutral-0 text-text-primary'} px-3.5 h-10 flex items-center justify-center border-[1.5px] rounded-[11px]! font-satoshi text-[12.5px]! font-semibold tabular-nums`}
               >
                 {formatUtcTimeToLocalLabel(slot.startTime)}
               </button>

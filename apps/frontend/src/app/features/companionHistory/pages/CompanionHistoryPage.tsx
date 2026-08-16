@@ -159,7 +159,7 @@ const ProfileDetail = ({
   labelWidth?: 74 | 88;
   /** `danger` paints the value in --danger-text, matching the design's red allergy emphasis. */
   tone?: 'default' | 'danger';
-  /** Trailing qualifier rendered in --pink (the co-parent row's "· shared care"). */
+  /** Trailing qualifier rendered in --pink-text (the co-parent row's "· shared care"). */
   suffix?: string;
 }) => (
   <div
@@ -173,7 +173,7 @@ const ProfileDetail = ({
       style={{ color: tone === 'danger' ? 'var(--danger-text)' : 'var(--ink)' }}
     >
       {value}
-      {suffix ? <span style={{ color: 'var(--pink)' }}> {suffix}</span> : null}
+      {suffix ? <span style={{ color: 'var(--pink-text)' }}> {suffix}</span> : null}
     </span>
   </div>
 );

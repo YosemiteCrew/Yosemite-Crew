@@ -13,6 +13,7 @@ import {
   OVERALL_DISCOUNT_ERROR_ID,
   overallDiscountCapMessage,
 } from '@/app/features/appointments/pages/AppointmentWorkspace/components/totalBillMessages';
+import TableHead from '@/app/ui/tables/TableHead';
 
 export type BillableSearchItem = Omit<InvoiceLineItem, 'id'> & { kind?: BillableKind };
 
@@ -131,19 +132,29 @@ const ROW_GRID =
  * boxes have an inner px-3, so the headings carry the same px-3 inset. The label
  * therefore sits at the start of its column, directly above the value below it.
  */
+const BILL_COLUMNS = [
+  { key: 'item', label: 'Item Name' },
+  { key: 'unit', label: 'Unit Price' },
+  { key: 'qty', label: 'Qnt.' },
+  { key: 'gross', label: 'Gross Amt.' },
+  { key: 'discount', label: 'Discount' },
+  { key: 'amount', label: 'Amount' },
+  { key: 'actions', label: '' },
+] as const;
+
+/* Not sticky: this sits inside the appointment side modal, where a sticky band
+   resolves against the drawer's transformed parent and strands itself. */
 const ColumnHeadings = () => (
-  <div
-    className={`${ROW_GRID} rounded-lg py-2 text-[10px] font-bold uppercase tracking-[0.1em] [&>span]:px-3`}
-    style={{ background: 'var(--screen-2)', color: 'var(--ink-faint)' }}
-  >
-    <span>Item Name</span>
-    <span>Unit Price</span>
-    <span>Qnt.</span>
-    <span>Gross Amt.</span>
-    <span>Discount</span>
-    <span>Amount</span>
-    <span aria-hidden="true" className="px-0!" />
-  </div>
+  <TableHead
+    columns={BILL_COLUMNS}
+    track="minmax(0,1.7fr) 110px 72px 130px 150px 120px 36px"
+    gap="12px"
+    sticky={false}
+    // Flush: the BillRows below carry no outer padding, so the recipe's 20px
+    // would start the headings 20px right of their values and resolve the
+    // flexible column against a width 40px narrower than the rows.
+    className="yc-table-head--flush rounded-lg [&>span]:px-3"
+  />
 );
 
 /** Plain (non-editable) text cell for line values that the user cannot change. */

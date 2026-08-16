@@ -27,12 +27,19 @@ describe('CalendarTeamNamesRow', () => {
     );
   });
 
-  it('paints the header band with the warm --screen-2 surface, not a blue tint or white', () => {
+  it('keeps the warm band but not the header type, whose casing would eat the names', () => {
     const { container } = render(<CalendarTeamNamesRow team={team} teamColumnsStyle={{}} />);
 
     const band = container.firstChild as HTMLElement;
     expect(band.style.background).toContain('var(--screen-2)');
-    expect(band.style.background).not.toContain('white');
-    expect(band.style.background).not.toContain('brand');
+    // NOT `.yc-table-head`: its `text-transform: uppercase` and 0.1em tracking
+    // inherit into UserLabels, which resets neither, so "Dr. Sarah Weber" and
+    // her speciality subline render as wide-tracked capitals. These labels are
+    // practitioner names - data - not column nouns.
+    expect(band).not.toHaveClass('yc-table-head');
+    // The band's own defect stays fixed: it closed on --color-neutral-200 while
+    // every sibling calendar band closes on --hairline.
+    expect(band.className).toContain('border-[var(--hairline)]');
+    expect(band.className).not.toContain('border-card-border');
   });
 });

@@ -657,7 +657,7 @@ const VitalsForm = ({
         />
       </label>
       <div className="flex items-center justify-center gap-3">
-        {saveError && <p className="text-caption-1 text-red-600">{saveError}</p>}
+        {saveError && <p className="text-caption-1 text-text-error">{saveError}</p>}
         <Primary
           text={isSaving ? 'Saving...' : 'Save vitals'}
           icon={<IoCheckmarkOutline aria-hidden="true" />}

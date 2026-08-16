@@ -265,7 +265,7 @@ export function ChatComposer() {
           aria-label="Send message"
           onClick={send}
           disabled={Boolean(cooldownRemaining)}
-          className="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-[var(--blue)] text-white shadow-[0_8px_20px_var(--glow-b26)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50 xl:h-11 xl:w-11 xl:bg-[var(--cta)] xl:text-[var(--cta-text)] xl:shadow-none"
+          className="inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-[var(--blue-strong)] text-white shadow-[0_8px_20px_var(--glow-b26)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50 xl:h-11 xl:w-11 xl:bg-[var(--cta)] xl:text-[var(--cta-text)] xl:shadow-none"
         >
           <IoArrowUp className="h-[17px] w-[17px] xl:hidden" />
           <IoSend className="hidden h-4 w-4 xl:block" />

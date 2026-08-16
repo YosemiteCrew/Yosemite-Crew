@@ -19,7 +19,7 @@ const OrgGreeting = ({ orgCount }: OrgGreetingProps) => {
 
   return (
     <div className="flex flex-col items-center gap-2 text-center">
-      <span className="font-newsreader text-[17px] italic text-[var(--pink)]">{greeting}</span>
+      <span className="font-newsreader text-[17px] italic text-[var(--blue-text)]">{greeting}</span>
       <h1 className="font-newsreader text-[30px] font-normal leading-[1.2] tracking-[-0.02em] text-[var(--ink)]">
         Where are you working today?
       </h1>

@@ -162,7 +162,7 @@ const ObservationToolForm = ({
               <p className="text-center text-[12px] text-text-secondary">{disabledReason}</p>
             )}
             {error && (
-              <p role="alert" className="text-center text-[12px] text-red-600">
+              <p role="alert" className="text-center text-[12px] text-text-error">
                 {error}
               </p>
             )}

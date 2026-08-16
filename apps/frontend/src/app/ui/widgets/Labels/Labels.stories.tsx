@@ -38,7 +38,7 @@ const meta = {
       description: {
         component:
           'Tab-style navigation pills. Supports a two-level hierarchy with sub-labels. ' +
-          '`statuses` map lets you show green/red dots on specific tabs (e.g. form validation state).',
+          '`statuses` map marks specific tabs with a check or alert icon (e.g. form validation state).',
       },
     },
   },
@@ -92,7 +92,8 @@ export const WithStatuses: Story = {
   parameters: {
     docs: {
       description: {
-        story: 'Green dot = valid, red dot = error. Used to show form section completion state.',
+        story:
+          'Check icon = valid, alert icon = error. Distinct shapes, not just hues, so the state survives greyscale and colour-blind vision. Used to show form section completion state.',
       },
     },
   },

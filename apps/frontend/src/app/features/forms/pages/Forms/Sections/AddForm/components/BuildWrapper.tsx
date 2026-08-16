@@ -129,7 +129,7 @@ const BuilderWrapper: React.FC<{
                 type="button"
                 onClick={onMoveUp}
                 disabled={!canMoveUp}
-                className={`${canMoveUp ? 'cursor-pointer hover:bg-gray-100' : 'opacity-30 cursor-not-allowed'} rounded p-1`}
+                className={`${canMoveUp ? 'cursor-pointer hover:bg-neutral-100' : 'opacity-30 cursor-not-allowed'} rounded p-1`}
                 title="Move up"
                 aria-label={`Move ${title} up`}
               >
@@ -141,7 +141,7 @@ const BuilderWrapper: React.FC<{
                 type="button"
                 onClick={onMoveDown}
                 disabled={!canMoveDown}
-                className={`${canMoveDown ? 'cursor-pointer hover:bg-gray-100' : 'opacity-30 cursor-not-allowed'} rounded p-1`}
+                className={`${canMoveDown ? 'cursor-pointer hover:bg-neutral-100' : 'opacity-30 cursor-not-allowed'} rounded p-1`}
                 title="Move down"
                 aria-label={`Move ${title} down`}
               >
@@ -152,11 +152,11 @@ const BuilderWrapper: React.FC<{
             <button
               type="button"
               onClick={onDelete}
-              className="hover:bg-red-50 rounded p-1"
+              className="hover:bg-[var(--status-danger-bg)] rounded p-1"
               title="Delete"
               aria-label={`Delete ${title}`}
             >
-              <IoTrash size={20} color="var(--color-danger-600)" />
+              <IoTrash size={20} color="var(--status-danger-text)" />
             </button>
           </div>
         )}

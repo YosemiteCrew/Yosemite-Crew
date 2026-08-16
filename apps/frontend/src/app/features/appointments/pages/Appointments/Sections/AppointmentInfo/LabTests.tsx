@@ -109,7 +109,7 @@ export const LabResultCategoryTable = ({
             >
               <td className="text-caption-1 text-text-primary py-2 pr-2">{test.name}</td>
               <td
-                className={`text-caption-1 py-2 pr-2 ${test.outOfRange ? 'text-red-600' : 'text-text-primary'}`}
+                className={`text-caption-1 py-2 pr-2 ${test.outOfRange ? 'text-text-error' : 'text-text-primary'}`}
               >
                 <LabResultValue test={test} />
               </td>
@@ -941,7 +941,7 @@ const InhouseCensusStatus = ({ s }: { s: UseLabTestsReturn }) => {
 
   return (
     <div
-      className={`rounded-2xl border p-3 ${s.companionInCensus ? 'border-green-200 bg-green-50' : 'border-card-border'}`}
+      className={`rounded-2xl border p-3 ${s.companionInCensus ? 'border-pill-success-border bg-pill-success-bg' : 'border-card-border'}`}
     >
       <div className="text-body-4 text-text-primary">
         Companion census status: {censusStatusLabel}

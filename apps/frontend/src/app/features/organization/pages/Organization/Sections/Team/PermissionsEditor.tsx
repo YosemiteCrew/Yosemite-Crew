@@ -3,6 +3,7 @@ import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { Permission, PERMISSIONS, ROLE_PERMISSIONS, RoleCode } from '@/app/lib/permissions';
 import React from 'react';
 import { uniq } from '@/app/features/organization/pages/Organization/Sections/Team/permissionsEditorUtils';
+import '@/app/ui/tables/GenericTable/Generictable.css';
 
 type PermissionRow = {
   key: string;
@@ -388,11 +389,11 @@ const PermissionsEditor = ({ value, onSave, role, readOnly = false }: Permission
           </div>
         )}
         <div className="flex flex-col overflow-hidden">
-          <div className="flex w-full items-center py-3 justify-between border-b border-b-grey-light px-2 bg-neutral-0">
-            <div className="text-body-4 text-grey-text">Permission</div>
+          <div className="yc-table-head yc-table-head--static flex w-full items-center justify-between px-2!">
+            <div>Permission</div>
             <div className="flex gap-10 items-center">
-              <div className="text-body-4 text-grey-text w-18 text-center">View</div>
-              <div className="text-body-4 text-grey-text w-18 text-center">Edit</div>
+              <div className="w-18 text-center">View</div>
+              <div className="w-18 text-center">Edit</div>
             </div>
           </div>
           {PERMISSION_ROWS.map((row) => {

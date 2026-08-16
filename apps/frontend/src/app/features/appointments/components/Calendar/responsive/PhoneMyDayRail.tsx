@@ -75,7 +75,7 @@ const RailTime = ({ entry }: { entry: MyDayRailEntry }) => {
 const NowMarker = ({ now }: { now: Date }) => (
   <div className="flex items-center gap-[7px]" data-testid="my-day-now-marker">
     <span className="w-[38px] flex-none pr-0.5 text-right">
-      <span className="inline-block rounded-full bg-[var(--blue)] px-1.5 py-0.5 text-[8.5px] font-bold tabular-nums text-white">
+      <span className="inline-block rounded-full bg-[var(--blue-strong)] px-1.5 py-0.5 text-[8.5px] font-bold tabular-nums text-white">
         {formatRailTime(now)}
       </span>
     </span>
@@ -170,7 +170,7 @@ const NextAppointmentCard = ({
         <button
           type="button"
           onClick={() => onOpenWorkspace?.(entry.appointment)}
-          className="flex h-[30px] flex-1 items-center justify-center rounded-full bg-[var(--blue)] text-[10.5px] font-bold text-white"
+          className="flex h-[30px] flex-1 items-center justify-center rounded-full bg-[var(--blue-strong)] text-[10.5px] font-bold text-white"
         >
           Open workspace
         </button>

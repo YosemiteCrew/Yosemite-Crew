@@ -186,16 +186,21 @@ describe('WeekCalendar (Appointments)', () => {
       />
     );
 
-    // Day label: all-caps 9.5px/700/0.08em (was 16px body type).
-    const dayLabel = container.querySelector('.text-\\[9\\.5px\\]');
-    expect(dayLabel).toHaveClass('font-bold', 'uppercase', 'tracking-[0.08em]');
+    // The day strip takes the shared header recipe instead of restating
+    // 9.5px/700/0.08em, which is what let it drift from the table header.
+    const band = container.querySelector('.yc-table-head');
+    expect(band).toBeInTheDocument();
+    expect(band).toHaveClass('yc-table-head--flush', 'yc-table-head--static');
+    // Scoped to the band: the "All-day" label below is a ROW-axis label, like
+    // the time gutter, and keeps its own denser type by design.
+    expect(band?.querySelector('.tracking-\\[0\\.08em\\]')).toBeNull();
 
     // Today's date drops into a 24px --blue disc, and its header cell takes
     // --nav-active-bg. Days mock to 6/7/8 Jan, so the 7th is today.
     const todayDisc = Array.from(container.querySelectorAll('div')).find(
       (el) =>
         el.className.includes('size-6') &&
-        el.getAttribute('style')?.includes('background-color: var(--blue)')
+        el.getAttribute('style')?.includes('background-color: var(--blue-strong)')
     );
     expect(todayDisc).toHaveTextContent('7');
     expect(todayDisc?.parentElement?.getAttribute('style')).toContain(
