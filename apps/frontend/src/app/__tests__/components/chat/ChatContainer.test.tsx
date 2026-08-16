@@ -27,6 +27,24 @@ import { useAppointmentStore } from '@/app/stores/appointmentStore';
 import { useCompanionStore } from '@/app/stores/companionStore';
 import { useChannelStateContext, useChatContext } from 'stream-chat-react';
 
+// The native confirm() these flows used has been replaced by the ConfirmModal
+// hook. Mock the hook so each test can decide the answer without driving the
+// dialog, keeping the assertions focused on the downstream action.
+let mockConfirmResult = true;
+const setConfirmResult = (value: boolean) => {
+  mockConfirmResult = value;
+};
+const mockConfirm = jest.fn(async () => mockConfirmResult);
+jest.mock('@/app/ui/overlays/Modal/ConfirmModal', () => ({
+  useConfirm: () => ({ confirm: mockConfirm, confirmDialog: null }),
+}));
+
+// Default to confirming, so a test that declines cannot leak into the next one.
+beforeEach(() => {
+  mockConfirmResult = true;
+  mockConfirm.mockClear();
+});
+
 // ----------------------------------------------------------------------------
 // 1. Mocks & Setup
 // ----------------------------------------------------------------------------
@@ -94,7 +112,6 @@ jest.mock('@/app/features/appointments/services/appointmentService', () => ({
 
 // Global mocks
 globalThis.alert = jest.fn();
-globalThis.confirm = jest.fn(() => true);
 
 // Suppress console errors/warns for cleaner test output (optional but helpful)
 const originalConsoleError = console.error;
@@ -624,7 +641,7 @@ describe('ChatContainer', () => {
   });
 
   it('does not delete group when confirm is cancelled', async () => {
-    (globalThis.confirm as jest.Mock).mockReturnValueOnce(false);
+    setConfirmResult(false);
     (chatService.listOrgChatSessions as jest.Mock).mockResolvedValue([
       {
         _id: 'backend-group-id',
@@ -775,7 +792,7 @@ describe('ChatContainer', () => {
   });
 
   it('does not close session when user cancels confirmation', async () => {
-    (globalThis.confirm as jest.Mock).mockReturnValueOnce(false);
+    setConfirmResult(false);
     const clientChannel = {
       ...defaultMockChannel,
       data: { appointmentId: '123', chatCategory: 'clients' },

@@ -6,6 +6,24 @@ import { axe, toHaveNoViolations } from 'jest-axe';
 expect.extend(toHaveNoViolations);
 import ProtectedIntegrations from '@/app/features/integrations/pages/Integrations';
 
+// The native confirm() these flows used has been replaced by the ConfirmModal
+// hook. Mock the hook so each test can decide the answer without driving the
+// dialog, keeping the assertions focused on the downstream action.
+let mockConfirmResult = true;
+const setConfirmResult = (value: boolean) => {
+  mockConfirmResult = value;
+};
+const mockConfirm = jest.fn(async () => mockConfirmResult);
+jest.mock('@/app/ui/overlays/Modal/ConfirmModal', () => ({
+  useConfirm: () => ({ confirm: mockConfirm, confirmDialog: null }),
+}));
+
+// Default to confirming, so a test that declines cannot leak into the next one.
+beforeEach(() => {
+  mockConfirmResult = true;
+  mockConfirm.mockClear();
+});
+
 const useIntegrationsForPrimaryOrgMock = jest.fn();
 const useIntegrationByProviderForPrimaryOrgMock = jest.fn();
 const loadIntegrationsForPrimaryOrgMock = jest.fn();
@@ -276,7 +294,7 @@ describe('Integrations settings', () => {
   });
 
   it('respects disconnect confirmation and avoids disable on cancel', async () => {
-    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(false);
+    setConfirmResult(false);
 
     render(<ProtectedIntegrations />);
 
@@ -288,11 +306,9 @@ describe('Integrations settings', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Disable IDEXX' }));
 
     await waitFor(() => {
-      expect(confirmSpy).toHaveBeenCalled();
+      expect(mockConfirm).toHaveBeenCalled();
     });
     expect(disableIntegrationMock).not.toHaveBeenCalled();
-
-    confirmSpy.mockRestore();
   });
 
   it('shows Enable on card when disabled and blocks enable if credentials are invalid', async () => {

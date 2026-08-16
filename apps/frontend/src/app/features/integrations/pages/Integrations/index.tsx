@@ -47,6 +47,7 @@ import {
 import clsx from 'clsx';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import SharedStatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
+import { useConfirm } from '@/app/ui/overlays/Modal/ConfirmModal';
 
 type StatusTokens = { bg: string; text: string; border: string };
 
@@ -357,6 +358,7 @@ type IdexxActionsState = {
 };
 
 const useIdexxActions = (s: IdexxActionsState) => {
+  const { confirm, confirmDialog } = useConfirm();
   const handleManualRefresh = useCallback(async () => {
     if (!s.primaryOrgId || s.refreshing) return;
     s.setRefreshing(true);
@@ -445,9 +447,12 @@ const useIdexxActions = (s: IdexxActionsState) => {
     }
     const isDisconnecting = (s.idexxIntegration.status ?? '').toLowerCase() === 'enabled';
     if (isDisconnecting) {
-      const ok = globalThis.confirm(
-        'Disconnect IDEXX for this organization? Lab ordering and result syncing will be unavailable until re-enabled.'
-      );
+      const ok = await confirm({
+        title: 'Disconnect IDEXX?',
+        body: 'Lab ordering and result syncing stop for this organization until IDEXX is enabled again.',
+        confirmLabel: 'Disconnect',
+        tone: 'danger',
+      });
       if (!ok) return;
     }
     s.setSaving(true);
@@ -472,9 +477,15 @@ const useIdexxActions = (s: IdexxActionsState) => {
     } finally {
       s.setSaving(false);
     }
-  }, [s, validateBeforeEnable]);
+  }, [s, validateBeforeEnable, confirm]);
 
-  return { handleManualRefresh, handleStoreCredentials, handleValidate, handleEnableDisable };
+  return {
+    handleManualRefresh,
+    handleStoreCredentials,
+    handleValidate,
+    handleEnableDisable,
+    confirmDialog,
+  };
 };
 
 const useIntegrationsPage = () => {
@@ -565,21 +576,26 @@ const useIntegrationsPage = () => {
     setValidateState(resolveValidateState(idexxIntegration?.credentialsStatus));
   }
 
-  const { handleManualRefresh, handleStoreCredentials, handleValidate, handleEnableDisable } =
-    useIdexxActions({
-      primaryOrgId,
-      refreshing,
-      saving,
-      username,
-      password,
-      idexxIntegration,
-      setDevices,
-      setError,
-      setRefreshing,
-      setSaving,
-      setValidateState,
-      setShowSettings,
-    });
+  const {
+    handleManualRefresh,
+    handleStoreCredentials,
+    handleValidate,
+    handleEnableDisable,
+    confirmDialog,
+  } = useIdexxActions({
+    primaryOrgId,
+    refreshing,
+    saving,
+    username,
+    password,
+    idexxIntegration,
+    setDevices,
+    setError,
+    setRefreshing,
+    setSaving,
+    setValidateState,
+    setShowSettings,
+  });
 
   const linkedCount = useMemo(() => {
     const enabledProviders = integrations.reduce<Set<string>>((providers, integration) => {
@@ -630,6 +646,7 @@ const useIntegrationsPage = () => {
   }, [primaryOrgId, merckEnabled, merckSaving, refreshMerckIntegration]);
 
   return {
+    confirmDialog,
     primaryOrg,
     primaryOrgId,
     canEditIntegrations,
@@ -1275,6 +1292,7 @@ const IntegrationsPage = () => {
 
   return (
     <div className="yc-page-content">
+      {s.confirmDialog}
       <div className="flex justify-between items-start gap-3 flex-wrap">
         <div className="flex flex-col gap-1">
           <h1 className="text-page-title flex items-center gap-2">

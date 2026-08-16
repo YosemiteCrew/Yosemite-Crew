@@ -7,6 +7,13 @@ type ModalProps = {
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   onClose?: () => void;
   containerClassName?: string;
+  /**
+   * Accessible name for the dialog. ModalBase already applies it; CenterModal
+   * previously declared no way to pass one, so every dialog built on it
+   * rendered without a name for screen readers.
+   */
+  ariaLabel?: string;
+  ariaLabelledBy?: string;
 };
 
 const ignorePortalDropdownClick = (target: HTMLElement | null) =>
@@ -18,11 +25,15 @@ const CenterModal = ({
   setShowModal,
   onClose,
   containerClassName,
+  ariaLabel,
+  ariaLabelledBy,
 }: ModalProps) => (
   <ModalBase
     showModal={showModal}
     setShowModal={setShowModal}
     onClose={onClose}
+    aria-label={ariaLabel}
+    aria-labelledby={ariaLabelledBy}
     ignoreOutsideClick={ignorePortalDropdownClick}
     overlayClassName={`fixed backdrop-blur-[6px] inset-0 z-[1100] transition-opacity duration-200 ease-in-out ${
       showModal ? 'opacity-100' : 'opacity-0 pointer-events-none'

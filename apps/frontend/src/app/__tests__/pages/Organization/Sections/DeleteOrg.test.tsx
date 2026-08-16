@@ -81,6 +81,7 @@ describe('DeleteOrg section', () => {
     fireEvent.change(screen.getByLabelText('Enter email address'), {
       target: { value: 'owner@example.com' },
     });
+    fireEvent.click(screen.getByLabelText('Confirm deletion consent'));
     fireEvent.click(screen.getByText('Delete'));
 
     expect(deleteOrgMock).toHaveBeenCalled();
