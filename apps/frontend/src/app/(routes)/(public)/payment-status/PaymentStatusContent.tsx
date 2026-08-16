@@ -158,7 +158,14 @@ export function PaymentStatusContent() {
     requestState === 'error' || requestState === 'missing_session' ? 'alert' : 'status';
 
   return (
-    <div className="min-h-[max(720px,100vh)] flex items-center justify-center px-4 pt-22 pb-10 bg-[radial-gradient(circle_at_10%_10%,rgba(250,238,210,0.6),transparent_45%),radial-gradient(circle_at_90%_20%,rgba(210,235,248,0.6),transparent_45%),radial-gradient(circle_at_50%_90%,rgba(215,245,230,0.7),transparent_50%)]">
+    // A light product surface outside the (app) layout, reached by both
+    // /payment-status and /success, so it needs the readable faint inks of its
+    // own - see body:has([data-yc-app]) in globals.css. Without the marker the
+    // `text-text-tertiary` line below sits at 3.45:1 even on white.
+    <div
+      data-yc-app
+      className="min-h-[max(720px,100vh)] flex items-center justify-center px-4 pt-22 pb-10 bg-[radial-gradient(circle_at_10%_10%,rgba(250,238,210,0.6),transparent_45%),radial-gradient(circle_at_90%_20%,rgba(210,235,248,0.6),transparent_45%),radial-gradient(circle_at_50%_90%,rgba(215,245,230,0.7),transparent_50%)]"
+    >
       <div className="w-full max-w-xl bg-white/80 border border-card-border rounded-2xl px-6 py-10">
         <div className="flex flex-col items-center text-center gap-4">
           <div className="relative flex items-center justify-center size-24 rounded-full">

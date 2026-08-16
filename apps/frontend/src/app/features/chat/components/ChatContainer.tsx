@@ -565,7 +565,7 @@ const ChatClosedFooter: FC<{ closedAt?: string }> = ({ closedAt }) => {
         Chat session closed
       </Text>
       {formattedClosedTime && (
-        <Text as="p" variant="caption-2" className="text-neutral-500">
+        <Text as="p" variant="caption-2" className="text-text-tertiary">
           {formattedClosedTime}
         </Text>
       )}
@@ -626,7 +626,7 @@ const ChatEmptyThread: FC = () => (
     <Text as="p" variant="body-3-emphasis" className="text-neutral-700">
       No messages yet
     </Text>
-    <Text as="p" variant="caption-1" className="text-neutral-500">
+    <Text as="p" variant="caption-1" className="text-text-tertiary">
       Send the first message to start the conversation.
     </Text>
   </div>
@@ -891,7 +891,11 @@ const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
                           {user.name}
                         </Text>
                         {user.email && (
-                          <Text as="span" variant="caption-2" className="truncate text-neutral-500">
+                          <Text
+                            as="span"
+                            variant="caption-2"
+                            className="truncate text-text-tertiary"
+                          >
                             {user.email}
                           </Text>
                         )}

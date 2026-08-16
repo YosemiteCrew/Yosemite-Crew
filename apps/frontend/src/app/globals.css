@@ -1781,31 +1781,39 @@ html[data-theme='dark'] [data-yc-app] ::selection {
 body:has([data-yc-app]) {
   --ink-faint: #66635f;
   --ink-faint2: #66635f;
-  /* The @theme layer aliases these, and those aliases are COMPUTED ON :root -
-     so overriding only the short tokens here leaves every alias consumer on the
-     old value. `text-neutral-500` in the chat panes kept resolving #a9a39e.
-     The transitive text closure is re-declared with them.
-     Deliberately excluded: --color-grey-border / --greyborder, which resolve
-     from the same inks but are borders, not text - darkening those would be a
-     visible change with no contrast argument behind it. */
-  --color-neutral-600: #66635f;
-  --color-neutral-500: #66635f;
-  --color-text-tertiary: #66635f;
-  --color-text-extra: #66635f;
-  --color-grey-text: #66635f;
-  --color-grey-bg: #66635f;
-  --black-grey: #66635f;
-  --black-grey-Text: #66635f;
+  /* The @theme layer aliases these inks, and those aliases are COMPUTED ON
+     :root - so overriding only the short tokens here leaves every alias
+     consumer on the old value.
+
+     These re-declarations are ALIASES, never literals. Every one is on this
+     same element as the inks above, so `var(--ink-faint)` resolves to the
+     scoped value; writing the hex again would be a fourth place to keep in
+     step, which is the drift this whole change exists to stop.
+
+     Only TEXT tokens appear here. Two groups are deliberately absent:
+       - --color-grey-border / --greyborder are borders (OtpModal,
+         UploadImage). Darkening a border is a visible change with no contrast
+         argument behind it.
+       - --color-neutral-500 / -600 are raw ramp steps, not text semantics.
+         neutral-500 also backs `border-neutral-500` in three components and
+         the scrollbar thumb at :216 and :245, so bending it here would darken
+         outlines and scrollbars to fix text. The handful of call sites that
+         reached for `text-neutral-500` directly now use `text-text-tertiary`
+         instead - the semantic token is the one that carries the guarantee. */
+  --color-text-tertiary: var(--ink-faint);
+  --color-text-extra: var(--ink-faint2);
+  --color-grey-text: var(--ink-faint);
+  --color-grey-bg: var(--ink-faint);
+  --black-grey: var(--ink-faint);
+  --black-grey-Text: var(--ink-faint);
 }
 html[data-theme='dark'] body:has([data-yc-app]) {
   --ink-faint: #9d9285;
   --ink-faint2: #998f82;
-  --color-neutral-600: #9d9285;
-  --color-neutral-500: #998f82;
-  --color-text-tertiary: #9d9285;
-  --color-text-extra: #998f82;
-  --color-grey-text: #9d9285;
-  --color-grey-bg: #9d9285;
-  --black-grey: #9d9285;
-  --black-grey-Text: #9d9285;
+  --color-text-tertiary: var(--ink-faint);
+  --color-text-extra: var(--ink-faint2);
+  --color-grey-text: var(--ink-faint);
+  --color-grey-bg: var(--ink-faint);
+  --black-grey: var(--ink-faint);
+  --black-grey-Text: var(--ink-faint);
 }
