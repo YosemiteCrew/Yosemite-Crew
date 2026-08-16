@@ -124,10 +124,10 @@ For Developers
 
 # ⭐ Star History
 
-<a href="https://star-history.com/#YosemiteCrew/Yosemite-Crew&Date">
+<a href="https://star-history.dera.page/#YosemiteCrew/Yosemite-Crew&Date">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=YosemiteCrew/Yosemite-Crew&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=YosemiteCrew/Yosemite-Crew&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=YosemiteCrew/Yosemite-Crew&type=Date" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=YosemiteCrew/Yosemite-Crew&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=YosemiteCrew/Yosemite-Crew&type=Date" />
+   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=YosemiteCrew/Yosemite-Crew&type=Date" />
  </picture>
 </a>
