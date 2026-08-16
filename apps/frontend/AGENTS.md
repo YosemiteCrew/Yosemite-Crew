@@ -45,6 +45,15 @@ var(--color-blue-text)`), because a token maintained by hand in both places
 drifts: `--color-blue-text` sat at `var(--blue)` and kept resolving to a
 sub-AA value after `--blue-text` had been fixed.
 
+**Every ink token must clear AA on the DARKEST surface it can land on.** The
+bone palette's darkest is `--band` (#e8e0d2), not `--screen`, so checking
+against `--screen` alone passes things that fail in the wild. The light ramp is
+`--ink` > `--ink-body` > `--ink-soft` > `--ink-muted` (5.31) > `--ink-faint`
+(4.56, the lightest value the palette allows at AA). There is no room below
+`--ink-faint` - `--ink-faint2` is the same value for exactly that reason. If you
+want text fainter than `--ink-faint`, the answer is not a lighter ink; it is
+less text, or a larger size, or a different surface.
+
 **Column headers come from one recipe.** `<GenericTable>` for real tabular
 markup; `<TableHead>` (`src/app/ui/tables/TableHead.tsx`) for grid or flex
 shells. Do not hand-roll a `--screen-2` band with uppercase micro-type - PIMS

@@ -25,6 +25,7 @@ Rules:
 - **Where one concept has both spellings, alias - never hold a literal in both.** `--blue-text: var(--color-blue-text)`. Hand-maintaining both is how the utility form kept resolving to a sub-AA colour after the variable form was fixed.
 - **A fill token is not a text token.** `--blue` is a fill and has no contrast duty of its own; `--blue-text` must clear 4.5:1 on the bone surfaces. Using a fill as text (or a text token as a fill) is the most common colour bug in this app.
 - **A fill under white text has two duties**: 4.5:1 for the label, and 3:1 against its own surface, because a selected control may drop its border and let the fill alone carry the state. `--blue-strong` exists for this and is the only value that satisfies both in each theme.
+- **Ink tokens are checked against `--band` (#e8e0d2), the darkest bone surface** - not `--screen`. The light ramp bottoms out at `--ink-faint` (#66635f, 4.56:1); `--ink-faint2` shares that value because the palette has no room for a second passing step below `--ink-muted` (5.31:1). Anything lighter is unreadable, and ~476 usages were sitting at 1.90-2.64:1 before this was enforced.
 - Never hardcode hex values in components. Use a CSS variable or a Tailwind token class.
 
 ## Component status labels

@@ -598,8 +598,19 @@ textarea:focus-visible {
      5.87:1 light / 6.34:1 dark. */
   --table-head-ink: var(--ink-muted);
   --ink-soft: #423f3c;
-  --ink-faint: #8f8984;
-  --ink-faint2: #a9a39e;
+  /* Both were unreadable as text: #8f8984 measured 2.64:1 and #a9a39e 1.90:1
+     against the darkest bone surface (--band), across ~476 usages - nav labels,
+     metadata lines, counts, weekday labels, empty states. #66635f is the
+     LIGHTEST warm grey on this ramp that still clears 4.5:1 everywhere (4.56),
+     so it stays as faint as the palette allows while remaining legible, and
+     stays lighter than --ink-muted (5.31) so the hierarchy survives.
+
+     --ink-faint2 takes the same value: with the ceiling at 4.56 and --ink-muted
+     at 5.31 there is not enough headroom for two distinct sub-muted steps that
+     both pass. The second step was never readable, so it is folded into the
+     first rather than kept as a decorative fiction. */
+  --ink-faint: #66635f;
+  --ink-faint2: #66635f;
   --ink-6b: #6b6763;
   /* primary CTA (dark fill on light) */
   --cta: #302f2e;
@@ -752,7 +763,9 @@ html[data-theme='dark'] {
   --ink-muted: #a89e90;
   --ink-soft: #cabfb0;
   --ink-faint: #9d9285;
-  --ink-faint2: #8b8173;
+  /* #8b8173 was 3.78:1 on the espresso surfaces; #998f82 is the darkest value
+     that clears 4.5 (4.56). --ink-faint already passes at 4.75 and is unchanged. */
+  --ink-faint2: #998f82;
   --ink-6b: #a1968a;
   --cta: #f2ece1;
   --cta-hover: #fbf8f1;
@@ -870,7 +883,9 @@ html[data-theme='dark'] {
   --ink-muted: #a89e90;
   --ink-soft: #cabfb0;
   --ink-faint: #9d9285;
-  --ink-faint2: #8b8173;
+  /* #8b8173 was 3.78:1 on the espresso surfaces; #998f82 is the darkest value
+     that clears 4.5 (4.56). --ink-faint already passes at 4.75 and is unchanged. */
+  --ink-faint2: #998f82;
   --ink-6b: #a1968a;
   --cta: #f2ece1;
   --cta-hover: #fbf8f1;
