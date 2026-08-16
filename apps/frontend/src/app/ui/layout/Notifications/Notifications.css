@@ -133,8 +133,10 @@
   background: var(--surface-soft);
 }
 
+/* The 'Earlier' grouping is carried by its section heading, not by dimming
+   the rows: at 0.75 the --ink-faint meta line composited to 3.23:1. */
 .yc-noti-row--earlier {
-  opacity: 0.75;
+  color: var(--ink-body);
 }
 
 .yc-noti-row:hover {

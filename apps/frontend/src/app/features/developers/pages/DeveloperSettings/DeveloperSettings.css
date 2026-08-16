@@ -208,7 +208,6 @@
   display: block;
   font-size: 11.5px;
   color: var(--danger-text);
-  opacity: 0.85;
 }
 
 .dev-danger-actions {

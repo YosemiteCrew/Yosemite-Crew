@@ -146,7 +146,6 @@
   font-weight: 700;
   letter-spacing: 0.05em;
   color: var(--block-text);
-  opacity: 0.8;
   text-transform: uppercase;
 }
 
@@ -155,7 +154,6 @@
   margin-top: 2px;
   font-size: 10.5px;
   color: var(--block-text);
-  opacity: 0.75;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

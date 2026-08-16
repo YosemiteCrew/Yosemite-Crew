@@ -140,10 +140,11 @@ button.yc-pwo-row {
   cursor: pointer;
 }
 
-/* A day already behind us recedes; a closed day recedes further. */
-.yc-pwo-row--done {
-  opacity: 0.75;
-}
+/* A day already behind us recedes; a closed day recedes further. Both do it
+   through ink alone - see the --dayofmonth and --summary rules below. The
+   opacity that used to sit here (0.75) composited the whole row on top of
+   that, taking --ink-faint labels to 3.23:1 on --screen and 2.90:1 on --band,
+   on rows that are still enabled buttons. */
 
 /* No opacity here. A closed row already recedes through ink - its day number
    drops to --ink-muted below - and stacking 0.5 on top composited the whole

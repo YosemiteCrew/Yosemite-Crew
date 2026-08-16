@@ -191,8 +191,13 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
     for (const file of files) {
       const lines = fs.readFileSync(path.join(root, file), 'utf8').split('\n');
       lines.forEach((line, i) => {
-        const m = /^\s*opacity:\s*(0\.\d+)\s*;/.exec(line);
-        if (!m || Number(m[1]) >= 0.7) return;
+        // EVERY non-unit opacity, not a threshold. The first version of this
+        // stopped at 0.7 and so walked past `.yc-pwo-row--done { opacity: 0.75 }`,
+        // where --ink-faint labels still land at 3.23:1 on --screen. There is no
+        // safe cutoff: the faint inks pass by so little that any compositing at
+        // all can drop them under 4.5.
+        const m = /^\s*opacity:\s*(0?\.\d+|0)\s*;/.exec(line);
+        if (!m) return;
 
         // Walk back to the selector this declaration belongs to.
         let selector = '';
@@ -206,21 +211,21 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
           }
         }
         const exempt =
+          m[1] === '0' ||
+          m[1] === '0.0' || // fully hidden: nothing painted to read
           /disabled/i.test(selector) || // inactive component
           /^\d+%$|^from$|^to$/.test(selector) || // keyframe step
-          /indicator|::before|::after|scrollbar|shadow/i.test(selector); // decoration
+          // Decoration: rules, bars, skeleton placeholders, icons, pseudo-elements.
+          /divider|-sk-|skeleton|bar\b|icon|indicator|::before|::after|scrollbar|shadow/i.test(
+            selector
+          );
         if (!exempt) offenders.push(`${file}:${i + 1}  ${selector}`);
       });
     }
 
-    // Everything left must be a rule whose subtree paints no faint text. Each
-    // entry is a deliberate call, not a backlog.
-    expect(offenders).toEqual([
-      'features/developers/pages/DeveloperApiKeys/DeveloperApiKeys.css:138  .dev-keys-row.is-revoked',
-      'features/developers/pages/DeveloperWebsiteBuilder/DeveloperWebsiteBuilder.css:232  .dev-wb-sk-bar.is-faded',
-      'features/developers/pages/DeveloperWebsiteBuilder/DeveloperWebsiteBuilder.css:256  .dev-wb-sk-tile',
-      'features/onboarding/components/Steps/Progress/Progress.css:27  .yc-step-trigger.is-upcoming',
-    ]);
+    // Empty, and it should stay that way. Anything new either recedes through
+    // ink instead, or names itself as decoration / a disabled control.
+    expect(offenders).toEqual([]);
   });
 
   it('has nothing painting text with a raw neutral ramp step', () => {

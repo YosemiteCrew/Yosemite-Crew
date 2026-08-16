@@ -36,13 +36,10 @@
   text-decoration: none;
 }
 
-.DocsOpenLink {
-  transition: opacity 0.15s ease;
-}
-
 .DocsOpenLink:hover {
+  /* The underline is the whole affordance. Dimming to 0.8 on top of it lowered
+     the link's contrast at exactly the moment the pointer was on it. */
   text-decoration: underline;
-  opacity: 0.8;
 }
 
 /* ---- Reader shell ---- */

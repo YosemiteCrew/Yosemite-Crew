@@ -115,7 +115,7 @@ export default function AccessibilityReportClient() {
 
   if (submitted) {
     return (
-      <>
+      <div data-yc-app style={{ display: 'contents' }}>
         <main id="main-content" tabIndex={-1} className="mx-auto max-w-2xl px-6 pt-22 pb-16">
           <output
             aria-live="polite"
@@ -139,14 +139,19 @@ export default function AccessibilityReportClient() {
           </output>
         </main>
         <Footer />
-      </>
+      </div>
     );
   }
 
   const hasErrors = Object.keys(errors).length > 0;
 
   return (
-    <>
+    // A bone product surface outside the (app) layout, so it opts into the
+    // readable faint inks itself - see body:has([data-yc-app]) in globals.css.
+    // Without it the shared Footer's links resolve the root #8f8984, which is
+    // 3.04:1 on this page's --color-brand-100 band. `display: contents` keeps
+    // it out of the box tree.
+    <div data-yc-app style={{ display: 'contents' }}>
       <main id="main-content" tabIndex={-1} className="mx-auto max-w-2xl px-6 pt-22 pb-16">
         <nav aria-label="Breadcrumb" className="mb-6">
           <ol className="flex items-center gap-2 text-body-4 text-text-secondary list-none p-0 m-0">
@@ -269,6 +274,6 @@ export default function AccessibilityReportClient() {
         </form>
       </main>
       <Footer />
-    </>
+    </div>
   );
 }
