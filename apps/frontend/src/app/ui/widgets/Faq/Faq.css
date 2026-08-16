@@ -32,7 +32,12 @@
   overflow: hidden;
   border: 1px solid var(--color-card-border);
   border-radius: 16px;
-  background: var(--color-background-primary, #fff);
+  /* --color-background-primary does not exist anywhere in the token set, so
+     this always fell through to the #fff literal - a surface that never
+     themes. In dark the accordion text goes light and lands on white at
+     1.34:1. --color-surface-card is the real card surface and has a dark
+     value. */
+  background: var(--color-surface-card);
   box-shadow: 0 5px 16px 0 rgba(8, 15, 52, 0.06);
   transition:
     border-color 180ms ease,

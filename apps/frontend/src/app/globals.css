@@ -403,18 +403,23 @@ textarea:focus-visible {
   --color-shadow-xs: rgba(17, 24, 39, 0.04);
   --color-shadow-sm: rgba(0, 0, 0, 0.16);
   --color-shadow-md: rgba(0, 0, 0, 0.2);
-  --color-muted-999: #999999;
+  --color-muted-999: var(--ink-muted);
   --color-muted-400: #c2c2c1;
   --color-text-hidden: #2b2b2a;
   --color-toast-error-bg: #f8c1bd;
   --color-toast-warning-bg: #fcd9bb;
   --color-toast-success-bg: #b0dccd;
-  --color-select-ink: #312943;
-  --color-select-ink-muted: #31294399;
+  /* Themed inks, not fixed literals. These had no dark value, so in dark mode
+     the select's own text stayed near-black on a near-black surface - 1.07:1
+     for the placeholder. Aliasing to the warm-bone scale gives them a dark
+     value for free, and --color-muted-999 (#999999) was failing in LIGHT too
+     at 2.58:1. */
+  --color-select-ink: var(--ink);
+  --color-select-ink-muted: var(--ink-muted);
   --color-surface-disabled: #ece5d9;
   --color-text-subtle: #555555;
   --color-text-strong: #333333;
-  --color-text-body-dark: #222222;
+  --color-text-body-dark: var(--ink-body);
   --color-linkedin-blue: #0a66c2;
   --color-chat-empty-bg: #faf7f0;
   --color-onboarding-accent-border: #b7c8ff;
@@ -427,7 +432,7 @@ textarea:focus-visible {
   --color-upload-error-soft: #e53e3e;
   --color-upload-info: #2563eb;
   --color-upload-success: #10b981;
-  --color-upload-text: #222222;
+  --color-upload-text: var(--ink-body);
 
   --color-badge-blue-bg: var(--color-primary-500);
   --color-badge-blue-text: #eaf3ff;
