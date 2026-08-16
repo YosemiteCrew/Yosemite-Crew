@@ -56,14 +56,27 @@ less text, or a larger size, or a different surface.
 
 That 4.56 ramp is the **app** value. The faint inks are the one deliberately
 two-valued pair in the palette: PIMS gets `#66635f` under
-`body:has([data-yc-app])`, while `:root` keeps `#9d9285` for the marketing
+`body:has([data-yc-app])`, while `:root` keeps `#8f8984` for the marketing
 pages, whose `--spot` sections are always dark and would drop to 2.85:1 if
-darkened. Two consequences, both of which have already shipped as bugs: the
-hook is on `body` via `:has()` because overlays `createPortal` out of the shell,
-and the whole `@theme` alias closure (`--color-neutral-600` and everything
-downstream) must be re-declared with it, since an alias resolves where it is
-declared - on `:root` - and will not recompute just because its dependency
-changed lower down. See `src/app/ui/tokens.md` for the table and the guard.
+darkened. Three consequences, all of which have already shipped as bugs:
+
+1. **The hook is on `body` via `:has()`**, not on the shell element, because
+   overlays `createPortal` out of the shell and would keep the wrong value.
+2. **The TEXT-SEMANTIC aliases must be re-declared with the inks**, since an
+   alias resolves where it is declared - on `:root` - and will not recompute
+   just because its dependency changed lower down. That is
+   `--color-text-tertiary`, `--color-text-extra`, `--color-grey-text`,
+   `--color-grey-bg`, `--black-grey`. The RAW ramp steps
+   (`--color-neutral-500` / `-600`) are deliberately **left alone**: they also
+   back `border-neutral-500` and the scrollbar thumb, so scoping them would
+   darken borders to fix text. Text belongs on a `--color-text-*` token, never
+   on a raw ramp step - `appScopeAliasClosure.test.ts` enforces both halves.
+3. **Opacity composites text too.** A faint ink that passes at full strength
+   fails behind `opacity`, and the ramp bottoms out with no headroom: at 0.45
+   `#66635f` is 1.81:1 on `--band`, and no alpha below 1.0 gets it back to 4.5.
+   Recede a control with a lighter INK, not with opacity.
+
+See `src/app/ui/tokens.md` for the value table and the guard.
 
 **Column headers come from one recipe.** `<GenericTable>` for real tabular
 markup; `<TableHead>` (`src/app/ui/tables/TableHead.tsx`) for grid or flex

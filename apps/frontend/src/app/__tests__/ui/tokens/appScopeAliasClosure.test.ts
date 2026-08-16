@@ -171,6 +171,58 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
     expect(mismatches).toEqual([]);
   });
 
+  it('does not composite the faint inks under opacity', () => {
+    // Opacity applies to TEXT as well as decoration, and the faint end of the
+    // ramp has no headroom: #66635f at 0.45 is 1.81:1 on --band, and no alpha
+    // below 1.0 gets it back to 4.5. Two phone-calendar rules receded a whole
+    // cell that way while its label used a faint ink - on a tappable control in
+    // one case and an informational row in the other. A control should recede
+    // through a lighter INK, not through alpha.
+    //
+    // Disabled controls are exempt (WCAG 1.4.3 excludes inactive components),
+    // and so are keyframe steps, which are transient rather than a resting
+    // state.
+    const root = path.join(process.cwd(), 'src/app');
+    const files = fs
+      .readdirSync(root, { recursive: true, encoding: 'utf8' })
+      .filter((f) => f.endsWith('.css') && !f.includes('/marketing/'));
+
+    const offenders: string[] = [];
+    for (const file of files) {
+      const lines = fs.readFileSync(path.join(root, file), 'utf8').split('\n');
+      lines.forEach((line, i) => {
+        const m = /^\s*opacity:\s*(0\.\d+)\s*;/.exec(line);
+        if (!m || Number(m[1]) >= 0.7) return;
+
+        // Walk back to the selector this declaration belongs to.
+        let selector = '';
+        // Wide enough to clear a multi-line value: the header's decorative
+        // hairline sits 15 lines below its selector behind a linear-gradient().
+        for (let j = i - 1; j >= 0 && j > i - 40; j--) {
+          const t = lines[j].trim();
+          if (t.endsWith('{')) {
+            selector = t.slice(0, -1).trim();
+            break;
+          }
+        }
+        const exempt =
+          /disabled/i.test(selector) || // inactive component
+          /^\d+%$|^from$|^to$/.test(selector) || // keyframe step
+          /indicator|::before|::after|scrollbar|shadow/i.test(selector); // decoration
+        if (!exempt) offenders.push(`${file}:${i + 1}  ${selector}`);
+      });
+    }
+
+    // Everything left must be a rule whose subtree paints no faint text. Each
+    // entry is a deliberate call, not a backlog.
+    expect(offenders).toEqual([
+      'features/developers/pages/DeveloperApiKeys/DeveloperApiKeys.css:138  .dev-keys-row.is-revoked',
+      'features/developers/pages/DeveloperWebsiteBuilder/DeveloperWebsiteBuilder.css:232  .dev-wb-sk-bar.is-faded',
+      'features/developers/pages/DeveloperWebsiteBuilder/DeveloperWebsiteBuilder.css:256  .dev-wb-sk-tile',
+      'features/onboarding/components/Steps/Progress/Progress.css:27  .yc-step-trigger.is-upcoming',
+    ]);
+  });
+
   it('has nothing painting text with a raw neutral ramp step', () => {
     // `text-neutral-500` in the chat panes is what exposed the whole bug, and
     // the first version of this guard only looked for that one shape - Tailwind
@@ -185,7 +237,11 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
     // that lands in the unreadable range on bone and is not scoped.
     const FAINT = '(?:300|400|500|600)';
     const TEXT_USES = [
-      new RegExp(`(?:^|[^-\\w])color:\\s*var\\(--color-neutral-${FAINT}\\)`), // CSS + inline styles
+      // The quotes matter: a CSS file writes `color: var(--x)` but a style
+      // OBJECT writes `color: 'var(--x)'`, and the first version of this
+      // required var( immediately after the colon - so every inline style in
+      // the app walked straight past it.
+      new RegExp(`(?:^|[^-\\w])color:\\s*['"\`]?var\\(--color-neutral-${FAINT}\\)`), // CSS + inline styles
       new RegExp(`color=["']var\\(--color-neutral-${FAINT}\\)["']`), // react-icons style prop
       new RegExp(`\\btext-neutral-${FAINT}\\b`), // Tailwind utility
     ];
