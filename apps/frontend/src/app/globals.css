@@ -598,19 +598,13 @@ textarea:focus-visible {
      5.87:1 light / 6.34:1 dark. */
   --table-head-ink: var(--ink-muted);
   --ink-soft: #423f3c;
-  /* Both were unreadable as text: #8f8984 measured 2.64:1 and #a9a39e 1.90:1
-     against the darkest bone surface (--band), across ~476 usages - nav labels,
-     metadata lines, counts, weekday labels, empty states. #66635f is the
-     LIGHTEST warm grey on this ramp that still clears 4.5:1 everywhere (4.56),
-     so it stays as faint as the palette allows while remaining legible, and
-     stays lighter than --ink-muted (5.31) so the hierarchy survives.
-
-     --ink-faint2 takes the same value: with the ceiling at 4.56 and --ink-muted
-     at 5.31 there is not enough headroom for two distinct sub-muted steps that
-     both pass. The second step was never readable, so it is folded into the
-     first rather than kept as a decorative fiction. */
-  --ink-faint: #66635f;
-  --ink-faint2: #66635f;
+  /* The bone palette's faint inks. These values are correct on the always-dark
+     --spot sections the marketing pages use (6.82:1) but unreadable on bone:
+     2.64:1 and 1.90:1 against --band. They are therefore left alone here and
+     overridden for the app shell below, rather than darkened globally - which
+     would have fixed PIMS and broken every --spot section on the public site. */
+  --ink-faint: #8f8984;
+  --ink-faint2: #a9a39e;
   --ink-6b: #6b6763;
   /* primary CTA (dark fill on light) */
   --cta: #302f2e;
@@ -763,9 +757,7 @@ html[data-theme='dark'] {
   --ink-muted: #a89e90;
   --ink-soft: #cabfb0;
   --ink-faint: #9d9285;
-  /* #8b8173 was 3.78:1 on the espresso surfaces; #998f82 is the darkest value
-     that clears 4.5 (4.56). --ink-faint already passes at 4.75 and is unchanged. */
-  --ink-faint2: #998f82;
+  --ink-faint2: #8b8173;
   --ink-6b: #a1968a;
   --cta: #f2ece1;
   --cta-hover: #fbf8f1;
@@ -883,9 +875,7 @@ html[data-theme='dark'] {
   --ink-muted: #a89e90;
   --ink-soft: #cabfb0;
   --ink-faint: #9d9285;
-  /* #8b8173 was 3.78:1 on the espresso surfaces; #998f82 is the darkest value
-     that clears 4.5 (4.56). --ink-faint already passes at 4.75 and is unchanged. */
-  --ink-faint2: #998f82;
+  --ink-faint2: #8b8173;
   --ink-6b: #a1968a;
   --cta: #f2ece1;
   --cta-hover: #fbf8f1;
@@ -1768,4 +1758,25 @@ html[data-theme='dark'] [data-yc-app] ::selection {
   .yc-page-content {
     padding: 26px 30px;
   }
+}
+
+/* PIMS runs entirely on bone surfaces, where the faint inks above are
+   unreadable - roughly 476 usages measured between 1.90:1 and 2.64:1 against
+   --band, the darkest bone surface: nav labels, metadata lines, counts,
+   weekday labels, empty states. #66635f is the LIGHTEST warm grey that clears
+   4.5 on every bone surface (4.56 on --band, 5.40 on --screen), so it stays as faint as the palette
+   allows while being legible, and stays lighter than --ink-muted (5.31) so the
+   hierarchy still reads.
+
+   Scoped rather than global: the public marketing pages put this same token on
+   always-dark --spot panels, where the lighter value is the correct one.
+   --ink-faint2 collapses onto --ink-faint here because between the 4.56 ceiling
+   and --ink-muted there is no room for two passing steps below muted. */
+[data-yc-app] {
+  --ink-faint: #66635f;
+  --ink-faint2: #66635f;
+}
+html[data-theme='dark'] [data-yc-app] {
+  --ink-faint: #9d9285;
+  --ink-faint2: #998f82;
 }
