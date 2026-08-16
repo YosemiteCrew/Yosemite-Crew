@@ -258,6 +258,10 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
       const heavyOnly = !FAINT_TEXT.test(source);
       const lines = source.split('\n');
       lines.forEach((line, i) => {
+        // Comments describe these utilities as often as they use them - this
+        // very guard is documented in a comment mentioning opacity-65.
+        const trimmed = line.trimStart();
+        if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) return;
         // `cursor-not-allowed` marks the disabled branch of a clsx ternary,
         // where the element also carries a real `disabled` attribute a few
         // lines up - an inactive control, exempt under WCAG 1.4.3.

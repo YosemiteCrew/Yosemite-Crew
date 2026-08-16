@@ -67,7 +67,13 @@ export type PhoneMonthOverviewProps = {
 };
 
 const dayNumberColourClass = (cell: PhoneMonthCell): string => {
-  if (cell.isOutsideMonth || cell.appointmentCount === 0) return 'text-[var(--ink-faint)]';
+  // Three distinct steps, all of which clear AA. These used to be separated by
+  // cell opacity (0.35 for padding, 0.45 for quiet), which is what made the
+  // padding days unreadable; collapsing both onto --ink-faint then made an
+  // adjacent-month day look like an ordinary quiet one. --ink-faint is the
+  // faintest passing ink and reads as furthest away, --ink-muted a step nearer.
+  if (cell.isOutsideMonth) return 'text-[var(--ink-faint)]';
+  if (cell.appointmentCount === 0) return 'text-[var(--ink-muted)]';
   if (cell.isToday) return 'text-[var(--nav-active)]';
   if (cell.isPast) return 'text-[var(--ink-muted)]';
   return 'text-[var(--ink)]';

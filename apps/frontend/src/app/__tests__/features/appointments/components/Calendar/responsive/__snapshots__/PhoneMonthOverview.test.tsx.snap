@@ -165,7 +165,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           1
         </span>
@@ -181,7 +181,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           2
         </span>
@@ -197,7 +197,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           3
         </span>
@@ -213,7 +213,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           4
         </span>
@@ -229,7 +229,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           5
         </span>
@@ -245,7 +245,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           6
         </span>
@@ -283,7 +283,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           8
         </span>
@@ -299,7 +299,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           9
         </span>
@@ -315,7 +315,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           10
         </span>
@@ -331,7 +331,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           11
         </span>
@@ -347,7 +347,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           12
         </span>
@@ -363,7 +363,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           13
         </span>
@@ -379,7 +379,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           14
         </span>
@@ -395,7 +395,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           15
         </span>
@@ -411,7 +411,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           16
         </span>
@@ -427,7 +427,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           17
         </span>
@@ -443,7 +443,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           18
         </span>
@@ -459,7 +459,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           19
         </span>
@@ -475,7 +475,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           20
         </span>
@@ -491,7 +491,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           21
         </span>
@@ -507,7 +507,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           22
         </span>
@@ -523,7 +523,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           23
         </span>
@@ -539,7 +539,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           24
         </span>
@@ -555,7 +555,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           25
         </span>
@@ -571,7 +571,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           26
         </span>
@@ -587,7 +587,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           27
         </span>
@@ -603,7 +603,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           28
         </span>
@@ -619,7 +619,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           29
         </span>
@@ -635,7 +635,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           30
         </span>
@@ -651,7 +651,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           31
         </span>
