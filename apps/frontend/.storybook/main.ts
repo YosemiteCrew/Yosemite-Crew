@@ -1,4 +1,10 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import type { StorybookConfig } from '@storybook/nextjs-vite';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const src = path.resolve(here, '../src');
 
 const config: StorybookConfig = {
   stories: ['../src/**/*.stories.@(ts|tsx)'],
@@ -9,6 +15,30 @@ const config: StorybookConfig = {
   },
   docs: {
     autodocs: 'tag',
+  },
+  /**
+   * Mirror the tsconfig `paths` for the production build.
+   *
+   * The dev server resolves `@/...` fine, so this looked healthy locally, but
+   * `storybook:build` failed with `Rollup failed to resolve import
+   * "@/app/ui/primitives/Buttons"` - which meant Chromatic could never publish.
+   * The check had been skipping on a missing `CHROMATIC_CONFIGURED`, so nothing
+   * surfaced the breakage until the gate was switched on.
+   *
+   * Order matters: the more specific aliases must precede the bare `@/`, or it
+   * swallows them. They are kept byte-for-byte in step with tsconfig.json.
+   */
+  viteFinal: async (viteConfig) => {
+    viteConfig.resolve = viteConfig.resolve ?? {};
+    viteConfig.resolve.alias = [
+      ...(Array.isArray(viteConfig.resolve.alias) ? viteConfig.resolve.alias : []),
+      { find: /^@\/features\//, replacement: `${path.join(src, 'app/features')}/` },
+      { find: /^@\/ui\//, replacement: `${path.join(src, 'app/ui')}/` },
+      { find: /^@\/lib\//, replacement: `${path.join(src, 'app/lib')}/` },
+      { find: /^@\/constants\//, replacement: `${path.join(src, 'app/constants')}/` },
+      { find: /^@\//, replacement: `${src}/` },
+    ];
+    return viteConfig;
   },
   staticDirs: [
     { from: '../public/fonts', to: '/fonts' },
