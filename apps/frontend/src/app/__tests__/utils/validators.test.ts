@@ -1,81 +1,82 @@
-import { validatePhone, getCountryCode, isValidEmail } from "@/app/lib/validators";
+import { validatePhone, getCountryCode, isValidEmail } from '@/app/lib/validators';
 
 // --- Mocks ---
 
-// Mock the country list JSON to ensure deterministic tests
-// virtual: true helps if the file doesn't actually exist in the test environment context
-jest.mock("@/app/lib/data/countryList", () => [
-  { name: "TestLand", dial_code: "+1", code: "TL" },
-  { name: "Wonderland", dial_code: "+99", code: "WL" },
-], { virtual: true });
+// Mock the country list JSON to ensure deterministic tests.
+// Not a virtual mock: the module exists, and from Jest 30 a virtual mock is
+// keyed by the literal specifier, so it never matched the moduleNameMapper
+// resolved path the module under test actually requires.
+jest.mock('@/app/lib/data/countryList', () => [
+  { name: 'TestLand', dial_code: '+1', code: 'TL' },
+  { name: 'Wonderland', dial_code: '+99', code: 'WL' },
+]);
 
-describe("Validators Utils", () => {
-
+describe('Validators Utils', () => {
   // --- Section 1: Phone Validation ---
-  describe("validatePhone", () => {
-    it("returns true for a valid phone number", () => {
+  describe('validatePhone', () => {
+    it('returns true for a valid phone number', () => {
       // Using a real valid format that libphonenumber-js recognizes
       // (Assuming US +1 for the test, library behavior is standard)
-      expect(validatePhone("+14155552671")).toBe(true);
+      expect(validatePhone('+14155552671')).toBe(true);
     });
 
-    it("returns false for an obviously invalid phone number", () => {
-      expect(validatePhone("123")).toBe(false);
+    it('returns false for an obviously invalid phone number', () => {
+      expect(validatePhone('123')).toBe(false);
     });
 
-    it("returns false when parsing returns undefined (e.g. non-numeric input)", () => {
+    it('returns false when parsing returns undefined (e.g. non-numeric input)', () => {
       // "abc" causes parsePhoneNumberFromString to return undefined,
       // triggering the right side of 'number?.isValid() || false'
-      expect(validatePhone("abc")).toBe(false);
+      expect(validatePhone('abc')).toBe(false);
     });
 
-    it("returns false for empty string", () => {
-      expect(validatePhone("")).toBe(false);
+    it('returns false for empty string', () => {
+      expect(validatePhone('')).toBe(false);
     });
   });
 
   // --- Section 2: Country Code Lookup ---
-  describe("getCountryCode", () => {
-    it("returns null if country input is undefined", () => {
+  describe('getCountryCode', () => {
+    it('returns null if country input is undefined', () => {
       expect(getCountryCode(undefined)).toBeNull();
     });
 
-    it("returns null if country input is an empty string", () => {
-      expect(getCountryCode("")).toBeNull();
+    it('returns null if country input is an empty string', () => {
+      expect(getCountryCode('')).toBeNull();
     });
 
-    it("returns the country object when a matching name is found", () => {
+    it('returns the country object when a matching name is found', () => {
       // Matches the mocked data defined at the top
-      const result = getCountryCode("TestLand");
-      expect(result).toEqual({ name: "TestLand", dial_code: "+1", code: "TL" });
+      const result = getCountryCode('TestLand');
+      expect(result).toEqual({ name: 'TestLand', dial_code: '+1', code: 'TL' });
     });
 
-    it("returns null when the country name does not exist in the list", () => {
-      expect(getCountryCode("Narnia")).toBeNull();
+    it('returns null when the country name does not exist in the list', () => {
+      expect(getCountryCode('Narnia')).toBeNull();
     });
   });
 
   // --- Section 3: Email Validation ---
-  describe("isValidEmail", () => {
-    it("returns true for a standard valid email", () => {
-      expect(isValidEmail("user@example.com")).toBe(true);
+  describe('isValidEmail', () => {
+    it('returns true for a standard valid email', () => {
+      expect(isValidEmail('user@example.com')).toBe(true);
     });
 
-    it("trims whitespace and returns true for a valid email", () => {
+    it('trims whitespace and returns true for a valid email', () => {
       // Covers the 'const cleaned = email.trim()' line
-      expect(isValidEmail("  user@example.com  ")).toBe(true);
+      expect(isValidEmail('  user@example.com  ')).toBe(true);
     });
 
-    it("returns false for an invalid email format", () => {
-      expect(isValidEmail("user@.com")).toBe(false);
+    it('returns false for an invalid email format', () => {
+      expect(isValidEmail('user@.com')).toBe(false);
     });
 
-    it("returns false for a string without @", () => {
-      expect(isValidEmail("userexample.com")).toBe(false);
+    it('returns false for a string without @', () => {
+      expect(isValidEmail('userexample.com')).toBe(false);
     });
 
-    it("returns false for an empty string", () => {
-      expect(isValidEmail("")).toBe(false);
+    it('returns false for an empty string', () => {
+      expect(isValidEmail('')).toBe(false);
     });
   });
 });

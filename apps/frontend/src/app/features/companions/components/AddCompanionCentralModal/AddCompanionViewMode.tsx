@@ -1,4 +1,3 @@
-import Image from 'next/image';
 import { IoPencilOutline } from 'react-icons/io5';
 import { MdPets } from 'react-icons/md';
 import { FaUser } from 'react-icons/fa';
@@ -7,7 +6,7 @@ import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import { Secondary } from '@/app/ui/primitives/Buttons';
 import { StoredCompanion, StoredParent } from '@/app/features/companions/pages/Companions/types';
-import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 import { RecordStatus } from '@yosemite-crew/types';
 import { AlertChipView, InfoRow, SectionHeading } from './AddCompanionPresentational';
 import { CompanionAlert } from '@/app/features/companions/components/AddCompanion/type';
@@ -20,6 +19,7 @@ import {
   ModalMode,
 } from './addCompanionCentralModalHelpers';
 import { toTitleCase } from '@/app/lib/validators';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 
 type AddCompanionViewModeProps = {
   canEditCompanionStatus: boolean;
@@ -59,13 +59,13 @@ const AddCompanionViewMode = ({
   <>
     <div className="flex items-center justify-between flex-wrap gap-3 pb-4 border-b border-card-border">
       <div className="flex items-center gap-3">
-        <Image
+        <CompanionAvatar
           alt={companion.name}
-          src={getSafeImageUrl(companion.photoUrl, companion.type.toLowerCase() as ImageType)}
-          className="rounded-full object-cover shrink-0"
-          height={48}
-          width={48}
-          style={{ width: 48, height: 48 }}
+          photoUrl={companion.photoUrl}
+          name={companion.name}
+          speciesType={companion.type}
+          size={48}
+          textClassName="text-body-1"
         />
         <div className="flex flex-col gap-0.5">
           <button
@@ -93,12 +93,7 @@ const AddCompanionViewMode = ({
             />
           </div>
         ) : (
-          <span
-            className="inline-flex items-center rounded-full px-3 py-1 text-[12px] font-semibold border"
-            style={statusStyle}
-          >
-            {toTitleCase(displayStatus)}
-          </span>
+          <StatusPill style={statusStyle} label={toTitleCase(displayStatus)} />
         )}
 
         <button

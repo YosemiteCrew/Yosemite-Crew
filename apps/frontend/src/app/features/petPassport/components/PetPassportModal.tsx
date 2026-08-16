@@ -25,25 +25,31 @@ type WalletTarget = 'apple' | 'google' | null;
 
 const PetPassportModal = ({ open, companionId, companionName, onClose }: PetPassportModalProps) => {
   const [passport, setPassport] = useState<PetPassportDTO | null>(null);
-  const [state, setState] = useState<LoadState>('loading');
+  // Which companion the current passport / failure belongs to, so the load
+  // state can be derived rather than reset synchronously inside the effect.
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const [failedFor, setFailedFor] = useState<string | null>(null);
   const [busy, setBusy] = useState<WalletTarget>(null);
   const { notify } = useNotify();
+  // useNotify returns a fresh `notify` each render; hold it in a ref so the
+  // effect below does not re-fire on every render.
   const notifyRef = useRef(notify);
-  notifyRef.current = notify;
+  useEffect(() => {
+    notifyRef.current = notify;
+  }, [notify]);
 
   useEffect(() => {
     if (!open) return;
     let active = true;
-    setState('loading');
     getPetPassport(companionId)
       .then((data) => {
         if (!active) return;
         setPassport(data);
-        setState('ready');
+        setLoadedFor(companionId);
       })
       .catch(() => {
         if (!active) return;
-        setState('error');
+        setFailedFor(companionId);
         notifyRef.current('error', {
           title: 'Passport unavailable',
           text: 'The pet passport could not be loaded.',
@@ -53,6 +59,10 @@ const PetPassportModal = ({ open, companionId, companionName, onClose }: PetPass
       active = false;
     };
   }, [open, companionId]);
+
+  let state: LoadState = 'loading';
+  if (failedFor === companionId) state = 'error';
+  else if (loadedFor === companionId) state = 'ready';
 
   if (!open) return null;
 

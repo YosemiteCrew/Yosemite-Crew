@@ -96,15 +96,16 @@ describe('getPublicPassport', () => {
     global.fetch = originalFetch;
   });
 
-  it('fetches the public passport over the unauthenticated endpoint', async () => {
+  it('fetches the public passport by share token, not by companion id', async () => {
     const fetchMock = jest.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ identity: { id: 'p1' } }),
     });
     global.fetch = fetchMock as unknown as typeof fetch;
-    const res = await getPublicPassport('p1');
+    const res = await getPublicPassport('sh4re-t0ken');
+    // The credential is a revocable token; the companion id must never appear.
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.example.com/public/pet-passport/p1',
+      'https://api.example.com/public/pet-passport/token/sh4re-t0ken',
       expect.objectContaining({ headers: { Accept: 'application/json' } })
     );
     expect(res).toEqual({ identity: { id: 'p1' } });

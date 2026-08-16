@@ -12,7 +12,20 @@ import logger from "../../../src/utils/logger";
 
 // --- Mocks ---
 jest.mock("../../../src/utils/logger");
-jest.mock("../../../src/services/cognito.service");
+
+const mockUpdateUserName = jest.fn();
+const mockSetUserRole = jest.fn();
+let mockResolveCanonicalUserIdImpl = jest.fn(async (value: string) => value);
+function mockResolveCanonicalUserId(value: string) {
+  return mockResolveCanonicalUserIdImpl(value);
+}
+let mockAuthService: {
+  updateUserName: typeof mockUpdateUserName;
+  setUserRole: typeof mockSetUserRole;
+} | null = null;
+jest.mock("@yosemite-crew/auth", () => ({
+  getAuthService: () => mockAuthService,
+}));
 
 // 3. Fix: Partially mock user.service to keep the Error class real
 jest.mock("../../../src/services/user.service", () => {
@@ -25,6 +38,7 @@ jest.mock("../../../src/services/user.service", () => {
       deleteById: jest.fn(),
       updateName: jest.fn(),
     },
+    resolveCanonicalUserId: mockResolveCanonicalUserId,
   };
 });
 
@@ -54,6 +68,8 @@ describe("UserController", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockRes = createMockRes();
+    mockAuthService = null;
+    mockResolveCanonicalUserIdImpl = jest.fn(async (value: string) => value);
   });
 
   describe("create", () => {
@@ -79,6 +95,105 @@ describe("UserController", () => {
       });
       expect(mockRes.status).toHaveBeenCalledWith(201);
       expect(mockRes.json).toHaveBeenCalledWith(mockUser);
+    });
+
+    it("prefers body names/role and syncs them to the auth provider", async () => {
+      mockAuthService = {
+        updateUserName: mockUpdateUserName,
+        setUserRole: mockSetUserRole,
+      };
+      const mockUser = { id: "user-123" };
+      (UserService.create as jest.Mock).mockResolvedValue(mockUser);
+
+      const req = createMockReq({
+        userId: "user-123",
+        email: "test@example.com",
+        firstName: "SessionFirst",
+        lastName: "SessionLast",
+        body: {
+          firstName: "BodyFirst",
+          lastName: "BodyLast",
+          role: "developer",
+        },
+      });
+      await UserController.create(req, mockRes as Response);
+
+      expect(UserService.create).toHaveBeenCalledWith({
+        id: "user-123",
+        email: "test@example.com",
+        firstName: "BodyFirst",
+        lastName: "BodyLast",
+      });
+      expect(mockUpdateUserName).toHaveBeenCalledWith("user-123", {
+        firstName: "BodyFirst",
+        lastName: "BodyLast",
+      });
+      expect(mockSetUserRole).toHaveBeenCalledWith("user-123", "developer");
+      expect(mockRes.status).toHaveBeenCalledWith(201);
+    });
+
+    it("falls back to session names and drops an invalid role", async () => {
+      mockAuthService = {
+        updateUserName: mockUpdateUserName,
+        setUserRole: mockSetUserRole,
+      };
+      (UserService.create as jest.Mock).mockResolvedValue({ id: "user-123" });
+
+      const req = createMockReq({
+        userId: "user-123",
+        email: "test@example.com",
+        firstName: "SessionFirst",
+        lastName: "SessionLast",
+        body: { role: "not a valid role!!" },
+      });
+      await UserController.create(req, mockRes as Response);
+
+      expect(UserService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          firstName: "SessionFirst",
+          lastName: "SessionLast",
+        }),
+      );
+      expect(mockUpdateUserName).toHaveBeenCalledWith("user-123", {
+        firstName: "SessionFirst",
+        lastName: "SessionLast",
+      });
+      expect(mockSetUserRole).not.toHaveBeenCalled();
+    });
+
+    it("never blocks creation on an auth provider sync failure", async () => {
+      mockAuthService = {
+        updateUserName: jest.fn().mockRejectedValue(new Error("provider down")),
+        setUserRole: mockSetUserRole,
+      };
+      (UserService.create as jest.Mock).mockResolvedValue({ id: "user-123" });
+
+      const req = createMockReq({
+        userId: "user-123",
+        email: "test@example.com",
+        firstName: "John",
+        lastName: "Doe",
+      });
+      await UserController.create(req, mockRes as Response);
+
+      expect(logger.warn).toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(201);
+    });
+
+    it("skips provider sync entirely when no auth service is configured", async () => {
+      mockAuthService = null;
+      (UserService.create as jest.Mock).mockResolvedValue({ id: "user-123" });
+
+      const req = createMockReq({
+        userId: "user-123",
+        email: "test@example.com",
+        firstName: "John",
+        lastName: "Doe",
+      });
+      await UserController.create(req, mockRes as Response);
+
+      expect(mockUpdateUserName).not.toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(201);
     });
 
     it("should return 400 if userId or email is missing", async () => {
@@ -154,6 +269,21 @@ describe("UserController", () => {
       await UserController.getById(req, mockRes as Response);
 
       expect(UserService.getById).toHaveBeenCalledWith("123");
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(mockUser);
+    });
+
+    it("should accept a supertokens alias when both ids resolve to the same user", async () => {
+      mockResolveCanonicalUserIdImpl.mockImplementation(
+        async (value: string) => (value === "st-user-1" ? "123" : value),
+      );
+      const mockUser = { id: "123", name: "Alias Test" };
+      (UserService.getById as jest.Mock).mockResolvedValue(mockUser);
+
+      const req = createMockReq({ params: { id: "st-user-1" }, userId: "123" });
+      await UserController.getById(req, mockRes as Response);
+
+      expect(UserService.getById).toHaveBeenCalledWith("st-user-1");
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith(mockUser);
     });

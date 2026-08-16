@@ -64,7 +64,9 @@ describe("TaskScheduleFhirController", () => {
       },
       headers: {},
       query: {},
-    };
+      userId: "actor-1",
+      userPermissions: ["tasks:edit:any"],
+    } as unknown as Partial<Request>;
     mockedMapper.getBooleanParameter.mockReturnValue(false);
     mockedMapper.getDateParameter.mockReturnValue(undefined);
     mockedMapper.toTask.mockReturnValue({ resourceType: "Task" } as never);
@@ -139,21 +141,22 @@ describe("TaskScheduleFhirController", () => {
       res as Response,
     );
 
+    const actor = { actorId: "actor-1", canEditAny: true };
     expect(mockedService.launchFromTemplateInstance).toHaveBeenCalledWith(
       "instance-1",
       "org-1",
-      "",
+      actor,
       expect.objectContaining({ force: false }),
     );
     expect(mockedService.pauseSchedule).toHaveBeenCalledWith(
       "instance-1",
-      "",
+      actor,
       "org-1",
     );
     expect(mockedService.regenerateSchedule).toHaveBeenCalledWith(
       "instance-1",
       "org-1",
-      "",
+      actor,
       expect.objectContaining({ force: true }),
     );
     expect(mockedMapper.toTask).toHaveBeenCalledTimes(5);
@@ -178,5 +181,113 @@ describe("TaskScheduleFhirController", () => {
       res as Response,
     );
     expect(statusMock).toHaveBeenCalledWith(500);
+  });
+
+  it("passes no parameters through when the body is absent or not an object", async () => {
+    const record = {
+      schedule: { id: "schedule-1", status: "ACTIVE" },
+      taskIds: [],
+      seedCount: 0,
+    };
+    mockedService.launchFromTemplateInstance.mockResolvedValue(record as never);
+    mockedService.regenerateSchedule.mockResolvedValue(record as never);
+
+    await TaskScheduleFhirController.apply(
+      { ...req, body: undefined } as Request,
+      res as Response,
+    );
+    await TaskScheduleFhirController.regenerate(
+      { ...req, body: "Parameters" } as unknown as Request,
+      res as Response,
+    );
+
+    expect(mockedMapper.getBooleanParameter).toHaveBeenCalledWith(
+      undefined,
+      "force",
+    );
+    expect(mockedMapper.getDateParameter).toHaveBeenCalledWith(
+      undefined,
+      "deferUntil",
+    );
+    expect(statusMock).toHaveBeenCalledTimes(2);
+    expect(statusMock).toHaveBeenCalledWith(200);
+  });
+
+  it("defaults the actor to an unidentified, own-scope caller", async () => {
+    mockedService.cancelSchedule.mockResolvedValueOnce({
+      id: "schedule-1",
+      status: "CANCELLED",
+    } as never);
+
+    await TaskScheduleFhirController.cancel(
+      { ...req, userId: undefined, userPermissions: undefined } as Request,
+      res as Response,
+    );
+
+    expect(mockedService.cancelSchedule).toHaveBeenCalledWith(
+      "instance-1",
+      { actorId: "", canEditAny: false },
+      "org-1",
+    );
+  });
+
+  it.each([
+    ["listEncounterSchedules", "listSchedulesForEncounter"],
+    ["pause", "pauseSchedule"],
+    ["resume", "resumeSchedule"],
+    ["cancel", "cancelSchedule"],
+    ["regenerate", "regenerateSchedule"],
+  ])(
+    "maps a service error raised by %s to its status code",
+    async (handler, serviceMethod) => {
+      (
+        mockedService[serviceMethod as keyof typeof mockedService] as jest.Mock
+      ).mockRejectedValueOnce(
+        new TaskWorkflowServiceError("nope", 404) as never,
+      );
+
+      await (
+        TaskScheduleFhirController[
+          handler as keyof typeof TaskScheduleFhirController
+        ] as (req: Request, res: Response) => Promise<unknown>
+      )(req as Request, res as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(404);
+      expect(jsonMock).toHaveBeenCalledWith({ message: "nope" });
+    },
+  );
+
+  it("maps an unexpected error raised by a schedule handler to a 500", async () => {
+    mockedService.resumeSchedule.mockRejectedValueOnce(new Error("boom"));
+
+    await TaskScheduleFhirController.resume(req as Request, res as Response);
+
+    expect(statusMock).toHaveBeenCalledWith(500);
+    expect(jsonMock).toHaveBeenCalledWith({ message: "Internal Server Error" });
+  });
+
+  // The permission set decides whether the service enforces schedule ownership,
+  // so it must be read from the verified session, not from the request payload.
+  it("threads the actor's permissions from the session, not the client", async () => {
+    mockedService.pauseSchedule.mockResolvedValueOnce({
+      id: "schedule-1",
+      status: "PAUSED",
+    } as never);
+
+    const ownOnlyReq = {
+      ...req,
+      userId: "actor-2",
+      userPermissions: ["tasks:edit:own"],
+      query: { userId: "spoofed" },
+      headers: { "x-user-id": "spoofed" },
+    } as unknown as Request;
+
+    await TaskScheduleFhirController.pause(ownOnlyReq, res as Response);
+
+    expect(mockedService.pauseSchedule).toHaveBeenCalledWith(
+      "instance-1",
+      { actorId: "actor-2", canEditAny: false },
+      "org-1",
+    );
   });
 });

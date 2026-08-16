@@ -14,11 +14,7 @@ export class TelemedicineSessionError extends Error {
 
 type TelemedicinePlatform = "VIDEO_CALL" | "PHONE_CALL" | "CHAT" | "EMAIL";
 type TelemedicineStatus =
-  | "SCHEDULED"
-  | "IN_PROGRESS"
-  | "COMPLETED"
-  | "NO_SHOW"
-  | "CANCELLED";
+  "SCHEDULED" | "IN_PROGRESS" | "COMPLETED" | "NO_SHOW" | "CANCELLED";
 
 const TERMINAL_STATUSES: TelemedicineStatus[] = [
   "COMPLETED",
@@ -113,7 +109,7 @@ export const TelemedicineSessionService = {
 
   async start(id: string, organisationId: string) {
     const existing = await assertSession(id, organisationId);
-    if (TERMINAL_STATUSES.includes(existing.status as TelemedicineStatus)) {
+    if (TERMINAL_STATUSES.includes(existing.status)) {
       throw new TelemedicineSessionError(
         `Cannot start a session with status ${existing.status}.`,
         409,
@@ -147,7 +143,7 @@ export const TelemedicineSessionService = {
     },
   ) {
     const existing = await assertSession(id, organisationId);
-    if (TERMINAL_STATUSES.includes(existing.status as TelemedicineStatus)) {
+    if (TERMINAL_STATUSES.includes(existing.status)) {
       throw new TelemedicineSessionError(
         `Cannot complete a session with status ${existing.status}.`,
         409,
@@ -189,7 +185,7 @@ export const TelemedicineSessionService = {
 
   async cancel(id: string, organisationId: string) {
     const existing = await assertSession(id, organisationId);
-    if (TERMINAL_STATUSES.includes(existing.status as TelemedicineStatus)) {
+    if (TERMINAL_STATUSES.includes(existing.status)) {
       throw new TelemedicineSessionError(
         `Cannot cancel a session with status ${existing.status}.`,
         409,
@@ -204,7 +200,7 @@ export const TelemedicineSessionService = {
 
   async markNoShow(id: string, organisationId: string) {
     const existing = await assertSession(id, organisationId);
-    if (TERMINAL_STATUSES.includes(existing.status as TelemedicineStatus)) {
+    if (TERMINAL_STATUSES.includes(existing.status)) {
       throw new TelemedicineSessionError(
         `Cannot mark no-show for a session with status ${existing.status}.`,
         409,

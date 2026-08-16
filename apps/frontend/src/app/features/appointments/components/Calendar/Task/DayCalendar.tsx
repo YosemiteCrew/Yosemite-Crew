@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import { HOURS_IN_DAY } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import { Task } from '@/app/features/tasks/types/task';
@@ -19,7 +19,7 @@ import {
   useNowIndicator,
   useSlotOffsetMinutes,
 } from '@/app/features/appointments/components/Calendar/useCalendarSlots';
-import { DropAvailabilityInterval } from '@/app/features/appointments/components/Calendar/availabilityIntervals';
+import type { TaskCalendarInteractionProps } from '@/app/features/appointments/components/Calendar/Task/taskCalendarInteractionProps';
 
 const HOUR_ROW_GAP_PX = 0;
 
@@ -31,23 +31,7 @@ type DayCalendarProps = {
   handleChangeStatusTask?: (task: Task) => void;
   handleRescheduleTask?: (task: Task) => void;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
-  canEditTasks?: boolean;
-  draggedTaskId?: string | null;
-  draggedTaskLabel?: string | null;
-  canDragTask?: (task: Task) => boolean;
-  onTaskDragStart?: (task: Task) => void;
-  onTaskDragEnd?: () => void;
-  onTaskDropAt?: (date: Date, minuteOfDay: number, targetAssigneeId?: string) => void;
-  onCreateTaskAt?: (date: Date, minuteOfDay: number, targetAssigneeId?: string) => void;
-  onDragHoverTarget?: (date: Date, targetAssigneeId?: string) => void;
-  getDropAvailabilityIntervals?: (
-    date: Date,
-    targetAssigneeId?: string
-  ) => DropAvailabilityInterval[];
-  draggedTaskDurationMinutes?: number;
-  slotStepMinutes?: number;
-  resolveDisplayName?: (memberId?: string) => string;
-};
+} & TaskCalendarInteractionProps;
 
 const DayCalendar = ({
   events,
@@ -71,7 +55,7 @@ const DayCalendar = ({
   slotStepMinutes = 15,
   resolveDisplayName,
 }: DayCalendarProps) => {
-  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [scrollContainer, setScrollContainer] = useState<HTMLDivElement | null>(null);
   const onWheelBoundary = useScrollBoundaryWheel();
   const { handleNextDay, handlePrevDay } = useCalendarNavigation(setCurrentDate);
   const { weekday, dateNumber } = getDateDisplay(date);
@@ -105,18 +89,18 @@ const DayCalendar = ({
     events: getTimedTaskProxyEvents(events),
     height,
     nowPosition,
-    scrollContainer: scrollRef.current,
+    scrollContainer,
     hourRowGapPx: HOUR_ROW_GAP_PX,
     hourRowTopOffsetPx: HOUR_ROW_TOP_OFFSET_PX,
   });
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between p-2 border-b border-grey-light">
+      <div className="flex items-center justify-between p-2 border-b border-card-border">
         <Back onClick={handlePrevDay} />
         <div className="flex items-center gap-2 text-center">
           <div className="text-body-4 text-(--color-primary-700)">{weekday}</div>
-          <div className="text-body-4-emphasis text-white size-10 flex items-center justify-center rounded-full bg-text-brand">
+          <div className="text-body-4-emphasis text-white size-10 flex items-center justify-center rounded-full bg-[var(--blue-strong)]">
             {dateNumber}
           </div>
         </div>
@@ -124,7 +108,7 @@ const DayCalendar = ({
       </div>
 
       <div
-        ref={scrollRef}
+        ref={setScrollContainer}
         className="overflow-x-hidden flex-1 px-2"
         style={{
           height: '100%',
@@ -204,8 +188,8 @@ const DayCalendar = ({
                         {nowTimeLabel}
                       </div>
                     )}
-                    <div className="absolute left-[-5px] size-3 rounded-full bg-red-500 translate-y-[-50%]" />
-                    <div className="border-t-2 border-t-red-500 translate-y-[-50%]" />
+                    <div className="absolute left-[-5px] size-3 rounded-full bg-danger-700 translate-y-[-50%]" />
+                    <div className="border-t-2 border-t-danger-700 translate-y-[-50%]" />
                   </div>
                 </div>
               </div>

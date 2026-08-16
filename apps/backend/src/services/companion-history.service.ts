@@ -250,27 +250,39 @@ type TaskSummaryTask = {
   additionalNotes?: string | null;
 };
 
-const buildTaskSummary = (task: TaskSummaryTask) => {
-  const medication = task.medication;
-  if (medication && typeof medication === "object") {
-    const medObj = medication as Record<string, unknown>;
-    const name = typeof medObj.name === "string" ? medObj.name : undefined;
-    const doses = Array.isArray(medObj.doses)
-      ? (medObj.doses as Array<Record<string, unknown>>)
-      : [];
-    const dose = doses[0];
-    const dosage =
-      dose && typeof dose.dosage === "string" ? dose.dosage : undefined;
-    const frequency =
-      dose && typeof dose.frequency === "string" ? dose.frequency : undefined;
-    const time = dose && typeof dose.time === "string" ? dose.time : undefined;
-    if (name) {
-      const parts = [name, dosage, frequency, time].filter(Boolean);
-      return parts.join(" ");
-    }
-  }
-  return task.description ?? task.additionalNotes ?? undefined;
+const readDoseField = (
+  dose: Record<string, unknown> | undefined,
+  field: "dosage" | "frequency" | "time",
+) => {
+  const value = dose?.[field];
+  return typeof value === "string" ? value : undefined;
 };
+
+const buildMedicationSummary = (medication: unknown): string | undefined => {
+  if (!medication || typeof medication !== "object") return undefined;
+
+  const medObj = medication as Record<string, unknown>;
+  const name = typeof medObj.name === "string" ? medObj.name : undefined;
+  if (!name) return undefined;
+
+  const doses = Array.isArray(medObj.doses)
+    ? (medObj.doses as Array<Record<string, unknown>>)
+    : [];
+  const dose = doses[0];
+  const parts = [
+    name,
+    readDoseField(dose, "dosage"),
+    readDoseField(dose, "frequency"),
+    readDoseField(dose, "time"),
+  ].filter(Boolean);
+  return parts.join(" ");
+};
+
+const buildTaskSummary = (task: TaskSummaryTask) =>
+  buildMedicationSummary(task.medication) ??
+  task.description ??
+  task.additionalNotes ??
+  undefined;
 
 const buildDocumentSummary = (doc: DocumentDto) => {
   const attachmentCount = doc.attachments?.length ?? 0;
@@ -398,10 +410,15 @@ const appendTaskHistoryEntries = async (params: {
 }) => {
   const tasks = await TaskService.listForCompanion({
     patientId: params.patientId,
+    organisationId: params.organisationId,
   });
-  for (const task of tasks.filter(
-    (item) => item.organisationId === params.organisationId,
-  )) {
+  for (const task of tasks) {
+    // The query is organisation-scoped; re-checking each row keeps a history
+    // timeline from leaking another tenant's task if that scope ever regresses.
+    if (task.organisationId && task.organisationId !== params.organisationId) {
+      continue;
+    }
+
     const taskId = task.id;
     const occurredAt =
       task.completedAt?.toISOString() ??
@@ -413,7 +430,7 @@ const appendTaskHistoryEntries = async (params: {
       id: `TASK:${taskId}`,
       type: "TASK",
       occurredAt,
-      status: task.status as HistoryEntryStatus,
+      status: task.status,
       title: task.name,
       subtitle: [task.category, task.audience].filter(Boolean).join(" • "),
       summary: buildTaskSummary(task),
@@ -610,10 +627,11 @@ const appendInvoiceHistoryEntries = async (params: {
   patientId: string;
   organisationId: string;
 }) => {
-  const invoices = await InvoiceService.listForCompanion(params.patientId);
-  for (const invoice of invoices.filter(
-    (item) => item.organisationId === params.organisationId,
-  )) {
+  const invoices = await InvoiceService.listForCompanion(
+    params.patientId,
+    params.organisationId,
+  );
+  for (const invoice of invoices) {
     const occurredAt =
       invoice.paidAt?.toISOString() ??
       invoice.createdAt?.toISOString() ??
@@ -644,6 +662,68 @@ const appendInvoiceHistoryEntries = async (params: {
         paidAt: invoice.paidAt?.toISOString(),
       },
     });
+  }
+};
+
+type HistorySectionContext = {
+  entries: HistoryEntry[];
+  patientId: string;
+  organisationId: string;
+  ensureAppointmentIds: () => Promise<Set<string>>;
+};
+
+const HISTORY_SECTION_LOADERS: Array<{
+  type: HistoryEntryType;
+  failureLabel: string;
+  append: (ctx: HistorySectionContext) => Promise<void>;
+}> = [
+  {
+    type: "APPOINTMENT",
+    failureLabel: "appointments",
+    append: async (ctx) => {
+      await appendAppointmentHistoryEntries(ctx);
+      await ctx.ensureAppointmentIds();
+    },
+  },
+  { type: "TASK", failureLabel: "tasks", append: appendTaskHistoryEntries },
+  {
+    type: "FORM_SUBMISSION",
+    failureLabel: "form submissions",
+    append: appendFormSubmissionHistoryEntries,
+  },
+  {
+    type: "DOCUMENT",
+    failureLabel: "documents",
+    append: appendDocumentHistoryEntries,
+  },
+  {
+    type: "LAB_RESULT",
+    failureLabel: "lab results",
+    append: appendLabResultHistoryEntries,
+  },
+  {
+    type: "INVOICE",
+    failureLabel: "invoices",
+    append: appendInvoiceHistoryEntries,
+  },
+];
+
+const appendRequestedHistorySections = async (
+  types: HistoryEntryType[],
+  ctx: HistorySectionContext,
+) => {
+  for (const loader of HISTORY_SECTION_LOADERS) {
+    if (!types.includes(loader.type)) continue;
+    try {
+      await loader.append(ctx);
+    } catch (error) {
+      // No patientId: the failure label plus the organisation is enough to
+      // locate the fault, and the log must not carry a patient identifier.
+      logger.warn(`Companion history ${loader.failureLabel} failed`, {
+        error,
+        organisationId: ctx.organisationId,
+      });
+    }
   }
 };
 
@@ -687,99 +767,12 @@ export const CompanionHistoryService = {
       return appointmentIdSet;
     };
 
-    if (types.includes("APPOINTMENT")) {
-      try {
-        await appendAppointmentHistoryEntries({
-          entries,
-          patientId,
-          organisationId,
-        });
-        appointmentIdSet = await getAppointmentIdSet(patientId, organisationId);
-      } catch (error) {
-        logger.warn("Companion history appointments failed", {
-          error,
-          organisationId,
-          patientId,
-        });
-      }
-    }
-
-    if (types.includes("TASK")) {
-      try {
-        await appendTaskHistoryEntries({ entries, patientId, organisationId });
-      } catch (error) {
-        logger.warn("Companion history tasks failed", {
-          error,
-          organisationId,
-          patientId,
-        });
-      }
-    }
-
-    if (types.includes("FORM_SUBMISSION")) {
-      try {
-        await appendFormSubmissionHistoryEntries({
-          entries,
-          patientId,
-          organisationId,
-        });
-      } catch (error) {
-        logger.warn("Companion history form submissions failed", {
-          error,
-          organisationId,
-          patientId,
-        });
-      }
-    }
-
-    if (types.includes("DOCUMENT")) {
-      try {
-        await appendDocumentHistoryEntries({
-          entries,
-          patientId,
-          organisationId,
-          ensureAppointmentIds,
-        });
-      } catch (error) {
-        logger.warn("Companion history documents failed", {
-          error,
-          organisationId,
-          patientId,
-        });
-      }
-    }
-
-    if (types.includes("LAB_RESULT")) {
-      try {
-        await appendLabResultHistoryEntries({
-          entries,
-          patientId,
-          organisationId,
-        });
-      } catch (error) {
-        logger.warn("Companion history lab results failed", {
-          error,
-          organisationId,
-          patientId,
-        });
-      }
-    }
-
-    if (types.includes("INVOICE")) {
-      try {
-        await appendInvoiceHistoryEntries({
-          entries,
-          patientId,
-          organisationId,
-        });
-      } catch (error) {
-        logger.warn("Companion history invoices failed", {
-          error,
-          organisationId,
-          patientId,
-        });
-      }
-    }
+    await appendRequestedHistorySections(types, {
+      entries,
+      patientId,
+      organisationId,
+      ensureAppointmentIds,
+    });
 
     const sorted = [...entries].sort(compareEntries);
     const filtered = cursor

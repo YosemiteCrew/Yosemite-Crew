@@ -1,5 +1,69 @@
 /* Stream Chat - Clean Default UI */
 
+/* Gentle pulse for the online presence dot (conversation-row avatar + header). */
+@keyframes ycPulseDot {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 143, 93, 0.35);
+  }
+  60% {
+    box-shadow: 0 0 0 6px rgba(0, 143, 93, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 143, 93, 0);
+  }
+}
+
+.chat-presence-dot {
+  animation: ycPulseDot 3.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-presence-dot {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Stream theme -> warm-bone token bridge.
+   stream-chat-react is mounted with theme="str-chat__theme-light", whose palette
+   is cool: #ffffff backgrounds, #dbdde1 / #b4b7bb grey surfaces and lines, and a
+   system font stack. Every Stream-owned surface we do NOT replace with a custom
+   component inherited that palette, which is what made the thread read as a
+   cool, "weird" canvas under the warm-bone chrome (and stayed light in dark
+   mode). Remapping the theme variables onto our own tokens fixes the whole
+   subtree at once and is automatically theme-correct, because the warm-bone
+   tokens already flip with [data-theme].
+   --------------------------------------------------------------------------- */
+.str-chat,
+.str-chat__theme-light {
+  --str-chat__font-family: var(--font-satoshi);
+  --str-chat__background-color: var(--screen);
+  --str-chat__secondary-background-color: var(--screen-2);
+  --str-chat__primary-color: var(--blue);
+  --str-chat__active-primary-color: var(--blue);
+  --str-chat__primary-color-low-emphasis: var(--blue-soft);
+  --str-chat__on-primary-color: #ffffff;
+  --str-chat__primary-surface-color: var(--blue-soft);
+  --str-chat__primary-surface-color-low-emphasis: var(--blue-soft);
+  --str-chat__surface-color: var(--hairline);
+  --str-chat__secondary-surface-color: var(--inset);
+  --str-chat__tertiary-surface-color: var(--screen-2);
+  --str-chat__text-color: var(--ink-body);
+  --str-chat__text-low-emphasis-color: var(--ink-faint);
+  --str-chat__disabled-color: var(--hairline);
+  --str-chat__on-disabled-color: var(--screen);
+  --str-chat__danger-color: var(--danger-text);
+  --str-chat__info-color: var(--success);
+  --str-chat__message-highlight-color: var(--blue-soft);
+  --str-chat__unread-badge-color: var(--blue);
+  --str-chat__on-unread-badge-color: #ffffff;
+  --str-chat__box-shadow-color: var(--sh12);
+  /* Date separators are a centered label in the design — no rule through the
+     thread — so the line colour is neutralised here as well as hidden below. */
+  --str-chat__date-separator-line-color: transparent;
+  --str-chat__date-separator-color: var(--ink-faint);
+}
+
 .str-chat {
   display: flex;
   height: 100%;
@@ -25,7 +89,9 @@
   min-width: 0;
   max-width: 100%;
   border-right: 1px solid var(--color-chat-divider);
-  background: var(--color-neutral-0);
+  /* Design (Chat workspace sidebar / thread-panel list column): the list reads a
+     step darker than the thread canvas (--screen). */
+  background: var(--screen-2);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -50,31 +116,16 @@
   min-height: 0;
 }
 
+/* Design (conversation list): rows are inset 10px from the panel edges and
+   separated by a 2px gap — no dividers. */
 .str-chat__channel-list-messenger__main {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 8px;
+  padding: 8px 10px 12px;
   display: flex;
   flex-direction: column;
   gap: 2px;
-}
-
-.str-chat__channel-preview {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--color-chat-divider-soft);
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.str-chat__channel-preview:hover {
-  background: var(--color-chat-surface-soft);
-}
-
-.str-chat__channel-preview--active {
-  background: var(--color-chat-panel);
-  border-left: 3px solid var(--color-chat-panel-border);
-  padding-left: 13px;
 }
 
 .chat-preview-trigger {
@@ -91,31 +142,6 @@
   outline-offset: 2px;
 }
 
-.chat-back-button {
-  padding: 12px 16px;
-  border: none;
-  border-bottom: 1px solid var(--color-chat-divider);
-  cursor: pointer;
-  color: var(--color-primary-700);
-  font-family: var(--font-satoshi);
-  font-size: 14px;
-  font-weight: 600;
-  flex-shrink: 0;
-  background: var(--color-neutral-0);
-  text-align: left;
-  width: 100%;
-  transition: background-color 0.2s ease;
-}
-
-.chat-back-button:hover {
-  background: var(--color-chat-surface-soft);
-}
-
-.chat-back-button:focus-visible {
-  outline: 2px solid var(--color-chat-panel-border);
-  outline-offset: 2px;
-}
-
 /* Main chat area */
 .str-chat__main-panel {
   flex: 1;
@@ -125,6 +151,24 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  /* Anchors the conversation-info drawer to the thread column. */
+  position: relative;
+}
+
+/* Design ("Chat conversation info"): 390px right drawer on --screen with a
+   --hairline left edge, overlaying the thread column. */
+.chat-conversation-info {
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  z-index: 20;
+  width: min(390px, 100%);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--screen);
+  border-left: 1px solid var(--hairline);
+  box-shadow: -8px 0 28px var(--sh05);
 }
 
 .str-chat__main-panel-inner {
@@ -215,8 +259,32 @@
   background: var(--color-chat-surface);
 }
 
+/* Thread gutters. Design ("Chat extended") message canvas is `padding: 16px
+   22px`. Stream additionally applies `padding: 0 min(2.5rem, 4%)` to the scroll
+   container (with matching negative margins on each <li>), which stacked on top
+   of ours for a ~54px gutter on a desktop-width thread. Neutralise Stream's pair
+   so the measured 22px is the whole gutter. */
+.str-chat__main-panel .str-chat__list .str-chat__message-list-scroll,
+.str-chat__main-panel .str-chat__virtual-list .str-chat__message-list-scroll > div {
+  padding-inline: 0;
+}
+
+.str-chat__main-panel .str-chat__list .str-chat__li,
+.str-chat__main-panel .str-chat__virtual-list .str-chat__li,
+.str-chat__main-panel .str-chat__list .str-chat__parent-message-li,
+.str-chat__main-panel .str-chat__virtual-list .str-chat__parent-message-li {
+  margin-inline: 0;
+  padding-inline: 0;
+}
+
 .str-chat__main-panel .str-chat__list {
-  padding: 16px 16px 8px;
+  padding: 16px 18px 8px;
+}
+
+@media (min-width: 1280px) {
+  .str-chat__main-panel .str-chat__list {
+    padding: 16px 22px 8px;
+  }
 }
 
 /* Guard against horizontal overflow anywhere in the conversation pane: long
@@ -264,25 +332,39 @@
    (ChatChannelListPaginator) using the reusable Primary button, so Stream's
    default full-width load-more button needs no override here. */
 
-/* Date separators between message groups */
+/* Date separators between message groups.
+   Design ("Chat extended" / "Tasks & Chat", thread): a small centered eyebrow
+   label — 10.5px / 700 / 0.08em / uppercase / --ink-faint — with NO rule running
+   across the thread. Stream's default draws a 1px --disabled-color line either
+   side of the date, which is the faint full-width banding the design does not
+   have. */
 .str-chat__date-separator {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 8px;
+  justify-content: center;
+  gap: 0;
+  padding: 10px 8px 6px;
+  background: transparent;
+}
+
+/* Stream spaces the separator's children with a trailing margin; with the lines
+   hidden that margin would push the label off-centre. */
+.str-chat__date-separator > *:not(:last-child) {
+  margin-right: 0;
 }
 
 .str-chat__date-separator-line {
-  flex: 1;
-  height: 1px;
-  background: var(--color-chat-divider);
+  display: none;
 }
 
 .str-chat__date-separator-date {
   font-family: var(--font-satoshi);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
   white-space: nowrap;
 }
 
@@ -383,7 +465,7 @@
 
   /* Tighter message canvas gutters on phones */
   .str-chat__main-panel .str-chat__list {
-    padding: 12px 10px 6px;
+    padding: 14px 16px 6px;
   }
 }
 
@@ -445,5 +527,5 @@
 
 .chat-empty-state__subtitle {
   max-width: 360px;
-  color: var(--color-neutral-600);
+  color: var(--color-text-tertiary);
 }

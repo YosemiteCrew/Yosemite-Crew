@@ -1,8 +1,8 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import AvailabilityTable from '@/app/ui/tables/AvailabilityTable';
-import { getAvailabilityStatusStyle } from '@/app/ui/tables/tableUtils';
+import { getAvailabilityStatusStyle, getAvailabilityStatusTone } from '@/app/ui/tables/tableUtils';
 import { Team } from '@/app/features/organization/types/team';
 
 // --- Mocks ---
@@ -35,15 +35,12 @@ jest.mock('@/app/ui/tables/GenericTable/GenericTable', () => {
 // Mock Next.js Image
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: ({ src, alt }: any) => (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt={alt} data-testid="profile-image" />
-  ),
+  default: ({ src, alt }: any) => <img src={src} alt={alt} data-testid="profile-image" />,
 }));
 
 // Mock Icons
 jest.mock('react-icons/io5', () => ({
-  IoEye: () => <span data-testid="eye-icon">Eye</span>,
+  IoEyeOutline: () => <span data-testid="eye-icon">Eye</span>,
 }));
 
 // --- Test Data ---
@@ -142,6 +139,13 @@ describe('AvailabilityTable Component', () => {
         borderColor: 'var(--color-pill-success-border)',
       });
     });
+
+    it('maps dashboard availability statuses to inventory-style pill tones', () => {
+      expect(getAvailabilityStatusTone('Available')).toBe('success');
+      expect(getAvailabilityStatusTone('Consulting')).toBe('progress');
+      expect(getAvailabilityStatusTone('Off-duty')).toBe('warning');
+      expect(getAvailabilityStatusTone('Requested')).toBe('neutral');
+    });
   });
 
   // --- 2. Rendering Tests ---
@@ -192,6 +196,12 @@ describe('AvailabilityTable Component', () => {
 
   it('applies correct status styles in rendered component', () => {
     render(<AvailabilityTable {...defaultProps} />);
+    expect(screen.getAllByTitle('Available')[0]).toHaveStyle({
+      backgroundColor: 'var(--color-pill-success-bg)',
+    });
+    expect(screen.getAllByTitle('Consulting')[0]).toHaveStyle({
+      backgroundColor: 'var(--color-pill-progress-bg)',
+    });
   });
 
   it('formats weekly working hours to at most two decimal places', () => {
@@ -208,7 +218,81 @@ describe('AvailabilityTable Component', () => {
     expect(screen.queryByText('40.1267')).not.toBeInTheDocument();
   });
 
-  // --- 3. Edge Cases ---
+  // --- 3. Speciality summarisation ---
+
+  describe('speciality cell', () => {
+    // The phone card list repeats every value, so assertions scope to the cell.
+    const renderSpecialities = (speciality: unknown) => {
+      render(
+        <AvailabilityTable
+          {...defaultProps}
+          filteredList={[{ ...mockTeam[0], speciality }] as unknown as Team[]}
+        />
+      );
+      return within(screen.getByTestId('cell-speciality'));
+    };
+
+    it('shows a lone speciality with no overflow marker', () => {
+      const cell = renderSpecialities(['Cardiology']);
+
+      expect(cell.getByText('Cardiology')).toBeInTheDocument();
+      expect(cell.queryByText(/^\+\d+$/)).not.toBeInTheDocument();
+    });
+
+    it('leads with the first speciality and counts the rest', () => {
+      const cell = renderSpecialities(['Cardiology', 'Dermatology', 'Oncology']);
+
+      expect(cell.getByText('Cardiology')).toBeInTheDocument();
+      expect(cell.getByText('+2')).toBeInTheDocument();
+      // Dropping the rest from view is only acceptable because they stay reachable.
+      expect(cell.getByTitle('Cardiology, Dermatology, Oncology')).toBeInTheDocument();
+    });
+
+    it('reads names out of speciality records as well as plain strings', () => {
+      const cell = renderSpecialities([{ name: 'Surgery' }, { name: 'Radiology' }]);
+
+      expect(cell.getByText('Surgery')).toBeInTheDocument();
+      expect(cell.getByText('+1')).toBeInTheDocument();
+    });
+
+    it('clamps the cell to one line so a long list cannot stretch the row', () => {
+      const cell = renderSpecialities(['Cardiology', 'Dermatology']);
+
+      const wrapper = cell.getByTitle('Cardiology, Dermatology');
+      // Tailwind's `truncate` is a no-op on `.appointment-profile-title`, which is
+      // declared unlayered and wins, so the clamp must be `cell-truncate`.
+      const clamped = wrapper.querySelector('.cell-truncate');
+      expect(clamped).toHaveTextContent('Cardiology');
+      expect(wrapper).not.toHaveClass('truncate');
+    });
+
+    it('keeps the overflow count outside the clamp so it cannot be clipped away', () => {
+      const cell = renderSpecialities([
+        'Gastroenterology and Hepatology',
+        'Dermatology',
+        'Oncology',
+      ]);
+
+      const wrapper = cell.getByTitle('Gastroenterology and Hepatology, Dermatology, Oncology');
+      const clamped = wrapper.querySelector('.cell-truncate') as HTMLElement;
+      const count = cell.getByText('+2');
+
+      // Clamping the name and the count together let a long first speciality push
+      // the "+2" past the ellipsis, so it rendered zero pixels wide. The count has
+      // to be a non-shrinking sibling of the clamped name, never inside it.
+      expect(clamped).not.toContainElement(count);
+      expect(count.parentElement).toBe(wrapper);
+      expect(count).toHaveClass('shrink-0');
+    });
+
+    it('falls back to a dash when there are no specialities', () => {
+      const cell = renderSpecialities([]);
+
+      expect(cell.getByText('-')).toBeInTheDocument();
+    });
+  });
+
+  // --- 4. Edge Cases ---
 
   it('does not crash if event handlers are undefined', () => {
     render(<AvailabilityTable filteredList={mockTeam} />);

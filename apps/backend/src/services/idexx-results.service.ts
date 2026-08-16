@@ -39,11 +39,17 @@ const coerceString = (value: unknown): string | null => {
 const coerceStringOrEmpty = (value: unknown): string =>
   coerceString(value) ?? "";
 
+/**
+ * `organisationId` is the tenant key that lab-result reads authorize on, so it is taken from
+ * the LabOrder we placed rather than from the provider's response, which is outside our
+ * trust boundary and may omit or misstate it.
+ */
 const buildLabResultData = (
   result: IdexxResult,
   patient: Record<string, unknown>,
+  organisationId: string | null,
 ) => ({
-  organisationId: coerceString(result.organisationId),
+  organisationId,
   orderId: coerceString(result.orderId),
   requisitionId: coerceString(result.requisitionId),
   accessionId: coerceString(result.accessionId),
@@ -167,6 +173,149 @@ const ensureResultDocument = async (params: {
   );
 };
 
+type ResultOrderContext = {
+  organisationId: string | null;
+  appointmentId: string | null;
+  createdByUserId: string | null;
+  patientId: string | null;
+};
+
+const syncLabOrderFromResult = async (
+  result: IdexxResult,
+): Promise<ResultOrderContext> => {
+  const context: ResultOrderContext = {
+    organisationId: null,
+    appointmentId: null,
+    createdByUserId: null,
+    patientId: null,
+  };
+
+  const orderId = coerceString(result.orderId);
+  if (!orderId) return context;
+
+  const order = await prisma.labOrder.findFirst({
+    where: { idexxOrderId: orderId },
+  });
+
+  context.organisationId = order?.organisationId ?? null;
+  context.appointmentId = order?.appointmentId ?? null;
+  context.createdByUserId = order?.createdByUserId ?? null;
+  context.patientId = order?.patientId ?? null;
+
+  if (order) {
+    const mappedStatus = mapResultStatusToLabOrder(result);
+    if (mappedStatus) {
+      await prisma.labOrder.update({
+        where: { id: order.id },
+        data: {
+          status: mappedStatus,
+          externalStatus: coerceString(result.status),
+          responsePayload: toJsonInput(result),
+        },
+      });
+    }
+  }
+
+  return context;
+};
+
+const upsertLabResult = async (
+  result: IdexxResult,
+  resultId: string,
+  organisationId: string | null,
+) => {
+  const patient: Record<string, unknown> = result.patient ?? {};
+  const basePayload = buildLabResultData(result, patient, organisationId);
+
+  await prisma.labResult.upsert({
+    where: {
+      provider_resultId: {
+        provider: "IDEXX",
+        resultId,
+      },
+    },
+    create: {
+      provider: "IDEXX",
+      resultId,
+      ...basePayload,
+      rawPayload: toJsonInput(result),
+    },
+    update: {
+      ...basePayload,
+      rawPayload: toJsonInput(result),
+    },
+  });
+};
+
+const maybeCreateResultArtifacts = async (
+  client: IdexxResultsClient,
+  result: IdexxResult,
+  resultId: string,
+  context: ResultOrderContext,
+) => {
+  const { organisationId, appointmentId, createdByUserId, patientId } = context;
+  if (
+    !organisationId ||
+    !patientId ||
+    coerceStringOrEmpty(result.status).toUpperCase() !== "COMPLETE"
+  ) {
+    return;
+  }
+
+  try {
+    const pdf = await client.getResultPdf(resultId);
+    await ensureResultDocument({
+      organisationId,
+      patientId,
+      appointmentId,
+      resultId,
+      issueDate: coerceString(result.updatedDate),
+      createdByUserId,
+      pdfBuffer: Buffer.from(pdf.data),
+    });
+
+    await ensureResultTask({
+      organisationId,
+      patientId,
+      appointmentId,
+      createdByUserId,
+      resultId,
+    });
+  } catch (err) {
+    logger.error("Failed to create lab result artifacts", err);
+  }
+};
+
+const processIdexxResult = async (
+  client: IdexxResultsClient,
+  result: IdexxResult,
+) => {
+  const context = await syncLabOrderFromResult(result);
+  const resultId = coerceStringOrEmpty(result.resultId);
+  await upsertLabResult(result, resultId, context.organisationId);
+  await maybeCreateResultArtifacts(client, result, resultId, context);
+};
+
+const recordBatchSyncState = async (
+  batchId: string,
+  timestamp: string | null | undefined,
+) => {
+  await prisma.labResultSyncState.upsert({
+    where: { provider: "IDEXX" },
+    create: {
+      provider: "IDEXX",
+      lastBatchId: String(batchId),
+      lastTimestamp: timestamp ?? null,
+      lastPolledAt: new Date(),
+    },
+    update: {
+      lastBatchId: String(batchId),
+      lastTimestamp: timestamp ?? null,
+      lastPolledAt: new Date(),
+    },
+  });
+};
+
 export const IdexxResultsService = {
   async pollLatest(limit = 50, maxBatches = 5) {
     const username = process.env.IDEXX_GLOBAL_USERNAME?.trim();
@@ -197,106 +346,11 @@ export const IdexxResultsService = {
       }
 
       for (const result of results as IdexxResult[]) {
-        const orderId = coerceString(result.orderId);
-        let organisationId: string | null = null;
-        let appointmentId: string | null = null;
-        let createdByUserId: string | null = null;
-        let patientId: string | null = null;
-
-        if (orderId) {
-          const order = await prisma.labOrder.findFirst({
-            where: { idexxOrderId: orderId },
-          });
-
-          organisationId = order?.organisationId ?? null;
-          appointmentId = order?.appointmentId ?? null;
-          createdByUserId = order?.createdByUserId ?? null;
-          patientId = order?.patientId ?? null;
-
-          if (order) {
-            const mappedStatus = mapResultStatusToLabOrder(result);
-            if (mappedStatus) {
-              await prisma.labOrder.update({
-                where: { id: order.id },
-                data: {
-                  status: mappedStatus,
-                  externalStatus: coerceString(result.status),
-                  responsePayload: toJsonInput(result),
-                },
-              });
-            }
-          }
-        }
-
-        const patient: Record<string, unknown> = result.patient ?? {};
-        const resultId = coerceStringOrEmpty(result.resultId);
-        const basePayload = buildLabResultData(result, patient);
-
-        await prisma.labResult.upsert({
-          where: {
-            provider_resultId: {
-              provider: "IDEXX",
-              resultId,
-            },
-          },
-          create: {
-            provider: "IDEXX",
-            resultId,
-            ...basePayload,
-            rawPayload: toJsonInput(result),
-          },
-          update: {
-            ...basePayload,
-            rawPayload: toJsonInput(result),
-          },
-        });
-
-        if (
-          organisationId &&
-          patientId &&
-          coerceStringOrEmpty(result.status).toUpperCase() === "COMPLETE"
-        ) {
-          try {
-            const pdf = await client.getResultPdf(resultId);
-            await ensureResultDocument({
-              organisationId,
-              patientId,
-              appointmentId,
-              resultId,
-              issueDate: coerceString(result.updatedDate),
-              createdByUserId,
-              pdfBuffer: Buffer.from(pdf.data),
-            });
-
-            await ensureResultTask({
-              organisationId,
-              patientId,
-              appointmentId,
-              createdByUserId,
-              resultId,
-            });
-          } catch (err) {
-            logger.error("Failed to create lab result artifacts", err);
-          }
-        }
+        await processIdexxResult(client, result);
       }
 
       await client.confirmLatestBatch(batchId);
-
-      await prisma.labResultSyncState.upsert({
-        where: { provider: "IDEXX" },
-        create: {
-          provider: "IDEXX",
-          lastBatchId: String(batchId),
-          lastTimestamp: latest.timestamp ?? null,
-          lastPolledAt: new Date(),
-        },
-        update: {
-          lastBatchId: String(batchId),
-          lastTimestamp: latest.timestamp ?? null,
-          lastPolledAt: new Date(),
-        },
-      });
+      await recordBatchSyncState(batchId, latest.timestamp);
 
       if (!latest.hasMoreResults) break;
     }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, createEvent, fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 
@@ -65,22 +65,62 @@ jest.mock('@/app/lib/urls', () => ({
   getSafeImageUrl: jest.fn(() => 'image'),
 }));
 
-jest.mock('react-icons/io5', () => ({
-  IoChevronForward: () => <span>chevron</span>,
-  IoArrowForward: () => <span>arrow</span>,
-  IoEyeOutline: () => <span>view</span>,
-  IoCalendarOutline: () => <span>reschedule</span>,
-  IoDocumentTextOutline: () => <span>soap</span>,
-  IoCardOutline: () => <span>finance</span>,
-  IoFlaskOutline: () => <span>lab</span>,
-  IoPerson: () => <span>person</span>,
-  IoTimeOutline: () => <span>time</span>,
-}));
+jest.mock(
+  'react-icons/io5',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/md', () => ({
-  MdMeetingRoom: () => <span>room</span>,
-  MdOutlineAutorenew: () => <span>change-status</span>,
-}));
+jest.mock(
+  'react-icons/io',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
+
+jest.mock(
+  'react-icons/md',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
 expect.extend(toHaveNoViolations);
 
@@ -488,6 +528,14 @@ describe('Slot (Appointments)', () => {
 
     expect(screen.getByRole('menu', { name: 'Appointment context actions' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Open companion overview' })).toBeInTheDocument();
+
+    // Selecting an action fires it and closes the menu through onClose.
+    fireEvent.click(screen.getByRole('menuitem', { name: 'View appointment' }));
+
+    expect(handleViewAppointment).toHaveBeenCalledWith(event);
+    expect(
+      screen.queryByRole('menu', { name: 'Appointment context actions' })
+    ).not.toBeInTheDocument();
   });
 
   it('has no axe accessibility violations when the appointment popover is open', async () => {
@@ -553,5 +601,302 @@ describe('Slot (Appointments)', () => {
 
     expect(screen.queryByRole('dialog', { name: 'Rex' })).not.toBeInTheDocument();
     expect(trigger).toHaveFocus();
+  });
+
+  it('renders the zoom-out event list and clears the drop preview on drag end', () => {
+    const patientEvent: any = {
+      id: 'patient-1',
+      status: 'in_progress',
+      startTime: new Date('2025-01-06T09:15:00Z'),
+      endTime: new Date('2025-01-06T09:45:00Z'),
+      concern: 'Checkup',
+      lead: { name: 'Dr. Lee' },
+      appointmentType: { name: 'Exam' },
+      // No companion — exercises the `event.companion ?? event.patient` fallback
+      companion: undefined,
+      patient: { name: 'Bella', species: 'cat', parent: { name: 'Owner Smith' } },
+    };
+
+    render(
+      <Slot
+        slotEvents={[patientEvent]}
+        height={120}
+        handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        dayIndex={0}
+        length={1}
+        canEditAppointments
+        zoomMode="out"
+      />
+    );
+
+    const marker = screen.getByRole('button');
+    expect(marker).toBeInTheDocument();
+
+    // Drag end wires through the shared onDropPreviewClear callback.
+    fireEvent.dragEnd(marker);
+    expect(marker).toBeInTheDocument();
+  });
+
+  it('lays out overlapping events into reused and new lanes', () => {
+    const base = {
+      status: 'in_progress',
+      concern: 'Checkup',
+      lead: { name: 'Dr. Lee' },
+      appointmentType: { name: 'Exam' },
+      companion: { name: 'Rex', species: 'dog' },
+    };
+    // e1 0-20, e2 10-30 (new lane), e2b 10-45 (same start as e2 -> endMinute tie-break),
+    // e3 25-40 (reuses e1's freed lane).
+    const e1: any = {
+      ...base,
+      startTime: new Date('2025-01-06T09:00:00Z'),
+      endTime: new Date('2025-01-06T09:20:00Z'),
+      companion: { name: 'Rex', species: 'dog' },
+    };
+    const e2: any = {
+      ...base,
+      startTime: new Date('2025-01-06T09:10:00Z'),
+      endTime: new Date('2025-01-06T09:30:00Z'),
+      companion: { name: 'Milo', species: 'dog' },
+    };
+    const e2b: any = {
+      ...base,
+      startTime: new Date('2025-01-06T09:10:00Z'),
+      endTime: new Date('2025-01-06T09:45:00Z'),
+      companion: { name: 'Coco', species: 'dog' },
+    };
+    const e3: any = {
+      ...base,
+      startTime: new Date('2025-01-06T09:25:00Z'),
+      endTime: new Date('2025-01-06T09:40:00Z'),
+      companion: { name: 'Bo', species: 'dog' },
+    };
+
+    render(
+      <Slot
+        slotEvents={[e1, e2, e2b, e3]}
+        height={600}
+        handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        dayIndex={0}
+        length={1}
+        canEditAppointments
+      />
+    );
+
+    expect(screen.getAllByRole('button')).toHaveLength(4);
+  });
+
+  it('warns and does not create an appointment for a past time slot', () => {
+    const onCreateAppointmentAt = jest.fn();
+
+    render(
+      <Slot
+        slotEvents={[]}
+        height={120}
+        handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        dayIndex={0}
+        length={0}
+        canEditAppointments
+        dropDate={new Date('2000-01-15T00:00:00.000Z')}
+        dropHour={9}
+        onCreateAppointmentAt={onCreateAppointmentAt}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Create appointment on/i }));
+    expect(onCreateAppointmentAt).not.toHaveBeenCalled();
+  });
+
+  it('warns and does not create an appointment inside an unavailable segment', () => {
+    const onCreateAppointmentAt = jest.fn();
+
+    render(
+      <Slot
+        slotEvents={[]}
+        height={120}
+        handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        dayIndex={0}
+        length={0}
+        canEditAppointments
+        dropDate={new Date('2030-01-15T00:00:00.000Z')}
+        dropHour={9}
+        onCreateAppointmentAt={onCreateAppointmentAt}
+        unavailableSegments={[{ startMinute: 540, endMinute: 600 }]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Create appointment on/i }));
+    expect(onCreateAppointmentAt).not.toHaveBeenCalled();
+  });
+
+  it('reports the hover target while dragging over an availability slot', () => {
+    const onDragHoverTarget = jest.fn();
+
+    render(
+      <Slot
+        slotEvents={[]}
+        height={120}
+        handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        dayIndex={0}
+        length={0}
+        canEditAppointments
+        draggedAppointmentId="appt-1"
+        draggedAppointmentLabel="Buddy"
+        onDragHoverTarget={onDragHoverTarget}
+        dropDate={new Date('2030-01-15T00:00:00.000Z')}
+        dropHour={9}
+        dropPractitionerId="vet-1"
+        // First interval overlaps the 9:00 hour (renders a segment); the second
+        // falls entirely outside it, exercising the empty-segment branch.
+        dropAvailabilityIntervals={[
+          { startMinute: 540, endMinute: 599 },
+          { startMinute: 0, endMinute: 10 },
+        ]}
+      />
+    );
+
+    const slot = screen.getByRole('region', { name: /Appointments slot for/i });
+    fireEvent.dragOver(slot, { clientX: 10, clientY: 20 });
+
+    expect(onDragHoverTarget).toHaveBeenCalledWith(expect.any(Date), 'vet-1');
+  });
+
+  it('ignores drag lifecycle events when no appointment is being dragged', () => {
+    const onDragHoverTarget = jest.fn();
+    const onAppointmentDropAt = jest.fn();
+
+    render(
+      <Slot
+        slotEvents={[]}
+        height={120}
+        handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        dayIndex={0}
+        length={0}
+        canEditAppointments
+        onDragHoverTarget={onDragHoverTarget}
+        onAppointmentDropAt={onAppointmentDropAt}
+        dropDate={new Date('2030-01-15T00:00:00.000Z')}
+        dropHour={9}
+      />
+    );
+
+    const slot = screen.getByRole('region', { name: /Appointments slot for/i });
+    // No draggedAppointmentId — every drag handler should early-return.
+    fireEvent.dragOver(slot, { clientX: 10, clientY: 20 });
+    fireEvent.dragLeave(slot);
+    fireEvent.drop(slot, { clientX: 10, clientY: 20 });
+
+    expect(onDragHoverTarget).not.toHaveBeenCalled();
+    expect(onAppointmentDropAt).not.toHaveBeenCalled();
+  });
+
+  it('clears the drop preview when the drag leaves the slot region', () => {
+    render(
+      <Slot
+        slotEvents={[]}
+        height={120}
+        handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        dayIndex={0}
+        length={0}
+        canEditAppointments
+        draggedAppointmentId="appt-1"
+        draggedAppointmentLabel="Buddy"
+        dropDate={new Date('2030-01-15T00:00:00.000Z')}
+        dropHour={9}
+        dropAvailabilityIntervals={[{ startMinute: 540, endMinute: 599 }]}
+      />
+    );
+
+    const slot = screen.getByRole('region', { name: /Appointments slot for/i });
+    fireEvent.dragOver(slot, { clientX: 10, clientY: 20 });
+    // relatedTarget still inside the region => the preview is kept. jsdom drops
+    // relatedTarget passed through fireEvent init, so define it on the event.
+    const leaveInside = createEvent.dragLeave(slot);
+    Object.defineProperty(leaveInside, 'relatedTarget', { value: slot });
+    fireEvent(slot, leaveInside);
+    // relatedTarget outside the region => the preview is cleared.
+    fireEvent.dragOver(slot, { clientX: 10, clientY: 20 });
+    const leaveOutside = createEvent.dragLeave(slot);
+    Object.defineProperty(leaveOutside, 'relatedTarget', { value: document.body });
+    fireEvent(slot, leaveOutside);
+    // relatedTarget null => the drag left the region entirely.
+    fireEvent.dragOver(slot, { clientX: 10, clientY: 20 });
+    fireEvent.dragLeave(slot, { relatedTarget: null });
+
+    expect(slot).toBeInTheDocument();
+  });
+
+  it('dismisses the context menu the moment a drag starts', () => {
+    const slotProps = {
+      slotEvents: [event],
+      height: 120,
+      handleViewAppointment,
+      handleDetailAppointment,
+      handleRescheduleAppointment,
+      dayIndex: 0,
+      length: 1,
+      canEditAppointments: true,
+    };
+    const { rerender } = render(<Slot {...slotProps} />);
+
+    fireEvent.contextMenu(screen.getByRole('button', { name: /Rex/i }));
+    expect(screen.getByRole('menu', { name: 'Appointment context actions' })).toBeInTheDocument();
+
+    rerender(<Slot {...slotProps} draggedAppointmentId="appt-1" draggedAppointmentLabel="Rex" />);
+
+    expect(
+      screen.queryByRole('menu', { name: 'Appointment context actions' })
+    ).not.toBeInTheDocument();
+
+    // Drag ends - the prev-compare tracks the cleared id without dismissing anything.
+    rerender(<Slot {...slotProps} draggedAppointmentId={null} />);
+    expect(screen.getByRole('button', { name: /Rex/i })).toBeInTheDocument();
+  });
+
+  it('renders zoom-in markers via the patient fallback when companion is missing', () => {
+    const patientEvent: any = {
+      status: 'in_progress',
+      startTime: new Date('2025-01-06T09:00:00Z'),
+      endTime: new Date('2025-01-06T09:30:00Z'),
+      concern: 'Checkup',
+      lead: { name: 'Dr. Lee' },
+      appointmentType: { name: 'Exam' },
+      companion: undefined,
+      patient: { name: 'Bella', species: 'cat', parent: { name: 'Owner Smith' } },
+    };
+
+    render(
+      <Slot
+        slotEvents={[patientEvent]}
+        height={120}
+        handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        dayIndex={0}
+        length={1}
+        canEditAppointments
+      />
+    );
+
+    const marker = screen.getByRole('button', { name: /Bella/i });
+    expect(marker).toBeInTheDocument();
+
+    // Drag end on a zoom-in marker clears the drop preview via onDropPreviewClear.
+    fireEvent.dragEnd(marker);
+    expect(marker).toBeInTheDocument();
   });
 });

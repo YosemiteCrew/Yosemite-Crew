@@ -1,6 +1,6 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const dischargeSummaryLimiter = jest.fn((_req, _res, next) => next());
@@ -52,7 +52,7 @@ const ClinicalArtifactFhirController = {
 };
 
 jest.mock("../../src/middlewares/auth", () => ({
-  authorizeCognito,
+  requireWebAuth,
 }));
 
 jest.mock("../../src/middlewares/rbac", () => ({
@@ -242,9 +242,12 @@ describe("clinical-artifact.fhir.router", () => {
       "/organisation/:organisationId/prescription",
       "post",
     );
-    expect(route?.stack[0]?.handle).toBe(authorizeCognito);
+    expect(route?.stack[0]?.handle).toBe(requireWebAuth);
     expect(route?.stack.length).toBeGreaterThanOrEqual(3);
-    expect(requirePermission).toHaveBeenCalledWith(["prescription:edit:any"]);
+    expect(requirePermission).toHaveBeenCalledWith([
+      "prescription:edit:any",
+      "prescription:edit:own",
+    ]);
     expect(requirePermission).toHaveBeenCalledWith(["forms:view:any"]);
   });
 
@@ -354,7 +357,7 @@ describe("clinical-artifact.fhir.router", () => {
     for (const [path, method] of protectedRoutes) {
       const route = findRoute(path, method);
       expect(route?.stack.map((layer) => layer.handle)).toContain(
-        authorizeCognito,
+        requireWebAuth,
       );
       expect(route?.stack.map((layer) => layer.handle)).toContain(
         dischargeSummaryLimiter,

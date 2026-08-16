@@ -5,6 +5,9 @@ const mockPrisma = {
     update: jest.fn(),
     updateMany: jest.fn(),
   },
+  authIdentity: {
+    findFirst: jest.fn(),
+  },
   userOrganization: {
     findMany: jest.fn(),
     delete: jest.fn(),
@@ -27,28 +30,171 @@ jest.mock("src/config/prisma", () => ({
   prisma: mockPrisma,
 }));
 
-jest.mock("src/services/cognito.service", () => ({
-  CognitoService: {
-    updateUserName: jest.fn(),
-  },
+const mockAuthUpdateUserName = jest.fn();
+const mockGetAuthService = jest.fn();
+
+jest.mock("@yosemite-crew/auth", () => ({
+  ...jest.requireActual("@yosemite-crew/auth"),
+  getAuthService: () => mockGetAuthService(),
 }));
+
+const mockOrganizationDeleteById = jest.fn();
 
 jest.mock("src/services/organization.service", () => ({
   OrganizationService: {
-    deleteById: jest.fn(),
+    deleteById: mockOrganizationDeleteById,
   },
 }));
 
-import { CognitoService } from "src/services/cognito.service";
-import { OrganizationService } from "src/services/organization.service";
+const mockUserOrganizationDeleteById = jest.fn();
+
+jest.mock("src/services/user-organization.service", () => ({
+  UserOrganizationService: {
+    deleteById: mockUserOrganizationDeleteById,
+  },
+}));
+
 import { UserService, UserServiceError } from "src/services/user.service";
 
 describe("UserService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetAuthService.mockReset();
+    mockAuthUpdateUserName.mockReset();
+    mockOrganizationDeleteById.mockReset();
+    mockUserOrganizationDeleteById.mockReset();
   });
 
-  it("updates a user's name in postgres and cognito", async () => {
+  it("creates users through postgres only", async () => {
+    mockPrisma.user.findFirst.mockResolvedValue(null);
+    mockPrisma.user.create.mockResolvedValue({
+      userId: "user-321",
+      email: "person@example.com",
+      firstName: "First",
+      lastName: "Last",
+      isActive: true,
+    });
+
+    const result = await UserService.create({
+      id: "user-321",
+      email: "Person@Example.com",
+      firstName: "First",
+      lastName: "Last",
+      isActive: true,
+    });
+
+    expect(mockPrisma.user.create).toHaveBeenCalledWith({
+      data: {
+        userId: "user-321",
+        email: "person@example.com",
+        firstName: "First",
+        lastName: "Last",
+        isActive: true,
+      },
+      select: {
+        userId: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        isActive: true,
+      },
+    });
+    expect(result).toEqual({
+      id: "user-321",
+      firstName: "First",
+      lastName: "Last",
+      email: "person@example.com",
+      isActive: true,
+    });
+  });
+
+  it("throws when a duplicate user already exists", async () => {
+    mockPrisma.user.findFirst.mockResolvedValue({ id: "row-1" });
+
+    await expect(
+      UserService.create({
+        id: "user-321",
+        email: "person@example.com",
+        firstName: "First",
+        lastName: "Last",
+        isActive: true,
+      }),
+    ).rejects.toMatchObject({
+      message: "User with the same id or email already exists.",
+      statusCode: 409,
+    });
+  });
+
+  it("returns the existing user by id", async () => {
+    mockPrisma.user.findFirst.mockResolvedValue({
+      userId: "user-123",
+      email: "person@example.com",
+      firstName: "Old",
+      lastName: "Name",
+      isActive: true,
+    });
+
+    const result = await UserService.getById("user-123");
+
+    expect(mockPrisma.user.findFirst).toHaveBeenCalledWith({
+      where: { userId: "user-123" },
+      select: {
+        userId: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        isActive: true,
+      },
+    });
+    expect(result).toEqual({
+      id: "user-123",
+      email: "person@example.com",
+      firstName: "Old",
+      lastName: "Name",
+      isActive: true,
+    });
+  });
+
+  it("resolves a supertokens alias to the canonical legacy user id", async () => {
+    mockPrisma.user.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        userId: "legacy-user-123",
+        email: "person@example.com",
+        firstName: "Old",
+        lastName: "Name",
+        isActive: true,
+      });
+    mockPrisma.authIdentity.findFirst.mockResolvedValueOnce({
+      appUserId: "legacy-user-123",
+    });
+
+    const result = await UserService.getById("st-user-123");
+
+    expect(mockPrisma.authIdentity.findFirst).toHaveBeenCalledWith({
+      where: {
+        provider: "supertokens",
+        providerUserId: "st-user-123",
+      },
+      select: { appUserId: true },
+    });
+    expect(result).toEqual({
+      id: "legacy-user-123",
+      email: "person@example.com",
+      firstName: "Old",
+      lastName: "Name",
+      isActive: true,
+    });
+  });
+
+  it("returns null when the user does not exist", async () => {
+    mockPrisma.user.findFirst.mockResolvedValue(null);
+    mockPrisma.authIdentity.findFirst.mockResolvedValue(null);
+
+    await expect(UserService.getById("user-404")).resolves.toBeNull();
+  });
+
+  it("updates a user's name in postgres and syncs the auth service", async () => {
     mockPrisma.user.findFirst.mockResolvedValue({
       userId: "user-123",
       email: "person@example.com",
@@ -63,6 +209,9 @@ describe("UserService", () => {
       lastName: "Name",
       isActive: true,
     });
+    mockGetAuthService.mockReturnValue({
+      updateUserName: mockAuthUpdateUserName,
+    });
 
     const result = await UserService.updateName({
       userId: "user-123",
@@ -70,9 +219,7 @@ describe("UserService", () => {
       lastName: "Name",
     });
 
-    expect(CognitoService.updateUserName).toHaveBeenCalledWith({
-      userPoolId: process.env.COGNITO_USER_POOL_ID,
-      cognitoUserId: "user-123",
+    expect(mockAuthUpdateUserName).toHaveBeenCalledWith("user-123", {
       firstName: "New",
       lastName: "Name",
     });
@@ -104,6 +251,9 @@ describe("UserService", () => {
       lastName: "Name",
       isActive: true,
     });
+    mockGetAuthService.mockReturnValue({
+      updateUserName: mockAuthUpdateUserName,
+    });
 
     const result = await UserService.updateName({
       userId: "user-123",
@@ -111,7 +261,7 @@ describe("UserService", () => {
       lastName: "Name",
     });
 
-    expect(CognitoService.updateUserName).not.toHaveBeenCalled();
+    expect(mockAuthUpdateUserName).not.toHaveBeenCalled();
     expect(mockPrisma.user.update).not.toHaveBeenCalled();
     expect(result).toEqual({
       id: "user-123",
@@ -122,49 +272,56 @@ describe("UserService", () => {
     });
   });
 
+  it("updates the database even when no auth service is configured", async () => {
+    mockPrisma.user.findFirst.mockResolvedValue({
+      userId: "user-456",
+      email: "person@example.com",
+      firstName: "Old",
+      lastName: "Name",
+      isActive: true,
+    });
+    mockPrisma.user.update.mockResolvedValue({
+      userId: "user-456",
+      email: "person@example.com",
+      firstName: "New",
+      lastName: "Name",
+      isActive: true,
+    });
+    mockGetAuthService.mockReturnValue(null);
+
+    const result = await UserService.updateName({
+      userId: "user-456",
+      firstName: "New",
+      lastName: "Name",
+    });
+
+    expect(mockAuthUpdateUserName).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      id: "user-456",
+      email: "person@example.com",
+      firstName: "New",
+      lastName: "Name",
+      isActive: true,
+    });
+  });
+
   it("throws when the user does not exist", async () => {
     mockPrisma.user.findFirst.mockResolvedValue(null);
+    mockPrisma.authIdentity.findFirst.mockResolvedValue(null);
 
     await expect(
       UserService.updateName({
         userId: "user-404",
-        firstName: "New",
-        lastName: "Name",
+        firstName: "First",
+        lastName: "Last",
       }),
-    ).rejects.toBeInstanceOf(UserServiceError);
-
-    await expect(
-      UserService.updateName({
-        userId: "user-404",
-        firstName: "New",
-        lastName: "Name",
-      }),
-    ).rejects.toMatchObject({ message: "User not found.", statusCode: 404 });
+    ).rejects.toMatchObject({
+      message: "User not found.",
+      statusCode: 404,
+    });
   });
 
-  it("creates users through postgres only", async () => {
-    mockPrisma.user.findFirst.mockResolvedValue(null);
-    mockPrisma.user.create.mockResolvedValue({
-      userId: "user-321",
-      email: "person@example.com",
-      firstName: "First",
-      lastName: "Last",
-      isActive: true,
-    });
-
-    const result = await UserService.create({
-      id: "user-321",
-      email: "person@example.com",
-      firstName: "First",
-      lastName: "Last",
-      isActive: true,
-    });
-
-    expect(mockPrisma.user.create).toHaveBeenCalledTimes(1);
-    expect(result.id).toBe("user-321");
-  });
-
-  it("deactivates the user and deletes postgres relations on delete", async () => {
+  it("deletes the user, related rows and owner organizations", async () => {
     mockPrisma.user.findFirst.mockResolvedValue({ id: "row-1" });
     mockPrisma.userOrganization.findMany.mockResolvedValue([
       {
@@ -172,19 +329,66 @@ describe("UserService", () => {
         roleCode: "OWNER",
         organizationReference: "Organization/org-1",
       },
+      {
+        id: "mapping-2",
+        roleCode: "MEMBER",
+        organizationReference: "Organization/org-2",
+      },
     ]);
     mockPrisma.user.updateMany.mockResolvedValue({ count: 1 });
 
     const result = await UserService.deleteById("user-123");
 
-    expect(mockPrisma.userOrganization.delete).toHaveBeenCalledWith({
-      where: { id: "mapping-1" },
-    });
+    expect(mockUserOrganizationDeleteById).toHaveBeenCalledWith("mapping-1");
+    expect(mockUserOrganizationDeleteById).toHaveBeenCalledWith("mapping-2");
     expect(mockPrisma.user.updateMany).toHaveBeenCalledWith({
       where: { userId: "user-123" },
       data: { isActive: false },
     });
-    expect(OrganizationService.deleteById).toHaveBeenCalledWith("org-1");
+    expect(mockOrganizationDeleteById).toHaveBeenCalledWith("org-1");
     expect(result).toBe(true);
+  });
+
+  it("releases seats through UserOrganizationService rather than deleting mappings directly", async () => {
+    mockPrisma.user.findFirst.mockResolvedValue({ id: "row-1" });
+    mockPrisma.userOrganization.findMany.mockResolvedValue([
+      {
+        id: "mapping-1",
+        roleCode: "MEMBER",
+        organizationReference: "Organization/org-1",
+      },
+    ]);
+    mockPrisma.user.updateMany.mockResolvedValue({ count: 1 });
+
+    await UserService.deleteById("user-123");
+
+    // deleteById is what releases the member slot and re-syncs Stripe seats; a raw
+    // prisma delete would drop the mapping while leaving both counts overstated.
+    expect(mockUserOrganizationDeleteById).toHaveBeenCalledTimes(1);
+    expect(mockUserOrganizationDeleteById).toHaveBeenCalledWith("mapping-1");
+    expect(mockPrisma.userOrganization.delete).not.toHaveBeenCalled();
+  });
+
+  it("returns false when the user is missing during delete", async () => {
+    mockPrisma.user.findFirst.mockResolvedValue(null);
+    mockPrisma.authIdentity.findFirst.mockResolvedValue(null);
+
+    await expect(UserService.deleteById("missing")).resolves.toBe(false);
+  });
+
+  it("throws when an owner mapping has an invalid organization reference", async () => {
+    mockPrisma.user.findFirst.mockResolvedValue({ id: "row-1" });
+    mockPrisma.userOrganization.findMany.mockResolvedValue([
+      {
+        id: "mapping-1",
+        roleCode: "OWNER",
+        organizationReference: "Organization",
+      },
+    ]);
+
+    await expect(UserService.deleteById("user-9")).rejects.toMatchObject({
+      message: "Invalid organization reference format.",
+      statusCode: 400,
+    });
   });
 });

@@ -1,3 +1,5 @@
+import { createHmac } from "node:crypto";
+
 const updateContact = jest.fn();
 const createContact = jest.fn();
 
@@ -37,6 +39,71 @@ describe("marketing-unsubscribe.service", () => {
   it("rejects a tampered token", () => {
     const token = createMarketingUnsubscribeToken("person@example.com");
     expect(() => readMarketingUnsubscribeToken(`${token}x`)).toThrow(
+      InvalidMarketingUnsubscribeTokenError,
+    );
+  });
+
+  it("does not leak the recipient address into the unsubscribe URL", () => {
+    const url = buildMarketingUnsubscribeUrl("person@example.com");
+
+    // The token travels in a query string, so it reaches access logs, referrer headers
+    // and proxies. Signing alone leaves the address readable to anyone who sees it.
+    expect(url).not.toContain("person@example.com");
+    expect(url).not.toContain(encodeURIComponent("person@example.com"));
+    expect(url).not.toContain(
+      Buffer.from("person@example.com", "utf8").toString("base64url"),
+    );
+    expect(url).not.toContain(
+      Buffer.from("person@example.com", "utf8").toString("base64"),
+    );
+  });
+
+  it("mints tokens that no longer carry a decodable payload", () => {
+    const token = createMarketingUnsubscribeToken("person@example.com");
+    const [version, iv, sealed] = token.split(".");
+
+    expect(version).toBe("v2");
+    expect(iv).toBeTruthy();
+    expect(Buffer.from(sealed, "base64url").toString("utf8")).not.toContain(
+      "person@example.com",
+    );
+  });
+
+  it("gives a different token each time for the same address", () => {
+    // A deterministic token is a stable identifier for the recipient across links.
+    expect(createMarketingUnsubscribeToken("person@example.com")).not.toBe(
+      createMarketingUnsubscribeToken("person@example.com"),
+    );
+  });
+
+  it("still honours legacy signed tokens from already-sent mail", () => {
+    const payload = Buffer.from("person@example.com", "utf8").toString(
+      "base64url",
+    );
+    const signature = createHmac("sha256", "test-secret")
+      .update(payload)
+      .digest("base64url");
+
+    expect(readMarketingUnsubscribeToken(`${payload}.${signature}`)).toBe(
+      "person@example.com",
+    );
+  });
+
+  it("rejects a legacy token whose signature does not match", () => {
+    const payload = Buffer.from("person@example.com", "utf8").toString(
+      "base64url",
+    );
+
+    expect(() =>
+      readMarketingUnsubscribeToken(`${payload}.not-the-signature`),
+    ).toThrow(InvalidMarketingUnsubscribeTokenError);
+  });
+
+  it("rejects a v2 token sealed under a different secret", () => {
+    const token = createMarketingUnsubscribeToken("person@example.com");
+    process.env.MARKETING_UNSUBSCRIBE_SECRET = "another-secret";
+
+    expect(() => readMarketingUnsubscribeToken(token)).toThrow(
       InvalidMarketingUnsubscribeTokenError,
     );
   });

@@ -52,11 +52,14 @@ jest.mock('@/app/ui/overlays/Modal/CenterModal', () => ({
 
 jest.mock('@/app/ui/overlays/Modal/ModalHeader', () => ({
   __esModule: true,
-  default: ({ title, onClose }: any) => (
+  default: ({ title, eyebrow, meta, actions, onClose }: any) => (
     <div>
-      {title}
-      <button type="button" aria-label={`close-${title}`} onClick={onClose}>
-        x
+      {eyebrow && <div>{eyebrow}</div>}
+      <div>{title}</div>
+      {meta && <div>{meta}</div>}
+      {actions}
+      <button type="button" aria-label="close" onClick={onClose}>
+        {`close-${title}`}
       </button>
     </div>
   ),
@@ -253,7 +256,7 @@ describe('RoomInfo modal', () => {
     expect(deleteRoomMock).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByLabelText('Delete room'));
-    fireEvent.click(screen.getByLabelText('close-Delete room?'));
+    fireEvent.click(screen.getByText('close-Delete room?'));
     expect(deleteRoomMock).not.toHaveBeenCalled();
   });
 
@@ -272,7 +275,7 @@ describe('RoomInfo modal', () => {
     fireEvent.click(screen.getByText('Save'));
     await waitFor(() => expect(updateRoomMock).toHaveBeenCalled());
     // Save failed, so the drawer stays in edit mode.
-    expect(screen.getByText('Edit room', { selector: 'h2' })).toBeInTheDocument();
+    expect(screen.getByText('close-Edit room')).toBeInTheDocument();
   });
 
   it('collapses and re-expands every section', () => {
@@ -329,13 +332,13 @@ describe('RoomInfo modal', () => {
     const setShowModal = jest.fn();
     render(<RoomInfo showModal setShowModal={setShowModal} activeRoom={activeRoom} canEditRoom />);
 
-    fireEvent.click(screen.getByText('Close'));
+    fireEvent.click(screen.getByText('close-Room A'));
     expect(setShowModal).toHaveBeenCalledWith(false);
     setShowModal.mockClear();
 
     fireEvent.click(screen.getByLabelText('Edit room'));
     fireEvent.change(screen.getAllByLabelText('Name')[0], { target: { value: 'Dirty name' } });
-    fireEvent.click(screen.getByText('Close'));
+    fireEvent.click(screen.getByText('close-Edit room'));
     expect(setShowModal).not.toHaveBeenCalled();
     expect(screen.getByText('Discard changes?')).toBeInTheDocument();
 

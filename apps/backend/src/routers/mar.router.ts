@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
 import { MARController } from "src/controllers/web/mar.controller";
 
@@ -7,7 +7,7 @@ const router = Router();
 
 router.get(
   "/pms/organisation/:organisationId/mar-entries",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:view:any"),
   MARController.list,
@@ -15,7 +15,7 @@ router.get(
 
 router.post(
   "/pms/organisation/:organisationId/mar-entries",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   MARController.create,
@@ -23,7 +23,7 @@ router.post(
 
 router.get(
   "/pms/organisation/:organisationId/mar-entries/:marEntryId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:view:any"),
   MARController.get,
@@ -31,7 +31,7 @@ router.get(
 
 router.post(
   "/pms/organisation/:organisationId/mar-entries/:marEntryId/administer",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   MARController.administer,
@@ -39,7 +39,7 @@ router.post(
 
 router.post(
   "/pms/organisation/:organisationId/mar-entries/:marEntryId/hold",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   MARController.hold,
@@ -47,7 +47,7 @@ router.post(
 
 router.post(
   "/pms/organisation/:organisationId/mar-entries/:marEntryId/miss",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   MARController.markMissed,

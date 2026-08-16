@@ -1,5 +1,6 @@
 import React from 'react';
 import {render, fireEvent} from '@testing-library/react-native';
+import {Platform} from 'react-native';
 import AddressFields from '../../../src/shared/components/forms/AddressFields';
 import {mockTheme} from '../../setup/mockTheme';
 
@@ -29,6 +30,32 @@ jest.mock('../../../src/shared/components/common/Input/Input', () => ({
 // 2. Mock useTheme hook
 jest.mock('../../../src/hooks', () => ({
   useTheme: () => ({theme: mockTheme, isDark: false}),
+}));
+
+// 3. Mock react-i18next with the real English defaults so label/suggestion
+// assertions below keep matching the same strings as before translation.
+const ADDRESS_FIELDS_TRANSLATIONS: Record<string, string> = {
+  'addressFields.addressLine': 'Address',
+  'addressFields.state': 'State',
+  'addressFields.stateProvince': 'State/Province',
+  'addressFields.city': 'City',
+  'addressFields.postalCode': 'Postal code',
+  'addressFields.country': 'Country',
+  'addressFields.suggestionsTitle': 'Suggestions',
+  'addressFields.noSuggestionsFound': 'No suggestions found.',
+  'addressFields.poweredByGoogle': 'Powered by Google',
+  'addressFields.bottomSheetTitle': 'Address',
+  'addressFields.close': 'Close',
+};
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, options?: Record<string, unknown>) => {
+      if (key === 'addressFields.topSuggestionsTitle' && options) {
+        return `Top ${options.count} of ${options.total} suggestions`;
+      }
+      return ADDRESS_FIELDS_TRANSLATIONS[key] ?? key;
+    },
+  }),
 }));
 
 // --- Test Suite ---
@@ -92,6 +119,17 @@ describe('AddressFields', () => {
     expect(getByTestId('input-Country').props.value).toBe('USA');
   });
 
+  it('falls back to empty input values when optional fields are omitted', () => {
+    const {getByTestId} = render(
+      <AddressFields {...defaultProps} values={{}} />,
+    );
+
+    expect(getByTestId('input-Address').props.value).toBe('');
+    expect(getByTestId('input-City').props.value).toBe('');
+    expect(getByTestId('input-Postal code').props.value).toBe('');
+    expect(getByTestId('input-Country').props.value).toBe('');
+  });
+
   // ===========================================================================
   // 2. Input Interactions
   // ===========================================================================
@@ -143,6 +181,15 @@ describe('AddressFields', () => {
       })();
 
     expect(hasStateLabel).toBe(true);
+  });
+
+  it('uses State/Province when Platform.select does not resolve a label', () => {
+    const selectSpy = jest.spyOn(Platform, 'select').mockReturnValue(undefined);
+
+    const {getByText} = render(<AddressFields {...defaultProps} />);
+
+    expect(getByText('State/Province')).toBeTruthy();
+    selectSpy.mockRestore();
   });
 
   it('uses custom labels provided via props', () => {
@@ -206,6 +253,31 @@ describe('AddressFields', () => {
     // Ensure no crash or weird render for empty secondary
   });
 
+  it('exposes button role and a combined primary/secondary accessibility label', () => {
+    const suggestions = [
+      {placeId: '1', primaryText: 'Place 1', secondaryText: 'City 1'},
+    ];
+
+    const {getByLabelText} = render(
+      <AddressFields {...defaultProps} addressSuggestions={suggestions} />,
+    );
+
+    const item = getByLabelText('Place 1, City 1');
+    expect(item.props.accessibilityRole).toBe('button');
+  });
+
+  it('falls back to just the primary text in the accessibility label when there is no secondary text', () => {
+    const suggestions = [
+      {placeId: '1', primaryText: 'Place Only', secondaryText: ''},
+    ];
+
+    const {getByLabelText} = render(
+      <AddressFields {...defaultProps} addressSuggestions={suggestions} />,
+    );
+
+    expect(getByLabelText('Place Only')).toBeTruthy();
+  });
+
   it('calls onSelectSuggestion when a suggestion is pressed', () => {
     const suggestions = [{placeId: '1', primaryText: 'Place 1'}];
 
@@ -263,21 +335,45 @@ describe('AddressFields', () => {
   });
 
   // ===========================================================================
-  // 5. ScrollView & Styling Coverage
+  // 5. Suggestion List & Styling Coverage
   // ===========================================================================
 
-  it('enables scroll on ScrollView only when items > 3', () => {
+  it('renders suggestions in a capped plain list', () => {
     const longList = [
       {placeId: '1', primaryText: '1'},
       {placeId: '2', primaryText: '2'},
       {placeId: '3', primaryText: '3'},
       {placeId: '4', primaryText: '4'},
+      {placeId: '5', primaryText: '5'},
+      {placeId: '6', primaryText: '6'},
     ];
 
-    const {toJSON} = render(
+    const {getByText, queryByText} = render(
       <AddressFields {...defaultProps} addressSuggestions={longList} />,
     );
-    expect(toJSON()).toMatchSnapshot();
+
+    longList.slice(0, 5).forEach(item => {
+      expect(getByText(item.primaryText)).toBeTruthy();
+    });
+    expect(queryByText('6')).toBeNull();
+    // The truncated list must say so, rather than silently hiding results.
+    expect(getByText('Top 5 of 6 suggestions')).toBeTruthy();
+    expect(queryByText('Suggestions')).toBeNull();
+    expect(getByText('Powered by Google')).toBeTruthy();
+  });
+
+  it('shows the plain "Suggestions" title when the list is not truncated', () => {
+    const shortList = [
+      {placeId: '1', primaryText: '1'},
+      {placeId: '2', primaryText: '2'},
+    ];
+
+    const {getByText, queryByText} = render(
+      <AddressFields {...defaultProps} addressSuggestions={shortList} />,
+    );
+
+    expect(getByText('Suggestions')).toBeTruthy();
+    expect(queryByText(/Top 5 of/)).toBeNull();
   });
 
   it('renders field errors passed via fieldErrors prop', () => {

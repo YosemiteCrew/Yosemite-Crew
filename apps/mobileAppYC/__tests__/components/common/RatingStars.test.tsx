@@ -90,6 +90,18 @@ describe('RatingStars Component', () => {
     expect(() => fireEvent.press(images[0].parent as any)).not.toThrow();
   });
 
+  it('exposes radio roles, selected state, and labels on each star', () => {
+    const {getByLabelText} = render(<RatingStars value={3} />);
+
+    const star1 = getByLabelText('Rate 1 star');
+    const star3 = getByLabelText('Rate 3 stars');
+    const star4 = getByLabelText('Rate 4 stars');
+    expect(star1.props.accessibilityRole).toBe('radio');
+    expect(star1.props.accessibilityState).toEqual({selected: true});
+    expect(star3.props.accessibilityState).toEqual({selected: true});
+    expect(star4.props.accessibilityState).toEqual({selected: false});
+  });
+
   // ===========================================================================
   // 3. Styling & Props
   // ===========================================================================

@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -12,7 +11,7 @@ jest.mock('next/image', () => ({
   },
 }));
 
-jest.mock('@iconify/react/dist/iconify.js', () => ({
+jest.mock('@/app/ui/icons/Icon', () => ({
   Icon: (props: any) => <i data-testid="mock-icon" data-icon={props.icon} />,
 }));
 

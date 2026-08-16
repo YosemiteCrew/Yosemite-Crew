@@ -1,4 +1,4 @@
-import React, { useImperativeHandle, useMemo, useState, useCallback, useRef } from 'react';
+import React, { useImperativeHandle, useMemo, useState, useCallback } from 'react';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
@@ -12,7 +12,7 @@ import { formatDateLocal } from '@/app/lib/date';
 import { toTitleCase } from '@/app/lib/validators';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import { CountriesOptions } from '@/app/features/companions/components/AddCompanion/type';
-import GoogleSearchDropDown from '@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown';
+import GoogleAddressFieldRenderer from '@/app/ui/primitives/Accordion/googleAddressFieldRenderer';
 
 export type FieldConfig = {
   label: string;
@@ -105,7 +105,7 @@ const TextInputField = ({
       inlabel={field.label}
       error={error}
       onChange={handleChange}
-      className={isCurrency ? 'min-h-12! pl-10!' : 'min-h-12!'}
+      className={isCurrency ? 'pl-10!' : ''}
     />
   );
 
@@ -218,7 +218,6 @@ const FieldComponents: Record<string, React.FC<EditableFieldProps>> = {
       inlabel={field.label}
       error={error}
       onChange={() => {}}
-      className="min-h-12!"
     />
   ),
   timeInput: ({ field, value, onChange, error }) => (
@@ -228,29 +227,9 @@ const FieldComponents: Record<string, React.FC<EditableFieldProps>> = {
       name={field.key}
       error={error}
       onChange={onChange}
-      className="min-h-12!"
     />
   ),
-  googleAddress: ({ field, value, onChange, onMultiChange, error }) => (
-    <GoogleSearchDropDown
-      intype="text"
-      inname={field.key}
-      value={value ?? ''}
-      inlabel={field.label}
-      error={error}
-      onChange={(e) => onChange(e.target.value)}
-      onlyAddress={true}
-      onAddressSelect={(address) => {
-        onChange(address.addressLine);
-        onMultiChange?.({
-          city: address.city,
-          state: address.state,
-          postalCode: address.postalCode,
-          ...(address.country ? { country: address.country } : {}),
-        });
-      }}
-    />
-  ),
+  googleAddress: GoogleAddressFieldRenderer,
 };
 
 const normalizeOptions = (options?: Array<string | { label: string; value: string }>) =>
@@ -454,11 +433,11 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
   const [formValues, setFormValues] = useState<FormValues>(() => buildInitialValues(fields, data));
   const [formValuesErrors, setFormValuesErrors] = useState<Record<string, string | undefined>>({});
 
-  const prevDataRef = useRef(data);
-  const prevFieldsRef = useRef(fields);
-  if (prevDataRef.current !== data || prevFieldsRef.current !== fields) {
-    prevDataRef.current = data;
-    prevFieldsRef.current = fields;
+  const [prevData, setPrevData] = useState(data);
+  const [prevFields, setPrevFields] = useState(fields);
+  if (prevData !== data || prevFields !== fields) {
+    setPrevData(data);
+    setPrevFields(fields);
     setFormValues(buildInitialValues(fields, data));
     setFormValuesErrors({});
   }

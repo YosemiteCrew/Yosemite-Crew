@@ -8,7 +8,7 @@ import LegalContentRenderer from '../../../../src/features/legal/components/Lega
 
 // 1. Mock Theme Hook
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({theme: mockTheme, isDark: false}),
+  useTheme: jest.fn(() => ({theme: mockTheme, isDark: false})),
 }));
 
 // 2. Mock LiquidGlassCard
@@ -209,6 +209,118 @@ describe('LegalContentRenderer', () => {
     );
 
     expect(getByText('Malformed Block')).toBeTruthy();
+  });
+
+  it('skips the __DEV__ logging block when __DEV__ is false', () => {
+    const originalDev = (global as any).__DEV__;
+    (global as any).__DEV__ = false;
+    consoleSpy.mockClear();
+
+    render(
+      <LegalContentRenderer
+        sections={[{id: '1', title: 'No Log Test', blocks: []}]}
+      />,
+    );
+
+    expect(consoleSpy).not.toHaveBeenCalled();
+    (global as any).__DEV__ = originalDev;
+  });
+
+  it('logs an undefined firstTitle when there are no sections', () => {
+    consoleSpy.mockClear();
+    render(<LegalContentRenderer sections={[]} />);
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('LegalContentRenderer:'),
+      0,
+      expect.stringContaining('firstTitle='),
+      undefined,
+    );
+  });
+
+  it('defaults to an empty section list when sections is not an array', () => {
+    expect(() =>
+      render(<LegalContentRenderer sections={undefined as any} />),
+    ).not.toThrow();
+  });
+
+  it('renders nothing inside a section whose blocks is not an array', () => {
+    const sections = [
+      {
+        id: 'no-blocks-array',
+        title: 'Title Only Section',
+        blocks: undefined,
+      },
+    ];
+
+    const {getByText} = render(
+      <LegalContentRenderer sections={sections as any} />,
+    );
+
+    expect(getByText('Title Only Section')).toBeTruthy();
+  });
+
+  it('keys list items and paragraph blocks safely when segments is missing', () => {
+    const sections = [
+      {
+        id: 'no-segments',
+        blocks: [
+          {
+            type: 'ordered-list',
+            items: [{marker: '1.'}, {marker: '2.', segments: undefined}],
+          },
+        ],
+      },
+    ];
+
+    expect(() =>
+      render(<LegalContentRenderer sections={sections as any} />),
+    ).not.toThrow();
+  });
+
+  it('gives borderWidth 1 to the card fallback style on Android', () => {
+    const {Platform} = require('react-native');
+    const originalOS = Platform.OS;
+    Platform.OS = 'android';
+
+    expect(() =>
+      render(
+        <LegalContentRenderer
+          sections={[{id: '1', title: 'Android Test', blocks: []}]}
+        />,
+      ),
+    ).not.toThrow();
+
+    Platform.OS = originalOS;
+  });
+
+  it('falls back to SATOSHI typography tokens when subtitle typography variants are missing', () => {
+    const {useTheme} = require('@/hooks');
+    (useTheme as jest.Mock).mockReturnValueOnce({
+      theme: {
+        ...mockTheme,
+        typography: {
+          ...mockTheme.typography,
+          subtitleBold14: undefined,
+          subtitleRegular14: undefined,
+        },
+      },
+      isDark: false,
+    });
+
+    const sections = [
+      {
+        id: 'fallback-typography',
+        title: 'Fallback Title',
+        blocks: [{type: 'paragraph', segments: [{text: 'Fallback Body'}]}],
+      },
+    ];
+
+    const {getByText} = render(
+      <LegalContentRenderer sections={sections as any} />,
+    );
+
+    expect(getByText('Fallback Title')).toBeTruthy();
+    expect(getByText('Fallback Body')).toBeTruthy();
   });
 
   it('executes the __DEV__ logging block', () => {

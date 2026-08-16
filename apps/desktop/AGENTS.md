@@ -113,16 +113,19 @@ pnpm run build   # = clean:build && tsc && node scripts/copy-static.js
 
 ## Quality Gate
 
-Desktop changes must pass **SonarCloud** (project key `yosemitecrew_Yosemite-Crew_Desktop`),
-analyzed in CI by `.github/workflows/sonar-cloud-analysis.yml`. Load the `desktop-sonar` skill
-for the enforced rule set, the deferral policy, and fix patterns.
+Desktop changes must pass **SonarCloud** (project key `yosemitecrew_Yosemite-Crew_Desktop`).
+PR and branch pushes are analyzed in CI by the scan-only `_sonar` stage of
+`.github/workflows/ci.yaml`; `.github/workflows/sonar-cloud-analysis.yml` is the nightly
+type-aware backstop. Load the `desktop-sonar` skill for the enforced rule set, the deferral
+policy, and fix patterns.
 
 ---
 
 ## Commit Scope
 
-Desktop has **no dedicated `commitlint` scope** - use **`repo`**. Allowed scopes are exactly:
-`backend | frontend | mobile | dev-docs | types | fhir | repo | ci | docs`. Allowed types:
+Use the **`desktop`** scope for changes contained in `apps/desktop` (e.g. `feat(desktop): ...`).
+Use `repo` only when a change spans multiple workspaces. Allowed scopes are exactly:
+`backend | frontend | mobile | desktop | dev-docs | types | fhir | repo | ci | docs | lib | auth | database`. Allowed types:
 `build | chore | ci | docs | feat | fix | perf | refactor | revert | style | test`
 (`commitlint.config.cjs` is the source of truth).
 

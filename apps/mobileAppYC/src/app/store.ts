@@ -57,10 +57,92 @@ import {coParentReducer} from '@/features/coParent';
 import {linkedBusinessesReducer} from '@/features/linkedBusinesses';
 import {notificationReducer} from '@/features/notifications';
 import formsReducer from '@/features/forms/formsSlice';
+import preferencesReducer from '@/features/preferences/preferencesSlice';
+
+const migrateV1ToV2 = (_state: any) => {
+  console.log(
+    '[Redux Persist] Migrating from v1 to v2 - adding companion state',
+  );
+};
+
+const migrateV2ToV3 = (state: any) => {
+  console.log(
+    '[Redux Persist] Migrating from v2 to v3 - refreshing businesses data with descriptions',
+  );
+  // Clear old businesses data to force fresh fetch with descriptions
+  if (state.businesses) {
+    state.businesses = {
+      businesses: [],
+      employees: [],
+      availability: [],
+      loading: false,
+      error: null,
+    };
+  }
+};
+
+const migrateV3ToV4 = (state: any) => {
+  console.log(
+    '[Redux Persist] Migrating from v3 to v4 - adding notifications state',
+  );
+  // Initialize notifications state if not present
+  if (!state.notifications) {
+    state.notifications = {
+      items: [],
+      loading: false,
+      error: null,
+      unreadCount: 0,
+      hydratedCompanions: {},
+      filter: 'all',
+      sortBy: 'new',
+    };
+  }
+};
+
+const migrateV4ToV5 = (state: any) => {
+  console.log(
+    '[Redux Persist] Migrating from v4 to v5 - initializing service catalog',
+  );
+  if (state.businesses) {
+    state.businesses.services = state.businesses.services ?? [];
+  }
+};
+
+const migrateV5ToV6 = (state: any) => {
+  console.log(
+    '[Redux Persist] Migrating from v5 to v6 - ensuring companion.companions is an array',
+  );
+  if (state.companion && !Array.isArray(state.companion.companions)) {
+    state.companion.companions = [];
+  }
+};
+
+const migrateV6ToV7 = (state: any) => {
+  console.log(
+    '[Redux Persist] Migrating from v6 to v7 - adding preferences state',
+  );
+  if (!state.preferences) {
+    state.preferences = {
+      weightOverride: null,
+      distanceOverride: null,
+      currencyOverride: null,
+    };
+  }
+};
+
+// Keyed by the persisted version a state is migrating FROM.
+const MIGRATIONS_BY_FROM_VERSION: Record<number, (state: any) => void> = {
+  1: migrateV1ToV2,
+  2: migrateV2ToV3,
+  3: migrateV3ToV4,
+  4: migrateV4ToV5,
+  5: migrateV5ToV6,
+  6: migrateV6ToV7,
+};
 
 const persistConfig = {
   key: 'root',
-  version: 6,
+  version: 7,
   storage: storageForPersist,
   whitelist: [
     'auth',
@@ -75,70 +157,15 @@ const persistConfig = {
     'linkedBusinesses',
     'notifications',
     'forms',
+    'preferences',
   ],
   migrate: (state: any) => {
     console.log(
       '[Redux Persist] Migrating state from version',
       state?._persist?.version,
     );
-    // Handle migration from version 1 to 2
-    if (state?._persist?.version === 1) {
-      console.log(
-        '[Redux Persist] Migrating from v1 to v2 - adding companion state',
-      );
-    }
-    // Handle migration from version 2 to 3
-    if (state?._persist?.version === 2) {
-      console.log(
-        '[Redux Persist] Migrating from v2 to v3 - refreshing businesses data with descriptions',
-      );
-      // Clear old businesses data to force fresh fetch with descriptions
-      if (state.businesses) {
-        state.businesses = {
-          businesses: [],
-          employees: [],
-          availability: [],
-          loading: false,
-          error: null,
-        };
-      }
-    }
-    // Handle migration from version 3 to 4
-    if (state?._persist?.version === 3) {
-      console.log(
-        '[Redux Persist] Migrating from v3 to v4 - adding notifications state',
-      );
-      // Initialize notifications state if not present
-      if (!state.notifications) {
-        state.notifications = {
-          items: [],
-          loading: false,
-          error: null,
-          unreadCount: 0,
-          hydratedCompanions: {},
-          filter: 'all',
-          sortBy: 'new',
-        };
-      }
-    }
-    // Handle migration from version 4 to 5
-    if (state?._persist?.version === 4) {
-      console.log(
-        '[Redux Persist] Migrating from v4 to v5 - initializing service catalog',
-      );
-      if (state.businesses) {
-        state.businesses.services = state.businesses.services ?? [];
-      }
-    }
-    // Handle migration from version 5 to 6
-    if (state?._persist?.version === 5) {
-      console.log(
-        '[Redux Persist] Migrating from v5 to v6 - ensuring companion.companions is an array',
-      );
-      if (state.companion && !Array.isArray(state.companion.companions)) {
-        state.companion.companions = [];
-      }
-    }
+    const migrateStep = MIGRATIONS_BY_FROM_VERSION[state?._persist?.version];
+    migrateStep?.(state);
     return Promise.resolve(state);
   },
 };
@@ -157,6 +184,7 @@ const rootReducer = combineReducers({
   linkedBusinesses: linkedBusinessesReducer,
   notifications: notificationReducer,
   forms: formsReducer,
+  preferences: preferencesReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

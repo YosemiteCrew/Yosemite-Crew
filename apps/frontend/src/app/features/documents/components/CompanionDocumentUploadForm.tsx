@@ -48,7 +48,9 @@ const CompanionDocumentUploadForm = ({
   const subcategoryOptions = getSubcategoryOptionsForCategory(formData.category);
 
   return (
-    <div className="flex flex-col gap-3">
+    // Rebind --field-bg to the warm surface locally so this form's dropdowns and
+    // inputs match the theme instead of the cool #fafafa default.
+    <div className="flex flex-col gap-3 [--field-bg:var(--color-neutral-0)]">
       <LabelDropdown
         placeholder="Category"
         onSelect={(option) => {

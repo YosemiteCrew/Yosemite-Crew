@@ -2,7 +2,11 @@ import { Request, Response } from "express";
 import { z } from "zod";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { OrgRequest } from "src/middlewares/rbac";
-import { generatePresignedUrl } from "src/middlewares/upload";
+import {
+  IMAGE_ONLY_MIME_TYPES,
+  generatePresignedUrl,
+  isAllowedMimeType,
+} from "src/middlewares/upload";
 import {
   InventoryService,
   InventoryAdjustmentService,
@@ -30,7 +34,7 @@ import logger from "src/utils/logger";
 type EmptyParams = Record<string, never>;
 
 const inventoryImageUploadBodySchema = z.object({
-  mimeType: z.string().min(1),
+  mimeType: z.string().refine(isAllowedMimeType),
 });
 
 /**
@@ -102,10 +106,12 @@ export const InventoryController = {
 
       const { organisationId } = req.params;
       const { mimeType } = parsedBody.data;
+      // Inventory items only ever display a picture.
       const { url, key } = await generatePresignedUrl(
         mimeType,
         "inventory",
         organisationId,
+        IMAGE_ONLY_MIME_TYPES,
       );
 
       res.status(200).json({ uploadUrl: url, s3Key: key });
@@ -277,9 +283,7 @@ export const InventoryController = {
         search,
         status: parsedStatus,
         stockStatus: parsedStockStatus as
-          | InventoryStockStatus
-          | InventoryStockStatus[]
-          | undefined,
+          InventoryStockStatus | InventoryStockStatus[] | undefined,
         lowStockOnly: lowStockOnly === "true",
         expiredOnly: expiredOnly === "true",
         expiringWithinDays: expiringWithinDays

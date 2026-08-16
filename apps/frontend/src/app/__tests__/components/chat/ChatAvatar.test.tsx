@@ -47,26 +47,45 @@ describe('ChatAvatar', () => {
 
   it('renders the online presence dot when online is true', () => {
     const { container } = render(<ChatAvatar name="Bella" online />);
-    expect(container.querySelector('.bg-success-bright')).toBeInTheDocument();
+    expect(container.querySelector('.chat-presence-dot')).toBeInTheDocument();
   });
 
   it('does not render the presence dot when online is falsy', () => {
     const { container } = render(<ChatAvatar name="Bella" />);
-    expect(container.querySelector('.bg-success-bright')).not.toBeInTheDocument();
+    expect(container.querySelector('.chat-presence-dot')).not.toBeInTheDocument();
   });
 
   it('renders the group glyph instead of initials when group is true', () => {
     const { container } = render(<ChatAvatar name="Care Team" group />);
     // No initials text rendered.
     expect(screen.queryByText('CT')).not.toBeInTheDocument();
-    // Group styling applied; an svg icon is rendered.
-    expect(container.querySelector('.bg-chat-panel.text-primary-600')).toBeInTheDocument();
+    // Group styling applied (warm-bone band background); an svg icon is rendered.
+    const badge = container.querySelector('.font-bold');
+    expect(badge?.className).toContain('var(--band)');
     expect(container.querySelector('svg')).toBeInTheDocument();
   });
 
   it('applies the sm size classes', () => {
     const { container } = render(<ChatAvatar name="Sam" size="sm" />);
     expect(container.querySelector('.size-9')).toBeInTheDocument();
+  });
+
+  it('renders the clinic/business glyph (rounded-square, blue-soft, no initials)', () => {
+    const { container } = render(<ChatAvatar name="Tierklinik Oberland" business />);
+    // Initials are replaced by a business glyph.
+    expect(screen.queryByText('TO')).not.toBeInTheDocument();
+    const badge = container.querySelector('.font-bold');
+    expect(badge?.className).toContain('rounded-[12px]');
+    expect(badge?.className).toContain('var(--blue-soft)');
+    expect(container.querySelector('svg')).toBeInTheDocument();
+  });
+
+  it('applies the responsive conversation-row size classes', () => {
+    const { container } = render(<ChatAvatar name="Sam" size="row" />);
+    // 36px base, bumping to 40px on the wide desktop frame.
+    const badge = container.querySelector('.font-bold');
+    expect(badge?.className).toContain('size-9');
+    expect(badge?.className).toContain('xl:size-10');
   });
 
   it('applies the lg size classes', () => {
@@ -76,8 +95,10 @@ describe('ChatAvatar', () => {
 
   it('applies an accent class from the palette for non-group avatars', () => {
     const { container } = render(<ChatAvatar name="Daisy" />);
-    // The inner badge carries the deterministic accent class.
-    expect(container.querySelector(`.${accentFor('Daisy').split(' ')[0]}`)).toBeInTheDocument();
+    // The inner badge carries the deterministic accent class (arbitrary-value
+    // token class, so assert via className rather than as a CSS selector).
+    const badge = container.querySelector('.font-bold');
+    expect(badge?.className).toContain(accentFor('Daisy').split(' ')[0]);
   });
 
   it('hashes different names to (potentially) different accents and renders both', () => {

@@ -85,12 +85,7 @@ Suggested frontend types:
 
 ```ts
 export type HistoryEntryType =
-  | 'APPOINTMENT'
-  | 'TASK'
-  | 'FORM_SUBMISSION'
-  | 'DOCUMENT'
-  | 'LAB_RESULT'
-  | 'INVOICE';
+  'APPOINTMENT' | 'TASK' | 'FORM_SUBMISSION' | 'DOCUMENT' | 'LAB_RESULT' | 'INVOICE';
 
 export type HistoryEntry = {
   id: string;

@@ -13,11 +13,7 @@ export class StaffShiftError extends Error {
 }
 
 type ShiftStatus =
-  | "SCHEDULED"
-  | "IN_PROGRESS"
-  | "COMPLETED"
-  | "CANCELLED"
-  | "NO_SHOW";
+  "SCHEDULED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | "NO_SHOW";
 
 const TERMINAL_STATUSES: ShiftStatus[] = ["COMPLETED", "CANCELLED", "NO_SHOW"];
 
@@ -149,7 +145,7 @@ export const StaffShiftService = {
     },
   ) {
     const existing = await assertShift(id, organisationId);
-    if (TERMINAL_STATUSES.includes(existing.status as ShiftStatus)) {
+    if (TERMINAL_STATUSES.includes(existing.status)) {
       throw new StaffShiftError(
         `Cannot update a shift with status ${existing.status}.`,
         409,
@@ -196,7 +192,7 @@ export const StaffShiftService = {
 
   async start(id: string, organisationId: string) {
     const existing = await assertShift(id, organisationId);
-    if (TERMINAL_STATUSES.includes(existing.status as ShiftStatus)) {
+    if (TERMINAL_STATUSES.includes(existing.status)) {
       throw new StaffShiftError(
         `Cannot start a shift with status ${existing.status}.`,
         409,
@@ -211,7 +207,7 @@ export const StaffShiftService = {
 
   async complete(id: string, organisationId: string) {
     const existing = await assertShift(id, organisationId);
-    if (TERMINAL_STATUSES.includes(existing.status as ShiftStatus)) {
+    if (TERMINAL_STATUSES.includes(existing.status)) {
       throw new StaffShiftError(
         `Cannot complete a shift with status ${existing.status}.`,
         409,
@@ -226,7 +222,7 @@ export const StaffShiftService = {
 
   async cancel(id: string, organisationId: string, cancelledBy?: string) {
     const existing = await assertShift(id, organisationId);
-    if (TERMINAL_STATUSES.includes(existing.status as ShiftStatus)) {
+    if (TERMINAL_STATUSES.includes(existing.status)) {
       throw new StaffShiftError(
         `Cannot cancel a shift with status ${existing.status}.`,
         409,
@@ -255,7 +251,7 @@ export const StaffShiftService = {
 
   async markNoShow(id: string, organisationId: string) {
     const existing = await assertShift(id, organisationId);
-    if (TERMINAL_STATUSES.includes(existing.status as ShiftStatus)) {
+    if (TERMINAL_STATUSES.includes(existing.status)) {
       throw new StaffShiftError(
         `Cannot mark no-show for a shift with status ${existing.status}.`,
         409,

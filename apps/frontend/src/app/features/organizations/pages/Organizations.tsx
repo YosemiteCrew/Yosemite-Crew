@@ -3,9 +3,10 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
-import { Primary } from '@/app/ui/primitives/Buttons';
 import OrgInvites from '@/app/ui/tables/OrgInvites';
 import OrganizationList from '@/app/ui/tables/OrganizationList';
+import CreateOrgCard from '@/app/ui/cards/CreateOrgCard/CreateOrgCard';
+import OrgGreeting from '@/app/features/organizations/components/OrgGreeting/OrgGreeting';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useOrgWithMemberships } from '@/app/hooks/useOrgSelectors';
@@ -18,6 +19,7 @@ const Organizations = () => {
   const orgStatus = useOrgStore((s) => s.status);
 
   const [invites, setInvites] = useState<Invite[]>([]);
+  // Starts true — the mount-only effect below always begins loading immediately.
   const [invitesLoading, setInvitesLoading] = useState(true);
   // Separate flag for the accept flow — covers the async work + navigation delay
   const [accepting, setAccepting] = useState(false);
@@ -26,7 +28,6 @@ const Organizations = () => {
 
   useEffect(() => {
     let cancelled = false;
-    setInvitesLoading(true);
     loadInvites()
       .then((data) => {
         if (!cancelled) setInvites(data);
@@ -55,24 +56,12 @@ const Organizations = () => {
   }
 
   return (
-    <div className="flex flex-col gap-6 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
-      <div className="flex items-center justify-between w-full">
-        <h1 className="text-text-primary text-heading-2">Overview</h1>
-        <Primary href="/create-org" text="Create organisation" />
-      </div>
+    <div className="mx-auto flex w-full max-w-[640px] flex-col gap-2 pl-3! pr-3! pt-6! pb-6! md:pl-5! md:pr-5! md:pt-8! md:pb-8!">
+      <OrgGreeting orgCount={orgs.length} />
 
       <div className="flex flex-col gap-3">
-        <div className="text-body-2 text-text-primary">
-          Existing organisations <span className="text-text-tertiary">{`(${orgs.length})`}</span>
-        </div>
         <OrganizationList orgs={orgs} />
-      </div>
 
-      <div className="flex flex-col gap-3">
-        <div className="text-body-2 text-text-primary">
-          Invites{' '}
-          <span className="text-text-tertiary">{`(${invitesLoading ? '…' : invites.length})`}</span>
-        </div>
         {invitesLoading ? (
           <div className="flex items-center justify-center py-6">
             <YosemiteLoader variant="inline" size={32} testId="invites-loader" />
@@ -85,6 +74,8 @@ const Organizations = () => {
             onNavigate={handleNavigate}
           />
         )}
+
+        <CreateOrgCard />
       </div>
     </div>
   );

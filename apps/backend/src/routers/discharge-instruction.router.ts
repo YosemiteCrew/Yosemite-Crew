@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
 import { DischargeInstructionController } from "src/controllers/web/discharge-instruction.controller";
 
@@ -7,7 +7,7 @@ const router = Router();
 
 router.get(
   "/pms/organisation/:organisationId/discharge-instructions",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:view:any"),
   DischargeInstructionController.list,
@@ -15,7 +15,7 @@ router.get(
 
 router.post(
   "/pms/organisation/:organisationId/discharge-instructions",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   DischargeInstructionController.create,
@@ -23,7 +23,7 @@ router.post(
 
 router.get(
   "/pms/organisation/:organisationId/discharge-instructions/:dischargeId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:view:any"),
   DischargeInstructionController.get,
@@ -31,7 +31,7 @@ router.get(
 
 router.put(
   "/pms/organisation/:organisationId/discharge-instructions/:dischargeId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   DischargeInstructionController.update,
@@ -39,7 +39,7 @@ router.put(
 
 router.post(
   "/pms/organisation/:organisationId/discharge-instructions/:dischargeId/send",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   DischargeInstructionController.send,
@@ -47,7 +47,7 @@ router.post(
 
 router.post(
   "/pms/organisation/:organisationId/discharge-instructions/:dischargeId/acknowledge",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:view:any"),
   DischargeInstructionController.acknowledge,

@@ -27,6 +27,7 @@ import {
 import SearchDropdown from '@/app/ui/inputs/SearchDropdown';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import { CompanionType } from '@yosemite-crew/types';
+import { BLOOD_GROUP_OPTIONS_BY_SPECIES } from '@/app/features/companions/components/companionBloodGroups';
 import { useNotify } from '@/app/hooks/useNotify';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import {
@@ -55,37 +56,6 @@ const DEFAULT_SPECIES_OPTIONS: SpeciesOption[] = [
   { label: 'Feline', value: 'cat', type: 'cat', speciesCode: '', speciesQuery: 'feline' },
   { label: 'Equine', value: 'horse', type: 'horse', speciesCode: '', speciesQuery: 'equine' },
 ];
-
-const BLOOD_GROUP_OPTIONS_BY_SPECIES: Record<CompanionType, OptionProp[]> = {
-  cat: ['A', 'B', 'AB', 'Unknown'].map((group) => ({
-    value: group,
-    label: group,
-  })),
-  dog: [
-    'DEA 1.1 Positive',
-    'DEA 1.1 Negative',
-    'DEA 1.2 Positive',
-    'DEA 1.2 Negative',
-    'DEA 3 Positive',
-    'DEA 3 Negative',
-    'DEA 4 Positive',
-    'DEA 4 Negative',
-    'DEA 5 Positive',
-    'DEA 5 Negative',
-    'DEA 7 Positive',
-    'DEA 7 Negative',
-    'Universal Donor',
-    'Unknown',
-  ].map((group) => ({
-    value: group,
-    label: group,
-  })),
-  horse: ['Aa', 'Ca', 'Da', 'Ka', 'Pa', 'Qa', 'Ua', 'Universal Donor', 'Unknown'].map((group) => ({
-    value: group,
-    label: group,
-  })),
-  other: [{ value: 'Unknown', label: 'Unknown' }],
-};
 
 const toNonNegativeNumber = (value: string | number | undefined) => {
   const parsed = typeof value === 'number' ? value : Number.parseFloat((value ?? '').toString());
@@ -151,11 +121,18 @@ const useCompanionContent = ({
     [results]
   );
 
+  const [prevParentId, setPrevParentId] = useState(parentFormData.id);
+  if (prevParentId !== parentFormData.id) {
+    setPrevParentId(parentFormData.id);
+    if (!parentFormData.id) {
+      setResults([]);
+      setQuery('');
+    }
+  }
+
   useLayoutEffect(() => {
     const parentId = parentFormData.id;
     if (!parentId) {
-      setResults([]);
-      setQuery('');
       return;
     }
     let mounted = true;
@@ -195,10 +172,17 @@ const useCompanionContent = ({
     };
   }, []);
 
+  const [prevBreedSync, setPrevBreedSync] = useState({ type: formData.type, speciesOptions });
+  if (prevBreedSync.type !== formData.type || prevBreedSync.speciesOptions !== speciesOptions) {
+    setPrevBreedSync({ type: formData.type, speciesOptions });
+    if (!speciesOptions.some((option) => option.type === formData.type)) {
+      setBreedOptions([]);
+    }
+  }
+
   useLayoutEffect(() => {
     const selected = speciesOptions.find((option) => option.type === formData.type);
     if (!selected) {
-      setBreedOptions([]);
       return;
     }
     let mounted = true;
@@ -344,7 +328,6 @@ const useCompanionContent = ({
               inlabel="Name"
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               error={formDataErrors.name}
-              className="min-h-12!"
             />
             <div
               data-testid="companion-color-blood-group-row"
@@ -390,7 +373,6 @@ const useCompanionContent = ({
               currentDate={currentDate}
               setCurrentDate={setCurrentDate}
               type="input"
-              className="min-h-12!"
               containerClassName="w-full"
               placeholder="Date of birth"
               error={formDataErrors.dateOfBirth}
@@ -425,7 +407,6 @@ const useCompanionContent = ({
                     ageWhenNeutered: e.target.value.replaceAll('-', ''),
                   })
                 }
-                className="min-h-12!"
               />
             )}
             <div className={`grid gap-3 ${isFastTrack ? 'grid-cols-1' : 'grid-cols-2'}`}>
@@ -435,7 +416,6 @@ const useCompanionContent = ({
                 value={formData.colour || ''}
                 inlabel="Color (optional)"
                 onChange={(e) => setFormData({ ...formData, colour: e.target.value })}
-                className="min-h-12!"
               />
               {!isFastTrack && (
                 <LabelDropdown
@@ -459,7 +439,6 @@ const useCompanionContent = ({
                       currentWeight: toNonNegativeNumber(e.target.value),
                     })
                   }
-                  className="min-h-12!"
                 />
                 <LabelDropdown
                   placeholder="Country of origin (optional)"
@@ -480,7 +459,6 @@ const useCompanionContent = ({
                   value={formData.microchipNumber || ''}
                   inlabel="Microchip number (optional)"
                   onChange={(e) => setFormData({ ...formData, microchipNumber: e.target.value })}
-                  className="min-h-12!"
                 />
                 <FormInput
                   intype="text"
@@ -493,7 +471,6 @@ const useCompanionContent = ({
                       passportNumber: e.target.value.replaceAll(/[^0-9a-zA-Z-]/g, ''),
                     })
                   }
-                  className="min-h-12!"
                 />
                 <SelectLabel
                   title="Insurance"
@@ -530,7 +507,6 @@ const useCompanionContent = ({
                         })
                       }
                       error={formDataErrors.insuranceNumber}
-                      className="min-h-12!"
                     />
                     <FormInput
                       intype="text"
@@ -548,7 +524,6 @@ const useCompanionContent = ({
                         })
                       }
                       error={formDataErrors.insuranceNumber}
-                      className="min-h-12!"
                     />
                   </>
                 )}

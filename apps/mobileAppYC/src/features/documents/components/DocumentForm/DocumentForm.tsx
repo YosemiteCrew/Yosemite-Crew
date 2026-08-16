@@ -199,8 +199,8 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
             <Text style={styles.noteText}>
               <Text style={styles.noteLabel}>Note: </Text>
               <Text style={styles.noteMessage}>
-                Health and Hygiene are synced with the PMS and cannot be
-                modified after saving
+                Health and Hygiene are synced with your clinic's records and
+                cannot be modified after saving
               </Text>
             </Text>
           </View>
@@ -212,7 +212,10 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
               resolvedOpenSheet('category');
               categorySheetRef.current?.open();
             }}
-            disabled={lockCategory}>
+            disabled={lockCategory}
+            accessibilityRole="button"
+            accessibilityLabel={`Category, ${getCategoryLabel()}`}
+            accessibilityState={{disabled: lockCategory}}>
             <Input
               label="Category"
               value={getCategoryLabel()}
@@ -242,7 +245,10 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                 subcategorySheetRef.current?.open();
               }
             }}
-            disabled={lockCategory || !formData.category}>
+            disabled={lockCategory || !formData.category}
+            accessibilityRole="button"
+            accessibilityLabel={`Sub category, ${getSubcategoryLabel()}`}
+            accessibilityState={{disabled: lockCategory || !formData.category}}>
             <Input
               label="Sub category"
               value={getSubcategoryLabel()}
@@ -268,7 +274,9 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
           onPress={() => {
             resolvedOpenSheet('visitType');
             visitTypeSheetRef.current?.open();
-          }}>
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={`Visit type, ${getVisitTypeLabel()}`}>
           <Input
             label="Visit type"
             value={getVisitTypeLabel()}
@@ -501,7 +509,7 @@ const createStyles = (theme: any) =>
       marginTop: theme.spacing['4'],
     },
     buttonText: {
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
       ...theme.typography.paragraphBold,
     },
     inputContainer: {

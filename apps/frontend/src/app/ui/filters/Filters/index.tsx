@@ -1,35 +1,53 @@
 'use client';
-import React, { useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react';
+import React, { useRef, useState, useLayoutEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { FilterOption, StatusOption } from '@/app/features/companions/pages/Companions/types';
-import { FaCaretDown } from 'react-icons/fa6';
 import clsx from 'clsx';
 import { Primary } from '@/app/ui/primitives/Buttons';
-import { IoAdd, IoWarning } from 'react-icons/io5';
+import { IoAdd, IoChevronDown } from 'react-icons/io5';
+import StatusOptionButtons from '@/app/ui/filters/StatusOptionButtons';
+import { useFilterDropdownDismiss } from '@/app/ui/filters/useFilterDropdownDismiss';
 const getDropdownStatusTextColor = (status: StatusOption): string =>
   status.dropdownText ?? status.text ?? 'var(--color-text-primary)';
 
-const getFilterClassName = (filterKey: string, activeFilter: string): string => {
-  if (filterKey !== activeFilter) return 'text-text-tertiary hover:bg-card-hover!';
-  if (filterKey === 'emergencies') return 'text-danger-500!';
-  return 'bg-blue-light text-blue-text!';
+// Design filter-chip recipe (list toolbars): pill, 6px 13px, 12px text.
+// Neutral: active = --chip-selected-* ink fill; rest = --hairline border + --ink-muted.
+// Emergency: always danger-toned (--danger-border/--danger-text); active adds --danger-bg fill.
+const getFilterChipClassName = (filterKey: string, activeFilter: string): string => {
+  const isActive = filterKey === activeFilter;
+  if (filterKey === 'emergencies') {
+    return isActive
+      ? 'bg-[var(--danger-bg)] border-[var(--danger-border)]! text-[var(--danger-text)]! font-bold'
+      : 'border-[var(--danger-border)]! text-[var(--danger-text)]! font-semibold';
+  }
+  return isActive
+    ? 'bg-[var(--chip-selected-bg)] border-[var(--chip-selected-border)]! text-[var(--chip-selected-ink)]! font-bold'
+    : 'border-[var(--hairline)]! text-[var(--ink-muted)]! font-semibold hover:border-[var(--divider)]!';
 };
 
-const getFilterBorderColor = (filterKey: string, activeFilter: string): string => {
-  if (filterKey !== activeFilter) return 'var(--color-card-border)';
-  if (filterKey === 'emergencies') return 'var(--color-danger-500)';
-  return 'var(--color-text-brand)';
+// Design status-pill recipe (list toolbar): same pill geometry as the filter chips.
+// Active carries the status' own bg/border/text at weight 700 ("all" falls back to
+// the neutral --inset/--divider/--ink recipe); the rest stay --hairline/--ink-muted.
+// Tokens are applied inline so they keep following the live theme.
+const getStatusPillStyle = (status: StatusOption, isActive: boolean): React.CSSProperties => {
+  if (!isActive) {
+    return { borderColor: 'var(--hairline)', color: 'var(--ink-muted)', fontWeight: 600 };
+  }
+  if (status.key.toLowerCase() === 'all') {
+    return {
+      backgroundColor: 'var(--chip-selected-bg)',
+      borderColor: 'var(--chip-selected-border)',
+      color: 'var(--chip-selected-ink)',
+      fontWeight: 700,
+    };
+  }
+  return {
+    backgroundColor: status.bg,
+    borderColor: status.border ?? status.bg ?? 'var(--hairline)',
+    color: status.text ?? 'var(--ink)',
+    fontWeight: 700,
+  };
 };
-
-const getEmergencyPillStyle = (isActive: boolean): React.CSSProperties => ({
-  backgroundColor: isActive ? 'var(--color-semantic-error-100)' : 'var(--color-neutral-0)',
-  borderColor: isActive ? 'var(--color-semantic-error-500)' : 'var(--color-neutral-500)',
-  borderWidth: '1px',
-  borderStyle: 'solid',
-  borderRadius: '16px',
-  boxShadow: '0 1px 10px 0 rgba(169, 163, 158, 0.10)',
-  color: isActive ? 'var(--color-semantic-error-700)' : 'var(--color-neutral-700)',
-});
 
 type FiltersProps = {
   filterOptions?: FilterOption[];
@@ -56,7 +74,7 @@ const Filters = ({
   hasEmergency = false,
   showAddButton = false,
   onAddButtonClick,
-  addButtonText = 'Add Appointment',
+  addButtonText = 'New appointment',
   className,
   compactFilterPills = false,
 }: FiltersProps) => {
@@ -68,6 +86,11 @@ const Filters = ({
 
   const selectedStatus = statusOptions?.find((s) => s.key === activeStatus) ?? statusOptions?.[0];
   const hasFilterOptions = Boolean(filterOptions?.length);
+  // List toolbars (the only place filter chips appear) surface the statuses as an
+  // inline pill row; the standalone toolbars keep the compact "All statuses" dropdown.
+  const showInlineStatusPills = hasFilterOptions && Boolean(statusOptions?.length);
+  const isAllStatus = (selectedStatus?.key?.toLowerCase() ?? 'all') === 'all';
+  const showStatusTint = !isAllStatus && Boolean(selectedStatus?.bg);
   const handleFilterToggle = (filterKey: string) => {
     if (!setActiveFilter) return;
     setActiveFilter(activeFilter === filterKey ? 'all' : filterKey);
@@ -89,24 +112,7 @@ const Filters = ({
     if (open) positionPanel();
   }, [open, positionPanel]);
 
-  useEffect(() => {
-    if (!open) return;
-    const handleClose = (e: MouseEvent) => {
-      if (
-        triggerRef.current?.contains(e.target as Node) ||
-        panelRef.current?.contains(e.target as Node)
-      )
-        return;
-      setOpen(false);
-    };
-    const handleScroll = () => setOpen(false);
-    document.addEventListener('mousedown', handleClose);
-    globalThis.window.addEventListener('scroll', handleScroll, { passive: true, capture: true });
-    return () => {
-      document.removeEventListener('mousedown', handleClose);
-      globalThis.window.removeEventListener('scroll', handleScroll, { capture: true });
-    };
-  }, [open]);
+  useFilterDropdownDismiss(open, setOpen, triggerRef, panelRef);
 
   return (
     <div
@@ -116,93 +122,85 @@ const Filters = ({
         className
       )}
     >
-      {/* Left: filter pills (All / Emergencies) */}
+      {/* Left: filter pills (All / Emergencies), then the inline status pill row */}
       {hasFilterOptions && (
         <div className="flex items-center gap-2 flex-wrap">
           {filterOptions?.map((filter) => {
             const isEmergency = filter.key === 'emergencies';
-            const isActiveEmergency = isEmergency && filter.key === activeFilter;
-            const emergencyColor = isActiveEmergency
-              ? 'var(--color-semantic-error-700)'
-              : 'var(--color-neutral-700)';
             return (
               <button
                 key={filter.key}
                 type="button"
                 onClick={() => handleFilterToggle(filter.key)}
                 className={clsx(
-                  'relative inline-flex items-center justify-center text-body-4 px-3 rounded-2xl! border! transition-all duration-300',
-                  compactFilterPills ? 'h-9 min-w-fit' : 'h-12 min-w-20',
-                  isEmergency ? 'gap-2' : getFilterClassName(filter.key, activeFilter ?? '')
+                  'inline-flex items-center justify-center gap-1.5 rounded-full! border text-[12px] transition-colors',
+                  compactFilterPills ? 'px-3 py-1' : 'px-[13px] py-1.5',
+                  getFilterChipClassName(filter.key, activeFilter ?? '')
                 )}
-                style={
-                  isEmergency
-                    ? getEmergencyPillStyle(isActiveEmergency)
-                    : {
-                        borderWidth: '1px',
-                        borderStyle: 'solid',
-                        borderColor: getFilterBorderColor(filter.key, activeFilter ?? ''),
-                      }
-                }
               >
                 {isEmergency && (
-                  <IoWarning
-                    size={18}
-                    aria-hidden="true"
-                    className="shrink-0"
-                    color={emergencyColor}
+                  // 6px danger dot; it doubles as the "emergencies present" marker.
+                  <span
+                    aria-label={hasEmergency ? 'Emergency appointments present' : undefined}
+                    aria-hidden={hasEmergency ? undefined : true}
+                    className="size-1.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: 'var(--danger)' }}
                   />
                 )}
                 <span>{filter.name}</span>
-                {isEmergency && hasEmergency && (
-                  <span
-                    aria-label="Emergency appointments present"
-                    className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full"
-                    style={{
-                      backgroundColor: 'var(--color-semantic-error-700)',
-                      outline: '2px solid white',
-                    }}
-                  />
-                )}
               </button>
             );
           })}
+
+          {showInlineStatusPills && (
+            <>
+              <span
+                aria-hidden="true"
+                className="mx-1 shrink-0"
+                style={{ width: '1px', height: '18px', backgroundColor: 'var(--hairline)' }}
+              />
+              {statusOptions?.map((status) => {
+                const isActive = status.key === selectedStatus?.key;
+                return (
+                  <button
+                    key={status.key}
+                    type="button"
+                    aria-pressed={isActive}
+                    onClick={() => setActiveStatus?.(status.key)}
+                    className="inline-flex items-center justify-center rounded-full! border px-[13px] py-1.5 text-[12px] transition-colors"
+                    style={getStatusPillStyle(status, isActive)}
+                  >
+                    {status.name}
+                  </button>
+                );
+              })}
+            </>
+          )}
         </div>
       )}
 
       {/* Right: status dropdown + add */}
       <div className="flex items-center gap-2 flex-wrap justify-end">
-        {statusOptions && statusOptions.length > 0 && (
+        {!showInlineStatusPills && statusOptions && statusOptions.length > 0 && (
           <>
             <button
               ref={triggerRef}
               type="button"
               onClick={() => setOpen((v) => !v)}
-              className="flex h-12 items-center gap-2 px-3 rounded-2xl! transition-all duration-300 text-body-4 justify-between"
+              className="inline-flex items-center gap-1.5 rounded-full! border border-[var(--hairline)] px-[11px] py-1.5 text-[11px] font-semibold text-[var(--ink-muted)] transition-colors"
               style={
-                selectedStatus?.bg
+                showStatusTint
                   ? {
-                      backgroundColor: selectedStatus.bg,
-                      color: selectedStatus.text ?? 'var(--color-black-pure)',
-                      borderWidth: '1px',
-                      borderStyle: 'solid',
-                      borderColor: selectedStatus.border ?? selectedStatus.bg,
+                      backgroundColor: selectedStatus?.bg,
+                      color: selectedStatus?.text ?? 'var(--color-black-pure)',
+                      borderColor: selectedStatus?.border ?? selectedStatus?.bg,
                     }
-                  : {
-                      borderWidth: '1px',
-                      borderStyle: 'solid',
-                      borderColor: 'var(--color-card-border)',
-                      color: 'var(--color-text-tertiary)',
-                    }
+                  : undefined
               }
             >
-              <span>
-                {selectedStatus?.key?.toLowerCase() === 'all'
-                  ? 'Status'
-                  : (selectedStatus?.name ?? 'Status')}
-              </span>
-              <FaCaretDown
-                size={14}
+              <span>{isAllStatus ? 'All statuses' : (selectedStatus?.name ?? 'All statuses')}</span>
+              <IoChevronDown
+                size={12}
                 className={clsx('shrink-0 transition-transform', open && 'rotate-180')}
               />
             </button>
@@ -212,49 +210,19 @@ const Filters = ({
               createPortal(
                 <div
                   ref={panelRef}
-                  className="rounded-2xl border border-card-border bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
+                  className="yc-glass-overlay rounded-2xl overflow-hidden"
                   style={dropdownStyle}
                 >
-                  {statusOptions.map((status) => {
-                    const isActive = status.key === activeStatus;
-                    return (
-                      <button
-                        key={status.key}
-                        type="button"
-                        onClick={() => {
-                          setActiveStatus?.(status.key);
-                          setOpen(false);
-                        }}
-                        className={clsx(
-                          'w-full flex items-center gap-2.5 px-3 py-2.5 text-body-4 text-left transition-colors',
-                          isActive && status.key !== 'all' ? 'font-medium' : 'hover:bg-card-hover'
-                        )}
-                      >
-                        {status.border && (
-                          <span
-                            className="inline-block size-3 rounded-full shrink-0"
-                            style={{
-                              backgroundColor: status.border,
-                              borderWidth: '1px',
-                              borderStyle: 'solid',
-                              borderColor: status.border,
-                            }}
-                          />
-                        )}
-                        <span style={{ color: getDropdownStatusTextColor(status) }}>
-                          {status.name}
-                        </span>
-                        {isActive && (
-                          <span
-                            className="ml-auto text-sm font-semibold"
-                            style={{ color: getDropdownStatusTextColor(status) }}
-                          >
-                            ✓
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
+                  <StatusOptionButtons
+                    options={statusOptions}
+                    activeKey={activeStatus}
+                    allKey="all"
+                    onSelect={(key) => {
+                      setActiveStatus?.(key);
+                      setOpen(false);
+                    }}
+                    getTextColor={getDropdownStatusTextColor}
+                  />
                 </div>,
                 document.body
               )}

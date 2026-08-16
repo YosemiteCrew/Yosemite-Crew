@@ -1,6 +1,6 @@
 // __tests__/screens/PlaceholderScreens.snapshot.test.tsx
 import React from 'react';
-import renderer from 'react-test-renderer';
+import {cleanupSnapshotTrees, renderSnapshot} from '../setup/snapshotRenderer';
 import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
 
@@ -49,13 +49,21 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 
 // Mock EmptyDocumentsScreen to avoid complex dependencies
-jest.mock('@/features/documents/screens/EmptyDocumentsScreen/EmptyDocumentsScreen', () => {
-  const ReactModule = require('react');
-  const {View, Text} = require('react-native');
-  return {
-    EmptyDocumentsScreen: () => ReactModule.createElement(View, {}, ReactModule.createElement(Text, {}, 'Empty Documents')),
-  };
-});
+jest.mock(
+  '@/features/documents/screens/EmptyDocumentsScreen/EmptyDocumentsScreen',
+  () => {
+    const ReactModule = require('react');
+    const {View, Text} = require('react-native');
+    return {
+      EmptyDocumentsScreen: () =>
+        ReactModule.createElement(
+          View,
+          {},
+          ReactModule.createElement(Text, {}, 'Empty Documents'),
+        ),
+    };
+  },
+);
 
 const createTestStore = () => {
   return configureStore({
@@ -77,35 +85,39 @@ describe('Placeholder Screens Snapshots', () => {
     jest.clearAllMocks();
   });
 
+  // Unmount in afterEach rather than inline, so a failing snapshot cannot
+  // leave a tree mounted and leak into the next suite.
+  afterEach(cleanupSnapshotTrees);
+
   describe('TasksMainScreen', () => {
     it('should render correctly', () => {
-      const tree = renderer.create(
+      const tree = renderSnapshot(
         <Provider store={store}>
           <TasksMainScreen />
-        </Provider>
-      ).toJSON();
+        </Provider>,
+      );
       expect(tree).toMatchSnapshot();
     });
   });
 
   describe('AppointmentsScreen', () => {
     it('should render correctly', () => {
-      const tree = renderer.create(
+      const tree = renderSnapshot(
         <Provider store={store}>
           <AppointmentsScreen />
-        </Provider>
-      ).toJSON();
+        </Provider>,
+      );
       expect(tree).toMatchSnapshot();
     });
   });
 
   describe('DocumentsScreen', () => {
     it('should render correctly', () => {
-      const tree = renderer.create(
+      const tree = renderSnapshot(
         <Provider store={store}>
           <DocumentsScreen />
-        </Provider>
-      ).toJSON();
+        </Provider>,
+      );
       expect(tree).toMatchSnapshot();
     });
   });

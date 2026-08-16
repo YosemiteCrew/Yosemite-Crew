@@ -6,6 +6,7 @@ import { Task, TaskKindOptions, TaskStatusOptions } from '@/app/features/tasks/t
 import {
   offsetToReminderValue,
   recurrenceToRepeatValue,
+  TASK_PRIORITY_OPTIONS,
   TASK_REMINDER_OPTIONS,
   TASK_REPEAT_OPTIONS,
 } from '@/app/features/tasks/constants/taskTaxonomy';
@@ -14,6 +15,7 @@ import {
   canRescheduleTask,
   canShowTaskStatusChangeAction,
   getAllowedTaskStatusTransitions,
+  getTaskInstructions,
   normalizeTaskStatus,
 } from '@/app/lib/tasks';
 
@@ -127,6 +129,13 @@ export const useTaskInfoFields = ({
         editable: canEditDetails,
       },
       {
+        label: 'Priority',
+        key: 'priority',
+        type: 'select',
+        options: TASK_PRIORITY_OPTIONS,
+        editable: canEditDetails,
+      },
+      {
         label: 'Instructions (optional)',
         key: 'description',
         type: 'text',
@@ -217,6 +226,7 @@ export const useTaskInfoFields = ({
     const dueParts = getDatePartsInPreferredTimeZone(new Date(activeTask.dueAt));
     return {
       ...activeTask,
+      description: getTaskInstructions(activeTask),
       assignedBy: resolveMemberDisplay(activeTask.assignedBy),
       assignedTo: resolveMemberDisplay(activeTask.assignedTo),
       assignedToId: activeTask.assignedTo,

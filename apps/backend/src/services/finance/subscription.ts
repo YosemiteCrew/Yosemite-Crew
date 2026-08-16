@@ -98,6 +98,7 @@ type BusinessCheckoutContext = {
   externalCustomerId?: string | null;
   priceId: string;
   seats: number;
+  canAcceptPayments: boolean;
 };
 
 type CheckoutCustomerInput = {
@@ -256,6 +257,59 @@ const normalizePlanCode = (planCode: string) => {
   return cleaned.endsWith("_PLAN") ? cleaned : `${cleaned}_PLAN`;
 };
 
+// invoice.paid and invoice.payment_failed relays share the same fan-out: stamp
+// the outcome on every linked organisation's provider link, then record one
+// finance event per event type against the first linked organisation.
+const recordSubscriptionInvoiceOutcome = async (
+  service: {
+    upsertSubscriptionProviderLink(
+      input: SubscriptionProviderLinkInput,
+    ): Promise<unknown>;
+  },
+  input: SubscriptionLifecycleInput,
+  outcome: {
+    paymentStatus: "paid" | "failed";
+    eventTypes: string[];
+  },
+) => {
+  const rows: Array<{ orgId: string }> =
+    (await prisma.financeProviderLink.findMany({
+      where: {
+        provider: "STRIPE",
+        externalSubscriptionId: input.subscriptionId,
+      },
+      select: { orgId: true },
+    })) ?? [];
+
+  await Promise.all(
+    rows.map((row) =>
+      service.upsertSubscriptionProviderLink({
+        orgId: row.orgId,
+        provider: "STRIPE",
+        externalSubscriptionId: input.subscriptionId,
+        metadata: {
+          lastInvoiceId: input.invoiceId ?? null,
+          lastPaymentStatus: outcome.paymentStatus,
+          lastPaymentAt: new Date().toISOString(),
+        },
+      }),
+    ),
+  );
+
+  for (const eventType of outcome.eventTypes) {
+    await FinanceEventService.recordEvent({
+      organisationId: rows[0]?.orgId ?? input.subscriptionId,
+      eventType,
+      entityType: "SUBSCRIPTION",
+      entityId: input.subscriptionId,
+      payload: {
+        invoiceId: input.invoiceId ?? null,
+        paymentStatus: outcome.paymentStatus,
+      },
+    });
+  }
+};
+
 export const FinanceSubscriptionService = {
   async recordUsageEvent(input: UsageEventInput) {
     const event = await prisma.usageEvent.create({
@@ -270,8 +324,7 @@ export const FinanceSubscriptionService = {
         referenceType: input.referenceType ?? undefined,
         referenceId: input.referenceId ?? undefined,
         metadata: input.metadata as unknown as
-          | Prisma.InputJsonValue
-          | undefined,
+          Prisma.InputJsonValue | undefined,
         occurredAt: input.occurredAt ?? new Date(),
       },
     });
@@ -393,8 +446,7 @@ export const FinanceSubscriptionService = {
         appointmentsUsed: toPositiveInteger(input.appointmentsUsed ?? 0),
         toolsUsed: toPositiveInteger(input.toolsUsed ?? 0),
         metadata: input.metadata as unknown as
-          | Prisma.InputJsonValue
-          | undefined,
+          Prisma.InputJsonValue | undefined,
         snapshotAt: input.snapshotAt ?? new Date(),
       },
     });
@@ -466,8 +518,7 @@ export const FinanceSubscriptionService = {
         grantedAt: input.grantedAt ?? new Date(),
         expiresAt: input.expiresAt ?? undefined,
         metadata: input.metadata as unknown as
-          | Prisma.InputJsonValue
-          | undefined,
+          Prisma.InputJsonValue | undefined,
       },
       update: {
         name: input.name ?? undefined,
@@ -477,8 +528,7 @@ export const FinanceSubscriptionService = {
         grantedAt: input.grantedAt ?? undefined,
         expiresAt: input.expiresAt ?? undefined,
         metadata: input.metadata as unknown as
-          | Prisma.InputJsonValue
-          | undefined,
+          Prisma.InputJsonValue | undefined,
       },
     });
   },
@@ -539,6 +589,28 @@ export const FinanceSubscriptionService = {
   },
 
   async upsertSubscriptionProviderLink(input: SubscriptionProviderLinkInput) {
+    // Callers patch single keys (e.g. lastPaymentStatus). Replacing the whole
+    // document would drop subscriptionStatus/seatQuantity, which the seat-sync
+    // plan reads back.
+    const existing = input.metadata
+      ? await prisma.financeProviderLink.findUnique({
+          where: {
+            orgId_provider: {
+              orgId: input.orgId,
+              provider: input.provider,
+            },
+          },
+          select: { metadata: true },
+        })
+      : null;
+
+    const mergedMetadata = input.metadata
+      ? ({
+          ...readJsonRecord(existing?.metadata),
+          ...input.metadata,
+        } as unknown as Prisma.InputJsonValue)
+      : undefined;
+
     return prisma.financeProviderLink.upsert({
       where: {
         orgId_provider: {
@@ -555,9 +627,7 @@ export const FinanceSubscriptionService = {
           input.externalSubscriptionItemId ?? undefined,
         externalPriceId: input.externalPriceId ?? undefined,
         externalProductId: input.externalProductId ?? undefined,
-        metadata: input.metadata as unknown as
-          | Prisma.InputJsonValue
-          | undefined,
+        metadata: mergedMetadata,
       },
       update: {
         externalCustomerId: input.externalCustomerId ?? undefined,
@@ -566,9 +636,7 @@ export const FinanceSubscriptionService = {
           input.externalSubscriptionItemId ?? undefined,
         externalPriceId: input.externalPriceId ?? undefined,
         externalProductId: input.externalProductId ?? undefined,
-        metadata: input.metadata as unknown as
-          | Prisma.InputJsonValue
-          | undefined,
+        metadata: mergedMetadata,
       },
     });
   },
@@ -577,7 +645,7 @@ export const FinanceSubscriptionService = {
     orgId: string,
     interval: BusinessCheckoutInterval,
   ): Promise<BusinessCheckoutContext> {
-    const [org, providerLink] = await Promise.all([
+    const [org, providerLink, orgBilling] = await Promise.all([
       prisma.organization.findUnique({
         where: { id: orgId },
         select: { name: true, stripeAccountId: true },
@@ -592,6 +660,10 @@ export const FinanceSubscriptionService = {
         select: {
           externalCustomerId: true,
         },
+      }),
+      prisma.organizationBilling.findUnique({
+        where: { orgId },
+        select: { canAcceptPayments: true },
       }),
     ]);
     if (!org) throw new Error("Organisation not found");
@@ -620,6 +692,7 @@ export const FinanceSubscriptionService = {
       externalCustomerId: providerLink?.externalCustomerId ?? null,
       priceId,
       seats,
+      canAcceptPayments: orgBilling?.canAcceptPayments ?? false,
     };
   },
 
@@ -1020,87 +1093,16 @@ export const FinanceSubscriptionService = {
   },
 
   async recordSubscriptionInvoicePaid(input: SubscriptionLifecycleInput) {
-    const rows: Array<{ orgId: string }> =
-      (await prisma.financeProviderLink.findMany({
-        where: {
-          provider: "STRIPE",
-          externalSubscriptionId: input.subscriptionId,
-        },
-        select: { orgId: true },
-      })) ?? [];
-
-    await Promise.all(
-      rows.map((row) =>
-        this.upsertSubscriptionProviderLink({
-          orgId: row.orgId,
-          provider: "STRIPE",
-          externalSubscriptionId: input.subscriptionId,
-          metadata: {
-            lastInvoiceId: input.invoiceId ?? null,
-            lastPaymentStatus: "paid",
-            lastPaymentAt: new Date().toISOString(),
-          },
-        }),
-      ),
-    );
-
-    await FinanceEventService.recordEvent({
-      organisationId: rows[0]?.orgId ?? input.subscriptionId,
-      eventType: "SUBSCRIPTION_INVOICE_PAID",
-      entityType: "SUBSCRIPTION",
-      entityId: input.subscriptionId,
-      payload: {
-        invoiceId: input.invoiceId ?? null,
-        paymentStatus: "paid",
-      },
-    });
-
-    await FinanceEventService.recordEvent({
-      organisationId: rows[0]?.orgId ?? input.subscriptionId,
-      eventType: "SUBSCRIPTION_RENEWED",
-      entityType: "SUBSCRIPTION",
-      entityId: input.subscriptionId,
-      payload: {
-        invoiceId: input.invoiceId ?? null,
-        paymentStatus: "paid",
-      },
+    await recordSubscriptionInvoiceOutcome(this, input, {
+      paymentStatus: "paid",
+      eventTypes: ["SUBSCRIPTION_INVOICE_PAID", "SUBSCRIPTION_RENEWED"],
     });
   },
 
   async recordSubscriptionInvoiceFailed(input: SubscriptionLifecycleInput) {
-    const rows: Array<{ orgId: string }> =
-      (await prisma.financeProviderLink.findMany({
-        where: {
-          provider: "STRIPE",
-          externalSubscriptionId: input.subscriptionId,
-        },
-        select: { orgId: true },
-      })) ?? [];
-
-    await Promise.all(
-      rows.map((row) =>
-        this.upsertSubscriptionProviderLink({
-          orgId: row.orgId,
-          provider: "STRIPE",
-          externalSubscriptionId: input.subscriptionId,
-          metadata: {
-            lastInvoiceId: input.invoiceId ?? null,
-            lastPaymentStatus: "failed",
-            lastPaymentAt: new Date().toISOString(),
-          },
-        }),
-      ),
-    );
-
-    await FinanceEventService.recordEvent({
-      organisationId: rows[0]?.orgId ?? input.subscriptionId,
-      eventType: "SUBSCRIPTION_INVOICE_FAILED",
-      entityType: "SUBSCRIPTION",
-      entityId: input.subscriptionId,
-      payload: {
-        invoiceId: input.invoiceId ?? null,
-        paymentStatus: "failed",
-      },
+    await recordSubscriptionInvoiceOutcome(this, input, {
+      paymentStatus: "failed",
+      eventTypes: ["SUBSCRIPTION_INVOICE_FAILED"],
     });
   },
 };

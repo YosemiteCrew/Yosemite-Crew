@@ -3,6 +3,7 @@ import logger from "../../utils/logger";
 import {
   DocumentAttachmentInput,
   DocumentCreateContext,
+  DocumentDto,
   DocumentService,
   DocumentServiceError,
 } from "../../services/document.service";
@@ -250,17 +251,18 @@ export const DocumentController = {
       const authUserMobile =
         await AuthUserMobileService.getByProviderUserId(authUserId);
 
-      const docs = authUserMobile?.parentId
-        ? await DocumentService.listForAppointmentParent({
-            appointmentId,
-            parentId: authUserMobile.parentId,
-          })
-        : organisationId
-          ? await DocumentService.listForAppointmentPms({
-              appointmentId,
-              organisationId,
-            })
-          : null;
+      let docs: DocumentDto[] | null = null;
+      if (authUserMobile?.parentId) {
+        docs = await DocumentService.listForAppointmentParent({
+          appointmentId,
+          parentId: authUserMobile.parentId,
+        });
+      } else if (organisationId) {
+        docs = await DocumentService.listForAppointmentPms({
+          appointmentId,
+          organisationId,
+        });
+      }
 
       if (!docs) {
         return res.status(401).json({ message: "User not authorized." });
@@ -487,17 +489,18 @@ export const DocumentController = {
       const authUserMobile =
         await AuthUserMobileService.getByProviderUserId(authUserId);
 
-      const url = authUserMobile?.parentId
-        ? await DocumentService.getAttachmentUrlByKey({
-            key,
-            parentId: authUserMobile.parentId,
-          })
-        : organisationId
-          ? await DocumentService.getAttachmentUrlByKey({
-              key,
-              organisationId,
-            })
-          : null;
+      let url: string | null = null;
+      if (authUserMobile?.parentId) {
+        url = await DocumentService.getAttachmentUrlByKey({
+          key,
+          parentId: authUserMobile.parentId,
+        });
+      } else if (organisationId) {
+        url = await DocumentService.getAttachmentUrlByKey({
+          key,
+          organisationId,
+        });
+      }
 
       if (!url) {
         return res.status(401).json({ message: "User not authorized." });
@@ -533,17 +536,20 @@ export const DocumentController = {
       const authUserMobile =
         await AuthUserMobileService.getByProviderUserId(authUserId);
 
-      const urls = authUserMobile?.parentId
-        ? await DocumentService.getAllAttachmentUrls({
-            documentId,
-            parentId: authUserMobile.parentId,
-          })
-        : organisationId
-          ? await DocumentService.getAllAttachmentUrls({
-              documentId,
-              organisationId,
-            })
-          : null;
+      let urls: Awaited<
+        ReturnType<typeof DocumentService.getAllAttachmentUrls>
+      > | null = null;
+      if (authUserMobile?.parentId) {
+        urls = await DocumentService.getAllAttachmentUrls({
+          documentId,
+          parentId: authUserMobile.parentId,
+        });
+      } else if (organisationId) {
+        urls = await DocumentService.getAllAttachmentUrls({
+          documentId,
+          organisationId,
+        });
+      }
 
       if (!urls) {
         return res.status(401).json({ message: "User not authorized." });

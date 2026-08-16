@@ -1,5 +1,6 @@
 'use client';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import clsx from 'clsx';
 import AvailabilityTable from '@/app/ui/tables/AvailabilityTable';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { Team as TeamProp } from '@/app/features/organization/types/team';
@@ -11,41 +12,11 @@ import { PERMISSIONS } from '@/app/lib/permissions';
 import { usePermissions } from '@/app/hooks/usePermissions';
 
 const AvailabilityLabels = [
-  {
-    name: 'All',
-    value: 'all',
-    background: 'color-mix(in srgb, var(--color-neutral-800) 10%, transparent)',
-    color: 'var(--color-neutral-900)',
-    border: 'var(--color-neutral-400)',
-  },
-  {
-    name: 'Available',
-    value: 'available',
-    background: 'var(--color-success-100)',
-    color: 'var(--color-success-400)',
-    border: 'var(--color-pill-success-border)',
-  },
-  {
-    name: 'Consulting',
-    value: 'consulting',
-    background: 'var(--color-pill-progress-bg)',
-    color: 'var(--color-pill-progress-text)',
-    border: 'var(--color-pill-progress-border)',
-  },
-  {
-    name: 'Requested',
-    value: 'requested',
-    background: 'var(--color-neutral-100)',
-    color: 'var(--color-neutral-900)',
-    border: 'var(--color-pill-neutral-border)',
-  },
-  {
-    name: 'Off-Duty',
-    value: 'off-duty',
-    background: 'var(--color-card-warning)',
-    color: 'var(--color-warning-600)',
-    border: 'var(--color-warning-600)',
-  },
+  { name: 'All', value: 'all' },
+  { name: 'Available', value: 'available' },
+  { name: 'Consulting', value: 'consulting' },
+  { name: 'Requested', value: 'requested' },
+  { name: 'Off-duty', value: 'off-duty' },
 ];
 
 const Availability = () => {
@@ -64,7 +35,9 @@ const Availability = () => {
     });
   }, [teams, selectedLabel]);
 
-  useEffect(() => {
+  const [prevTeams, setPrevTeams] = useState(teams);
+  if (prevTeams !== teams) {
+    setPrevTeams(teams);
     setActiveTeam((prev) => {
       if (teams.length === 0) return null;
       if (prev?._id) {
@@ -73,33 +46,27 @@ const Availability = () => {
       }
       return teams[0];
     });
-  }, [teams]);
+  }
 
   return (
     <PermissionGate allOf={[PERMISSIONS.TEAMS_VIEW_ANY]}>
       <div className="summary-container">
-        <h2 className="text-text-primary text-heading-1">
-          Availability <span className="text-text-tertiary">({teams.length})</span>
+        <h2 className="text-[16px] font-bold tracking-[-0.02em] text-[var(--ink)]">
+          Availability <span className="font-medium text-[var(--ink-faint)]">({teams.length})</span>
         </h2>
         <div className="flex items-center gap-2 flex-wrap">
-          {AvailabilityLabels?.map((label, i) => {
+          {AvailabilityLabels?.map((label) => {
             const isActive = label.value === selectedLabel;
             return (
               <button
                 type="button"
-                key={label.name + i}
-                className={`min-w-20 text-body-4 px-3 py-1.5 rounded-2xl! border! transition-all duration-300 hover:bg-card-hover text-text-tertiary${isActive ? '' : ' border-card-border! hover:border-card-hover!'}`}
-                style={
+                key={label.value}
+                className={clsx(
+                  'rounded-full! border px-[13px] py-1.5 text-[12px] transition-colors',
                   isActive
-                    ? {
-                        background: label.background,
-                        color: label.color,
-                        borderWidth: '1px',
-                        borderStyle: 'solid',
-                        borderColor: label.border,
-                      }
-                    : undefined
-                }
+                    ? 'border-[var(--chip-selected-border)] bg-[var(--chip-selected-bg)] font-bold text-[var(--chip-selected-ink)]'
+                    : 'border-[var(--hairline)] font-semibold text-[var(--ink-muted)] hover:text-[var(--ink)]'
+                )}
                 onClick={() => setSelectedLabel(label.value)}
               >
                 {label.name}

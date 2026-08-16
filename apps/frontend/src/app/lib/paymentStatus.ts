@@ -63,11 +63,18 @@ const hasStripePaymentEvidence = (invoice: Invoice) =>
     invoice.stripeReceiptUrl
   );
 
+// Metadata values are free-form. Only a primitive can carry a payment mode, so
+// anything else compares as '' rather than the useless '[object Object]'.
+const toComparableText = (value: unknown): string =>
+  typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+    ? String(value).toLowerCase()
+    : '';
+
 const metadataSuggestsCash = (invoice: Invoice): boolean => {
   if (!invoice.metadata) return false;
   return Object.entries(invoice.metadata).some(([key, value]) => {
     const keyText = String(key || '').toLowerCase();
-    const valueText = String(value ?? '').toLowerCase();
+    const valueText = toComparableText(value);
     const keyIndicatesPayment =
       keyText.includes('payment') ||
       keyText.includes('tender') ||

@@ -4,16 +4,12 @@ import dynamic from 'next/dynamic';
 import { redirect, useRouter, useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
-import { isAppointmentRevampEnabled } from '@/app/lib/featureFlags';
 import {
   buildWorkspaceHref,
   buildWorkspaceHrefForIntent,
   canEnterAppointmentWorkspace,
 } from '@/app/lib/appointmentWorkspace';
 import { startRouteLoader } from '@/app/lib/routeLoader';
-const AddAppointment = React.lazy(
-  () => import('@/app/features/appointments/pages/Appointments/Sections/AddAppointment')
-);
 const AddAppointmentCentralModal = React.lazy(
   () => import('@/app/features/appointments/pages/Appointments/Sections/AddAppointmentCentralModal')
 );
@@ -61,7 +57,6 @@ import {
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
-import Fallback from '@/app/ui/overlays/Fallback';
 import { resolveDefaultAppointmentsView } from '@/app/lib/defaultAppointmentsView';
 import { allowReschedule, normalizeAppointmentStatus } from '@/app/lib/appointments';
 import { useNotify } from '@/app/hooks/useNotify';
@@ -74,6 +69,7 @@ import {
   normalizePmsPreferences,
 } from '@/app/features/settings/utils/pmsPreferences';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
+import { usePhonePrimaryAction } from '@/app/ui/layout/PhoneShell/usePhonePrimaryAction';
 
 const AppointmentsSkeleton = () => <PageSkeleton variant="planner" />;
 const APPOINTMENTS_SKELETON = <AppointmentsSkeleton />;
@@ -104,14 +100,14 @@ preloadDynamic(AppointmentsTable);
 preloadDynamic(AppointmentCalendar);
 preloadDynamic(AppointmentBoard);
 
-const revampEnabled = isAppointmentRevampEnabled();
-
-const normalizeLeadId = (value?: string | null) =>
-  String(value ?? '')
+const normalizeLeadId = (value?: string | null): string => {
+  const lastSegment = String(value ?? '')
     .trim()
     .split('/')
-    .pop()
-    ?.toLowerCase() ?? '';
+    .pop();
+  /* v8 ignore next -- String().split('/') always yields a non-empty array, so pop() is never undefined */
+  return lastSegment?.toLowerCase() ?? '';
+};
 
 const getNextSelectedAppointment = (
   current: Appointment | null,
@@ -175,9 +171,9 @@ const resolveInitialIntent = (
 // its previous value — the null-sentinel derived-state pattern, factored out so
 // each call site stays a single statement rather than an inline prev-compare.
 const useOnValueChange = <T,>(value: T, onChange: () => void): void => {
-  const prevRef = useRef<{ value: T }>(undefined);
-  if (prevRef.current?.value !== value) {
-    prevRef.current = { value };
+  const [prev, setPrev] = useState<{ value: T } | undefined>(undefined);
+  if (prev?.value !== value) {
+    setPrev({ value });
     onChange();
   }
 };
@@ -426,10 +422,9 @@ const useAppointmentsView = () => {
       setHandledDeepLink(deepLink.deepLinkKey);
       setActiveAppointment(deepLink.target);
       setViewIntent(deepLink.initialIntent);
-      const workspaceHref =
-        revampEnabled && canEnterAppointmentWorkspace(deepLink.target.status)
-          ? buildWorkspaceHrefForIntent(deepLink.appointmentId, deepLink.initialIntent)
-          : null;
+      const workspaceHref = canEnterAppointmentWorkspace(deepLink.target.status)
+        ? buildWorkspaceHrefForIntent(deepLink.appointmentId, deepLink.initialIntent)
+        : null;
       setDeepLinkWorkspaceHref(workspaceHref);
       if (!workspaceHref) setViewPopup(true);
     }
@@ -482,6 +477,10 @@ const useAppointmentsView = () => {
     setAddAppointmentPrefill(null);
     setAddPopup(true);
   };
+
+  // The phone shell's FAB has no reference to this page's create flow; opt in so
+  // "New appointment" opens the same modal the desktop button does.
+  usePhonePrimaryAction('appointment', openAddAppointment);
 
   const openWorkspace = (appointment: Appointment, intent?: AppointmentViewIntent) => {
     if (!appointment.id) return;
@@ -574,10 +573,10 @@ const useAppointmentsView = () => {
   return (
     <div className="flex flex-col relative min-w-0">
       {deepLinkWorkspaceHref && <AppointmentWorkspaceRedirect href={deepLinkWorkspaceHref} />}
-      <div className="flex flex-col gap-3 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-4! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-4! lg:pb-3!">
+      <div className="yc-page-content">
         <TitleCalendar
           title="Appointments"
-          description="Schedule and manage appointments across day, week, and team views, then drill into tasks, chat, and billing details for each visit."
+          description="Schedule and manage appointments across day, week, and team views"
           setAddPopup={setAddPopup}
           count={appointments.length}
           activeView={activeView}
@@ -586,7 +585,11 @@ const useAppointmentsView = () => {
         />
         <MobileSearchBar placeholder="Search appointments" />
 
-        <PermissionGate allOf={[PERMISSIONS.APPOINTMENTS_VIEW_ANY]} fallback={<Fallback />}>
+        <PermissionGate
+          allOf={[PERMISSIONS.APPOINTMENTS_VIEW_ANY]}
+          deniedResource="Appointments"
+          deniedDetail="the appointment schedule"
+        >
           <div className={wrapperClassName}>
             {activeView === 'list' && (
               <Filters
@@ -607,26 +610,15 @@ const useAppointmentsView = () => {
           </div>
 
           <React.Suspense fallback={null}>
-            {revampEnabled ? (
-              <AddAppointmentCentralModal
-                showModal={addPopup}
-                setShowModal={setAddPopup}
-                setActiveFilter={setActiveFilter}
-                setActiveStatus={setActiveStatus}
-                prefill={addAppointmentPrefill}
-                onPrefillConsumed={() => setAddAppointmentPrefill(null)}
-              />
-            ) : (
-              <AddAppointment
-                showModal={addPopup}
-                setShowModal={setAddPopup}
-                setActiveFilter={setActiveFilter}
-                setActiveStatus={setActiveStatus}
-                prefill={addAppointmentPrefill}
-                onPrefillConsumed={() => setAddAppointmentPrefill(null)}
-              />
-            )}
-            {activeAppointment && revampEnabled && (
+            <AddAppointmentCentralModal
+              showModal={addPopup}
+              setShowModal={setAddPopup}
+              setActiveFilter={setActiveFilter}
+              setActiveStatus={setActiveStatus}
+              prefill={addAppointmentPrefill}
+              onPrefillConsumed={() => setAddAppointmentPrefill(null)}
+            />
+            {activeAppointment && (
               <ViewAppointmentOverviewModal
                 showModal={viewPopup}
                 setShowModal={setViewPopup}
@@ -645,15 +637,14 @@ const useAppointmentsView = () => {
             )}
             {activeAppointment && (
               <AppoitmentInfo
-                showModal={revampEnabled ? detailPopup : viewPopup}
-                setShowModal={revampEnabled ? setDetailPopup : setViewPopup}
+                showModal={detailPopup}
+                setShowModal={setDetailPopup}
                 activeAppointment={activeAppointment}
                 initialViewIntent={viewIntent}
                 canEditAppointments={canEditActiveAppointment}
                 onReschedule={(appointment) => {
                   setActiveAppointment(appointment);
-                  if (revampEnabled) setDetailPopup(false);
-                  else setViewPopup(false);
+                  setDetailPopup(false);
                   if (!allowReschedule(appointment.status as any)) {
                     notify('warning', {
                       title: 'Reschedule blocked',

@@ -175,14 +175,11 @@ export const PhysiotherapyPlanController = {
       const body = UpdateBodySchema.safeParse(req.body);
       if (!body.success)
         return res.status(400).json({ message: body.error.message });
-      const parsed = parseDateFields(
-        body.data as Record<string, unknown>,
-        DATE_KEYS,
-      );
+      const parsed = parseDateFields(body.data, DATE_KEYS);
       const record = await PhysiotherapyPlanService.update(
         params.data.planId,
         params.data.organisationId,
-        parsed as Parameters<typeof PhysiotherapyPlanService.update>[2],
+        parsed,
         typedReq.userId ?? undefined,
       );
       return res.status(200).json(record);

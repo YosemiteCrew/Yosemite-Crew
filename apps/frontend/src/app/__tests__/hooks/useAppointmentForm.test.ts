@@ -98,7 +98,7 @@ jest.mock('@/app/features/billing/services/invoiceService', () => ({
   loadInvoicesForOrgPrimaryOrg: jest.fn(() => Promise.resolve()),
 }));
 
-jest.mock('@/app/features/appointments/pages/Appointments/Sections/AddAppointment', () => ({
+jest.mock('@/app/features/appointments/constants/emptyAppointment', () => ({
   EMPTY_APPOINTMENT: {
     id: undefined,
     companion: { id: '', name: '', species: '', breed: '', parent: { id: '', name: '' } },
@@ -343,6 +343,79 @@ describe('useAppointmentForm', () => {
       maxDiscount: 10,
       duration: 30,
     });
+  });
+
+  it('keeps a slot-derived duration when the same service is re-selected and clears it when the service changes', async () => {
+    const loadSpecialityCatalog = jest.fn(() => Promise.resolve());
+    setRevampCatalogState({
+      loadSpecialityCatalog,
+      services: [
+        {
+          id: 'svc-consult',
+          code: 'CS-001',
+          name: 'General consult',
+          description: 'Exam and consultation',
+          type: 'CONSULTATION',
+          specialityId: 'spec-general',
+          organisationId: 'org-1',
+          grossAmount: 75,
+          defaultDiscount: 0,
+          maxDiscount: 10,
+          durationMinutes: 30,
+          isBookable: true,
+          isInpatientPreferred: false,
+          status: 'ACTIVE',
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+        {
+          id: 'svc-dental',
+          code: 'CS-002',
+          name: 'Dental clean',
+          description: 'Scale and polish',
+          type: 'CONSULTATION',
+          specialityId: 'spec-general',
+          organisationId: 'org-1',
+          grossAmount: 120,
+          defaultDiscount: 0,
+          maxDiscount: 10,
+          durationMinutes: 45,
+          isBookable: true,
+          isInpatientPreferred: false,
+          status: 'ACTIVE',
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    });
+    const { result } = renderHook(() => useAppointmentForm());
+
+    await act(async () => {
+      result.current.handleSpecialitySelect({ label: 'General', value: 'spec-general' });
+    });
+    await act(async () => {
+      result.current.handleServiceSelect({ label: 'General consult', value: 'svc-consult' });
+    });
+    expect(result.current.formData.appointmentType?.id).toBe('svc-consult');
+
+    // A calendar slot fills in the duration for this service.
+    await act(async () => {
+      result.current.setFormData((prev) => ({ ...prev, durationMinutes: 30 }));
+    });
+    expect(result.current.formData.durationMinutes).toBe(30);
+
+    // Re-selecting the same service must keep that duration: the slot-load effect does not re-run
+    // when the service id is unchanged, so zeroing it here would strand booking on
+    // "Please select a duration".
+    await act(async () => {
+      result.current.handleServiceSelect({ label: 'General consult', value: 'svc-consult' });
+    });
+    expect(result.current.formData.durationMinutes).toBe(30);
+
+    // Switching to a different service clears the stale duration so the badge follows the new one.
+    await act(async () => {
+      result.current.handleServiceSelect({ label: 'Dental clean', value: 'svc-dental' });
+    });
+    expect(result.current.formData.appointmentType?.id).toBe('svc-dental');
+    expect(result.current.formData.durationMinutes).toBe(0);
   });
 
   it('includes bookable packages with a Package badge and excludes non-bookable packages', async () => {
@@ -690,6 +763,28 @@ describe('useAppointmentForm', () => {
     const errors = result.current.validateForm(false);
     expect(errors.specialityId).toBeDefined();
     expect(errors.serviceId).toBeDefined();
+  });
+
+  it.each([
+    ['an empty', ''],
+    ['a whitespace-only', '   '],
+  ])('validateForm rejects %s service id', (_label, serviceId) => {
+    // The hook itself assigns id: '' when a slot-scoped service is not bookable, so a blank
+    // id must fail the same check as a missing one rather than reach createAppointment.
+    const { result } = renderHook(() => useAppointmentForm());
+    act(() => {
+      result.current.setFormData((prev) => ({
+        ...prev,
+        appointmentType: {
+          id: serviceId,
+          name: 'Cleaning',
+          speciality: { id: 'spec-dental', name: 'Dental' },
+        } as any,
+      }));
+    });
+
+    const errors = result.current.validateForm(false);
+    expect(errors.serviceId).toBe('Please select a service');
   });
 
   it('validateForm requires concern', () => {

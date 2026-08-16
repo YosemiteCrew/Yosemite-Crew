@@ -288,6 +288,42 @@ describe("InsuranceClaimService.updateStatus", () => {
     );
   });
 
+  it("transitions DRAFT to SUBMITTED and sets submittedAt", async () => {
+    await InsuranceClaimService.updateStatus("claim-1", "org-1", {
+      status: "SUBMITTED",
+    });
+    expect(pm.insuranceClaim.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "SUBMITTED",
+          submittedAt: expect.any(Date),
+        }),
+      }),
+    );
+  });
+
+  it("rejects skipping ahead from DRAFT to PAID", async () => {
+    await expect(
+      InsuranceClaimService.updateStatus("claim-1", "org-1", {
+        status: "PAID",
+        paidAmount: 500,
+      }),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    expect(pm.insuranceClaim.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects moving backwards from APPROVED to DRAFT", async () => {
+    pm.insuranceClaim.findFirst.mockResolvedValue(
+      makeClaim({ status: "APPROVED", approvedAt: new Date() }),
+    );
+    await expect(
+      InsuranceClaimService.updateStatus("claim-1", "org-1", {
+        status: "DRAFT",
+      }),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    expect(pm.insuranceClaim.update).not.toHaveBeenCalled();
+  });
+
   it("rejects updating from a terminal status", async () => {
     for (const status of ["CANCELLED", "PAID", "REJECTED"] as const) {
       pm.insuranceClaim.findFirst.mockResolvedValue(makeClaim({ status }));

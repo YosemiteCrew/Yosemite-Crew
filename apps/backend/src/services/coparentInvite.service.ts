@@ -1,7 +1,5 @@
 import { randomUUID } from "node:crypto";
 
-import { Prisma } from "@prisma/client";
-
 import { prisma } from "src/config/prisma";
 import { ParentService } from "./parent.service";
 
@@ -220,29 +218,39 @@ export const CoParentInviteService = {
 
     const parentId = getParentId(parentDoc);
 
-    const existingLink = await prisma.parentPatient.findFirst({
+    const existingLink = await prisma.parentPatient.findUnique({
       where: {
-        parentId,
-        patientId: invite.patient.id,
-        status: { in: ["ACTIVE"] },
+        parentId_patientId: { parentId, patientId: invite.patient.id },
       },
-      select: { id: true },
+      select: { id: true, status: true },
     });
 
-    if (existingLink) {
+    if (existingLink?.status === "ACTIVE") {
       throw new CoParentInviteServiceError(
         "You are already linked to this companion.",
         409,
       );
     }
 
-    await prisma.parentPatient.create({
-      data: {
+    // (parentId, patientId) is unique, so a non-ACTIVE link from an earlier
+    // invite has to be reactivated rather than inserted again.
+    await prisma.parentPatient.upsert({
+      where: {
+        parentId_patientId: { parentId, patientId: invite.patient.id },
+      },
+      create: {
         parentId,
         patientId: invite.patient.id,
         role: "CO_PARENT",
         status: "ACTIVE",
-        permissions: CO_PARENT_PERMISSIONS as unknown as Prisma.InputJsonValue,
+        permissions: CO_PARENT_PERMISSIONS,
+        invitedByParentId: invite.invitedBy.id,
+        acceptedAt: new Date(),
+      },
+      update: {
+        role: "CO_PARENT",
+        status: "ACTIVE",
+        permissions: CO_PARENT_PERMISSIONS,
         invitedByParentId: invite.invitedBy.id,
         acceptedAt: new Date(),
       },

@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import {
@@ -30,7 +30,7 @@ import {
   useCalendarWeekNavigation,
   useSlotOffsetMinutes,
 } from '@/app/features/appointments/components/Calendar/useCalendarSlots';
-import { DropAvailabilityInterval } from '@/app/features/appointments/components/Calendar/availabilityIntervals';
+import type { TaskCalendarInteractionProps } from '@/app/features/appointments/components/Calendar/Task/taskCalendarInteractionProps';
 
 const HOUR_ROW_GAP_PX = 0;
 
@@ -44,23 +44,7 @@ type WeekCalendarProps = {
   weekStart: Date;
   setWeekStart: React.Dispatch<React.SetStateAction<Date>>;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
-  canEditTasks?: boolean;
-  draggedTaskId?: string | null;
-  draggedTaskLabel?: string | null;
-  canDragTask?: (task: Task) => boolean;
-  onTaskDragStart?: (task: Task) => void;
-  onTaskDragEnd?: () => void;
-  onTaskDropAt?: (date: Date, minuteOfDay: number, targetAssigneeId?: string) => void;
-  onCreateTaskAt?: (date: Date, minuteOfDay: number, targetAssigneeId?: string) => void;
-  onDragHoverTarget?: (date: Date, targetAssigneeId?: string) => void;
-  getDropAvailabilityIntervals?: (
-    date: Date,
-    targetAssigneeId?: string
-  ) => DropAvailabilityInterval[];
-  draggedTaskDurationMinutes?: number;
-  slotStepMinutes?: number;
-  resolveDisplayName?: (memberId?: string) => string;
-};
+} & TaskCalendarInteractionProps;
 
 const WeekCalendar: React.FC<WeekCalendarProps> = ({
   events,
@@ -87,7 +71,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   resolveDisplayName,
 }) => {
   const days = useMemo<Date[]>(() => getWeekDays(weekStart), [weekStart]);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [scrollContainer, setScrollContainer] = useState<HTMLDivElement | null>(null);
   const onWheelBoundary = useScrollBoundaryWheel();
   const onWheelHorizontal = useWheelToHorizontalScroll();
   const now = useCalendarNow();
@@ -142,7 +126,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     events: getTimedTaskProxyEvents(events),
     height,
     nowPosition,
-    scrollContainer: scrollRef.current,
+    scrollContainer,
     skip: !!draggedTaskId || !days.length,
     rangeStart: days[0],
     rangeEnd: days.at(-1)
@@ -165,26 +149,26 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
         onWheel={onWheelHorizontal}
       >
         <div className="min-w-max h-full flex flex-col relative">
-          <div className="z-30 bg-white">
-            <div className="grid border-b border-grey-light py-2 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max bg-white">
-              <div className="sticky left-0 z-40 bg-white flex items-center justify-center">
+          <div className="z-30 bg-neutral-0">
+            <div className="grid border-b border-card-border py-2 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max bg-neutral-0">
+              <div className="sticky left-0 z-40 bg-neutral-0 flex items-center justify-center">
                 <Back onClick={handlePrevWeek} />
               </div>
-              <div className="bg-white">
+              <div className="bg-neutral-0">
                 <DayLabels
                   days={days}
                   currentDate={_date ?? weekStart}
                   columnsStyle={dayColumnsStyle}
                 />
               </div>
-              <div className="sticky right-0 z-40 bg-white flex items-center justify-center">
+              <div className="sticky right-0 z-40 bg-neutral-0 flex items-center justify-center">
                 <Next onClick={handleNextWeek} />
               </div>
             </div>
           </div>
 
           <div
-            ref={scrollRef}
+            ref={setScrollContainer}
             className="min-w-max flex-1 min-h-0"
             style={{
               height: '100%',
@@ -205,7 +189,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                     slotOffsetMinutes={slotOffsetMinutes}
                     showSlotTimeLabels={showSlotTimeLabels}
                     pinFirstHour
-                    className="sticky left-0 z-20 bg-white"
+                    className="sticky left-0 z-20 bg-neutral-0"
                   />
                   <div className="grid min-w-max" style={dayColumnsStyle}>
                     {days.map((day, dayIndex) => {
@@ -250,7 +234,10 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                       );
                     })}
                   </div>
-                  <div className="sticky right-0 z-20 bg-white" style={{ height: `${height}px` }} />
+                  <div
+                    className="sticky right-0 z-20 bg-neutral-0"
+                    style={{ height: `${height}px` }}
+                  />
                 </div>
               ))}
               <div style={{ height: zoomMode === 'out' ? 30 : 40 }} />

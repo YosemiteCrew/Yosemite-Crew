@@ -1,4 +1,3 @@
-import { Types } from "mongoose";
 import { CompanionHistoryService } from "../../src/services/companion-history.service";
 import { AppointmentService } from "../../src/services/appointment.service";
 import { TaskService } from "../../src/services/task.service";
@@ -27,7 +26,7 @@ jest.mock("../../src/config/prisma", () => ({
 }));
 
 describe("CompanionHistoryService", () => {
-  const organisationId = new Types.ObjectId().toHexString();
+  const organisationId = "org-1";
   const companionId = "507f191e810c19729de860ea";
 
   beforeEach(() => {
@@ -87,7 +86,7 @@ describe("CompanionHistoryService", () => {
       },
     ]);
 
-    const taskId = new Types.ObjectId();
+    const taskId = "task-1";
     (TaskService.listForCompanion as jest.Mock).mockResolvedValue([
       {
         _id: taskId,
@@ -141,7 +140,7 @@ describe("CompanionHistoryService", () => {
       },
     ]);
 
-    const taskId = new Types.ObjectId();
+    const taskId = "task-1";
     (TaskService.listForCompanion as jest.Mock).mockResolvedValue([
       {
         _id: taskId,
@@ -231,7 +230,7 @@ describe("CompanionHistoryService", () => {
       AppointmentService.getAppointmentsForCompanionByOrganisation as jest.Mock
     ).mockResolvedValue([]);
 
-    const taskId = new Types.ObjectId();
+    const taskId = "task-1";
     (TaskService.listForCompanion as jest.Mock).mockResolvedValue([
       {
         _id: taskId,
@@ -252,6 +251,91 @@ describe("CompanionHistoryService", () => {
     });
 
     expect(result.entries).toHaveLength(0);
+  });
+
+  it("summarises medication tasks from the first dose", async () => {
+    (TaskService.listForCompanion as jest.Mock).mockResolvedValue([
+      {
+        id: "task-med",
+        organisationId,
+        name: "Give meds",
+        category: "MEDICATION",
+        audience: "EMPLOYEE_TASK",
+        status: "PENDING",
+        dueAt: new Date("2024-01-03T09:00:00.000Z"),
+        medication: {
+          name: "Amoxicillin",
+          doses: [{ dosage: "250mg", frequency: "BID", time: "08:00" }],
+        },
+        description: "ignored when medication is summarised",
+      },
+    ]);
+
+    const result = await CompanionHistoryService.listForCompanion({
+      organisationId,
+      patientId: companionId,
+      types: ["TASK"],
+    });
+
+    expect(result.entries[0].summary).toBe("Amoxicillin 250mg BID 08:00");
+  });
+
+  it("skips non-string dose fields in the medication summary", async () => {
+    (TaskService.listForCompanion as jest.Mock).mockResolvedValue([
+      {
+        id: "task-med-2",
+        organisationId,
+        name: "Give meds",
+        category: "MEDICATION",
+        audience: "EMPLOYEE_TASK",
+        status: "PENDING",
+        dueAt: new Date("2024-01-03T09:00:00.000Z"),
+        medication: { name: "Rimadyl", doses: [{ dosage: 42 }] },
+      },
+      {
+        id: "task-med-3",
+        organisationId,
+        name: "Give meds",
+        category: "MEDICATION",
+        audience: "EMPLOYEE_TASK",
+        status: "PENDING",
+        dueAt: new Date("2024-01-02T09:00:00.000Z"),
+        medication: { name: "Metacam" },
+      },
+    ]);
+
+    const result = await CompanionHistoryService.listForCompanion({
+      organisationId,
+      patientId: companionId,
+      types: ["TASK"],
+    });
+
+    expect(result.entries[0].summary).toBe("Rimadyl");
+    expect(result.entries[1].summary).toBe("Metacam");
+  });
+
+  it("falls back to the task description when medication has no name", async () => {
+    (TaskService.listForCompanion as jest.Mock).mockResolvedValue([
+      {
+        id: "task-desc",
+        organisationId,
+        name: "Note",
+        category: "CARE",
+        audience: "EMPLOYEE_TASK",
+        status: "PENDING",
+        dueAt: new Date("2024-01-03T09:00:00.000Z"),
+        medication: { doses: "not-an-array" },
+        description: "Do the thing",
+      },
+    ]);
+
+    const result = await CompanionHistoryService.listForCompanion({
+      organisationId,
+      patientId: companionId,
+      types: ["TASK"],
+    });
+
+    expect(result.entries[0].summary).toBe("Do the thing");
   });
 
   it("builds appointment payload details", async () => {
@@ -405,14 +489,6 @@ describe("CompanionHistoryService", () => {
         currency: "USD",
         createdAt: new Date("2024-01-01T00:00:00.000Z"),
       },
-      {
-        id: "inv-2",
-        organisationId: "other",
-        status: "PAID",
-        totalAmount: 50,
-        currency: "USD",
-        createdAt: new Date("2024-01-01T00:00:00.000Z"),
-      },
     ]);
 
     const result = await CompanionHistoryService.listForCompanion({
@@ -421,6 +497,11 @@ describe("CompanionHistoryService", () => {
       types: ["INVOICE"],
     });
 
+    // The organisation filter is a query predicate now, not a post-fetch filter.
+    expect(InvoiceService.listForCompanion).toHaveBeenCalledWith(
+      companionId,
+      organisationId,
+    );
     expect(result.entries).toHaveLength(1);
     expect(result.entries[0].link.id).toBe("inv-1");
   });
@@ -438,7 +519,11 @@ describe("CompanionHistoryService", () => {
 
     expect(logger.warn).toHaveBeenCalledWith(
       "Companion history appointments failed",
-      expect.objectContaining({ organisationId, patientId: companionId }),
+      expect.objectContaining({ organisationId }),
+    );
+    expect(logger.warn).not.toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ patientId: companionId }),
     );
   });
 });

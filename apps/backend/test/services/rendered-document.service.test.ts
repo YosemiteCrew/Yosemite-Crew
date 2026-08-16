@@ -1,5 +1,6 @@
 import { ClinicalArtifactKind, TemplateKind } from "@prisma/client";
 import axios from "axios";
+import dns from "node:dns";
 import { prisma } from "src/config/prisma";
 import {
   buildDocumentSignature,
@@ -72,8 +73,27 @@ describe("rendered-document service", () => {
   const mockedUploadBufferAsFile = uploadBufferAsFile as jest.Mock;
   const mockedAxiosGet = axios.get as jest.Mock;
 
+  let lookupSpy: jest.SpyInstance;
+
+  /** Bytes that open with the PDF marker, as any real document does. */
+  const pdfBytes = (marker: string): Buffer =>
+    Buffer.from(`%PDF-1.7\n${marker}\n%%EOF\n`);
+
   beforeEach(() => {
     process.env.DOCUMENSO_HOST_URL = "https://documenso.example";
+    // Stored PDF links are checked before they are used, which resolves the
+    // host. Keep that resolution deterministic and offline: the placeholder
+    // hosts in this suite stand for ordinary public CDNs. Cases about which
+    // hosts are permitted live in rendered-document.service.url-validation.
+    lookupSpy = jest
+      .spyOn(dns.promises, "lookup")
+      .mockResolvedValue([
+        { address: "203.0.113.10", family: 4 },
+      ] as unknown as dns.LookupAddress);
+  });
+
+  afterEach(() => {
+    lookupSpy.mockRestore();
   });
 
   afterAll(() => {
@@ -549,7 +569,7 @@ describe("rendered-document service", () => {
     mockedRenderedDocumentRenderer.mockClear();
     mockedAxiosGet.mockClear();
     mockedAxiosGet.mockResolvedValueOnce({
-      data: Buffer.from("stored-pdf"),
+      data: pdfBytes("stored"),
     });
     mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce({
       id: "doc-3",
@@ -601,7 +621,7 @@ describe("rendered-document service", () => {
       }),
     );
     expect(mockedRenderedDocumentRenderer).not.toHaveBeenCalled();
-    expect(result.pdf).toEqual(Buffer.from("stored-pdf"));
+    expect(result.pdf).toEqual(pdfBytes("stored"));
   });
 
   it("rerenders and persists a clinical rendered document", async () => {
@@ -726,6 +746,78 @@ describe("rendered-document service", () => {
     expect(result.pdf).toEqual(Buffer.from("rerendered-pdf"));
   });
 
+  describe("rerender signing guard", () => {
+    // This suite asserts that no write happens at all, so it cannot inherit the
+    // call history of the surrounding tests.
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    const clinicalRow = (overrides: Record<string, unknown>) => ({
+      id: "doc-5",
+      organisationId: "org-123",
+      sourceKind: "CLINICAL_ARTIFACT",
+      sourceId: "artifact-5",
+      templateInstanceId: null,
+      clinicalArtifactId: "artifact-5",
+      templateId: null,
+      templateVersion: null,
+      templateVersionId: null,
+      kind: "SOAP_NOTE",
+      version: 1,
+      title: "SOAP Note",
+      mimeType: "application/pdf",
+      status: "DRAFT",
+      signable: true,
+      pdfUrl: "https://cdn.example/signed.pdf",
+      pdf: null,
+      signedBy: null,
+      signedAt: null,
+      signing: null,
+      createdAt: new Date("2026-06-13T00:00:00.000Z"),
+      updatedAt: new Date("2026-06-13T00:00:00.000Z"),
+      signature: null,
+      ...overrides,
+    });
+
+    it("refuses to overwrite the pdf of a SIGNED document", async () => {
+      mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce(
+        clinicalRow({ status: "SIGNED" }),
+      );
+
+      await expect(
+        rerenderPersistedClinicalRenderedDocumentPdf("doc-5", "org-123"),
+      ).rejects.toMatchObject({ statusCode: 409 });
+
+      expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
+      expect(mockedUploadBufferAsFile).not.toHaveBeenCalled();
+    });
+
+    it("refuses to overwrite the pdf while signing is in progress", async () => {
+      mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce(
+        clinicalRow({ signing: { status: "IN_PROGRESS" } }),
+      );
+
+      await expect(
+        rerenderPersistedClinicalRenderedDocumentPdf("doc-5", "org-123"),
+      ).rejects.toMatchObject({ statusCode: 409 });
+
+      expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
+    });
+
+    it("refuses to overwrite the pdf when signing already completed via a packet", async () => {
+      mockedPrisma.renderedDocument.findUnique.mockResolvedValueOnce(
+        clinicalRow({ signing: { status: "SIGNED", viaPacketId: "pkt-1" } }),
+      );
+
+      await expect(
+        rerenderPersistedClinicalRenderedDocumentPdf("doc-5", "org-123"),
+      ).rejects.toMatchObject({ statusCode: 409 });
+
+      expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
+    });
+  });
+
   it("persists a rendered document signature and updates the document", async () => {
     mockedRenderedDocumentRenderer.mockResolvedValueOnce({
       pdf: Buffer.from("pdf"),
@@ -810,6 +902,7 @@ describe("rendered-document service", () => {
 
     const result = await signPersistedRenderedDocument({
       renderedDocumentId: "doc-1",
+      organisationId: "org-123",
       signerId: "user-1",
       signerType: "PMS_USER",
       signerEmail: "user@example.com",
@@ -876,6 +969,7 @@ describe("rendered-document service", () => {
     await expect(
       signPersistedRenderedDocument({
         renderedDocumentId: "missing-doc",
+        organisationId: "org-123",
         signerId: "user-1",
         signerType: "SYSTEM",
         signerEmail: "user@example.com",

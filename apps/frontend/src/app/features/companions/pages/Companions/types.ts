@@ -45,6 +45,30 @@ export const status = (
   dropdownText?: string
 ): StatusOption => ({ name, key, bg, text, border: border ?? bg, dropdownText });
 
+/**
+ * Build a StatusOption whose bg/text/border all derive from one CSS custom-property
+ * prefix (`--<cssPrefix>-bg` / `-text` / `-border`), so status tables stay one line
+ * per entry instead of repeating three var() literals each.
+ */
+export const statusFromToken = (name: string, key: string, cssPrefix: string): StatusOption =>
+  status(
+    name,
+    key,
+    `var(--${cssPrefix}-bg)`,
+    `var(--${cssPrefix}-text)`,
+    `var(--${cssPrefix}-border)`
+  );
+
+/** Like statusFromToken, but also reuses the derived text token as dropdownText. */
+export const dropdownStatusFromToken = (
+  name: string,
+  key: string,
+  cssPrefix: string
+): StatusOption => ({
+  ...statusFromToken(name, key, cssPrefix),
+  dropdownText: `var(--${cssPrefix}-text)`,
+});
+
 export const CompanionsSpeciesFilters: FilterOption[] = [
   filter('All', 'all'),
   filter('Canine', 'dog'),

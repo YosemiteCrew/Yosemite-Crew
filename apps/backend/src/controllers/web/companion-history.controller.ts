@@ -88,11 +88,12 @@ export const CompanionHistoryController = {
           .json({ message: "Forbidden – insufficient permissions" });
       }
 
+      const defaultTypes = canViewLabs
+        ? DEFAULT_HISTORY_TYPES
+        : DEFAULT_NON_LAB_TYPES;
       const types = typesFilter?.length
         ? (typesFilter as HistoryEntryType[])
-        : canViewLabs
-          ? DEFAULT_HISTORY_TYPES
-          : DEFAULT_NON_LAB_TYPES;
+        : defaultTypes;
 
       const result = await CompanionHistoryService.listForCompanion({
         organisationId: paramsResult.data.organisationId,

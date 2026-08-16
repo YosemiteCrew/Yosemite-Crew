@@ -2,6 +2,20 @@ import {Alert, Linking, Platform} from 'react-native';
 import RNCalendarEvents from 'react-native-calendar-events';
 import type {Task} from '@/features/tasks/types';
 
+// Tasks created before calendar selection stored a provider name rather than a
+// device calendar id. Those values are not addressable, so let the OS pick the
+// default calendar instead of passing them through as an id.
+const LEGACY_CALENDAR_PROVIDERS = new Set(['google', 'icloud']);
+
+const resolveCalendarId = (
+  calendarProvider?: string,
+): {calendarId?: string} => {
+  if (!calendarProvider || LEGACY_CALENDAR_PROVIDERS.has(calendarProvider)) {
+    return {};
+  }
+  return {calendarId: calendarProvider};
+};
+
 const buildIsoDate = (date: string, time?: string) => {
   if (date && time) {
     return new Date(`${date}T${time}`).toISOString();
@@ -224,7 +238,7 @@ const createSingleDosageEvent = async (
     ...(recurrenceParams.recurrenceRule
       ? {recurrenceRule: recurrenceParams.recurrenceRule}
       : {}),
-    calendarId: task.calendarProvider,
+    ...resolveCalendarId(task.calendarProvider),
   });
 
   if (eventId) {
@@ -257,45 +271,49 @@ const createDosageCalendarEvents = async (
     alarms = [{date: -Math.abs(task.reminderOffsetMinutes)}];
   }
 
-  try {
-    const eventResults = await Promise.all(
-      dosages.map(dosage =>
-        createSingleDosageEvent(
-          task,
-          dosage,
-          alarms,
-          recurrenceParams,
-          companionName,
-          assignedToName,
-        ),
+  const eventResults = await Promise.allSettled(
+    dosages.map(dosage =>
+      createSingleDosageEvent(
+        task,
+        dosage,
+        alarms,
+        recurrenceParams,
+        companionName,
+        assignedToName,
       ),
-    );
+    ),
+  );
 
-    for (const eventId of eventResults) {
-      if (eventId) {
-        eventIds.push(eventId);
-      }
+  for (const result of eventResults) {
+    if (result.status === 'fulfilled' && result.value) {
+      eventIds.push(result.value);
     }
+  }
 
-    if (eventIds.length === 0) {
-      console.warn('[Calendar] No dosage events created');
-      return null;
-    }
-
-    const joinedIds = eventIds.join(',');
-    console.log('[Calendar] All dosage events created:', {
-      count: eventIds.length,
-      ids: joinedIds,
-    });
-    return joinedIds;
-  } catch (error) {
-    console.error('[Calendar] Failed to create dosage events:', error);
+  const failure = eventResults.find(result => result.status === 'rejected');
+  if (failure) {
+    console.error('[Calendar] Failed to create dosage events:', failure.reason);
+    // Siblings that already saved would otherwise stay in the calendar with no
+    // id recorded against the task, leaving them unreachable for later removal.
+    await removeCalendarEvents(eventIds.join(','));
     Alert.alert(
       'Calendar',
       'Unable to add medication dosages to your calendar.',
     );
     return null;
   }
+
+  if (eventIds.length === 0) {
+    console.warn('[Calendar] No dosage events created');
+    return null;
+  }
+
+  const joinedIds = eventIds.join(',');
+  console.log('[Calendar] All dosage events created:', {
+    count: eventIds.length,
+    ids: joinedIds,
+  });
+  return joinedIds;
 };
 
 export const createCalendarEventForTask = async (
@@ -425,7 +443,7 @@ export const createCalendarEventForTask = async (
       ...(recurrenceParams.recurrenceRule
         ? {recurrenceRule: recurrenceParams.recurrenceRule}
         : {}),
-      calendarId: task.calendarProvider,
+      ...resolveCalendarId(task.calendarProvider),
     });
 
     console.log('[Calendar] Event created successfully:', eventId);

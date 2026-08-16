@@ -1,8 +1,13 @@
 import Image from 'next/image';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import React from 'react';
 import { Team } from '@/app/features/organization/types/team';
 import { getSafeImageUrl } from '@/app/lib/urls';
-import { formatWeeklyWorkingHours, getAvailabilityStatusStyle } from '@/app/ui/tables/tableUtils';
+import {
+  formatWeeklyWorkingHours,
+  getAvailabilityStatusTone,
+  toSpecialityNames,
+} from '@/app/ui/tables/tableUtils';
 import { toTitleCase } from '@/app/lib/validators';
 import { Secondary } from '@/app/ui/primitives/Buttons';
 
@@ -13,7 +18,7 @@ type AvailabilityCardProps = {
 
 const AvailabilityCard = ({ team, handleViewTeam }: AvailabilityCardProps) => {
   return (
-    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-white p-3 flex flex-col justify-between gap-2 cursor-pointer">
+    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] p-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex gap-2 items-center">
         <div className="size-10">
           <Image
@@ -35,13 +40,11 @@ const AvailabilityCard = ({ team, handleViewTeam }: AvailabilityCardProps) => {
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Speciality:</div>
         <div className="text-caption-1 text-text-primary">
-          {Array.isArray(team?.speciality) && team.speciality.length > 0
-            ? team.speciality
-                .map((spec: any) =>
-                  typeof spec === 'string' ? spec : spec?.name || JSON.stringify(spec)
-                )
-                .join(', ')
-            : '-'}
+          {/* Shares the table's reader so the phone card and the desktop row can
+              never disagree about a team's specialities. It also replaces the
+              old JSON.stringify fallback, which printed `{"code":"X1"}` at a
+              clinician. */}
+          {toSpecialityNames(team?.speciality).join(', ') || '-'}
         </div>
       </div>
       <div className="flex gap-1">
@@ -54,12 +57,7 @@ const AvailabilityCard = ({ team, handleViewTeam }: AvailabilityCardProps) => {
           {formatWeeklyWorkingHours(team.weeklyWorkingHours)}
         </div>
       </div>
-      <div
-        style={getAvailabilityStatusStyle(team.status)}
-        className="w-full rounded-2xl h-12 flex items-center justify-center text-body-4"
-      >
-        {team.status}
-      </div>
+      <StatusPill tone={getAvailabilityStatusTone(team.status)} label={team.status} />
       <Secondary href="#" onClick={() => handleViewTeam(team)} text="View" className="w-full" />
     </div>
   );

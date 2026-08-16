@@ -14,7 +14,7 @@ const publicCardLimiter = rateLimit({
 
 const router = Router();
 
-// No authorizeCognito / withOrgPermissions / requirePermission: this route is
+// No requireWebAuth / withOrgPermissions / requirePermission: this route is
 // gated solely by a valid, unexpired, unrevoked token resolved in the service.
 router.get(
   "/:token",

@@ -1,58 +1,63 @@
 'use client';
 import React, { useMemo, useState } from 'react';
-import { FaCirclePlay } from 'react-icons/fa6';
+import { IoArrowForward, IoInformationCircleOutline, IoPlay } from 'react-icons/io5';
 
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 
 const GUIDES_PAGE_SKELETON = <PageSkeleton variant="list" />;
-import VideoPlayerModal from '@/app/ui/overlays/Modal/VideoPlayerModal';
+import GuidePlayerModal from '@/app/ui/overlays/Modal/GuidePlayerModal';
 import Search from '@/app/ui/inputs/Search';
-import { Primary } from '@/app/ui/primitives/Buttons';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
+import FilteredEmptyState from '@/app/ui/layout/states/FilteredEmptyState';
 import { guidesData } from '@/app/features/guides/data/guidesData';
 import { GuideVideo } from '@/app/features/guides/types/guides';
 
-const categoryPalette = [
-  { bg: 'var(--color-badge-blue-bg)', text: 'var(--color-badge-blue-text)' },
-  { bg: 'var(--color-pill-neutral-bg)', text: 'var(--color-pill-neutral-text)' },
-  { bg: 'var(--color-pill-info-bg)', text: 'var(--color-pill-info-text)' },
-  { bg: 'var(--color-pill-progress-bg)', text: 'var(--color-pill-progress-text)' },
-  { bg: 'var(--color-pill-success-bg)', text: 'var(--color-pill-success-text)' },
-  { bg: 'var(--color-pill-warning-bg)', text: 'var(--color-pill-warning-text)' },
-  { bg: 'var(--color-pill-accent-bg)', text: 'var(--color-pill-accent-text)' },
-];
+const ALL_CATEGORY = 'All';
+
+const GuideCardStatus = ({ guide }: { guide: GuideVideo }) => {
+  if (typeof guide.progressPercent === 'number') {
+    return (
+      <span className="flex items-center gap-1">
+        <span
+          className="block h-1 w-11 overflow-hidden rounded-full"
+          style={{ backgroundColor: 'var(--inset)' }}
+        >
+          <span
+            className="block h-full"
+            style={{ width: `${guide.progressPercent}%`, backgroundColor: 'var(--blue)' }}
+          />
+        </span>
+        <span className="text-[11px] text-[var(--ink-faint)]">{guide.progressPercent}%</span>
+      </span>
+    );
+  }
+  if (guide.status === 'watched') {
+    return <span className="text-[11px] text-[var(--ink-faint)]">Watched</span>;
+  }
+  if (guide.status === 'new') {
+    return <span className="text-[11px] text-[var(--ink-faint)]">New</span>;
+  }
+  return null;
+};
 
 const Guides = () => {
   const [search, setSearch] = useState('');
-  const [activeCategory, setActiveCategory] = useState('All');
+  const [activeCategory, setActiveCategory] = useState(ALL_CATEGORY);
   const [showModal, setShowModal] = useState(false);
   const [activeVideo, setActiveVideo] = useState<GuideVideo | null>(null);
-  const [isVideoLoaded, setIsVideoLoaded] = useState(false);
 
   const categories = useMemo(() => {
     const items = new Set<string>();
     guidesData.forEach((guide) => items.add(guide.category));
-    return ['All', ...Array.from(items)];
-  }, []);
-
-  const categoryStyles = useMemo(() => {
-    const styleMap = new Map<string, { bg: string; text: string }>();
-    categories.forEach((category, index) => {
-      const paletteIndex = index % categoryPalette.length;
-      styleMap.set(category, categoryPalette[paletteIndex]);
-    });
-    return styleMap;
-  }, [categories]);
-
-  const featuredGuide = useMemo(() => {
-    return guidesData.find((guide) => guide.featured) ?? guidesData[0] ?? null;
+    return [ALL_CATEGORY, ...Array.from(items)];
   }, []);
 
   const filteredGuides = useMemo(() => {
     const query = search.trim().toLowerCase();
     return guidesData.filter((guide) => {
-      if (activeCategory !== 'All' && guide.category !== activeCategory) {
+      if (activeCategory !== ALL_CATEGORY && guide.category !== activeCategory) {
         return false;
       }
       if (!query) return true;
@@ -63,89 +68,73 @@ const Guides = () => {
     });
   }, [activeCategory, search]);
 
+  const activeIndex = activeVideo
+    ? guidesData.findIndex((guide) => guide.id === activeVideo.id)
+    : -1;
+  const nextGuide = activeIndex >= 0 ? guidesData[(activeIndex + 1) % guidesData.length] : null;
+
   const handleOpenVideo = (video: GuideVideo) => {
     setActiveVideo(video);
-    setIsVideoLoaded(false);
     setShowModal(true);
   };
 
+  const handleNextGuide = () => setActiveVideo(nextGuide);
+
+  const handleClearFilters = () => {
+    setSearch('');
+    setActiveCategory(ALL_CATEGORY);
+  };
+
   return (
-    <div className="flex flex-col gap-8 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
-      <div className="flex flex-wrap items-center justify-between gap-3 mt-2">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-text-primary text-heading-2">
-            Guides & Tutorials{' '}
-            <span className="text-body-2 text-text-tertiary">{`(${guidesData.length})`}</span>
+    <div className="yc-page-content">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-col gap-[3px]">
+          <h1
+            className="flex items-center gap-2 text-[var(--ink)] text-[26px] leading-tight tracking-[-0.015em]"
+            style={{ fontFamily: 'var(--font-newsreader)', fontWeight: 400 }}
+          >
+            {'Guides'}
+            <span className="text-[17px]" style={{ color: 'var(--ink-faint)' }}>
+              ({guidesData.length})
+            </span>
+            <IoInformationCircleOutline
+              size={17}
+              aria-hidden="true"
+              style={{ color: 'var(--ink-faint)' }}
+            />
           </h1>
-          <p className="text-body-3 text-text-secondary max-w-3xl mb-0!">
-            Learn how to set up your animal health practice, streamline workflows, and get the most
-            from Yosemite Crew.
-          </p>
+          <span className="text-[13.5px] text-[var(--ink-muted)]">
+            Short, practical walkthroughs · 2-6 minutes each
+          </span>
         </div>
+        <span className="text-[12.5px] text-[var(--ink-faint)]">
+          Short, practical walkthroughs · updated with each release
+        </span>
       </div>
 
-      {featuredGuide && (
-        <div className="rounded-2xl! border border-card-border bg-white overflow-hidden">
-          <div className="grid grid-cols-1 lg:grid-cols-[1.25fr_1fr]">
-            <button
-              type="button"
-              className="relative aspect-video lg:aspect-auto lg:min-h-[280px] bg-no-repeat bg-cover bg-center w-full flex items-center justify-center"
-              style={{ backgroundImage: `url(${featuredGuide.thumbnailUrl})` }}
-              onClick={() => handleOpenVideo(featuredGuide)}
-              aria-label={`Play featured video: ${featuredGuide.title}`}
-            >
-              <div className="absolute inset-0 bg-black/35" />
-              <div className="relative flex items-center justify-center size-16 rounded-full bg-white/20">
-                <FaCirclePlay size={50} color="var(--color-neutral-0)" />
-              </div>
-              <div className="absolute bottom-4 right-4 px-3 py-1 rounded-full bg-white/90 text-body-4 text-text-primary">
-                {featuredGuide.duration}
-              </div>
-            </button>
-            <div className="flex flex-col gap-3 p-6 sm:px-8 sm:py-8 lg:px-10 lg:py-10 lg:justify-center">
-              <div className="flex flex-wrap items-center gap-2">
-                <div
-                  className="text-body-4 px-3 py-1 rounded-full"
-                  style={{
-                    color: 'var(--color-pill-neutral-text)',
-                    backgroundColor: 'var(--color-pill-neutral-bg)',
-                    border: '1px solid var(--color-pill-neutral-border)',
-                  }}
-                >
-                  Featured
-                </div>
-                <div className="text-body-4 text-text-brand bg-brand-100 px-3 py-1 rounded-full">
-                  {featuredGuide.category}
-                </div>
-              </div>
-              <h2 className="text-heading-2 text-text-primary">{featuredGuide.title}</h2>
-              <div className="text-body-3 text-text-secondary">{featuredGuide.description}</div>
-              <Primary
-                text="Watch now"
-                href="#"
-                onClick={() => handleOpenVideo(featuredGuide)}
-                className="px-6 w-fit"
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-wrap items-center gap-2">
           {categories.map((category) => {
             const isActive = category === activeCategory;
-            const palette = categoryStyles.get(category);
             return (
               <button
                 type="button"
                 key={category}
                 onClick={() => setActiveCategory(category)}
-                className="min-w-20 text-body-4 px-3 py-[6px] rounded-2xl! border border-card-border! transition-all duration-300 hover:bg-card-hover hover:border-card-hover! text-text-tertiary"
+                className="rounded-full border px-[15px] py-[7px] text-[12.5px] transition-colors"
                 style={
-                  isActive && palette
-                    ? { backgroundColor: palette.bg, color: palette.text }
-                    : undefined
+                  isActive
+                    ? {
+                        backgroundColor: 'var(--inset)',
+                        borderColor: 'var(--divider)',
+                        color: 'var(--ink)',
+                        fontWeight: 700,
+                      }
+                    : {
+                        borderColor: 'var(--hairline)',
+                        color: 'var(--ink-muted)',
+                        fontWeight: 600,
+                      }
                 }
               >
                 {category}
@@ -156,58 +145,79 @@ const Guides = () => {
         <Search
           value={search}
           setSearch={setSearch}
-          className="!w-full sm:!w-[280px]"
+          className="!w-full sm:!w-[240px]"
           placeholder="Search guides"
         />
       </div>
 
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <div className="text-body-2 text-text-primary">All guides</div>
-          <div className="text-body-4 text-text-tertiary">{filteredGuides.length} results</div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+      {filteredGuides.length > 0 ? (
+        <div className="grid grid-cols-1 gap-[18px] md:grid-cols-2 xl:grid-cols-3">
           {filteredGuides.map((video) => (
             <button
               type="button"
-              className="rounded-2xl! border border-card-border bg-white flex flex-col cursor-pointer text-left hover:shadow-sm transition-all duration-300"
               key={video.id}
               onClick={() => handleOpenVideo(video)}
-              aria-label={`Play video: ${video.title}`}
+              aria-label={`Play guide: ${video.title}`}
+              className="flex flex-col overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] text-left shadow-[0_1px_2px_var(--sh03),0_10px_28px_var(--sh05)] transition-shadow hover:shadow-[0_4px_10px_var(--sh05),0_20px_50px_var(--sh10)]"
             >
               <div
-                style={{ backgroundImage: `url(${video.thumbnailUrl})` }}
-                className="relative aspect-video bg-no-repeat bg-cover bg-center w-full rounded-t-2xl flex items-center justify-center"
+                className="relative flex aspect-video w-full items-center justify-center"
+                style={{ backgroundColor: '#23211f' }}
               >
-                <div className="absolute inset-0 bg-black/35 rounded-t-2xl" />
-                <div className="relative flex items-center justify-center size-14 rounded-full bg-white/20">
-                  <FaCirclePlay size={46} color="var(--color-neutral-0)" />
-                </div>
-                <div className="absolute bottom-3 right-3 px-3 py-1 rounded-full bg-white/90 text-body-4 text-text-primary">
+                <span
+                  aria-hidden="true"
+                  className="flex size-[52px] items-center justify-center rounded-full"
+                  style={{
+                    backgroundColor: 'rgba(247,243,236,0.92)',
+                    color: '#1d1c1b',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+                  }}
+                >
+                  <IoPlay size={21} className="ml-[3px]" />
+                </span>
+                <span
+                  className="absolute bottom-2.5 right-2.5 rounded-[7px] px-2 py-[3px] text-[10.5px] font-bold tabular-nums"
+                  style={{ backgroundColor: 'rgba(0,0,0,0.62)', color: '#f7f3ec' }}
+                >
                   {video.duration}
-                </div>
+                </span>
+                <StatusPill
+                  className="absolute left-2.5 top-2.5"
+                  tone="neutral"
+                  label={video.category}
+                />
               </div>
-              <div className="flex flex-col gap-2 p-4">
-                <div className="flex items-center gap-2">
-                  <div className="text-body-4 text-text-brand bg-brand-100 px-3 py-1 rounded-full">
-                    {video.category}
-                  </div>
-                </div>
-                <div className="text-body-2 text-text-primary">{video.title}</div>
-                <div className="text-body-4 text-text-secondary">{video.description}</div>
+              <div className="flex flex-col gap-1.5 px-4 pb-[15px] pt-3.5">
+                <span className="text-[14.5px] font-bold text-[var(--ink)]">{video.title}</span>
+                <span className="text-[12px] leading-[1.55] text-[var(--ink-muted)]">
+                  {video.description}
+                </span>
+                <span className="mt-1 flex items-center justify-between">
+                  <span className="flex items-center gap-[5px] text-[12px] font-semibold text-[var(--blue-text)]">
+                    Watch now
+                    <IoArrowForward size={12} aria-hidden="true" />
+                  </span>
+                  <GuideCardStatus guide={video} />
+                </span>
               </div>
             </button>
           ))}
         </div>
-      </div>
+      ) : (
+        <FilteredEmptyState
+          title="No guides match your search"
+          message="Try a different search or pick another category."
+          onClearFilters={handleClearFilters}
+          clearLabel="Clear filters"
+        />
+      )}
 
-      <VideoPlayerModal
+      <GuidePlayerModal
         showModal={showModal}
         setShowModal={setShowModal}
-        activeVideo={activeVideo}
-        isVideoLoaded={isVideoLoaded}
-        setIsVideoLoaded={setIsVideoLoaded}
+        guide={activeVideo}
+        nextGuide={nextGuide}
+        onNext={handleNextGuide}
       />
     </div>
   );

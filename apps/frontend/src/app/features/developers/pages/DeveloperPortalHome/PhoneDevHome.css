@@ -1,0 +1,294 @@
+/* Bespoke phone (<768px) developer home. Mirrors the "Phone dev home" design
+   frame: greeting, dark platform-status metrics card, two nav tiles, the
+   in-review plugin card, a recent-requests log, and the desktop-only note. */
+.dev-ph {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-family: var(--font-satoshi);
+  color: var(--color-text-secondary);
+}
+
+.dev-ph-greet {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  font-weight: 400;
+}
+
+.dev-ph-greet-eyebrow {
+  display: block;
+  font-family: var(--font-newsreader);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--color-cyan-text);
+}
+
+.dev-ph-greet-name {
+  display: block;
+  font-family: var(--font-newsreader);
+  font-size: 24px;
+  letter-spacing: -0.015em;
+  color: var(--color-text-primary);
+}
+
+/* Dark platform-status card — stays near-black in both themes (design spot). */
+.dev-ph-status {
+  background: var(--color-ink);
+  border: 1px solid rgba(244, 239, 230, 0.12);
+  border-radius: 16px;
+  padding: 14px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 12px 34px rgba(29, 28, 27, 0.2);
+}
+
+.dev-ph-status-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dev-ph-status-title {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #f4efe6;
+}
+
+.dev-ph-status-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #9be8c9;
+}
+
+.dev-ph-status-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: #2bbd86;
+  flex-shrink: 0;
+}
+
+.dev-ph-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+}
+
+.dev-ph-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.dev-ph-metric-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #8b8794;
+}
+
+.dev-ph-metric-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #f4efe6;
+  font-variant-numeric: tabular-nums;
+}
+
+.dev-ph-metric-value.accent {
+  color: var(--color-cyan);
+}
+
+/* Two nav tiles */
+.dev-ph-tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+
+.dev-ph-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 13px;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-card-border);
+  border-radius: 14px;
+  box-shadow:
+    0 1px 2px rgba(29, 28, 27, 0.03),
+    0 6px 16px rgba(29, 28, 27, 0.05);
+  text-decoration: none;
+}
+
+.dev-ph-tile-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--color-inset);
+  color: var(--color-cyan-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dev-ph-tile-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.dev-ph-tile-meta {
+  font-size: 10.5px;
+  color: var(--color-text-tertiary);
+}
+
+/* In-review plugin card */
+.dev-ph-review {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 13px 14px;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-card-border);
+  border-radius: 16px;
+  box-shadow:
+    0 1px 2px rgba(29, 28, 27, 0.03),
+    0 6px 16px rgba(29, 28, 27, 0.05);
+}
+
+.dev-ph-review-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dev-ph-review-name {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.dev-ph-review-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--status-in-progress-bg);
+  color: var(--status-in-progress-text);
+  border: 1px solid var(--status-in-progress-border);
+  white-space: nowrap;
+}
+
+.dev-ph-review-desc {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+.dev-ph-progress {
+  display: block;
+  height: 5px;
+  border-radius: 9999px;
+  background: var(--color-band, var(--color-inset));
+  overflow: hidden;
+}
+
+.dev-ph-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: 9999px;
+  background: var(--color-cyan);
+}
+
+.dev-ph-section-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+/* Recent-requests log */
+.dev-ph-log {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-card-border);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow:
+    0 1px 2px rgba(29, 28, 27, 0.03),
+    0 6px 16px rgba(29, 28, 27, 0.05);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-family: ui-monospace, 'SF Mono', monospace;
+}
+
+.dev-ph-log-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 13px;
+  font-size: 10.5px;
+}
+
+.dev-ph-log-row + .dev-ph-log-row {
+  border-top: 1px solid var(--color-card-border);
+}
+
+.dev-ph-log-status {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.dev-ph-log-status.ok {
+  color: var(--success);
+}
+
+.dev-ph-log-status.err {
+  color: var(--color-text-error);
+}
+
+.dev-ph-log-path {
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Desktop-only note */
+.dev-ph-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 13px;
+  border-radius: 13px;
+  background: var(--color-inset);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
+.dev-ph-note-icon {
+  color: var(--color-cyan-text);
+  flex-shrink: 0;
+}

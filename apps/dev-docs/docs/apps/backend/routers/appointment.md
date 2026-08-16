@@ -10,19 +10,19 @@ Covers the appointment lifecycle (request, reschedule, cancel, check-in, accept/
 
 ### POST /mobile
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Body: `AppointmentRequestDTO`
 - Controller: `AppointmentController.createRequestedFromMobile`
 - Response: `201`: keys `data`, `message`
 
 ### GET /mobile/parent
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Controller: `AppointmentController.listByParent`
 
 ### POST /mobile/documentUpload
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Body: `UploadUrlBody`
 - Body fields: `companionId`, `mimeType`
 - Controller: `AppointmentController.getDocumentUplaodURL`
@@ -30,13 +30,13 @@ Covers the appointment lifecycle (request, reschedule, cancel, check-in, accept/
 
 ### GET /mobile/companion/:companionId
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `companionId`
 - Controller: `AppointmentController.listByCompanion`
 
 ### PATCH /mobile/:appointmentId/reschedule
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `appointmentId`
 - Body: `RescheduleRequestBody`
 - Body fields: `startTime`, `endTime`, `concern`, `isEmergency`
@@ -44,26 +44,26 @@ Covers the appointment lifecycle (request, reschedule, cancel, check-in, accept/
 
 ### PATCH /mobile/:appointmentId/cancel
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `appointmentId`
 - Body: `CancelBody`
 - Controller: `AppointmentController.cancelFromMobile`
 
 ### PATCH /mobile/:appointmentId/checkin
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `appointmentId`
 - Controller: `AppointmentController.checkInAppointment`
 
 ### GET /mobile/:appointmentId
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `appointmentId`
 - Controller: `AppointmentController.getById`
 
 ### POST /pms
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Query: `createPayment`
 - Body: `AppointmentRequestDTO`
@@ -72,21 +72,21 @@ Covers the appointment lifecycle (request, reschedule, cancel, check-in, accept/
 
 ### GET /pms/organisation/:organisationId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
 - Controller: `AppointmentController.listByOrganisation`
 
 ### GET /pms/organisation/:organisationId/companion/:companionId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`, `companionId`
 - Controller: `AppointmentController.listByCompanionForOrganisation`
 
 ### PATCH /pms/:organisationId/:appointmentId/accept
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`, `appointmentId`
 - Controller: `AppointmentController.acceptRequested`
@@ -94,28 +94,28 @@ Covers the appointment lifecycle (request, reschedule, cancel, check-in, accept/
 
 ### PATCH /pms/:organisationId/:appointmentId/reject
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`, `appointmentId`
 - Controller: `AppointmentController.rejectRequested`
 
 ### PATCH /pms/:organisationId/:appointmentId/cancel
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`, `appointmentId`
 - Controller: `AppointmentController.cancelFromPMS`
 
 ### PATCH /pms/:organisationId/:appointmentId/checkin
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`, `appointmentId`
 - Controller: `AppointmentController.checkInAppointmentForPMS`
 
 ### PATCH /pms/:organisationId/:appointmentId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`, `appointmentId`
 - Body: `AppointmentRequestDTO`
@@ -123,7 +123,7 @@ Covers the appointment lifecycle (request, reschedule, cancel, check-in, accept/
 
 ### POST /pms/:organisationId/:appointmentId/forms
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`, `appointmentId`
 - Body: `AttachFormsBody`
@@ -131,7 +131,7 @@ Covers the appointment lifecycle (request, reschedule, cancel, check-in, accept/
 
 ### GET /pms/:organisationId/:appointmentId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`, `appointmentId`
 - Controller: `AppointmentController.getById`

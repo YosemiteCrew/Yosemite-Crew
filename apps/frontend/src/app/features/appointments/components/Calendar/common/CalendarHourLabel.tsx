@@ -17,6 +17,8 @@ type CalendarHourLabelProps = {
   className?: string;
 };
 
+// Time gutter type per the planner frame: 10.5px tabular numerals in --ink-faint,
+// right-aligned 10px inside the 64px gutter rather than left-hugging 12px ink.
 const CalendarHourLabel: React.FC<CalendarHourLabelProps> = ({
   hour,
   height,
@@ -27,11 +29,11 @@ const CalendarHourLabel: React.FC<CalendarHourLabelProps> = ({
   className = '',
 }) => (
   <div
-    className={`text-caption-2 text-text-primary pl-2! relative ${className}`}
+    className={`relative text-[10.5px] leading-none tabular-nums text-[var(--ink-faint)] ${className}`}
     style={{ height: `${height}px` }}
   >
     <span
-      className={`absolute top-0 ${pinFirstHour && hour === firstHour ? 'translate-y-0' : '-translate-y-1/2'}`}
+      className={`absolute top-0 right-[10px] ${pinFirstHour && hour === firstHour ? 'translate-y-0' : '-translate-y-1/2'}`}
     >
       {formatHourLabel(hour)}
     </span>
@@ -39,7 +41,7 @@ const CalendarHourLabel: React.FC<CalendarHourLabelProps> = ({
       slotOffsetMinutes.map((minute) => (
         <span
           key={`slot-time-${hour}-${minute}`}
-          className="absolute right-1 -translate-y-1/2 text-[10px] leading-none text-text-secondary text-right whitespace-nowrap"
+          className="absolute right-[10px] -translate-y-1/2 text-[9.5px] leading-none tabular-nums text-[var(--ink-faint)] text-right whitespace-nowrap"
           style={{ top: `${(minute / 60) * 100}%` }}
         >
           {formatMinuteLabel(hour * 60 + minute)}

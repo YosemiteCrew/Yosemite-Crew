@@ -2,6 +2,7 @@ import { jest, describe, it, expect, beforeEach } from "@jest/globals";
 import { Request, Response } from "express";
 import { InvoiceController } from "../../../src/controllers/app/invoice.controller";
 import { InvoiceService } from "../../../src/services/invoice.service";
+import { AuthUserMobileService } from "../../../src/services/authUserMobile.service";
 import logger from "../../../src/utils/logger";
 
 // ----------------------------------------------------------------------
@@ -20,6 +21,7 @@ jest.mock("../../../src/services/invoice.service", () => {
       getByPaymentIntentId: jest.fn(),
       createCheckoutSessionAndEmailParent: jest.fn(),
       addChargesToAppointment: jest.fn(),
+      bootstrapForAppointment: jest.fn(),
       listForOrganisation: jest.fn(),
       markInvoicePaidManually: jest.fn(),
       updatePaymentCollectionMethod: jest.fn(),
@@ -28,6 +30,12 @@ jest.mock("../../../src/services/invoice.service", () => {
     },
   };
 });
+
+jest.mock("../../../src/services/authUserMobile.service", () => ({
+  AuthUserMobileService: {
+    getByProviderUserId: jest.fn(),
+  },
+}));
 
 jest.mock("../../../src/utils/logger");
 
@@ -41,6 +49,7 @@ const { InvoiceServiceError } = jest.requireActual(
 // 2. Typed Mocks
 // ----------------------------------------------------------------------
 const mockedInvoiceService = jest.mocked(InvoiceService);
+const mockedAuthUserMobileService = jest.mocked(AuthUserMobileService);
 const mockedLogger = jest.mocked(logger);
 
 describe("InvoiceController", () => {
@@ -99,6 +108,7 @@ describe("InvoiceController", () => {
   describe("listInvoicesForAppointment", () => {
     it("should success (200)", async () => {
       req.params = { appointmentId: "apt1" };
+      (req as { organisationId?: string }).organisationId = "org_1";
       mockedInvoiceService.getByAppointmentId.mockResolvedValue([]);
 
       await InvoiceController.listInvoicesForAppointment(
@@ -108,14 +118,106 @@ describe("InvoiceController", () => {
 
       expect(mockedInvoiceService.getByAppointmentId).toHaveBeenCalledWith(
         "apt1",
-        undefined,
+        { organisationId: "org_1", parentId: null },
       );
       expect(statusMock).toHaveBeenCalledWith(200);
       expectFinanceEnvelope([]);
     });
 
+    it("should resolve mobile scope via parentId when no organisation", async () => {
+      req.params = { appointmentId: "apt1" };
+      (req as { userId?: string }).userId = "provider-1";
+      mockedAuthUserMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "parent-1",
+      } as any);
+      mockedInvoiceService.getByAppointmentId.mockResolvedValue([]);
+
+      await InvoiceController.listInvoicesForAppointment(
+        req as Request,
+        res as Response,
+      );
+
+      expect(
+        mockedAuthUserMobileService.getByProviderUserId,
+      ).toHaveBeenCalledWith("provider-1");
+      expect(mockedInvoiceService.getByAppointmentId).toHaveBeenCalledWith(
+        "apt1",
+        { organisationId: null, parentId: "parent-1" },
+      );
+      expect(statusMock).toHaveBeenCalledWith(200);
+    });
+
+    it("should 403 when mobile user has no linked parent (authUser null)", async () => {
+      req.params = { appointmentId: "apt1" };
+      (req as { userId?: string }).userId = "provider-1";
+      mockedAuthUserMobileService.getByProviderUserId.mockResolvedValue(
+        null as any,
+      );
+
+      await InvoiceController.listInvoicesForAppointment(
+        req as Request,
+        res as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(403);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Parent account is not linked to this mobile user",
+      });
+      expect(mockedInvoiceService.getByAppointmentId).not.toHaveBeenCalled();
+    });
+
+    it("should 403 when authUser exists but parentId is null", async () => {
+      req.params = { appointmentId: "apt1" };
+      (req as { userId?: string }).userId = "provider-1";
+      mockedAuthUserMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: null,
+      } as any);
+
+      await InvoiceController.listInvoicesForAppointment(
+        req as Request,
+        res as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(403);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Parent account is not linked to this mobile user",
+      });
+    });
+
+    it("should 403 when neither organisation nor userId present", async () => {
+      req.params = { appointmentId: "apt1" };
+
+      await InvoiceController.listInvoicesForAppointment(
+        req as Request,
+        res as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(403);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Parent account is not linked to this mobile user",
+      });
+      expect(
+        mockedAuthUserMobileService.getByProviderUserId,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("should handle service error with custom status", async () => {
+      req.params = { appointmentId: "apt1" };
+      (req as { organisationId?: string }).organisationId = "org_1";
+      mockServiceError("getByAppointmentId", 404, "No appointment");
+
+      await InvoiceController.listInvoicesForAppointment(
+        req as Request,
+        res as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(404);
+      expect(jsonMock).toHaveBeenCalledWith({ message: "No appointment" });
+    });
+
     it("should handle generic error (500)", async () => {
       req.params = { appointmentId: "apt1" };
+      (req as { organisationId?: string }).organisationId = "org_1";
       mockGenericError("getByAppointmentId");
 
       await InvoiceController.listInvoicesForAppointment(
@@ -125,12 +227,16 @@ describe("InvoiceController", () => {
 
       expect(mockedLogger.error).toHaveBeenCalled();
       expect(statusMock).toHaveBeenCalledWith(500);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Internal server error",
+      });
     });
   });
 
   describe("getInvoiceById", () => {
     it("should 404 if invoice not found", async () => {
       req.params = { invoiceId: "inv1" };
+      (req as { organisationId?: string }).organisationId = "org_1";
       // Cast null to any to bypass strict type check on getById return type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockedInvoiceService.getById.mockResolvedValue(null as any);
@@ -143,6 +249,7 @@ describe("InvoiceController", () => {
 
     it("should success (200)", async () => {
       req.params = { invoiceId: "inv1" };
+      (req as { organisationId?: string }).organisationId = "org_1";
       mockedInvoiceService.getById.mockResolvedValue({ id: "inv1" } as any);
 
       await InvoiceController.getInvoiceById(req as Request, res as Response);
@@ -151,19 +258,47 @@ describe("InvoiceController", () => {
       expectFinanceEnvelope({ id: "inv1" });
     });
 
+    it("should 403 when scope is unresolved", async () => {
+      req.params = { invoiceId: "inv1" };
+
+      await InvoiceController.getInvoiceById(req as Request, res as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(403);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Parent account is not linked to this mobile user",
+      });
+      expect(mockedInvoiceService.getById).not.toHaveBeenCalled();
+    });
+
+    it("should handle service error with custom status", async () => {
+      req.params = { invoiceId: "inv1" };
+      (req as { organisationId?: string }).organisationId = "org_1";
+      mockServiceError("getById", 404, "Not found");
+
+      await InvoiceController.getInvoiceById(req as Request, res as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(404);
+      expect(jsonMock).toHaveBeenCalledWith({ message: "Not found" });
+    });
+
     it("should handle generic error (500)", async () => {
       req.params = { invoiceId: "inv1" };
+      (req as { organisationId?: string }).organisationId = "org_1";
       mockGenericError("getById");
 
       await InvoiceController.getInvoiceById(req as Request, res as Response);
 
       expect(statusMock).toHaveBeenCalledWith(500);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Internal server error",
+      });
     });
   });
 
   describe("getInvoiceByPaymentIntentId", () => {
     it("should 404 if invoice not found", async () => {
       req.params = { paymentIntentId: "pi_123" };
+      (req as { organisationId?: string }).organisationId = "org_1";
       // Cast null to any
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockedInvoiceService.getByPaymentIntentId.mockResolvedValue(null as any);
@@ -175,13 +310,14 @@ describe("InvoiceController", () => {
 
       expect(mockedInvoiceService.getByPaymentIntentId).toHaveBeenCalledWith(
         "pi_123",
-        undefined,
+        { organisationId: "org_1", parentId: null },
       );
       expect(statusMock).toHaveBeenCalledWith(404);
     });
 
     it("should success (200)", async () => {
       req.params = { paymentIntentId: "pi_123" };
+      (req as { organisationId?: string }).organisationId = "org_1";
       mockedInvoiceService.getByPaymentIntentId.mockResolvedValue({
         id: "inv1",
       } as any);
@@ -193,13 +329,43 @@ describe("InvoiceController", () => {
 
       expect(mockedInvoiceService.getByPaymentIntentId).toHaveBeenCalledWith(
         "pi_123",
-        undefined,
+        { organisationId: "org_1", parentId: null },
       );
       expect(statusMock).toHaveBeenCalledWith(200);
     });
 
+    it("should 403 when scope is unresolved", async () => {
+      req.params = { paymentIntentId: "pi_123" };
+
+      await InvoiceController.getInvoiceByPaymentIntentId(
+        req as Request,
+        res as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(403);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Parent account is not linked to this mobile user",
+      });
+      expect(mockedInvoiceService.getByPaymentIntentId).not.toHaveBeenCalled();
+    });
+
+    it("should handle service error with custom status", async () => {
+      req.params = { paymentIntentId: "pi_123" };
+      (req as { organisationId?: string }).organisationId = "org_1";
+      mockServiceError("getByPaymentIntentId", 404, "Not found");
+
+      await InvoiceController.getInvoiceByPaymentIntentId(
+        req as Request,
+        res as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(404);
+      expect(jsonMock).toHaveBeenCalledWith({ message: "Not found" });
+    });
+
     it("should handle generic error (500)", async () => {
       req.params = { paymentIntentId: "pi_123" };
+      (req as { organisationId?: string }).organisationId = "org_1";
       mockGenericError("getByPaymentIntentId");
 
       await InvoiceController.getInvoiceByPaymentIntentId(
@@ -208,6 +374,9 @@ describe("InvoiceController", () => {
       );
 
       expect(statusMock).toHaveBeenCalledWith(500);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Internal server error",
+      });
     });
   });
 
@@ -249,6 +418,64 @@ describe("InvoiceController", () => {
         res as Response,
       );
       expect(statusMock).toHaveBeenCalledWith(400);
+    });
+
+    it("should 400 if item is a truthy non-object (string)", async () => {
+      req.body = { items: ["not-an-object"] };
+      await InvoiceController.addChargesToAppointment(
+        req as any,
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+    });
+
+    it("should accept item with description null and discountPercent omitted", async () => {
+      req.params = { appointmentId: "apt1" };
+      const item = {
+        name: "Item 1",
+        quantity: 1,
+        unitPrice: 100,
+        total: 100,
+        description: null,
+      };
+      req.body = { items: [item] };
+      mockedInvoiceService.addChargesToAppointment.mockResolvedValue({
+        id: "inv1",
+      } as any);
+
+      await InvoiceController.addChargesToAppointment(
+        req as any,
+        res as Response,
+      );
+
+      expect(mockedInvoiceService.addChargesToAppointment).toHaveBeenCalledWith(
+        "apt1",
+        [item],
+        undefined,
+      );
+      expect(statusMock).toHaveBeenCalledWith(200);
+    });
+
+    it("should accept item with description omitted (undefined)", async () => {
+      req.params = { appointmentId: "apt1" };
+      const item = {
+        name: "Item 2",
+        quantity: 2,
+        unitPrice: 50,
+        total: 100,
+        discountPercent: 10,
+      };
+      req.body = { items: [item] };
+      mockedInvoiceService.addChargesToAppointment.mockResolvedValue({
+        id: "inv2",
+      } as any);
+
+      await InvoiceController.addChargesToAppointment(
+        req as any,
+        res as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(200);
     });
 
     it("should 400 if item has invalid properties (branch coverage)", async () => {
@@ -417,6 +644,86 @@ describe("InvoiceController", () => {
       expect(statusMock).toHaveBeenCalledWith(422);
       expect(jsonMock).toHaveBeenCalledWith({ message: "Bad" });
     });
+
+    it("should handle generic error (500)", async () => {
+      req.params = { invoiceId: "inv1" };
+      mockGenericError("createCheckoutSessionAndEmailParent");
+
+      await InvoiceController.createCheckoutSessionForInvoice(
+        req as Request,
+        res as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(500);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Internal server error",
+      });
+    });
+  });
+
+  describe("bootstrapInvoiceForAppointment", () => {
+    it("should 400 if appointmentId missing", async () => {
+      req.params = {};
+
+      await InvoiceController.bootstrapInvoiceForAppointment(
+        req as any,
+        res as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Appointment Id is required",
+      });
+      expect(
+        mockedInvoiceService.bootstrapForAppointment,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("should success (200)", async () => {
+      req.params = { appointmentId: "apt1" };
+      mockedInvoiceService.bootstrapForAppointment.mockResolvedValue({
+        id: "inv1",
+      } as any);
+
+      await InvoiceController.bootstrapInvoiceForAppointment(
+        req as any,
+        res as Response,
+      );
+
+      expect(mockedInvoiceService.bootstrapForAppointment).toHaveBeenCalledWith(
+        "apt1",
+      );
+      expect(statusMock).toHaveBeenCalledWith(200);
+      expectFinanceEnvelope({ id: "inv1" });
+    });
+
+    it("should handle service error with custom status", async () => {
+      req.params = { appointmentId: "apt1" };
+      mockServiceError("bootstrapForAppointment", 404, "No appointment");
+
+      await InvoiceController.bootstrapInvoiceForAppointment(
+        req as any,
+        res as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(404);
+      expect(jsonMock).toHaveBeenCalledWith({ message: "No appointment" });
+    });
+
+    it("should handle generic error (500)", async () => {
+      req.params = { appointmentId: "apt1" };
+      mockGenericError("bootstrapForAppointment");
+
+      await InvoiceController.bootstrapInvoiceForAppointment(
+        req as any,
+        res as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(500);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Internal server error",
+      });
+    });
   });
 
   describe("markInvoicePaidManually", () => {
@@ -498,6 +805,22 @@ describe("InvoiceController", () => {
 
       expect(statusMock).toHaveBeenCalledWith(403);
       expect(jsonMock).toHaveBeenCalledWith({ message: "Forbidden" });
+    });
+
+    it("should handle generic error (500)", async () => {
+      (req as any).organisationId = "org1";
+      req.params = { invoiceId: "inv1" };
+      mockGenericError("markInvoicePaidManually");
+
+      await InvoiceController.markInvoicePaidManually(
+        req as Request,
+        res as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(500);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Internal server error",
+      });
     });
   });
 
@@ -581,6 +904,23 @@ describe("InvoiceController", () => {
       expect(statusMock).toHaveBeenCalledWith(422);
       expect(jsonMock).toHaveBeenCalledWith({ message: "Bad" });
     });
+
+    it("should handle generic error (500)", async () => {
+      (req as any).organisationId = "org1";
+      req.params = { invoiceId: "inv1" };
+      req.body = { paymentCollectionMethod: "AUTO" };
+      mockGenericError("updatePaymentCollectionMethod");
+
+      await InvoiceController.updatePaymentCollectionMethod(
+        req as any,
+        res as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(500);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Internal server error",
+      });
+    });
   });
 
   describe("issueCreditNote", () => {
@@ -597,7 +937,20 @@ describe("InvoiceController", () => {
       });
     });
 
-    it("should 400 if amount is invalid", async () => {
+    it("should 400 if organisationId missing", async () => {
+      req.params = { invoiceId: "inv1" };
+      req.body = { amount: 10 };
+
+      await InvoiceController.issueCreditNote(req as any, res as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Organisation Id is required",
+      });
+      expect(mockedInvoiceService.issueCreditNote).not.toHaveBeenCalled();
+    });
+
+    it("should 400 if amount is zero or negative", async () => {
       (req as any).organisationId = "org1";
       req.params = { invoiceId: "inv1" };
       req.body = { amount: 0 };
@@ -608,6 +961,120 @@ describe("InvoiceController", () => {
       expect(jsonMock).toHaveBeenCalledWith({
         message: "Credit note amount is required",
       });
+    });
+
+    it("should 400 if amount is not a number", async () => {
+      (req as any).organisationId = "org1";
+      req.params = { invoiceId: "inv1" };
+      req.body = { amount: "25" };
+
+      await InvoiceController.issueCreditNote(req as any, res as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Credit note amount is required",
+      });
+    });
+
+    it("should 400 if amount is not finite", async () => {
+      (req as any).organisationId = "org1";
+      req.params = { invoiceId: "inv1" };
+      req.body = { amount: Number.POSITIVE_INFINITY };
+
+      await InvoiceController.issueCreditNote(req as any, res as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Credit note amount is required",
+      });
+    });
+
+    it("should default reason/metadata when omitted or invalid", async () => {
+      (req as any).organisationId = "org1";
+      req.params = { invoiceId: "inv1" };
+      // reason is a non-string, metadata is an array (invalid) => both undefined
+      req.body = { amount: 25, reason: 42, metadata: ["not", "valid"] };
+      mockedInvoiceService.issueCreditNote.mockResolvedValue({
+        id: "cn_1",
+      } as any);
+
+      await InvoiceController.issueCreditNote(req as any, res as Response);
+
+      expect(mockedInvoiceService.issueCreditNote).toHaveBeenCalledWith(
+        "inv1",
+        {
+          amount: 25,
+          reason: undefined,
+          metadata: undefined,
+        },
+      );
+      expect(statusMock).toHaveBeenCalledWith(201);
+    });
+
+    it("should reject metadata that is a truthy non-object", async () => {
+      (req as any).organisationId = "org1";
+      req.params = { invoiceId: "inv1" };
+      req.body = { amount: 25, metadata: "not-an-object" };
+      mockedInvoiceService.issueCreditNote.mockResolvedValue({
+        id: "cn_1",
+      } as any);
+
+      await InvoiceController.issueCreditNote(req as any, res as Response);
+
+      expect(mockedInvoiceService.issueCreditNote).toHaveBeenCalledWith(
+        "inv1",
+        {
+          amount: 25,
+          reason: undefined,
+          metadata: undefined,
+        },
+      );
+    });
+
+    it("should reject metadata with non-primitive values", async () => {
+      (req as any).organisationId = "org1";
+      req.params = { invoiceId: "inv1" };
+      req.body = {
+        amount: 25,
+        metadata: { nested: { deep: true } },
+      };
+      mockedInvoiceService.issueCreditNote.mockResolvedValue({
+        id: "cn_1",
+      } as any);
+
+      await InvoiceController.issueCreditNote(req as any, res as Response);
+
+      expect(mockedInvoiceService.issueCreditNote).toHaveBeenCalledWith(
+        "inv1",
+        {
+          amount: 25,
+          reason: undefined,
+          metadata: undefined,
+        },
+      );
+    });
+
+    it("should accept metadata with mixed primitive values", async () => {
+      (req as any).organisationId = "org1";
+      req.params = { invoiceId: "inv1" };
+      req.body = {
+        amount: 25,
+        metadata: { a: "x", b: 1, c: true },
+      };
+      mockedInvoiceService.issueCreditNote.mockResolvedValue({
+        id: "cn_1",
+      } as any);
+
+      await InvoiceController.issueCreditNote(req as any, res as Response);
+
+      expect(mockedInvoiceService.issueCreditNote).toHaveBeenCalledWith(
+        "inv1",
+        {
+          amount: 25,
+          reason: undefined,
+          metadata: { a: "x", b: 1, c: true },
+        },
+      );
     });
 
     it("should success (201)", async () => {
@@ -647,9 +1114,37 @@ describe("InvoiceController", () => {
       expect(statusMock).toHaveBeenCalledWith(409);
       expect(jsonMock).toHaveBeenCalledWith({ message: "Too much" });
     });
+
+    it("should handle generic error (500)", async () => {
+      (req as any).organisationId = "org1";
+      req.params = { invoiceId: "inv1" };
+      req.body = { amount: 25 };
+      mockGenericError("issueCreditNote");
+
+      await InvoiceController.issueCreditNote(req as any, res as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(500);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Internal server error",
+      });
+    });
   });
 
   describe("voidCreditNote", () => {
+    it("should 400 if invoiceId missing", async () => {
+      (req as any).organisationId = "org1";
+      req.params = { creditNoteId: "cn1" } as any;
+      req.body = {};
+
+      await InvoiceController.voidCreditNote(req as any, res as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Invoice Id is required",
+      });
+      expect(mockedInvoiceService.voidCreditNote).not.toHaveBeenCalled();
+    });
+
     it("should 400 if creditNoteId missing", async () => {
       (req as any).organisationId = "org1";
       req.params = { invoiceId: "inv1" } as any;
@@ -661,6 +1156,19 @@ describe("InvoiceController", () => {
       expect(jsonMock).toHaveBeenCalledWith({
         message: "Credit note Id is required",
       });
+    });
+
+    it("should 400 if organisationId missing", async () => {
+      req.params = { invoiceId: "inv1", creditNoteId: "cn1" };
+      req.body = {};
+
+      await InvoiceController.voidCreditNote(req as any, res as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Organisation Id is required",
+      });
+      expect(mockedInvoiceService.voidCreditNote).not.toHaveBeenCalled();
     });
 
     it("should success (200)", async () => {
@@ -696,6 +1204,20 @@ describe("InvoiceController", () => {
 
       expect(statusMock).toHaveBeenCalledWith(409);
       expect(jsonMock).toHaveBeenCalledWith({ message: "Cannot void" });
+    });
+
+    it("should handle generic error (500)", async () => {
+      (req as any).organisationId = "org1";
+      req.params = { invoiceId: "inv1", creditNoteId: "cn1" };
+      req.body = {};
+      mockGenericError("voidCreditNote");
+
+      await InvoiceController.voidCreditNote(req as any, res as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(500);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Internal server error",
+      });
     });
   });
 });

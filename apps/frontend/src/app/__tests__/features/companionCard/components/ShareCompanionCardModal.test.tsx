@@ -95,7 +95,7 @@ describe('ShareCompanionCardModal', () => {
   it('lists active links and revokes one', async () => {
     const user = userEvent.setup();
     (service.listShareTokens as jest.Mock).mockResolvedValue([
-      { id: 's1', audience: 'PUBLIC', viewCount: 3, revokedAt: null },
+      { id: 's1', audience: 'PUBLIC', viewCount: 3, revokedAt: null, expiresAt: null },
       { id: 's2', audience: 'REFERRAL_CLINIC', viewCount: 0, revokedAt: '2026-01-01' },
     ]);
     (service.revokeShareToken as jest.Mock).mockResolvedValue({});
@@ -103,6 +103,29 @@ describe('ShareCompanionCardModal', () => {
     expect(await screen.findByText('Public link - 3 views')).toBeInTheDocument();
     await user.click(screen.getByText('Revoke'));
     expect(service.revokeShareToken).toHaveBeenCalledWith('s1');
+  });
+
+  it('hides expired links and keeps unexpired ones', async () => {
+    const future = new Date(Date.now() + 60_000).toISOString();
+    const past = new Date(Date.now() - 60_000).toISOString();
+    (service.listShareTokens as jest.Mock).mockResolvedValue([
+      { id: 's1', audience: 'REFERRAL_CLINIC', viewCount: 2, revokedAt: null, expiresAt: past },
+      { id: 's2', audience: 'PUBLIC', viewCount: 5, revokedAt: null, expiresAt: future },
+    ]);
+    open();
+    expect(await screen.findByText('Public link - 5 views')).toBeInTheDocument();
+    expect(screen.queryByText('Referral link - 2 views')).not.toBeInTheDocument();
+  });
+
+  it('hides the active list when every link has expired', async () => {
+    const past = new Date(Date.now() - 60_000).toISOString();
+    (service.listShareTokens as jest.Mock).mockResolvedValue([
+      { id: 's1', audience: 'REFERRAL_CLINIC', viewCount: 2, revokedAt: null, expiresAt: past },
+    ]);
+    open();
+    await waitFor(() => expect(service.listShareTokens).toHaveBeenCalledWith('p1'));
+    expect(screen.queryByText('Active share links')).not.toBeInTheDocument();
+    expect(screen.queryByText('Revoke')).not.toBeInTheDocument();
   });
 
   it('survives a failing token list and does not fetch when closed', async () => {

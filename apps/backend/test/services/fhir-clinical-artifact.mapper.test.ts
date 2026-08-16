@@ -43,6 +43,7 @@ describe("clinicalArtifactFhirMapper", () => {
       appointmentId: "appt-1",
       caseId: null,
       encounterId: "enc-1",
+      patientId: "companion-1",
       kind: "PRESCRIPTION" as const,
       status: "DRAFT" as const,
       templateId: "tmpl-1",
@@ -107,6 +108,7 @@ describe("clinicalArtifactFhirMapper", () => {
       appointmentId: "appt-1",
       caseId: null,
       encounterId: "enc-1",
+      patientId: "companion-1",
       kind: "VITAL_RECORD" as const,
       status: "IN_PROGRESS" as const,
       templateId: "tmpl-1",
@@ -169,6 +171,8 @@ describe("clinicalArtifactFhirMapper", () => {
       );
     expect(resource.resourceType).toBe("MedicationRequest");
     expect(resource.id).toBe("artifact-2");
+    expect(resource.subject.reference).toBe("Patient/companion-1");
+    expect(resource.encounter?.reference).toBe("Encounter/enc-1");
     expect(
       resource.extension?.some((extension) =>
         extension.url.includes("prescription-medications"),
@@ -201,11 +205,13 @@ describe("clinicalArtifactFhirMapper", () => {
         artifact: {
           ...prescriptionRecord.artifact,
           status: "IN_PROGRESS" as const,
+          patientId: null,
         },
       },
     );
     // An IN_PROGRESS prescription serialises to FHIR status 'accepted'...
     expect(resource.status).toBe("accepted");
+    expect(resource.subject).toEqual({ display: "Unknown patient" });
 
     const input =
       clinicalArtifactFhirMapper.medicationRequestToPrescriptionInput(
@@ -258,6 +264,8 @@ describe("clinicalArtifactFhirMapper", () => {
       reference: "Practitioner/nurse-1",
       display: "Nurse Joy",
     });
+    expect(resource.subject?.reference).toBe("Patient/companion-1");
+    expect(resource.encounter?.reference).toBe("Encounter/enc-1");
     expect(
       resource.extension?.some((extension) =>
         extension.url.includes("vital-record-vitals"),
@@ -317,6 +325,7 @@ describe("clinicalArtifactFhirMapper", () => {
       status: "DRAFT" | "IN_PROGRESS" | "COMPLETED" | "SIGNED" | "VOID";
       encounterId: string | null;
       appointmentId: string | null;
+      patientId: string | null;
       authorId: string | null;
       summary: string | null;
     }> = {},
@@ -326,6 +335,7 @@ describe("clinicalArtifactFhirMapper", () => {
     appointmentId: "appt-1",
     caseId: null,
     encounterId: "enc-1",
+    patientId: "companion-1",
     kind,
     status: "SIGNED" as const,
     templateId: null,
@@ -368,6 +378,7 @@ describe("clinicalArtifactFhirMapper", () => {
       status: "VOID",
       encounterId: null,
       appointmentId: null,
+      patientId: null,
     }),
     immunization: {
       ...immunizationFull.immunization,
@@ -391,7 +402,10 @@ describe("clinicalArtifactFhirMapper", () => {
     expect(resource.status).toBe("completed");
     expect(resource.primarySource).toBe(true);
     expect(resource.lotNumber).toBe("LOT9");
-    expect(resource.patient.reference).toBe("Encounter/enc-1");
+    expect(resource.patient.reference).toBe("Patient/companion-1");
+    expect(resource.encounter?.reference).toBe("Encounter/enc-1");
+    expect(resource.occurrenceDateTime).toBe(now.toISOString());
+    expect(resource).not.toHaveProperty("occurrenceString");
     expect(resource.vaccineCode.text).toBe("Nobivac Rabies");
     expect(
       resource.extension?.some((e) =>
@@ -408,9 +422,7 @@ describe("clinicalArtifactFhirMapper", () => {
     expect(resource.lotNumber).toBeUndefined();
     expect(resource.manufacturer).toBeUndefined();
     expect(resource.site).toBeUndefined();
-    expect(resource.patient.reference).toBe(
-      "Immunization/artifact-IMMUNIZATION",
-    );
+    expect(resource.patient).toEqual({ display: "Unknown patient" });
     expect(resource.encounter).toBeUndefined();
   });
 
@@ -433,9 +445,14 @@ describe("clinicalArtifactFhirMapper", () => {
     expect(adequate.valueQuantity?.value).toBe(1.8);
     expect(adequate.interpretation?.[0]?.coding?.[0]?.code).toBe("ADEQUATE");
     expect(adequate.performer?.[0]).toEqual({ display: "APHA Weybridge" });
+    expect(adequate.subject?.reference).toBe("Patient/companion-1");
+    expect(adequate.encounter?.reference).toBe("Encounter/enc-1");
 
     const inadequate = clinicalArtifactFhirMapper.rabiesTitrationToObservation({
-      artifact: artifact("RABIES_TITRATION", { status: "DRAFT" }),
+      artifact: artifact("RABIES_TITRATION", {
+        status: "DRAFT",
+        patientId: null,
+      }),
       rabiesTitration: {
         id: "tit-2",
         artifactId: "artifact-RABIES_TITRATION",
@@ -452,6 +469,7 @@ describe("clinicalArtifactFhirMapper", () => {
     expect(inadequate.interpretation?.[0]?.coding?.[0]?.code).toBe(
       "INADEQUATE",
     );
+    expect(inadequate.subject).toBeUndefined();
   });
 
   it("maps a parasite treatment to a FHIR Procedure", () => {
@@ -475,6 +493,8 @@ describe("clinicalArtifactFhirMapper", () => {
     expect(full.code?.text).toBe("Milbemax");
     expect(full.performer?.[0]?.actor.reference).toBe("Practitioner/vet-1");
     expect(full.note?.[0]?.text).toBe("given orally");
+    expect(full.subject.reference).toBe("Patient/companion-1");
+    expect(full.encounter?.reference).toBe("Encounter/enc-1");
 
     const bare = clinicalArtifactFhirMapper.parasiteTreatmentToProcedure({
       artifact: artifact("PARASITE_TREATMENT", {
@@ -482,6 +502,7 @@ describe("clinicalArtifactFhirMapper", () => {
         authorId: null,
         encounterId: null,
         appointmentId: null,
+        patientId: null,
       }),
       parasiteTreatment: {
         id: "par-2",
@@ -498,9 +519,7 @@ describe("clinicalArtifactFhirMapper", () => {
     });
     expect(bare.status).toBe("in-progress");
     expect(bare.performer).toBeUndefined();
-    expect(bare.subject.reference).toBe(
-      "Procedure/artifact-PARASITE_TREATMENT",
-    );
+    expect(bare.subject).toEqual({ display: "Unknown patient" });
     expect(bare.note).toBeUndefined();
   });
 

@@ -3,6 +3,14 @@ import type { TaskAudience } from "./task.service";
 
 type RecurrenceType = "ONCE" | "DAILY" | "WEEKLY" | "CUSTOM";
 
+export type TaskSeedMedication = {
+  name?: string;
+  type?: string;
+  dosage?: string;
+  frequency?: string;
+  notes?: string;
+};
+
 export type TaskWorkflowSeed = {
   source: "YC_LIBRARY" | "ORG_TEMPLATE" | "CUSTOM";
   templateId?: string;
@@ -18,13 +26,7 @@ export type TaskWorkflowSeed = {
   name: string;
   description?: string;
   additionalNotes?: string;
-  medication?: {
-    name?: string;
-    type?: string;
-    dosage?: string;
-    frequency?: string;
-    notes?: string;
-  };
+  medication?: TaskSeedMedication;
   observationToolId?: string;
   dueAt: Date;
   timezone?: string;
@@ -53,7 +55,7 @@ export type TaskTemplateInstanceData = {
   defaultRole: TaskAudience;
   defaultAssigneeRole?: TaskAudience;
   dueOffsetMinutes?: number;
-  defaultMedication?: TaskWorkflowSeed["medication"];
+  defaultMedication?: TaskSeedMedication;
   defaultObservationToolId?: string;
   defaultRecurrence?: {
     type: RecurrenceType;
@@ -76,7 +78,7 @@ export type CarePathwayTaskBlock = {
   dependsOn?: string[];
   reminderOffsetMinutes?: number;
   additionalNotes?: string;
-  medication?: TaskWorkflowSeed["medication"];
+  medication?: TaskSeedMedication;
   observationToolId?: string;
   recurrence?: {
     type: RecurrenceType;
@@ -290,14 +292,15 @@ const getWorkflowValue = (
 const asTrimmedString = (value: unknown): string =>
   typeof value === "string" ? value.trim() : "";
 
+const TASK_AUDIENCE_BY_VALUE = new Map<unknown, TaskAudience>([
+  ["EMPLOYEE_TASK", "EMPLOYEE_TASK"],
+  ["PARENT_TASK", "PARENT_TASK"],
+  ["EMPLOYEE", "EMPLOYEE_TASK"],
+  ["PARENT", "PARENT_TASK"],
+]);
+
 const toTaskAudience = (value: unknown): TaskAudience | undefined =>
-  value === "EMPLOYEE_TASK" || value === "PARENT_TASK"
-    ? value
-    : value === "EMPLOYEE"
-      ? "EMPLOYEE_TASK"
-      : value === "PARENT"
-        ? "PARENT_TASK"
-        : undefined;
+  TASK_AUDIENCE_BY_VALUE.get(value);
 
 const toTaskKind = (value: unknown): TaskKind | undefined =>
   value === "MEDICATION" ||
@@ -349,8 +352,7 @@ const parseTaskTemplateInstanceData = (
       "Task",
     description:
       (getWorkflowValue(snapshot, "description", ["definition"]) as
-        | string
-        | undefined) ?? undefined,
+        string | undefined) ?? undefined,
     defaultRole,
     defaultAssigneeRole:
       toTaskAudience(
@@ -369,8 +371,7 @@ const parseTaskTemplateInstanceData = (
         "assignment",
       ]) as string | undefined) ?? undefined,
     defaultRecurrence: getWorkflowValue(snapshot, "recurrence", ["timing"]) as
-      | TaskTemplateInstanceData["defaultRecurrence"]
-      | undefined,
+      TaskTemplateInstanceData["defaultRecurrence"] | undefined,
     defaultReminderOffsetMinutes:
       typeof getWorkflowValue(snapshot, "defaultReminderOffsetMinutes", [
         "timing",
@@ -381,8 +382,7 @@ const parseTaskTemplateInstanceData = (
         : undefined,
     syncWithCalendar:
       (getWorkflowValue(snapshot, "syncWithCalendar", ["assignment"]) as
-        | boolean
-        | undefined) ?? undefined,
+        boolean | undefined) ?? undefined,
   };
 };
 
@@ -414,8 +414,7 @@ const parseCarePathwayInstanceData = (
         additionalNotes:
           (block.additionalNotes as string | undefined) ?? undefined,
         medication: block.medication as
-          | TaskWorkflowSeed["medication"]
-          | undefined,
+          TaskWorkflowSeed["medication"] | undefined,
         observationToolId:
           (block.observationToolId as string | undefined) ?? undefined,
         recurrence: isRecord(block.recurrence)
@@ -453,16 +452,14 @@ const parseCarePathwayInstanceData = (
         : undefined,
     followUpTaskName:
       (getWorkflowValue(snapshot, "followUpTaskName", ["discharge"]) as
-        | string
-        | undefined) ?? undefined,
+        string | undefined) ?? undefined,
     signOffRequired:
       (getWorkflowValue(snapshot, "signOffRequired", ["discharge"]) as
-        | boolean
-        | undefined) ?? undefined,
+        boolean | undefined) ?? undefined,
     shiftWindows: Array.isArray(
       getWorkflowValue(snapshot, "shiftWindows", ["schedule"]),
     )
-      ? ((
+      ? (
           getWorkflowValue(snapshot, "shiftWindows", ["schedule"]) as Array<{
             start?: unknown;
             end?: unknown;
@@ -483,12 +480,12 @@ const parseCarePathwayInstanceData = (
                     typeof day === "number" && day >= 0 && day <= 6,
                 )
               : undefined,
-          })) as ParsedShiftWindow[])
+          }))
       : undefined,
     exceptions: Array.isArray(
       getWorkflowValue(snapshot, "exceptions", ["schedule"]),
     )
-      ? ((
+      ? (
           getWorkflowValue(snapshot, "exceptions", ["schedule"]) as Array<{
             date?: unknown;
             mode?: unknown;
@@ -506,7 +503,7 @@ const parseCarePathwayInstanceData = (
             mode: entry.mode as "SKIP" | "SHIFT",
             start: typeof entry.start === "string" ? entry.start : undefined,
             end: typeof entry.end === "string" ? entry.end : undefined,
-          })) as ParsedScheduleException[])
+          }))
       : undefined,
   };
 };
@@ -625,7 +622,7 @@ const buildCarePathwaySeed = (
     observationToolId: block.observationToolId,
     dueAt,
     timezone: context.timezone,
-    recurrence: buildRecurrence(block.recurrence, undefined),
+    recurrence: buildRecurrence(block.recurrence),
     reminder:
       block.reminderOffsetMinutes === undefined
         ? undefined

@@ -38,7 +38,9 @@ const SearchResultsDropdown = ({
 }: SearchResultsDropdownProps) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
   const positionSnapshot = useSyncExternalStore(
     subscribeToWindowMetrics,
     () => {

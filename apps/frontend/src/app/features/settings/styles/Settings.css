@@ -20,3 +20,236 @@
   font-family: var(--font-satoshi);
   font-weight: 600;
 }
+
+/* ==========================================================================
+   Settings design layer — every colour here resolves through a live custom
+   property so the light/dark theme swap ripples without a re-render.
+   ========================================================================== */
+
+/* --- Page header: subtitle + "Changes save automatically" indicator ------- */
+
+.yc-settings-subtitle {
+  font-size: 13.5px;
+  color: var(--ink-muted);
+}
+
+.yc-settings-autosave {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+  padding: 7px 13px;
+  border-radius: 9999px;
+  background: var(--pill-raised);
+  border: 1px solid var(--hairline);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-body);
+  white-space: nowrap;
+}
+
+.yc-settings-autosave-dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 9999px;
+  background: var(--success);
+  animation: ycPulseDot 3.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes ycPulseDot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yc-settings-autosave-dot {
+    animation: none;
+  }
+}
+
+/* --- Compact inline dropdown pill (preference rows) ----------------------- */
+
+.yc-settings-pill-select-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  max-width: 100%;
+}
+
+.yc-settings-pill-select {
+  appearance: none;
+  -webkit-appearance: none;
+  max-width: 100%;
+  height: 36px;
+  padding: 0 31px 0 13px;
+  border-radius: 11px;
+  border: 1.5px solid var(--hairline);
+  background: var(--field-bg);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-body);
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.yc-settings-pill-select:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
+.yc-settings-pill-chevron {
+  position: absolute;
+  right: 12px;
+  display: flex;
+  pointer-events: none;
+  color: var(--ink-faint);
+}
+
+/* --- Hours stepper (appointment lock window) ------------------------------ */
+
+.yc-settings-hours-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.yc-settings-hours-field {
+  display: flex;
+  align-items: center;
+  height: 34px;
+  overflow: hidden;
+  border: 1.5px solid var(--hairline);
+  border-radius: 10px;
+  background: var(--field-bg);
+}
+
+.yc-settings-hours-field:focus-within {
+  border-color: var(--blue);
+}
+
+.yc-settings-hours-input {
+  min-width: 0;
+  width: 58px;
+  height: 100%;
+  padding: 0 11px;
+  border: 0;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.yc-settings-hours-input::-webkit-outer-spin-button,
+.yc-settings-hours-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.yc-settings-hours-suffix {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  padding: 0 9px;
+  background: var(--inset);
+  border-left: 1px solid var(--hairline);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+/* --- Bordered "ghost" pill button (Edit hours) ---------------------------- */
+
+.yc-settings-ghost-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  height: 34px;
+  padding: 0 15px;
+  border-radius: 9999px;
+  border: 1px solid var(--divider);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-body);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.yc-settings-ghost-pill:hover {
+  border-color: var(--blue);
+  color: var(--blue-text);
+}
+
+.yc-settings-ghost-pill-icon {
+  color: var(--ink-faint);
+}
+
+/* --- Card header link action (+ New organization) ------------------------- */
+
+.yc-settings-card-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--blue-text);
+  white-space: nowrap;
+}
+
+.yc-settings-card-action:hover {
+  text-decoration: underline;
+}
+
+/* --- Availability editor chrome (header subtitle + timezone footer) ------- */
+
+.yc-settings-editor-subtitle {
+  display: block;
+  font-size: 12.5px;
+  color: var(--ink-muted);
+}
+
+.yc-settings-editor-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 14px 24px;
+  border-top: 1px solid var(--hairline);
+  border-radius: 0 0 17px 17px;
+  background: var(--screen-2);
+}
+
+.yc-settings-tz-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+.yc-settings-tz-note-icon {
+  flex: none;
+  color: var(--ink-faint);
+}

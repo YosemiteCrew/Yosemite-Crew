@@ -32,6 +32,11 @@ const firstName = (name: string): string => name.split(' ')[0] || name;
 const audienceLabel = (audience: ShareTokenResponseDTO['audience']): string =>
   audience === 'REFERRAL_CLINIC' ? 'Referral link' : 'Public link';
 
+// Mirrors the public resolver, which rejects a token once it is revoked or past
+// its expiry - an expired link must not be offered as an active share.
+const isLive = (token: ShareTokenResponseDTO, now: number): boolean =>
+  !token.revokedAt && (!token.expiresAt || new Date(token.expiresAt).getTime() >= now);
+
 const ShareCompanionCardModal = ({
   open,
   card,
@@ -43,8 +48,10 @@ const ShareCompanionCardModal = ({
   // useNotify returns a fresh `notify` each render; keep it in a ref so callbacks
   // stay stable and the effect does not re-fire fetches in a loop.
   const notifyRef = useRef(notify);
-  notifyRef.current = notify;
-  const [tokens, setTokens] = useState<ShareTokenResponseDTO[]>([]);
+  useEffect(() => {
+    notifyRef.current = notify;
+  }, [notify]);
+  const [liveTokens, setLiveTokens] = useState<ShareTokenResponseDTO[]>([]);
   const [issued, setIssued] = useState<IssueShareTokenResultDTO | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -52,17 +59,39 @@ const ShareCompanionCardModal = ({
   // share-link list needs the sharing service, so a failure here is non-fatal.
   const refreshTokens = useCallback(async () => {
     try {
-      setTokens(await listShareTokens(companionId));
+      const now = Date.now();
+      const fetched = await listShareTokens(companionId);
+      setLiveTokens(fetched.filter((token) => isLive(token, now)));
     } catch {
-      setTokens([]);
+      setLiveTokens([]);
     }
   }, [companionId]);
 
+  // Loads through a promise chain rather than calling refreshTokens() so no
+  // state is set synchronously while the effect body is running.
   useEffect(() => {
     if (!open) return;
+    let active = true;
+    const now = Date.now();
+    listShareTokens(companionId)
+      .then((fetched) => {
+        if (active) setLiveTokens(fetched.filter((token) => isLive(token, now)));
+      })
+      .catch(() => {
+        if (active) setLiveTokens([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [open, companionId]);
+
+  // Dismissing clears the just-issued link so reopening the sheet never shows a
+  // stale token. Done on close (an event) rather than on open, which would mean
+  // setting state synchronously inside the effect above.
+  const handleClose = useCallback(() => {
     setIssued(null);
-    void refreshTokens();
-  }, [open, refreshTokens]);
+    onClose();
+  }, [onClose]);
 
   const handleIssue = async () => {
     setBusy(true);
@@ -110,15 +139,13 @@ const ShareCompanionCardModal = ({
     }
   };
 
-  const liveTokens = tokens.filter((token) => !token.revokedAt);
-
   // Render nothing when closed so the card content is not mounted (and duplicated)
   // in the page DOM behind the overlay.
   if (!open) return null;
 
   return (
-    <CenterModal showModal={open} setShowModal={() => onClose()} onClose={onClose}>
-      <ModalHeader title={`Share ${firstName(companionName)}'s card`} onClose={onClose} />
+    <CenterModal showModal={open} setShowModal={handleClose} onClose={handleClose}>
+      <ModalHeader title={`Share ${firstName(companionName)}'s card`} onClose={handleClose} />
       <div className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto p-1">
         {card && <CompanionIdCard card={card} />}
 

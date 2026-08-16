@@ -1,10 +1,19 @@
-import React, {useImperativeHandle, useRef} from 'react';
-import {Alert, Linking} from 'react-native';
+import React, {useImperativeHandle, useMemo, useRef} from 'react';
+import {Alert, Image, Linking, StyleSheet, Text, View} from 'react-native';
 import {useTranslation} from 'react-i18next';
-import ConfirmActionBottomSheet, {
-  ConfirmActionBottomSheetRef,
-} from '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet';
-import type {AppUpdatePrompt} from '@/features/appUpdate/services/appUpdatePolicy';
+import Icon from 'react-native-vector-icons/Ionicons';
+import CustomBottomSheet, {
+  type BottomSheetRef,
+} from '@/shared/components/common/BottomSheet/BottomSheet';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
+import {PrimaryActionButton} from '@/shared/components/common/PrimaryActionButton/PrimaryActionButton';
+import {useTheme} from '@/hooks';
+import {Images} from '@/assets/images';
+import type {Theme} from '@/theme';
+import {
+  isTrustedStoreUrl,
+  type AppUpdatePrompt,
+} from '@/features/appUpdate/services/appUpdatePolicy';
 
 export type AppUpdateBottomSheetRef = {
   open: () => void;
@@ -17,6 +26,15 @@ type AppUpdateBottomSheetProps = {
   initialOpen?: boolean;
 };
 
+// Category icons for the changelog rows (warm-bone design). The list text comes
+// from real update-policy data; the icons cycle to give each line a category
+// glyph, tinted `blueText`.
+const CHANGELOG_ICONS = [
+  'sparkles-outline',
+  'flash-outline',
+  'bug-outline',
+] as const;
+
 const AppUpdateBottomSheet = ({
   prompt,
   onDeferred,
@@ -24,30 +42,56 @@ const AppUpdateBottomSheet = ({
   ref,
 }: AppUpdateBottomSheetProps & {ref?: React.Ref<AppUpdateBottomSheetRef>}) => {
   const {t} = useTranslation();
-  const bottomSheetRef = useRef<ConfirmActionBottomSheetRef>(null);
+  const {theme} = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const bottomSheetRef = useRef<BottomSheetRef>(null);
   const deferredHandledRef = useRef(false);
   const hasOpenedRef = useRef(false);
+  const isRequired = prompt.kind === 'required';
 
   useImperativeHandle(ref, () => ({
-    open: () => bottomSheetRef.current?.open(),
+    open: () => bottomSheetRef.current?.snapToIndex(0),
     close: () => bottomSheetRef.current?.close(),
   }));
 
   const title =
     prompt.title ||
-    (prompt.kind === 'required'
-      ? t('appUpdate.requiredTitle')
-      : t('appUpdate.optionalTitle'));
+    (isRequired ? t('appUpdate.requiredTitle') : t('appUpdate.optionalTitle'));
 
   const message =
     prompt.message ||
-    (prompt.kind === 'required'
+    (isRequired
       ? t('appUpdate.requiredMessage')
       : t('appUpdate.optionalMessage'));
+
+  const changelog = message
+    .split('\n')
+    .flatMap(line => {
+      const text = line.trim();
+      return text ? [text] : [];
+    })
+    .map((text, index) => ({
+      key: `changelog-${index}`,
+      text,
+      icon: CHANGELOG_ICONS[index % CHANGELOG_ICONS.length],
+    }));
+
+  const versionLine = prompt.latestVersion
+    ? `${prompt.currentVersion} → ${prompt.latestVersion}`
+    : prompt.currentVersion;
 
   const handleOpenStore = async () => {
     if (!prompt.storeUrl) {
       Alert.alert(t('common.error'), t('appUpdate.missingStoreUrl'));
+      return;
+    }
+
+    if (!isTrustedStoreUrl(prompt.storeUrl)) {
+      console.warn(
+        '[AppUpdate] Refusing to open untrusted store URL',
+        prompt.storeUrl,
+      );
+      Alert.alert(t('common.error'), t('appUpdate.openStoreFailed'));
       return;
     }
 
@@ -59,18 +103,33 @@ const AppUpdateBottomSheet = ({
     }
   };
 
+  const handleDefer = () => {
+    deferredHandledRef.current = true;
+    onDeferred?.();
+    bottomSheetRef.current?.close();
+  };
+
   return (
-    <ConfirmActionBottomSheet
+    <CustomBottomSheet
       ref={bottomSheetRef}
-      title={title}
-      message={message}
-      snapPoints={['40%']}
+      snapPoints={['90%']}
       initialIndex={initialOpen ? 0 : -1}
-      enablePanDown={prompt.kind !== 'required'}
-      enableHandlePanning={prompt.kind !== 'required'}
-      showCloseButton={prompt.kind !== 'required'}
-      backdropPressBehavior={prompt.kind === 'required' ? 'none' : 'close'}
-      onSheetChange={index => {
+      zIndex={100}
+      behavior={{
+        panDownToClose: !isRequired,
+        dynamicSizing: true,
+        backdrop: true,
+        handlePanningGesture: !isRequired,
+        contentPanningGesture: false,
+      }}
+      backdropOpacity={0.5}
+      backdropAppearsOnIndex={0}
+      backdropDisappearsOnIndex={-1}
+      backdropPressBehavior={isRequired ? 'none' : 'close'}
+      backgroundStyle={styles.sheetBackground}
+      handleIndicatorStyle={styles.sheetHandle}
+      contentType="view"
+      onChange={index => {
         if (index >= 0) {
           hasOpenedRef.current = true;
         }
@@ -87,29 +146,129 @@ const AppUpdateBottomSheet = ({
           deferredHandledRef.current = false;
           hasOpenedRef.current = false;
         }
-      }}
-      primaryButton={{
-        label: t('appUpdate.updateNowButton'),
-        onPress: handleOpenStore,
-        forceBorder: true,
-        disabled: prompt.kind === 'required' && !prompt.storeUrl,
-      }}
-      secondaryButton={
-        prompt.kind === 'optional'
-          ? {
-              label: t('appUpdate.laterButton'),
-              onPress: () => {
-                deferredHandledRef.current = true;
-                onDeferred?.();
-                bottomSheetRef.current?.close();
-              },
-            }
-          : undefined
-      }
-    />
+      }}>
+      <View style={styles.container}>
+        <View style={styles.headerRow}>
+          <Image
+            source={Images.yosemiteLogo}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <View style={styles.headerText}>
+            <Text style={styles.title}>{title}</Text>
+            <Text style={styles.versionLine}>{versionLine}</Text>
+          </View>
+        </View>
+
+        {changelog.length > 0 ? (
+          <View style={styles.changelog}>
+            {changelog.map(item => (
+              <View key={item.key} style={styles.changelogRow}>
+                <Icon
+                  name={item.icon}
+                  size={15}
+                  color={theme.colors.blueText}
+                  style={styles.changelogIcon}
+                />
+                <Text style={styles.changelogText}>{item.text}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        <PrimaryActionButton
+          title={t('appUpdate.updateNowButton')}
+          onPress={() => {
+            handleOpenStore();
+          }}
+          disabled={isRequired && !prompt.storeUrl}
+        />
+
+        {isRequired ? null : (
+          <PressableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={t('appUpdate.laterButton')}
+            onPress={handleDefer}
+            style={styles.dismissLink}>
+            <Text style={styles.dismissText}>{t('appUpdate.laterButton')}</Text>
+          </PressableOpacity>
+        )}
+      </View>
+    </CustomBottomSheet>
   );
 };
 
 AppUpdateBottomSheet.displayName = 'AppUpdateBottomSheet';
+
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    sheetBackground: {
+      backgroundColor: theme.colors.surface,
+      borderTopLeftRadius: theme.borderRadius.sheet,
+      borderTopRightRadius: theme.borderRadius.sheet,
+    },
+    sheetHandle: {
+      width: 40,
+      height: 4.5,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.divider,
+    },
+    container: {
+      gap: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['5'],
+      paddingTop: theme.spacing['2.5'],
+      paddingBottom: theme.spacing['10'],
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing['3.5'],
+    },
+    logo: {
+      width: 46,
+      height: 46,
+      borderRadius: theme.borderRadius.field,
+    },
+    headerText: {
+      flex: 1,
+      gap: 2,
+    },
+    title: {
+      ...theme.typography.paragraph18Bold,
+      color: theme.colors.ink,
+    },
+    versionLine: {
+      ...theme.typography.body12,
+      fontSize: 12.5,
+      color: theme.colors.inkFaint,
+      fontVariant: ['tabular-nums'],
+    },
+    changelog: {
+      gap: theme.spacing['2'],
+    },
+    changelogRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: theme.spacing['2.5'],
+    },
+    changelogIcon: {
+      marginTop: 2,
+    },
+    changelogText: {
+      ...theme.typography.mobileFootnote,
+      flex: 1,
+      color: theme.colors.inkMuted,
+    },
+    dismissLink: {
+      height: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    dismissText: {
+      ...theme.typography.labelSmall,
+      fontSize: 14.5,
+      color: theme.colors.inkMuted,
+    },
+  });
 
 export default AppUpdateBottomSheet;

@@ -168,7 +168,7 @@ export const AddDocumentScreen: React.FC = () => {
             onErrorClear={clearError}
             loading={loading}
             onSave={handleSave}
-            saveButtonText="Save"
+            saveButtonText="Save document"
             showNote={true}
             contentContainerStyle={contentPaddingStyle ?? undefined}
             formSheetRefs={formSheets.refs}

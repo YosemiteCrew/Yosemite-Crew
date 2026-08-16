@@ -160,24 +160,6 @@ export const createTemplateSchema = z
     updatedBy: z.string().trim().min(1).optional(),
   })
   .superRefine((value, ctx) => {
-    if (value.ownership === "YC_LIBRARY") {
-      if (value.organisationId !== undefined) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["organisationId"],
-          message: "YC library templates must not be bound to an organisation",
-        });
-      }
-
-      if (value.ownerUserId !== undefined) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["ownerUserId"],
-          message: "YC library templates must not be owned by a user",
-        });
-      }
-    }
-
     if (
       value.ownership === "ORG_TEMPLATE" &&
       value.organisationId === undefined
@@ -221,12 +203,12 @@ export const updateTemplateSchema = z.object({
   updatedBy: z.string().trim().min(1).optional(),
 });
 
+// `organisationId` and `authorId` are deliberately absent: both are derived from
+// the authorized request context, never from the payload.
 export const createTemplateInstanceSchema = z.object({
-  organisationId: z.string().trim().min(1),
   appointmentId: z.string().trim().min(1).optional(),
   caseId: z.string().trim().min(1).optional(),
   encounterId: z.string().trim().min(1).optional(),
-  authorId: z.string().trim().min(1).optional(),
   data: z.record(z.unknown()).default({}),
 });
 
@@ -278,7 +260,7 @@ const mergeJsonObject = (
   patch: Record<string, unknown> | null | undefined,
 ): Record<string, unknown> => ({
   ...(typeof base === "object" && base && !Array.isArray(base)
-    ? (base as Record<string, unknown>)
+    ? base
     : EMPTY_JSON_OBJECT),
   ...(patch ?? EMPTY_JSON_OBJECT),
 });
@@ -287,7 +269,7 @@ const toJsonInput = (
   value: unknown,
   fallback: Record<string, unknown> = {},
 ): Prisma.InputJsonValue => {
-  return (value ?? fallback) as Prisma.InputJsonValue;
+  return value ?? fallback;
 };
 
 const toNullableJsonInput = (
@@ -305,7 +287,7 @@ const toNullableJsonInput = (
     return Prisma.DbNull;
   }
 
-  return value as Prisma.InputJsonValue;
+  return value;
 };
 
 const buildRenderedDocumentSummary = (
@@ -393,7 +375,7 @@ const toStorageTemplateKind = (kind: TemplateContractKind | TemplateKind) => {
     case "CONSENT":
       return "FORM" as TemplateKind;
     default:
-      return kind as TemplateKind;
+      return kind;
   }
 };
 
@@ -429,8 +411,7 @@ const extractTemplateAppliesTo = (rules: unknown): TemplateAppliesTo | null => {
   const packageIds = normalizeResolverArray(raw.packageIds);
   const species = normalizeResolverArray(raw.species);
   const encounterModes = normalizeResolverArray(raw.encounterModes) as
-    | Array<"OUTPATIENT" | "INPATIENT">
-    | undefined;
+    Array<"OUTPATIENT" | "INPATIENT"> | undefined;
   const organisationTypes = normalizeResolverArray(raw.organisationTypes);
   const specialityIds = normalizeResolverArray(raw.specialityIds);
   const defaultForKind =
@@ -652,6 +633,11 @@ const toResolveResponse = (
   reason,
 });
 
+/**
+ * Read check. YC library templates belong to no organisation and are readable by
+ * every tenant (library listing, resolver fallback, instantiation), so they are
+ * exempt from the tenant match.
+ */
 const assertTemplateOrganisation = (
   template: {
     organisationId: string | null;
@@ -679,7 +665,44 @@ const assertTemplateOrganisation = (
   }
 };
 
-const loadTemplateOrThrow = async (
+/**
+ * Mutation check. Unlike the read check there is no YC library exemption: a
+ * library template is global state, and every principal that can reach these
+ * routes is scoped to a single organisation, so an exemption here would let any
+ * org member rewrite templates every other tenant resolves against.
+ */
+const assertTemplateWritableByOrganisation = (
+  template: {
+    organisationId: string | null;
+    ownership: TemplateOwnershipType;
+  },
+  organisationId: string,
+) => {
+  if (template.ownership === "YC_LIBRARY" || template.organisationId === null) {
+    throw new TemplateServiceError(
+      "YC library templates cannot be modified through organisation APIs",
+      403,
+    );
+  }
+
+  if (template.organisationId !== organisationId) {
+    throw new TemplateServiceError(
+      "Template does not belong to organisation",
+      403,
+    );
+  }
+};
+
+const assertWritableOwnership = (ownership: unknown) => {
+  if (ownership === "YC_LIBRARY") {
+    throw new TemplateServiceError(
+      "Templates cannot be created in or moved to the YC library",
+      403,
+    );
+  }
+};
+
+const loadTemplateForReadOrThrow = async (
   templateId: string,
   organisationId?: string,
 ) => {
@@ -694,6 +717,26 @@ const loadTemplateOrThrow = async (
   assertTemplateOrganisation(template, organisationId);
 
   return template;
+};
+
+const loadTemplateForWriteOrThrow = async (
+  templateId: string,
+  organisationId: string,
+) => {
+  const template = await prisma.template.findUnique({
+    where: { id: ensureId(templateId, "templateId") },
+  });
+
+  if (!template) {
+    throw new TemplateServiceError("Template not found", 404);
+  }
+
+  const orgScope = ensureId(organisationId, "organisationId");
+  assertTemplateWritableByOrganisation(template, orgScope);
+
+  // Narrowed to the caller's organisation: the assertion above proved the two
+  // are equal, so downstream writes get a non-nullable tenant id.
+  return { ...template, organisationId: orgScope };
 };
 
 const loadTemplateVersionOrThrow = async (
@@ -807,8 +850,27 @@ const compareResolverMatches = (
   return Number(right.defaultForKind) - Number(left.defaultForKind);
 };
 
+const buildTemplateUpdateFields = (
+  parsed: z.infer<typeof updateTemplateSchema>,
+  template: Awaited<ReturnType<typeof loadTemplateForWriteOrThrow>>,
+) => ({
+  ownership: parsed.ownership ?? template.ownership,
+  organisationId: template.organisationId,
+  ownerUserId: template.ownerUserId,
+  updatedBy: parsed.updatedBy ?? template.updatedBy,
+  name: parsed.name ?? template.name,
+  description:
+    parsed.description === undefined
+      ? template.description
+      : (parsed.description ?? undefined),
+  scope: parsed.scope ?? template.scope,
+  status: parsed.status ?? template.status,
+  rules: parsed.rules === undefined ? template.rules : (parsed.rules ?? null),
+});
+
 export const TemplateService = {
   async create(input: CreateTemplateInput) {
+    assertWritableOwnership((input as { ownership?: unknown }).ownership);
     const parsed = createTemplateSchema.parse(input);
     const updatedBy = parsed.updatedBy ?? parsed.createdBy;
     const storageKind = toStorageTemplateKind(parsed.kind);
@@ -817,8 +879,7 @@ export const TemplateService = {
       parsed.schemaSnapshot,
     );
     validateTemplateSchemaForKind(storageKind, schemaSnapshot);
-    const organisationId =
-      parsed.ownership === "YC_LIBRARY" ? undefined : parsed.organisationId;
+    const organisationId = parsed.organisationId;
     const ownerUserId =
       parsed.ownership === "USER_TEMPLATE" ? parsed.ownerUserId : undefined;
 
@@ -861,27 +922,18 @@ export const TemplateService = {
   async update(
     templateId: string,
     input: UpdateTemplateInput,
-    organisationId?: string,
+    organisationId: string,
   ) {
+    assertWritableOwnership((input as { ownership?: unknown }).ownership);
     const parsed = updateTemplateSchema.parse(input);
-    const template = await loadTemplateOrThrow(templateId, organisationId);
+    const template = await loadTemplateForWriteOrThrow(
+      templateId,
+      organisationId,
+    );
     const { createNewVersion, targetVersion } = resolveVersionPayload(template);
 
-    const nextOwnership = parsed.ownership ?? template.ownership;
-    const nextOrganisationId =
-      nextOwnership === "YC_LIBRARY" ? null : template.organisationId;
-    const nextOwnerUserId =
-      nextOwnership === "YC_LIBRARY" ? null : template.ownerUserId;
-    const nextUpdatedBy = parsed.updatedBy ?? template.updatedBy;
-    const nextName = parsed.name ?? template.name;
-    const nextDescription =
-      parsed.description === undefined
-        ? template.description
-        : (parsed.description ?? undefined);
-    const nextScope = parsed.scope ?? template.scope;
-    const nextStatus = parsed.status ?? template.status;
-    const nextRules =
-      parsed.rules === undefined ? template.rules : (parsed.rules ?? null);
+    const nextFields = buildTemplateUpdateFields(parsed, template);
+    const nextUpdatedBy = nextFields.updatedBy;
     const hasVersionChanges =
       parsed.schemaSnapshot !== undefined ||
       parsed.renderConfigSnapshot !== undefined ||
@@ -911,16 +963,9 @@ export const TemplateService = {
         await tx.template.update({
           where: { id: template.id },
           data: {
-            ownership: nextOwnership,
-            organisationId: nextOrganisationId,
-            ownerUserId: nextOwnerUserId,
-            name: nextName,
-            description: nextDescription,
-            scope: nextScope,
-            status: nextStatus,
-            rules: toNullableJsonInput(nextRules),
+            ...nextFields,
+            rules: toNullableJsonInput(nextFields.rules),
             latestVersion: nextVersion,
-            updatedBy: nextUpdatedBy,
           },
         });
 
@@ -972,15 +1017,8 @@ export const TemplateService = {
     await prisma.template.update({
       where: { id: template.id },
       data: {
-        ownership: nextOwnership,
-        organisationId: nextOrganisationId,
-        ownerUserId: nextOwnerUserId,
-        name: nextName,
-        description: nextDescription,
-        scope: nextScope,
-        status: nextStatus,
-        rules: toNullableJsonInput(nextRules),
-        updatedBy: nextUpdatedBy,
+        ...nextFields,
+        rules: toNullableJsonInput(nextFields.rules),
       },
     });
 
@@ -990,9 +1028,12 @@ export const TemplateService = {
   async publish(
     templateId: string,
     publishedBy: string,
-    organisationId?: string,
+    organisationId: string,
   ) {
-    const template = await loadTemplateOrThrow(templateId, organisationId);
+    const template = await loadTemplateForWriteOrThrow(
+      templateId,
+      organisationId,
+    );
     const latestVersion = await loadTemplateVersionOrThrow(
       template.id,
       template.latestVersion,
@@ -1028,9 +1069,12 @@ export const TemplateService = {
   async archive(
     templateId: string,
     archivedBy: string,
-    organisationId?: string,
+    organisationId: string,
   ) {
-    const template = await loadTemplateOrThrow(templateId, organisationId);
+    const template = await loadTemplateForWriteOrThrow(
+      templateId,
+      organisationId,
+    );
 
     await prisma.template.update({
       where: { id: template.id },
@@ -1046,17 +1090,13 @@ export const TemplateService = {
   async updateCatalogLinks(
     templateId: string,
     input: UpdateTemplateCatalogLinksInput,
-    organisationId?: string,
+    organisationId: string,
   ) {
     const parsed = updateTemplateCatalogLinksSchema.parse(input);
-    const template = await loadTemplateOrThrow(templateId, organisationId);
-
-    if (template.ownership === "YC_LIBRARY") {
-      throw new TemplateServiceError(
-        "YC library templates cannot own catalog links.",
-        400,
-      );
-    }
+    const template = await loadTemplateForWriteOrThrow(
+      templateId,
+      organisationId,
+    );
 
     const uniqueCatalogItemIds = Array.from(new Set(parsed.catalogItemIds));
     if (uniqueCatalogItemIds.length === 0) {
@@ -1066,17 +1106,11 @@ export const TemplateService = {
       return TemplateService.getById(template.id, organisationId);
     }
 
-    const catalogItemWhere: Prisma.ProductItemWhereInput =
-      template.organisationId === null
-        ? {
-            id: { in: uniqueCatalogItemIds },
-          }
-        : {
-            id: { in: uniqueCatalogItemIds },
-            organisationId: template.organisationId,
-          };
     const catalogItems = await prisma.productItem.findMany({
-      where: catalogItemWhere,
+      where: {
+        id: { in: uniqueCatalogItemIds },
+        organisationId: template.organisationId,
+      },
       select: {
         id: true,
       },
@@ -1275,9 +1309,7 @@ export const TemplateService = {
 
       const version = await resolveTemplateVersion(bestMatch.template);
       return toResolveResponse(
-        bestMatch.template as NonNullable<
-          Awaited<ReturnType<typeof prisma.template.findFirst>>
-        >,
+        bestMatch.template,
         version,
         matchingInput,
         resolveCandidateReason(bucket, bestMatch.matched),
@@ -1338,12 +1370,20 @@ export const TemplateService = {
   },
 
   async createInstance(
-    input: CreateTemplateInstanceInput & { templateId: string },
+    input: CreateTemplateInstanceInput & {
+      templateId: string;
+      organisationId: string;
+      authorId?: string;
+    },
   ) {
     const parsed = createTemplateInstanceSchema.parse(input);
-    const template = await loadTemplateOrThrow(
+    const organisationId = ensureId(input.organisationId, "organisationId");
+    // Read semantics: instantiating a YC library template into the caller's own
+    // organisation is legitimate (it is how the resolver fallback is used); the
+    // instance is written under `organisationId`, never the template's.
+    const template = await loadTemplateForReadOrThrow(
       input.templateId,
-      parsed.organisationId,
+      organisationId,
     );
     const versionNumber = template.publishedVersion ?? template.latestVersion;
     const version = await loadTemplateVersionOrThrow(
@@ -1355,13 +1395,13 @@ export const TemplateService = {
       data: {
         templateId: template.id,
         templateVersion: version.version,
-        organisationId: parsed.organisationId,
+        organisationId,
         appointmentId: parsed.appointmentId ?? undefined,
         caseId: parsed.caseId ?? undefined,
         encounterId: parsed.encounterId ?? undefined,
         status: "DRAFT",
         data: parsed.data as Prisma.InputJsonValue,
-        authorId: parsed.authorId ?? undefined,
+        authorId: input.authorId ?? undefined,
       },
     });
   },
@@ -1369,9 +1409,10 @@ export const TemplateService = {
   async updateInstance(
     instanceId: string,
     input: UpdateTemplateInstanceInput,
-    organisationId?: string,
+    organisationId: string,
   ) {
     const parsed = updateTemplateInstanceSchema.parse(input);
+    const orgScope = ensureId(organisationId, "organisationId");
     const instance = await prisma.templateInstance.findUnique({
       where: { id: ensureId(instanceId, "instanceId") },
     });
@@ -1380,7 +1421,7 @@ export const TemplateService = {
       throw new TemplateServiceError("Template instance not found", 404);
     }
 
-    if (organisationId && instance.organisationId !== organisationId) {
+    if (instance.organisationId !== orgScope) {
       throw new TemplateServiceError(
         "Template instance does not belong to organisation",
         403,
@@ -1417,9 +1458,10 @@ export const TemplateService = {
 
   async submitInstance(
     instanceId: string,
-    organisationId?: string,
+    organisationId: string,
     submittedBy?: string,
   ) {
+    const orgScope = ensureId(organisationId, "organisationId");
     return prisma.$transaction(async (tx) => {
       const instance = await tx.templateInstance.findUnique({
         where: { id: ensureId(instanceId, "instanceId") },
@@ -1438,7 +1480,7 @@ export const TemplateService = {
         throw new TemplateServiceError("Template instance not found", 404);
       }
 
-      if (organisationId && instance.organisationId !== organisationId) {
+      if (instance.organisationId !== orgScope) {
         throw new TemplateServiceError(
           "Template instance does not belong to organisation",
           403,
@@ -1454,10 +1496,12 @@ export const TemplateService = {
         "submittedBy",
       );
 
+      // The submit routes already gate on forms:edit:any, which governs template
+      // instances org-wide, so the schedule-level ownership check is satisfied.
       await TaskWorkflowService.launchFromTemplateInstance(
         instance.id,
-        organisationId,
-        createdBy,
+        orgScope,
+        { actorId: createdBy, canEditAny: true },
         {
           client: tx,
           notify: true,
@@ -1465,8 +1509,7 @@ export const TemplateService = {
       );
 
       let renderedDocumentSummary:
-        | Awaited<ReturnType<typeof createRenderedDocumentRecord>>
-        | undefined;
+        Awaited<ReturnType<typeof createRenderedDocumentRecord>> | undefined;
 
       if (DOCUMENT_BACKED_TEMPLATE_KINDS.has(instance.template.kind)) {
         const normalizedTemplateKind = normalizeTemplateKind(

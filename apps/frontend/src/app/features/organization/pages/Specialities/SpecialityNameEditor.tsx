@@ -10,7 +10,7 @@ type SpecialityNameEditorProps = {
   nameValue: string;
   nameError: string;
   specialityName: string;
-  totalCount: number;
+  subtitle: string;
   onToggleOpen: () => void;
   onNameChange: (value: string) => void;
   onNameKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
@@ -27,7 +27,7 @@ const SpecialityNameEditor = ({
   nameValue,
   nameError,
   specialityName,
-  totalCount,
+  subtitle,
   onToggleOpen,
   onNameChange,
   onNameKeyDown,
@@ -57,7 +57,7 @@ const SpecialityNameEditor = ({
           type="button"
           aria-label="Save name"
           onClick={onSaveName}
-          className="flex items-center justify-center size-8 rounded-full bg-text-brand text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand shrink-0"
+          className="flex items-center justify-center size-8 rounded-full bg-[var(--blue-strong)] text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand shrink-0"
         >
           <FiCheck size={14} aria-hidden="true" />
         </button>
@@ -85,17 +85,19 @@ const SpecialityNameEditor = ({
     <>
       <button
         type="button"
-        className="text-heading-3 text-text-primary text-left truncate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand rounded"
+        className="text-[15.5px] font-bold text-[var(--ink)] text-left truncate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand rounded"
         onClick={onToggleOpen}
       >
-        <span className="truncate">{specialityName}</span>{' '}
-        <span className="text-text-secondary font-normal whitespace-nowrap">({totalCount})</span>
+        <span className="truncate">{specialityName}</span>
       </button>
+      <span className="min-w-0 shrink truncate text-[12px] text-[var(--ink-faint)]">
+        {subtitle}
+      </span>
       <button
         type="button"
         aria-label={`Rename ${specialityName}`}
         onClick={onEditClick}
-        className="flex items-center justify-center size-9 rounded-full border border-transparent hover:border-card-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand transition-colors shrink-0"
+        className="flex items-center justify-center size-9 rounded-full border border-transparent hover:border-card-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand transition-all shrink-0 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
       >
         <RiEdit2Line size={18} color="var(--color-neutral-700)" aria-hidden="true" />
       </button>

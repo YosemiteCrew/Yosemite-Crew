@@ -32,7 +32,9 @@ jest.mock("../../../src/services/pet-passport.service", () => {
     PetPassportService: {
       issuePassport: jest.fn(),
       getPassport: jest.fn(),
-      getPublicPassport: jest.fn(),
+      getPublicPassportByToken: jest.fn(),
+      issuePublicToken: jest.fn(),
+      revokePublicToken: jest.fn(),
     },
   };
 });
@@ -297,6 +299,116 @@ describe("PetPassportController", () => {
         res as Response,
       );
       expect(statusMock).toHaveBeenCalledWith(500);
+    });
+  });
+
+  describe("clinical date validation", () => {
+    const immunization = (dateAdministered: string, extra = {}) => ({
+      encounterId: "enc-1",
+      vaccineType: "RABIES",
+      vaccineName: "Nobivac Rabies",
+      dateAdministered,
+      ...extra,
+    });
+
+    it("400s a calendar-impossible day instead of rolling it into next month", async () => {
+      await PetPassportController.recordImmunization(
+        authed({ body: immunization("2026-02-30") }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(clinical.recordImmunization).not.toHaveBeenCalled();
+    });
+
+    it("400s an ambiguous slash-separated date", async () => {
+      await PetPassportController.recordImmunization(
+        authed({ body: immunization("01/02/2026") }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(clinical.recordImmunization).not.toHaveBeenCalled();
+    });
+
+    it("400s a datetime whose offset does not resolve to a real instant", async () => {
+      await PetPassportController.recordImmunization(
+        authed({ body: immunization("2026-01-15T10:00:00-99:00") }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(clinical.recordImmunization).not.toHaveBeenCalled();
+    });
+
+    it("400s an impossible optional validity date", async () => {
+      await PetPassportController.recordImmunization(
+        authed({
+          body: immunization("2026-02-14", { validUntil: "2027-06-31" }),
+        }),
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(clinical.recordImmunization).not.toHaveBeenCalled();
+    });
+
+    it("201s a date-only ISO value, including a leap day and an offset datetime", async () => {
+      clinical.recordImmunization.mockResolvedValue({ id: "imm-1" } as never);
+      await PetPassportController.recordImmunization(
+        authed({
+          body: immunization("2024-02-29", {
+            validFrom: "2024-03-01",
+            nextDueDate: "2027-02-28T10:00:00+02:00",
+          }),
+        }),
+        res as Response,
+      );
+      expect(clinical.recordImmunization).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          dateAdministered: "2024-02-29",
+          validFrom: "2024-03-01",
+          nextDueDate: "2027-02-28T10:00:00+02:00",
+        }),
+      );
+      expect(statusMock).toHaveBeenCalledWith(201);
+    });
+
+    it("400s impossible dates on treatment, titration and exam bodies", async () => {
+      await PetPassportController.recordParasiteTreatment(
+        authed({
+          body: {
+            encounterId: "enc-1",
+            treatmentType: "ECHINOCOCCUS",
+            productName: "Milbemax",
+            treatedAt: "2026-04-31",
+          },
+        }),
+        res as Response,
+      );
+      expect(clinical.recordParasiteTreatment).not.toHaveBeenCalled();
+      await PetPassportController.recordRabiesTitration(
+        authed({
+          body: {
+            encounterId: "enc-1",
+            approvedLab: "EU Lab",
+            sampleDate: "01/02/2026",
+            resultIuMl: 0.8,
+          },
+        }),
+        res as Response,
+      );
+      expect(clinical.recordRabiesTitration).not.toHaveBeenCalled();
+      await PetPassportController.recordClinicalExam(
+        authed({
+          body: {
+            encounterId: "enc-1",
+            examinedAt: "2026-02-30T00:00:00.000Z",
+            fitForTravel: true,
+          },
+        }),
+        res as Response,
+      );
+      expect(clinical.recordClinicalExam).not.toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledTimes(3);
+      expect(statusMock).toHaveBeenCalledWith(400);
     });
   });
 
@@ -614,30 +726,30 @@ describe("PetPassportController", () => {
     });
   });
 
-  describe("getPublicPassport", () => {
+  describe("getPublicPassportByToken", () => {
     it("200s the public record", async () => {
-      service.getPublicPassport.mockResolvedValue(passportDto as never);
-      await PetPassportController.getPublicPassport(
-        { params: { patientId: "pat-1" } } as unknown as Request,
+      service.getPublicPassportByToken.mockResolvedValue(passportDto as never);
+      await PetPassportController.getPublicPassportByToken(
+        { params: { token: "tok-1" } } as unknown as Request,
         res as Response,
       );
       expect(jsonMock).toHaveBeenCalledWith(passportDto);
     });
 
     it("maps a service error to its status", async () => {
-      service.getPublicPassport.mockRejectedValue(
+      service.getPublicPassportByToken.mockRejectedValue(
         new PetPassportServiceError("bad", 400),
       );
-      await PetPassportController.getPublicPassport(
-        { params: { patientId: "pat-1" } } as unknown as Request,
+      await PetPassportController.getPublicPassportByToken(
+        { params: { token: "tok-1" } } as unknown as Request,
         res as Response,
       );
       expect(statusMock).toHaveBeenCalledWith(400);
     });
 
-    it("404s uniformly on an unexpected error and a missing id", async () => {
-      service.getPublicPassport.mockRejectedValue(new Error("boom"));
-      await PetPassportController.getPublicPassport(
+    it("404s uniformly on an unexpected error and a missing token", async () => {
+      service.getPublicPassportByToken.mockRejectedValue(new Error("boom"));
+      await PetPassportController.getPublicPassportByToken(
         { params: {} } as unknown as Request,
         res as Response,
       );

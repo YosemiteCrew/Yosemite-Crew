@@ -1,4 +1,10 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import type { StorybookConfig } from '@storybook/nextjs-vite';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const src = path.resolve(here, '../src');
 
 const config: StorybookConfig = {
   stories: ['../src/**/*.stories.@(ts|tsx)'],
@@ -7,11 +13,46 @@ const config: StorybookConfig = {
     name: '@storybook/nextjs-vite',
     options: {},
   },
-  docs: {
-    autodocs: 'tag',
+  // No `docs.autodocs`: it was removed in Storybook 9 (this repo is on 10.5.7),
+  // so it was inert config that also failed type-check as soon as a test
+  // imported this file. Autodocs come from the `autodocs` tag on a story.
+  /**
+   * Mirror the tsconfig `paths` for the production build.
+   *
+   * The dev server resolves `@/...` fine, so this looked healthy locally, but
+   * `storybook:build` failed with `Rollup failed to resolve import
+   * "@/app/ui/primitives/Buttons"` - which meant Chromatic could never publish.
+   * The check had been skipping on a missing `CHROMATIC_CONFIGURED`, so nothing
+   * surfaced the breakage until the gate was switched on.
+   *
+   * Order matters: the more specific aliases must precede the bare `@/`, or it
+   * swallows them. They are kept byte-for-byte in step with tsconfig.json.
+   */
+  viteFinal: (viteConfig) => {
+    viteConfig.resolve = viteConfig.resolve ?? {};
+    // Vite accepts either form, and the framework hands us the OBJECT one: it
+    // arrives holding styled-jsx's preset aliases. Treating a non-array as
+    // empty would silently drop those while fixing the `@/` paths, so both
+    // forms are normalised to entries before appending.
+    const existing = viteConfig.resolve.alias;
+    const inherited = Array.isArray(existing)
+      ? existing
+      : Object.entries(existing ?? {}).map(([find, replacement]) => ({
+          find,
+          replacement: replacement as string,
+        }));
+
+    viteConfig.resolve.alias = [
+      ...inherited,
+      { find: /^@\/features\//, replacement: `${path.join(src, 'app/features')}/` },
+      { find: /^@\/ui\//, replacement: `${path.join(src, 'app/ui')}/` },
+      { find: /^@\/lib\//, replacement: `${path.join(src, 'app/lib')}/` },
+      { find: /^@\/constants\//, replacement: `${path.join(src, 'app/constants')}/` },
+      { find: /^@\//, replacement: `${src}/` },
+    ];
+    return viteConfig;
   },
   staticDirs: [
-    { from: '../public/assets', to: '/assets' },
     { from: '../public/fonts', to: '/fonts' },
     { from: '../public/images', to: '/images' },
     { from: '../public/static', to: '/static' },

@@ -1,9 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { LuPrinter, LuSave } from 'react-icons/lu';
+import { IoPrintOutline, IoSaveOutline } from 'react-icons/io5';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import ServicesPackagesEditor from '@/app/features/appointments/pages/AppointmentWorkspace/components/ServicesPackagesEditor';
 import PrescriptionEditor from '@/app/features/appointments/pages/AppointmentWorkspace/components/PrescriptionEditor';
 import InpatientSchedule from '@/app/features/appointments/pages/AppointmentWorkspace/components/InpatientSchedule';
+import OutpatientSchedule from '@/app/features/appointments/pages/AppointmentWorkspace/components/OutpatientSchedule';
+import WorkspaceTreatmentSummary from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceTreatmentSummary';
+import { buildOutpatientSchedule } from '@/app/features/appointments/lib/outpatientSchedule';
+import { useAppointmentStore } from '@/app/stores/appointmentStore';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import type {
   AppointmentEncounter,
@@ -50,6 +54,7 @@ import {
   resolvePrescriptionTemplate,
   resolveScheduleTasksFromTemplate,
 } from '@/app/features/appointments/services/workspaceTemplateService';
+import { getAppointmentCompanion } from '@/app/lib/appointments';
 import type { PrescriptionTemplateOption } from '@/app/features/appointments/services/workspaceTemplateService';
 import type { TemplateLike } from '@yosemite-crew/types';
 import {
@@ -61,6 +66,7 @@ import {
   serviceToLineItem,
   taskToScheduleTask,
 } from './treatmentStepUtils';
+import { getInvoiceErrorMessage } from './invoiceStepUtils';
 
 type TreatmentStepProps = {
   appointmentId: string;
@@ -232,6 +238,11 @@ const useTreatmentCatalog = ({
       inventoryIds
         .map((id) => inventoryById[id])
         .filter((item): item is InventoryItem => {
+          // A HIDDEN item is withdrawn from circulation, so it must not be offered for
+          // prescribing — the same rule the Invoice step's picker already applies
+          // (`buildInventoryCandidates` in invoiceStepUtils). `status` is undefined for
+          // items the API sent without one, which normalizes to ACTIVE and stays eligible.
+          if (item?.status === 'HIDDEN') return false;
           const category = item?.basicInfo.category?.toLowerCase();
           return Boolean(category && PRESCRIPTION_INVENTORY_CATEGORIES.has(category));
         })
@@ -445,6 +456,7 @@ const usePrescriptionActions = ({
 }) => {
   const addPrescription = useAppointmentWorkspaceStore((s) => s.addPrescription);
   const removePrescription = useAppointmentWorkspaceStore((s) => s.removePrescription);
+  const updatePrescription = useAppointmentWorkspaceStore((s) => s.updatePrescription);
   const [prescriptionError, setPrescriptionError] = useState<string | null>(null);
   const [printingLabels, setPrintingLabels] = useState(false);
 
@@ -539,6 +551,17 @@ const usePrescriptionActions = ({
     addPrescription(appointmentId, item);
   };
 
+  // Editing a row clears the save-time validation message: it is only recomputed on the next
+  // save, so without this a message the clinician has already fixed keeps showing. Only the
+  // first error is ever rendered, so a stale one also masks the remaining rows' errors.
+  const handleUpdatePrescription = (
+    id: string,
+    patch: Parameters<typeof updatePrescription>[2]
+  ) => {
+    setPrescriptionError(null);
+    updatePrescription(appointmentId, id, patch);
+  };
+
   const handleApplyPrescriptionTemplate = (template: PrescriptionTemplateOption) => {
     setPrescriptionError(null);
     addPrescriptionRowsFromTemplate(template.items);
@@ -623,10 +646,26 @@ const usePrescriptionActions = ({
     printingLabels,
     handleAddPrescription,
     handleApplyPrescriptionTemplate,
+    handleUpdatePrescription,
     handleRemovePrescription,
     handlePrintPrescriptionLabels,
   };
 };
+
+// A save the backend rejects with 409 is NOT retryable: it refuses a plain save against an
+// already-final prescription rather than silently reopening it to DRAFT and wiping its items.
+// Every save sends status 'draft', so once the first save finalizes an in-house prescription
+// each later save of that encounter conflicts — the generic "please try again" copy is actively
+// misleading there, because retrying can only ever fail the same way.
+// The server's own message ("Artifact is final. Reopen or amend it before editing.") is
+// deliberately NOT surfaced verbatim: it names an internal concept ("artifact") this UI never
+// shows, and directs the clinician to reopen/amend, which has no affordance on this screen —
+// that would just trade one misleading message for another. The mapped copy mirrors the
+// finalized/billed wording handleRemovePrescription already uses for the same 409.
+const getTreatmentSaveErrorMessage = (error: unknown): string =>
+  (error as { response?: { status?: number } })?.response?.status === 409
+    ? 'This prescription is already finalized and can no longer be edited.'
+    : getInvoiceErrorMessage(error, 'Unable to save treatment items. Please try again.');
 
 /**
  * Treatment step: services/packages, prescription, and inpatient schedule.
@@ -646,7 +685,6 @@ const TreatmentStep = ({
   const addLineItem = useAppointmentWorkspaceStore((s) => s.addLineItem);
   const updateLineItem = useAppointmentWorkspaceStore((s) => s.updateLineItem);
   const removeLineItem = useAppointmentWorkspaceStore((s) => s.removeLineItem);
-  const updatePrescription = useAppointmentWorkspaceStore((s) => s.updatePrescription);
   const setPrescriptions = useAppointmentWorkspaceStore((s) => s.setPrescriptions);
   const setStepStatus = useAppointmentWorkspaceStore((s) => s.setStepStatus);
   const mergeEncounterData = useAppointmentWorkspaceStore((s) => s.mergeEncounterData);
@@ -660,6 +698,27 @@ const TreatmentStep = ({
   // -only + "Billed" badge + no delete); adding new items always stays allowed.
   const billedTreatmentLocked = readOnly || encounter.readyForBilling.value;
   const isInpatient = encounter.mode === 'INPATIENT';
+  const appointmentsById = useAppointmentStore((s) => s.appointmentsById);
+  // The outpatient visit schedule is built from the companion's real upcoming
+  // appointments already in the store (there is no dedicated outpatient "series" data
+  // model). It degrades to an empty state when no future visits are available — e.g. on
+  // a direct deep-link where the appointment list has not been loaded.
+  const currentAppointment = appointmentsById[appointmentId];
+  const outpatientCompanionId = useMemo(
+    () => (currentAppointment ? getAppointmentCompanion(currentAppointment).id : undefined),
+    [currentAppointment]
+  );
+  const outpatientSchedule = useMemo(
+    () =>
+      buildOutpatientSchedule(Object.values(appointmentsById), {
+        companionId: outpatientCompanionId,
+        excludeAppointmentId: appointmentId,
+        // Carries the (still backend-unpopulated) series note + delivered count so
+        // the design's series rail lights up the moment they are supplied.
+        currentAppointment,
+      }),
+    [appointmentsById, outpatientCompanionId, appointmentId, currentAppointment]
+  );
 
   const {
     inventoryById,
@@ -698,6 +757,7 @@ const TreatmentStep = ({
     printingLabels,
     handleAddPrescription,
     handleApplyPrescriptionTemplate,
+    handleUpdatePrescription,
     handleRemovePrescription,
     handlePrintPrescriptionLabels,
   } = usePrescriptionActions({
@@ -722,9 +782,11 @@ const TreatmentStep = ({
     // BEFORE the persist/no-persist branch so it blocks even when org/encounter haven't hydrated
     // (otherwise the step would silently advance without validating). Each row must carry the
     // required clinical instructions (frequency, duration, quantity, route, form) and pass every
-    // number-format rule.
+    // number-format rule. Finalized rows are read-only and skipped by the save loop, so exclude
+    // them: an older/external finalized record missing a now-required field must not wedge the
+    // save behind a validation error the clinician cannot fix.
     const prescriptionErrors = normalizedPrescriptions.flatMap((rx) =>
-      getPrescriptionSaveErrors(rx)
+      rx.finalized ? [] : getPrescriptionSaveErrors(rx)
     );
     if (prescriptionErrors.length > 0) {
       setPrescriptionError(prescriptionErrors[0]);
@@ -767,6 +829,13 @@ const TreatmentStep = ({
       // create-or-update is keyed off the row id.
       const reconciledPrescriptions = await Promise.all(
         normalizedPrescriptions.map(async (rx) => {
+          // A finalized/billed prescription is a locked clinical record (its `finalized` flag is
+          // only ever set from persisted server state, so it always carries a real id). Re-POSTing
+          // it - or PATCHing it back to draft - returns 409 and fails the whole save, so leave the
+          // already-persisted, already-dispensed row untouched instead of re-saving it.
+          if (rx.finalized) {
+            return rx;
+          }
           const savedRx = await savePrescriptionArtifact(
             { organisationId, appointmentId, encounterId: activeEncounterId, authorId },
             rx
@@ -795,7 +864,7 @@ const TreatmentStep = ({
       // Do NOT open Invoice when persistence fails — staged rows would otherwise
       // appear billable without a backing record.
       console.error('Failed to save treatment items:', error);
-      setTreatmentSaveError('Unable to save treatment items. Please try again.');
+      setTreatmentSaveError(getTreatmentSaveErrorMessage(error));
       setIsSavingTreatment(false);
       return;
     }
@@ -804,76 +873,101 @@ const TreatmentStep = ({
     onOpenInvoice();
   };
 
+  const treatmentCents = encounter.services.reduce((sum, item) => sum + (item.amountCents ?? 0), 0);
+  const prescriptionCents = prescriptionItems.reduce(
+    (sum, item) => sum + (item.priceCents ?? 0),
+    0
+  );
+
   return (
-    <div className="flex flex-col gap-5">
-      {isInpatient && (
-        <InpatientSchedule
-          tasks={visibleScheduleTasks}
-          templates={scheduleTemplates}
+    <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+      <div className="flex min-w-0 flex-1 flex-col gap-5">
+        {isInpatient ? (
+          <InpatientSchedule
+            tasks={visibleScheduleTasks}
+            templates={scheduleTemplates}
+            readOnly={readOnly}
+            assigneeOptions={assigneeOptions}
+            // Add and View route to the Quick Actions Tasks side modal (no inline add/edit).
+            onAddTask={() => setActiveSideAction('TASKS')}
+            onViewTask={(id) => openTaskInQuickActions(id)}
+            onAssignTask={(id, option) =>
+              handleUpdateScheduleTask(id, {
+                assignedToId: option.value,
+                assignedToName: option.label,
+              })
+            }
+            onStatusChange={(id, status) => handleUpdateScheduleTask(id, { status })}
+            onAppendTemplate={handleApplyScheduleTemplate}
+          />
+        ) : (
+          <OutpatientSchedule
+            schedule={outpatientSchedule}
+            readOnly={readOnly}
+            // Same as inpatient's "+": stay in the workspace and open the Quick
+            // Actions Tasks side modal instead of routing away to /appointments.
+            onAddVisit={() => setActiveSideAction('TASKS')}
+          />
+        )}
+        {scheduleError && <p className="text-caption-1 text-text-error">{scheduleError}</p>}
+
+        <ServicesPackagesEditor
+          items={encounter.services}
+          catalogItems={servicePackageCatalogItems}
           readOnly={readOnly}
-          assigneeOptions={assigneeOptions}
-          // Add and View route to the Quick Actions Tasks side modal (no inline add/edit).
-          onAddTask={() => setActiveSideAction('TASKS')}
-          onViewTask={(id) => openTaskInQuickActions(id)}
-          onAssignTask={(id, option) =>
-            handleUpdateScheduleTask(id, {
-              assignedToId: option.value,
-              assignedToName: option.label,
-            })
-          }
-          onStatusChange={(id, status) => handleUpdateScheduleTask(id, { status })}
-          onAppendTemplate={handleApplyScheduleTemplate}
+          deleteLocked={billedTreatmentLocked}
+          onAddItem={(item) => addLineItem(appointmentId, item)}
+          onUpdateItem={(id, patch) => updateLineItem(appointmentId, id, patch)}
+          onRemoveItem={(id) => removeLineItem(appointmentId, id)}
         />
-      )}
-      {scheduleError && <p className="text-caption-1 text-red-600">{scheduleError}</p>}
 
-      <ServicesPackagesEditor
-        items={encounter.services}
-        catalogItems={servicePackageCatalogItems}
-        readOnly={readOnly}
-        deleteLocked={billedTreatmentLocked}
-        onAddItem={(item) => addLineItem(appointmentId, item)}
-        onUpdateItem={(id, patch) => updateLineItem(appointmentId, id, patch)}
-        onRemoveItem={(id) => removeLineItem(appointmentId, id)}
-      />
-
-      <PrescriptionEditor
-        items={prescriptionItems}
-        catalogItems={prescriptionCatalogItems}
-        templateItems={prescriptionTemplates}
-        readOnly={readOnly}
-        // A prescription can be removed unless it is actually billed/paid (handled per-row via the
-        // `billed` flag) or the encounter is view-only. Being "ready for billing" is NOT a lock —
-        // an un-dispensed, unbilled prescription must stay deletable.
-        deleteLocked={readOnly}
-        onAddItem={handleAddPrescription}
-        onApplyTemplate={handleApplyPrescriptionTemplate}
-        onUpdateItem={(id, patch) => updatePrescription(appointmentId, id, patch)}
-        onRemoveItem={(id) => void handleRemovePrescription(id)}
-        onPrint={() => void handlePrintPrescriptionLabels()}
-      />
-      {prescriptionError && <p className="text-caption-1 text-red-600">{prescriptionError}</p>}
-
-      {treatmentSaveError && (
-        <p role="alert" className="text-caption-1 text-red-600">
-          {treatmentSaveError}
-        </p>
-      )}
-
-      <div className="flex flex-wrap justify-between gap-3">
-        <Secondary
-          text={printingLabels ? 'Printing...' : 'Print Labels'}
-          icon={<LuPrinter aria-hidden="true" />}
-          onClick={() => void handlePrintPrescriptionLabels()}
-          isDisabled={printingLabels}
+        <PrescriptionEditor
+          items={prescriptionItems}
+          catalogItems={prescriptionCatalogItems}
+          templateItems={prescriptionTemplates}
+          readOnly={readOnly}
+          // A prescription can be removed unless it is actually billed/paid (handled per-row via the
+          // `billed` flag) or the encounter is view-only. Being "ready for billing" is NOT a lock —
+          // an un-dispensed, unbilled prescription must stay deletable.
+          deleteLocked={readOnly}
+          onAddItem={handleAddPrescription}
+          onApplyTemplate={handleApplyPrescriptionTemplate}
+          onUpdateItem={handleUpdatePrescription}
+          onRemoveItem={(id) => void handleRemovePrescription(id)}
+          onPrint={() => void handlePrintPrescriptionLabels()}
         />
-        <Primary
-          text={isSavingTreatment ? 'Saving…' : 'Save treatment'}
-          icon={<LuSave aria-hidden="true" />}
-          onClick={() => void handleSaveTreatment()}
-          isDisabled={readOnly || isSavingTreatment}
-        />
+        {prescriptionError && <p className="text-caption-1 text-text-error">{prescriptionError}</p>}
+
+        {treatmentSaveError && (
+          <p role="alert" className="text-caption-1 text-text-error">
+            {treatmentSaveError}
+          </p>
+        )}
+
+        <div className="flex flex-wrap justify-between gap-3">
+          <Secondary
+            text={printingLabels ? 'Printing...' : 'Print Labels'}
+            icon={<IoPrintOutline aria-hidden="true" />}
+            onClick={() => void handlePrintPrescriptionLabels()}
+            isDisabled={printingLabels}
+          />
+          <Primary
+            text={isSavingTreatment ? 'Saving…' : 'Save treatment'}
+            icon={<IoSaveOutline aria-hidden="true" />}
+            onClick={() => void handleSaveTreatment()}
+            isDisabled={readOnly || isSavingTreatment}
+          />
+        </div>
       </div>
+      <aside className="w-full lg:w-[340px] lg:shrink-0">
+        <WorkspaceTreatmentSummary
+          treatmentCount={encounter.services.length}
+          treatmentCents={treatmentCents}
+          prescriptionCount={encounter.prescription.length}
+          prescriptionCents={prescriptionCents}
+          currency={encounter.currency}
+        />
+      </aside>
     </div>
   );
 };

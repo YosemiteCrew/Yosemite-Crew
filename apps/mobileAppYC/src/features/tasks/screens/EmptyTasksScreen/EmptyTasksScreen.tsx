@@ -1,16 +1,71 @@
 import React from 'react';
-import {GenericEmptyScreen} from '@/shared/screens/common/GenericEmptyScreen';
-import {Images} from '@/assets/images';
+import {View} from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import {useTranslation} from 'react-i18next';
+import {useNavigation} from '@react-navigation/native';
+import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import {Header} from '@/shared/components/common/Header/Header';
+import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {EmptyState} from '@/shared/components/common/EmptyState/EmptyState';
+import {useTheme} from '@/hooks';
+import {createEmptyGateScreenStyles} from '@/shared/styles/emptyGateScreenStyles';
+import type {TaskStackParamList} from '@/navigation/types';
+
+type TasksNavigationProp = NativeStackNavigationProp<TaskStackParamList>;
 
 export const EmptyTasksScreen: React.FC = () => {
+  const {theme} = useTheme();
+  const {t} = useTranslation();
+  const navigation = useNavigation<TasksNavigationProp>();
+  const styles = React.useMemo(
+    () => createEmptyGateScreenStyles(theme),
+    [theme],
+  );
+
+  // Tasks always belong to a companion. If none exists yet, the "AddTask"
+  // form has no companion to attach to and can't be submitted — send the
+  // user to add a companion first instead of a form they can't complete.
+  const handleAddCompanion = () =>
+    navigation.getParent<any>()?.navigate('HomeStack', {
+      screen: 'AddCompanion',
+    });
+
   return (
-    <GenericEmptyScreen
-      headerTitle="Tasks"
-      emptyImage={Images.emptyDocuments}
-      title="No tasks yet!"
-      subtitle={String.raw`Add a companion first to start creating tasks\nfor their health, hygiene, and care!`}
-      showBackButton={false}
-    />
+    <LiquidGlassHeaderScreen
+      header={
+        <Header
+          title={t('tasks.title')}
+          variant="root"
+          showBackButton={false}
+          glass={false}
+        />
+      }
+      contentPadding={theme.spacing['0']}
+      useSafeAreaView
+      containerStyle={styles.safeArea}
+      showBottomFade={false}>
+      {contentPaddingStyle => (
+        <View style={[styles.container, contentPaddingStyle]}>
+          <EmptyState
+            testID="empty-tasks"
+            icon={
+              <Ionicons
+                name="checkbox-outline"
+                size={42}
+                color={theme.colors.blueText}
+              />
+            }
+            title={t('tasks.emptyNoCompanionTitle')}
+            description={t('tasks.emptyNoCompanionDescription')}
+            actionLabel={t('tasks.emptyNoCompanionAction')}
+            actionIcon={
+              <Ionicons name="add" size={18} color={theme.colors.ctaText} />
+            }
+            onAction={handleAddCompanion}
+          />
+        </View>
+      )}
+    </LiquidGlassHeaderScreen>
   );
 };
 

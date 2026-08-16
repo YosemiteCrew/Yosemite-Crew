@@ -79,6 +79,44 @@ const csLogSelect = {
   updatedAt: true,
 } satisfies Prisma.ControlledSubstanceLogSelect;
 
+// Quantities are stored as floats, so reconcile with a small tolerance instead
+// of exact equality.
+const QUANTITY_TOLERANCE = 1e-6;
+
+const assertQuantitiesReconcile = (quantities: {
+  amountDrawn: number;
+  amountAdministered: number;
+  amountWasted: number;
+  balanceBefore: number | null;
+  balanceAfter: number | null;
+}) => {
+  const {
+    amountDrawn,
+    amountAdministered,
+    amountWasted,
+    balanceBefore,
+    balanceAfter,
+  } = quantities;
+
+  if (amountAdministered + amountWasted > amountDrawn + QUANTITY_TOLERANCE) {
+    throw new ControlledSubstanceLogError(
+      "Amount administered plus amount wasted cannot exceed amount drawn.",
+      400,
+    );
+  }
+
+  if (balanceBefore === null || balanceAfter === null) return;
+
+  if (
+    Math.abs(balanceBefore - amountDrawn - balanceAfter) > QUANTITY_TOLERANCE
+  ) {
+    throw new ControlledSubstanceLogError(
+      "Balance after must equal balance before minus amount drawn.",
+      400,
+    );
+  }
+};
+
 const assertRecord = async (id: string, organisationId: string) => {
   const record = await prisma.controlledSubstanceLog.findFirst({
     where: { id, organisationId },
@@ -96,6 +134,14 @@ const assertRecord = async (id: string, organisationId: string) => {
 export const ControlledSubstanceLogService = {
   async create(params: CreateCsLogParams) {
     const { organisationId, administeredBy, ...rest } = params;
+
+    assertQuantitiesReconcile({
+      amountDrawn: rest.amountDrawn,
+      amountAdministered: rest.amountAdministered,
+      amountWasted: rest.amountWasted ?? 0,
+      balanceBefore: rest.balanceBefore ?? null,
+      balanceAfter: rest.balanceAfter ?? null,
+    });
 
     const record = await prisma.controlledSubstanceLog.create({
       data: {
@@ -167,7 +213,16 @@ export const ControlledSubstanceLogService = {
   },
 
   async update(id: string, organisationId: string, params: UpdateCsLogParams) {
-    await assertRecord(id, organisationId);
+    const existing = await assertRecord(id, organisationId);
+
+    assertQuantitiesReconcile({
+      amountDrawn: params.amountDrawn ?? existing.amountDrawn,
+      amountAdministered:
+        params.amountAdministered ?? existing.amountAdministered,
+      amountWasted: params.amountWasted ?? existing.amountWasted,
+      balanceBefore: params.balanceBefore ?? existing.balanceBefore,
+      balanceAfter: params.balanceAfter ?? existing.balanceAfter,
+    });
 
     const data: Prisma.ControlledSubstanceLogUpdateInput = {};
     if (params.lotNumber !== undefined) data.lotNumber = params.lotNumber;

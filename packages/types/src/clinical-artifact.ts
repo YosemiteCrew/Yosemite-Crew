@@ -51,6 +51,9 @@ export type SoapNoteRecord = {
     appointmentId: string | null;
     caseId: string | null;
     encounterId: string | null;
+    // Patient (companion) the artifact is about. FHIR subject/patient elements must
+    // reference the Patient, so projections carry it alongside the clinical context.
+    patientId?: string | null;
     kind: ClinicalArtifactKind;
     status: ClinicalArtifactStatus;
     templateId: string | null;
@@ -351,6 +354,16 @@ const clinicalContextReference = (artifact: {
   return undefined;
 };
 
+const UNKNOWN_PATIENT_DISPLAY = 'Unknown patient';
+
+const patientReference = (artifact: { patientId?: string | null }): Reference | undefined =>
+  artifact.patientId ? { reference: `Patient/${artifact.patientId}` } : undefined;
+
+// subject/patient are 1..1 on MedicationRequest, Immunization and Procedure: when the
+// patient is unknown emit a display-only Reference rather than the clinical context.
+const requiredPatientReference = (artifact: { patientId?: string | null }): Reference =>
+  patientReference(artifact) ?? { display: UNKNOWN_PATIENT_DISPLAY };
+
 const toCodeableConcept = (code: string, display: string): CodeableConcept => ({
   coding: [
     {
@@ -614,9 +627,7 @@ const prescriptionToMedicationRequest = (record: PrescriptionRecord): Medication
   intent: 'order',
   medicationCodeableConcept: toCodeableConcept('PRESCRIPTION', 'Prescription'),
   medicationReference: { reference: `MedicationRequest/${record.artifact.id}` },
-  subject: {
-    reference: clinicalContextReference(record.artifact) ?? `Task/${record.artifact.id}`,
-  },
+  subject: requiredPatientReference(record.artifact),
   encounter: toReference(clinicalContextReference(record.artifact)),
   authoredOn: toIso(record.artifact.updatedAt) ?? new Date().toISOString(),
   requester: record.artifact.authorId
@@ -757,7 +768,7 @@ const vitalRecordToObservation = (record: VitalRecordRecord): Observation => {
     id: record.artifact.id,
     status: toStatus(record.artifact.status),
     code: toCodeableConcept('VITAL_RECORD', 'Vital record'),
-    subject: toReference(clinicalContextReference(record.artifact)),
+    subject: patientReference(record.artifact),
     encounter: toReference(clinicalContextReference(record.artifact)),
     effectiveDateTime: toIso(record.vitalRecord.measuredAt),
     performer: record.vitalRecord.recordedBy
@@ -838,7 +849,11 @@ const buildKindExtensions = (
       },
     ]);
 
-const immunizationToImmunization = (record: ImmunizationRecord): Immunization => {
+// occurrence[x] is a FHIR choice element, but the generated type marks both variants
+// required, so the emitted resource keeps occurrenceDateTime only.
+type ImmunizationResource = Omit<Immunization, 'occurrenceString'>;
+
+const immunizationToImmunization = (record: ImmunizationRecord): ImmunizationResource => {
   const occurrence = toIso(record.immunization.dateAdministered) ?? new Date().toISOString();
   return {
     resourceType: 'Immunization',
@@ -848,11 +863,8 @@ const immunizationToImmunization = (record: ImmunizationRecord): Immunization =>
       record.immunization.vaccineType,
       record.immunization.vaccineName
     ),
-    patient: {
-      reference: clinicalContextReference(record.artifact) ?? `Immunization/${record.artifact.id}`,
-    },
+    patient: requiredPatientReference(record.artifact),
     occurrenceDateTime: occurrence,
-    occurrenceString: occurrence,
     primarySource: Boolean(record.artifact.encounterId),
     lotNumber: record.immunization.lotNumber ?? record.immunization.batchNumber ?? undefined,
     manufacturer: record.immunization.manufacturer
@@ -887,7 +899,7 @@ const rabiesTitrationToObservation = (record: RabiesTitrationRecord): Observatio
     id: record.artifact.id,
     status: toStatus(record.artifact.status),
     code: toCodeableConcept('RABIES_TITRATION', 'Rabies antibody titration'),
-    subject: toReference(clinicalContextReference(record.artifact)),
+    subject: patientReference(record.artifact),
     encounter: toReference(clinicalContextReference(record.artifact)),
     effectiveDateTime: toIso(record.rabiesTitration.sampleDate),
     valueQuantity: {
@@ -918,9 +930,7 @@ const parasiteTreatmentToProcedure = (record: ParasiteTreatmentRecord): Procedur
     record.parasiteTreatment.treatmentType,
     record.parasiteTreatment.productName
   ),
-  subject: {
-    reference: clinicalContextReference(record.artifact) ?? `Procedure/${record.artifact.id}`,
-  },
+  subject: requiredPatientReference(record.artifact),
   encounter: toReference(clinicalContextReference(record.artifact)),
   performedDateTime: toIso(record.parasiteTreatment.treatedAt),
   performer: record.artifact.authorId

@@ -8,12 +8,12 @@ import {
   RoomEquipmentOptions,
   RoomSpeciesOptions,
   RoomsTypes,
-  RoomUnitSizeOptions,
 } from '@/app/features/organization/pages/Organization/types';
 import { OrganisationRoom } from '@yosemite-crew/types';
 import { FiPlus } from 'react-icons/fi';
 import type { ManagedRoom, RoomUnitDetails } from './RoomInfo.types';
 import { SectionHeader, ToggleSwitch } from './roomSectionPrimitives';
+import RoomUnitFieldsEditor from './RoomUnitFieldsEditor';
 
 type SelectOption = { label: string; value: string };
 type OpenSections = Record<'details' | 'availability' | 'units' | 'equipment', boolean>;
@@ -275,31 +275,7 @@ const RoomInfoSections = ({
               </fieldset>
             ) : (
               <div key={unit.id} className="rounded-2xl border border-blue-text p-3">
-                <div className="grid grid-cols-1 gap-3">
-                  <FormInput
-                    intype="text"
-                    value={unit.name}
-                    inlabel="Name"
-                    onChange={(event) => onUpdateUnit(unit.id, { name: event.target.value })}
-                  />
-                  <LabelDropdown
-                    placeholder="Size"
-                    options={RoomUnitSizeOptions}
-                    defaultOption={unit.size}
-                    onSelect={(option) => onUpdateUnit(unit.id, { size: option.value })}
-                  />
-                  <FormInput
-                    intype="number"
-                    value={String(unit.count)}
-                    inlabel="Units"
-                    onChange={(event) => {
-                      const parsed = Number(event.target.value);
-                      onUpdateUnit(unit.id, {
-                        count: Number.isNaN(parsed) ? 0 : Math.max(0, parsed),
-                      });
-                    }}
-                  />
-                </div>
+                <RoomUnitFieldsEditor unit={unit} onUpdateUnit={onUpdateUnit} />
               </div>
             )
           )}
@@ -332,7 +308,7 @@ const RoomInfoSections = ({
             onChange={(value) => onFormChange({ equipment: value })}
             options={Array.from(new Set([...RoomEquipmentOptions, ...options.equipment]))}
           />
-          <div className="flex items-start gap-2">
+          <div className="flex items-end gap-2">
             <FormInput
               intype="text"
               value={customEquipmentName}
@@ -343,7 +319,7 @@ const RoomInfoSections = ({
               type="button"
               aria-label="Add custom equipment"
               onClick={onAddCustomEquipment}
-              className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-text-primary text-white"
+              className="flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-2xl bg-text-primary text-white"
             >
               <FiPlus size={18} aria-hidden="true" />
             </button>

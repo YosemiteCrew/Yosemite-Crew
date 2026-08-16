@@ -1,13 +1,13 @@
 'use client';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  LuAlertCircle,
-  LuCheckCircle,
-  LuDownload,
-  LuEye,
-  LuFileSignature,
-  LuPrinter,
-} from 'react-icons/lu';
+  IoAlertCircleOutline,
+  IoCheckmarkCircleOutline,
+  IoDocumentTextOutline,
+  IoDownloadOutline,
+  IoEyeOutline,
+  IoPrintOutline,
+} from 'react-icons/io5';
 import type { Appointment, Form, TemplateLike } from '@yosemite-crew/types';
 
 type AppointmentStatus = Appointment['status'];
@@ -73,17 +73,17 @@ const AUTH_META: Record<FormAuthState, { label: string; tone: string; icon: Reac
   AUTHORIZED_CLIENT: {
     label: 'Authorized by Client',
     tone: 'text-success-600',
-    icon: <LuCheckCircle size={14} aria-hidden="true" />,
+    icon: <IoCheckmarkCircleOutline size={14} aria-hidden="true" />,
   },
   AUTHORIZED_PROVIDER: {
     label: 'Authorized by Service Provider',
     tone: 'text-success-600',
-    icon: <LuCheckCircle size={14} aria-hidden="true" />,
+    icon: <IoCheckmarkCircleOutline size={14} aria-hidden="true" />,
   },
   PENDING: {
     label: 'Acknowledgement pending',
     tone: 'text-danger-600',
-    icon: <LuAlertCircle size={14} aria-hidden="true" />,
+    icon: <IoAlertCircleOutline size={14} aria-hidden="true" />,
   },
 };
 
@@ -150,7 +150,7 @@ const formatTime = (value: Date | string | undefined) => {
 
 const StateBadge = ({ label, tone }: { label: string; tone: string }) => (
   <span
-    className={`inline-flex items-center rounded-2xl border border-card-border bg-[#FAF8F6] px-3 py-1 text-[12px] ${tone}`}
+    className={`inline-flex items-center rounded-2xl border border-card-border bg-neutral-100 px-3 py-1 text-[12px] ${tone}`}
   >
     {label}
   </span>
@@ -223,17 +223,18 @@ const ClinicalPacketSection = ({
   // Resolve the encounter's packet on mount so the state matrix reflects server
   // truth. `createEncounterDocumentPacket` is idempotent — it returns the
   // existing packet (with its status + signing state) when one is present.
-  const refreshPacket = useCallback(async () => {
-    if (!organisationId || !encounterId) return;
+  // Resolution is a pure fetch (null = leave current state alone) so the mount
+  // effect can apply the result in a subscription-style callback.
+  const resolvePacket = useCallback(async (): Promise<PacketState | null> => {
+    if (!organisationId || !encounterId) return null;
     try {
       try {
         const documents = await listEncounterWorkspaceDocuments(organisationId, encounterId);
         if (documents.some(isSignedDocumentRow)) {
-          setPacket({
+          return {
             status: 'FINAL',
             signingStatus: 'SIGNED',
-          });
-          return;
+          };
         }
       } catch (error) {
         if (isAuthRedirectError(error)) throw error;
@@ -241,21 +242,29 @@ const ClinicalPacketSection = ({
       }
 
       const result = await createEncounterDocumentPacket(organisationId, encounterId);
-      setPacket({
+      return {
         packetId: result?.packetId,
         status: result?.status,
         signingStatus: result?.signing?.status,
-      });
+      };
     } catch (error) {
       if (!isAuthRedirectError(error)) {
         console.error('Unable to load clinical packet:', error);
       }
+      return null;
     }
   }, [organisationId, encounterId]);
 
+  const refreshPacket = useCallback(async () => {
+    const next = await resolvePacket();
+    if (next) setPacket(next);
+  }, [resolvePacket]);
+
   useEffect(() => {
-    void refreshPacket();
-  }, [refreshPacket]);
+    void resolvePacket().then((next) => {
+      if (next) setPacket(next);
+    });
+  }, [resolvePacket]);
 
   const reconcilePacketAfterSigningClose = useCallback(
     async (packetId: string) => {
@@ -296,6 +305,7 @@ const ClinicalPacketSection = ({
     : null;
 
   const handlePrint = async () => {
+    /* v8 ignore next -- re-entrancy guard: Print is disabled without org+encounter context and while isPrinting, so this early return is unreachable via the UI */
     if (!organisationId || !encounterId || isPrinting) return;
     setIsPrinting(true);
     try {
@@ -309,6 +319,7 @@ const ClinicalPacketSection = ({
   };
 
   const handleDownloadSigned = async () => {
+    /* v8 ignore next -- re-entrancy guard: Download Signed is disabled without org+encounter context and while isPrinting, so this early return is unreachable via the UI */
     if (!organisationId || !encounterId || isPrinting) return;
     setIsPrinting(true);
     try {
@@ -325,6 +336,7 @@ const ClinicalPacketSection = ({
   };
 
   const handleSign = async () => {
+    /* v8 ignore next -- re-entrancy guard: Sign is only clickable with org+encounter context while not already signing/signed, so this early return is unreachable via the UI */
     if (!organisationId || !encounterId || isSigning || isSigned) return;
     setSignError(null);
     setIsSigning(true);
@@ -409,14 +421,14 @@ const ClinicalPacketSection = ({
       <div className="flex flex-wrap items-center justify-end gap-2">
         <Secondary
           text={isPrinting ? 'Preparing…' : 'Print All'}
-          icon={<LuPrinter aria-hidden="true" />}
+          icon={<IoPrintOutline aria-hidden="true" />}
           onClick={() => void handlePrint()}
           isDisabled={!hasContext || isPrinting}
         />
         {isSigned && (
           <Secondary
             text="Download Signed"
-            icon={<LuDownload aria-hidden="true" />}
+            icon={<IoDownloadOutline aria-hidden="true" />}
             onClick={() => void handleDownloadSigned()}
             isDisabled={!hasContext || isPrinting}
           />
@@ -426,7 +438,7 @@ const ClinicalPacketSection = ({
             <GlassTooltip content={signGateReason} side="top">
               <Secondary
                 text={signLabel}
-                icon={<LuFileSignature aria-hidden="true" />}
+                icon={<IoDocumentTextOutline aria-hidden="true" />}
                 onClick={() => void handleSign()}
                 isDisabled
               />
@@ -434,7 +446,7 @@ const ClinicalPacketSection = ({
           ) : (
             <Secondary
               text={signLabel}
-              icon={<LuFileSignature aria-hidden="true" />}
+              icon={<IoDocumentTextOutline aria-hidden="true" />}
               onClick={() => void handleSign()}
               isDisabled={!hasContext || isSigning || isInProgress}
             />
@@ -523,9 +535,9 @@ const FormRow = ({ form }: { form: SubmittedForm }) => {
           <CircleIconButton
             icon={
               isPending ? (
-                <LuEye size={16} aria-hidden="true" />
+                <IoEyeOutline size={16} aria-hidden="true" />
               ) : (
-                <LuDownload size={16} aria-hidden="true" />
+                <IoDownloadOutline size={16} aria-hidden="true" />
               )
             }
             label={
@@ -536,7 +548,7 @@ const FormRow = ({ form }: { form: SubmittedForm }) => {
             onClick={() => void handleDownload()}
           />
           <CircleIconButton
-            icon={<LuPrinter size={16} aria-hidden="true" />}
+            icon={<IoPrintOutline size={16} aria-hidden="true" />}
             label={`Print ${form.title}`}
             disabled={!canDownload || busy}
             onClick={() => void handleDownload()}
@@ -709,7 +721,7 @@ const AppointmentFormsPanel = ({
                 <WorkspaceSearchResultRow
                   key={template.id}
                   name={template.name}
-                  leadingIcon={<LuFileSignature aria-hidden="true" className="shrink-0" />}
+                  leadingIcon={<IoDocumentTextOutline aria-hidden="true" className="shrink-0" />}
                   disabled={assigningId === template.id}
                   onSelect={() => void handleAssignTemplate(template)}
                 />

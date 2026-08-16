@@ -30,21 +30,23 @@ Current production releases:
 
 | Platform | Store Version | Build |
 | -------- | ------------- | ----- |
-| Android  | v1.0.11       | 13    |
-| iOS      | v1.0.5        | 9     |
+| Android  | v1.0.12       | 15    |
+| iOS      | v1.0.7        | 12    |
 
 Release history:
 
-| Platform | Version | Notes                                                                                                                                                                                                    |
-| -------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Android  | v1.0.11 | Booking specialty resolved correctly from selected package; removed redundant GPS retry on business search; fixed flaky test mock leakage; Sonar maintainability fixes                                   |
-| iOS      | v1.0.5  | Booking specialty resolved correctly from selected package; removed redundant GPS retry on business search; fixed flaky test mock leakage; Sonar maintainability fixes                                   |
-| Android  | v1.0.10 | Map-based vet business discovery with full-screen interactive map; appointment packages during booking; unified clinical packet (SOAP, prescriptions, discharge); bug fixes and performance improvements |
-| iOS      | v1.2    | Map-based vet business discovery with full-screen interactive map; appointment packages during booking; unified clinical packet (SOAP, prescriptions, discharge); bug fixes and performance improvements |
-| Android  | v1.0.6  | Tasks module GA (calendar sync, observational tools); liquid glass UI polish; appointment consent e-signing                                                                                              |
-| iOS      | v1.0.3  | Tasks module GA (calendar sync, observational tools); liquid glass UI polish; appointment consent e-signing                                                                                              |
-| Android  | v1.0.5  | Initial production release                                                                                                                                                                               |
-| iOS      | v1.0.2  | Initial production release                                                                                                                                                                               |
+| Platform | Version | Notes                                                                                                                                                                                                                                                                                                 |
+| -------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Android  | v1.0.12 | New warm-bone visual theme across the app, with a matching espresso dark mode; new serif typography for greetings, screen titles, and key moments; redesigned onboarding and landing screens; refined buttons, toggles, cards, and other UI elements app-wide; bug fixes and performance improvements |
+| iOS      | v1.0.7  | New warm-bone visual theme across the app, with a matching espresso dark mode; new serif typography for greetings, screen titles, and key moments; redesigned onboarding and landing screens; refined buttons, toggles, cards, and other UI elements app-wide; bug fixes and performance improvements |
+| Android  | v1.0.11 | Booking specialty resolved correctly from selected package; removed redundant GPS retry on business search; fixed flaky test mock leakage; Sonar maintainability fixes                                                                                                                                |
+| iOS      | v1.0.5  | Booking specialty resolved correctly from selected package; removed redundant GPS retry on business search; fixed flaky test mock leakage; Sonar maintainability fixes                                                                                                                                |
+| Android  | v1.0.10 | Map-based vet business discovery with full-screen interactive map; appointment packages during booking; unified clinical packet (SOAP, prescriptions, discharge); bug fixes and performance improvements                                                                                              |
+| iOS      | v1.2    | Map-based vet business discovery with full-screen interactive map; appointment packages during booking; unified clinical packet (SOAP, prescriptions, discharge); bug fixes and performance improvements                                                                                              |
+| Android  | v1.0.6  | Tasks module GA (calendar sync, observational tools); liquid glass UI polish; appointment consent e-signing                                                                                                                                                                                           |
+| iOS      | v1.0.3  | Tasks module GA (calendar sync, observational tools); liquid glass UI polish; appointment consent e-signing                                                                                                                                                                                           |
+| Android  | v1.0.5  | Initial production release                                                                                                                                                                                                                                                                            |
+| iOS      | v1.0.2  | Initial production release                                                                                                                                                                                                                                                                            |
 
 ## 🛠️ Getting Started
 
@@ -57,7 +59,6 @@ This guide will walk you through setting up the mobile app on your local machine
 - **React Native Environment**: You **must** complete the official setup guide for your OS and target platform (Android/iOS). Follow the instructions under the "**React Native CLI Quickstart**" tab.
   - [**React Native Environment Setup Guide**](https://reactnative.dev/docs/set-up-your-environment)
 - **Ruby and Bundler**: Required for managing iOS dependencies (CocoaPods).
-- **AWS Account & IAM User**: An active AWS account is required to run the backend.
 
 ---
 
@@ -113,22 +114,22 @@ If an iOS build works on this setup but fails on a newer Xcode, first compare `x
 
 #### Android tooling
 
-| Tool                     | Version / value                            |
+| Tool | Version / value |
 | ------------------------ | ------------------------------------------ | ----------------------- |
-| Java                     | `17.0.16`                                  |
-| JRE/JDK                  | OpenJDK Zulu `17.0.16+8-LTS`               |
-| javac path               | `/usr/bin/javac`                           |
-| Android Studio           | `2025.1 AI-251.26094.121.2512.13930704`    |
-| Android SDK path         | `/Users/YOUR_USERNAME/Library/Android/sdk` |
-| Android SDK API levels   | `35`, `36`                                 |
-| Android SDK Build Tools  | `35.0.0`                                   |
-| Android emulator         | `36.1.9.0`                                 |
-| adb                      | `1.0.41`, platform-tools `36.0.0-13206524` |
-| Android system image     | `android-35                                | Google Play ARM 64 v8a` |
-| Android NDK              | Not installed                              |
-| Android Hermes           | Enabled                                    |
-| Android New Architecture | Enabled                                    |
-| Gradle wrapper           | `8.14.3`                                   |
+| Java | `17.0.16` |
+| JRE/JDK | OpenJDK Zulu `17.0.16+8-LTS` |
+| javac path | `/usr/bin/javac` |
+| Android Studio | `2025.1 AI-251.26094.121.2512.13930704` |
+| Android SDK path | `/Users/YOUR_USERNAME/Library/Android/sdk` |
+| Android SDK API levels | `35`, `36` |
+| Android SDK Build Tools | `35.0.0` |
+| Android emulator | `36.1.9.0` |
+| adb | `1.0.41`, platform-tools `36.0.0-13206524` |
+| Android system image | `android-35                                | Google Play ARM 64 v8a` |
+| Android NDK | Not installed |
+| Android Hermes | Enabled |
+| Android New Architecture | Enabled |
+| Gradle wrapper | `8.14.3` |
 
 #### Other native tooling
 
@@ -154,27 +155,7 @@ watchman --version
 
 ---
 
-### Step 1: Configure Your AWS Credentials
-
-Before you begin, the AWS Amplify CLI needs credentials to deploy resources to your AWS account.
-
-1.  **Create an IAM User**: In your AWS account, create a new IAM user with **AdministratorAccess**.
-2.  **Get Access Keys**: Generate an **Access Key ID** and a **Secret Access Key**.
-3.  **Configure Your Local Machine**: Configure the AWS CLI on your machine by running `aws configure` and providing the keys you generated. The Amplify CLI uses these credentials automatically.
-
-```sh
-# Install the AWS CLI if you haven't already
-# Then, configure it with your IAM user credentials
-aws configure
-AWS Access Key ID [None]: YOUR_ACCESS_KEY_ID
-AWS Secret Access Key [None]: YOUR_SECRET_ACCESS_KEY
-Default region name [None]: us-east-1
-Default output format [None]: json
-```
-
----
-
-### Step 2: Install Monorepo Dependencies
+### Step 1: Install Monorepo Dependencies
 
 Navigate to the **root** of the entire `Yosemite-Crew` monorepo (not this folder) and install all project dependencies using `pnpm`.
 
@@ -185,51 +166,7 @@ pnpm install
 
 ---
 
-### Step 3: Set up AWS Amplify Sandbox
-
-This project uses AWS Amplify for its backend. Run a local sandbox environment that connects to your configured AWS account.
-
-1.  **Start the sandbox**. This will deploy a development backend to your AWS account.
-
-    ```sh
-    npx ampx sandbox
-    ```
-
-2.  **Set the required secrets**. You must have a **verified sender identity in Amazon SES** (Simple Email Service) for passwordless OTP (one-time password) emails to work.
-
-    ```sh
-    # Replace YOUR_VERIFIED_EMAIL@example.com with your verified SES email address
-    npx ampx sandbox secret set PASSWORDLESS_OTP_EMAIL_FROM YOUR_VERIFIED_EMAIL@example.com
-
-    # This secret is optional if you are not mocking a custom user service
-    npx ampx sandbox secret set CUSTOM_USER_SERVICE_URL
-    ```
-
-3.  **Grant Email Permissions in AWS IAM**. The Cognito IAM role generated by the sandbox needs permission to send emails through SES.
-    - Navigate to the **IAM console** in your AWS account.
-    - Find the unauthenticated IAM role associated with your Cognito Identity Pool (its name will be similar to `amplify-....-unauth-role`).
-    - Attach a new inline policy with the following JSON.
-
-    <!-- end list -->
-
-    ```json
-    {
-      "Version": "2012-10-17",
-      "Statement": [
-        {
-          "Effect": "Allow",
-          "Action": ["ses:SendEmail", "ses:SendRawEmail"],
-          "Resource": "arn:aws:ses:YOUR_AWS_REGION:YOUR_AWS_ACCOUNT_ID:identity/YOUR_VERIFIED_EMAIL@example.com"
-        }
-      ]
-    }
-    ```
-
-    > **Important**: Replace the placeholder `Resource` ARN with the actual ARN of your verified SES identity.
-
----
-
-### Step 4: Configure Environment Credentials (Crucial\!)
+### Step 2: Configure Environment Credentials (Crucial\!)
 
 Several config files are gitignored because they contain keys. We provide example/template files for every one of them. Run the commands below from the **root of the monorepo** unless noted otherwise.
 
@@ -241,12 +178,11 @@ Several config files are gitignored because they contain keys. We provide exampl
 
 Copy and tick off each item before trying to build:
 
-- [ ] **A. Amplify / Cognito** - `devamplify_outputs.json` (+ `prodamplify_outputs.json` if testing prod auth)
-- [ ] **B. JS variables** - `variables.local.ts`
-- [ ] **C. Android: Firebase** - `google-services.json`
-- [ ] **D. Android: Native keys** - `strings.xml` + `gradle.properties` + `local.properties`
-- [ ] **E. iOS: Firebase** - `GoogleService-Info.plist`
-- [ ] **F. iOS: Native keys** - `Info.plist` + `Secrets.xcconfig` + `.xcode.env.local` (if needed)
+- [ ] **A. JS variables** - `variables.local.ts`
+- [ ] **B. Android: Firebase** - `google-services.json`
+- [ ] **C. Android: Native keys** - `strings.xml` + `gradle.properties` + `local.properties`
+- [ ] **D. iOS: Firebase** - `GoogleService-Info.plist`
+- [ ] **E. iOS: Native keys** - `Info.plist` + `Secrets.xcconfig` + `.xcode.env.local` (if needed)
 
 All committed setup templates live under `apps/mobileAppYC/config-templates/`. Files copied out of that folder into `android/`, `ios/`, or the app root are local-only unless this README explicitly says otherwise.
 
@@ -254,19 +190,17 @@ All committed setup templates live under `apps/mobileAppYC/config-templates/`. F
 
 Create these gitignored files when setting up a fresh clone:
 
-| Local file                                                     | Template / source                                                                      |
-| -------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `apps/mobileAppYC/devamplify_outputs.json`                     | `config-templates/amplify/amplify_outputs.example.json` or your Amplify sandbox output |
-| `apps/mobileAppYC/prodamplify_outputs.json`                    | `config-templates/amplify/amplify_outputs.example.json` or production Amplify output   |
-| `apps/mobileAppYC/src/config/variables.local.ts`               | `config-templates/env/variables.local.example.ts`                                      |
-| `apps/mobileAppYC/android/app/google-services.json`            | `config-templates/android/google-services.example.json` or Firebase Console            |
-| `apps/mobileAppYC/android/app/src/main/res/values/strings.xml` | `config-templates/android/strings.example.xml`                                         |
-| `apps/mobileAppYC/android/gradle.properties`                   | `config-templates/android/gradle.properties.example`                                   |
-| `apps/mobileAppYC/android/local.properties`                    | `config-templates/android/local.properties.example` or Android Studio                  |
-| `apps/mobileAppYC/ios/GoogleService-Info.plist`                | `config-templates/ios/GoogleService-Info.example.plist` or Firebase Console            |
-| `apps/mobileAppYC/ios/mobileAppYC/Info.plist`                  | `config-templates/ios/Info.plist.example`                                              |
-| `apps/mobileAppYC/ios/mobileAppYC/Secrets.xcconfig`            | `config-templates/ios/Secrets.xcconfig.example`                                        |
-| `apps/mobileAppYC/ios/.xcode.env.local`                        | create manually only if Xcode cannot find Node                                         |
+| Local file                                                     | Template / source                                                           |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `apps/mobileAppYC/src/config/variables.local.ts`               | `config-templates/env/variables.local.example.ts`                           |
+| `apps/mobileAppYC/android/app/google-services.json`            | `config-templates/android/google-services.example.json` or Firebase Console |
+| `apps/mobileAppYC/android/app/src/main/res/values/strings.xml` | `config-templates/android/strings.example.xml`                              |
+| `apps/mobileAppYC/android/gradle.properties`                   | `config-templates/android/gradle.properties.example`                        |
+| `apps/mobileAppYC/android/local.properties`                    | `config-templates/android/local.properties.example` or Android Studio       |
+| `apps/mobileAppYC/ios/GoogleService-Info.plist`                | `config-templates/ios/GoogleService-Info.example.plist` or Firebase Console |
+| `apps/mobileAppYC/ios/mobileAppYC/Info.plist`                  | `config-templates/ios/Info.plist.example`                                   |
+| `apps/mobileAppYC/ios/mobileAppYC/Secrets.xcconfig`            | `config-templates/ios/Secrets.xcconfig.example`                             |
+| `apps/mobileAppYC/ios/.xcode.env.local`                        | create manually only if Xcode cannot find Node                              |
 
 Leave these tracked project files committed and do not replace them with local secret copies:
 
@@ -282,35 +216,18 @@ The template `config-templates/env/.env.example` is informational only. This app
 
 ---
 
-#### A. Amplify / Cognito (`devamplify_outputs.json` / `prodamplify_outputs.json`)
+#### Authentication (SuperTokens)
 
-The app uses AWS Amplify for authentication. It automatically selects the correct Cognito pool at startup based on `USE_DEV_API` in `variables.local.ts` - **no manual file swapping needed**.
+The app authenticates with **SuperTokens** sessions against the Yosemite Crew backend (`supertokens-react-native`) - there are no separate auth config files to create. The SDK is initialized at startup against the API selected by `USE_DEV_API` in `variables.local.ts`, attaches the session tokens via headers, and refreshes the access token automatically. Email-OTP sign-in works out of the box; **Google, Facebook, and (on Android) Apple sign-in additionally require the social-provider IDs in `variables.local.ts`** (see section A below - the copied template leaves them empty, and `configureSocialProviders()` skips provider initialization with a warning when they are missing).
 
-- `USE_DEV_API = true` → configures Amplify with `devamplify_outputs.json` → authenticates against the **dev Cognito pool** → hits `devapi.yosemitecrew.com`
-- `USE_DEV_API = false` → configures Amplify with `prodamplify_outputs.json` → authenticates against the **prod Cognito pool** → hits `api.yosemitecrew.com`
+- `USE_DEV_API = true` → sessions against `devapi.yosemitecrew.com` (recommended for development)
+- `USE_DEV_API = false` → sessions against `api.yosemitecrew.com` (production)
 
-Both files are gitignored and must be created locally. The app imports both files during JS bundling, so both must exist and contain valid JSON even if you only use the dev API. The Cognito pool and API must always match - mixing them causes 401s on every request.
-
-**Option 1 - Use the shared contributor dev pool (no AWS account needed, recommended for UI work):**
-
-```sh
-cp apps/mobileAppYC/config-templates/amplify/amplify_outputs.example.json \
-   apps/mobileAppYC/devamplify_outputs.json
-cp apps/mobileAppYC/config-templates/amplify/amplify_outputs.example.json \
-   apps/mobileAppYC/prodamplify_outputs.json
-```
-
-This connects you to the shared development Cognito pool (`eu-central-1_2jEniI2eQ`). Log in with any email address via OTP, or use the review-login bypass (`test@yosemitecrew.com`) when `enableReviewLogin` is active on the dev API. This is a shared dev environment - do not store sensitive data in it.
-
-> For normal development, keep `USE_DEV_API = true`. The `prodamplify_outputs.json` file can be the same stub as `devamplify_outputs.json`; it just needs to be present and valid so Metro/Hermes can compile the bundle.
-
-**Option 2 - Spin up your own isolated sandbox (requires AWS account):**
-
-Follow Step 3 above to run `npx ampx sandbox`. Copy the generated `amplify_outputs.json` to `devamplify_outputs.json`. No further changes needed.
+Sign in with email OTP against the dev API, or use the review-login bypass (`test@yosemitecrew.com`) when `enableReviewLogin` is active on the dev API. The dev API is a shared environment - do not store sensitive data in it.
 
 ---
 
-#### B. JavaScript Variables (`variables.local.ts`)
+#### A. JavaScript Variables (`variables.local.ts`)
 
 This file controls which backend environment the app points to and holds optional API keys for JavaScript/API services (Stream Chat, Stripe, Google Places web services, PostHog). It is gitignored and never committed.
 
@@ -324,17 +241,23 @@ cp apps/mobileAppYC/config-templates/env/variables.local.example.ts \
 Open the copied file and read the top section. The only required change for development is the **master environment switch** at the top:
 
 ```ts
-// true  → dev Cognito pool + devapi.yosemitecrew.com
-// false → prod Cognito pool + api.yosemitecrew.com
+// true  → devapi.yosemitecrew.com (dev backend)
+// false → api.yosemitecrew.com (production)
 const USE_DEV_API = true;
 ```
 
-Setting `USE_DEV_API = true` does two things automatically:
+Setting `USE_DEV_API = true` routes all API calls - including SuperTokens authentication - to `devapi.yosemitecrew.com`.
 
-1. Routes all API calls to `devapi.yosemitecrew.com`
-2. Loads `devamplify_outputs.json` so the Cognito pool matches the backend
+Everything else in the file has sensible defaults and inline comments explaining each option, with one exception: social sign-in. The template ships `PASSWORDLESS_AUTH_CONFIG.googleWebClientId` and `PASSWORDLESS_AUTH_CONFIG.facebookAppId` empty, and `configureSocialProviders()` (in `src/features/auth/services/socialAuth.ts`) skips initializing a provider whose ID is absent - Google/Facebook sign-in buttons will then fail while email OTP keeps working. To enable them:
 
-Everything else in the file has sensible defaults and inline comments explaining each option.
+| Field                                        | Where to find it                                                                                                                 |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `PASSWORDLESS_AUTH_CONFIG.googleWebClientId` | Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client IDs → the **Web** client ID                              |
+| `PASSWORDLESS_AUTH_CONFIG.facebookAppId`     | Meta for Developers → your app → App ID (must match the ID in the native Facebook config, sections C and E)                      |
+| `PASSWORDLESS_AUTH_CONFIG.appleServiceId`    | Apple Developer portal → Certificates, Identifiers & Profiles → Identifiers → Services IDs (a Sign in with Apple **Service ID**) |
+| `PASSWORDLESS_AUTH_CONFIG.appleRedirectUri`  | A return URL registered on that same Service ID's Sign in with Apple configuration                                               |
+
+The two Apple fields are used only by the **Android** web-based flow (`signInWithAppleAndroid()` passes them to `appleAuthAndroid.configure()`); iOS uses the native Apple flow and ignores them. Note the template ships truthy **placeholder** values for both, so Apple sign-in on a fresh Android build fails against Apple's servers until you replace them - leave the placeholders if you do not need Apple sign-in locally.
 
 `GOOGLE_PLACES_CONFIG.apiKey` is used by the React Native JavaScript Google Places service. It is separate from the native Google Maps SDK keys used by Android and iOS map rendering.
 
@@ -344,7 +267,7 @@ PostHog mobile analytics are disabled by default. If you want to enable them for
 
 ---
 
-#### C. Android: Firebase (`google-services.json`)
+#### B. Android: Firebase (`google-services.json`)
 
 Required for push notifications (FCM, Firebase Cloud Messaging). The app boots and runs without real values - you will just not receive push notifications.
 
@@ -361,7 +284,7 @@ The stub file has the correct structure. Firebase init will log a warning on sta
 
 ---
 
-#### D. Android: Native Keys (`strings.xml` + `gradle.properties` + `local.properties`)
+#### C. Android: Native Keys (`strings.xml` + `gradle.properties` + `local.properties`)
 
 These files are local machine/project configuration and are intentionally gitignored. Keep them out of commits; use the example files below as the source of truth.
 
@@ -397,7 +320,7 @@ These files are local machine/project configuration and are intentionally gitign
 
 ---
 
-#### E. iOS: Firebase (`GoogleService-Info.plist`)
+#### D. iOS: Firebase (`GoogleService-Info.plist`)
 
 Required for push notifications (APNs, Apple Push Notification service, delivered via FCM). Same story as Android - the app boots without real values.
 
@@ -414,7 +337,7 @@ Then add this stub file to the Xcode project the same way. Push notifications wi
 
 ---
 
-#### F. iOS: Native Keys (`Info.plist` + `Secrets.xcconfig` + `.xcode.env.local`)
+#### E. iOS: Native Keys (`Info.plist` + `Secrets.xcconfig` + `.xcode.env.local`)
 
 `AppDelegate.swift` is application source code and must stay tracked. Do not place API keys or service tokens in `AppDelegate.swift`; put iOS native keys in the gitignored `Info.plist`, `GoogleService-Info.plist`, or `Secrets.xcconfig` files created below.
 
@@ -454,7 +377,7 @@ Then add this stub file to the Xcode project the same way. Push notifications wi
 
 ---
 
-### Step 5: Update Application Identifiers
+### Step 3: Update Application Identifiers
 
 For a clean build, change the default package name (Android) and bundle identifier (iOS).
 
@@ -463,7 +386,7 @@ For a clean build, change the default package name (Android) and bundle identifi
 
 ---
 
-### Step 6: Run The Application
+### Step 4: Run The Application
 
 All commands below should be run from this directory (`apps/mobileAppYC`).
 

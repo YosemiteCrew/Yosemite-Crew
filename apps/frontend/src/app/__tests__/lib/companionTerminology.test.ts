@@ -176,9 +176,63 @@ describe('rewriteCompanionTerminologyText', () => {
     );
   });
 
+  it('never rewrites the audience term "pet business"', () => {
+    expect(rewriteCompanionTerminologyText('Pet business', 'PATIENT')).toBe('Pet business');
+    expect(rewriteCompanionTerminologyText('Sign in as a pet business', 'ANIMAL')).toBe(
+      'Sign in as a pet business'
+    );
+  });
+
+  it('never rewrites the audience term "pet businesses"', () => {
+    expect(rewriteCompanionTerminologyText('Built for pet businesses', 'PATIENT')).toBe(
+      'Built for pet businesses'
+    );
+  });
+
+  it('never rewrites the brand tagline "animal health"', () => {
+    expect(
+      rewriteCompanionTerminologyText('OPEN-SOURCE OPERATING SYSTEM FOR ANIMAL HEALTH', 'PATIENT')
+    ).toBe('OPEN-SOURCE OPERATING SYSTEM FOR ANIMAL HEALTH');
+    expect(rewriteCompanionTerminologyText('the animal health platform', 'PET')).toBe(
+      'the animal health platform'
+    );
+  });
+
+  it('still rewrites the protected nouns when the guarded word does not follow', () => {
+    expect(rewriteCompanionTerminologyText('Pet business needs a pet record', 'PATIENT')).toBe(
+      'Pet business needs a patient record'
+    );
+    expect(rewriteCompanionTerminologyText('animal health, animal records', 'PET')).toBe(
+      'animal health, pet records'
+    );
+  });
+
   it('still rewrites the animal noun elsewhere in the same string', () => {
     expect(rewriteCompanionTerminologyText('Pet parent of a pet', 'PATIENT')).toBe(
       'Pet parent of a patient'
     );
+  });
+
+  it('rewrites nouns other than "pet" before "parent"', () => {
+    // Authored copy uses "Companion parent chat"; only "pet parent" is fixed, so
+    // this has to follow the org's term rather than freeze.
+    expect(rewriteCompanionTerminologyText('Companion parent chat', 'PET')).toBe('Pet parent chat');
+    expect(rewriteCompanionTerminologyText('the companion parent', 'PATIENT')).toBe(
+      'the patient parent'
+    );
+    expect(rewriteCompanionTerminologyText('Companion parents', 'PET')).toBe('Pet parents');
+  });
+
+  it('rewrites "companion parent" copy while leaving "pet parent" in the same string', () => {
+    expect(
+      rewriteCompanionTerminologyText('Pet parent joins the companion parent chat', 'PET')
+    ).toBe('Pet parent joins the pet parent chat');
+  });
+
+  it('matches the owner-term patterns in linear time', () => {
+    const adversarial = `${'pet '.repeat(2000)}parent`;
+    const startedAt = Date.now();
+    rewriteCompanionTerminologyText(adversarial, 'PATIENT');
+    expect(Date.now() - startedAt).toBeLessThan(1000);
   });
 });

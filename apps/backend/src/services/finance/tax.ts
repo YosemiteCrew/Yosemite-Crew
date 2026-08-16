@@ -136,7 +136,7 @@ const buildFallbackInvoiceTaxSnapshot = (
       totalAmount: pricing.totalAmount,
       lines: pricing.lines,
       mode: input.mode,
-    } as Prisma.InputJsonValue,
+    },
     rawProviderPayload: {
       provider,
       taxBehavior,
@@ -146,7 +146,7 @@ const buildFallbackInvoiceTaxSnapshot = (
       lineItems,
       mode: input.mode,
       calculationMode: "fallback",
-    } as Prisma.InputJsonValue,
+    },
     calculatedAt: new Date(),
   };
 };
@@ -379,12 +379,17 @@ const createStripeAutomaticTaxProviderAdapter =
       ),
   });
 
+const TAX_PROVIDER_ADAPTER_FACTORIES: Record<
+  PrismaTaxProvider,
+  () => InvoiceTaxProviderAdapter
+> = {
+  STRIPE: createStripeAutomaticTaxProviderAdapter,
+};
+
 export const getInvoiceTaxProviderAdapter = (
   provider?: string | null,
-): InvoiceTaxProviderAdapter => {
-  void provider;
-  return createStripeAutomaticTaxProviderAdapter();
-};
+): InvoiceTaxProviderAdapter =>
+  TAX_PROVIDER_ADAPTER_FACTORIES[resolveConfiguredTaxProvider(provider)]();
 
 export const previewInvoiceTaxSnapshot = async (
   provider: string | null | undefined,

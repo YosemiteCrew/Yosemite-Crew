@@ -180,8 +180,7 @@ export const NeurologyAssessmentService = {
     if (params.cranialNerveFindings !== undefined)
       data.cranialNerveFindings = params.cranialNerveFindings;
     if (params.spinalReflexGrades !== undefined)
-      data.spinalReflexGrades =
-        params.spinalReflexGrades as unknown as Prisma.InputJsonValue;
+      data.spinalReflexGrades = params.spinalReflexGrades;
     if (params.deepPainPresent !== undefined)
       data.deepPainPresent = params.deepPainPresent;
     if (params.proprioceptionIntact !== undefined)

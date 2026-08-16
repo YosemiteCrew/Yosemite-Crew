@@ -10,33 +10,33 @@ Manages companion (pet) records: create, read, update, delete, profile image upl
 
 ### POST /
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Controller: `CompanionController.createCompanionMobile`
 - Response: `401`: keys `message`, `201`: keys `message`, `500`: keys `message`
 
 ### GET /:id
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `id`
 - Controller: `CompanionController.getCompanionById`
 - Response: `400`: keys `message`, `404`: keys `message`, `200`: keys `message`, `500`: keys `message`
 
 ### PUT /:id
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Params: `id`
 - Controller: `CompanionController.deleteCompanion`
 - Response: `400`: keys `message`, `204`: keys `message`, `500`: keys `message`
 
 ### POST /profile/presigned
 
-- Auth: `authorizeCognitoMobile`
+- Auth: `requireMobileAuth`
 - Controller: `CompanionController.getProfileUploadUrl`
 - Response: `400`: keys `message`, `200`: JSON, `500`: keys `message`
 
 ### GET /org/search
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `requirePermission`
 - Query: `name`
 - Controller: `CompanionController.searchCompanionByName`
@@ -44,7 +44,7 @@ Manages companion (pet) records: create, read, update, delete, profile image upl
 
 ### POST /org/:orgId
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `orgId`
 - Controller: `CompanionController.createCompanionPMS`
@@ -52,7 +52,7 @@ Manages companion (pet) records: create, read, update, delete, profile image upl
 
 ### GET /org/:id
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `id`
 - Controller: `CompanionController.getCompanionById`
@@ -60,7 +60,7 @@ Manages companion (pet) records: create, read, update, delete, profile image upl
 
 ### PUT /org/:id
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `id`
 - Controller: `CompanionController.updateCompanion`
@@ -68,7 +68,7 @@ Manages companion (pet) records: create, read, update, delete, profile image upl
 
 ### GET /pms/:parentId/:organisationId/list
 
-- Auth: `authorizeCognito`
+- Auth: `requireWebAuth`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `parentId`, `organisationId`
 - Controller: `CompanionController.listParentCompanionsNotInOrganisation`

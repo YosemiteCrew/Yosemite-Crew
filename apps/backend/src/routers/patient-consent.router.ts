@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
 import { PatientConsentController } from "src/controllers/web/patient-consent.controller";
 
@@ -7,7 +7,7 @@ const router = Router();
 
 router.get(
   "/pms/organisation/:organisationId/patient-consents",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:view:any"),
   PatientConsentController.list,
@@ -15,7 +15,7 @@ router.get(
 
 router.post(
   "/pms/organisation/:organisationId/patient-consents",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   PatientConsentController.grant,
@@ -23,7 +23,7 @@ router.post(
 
 router.get(
   "/pms/organisation/:organisationId/patient-consents/:consentId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:view:any"),
   PatientConsentController.get,
@@ -31,7 +31,7 @@ router.get(
 
 router.post(
   "/pms/organisation/:organisationId/patient-consents/:consentId/revoke",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   PatientConsentController.revoke,

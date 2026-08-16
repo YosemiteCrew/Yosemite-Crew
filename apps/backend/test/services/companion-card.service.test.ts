@@ -94,8 +94,12 @@ const tokenRow = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+const CARD_BASE_URL = "https://cards.example.com";
+const savedCardBaseUrl = process.env.PUBLIC_CARD_BASE_URL;
+
 beforeEach(() => {
   jest.clearAllMocks();
+  process.env.PUBLIC_CARD_BASE_URL = CARD_BASE_URL;
   prismaMock.patient.findUnique.mockResolvedValue(PATIENT);
   prismaMock.parent.findUnique.mockResolvedValue(PARENT);
   prismaMock.parentPatient.findFirst.mockResolvedValue({
@@ -113,6 +117,11 @@ beforeEach(() => {
   apptMock.mockResolvedValue([
     { status: "fulfilled", start: "2026-06-20T10:00:00.000Z" },
   ]);
+});
+
+afterAll(() => {
+  if (savedCardBaseUrl === undefined) delete process.env.PUBLIC_CARD_BASE_URL;
+  else process.env.PUBLIC_CARD_BASE_URL = savedCardBaseUrl;
 });
 
 const resolveAs = (audience: string, showOwnerPhone = false) => {
@@ -208,8 +217,7 @@ describe("CompanionCardService token lifecycle", () => {
     const created = prismaMock.companionShareToken.create.mock.calls[0][0].data;
     expect(result.token).toBeTruthy();
     expect(result.token).not.toBe(created.tokenHash);
-    expect(result.qrPayload).toContain(result.token);
-    expect(result.qrPayload).toContain("/card/");
+    expect(result.qrPayload).toBe(`${CARD_BASE_URL}/card/${result.token}`);
     expect(result.share).not.toHaveProperty("tokenHash");
   });
 
@@ -352,6 +360,51 @@ describe("CompanionCardService token lifecycle", () => {
       id: "user-1",
     });
     expect(prismaMock.companionShareToken.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("CompanionCardService QR base URL", () => {
+  const issue = () =>
+    CompanionCardService.issueShareToken({
+      patientId: "pat-1",
+      organisationId: "org-1",
+      audience: "PUBLIC",
+      actor: { type: "PMS_USER", id: "user-1" },
+    });
+
+  it("builds an absolute payload from the configured base URL", async () => {
+    const result = await issue();
+    expect(result.qrPayload).toBe(`${CARD_BASE_URL}/card/${result.token}`);
+  });
+
+  it("strips trailing slashes from the configured base URL", async () => {
+    process.env.PUBLIC_CARD_BASE_URL = `${CARD_BASE_URL}//`;
+    const result = await issue();
+    expect(result.qrPayload).toBe(`${CARD_BASE_URL}/card/${result.token}`);
+  });
+
+  it.each([
+    ["unset", undefined],
+    ["blank", "   "],
+    ["a relative path", "/card-app"],
+  ])(
+    "refuses to issue a share when the base URL is %s",
+    async (_label, value) => {
+      if (value === undefined) delete process.env.PUBLIC_CARD_BASE_URL;
+      else process.env.PUBLIC_CARD_BASE_URL = value;
+      await expect(issue()).rejects.toThrow(/PUBLIC_CARD_BASE_URL/);
+      // No token row (and no revocation of the live one) on a misconfigured deploy.
+      expect(prismaMock.companionShareToken.create).not.toHaveBeenCalled();
+      expect(prismaMock.companionShareToken.updateMany).not.toHaveBeenCalled();
+    },
+  );
+
+  it("reports a missing base URL as a 500 configuration error", async () => {
+    delete process.env.PUBLIC_CARD_BASE_URL;
+    await expect(issue()).rejects.toMatchObject({
+      name: "CompanionCardServiceError",
+      statusCode: 500,
+    });
   });
 });
 

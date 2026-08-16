@@ -1,12 +1,12 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const rateLimitMw = jest.fn((_req, _res, next) => next());
 const getByPublicToken = jest.fn();
 
-jest.mock("../../src/middlewares/auth", () => ({ authorizeCognito }));
+jest.mock("../../src/middlewares/auth", () => ({ requireWebAuth }));
 jest.mock("../../src/middlewares/rbac", () => ({
   withOrgPermissions,
   requirePermission,
@@ -43,8 +43,8 @@ describe("companion-card-public.router", () => {
   });
 
   it("is unauthenticated by design (no Cognito or RBAC middleware)", () => {
-    expect(handlesFor("/:token", "get")).not.toContain(authorizeCognito);
-    expect(authorizeCognito).not.toHaveBeenCalled();
+    expect(handlesFor("/:token", "get")).not.toContain(requireWebAuth);
+    expect(requireWebAuth).not.toHaveBeenCalled();
     expect(withOrgPermissions).not.toHaveBeenCalled();
     expect(requirePermission).not.toHaveBeenCalled();
   });

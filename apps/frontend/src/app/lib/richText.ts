@@ -15,7 +15,8 @@ export const sanitizeRichText = (html: string = ''): string => {
   return DOMPurify.sanitize(html, { ALLOWED_TAGS, ALLOWED_ATTR });
 };
 
-const stripHtmlTags = (html: string): string => {
+/** Remove all HTML tags, keeping only text content (shared with appointmentWorkspace). */
+export const stripHtmlTags = (html: string): string => {
   let result = '';
   let inTag = false;
 
@@ -36,7 +37,8 @@ const stripHtmlTags = (html: string): string => {
   return result;
 };
 
-const replaceNbsp = (value: string): string => {
+/** Replace `&nbsp;` entities with plain spaces (shared with appointmentWorkspace). */
+export const replaceNbsp = (value: string): string => {
   let result = '';
   for (let index = 0; index < value.length; index += 1) {
     if (value[index] === '&' && value.slice(index, index + 6) === '&nbsp;') {

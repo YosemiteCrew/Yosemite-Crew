@@ -42,7 +42,18 @@ jest.mock('@/app/ui/cards/FormCard', () => {
 });
 
 jest.mock('react-icons/io5', () => ({
-  IoEye: () => <span data-testid="eye-icon">Eye</span>,
+  IoEllipsisHorizontal: () => <span data-testid="row-menu-icon">More</span>,
+  IoClipboardOutline: () => <span data-testid="template-icon-clipboard" />,
+  IoDocumentTextOutline: () => <span data-testid="template-icon-document" />,
+  IoMedkitOutline: () => <span data-testid="template-icon-medkit" />,
+}));
+
+let mockTeamsById: Record<string, { practionerId?: string; name?: string }> = {};
+jest.mock('@/app/stores/teamStore', () => ({
+  useTeamStore: () => ({ teamsById: mockTeamsById }),
+}));
+jest.mock('@/app/stores/orgStore', () => ({
+  useOrgStore: (selector: any) => selector({ primaryOrgId: undefined, orgsById: {} }),
 }));
 
 // --- Test Data ---
@@ -91,26 +102,27 @@ describe('FormsTable Component', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockTeamsById = {};
   });
 
   // --- 1. Helper Function Tests ---
 
   describe('getStatusStyle', () => {
-    it("returns correct style for 'Published'", () => {
+    it("returns the green live pill for 'Published'", () => {
       const style = getFormsStatusStyle('Published');
       expect(style).toEqual({
-        color: 'var(--color-pill-info-text)',
-        backgroundColor: 'var(--color-pill-info-bg)',
-        borderColor: 'var(--color-pill-info-border)',
+        color: 'var(--color-pill-success-text)',
+        backgroundColor: 'var(--color-pill-success-bg)',
+        borderColor: 'var(--color-pill-success-border)',
       });
     });
 
     it("returns correct style for 'published' (case insensitive)", () => {
       const style = getFormsStatusStyle('published');
       expect(style).toEqual({
-        color: 'var(--color-pill-info-text)',
-        backgroundColor: 'var(--color-pill-info-bg)',
-        borderColor: 'var(--color-pill-info-border)',
+        color: 'var(--color-pill-success-text)',
+        backgroundColor: 'var(--color-pill-success-bg)',
+        borderColor: 'var(--color-pill-success-border)',
       });
     });
 
@@ -123,12 +135,21 @@ describe('FormsTable Component', () => {
       });
     });
 
-    it('returns default style for unknown status', () => {
+    it("returns the neutral grey pill for 'Archived'", () => {
       const style = getFormsStatusStyle('Archived');
       expect(style).toEqual({
-        color: 'var(--color-pill-warning-text)',
-        backgroundColor: 'var(--color-pill-warning-bg)',
-        borderColor: 'var(--color-pill-warning-border)',
+        color: 'var(--color-pill-neutral-text)',
+        backgroundColor: 'var(--color-pill-neutral-bg)',
+        borderColor: 'var(--color-pill-neutral-border)',
+      });
+    });
+
+    it('returns the progress style for an unknown status', () => {
+      const style = getFormsStatusStyle('Superseded');
+      expect(style).toEqual({
+        color: 'var(--color-pill-progress-text)',
+        backgroundColor: 'var(--color-pill-progress-bg)',
+        borderColor: 'var(--color-pill-progress-border)',
       });
     });
 
@@ -150,8 +171,11 @@ describe('FormsTable Component', () => {
     // Check headers
     expect(screen.getByText('Form name')).toBeInTheDocument();
     expect(screen.getByText('Category')).toBeInTheDocument();
-    expect(screen.getByText('Usage')).toBeInTheDocument();
-    expect(screen.getByText('Updated by')).toBeInTheDocument();
+    // Design's ledger counts fields; "Usage" is not one of its columns.
+    expect(screen.getByText('Fields')).toBeInTheDocument();
+    expect(screen.queryByText('Usage')).not.toBeInTheDocument();
+    // The edit stamp is one merged "date · person" column, not two.
+    expect(screen.queryByText('Updated by')).not.toBeInTheDocument();
     expect(screen.getByText('Last updated')).toBeInTheDocument();
     expect(screen.getByText('Status')).toBeInTheDocument();
     expect(screen.getByText('Actions')).toBeInTheDocument();
@@ -161,16 +185,41 @@ describe('FormsTable Component', () => {
     expect(screen.getAllByText('Intake Form').length).toBeGreaterThan(0);
     // "Custom" appears multiple times (once per row)
     expect(screen.getAllByText('Custom').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('External').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Alice').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Published').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('2023-10-01 · Alice').length).toBeGreaterThan(0);
+    const publishedStatus = screen.getByText('Published');
+    expect(publishedStatus).toHaveClass(
+      'yc-status-pill',
+      'rounded-full!',
+      'text-[10px]',
+      'leading-[normal]',
+      'font-bold',
+      'uppercase'
+    );
+    expect(publishedStatus).toHaveAttribute(
+      'style',
+      expect.stringContaining('background-color: var(--color-pill-success-bg)')
+    );
+  });
+
+  it('resolves the updated-by id to a team member name and skips incomplete members', () => {
+    // t1 → id + name present (map entry created); t2 → name missing; t3 → id missing.
+    // Exercises both arms of the `team.practionerId && team.name` guard.
+    mockTeamsById = {
+      t1: { practionerId: 'u1', name: 'Dr. Weber' },
+      t2: { practionerId: 'u2' },
+      t3: { name: 'No Id' },
+    };
+    const forms = [{ ...mockForms[0], updatedBy: 'u1' }];
+    render(<FormsTable {...defaultProps} filteredList={forms as any} />);
+
+    expect(screen.getAllByText('2023-10-01 · Dr. Weber').length).toBeGreaterThan(0);
   });
 
   it('calls setActiveForm and setViewPopup when view action is clicked', () => {
     render(<FormsTable {...defaultProps} />);
 
     // Find the eye icon/button for the first row
-    const viewButtons = screen.getAllByTestId('eye-icon');
+    const viewButtons = screen.getAllByTestId('row-menu-icon');
     // Ensure we click the button wrapping the icon
     fireEvent.click(viewButtons[0].closest('button')!);
 
@@ -226,5 +275,72 @@ describe('FormsTable Component', () => {
 
     const rows = screen.getAllByTestId('row-0');
     expect(rows.length).toBeGreaterThan(0);
+  });
+
+  // --- 5. Linked-services column (opt-in) ---
+
+  describe('linked services column', () => {
+    const serviceOptions = [
+      { label: 'Dental scale & polish', value: 'svc-1' },
+      { label: 'Mass removal', value: 'svc-2' },
+    ];
+
+    it('does not render the column by default (other callers unchanged)', () => {
+      render(<FormsTable {...defaultProps} />);
+      expect(screen.queryByText('Linked services')).not.toBeInTheDocument();
+    });
+
+    it('renders the column and resolves ids to service names when opted in', () => {
+      const forms = [{ ...mockForms[0], services: ['svc-1', 'svc-2'] }];
+      render(
+        <FormsTable
+          {...defaultProps}
+          filteredList={forms as any}
+          showLinkedServices
+          serviceOptions={serviceOptions}
+        />
+      );
+
+      expect(screen.getByText('Linked services')).toBeInTheDocument();
+      expect(screen.getByText('Dental scale & polish')).toBeInTheDocument();
+      expect(screen.getByText('Mass removal')).toBeInTheDocument();
+    });
+
+    it('falls back to the raw id when a linked service is not in the options', () => {
+      const forms = [{ ...mockForms[0], services: ['svc-unknown'] }];
+      render(
+        <FormsTable
+          {...defaultProps}
+          filteredList={forms as any}
+          showLinkedServices
+          serviceOptions={serviceOptions}
+        />
+      );
+
+      expect(screen.getByText('svc-unknown')).toBeInTheDocument();
+    });
+
+    it('renders a dash when a template has no linked services', () => {
+      const forms = [{ ...mockForms[0], services: [] }];
+      render(
+        <FormsTable
+          {...defaultProps}
+          filteredList={forms as any}
+          showLinkedServices
+          serviceOptions={serviceOptions}
+        />
+      );
+
+      expect(screen.getByText('Linked services')).toBeInTheDocument();
+      expect(screen.getAllByText('-').length).toBeGreaterThan(0);
+    });
+
+    it('tolerates a missing serviceOptions map and undefined services', () => {
+      const forms = [{ ...mockForms[0], services: undefined }];
+      render(<FormsTable {...defaultProps} filteredList={forms as any} showLinkedServices />);
+
+      expect(screen.getByText('Linked services')).toBeInTheDocument();
+      expect(screen.getAllByText('-').length).toBeGreaterThan(0);
+    });
   });
 });

@@ -104,13 +104,84 @@ const vetOf = (
   vetLicenseNumber: attestation?.signatoryLicence ?? undefined,
 });
 
+type PassportRecordKind = (typeof PASSPORT_RECORD_KINDS)[number];
+
+type PassportAuditEvent =
+  | "VACCINATION_RECORDED"
+  | "TREATMENT_RECORDED"
+  | "TITRATION_RECORDED"
+  | "EXAM_RECORDED";
+
+/**
+ * Compliance history has to name the operation that actually happened - a
+ * signed rabies titration is not a vaccination.
+ */
+const AUDIT_EVENT_BY_KIND: Record<PassportRecordKind, PassportAuditEvent> = {
+  IMMUNIZATION: "VACCINATION_RECORDED",
+  RABIES_TITRATION: "TITRATION_RECORDED",
+  PARASITE_TREATMENT: "TREATMENT_RECORDED",
+  CLINICAL_EXAM: "EXAM_RECORDED",
+};
+
+/**
+ * Resolves a passport artifact and proves it belongs to the patient named in
+ * the route, not merely to the caller's organisation.
+ *
+ * Without this, pairing pet A's record id with pet B's URL signs A's artifact
+ * while the audit row, the owner notification and the rendered PDF all say B.
+ * `ClinicalArtifact.encounterId` is a loose column with no relation, so the
+ * patient is resolved through a second lookup.
+ */
+const assertArtifactBelongsToPatient = async (
+  encounterId: string | null,
+  patientId: string,
+): Promise<void> => {
+  const encounter = encounterId
+    ? await prisma.encounter.findUnique({
+        where: { id: encounterId },
+        select: { patientId: true },
+      })
+    : null;
+
+  // Same uniform 404 as a missing record: a caller must not be able to probe
+  // which record ids exist in the org by comparing error codes.
+  if (!encounter || encounter.patientId !== patientId) {
+    throw new PetClinicalRecordError("Clinical record not found.", 404);
+  }
+};
+
+const loadPassportArtifactForPatient = async <T extends object>(params: {
+  artifactId: string;
+  patientId: string;
+  organisationId: string;
+  select: T;
+}) => {
+  const artifact = (await prisma.clinicalArtifact.findFirst({
+    where: {
+      id: params.artifactId,
+      organisationId: params.organisationId,
+      kind: { in: [...PASSPORT_RECORD_KINDS] },
+    },
+    select: { ...params.select, encounterId: true, kind: true },
+  })) as
+    | (Record<string, unknown> & {
+        encounterId: string | null;
+        kind: PassportRecordKind;
+      })
+    | null;
+
+  if (!artifact) {
+    throw new PetClinicalRecordError("Clinical record not found.", 404);
+  }
+
+  await assertArtifactBelongsToPatient(artifact.encounterId, params.patientId);
+
+  return artifact;
+};
+
 const audit = async (
   ctx: CaptureContext,
-  eventType:
-    | "VACCINATION_RECORDED"
-    | "TREATMENT_RECORDED"
-    | "TITRATION_RECORDED"
-    | "EXAM_RECORDED",
+  eventType: PassportAuditEvent,
   entityId: string,
   metadata: Record<string, unknown>,
 ): Promise<void> => {
@@ -513,17 +584,12 @@ export const PetClinicalRecordService = {
     signatoryLicence?: string;
   }): Promise<{ artifactId: string; status: "SIGNED"; signedAt: string }> {
     const { artifactId, patientId, organisationId, actor } = params;
-    const artifact = await prisma.clinicalArtifact.findFirst({
-      where: {
-        id: artifactId,
-        organisationId,
-        kind: { in: [...PASSPORT_RECORD_KINDS] },
-      },
+    const artifact = await loadPassportArtifactForPatient({
+      artifactId,
+      patientId,
+      organisationId,
       select: { id: true, status: true },
     });
-    if (!artifact) {
-      throw new PetClinicalRecordError("Clinical record not found.", 404);
-    }
     if (artifact.status === "SIGNED") {
       throw new PetClinicalRecordError(
         "Clinical record is already attested.",
@@ -554,7 +620,7 @@ export const PetClinicalRecordService = {
     });
     await audit(
       { patientId, organisationId, encounterId: "", actor },
-      "VACCINATION_RECORDED",
+      AUDIT_EVENT_BY_KIND[artifact.kind],
       artifactId,
       { attested: true },
     );
@@ -630,6 +696,7 @@ export const PetClinicalRecordService = {
     if (!artifact) {
       throw new PetClinicalRecordError("Clinical record not found.", 404);
     }
+    await assertArtifactBelongsToPatient(artifact.encounterId, patientId);
     if (artifact.status === "SIGNED") {
       throw new PetClinicalRecordError(
         "Clinical record is already attested.",

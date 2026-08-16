@@ -224,6 +224,28 @@ describe('companionService', () => {
       );
     });
 
+    it('never logs the request payload or the response body', async () => {
+      mockToFHIR.mockReturnValue({resourceType: 'Patient', name: 'Buddy'});
+      mockApiClient.post.mockResolvedValue({
+        status: 201,
+        data: {id: 'new-id', name: 'Buddy', parentEmail: 'parent@example.com'},
+      });
+      mockFromDTO.mockReturnValue({name: 'Buddy'});
+
+      await companionApi.create({
+        parentId: MOCK_PARENT_ID,
+        payload: createPayload,
+        accessToken: MOCK_TOKEN,
+      });
+
+      const logged = JSON.stringify((console.log as jest.Mock).mock.calls);
+      expect(logged).not.toContain('parent@example.com');
+      expect(logged).not.toContain('POL-1');
+      expect(logged).not.toContain('Labrador');
+      expect(logged).toContain('hasPayload');
+      expect(logged).toContain('hasBody');
+    });
+
     it('should handle creation error logging and rethrow', async () => {
       mockApiClient.post.mockRejectedValue(new Error('Create Failed'));
       await expect(

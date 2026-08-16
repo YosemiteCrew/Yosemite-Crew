@@ -7,12 +7,16 @@ jest.mock('@/shared/services/LocationService', () => ({
 
 import {renderHook, act} from '@testing-library/react-native';
 import LocationService from '@/shared/services/LocationService';
-import {useLocationStore} from '@/shared/stores/locationStore';
+import {
+  useLocationStore,
+  __resetLocationStoreForTesting,
+} from '@/shared/stores/locationStore';
 
 const mockGetLocation = LocationService.getLocationWithRetry as jest.Mock;
 
 describe('useLocationStore', () => {
   beforeEach(() => {
+    __resetLocationStoreForTesting();
     jest.clearAllMocks();
   });
 
@@ -23,6 +27,28 @@ describe('useLocationStore', () => {
       await Promise.resolve();
     });
     expect(result.current).toEqual({latitude: 37.77, longitude: -122.43});
+  });
+
+  it('leaves coords null when LocationService resolves without a position', async () => {
+    mockGetLocation.mockResolvedValue(null);
+    const {result} = renderHook(() => useLocationStore());
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current).toBeNull();
+  });
+
+  it('swallows a rejected LocationService promise without throwing', async () => {
+    mockGetLocation.mockRejectedValue(new Error('location unavailable'));
+    const {result} = renderHook(() => useLocationStore());
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(result.current).toBeNull();
   });
 
   it('does not start LocationService when disabled', () => {

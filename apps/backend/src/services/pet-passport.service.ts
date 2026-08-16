@@ -1,3 +1,4 @@
+import { randomBytes, createHash } from "node:crypto";
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
 import { PassportConsentService } from "./passport-consent.service";
@@ -385,6 +386,16 @@ const assemblePassport = async (
   };
 };
 
+/**
+ * Only the SHA-256 hash of a public token is persisted (same scheme as
+ * CompanionShareToken), so a database read cannot mint a working link.
+ */
+const hashPublicToken = (raw: string): string =>
+  createHash("sha256").update(raw).digest("hex");
+
+/** 256 bits of entropy - a public QR credential must not be guessable. */
+const generatePublicToken = (): string => randomBytes(32).toString("base64url");
+
 export const PetPassportService = {
   async issuePassport(params: {
     patientId: string;
@@ -436,17 +447,88 @@ export const PetPassportService = {
   // Public, unauthenticated verification. Only formally-issued passports are
   // exposed: the issuing organisation is resolved from the latest passport row,
   // and the assembled DTO carries no owner/contact data.
-  async getPublicPassport(patientId: string): Promise<PetPassportDTO> {
+  /**
+   * Mints (or rotates) the public verification token for a pet's passport and
+   * returns the RAW token exactly once - only its hash is persisted, so it can
+   * never be recovered afterwards. Rotating supersedes any link already in
+   * circulation, which is the revocation path for a shared QR.
+   */
+  async issuePublicToken(params: {
+    patientId: string;
+    organisationId: string;
+  }): Promise<{ token: string; issuedAt: string }> {
     const row = await prisma.petPassport.findFirst({
-      where: { patientId },
+      where: {
+        patientId: params.patientId,
+        organisationId: params.organisationId,
+      },
       orderBy: { issueDate: "desc" },
-      select: { organisationId: true },
+      select: { id: true },
+    });
+    if (!row) {
+      throw new PetPassportServiceError("Passport not found.", 404);
+    }
+    const token = generatePublicToken();
+    const issuedAt = new Date();
+    await prisma.petPassport.update({
+      where: { id: row.id },
+      data: {
+        publicTokenHash: hashPublicToken(token),
+        publicTokenIssuedAt: issuedAt,
+        publicTokenRevokedAt: null,
+      },
+    });
+    return { token, issuedAt: issuedAt.toISOString() };
+  },
+
+  /** Kills the circulating public link without issuing a replacement. */
+  async revokePublicToken(params: {
+    patientId: string;
+    organisationId: string;
+  }): Promise<{ revokedAt: string }> {
+    const row = await prisma.petPassport.findFirst({
+      where: {
+        patientId: params.patientId,
+        organisationId: params.organisationId,
+      },
+      orderBy: { issueDate: "desc" },
+      select: { id: true },
+    });
+    if (!row) {
+      throw new PetPassportServiceError("Passport not found.", 404);
+    }
+    const revokedAt = new Date();
+    await prisma.petPassport.update({
+      where: { id: row.id },
+      data: { publicTokenHash: null, publicTokenRevokedAt: revokedAt },
+    });
+    return { revokedAt: revokedAt.toISOString() };
+  },
+
+  /**
+   * Resolves the unauthenticated QR page from a share token.
+   *
+   * The token is the credential - the patient id is deliberately NOT accepted
+   * here, because it is an internal identifier that cannot be rotated or
+   * revoked. Every failure returns the same 404 so the endpoint cannot be used
+   * to test whether a token or pet exists.
+   */
+  async getPublicPassportByToken(rawToken: string): Promise<PetPassportDTO> {
+    if (!rawToken) {
+      throw new PetPassportServiceError("Passport not found.", 404);
+    }
+    const row = await prisma.petPassport.findFirst({
+      where: {
+        publicTokenHash: hashPublicToken(rawToken),
+        publicTokenRevokedAt: null,
+      },
+      select: { patientId: true, organisationId: true },
     });
     if (!row) {
       throw new PetPassportServiceError("Passport not found.", 404);
     }
     // The public QR is owner-initiated, so it shows the pet's full record across
     // every practice (no per-practice consent gate).
-    return assemblePassport(patientId, row.organisationId, false, "owner");
+    return assemblePassport(row.patientId, row.organisationId, false, "owner");
   },
 };

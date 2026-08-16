@@ -140,9 +140,7 @@ export const MedicalCertificateService = {
     },
   ) {
     const existing = await assertCertificate(id, organisationId);
-    if (
-      TERMINAL_STATUSES.includes(existing.status as MedicalCertificateStatus)
-    ) {
+    if (TERMINAL_STATUSES.includes(existing.status)) {
       throw new MedicalCertificateError(
         `Cannot issue a certificate with status ${existing.status}.`,
         409,
@@ -226,9 +224,7 @@ export const MedicalCertificateService = {
 
   async expire(id: string, organisationId: string) {
     const existing = await assertCertificate(id, organisationId);
-    if (
-      TERMINAL_STATUSES.includes(existing.status as MedicalCertificateStatus)
-    ) {
+    if (TERMINAL_STATUSES.includes(existing.status)) {
       throw new MedicalCertificateError(
         `Cannot expire a certificate with status ${existing.status}.`,
         409,

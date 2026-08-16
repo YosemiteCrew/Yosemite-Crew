@@ -12,7 +12,7 @@ import { sendEmail } from "src/utils/email";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
-    encounter: { findFirst: jest.fn() },
+    encounter: { findFirst: jest.fn(), findUnique: jest.fn() },
     clinicalArtifact: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -54,7 +54,7 @@ const documensoMock = DocumensoService as unknown as {
 const buildPdfMock = buildPassportRecordPdf as jest.Mock;
 
 const prismaMock = prisma as unknown as {
-  encounter: { findFirst: jest.Mock };
+  encounter: { findFirst: jest.Mock; findUnique: jest.Mock };
   clinicalArtifact: {
     create: jest.Mock;
     findFirst: jest.Mock;
@@ -112,10 +112,14 @@ const echoArtifact = (args: any) => {
 beforeEach(() => {
   jest.clearAllMocks();
   prismaMock.encounter.findFirst.mockResolvedValue({ id: "enc-1" });
+  // Attest/sign now prove the artifact's encounter belongs to the route's pet.
+  prismaMock.encounter.findUnique.mockResolvedValue({ patientId: "pat-1" });
   prismaMock.clinicalArtifact.create.mockImplementation(echoArtifact);
   prismaMock.clinicalArtifact.findFirst.mockResolvedValue({
     id: "art-1",
     status: "DRAFT",
+    encounterId: "enc-1",
+    kind: "IMMUNIZATION",
     immunization: {
       vaccineName: "Nobivac Rabies",
       vaccineType: "RABIES",
@@ -421,10 +425,47 @@ describe("PetClinicalRecordService.attestRecord", () => {
     ).rejects.toMatchObject({ statusCode: 404 });
   });
 
+  it("404s when the record belongs to a different pet", async () => {
+    // Pairing pet A's record id with pet B's URL previously signed A's artifact
+    // while auditing and notifying B.
+    prismaMock.encounter.findUnique.mockResolvedValue({ patientId: "pat-9" });
+    await expect(
+      PetClinicalRecordService.attestRecord(args),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(prismaMock.clinicalArtifact.update).not.toHaveBeenCalled();
+  });
+
+  it("404s when the record has no encounter to prove ownership", async () => {
+    prismaMock.clinicalArtifact.findFirst.mockResolvedValue({
+      id: "art-1",
+      status: "DRAFT",
+      encounterId: null,
+      kind: "IMMUNIZATION",
+    });
+    await expect(
+      PetClinicalRecordService.attestRecord(args),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("audits the event matching the record kind, not always vaccination", async () => {
+    prismaMock.clinicalArtifact.findFirst.mockResolvedValue({
+      id: "art-1",
+      status: "DRAFT",
+      encounterId: "enc-1",
+      kind: "RABIES_TITRATION",
+    });
+    await PetClinicalRecordService.attestRecord(args);
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({ eventType: "TITRATION_RECORDED" }),
+    );
+  });
+
   it("409s a record that is already attested", async () => {
     prismaMock.clinicalArtifact.findFirst.mockResolvedValue({
       id: "art-1",
       status: "SIGNED",
+      encounterId: "enc-1",
+      kind: "IMMUNIZATION",
     });
     await expect(
       PetClinicalRecordService.attestRecord(args),
@@ -483,6 +524,8 @@ describe("PetClinicalRecordService.requestRecordSignature", () => {
   const artifactWith = (over: Record<string, unknown>) => ({
     id: "art-1",
     status: "DRAFT",
+    encounterId: "enc-1",
+    kind: "IMMUNIZATION",
     immunization: null,
     rabiesTitration: null,
     parasiteTreatment: null,
@@ -556,6 +599,8 @@ describe("PetClinicalRecordService.requestRecordSignature", () => {
     prismaMock.clinicalArtifact.findFirst.mockResolvedValueOnce({
       id: "art-1",
       status: "SIGNED",
+      encounterId: "enc-1",
+      kind: "IMMUNIZATION",
     });
     await expect(
       PetClinicalRecordService.requestRecordSignature(args),

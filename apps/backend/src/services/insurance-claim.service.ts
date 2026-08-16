@@ -22,6 +22,23 @@ type ClaimStatus =
   | "PAID"
   | "CANCELLED";
 
+const CLAIM_STATUS_TRANSITIONS: Record<ClaimStatus, readonly ClaimStatus[]> = {
+  DRAFT: ["SUBMITTED", "CANCELLED"],
+  SUBMITTED: [
+    "UNDER_REVIEW",
+    "APPROVED",
+    "PARTIALLY_APPROVED",
+    "REJECTED",
+    "CANCELLED",
+  ],
+  UNDER_REVIEW: ["APPROVED", "PARTIALLY_APPROVED", "REJECTED", "CANCELLED"],
+  APPROVED: ["PAID", "CANCELLED"],
+  PARTIALLY_APPROVED: ["PAID", "CANCELLED"],
+  REJECTED: [],
+  PAID: [],
+  CANCELLED: [],
+};
+
 export interface CreateInsuranceClaimParams {
   organisationId: string;
   patientId: string;
@@ -227,13 +244,9 @@ export const InsuranceClaimService = {
     params: UpdateClaimStatusParams,
   ) {
     const claim = await assertClaim(id, organisationId);
-    if (
-      claim.status === "CANCELLED" ||
-      claim.status === "PAID" ||
-      claim.status === "REJECTED"
-    ) {
+    if (!CLAIM_STATUS_TRANSITIONS[claim.status].includes(params.status)) {
       throw new InsuranceClaimError(
-        `Cannot update status from ${claim.status}.`,
+        `Cannot update status from ${claim.status} to ${params.status}.`,
         409,
       );
     }
@@ -241,6 +254,9 @@ export const InsuranceClaimService = {
     const now = new Date();
     const data: Prisma.InsuranceClaimUpdateInput = { status: params.status };
 
+    if (params.status === "SUBMITTED" && claim.submittedAt === null) {
+      data.submittedAt = now;
+    }
     if (
       (params.status === "APPROVED" ||
         params.status === "PARTIALLY_APPROVED") &&

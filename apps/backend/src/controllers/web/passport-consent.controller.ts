@@ -23,9 +23,11 @@ const RequestBodySchema = z.object({
   recipientOrganisationId: IdSchema,
   purpose: z.string().max(500).optional(),
 });
+// parentId is deliberately NOT accepted: it is derived from the authenticated
+// parent link so the consent audit trail cannot be attributed to a fabricated
+// pet owner.
 const GrantBodySchema = z.object({
   method: z.enum(["MOBILE", "EMAIL"]),
-  parentId: IdSchema.optional(),
 });
 const RevokeBodySchema = z.object({ reason: z.string().max(500).optional() });
 
@@ -76,10 +78,15 @@ export const PassportConsentController = {
     }
   },
 
+  /**
+   * Pet-parent action, not a practice action. Mounted behind mobile auth: the
+   * service re-checks that the authenticated user is the pet's primary parent,
+   * so a staff session can never grant a practice access to another practice's
+   * clinical records.
+   */
   grantConsent: async (req: Request, res: Response): Promise<Response> => {
     try {
       const typedReq = req as OrgRequest;
-      if (!permissionsLoaded(typedReq, res)) return res;
       const params = ConsentParamsSchema.safeParse(req.params);
       if (!params.success) {
         return res.status(400).json({ message: "Invalid route parameters" });
@@ -92,8 +99,8 @@ export const PassportConsentController = {
         consentId: params.data.consentId,
         organisationId: params.data.organisationId,
         method: body.data.method,
-        parentId: body.data.parentId,
-        actor: { type: "PMS_USER", id: typedReq.userId ?? null },
+        grantingUserId: typedReq.userId ?? null,
+        actor: { type: "PARENT", id: typedReq.userId ?? null },
       });
       return res.status(200).json(consent);
     } catch (err) {

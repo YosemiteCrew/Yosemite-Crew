@@ -1,6 +1,6 @@
 // types.ts
 export type PractitionerData = {
-  cognitoId: string;
+  userId: string;
   name: string;
   departmentName: string;
   image: string;

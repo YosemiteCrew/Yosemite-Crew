@@ -12,21 +12,12 @@ module.exports = {
     "<rootDir>/src/**/*.ts",
     "!<rootDir>/src/**/*.d.ts",
     "!<rootDir>/src/controllers/merck/merck-response.ts",
-    "!<rootDir>/src/controllers/web/case-encounter.controller.ts",
     "!<rootDir>/src/controllers/web/documenso.controller.ts",
-    "!<rootDir>/src/controllers/web/lab-order.controller.ts",
-    "!<rootDir>/src/controllers/web/lab-result.controller.ts",
     "!<rootDir>/src/controllers/web/organisation-invite.controller.ts",
     "!<rootDir>/src/controllers/web/organisation-room.controller.ts",
-    "!<rootDir>/src/controllers/web/room-unit-group.controller.ts",
-    "!<rootDir>/src/controllers/web/room-unit.controller.ts",
-    "!<rootDir>/src/controllers/web/speciality.controller.ts",
     "!<rootDir>/src/middlewares/auth.ts",
     "!<rootDir>/src/routers/healthcare-service.router.ts",
     "!<rootDir>/src/services/integration.service.ts",
-    "!<rootDir>/src/services/lab-census.service.ts",
-    "!<rootDir>/src/services/lab-order.service.ts",
-    "!<rootDir>/src/utils/dual-write.ts",
     "!<rootDir>/src/utils/location.ts",
     "!<rootDir>/src/utils/org-usage-notifications.ts",
   ],
@@ -55,5 +46,29 @@ module.exports = {
         isolatedModules: true,
       },
     ],
+    // jwks-rsa 4 depends on jose 6, which is ESM-only ("type": "module", no
+    // require condition). This backend is CommonJS, so Jest cannot parse it and
+    // every suite that transitively reaches the auth stack fails on
+    // `Unexpected token 'export'`. Transpile it for the test run only; the
+    // application build is unaffected because tsc never touches node_modules.
+    "^.+\\.m?js$": [
+      "ts-jest",
+      {
+        diagnostics: false,
+        isolatedModules: true,
+        tsconfig: {
+          allowJs: true,
+          module: "CommonJS",
+          target: "ES2022",
+          esModuleInterop: true,
+        },
+      },
+    ],
   },
+  // Everything in node_modules stays untransformed except jose. The alternation
+  // covers both segments of the pnpm layout: the store directory
+  // (node_modules/.pnpm/jose@6.2.8/) and the link inside it
+  // (.../node_modules/jose/), so neither position matches and the files are
+  // handed to the transform above.
+  transformIgnorePatterns: ["node_modules/(?!\\.pnpm/jose@|jose/)"],
 };

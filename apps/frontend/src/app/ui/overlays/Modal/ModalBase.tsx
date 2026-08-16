@@ -22,6 +22,46 @@ type ModalBaseProps = {
   'aria-describedby'?: string;
 };
 
+/**
+ * Every modal portals to document.body and installs its own document-level
+ * Escape and outside-mousedown listeners. A modal opened from inside another
+ * one (a confirmation over the group editor, say) therefore had BOTH respond to
+ * the same key or backdrop click, dismissing the parent and discarding its
+ * state. `stopPropagation` cannot prevent that: both listeners sit on the same
+ * node, so only the topmost dialog may act.
+ */
+const modalStack: object[] = [];
+
+/**
+ * The scroll lock is shared, so releasing it must be ref-counted. Otherwise
+ * closing a nested modal cleared body overflow while its parent was still open
+ * and the page behind it started scrolling.
+ */
+let scrollLockCount = 0;
+
+const acquireScrollLock = () => {
+  if (scrollLockCount === 0) {
+    const scrollbarWidth =
+      globalThis.window === undefined
+        ? 0
+        : globalThis.window.innerWidth - document.documentElement.clientWidth;
+    document.body.style.overflow = 'hidden';
+    document.body.style.paddingRight = `${scrollbarWidth}px`;
+    // Safari requires overflow:hidden on <html> to prevent body scroll
+    document.documentElement.style.overflow = 'hidden';
+  }
+  scrollLockCount += 1;
+};
+
+const releaseScrollLock = () => {
+  scrollLockCount = Math.max(0, scrollLockCount - 1);
+  if (scrollLockCount === 0) {
+    document.body.style.overflow = '';
+    document.body.style.paddingRight = '';
+    document.documentElement.style.overflow = '';
+  }
+};
+
 /** Focusable element selectors used for focus-trap logic. */
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -42,6 +82,9 @@ const ModalBase = ({
 }: ModalBaseProps) => {
   const containerRef = useRef<HTMLDialogElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  // Stable per-instance identity used as this modal's token in `modalStack`.
+  const stackTokenRef = useRef<object>({});
+  const isTopmostModal = useCallback(() => modalStack.at(-1) === stackTokenRef.current, []);
   // React 19 owns the inert attribute via this boolean prop (true = inert, undefined = not inert).
   // Never mix with imperative setAttribute to avoid the empty-string boolean warning.
   // Derived directly from showModal — no need to copy it into state and sync it in an effect.
@@ -54,34 +97,40 @@ const ModalBase = ({
   }, [canClose, setShowModal, onClose]);
 
   const closeModalRef = useRef(closeModal);
-  closeModalRef.current = closeModal;
+  useEffect(() => {
+    closeModalRef.current = closeModal;
+  });
 
   const ignoreOutsideClickRef = useRef(ignoreOutsideClick);
-  ignoreOutsideClickRef.current = ignoreOutsideClick;
+  useEffect(() => {
+    ignoreOutsideClickRef.current = ignoreOutsideClick;
+  });
 
   // Sync inert state and body scroll lock with showModal.
   // Focus is moved in a separate effect that fires after isInert settles (below).
   useEffect(() => {
-    if (showModal) {
-      previousFocusRef.current = document.activeElement as HTMLElement;
-      const scrollbarWidth =
-        globalThis.window === undefined
-          ? 0
-          : globalThis.window.innerWidth - document.documentElement.clientWidth;
-      document.body.style.overflow = 'hidden';
-      document.body.style.paddingRight = `${scrollbarWidth}px`;
-      // Safari requires overflow:hidden on <html> to prevent body scroll
-      document.documentElement.style.overflow = 'hidden';
-    } else {
+    if (!showModal) {
       // Restore focus to the element that was active before the modal opened.
       // This runs before inert is applied to the DOM (React batches the state update),
       // so the focused element is already outside the modal when inert renders.
       previousFocusRef.current?.focus();
       previousFocusRef.current = null;
-      document.body.style.overflow = '';
-      document.body.style.paddingRight = '';
-      document.documentElement.style.overflow = '';
+      return;
     }
+    previousFocusRef.current = document.activeElement as HTMLElement;
+    const token = stackTokenRef.current;
+    modalStack.push(token);
+    acquireScrollLock();
+    // Released via cleanup so unmounting while open cannot strand the lock.
+    return () => {
+      const index = modalStack.lastIndexOf(token);
+      if (index !== -1) modalStack.splice(index, 1);
+      releaseScrollLock();
+      // A modal that unmounts while still open never reaches the `!showModal`
+      // branch above, so without this the opener loses focus to document.body.
+      previousFocusRef.current?.focus();
+      previousFocusRef.current = null;
+    };
   }, [showModal]);
 
   // Move focus into the modal after inert is removed (i.e. after the open render).
@@ -100,28 +149,41 @@ const ModalBase = ({
   useEffect(() => {
     if (!showModal) return;
     const handleClickOutside = (e: MouseEvent) => {
+      // Only the topmost dialog dismisses: the child's backdrop sits outside
+      // `.yc-modal-dialog`, so without this a backdrop click closed the parent
+      // underneath it too.
+      if (!isTopmostModal()) return;
       const target = e.target as HTMLElement | null;
       if (ignoreOutsideClickRef.current?.(target)) return;
+      // Every modal portals to document.body, so a modal opened from inside
+      // another one is its sibling in the DOM rather than its descendant. A
+      // click in the child would otherwise read as "outside" to the parent and
+      // dismiss it - taking the child down with it. Interacting with any dialog
+      // is never a dismissal of a different one; the backdrop sits outside
+      // .yc-modal-dialog, so click-to-dismiss still works.
+      if (target?.closest('.yc-modal-dialog')) return;
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         closeModalRef.current();
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showModal]);
+  }, [showModal, isTopmostModal]);
 
   // Escape key handler.
   useEffect(() => {
     if (!showModal) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        closeModalRef.current();
-      }
+      if (e.key !== 'Escape') return;
+      // Both modals' listeners live on `document`, so stopPropagation cannot
+      // shield the parent. The stack decides who responds.
+      if (!isTopmostModal()) return;
+      e.stopPropagation();
+      closeModalRef.current();
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [showModal]);
+  }, [showModal, isTopmostModal]);
 
   // Focus trap: keep focus inside the modal while it is open.
   useEffect(() => {

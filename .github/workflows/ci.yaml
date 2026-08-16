@@ -1,0 +1,136 @@
+name: CI
+
+# Orchestrator for the single-run pipeline. Every stage is a reusable workflow
+# called from here, so all of them execute inside this one Actions run and hand
+# artifacts and outputs to each other by ordinary same-run means: no
+# workflow_run, no download-by-run-id, no PAT.
+#
+# This is the primary CI. It replaced the standalone ci-affected, frontend-a11y
+# and dev-docs-build workflows (all deleted) and slimmed frontend-quality to a
+# reusable bundle/Lighthouse stage called from here. It is not yet a required
+# status check; docs/ci/required-checks-migration.md covers making it required
+# and enabling the merge queue.
+
+on:
+  pull_request: {}
+  push:
+    branches: [main, dev]
+  merge_group: {}
+  workflow_dispatch:
+    inputs:
+      force_push_base:
+        description: Base SHA override, for re-running after a force push.
+        required: false
+        type: string
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    uses: ./.github/workflows/_core.yaml
+    with:
+      force_push_base: ${{ inputs.force_push_base }}
+
+  test:
+    needs: core
+    if: needs.core.outputs.has-any == 'true'
+    uses: ./.github/workflows/_test.yaml
+    with:
+      matrix: ${{ needs.core.outputs.matrix }}
+
+  migration:
+    needs: core
+    # Only when the database workspace is affected - that is what carries
+    # schema.prisma, prisma/migrations and the tenant helpers. No other
+    # workspace can change what `prisma migrate deploy` does, so this stays off
+    # the critical path for the majority of pull requests.
+    if: >
+      needs.core.outputs.has-any == 'true' &&
+      contains(needs.core.outputs.matrix, '@yosemite-crew/database')
+    uses: ./.github/workflows/_migration.yaml
+
+  sonar:
+    needs: [core, test]
+    # Gated on the test stage's own output rather than on the affected booleans,
+    # so this can never ask for a coverage artifact that was not produced.
+    # vars.DISABLE_SONAR is a kill switch that works on every trigger, unlike a
+    # workflow_dispatch input, which is null on pull_request and would silently
+    # skip the stage on exactly the events that matter most.
+    #
+    # Dependabot PRs run with the Dependabot secret store, which does not carry
+    # the SONAR_TOKEN* values, so the scan can only fail with "Not authorized".
+    # Skip Sonar for them (the roll-up below counts a skipped stage as a pass);
+    # the nightly sonar-cloud-analysis run remains the type-aware backstop and
+    # every dependency change is re-scanned there once it lands on dev.
+    #
+    # Sonar can only publish from a pull_request event (PR analysis) or from
+    # main (the SonarCloud plan accepts analysis of each project's MAIN BRANCH
+    # only). Any other ref - a dev push, a workflow_dispatch from dev, a merge
+    # queue's ephemeral ref - can never publish anywhere and every leg fails
+    # with "Not authorized or project not found" at the quality-gate check, so
+    # those runs skip the stage. PR analysis carries the gate; the push-to-main
+    # scan and the nightly keep the dashboard current. (All four projects'
+    # SonarCloud main branches are named `main` - the Backend project's was
+    # named `dev` until 2026-08-11, which made its legs fail on main pushes and
+    # pass on dev pushes, the mirror image of the other three.)
+    if: >
+      vars.DISABLE_SONAR != 'true' &&
+      needs.test.outputs.apps-with-coverage != '' &&
+      needs.test.outputs.apps-with-coverage != '[]' &&
+      github.event.pull_request.user.login != 'dependabot[bot]' &&
+      (github.event_name == 'pull_request' || github.ref == 'refs/heads/main')
+    # A reusable workflow cannot request more than its caller grants, and
+    # startup validation checks this even when the job is skipped, so the Sonar
+    # scan's checks:write / pull-requests:write are granted on the call here
+    # rather than widened across the whole workflow's default permissions.
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    uses: ./.github/workflows/_sonar.yaml
+    with:
+      apps-with-coverage: ${{ needs.test.outputs.apps-with-coverage }}
+    # Only the Sonar tokens, never `secrets: inherit`, which would put the whole
+    # organisation and repository secret store in scope for a workflow whose
+    # scan step selects its token dynamically.
+    secrets:
+      SONAR_TOKEN_FRONTEND: ${{ secrets.SONAR_TOKEN_FRONTEND }}
+      SONAR_TOKEN_API: ${{ secrets.SONAR_TOKEN_API }}
+      SONAR_TOKEN_MOBILE: ${{ secrets.SONAR_TOKEN_MOBILE }}
+      SONAR_TOKEN_DESKTOP: ${{ secrets.SONAR_TOKEN_DESKTOP }}
+
+  frontend-quality:
+    needs: core
+    if: needs.core.outputs.frontend == 'true'
+    uses: ./.github/workflows/frontend-quality.yml
+
+  ci-required:
+    name: CI Required
+    # Not yet a required status check on either ruleset. It is published now so
+    # its behaviour can be observed before it is made required; the runbook in
+    # docs/ci/required-checks-migration.md covers that switchover.
+    if: always()
+    needs: [core, test, migration, sonar, frontend-quality]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Aggregate stage results
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          echo "$RESULTS"
+          # `skipped` passes: a packages-only change legitimately skips test, and
+          # sonar is skipped by default. `cancelled` fails: the previous
+          # aggregate used !cancelled(), which let a cancelled dependency through
+          # as a pass.
+          if ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}; then
+            echo "CI Required: at least one stage failed or was cancelled"
+            exit 1
+          fi
+          echo "CI Required: ok"

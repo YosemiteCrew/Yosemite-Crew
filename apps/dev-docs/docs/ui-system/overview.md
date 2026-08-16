@@ -53,13 +53,13 @@ pnpm --filter frontend run storybook
 
 ## Design decisions
 
-| Decision                                | Rationale                                                                                                                              |
-| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Shared tokens, separate implementations | Web and mobile share semantic meaning but not rendering. Liquid-glass (the translucent iOS-style surface treatment) stays mobile-only. |
-| Storybook for web, Docusaurus for docs  | Storybook is the component workbench. Docusaurus is for architecture, governance, and contribution guides.                             |
-| Satoshi-only web typography             | `--font-grotesk` aliases are fully removed. `--font-satoshi` is the single web font family.                                            |
-| Bootstrap removal is phased             | Bootstrap CSS is loaded in `layout.tsx` until all 9 remaining `react-bootstrap` consumers are replaced.                                |
-| No shadcn / Radix / MUI                 | The design system is custom-built on Tailwind CSS 4. Do not import new component libraries.                                            |
+| Decision                                | Rationale                                                                                                                                                                      |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Shared tokens, separate implementations | Web and mobile share semantic meaning but not rendering. Liquid-glass (the translucent iOS-style surface treatment) stays mobile-only.                                         |
+| Storybook for web, Docusaurus for docs  | Storybook is the component workbench. Docusaurus is for architecture, governance, and contribution guides.                                                                     |
+| Satoshi body + Newsreader display       | `--font-grotesk` aliases are fully removed. `--font-satoshi` is the body/UI font; `--font-newsreader` (Newsreader) is the display serif for page titles and marketing moments. |
+| Bootstrap removal is phased             | Bootstrap CSS is loaded in `layout.tsx` until all 9 remaining `react-bootstrap` consumers are replaced.                                                                        |
+| No shadcn / Radix / MUI                 | The design system is custom-built on Tailwind CSS 4. Do not import new component libraries.                                                                                    |
 
 ---
 

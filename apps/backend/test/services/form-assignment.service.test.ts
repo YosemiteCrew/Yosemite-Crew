@@ -304,6 +304,51 @@ describe("FormAssignmentService", () => {
     expect(rows[0].signerIdentity).toBeNull();
   });
 
+  it("normalizes viewed, submitted, signed, and expired assignment statuses", async () => {
+    const baseRow = {
+      organisationId: "org-1",
+      templateId: "template-1",
+      templateVersion: 2,
+      appointmentId: "appt-1",
+      encounterId: "enc-1",
+      companionId: "comp-1",
+      signerUserId: null,
+      signerName: null,
+      signerEmail: null,
+      signerRole: null,
+      mobileVisible: true,
+      signingRequired: true,
+      sentAt: new Date("2026-06-14T10:00:00.000Z"),
+      viewedAt: null,
+      submittedAt: null,
+      signedAt: null,
+      expiredAt: null,
+      cancelledAt: null,
+      createdBy: "user-1",
+      updatedBy: "user-1",
+      createdAt: new Date("2026-06-14T10:00:00.000Z"),
+      updatedAt: new Date("2026-06-14T10:00:00.000Z"),
+    };
+    mockedPrisma.formAssignment.findMany.mockResolvedValueOnce([
+      { ...baseRow, id: "assignment-viewed", status: "VIEWED" },
+      { ...baseRow, id: "assignment-submitted", status: "SUBMITTED" },
+      { ...baseRow, id: "assignment-signed", status: "SIGNED" },
+      { ...baseRow, id: "assignment-expired", status: "EXPIRED" },
+    ]);
+
+    const rows = await FormAssignmentService.listForAppointment(
+      "org-1",
+      "appt-1",
+    );
+
+    expect(rows.map((row) => row.status)).toEqual([
+      "viewed",
+      "submitted",
+      "signed",
+      "expired",
+    ]);
+  });
+
   it("lists organisation assignments with signed document metadata", async () => {
     mockedPrisma.formAssignment.findMany.mockResolvedValueOnce([
       {
@@ -739,7 +784,7 @@ describe("FormAssignmentService", () => {
         signedAt: new Date("2026-06-22T08:15:00.000Z"),
         signedDocument: { documentId: "inst-1", pdfUrl: "https://pdf" },
       });
-      // The service now filters rows after fetch, so the base query stays minimal.
+      // With no parentId there is nothing to push down, so the query stays minimal.
       expect(mockedPrisma.formAssignment.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({ organisationId: "org-1" }),
@@ -779,6 +824,42 @@ describe("FormAssignmentService", () => {
       expect(mockedPrisma.templateInstance.findMany).not.toHaveBeenCalled();
     });
 
+    it("normalizes viewed, submitted, expired, and cancelled lifecycle statuses", async () => {
+      const baseRow = {
+        templateId: "tpl-1",
+        templateVersion: 1,
+        companionId: "comp-1",
+        appointmentId: null,
+        signingRequired: true,
+        mobileVisible: true,
+        sentAt: null,
+        viewedAt: null,
+        submittedAt: null,
+        signedAt: null,
+        expiredAt: null,
+        cancelledAt: null,
+        template: { name: "Intake Form" },
+        companion: { name: "Milo" },
+      };
+      mockedPrisma.formAssignment.findMany.mockResolvedValue([
+        { ...baseRow, id: "fa-viewed", status: "VIEWED" },
+        { ...baseRow, id: "fa-submitted", status: "SUBMITTED" },
+        { ...baseRow, id: "fa-expired", status: "EXPIRED" },
+        { ...baseRow, id: "fa-cancelled", status: "CANCELLED" },
+      ]);
+
+      const result = await FormAssignmentService.listForOrganisation({
+        organisationId: "org-1",
+      });
+
+      expect(result.map((item) => item.status)).toEqual([
+        "VIEWED",
+        "SUBMITTED",
+        "EXPIRED",
+        "CANCELLED",
+      ]);
+    });
+
     it("resolves a parentId filter to the parent's companions", async () => {
       mockedPrisma.parentPatient.findMany.mockResolvedValue([
         { patientId: "comp-9" },
@@ -795,6 +876,39 @@ describe("FormAssignmentService", () => {
           where: expect.objectContaining({ organisationId: "org-1" }),
         }),
       );
+    });
+
+    it("filters by parent in the query rather than in memory", async () => {
+      mockedPrisma.formAssignment.findMany.mockResolvedValue([]);
+
+      await FormAssignmentService.listForOrganisation({
+        organisationId: "org-1",
+        parentId: "par-9",
+      });
+
+      expect(mockedPrisma.formAssignment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            organisationId: "org-1",
+            appointment: {
+              is: { patient: { path: ["parent", "id"], equals: "par-9" } },
+            },
+          }),
+        }),
+      );
+    });
+
+    it("bounds the organisation query so it cannot scan the whole table", async () => {
+      mockedPrisma.formAssignment.findMany.mockResolvedValue([]);
+
+      await FormAssignmentService.listForOrganisation({
+        organisationId: "org-1",
+      });
+
+      const [args] = mockedPrisma.formAssignment.findMany.mock.calls.at(-1) as [
+        { take?: number },
+      ];
+      expect(args.take).toBe(500);
     });
 
     it("returns an empty list when a parent has no linked companions", async () => {

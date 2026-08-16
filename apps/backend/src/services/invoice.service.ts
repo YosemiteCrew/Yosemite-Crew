@@ -13,10 +13,12 @@ import {
   InvoiceItem,
 } from "@yosemite-crew/types";
 import {
+  calculateInvoiceDiscountPercentOfBase,
   calculateInvoicePricing,
   roundMoney,
   type InvoiceDiscountInput as PricingInvoiceDiscountInput,
 } from "./finance/pricing";
+import { FinanceDiscountSettingsService } from "./finance/discount-settings";
 import {
   DEFAULT_TAX_BEHAVIOR,
   getInvoiceTaxProviderAdapter,
@@ -26,6 +28,7 @@ import {
   getInvoiceFinancialSummary,
 } from "./finance/payment";
 import { FinanceEventService } from "./finance/events";
+import { markInvoiceTreatmentItemsSettled } from "./finance/settlement";
 import { createRenderedDocumentRecord } from "./rendered-document.service";
 import { prisma } from "src/config/prisma";
 import { CatalogService, CatalogServiceError } from "./catalog.service";
@@ -52,8 +55,6 @@ export class InvoiceServiceError extends Error {
 
 const SUPPORT_EMAIL_ADDRESS =
   process.env.SUPPORT_EMAIL_ADDRESS ?? "support@yosemitecrew.com";
-
-type InvoiceVisitBillingStage = "DRAFT" | "READY_FOR_BILLING" | "SETTLED";
 
 type AppointmentLink = {
   patientId?: string;
@@ -143,9 +144,7 @@ type CreateInvoiceInput = {
   notes?: string;
   invoiceDiscount?: PricingInvoiceDiscountInput;
   paymentCollectionMethod:
-    | "PAYMENT_INTENT"
-    | "PAYMENT_LINK"
-    | "PAYMENT_AT_CLINIC";
+    "PAYMENT_INTENT" | "PAYMENT_LINK" | "PAYMENT_AT_CLINIC";
 };
 
 type IssueCreditNoteInput = {
@@ -312,13 +311,13 @@ const toInvoiceRecord = (row: InvoiceWithCreditNotes): Invoice => {
     taxTotal: row.taxTotal,
     discountTotal: row.discountTotal,
     billingCollectionMode: row.billingCollectionMode ?? undefined,
-    visitBillingStage: row.visitBillingStage as InvoiceVisitBillingStage,
+    visitBillingStage: row.visitBillingStage,
     readyForBillingAt: row.readyForBillingAt ?? undefined,
     readyForBillingActorId: row.readyForBillingActorId ?? undefined,
     depositTargetAmount: row.depositTargetAmount,
     depositCollectedAmount: row.depositCollectedAmount,
     paymentCollectionMethod: row.paymentCollectionMethod,
-    status: row.status as Invoice["status"],
+    status: row.status,
     creditNotes,
     metadata: normalizeInvoiceMetadata(row.metadata),
     paidAt: row.paidAt ?? undefined,
@@ -331,7 +330,7 @@ const withRenderedDocument = async <T extends Invoice>(
   invoice: T,
 ): Promise<T & Pick<Invoice, "renderedDocumentId" | "pdfUrl">> => {
   if (!invoice.id || !invoice.organisationId) {
-    return invoice as T & Pick<Invoice, "renderedDocumentId" | "pdfUrl">;
+    return invoice;
   }
   const document = await prisma.renderedDocument.findFirst({
     where: {
@@ -347,7 +346,7 @@ const withRenderedDocument = async <T extends Invoice>(
         renderedDocumentId: document.id,
         pdfUrl: document.pdfUrl,
       }
-    : (invoice as T & Pick<Invoice, "renderedDocumentId" | "pdfUrl">);
+    : invoice;
 };
 
 const buildInvoiceLineSnapshots = (items: DraftInvoiceItemInput[]) =>
@@ -544,20 +543,34 @@ const toTaxLineItems = (items: DraftInvoiceItemInput[]) =>
     discountPercent: item.discountPercent,
   }));
 
-const resolveInvoiceTotals = async (
-  items: DraftInvoiceItemInput[],
-  taxPercent = 0,
-  invoiceDiscount?: PricingInvoiceDiscountInput,
-  taxBehavior: PrismaTaxBehavior = DEFAULT_TAX_BEHAVIOR,
-  currency = "usd",
-  provider?: string | null,
-  mode: "preview" | "finalize" = "preview",
+type ResolveInvoiceTotalsOptions = {
+  taxPercent?: number;
+  invoiceDiscount?: PricingInvoiceDiscountInput;
+  taxBehavior?: PrismaTaxBehavior;
+  currency?: string;
+  provider?: string | null;
+  mode?: "preview" | "finalize";
   taxContext?: {
     customerAddress?: Stripe.AddressParam | null;
     liabilityAccountId?: string | null;
-  },
-  options?: { skipTaxCalculation?: boolean },
+  };
+  skipTaxCalculation?: boolean;
+};
+
+const resolveInvoiceTotals = async (
+  items: DraftInvoiceItemInput[],
+  options: ResolveInvoiceTotalsOptions = {},
 ) => {
+  const {
+    taxPercent = 0,
+    invoiceDiscount,
+    taxBehavior = DEFAULT_TAX_BEHAVIOR,
+    currency = "usd",
+    provider,
+    mode = "preview",
+    taxContext,
+    skipTaxCalculation,
+  } = options;
   const pricing = calculateInvoicePricing({
     lines: items.map((item) => ({
       quantity: item.quantity,
@@ -570,7 +583,7 @@ const resolveInvoiceTotals = async (
     invoiceDiscount,
   });
 
-  if (options?.skipTaxCalculation) {
+  if (skipTaxCalculation) {
     return {
       subtotal: pricing.subtotal,
       discountTotal: pricing.lineDiscountTotal,
@@ -670,6 +683,30 @@ const getAppointmentParentIdOrThrow = (appointment: {
     );
   }
   return parentId;
+};
+
+// PMS callers bind an invoice by organisation, mobile callers by pet parent.
+// A caller that knows neither must not reach a Prisma filter.
+export type InvoiceScope = {
+  organisationId?: string | null;
+  parentId?: string | null;
+};
+
+const assertInvoiceInScope = (
+  invoice: { organisationId: string | null; parentId: string | null },
+  scope: InvoiceScope,
+) => {
+  if (!scope.organisationId && !scope.parentId) {
+    throw new InvoiceServiceError("Invoice scope is required.", 403);
+  }
+
+  if (scope.organisationId && invoice.organisationId !== scope.organisationId) {
+    throw new InvoiceServiceError("Invoice not found.", 404);
+  }
+
+  if (scope.parentId && invoice.parentId !== scope.parentId) {
+    throw new InvoiceServiceError("Invoice not found.", 404);
+  }
 };
 
 const assertAppointmentInOrganisation = async (
@@ -837,8 +874,7 @@ const buildBootstrapInvoiceItems = async (params: {
     typeof (appointment.appointmentType as Record<string, unknown>).name ===
       "string"
       ? ((appointment.appointmentType as Record<string, unknown>).name as
-          | string
-          | undefined)
+          string | undefined)
       : undefined;
 
   return [
@@ -908,7 +944,7 @@ const cancelUnpaidInvoice = async (invoice: PrismaInvoice, reason: string) =>
         metadata: {
           ...(normalizeInvoiceMetadata(invoice.metadata) ?? EMPTY_METADATA),
           cancellationReason: reason,
-        } as unknown as Prisma.InputJsonValue,
+        },
       },
     })
     .then(async (updated) => {
@@ -927,8 +963,90 @@ const cancelUnpaidInvoice = async (invoice: PrismaInvoice, reason: string) =>
       return updated;
     });
 
+// Shared cancellation path for a still-open (AWAITING_PAYMENT/PENDING)
+// invoice: refund whatever has been collected, otherwise cancel it unpaid.
+// Both outcomes record the matching audit row.
+const closeOpenInvoiceForCancellation = async (
+  invoice: PrismaInvoice,
+  reason: string,
+  auditExtras: { includeCurrency?: boolean } = {},
+): Promise<
+  | { outcome: "REFUNDED"; updated: PrismaInvoice; refundId?: string | null }
+  | { outcome: "CANCELLED_UNPAID"; updated: PrismaInvoice }
+> => {
+  const summary = await getInvoiceFinancialSummary(
+    invoice.id,
+    invoice.totalAmount,
+    invoice.depositCollectedAmount ?? 0,
+  );
+
+  if (summary.paid > 0) {
+    const {
+      invoice: updated,
+      refunds,
+      totalRefunded,
+    } = await FinancePaymentService.refundInvoicePayments(invoice.id, reason);
+    await recordInvoiceAuditForRow(updated, "INVOICE_REFUNDED", updated.id, {
+      status: updated.status,
+      reason,
+      refundId: refunds[0]?.refundId,
+      amount: totalRefunded,
+      ...(auditExtras.includeCurrency ? { currency: updated.currency } : {}),
+    });
+    return { outcome: "REFUNDED", updated, refundId: refunds[0]?.refundId };
+  }
+
+  const updated = await cancelUnpaidInvoice(invoice, reason);
+  await recordInvoiceAuditForRow(updated, "INVOICE_CANCELLED", updated.id, {
+    status: updated.status,
+    reason,
+  });
+  return { outcome: "CANCELLED_UNPAID", updated };
+};
+
 const generateCreditNoteNumber = (invoiceId: string) =>
   `CN-${invoiceId.slice(0, 8).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
+
+/**
+ * Enforce the organisation's overall invoice discount cap.
+ *
+ * The cap is measured against the discount actually resolved by pricing, not
+ * the raw request value, so a FIXED_AMOUNT discount cannot be used to exceed a
+ * percentage cap. An organisation with no cap configured is unconstrained.
+ */
+const assertOverallDiscountWithinOrgCap = async (
+  organisationId: string,
+  totals: {
+    subtotal: number;
+    discountTotal: number;
+    invoiceDiscountTotal: number;
+  },
+) => {
+  if (totals.invoiceDiscountTotal <= 0) {
+    return;
+  }
+
+  const maxOverallDiscountPercent =
+    await FinanceDiscountSettingsService.getMaxOverallDiscountPercent(
+      organisationId,
+    );
+  if (maxOverallDiscountPercent == null) {
+    return;
+  }
+
+  const baseAmount = roundMoney(totals.subtotal - totals.discountTotal);
+  const appliedPercent = calculateInvoiceDiscountPercentOfBase(
+    totals.invoiceDiscountTotal,
+    baseAmount,
+  );
+
+  if (appliedPercent > maxOverallDiscountPercent) {
+    throw new InvoiceServiceError(
+      `Overall invoice discount of ${appliedPercent}% exceeds the organisation's maximum of ${maxOverallDiscountPercent}%.`,
+      409,
+    );
+  }
+};
 
 const normalizeCreateInput = async (
   input: CreateInvoiceInput,
@@ -943,17 +1061,14 @@ const normalizeCreateInput = async (
   options?: { skipTaxCalculation?: boolean },
 ) => {
   const items = buildInvoiceLineSnapshots(input.items);
-  const totals = await resolveInvoiceTotals(
-    input.items,
-    0,
-    input.invoiceDiscount,
+  const totals = await resolveInvoiceTotals(input.items, {
+    invoiceDiscount: input.invoiceDiscount,
     taxBehavior,
     currency,
-    undefined,
-    "preview",
+    mode: "preview",
     taxContext,
-    options,
-  );
+    skipTaxCalculation: options?.skipTaxCalculation,
+  });
 
   return {
     items,
@@ -1031,28 +1146,7 @@ const recordInvoicePaidState = async (invoice: PrismaInvoice, paidAt: Date) => {
       visitBillingStage: "SETTLED",
     },
   });
-  const invoiceRowIds = (Array.isArray(invoice.items) ? invoice.items : [])
-    .map((item) =>
-      typeof item === "object" &&
-      item !== null &&
-      "id" in item &&
-      typeof item.id === "string"
-        ? item.id
-        : null,
-    )
-    .filter((id): id is string => Boolean(id));
-  if (invoiceRowIds.length > 0) {
-    await prisma.workspaceTreatmentItem.updateMany({
-      where: {
-        appointmentId: invoice.appointmentId,
-        invoiceRowId: { in: invoiceRowIds },
-      },
-      data: {
-        settledInvoiceId: invoice.id,
-        settledAt: paidAt,
-      },
-    });
-  }
+  await markInvoiceTreatmentItemsSettled(invoice, invoice.id, paidAt);
 
   await recordInvoiceAuditForRow(updated, "INVOICE_PAID", updated.id, {
     status: updated.status,
@@ -1127,20 +1221,24 @@ const computeInvoiceTaxTotals = async (
     invoice.organisationId ?? "",
     invoice.parentId ?? null,
   );
-  return resolveInvoiceTotals(
-    items,
-    invoice.taxPercent,
+  return resolveInvoiceTotals(items, {
+    taxPercent: invoice.taxPercent,
     invoiceDiscount,
-    invoice.taxSnapshot?.taxBehavior ?? DEFAULT_TAX_BEHAVIOR,
-    invoice.currency,
-    taxProvider ?? invoice.taxSnapshot?.provider,
+    taxBehavior: invoice.taxSnapshot?.taxBehavior ?? DEFAULT_TAX_BEHAVIOR,
+    currency: invoice.currency,
+    provider: taxProvider ?? invoice.taxSnapshot?.provider,
     mode,
     taxContext,
-  );
+  });
 };
 
 export const InvoiceService = {
   async createDraftForAppointment(input: CreateInvoiceInput) {
+    await assertAppointmentInOrganisation(
+      input.appointmentId,
+      input.organisationId,
+    );
+
     const appointment = await prisma.appointment.findUnique({
       where: { id: input.appointmentId },
       select: { id: true, organisationId: true, patient: true },
@@ -1168,7 +1266,7 @@ export const InvoiceService = {
     const currency = await resolveOrganisationCurrency(
       appointment.organisationId,
     );
-    const { data, taxSnapshot } = await normalizeCreateInput(
+    const { data, totals, taxSnapshot } = await normalizeCreateInput(
       input,
       patientId,
       parentId,
@@ -1177,6 +1275,9 @@ export const InvoiceService = {
       undefined,
       { skipTaxCalculation: true },
     );
+
+    await assertOverallDiscountWithinOrgCap(appointment.organisationId, totals);
+
     const createdInvoice = await prisma.invoice
       .create({
         data: {
@@ -1288,7 +1389,7 @@ export const InvoiceService = {
 
   async markInvoicePaidManually(invoiceId: string, organisationId: string) {
     const doc = await prisma.invoice.findUnique({ where: { id: invoiceId } });
-    if (!doc || doc.organisationId !== organisationId) {
+    if (doc?.organisationId !== organisationId) {
       throw new InvoiceServiceError("Invoice not found.", 404);
     }
 
@@ -1303,6 +1404,12 @@ export const InvoiceService = {
       throw new InvoiceServiceError("Invoice cannot be marked paid.", 409);
     }
 
+    // Invoices settled before the Payment backfill carry no Payment rows, so
+    // the outstanding balance would recompute as the full total.
+    if (doc.status === "PAID") {
+      throw new InvoiceServiceError("Invoice is already paid.", 409);
+    }
+
     const result = await FinancePaymentService.recordManualPayment(doc.id, {
       settlementChannel: "CASH",
     });
@@ -1314,11 +1421,7 @@ export const InvoiceService = {
     organisationId: string,
     input: {
       settlementChannel?:
-        | "CASH"
-        | "BANK_TRANSFER"
-        | "CARD_PRESENT"
-        | "DEPOSIT"
-        | "OTHER";
+        "CASH" | "BANK_TRANSFER" | "CARD_PRESENT" | "DEPOSIT" | "OTHER";
       reference?: string;
       receivedAt?: Date;
     } = {},
@@ -1326,7 +1429,7 @@ export const InvoiceService = {
     const doc = await prisma.invoice.findUnique({
       where: { id: invoiceId },
     });
-    if (!doc || doc.organisationId !== organisationId) {
+    if (doc?.organisationId !== organisationId) {
       throw new InvoiceServiceError("Invoice not found.", 404);
     }
 
@@ -1523,7 +1626,7 @@ export const InvoiceService = {
             {}) as Record<string, string | number | boolean>),
           voidReason: reason ?? undefined,
           voidedAt: new Date().toISOString(),
-        } as unknown as Prisma.InputJsonValue,
+        },
       },
     });
 
@@ -1574,11 +1677,15 @@ export const InvoiceService = {
 
   async markAppointmentReadyForBilling(
     appointmentId: string,
-    actorUserId?: string,
+    scope: { organisationId: string; actorUserId?: string },
   ) {
+    const { organisationId, actorUserId } = scope;
+    assertSafeString(organisationId, "organisationId");
+
     const invoice = await prisma.invoice.findFirst({
       where: {
         appointmentId,
+        organisationId,
         status: { in: ["AWAITING_PAYMENT", "PENDING"] },
       },
       orderBy: { createdAt: "desc" },
@@ -1626,11 +1733,15 @@ export const InvoiceService = {
 
   async reverseAppointmentReadyForBilling(
     appointmentId: string,
-    actorUserId?: string,
+    scope: { organisationId: string; actorUserId?: string },
   ) {
+    const { organisationId, actorUserId } = scope;
+    assertSafeString(organisationId, "organisationId");
+
     const readyInvoice = await prisma.invoice.findFirst({
       where: {
         appointmentId,
+        organisationId,
         status: { in: ["AWAITING_PAYMENT", "PENDING"] },
         visitBillingStage: "READY_FOR_BILLING",
       },
@@ -1696,11 +1807,18 @@ export const InvoiceService = {
     return toInvoiceRecord(updated);
   },
 
-  async getByAppointmentId(appId: string, organisationId?: string) {
+  async getByAppointmentId(appId: string, scope: InvoiceScope) {
+    if (!scope.organisationId && !scope.parentId) {
+      throw new InvoiceServiceError("Invoice scope is required.", 403);
+    }
+
     const docs = await prisma.invoice.findMany({
       where: {
         appointmentId: appId,
-        ...(organisationId ? { organisationId } : {}),
+        ...(scope.organisationId
+          ? { organisationId: scope.organisationId }
+          : {}),
+        ...(scope.parentId ? { parentId: scope.parentId } : {}),
       },
       include: invoiceCreditNotesInclude,
       orderBy: { createdAt: "desc" },
@@ -1792,7 +1910,7 @@ export const InvoiceService = {
     });
   },
 
-  async getById(id: string) {
+  async getById(id: string, scope: InvoiceScope) {
     const doc = await prisma.invoice.findUnique({
       where: { id },
       include: invoiceCreditNotesInclude,
@@ -1800,6 +1918,8 @@ export const InvoiceService = {
     if (!doc) {
       throw new InvoiceServiceError("Invoice not found.", 404);
     }
+
+    assertInvoiceInScope(doc, scope);
 
     const org = doc.organisationId
       ? await prisma.organization.findUnique({
@@ -1834,18 +1954,24 @@ export const InvoiceService = {
     return docs.map((d) => toInvoiceRecord(d));
   },
 
-  async listForParent(parentId: string) {
+  async listForParent(parentId: string, organisationId: string | null) {
     const docs = await prisma.invoice.findMany({
-      where: { parentId },
+      where: {
+        parentId,
+        ...(organisationId ? { organisationId } : {}),
+      },
       include: invoiceCreditNotesInclude,
       orderBy: { createdAt: "desc" },
     });
     return docs.map((d) => toInvoiceRecord(d));
   },
 
-  async listForCompanion(patientId: string) {
+  async listForCompanion(patientId: string, organisationId: string | null) {
     const docs = await prisma.invoice.findMany({
-      where: { patientId },
+      where: {
+        patientId,
+        ...(organisationId ? { organisationId } : {}),
+      },
       include: invoiceCreditNotesInclude,
       orderBy: { createdAt: "desc" },
     });
@@ -1879,29 +2005,27 @@ export const InvoiceService = {
       invoice.organisationId ?? "",
       invoice.parentId ?? null,
     );
-    const totals = await resolveInvoiceTotals(
-      mergedItems,
-      invoice.taxPercent,
-      invoice.invoiceDiscountType && invoice.invoiceDiscountValue != null
-        ? {
-            type: invoice.invoiceDiscountType as PricingInvoiceDiscountInput["type"],
-            value: invoice.invoiceDiscountValue,
-          }
-        : undefined,
-      invoice.taxSnapshot?.taxBehavior ?? DEFAULT_TAX_BEHAVIOR,
-      invoice.currency,
-      invoice.taxSnapshot?.provider,
-      "preview",
+    const totals = await resolveInvoiceTotals(mergedItems, {
+      taxPercent: invoice.taxPercent,
+      invoiceDiscount:
+        invoice.invoiceDiscountType && invoice.invoiceDiscountValue != null
+          ? {
+              type: invoice.invoiceDiscountType as PricingInvoiceDiscountInput["type"],
+              value: invoice.invoiceDiscountValue,
+            }
+          : undefined,
+      taxBehavior: invoice.taxSnapshot?.taxBehavior ?? DEFAULT_TAX_BEHAVIOR,
+      currency: invoice.currency,
+      provider: invoice.taxSnapshot?.provider,
+      mode: "preview",
       taxContext,
-    );
+    });
 
     const updated = await prisma.invoice.update({
       where: { id: invoiceId },
       data: {
         taxProvider: totals.taxSnapshot!.provider,
-        items: buildInvoiceLineSnapshots(
-          mergedItems,
-        ) as unknown as Prisma.InputJsonValue,
+        items: buildInvoiceLineSnapshots(mergedItems),
         subtotal: totals.subtotal,
         discountTotal: totals.discountTotal,
         invoiceDiscountTotal: totals.invoiceDiscountTotal,
@@ -2111,39 +2235,10 @@ export const InvoiceService = {
     }
 
     if (["AWAITING_PAYMENT", "PENDING"].includes(invoice.status)) {
-      const summary = await getInvoiceFinancialSummary(
-        invoice.id,
-        invoice.totalAmount,
-        invoice.depositCollectedAmount ?? 0,
-      );
-      if (summary.paid > 0) {
-        const {
-          invoice: updated,
-          refunds,
-          totalRefunded,
-        } = await FinancePaymentService.refundInvoicePayments(
-          invoice.id,
-          reason,
-        );
-        await recordInvoiceAuditForRow(
-          updated,
-          "INVOICE_REFUNDED",
-          updated.id,
-          {
-            status: updated.status,
-            reason,
-            refundId: refunds[0]?.refundId,
-            amount: totalRefunded,
-          },
-        );
-        return { action: "REFUNDED", refundId: refunds[0]?.refundId };
+      const closed = await closeOpenInvoiceForCancellation(invoice, reason);
+      if (closed.outcome === "REFUNDED") {
+        return { action: "REFUNDED", refundId: closed.refundId };
       }
-
-      const updated = await cancelUnpaidInvoice(invoice, reason);
-      await recordInvoiceAuditForRow(updated, "INVOICE_CANCELLED", updated.id, {
-        status: updated.status,
-        reason,
-      });
       return { action: "CANCELLED_UNPAID" };
     }
 
@@ -2175,41 +2270,13 @@ export const InvoiceService = {
     }
 
     if (["AWAITING_PAYMENT", "PENDING"].includes(invoice.status)) {
-      const summary = await getInvoiceFinancialSummary(
-        invoice.id,
-        invoice.totalAmount,
-        invoice.depositCollectedAmount ?? 0,
-      );
-      if (summary.paid > 0) {
-        const {
-          invoice: updated,
-          refunds,
-          totalRefunded,
-        } = await FinancePaymentService.refundInvoicePayments(
-          invoice.id,
-          reason,
-        );
-        await recordInvoiceAuditForRow(
-          updated,
-          "INVOICE_REFUNDED",
-          updated.id,
-          {
-            status: updated.status,
-            reason,
-            refundId: refunds[0]?.refundId,
-            amount: totalRefunded,
-            currency: updated.currency,
-          },
-        );
-        return { action: "REFUNDED", status: updated.status };
-      }
-
-      const updated = await cancelUnpaidInvoice(invoice, reason);
-      await recordInvoiceAuditForRow(updated, "INVOICE_CANCELLED", updated.id, {
-        status: updated.status,
-        reason,
+      const closed = await closeOpenInvoiceForCancellation(invoice, reason, {
+        includeCurrency: true,
       });
-      return { action: "CANCELLED_UNPAID", status: updated.status };
+      if (closed.outcome === "REFUNDED") {
+        return { action: "REFUNDED", status: closed.updated.status };
+      }
+      return { action: "CANCELLED_UNPAID", status: closed.updated.status };
     }
 
     if (invoice.status === "PAID") {
@@ -2228,7 +2295,12 @@ export const InvoiceService = {
     return { action: "NO_ACTION", status: invoice.status };
   },
 
-  async getByPaymentIntentId(paymentIntentId: string, organisationId?: string) {
+  async getByPaymentIntentId(paymentIntentId: string, scope: InvoiceScope) {
+    if (!scope.organisationId && !scope.parentId) {
+      throw new InvoiceServiceError("Invoice scope is required.", 403);
+    }
+
+    const organisationId = scope.organisationId ?? undefined;
     const paymentAttempt = await prisma.paymentAttempt.findFirst({
       where: {
         providerPaymentIntentId: paymentIntentId,
@@ -2256,20 +2328,20 @@ export const InvoiceService = {
           },
         });
 
-    const doc = paymentAttempt
+    const linkedInvoiceId = paymentAttempt?.invoiceId ?? payment?.invoiceId;
+    const doc = linkedInvoiceId
       ? await prisma.invoice.findUnique({
-          where: { id: paymentAttempt.invoiceId },
+          where: { id: linkedInvoiceId },
         })
-      : payment
-        ? await prisma.invoice.findUnique({
-            where: { id: payment.invoiceId },
-          })
-        : null;
+      : null;
 
     if (!doc) {
       return null;
     }
     if (organisationId && doc.organisationId !== organisationId) {
+      return null;
+    }
+    if (scope.parentId && doc.parentId !== scope.parentId) {
       return null;
     }
 

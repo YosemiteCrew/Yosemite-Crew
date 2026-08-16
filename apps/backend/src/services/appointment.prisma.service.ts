@@ -20,6 +20,7 @@ import { InvoiceService } from "./invoice.service";
 import { FinancePaymentService } from "./finance/payment";
 import { resolvePaymentCollectionMethod } from "src/utils/payment";
 import { CompanionOrganisationService } from "./companion-organisation.service";
+import { isSpeciesCompatible } from "./shared/normalize-tokens";
 
 type AppointmentStatus = AppointmentDomain["status"];
 
@@ -251,6 +252,16 @@ type AppointmentListFilters = {
   endDate?: Date;
 };
 
+/**
+ * Read scope for a single appointment. The union makes `organisationId` or
+ * `parentId` mandatory: without one of them the lookup would resolve an
+ * appointment by id alone and hand it to any authenticated caller. `actorId`
+ * only narrows an organisation scope, so it cannot stand in for either.
+ */
+type AppointmentAccessScope =
+  | { organisationId: string; actorId?: string; parentId?: string }
+  | { organisationId?: string; actorId?: string; parentId: string };
+
 const DEFAULT_KIND: AppointmentKind = "OUTPATIENT";
 const UNPAID_INVOICE_STATUSES = new Set([
   "PENDING",
@@ -268,7 +279,7 @@ const toJsonValue = <T>(value: T): Prisma.InputJsonValue =>
 const toNullableJsonValue = (
   value: Prisma.JsonValue | null | undefined,
 ): Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput | undefined =>
-  value == null ? Prisma.JsonNull : (value as Prisma.InputJsonValue);
+  value ?? Prisma.JsonNull;
 
 const normalizeOptionalString = (value?: string | null) => {
   if (typeof value !== "string") return undefined;
@@ -341,7 +352,7 @@ const assertCaseEncounterConsistency = (input: {
 };
 
 const resolveCatalogSelectionForAppointment = async (input: {
-  appointmentType?: AppointmentDomain["appointmentType"];
+  appointmentType: AppointmentDomain["appointmentType"];
   organisationId: string;
 }) => {
   const selectionId = input.appointmentType?.id?.trim();
@@ -514,63 +525,11 @@ const getParentIdFromPatient = (
 const isAppointmentAdmissible = (status: AppointmentStatus) =>
   status === "CHECKED_IN" || status === "IN_PROGRESS";
 
-const normalizeStringTokens = (value: unknown): string[] => {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return [
-    ...new Set(
-      value
-        .map((item) =>
-          typeof item === "string" ? item.trim().toLowerCase() : "",
-        )
-        .filter((item) => item.length > 0),
-    ),
-  ];
-};
-
-const getCompanionSpeciesTokens = (companion: CompanionRow) => {
-  const tokens = new Set<string>();
-  const type = companion.type.trim().toLowerCase();
-
-  if (type) {
-    tokens.add(type);
-  }
-
-  if (companion.speciesCode?.trim()) {
-    tokens.add(companion.speciesCode.trim().toLowerCase());
-  }
-
-  const aliases: Record<string, string[]> = {
-    dog: ["canine"],
-    cat: ["feline"],
-    horse: ["equine"],
-    other: ["other"],
-  };
-
-  for (const alias of aliases[type] ?? []) {
-    tokens.add(alias);
-  }
-
-  return tokens;
-};
-
 const assertRoomUnitSpeciesCompatibility = (
   unit: RoomUnitRow,
   companion: CompanionRow,
 ) => {
-  const constraints = normalizeStringTokens(unit.speciesConstraints);
-  if (constraints.length === 0) {
-    return;
-  }
-
-  const allowedSpecies = getCompanionSpeciesTokens(companion);
-  const isCompatible = constraints.some((constraint) =>
-    allowedSpecies.has(constraint),
-  );
-
-  if (!isCompatible) {
+  if (!isSpeciesCompatible(unit.speciesConstraints, companion)) {
     throw new AppointmentPrismaServiceError(
       "Room unit is not compatible with this companion's species.",
       409,
@@ -582,17 +541,7 @@ const assertRoomUnitGroupSpeciesCompatibility = (
   group: RoomUnitGroupRow,
   companion: CompanionRow,
 ) => {
-  const constraints = normalizeStringTokens(group.speciesConstraints);
-  if (constraints.length === 0) {
-    return;
-  }
-
-  const allowedSpecies = getCompanionSpeciesTokens(companion);
-  const isCompatible = constraints.some((constraint) =>
-    allowedSpecies.has(constraint),
-  );
-
-  if (!isCompatible) {
+  if (!isSpeciesCompatible(group.speciesConstraints, companion)) {
     throw new AppointmentPrismaServiceError(
       "Room unit group is not compatible with this companion's species.",
       409,
@@ -643,27 +592,82 @@ const assertInpatientAdmissionCanProceed = (params: {
   return { encounterId: resolvedEncounterId, nextCaseId };
 };
 
+const resolveAdmitJsonOverride = <T>(
+  currentValue: Prisma.JsonValue | null,
+  override: T | undefined,
+) => {
+  if (override === undefined) {
+    return toNullableJsonValue(currentValue);
+  }
+
+  return override ? toJsonValue(override) : Prisma.JsonNull;
+};
+
 const resolveInpatientAdmissionFields = (
   row: AppointmentRow,
   input: AdmitRequestInput | undefined,
 ) => ({
-  nextLead:
-    input?.lead === undefined
-      ? toNullableJsonValue(row.lead)
-      : input.lead
-        ? toJsonValue(input.lead)
-        : Prisma.JsonNull,
+  nextLead: resolveAdmitJsonOverride(row.lead, input?.lead),
   nextSupportStaff:
     input?.supportStaff === undefined
       ? toNullableJsonValue(row.supportStaff)
       : toJsonValue(input.supportStaff ?? []),
-  nextRoom:
-    input?.room === undefined
-      ? toNullableJsonValue(row.room)
-      : input.room
-        ? toJsonValue(input.room)
-        : Prisma.JsonNull,
+  nextRoom: resolveAdmitJsonOverride(row.room, input?.room),
 });
+
+const assertAdmissionUnitIsUsable = async (params: {
+  tx: TransactionClient;
+  row: AppointmentRow;
+  unitId: string;
+  companion: CompanionRow | null;
+}) => {
+  const { tx, row, unitId, companion } = params;
+  const roomUnitDelegate = (tx as unknown as { roomUnit: RoomUnitDelegate })
+    .roomUnit;
+  const roomUnitGroupDelegate = (
+    tx as unknown as { roomUnitGroup: RoomUnitGroupDelegate }
+  ).roomUnitGroup;
+
+  const unit = await roomUnitDelegate.findUnique({ where: { id: unitId } });
+  if (!unit) {
+    throw new AppointmentPrismaServiceError("Room unit not found.", 404);
+  }
+
+  if (unit.organisationId !== row.organisationId) {
+    throw new AppointmentPrismaServiceError("Unit organisation mismatch.", 409);
+  }
+
+  if (!unit.isActive) {
+    throw new AppointmentPrismaServiceError("Selected unit is inactive.", 409);
+  }
+
+  if (!companion) {
+    throw new AppointmentPrismaServiceError("Companion not found.", 404);
+  }
+
+  assertRoomUnitSpeciesCompatibility(unit, companion);
+
+  if (!unit.unitGroupId) {
+    return;
+  }
+
+  const group = await roomUnitGroupDelegate.findUnique({
+    where: { id: unit.unitGroupId },
+  });
+
+  if (!group) {
+    throw new AppointmentPrismaServiceError("Room unit group not found.", 404);
+  }
+
+  if (group.organisationId !== row.organisationId) {
+    throw new AppointmentPrismaServiceError(
+      "Room unit group organisation mismatch.",
+      409,
+    );
+  }
+
+  assertRoomUnitGroupSpeciesCompatibility(group, companion);
+};
 
 const admitInpatientRoomUnit = async (params: {
   tx: TransactionClient;
@@ -689,55 +693,11 @@ const admitInpatientRoomUnit = async (params: {
     throw new AppointmentPrismaServiceError("roomUnitId is required.", 400);
   }
 
-  const roomUnitDelegate = (tx as unknown as { roomUnit: RoomUnitDelegate })
-    .roomUnit;
-  const roomUnitGroupDelegate = (
-    tx as unknown as { roomUnitGroup: RoomUnitGroupDelegate }
-  ).roomUnitGroup;
   const assignmentDelegate = (
     tx as unknown as { roomUnitAssignment: RoomUnitAssignmentDelegate }
   ).roomUnitAssignment;
 
-  const unit = await roomUnitDelegate.findUnique({ where: { id: unitId } });
-  if (!unit) {
-    throw new AppointmentPrismaServiceError("Room unit not found.", 404);
-  }
-
-  if (unit.organisationId !== row.organisationId) {
-    throw new AppointmentPrismaServiceError("Unit organisation mismatch.", 409);
-  }
-
-  if (!unit.isActive) {
-    throw new AppointmentPrismaServiceError("Selected unit is inactive.", 409);
-  }
-
-  if (!companion) {
-    throw new AppointmentPrismaServiceError("Companion not found.", 404);
-  }
-
-  assertRoomUnitSpeciesCompatibility(unit, companion);
-
-  if (unit.unitGroupId) {
-    const group = await roomUnitGroupDelegate.findUnique({
-      where: { id: unit.unitGroupId },
-    });
-
-    if (!group) {
-      throw new AppointmentPrismaServiceError(
-        "Room unit group not found.",
-        404,
-      );
-    }
-
-    if (group.organisationId !== row.organisationId) {
-      throw new AppointmentPrismaServiceError(
-        "Room unit group organisation mismatch.",
-        409,
-      );
-    }
-
-    assertRoomUnitGroupSpeciesCompatibility(group, companion);
-  }
+  await assertAdmissionUnitIsUsable({ tx, row, unitId, companion });
 
   const conflictingAssignment = await assignmentDelegate.findFirst({
     where: {
@@ -778,7 +738,7 @@ const admitInpatientRoomUnit = async (params: {
   }
 
   const unitAssignment =
-    !activeAssignment || activeAssignment.unitId !== unitId
+    activeAssignment?.unitId !== unitId
       ? await assignmentDelegate.create({
           data: {
             encounterId,
@@ -933,6 +893,42 @@ const resolveEncounterForAdmission = async (args: {
   return encounter;
 };
 
+// Record the encounter's real actual-start when the appointment first moves to
+// IN_PROGRESS. `periodStart` is seeded at check-in with the booked slot start
+// (often in the future), which is not a real start — leaving it would keep the
+// workspace visit timer showing "Not started" even though the visit is running.
+// Stamp it to the transition time and advance the encounter to "in-progress"; a
+// genuine, already-recorded start (in-progress/onleave) is preserved so the timer
+// never resets, and a closed encounter is left untouched.
+const stampEncounterActualStartOnProgress = async (args: {
+  tx: TransactionClient;
+  encounterId: string;
+  startedAt: Date;
+}) => {
+  const encounter = await args.tx.encounter.findUnique({
+    where: { id: args.encounterId },
+    select: { status: true, periodStart: true },
+  });
+
+  if (!encounter) return;
+  if (encounter.status === "finished" || encounter.status === "cancelled") {
+    return;
+  }
+
+  const alreadyStarted =
+    encounter.status === "in-progress" || encounter.status === "onleave";
+
+  await args.tx.encounter.update({
+    where: { id: args.encounterId },
+    data: {
+      status: alreadyStarted ? encounter.status : "in-progress",
+      periodStart: alreadyStarted
+        ? (encounter.periodStart ?? args.startedAt)
+        : args.startedAt,
+    },
+  });
+};
+
 const assertEncounterMatchesAppointmentContext = async (args: {
   tx: TransactionClient;
   encounterId?: string;
@@ -979,9 +975,15 @@ const ensureEncounterOnCheckIn = async (args: {
   tx: TransactionClient;
   appointmentId: string;
   current: AppointmentRow;
-}) => {
+  // Pre-resolved case for the appointment. When provided it is used as-is, so this helper and its
+  // caller never both resolve/create a case (which would leave an inpatient with a duplicate case).
+  caseId?: string;
+}): Promise<{ encounterId: string; caseId: string | null }> => {
   if (args.current.encounterId) {
-    return args.current.encounterId;
+    return {
+      encounterId: args.current.encounterId,
+      caseId: normalizeOptionalString(args.current.caseId) ?? null,
+    };
   }
 
   const patientId = getPatientId(args.current.patient);
@@ -989,6 +991,7 @@ const ensureEncounterOnCheckIn = async (args: {
     args.current.appointmentKind,
   );
   const caseId =
+    normalizeOptionalString(args.caseId) ??
     normalizeOptionalString(args.current.caseId) ??
     (await resolveCaseContext({
       tx: args.tx,
@@ -1042,7 +1045,7 @@ const ensureEncounterOnCheckIn = async (args: {
     },
   });
 
-  return createdEncounter.id;
+  return { encounterId: createdEncounter.id, caseId };
 };
 
 const assertLeadAvailability = async (args: {
@@ -1145,7 +1148,7 @@ const buildWhereFromFilters = (
       patient: {
         path: ["id"],
         equals: filters.patientId,
-      } as never,
+      },
     });
   }
 
@@ -1154,7 +1157,7 @@ const buildWhereFromFilters = (
       patient: {
         path: ["parent", "id"],
         equals: filters.parentId,
-      } as never,
+      },
     });
   }
 
@@ -1163,7 +1166,7 @@ const buildWhereFromFilters = (
       lead: {
         path: ["id"],
         equals: filters.leadId,
-      } as never,
+      },
     });
   }
 
@@ -1177,6 +1180,57 @@ const buildWhereFromFilters = (
 type AppointmentPaymentStateMaps = {
   paymentStatusMap: Map<string, AppointmentPaymentStatus>;
   bookingPaymentStatusMap: Map<string, AppointmentBookingPaymentStatus>;
+};
+
+type InvoicePaymentRow = {
+  appointmentId: string | null;
+  status: string;
+  depositCollectedAmount: number | null;
+  paymentAttempts: Array<{ id: string }>;
+  payments: Array<{ id: string }>;
+};
+
+type InvoicePaymentSignals = {
+  hasPaid: boolean;
+  hasUnpaid: boolean;
+  hasBookingPayment: boolean;
+};
+
+const applyInvoicePaymentSignals = (
+  entry: InvoicePaymentSignals,
+  invoice: InvoicePaymentRow,
+) => {
+  const hasSuccessfulPayment =
+    (invoice.payments?.length ?? 0) > 0 ||
+    (invoice.paymentAttempts?.length ?? 0) > 0;
+
+  if (invoice.status === "PAID") {
+    entry.hasPaid = true;
+  }
+  if (UNPAID_INVOICE_STATUSES.has(invoice.status)) {
+    entry.hasUnpaid = true;
+  }
+  if (hasSuccessfulPayment || (invoice.depositCollectedAmount ?? 0) > 0) {
+    entry.hasBookingPayment = true;
+  }
+};
+
+const buildInvoicePaymentTracker = (invoices: InvoicePaymentRow[]) => {
+  const tracker = new Map<string, InvoicePaymentSignals>();
+
+  for (const invoice of invoices) {
+    if (!invoice.appointmentId) continue;
+    const entry = tracker.get(invoice.appointmentId) ?? {
+      hasPaid: false,
+      hasUnpaid: false,
+      hasBookingPayment: false,
+    };
+
+    applyInvoicePaymentSignals(entry, invoice);
+    tracker.set(invoice.appointmentId, entry);
+  }
+
+  return tracker;
 };
 
 const resolveAppointmentPaymentStateMaps = async (
@@ -1212,43 +1266,7 @@ const resolveAppointmentPaymentStateMaps = async (
     },
   });
 
-  const tracker = new Map<
-    string,
-    {
-      hasPaid: boolean;
-      hasUnpaid: boolean;
-      hasBookingPayment: boolean;
-    }
-  >();
-
-  for (const invoice of invoices) {
-    if (!invoice.appointmentId) continue;
-    const entry = tracker.get(invoice.appointmentId) ?? {
-      hasPaid: false,
-      hasUnpaid: false,
-      hasBookingPayment: false,
-    };
-
-    const hasSuccessfulPayment =
-      (invoice.payments?.length ?? 0) > 0 ||
-      (invoice.paymentAttempts?.length ?? 0) > 0;
-    const hasBookingPayment =
-      hasSuccessfulPayment || (invoice.depositCollectedAmount ?? 0) > 0;
-    const isPaid = invoice.status === "PAID";
-    const isUnpaid = UNPAID_INVOICE_STATUSES.has(invoice.status);
-
-    if (isPaid) {
-      entry.hasPaid = true;
-    }
-    if (isUnpaid) {
-      entry.hasUnpaid = true;
-    }
-    if (hasBookingPayment) {
-      entry.hasBookingPayment = true;
-    }
-
-    tracker.set(invoice.appointmentId, entry);
-  }
+  const tracker = buildInvoicePaymentTracker(invoices);
 
   for (const [appointmentId, entry] of tracker) {
     paymentStatusMap.set(
@@ -1377,6 +1395,33 @@ const assertParentOwnsAppointment = (row: AppointmentRow, parentId: string) => {
   }
 };
 
+/**
+ * Shared prologue for parent-initiated mutations: validates the ids, loads the
+ * appointment, and proves the caller's parent owns it.
+ */
+const getParentOwnedAppointment = async (
+  appointmentId: string,
+  parentId: string,
+): Promise<AppointmentRow> => {
+  if (!appointmentId) {
+    throw new AppointmentPrismaServiceError("appointmentId is required", 400);
+  }
+  if (!parentId) {
+    throw new AppointmentPrismaServiceError("parentId is required", 400);
+  }
+
+  const current = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+  });
+  const row = assertExists(
+    current as AppointmentRow | null,
+    "Appointment not found",
+  );
+  assertParentOwnsAppointment(row, parentId);
+
+  return row;
+};
+
 const createAppointment = async (
   dto: AppointmentRequestDTO,
   status: AppointmentStatus,
@@ -1487,7 +1532,7 @@ const createAppointment = async (
     return appointment;
   });
 
-  return toResponse(created as AppointmentRow);
+  return toResponse(created);
 };
 
 const applyDtoPatch = (
@@ -1591,7 +1636,22 @@ const approveRequestedFromPmsInTransaction = async (args: {
 };
 
 export const AppointmentPrismaService = {
-  async createRequestedFromMobile(dto: AppointmentRequestDTO) {
+  async createRequestedFromMobile(
+    dto: AppointmentRequestDTO,
+    authParentId: string,
+  ) {
+    if (!authParentId) {
+      throw new AppointmentPrismaServiceError("authParentId is required", 400);
+    }
+
+    const requestedParentId = fromAppointmentRequestDTO(dto).patient.parent?.id;
+    if (requestedParentId !== authParentId) {
+      throw new AppointmentPrismaServiceError(
+        "You are not allowed to book appointments for this parent.",
+        403,
+      );
+    }
+
     return createAppointment(dto, "REQUESTED");
   },
 
@@ -1633,11 +1693,15 @@ export const AppointmentPrismaService = {
       if (resolvedPaymentCollectionMethod === "PAYMENT_LINK") {
         await InvoiceService.createCheckoutSessionAndEmailParent(invoice.id);
       } else if (resolvedPaymentCollectionMethod === "PAYMENT_INTENT") {
-        await FinancePaymentService.createPaymentIntentForInvoice(invoice.id);
+        await FinancePaymentService.createPaymentIntentForInvoice(invoice.id, {
+          organisationId: invoice.organisationId,
+        });
       }
     }
 
-    return AppointmentPrismaService.getById(appointmentId);
+    return AppointmentPrismaService.getById(appointmentId, {
+      organisationId: fromAppointmentRequestDTO(dto).organisationId,
+    });
   },
 
   async approveRequestedFromPms(
@@ -1683,7 +1747,7 @@ export const AppointmentPrismaService = {
       }),
     );
 
-    return toResponse(updated as AppointmentRow);
+    return toResponse(updated);
   },
 
   async rejectRequestedAppointment(appointmentId: string) {
@@ -1709,31 +1773,11 @@ export const AppointmentPrismaService = {
       data: { status: "CANCELLED", updatedAt: new Date() },
     });
 
-    return toResponse(updated as AppointmentRow);
+    return toResponse(updated);
   },
 
   async checkInAppointmentParent(appointmentId: string, parentId: string) {
-    if (!appointmentId) {
-      throw new AppointmentPrismaServiceError("appointmentId is required", 400);
-    }
-    if (!parentId) {
-      throw new AppointmentPrismaServiceError("parentId is required", 400);
-    }
-
-    const current = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
-    });
-    const row = assertExists(
-      current as AppointmentRow | null,
-      "Appointment not found",
-    );
-    const ownerId = (row.patient as { parent?: { id?: string } }).parent?.id;
-    if (ownerId !== parentId) {
-      throw new AppointmentPrismaServiceError(
-        "You are not allowed to modify this appointment.",
-        403,
-      );
-    }
+    const row = await getParentOwnedAppointment(appointmentId, parentId);
 
     assertAppointmentTransition(
       row.status,
@@ -1742,7 +1786,7 @@ export const AppointmentPrismaService = {
     );
 
     const updated = await prisma.$transaction(async (tx) => {
-      const encounterId = await ensureEncounterOnCheckIn({
+      const { encounterId } = await ensureEncounterOnCheckIn({
         tx,
         appointmentId,
         current: row,
@@ -1758,16 +1802,22 @@ export const AppointmentPrismaService = {
       });
     });
 
-    return toResponse(updated as AppointmentRow);
+    return toResponse(updated);
   },
 
-  async checkInAppointment(appointmentId: string) {
+  async checkInAppointment(appointmentId: string, organisationId: string) {
     if (!appointmentId) {
       throw new AppointmentPrismaServiceError("appointmentId is required", 400);
     }
+    if (!organisationId) {
+      throw new AppointmentPrismaServiceError(
+        "organisationId is required",
+        400,
+      );
+    }
 
-    const current = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
+    const current = await prisma.appointment.findFirst({
+      where: { id: appointmentId, organisationId },
     });
     const row = assertExists(
       current as AppointmentRow | null,
@@ -1776,7 +1826,7 @@ export const AppointmentPrismaService = {
     assertAppointmentTransition(row.status, "CHECKED_IN", "checkInAppointment");
 
     const updated = await prisma.$transaction(async (tx) => {
-      const encounterId = await ensureEncounterOnCheckIn({
+      const { encounterId } = await ensureEncounterOnCheckIn({
         tx,
         appointmentId,
         current: row,
@@ -1792,15 +1842,22 @@ export const AppointmentPrismaService = {
       });
     });
 
-    return toResponse(updated as AppointmentRow);
+    return toResponse(updated);
   },
 
   async admitAppointmentToInpatient(
     appointmentId: string,
+    organisationId: string,
     input?: AdmitRequestInput,
   ) {
     if (!appointmentId) {
       throw new AppointmentPrismaServiceError("appointmentId is required", 400);
+    }
+    if (!organisationId) {
+      throw new AppointmentPrismaServiceError(
+        "organisationId is required",
+        400,
+      );
     }
 
     const admittedAt = input?.admittedAt ?? new Date();
@@ -1826,6 +1883,9 @@ export const AppointmentPrismaService = {
         current as AppointmentRow | null,
         "Appointment not found",
       );
+      if (row.organisationId !== organisationId) {
+        throw new AppointmentPrismaServiceError("Appointment not found", 404);
+      }
 
       const rowEncounterId = normalizeOptionalString(row.encounterId);
       if (!rowEncounterId) {
@@ -1857,14 +1917,20 @@ export const AppointmentPrismaService = {
       const { nextLead, nextSupportStaff, nextRoom } =
         resolveInpatientAdmissionFields(row, input);
 
+      // Admission is the encounter's real actual-start. `periodStart` was seeded
+      // at check-in with the booked slot start (often in the future), so on the
+      // first move into "in-progress" record the real admission time; otherwise
+      // preserve the already-recorded start so the visit timer never resets.
+      const isStartingNow = encounter.status === "arrived";
       await tx.encounter.update({
         where: { id: encounterId },
         data: {
           appointmentKind: "INPATIENT",
           encounterClass: "IMP",
-          periodStart: encounter.periodStart ?? admittedAt,
-          status:
-            encounter.status === "arrived" ? "in-progress" : encounter.status,
+          periodStart: isStartingNow
+            ? admittedAt
+            : (encounter.periodStart ?? admittedAt),
+          status: isStartingNow ? "in-progress" : encounter.status,
         },
       });
 
@@ -1927,7 +1993,7 @@ export const AppointmentPrismaService = {
     });
 
     return {
-      appointment: await toResponse(updated.appointment as AppointmentRow),
+      appointment: await toResponse(updated.appointment),
       admission: updated.admission,
       unitAssignment: updated.unitAssignment,
     } satisfies AdmitResponse;
@@ -1938,27 +2004,7 @@ export const AppointmentPrismaService = {
     parentId: string,
     changes: RescheduleChanges,
   ) {
-    if (!appointmentId) {
-      throw new AppointmentPrismaServiceError("appointmentId is required", 400);
-    }
-    if (!parentId) {
-      throw new AppointmentPrismaServiceError("parentId is required", 400);
-    }
-
-    const current = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
-    });
-    const row = assertExists(
-      current as AppointmentRow | null,
-      "Appointment not found",
-    );
-    const ownerId = (row.patient as { parent?: { id?: string } }).parent?.id;
-    if (ownerId !== parentId) {
-      throw new AppointmentPrismaServiceError(
-        "You are not allowed to modify this appointment.",
-        403,
-      );
-    }
+    const row = await getParentOwnedAppointment(appointmentId, parentId);
 
     if (row.status === "COMPLETED" || row.status === "CANCELLED") {
       throw new AppointmentPrismaServiceError(
@@ -2019,7 +2065,7 @@ export const AppointmentPrismaService = {
       });
     });
 
-    return toResponse(updated as AppointmentRow);
+    return toResponse(updated);
   },
 
   async updateAppointmentPMS(
@@ -2112,6 +2158,47 @@ export const AppointmentPrismaService = {
         });
       }
 
+      // On the transition into IN_PROGRESS, stamp the encounter's real actual-start so the
+      // workspace visit timer runs (bug #1903). Guarantee an encounter first: an appointment can
+      // reach IN_PROGRESS without one (e.g. a CHECKED_IN set from the edit form rather than the
+      // encounter-creating check-in action), and with no encounter there is nowhere to record the
+      // start, so the timer stays "Not started". Thread the ensured ids into the update below so it
+      // does not overwrite the freshly-linked case/encounter back to null.
+      let inProgressEncounterId = encounterId;
+      let inProgressCaseId = resolvedCaseId;
+      if (patch.status === "IN_PROGRESS" && row.status !== "IN_PROGRESS") {
+        if (!inProgressEncounterId) {
+          // Create the encounter from the PATCHED appointment context (patient, kind, type, case,
+          // concern, times) - the same values the update below writes - so a request that both
+          // starts the appointment AND edits it never links an encounter built from stale
+          // pre-update context.
+          const patchedRow = {
+            ...row,
+            patient: input.patient,
+            appointmentKind,
+            appointmentType,
+            concern: input.concern ?? row.concern,
+            startTime: patch.startTime,
+            endTime: patch.endTime,
+            caseId: resolvedCaseId ?? row.caseId,
+            encounterId: null,
+          } as AppointmentRow;
+          const ensured = await ensureEncounterOnCheckIn({
+            tx,
+            appointmentId,
+            current: patchedRow,
+            caseId: resolvedCaseId,
+          });
+          inProgressEncounterId = ensured.encounterId;
+          inProgressCaseId = ensured.caseId ?? resolvedCaseId;
+        }
+        await stampEncounterActualStartOnProgress({
+          tx,
+          encounterId: inProgressEncounterId,
+          startedAt: new Date(),
+        });
+      }
+
       return tx.appointment.update({
         where: { id: appointmentId },
         data: {
@@ -2119,8 +2206,8 @@ export const AppointmentPrismaService = {
           appointmentType: appointmentType
             ? toJsonValue(appointmentType)
             : toNullableJsonValue(row.appointmentType),
-          caseId: resolvedCaseId ?? null,
-          encounterId: encounterId ?? null,
+          caseId: inProgressCaseId ?? null,
+          encounterId: inProgressEncounterId ?? null,
           productItemId: selection.productItemId,
           updatedAt: new Date(),
         },
@@ -2128,28 +2215,16 @@ export const AppointmentPrismaService = {
     });
 
     if (patch.status === "COMPLETED") {
-      await InvoiceService.markAppointmentReadyForBilling(appointmentId);
+      await InvoiceService.markAppointmentReadyForBilling(appointmentId, {
+        organisationId: row.organisationId,
+      });
     }
 
-    return toResponse(updated as AppointmentRow);
+    return toResponse(updated);
   },
 
   async cancelAppointmentFromParent(appointmentId: string, parentId: string) {
-    if (!appointmentId) {
-      throw new AppointmentPrismaServiceError("appointmentId is required", 400);
-    }
-    if (!parentId) {
-      throw new AppointmentPrismaServiceError("parentId is required", 400);
-    }
-
-    const current = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
-    });
-    const row = assertExists(
-      current as AppointmentRow | null,
-      "Appointment not found",
-    );
-    assertParentOwnsAppointment(row, parentId);
+    const row = await getParentOwnedAppointment(appointmentId, parentId);
 
     assertAppointmentTransition(
       row.status,
@@ -2172,7 +2247,7 @@ export const AppointmentPrismaService = {
       });
     });
 
-    return toResponse(updated as AppointmentRow);
+    return toResponse(updated);
   },
 
   async cancelAppointment(appointmentId: string) {
@@ -2204,14 +2279,12 @@ export const AppointmentPrismaService = {
       });
     });
 
-    return toResponse(updated as AppointmentRow);
+    return toResponse(updated);
   },
 
   async getById(
     appointmentId: string,
-    organisationId?: string,
-    actorId?: string,
-    parentId?: string,
+    scope: AppointmentAccessScope,
   ): Promise<AppointmentResponseDTO> {
     if (!appointmentId) {
       throw new AppointmentPrismaServiceError(
@@ -2219,6 +2292,8 @@ export const AppointmentPrismaService = {
         400,
       );
     }
+
+    const { organisationId, actorId, parentId } = scope;
 
     const row = organisationId
       ? await prisma.appointment.findFirst({
@@ -2231,16 +2306,14 @@ export const AppointmentPrismaService = {
       throw new AppointmentPrismaServiceError("Appointment not found", 404);
     }
 
-    const canViewAsActor =
-      actorId && canViewOwnAppointment(row as AppointmentRow, actorId);
-    const canViewAsParent =
-      parentId && getParentIdFromRow(row as AppointmentRow) === parentId;
+    const canViewAsActor = actorId && canViewOwnAppointment(row, actorId);
+    const canViewAsParent = parentId && getParentIdFromRow(row) === parentId;
 
     if ((actorId || parentId) && !canViewAsActor && !canViewAsParent) {
       throw new AppointmentPrismaServiceError("Appointment not found", 404);
     }
 
-    return toResponse(row as AppointmentRow);
+    return toResponse(row);
   },
 
   async getAppointmentsForCompanion(
@@ -2251,9 +2324,7 @@ export const AppointmentPrismaService = {
     }
 
     const rows = (await prisma.appointment.findMany({
-      where: {
-        patient: { path: ["id"], equals: patientId } as never,
-      },
+      where: buildWhereFromFilters({ patientId }),
       orderBy: { startTime: "desc" },
     })) as AppointmentRow[];
 
@@ -2275,10 +2346,7 @@ export const AppointmentPrismaService = {
     }
 
     const rows = (await prisma.appointment.findMany({
-      where: {
-        organisationId,
-        patient: { path: ["id"], equals: patientId } as never,
-      },
+      where: buildWhereFromFilters({ organisationId, patientId }),
       orderBy: { startTime: "desc" },
     })) as AppointmentRow[];
 
@@ -2293,9 +2361,7 @@ export const AppointmentPrismaService = {
     }
 
     const rows = (await prisma.appointment.findMany({
-      where: {
-        patient: { path: ["parent", "id"], equals: parentId } as never,
-      },
+      where: buildWhereFromFilters({ parentId }),
       orderBy: { startTime: "desc" },
     })) as AppointmentRow[];
 
@@ -2355,21 +2421,44 @@ export const AppointmentPrismaService = {
 
   async attachFormsToAppointment(
     appointmentId: string,
+    organisationId: string,
     formIds: string[],
   ): Promise<AppointmentResponseDTO> {
     if (!appointmentId) {
       throw new AppointmentPrismaServiceError("appointmentId is required", 400);
     }
+    if (!organisationId) {
+      throw new AppointmentPrismaServiceError(
+        "organisationId is required",
+        400,
+      );
+    }
 
-    const current = await prisma.appointment.findUnique({
-      where: { id: appointmentId },
+    const current = await prisma.appointment.findFirst({
+      where: { id: appointmentId, organisationId },
     });
     const row = assertExists(
       current as AppointmentRow | null,
       "Appointment not found",
     );
+
+    const requestedFormIds = Array.from(
+      new Set((formIds ?? []).filter(Boolean)),
+    );
+    if (requestedFormIds.length) {
+      const ownedForms = await prisma.form.findMany({
+        where: { id: { in: requestedFormIds }, orgId: organisationId },
+        select: { id: true },
+      });
+      // 404 rather than 403: confirming a form exists in another organisation
+      // would already leak it.
+      if (ownedForms.length !== requestedFormIds.length) {
+        throw new AppointmentPrismaServiceError("Form not found", 404);
+      }
+    }
+
     const nextFormIds = Array.from(
-      new Set([...(row.formIds ?? []), ...(formIds ?? [])]),
+      new Set([...(row.formIds ?? []), ...requestedFormIds]),
     ).filter(Boolean);
 
     const updated = await prisma.appointment.update({
@@ -2377,6 +2466,6 @@ export const AppointmentPrismaService = {
       data: { formIds: nextFormIds, updatedAt: new Date() },
     });
 
-    return toResponse(updated as AppointmentRow);
+    return toResponse(updated);
   },
 };

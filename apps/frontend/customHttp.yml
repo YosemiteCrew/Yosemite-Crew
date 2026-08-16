@@ -1,0 +1,20 @@
+# Custom response headers for AWS Amplify Hosting.
+#
+# Amplify serves everything under /public with `Cache-Control: max-age=5`, so
+# fonts and marketing art are re-fetched from the origin on practically every
+# visit and CloudFront edges never stay warm. next.config.ts declares the same
+# policy for the routes Next serves itself; this file covers the assets Amplify
+# hands out directly from its own CDN layer.
+#
+# Fonts are immutable: a new cut ships under a new filename. Images can be
+# replaced in place, so they get a one-day freshness window backed by a month of
+# stale-while-revalidate instead of `immutable`.
+customHeaders:
+  - pattern: '/fonts/**'
+    headers:
+      - key: 'Cache-Control'
+        value: 'public, max-age=31536000, immutable'
+  - pattern: '/images/**'
+    headers:
+      - key: 'Cache-Control'
+        value: 'public, max-age=86400, stale-while-revalidate=2592000'

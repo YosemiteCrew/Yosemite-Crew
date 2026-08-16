@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
 import { CareReminderController } from "src/controllers/web/care-reminder.controller";
 
@@ -7,7 +7,7 @@ const router = Router();
 
 router.get(
   "/pms/organisation/:organisationId/care-reminders",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:view:any"),
   CareReminderController.list,
@@ -15,7 +15,7 @@ router.get(
 
 router.post(
   "/pms/organisation/:organisationId/care-reminders",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   CareReminderController.create,
@@ -23,7 +23,7 @@ router.post(
 
 router.post(
   "/pms/organisation/:organisationId/care-reminders/bulk",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   CareReminderController.bulkCreate,
@@ -31,7 +31,7 @@ router.post(
 
 router.get(
   "/pms/organisation/:organisationId/care-reminders/:reminderId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:view:any"),
   CareReminderController.get,
@@ -39,7 +39,7 @@ router.get(
 
 router.post(
   "/pms/organisation/:organisationId/care-reminders/:reminderId/send",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   CareReminderController.send,
@@ -47,7 +47,7 @@ router.post(
 
 router.post(
   "/pms/organisation/:organisationId/care-reminders/:reminderId/respond",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   CareReminderController.markResponded,
@@ -55,7 +55,7 @@ router.post(
 
 router.post(
   "/pms/organisation/:organisationId/care-reminders/:reminderId/cancel",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   CareReminderController.cancel,

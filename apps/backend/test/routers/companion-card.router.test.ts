@@ -1,6 +1,6 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 
@@ -10,7 +10,7 @@ const CompanionCardController = {
   revokeToken: jest.fn(),
 };
 
-jest.mock("../../src/middlewares/auth", () => ({ authorizeCognito }));
+jest.mock("../../src/middlewares/auth", () => ({ requireWebAuth }));
 jest.mock("../../src/middlewares/rbac", () => ({
   withOrgPermissions,
   requirePermission,
@@ -62,6 +62,6 @@ describe("companion-card.router", () => {
       "post",
     );
     const handles = route?.stack.map((layer) => layer.handle) ?? [];
-    expect(handles).toContain(authorizeCognito);
+    expect(handles).toContain(requireWebAuth);
   });
 });

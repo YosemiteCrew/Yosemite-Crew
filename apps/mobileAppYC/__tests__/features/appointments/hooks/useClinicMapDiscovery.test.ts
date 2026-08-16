@@ -240,6 +240,22 @@ describe('useClinicMapDiscovery', () => {
     });
   });
 
+  describe('pinAndSelectClinic', () => {
+    it('pins the business and selects it by id', () => {
+      const {result} = renderHook(() => useClinicMapDiscovery(''));
+      const business = makeReduxBusiness({id: 'pinned-via-map-search'});
+
+      act(() => {
+        result.current.pinAndSelectClinic(business);
+      });
+
+      expect(result.current.selectedClinicId).toBe('pinned-via-map-search');
+      expect(result.current.visibleClinics.map(c => c.id)).toContain(
+        'pinned-via-map-search',
+      );
+    });
+  });
+
   describe('initialSelectedId with selectionToken', () => {
     it('auto-selects a clinic that is already in allClinics', () => {
       setReduxBusinesses([makeReduxBusiness({id: 'redux_biz_1'})]);

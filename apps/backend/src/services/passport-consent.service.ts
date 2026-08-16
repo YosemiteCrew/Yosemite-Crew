@@ -83,6 +83,44 @@ const loadConsentOrThrow = async (
   return consent;
 };
 
+/**
+ * Resolves the pet's primary parent and proves the authenticated caller IS that
+ * parent. Consent for cross-practice disclosure of clinical records is the pet
+ * owner's to give (GDPR Art. 6/9), so a staff session is never sufficient.
+ */
+const resolveConsentingParentId = async (
+  patientId: string,
+  grantingUserId: string | null,
+): Promise<string> => {
+  if (!grantingUserId) {
+    throw new PassportConsentError(
+      "Only the pet's owner can grant this consent.",
+      403,
+    );
+  }
+  const link = await prisma.parentPatient.findFirst({
+    where: { patientId, role: "PRIMARY", status: "ACTIVE" },
+    select: { parentId: true },
+  });
+  if (!link) {
+    throw new PassportConsentError(
+      "Only the pet's owner can grant this consent.",
+      403,
+    );
+  }
+  const parent = await prisma.parent.findUnique({
+    where: { id: link.parentId },
+    select: { id: true, linkedUserId: true },
+  });
+  if (!parent?.linkedUserId || parent.linkedUserId !== grantingUserId) {
+    throw new PassportConsentError(
+      "Only the pet's owner can grant this consent.",
+      403,
+    );
+  }
+  return parent.id;
+};
+
 const notifyOwnerOfConsentRequest = async (
   patientId: string,
 ): Promise<void> => {
@@ -215,21 +253,48 @@ export const PassportConsentService = {
 
   // The pet parent grants consent (via the mobile app or an email link), which
   // makes the share active.
+  /**
+   * Records the pet parent's consent, making the cross-practice share active.
+   *
+   * `grantingUserId` is the authenticated principal and MUST be the pet's
+   * primary parent. A practice cannot authorise its own access: without this
+   * check any staff member at either the owning OR the recipient organisation
+   * could flip a PENDING share to GRANTED with `passport:edit:any` (a
+   * permission every staff role holds) and read the other practice's signed
+   * clinical records.
+   */
   async grantConsent(params: {
     consentId: string;
     organisationId: string;
     method: PassportConsentMethod;
-    parentId?: string;
+    grantingUserId: string | null;
     actor?: Actor;
   }): Promise<PassportConsentDTO> {
-    const { consentId, organisationId, method } = params;
+    const { consentId, organisationId, method, grantingUserId } = params;
     const consent = await loadConsentOrThrow(consentId, organisationId);
+
+    // A share the parent (or the owning practice) already revoked must not be
+    // resurrected by re-granting it.
+    if (consent.status !== "PENDING") {
+      throw new PassportConsentError(
+        "Only a pending consent can be granted.",
+        409,
+      );
+    }
+
+    const parentId = await resolveConsentingParentId(
+      consent.patientId,
+      grantingUserId,
+    );
+
     const row = await prisma.passportShareConsent.update({
       where: { id: consent.id },
       data: {
         status: "GRANTED",
         consentMethod: method,
-        parentId: params.parentId ?? consent.parentId,
+        // Derived from the authenticated parent link, never from the request
+        // body, so the audit trail cannot be attributed to a fabricated parent.
+        parentId,
         consentedAt: new Date(),
         revokedAt: null,
         revokedReason: null,

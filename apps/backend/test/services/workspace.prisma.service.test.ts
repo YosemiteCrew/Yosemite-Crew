@@ -6,16 +6,21 @@ import {
   WorkspaceServiceError,
   dedupeTreatmentItemsByPrescription,
 } from "../../src/services/workspace.prisma.service";
-import { InvoiceService } from "src/services/invoice.service";
+import {
+  InvoiceService,
+  InvoiceServiceError,
+} from "src/services/invoice.service";
+import { createRenderedDocumentRecord } from "src/services/rendered-document.service";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
     appointment: { findFirst: jest.fn() },
     encounter: { findFirst: jest.fn(), findMany: jest.fn() },
     case: { findFirst: jest.fn() },
-    invoice: { findFirst: jest.fn() },
+    invoice: { findFirst: jest.fn(), findMany: jest.fn() },
     organization: { findUnique: jest.fn() },
     patient: { findFirst: jest.fn() },
+    patientOrganisation: { findFirst: jest.fn() },
     parent: { findFirst: jest.fn() },
     admission: { findUnique: jest.fn() },
     productItem: { findFirst: jest.fn(), findMany: jest.fn() },
@@ -68,6 +73,11 @@ jest.mock("src/services/invoice.service", () => ({
   },
 }));
 
+jest.mock("src/services/rendered-document.service", () => ({
+  __esModule: true,
+  createRenderedDocumentRecord: jest.fn(),
+}));
+
 jest.mock("src/services/clinical-artifact.service", () => ({
   ClinicalArtifactService: {
     listSoapNotesForAppointment: jest.fn(),
@@ -86,9 +96,10 @@ describe("WorkspaceService", () => {
     appointment: { findFirst: jest.Mock };
     encounter: { findFirst: jest.Mock; findMany: jest.Mock };
     case: { findFirst: jest.Mock };
-    invoice: { findFirst: jest.Mock };
+    invoice: { findFirst: jest.Mock; findMany: jest.Mock };
     organization: { findUnique: jest.Mock };
     patient: { findFirst: jest.Mock };
+    patientOrganisation: { findFirst: jest.Mock };
     parent: { findFirst: jest.Mock };
     admission: { findUnique: jest.Mock };
     productItem: { findFirst: jest.Mock; findMany: jest.Mock };
@@ -141,8 +152,10 @@ describe("WorkspaceService", () => {
     mockedPrisma.encounter.findFirst.mockResolvedValue(null);
     mockedPrisma.case.findFirst.mockResolvedValue(null);
     mockedPrisma.invoice.findFirst.mockResolvedValue(null);
+    mockedPrisma.invoice.findMany.mockResolvedValue([]);
     mockedPrisma.organization.findUnique.mockResolvedValue(null);
     mockedPrisma.patient.findFirst.mockResolvedValue(null);
+    mockedPrisma.patientOrganisation.findFirst.mockResolvedValue(null);
     mockedPrisma.parent.findFirst.mockResolvedValue(null);
     mockedPrisma.admission.findUnique.mockResolvedValue(null);
     mockedPrisma.productItem.findFirst.mockResolvedValue(null);
@@ -307,6 +320,9 @@ describe("WorkspaceService", () => {
       readyForBillingAt: new Date("2026-06-15T12:00:00.000Z"),
       readyForBillingActorId: "user-1",
     });
+    // #1910: the appointment's invoice PDF (an INVOICE rendered document) must be pulled into the
+    // All Documents set by matching its sourceId to the appointment's invoice ids.
+    mockedPrisma.invoice.findMany.mockResolvedValue([{ id: "invoice-1" }]);
     mockedPrisma.user.findUnique.mockResolvedValue({
       firstName: "Dr",
       lastName: "Ready",
@@ -412,7 +428,15 @@ describe("WorkspaceService", () => {
         organisationId: "org-1",
         appointmentId: "appt-1",
       },
-      ["appointments:view:any", "tasks:view:any"],
+      [
+        "appointments:view:any",
+        "tasks:view:any",
+        "forms:view:any",
+        "prescription:view:any",
+        "labs:view:any",
+        "document:view:any",
+        "billing:view:any",
+      ],
     );
 
     expect(result.organisationId).toBe("org-1");
@@ -516,6 +540,29 @@ describe("WorkspaceService", () => {
       organisationId: "org-1",
       appointmentId: "appt-1",
     });
+    // #1910: the rendered-document query must include an INVOICE sourceId condition built from the
+    // appointment's invoice ids, so the invoice PDF is surfaced in All Documents.
+    expect(mockedPrisma.invoice.findMany).toHaveBeenCalledWith({
+      where: { appointmentId: "appt-1" },
+      select: { id: true },
+    });
+    const renderedDocumentQuery =
+      mockedPrisma.renderedDocument.findMany.mock.calls.at(-1)?.[0];
+    expect(renderedDocumentQuery?.where?.OR).toEqual(
+      expect.arrayContaining([
+        { sourceKind: "INVOICE", sourceId: { in: ["invoice-1"] } },
+        {
+          clinicalArtifact: {
+            is: { appointmentId: "appt-1" },
+          },
+        },
+      ]),
+    );
+    expect(renderedDocumentQuery?.where?.NOT).toEqual({
+      clinicalArtifact: {
+        is: { status: "VOID" },
+      },
+    });
   });
 
   it("returns a bootstrap payload without billing state when no invoice is open", async () => {
@@ -609,6 +656,92 @@ describe("WorkspaceService", () => {
     expect(result.readyForBillingByName).toBeNull();
   });
 
+  it("omits the appointment invoice document when the caller lacks billing permission", async () => {
+    mockedPrisma.appointment.findFirst.mockResolvedValue({
+      id: "appt-3",
+      organisationId: "org-1",
+      status: "UPCOMING",
+      appointmentKind: "OUTPATIENT",
+      concern: "Annual review",
+      productItemId: null,
+      encounterId: "enc-3",
+      caseId: "case-3",
+      patient: { id: "patient-3", parent: { id: "parent-3" } },
+      startTime: new Date("2026-06-15T10:00:00.000Z"),
+      endTime: new Date("2026-06-15T10:30:00.000Z"),
+      createdAt: new Date("2026-06-14T10:00:00.000Z"),
+      updatedAt: new Date("2026-06-14T10:00:00.000Z"),
+    });
+    mockedPrisma.encounter.findFirst.mockResolvedValue({
+      id: "enc-3",
+      organisationId: "org-1",
+      caseId: "case-3",
+      patientId: "patient-3",
+      parentId: "parent-3",
+      status: "onleave",
+      encounterClass: "IMP",
+      appointmentKind: "OUTPATIENT",
+      title: "Annual review",
+      reason: null,
+      periodStart: null,
+      periodEnd: null,
+      createdAt: new Date("2026-06-14T10:00:00.000Z"),
+      updatedAt: new Date("2026-06-15T10:00:00.000Z"),
+    });
+    mockedPrisma.organization.findUnique.mockResolvedValue({
+      appointmentLockWindowOutpatientMinutes: 30,
+      appointmentLockWindowInpatientMinutes: null,
+    });
+    mockedPrisma.patient.findFirst.mockResolvedValue({
+      id: "patient-3",
+      name: "Buddy",
+      type: "PET",
+      status: "ACTIVE",
+      createdAt: new Date("2026-06-14T10:00:00.000Z"),
+      updatedAt: new Date("2026-06-14T10:00:00.000Z"),
+    });
+    mockedPrisma.parent.findFirst.mockResolvedValue({
+      id: "parent-3",
+      firstName: "Jane",
+      lastName: "Doe",
+      createdAt: new Date("2026-06-14T10:00:00.000Z"),
+      updatedAt: new Date("2026-06-14T10:00:00.000Z"),
+    });
+    // An open invoice exists for the appointment, but a document-view-only caller must never receive
+    // its PDF: INVOICE rendered documents are financial and require billing:view:any (mirrors the
+    // rendered-document controller's access rule).
+    mockedPrisma.invoice.findMany.mockResolvedValue([{ id: "invoice-1" }]);
+
+    await WorkspaceService.getAppointmentBootstrap(
+      {
+        organisationId: "org-1",
+        appointmentId: "appt-3",
+      },
+      [
+        "appointments:view:any",
+        "tasks:view:any",
+        "forms:view:any",
+        "prescription:view:any",
+        "labs:view:any",
+        "document:view:any",
+      ],
+    );
+
+    // The invoice-id lookup that feeds the INVOICE sourceId condition must be skipped entirely.
+    expect(mockedPrisma.invoice.findMany).not.toHaveBeenCalledWith({
+      where: { appointmentId: "appt-3" },
+      select: { id: true },
+    });
+    const renderedDocumentQuery =
+      mockedPrisma.renderedDocument.findMany.mock.calls.at(-1)?.[0];
+    const orConditions = (renderedDocumentQuery?.where?.OR ?? []) as Array<{
+      sourceKind?: string;
+    }>;
+    expect(
+      orConditions.some((condition) => condition.sourceKind === "INVOICE"),
+    ).toBe(false);
+  });
+
   it("manages persisted treatment items", async () => {
     mockedPrisma.workspaceTreatmentItem.findMany.mockResolvedValue([
       {
@@ -625,6 +758,24 @@ describe("WorkspaceService", () => {
         billingStatus: "UNBILLED",
         invoiceRowId: null,
         lockState: { locked: false },
+        prescriptionId: null,
+        createdAt: new Date("2026-06-15T00:00:00.000Z"),
+        updatedAt: new Date("2026-06-15T00:00:00.000Z"),
+      },
+      {
+        id: "ti-1b",
+        organisationId: "org-1",
+        appointmentId: "appt-1",
+        encounterId: "enc-1",
+        productId: "prod-1b",
+        productVersion: 1,
+        productSnapshot: { name: "Bandage" },
+        servicePackageKind: "PROCEDURE",
+        quantity: 1,
+        priceSnapshot: { totalAmount: 10 },
+        billingStatus: "UNBILLED",
+        invoiceRowId: null,
+        lockState: "LOCKED",
         prescriptionId: null,
         createdAt: new Date("2026-06-15T00:00:00.000Z"),
         updatedAt: new Date("2026-06-15T00:00:00.000Z"),
@@ -674,7 +825,9 @@ describe("WorkspaceService", () => {
       organisationId: "org-1",
       encounterId: "enc-1",
     });
-    expect(items).toHaveLength(1);
+    expect(items).toHaveLength(2);
+    expect(items[0].lockState).toEqual({ locked: false });
+    expect(items[1].lockState).toBe("LOCKED");
 
     const created = await WorkspaceService.createEncounterTreatmentItem({
       organisationId: "org-1",
@@ -1310,7 +1463,7 @@ describe("WorkspaceService", () => {
         organisationId: "org-1",
         appointmentId: "appt-1",
       },
-      [],
+      ["labs:view:any"],
     );
 
     // The display summary still surfaces the companion's other-visit labs ...
@@ -1466,10 +1619,13 @@ describe("WorkspaceService", () => {
       },
     ]);
 
-    const result = await WorkspaceService.getEncounterDocuments({
-      organisationId: "org-doc",
-      encounterId: "enc-doc-1",
-    });
+    const result = await WorkspaceService.getEncounterDocuments(
+      {
+        organisationId: "org-doc",
+        encounterId: "enc-doc-1",
+      },
+      ["document:view:any"],
+    );
 
     expect(result).toEqual(
       expect.arrayContaining([
@@ -1521,10 +1677,13 @@ describe("WorkspaceService", () => {
     mockedPrisma.document.findMany.mockResolvedValue([]);
     mockedPrisma.renderedDocument.findMany.mockResolvedValue([]);
 
-    await WorkspaceService.getEncounterDocuments({
-      organisationId: "org-doc",
-      encounterId: "enc-doc-2",
-    });
+    await WorkspaceService.getEncounterDocuments(
+      {
+        organisationId: "org-doc",
+        encounterId: "enc-doc-2",
+      },
+      ["document:view:any"],
+    );
 
     // The read model is built from the rendered-document pipeline and direct uploads; the
     // legacy form-submission store is never read (it is absent from the prisma mock, so any
@@ -1534,14 +1693,180 @@ describe("WorkspaceService", () => {
     expect(mockedPrisma).not.toHaveProperty("formSubmission");
   });
 
-  it("returns companion medical records only", async () => {
-    mockedPrisma.patient.findFirst.mockResolvedValue({
-      id: "patient-med",
-      name: "Milo",
-      type: "PET",
-      status: "ACTIVE",
+  it("still returns the full document set for system-access callers with no permissions", async () => {
+    mockedPrisma.encounter.findFirst.mockResolvedValue({
+      id: "enc-packet",
+      organisationId: "org-1",
+      patientId: "patient-1",
+      appointmentKind: "OUTPATIENT",
+      status: "IN_PROGRESS",
       createdAt: new Date("2026-06-15T10:00:00.000Z"),
       updatedAt: new Date("2026-06-15T10:00:00.000Z"),
+    });
+    mockedPrisma.document.findMany.mockResolvedValue([
+      {
+        id: "doc-packet-1",
+        patientId: "patient-1",
+        appointmentId: null,
+        category: "HEALTH",
+        title: "Upload",
+        pmsVisible: true,
+        syncedFromPms: false,
+        createdAt: new Date("2026-06-15T10:00:00.000Z"),
+        updatedAt: new Date("2026-06-15T10:00:00.000Z"),
+      },
+    ]);
+
+    // This is the packet-assembly path: an empty permission list must not be
+    // read as "show nothing", or every clinical packet ships empty.
+    const result = await WorkspaceService.getEncounterDocuments(
+      { organisationId: "org-1", encounterId: "enc-packet" },
+      [],
+      { systemAccess: true },
+    );
+
+    expect(result).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ documentId: "doc-packet-1" }),
+      ]),
+    );
+  });
+
+  it("rejects a companion that is not linked to the organisation", async () => {
+    mockedPrisma.patientOrganisation.findFirst.mockResolvedValue(null);
+
+    await expect(
+      WorkspaceService.getCompanionDocuments({
+        organisationId: "org-attacker",
+        companionId: "patient-victim",
+      }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+
+    expect(mockedPrisma.patientOrganisation.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          patientId: "patient-victim",
+          organisationId: "org-attacker",
+          status: { in: ["ACTIVE", "PENDING"] },
+        },
+      }),
+    );
+    expect(mockedPrisma.document.findMany).not.toHaveBeenCalled();
+  });
+
+  it("scopes companion documents through patientOrganisation and excludes parent-private uploads", async () => {
+    mockedPrisma.patientOrganisation.findFirst.mockResolvedValue({
+      id: "link-1",
+    });
+    mockedPrisma.encounter.findMany.mockResolvedValue([]);
+
+    await WorkspaceService.getCompanionDocuments({
+      organisationId: "org-scope",
+      companionId: "patient-scope",
+    });
+
+    expect(mockedPrisma.document.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          patientId: "patient-scope",
+          pmsVisible: true,
+          patient: {
+            organisations: {
+              some: {
+                organisationId: "org-scope",
+                status: { in: ["ACTIVE", "PENDING"] },
+              },
+            },
+          },
+        }),
+      }),
+    );
+    expect(mockedPrisma.renderedDocument.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organisationId: "org-scope",
+          NOT: {
+            clinicalArtifact: {
+              is: { status: "VOID" },
+            },
+          },
+        }),
+      }),
+    );
+  });
+
+  it("withholds aggregate slices the caller has no permission to view", async () => {
+    mockedPrisma.appointment.findFirst.mockResolvedValue({
+      id: "appt-gated",
+      organisationId: "org-1",
+      status: "BOOKED",
+      appointmentKind: "OUTPATIENT",
+      patient: { id: "patient-1" },
+      createdAt: new Date("2026-06-15T10:00:00.000Z"),
+      updatedAt: new Date("2026-06-15T10:00:00.000Z"),
+    });
+
+    const result = await WorkspaceService.getAppointmentBootstrap(
+      { organisationId: "org-1", appointmentId: "appt-gated" },
+      ["appointments:view:any"],
+    );
+
+    expect(result.documents).toEqual([]);
+    expect(result.forms).toEqual([]);
+    expect(result.tasks).toEqual([]);
+    expect(result.prescriptions).toEqual([]);
+    expect(result.clinicalArtifacts).toEqual([]);
+    expect(result.treatmentItems).toEqual([]);
+    expect(result.templateInstances).toEqual([]);
+    expect(result.diagnosticQueue).toEqual([]);
+    // Response-only reads are skipped outright rather than fetched and dropped.
+    expect(mockedPrisma.document.findMany).not.toHaveBeenCalled();
+    expect(mockedPrisma.templateInstance.findMany).not.toHaveBeenCalled();
+    expect(mockedPrisma.workspaceTreatmentItem.findMany).not.toHaveBeenCalled();
+  });
+
+  it("still blocks finalization on labs the caller cannot see", async () => {
+    mockedPrisma.appointment.findFirst.mockResolvedValue({
+      id: "appt-gated",
+      organisationId: "org-1",
+      status: "BOOKED",
+      appointmentKind: "OUTPATIENT",
+      patient: { id: "patient-1" },
+      createdAt: new Date("2026-06-15T10:00:00.000Z"),
+      updatedAt: new Date("2026-06-15T10:00:00.000Z"),
+    });
+    mockedPrisma.labOrder.findMany.mockResolvedValue([
+      {
+        id: "lab-1",
+        organisationId: "org-1",
+        appointmentId: "appt-gated",
+        patientId: "patient-1",
+        status: "SUBMITTED",
+        provider: "IDEXX",
+        idexxOrderId: "idexx-1",
+        tests: ["CBC"],
+        createdAt: new Date("2026-06-15T10:00:00.000Z"),
+        updatedAt: new Date("2026-06-15T10:00:00.000Z"),
+      },
+    ]);
+    mockedPrisma.labResult.findMany.mockResolvedValue([]);
+
+    const result = await WorkspaceService.getAppointmentBootstrap(
+      { organisationId: "org-1", appointmentId: "appt-gated" },
+      ["appointments:view:any", "forms:view:any"],
+    );
+
+    // The lab data itself is withheld ...
+    expect(result.labSummary.pendingCount).toBe(0);
+    expect(result.labSummary.hasLabs).toBe(false);
+    // ... but the gate must not silently green-light a finalization.
+    expect(result.finalizationGate.pendingLabsResolved).toBe(false);
+    expect(result.finalizationGate.enabled).toBe(false);
+  });
+
+  it("returns companion medical records only", async () => {
+    mockedPrisma.patientOrganisation.findFirst.mockResolvedValue({
+      id: "link-med-1",
     });
     mockedPrisma.encounter.findMany.mockResolvedValue([{ id: "enc-med-1" }]);
     mockedPrisma.encounter.findFirst.mockResolvedValue({
@@ -1620,6 +1945,45 @@ describe("WorkspaceService", () => {
       }),
     ]);
   });
+
+  it("still loads the chart when an inpatient schedule fails to render", async () => {
+    // Regression: the schedule PDF render runs inside the aggregate that every
+    // chart read goes through, so a throw there used to surface as a 500 and made
+    // the appointment impossible to open, sign or discharge - permanently, because
+    // a failed render persists nothing and so is retried on every load.
+    mockedPrisma.appointment.findFirst.mockResolvedValue({
+      id: "appt-1",
+      organisationId: "org-1",
+      status: "IN_PROGRESS",
+      appointmentKind: "INPATIENT",
+      concern: "Ward stay",
+      encounterId: "enc-1",
+      caseId: "case-1",
+      patient: { id: "patient-1", parent: { id: "parent-1" } },
+    });
+    mockedPrisma.taskSchedule.findMany.mockResolvedValue([
+      {
+        id: "sched-1",
+        templateId: "tmpl-1",
+        templateVersion: 1,
+        templateKind: "INPATIENT_SCHEDULE",
+        appointmentId: "appt-1",
+        encounterId: "enc-1",
+      },
+    ]);
+    mockedPrisma.renderedDocument.findFirst.mockResolvedValue(null);
+    (createRenderedDocumentRecord as jest.Mock).mockRejectedValue(
+      new Error("pdf renderer exploded"),
+    );
+
+    const result = await WorkspaceService.getAppointmentBootstrap(
+      { organisationId: "org-1", appointmentId: "appt-1" },
+      ["appointments:view:any", "tasks:view:any"],
+    );
+
+    expect(result).toBeDefined();
+    expect(createRenderedDocumentRecord).toHaveBeenCalled();
+  });
 });
 
 describe("dedupeTreatmentItemsByPrescription", () => {
@@ -1652,5 +2016,1947 @@ describe("dedupeTreatmentItemsByPrescription", () => {
     );
 
     expect(result).toHaveLength(2);
+  });
+});
+
+describe("WorkspaceService aggregate edge cases", () => {
+  type PrismaMock = Record<string, Record<string, jest.Mock>>;
+  const db = prisma as unknown as PrismaMock;
+  const formService = FormAssignmentService as unknown as Record<
+    string,
+    jest.Mock
+  >;
+  const artifactService = ClinicalArtifactService as unknown as Record<
+    string,
+    jest.Mock
+  >;
+  const invoiceService = InvoiceService as unknown as Record<string, jest.Mock>;
+
+  const ORG = "org-cov";
+  const DAY = new Date("2026-06-20T09:00:00.000Z");
+  const LATER = new Date("2026-06-20T11:00:00.000Z");
+
+  const FULL_PERMISSIONS = [
+    "appointments:view:any",
+    "tasks:view:any",
+    "tasks:edit:any",
+    "forms:view:any",
+    "forms:edit:any",
+    "prescription:view:any",
+    "prescription:edit:any",
+    "labs:view:any",
+    "document:view:any",
+    "billing:view:any",
+  ];
+
+  const appointmentRow = (overrides: Record<string, unknown> = {}) => ({
+    id: "appt-cov",
+    organisationId: ORG,
+    status: "IN_PROGRESS",
+    appointmentKind: "OUTPATIENT",
+    concern: "Checkup",
+    productItemId: null,
+    encounterId: null,
+    caseId: null,
+    patient: { id: "pet-cov", parent: { id: "parent-cov" } },
+    startTime: DAY,
+    endTime: LATER,
+    createdAt: DAY,
+    updatedAt: DAY,
+    ...overrides,
+  });
+
+  const encounterRow = (overrides: Record<string, unknown> = {}) => ({
+    id: "enc-cov",
+    organisationId: ORG,
+    caseId: "case-cov",
+    patientId: "pet-cov",
+    parentId: "parent-cov",
+    status: "in-progress",
+    encounterClass: "IMP",
+    appointmentKind: "OUTPATIENT",
+    title: "Visit",
+    reason: null,
+    periodStart: DAY,
+    periodEnd: null,
+    createdAt: DAY,
+    updatedAt: DAY,
+    ...overrides,
+  });
+
+  const treatmentRow = (overrides: Record<string, unknown> = {}) => ({
+    id: "ti-cov",
+    organisationId: ORG,
+    appointmentId: "appt-cov",
+    encounterId: "enc-cov",
+    productId: "prod-cov",
+    productVersion: null,
+    productSnapshot: { name: "Procedure" },
+    servicePackageKind: "PROCEDURE",
+    quantity: 1,
+    priceSnapshot: { finalAmount: 10 },
+    billingStatus: "UNBILLED",
+    invoiceRowId: null,
+    settledInvoiceId: null,
+    settledAt: null,
+    lockState: null,
+    prescriptionId: null,
+    createdAt: DAY,
+    updatedAt: DAY,
+    ...overrides,
+  });
+
+  const renderedRow = (overrides: Record<string, unknown> = {}) => ({
+    id: "rd-cov",
+    sourceKind: "CLINICAL_ARTIFACT",
+    sourceId: "artifact-cov",
+    templateId: null,
+    templateVersion: null,
+    kind: "SOAP_NOTE",
+    title: "SOAP note",
+    status: "DRAFT",
+    pdfUrl: null,
+    signing: null,
+    createdAt: DAY,
+    updatedAt: DAY,
+    templateInstance: null,
+    clinicalArtifact: null,
+    ...overrides,
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    db.appointment.findFirst.mockResolvedValue(null);
+    db.encounter.findFirst.mockResolvedValue(null);
+    db.encounter.findMany.mockResolvedValue([]);
+    db.case.findFirst.mockResolvedValue(null);
+    db.invoice.findFirst.mockResolvedValue(null);
+    db.invoice.findMany.mockResolvedValue([]);
+    db.organization.findUnique.mockResolvedValue(null);
+    db.patient.findFirst.mockResolvedValue(null);
+    db.patientOrganisation.findFirst.mockResolvedValue(null);
+    db.parent.findFirst.mockResolvedValue(null);
+    db.admission.findUnique.mockResolvedValue(null);
+    db.productItem.findFirst.mockResolvedValue(null);
+    db.productItem.findMany.mockResolvedValue([]);
+    db.task.findMany.mockResolvedValue([]);
+    db.taskSchedule.findMany.mockResolvedValue([]);
+    db.templateInstance.findMany.mockResolvedValue([]);
+    db.document.findMany.mockResolvedValue([]);
+    db.renderedDocument.findMany.mockResolvedValue([]);
+    db.renderedDocument.findFirst.mockResolvedValue(null);
+    db.renderedDocument.create.mockResolvedValue({ id: "rd-created" });
+    db.prescriptionDispenseRequest.findMany.mockResolvedValue([]);
+    db.workspaceTreatmentItem.findMany.mockResolvedValue([]);
+    db.workspaceTreatmentItem.findFirst.mockResolvedValue(null);
+    db.workspaceTreatmentItem.create.mockResolvedValue(treatmentRow());
+    db.workspaceTreatmentItem.update.mockResolvedValue(treatmentRow());
+    db.labOrder.findMany.mockResolvedValue([]);
+    db.labResult.findMany.mockResolvedValue([]);
+    db.financeEvent.findFirst.mockResolvedValue(null);
+    db.user.findUnique.mockResolvedValue(null);
+
+    formService.syncLinkedTemplateAssignmentsForAppointment.mockResolvedValue(
+      undefined,
+    );
+    formService.listAppointmentFormSummaries.mockResolvedValue([]);
+
+    for (const key of Object.keys(artifactService)) {
+      artifactService[key].mockResolvedValue([]);
+    }
+
+    invoiceService.findOpenInvoiceForAppointment.mockResolvedValue(null);
+    invoiceService.bootstrapForAppointment.mockResolvedValue(null);
+    invoiceService.addItemsToInvoice.mockResolvedValue(null);
+    (createRenderedDocumentRecord as jest.Mock).mockResolvedValue({
+      id: "rd-created",
+    });
+  });
+
+  describe("primary action permission gating", () => {
+    it("disables the review-tasks action for a caller who cannot see tasks", async () => {
+      db.appointment.findFirst.mockResolvedValue(appointmentRow());
+      db.task.findMany.mockResolvedValue([
+        { id: "task-1", status: "IN_PROGRESS", dueAt: DAY },
+      ]);
+
+      const result = await WorkspaceService.getAppointmentBootstrap(
+        { organisationId: ORG, appointmentId: "appt-cov" },
+        ["appointments:view:any"],
+      );
+
+      expect(result.primaryAction).toMatchObject({
+        kind: "REVIEW_TASKS",
+        label: "Review tasks",
+        detail: "There are active tasks that still need attention.",
+        enabled: false,
+        disabledReason: "You do not have permission to view tasks.",
+      });
+      expect(result.finalizationGate.requiredTasksComplete).toBe(false);
+      expect(result.finalizationGate.disabledReason).toBe(
+        "There are active tasks that still need attention.",
+      );
+    });
+
+    it("enables the review-tasks action for a caller who may only assign tasks", async () => {
+      db.appointment.findFirst.mockResolvedValue(appointmentRow());
+      db.task.findMany.mockResolvedValue([
+        { id: "task-1", status: "PENDING", dueAt: DAY },
+      ]);
+
+      const result = await WorkspaceService.getAppointmentBootstrap(
+        { organisationId: ORG, appointmentId: "appt-cov" },
+        ["appointments:view:any", "tasks:edit:own"],
+      );
+
+      expect(result.primaryAction.kind).toBe("REVIEW_TASKS");
+      expect(result.primaryAction.enabled).toBe(true);
+      expect(result.primaryAction.disabledReason).toBeNull();
+      expect(result.permissions.canAssignTasks).toBe(true);
+      expect(result.permissions.canResumeSchedules).toBe(true);
+    });
+
+    it("offers continue-charting to a caller who may edit clinical forms", async () => {
+      db.appointment.findFirst.mockResolvedValue(appointmentRow());
+      db.task.findMany.mockResolvedValue([
+        { id: "task-done", status: "COMPLETED", dueAt: DAY },
+        { id: "task-cancelled", status: "CANCELLED", dueAt: DAY },
+      ]);
+      artifactService.listSoapNotesForAppointment.mockResolvedValue([
+        {
+          artifact: {
+            id: "soap-1",
+            status: "DRAFT",
+            kind: "SOAP_NOTE",
+            createdAt: DAY,
+            updatedAt: DAY,
+          },
+        },
+      ]);
+      // A bare artifact row (no nested `artifact`) falls back to its own status.
+      artifactService.listVitalRecordsForAppointment.mockResolvedValue([
+        { id: "vital-1", status: "FINAL" },
+      ]);
+
+      const result = await WorkspaceService.getAppointmentBootstrap(
+        { organisationId: ORG, appointmentId: "appt-cov" },
+        ["appointments:view:any", "forms:view:any", "forms:edit:any"],
+      );
+
+      expect(result.primaryAction).toMatchObject({
+        kind: "CONTINUE_CHARTING",
+        label: "Continue charting",
+        enabled: true,
+        disabledReason: null,
+      });
+      expect(result.finalizationGate.requiredSoapOrDischargeComplete).toBe(
+        false,
+      );
+      expect(result.finalizationGate.disabledReason).toBe(
+        "SOAP notes or discharge summaries are still open.",
+      );
+    });
+
+    it("treats an in-progress note as open charting and an untyped artifact as harmless", async () => {
+      db.appointment.findFirst.mockResolvedValue(
+        appointmentRow({ id: "appt-inprog", caseId: "case-untitled" }),
+      );
+      db.case.findFirst.mockResolvedValue({
+        id: "case-untitled",
+        organisationId: ORG,
+        patientId: "pet-cov",
+        parentId: null,
+        status: "active",
+        appointmentKind: "OUTPATIENT",
+        title: null,
+        description: null,
+        createdAt: DAY,
+        updatedAt: DAY,
+      });
+      artifactService.listSoapNotesForAppointment.mockResolvedValue([
+        // An artifact row with neither a nested artifact nor a status defaults to
+        // DRAFT but carries no kind, so it cannot block finalization ...
+        {},
+        // ... and neither can a flat row that reports its own status.
+        { id: "flat-note", status: "COMPLETE" },
+        {
+          artifact: {
+            id: "soap-inprog",
+            status: "IN_PROGRESS",
+            kind: "SOAP_NOTE",
+            createdAt: DAY,
+            updatedAt: DAY,
+          },
+        },
+      ]);
+
+      const result = await WorkspaceService.getAppointmentBootstrap(
+        { organisationId: ORG, appointmentId: "appt-inprog" },
+        ["appointments:view:any", "forms:view:any", "forms:edit:any"],
+      );
+
+      expect(result.episodeOfCare).toMatchObject({
+        id: "case-untitled",
+        title: undefined,
+        description: undefined,
+      });
+      expect(result.primaryAction.kind).toBe("CONTINUE_CHARTING");
+      expect(result.finalizationGate.requiredSoapOrDischargeComplete).toBe(
+        false,
+      );
+    });
+
+    it("disables the review-labs action for a caller who cannot see labs", async () => {
+      db.appointment.findFirst.mockResolvedValue(appointmentRow());
+      db.labOrder.findMany.mockResolvedValue([
+        {
+          id: "order-1",
+          provider: "IDEXX",
+          appointmentId: "appt-cov",
+          status: "SUBMITTED",
+          idexxOrderId: "idexx-1",
+          tests: ["CBC"],
+          createdAt: DAY,
+          updatedAt: DAY,
+        },
+      ]);
+
+      const result = await WorkspaceService.getAppointmentBootstrap(
+        { organisationId: ORG, appointmentId: "appt-cov" },
+        ["appointments:view:any"],
+      );
+
+      expect(result.primaryAction).toMatchObject({
+        kind: "VIEW_LABS",
+        label: "Review labs",
+        enabled: false,
+        disabledReason: "You do not have permission to view labs.",
+      });
+    });
+
+    it("falls back to the view-summary action when nothing is outstanding", async () => {
+      db.appointment.findFirst.mockResolvedValue(appointmentRow());
+
+      const result = await WorkspaceService.getAppointmentBootstrap(
+        { organisationId: ORG, appointmentId: "appt-cov" },
+        ["appointments:view:any"],
+      );
+
+      expect(result.primaryAction).toMatchObject({
+        kind: "VIEW_SUMMARY",
+        enabled: true,
+        disabledReason: null,
+      });
+      expect(result.finalizationGate.enabled).toBe(true);
+      expect(result.finalizationGate.disabledReason).toBeNull();
+    });
+  });
+
+  describe("billing readiness", () => {
+    it("falls back to the finance event log when the invoice actor no longer resolves", async () => {
+      db.appointment.findFirst.mockResolvedValue(
+        appointmentRow({ id: "appt-bill", encounterId: "enc-bill" }),
+      );
+      db.encounter.findFirst.mockResolvedValue(
+        encounterRow({ id: "enc-bill", status: "onleave" }),
+      );
+      db.invoice.findFirst.mockResolvedValue({
+        id: "inv-legacy",
+        visitBillingStage: "READY_FOR_BILLING",
+        readyForBillingAt: LATER,
+        readyForBillingActorId: "user-deleted",
+      });
+      db.user.findUnique.mockResolvedValue(null);
+      db.financeEvent.findFirst.mockImplementation(
+        async (args: { where: { eventType: string } }) => ({
+          payload: {
+            actorName:
+              args.where.eventType === "INVOICE_READY_FOR_BILLING"
+                ? "Legacy Biller"
+                : "Night Vet",
+          },
+        }),
+      );
+
+      const result = await WorkspaceService.getAppointmentBootstrap(
+        { organisationId: ORG, appointmentId: "appt-bill" },
+        FULL_PERMISSIONS,
+      );
+
+      expect(result.readyForBilling).toBe(true);
+      expect(result.readyForBillingByName).toBe("Legacy Biller");
+      expect(result.readyForDischarge).toBe(true);
+      expect(result.readyForDischargeByName).toBe("Night Vet");
+      expect(db.financeEvent.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            eventType: "INVOICE_READY_FOR_BILLING",
+            entityType: "INVOICE",
+            entityId: "inv-legacy",
+          },
+        }),
+      );
+    });
+
+    it("blocks finalization while a draft invoice is not ready for billing", async () => {
+      db.appointment.findFirst.mockResolvedValue(appointmentRow());
+      db.invoice.findFirst.mockResolvedValue({
+        id: "inv-draft",
+        visitBillingStage: "DRAFT",
+        readyForBillingAt: null,
+        readyForBillingActorId: null,
+      });
+
+      const result = await WorkspaceService.getAppointmentBootstrap(
+        { organisationId: ORG, appointmentId: "appt-cov" },
+        FULL_PERMISSIONS,
+      );
+
+      expect(
+        (result as unknown as { visitBillingStage: string | null })
+          .visitBillingStage,
+      ).toBe("DRAFT");
+      expect(result.readyForBilling).toBe(false);
+      expect(result.readyForBillingByName).toBeNull();
+      expect(result.finalizationGate.billingReady).toBe(false);
+      expect(result.finalizationGate.disabledReason).toBe(
+        "Billing is not ready for finalization.",
+      );
+    });
+
+    it("treats a settled invoice as billing-ready", async () => {
+      db.appointment.findFirst.mockResolvedValue(appointmentRow());
+      db.invoice.findFirst.mockResolvedValue({
+        id: "inv-settled",
+        visitBillingStage: "SETTLED",
+        readyForBillingAt: null,
+        readyForBillingActorId: null,
+      });
+
+      const result = await WorkspaceService.getAppointmentBootstrap(
+        { organisationId: ORG, appointmentId: "appt-cov" },
+        FULL_PERMISSIONS,
+      );
+
+      expect(result.finalizationGate.billingReady).toBe(true);
+      expect(result.finalizationGate.enabled).toBe(true);
+    });
+  });
+
+  describe("pending dispense requests", () => {
+    const requestRow = (
+      id: string,
+      appointmentId: string | null,
+      encounterId: string | null,
+    ) => ({
+      id,
+      status: "PENDING",
+      prescription: { artifact: { appointmentId, encounterId } },
+    });
+
+    it("keeps only the dispense requests tied to this appointment or encounter", async () => {
+      db.appointment.findFirst.mockResolvedValue(
+        appointmentRow({ id: "appt-disp", encounterId: "enc-disp" }),
+      );
+      db.encounter.findFirst.mockResolvedValue(
+        encounterRow({ id: "enc-disp", caseId: null }),
+      );
+      db.prescriptionDispenseRequest.findMany.mockResolvedValue([
+        requestRow("dr-encounter", null, "enc-disp"),
+        requestRow("dr-appointment", "appt-disp", null),
+        requestRow("dr-other", "appt-other", "enc-other"),
+      ]);
+
+      const result = await WorkspaceService.getAppointmentBootstrap(
+        { organisationId: ORG, appointmentId: "appt-disp" },
+        FULL_PERMISSIONS,
+      );
+
+      expect(result.finalizationGate.pendingDispenseRequestsResolved).toBe(
+        false,
+      );
+      expect(result.finalizationGate.disabledReason).toBe(
+        "Pending dispense requests still need review.",
+      );
+    });
+
+    it("ignores dispense requests that belong to another visit", async () => {
+      db.appointment.findFirst.mockResolvedValue(appointmentRow());
+      db.prescriptionDispenseRequest.findMany.mockResolvedValue([
+        requestRow("dr-other", "appt-other", "enc-other"),
+      ]);
+
+      const result = await WorkspaceService.getAppointmentBootstrap(
+        { organisationId: ORG, appointmentId: "appt-cov" },
+        FULL_PERMISSIONS,
+      );
+
+      expect(result.finalizationGate.pendingDispenseRequestsResolved).toBe(
+        true,
+      );
+    });
+  });
+
+  describe("lab summary derivation", () => {
+    const bootstrapWithLabs = async (
+      orders: Array<Record<string, unknown>>,
+      results: Array<Record<string, unknown>>,
+    ) => {
+      db.appointment.findFirst.mockResolvedValue(
+        appointmentRow({ id: "appt-lab" }),
+      );
+      db.labOrder.findMany.mockResolvedValue(orders);
+      db.labResult.findMany.mockResolvedValue(results);
+      return WorkspaceService.getAppointmentBootstrap(
+        { organisationId: ORG, appointmentId: "appt-lab" },
+        FULL_PERMISSIONS,
+      );
+    };
+
+    it("reports PARTIAL from the counts when no lab row carries a timestamp", async () => {
+      const result = await bootstrapWithLabs(
+        [{ id: "o1", provider: "IDEXX", status: "RUNNING", tests: [] }],
+        [{ id: "r1", provider: "IDEXX", status: "FINAL" }],
+      );
+
+      expect(result.labSummary.latestStatus).toBe("PARTIAL");
+      expect(result.labSummary.pendingCount).toBe(1);
+      expect(result.labSummary.resultedCount).toBe(1);
+    });
+
+    it("reports RESULTED when only untimed results exist", async () => {
+      const result = await bootstrapWithLabs(
+        [],
+        [{ id: "r1", provider: "IDEXX", status: "RESULTED" }],
+      );
+
+      expect(result.labSummary.latestStatus).toBe("RESULTED");
+      expect(result.labSummary.hasLabs).toBe(true);
+    });
+
+    it("reports ORDERED when only untimed open orders exist", async () => {
+      const result = await bootstrapWithLabs(
+        [{ id: "o1", provider: "IDEXX", status: "AT_THE_LAB", tests: null }],
+        [],
+      );
+
+      expect(result.labSummary.latestStatus).toBe("ORDERED");
+    });
+
+    it("reports NONE when the untimed rows carry unrecognised statuses", async () => {
+      const result = await bootstrapWithLabs(
+        [{ id: "o1", provider: null, status: "ARCHIVED", tests: [] }],
+        [],
+      );
+
+      expect(result.labSummary.latestStatus).toBe("NONE");
+      expect(result.labSummary.providers).toEqual([]);
+      expect(result.labSummary.blockingFinalization).toBe(false);
+    });
+
+    it("reports FAILED from the most recent lab event", async () => {
+      const result = await bootstrapWithLabs(
+        [
+          {
+            id: "o1",
+            provider: "IDEXX",
+            status: "ERROR",
+            tests: [],
+            appointmentId: "appt-lab",
+            updatedAt: LATER,
+            createdAt: DAY,
+          },
+        ],
+        [],
+      );
+
+      expect(result.labSummary.latestStatus).toBe("FAILED");
+      expect(result.labSummary.failedCount).toBe(1);
+      expect(result.finalizationGate.pendingLabsResolved).toBe(false);
+    });
+
+    it("reports QUEUED for a freshly created order", async () => {
+      const result = await bootstrapWithLabs(
+        [
+          {
+            id: "o1",
+            provider: "IDEXX",
+            status: "CREATED",
+            tests: [],
+            updatedAt: LATER,
+            createdAt: DAY,
+          },
+        ],
+        [],
+      );
+
+      expect(result.labSummary.latestStatus).toBe("QUEUED");
+    });
+
+    it("reports RESULTED from the most recent lab event", async () => {
+      const result = await bootstrapWithLabs(
+        [],
+        [
+          {
+            id: "r1",
+            provider: "IDEXX",
+            status: "COMPLETE",
+            updatedAt: LATER,
+            createdAt: DAY,
+          },
+        ],
+      );
+
+      expect(result.labSummary.latestStatus).toBe("RESULTED");
+    });
+
+    it("collapses duplicate diagnostic rows and labels order rows without tests", async () => {
+      const order = {
+        id: "o-dup",
+        provider: "IDEXX",
+        status: "SUBMITTED",
+        tests: [],
+        createdAt: DAY,
+        updatedAt: LATER,
+      };
+      const result = await bootstrapWithLabs(
+        [order, { ...order }],
+        [
+          {
+            id: "r-nostatus",
+            provider: null,
+            createdAt: DAY,
+            updatedAt: LATER,
+          },
+        ],
+      );
+
+      const orderRows = result.diagnosticQueue.filter(
+        (item) => item.kind === "LAB_ORDER",
+      );
+      expect(orderRows).toHaveLength(1);
+      expect(orderRows[0].label).toBe("Lab order");
+      const resultRow = result.diagnosticQueue.find(
+        (item) => item.kind === "LAB_RESULT",
+      );
+      expect(resultRow?.status).toBeNull();
+    });
+
+    it("picks the newest of several timestamped lab events", async () => {
+      const result = await bootstrapWithLabs(
+        [
+          {
+            id: "o-old",
+            provider: "IDEXX",
+            status: "SUBMITTED",
+            tests: ["CBC"],
+            createdAt: DAY,
+            updatedAt: DAY,
+          },
+        ],
+        [
+          {
+            id: "r-new",
+            provider: "IDEXX",
+            status: "CANCELLED",
+            createdAt: DAY,
+            updatedAt: LATER,
+          },
+        ],
+      );
+
+      expect(result.labSummary.latestStatus).toBe("FAILED");
+      expect(result.labSummary.pendingCount).toBe(1);
+      expect(result.labSummary.failedCount).toBe(1);
+    });
+
+    it("only counts results linked to this appointment's orders in the gate", async () => {
+      const result = await bootstrapWithLabs(
+        [
+          {
+            id: "o-mine",
+            provider: "IDEXX",
+            appointmentId: "appt-lab",
+            status: "RESULTED",
+            idexxOrderId: "idexx-mine",
+            tests: ["CBC"],
+            createdAt: DAY,
+            updatedAt: LATER,
+          },
+        ],
+        [
+          {
+            id: "r-mine",
+            provider: "IDEXX",
+            orderId: "idexx-mine",
+            status: "RESULTED",
+            createdAt: DAY,
+            updatedAt: LATER,
+          },
+          {
+            id: "r-unlinked",
+            provider: "IDEXX",
+            orderId: null,
+            status: "RESULTED",
+            createdAt: DAY,
+            updatedAt: LATER,
+          },
+        ],
+      );
+
+      expect(result.labSummary.resultedCount).toBe(2);
+      expect(result.finalizationGate.pendingLabsResolved).toBe(true);
+    });
+  });
+
+  describe("invoice line derivation for treatment items", () => {
+    it("prices a line from the snapshot unit price and trims the invoice row id", async () => {
+      invoiceService.findOpenInvoiceForAppointment.mockResolvedValue({
+        id: "inv-1",
+      });
+      const row = treatmentRow({
+        id: "ti-unit",
+        quantity: 0,
+        invoiceRowId: "  row-42  ",
+        priceSnapshot: {
+          unitPrice: 12.5,
+          discountPercent: 5,
+          displayName: "Snapshot line",
+        },
+        productSnapshot: [],
+      });
+      db.workspaceTreatmentItem.create.mockResolvedValue(row);
+      db.workspaceTreatmentItem.update.mockResolvedValue({
+        ...row,
+        billingStatus: "BILLED",
+        invoiceRowId: "row-42",
+      });
+
+      const created = await WorkspaceService.createEncounterTreatmentItem({
+        organisationId: ORG,
+        appointmentId: "appt-cov",
+        encounterId: "enc-cov",
+        productId: "prod-cov",
+        productSnapshot: {},
+        servicePackageKind: "PROCEDURE",
+        quantity: 1,
+        priceSnapshot: {},
+      });
+
+      expect(invoiceService.addItemsToInvoice).toHaveBeenCalledWith("inv-1", [
+        {
+          id: "row-42",
+          name: "Snapshot line",
+          description: "Snapshot line",
+          quantity: 1,
+          unitPrice: 12.5,
+          discountPercent: 5,
+          total: 12.5,
+        },
+      ]);
+      // A non-object product snapshot degrades to an empty object.
+      expect(created.productSnapshot).toEqual({});
+      expect(created.invoiceRowId).toBe("row-42");
+    });
+
+    it("derives the unit price from the final amount when no gross amount is present", async () => {
+      invoiceService.findOpenInvoiceForAppointment.mockResolvedValue({
+        id: "inv-2",
+      });
+      const row = treatmentRow({
+        id: "ti-final",
+        quantity: 2,
+        priceSnapshot: { finalAmount: 30 },
+        productSnapshot: { displayName: "Package deal" },
+      });
+      db.workspaceTreatmentItem.create.mockResolvedValue(row);
+      db.workspaceTreatmentItem.update.mockResolvedValue({
+        ...row,
+        billingStatus: "BILLED",
+        invoiceRowId: "ti-final",
+      });
+
+      await WorkspaceService.createEncounterTreatmentItem({
+        organisationId: ORG,
+        appointmentId: "appt-cov",
+        encounterId: "enc-cov",
+        productId: "prod-cov",
+        productSnapshot: {},
+        servicePackageKind: "PROCEDURE",
+        quantity: 2,
+        priceSnapshot: {},
+      });
+
+      expect(invoiceService.addItemsToInvoice).toHaveBeenCalledWith("inv-2", [
+        expect.objectContaining({
+          name: "Package deal",
+          quantity: 2,
+          unitPrice: 15,
+          total: 30,
+          discountPercent: undefined,
+        }),
+      ]);
+    });
+
+    it("names the line after the product id when no snapshot text is usable", async () => {
+      invoiceService.findOpenInvoiceForAppointment.mockResolvedValue({
+        id: "inv-3",
+      });
+      const row = treatmentRow({
+        id: "ti-noname",
+        productId: "prod-noname",
+        servicePackageKind: "",
+        priceSnapshot: "not-an-object",
+        productSnapshot: null,
+      });
+      db.workspaceTreatmentItem.create.mockResolvedValue(row);
+      db.workspaceTreatmentItem.update.mockResolvedValue({
+        ...row,
+        billingStatus: "BILLED",
+        invoiceRowId: "ti-noname",
+      });
+
+      const created = await WorkspaceService.createEncounterTreatmentItem({
+        organisationId: ORG,
+        appointmentId: "appt-cov",
+        encounterId: "enc-cov",
+        productId: "prod-noname",
+        productSnapshot: {},
+        servicePackageKind: "PROCEDURE",
+        quantity: 1,
+        priceSnapshot: {},
+      });
+
+      expect(invoiceService.addItemsToInvoice).toHaveBeenCalledWith("inv-3", [
+        expect.objectContaining({
+          id: "ti-noname",
+          name: "prod-noname",
+          unitPrice: 0,
+          total: 0,
+        }),
+      ]);
+      expect(created.priceSnapshot).toEqual({});
+    });
+
+    it("falls back to the product id when nothing names the line", async () => {
+      invoiceService.findOpenInvoiceForAppointment.mockResolvedValue({
+        id: "inv-4",
+      });
+      const row = treatmentRow({
+        id: "ti-anonymous",
+        productId: "",
+        servicePackageKind: "",
+        priceSnapshot: {},
+        productSnapshot: {},
+      });
+      db.workspaceTreatmentItem.create.mockResolvedValue(row);
+      db.workspaceTreatmentItem.update.mockResolvedValue({
+        ...row,
+        billingStatus: "BILLED",
+        invoiceRowId: "ti-anonymous",
+      });
+
+      await WorkspaceService.createEncounterTreatmentItem({
+        organisationId: ORG,
+        appointmentId: "appt-cov",
+        encounterId: "enc-cov",
+        productId: "",
+        productSnapshot: {},
+        servicePackageKind: "PROCEDURE",
+        quantity: 1,
+        priceSnapshot: {},
+      });
+
+      expect(invoiceService.addItemsToInvoice).toHaveBeenCalledWith("inv-4", [
+        expect.objectContaining({ id: "ti-anonymous", name: "", total: 0 }),
+      ]);
+    });
+
+    it("persists an explicit lock state and billing status on create", async () => {
+      db.workspaceTreatmentItem.create.mockResolvedValue(
+        treatmentRow({ id: "ti-locked-create", appointmentId: null }),
+      );
+
+      await WorkspaceService.createEncounterTreatmentItem({
+        organisationId: ORG,
+        encounterId: "enc-cov",
+        productId: "prod-cov",
+        productVersion: 4,
+        productSnapshot: { name: "Procedure" },
+        servicePackageKind: "PROCEDURE",
+        quantity: 2,
+        priceSnapshot: { finalAmount: 20 },
+        billingStatus: "BILLED",
+        invoiceRowId: "row-77",
+        lockState: { locked: true },
+      });
+
+      expect(db.workspaceTreatmentItem.create).toHaveBeenCalledWith({
+        data: {
+          organisationId: ORG,
+          appointmentId: undefined,
+          encounterId: "enc-cov",
+          productId: "prod-cov",
+          productVersion: 4,
+          productSnapshot: { name: "Procedure" },
+          servicePackageKind: "PROCEDURE",
+          quantity: 2,
+          priceSnapshot: { finalAmount: 20 },
+          billingStatus: "BILLED",
+          invoiceRowId: "row-77",
+          lockState: { locked: true },
+        },
+      });
+    });
+
+    it("leaves the row untouched when the invoice bootstrap throws", async () => {
+      invoiceService.findOpenInvoiceForAppointment.mockResolvedValue(null);
+      invoiceService.bootstrapForAppointment.mockRejectedValue(
+        new Error("invoice service down"),
+      );
+      db.workspaceTreatmentItem.create.mockResolvedValue(
+        treatmentRow({ id: "ti-bootfail" }),
+      );
+
+      const created = await WorkspaceService.createEncounterTreatmentItem({
+        organisationId: ORG,
+        appointmentId: "appt-cov",
+        encounterId: "enc-cov",
+        productId: "prod-cov",
+        productSnapshot: {},
+        servicePackageKind: "PROCEDURE",
+        quantity: 1,
+        priceSnapshot: {},
+      });
+
+      expect(created.billingStatus).toBe("UNBILLED");
+      expect(invoiceService.addItemsToInvoice).not.toHaveBeenCalled();
+      expect(db.workspaceTreatmentItem.update).not.toHaveBeenCalled();
+    });
+
+    it("skips the sync when the bootstrapped invoice is not in a billable state", async () => {
+      invoiceService.findOpenInvoiceForAppointment.mockResolvedValue(null);
+      invoiceService.bootstrapForAppointment.mockResolvedValue({
+        id: "inv-void",
+        status: "CANCELLED",
+      });
+      db.workspaceTreatmentItem.create.mockResolvedValue(
+        treatmentRow({ id: "ti-notbillable" }),
+      );
+
+      const created = await WorkspaceService.createEncounterTreatmentItem({
+        organisationId: ORG,
+        appointmentId: "appt-cov",
+        encounterId: "enc-cov",
+        productId: "prod-cov",
+        productSnapshot: {},
+        servicePackageKind: "PROCEDURE",
+        quantity: 1,
+        priceSnapshot: {},
+      });
+
+      expect(created.billingStatus).toBe("UNBILLED");
+      expect(invoiceService.addItemsToInvoice).not.toHaveBeenCalled();
+    });
+
+    it("swallows a 409 from the invoice service and returns the unsynced row", async () => {
+      invoiceService.findOpenInvoiceForAppointment.mockResolvedValue({
+        id: "inv-locked",
+      });
+      invoiceService.addItemsToInvoice.mockRejectedValue(
+        new InvoiceServiceError("Invoice is locked", 409),
+      );
+      db.workspaceTreatmentItem.create.mockResolvedValue(
+        treatmentRow({ id: "ti-locked" }),
+      );
+
+      const created = await WorkspaceService.createEncounterTreatmentItem({
+        organisationId: ORG,
+        appointmentId: "appt-cov",
+        encounterId: "enc-cov",
+        productId: "prod-cov",
+        productSnapshot: {},
+        servicePackageKind: "PROCEDURE",
+        quantity: 1,
+        priceSnapshot: {},
+      });
+
+      expect(created.billingStatus).toBe("UNBILLED");
+      expect(db.workspaceTreatmentItem.update).not.toHaveBeenCalled();
+    });
+
+    it("rethrows an unexpected invoice service failure", async () => {
+      invoiceService.findOpenInvoiceForAppointment.mockResolvedValue({
+        id: "inv-broken",
+      });
+      invoiceService.addItemsToInvoice.mockRejectedValue(
+        new InvoiceServiceError("Invoice service exploded", 500),
+      );
+      db.workspaceTreatmentItem.create.mockResolvedValue(
+        treatmentRow({ id: "ti-broken" }),
+      );
+
+      await expect(
+        WorkspaceService.createEncounterTreatmentItem({
+          organisationId: ORG,
+          appointmentId: "appt-cov",
+          encounterId: "enc-cov",
+          productId: "prod-cov",
+          productSnapshot: {},
+          servicePackageKind: "PROCEDURE",
+          quantity: 1,
+          priceSnapshot: {},
+        }),
+      ).rejects.toThrow("Invoice service exploded");
+    });
+
+    it("does not re-write a row that is already billed against the same invoice line", async () => {
+      invoiceService.findOpenInvoiceForAppointment.mockResolvedValue({
+        id: "inv-stable",
+      });
+      db.workspaceTreatmentItem.create.mockResolvedValue(
+        treatmentRow({
+          id: "ti-stable",
+          billingStatus: "BILLED",
+          invoiceRowId: "ti-stable",
+        }),
+      );
+
+      const created = await WorkspaceService.createEncounterTreatmentItem({
+        organisationId: ORG,
+        appointmentId: "appt-cov",
+        encounterId: "enc-cov",
+        productId: "prod-cov",
+        productSnapshot: {},
+        servicePackageKind: "PROCEDURE",
+        quantity: 1,
+        priceSnapshot: {},
+      });
+
+      expect(invoiceService.addItemsToInvoice).toHaveBeenCalled();
+      expect(db.workspaceTreatmentItem.update).not.toHaveBeenCalled();
+      expect(created.invoiceRowId).toBe("ti-stable");
+    });
+
+    it("skips the invoice sync entirely for an encounter-only treatment item", async () => {
+      db.workspaceTreatmentItem.create.mockResolvedValue(
+        treatmentRow({ id: "ti-noappt", appointmentId: null }),
+      );
+
+      await WorkspaceService.createEncounterTreatmentItem({
+        organisationId: ORG,
+        encounterId: "enc-cov",
+        productId: "prod-cov",
+        productSnapshot: {},
+        servicePackageKind: "PROCEDURE",
+        quantity: 1,
+        priceSnapshot: {},
+      });
+
+      expect(
+        invoiceService.findOpenInvoiceForAppointment,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("reclassifies a prescription-linked row and normalizes its lock state", async () => {
+      db.workspaceTreatmentItem.findMany.mockResolvedValue([
+        treatmentRow({
+          id: "ti-rx",
+          servicePackageKind: "SERVICE",
+          prescriptionId: "rx-1",
+          lockState: { locked: true },
+        }),
+        treatmentRow({
+          id: "ti-med",
+          servicePackageKind: "MEDICATION",
+          prescriptionId: "rx-2",
+          lockState: 42,
+        }),
+      ]);
+
+      const items = await WorkspaceService.getEncounterTreatmentItems({
+        organisationId: ORG,
+        encounterId: "enc-cov",
+      });
+
+      expect(items[0].servicePackageKind).toBe("PRESCRIPTION");
+      expect(items[0].lockState).toEqual({ locked: true });
+      expect(items[1].servicePackageKind).toBe("MEDICATION");
+      expect(items[1].lockState).toBeNull();
+    });
+  });
+
+  describe("treatment item guards", () => {
+    it("requires an encounter id when listing treatment items", async () => {
+      await expect(
+        WorkspaceService.getEncounterTreatmentItems({
+          organisationId: ORG,
+          encounterId: "   ",
+        }),
+      ).rejects.toMatchObject({
+        message: "Encounter is required",
+        statusCode: 400,
+      });
+      expect(db.workspaceTreatmentItem.findMany).not.toHaveBeenCalled();
+    });
+
+    it("requires an encounter id when creating a treatment item", async () => {
+      await expect(
+        WorkspaceService.createEncounterTreatmentItem({
+          organisationId: ORG,
+          encounterId: "  ",
+          productId: "prod-cov",
+          productSnapshot: {},
+          servicePackageKind: "PROCEDURE",
+          quantity: 1,
+          priceSnapshot: {},
+        }),
+      ).rejects.toMatchObject({
+        message: "Encounter is required",
+        statusCode: 400,
+      });
+      expect(db.workspaceTreatmentItem.create).not.toHaveBeenCalled();
+    });
+
+    it("rejects an update for a treatment item in another organisation", async () => {
+      db.workspaceTreatmentItem.findFirst.mockResolvedValue(null);
+
+      await expect(
+        WorkspaceService.updateTreatmentItem("ti-cov", "org-other", {
+          quantity: 2,
+        }),
+      ).rejects.toMatchObject({
+        message: "Treatment item not found",
+        statusCode: 404,
+      });
+      expect(db.workspaceTreatmentItem.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects a delete for a treatment item in another organisation", async () => {
+      db.workspaceTreatmentItem.findFirst.mockResolvedValue(null);
+
+      await expect(
+        WorkspaceService.deleteTreatmentItem("ti-cov", "org-other"),
+      ).rejects.toMatchObject({
+        message: "Treatment item not found",
+        statusCode: 404,
+      });
+      expect(db.workspaceTreatmentItem.delete).not.toHaveBeenCalled();
+    });
+
+    it("passes through only the fields present in an update patch", async () => {
+      const existing = treatmentRow({ id: "ti-patch" });
+      db.workspaceTreatmentItem.findFirst.mockResolvedValue(existing);
+      db.workspaceTreatmentItem.update.mockResolvedValue({
+        ...existing,
+        appointmentId: null,
+        quantity: 4,
+      });
+
+      await WorkspaceService.updateTreatmentItem("ti-patch", ORG, {
+        appointmentId: null,
+        productVersion: null,
+        productSnapshot: { name: "Updated" },
+        priceSnapshot: { finalAmount: 8 },
+        invoiceRowId: null,
+        lockState: null,
+        quantity: 4,
+      });
+
+      expect(db.workspaceTreatmentItem.update).toHaveBeenCalledWith({
+        where: { id: "ti-patch" },
+        data: {
+          appointmentId: null,
+          productId: undefined,
+          productVersion: null,
+          productSnapshot: { name: "Updated" },
+          servicePackageKind: undefined,
+          quantity: 4,
+          priceSnapshot: { finalAmount: 8 },
+          billingStatus: undefined,
+          invoiceRowId: null,
+          lockState: null,
+        },
+      });
+    });
+  });
+
+  describe("diagnostic preloads", () => {
+    it("expands diagnostic products and package children into provider tests", async () => {
+      db.appointment.findFirst.mockResolvedValue(
+        appointmentRow({ id: "appt-dx" }),
+      );
+      db.workspaceTreatmentItem.findMany.mockResolvedValue([
+        treatmentRow({ id: "ti-a", productId: "prod-diag" }),
+        treatmentRow({ id: "ti-b", productId: "prod-nocode" }),
+        treatmentRow({ id: "ti-c", productId: "prod-med" }),
+        treatmentRow({ id: "ti-d", productId: "prod-emptypkg" }),
+        treatmentRow({ id: "ti-e", productId: "prod-pkg" }),
+        treatmentRow({ id: "ti-f", productId: "" }),
+      ]);
+      db.productItem.findMany.mockResolvedValue([
+        {
+          id: "prod-diag",
+          organisationId: ORG,
+          name: "Chemistry panel",
+          code: "IDEXX-CHEM",
+          kind: "DIAGNOSTIC",
+          createdAt: DAY,
+          updatedAt: DAY,
+          package: null,
+        },
+        {
+          id: "prod-nocode",
+          organisationId: ORG,
+          name: "Uncoded lab",
+          code: null,
+          kind: "LAB_TEST",
+          createdAt: DAY,
+          updatedAt: DAY,
+          package: null,
+        },
+        {
+          id: "prod-med",
+          organisationId: ORG,
+          name: "Medication",
+          code: "MED-1",
+          kind: "MEDICATION",
+          createdAt: DAY,
+          updatedAt: DAY,
+          package: null,
+        },
+        {
+          id: "prod-emptypkg",
+          organisationId: ORG,
+          name: "Empty package",
+          code: null,
+          kind: "PACKAGE",
+          createdAt: DAY,
+          updatedAt: DAY,
+          package: { items: [] },
+        },
+        {
+          id: "prod-pkg",
+          organisationId: ORG,
+          name: "Wellness package",
+          code: null,
+          kind: "PACKAGE",
+          createdAt: DAY,
+          updatedAt: DAY,
+          package: {
+            items: [
+              {
+                id: "pkg-item-lab",
+                sortOrder: 0,
+                childProductItem: {
+                  id: "child-lab",
+                  name: "CBC",
+                  code: "IDEXX-CBC",
+                  kind: "LAB_TEST",
+                  createdAt: DAY,
+                  updatedAt: DAY,
+                },
+              },
+              {
+                id: "pkg-item-service",
+                sortOrder: 1,
+                childProductItem: {
+                  id: "child-service",
+                  name: "Consult",
+                  code: "CONSULT",
+                  kind: "SERVICE",
+                  createdAt: DAY,
+                  updatedAt: DAY,
+                },
+              },
+              {
+                id: "pkg-item-uncoded",
+                sortOrder: 2,
+                childProductItem: {
+                  id: "child-uncoded",
+                  name: "Uncoded diagnostic",
+                  code: null,
+                  kind: "DIAGNOSTIC",
+                  createdAt: DAY,
+                  updatedAt: DAY,
+                },
+              },
+            ],
+          },
+        },
+      ]);
+
+      const result = await WorkspaceService.getAppointmentBootstrap(
+        { organisationId: ORG, appointmentId: "appt-dx" },
+        FULL_PERMISSIONS,
+      );
+
+      expect(db.productItem.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            id: {
+              in: [
+                "prod-diag",
+                "prod-nocode",
+                "prod-med",
+                "prod-emptypkg",
+                "prod-pkg",
+              ],
+            },
+          }),
+        }),
+      );
+      expect(result.diagnosticQueue).toEqual([
+        expect.objectContaining({
+          id: "provider-test:prod-diag",
+          kind: "PROVIDER_TEST",
+          providerTestCode: "IDEXX-CHEM",
+          sourceKind: "PRODUCT_ITEM",
+          sourceProductId: "prod-diag",
+          sourcePackageId: null,
+          status: "AVAILABLE",
+        }),
+        expect.objectContaining({
+          id: "provider-test:prod-pkg:pkg-item-lab",
+          providerTestCode: "IDEXX-CBC",
+          sourceKind: "PACKAGE_ITEM",
+          sourceProductId: "child-lab",
+          sourcePackageId: "prod-pkg",
+        }),
+      ]);
+    });
+
+    it("skips the product lookup when no treatment item names a product", async () => {
+      db.appointment.findFirst.mockResolvedValue(
+        appointmentRow({ id: "appt-noprod" }),
+      );
+      db.workspaceTreatmentItem.findMany.mockResolvedValue([
+        treatmentRow({ id: "ti-x", productId: "" }),
+      ]);
+
+      const result = await WorkspaceService.getAppointmentBootstrap(
+        { organisationId: ORG, appointmentId: "appt-noprod" },
+        FULL_PERMISSIONS,
+      );
+
+      expect(db.productItem.findMany).not.toHaveBeenCalled();
+      expect(result.diagnosticQueue).toEqual([]);
+    });
+  });
+
+  describe("rendered documents and inpatient schedules", () => {
+    it("resolves schedule-sourced documents through the schedule context", async () => {
+      db.appointment.findFirst.mockResolvedValue(
+        appointmentRow({ id: "appt-sched", encounterId: "enc-sched" }),
+      );
+      db.encounter.findFirst.mockResolvedValue(
+        encounterRow({ id: "enc-sched", caseId: null }),
+      );
+      db.taskSchedule.findMany.mockResolvedValue([
+        {
+          id: "sched-rendered",
+          templateId: "tpl-1",
+          templateVersion: 1,
+          templateKind: "INPATIENT_SCHEDULE",
+          appointmentId: "appt-sched",
+          encounterId: "enc-sched",
+        },
+        {
+          id: "sched-new",
+          templateId: "tpl-2",
+          templateVersion: 2,
+          templateKind: "INPATIENT_SCHEDULE",
+          appointmentId: null,
+          encounterId: null,
+        },
+      ]);
+      db.renderedDocument.findFirst
+        .mockResolvedValueOnce({ id: "rd-existing" })
+        .mockResolvedValueOnce(null);
+      db.renderedDocument.findMany.mockResolvedValue([
+        renderedRow({
+          id: "rd-sched",
+          sourceKind: "TASK_SCHEDULE",
+          sourceId: "sched-rendered",
+          kind: "INPATIENT_SCHEDULE",
+          title: "Inpatient Schedule",
+          status: "SIGNED",
+          signing: null,
+        }),
+        renderedRow({
+          id: "rd-orphan",
+          sourceKind: "TASK_SCHEDULE",
+          sourceId: "sched-unknown",
+          status: "DRAFT",
+          signing: null,
+        }),
+        renderedRow({
+          id: "rd-signing",
+          sourceKind: "CLINICAL_ARTIFACT",
+          status: "DRAFT",
+          signing: { status: "IN_PROGRESS" },
+          clinicalArtifact: {
+            appointmentId: "appt-sched",
+            encounterId: "enc-sched",
+          },
+        }),
+        renderedRow({
+          id: "rd-template",
+          sourceKind: "FORM_SUBMISSION",
+          status: "SIGNED",
+          signing: {},
+          templateInstance: {
+            appointmentId: "appt-sched",
+            encounterId: "enc-sched",
+          },
+        }),
+      ]);
+
+      const result = await WorkspaceService.getAppointmentBootstrap(
+        { organisationId: ORG, appointmentId: "appt-sched" },
+        FULL_PERMISSIONS,
+      );
+
+      // The already-rendered schedule is skipped; only the new one is rendered.
+      expect(createRenderedDocumentRecord).toHaveBeenCalledTimes(1);
+      expect(createRenderedDocumentRecord).toHaveBeenCalledWith({
+        title: "Inpatient Schedule",
+        source: {
+          sourceKind: "TASK_SCHEDULE",
+          sourceId: "sched-new",
+          organisationId: ORG,
+          templateKind: "INPATIENT_SCHEDULE",
+          templateId: "tpl-2",
+          templateVersion: 2,
+        },
+      });
+
+      const renderedQuery = db.renderedDocument.findMany.mock.calls.at(
+        -1,
+      )?.[0] as { where?: { OR?: Array<Record<string, unknown>> } };
+      expect(renderedQuery?.where?.OR).toEqual(
+        expect.arrayContaining([
+          {
+            sourceKind: "TASK_SCHEDULE",
+            sourceId: { in: ["sched-rendered", "sched-new"] },
+          },
+        ]),
+      );
+
+      const byId = new Map(
+        result.documents.map((document) => [document.documentId, document]),
+      );
+      expect(byId.get("rd-sched")).toMatchObject({
+        appointmentId: "appt-sched",
+        encounterId: "enc-sched",
+        signingStatus: "SIGNED",
+      });
+      expect(byId.get("rd-orphan")).toMatchObject({
+        appointmentId: null,
+        encounterId: null,
+        signingStatus: "NOT_STARTED",
+      });
+      expect(byId.get("rd-signing")).toMatchObject({
+        signingStatus: "IN_PROGRESS",
+        appointmentId: "appt-sched",
+        encounterId: "enc-sched",
+      });
+      // A signing envelope with no status falls back to the document status.
+      expect(byId.get("rd-template")).toMatchObject({
+        signingStatus: "SIGNED",
+        appointmentId: "appt-sched",
+        encounterId: "enc-sched",
+      });
+    });
+
+    it("maps a parent-private upload as an unsigned draft with no companion", async () => {
+      db.appointment.findFirst.mockResolvedValue(
+        appointmentRow({ id: "appt-doc" }),
+      );
+      db.document.findMany.mockResolvedValue([
+        {
+          id: "doc-private",
+          patientId: null,
+          appointmentId: null,
+          category: "OTHER",
+          title: "Private upload",
+          pmsVisible: false,
+          createdAt: DAY,
+          updatedAt: DAY,
+        },
+      ]);
+
+      const result = await WorkspaceService.getAppointmentBootstrap(
+        { organisationId: ORG, appointmentId: "appt-doc" },
+        FULL_PERMISSIONS,
+      );
+
+      expect(result.documents).toEqual([
+        expect.objectContaining({
+          documentId: "doc-private",
+          sourceKind: "DOCUMENT",
+          companionId: null,
+          appointmentId: null,
+          status: "DRAFT",
+          signingStatus: "NOT_STARTED",
+        }),
+      ]);
+    });
+  });
+
+  describe("workspace context resolution", () => {
+    it("ignores unusable patient identifiers on the appointment", async () => {
+      db.appointment.findFirst.mockResolvedValue(
+        appointmentRow({
+          id: "appt-badpatient",
+          caseId: "case-badpatient",
+          productItemId: "prod-missing",
+          patient: { id: 42, parent: { id: "   " } },
+        }),
+      );
+      db.case.findFirst.mockResolvedValue({
+        id: "case-badpatient",
+        organisationId: ORG,
+        patientId: "pet-cov",
+        parentId: "parent-from-case",
+        status: "active",
+        appointmentKind: "OUTPATIENT",
+        title: "Episode",
+        description: "Ongoing dermatitis",
+        createdAt: DAY,
+        updatedAt: DAY,
+      });
+      db.parent.findFirst.mockResolvedValue({
+        id: "parent-from-case",
+        firstName: "Ada",
+        lastName: null,
+        createdAt: DAY,
+        updatedAt: DAY,
+      });
+
+      const result = await WorkspaceService.getAppointmentBootstrap(
+        { organisationId: ORG, appointmentId: "appt-badpatient" },
+        FULL_PERMISSIONS,
+      );
+
+      expect(db.patient.findFirst).not.toHaveBeenCalled();
+      expect(result.companion).toBeNull();
+      // The parent falls back to the episode of care.
+      expect(result.client).toMatchObject({ id: "parent-from-case" });
+      expect(result.client?.name).toBe("Ada");
+      expect(result.episodeOfCare?.description).toBe("Ongoing dermatitis");
+      // The product lookup found nothing, so no product kind is surfaced.
+      expect(result.appointment).toMatchObject({
+        productItemId: "prod-missing",
+        productKind: null,
+      });
+    });
+
+    it("ignores a non-object patient payload on the appointment", async () => {
+      db.appointment.findFirst.mockResolvedValue(
+        appointmentRow({ id: "appt-nopatient", patient: "unknown" }),
+      );
+
+      const result = await WorkspaceService.getAppointmentBootstrap(
+        { organisationId: ORG, appointmentId: "appt-nopatient" },
+        FULL_PERMISSIONS,
+      );
+
+      expect(result.companion).toBeNull();
+      expect(result.client).toBeNull();
+      expect(db.parent.findFirst).not.toHaveBeenCalled();
+    });
+
+    it("locks an inpatient chart using the inpatient lock window", async () => {
+      db.appointment.findFirst.mockResolvedValue(
+        appointmentRow({ id: "appt-inpatient", appointmentKind: "INPATIENT" }),
+      );
+      db.organization.findUnique.mockResolvedValue({
+        appointmentLockWindowOutpatientMinutes: 100000,
+        appointmentLockWindowInpatientMinutes: 0,
+      });
+      db.admission.findUnique.mockResolvedValue(null);
+
+      const result = await WorkspaceService.getAppointmentBootstrap(
+        { organisationId: ORG, appointmentId: "appt-inpatient" },
+        FULL_PERMISSIONS,
+      );
+
+      expect(result.locks.appointment).toBe(true);
+      // An inpatient visit with no admission row cannot be finalized.
+      expect(result.finalizationGate.inpatientRoomAdmissionReady).toBe(false);
+      expect(result.finalizationGate.disabledReason).toBe(
+        "Inpatient admission or room state is incomplete.",
+      );
+    });
+
+    it("leaves the chart unlocked when the organisation has no lock window", async () => {
+      db.appointment.findFirst.mockResolvedValue(
+        appointmentRow({ id: "appt-nolock", appointmentKind: "INPATIENT" }),
+      );
+      db.organization.findUnique.mockResolvedValue({
+        appointmentLockWindowOutpatientMinutes: 30,
+        appointmentLockWindowInpatientMinutes: null,
+      });
+
+      const result = await WorkspaceService.getAppointmentBootstrap(
+        { organisationId: ORG, appointmentId: "appt-nolock" },
+        FULL_PERMISSIONS,
+      );
+
+      expect(result.locks.appointment).toBe(false);
+    });
+
+    it("leaves the chart unlocked for a negative lock window", async () => {
+      db.appointment.findFirst.mockResolvedValue(
+        appointmentRow({ id: "appt-neglock" }),
+      );
+      db.organization.findUnique.mockResolvedValue({
+        appointmentLockWindowOutpatientMinutes: -1,
+        appointmentLockWindowInpatientMinutes: null,
+      });
+
+      const result = await WorkspaceService.getAppointmentBootstrap(
+        { organisationId: ORG, appointmentId: "appt-neglock" },
+        FULL_PERMISSIONS,
+      );
+
+      expect(result.locks.appointment).toBe(false);
+    });
+
+    it("surfaces the admission without a unit on the encounter", async () => {
+      db.appointment.findFirst.mockResolvedValue(
+        appointmentRow({ id: "appt-adm", encounterId: "enc-adm" }),
+      );
+      db.encounter.findFirst.mockResolvedValue(
+        encounterRow({ id: "enc-adm", appointmentKind: "INPATIENT" }),
+      );
+      db.admission.findUnique.mockResolvedValue({
+        encounterId: "enc-adm",
+        organisationId: ORG,
+        patientId: "pet-cov",
+        unitId: null,
+        admittedAt: DAY,
+        dischargedAt: null,
+      });
+
+      const result = await WorkspaceService.getAppointmentBootstrap(
+        { organisationId: ORG, appointmentId: "appt-adm" },
+        FULL_PERMISSIONS,
+      );
+
+      expect(
+        (result.encounter as unknown as { admission?: unknown })?.admission,
+      ).toEqual({
+        encounterId: "enc-adm",
+        organisationId: ORG,
+        patientId: "pet-cov",
+        unitId: undefined,
+        admittedAt: DAY,
+        dischargedAt: undefined,
+      });
+      expect(result.finalizationGate.inpatientRoomAdmissionReady).toBe(true);
+    });
+  });
+
+  describe("prescription-derived treatment items", () => {
+    it("derives virtual treatment rows from prescription medications", async () => {
+      db.appointment.findFirst.mockResolvedValue(
+        appointmentRow({ id: "appt-rx" }),
+      );
+      artifactService.listPrescriptionsForAppointment.mockResolvedValue([
+        {
+          artifact: {
+            id: "rx-inventory",
+            status: "IN_PROGRESS",
+            createdAt: DAY,
+            updatedAt: DAY,
+          },
+          prescription: {
+            medications: [
+              { inventoryItemId: "inv-1", quantity: 3 },
+              "not-a-record",
+              { name: "no quantity" },
+            ],
+          },
+        },
+        {
+          artifact: {
+            id: "rx-sku",
+            status: "SIGNED",
+            createdAt: DAY,
+            updatedAt: DAY,
+          },
+          prescription: {
+            medications: [{ inventoryItemSku: "SKU-9", quantity: 2 }],
+          },
+        },
+        {
+          artifact: {
+            id: "rx-empty",
+            status: "DRAFT",
+            createdAt: DAY,
+            updatedAt: DAY,
+          },
+          prescription: { medications: null },
+        },
+      ]);
+
+      const result = await WorkspaceService.getAppointmentBootstrap(
+        { organisationId: ORG, appointmentId: "appt-rx" },
+        FULL_PERMISSIONS,
+      );
+
+      const virtual = result.treatmentItems as unknown as Array<
+        Record<string, unknown>
+      >;
+      expect(virtual).toEqual([
+        expect.objectContaining({
+          id: "rx-inventory",
+          productId: "inv-1",
+          quantity: 4,
+          medicationCount: 3,
+          name: "Treatment items",
+          organisationId: ORG,
+          appointmentId: "appt-rx",
+          encounterId: "appt-rx",
+        }),
+        expect.objectContaining({
+          id: "rx-sku",
+          productId: "SKU-9",
+          quantity: 2,
+        }),
+        expect.objectContaining({
+          id: "rx-empty",
+          productId: "rx-empty",
+          quantity: 0,
+          medicationCount: 0,
+          name: "Prescription",
+        }),
+      ]);
+    });
+
+    it("scopes encounter-only virtual rows to the encounter", async () => {
+      db.encounter.findFirst.mockResolvedValue(
+        encounterRow({ id: "enc-only", caseId: null }),
+      );
+      db.patient.findFirst.mockResolvedValue({
+        id: "pet-cov",
+        name: "Rex",
+        type: "PET",
+        status: "ACTIVE",
+        createdAt: DAY,
+        updatedAt: DAY,
+      });
+      artifactService.listPrescriptionsForEncounter.mockResolvedValue([
+        {
+          artifact: {
+            id: "rx-enc",
+            status: "DRAFT",
+            createdAt: DAY,
+            updatedAt: DAY,
+          },
+          prescription: { medications: [{ quantity: 1 }] },
+        },
+      ]);
+
+      const result = await WorkspaceService.getEncounterBootstrap(
+        { organisationId: ORG, encounterId: "enc-only" },
+        FULL_PERMISSIONS,
+      );
+
+      expect(result.treatmentItems[0]).toMatchObject({
+        appointmentId: null,
+        encounterId: "enc-only",
+      });
+      // With no appointment resolved, the treatment-item query is scoped to the encounter only.
+      expect(db.workspaceTreatmentItem.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            organisationId: ORG,
+            OR: [{ encounterId: "enc-only" }],
+          },
+        }),
+      );
+      expect(db.taskSchedule.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            organisationId: ORG,
+            OR: [{ encounterId: "enc-only" }, { patientId: "pet-cov" }],
+          },
+        }),
+      );
+      expect(db.templateInstance.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            organisationId: ORG,
+            OR: [{ encounterId: "enc-only" }],
+          },
+        }),
+      );
+    });
+  });
+
+  describe("entry point delegation", () => {
+    it("rejects an encounter bootstrap for an encounter that does not exist", async () => {
+      db.encounter.findFirst.mockResolvedValue(null);
+
+      await expect(
+        WorkspaceService.getEncounterBootstrap(
+          { organisationId: ORG, encounterId: "enc-missing" },
+          FULL_PERMISSIONS,
+        ),
+      ).rejects.toMatchObject({
+        message: "Encounter not found",
+        statusCode: 404,
+      });
+    });
+
+    it("returns only the finalization gate for the encounter gate endpoint", async () => {
+      db.encounter.findFirst.mockResolvedValue(
+        encounterRow({ id: "enc-gate", caseId: null }),
+      );
+      formService.listAppointmentFormSummaries.mockResolvedValue([]);
+      db.task.findMany.mockResolvedValue([
+        { id: "task-open", status: "IN_PROGRESS", dueAt: DAY },
+      ]);
+
+      const gate = await WorkspaceService.getEncounterFinalizationGate(
+        { organisationId: ORG, encounterId: "enc-gate" },
+        FULL_PERMISSIONS,
+      );
+
+      expect(gate).toEqual({
+        enabled: false,
+        disabledReason: "There are active tasks that still need attention.",
+        requiredSoapOrDischargeComplete: true,
+        requiredFormsSigned: true,
+        pendingLabsResolved: true,
+        billingReady: true,
+        pendingDispenseRequestsResolved: true,
+        inpatientRoomAdmissionReady: true,
+        requiredTasksComplete: false,
+      });
+    });
+
+    it("returns just the documents slice for the appointment documents endpoint", async () => {
+      db.appointment.findFirst.mockResolvedValue(
+        appointmentRow({ id: "appt-docs" }),
+      );
+      db.document.findMany.mockResolvedValue([
+        {
+          id: "doc-appt",
+          patientId: "pet-cov",
+          appointmentId: "appt-docs",
+          category: "LAB",
+          title: "Result",
+          pmsVisible: true,
+          createdAt: DAY,
+          updatedAt: DAY,
+        },
+      ]);
+
+      const documents = await WorkspaceService.getAppointmentDocuments(
+        { organisationId: ORG, appointmentId: "appt-docs" },
+        ["appointments:view:any", "document:view:any"],
+      );
+
+      expect(documents).toEqual([
+        expect.objectContaining({
+          documentId: "doc-appt",
+          appointmentId: "appt-docs",
+          companionId: "pet-cov",
+          status: "SIGNED",
+          signingStatus: "SIGNED",
+        }),
+      ]);
+    });
+
+    it("returns the full document set to a system-access appointment caller", async () => {
+      db.appointment.findFirst.mockResolvedValue(
+        appointmentRow({ id: "appt-system" }),
+      );
+      db.document.findMany.mockResolvedValue([
+        {
+          id: "doc-system",
+          patientId: "pet-cov",
+          appointmentId: "appt-system",
+          category: "HEALTH",
+          title: "Packet source",
+          pmsVisible: true,
+          createdAt: DAY,
+          updatedAt: DAY,
+        },
+      ]);
+
+      const documents = await WorkspaceService.getAppointmentDocuments(
+        { organisationId: ORG, appointmentId: "appt-system" },
+        [],
+        { systemAccess: true },
+      );
+
+      expect(documents).toEqual([
+        expect.objectContaining({ documentId: "doc-system" }),
+      ]);
+    });
+
+    it("returns the full document set to a system-access encounter caller", async () => {
+      db.encounter.findFirst.mockResolvedValue(
+        encounterRow({ id: "enc-system", caseId: null }),
+      );
+      db.document.findMany.mockResolvedValue([
+        {
+          id: "doc-enc-system",
+          patientId: "pet-cov",
+          appointmentId: null,
+          category: "HEALTH",
+          title: "Packet source",
+          pmsVisible: true,
+          createdAt: DAY,
+          updatedAt: DAY,
+        },
+      ]);
+
+      const documents = await WorkspaceService.getEncounterDocuments(
+        { organisationId: ORG, encounterId: "enc-system" },
+        [],
+        { systemAccess: true },
+      );
+
+      expect(documents).toEqual([
+        expect.objectContaining({ documentId: "doc-enc-system" }),
+      ]);
+    });
+
+    it("merges per-encounter and direct uploads for companion documents", async () => {
+      db.patientOrganisation.findFirst.mockResolvedValue({ id: "link-cov" });
+      db.encounter.findMany.mockResolvedValue([{ id: "enc-comp" }]);
+      db.encounter.findFirst.mockResolvedValue(
+        encounterRow({ id: "enc-comp", caseId: null, patientId: "pet-comp" }),
+      );
+      db.document.findMany.mockResolvedValue([
+        {
+          id: "doc-shared",
+          patientId: "pet-comp",
+          appointmentId: null,
+          category: "SOAP_NOTE",
+          title: "Chart",
+          pmsVisible: true,
+          createdAt: DAY,
+          updatedAt: DAY,
+        },
+      ]);
+
+      const documents = await WorkspaceService.getCompanionDocuments({
+        organisationId: ORG,
+        companionId: "pet-comp",
+      });
+
+      // The same document is reachable through the encounter and the direct read;
+      // it must appear exactly once.
+      expect(documents).toHaveLength(1);
+      expect(documents[0]).toMatchObject({ documentId: "doc-shared" });
+    });
   });
 });

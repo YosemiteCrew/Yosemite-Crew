@@ -111,10 +111,35 @@ const hashToken = (raw: string): string =>
 
 const generateRawToken = (): string => randomBytes(32).toString("base64url");
 
-const buildQrPayload = (rawToken: string): string => {
-  const base = process.env.PUBLIC_CARD_BASE_URL ?? "";
-  return `${base}/card/${rawToken}`;
+const stripTrailingSlash = (value: string): string => {
+  let end = value.length;
+  while (end > 0 && value.charAt(end - 1) === "/") end -= 1;
+  return value.slice(0, end);
 };
+
+// The QR/share payload is scanned outside the web app, so it has to be an
+// absolute URL: a relative "/card/<token>" path is unnavigable on a phone. A
+// missing or relative PUBLIC_CARD_BASE_URL is a deployment error, not something
+// to paper over with an unusable link.
+const resolveCardBaseUrl = (): string => {
+  const raw = process.env.PUBLIC_CARD_BASE_URL?.trim() ?? "";
+  let parsed: URL | null = null;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    parsed = null;
+  }
+  if (parsed?.protocol !== "http:" && parsed?.protocol !== "https:") {
+    throw new CompanionCardServiceError(
+      "Companion card sharing is not configured: PUBLIC_CARD_BASE_URL must be an absolute http(s) URL.",
+      500,
+    );
+  }
+  return stripTrailingSlash(raw);
+};
+
+const buildQrPayload = (rawToken: string, baseUrl: string): string =>
+  `${baseUrl}/card/${rawToken}`;
 
 const isSeverity = (
   value: unknown,
@@ -438,6 +463,10 @@ export const CompanionCardService = {
 
     await assertOrgMembership(patientId, organisationId);
 
+    // Resolved before any write so a misconfigured deployment fails without
+    // leaving an issued-but-unscannable token behind.
+    const baseUrl = resolveCardBaseUrl();
+
     // One live PUBLIC token per companion: regenerating revokes the old QR.
     if (audience === "PUBLIC") {
       await prisma.companionShareToken.updateMany({
@@ -479,7 +508,7 @@ export const CompanionCardService = {
 
     return {
       token: rawToken,
-      qrPayload: buildQrPayload(rawToken),
+      qrPayload: buildQrPayload(rawToken, baseUrl),
       share: toResponseDTO(row),
     };
   },

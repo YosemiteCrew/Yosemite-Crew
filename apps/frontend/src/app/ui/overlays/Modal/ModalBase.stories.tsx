@@ -63,7 +63,7 @@ const ModalDemo = ({ label, canClose }: { label?: string; canClose?: () => boole
         aria-labelledby="demo-modal-title"
         overlayClassName={`fixed inset-0 backdrop-blur-[2px] z-[1100] transition-opacity duration-200 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         overlayStyle={{ backgroundColor: 'var(--color-overlay-backdrop)' }}
-        containerClassName={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] sm:w-[480px] z-[1200] bg-white rounded-2xl border border-card-border p-6 flex flex-col gap-4 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        containerClassName={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] sm:w-[480px] z-[1200] bg-neutral-0 rounded-[20px] border border-card-border p-6 flex flex-col gap-4 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
       >
         <div className="flex items-center justify-between">
           <h2 id="demo-modal-title" className="text-body-1 text-text-primary">

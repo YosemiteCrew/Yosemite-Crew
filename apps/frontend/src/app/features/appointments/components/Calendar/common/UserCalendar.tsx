@@ -18,7 +18,6 @@ import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import CalendarDayHeader from '@/app/features/appointments/components/Calendar/common/CalendarDayHeader';
 import Slot from '@/app/features/appointments/components/Calendar/common/Slot';
 import { Appointment } from '@yosemite-crew/types';
-import { useCalendarNavigation } from '@/app/hooks/useCalendarNavigation';
 import {
   CalendarZoomMode,
   getCalendarColumnGridStyle,
@@ -41,6 +40,7 @@ import {
   useSlotOffsetMinutes,
 } from '@/app/features/appointments/components/Calendar/useCalendarSlots';
 import type { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
+import type { AppointmentCalendarInteractionProps } from '@/app/features/appointments/components/Calendar/common/calendarInteractionProps';
 
 type UserCalendarProps = {
   events: Appointment[];
@@ -49,33 +49,11 @@ type UserCalendarProps = {
   handleViewAppointment: any;
   handleDetailAppointment?: any;
   handleOpenWorkspace?: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
-  setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   handleRescheduleAppointment: any;
   handleChangeRoomAppointment?: any;
   handleAcceptAppointment?: (appt: Appointment) => void;
-  canEditAppointments: boolean;
-  draggedAppointmentId?: string | null;
-  draggedAppointmentLabel?: string | null;
-  canDragAppointment?: (appointment: Appointment) => boolean;
-  onAppointmentDragStart?: (appointment: Appointment) => void;
-  onAppointmentDragEnd?: () => void;
-  onAppointmentDropAt?: (date: Date, minuteOfDay: number, targetLeadId?: string) => void;
-  onDragHoverTarget?: (date: Date, targetLeadId?: string) => void;
-  onCreateAppointmentAt?: (date: Date, minuteOfDay: number, targetLeadId?: string) => void;
-  getDropAvailabilityIntervals?: (
-    date: Date,
-    targetLeadId?: string
-  ) => Array<{ startMinute: number; endMinute: number }>;
-  getVisibleAvailabilityIntervals?: (
-    date: Date,
-    targetLeadId?: string
-  ) => Array<{ startMinute: number; endMinute: number }>;
-  draggedAppointmentDurationMinutes?: number;
   forceFullDayInZoomIn?: boolean;
-  slotStepMinutes?: number;
-  availabilityLoaded?: boolean;
-  skipAutoScroll?: boolean;
-};
+} & AppointmentCalendarInteractionProps;
 
 const UserCalendar: React.FC<UserCalendarProps> = ({
   events,
@@ -87,7 +65,6 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   handleRescheduleAppointment,
   handleChangeRoomAppointment,
   handleAcceptAppointment,
-  setCurrentDate,
   canEditAppointments,
   draggedAppointmentId,
   draggedAppointmentLabel,
@@ -110,7 +87,6 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   const now = useCalendarNow();
   const invoices = useInvoicesForPrimaryOrg();
   const invoicesByAppointmentId = useMemo(() => createInvoiceByAppointmentId(invoices), [invoices]);
-  const { handleNextDay, handlePrevDay } = useCalendarNavigation(setCurrentDate);
   const height = getHourRowHeightPx(zoomMode);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const onWheelHorizontal = useWheelToHorizontalScroll();
@@ -144,6 +120,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   }, [date, events, forceFullDayInZoomIn, getVisibleAvailabilityIntervals, team, zoomMode]);
 
   const visibleHours = useMemo(() => getVisibleHours(visibleHourRange), [visibleHourRange]);
+  /* v8 ignore next -- getVisibleHours always returns a non-empty array (min length 1), so at(-1) is never nullish */
   const lastVisibleHour = visibleHours.at(-1) ?? visibleHourRange.endHour;
 
   const nowPosition = useMemo(() => {
@@ -189,11 +166,13 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   const dateKey = date.toISOString();
 
   const nowPositionRef = useRef(nowPosition);
-  nowPositionRef.current = nowPosition;
   const eventsRef = useRef(events);
-  eventsRef.current = events;
   const visibleHourRangeRef = useRef(visibleHourRange);
-  visibleHourRangeRef.current = visibleHourRange;
+  useEffect(() => {
+    nowPositionRef.current = nowPosition;
+    eventsRef.current = events;
+    visibleHourRangeRef.current = visibleHourRange;
+  });
 
   useEffect(() => {
     const container = scrollRef.current;
@@ -234,8 +213,6 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
             dateNumber={dateNumber}
             team={team}
             teamColumnsStyle={teamColumnsStyle}
-            onPrevDay={handlePrevDay}
-            onNextDay={handleNextDay}
           />
 
           <div
@@ -259,7 +236,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                     height={height}
                     slotOffsetMinutes={slotOffsetMinutes}
                     showSlotTimeLabels={showSlotTimeLabels}
-                    className="sticky left-0 z-20 bg-white"
+                    className="sticky left-0 z-20 bg-neutral-0"
                   />
                   <div className="grid min-w-max" style={teamColumnsStyle}>
                     {team?.map((user, index) => {
@@ -290,7 +267,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                                 style={{
                                   top: `${topPct}%`,
                                   height: `${heightPct}%`,
-                                  backgroundColor: 'rgba(0,0,0,0.045)',
+                                  backgroundColor: 'var(--color-calendar-dim-overlay)',
                                   transition: 'opacity 0.25s ease',
                                 }}
                               />,
@@ -338,7 +315,10 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                       );
                     })}
                   </div>
-                  <div className="sticky right-0 z-20 bg-white" style={{ height: height + 'px' }} />
+                  <div
+                    className="sticky right-0 z-20 bg-neutral-0"
+                    style={{ height: height + 'px' }}
+                  />
                 </div>
               ))}
               <div style={{ height: zoomMode === 'out' ? 30 : 40 }} />

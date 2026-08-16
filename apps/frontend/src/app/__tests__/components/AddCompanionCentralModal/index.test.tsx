@@ -48,6 +48,14 @@ jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockRouterPush }),
 }));
 
+// Controllable phone-breakpoint hook: default desktop, flipped per phone test.
+let mockIsPhone = false;
+jest.mock('@/app/ui/layout/PhoneShell/useIsPhone', () => ({
+  __esModule: true,
+  default: () => mockIsPhone,
+  useIsPhone: () => mockIsPhone,
+}));
+
 // ─── UI component mocks ───────────────────────────────────────────────────────
 
 jest.mock(
@@ -130,9 +138,41 @@ jest.mock('@/app/ui/inputs/Datepicker', () => ({
 
 jest.mock('@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown', () => ({
   __esModule: true,
-  default: ({ inlabel, value, onChange, error }: any) => (
+  default: ({ inlabel, value, onChange, error, onAddressSelect }: any) => (
     <div>
       <input aria-label={inlabel} value={value ?? ''} onChange={onChange} />
+      {onAddressSelect && (
+        <>
+          <button
+            type="button"
+            onClick={() =>
+              onAddressSelect({
+                addressLine: '1 Bark Lane',
+                city: 'Dogtown',
+                state: 'CA',
+                postalCode: '90210',
+                country: '',
+              })
+            }
+          >
+            mock select address
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              onAddressSelect({
+                addressLine: '2 Purr Court',
+                city: 'Catville',
+                state: 'NY',
+                postalCode: '10001',
+                country: 'United States',
+              })
+            }
+          >
+            mock select address with country
+          </button>
+        </>
+      )}
       {error && <span role="alert">{error}</span>}
     </div>
   ),
@@ -179,28 +219,100 @@ jest.mock('next/image', () => ({
   default: ({ alt }: any) => <span data-testid="next-image" role="img" aria-label={alt} />,
 }));
 
-jest.mock('react-icons/io5', () => ({
-  IoClose: () => <span data-testid="icon-io-close" />,
-  IoPencilOutline: () => <span data-testid="icon-io-pencil" />,
-  IoInformationCircleOutline: () => <span data-testid="icon-io-info" />,
-}));
+jest.mock(
+  'react-icons/io5',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/io', () => ({
-  IoIosWarning: () => <span data-testid="icon-warning" />,
-}));
+jest.mock(
+  'react-icons/io',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/fi', () => ({
-  FiPlus: () => <span data-testid="icon-fi-plus" />,
-  FiCheck: () => <span data-testid="icon-fi-check" />,
-}));
+jest.mock(
+  'react-icons/fi',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/md', () => ({
-  MdPets: () => <span data-testid="icon-md-pets" />,
-}));
+jest.mock(
+  'react-icons/md',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/fa', () => ({
-  FaUser: () => <span data-testid="icon-fa-user" />,
-}));
+jest.mock(
+  'react-icons/fa',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
 jest.mock('@/app/hooks/useDropdown', () => ({
   useFilteredOptions: (options: any[], value: string) => {
@@ -232,7 +344,7 @@ jest.mock('@/app/lib/companionHistoryRoute', () => ({
 
 jest.mock('@/app/lib/date', () => ({
   formatDisplayDate: jest.fn(() => '01/01/2020'),
-  getAgeInYears: jest.fn(() => 4),
+  formatCompanionAge: jest.fn(() => '4 Yrs'),
 }));
 
 jest.mock('@/app/ui/tables/tableUtils', () => ({
@@ -306,11 +418,34 @@ const defaultProps = {
   setShowModal: jest.fn(),
 };
 
+// ─── Wizard navigation helpers (create flow is a 2-step wizard) ────────────────
+
+/** Advance from the patient step (1) to the parent step (2). */
+const goToParentStep = async () => {
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: /parent details/i }));
+  });
+};
+
+/** Fill the patient step's required fields (Name / Species / Breed). */
+const fillPatientStep = async () => {
+  fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Max' } });
+  await act(async () => {
+    fireEvent.change(screen.getByLabelText('Species'), { target: { value: 'dog' } });
+  });
+  await waitFor(() => {
+    const breedSelect = screen.getByLabelText('Breed') as HTMLSelectElement;
+    expect(breedSelect.options.length).toBeGreaterThan(0);
+  });
+  fireEvent.change(screen.getByLabelText('Breed'), { target: { value: 'Poodle' } });
+};
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('AddCompanionCentralModal', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockIsPhone = false;
     mockGetCompanionForParent.mockResolvedValue([]);
     mockSearchParent.mockResolvedValue([]);
     mockFetchSpeciesCodeEntries.mockResolvedValue([]);
@@ -338,27 +473,59 @@ describe('AddCompanionCentralModal', () => {
       expect(screen.queryByTestId('modal-shell')).not.toBeInTheDocument();
     });
 
-    it('renders form with "New Patient / Client" title when showModal=true and no viewCompanion', async () => {
+    it('renders form with "Add companion" title when showModal=true and no viewCompanion', async () => {
       await act(async () => {
         render(<AddCompanionCentralModal {...defaultProps} />);
       });
       expect(screen.getByTestId('modal-shell')).toBeInTheDocument();
-      expect(screen.getByText('New Patient / Client')).toBeInTheDocument();
+      expect(screen.getAllByText('Add companion').length).toBeGreaterThan(0);
     });
 
-    it('renders patient and client section headings in create mode', async () => {
+    it('renders the patient step first and the client step after advancing', async () => {
       await act(async () => {
         render(<AddCompanionCentralModal {...defaultProps} />);
       });
+      // Step 1 = patient details; client step not yet mounted.
       expect(screen.getByText('Patient Details')).toBeInTheDocument();
+      expect(screen.queryByText('Client Details')).not.toBeInTheDocument();
+      expect(screen.getByTestId('add-companion-step-subtitle')).toHaveTextContent(
+        'Step 1 of 2 · patient details'
+      );
+
+      await goToParentStep();
+
+      // Step 2 = parent details.
       expect(screen.getByText('Client Details')).toBeInTheDocument();
+      expect(screen.getByTestId('add-companion-step-subtitle')).toHaveTextContent(
+        'Step 2 of 2 · parent details'
+      );
     });
 
-    it('renders Save Patient Info button in create mode', async () => {
+    it('shows "Parent details" on step 1 and "Save Patient Info" on step 2', async () => {
       await act(async () => {
         render(<AddCompanionCentralModal {...defaultProps} />);
       });
+      expect(screen.getByRole('button', { name: /parent details/i })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /save patient info/i })).not.toBeInTheDocument();
+
+      await goToParentStep();
+
       expect(screen.getByRole('button', { name: /save patient info/i })).toBeInTheDocument();
+    });
+
+    it('goes back to the patient step from the parent step', async () => {
+      await act(async () => {
+        render(<AddCompanionCentralModal {...defaultProps} />);
+      });
+      await goToParentStep();
+      expect(screen.getByText('Client Details')).toBeInTheDocument();
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /← patient details/i }));
+      });
+
+      expect(screen.getByText('Patient Details')).toBeInTheDocument();
+      expect(screen.queryByText('Client Details')).not.toBeInTheDocument();
     });
   });
 
@@ -431,16 +598,35 @@ describe('AddCompanionCentralModal', () => {
   // ── 3. Create mode validation ───────────────────────────────────────────────
 
   describe('create mode validation', () => {
-    it('shows validation errors when saving without required fields', async () => {
+    it('returns to the patient step and shows patient errors when the patient step is empty', async () => {
+      await act(async () => {
+        render(<AddCompanionCentralModal {...defaultProps} />);
+      });
+      // Advance with an empty patient step (free navigation), then submit.
+      await goToParentStep();
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /save patient info/i }));
+      });
+      // Submit sends the user back to step 1 to fix the patient errors.
+      // (Species defaults to 'dog', so only Name and Breed are missing.)
+      expect(screen.getByText('Patient Details')).toBeInTheDocument();
+      expect(screen.queryByText('Client Details')).not.toBeInTheDocument();
+      expect(screen.getByText('Name is required')).toBeInTheDocument();
+      expect(screen.getByText('Breed is required')).toBeInTheDocument();
+      expect(mockCreateCompanion).not.toHaveBeenCalled();
+    });
+
+    it('shows client validation errors when saving with an empty parent step', async () => {
       await act(async () => {
         render(<AddCompanionCentralModal {...defaultProps} />);
       });
       await act(async () => {
+        await fillPatientStep();
+      });
+      await goToParentStep();
+      await act(async () => {
         fireEvent.click(screen.getByRole('button', { name: /save patient info/i }));
       });
-      // Check that multiple validation errors are shown across the form.
-      // FormInput mock renders errors as role="alert"; InputWithDropdown renders as plain <span>.
-      // Use getAllByRole('alert') for FormInput errors and getByText for others.
       expect(screen.getByText('Last name is required')).toBeInTheDocument();
       expect(screen.getByText('Email is required')).toBeInTheDocument();
       expect(screen.getByText('Number is required')).toBeInTheDocument();
@@ -452,6 +638,10 @@ describe('AddCompanionCentralModal', () => {
         render(<AddCompanionCentralModal {...defaultProps} />);
       });
       await act(async () => {
+        await fillPatientStep();
+      });
+      await goToParentStep();
+      await act(async () => {
         fireEvent.click(screen.getByRole('button', { name: /save patient info/i }));
       });
       expect(screen.getByText('Email is required')).toBeInTheDocument();
@@ -461,6 +651,10 @@ describe('AddCompanionCentralModal', () => {
       await act(async () => {
         render(<AddCompanionCentralModal {...defaultProps} />);
       });
+      await act(async () => {
+        await fillPatientStep();
+      });
+      await goToParentStep();
       await act(async () => {
         fireEvent.click(screen.getByRole('button', { name: /save patient info/i }));
       });
@@ -472,6 +666,10 @@ describe('AddCompanionCentralModal', () => {
         render(<AddCompanionCentralModal {...defaultProps} />);
       });
       await act(async () => {
+        await fillPatientStep();
+      });
+      await goToParentStep();
+      await act(async () => {
         fireEvent.click(screen.getByRole('button', { name: /save patient info/i }));
       });
       expect(screen.getByText('Address is required')).toBeInTheDocument();
@@ -481,6 +679,10 @@ describe('AddCompanionCentralModal', () => {
       await act(async () => {
         render(<AddCompanionCentralModal {...defaultProps} />);
       });
+      await act(async () => {
+        await fillPatientStep();
+      });
+      await goToParentStep();
       await act(async () => {
         fireEvent.click(screen.getByRole('button', { name: /save patient info/i }));
       });
@@ -492,19 +694,10 @@ describe('AddCompanionCentralModal', () => {
 
   describe('create mode happy path', () => {
     const fillRequiredFields = async () => {
-      // companion name — uses InputWithDropdown, accessible via aria-label
-      fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Max' } });
-      // species — LabelDropdown select
-      await act(async () => {
-        fireEvent.change(screen.getByLabelText('Species'), { target: { value: 'dog' } });
-      });
-      // Wait for breed options to load (async fetchBreedCodeEntries)
-      await waitFor(() => {
-        const breedSelect = screen.getByLabelText('Breed') as HTMLSelectElement;
-        expect(breedSelect.options.length).toBeGreaterThan(0);
-      });
-      // breed
-      fireEvent.change(screen.getByLabelText('Breed'), { target: { value: 'Poodle' } });
+      // Step 1 — patient details (Name / Species / Breed), then advance.
+      await fillPatientStep();
+      await goToParentStep();
+      // Step 2 — parent details.
       // parent first name — InputWithDropdown
       fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Jane' } });
       // parent last name
@@ -617,7 +810,7 @@ describe('AddCompanionCentralModal', () => {
       await act(async () => {
         render(<AddCompanionCentralModal {...defaultProps} formMode="fasttrack" />);
       });
-      expect(screen.getByText('New Patient / Client')).toBeInTheDocument();
+      expect(screen.getAllByText('Add companion').length).toBeGreaterThan(0);
     });
 
     it('does not show insurance validation errors in fasttrack mode even when isInsured', async () => {
@@ -650,6 +843,9 @@ describe('AddCompanionCentralModal', () => {
       });
       await act(async () => {
         fireEvent.change(screen.getByLabelText('Breed'), { target: { value: 'Poodle' } });
+      });
+      await goToParentStep();
+      await act(async () => {
         fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Alice' } });
         fireEvent.change(screen.getByLabelText('Last name'), { target: { value: 'Brown' } });
         fireEvent.change(screen.getByLabelText('Email'), {
@@ -1068,15 +1264,8 @@ describe('AddCompanionCentralModal', () => {
 
   describe('error notification on creation failure', () => {
     const fillRequiredFieldsInner = async () => {
-      fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Max' } });
-      await act(async () => {
-        fireEvent.change(screen.getByLabelText('Species'), { target: { value: 'dog' } });
-      });
-      await waitFor(() => {
-        const breedSelect = screen.getByLabelText('Breed') as HTMLSelectElement;
-        expect(breedSelect.options.length).toBeGreaterThan(0);
-      });
-      fireEvent.change(screen.getByLabelText('Breed'), { target: { value: 'Poodle' } });
+      await fillPatientStep();
+      await goToParentStep();
       fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Jane' } });
       fireEvent.change(screen.getByLabelText('Last name'), { target: { value: 'Smith' } });
       fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'jane@example.com' } });
@@ -1261,6 +1450,9 @@ describe('AddCompanionCentralModal', () => {
         render(<AddCompanionCentralModal {...defaultProps} />);
       });
 
+      // Parent fields live on the wizard's second step.
+      await goToParentStep();
+
       // Type in first name to trigger parent search
       await act(async () => {
         fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Alice' } });
@@ -1281,10 +1473,85 @@ describe('AddCompanionCentralModal', () => {
       expect(screen.getByLabelText('First name')).toHaveValue('Alice');
     });
 
+    it('closes the dropdown on outside mousedown and reopens it on focus', async () => {
+      mockSearchParent.mockResolvedValue([
+        {
+          id: 'p-found',
+          firstName: 'Alice',
+          lastName: 'Wonder',
+          email: 'alice@w.com',
+          phoneNumber: '+12025559999',
+          birthDate: undefined,
+          address: {
+            addressLine: '5 Oak',
+            city: 'LA',
+            state: 'CA',
+            postalCode: '90001',
+            country: 'US',
+          },
+          createdFrom: 'pms' as const,
+        },
+      ]);
+
+      await act(async () => {
+        render(<AddCompanionCentralModal {...defaultProps} />);
+      });
+
+      await goToParentStep();
+
+      await act(async () => {
+        fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Alice' } });
+      });
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 350));
+      });
+
+      const option = await screen.findByRole('button', { name: 'Alice Wonder' });
+
+      // Typing again once results are visible keeps tracking the filtered length.
+      // The open panel shares the input's aria-label, so query the textbox role.
+      await act(async () => {
+        fireEvent.change(screen.getByRole('textbox', { name: 'First name' }), {
+          target: { value: 'Alice W' },
+        });
+      });
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 350));
+      });
+      expect(screen.getByRole('button', { name: 'Alice Wonder' })).toBeInTheDocument();
+
+      // A window resize while open recomputes the portal position and keeps it open
+      await act(async () => {
+        fireEvent(window, new Event('resize'));
+      });
+      expect(screen.getByRole('button', { name: 'Alice Wonder' })).toBeInTheDocument();
+
+      // Mousedown inside the dropdown panel never closes it
+      await act(async () => {
+        fireEvent.mouseDown(document.querySelector('[data-iwd-panel]') as HTMLElement);
+        fireEvent.mouseDown(option);
+      });
+      expect(screen.getByRole('button', { name: 'Alice Wonder' })).toBeInTheDocument();
+
+      // Outside mousedown closes the dropdown
+      await act(async () => {
+        fireEvent.mouseDown(document.body);
+      });
+      expect(screen.queryByRole('button', { name: 'Alice Wonder' })).not.toBeInTheDocument();
+
+      // Re-focusing the input after the user has typed reopens it
+      await act(async () => {
+        fireEvent.focus(screen.getByRole('textbox', { name: 'First name' }));
+      });
+      expect(screen.getByRole('button', { name: 'Alice Wonder' })).toBeInTheDocument();
+    });
+
     it('handlePhoneChange updates localPhoneNumber field', async () => {
       await act(async () => {
         render(<AddCompanionCentralModal {...defaultProps} />);
       });
+
+      await goToParentStep();
 
       await act(async () => {
         fireEvent.change(screen.getByLabelText('Phone number'), {
@@ -1300,6 +1567,8 @@ describe('AddCompanionCentralModal', () => {
         render(<AddCompanionCentralModal {...defaultProps} />);
       });
 
+      await goToParentStep();
+
       const countryCodeDropdown = screen.getByLabelText('Country code');
       await act(async () => {
         fireEvent.change(countryCodeDropdown, { target: { value: 'GB' } });
@@ -1313,6 +1582,8 @@ describe('AddCompanionCentralModal', () => {
       await act(async () => {
         render(<AddCompanionCentralModal {...defaultProps} />);
       });
+
+      await goToParentStep();
 
       await act(async () => {
         fireEvent.change(screen.getByLabelText('City'), { target: { value: 'New York' } });
@@ -1501,6 +1772,8 @@ describe('AddCompanionCentralModal', () => {
         fireEvent.change(screen.getByLabelText('Breed'), { target: { value: 'Poodle' } });
       });
 
+      await goToParentStep();
+
       // Trigger parent search and select existing parent
       await act(async () => {
         fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Bob' } });
@@ -1561,13 +1834,38 @@ describe('AddCompanionCentralModal', () => {
 
   describe('handleAddressSelect', () => {
     it('updates address fields from GoogleSearchDropDown onAddressSelect', async () => {
-      // jest.mock cannot be called inside test bodies (not hoisted), so verify via state indirectly
       await act(async () => {
         render(<AddCompanionCentralModal {...defaultProps} />);
       });
 
-      // Verify the form renders without errors
-      expect(screen.getByLabelText('Address')).toBeInTheDocument();
+      await goToParentStep();
+
+      // A selection without a country keeps the previous country value.
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'mock select address' }));
+      });
+      expect((screen.getByLabelText('Address') as HTMLInputElement).value).toBe('1 Bark Lane');
+
+      // A selection carrying a country overwrites it.
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'mock select address with country' }));
+      });
+      expect((screen.getByLabelText('Address') as HTMLInputElement).value).toBe('2 Purr Court');
+    });
+
+    it('clearing the phone number stores an empty phone value', async () => {
+      await act(async () => {
+        render(<AddCompanionCentralModal {...defaultProps} />);
+      });
+
+      await goToParentStep();
+
+      const phone = screen.getByLabelText('Phone number') as HTMLInputElement;
+      fireEvent.change(phone, { target: { value: '2025551234' } });
+      expect(phone.value).toBe('2025551234');
+
+      fireEvent.change(phone, { target: { value: '' } });
+      expect(phone.value).toBe('');
     });
   });
 
@@ -1705,6 +2003,11 @@ describe('AddCompanionCentralModal', () => {
 
       await act(async () => {
         fireEvent.change(screen.getByLabelText('Breed'), { target: { value: 'Poodle' } });
+      });
+
+      await goToParentStep();
+
+      await act(async () => {
         fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Jane' } });
         fireEvent.change(screen.getByLabelText('Last name'), { target: { value: 'Smith' } });
         fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'jane@example.com' } });
@@ -1828,6 +2131,8 @@ describe('AddCompanionCentralModal', () => {
         render(<AddCompanionCentralModal {...defaultProps} />);
       });
 
+      await goToParentStep();
+
       await act(async () => {
         fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Error' } });
       });
@@ -1868,6 +2173,8 @@ describe('AddCompanionCentralModal', () => {
       await act(async () => {
         render(<AddCompanionCentralModal {...defaultProps} />);
       });
+
+      await goToParentStep();
 
       await act(async () => {
         fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Err' } });
@@ -1977,15 +2284,16 @@ describe('AddCompanionCentralModal', () => {
         render(<AddCompanionCentralModal {...defaultProps} />);
       });
 
-      // Click save without filling name — triggers companionErrors.name
+      // Advance with an empty patient step, then save — submit sends the user back
+      // to step 1 with companionErrors.name set on the Name InputWithDropdown.
+      await goToParentStep();
       await act(async () => {
         fireEvent.click(screen.getByRole('button', { name: /save patient info/i }));
       });
 
       // The InputWithDropdown shows errors as a plain span containing the error text
-      // The IoIosWarning icon mock renders as data-testid="icon-warning"
-      // Verify error spans appear (companion name and parent first name errors)
-      const warnIcons = screen.getAllByTestId('icon-warning');
+      // The IoIosWarning icon mock renders as data-testid="IoIosWarning"
+      const warnIcons = screen.getAllByTestId('IoIosWarning');
       expect(warnIcons.length).toBeGreaterThan(0);
     });
   });
@@ -2093,6 +2401,8 @@ describe('AddCompanionCentralModal', () => {
         render(<AddCompanionCentralModal {...defaultProps} />);
       });
 
+      await goToParentStep();
+
       // Get the actual options from the CountryDialCodeOptions — use the first available value
       const countryCodeDropdown = screen.getByLabelText('Country code') as HTMLSelectElement;
       const firstOptionValue = Array.from(countryCodeDropdown.options)[0]?.value;
@@ -2114,6 +2424,8 @@ describe('AddCompanionCentralModal', () => {
       await act(async () => {
         render(<AddCompanionCentralModal {...defaultProps} />);
       });
+
+      await goToParentStep();
 
       await act(async () => {
         fireEvent.change(screen.getByLabelText('Address'), { target: { value: '99 Elm St' } });
@@ -2147,7 +2459,7 @@ describe('AddCompanionCentralModal', () => {
       expect(screen.getByLabelText('Passport no.')).toHaveValue('PASS001');
     });
 
-    it('blood group, country of origin, source, sex onSelect handlers work', async () => {
+    it('blood group, country of origin, source, sex handlers work', async () => {
       await act(async () => {
         render(<AddCompanionCentralModal {...defaultProps} />);
       });
@@ -2162,10 +2474,13 @@ describe('AddCompanionCentralModal', () => {
         expect(breedSelect.options.length).toBeGreaterThan(0);
       });
 
-      // Sex dropdown
+      // Sex is now Male/Female radios + a Neutered checkbox (design add flow)
       await act(async () => {
-        fireEvent.change(screen.getByLabelText('Sex'), { target: { value: 'female-spayed' } });
+        fireEvent.click(screen.getByLabelText('Female'));
+        fireEvent.click(screen.getByLabelText('Neutered'));
       });
+      expect(screen.getByLabelText('Female')).toBeChecked();
+      expect(screen.getByLabelText('Neutered')).toBeChecked();
 
       // Blood group
       const bloodGroupSelect = screen.getByLabelText('Blood group') as HTMLSelectElement;
@@ -2236,7 +2551,7 @@ describe('AddCompanionCentralModal', () => {
   describe('fmtAge and getSexLabel branches', () => {
     it('shows "1 Yr" when age is exactly 1', async () => {
       const dateLib = jest.requireMock('@/app/lib/date') as any;
-      dateLib.getAgeInYears.mockImplementation(() => 1);
+      dateLib.formatCompanionAge.mockImplementation(() => '1 Yr');
 
       const companion = {
         ...mockViewCompanion,
@@ -2253,12 +2568,12 @@ describe('AddCompanionCentralModal', () => {
       expect(screen.getByText('1 Yr')).toBeInTheDocument();
 
       // Restore default
-      dateLib.getAgeInYears.mockImplementation(() => 4);
+      dateLib.formatCompanionAge.mockImplementation(() => '4 Yrs');
     });
 
-    it('shows "-" for age when getAgeInYears returns NaN', async () => {
-      const { getAgeInYears } = jest.requireMock('@/app/lib/date') as any;
-      getAgeInYears.mockImplementationOnce(() => NaN);
+    it('shows "-" for age when formatCompanionAge returns no label', async () => {
+      const { formatCompanionAge } = jest.requireMock('@/app/lib/date') as any;
+      formatCompanionAge.mockImplementationOnce(() => '');
 
       const companion = {
         ...mockViewCompanion,
@@ -2331,7 +2646,13 @@ describe('AddCompanionCentralModal', () => {
         render(<AddCompanionCentralModal {...defaultProps} />);
       });
 
-      // Fill all fields but with invalid phone
+      // Step 1 — valid patient, then advance to the parent step.
+      await act(async () => {
+        await fillPatientStep();
+      });
+      await goToParentStep();
+
+      // Step 2 — fill parent fields but with an invalid phone.
       await act(async () => {
         fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Jane' } });
         fireEvent.change(screen.getByLabelText('Last name'), { target: { value: 'Smith' } });
@@ -2341,20 +2662,6 @@ describe('AddCompanionCentralModal', () => {
         fireEvent.change(screen.getByLabelText('City'), { target: { value: 'NYC' } });
         fireEvent.change(screen.getByLabelText('State / Province'), { target: { value: 'NY' } });
         fireEvent.change(screen.getByLabelText('ZIP'), { target: { value: '10001' } });
-        fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Rex' } });
-      });
-
-      await act(async () => {
-        fireEvent.change(screen.getByLabelText('Species'), { target: { value: 'dog' } });
-      });
-
-      await waitFor(() => {
-        const breedSelect = screen.getByLabelText('Breed') as HTMLSelectElement;
-        expect(breedSelect.options.length).toBeGreaterThan(0);
-      });
-
-      await act(async () => {
-        fireEvent.change(screen.getByLabelText('Breed'), { target: { value: 'Poodle' } });
       });
 
       await act(async () => {
@@ -2393,6 +2700,8 @@ describe('AddCompanionCentralModal', () => {
       await act(async () => {
         render(<AddCompanionCentralModal {...defaultProps} />);
       });
+
+      await goToParentStep();
 
       await act(async () => {
         fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'John' } });
@@ -2461,6 +2770,8 @@ describe('AddCompanionCentralModal', () => {
         render(<AddCompanionCentralModal {...defaultProps} />);
       });
 
+      await goToParentStep();
+
       await act(async () => {
         fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'NewFirst' } });
       });
@@ -2476,6 +2787,8 @@ describe('AddCompanionCentralModal', () => {
       await act(async () => {
         render(<AddCompanionCentralModal {...defaultProps} />);
       });
+
+      await goToParentStep();
 
       await act(async () => {
         fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'dirty@email.com' } });
@@ -2581,6 +2894,8 @@ describe('AddCompanionCentralModal', () => {
         render(<AddCompanionCentralModal {...defaultProps} />);
       });
 
+      await goToParentStep();
+
       await act(async () => {
         fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'No' } });
       });
@@ -2657,6 +2972,8 @@ describe('AddCompanionCentralModal', () => {
         fireEvent.click(lunaOption);
       });
 
+      await goToParentStep();
+
       // Fill remaining required fields
       await act(async () => {
         fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'link@owner.com' } });
@@ -2677,5 +2994,156 @@ describe('AddCompanionCentralModal', () => {
         expect(mockLinkCompanion).toHaveBeenCalled();
       });
     });
+  });
+
+  // ── 47. Add-companion wizard: photo, sex radios, cancel, phone sheet ──────────
+
+  describe('add-companion wizard extras', () => {
+    it('stores a chosen photo as a data URL in the patient step', async () => {
+      await act(async () => {
+        render(<AddCompanionCentralModal {...defaultProps} />);
+      });
+
+      const fileInput = screen.getByLabelText('Upload companion photo') as HTMLInputElement;
+      const file = new File(['img-bytes'], 'pet.png', { type: 'image/png' });
+
+      await act(async () => {
+        fireEvent.change(fileInput, { target: { files: [file] } });
+        // FileReader.onload resolves on a microtask/macrotask in jsdom.
+        await new Promise((r) => setTimeout(r, 0));
+      });
+
+      // The dashed dropzone paints the chosen image as a background — the camera
+      // placeholder label disappears once a photo is set.
+      await waitFor(() => {
+        expect(screen.queryByText('PHOTO')).not.toBeInTheDocument();
+      });
+    });
+
+    it('ignores a photo change event with no file selected', async () => {
+      await act(async () => {
+        render(<AddCompanionCentralModal {...defaultProps} />);
+      });
+
+      const fileInput = screen.getByLabelText('Upload companion photo') as HTMLInputElement;
+      await act(async () => {
+        fireEvent.change(fileInput, { target: { files: [] } });
+      });
+
+      // Placeholder stays — no crash, no photo set.
+      expect(screen.getByText('PHOTO')).toBeInTheDocument();
+    });
+
+    it('toggles the Male radio and the Neutered checkbox on and off', async () => {
+      await act(async () => {
+        render(<AddCompanionCentralModal {...defaultProps} />);
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText('Male'));
+        fireEvent.click(screen.getByLabelText('Neutered'));
+      });
+      expect(screen.getByLabelText('Male')).toBeChecked();
+      expect(screen.getByLabelText('Neutered')).toBeChecked();
+
+      // Unchecking Neutered keeps the gender selection.
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText('Neutered'));
+      });
+      expect(screen.getByLabelText('Male')).toBeChecked();
+      expect(screen.getByLabelText('Neutered')).not.toBeChecked();
+    });
+
+    it('Cancel on step 1 closes the modal when there are no unsaved changes', async () => {
+      const setShowModal = jest.fn();
+      await act(async () => {
+        render(<AddCompanionCentralModal showModal={true} setShowModal={setShowModal} />);
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^cancel$/i }));
+      });
+
+      expect(setShowModal).toHaveBeenCalledWith(false);
+    });
+
+    it('renders the create flow as a bottom sheet on phone', async () => {
+      mockIsPhone = true;
+      await act(async () => {
+        render(<AddCompanionCentralModal {...defaultProps} />);
+      });
+
+      // The desktop modal shell is not used on phone.
+      expect(screen.queryByTestId('modal-shell')).not.toBeInTheDocument();
+      // The wizard body + step CTA still render inside the sheet.
+      expect(screen.getByText('Patient Details')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /parent details/i })).toBeInTheDocument();
+
+      await goToParentStep();
+      expect(screen.getByText('Client Details')).toBeInTheDocument();
+    });
+
+    it('adds and removes a client alert on the parent step', async () => {
+      await act(async () => {
+        render(<AddCompanionCentralModal {...defaultProps} />);
+      });
+      await goToParentStep();
+
+      const clientAlertInput = screen.getByLabelText('e.g. Outstanding balance, VIP…');
+      await act(async () => {
+        fireEvent.change(clientAlertInput, { target: { value: 'Outstanding balance' } });
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /add client alert/i }));
+      });
+      expect(screen.getByText('Outstanding balance')).toBeInTheDocument();
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /remove alert outstanding balance/i }));
+      });
+      expect(screen.queryByText('Outstanding balance')).not.toBeInTheDocument();
+    });
+
+    it('edit mode keeps the combined Sex dropdown and applies a selection', async () => {
+      await act(async () => {
+        render(<AddCompanionCentralModal {...defaultProps} viewCompanion={mockViewCompanion} />);
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /edit/i }));
+      });
+
+      const sexDropdown = screen.getByLabelText('Sex') as HTMLSelectElement;
+      await act(async () => {
+        fireEvent.change(sexDropdown, { target: { value: 'female-spayed' } });
+      });
+      expect((screen.getByLabelText('Sex') as HTMLSelectElement).value).toBe('female-spayed');
+    });
+  });
+});
+
+// ── Bug 38: no system-assigned default profile picture ─────────────────────────
+
+describe('AddCompanionViewMode avatar', () => {
+  it('shows a monogram, not a stock species photo, when the patient has no photo', async () => {
+    await act(async () => {
+      render(<AddCompanionCentralModal {...defaultProps} viewCompanion={mockViewCompanion} />);
+    });
+
+    // mockViewCompanion.photoUrl is '' — nothing should render an <Image>.
+    expect(screen.queryByTestId('next-image')).not.toBeInTheDocument();
+    expect(screen.getByText('B')).toBeInTheDocument();
+  });
+
+  it('shows the real photo when the patient actually has one', async () => {
+    const withPhoto = {
+      ...mockViewCompanion,
+      companion: { ...mockViewCompanion.companion, photoUrl: 'https://cdn.example.com/buddy.png' },
+    };
+
+    await act(async () => {
+      render(<AddCompanionCentralModal {...defaultProps} viewCompanion={withPhoto} />);
+    });
+
+    expect(screen.getByTestId('next-image')).toBeInTheDocument();
   });
 });

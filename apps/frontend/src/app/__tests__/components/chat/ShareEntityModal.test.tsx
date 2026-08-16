@@ -59,7 +59,7 @@ describe('ShareEntityModal', () => {
   it('renders the Companion tab list by default', () => {
     render(<ShareEntityModal channelId="ch1" onClose={jest.fn()} />);
 
-    expect(screen.getByRole('dialog', { name: 'Share from PIMS' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Share to chat' })).toBeInTheDocument();
     expect(screen.getByText('Bella')).toBeInTheDocument();
     expect(screen.getByText('Dog · Lab')).toBeInTheDocument();
   });

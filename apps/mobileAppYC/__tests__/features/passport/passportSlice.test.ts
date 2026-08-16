@@ -63,6 +63,22 @@ describe('passportSlice', () => {
       expect(state.byCompanionId['companion-123']).toEqual(mockPassport);
     });
 
+    it('drops any cached passport when fulfilled with no issued passport', () => {
+      const state = reducer(
+        {
+          ...initialState,
+          byCompanionId: {'companion-123': mockPassport},
+        },
+        {
+          type: fetchPassport.fulfilled.type,
+          payload: {companionId: 'companion-123', passport: null},
+        },
+      );
+      expect(state.loading).toBe(false);
+      expect(state.byCompanionId['companion-123']).toBeUndefined();
+      expect(state.error).toBeNull();
+    });
+
     it('sets the error message on rejected', () => {
       const state = reducer(initialState, {
         type: fetchPassport.rejected.type,
@@ -122,6 +138,39 @@ describe('passportSlice', () => {
       const result = await thunk(dispatch, () => ({}), undefined);
 
       expect(result.payload).toBe('Network error');
+    });
+
+    it('fulfils with a null passport when the backend 404s (none issued yet)', async () => {
+      (passportApi.fetchPassport as jest.Mock).mockRejectedValue(
+        Object.assign(new Error('Request failed with status code 404'), {
+          isAxiosError: true,
+          response: {status: 404},
+        }),
+      );
+      const dispatch = jest.fn();
+      const thunk = fetchPassport({companionId: 'companion-123'});
+      const result = await thunk(dispatch, () => ({}), undefined);
+
+      expect(result.type).toBe(fetchPassport.fulfilled.type);
+      expect(result.payload).toEqual({
+        companionId: 'companion-123',
+        passport: null,
+      });
+    });
+
+    it('still rejects on non-404 API errors', async () => {
+      (passportApi.fetchPassport as jest.Mock).mockRejectedValue(
+        Object.assign(new Error('Server error'), {
+          isAxiosError: true,
+          response: {status: 500},
+        }),
+      );
+      const dispatch = jest.fn();
+      const thunk = fetchPassport({companionId: 'companion-123'});
+      const result = await thunk(dispatch, () => ({}), undefined);
+
+      expect(result.type).toBe(fetchPassport.rejected.type);
+      expect(result.payload).toBe('Server error');
     });
 
     it('falls back to a generic message when the thrown error is not an Error instance', async () => {

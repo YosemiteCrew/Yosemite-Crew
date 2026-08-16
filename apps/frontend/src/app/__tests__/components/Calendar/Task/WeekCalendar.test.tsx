@@ -20,6 +20,7 @@ jest.mock('@/app/lib/timezone', () => ({
   getHourInPreferredTimeZone: (value: Date) => value.getHours(),
   getMinutesSinceStartOfDayInPreferredTimeZone: (value: Date) =>
     value.getHours() * 60 + value.getMinutes(),
+  formatDateInPreferredTimeZone: jest.fn(() => '9:41 AM'),
   isOnPreferredTimeZoneCalendarDay: (value: Date, day: Date) =>
     value.getFullYear() === day.getFullYear() &&
     value.getMonth() === day.getMonth() &&
@@ -126,6 +127,24 @@ describe('WeekCalendar (Task)', () => {
         length: days.length - 1,
       })
     );
+  });
+
+  it('shows the now indicator with a time label when today is within the week', () => {
+    const today = new Date();
+    mockGetWeekDays.mockReturnValue([today]);
+
+    render(
+      <WeekCalendar
+        events={[]}
+        date={today}
+        handleViewTask={handleViewTask}
+        weekStart={today}
+        setWeekStart={setWeekStart}
+        setCurrentDate={setCurrentDate}
+      />
+    );
+
+    expect(screen.getByText('9:41 AM')).toBeInTheDocument();
   });
 
   it('updates week start and current date on navigation', () => {

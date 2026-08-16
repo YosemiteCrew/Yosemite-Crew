@@ -1,6 +1,6 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 
@@ -15,7 +15,7 @@ const SearchController = {
 };
 
 jest.mock("../../src/middlewares/auth", () => ({
-  authorizeCognito,
+  requireWebAuth,
 }));
 
 jest.mock("../../src/middlewares/rbac", () => ({
@@ -77,9 +77,13 @@ describe("search.router", () => {
       "get",
     );
 
-    expect(route?.stack[0]?.handle).toBe(authorizeCognito);
+    expect(route?.stack[0]?.handle).toBe(requireWebAuth);
     expect(route?.stack.length).toBeGreaterThanOrEqual(3);
-    expect(requirePermission).toHaveBeenCalledWith([
+    // Medication search reads the same inventory rows as /inventory-items, so it
+    // is gated on the inventory permission alone rather than also accepting a
+    // prescription permission, which would bypass that gate.
+    expect(requirePermission).toHaveBeenCalledWith("inventory:view:any");
+    expect(requirePermission).not.toHaveBeenCalledWith([
       "inventory:view:any",
       "prescription:view:any",
     ]);

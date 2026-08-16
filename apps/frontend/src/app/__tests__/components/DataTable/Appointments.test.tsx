@@ -64,26 +64,87 @@ jest.mock('@/app/ui/cards/AppointmentCard', () => ({
   default: ({ appointment }: any) => <div data-testid="appointment-card">{appointment.id}</div>,
 }));
 
-jest.mock('react-icons/fa', () => ({
-  FaCheckCircle: () => <span>accept-icon</span>,
-}));
+jest.mock(
+  'react-icons/io',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/io', () => ({
-  IoIosCloseCircle: () => <span>cancel-icon</span>,
-  IoIosCalendar: () => <span>reschedule-icon</span>,
-}));
+jest.mock(
+  'react-icons/io5',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/io5', () => ({
-  IoEyeOutline: () => <span>view-icon</span>,
-  IoDocumentTextOutline: () => <span>soap-icon</span>,
-  IoCardOutline: () => <span>finance-icon</span>,
-}));
+jest.mock(
+  'react-icons/fa',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/md', () => ({
-  MdMeetingRoom: () => <span>room-icon</span>,
-  MdOutlineAutorenew: () => <span>change-status-icon</span>,
-  MdScience: () => <span>labs-icon</span>,
-}));
+jest.mock(
+  'react-icons/md',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
+
+/* The row's action rail is a single overflow kebab now, so every row action has
+   to be reached through its menu. The menu closes on select, hence the reopen
+   before each subsequent action. */
+const openRowMenu = (companionName: string) =>
+  fireEvent.click(screen.getByLabelText(`Actions for ${companionName}`));
 
 describe('Appointments table', () => {
   beforeEach(() => {
@@ -116,8 +177,10 @@ describe('Appointments table', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('accept-icon').closest('button')!);
-    fireEvent.click(screen.getByText('cancel-icon').closest('button')!);
+    openRowMenu('Buddy');
+    fireEvent.click(screen.getByTestId('FaCheckCircle').closest('button')!);
+    openRowMenu('Buddy');
+    fireEvent.click(screen.getByTestId('IoIosCloseCircle').closest('button')!);
 
     // Accept now opens the change-status modal so a lead/support can be assigned.
     expect(acceptAppointmentMock).not.toHaveBeenCalled();
@@ -157,8 +220,10 @@ describe('Appointments table', () => {
     );
 
     fireEvent.click(screen.getByTitle('Open appointment overview'));
-    fireEvent.click(screen.getByText('view-icon').closest('button')!);
-    fireEvent.click(screen.getByText('reschedule-icon').closest('button')!);
+    openRowMenu('Buddy');
+    fireEvent.click(screen.getByTestId('IoEyeOutline').closest('button')!);
+    openRowMenu('Buddy');
+    fireEvent.click(screen.getByTestId('IoIosCalendar').closest('button')!);
 
     expect(pushMock).toHaveBeenCalledWith(
       '/companions/history?companionId=c2&source=appointments&appointmentId=a2&backTo=%2Fappointments'
@@ -184,9 +249,12 @@ describe('Appointments table', () => {
 
     render(<Appointments filteredList={[appointment]} canEditAppointments />);
 
-    fireEvent.click(screen.getByText('soap-icon').closest('button')!);
-    fireEvent.click(screen.getByText('finance-icon').closest('button')!);
-    fireEvent.click(screen.getByText('labs-icon').closest('button')!);
+    openRowMenu('Milo');
+    fireEvent.click(screen.getByTestId('IoDocumentTextOutline').closest('button')!);
+    openRowMenu('Milo');
+    fireEvent.click(screen.getByTestId('IoCardOutline').closest('button')!);
+    openRowMenu('Milo');
+    fireEvent.click(screen.getByTestId('MdScience').closest('button')!);
 
     expect(pushMock).toHaveBeenCalledWith('/appointments/a4/workspace?step=SOAP');
     expect(pushMock).toHaveBeenCalledWith('/appointments/a4/workspace?step=INVOICE');
@@ -222,6 +290,64 @@ describe('Appointments table', () => {
     expect(screen.getByText('-')).toBeInTheDocument();
   });
 
+  it('shows the first two support staff and counts the rest', () => {
+    // One line per staff member let a busy appointment grow the row without
+    // bound in a 110px column.
+    const appointment: any = {
+      id: 'a3b',
+      status: 'UPCOMING',
+      concern: 'Checkup',
+      appointmentType: { name: 'Exam' },
+      room: { name: 'Room 1' },
+      appointmentDate: '2025-01-06T09:00:00.000Z',
+      startTime: '2025-01-06T09:00:00.000Z',
+      lead: { name: 'Dr. Lee' },
+      supportStaff: [
+        { id: 's1', name: 'Nurse Ada' },
+        { id: 's2', name: 'Nurse Bo' },
+        { id: 's3', name: 'Nurse Cy' },
+        { id: 's4', name: 'Nurse Di' },
+      ],
+      companion: {
+        id: 'c3',
+        name: 'Buddy',
+        species: 'dog',
+        parent: { name: 'Jamie' },
+      },
+    };
+
+    render(<Appointments filteredList={[appointment]} canEditAppointments />);
+
+    expect(screen.getAllByText('Nurse Ada').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Nurse Bo').length).toBeGreaterThan(0);
+    // The overflow is summarised rather than stacked...
+    expect(screen.queryByText('Nurse Cy')).not.toBeInTheDocument();
+    expect(screen.queryByText('Nurse Di')).not.toBeInTheDocument();
+    expect(screen.getAllByText('+2').length).toBeGreaterThan(0);
+    // ...and no assignment is actually lost.
+    expect(screen.getAllByTitle('Nurse Ada, Nurse Bo, Nurse Cy, Nurse Di').length).toBeGreaterThan(
+      0
+    );
+  });
+
+  it('renders the desktop status cell through the protected shared pill class', () => {
+    const appointment: any = {
+      id: 'a6',
+      status: 'IN_PROGRESS',
+      companion: {
+        id: 'c6',
+        name: 'Ruby',
+        species: 'dog',
+        parent: { name: 'Jamie' },
+      },
+    };
+
+    render(<Appointments filteredList={[appointment]} canEditAppointments />);
+
+    const statusPill = screen.getByText('IN_PROGRESS');
+    expect(statusPill).toHaveClass('yc-status-pill', 'text-[10px]', 'leading-[normal]');
+  });
+
   it('shows room unit and mode pill in the room column for inpatient appointments', () => {
     const appointment: any = {
       id: 'a5',
@@ -243,6 +369,9 @@ describe('Appointments table', () => {
 
     expect(screen.getByText('Ward 1')).toBeInTheDocument();
     expect(screen.getByText('Kennel A')).toBeInTheDocument();
-    expect(screen.getByText('Inpatient')).toBeInTheDocument();
+    const modePill = screen.getByText('Inpatient').closest('[title="Inpatient"]') as HTMLElement;
+    expect(modePill).toHaveClass('mt-1', 'rounded-full!', 'text-[10px]', 'uppercase');
+    expect(modePill).not.toHaveClass('h-6');
+    expect(modePill).toHaveStyle({ backgroundColor: 'var(--color-pill-info-bg)' });
   });
 });

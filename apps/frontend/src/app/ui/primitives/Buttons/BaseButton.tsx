@@ -1,7 +1,14 @@
 import React from 'react';
 import Link from 'next/link';
 
-export type ButtonSize = 'default' | 'large';
+/**
+ * Pill heights measured off the 19 July design frames:
+ * - `compact` 32px / 0 14px / 12px — card and panel footer actions.
+ * - `small`   36px / 0 16px / 12.5px — inline actions inside content cards.
+ * - `default` 40px / 0 18px / 13.5px — the standard page CTA.
+ * - `large`   44px — hero and onboarding CTAs.
+ */
+export type ButtonSize = 'compact' | 'small' | 'default' | 'large';
 
 export type BaseButtonProps = {
   text: string;
@@ -16,6 +23,12 @@ export type BaseButtonProps = {
   size?: ButtonSize;
   type?: 'button' | 'submit' | 'reset';
   ariaLabel?: string;
+  /**
+   * Set on buttons that toggle a state rather than perform an action, so a
+   * screen reader announces the state the way the raw `<button>` these replaced
+   * did. Only meaningful on the button branch; a link has no pressed state.
+   */
+  ariaPressed?: boolean;
   sizeClasses: Record<ButtonSize, string>;
   baseClasses: string;
 };
@@ -42,12 +55,13 @@ const BaseButton = ({
   size = 'default',
   type = 'button',
   ariaLabel,
+  ariaPressed,
   sizeClasses,
   baseClasses,
 }: Readonly<BaseButtonProps>) => {
   const classes = `${sizeClasses[size]} ${baseClasses} ${isDisabled ? 'pointer-events-none opacity-60' : ''} ${className ?? ''}`;
   const iconNode = icon ? (
-    <span className="inline-flex size-5 shrink-0 items-center justify-center text-current [&>svg]:h-[18px] [&>svg]:w-[18px]">
+    <span className="inline-flex size-4 shrink-0 items-center justify-center text-current [&>svg]:h-4 [&>svg]:w-4">
       {icon}
     </span>
   ) : null;
@@ -94,6 +108,7 @@ const BaseButton = ({
       disabled={isDisabled}
       aria-disabled={isDisabled}
       aria-label={ariaLabel}
+      aria-pressed={ariaPressed}
       className={classes}
       onClick={onClick}
       onPointerDown={updateInteractionPosition}

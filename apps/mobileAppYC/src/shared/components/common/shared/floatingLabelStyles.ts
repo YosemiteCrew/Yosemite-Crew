@@ -1,103 +1,37 @@
+// Shared style helpers for the warm-bone text/touchable inputs: the field
+// container (border, radius, warm fieldBg) and the value text. The label now
+// sits statically above the field, so no animated floating-label helper remains.
+
 import {Platform} from 'react-native';
 import type {TextStyle} from 'react-native';
-import {
-  interpolate,
-  interpolateColor,
-  useAnimatedStyle,
-  type SharedValue,
-} from 'react-native-reanimated';
 import type {Theme} from '@/theme/themes';
 
-export interface FloatingLabelConfig {
-  animatedValue: SharedValue<number>;
-  theme: Theme;
-  hasValue: boolean;
-  focused?: boolean;
-  placeholderOffset?: number;
-}
-
-export const useFloatingLabelAnimatedStyle = ({
-  animatedValue,
-  theme,
-  focused = false,
-  placeholderOffset = 0,
-}: Omit<FloatingLabelConfig, 'hasValue'>) => {
-  // Calculate exact positioning to match Input component
-  const placeholderLineHeight =
-    theme.typography.input.lineHeight ?? theme.typography.input.fontSize ?? 16;
-  const placeholderTop = (theme.spacing['14'] - placeholderLineHeight) / 2 - 2;
-  const labelLineHeight =
-    theme.typography.inputLabel.lineHeight ??
-    theme.typography.inputLabel.fontSize ??
-    12;
-  const floatingTop = -Math.round(labelLineHeight / 2) - 2;
-
-  const activeColor = focused
-    ? theme.colors.primary
-    : theme.colors.textSecondary;
-  const isIOS = Platform.OS === 'ios';
-
-  return useAnimatedStyle(() => {
-    const baseStyle: any = {
-      position: 'absolute',
-      left: interpolate(
-        animatedValue.value,
-        [0, 1],
-        [theme.spacing['5'] + placeholderOffset, theme.spacing['5']],
-      ),
-      fontFamily: theme.typography.input.fontFamily,
-      fontWeight: theme.typography.input.fontWeight,
-      fontSize: interpolate(
-        animatedValue.value,
-        [0, 1],
-        [
-          theme.typography.input.fontSize ?? 16,
-          theme.typography.inputLabel.fontSize ?? 12,
-        ],
-      ),
-      top: interpolate(
-        animatedValue.value,
-        [0, 1],
-        [placeholderTop, floatingTop],
-      ),
-      color: interpolateColor(
-        animatedValue.value,
-        [0, 1],
-        [theme.colors.textSecondary, activeColor],
-      ),
-      letterSpacing: theme.typography.inputLabel.letterSpacing,
-      backgroundColor: theme.colors.surface || theme.colors.background,
-      paddingHorizontal: interpolate(
-        animatedValue.value,
-        [0, 1],
-        [0, theme.spacing['1']],
-      ),
-      paddingVertical: interpolate(animatedValue.value, [0, 1], [1, 0]),
-      zIndex: 1,
-      pointerEvents: 'none',
-    };
-
-    if (isIOS) {
-      return {
-        ...baseStyle,
-        includeFontPadding: false,
-        textAlignVertical: 'center',
-      };
-    }
-
-    return baseStyle;
-  }, [activeColor, isIOS, placeholderOffset, theme]);
-};
-
 export const getInputContainerBaseStyle = (theme: Theme, error?: string) => ({
-  borderWidth: 1,
-  borderColor: error ? theme.colors.error : theme.colors.border,
-  borderRadius: theme.borderRadius.lg,
-  backgroundColor: theme.colors.surface,
+  borderWidth: 1.5,
+  borderColor: error ? theme.colors.error : theme.colors.hairline,
+  borderRadius: theme.borderRadius.field,
+  backgroundColor: theme.colors.fieldBg,
   paddingHorizontal: theme.spacing['5'],
   minHeight: theme.spacing['14'],
   position: 'relative' as const,
   justifyContent: 'center' as const,
+});
+
+// Static label sits above the field in dark ink; the error is carried by the
+// red field border and the red message below (matching the design).
+export const getInputLabelStyle = (theme: Theme): TextStyle => ({
+  ...theme.typography.inputLabel,
+  color: theme.colors.inkBody,
+  marginBottom: theme.spacing['2'],
+  marginLeft: theme.spacing['1'],
+});
+
+export const getInputErrorStyle = (theme: Theme): TextStyle => ({
+  ...theme.typography.labelXxsBold,
+  color: theme.colors.error,
+  marginTop: theme.spacing['1'],
+  marginBottom: theme.spacing['3'],
+  marginLeft: theme.spacing['1'],
 });
 
 export const getValueTextStyle = (

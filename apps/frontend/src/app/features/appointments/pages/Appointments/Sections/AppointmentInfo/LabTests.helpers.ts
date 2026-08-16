@@ -10,8 +10,7 @@ import { toTitleCase } from './labTestsUtils';
 
 export const getResultOrderId = (result: LabResult) => {
   const raw = result.rawPayload as
-    | { orderId?: string | number; requisitionId?: string | number }
-    | undefined;
+    { orderId?: string | number; requisitionId?: string | number } | undefined;
   return String(
     result.orderId ?? result.requisitionId ?? raw?.orderId ?? raw?.requisitionId ?? ''
   ).trim();

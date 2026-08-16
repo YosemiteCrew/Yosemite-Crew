@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, jest, it } from "@jest/globals";
 import type { Request, Response } from "express";
 import { TaskFhirController } from "../../src/controllers/web/task.fhir.controller";
-import { taskFhirMapper } from "../../src/services/fhir-task.mapper";
+import {
+  taskFhirMapper,
+  type TaskLike,
+} from "../../src/services/fhir-task.mapper";
 
 jest.mock("../../src/services/task.service", () => {
   const actual = jest.requireActual(
@@ -78,7 +81,7 @@ describe("TaskFhirController", () => {
       }),
     );
     expect(mockedTaskFhirMapper.listBundle).toHaveBeenCalledWith([
-      { id: "task-1" },
+      { id: "task-1" } as TaskLike,
     ]);
   });
 

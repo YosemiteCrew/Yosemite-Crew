@@ -2,10 +2,19 @@ import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 
 const NEXT_STATIC_CHUNKS_DIR = path.resolve('.next/static/chunks');
-const JS_BUDGET_BYTES = 400 * 1024;
-const LARGE_ASYNC_CHUNK_BUDGET_BYTES = 1200 * 1024;
-const SHARED_CHUNK_BUDGET_BYTES = 220 * 1024;
-const POLYFILLS_BUDGET_BYTES = 150 * 1024;
+// Budgets are ratcheted to roughly 5% above the largest chunk in each category
+// at the time of writing, so growth is caught while normal churn is not. The
+// measured maxima were: page 355.5 KiB, async 1134.4 KiB, shared 185.3 KiB
+// (framework), polyfills 110.0 KiB.
+//
+// These are ceilings, not targets. When a change legitimately lands under one,
+// lower the budget to match rather than banking the headroom - a budget that
+// sits far above reality passes everything and warns about nothing, which is
+// what these did before.
+const JS_BUDGET_BYTES = 375 * 1024;
+const LARGE_ASYNC_CHUNK_BUDGET_BYTES = 1190 * 1024;
+const SHARED_CHUNK_BUDGET_BYTES = 195 * 1024;
+const POLYFILLS_BUDGET_BYTES = 120 * 1024;
 
 const formatKiB = (bytes) => `${(bytes / 1024).toFixed(1)} KiB`;
 

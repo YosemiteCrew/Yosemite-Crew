@@ -1,0 +1,93 @@
+/* PIMS phone day strip — the week as seven tappable load cells.
+   Every value is measured from the "Phone day calendar" frame in
+   `PIMS Responsive - Calendar`; the comment above each block names the source
+   declaration. Colours are token-only so light and dark come for free. */
+
+/* Frame: display flex; gap 5px. */
+.yc-day-strip {
+  display: flex;
+  flex: none;
+  gap: 5px;
+}
+
+/* Frame: flex 1; column; centred; gap 3px; padding 7px 0 6px; radius 12px. */
+.yc-day-strip__cell {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 7px 0 6px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  cursor: pointer;
+}
+
+/* Frame: selected cell fills --blue and lifts on 0 6px 16px var(--glow-b26). */
+.yc-day-strip__cell--selected {
+  background: var(--blue);
+  box-shadow: 0 6px 16px var(--glow-b26);
+}
+
+/* Frame: a day with no load recedes.
+   The frame said 45% opacity, but opacity composites the TEXT as well, and
+   this cell is a live tappable button: at 0.45 the 9px weekday landed at
+   1.81:1 on --band and the 14px date at 2.69:1, and no alpha below 1.0 gets
+   the weekday back to 4.5. So the recede is expressed in ink instead - the
+   date steps back to --ink-muted (5.31:1) while the weekday stays on the
+   faintest ink that still passes. The real "no load" signal is the dot row,
+   which a quiet day does not render at all. */
+.yc-day-strip__cell--quiet .yc-day-strip__date {
+  color: var(--ink-muted);
+}
+
+/* Frame: font-size 9px; font-weight 700; letter-spacing 0.06em; --ink-faint. */
+.yc-day-strip__weekday {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+}
+
+/* Frame: the selected cell's weekday is white at 75%. */
+.yc-day-strip__cell--selected .yc-day-strip__weekday {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* Frame: font-size 14px; font-weight 700; color var(--ink). */
+.yc-day-strip__date {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Frame: days already past drop to var(--ink-muted). */
+.yc-day-strip__date--past {
+  color: var(--ink-muted);
+}
+
+.yc-day-strip__cell--selected .yc-day-strip__date {
+  color: #ffffff;
+}
+
+/* Frame: dot row gap 2px; each dot 3.5px, fully round. */
+.yc-day-strip__dots {
+  display: flex;
+  gap: 2px;
+  height: 3.5px;
+}
+
+.yc-day-strip__dot {
+  width: 3.5px;
+  height: 3.5px;
+  border-radius: 9999px;
+  background: var(--blue);
+}
+
+/* Frame: on the filled cell the dots invert to white. */
+.yc-day-strip__cell--selected .yc-day-strip__dot {
+  background: #ffffff;
+}

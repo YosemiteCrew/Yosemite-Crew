@@ -113,6 +113,12 @@ describe('AERInfoSection', () => {
     expect(headerRow?.children.length).toBe(1);
   });
 
+  it('exposes a button role and label on the edit button', () => {
+    const {getByLabelText} = render(<AERInfoSection {...defaultProps} />);
+    const editButton = getByLabelText('Edit Personal Info');
+    expect(editButton.props.accessibilityRole).toBe('button');
+  });
+
   // ===========================================================================
   // 3. Row Interaction
   // ===========================================================================

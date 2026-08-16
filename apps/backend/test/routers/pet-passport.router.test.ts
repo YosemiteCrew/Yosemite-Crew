@@ -1,6 +1,7 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
+const requireMobileAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 
@@ -16,6 +17,8 @@ const PetPassportController = {
   getPassport: jest.fn(),
   getApplePass: jest.fn(),
   getGooglePass: jest.fn(),
+  issuePublicToken: jest.fn(),
+  revokePublicToken: jest.fn(),
 };
 
 const PassportConsentController = {
@@ -25,7 +28,10 @@ const PassportConsentController = {
   listConsents: jest.fn(),
 };
 
-jest.mock("../../src/middlewares/auth", () => ({ authorizeCognito }));
+jest.mock("../../src/middlewares/auth", () => ({
+  requireWebAuth,
+  requireMobileAuth,
+}));
 jest.mock("../../src/middlewares/rbac", () => ({
   withOrgPermissions,
   requirePermission,
@@ -102,11 +108,27 @@ describe("pet-passport.router", () => {
     expect(findRoute(`${BASE}/consents`, "post")?.stack).toHaveLength(4);
     expect(findRoute(`${ORG}/consents`, "get")?.stack).toHaveLength(4);
     expect(
-      findRoute(`${ORG}/consents/:consentId/grant`, "post")?.stack,
-    ).toHaveLength(4);
-    expect(
       findRoute(`${ORG}/consents/:consentId/revoke`, "post")?.stack,
     ).toHaveLength(4);
+  });
+
+  it("grants consent through a pet-parent route, not a staff one", () => {
+    const ORG = "/pms/organisation/:organisationId";
+    const MOBILE = "/mobile/organisation/:organisationId";
+    // A practice must never be able to authorise its own cross-practice access.
+    expect(
+      findRoute(`${ORG}/consents/:consentId/grant`, "post"),
+    ).toBeUndefined();
+    const grant = findRoute(`${MOBILE}/consents/:consentId/grant`, "post");
+    expect(grant?.stack).toHaveLength(2);
+    expect(grant?.stack.map((l) => l.handle)).toContain(requireMobileAuth);
+    expect(grant?.stack.map((l) => l.handle)).not.toContain(requireWebAuth);
+  });
+
+  it("gates attestation behind the veterinarian-only permission", () => {
+    // passport:edit:any is held by every staff role including RECEPTIONIST, so
+    // signing must use the narrower passport:attest:any.
+    expect(requirePermission).toHaveBeenCalledWith("passport:attest:any");
   });
 
   it("no longer exposes the legacy list (get) routes", () => {

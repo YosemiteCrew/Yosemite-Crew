@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import {
   AvailabilityState,
   daysOfWeek,
@@ -6,7 +6,7 @@ import {
   Interval,
   SetAvailability,
 } from '@/app/features/appointments/components/Availability/utils';
-import { IoCopy } from 'react-icons/io5';
+import { IoCopyOutline } from 'react-icons/io5';
 
 type DublicateProps = {
   setAvailability: SetAvailability;
@@ -28,6 +28,9 @@ const Dublicate: React.FC<DublicateProps> = ({ setAvailability, day }) => {
     }))
   );
   const [open, setOpen] = useState<boolean>(false);
+  // One Dublicate renders per day, each listing every weekday — so the day name alone
+  // is not a unique id. useId scopes the checkbox ids to this instance's popover.
+  const uid = useId();
 
   const handleSelect = (dayName: string) => {
     setCopyTargets((prev: CopyTarget[]) =>
@@ -66,24 +69,30 @@ const Dublicate: React.FC<DublicateProps> = ({ setAvailability, day }) => {
   };
 
   return (
-    <div className="relative flex items-center h-[45px]">
-      <IoCopy
-        color="var(--color-black-pure)"
-        size={20}
-        className="cursor-pointer mt-0.5"
-        onClick={() => setOpen((e) => !e)}
+    <div className="relative flex items-center">
+      {/* Matches the sibling add-range control: 28px outlined circle, 13px glyph. */}
+      <button
+        type="button"
         aria-label="dublicate-button"
-      />
+        title="Copy to other days"
+        onClick={() => setOpen((e) => !e)}
+        className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border transition-colors"
+        style={{ borderColor: 'var(--hairline)', color: 'var(--ink-faint)' }}
+      >
+        <IoCopyOutline size={13} aria-hidden="true" />
+      </button>
       {open && (
-        <div className="max-h-[200px] z-10 w-[120px] overflow-y-scroll scrollbar-hidden flex flex-col bg-white rounded-2xl border border-card-border absolute left-0 top-[120%] p-1">
+        <div className="max-h-[200px] z-10 w-[120px] overflow-y-scroll scrollbar-hidden flex flex-col bg-neutral-0 rounded-2xl border border-card-border absolute left-0 top-[120%] p-1">
           {copyTargets.map((d) => (
-            <button
-              type="button"
+            <label
               key={d.name}
-              className="border-none outline-none bg-white text-left p-2 flex items-center gap-1"
+              htmlFor={`${uid}-availability-duplicate-${d.name}-check`}
+              className={`min-h-11 text-left p-2 flex items-center gap-1 select-none ${
+                d.disable ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+              }`}
             >
               <input
-                id={`availability-duplicate-${d.name}-check`}
+                id={`${uid}-availability-duplicate-${d.name}-check`}
                 type="checkbox"
                 aria-label={`Copy availability to ${d.name}`}
                 checked={d.active}
@@ -92,11 +101,11 @@ const Dublicate: React.FC<DublicateProps> = ({ setAvailability, day }) => {
                 onChange={() => handleSelect(d.name)}
               />
               <span className="text-caption-1 text-text-primary">{d.name}</span>
-            </button>
+            </label>
           ))}
           <button
             type="button"
-            className="border-none outline-none bg-white text-center border-t! border-t-card-border! py-2 hover:bg-card-hover! rounded-2xl! transition-all duration-300"
+            className="border-none outline-none bg-neutral-0 text-center border-t! border-t-card-border! py-2 hover:bg-card-hover! rounded-2xl! transition-all duration-300"
             onClick={handleApply}
           >
             <span className="text-caption-1 text-text-primary">Apply</span>

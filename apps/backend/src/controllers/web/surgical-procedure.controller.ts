@@ -101,7 +101,7 @@ export const SurgicalProcedureController = {
       const record = await SurgicalProcedureService.create({
         organisationId: params.data.organisationId,
         performedBy: typedReq.userId ?? undefined,
-        ...parseDates(body.data as Record<string, unknown>),
+        ...parseDates(body.data),
       } as Parameters<typeof SurgicalProcedureService.create>[0]);
       return res.status(201).json(record);
     } catch (err) {
@@ -136,9 +136,7 @@ export const SurgicalProcedureController = {
       const record = await SurgicalProcedureService.update(
         params.data.procedureId,
         params.data.organisationId,
-        parseDates(body.data as Record<string, unknown>) as Parameters<
-          typeof SurgicalProcedureService.update
-        >[2],
+        parseDates(body.data),
         typedReq.userId ?? undefined,
       );
       return res.status(200).json(record);

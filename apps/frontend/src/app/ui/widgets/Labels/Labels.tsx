@@ -1,4 +1,5 @@
 import React from 'react';
+import { IoAlertCircle, IoCheckmarkCircle } from 'react-icons/io5';
 import SubLabels from '@/app/ui/widgets/Labels/SubLabels';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 
@@ -57,16 +58,34 @@ const Labels = ({
             aria-selected={label.key === activeLabel}
             disabled={disableClicking}
             onClick={() => setActiveLabel(label.key)}
-            className={`shrink-0 min-w-20 h-9 text-body-4 px-3 text-text-secondary rounded-2xl! border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-text ${
+            className={`shrink-0 min-w-20 h-9 text-body-4 px-3 rounded-full! border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ink)] ${
               label.key === activeLabel
-                ? 'bg-blue-light text-primary-700! border-text-brand!'
-                : 'border-card-border! hover:bg-card-hover!'
+                ? 'bg-[var(--color-pill-neutral-bg)] text-[var(--ink)]! border-[var(--color-pill-neutral-border)]! font-bold'
+                : 'text-[var(--ink-soft)] border-[var(--hairline)]! font-semibold hover:bg-card-hover!'
             } ${disableClicking ? 'opacity-70 cursor-not-allowed' : ''}`}
           >
             <span className="flex items-center justify-center gap-1.5 text-center w-full">
               {label.name}
-              {statuses[label.key] === 'valid' && <span className="text-green-600 text-sm">•</span>}
-              {statuses[label.key] === 'error' && <span className="text-red-500 text-sm">•</span>}
+              {/* Shape, not just hue: --success and --danger differ by 0.0005 in
+                  relative luminance, so in greyscale (or to a red-green
+                  colourblind user) a saved section and a failed one were the
+                  same dot. */}
+              {statuses[label.key] === 'valid' && (
+                <IoCheckmarkCircle
+                  role="img"
+                  title="Section complete"
+                  aria-label="Section complete"
+                  className="size-4 shrink-0 text-[var(--color-pill-success-text)]"
+                />
+              )}
+              {statuses[label.key] === 'error' && (
+                <IoAlertCircle
+                  role="img"
+                  title="Section has errors"
+                  aria-label="Section has errors"
+                  className="size-4 shrink-0 text-[var(--color-pill-danger-text)]"
+                />
+              )}
             </span>
           </button>
         ))}

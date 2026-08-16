@@ -1,0 +1,273 @@
+# Vulnerability-scan configuration for the supply-chain gate (#1721).
+# scripts/security/supply-chain.sh scan runs grype over the repository SBOM
+# with --fail-on critical; CI runs the same script.
+#
+# EXCEPTION PROCESS - accepted findings go under `ignore:` below. Every entry
+# MUST carry a comment with: the reason it is acceptable, an owner, and an
+# expiry date at which it must be re-reviewed (mirror of the
+# scripts/ci/override-advisory-baseline.json process). Example:
+#
+# ignore:
+#   # GHSA-xxxx-xxxx-xxxx in foo@1.2.3: not reachable - the vulnerable code
+#   # path needs server-side rendering we never enable. Owner: ankit-yc.
+#   # Re-review by: YYYY-MM-DD. (a real date here - the placeholder is
+#   # deliberate so this example never trips the expiry guard)
+#   - vulnerability: GHSA-xxxx-xxxx-xxxx
+#     package:
+#       name: foo
+#       version: 1.2.3
+
+ignore:
+  # GHSA-w3rx-r6r6-pgpr and GHSA-5p2g-fcmc-qvqq in image-size@1.2.1 and
+  # image-size@2.0.2: no patched version exists. Both advisories cover
+  # <=2.0.2, and 2.0.2 (2025-04-02) is the newest release on npm, so there is
+  # no version to raise the tree to. Not reachable for us either - image-size
+  # is build-time tooling on all three paths that pull it: metro (the
+  # apps/mobileAppYC bundler) takes 1.2.1, while @docusaurus/mdx-loader (the
+  # apps/dev-docs static build) and vite-plugin-storybook-nextjs (an
+  # apps/frontend Storybook devDependency) take 2.0.2. Each of them measures
+  # images committed in this repository; no request handler, deployed service
+  # or shipped bundle parses caller-supplied ICNS/JXL/HEIF bytes, so the
+  # infinite loop can only stall a build we ran ourselves. Owner: ankit-yc.
+  # Re-review by: 2026-11-11.
+  - vulnerability: GHSA-w3rx-r6r6-pgpr
+    package:
+      name: image-size
+      version: 1.2.1
+  - vulnerability: GHSA-w3rx-r6r6-pgpr
+    package:
+      name: image-size
+      version: 2.0.2
+  - vulnerability: GHSA-5p2g-fcmc-qvqq
+    package:
+      name: image-size
+      version: 1.2.1
+  - vulnerability: GHSA-5p2g-fcmc-qvqq
+    package:
+      name: image-size
+      version: 2.0.2
+  # GHSA-jmr9-qjv8-65gv in extract-zip@2.0.1: no patched version exists. The
+  # advisory covers <=2.0.1 and 2.0.1 (2020-06-10) is the final release of an
+  # unmaintained package. Development scope only: the sole consumer is
+  # electron@39, an apps/desktop devDependency, which uses it to unpack the
+  # Electron binary archive that @electron/get downloads from a pinned release
+  # and checksum-verifies first. The symlink traversal needs an attacker-built
+  # archive, and we never hand extract-zip a user- or third-party-supplied
+  # zip; it ships in no release artifact. Owner: ankit-yc.
+  # Re-review by: 2026-11-11.
+  - vulnerability: GHSA-jmr9-qjv8-65gv
+    package:
+      name: extract-zip
+      version: 2.0.1
+  # 7-Zip 16.04 and 20.02 in electron-winstaller@5.4.0.
+  # 136 alerts across 44 CVEs, all from six vendored binaries in one package:
+  # the x64 pair under electron-winstaller/vendor is 7-Zip 16.04 (2016-10-04)
+  # and the arm64 pair is 20.02.
+  #
+  # No version to raise to: electron-winstaller 5.4.4, the current release,
+  # ships byte-identical binaries (sha256-compared against 5.4.0), so upstream
+  # has no fix and bumping the package changes nothing.
+  #
+  # Not reachable either. It arrives only as a transitive peer, through
+  # electron-builder to app-builder-lib to electron-builder-squirrel-windows,
+  # and electron-builder is an apps/desktop devDependency. That chain builds
+  # Squirrel.Windows installers, which this repository does not produce: the
+  # build.win.target block in apps/desktop/package.json lists nsis and portable
+  # only. Nothing here executes these binaries and they ship in no release
+  # artifact; they sit in the store because auto-install-peers materialises a
+  # non-optional peer.
+  #
+  # Removing the package outright was tried and rejected as the riskier fix:
+  # the peer is baked into the lockfile resolution keys, so dropping it needs a
+  # full re-resolution across every workspace to delete build-time tooling that
+  # never runs. Owner: ankit-yc. Re-review by: 2026-11-14.
+  - vulnerability: CVE-2017-17969
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2018-10115
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2018-10172
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2018-5996
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2022-29072
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2022-29072
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2023-31102
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2023-31102
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2023-40481
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2023-40481
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2023-52169
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2023-52169
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2024-11477
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2024-11477
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2024-11612
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2024-11612
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2025-0411
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2025-0411
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2025-53816
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2025-53816
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2025-53817
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2025-53817
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2025-55188
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2025-55188
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2026-14266
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2026-14266
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2026-48092
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2026-48092
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2026-48095
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2026-48095
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2026-48101
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2026-48101
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2026-48102
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2026-48102
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2026-48103
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2026-48103
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2026-48104
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2026-48104
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2026-48111
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2026-48111
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2026-48112
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2026-48112
+    package:
+      name: 7-Zip
+      version: 20.02
+  - vulnerability: CVE-2026-58052
+    package:
+      name: 7-Zip
+      version: 16.04
+  - vulnerability: CVE-2026-58052
+    package:
+      name: 7-Zip
+      version: 20.02
+  # aws-sdk 2.1693.0.
+  # GHSA-j965-2qgj-vjmq (low) has no patched version; the advisory's remedy is
+  # to validate the region parameter or migrate to v3. Region is never
+  # caller-supplied here - every construction reads it from the deployment
+  # environment (process.env.AWS_REGION in middlewares/upload.ts,
+  # services/rendered-document.service.ts,
+  # services/marketing-unsubscribe.service.ts and utils/email.ts), so the
+  # parameter an attacker would need to influence is not reachable from a
+  # request. Migrating apps/backend to AWS SDK v3 is the real fix and wants its
+  # own change. Owner: ankit-yc. Re-review by: 2026-11-14.
+  - vulnerability: GHSA-j965-2qgj-vjmq
+    package:
+      name: aws-sdk
+      version: 2.1693.0

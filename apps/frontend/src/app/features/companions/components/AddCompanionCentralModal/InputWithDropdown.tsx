@@ -36,9 +36,6 @@ const InputWithDropdown = ({
   const [open, setOpen] = useState(false);
   const [portalStyle, setPortalStyle] = useState<React.CSSProperties | null>(null);
   const uid = useId();
-  // Only auto-open after the user has typed — prevents dropdown firing when
-  // edit mode mounts with a pre-filled value that matches existing companions.
-  const userHasTypedRef = useRef(false);
 
   const filtered = useFilteredOptions(options, value);
 
@@ -53,13 +50,14 @@ const InputWithDropdown = ({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Auto-open when results arrive, auto-close when empty — but only after user interaction
-  const [prevFilteredLength, setPrevFilteredLength] = useState(filtered.length);
-  if (filtered.length !== prevFilteredLength) {
+  // Auto-open when results arrive, auto-close when empty - but only after the user
+  // has typed. null until the first keystroke seeds it (in onChange), which prevents
+  // the dropdown firing when edit mode mounts with a pre-filled value that matches
+  // existing companions.
+  const [prevFilteredLength, setPrevFilteredLength] = useState<number | null>(null);
+  if (prevFilteredLength !== null && filtered.length !== prevFilteredLength) {
     setPrevFilteredLength(filtered.length);
-    if (userHasTypedRef.current) {
-      setOpen(filtered.length > 0);
-    }
+    setOpen(filtered.length > 0);
   }
 
   const computeStyle = useCallback(() => {
@@ -78,13 +76,18 @@ const InputWithDropdown = ({
   }, []);
 
   const computeStyleRef = useRef(computeStyle);
-  computeStyleRef.current = computeStyle;
+  useEffect(() => {
+    computeStyleRef.current = computeStyle;
+  });
+
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
+    if (!open) setPortalStyle(null);
+  }
 
   useLayoutEffect(() => {
-    if (!open) {
-      setPortalStyle(null);
-      return;
-    }
+    if (!open) return;
     computeStyleRef.current();
   }, [open]);
 
@@ -104,14 +107,14 @@ const InputWithDropdown = ({
     <div
       data-iwd-panel
       aria-label={inlabel}
-      className="border-input-text-placeholder-active overflow-y-auto scrollbar-hidden rounded-b-2xl border border-t bg-white flex flex-col items-stretch px-3 py-2.5"
+      className="border-input-text-placeholder-active overflow-y-auto scrollbar-hidden rounded-b-2xl border border-t bg-[var(--screen)] shadow-[0_16px_34px_var(--sh12)] flex flex-col items-stretch px-3 py-2.5"
       style={portalStyle ?? undefined}
     >
       {filtered.map((opt) => (
         <button
           key={opt.value}
           type="button"
-          className="px-5 py-3 text-left text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full"
+          className="px-5 py-2 text-left text-[13px] hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full"
           onMouseDown={(e) => e.stopPropagation()}
           onClick={() => handleSelect(opt)}
         >
@@ -123,6 +126,12 @@ const InputWithDropdown = ({
 
   return (
     <div className="flex flex-col w-full">
+      <label
+        htmlFor={uid}
+        className="mb-1.5 block truncate text-[12.5px] font-semibold text-[var(--ink-soft)]"
+      >
+        {inlabel}
+      </label>
       <div className="w-full relative" ref={wrapRef}>
         <input
           id={uid}
@@ -131,39 +140,20 @@ const InputWithDropdown = ({
           aria-label={inlabel}
           value={value}
           autoComplete="off"
-          placeholder=" "
           onChange={(e) => {
-            userHasTypedRef.current = true;
+            setPrevFilteredLength((prev) => prev ?? filtered.length);
             onChange(e.target.value);
           }}
           onFocus={() => {
-            if (userHasTypedRef.current && filtered.length > 0) setOpen(true);
+            if (prevFilteredLength !== null && filtered.length > 0) setOpen(true);
           }}
           aria-invalid={Boolean(error)}
           className={`
-            peer w-full min-h-12 rounded-2xl bg-transparent px-6 py-2.5
+            w-full min-h-12 rounded-2xl bg-transparent px-6 py-2.5
             text-body-4 text-text-primary outline-none border
             ${open ? 'border-input-border-active! rounded-b-none! border-b-0!' : getInputBorderClass(error)}
           `}
         />
-        <label
-          htmlFor={uid}
-          className={`
-            pointer-events-none absolute left-4
-            top-1/2 -translate-y-1/2
-            max-w-[calc(100%-2rem)] truncate
-            text-body-4 text-input-text-placeholder
-            transition-all duration-200
-            peer-focus:-top-2.75 peer-focus:translate-y-0
-            peer-focus:text-xs! peer-focus:text-input-text-placeholder-active
-            peer-focus:bg-(--whitebg) peer-focus:px-1.5 peer-focus:max-w-none
-            peer-not-placeholder-shown:px-1.5 peer-not-placeholder-shown:max-w-none
-            peer-not-placeholder-shown:-top-2.75 peer-not-placeholder-shown:translate-y-0
-            peer-not-placeholder-shown:text-xs! peer-not-placeholder-shown:bg-(--whitebg)
-          `}
-        >
-          {inlabel}
-        </label>
         {open &&
           portalStyle &&
           typeof document !== 'undefined' &&

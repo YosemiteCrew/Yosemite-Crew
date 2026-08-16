@@ -1,4 +1,4 @@
-import React, { useCallback, useId, useMemo, useRef } from 'react';
+import React, { useCallback, useId, useMemo, useState } from 'react';
 import ReactDatePicker from 'react-datepicker';
 import { IoIosWarning } from 'react-icons/io';
 import { IoCalendarOutline } from 'react-icons/io5';
@@ -8,8 +8,7 @@ const INPUT_DATE_FORMAT = 'MMM d, yyyy';
 type DatepickerProps = {
   currentDate: Date | null;
   setCurrentDate:
-    | React.Dispatch<React.SetStateAction<Date | null>>
-    | React.Dispatch<React.SetStateAction<Date>>;
+    React.Dispatch<React.SetStateAction<Date | null>> | React.Dispatch<React.SetStateAction<Date>>;
   minYear?: number;
   maxYear?: number;
   /** Earliest selectable date. Overrides minYear when provided. */
@@ -52,11 +51,11 @@ const DateInputButton = ({
         ref={ref}
         type="button"
         onClick={onClick}
-        className={`flex h-12 w-12 items-center justify-center rounded-2xl! border! border-input-border-default! transition-all duration-300 ease-in-out ${className ?? ''}`}
+        className={`flex h-[44px] w-[44px] items-center justify-center rounded-[12px]! border-[1.5px]! bg-[var(--field-bg)] transition-all duration-300 ease-in-out focus:shadow-[0_0_0_3px_var(--glow-b10)] ${className ?? ''}`}
         aria-label="Toggle calendar"
         aria-describedby={errorId}
       >
-        <IoCalendarOutline size={20} color="var(--color-primary-500)" aria-hidden="true" />
+        <IoCalendarOutline size={18} color="var(--blue)" aria-hidden="true" />
       </button>
     );
   }
@@ -66,8 +65,7 @@ const DateInputButton = ({
       ref={ref}
       type="button"
       onClick={onClick}
-      className={`peer relative flex min-h-12 w-full items-center rounded-2xl! border bg-transparent px-5 py-2.5 text-left text-text-primary outline-none transition-colors ${className ?? ''}`}
-      style={{ fontSize: 16 }}
+      className={`relative flex h-[44px] w-full items-center justify-between rounded-[12px]! border-[1.5px] bg-[var(--field-bg)] px-[14px] text-left text-[14px] text-[var(--ink-body)] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)] ${className ?? ''}`}
       aria-label={
         value
           ? `${accessibleLabel}: ${value}, toggle calendar`
@@ -77,20 +75,13 @@ const DateInputButton = ({
       aria-controls={inputId}
       aria-describedby={errorId}
     >
-      <span>{value || ''}</span>
-      <span
-        className={`pointer-events-none absolute left-5 font-satoshi transition-all duration-150 ${
-          value
-            ? 'top-0 -translate-y-1/2 bg-(--whitebg) px-1 text-neutral-900'
-            : 'top-1/2 -translate-y-1/2 text-input-text-placeholder'
-        }`}
-        style={{ fontSize: value ? 12 : 16 }}
-      >
-        {accessibleLabel}
-      </span>
-      <span className="absolute right-5 top-1/2 -translate-y-1/2">
-        <IoCalendarOutline size={18} color="var(--color-primary-500)" aria-hidden="true" />
-      </span>
+      <span className="truncate">{value || ''}</span>
+      <IoCalendarOutline
+        size={15}
+        color="var(--ink-faint)"
+        aria-hidden="true"
+        className="ml-2 shrink-0"
+      />
     </button>
   );
 };
@@ -102,15 +93,16 @@ const getComparableDateTime = (date: Date | null | undefined) => {
 };
 
 const useStableDate = (date: Date | null | undefined) => {
-  const dateRef = useRef<Date | null>(date ?? null);
+  const [stableDate, setStableDate] = useState<Date | null>(date ?? null);
   const time = getComparableDateTime(date);
-  const previousTime = getComparableDateTime(dateRef.current);
+  const previousTime = getComparableDateTime(stableDate);
 
   if (time !== previousTime) {
-    dateRef.current = date ?? null;
+    setStableDate(date ?? null);
+    return date ?? null;
   }
 
-  return dateRef.current;
+  return stableDate;
 };
 
 const Datepicker = ({
@@ -151,7 +143,7 @@ const Datepicker = ({
         inputId={inputId}
         label={placeholder}
         errorId={errorId}
-        className={`${error ? 'border-input-border-error!' : 'border-input-border-default!'} focus:border-input-border-active! ${className ?? ''}`}
+        className={`${error ? 'border-[var(--danger)]!' : 'border-[var(--hairline)]!'} focus:border-[var(--blue)]! ${className ?? ''}`}
       />
     ),
     [className, error, errorId, inputId, isInput, placeholder]
@@ -159,6 +151,11 @@ const Datepicker = ({
 
   return (
     <div className={`relative ${containerClassName ?? ''}`}>
+      {isInput && (
+        <span className="mb-1.5 block truncate text-[12.5px] font-semibold text-[var(--ink-soft)]">
+          {placeholder}
+        </span>
+      )}
       <ReactDatePicker
         selected={selectedDate}
         onChange={handleDateChange}
@@ -183,7 +180,7 @@ const Datepicker = ({
         <div
           id={errorId}
           role="alert"
-          className="mt-1.5 flex items-center gap-1 px-4 text-caption-2 text-text-error"
+          className="mt-1.5 flex items-center gap-1 text-caption-2 text-text-error"
         >
           <IoIosWarning className="text-text-error" size={14} aria-hidden="true" />
           <span>{error}</span>

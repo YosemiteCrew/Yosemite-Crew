@@ -1,5 +1,3 @@
-import { Schema, model, HydratedDocument } from "mongoose";
-
 export type AuditActorType = "PMS_USER" | "PARENT" | "SYSTEM";
 
 export type AuditEntityType =
@@ -213,48 +211,6 @@ export interface AuditTrailMongo {
   updatedAt?: Date;
 }
 
-const AuditTrailSchema = new Schema(
-  {
-    organisationId: { type: String, required: true, index: true },
-    patientId: { type: String, required: true, index: true },
-    eventType: { type: String, required: true, index: true },
-
-    actorType: {
-      type: String,
-      enum: ["PMS_USER", "PARENT", "SYSTEM"],
-      default: null,
-    },
-    actorId: { type: String, default: null },
-    actorName: { type: String, default: null },
-
-    entityType: {
-      type: String,
-      enum: [
-        "PATIENT_ORGANISATION",
-        "APPOINTMENT",
-        "ENCOUNTER",
-        "INVOICE",
-        "DOCUMENT",
-        "FORM",
-        "TASK",
-        "PARENT",
-        "COMPANION",
-      ],
-      default: null,
-    },
-    entityId: { type: String, default: null },
-
-    metadata: { type: Schema.Types.Mixed, default: null },
-    occurredAt: { type: Date, default: Date.now, index: true },
-  },
-  { timestamps: true },
-);
-
-AuditTrailSchema.index({ organisationId: 1, patientId: 1, occurredAt: -1 });
-AuditTrailSchema.index({ organisationId: 1, occurredAt: -1 });
-
-export type AuditTrailDocument = HydratedDocument<AuditTrailMongo>;
-
-const AuditTrailModel = model<AuditTrailMongo>("AuditTrail", AuditTrailSchema);
-
-export default AuditTrailModel;
+export interface AuditTrailDocument extends AuditTrailMongo {
+  _id: string;
+}

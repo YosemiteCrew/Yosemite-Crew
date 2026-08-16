@@ -4,7 +4,11 @@
  */
 
 import type { Config } from 'jest';
-import nextJest from 'next/jest';
+// Explicit `.js` extension: Jest 30 loads a TypeScript config through Node's
+// native type stripping on Node >= 22, where ESM resolution rejects the
+// extensionless specifier ("next" ships no exports map). CommonJS loaders
+// (ts-node on Node 20) resolve this form identically.
+import nextJest from 'next/jest.js';
 
 const createJestConfig = nextJest({
   // Provide the path to your Next.js app to load next.config.js and .env files in your test environment
@@ -56,9 +60,13 @@ const config: Config = {
     '!<rootDir>/src/app/features/*/*/*/*/index.tsx',
     '!<rootDir>/src/app/features/*/types/**',
     '!<rootDir>/src/app/features/*/types.ts',
+    '!<rootDir>/src/app/**/*.types.ts',
+    '!<rootDir>/src/app/lib/index.ts',
     '!<rootDir>/src/app/services/http/types.ts',
     '!<rootDir>/src/app/features/integrations/services/types.ts',
     '!<rootDir>/src/app/features/onboarding/components/Steps/types.ts',
+    '!<rootDir>/src/app/ui/layout/Notifications/notificationTypes.ts',
+    '!<rootDir>/src/app/features/guides/types/guides.ts',
     '!<rootDir>/src/app/loading.tsx',
     '!<rootDir>/src/app/not-found.tsx',
     '!<rootDir>/src/app/(routes)/**/layout.tsx',
@@ -74,6 +82,20 @@ const config: Config = {
     '<rootDir>/src/app/features/companions/components/AddCompanionCentralModal/index.tsx',
     '<rootDir>/src/app/features/inventory/pages/Inventory/index.tsx',
     '<rootDir>/src/app/features/appointments/pages/AppointmentWorkspace/index.tsx',
+    '<rootDir>/src/app/features/appointments/pages/Appointments/index.tsx',
+    '<rootDir>/src/app/features/integrations/pages/IdexxWorkspace/index.tsx',
+    '<rootDir>/src/app/features/integrations/pages/Integrations/index.tsx',
+    '<rootDir>/src/app/features/integrations/pages/MerckManuals/index.tsx',
+    '<rootDir>/src/app/features/inventory/components/AddInventory/index.tsx',
+    '<rootDir>/src/app/features/inventory/components/TurnoverAnalytics/index.tsx',
+    '<rootDir>/src/app/features/tasks/pages/Tasks/index.tsx',
+    '<rootDir>/src/app/features/forms/pages/Forms/index.tsx',
+    '<rootDir>/src/app/features/onboarding/pages/StripeOnboarding/index.tsx',
+    '<rootDir>/src/app/features/finance/pages/Finance/index.tsx',
+    '<rootDir>/src/app/features/finance/pages/Discounts/index.tsx',
+    '<rootDir>/src/app/features/organization/pages/Organization/index.tsx',
+    '<rootDir>/src/app/features/settings/pages/Settings/index.tsx',
+    '<rootDir>/src/app/features/companions/components/AddCompanion/index.tsx',
   ],
 
   // The directory where Jest should output its coverage files
@@ -220,7 +242,11 @@ const config: Config = {
   // ],
 
   // An array of regexp pattern strings that are matched against all test paths, matched tests are skipped
-  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/e2e/'],
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '<rootDir>/e2e/',
+    '<rootDir>/src/app/__tests__/support/',
+  ],
 
   // The regexp pattern or array of patterns that Jest uses to detect test files
   // testRegex: [],

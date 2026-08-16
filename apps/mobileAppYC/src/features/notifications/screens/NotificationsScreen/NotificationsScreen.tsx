@@ -3,10 +3,11 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  SectionList,
   Image,
   RefreshControl,
 } from 'react-native';
+import type {SectionListRenderItem, ViewStyle} from 'react-native';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {useNavigation} from '@react-navigation/native';
@@ -247,17 +248,37 @@ export const NotificationsScreen: React.FC = () => {
     [companions],
   );
 
-  // Render empty state
-  const renderEmptyState = () => (
-    <View style={styles.emptyContainer}>
-      <Image source={Images.emptyNotifications} style={styles.emptyImage} />
-      <Text style={styles.emptyTitle}>Nothing in the box!</Text>
-      <Text style={styles.emptySubtitle}>
-        Your notification box is empty right now.{'\n'}
-        Sit, stay, and we’ll fetch updates soon.
-      </Text>
-    </View>
-  );
+  // Group the real feed into Today / Yesterday / Earlier sections.
+  const sections = useMemo<Array<{title: string; data: Notification[]}>>(() => {
+    const now = new Date();
+    const startOfToday = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    ).getTime();
+    const startOfYesterday = startOfToday - 86400000;
+
+    const today: Notification[] = [];
+    const yesterday: Notification[] = [];
+    const earlier: Notification[] = [];
+
+    for (const item of notifications) {
+      const time = new Date(item.timestamp).getTime();
+      if (!Number.isNaN(time) && time >= startOfToday) {
+        today.push(item);
+      } else if (!Number.isNaN(time) && time >= startOfYesterday) {
+        yesterday.push(item);
+      } else {
+        earlier.push(item);
+      }
+    }
+
+    const grouped: Array<{title: string; data: Notification[]}> = [];
+    if (today.length) grouped.push({title: 'Today', data: today});
+    if (yesterday.length) grouped.push({title: 'Yesterday', data: yesterday});
+    if (earlier.length) grouped.push({title: 'Earlier', data: earlier});
+    return grouped;
+  }, [notifications]);
 
   // Render notification item
   const renderNotificationItem = ({item}: {item: Notification}) => {
@@ -293,50 +314,23 @@ export const NotificationsScreen: React.FC = () => {
       showBottomFade={false}>
       {contentPaddingStyle => (
         <>
-          {/* Header content placed above FlatList to preserve internal scroll state */}
-          <View style={[styles.headerContent, contentPaddingStyle]}>
-            <View style={styles.filtersWrapper}>
-              <NotificationFilterPills
-                selectedFilter={filter}
-                onFilterChange={handleFilterChange}
-                unreadCounts={unreadCounts as any}
-              />
-            </View>
+          {/* Header content placed above the list to preserve internal scroll state */}
+          <NotificationsListHeader
+            filter={filter}
+            onFilterChange={handleFilterChange}
+            unreadCounts={unreadCounts as any}
+            sortBy={sortBy}
+            onSortChange={handleSortChange}
+            contentPaddingStyle={contentPaddingStyle}
+            styles={styles}
+          />
 
-            <View style={styles.segmentContainer}>
-              <View style={styles.segmentInner}>
-                {(['new', 'seen'] as const).map(option => (
-                  <PressableOpacity
-                    key={option}
-                    onPress={() => handleSortChange(option)}
-                    activeOpacity={0.9}
-                    style={[
-                      styles.segmentItem,
-                      sortBy === option && styles.segmentItemActive,
-                    ]}>
-                    <Text
-                      style={[
-                        styles.segmentText,
-                        sortBy === option && styles.segmentTextActive,
-                      ]}>
-                      {option === 'new' ? 'New' : 'Seen'}
-                    </Text>
-                  </PressableOpacity>
-                ))}
-              </View>
-            </View>
-          </View>
-
-          <FlatList
-            style={styles.list}
-            contentContainerStyle={styles.listContent}
-            data={notifications}
+          <NotificationsSectionList
+            sections={sections}
             renderItem={renderNotificationItem}
-            keyExtractor={item => item.id}
-            ListEmptyComponent={renderEmptyState}
             refreshControl={refreshControl}
-            showsVerticalScrollIndicator={false}
-            scrollEventThrottle={16}
+            emptyComponent={<NotificationsEmptyState styles={styles} />}
+            styles={styles}
           />
         </>
       )}
@@ -356,7 +350,12 @@ const createStyles = (theme: any) => {
     listContent: {
       paddingHorizontal: theme.spacing['4'],
       paddingBottom: theme.spacing['10'],
-      gap: theme.spacing['3'],
+    },
+    sectionHeader: {
+      ...theme.typography.eyebrow,
+      color: theme.colors.inkFaint,
+      marginTop: theme.spacing['2'],
+      marginBottom: theme.spacing['2'],
     },
     headerContent: {
       marginBottom: theme.spacing['2'],
@@ -373,10 +372,10 @@ const createStyles = (theme: any) => {
     },
     segmentInner: {
       flexDirection: 'row',
-      backgroundColor: theme.colors.border,
+      backgroundColor: theme.colors.screen2,
       borderRadius: theme.borderRadius.md,
       padding: theme.spacing['1'],
-      borderColor: theme.colors.border,
+      borderColor: theme.colors.hairline,
       borderWidth: 1,
     },
     segmentItem: {
@@ -389,15 +388,15 @@ const createStyles = (theme: any) => {
     segmentItemActive: {
       backgroundColor: theme.colors.cardBackground,
       borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderColor: theme.colors.hairline,
       ...theme.shadows.xs,
     },
     segmentText: {
       ...theme.typography.labelSmall,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkMuted,
     },
     segmentTextActive: {
-      color: theme.colors.text,
+      color: theme.colors.inkBody,
       fontWeight: '700',
     },
     // Clear All styles removed
@@ -415,8 +414,8 @@ const createStyles = (theme: any) => {
       marginBottom: theme.spacing['4'],
     },
     emptyTitle: {
-      ...theme.typography.businessSectionTitle20,
-      color: theme.colors.text,
+      ...theme.typography.emptyStateTitle,
+      color: theme.colors.ink,
       marginBottom: theme.spacing['2'],
       textAlign: 'center',
     },
@@ -428,3 +427,117 @@ const createStyles = (theme: any) => {
     },
   });
 };
+
+type NotificationStyles = ReturnType<typeof createStyles>;
+
+interface NotificationsListHeaderProps {
+  filter: NotificationCategory;
+  onFilterChange: (selectedFilter: NotificationCategory) => void;
+  unreadCounts: Partial<Record<NotificationCategory, number>>;
+  sortBy: 'new' | 'seen';
+  onSortChange: (selectedSort: 'new' | 'seen') => void;
+  contentPaddingStyle: ViewStyle | null;
+  styles: NotificationStyles;
+}
+
+// Filter pills + New/Seen segment shown above the list.
+const NotificationsListHeader: React.FC<NotificationsListHeaderProps> = ({
+  filter,
+  onFilterChange,
+  unreadCounts,
+  sortBy,
+  onSortChange,
+  contentPaddingStyle,
+  styles,
+}) => (
+  <View style={[styles.headerContent, contentPaddingStyle]}>
+    <View style={styles.filtersWrapper}>
+      <NotificationFilterPills
+        selectedFilter={filter}
+        onFilterChange={onFilterChange}
+        unreadCounts={unreadCounts}
+      />
+    </View>
+
+    <View style={styles.segmentContainer}>
+      <View style={styles.segmentInner}>
+        {(['new', 'seen'] as const).map(option => (
+          <PressableOpacity
+            key={option}
+            onPress={() => onSortChange(option)}
+            activeOpacity={0.9}
+            style={[
+              styles.segmentItem,
+              sortBy === option && styles.segmentItemActive,
+            ]}
+            accessibilityRole="radio"
+            accessibilityState={{selected: sortBy === option}}
+            accessibilityLabel={option === 'new' ? 'New' : 'Seen'}>
+            <Text
+              style={[
+                styles.segmentText,
+                sortBy === option && styles.segmentTextActive,
+              ]}>
+              {option === 'new' ? 'New' : 'Seen'}
+            </Text>
+          </PressableOpacity>
+        ))}
+      </View>
+    </View>
+  </View>
+);
+
+type NotificationSection = {title: string; data: Notification[]};
+
+interface NotificationsSectionListProps {
+  sections: NotificationSection[];
+  renderItem: SectionListRenderItem<Notification, NotificationSection>;
+  refreshControl: React.ReactElement<
+    React.ComponentProps<typeof RefreshControl>
+  >;
+  emptyComponent: React.ReactElement;
+  styles: NotificationStyles;
+}
+
+// Grouped Today / Yesterday / Earlier notification list.
+const NotificationsSectionList: React.FC<NotificationsSectionListProps> = ({
+  sections,
+  renderItem,
+  refreshControl,
+  emptyComponent,
+  styles,
+}) => (
+  <SectionList
+    style={styles.list}
+    contentContainerStyle={styles.listContent}
+    sections={sections}
+    renderItem={renderItem}
+    renderSectionHeader={({section}) => (
+      <Text style={styles.sectionHeader}>{section.title}</Text>
+    )}
+    keyExtractor={item => item.id}
+    ListEmptyComponent={emptyComponent}
+    refreshControl={refreshControl}
+    stickySectionHeadersEnabled={false}
+    showsVerticalScrollIndicator={false}
+    scrollEventThrottle={16}
+  />
+);
+
+interface NotificationsEmptyStateProps {
+  styles: NotificationStyles;
+}
+
+// Empty state shown when there are no notifications.
+const NotificationsEmptyState: React.FC<NotificationsEmptyStateProps> = ({
+  styles,
+}) => (
+  <View style={styles.emptyContainer}>
+    <Image source={Images.emptyNotifications} style={styles.emptyImage} />
+    <Text style={styles.emptyTitle}>Nothing in the box!</Text>
+    <Text style={styles.emptySubtitle}>
+      Your notification box is empty right now.{'\n'}
+      Sit, stay, and we’ll fetch updates soon.
+    </Text>
+  </View>
+);

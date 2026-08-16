@@ -18,7 +18,11 @@ export type TaskListFilters = {
   clientId?: string;
   templateInstanceId?: string;
   scheduleId?: string;
-  audience?: Task['audience'];
+  // The backend filters audience by strict equality with no explicit value
+  // defaulting to EMPLOYEE_TASK (see loadTasksForPrimaryOrg), so a single
+  // request can only ever return one audience. Pass an array to fetch every
+  // listed audience and merge the results into one store update.
+  audience?: Task['audience'] | Task['audience'][];
   assignedTo?: string;
   assignedRole?: string;
   fromDueAt?: string | Date;
@@ -28,6 +32,7 @@ export type TaskListFilters = {
   status?: TaskStatusFilter;
   category?: string;
   subcategory?: string;
+  priority?: NonNullable<Task['priority']>;
   kind?: TaskKind;
   includeCompleted?: boolean;
 };
@@ -53,6 +58,15 @@ const taskListQuery = (filters: TaskListFilters | CompanionTaskListFilters = {})
   };
 };
 
+const fetchOrgTasks = async (primaryOrgId: string, filters?: TaskListFilters): Promise<Task[]> => {
+  const query = taskListQuery(filters);
+  const hasQuery = Object.values(query).some((value) => value !== undefined && value !== '');
+  const res = hasQuery
+    ? await getData<Task[]>('/v1/task/pms/organisation/' + primaryOrgId, query)
+    : await getData<Task[]>('/v1/task/pms/organisation/' + primaryOrgId);
+  return res.data ?? [];
+};
+
 export const loadTasksForPrimaryOrg = async (opts?: {
   silent?: boolean;
   force?: boolean;
@@ -68,12 +82,25 @@ export const loadTasksForPrimaryOrg = async (opts?: {
   if (!shouldFetchTasks(status, hasOrgData, opts)) return;
   if (!opts?.silent) startLoading();
   try {
-    const query = taskListQuery(opts?.filters);
-    const hasQuery = Object.values(query).some((value) => value !== undefined && value !== '');
-    const res = hasQuery
-      ? await getData<Task[]>('/v1/task/pms/organisation/' + primaryOrgId, query)
-      : await getData<Task[]>('/v1/task/pms/organisation/' + primaryOrgId);
-    const tasks = res.data ?? [];
+    const { audience, ...restFilters } = opts?.filters ?? {};
+    let tasks: Task[];
+    if (Array.isArray(audience)) {
+      // The backend only matches audience by strict equality (no explicit value
+      // defaults to EMPLOYEE_TASK), so each requested audience needs its own
+      // request; merge and dedupe before the single store update below.
+      const batches = await Promise.all(
+        audience.map((value) => fetchOrgTasks(primaryOrgId, { ...restFilters, audience: value }))
+      );
+      const byId = new Map<string, Task>();
+      for (const batch of batches) {
+        for (const task of batch) {
+          if (task._id) byId.set(task._id, task);
+        }
+      }
+      tasks = Array.from(byId.values());
+    } else {
+      tasks = await fetchOrgTasks(primaryOrgId, { ...restFilters, audience });
+    }
     setTasksForOrg(primaryOrgId, tasks);
   } catch (err) {
     console.error('Failed to load tasks:', err);
@@ -132,9 +159,7 @@ export const createTask = async (task: Task) => {
     }
     const res = await postData<Task>(route, payload);
     const normalTask = res.data;
-    if (normalTask.audience === 'EMPLOYEE_TASK') {
-      upsertTask(normalTask);
-    }
+    upsertTask(normalTask);
   } catch (err) {
     console.error('Failed to create task:', err);
     throw err;
@@ -182,9 +207,9 @@ export const archiveTaskTemplate = async (templateId: string): Promise<void> => 
 /**
  * Update a task. For a task in a recurring series, an optional `scope` selects
  * which occurrences the edit applies to (THIS / THIS_AND_FOLLOWING / ALL); it is
- * sent as a `scope` query param. The backend ignores it until the series-scoped
- * contract ships (handoff), so a scoped edit safely degrades to a single-task
- * update — never an error.
+ * sent as a `scope` query param and resolved by the backend against the
+ * master/child relationship. Omitting it defaults the backend to THIS, so any
+ * caller editing a series task must pass a scope the user chose.
  */
 export const updateTask = async (payload: Task, scope?: RecurrenceScope) => {
   const { upsertTask } = useTaskStore.getState();
@@ -213,9 +238,8 @@ export const updateTask = async (payload: Task, scope?: RecurrenceScope) => {
 
 /**
  * Delete a task. For a recurring series, `scope` selects which occurrences to
- * remove (sent as a `scope` query param). NOTE: the backend task-delete endpoint
- * does not exist yet (handoff) — this call will fail until it ships; callers
- * should surface the error rather than assume success.
+ * remove (sent as a `scope` query param); omitting it defaults the backend to
+ * THIS.
  */
 export const deleteTask = async (taskId: string, scope?: RecurrenceScope) => {
   const { removeTask } = useTaskStore.getState();

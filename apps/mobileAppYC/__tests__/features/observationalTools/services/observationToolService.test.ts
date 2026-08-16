@@ -24,6 +24,17 @@ jest.mock('../../../../src/features/observationalTools/data', () => ({
     'another-static': {
       name: 'Another Static',
     },
+    'fresh-static-key': {
+      name: 'Fresh Static Name',
+    },
+    // Used only by the static-key resolution test; the module-level tool cache
+    // is shared across cases, so this name must not be cached anywhere else.
+    'isolated-static-key': {
+      name: 'Isolated Static Tool',
+    },
+    'remote-static-key': {
+      name: 'Remote Static Name',
+    },
   },
 }));
 
@@ -104,6 +115,14 @@ describe('observationToolService', () => {
       it('returns original toolId if not resolved', () => {
         expect(resolveObservationToolIdSync('unknown-key')).toBe('unknown-key');
       });
+
+      it('returns the original toolId when its static name resolves but is not yet cached', () => {
+        // 'another-static' resolves to 'Another Static' via static defs, but
+        // nothing has cached that name at this point in the suite.
+        expect(resolveObservationToolIdSync('another-static')).toBe(
+          'another-static',
+        );
+      });
     });
 
     describe('getCachedObservationToolName', () => {
@@ -129,6 +148,10 @@ describe('observationToolService', () => {
 
       it('returns null if not found', () => {
         expect(getCachedObservationToolName('non-existent')).toBeNull();
+      });
+
+      it('returns null when the toolId normalizes to an empty string', () => {
+        expect(getCachedObservationToolName('!!!')).toBeNull();
       });
     });
 
@@ -215,11 +238,13 @@ describe('observationToolService', () => {
           '/v1/observation-tools/mobile/tools',
           expect.objectContaining({
             params: {onlyActive: 'true'},
-            headers: expect.not.objectContaining({
-              'x-user-id': expect.anything(),
-            }),
           }),
         );
+        // The caller must never spoof the user id in a header. Asserted on the
+        // recorded config rather than with expect.not.objectContaining, which
+        // from Jest 30 no longer matches an undefined received value.
+        const [, listConfig] = (apiClient.get as jest.Mock).mock.calls[0];
+        expect(listConfig?.headers?.['x-user-id']).toBeUndefined();
 
         expect(result).toHaveLength(2);
         expect(result[0].id).toBe('list-id-1');
@@ -230,6 +255,42 @@ describe('observationToolService', () => {
         (apiClient.get as jest.Mock).mockResolvedValue({data: null});
         const result = await observationToolApi.list();
         expect(result).toEqual([]);
+      });
+
+      it('falls back through toolId/key/name when an item has no _id or id', async () => {
+        (apiClient.get as jest.Mock).mockResolvedValue({
+          data: [{toolId: 'fallback-tool-id', name: 'Fallback Tool'}],
+        });
+        const result = await observationToolApi.list();
+        expect(result[0].id).toBe('fallback-tool-id');
+      });
+
+      it('falls back to key when an item has no _id/id/toolId', async () => {
+        (apiClient.get as jest.Mock).mockResolvedValue({
+          data: [{key: 'fallback-key', name: 'Fallback Key Tool'}],
+        });
+        const result = await observationToolApi.list();
+        expect(result[0].id).toBe('fallback-key');
+      });
+
+      it('falls back to name when an item has no _id/id/toolId/key', async () => {
+        (apiClient.get as jest.Mock).mockResolvedValue({
+          data: [{name: 'Fallback Name Tool'}],
+        });
+        const result = await observationToolApi.list();
+        expect(result[0].id).toBe('Fallback Name Tool');
+      });
+
+      it('treats a missing expiresAt as undefined when checking token expiry', async () => {
+        (getFreshStoredTokens as jest.Mock).mockResolvedValueOnce({
+          accessToken: mockAccessToken,
+          userId: mockUserId,
+        });
+        (apiClient.get as jest.Mock).mockResolvedValue({data: []});
+
+        const result = await observationToolApi.list();
+        expect(result).toEqual([]);
+        expect(isTokenExpired).toHaveBeenCalledWith(undefined);
       });
     });
 
@@ -254,9 +315,9 @@ describe('observationToolService', () => {
         // We use 'another-static' because 'static-tool-key' was already cached in a previous test.
         // 'another-static' -> 'Another Static'
 
-        (apiClient.get as jest.Mock).mockImplementation(url => {
+        (apiClient.get as jest.Mock).mockImplementation((url: string) => {
           // If the code calls list to resolve the name
-          if (url.includes('/tools?')) {
+          if (url === '/v1/observation-tools/mobile/tools') {
             return Promise.resolve({
               data: [{id: 'real-id-999', name: 'Another Static'}],
             });
@@ -269,6 +330,304 @@ describe('observationToolService', () => {
           }
           return Promise.resolve({data: {}});
         });
+
+        const result = await observationToolApi.get('another-static');
+
+        expect(apiClient.get).toHaveBeenCalledWith(
+          '/v1/observation-tools/mobile/tools/real-id-999',
+          expect.anything(),
+        );
+        expect(result.id).toBe('real-id-999');
+      });
+
+      it('resolves a mongo-formatted toolId directly without listing tools', async () => {
+        const mongoId = '507f191e810c19729de860ea';
+        (apiClient.get as jest.Mock).mockResolvedValue({
+          data: {_id: mongoId, name: 'Direct Mongo Tool'},
+        });
+
+        const result = await observationToolApi.get(mongoId);
+
+        expect(apiClient.get).toHaveBeenCalledTimes(1);
+        expect(apiClient.get).toHaveBeenCalledWith(
+          `/v1/observation-tools/mobile/tools/${mongoId}`,
+          expect.anything(),
+        );
+        expect(result.id).toBe(mongoId);
+      });
+
+      it('resolves a toolId already cached by ID without listing tools again', async () => {
+        (apiClient.get as jest.Mock).mockResolvedValueOnce({
+          data: [{id: 'async-cache-id', name: 'Async Cache Tool'}],
+        });
+        await observationToolApi.list();
+
+        (apiClient.get as jest.Mock).mockClear();
+        (apiClient.get as jest.Mock).mockResolvedValue({
+          data: {id: 'async-cache-id', name: 'Async Cache Tool'},
+        });
+
+        const result = await observationToolApi.get('async-cache-id');
+
+        expect(apiClient.get).toHaveBeenCalledTimes(1);
+        expect(apiClient.get).toHaveBeenCalledWith(
+          '/v1/observation-tools/mobile/tools/async-cache-id',
+          expect.anything(),
+        );
+        expect(result.id).toBe('async-cache-id');
+      });
+
+      it('resolves a toolId already cached by name without listing tools again', async () => {
+        (apiClient.get as jest.Mock).mockResolvedValueOnce({
+          data: [{id: 'async-name-id', name: 'Async Name Tool'}],
+        });
+        await observationToolApi.list();
+
+        (apiClient.get as jest.Mock).mockClear();
+        (apiClient.get as jest.Mock).mockResolvedValue({
+          data: {id: 'async-name-id', name: 'Async Name Tool'},
+        });
+
+        const result = await observationToolApi.get('Async Name Tool');
+
+        expect(apiClient.get).toHaveBeenCalledTimes(1);
+        expect(apiClient.get).toHaveBeenCalledWith(
+          '/v1/observation-tools/mobile/tools/async-name-id',
+          expect.anything(),
+        );
+        expect(result.id).toBe('async-name-id');
+      });
+
+      it('falls back to the API list() to resolve a static tool by its resolved name, then serves from cache on the next call', async () => {
+        (apiClient.get as jest.Mock).mockImplementation((url: string) => {
+          if (url === '/v1/observation-tools/mobile/tools') {
+            return Promise.resolve({
+              data: [{id: 'fresh-static-id', name: 'Fresh Static Name'}],
+            });
+          }
+          return Promise.resolve({
+            data: {id: 'fresh-static-id', name: 'Fresh Static Name'},
+          });
+        });
+
+        const first = await observationToolApi.get('fresh-static-key');
+        expect(first.id).toBe('fresh-static-id');
+        expect(apiClient.get).toHaveBeenCalledWith(
+          '/v1/observation-tools/mobile/tools',
+          expect.anything(),
+        );
+
+        (apiClient.get as jest.Mock).mockClear();
+        (apiClient.get as jest.Mock).mockResolvedValue({
+          data: {id: 'fresh-static-id', name: 'Fresh Static Name'},
+        });
+
+        const second = await observationToolApi.get('fresh-static-key');
+        expect(second.id).toBe('fresh-static-id');
+        // Second call resolves straight from the static-name cache, no listing.
+        expect(apiClient.get).toHaveBeenCalledTimes(1);
+        expect(apiClient.get).toHaveBeenCalledWith(
+          '/v1/observation-tools/mobile/tools/fresh-static-id',
+          expect.anything(),
+        );
+      });
+
+      it('falls back to the raw toolId when resolving via the API list() call throws', async () => {
+        (apiClient.get as jest.Mock).mockImplementation((url: string) => {
+          if (url === '/v1/observation-tools/mobile/tools') {
+            return Promise.reject(new Error('list failed'));
+          }
+          return Promise.resolve({
+            data: {id: 'raw-unresolved-id', name: 'Whatever'},
+          });
+        });
+
+        const result = await observationToolApi.get('raw-unresolved-id');
+
+        expect(apiClient.get).toHaveBeenCalledWith(
+          '/v1/observation-tools/mobile/tools/raw-unresolved-id',
+          expect.anything(),
+        );
+        expect(result.id).toBe('raw-unresolved-id');
+      });
+
+      it('falls back to the resolvedId when the fetched tool has no _id or id', async () => {
+        const mongoId = '507f191e810c19729de860eb';
+        (apiClient.get as jest.Mock).mockResolvedValue({
+          data: {name: 'No Id Tool'},
+        });
+
+        const result = await observationToolApi.get(mongoId);
+        expect(result.id).toBe(mongoId);
+      });
+
+      it('resolves an empty toolId to itself without any lookup', async () => {
+        (apiClient.get as jest.Mock).mockResolvedValue({
+          data: {name: 'Empty Id Tool'},
+        });
+
+        const result = await observationToolApi.get('');
+        expect(apiClient.get).toHaveBeenCalledWith(
+          '/v1/observation-tools/mobile/tools/',
+          expect.anything(),
+        );
+        expect(result.id).toBe('');
+      });
+    });
+
+    describe('tool id resolution on submit', () => {
+      it('submits straight to a mongo id without resolving', async () => {
+        const mongoId = '507f1f77bcf86cd799439011';
+        (apiClient.post as jest.Mock).mockResolvedValue({data: {id: 's1'}});
+
+        await observationToolApi.submit({
+          toolId: mongoId,
+          companionId: 'comp-1',
+          answers: {},
+        });
+
+        expect(apiClient.post).toHaveBeenCalledWith(
+          `/v1/observation-tools/mobile/tools/${mongoId}/submissions`,
+          expect.anything(),
+          expect.anything(),
+        );
+        expect(apiClient.get).not.toHaveBeenCalled();
+      });
+
+      it('resolves a cached tool id before submitting', async () => {
+        (apiClient.get as jest.Mock).mockResolvedValue({
+          data: [{id: 'resolve-cache-id', name: 'Resolve Cache Tool'}],
+        });
+        await observationToolApi.list();
+        (apiClient.get as jest.Mock).mockClear();
+        (apiClient.post as jest.Mock).mockResolvedValue({data: {id: 's1'}});
+
+        await observationToolApi.submit({
+          toolId: 'resolve-cache-id',
+          companionId: 'comp-1',
+          answers: {},
+        });
+
+        expect(apiClient.post).toHaveBeenCalledWith(
+          '/v1/observation-tools/mobile/tools/resolve-cache-id/submissions',
+          expect.anything(),
+          expect.anything(),
+        );
+        expect(apiClient.get).not.toHaveBeenCalled();
+      });
+
+      it('resolves a cached tool name to its id before submitting', async () => {
+        (apiClient.get as jest.Mock).mockResolvedValue({
+          data: [{id: 'by-name-id', name: 'Named Lookup Tool'}],
+        });
+        await observationToolApi.list();
+        (apiClient.get as jest.Mock).mockClear();
+        (apiClient.post as jest.Mock).mockResolvedValue({data: {id: 's1'}});
+
+        await observationToolApi.submit({
+          toolId: 'Named Lookup Tool',
+          companionId: 'comp-1',
+          answers: {},
+        });
+
+        expect(apiClient.post).toHaveBeenCalledWith(
+          '/v1/observation-tools/mobile/tools/by-name-id/submissions',
+          expect.anything(),
+          expect.anything(),
+        );
+      });
+
+      it('maps a static tool key onto a cached remote id before submitting', async () => {
+        (apiClient.get as jest.Mock).mockResolvedValue({
+          data: [{id: 'isolated-remote-id', name: 'Isolated Static Tool'}],
+        });
+        await observationToolApi.list();
+        (apiClient.get as jest.Mock).mockClear();
+        (apiClient.post as jest.Mock).mockResolvedValue({data: {id: 's1'}});
+
+        await observationToolApi.submit({
+          toolId: 'isolated-static-key',
+          companionId: 'comp-1',
+          answers: {},
+        });
+
+        expect(apiClient.post).toHaveBeenCalledWith(
+          '/v1/observation-tools/mobile/tools/isolated-remote-id/submissions',
+          expect.anything(),
+          expect.anything(),
+        );
+      });
+
+      it('resolves an uncached tool name against the remote list', async () => {
+        (apiClient.get as jest.Mock).mockResolvedValue({
+          data: [{id: 'remote-listed-id', name: 'Remote Listed Tool'}],
+        });
+        (apiClient.post as jest.Mock).mockResolvedValue({data: {id: 's1'}});
+
+        await observationToolApi.submit({
+          toolId: 'Remote Listed Tool',
+          companionId: 'comp-1',
+          answers: {},
+        });
+
+        expect(apiClient.post).toHaveBeenCalledWith(
+          '/v1/observation-tools/mobile/tools/remote-listed-id/submissions',
+          expect.anything(),
+          expect.anything(),
+        );
+      });
+
+      it('resolves an uncached static key against the remote list by its static name', async () => {
+        (apiClient.get as jest.Mock).mockResolvedValue({
+          data: [{id: 'remote-static-id', name: 'Remote Static Name'}],
+        });
+        (apiClient.post as jest.Mock).mockResolvedValue({data: {id: 's1'}});
+
+        await observationToolApi.submit({
+          toolId: 'remote-static-key',
+          companionId: 'comp-1',
+          answers: {},
+        });
+
+        expect(apiClient.post).toHaveBeenCalledWith(
+          '/v1/observation-tools/mobile/tools/remote-static-id/submissions',
+          expect.anything(),
+          expect.anything(),
+        );
+      });
+
+      it('passes an empty tool id through untouched', async () => {
+        (apiClient.post as jest.Mock).mockResolvedValue({data: {id: 's1'}});
+
+        await observationToolApi.submit({
+          toolId: '',
+          companionId: 'comp-1',
+          answers: {},
+        });
+
+        expect(apiClient.post).toHaveBeenCalledWith(
+          '/v1/observation-tools/mobile/tools//submissions',
+          expect.anything(),
+          expect.anything(),
+        );
+        expect(apiClient.get).not.toHaveBeenCalled();
+      });
+
+      it('falls back to the raw tool id when the lookup list request fails', async () => {
+        (apiClient.get as jest.Mock).mockRejectedValue(new Error('offline'));
+        (apiClient.post as jest.Mock).mockResolvedValue({data: {id: 's1'}});
+
+        await observationToolApi.submit({
+          toolId: 'never-seen-tool',
+          companionId: 'comp-1',
+          answers: {},
+        });
+
+        expect(apiClient.post).toHaveBeenCalledWith(
+          '/v1/observation-tools/mobile/tools/never-seen-tool/submissions',
+          expect.anything(),
+          expect.anything(),
+        );
       });
     });
 
@@ -305,6 +664,24 @@ describe('observationToolService', () => {
         expect(result.id).toBe('sub-1');
         expect(result.score).toBe(10);
       });
+
+      it('falls back to id/resolvedId/companionId/empty filledBy when the response payload is minimal', async () => {
+        (getFreshStoredTokens as jest.Mock).mockResolvedValue({
+          accessToken: mockAccessToken,
+          expiresAt: Date.now() + 10000,
+        });
+        (apiClient.post as jest.Mock).mockResolvedValue({data: {}});
+
+        const result = await observationToolApi.submit({
+          toolId: 'minimal-tool-id',
+          companionId: 'comp-1',
+          answers: {},
+        });
+
+        expect(result.toolId).toBe('minimal-tool-id');
+        expect(result.companionId).toBe('comp-1');
+        expect(result.filledBy).toBe('');
+      });
     });
 
     describe('linkSubmissionToAppointment', () => {
@@ -325,37 +702,34 @@ describe('observationToolService', () => {
         );
         expect(result.evaluationAppointmentId).toBe('appt-1');
       });
-    });
 
-    describe('getSubmission', () => {
-      it('fetches submission details', async () => {
-        (apiClient.get as jest.Mock).mockResolvedValue({
-          data: {_id: 'sub-details-1', score: 5},
+      it('falls back to submissionId/appointmentId/empty filledBy when the response payload is minimal', async () => {
+        (getFreshStoredTokens as jest.Mock).mockResolvedValue({
+          accessToken: mockAccessToken,
+          expiresAt: Date.now() + 10000,
+        });
+        (apiClient.post as jest.Mock).mockResolvedValue({data: {}});
+
+        const result = await observationToolApi.linkSubmissionToAppointment({
+          submissionId: 'sub-minimal',
+          appointmentId: 'appt-minimal',
         });
 
-        const result = await observationToolApi.getSubmission('sub-details-1');
-        expect(apiClient.get).toHaveBeenCalledWith(
-          '/v1/observation-tools/mobile/submissions/sub-details-1',
-          expect.anything(),
-        );
-        expect(result.id).toBe('sub-details-1');
+        expect(result.id).toBe('sub-minimal');
+        expect(result.evaluationAppointmentId).toBe('appt-minimal');
+        expect(result.filledBy).toBe('');
       });
     });
 
-    describe('listAppointmentSubmissions', () => {
-      it('fetches list for appointment', async () => {
-        (apiClient.get as jest.Mock).mockResolvedValue({
-          data: [{id: 's1'}, {id: 's2'}],
-        });
-
-        const result =
-          await observationToolApi.listAppointmentSubmissions('appt-123');
-        expect(apiClient.get).toHaveBeenCalledWith(
-          '/v1/observation-tools/mobile/appointments/appt-123/submissions',
-          expect.anything(),
+    describe('backend route surface', () => {
+      // The backend only exposes these five mobile routes under
+      // /v1/observation-tools (see apps/backend/src/routers/observationTool.routes.ts);
+      // every other prefix there is /pms and rejects a mobile session.
+      it('exposes no method targeting a route the backend does not define', () => {
+        expect(observationToolApi).not.toHaveProperty('getSubmission');
+        expect(observationToolApi).not.toHaveProperty(
+          'listAppointmentSubmissions',
         );
-        expect(result).toHaveLength(2);
-        expect(result[0].evaluationAppointmentId).toBe('appt-123'); // forced by mapper
       });
     });
 
@@ -373,6 +747,34 @@ describe('observationToolService', () => {
         );
         expect(result.id).toBe('sub-preview');
         expect(result.taskId).toBe('task-preview');
+      });
+
+      it('falls back to empty id/filledBy and the answers field when the response payload is minimal', async () => {
+        (getFreshStoredTokens as jest.Mock).mockResolvedValue({
+          accessToken: mockAccessToken,
+          expiresAt: Date.now() + 10000,
+        });
+        (apiClient.get as jest.Mock).mockResolvedValue({
+          data: {answers: {q: 2}},
+        });
+
+        const result =
+          await observationToolApi.previewTaskSubmission('task-minimal');
+        expect(result.id).toBe('');
+        expect(result.filledBy).toBe('');
+        expect(result.answers).toEqual({q: 2});
+      });
+
+      it('defaults answers to an empty object when the payload has neither answersPreview nor answers', async () => {
+        (getFreshStoredTokens as jest.Mock).mockResolvedValue({
+          accessToken: mockAccessToken,
+          expiresAt: Date.now() + 10000,
+        });
+        (apiClient.get as jest.Mock).mockResolvedValue({data: {}});
+
+        const result =
+          await observationToolApi.previewTaskSubmission('task-no-answers');
+        expect(result.answers).toEqual({});
       });
     });
   });

@@ -1,5 +1,5 @@
 'use client';
-import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
@@ -8,7 +8,7 @@ import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 const FORMS_PAGE_SKELETON = <PageSkeleton variant="list" />;
 import { Primary } from '@/app/ui/primitives/Buttons';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import { IoInformationCircleOutline } from 'react-icons/io5';
+import { IoAdd, IoInformationCircleOutline } from 'react-icons/io5';
 import { FormsProps } from '@/app/features/forms/types/forms';
 import FormsFilters, { type FormsFilterState } from '@/app/ui/filters/FormsFilters';
 import FormsTable from '@/app/ui/tables/FormsTable';
@@ -21,12 +21,62 @@ import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
-import Fallback from '@/app/ui/overlays/Fallback';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
 
 const AddForm = dynamic(() => import('@/app/features/forms/pages/Forms/Sections/AddForm'));
 const FormInfo = dynamic(() => import('@/app/features/forms/pages/Forms/Sections/FormInfo'));
+
+type CatalogSelectableEntry = {
+  id?: string;
+  name?: unknown;
+  status?: string;
+  organisationId?: string;
+  specialityId?: unknown;
+  isInpatientPreferred?: boolean;
+};
+
+/**
+ * Coerce a catalog field (typed `unknown` by the stores) to a string for display
+ * or map-key use without falling back to an object's `[object Object]`
+ * stringification. Primitives round-trip; anything else becomes an empty string.
+ */
+const toPrimitiveString = (value: unknown): string =>
+  typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+    ? String(value)
+    : '';
+
+/**
+ * Catalog stores accumulate entries across organisations, so an entry is only
+ * selectable here when it belongs to the organisation currently in context.
+ */
+const toActiveCatalogItems = (
+  entries: readonly CatalogSelectableEntry[],
+  badge: 'Service' | 'Package',
+  organisationId: string | null | undefined
+) =>
+  entries.reduce<
+    Array<{
+      id: CatalogSelectableEntry['id'];
+      name: string;
+      specialityId: CatalogSelectableEntry['specialityId'];
+      badge: 'Service' | 'Package';
+      isInpatient: boolean;
+    }>
+  >((items, entry) => {
+    // Single pass: filter to the active, in-context entries and shape them at
+    // once instead of chaining .filter().map() (two iterations).
+    if (entry.status === 'ACTIVE' && entry.organisationId === organisationId) {
+      items.push({
+        id: entry.id,
+        name: toPrimitiveString(entry.name).trim(),
+        specialityId: entry.specialityId,
+        badge,
+        isInpatient: entry.isInpatientPreferred === true,
+      });
+    }
+    return items;
+  }, []);
 
 const Forms = () => {
   const permissions = usePermissions();
@@ -35,7 +85,7 @@ const Forms = () => {
   const { formsById, formIds, activeFormId, loading } = formsStore;
   const headerSearchQuery = useSearchStore((s) => s.query);
   const searchParams = useSearchParams();
-  const handledDeepLinkRef = useRef<string | null>(null);
+  const [handledDeepLink, setHandledDeepLink] = useState<string | null>(null);
   const [filters, setFilters] = useState<FormsFilterState>({ status: 'All', category: 'All' });
   const [addPopup, setAddPopup] = useState(false);
   const [viewPopup, setViewPopup] = useState(false);
@@ -98,32 +148,16 @@ const Forms = () => {
 
   const serviceOptions = useMemo(() => {
     const specialityNameById = new Map(
-      orgSpecialities.map((speciality) => [String(speciality.id ?? ''), speciality.name])
+      orgSpecialities.map((speciality) => [
+        String(speciality.id ?? ''),
+        toPrimitiveString(speciality.name),
+      ])
     );
 
-    const catalogItems = [];
-    for (const service of services) {
-      if (service.status === 'ACTIVE') {
-        catalogItems.push({
-          id: service.id,
-          name: String(service.name ?? '').trim(),
-          specialityId: service.specialityId,
-          badge: 'Service' as const,
-          isInpatient: service.isInpatientPreferred === true,
-        });
-      }
-    }
-    for (const pkg of packages) {
-      if (pkg.status === 'ACTIVE') {
-        catalogItems.push({
-          id: pkg.id,
-          name: String(pkg.name ?? '').trim(),
-          specialityId: pkg.specialityId,
-          badge: 'Package' as const,
-          isInpatient: pkg.isInpatientPreferred === true,
-        });
-      }
-    }
+    const catalogItems = [
+      ...toActiveCatalogItems(services, 'Service', primaryOrgId),
+      ...toActiveCatalogItems(packages, 'Package', primaryOrgId),
+    ];
 
     const nameFrequency = new Map<string, number>();
     for (const item of catalogItems) {
@@ -136,8 +170,10 @@ const Forms = () => {
     for (const item of catalogItems) {
       if (!item.id || !item.name) continue;
       const duplicateName = (nameFrequency.get(item.name.toLowerCase()) ?? 0) > 1;
+      // `||`, not `??`: a speciality whose name is missing or non-primitive
+      // resolves to '', which should read as unknown rather than render blank.
       const specialityLabel =
-        specialityNameById.get(String(item.specialityId ?? '')) ?? 'Unknown Speciality';
+        specialityNameById.get(toPrimitiveString(item.specialityId)) || 'Unknown Speciality';
       options.push({
         label: duplicateName ? `${specialityLabel} / ${item.name}` : item.name,
         value: item.id,
@@ -146,7 +182,7 @@ const Forms = () => {
       });
     }
     return options;
-  }, [services, packages, orgSpecialities]);
+  }, [services, packages, orgSpecialities, primaryOrgId]);
 
   useEffect(() => {
     if (fetchedRef.current) return;
@@ -175,18 +211,22 @@ const Forms = () => {
     }
   }, [activeFormId, filteredList]);
 
-  useEffect(() => {
-    const formId = String(searchParams.get('formId') ?? '').trim();
-    if (!formId) return;
-    if (handledDeepLinkRef.current === formId) return;
-
-    const target = list.find((form) => form?._id === formId);
-    if (!target?._id) return;
-
-    useFormsStore.getState().setActiveForm(target._id);
+  // Deep link: open the info modal once per formId in the URL. The render-time
+  // adjust owns the local popup state; the layout effect mirrors the handled id
+  // into the forms store before paint so both land in the same frame.
+  const deepLinkFormId = String(searchParams.get('formId') ?? '').trim();
+  if (
+    deepLinkFormId &&
+    handledDeepLink !== deepLinkFormId &&
+    list.some((form) => form?._id === deepLinkFormId)
+  ) {
+    setHandledDeepLink(deepLinkFormId);
     setViewPopup(true);
-    handledDeepLinkRef.current = formId;
-  }, [list, searchParams]);
+  }
+
+  useLayoutEffect(() => {
+    if (handledDeepLink) useFormsStore.getState().setActiveForm(handledDeepLink);
+  }, [handledDeepLink]);
 
   const openAddForm = () => {
     setEditingForm(null);
@@ -220,13 +260,12 @@ const Forms = () => {
   });
 
   return (
-    <div className="relative min-w-0 flex h-full min-h-0 flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-3!">
+    <div className="relative min-w-0 h-full min-h-0 yc-page-content">
       <div className="flex justify-between items-center w-full flex-wrap gap-2">
         <div className="flex flex-col gap-1">
-          <h1 className="text-text-primary text-heading-2 flex items-center gap-2">
+          <h1 className="text-page-title flex items-center gap-2">
             <span>
-              {'Templates'}
-              <span className="text-body-2 text-text-tertiary">{` (${list.length})`}</span>
+              {'Templates'} <span className="text-page-title-count">{`(${list.length})`}</span>
             </span>
             <GlassTooltip
               content="Build and reuse templates, link them to services, and use custom available templates."
@@ -241,17 +280,31 @@ const Forms = () => {
               </button>
             </GlassTooltip>
           </h1>
+          <p className="text-[13.5px] text-text-secondary">
+            Build and reuse templates, link them to services and packages
+          </p>
         </div>
       </div>
 
       <MobileSearchBar placeholder="Search templates" />
-      <PermissionGate allOf={[PERMISSIONS.FORMS_VIEW_ANY]} fallback={<Fallback />}>
+      <PermissionGate
+        allOf={[PERMISSIONS.FORMS_VIEW_ANY]}
+        deniedResource="Templates"
+        deniedDetail="form and document templates"
+      >
         <div className={wrapperClassName}>
           <FormsFilters
             filters={filters}
             onFiltersChange={setFilters}
             categoryAction={
-              canEditForms ? <Primary href="#" text="Add" onClick={openAddForm} /> : null
+              canEditForms ? (
+                <Primary
+                  href="#"
+                  text="Add"
+                  onClick={openAddForm}
+                  icon={<IoAdd size={18} aria-hidden="true" />}
+                />
+              ) : null
             }
           />
           <div ref={plannerSectionRef} className={plannerSectionClassName}>
@@ -260,6 +313,8 @@ const Forms = () => {
               setActiveForm={handleSelectForm}
               setViewPopup={setViewPopup}
               loading={loading}
+              showLinkedServices
+              serviceOptions={serviceOptions}
             />
           </div>
         </div>

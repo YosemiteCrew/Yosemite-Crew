@@ -50,9 +50,13 @@ export const getGoogleWalletUrl = async (companionId: string): Promise<string> =
 // Public, unauthenticated verification (the wallet-pass QR target). No org
 // scope and no auth header: the backend resolves the issuing org from the
 // passport row and returns an owner-free record.
-export const getPublicPassport = async (companionId: string): Promise<PetPassportDTO> => {
+//
+// The path parameter is a revocable share token, never the companion id - the
+// companion id is an internal identifier that cannot be rotated or revoked, so
+// using it here would make every scanned QR a permanent grant.
+export const getPublicPassport = async (shareToken: string): Promise<PetPassportDTO> => {
   const root = (process.env.NEXT_PUBLIC_BASE_URL ?? '').replace(/\/$/, '');
-  const res = await fetch(`${root}/public/pet-passport/${encodeURIComponent(companionId)}`, {
+  const res = await fetch(`${root}/public/pet-passport/token/${encodeURIComponent(shareToken)}`, {
     headers: { Accept: 'application/json' },
   });
   if (!res.ok) {

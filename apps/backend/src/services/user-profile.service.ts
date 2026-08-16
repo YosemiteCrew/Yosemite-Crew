@@ -15,6 +15,7 @@ import {
 } from "./base-availability.service";
 import { getURLForKey } from "src/middlewares/upload";
 import { prisma } from "src/config/prisma";
+import { pruneUndefined } from "src/utils/prune-undefined";
 import { Prisma } from "@prisma/client";
 
 export class UserProfileServiceError extends Error {
@@ -272,6 +273,32 @@ const optionalBoolean = (
   throw new UserProfileServiceError(`${field} must be a boolean.`, 400);
 };
 
+// A key that's absent from the raw patch must preserve whatever the address
+// already has for it; a key that's present but sanitizes to nothing (empty
+// string, null) is the caller explicitly clearing it. optionalString/Number
+// collapse both cases to `undefined`, so presence has to be checked against
+// the raw record first - `null` (kept, unlike `undefined`, by pruneUndefined)
+// is how "clear this field" survives sanitization to the merge step in update().
+const clearableAddressString = (
+  record: UnknownRecord,
+  key: string,
+  field: string,
+): string | null | undefined => {
+  const sanitized = optionalString(record[key], field);
+  if (sanitized !== undefined) return sanitized;
+  return key in record ? null : undefined;
+};
+
+const clearableAddressNumber = (
+  record: UnknownRecord,
+  key: string,
+  field: string,
+): number | null | undefined => {
+  const sanitized = optionalNumber(record[key], field);
+  if (sanitized !== undefined) return sanitized;
+  return key in record ? null : undefined;
+};
+
 // NOSONAR: Values are validated and sanitized before persistence, no query concatenation.
 const sanitizeAddress = (
   value: unknown,
@@ -282,15 +309,24 @@ const sanitizeAddress = (
 
   const record = assertPlainObject(value, "Personal details address");
 
+  // Fields may be `null` here (an explicit clear) even though the declared
+  // return type says `string | undefined` - that's intentional. Only the
+  // internal merge in update() and syncUserProfileAddress read this value,
+  // and both already treat "nullish" as one case; nothing serializes it
+  // straight into an API response, where the narrower type must hold.
   return pruneUndefined({
-    addressLine: optionalString(record.addressLine, "Address line"),
-    country: optionalString(record.country, "Address country"),
-    city: optionalString(record.city, "Address city"),
-    state: optionalString(record.state, "Address state"),
-    postalCode: optionalString(record.postalCode, "Address postal code"),
-    latitude: optionalNumber(record.latitude, "Address latitude"),
-    longitude: optionalNumber(record.longitude, "Address longitude"),
-  });
+    addressLine: clearableAddressString(record, "addressLine", "Address line"),
+    country: clearableAddressString(record, "country", "Address country"),
+    city: clearableAddressString(record, "city", "Address city"),
+    state: clearableAddressString(record, "state", "Address state"),
+    postalCode: clearableAddressString(
+      record,
+      "postalCode",
+      "Address postal code",
+    ),
+    latitude: clearableAddressNumber(record, "latitude", "Address latitude"),
+    longitude: clearableAddressNumber(record, "longitude", "Address longitude"),
+  } as UserProfileAddressMongo);
 };
 
 const sanitizePmsPreferences = (
@@ -437,48 +473,6 @@ const sanitizeProfessionalDetails = (
   });
 };
 
-const pruneArray = (value: unknown[]): void => {
-  for (let index = value.length - 1; index >= 0; index -= 1) {
-    const next = pruneUndefined(value[index]);
-
-    if (next === undefined) {
-      value.splice(index, 1);
-    } else {
-      value[index] = next;
-    }
-  }
-};
-
-const pruneRecord = (value: UnknownRecord): void => {
-  for (const key of Object.keys(value)) {
-    const next = pruneUndefined(value[key]);
-
-    if (next === undefined) {
-      delete value[key];
-    } else {
-      value[key] = next;
-    }
-  }
-};
-
-const pruneUndefined = <T>(value: T): T => {
-  if (Array.isArray(value)) {
-    pruneArray(value as unknown[]);
-    return value;
-  }
-
-  if (!value || typeof value !== "object") {
-    return value;
-  }
-
-  if (value instanceof Date) {
-    return value;
-  }
-
-  pruneRecord(value as UnknownRecord);
-  return value;
-};
-
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
 
@@ -573,24 +567,41 @@ const syncUserProfileAddress = async (
       latitude: address.latitude ?? undefined,
       longitude: address.longitude ?? undefined,
     },
+    // Unlike `create`, this row already exists - an omitted field here means
+    // the caller cleared it (e.g. emptied the Country input), not "leave it
+    // alone". Prisma treats an explicit `undefined` in an update as "don't
+    // touch this column", which would leave the stale value in place and have
+    // it resurface on the next read; `null` actually clears it.
     update: {
-      addressLine: address.addressLine ?? undefined,
-      country: address.country ?? undefined,
-      city: address.city ?? undefined,
-      state: address.state ?? undefined,
-      postalCode: address.postalCode ?? undefined,
-      latitude: address.latitude ?? undefined,
-      longitude: address.longitude ?? undefined,
+      addressLine: address.addressLine ?? null,
+      country: address.country ?? null,
+      city: address.city ?? null,
+      state: address.state ?? null,
+      postalCode: address.postalCode ?? null,
+      latitude: address.latitude ?? null,
+      longitude: address.longitude ?? null,
     },
   });
 };
+
+const buildAddressFromPrismaRelation = (
+  address: NonNullable<PrismaUserProfileWithAddress["address"]>,
+) =>
+  pruneUndefined({
+    addressLine: address.addressLine ?? undefined,
+    country: address.country ?? undefined,
+    city: address.city ?? undefined,
+    state: address.state ?? undefined,
+    postalCode: address.postalCode ?? undefined,
+    latitude: address.latitude ?? undefined,
+    longitude: address.longitude ?? undefined,
+  });
 
 const buildPersonalDetailsFromPrisma = (
   profile: PrismaUserProfileWithAddress,
 ): UserProfilePersonalDetailsMongo | undefined => {
   const rawPersonalDetails = profile.personalDetails as
-    | UserProfilePersonalDetailsMongo
-    | undefined;
+    UserProfilePersonalDetailsMongo | undefined;
 
   if (!rawPersonalDetails && !profile.address) {
     return undefined;
@@ -598,43 +609,29 @@ const buildPersonalDetailsFromPrisma = (
 
   if (!rawPersonalDetails && profile.address) {
     return {
-      address: pruneUndefined({
-        addressLine: profile.address.addressLine ?? undefined,
-        country: profile.address.country ?? undefined,
-        city: profile.address.city ?? undefined,
-        state: profile.address.state ?? undefined,
-        postalCode: profile.address.postalCode ?? undefined,
-        latitude: profile.address.latitude ?? undefined,
-        longitude: profile.address.longitude ?? undefined,
-      }),
+      address: buildAddressFromPrismaRelation(profile.address),
     };
+  }
+
+  let address: UserProfilePersonalDetailsMongo["address"];
+  if (profile.address) {
+    address = buildAddressFromPrismaRelation(profile.address);
+  } else if (rawPersonalDetails?.address) {
+    address = pruneUndefined(rawPersonalDetails.address);
   }
 
   return {
     ...rawPersonalDetails,
-    address: profile.address
-      ? pruneUndefined({
-          addressLine: profile.address.addressLine ?? undefined,
-          country: profile.address.country ?? undefined,
-          city: profile.address.city ?? undefined,
-          state: profile.address.state ?? undefined,
-          postalCode: profile.address.postalCode ?? undefined,
-          latitude: profile.address.latitude ?? undefined,
-          longitude: profile.address.longitude ?? undefined,
-        })
-      : rawPersonalDetails?.address
-        ? pruneUndefined(rawPersonalDetails.address)
-        : undefined,
+    address,
   };
 };
 
 const buildDomainProfileFromPrisma = (
   profile: PrismaUserProfileWithAddress,
-  options?: { statusOverride?: UserProfileMongo["status"] },
+  options?: { statusOverride?: NonNullable<UserProfileMongo["status"]> },
 ): UserProfileType => {
   const rawProfessionalDetails = profile.professionalDetails as
-    | UserProfileProfessionalDetailsMongo
-    | undefined;
+    UserProfileProfessionalDetailsMongo | undefined;
 
   const personalDetails = buildPersonalDetailsFromPrisma(profile);
 
@@ -748,15 +745,37 @@ const sanitizeCreatePayload = (
 
 const sanitizeUpdatePayload = (
   payload: UpdateUserProfilePayload,
-): { attributes: Partial<UserProfileMongo> } => {
+): {
+  attributes: Partial<UserProfileMongo>;
+  personalDetailsAddressProvided: boolean;
+  personalDetailsAddressCleared: boolean;
+} => {
   const sanitized: Partial<UserProfileMongo> = {};
   let hasProfileUpdate = false;
+  let personalDetailsAddressProvided = false;
+  let personalDetailsAddressCleared = false;
 
   if ("personalDetails" in payload) {
     sanitized.personalDetails = sanitizePersonalDetails(
       payload.personalDetails,
     );
     hasProfileUpdate = true;
+    // A caller updating only e.g. gender or timezone sends a personalDetails
+    // object with no `address` key at all - that must preserve the existing
+    // address rather than read as "clear it" (sanitizeAddress(undefined) and an
+    // explicit address:null are otherwise indistinguishable downstream).
+    const rawPersonalDetails = payload.personalDetails;
+    personalDetailsAddressProvided =
+      typeof rawPersonalDetails === "object" &&
+      rawPersonalDetails !== null &&
+      !Array.isArray(rawPersonalDetails) &&
+      "address" in rawPersonalDetails;
+    // sanitizeAddress(null) also returns undefined (same as an omitted key),
+    // so "delete the whole address" and "didn't touch it" must be told apart
+    // here, from the raw value, before that distinction is lost.
+    personalDetailsAddressCleared =
+      personalDetailsAddressProvided &&
+      (rawPersonalDetails as Record<string, unknown>).address == null;
   }
 
   if ("professionalDetails" in payload) {
@@ -772,6 +791,8 @@ const sanitizeUpdatePayload = (
 
   return {
     attributes: pruneUndefined(sanitized),
+    personalDetailsAddressProvided,
+    personalDetailsAddressCleared,
   };
 };
 
@@ -861,12 +882,9 @@ export const UserProfileService = {
       },
     });
 
-    const profile = buildDomainProfileFromPrisma(
-      storedProfile ?? (created as PrismaUserProfileWithAddress),
-      {
-        statusOverride: status,
-      },
-    );
+    const profile = buildDomainProfileFromPrisma(storedProfile ?? created, {
+      statusOverride: status,
+    });
     return applyPmsPreferenceDefaults(profile, userOrganisation?.roleCode);
   },
 
@@ -877,7 +895,11 @@ export const UserProfileService = {
   ): Promise<UserProfileType | null> {
     const identifier = requireUserId(userId);
     const organizationIdentifier = requireOrganizationId(organizationId);
-    const { attributes } = sanitizeUpdatePayload(payload);
+    const {
+      attributes,
+      personalDetailsAddressProvided,
+      personalDetailsAddressCleared,
+    } = sanitizeUpdatePayload(payload);
 
     const existing = await prisma.userProfile.findFirst({
       where: { userId: identifier, organizationId: organizationIdentifier },
@@ -904,7 +926,46 @@ export const UserProfileService = {
           })
         : existing;
 
-    const personalDetails = buildPersonalDetailsFromPrisma(updated);
+    // `updated.address` (from the `include` above) is still the pre-update relational
+    // row here - the address just written into personalDetails hasn't been synced to
+    // it yet. Reading through buildPersonalDetailsFromPrisma would prefer that stale
+    // relational row over the new address, so the sync below would just write the old
+    // value back and the edit would never appear (including after a refresh). Use the
+    // freshly-submitted personalDetails directly instead, same as create() does - but
+    // only for the address itself when the caller's payload actually included one; a
+    // gender-only or timezone-only update has no `address` key at all and must keep
+    // the existing address rather than reading its absence as "clear it".
+    //
+    // Within a submitted address, merge field-by-field rather than replacing the
+    // whole object: a one-field patch like `{ address: { country: "CA" } }` must
+    // preserve the untouched addressLine/city/state/postalCode/coordinates, not
+    // null them out. sanitizeAddress already turned an explicitly-cleared field
+    // into `null` (kept) versus an omitted one (absent), so a plain spread with
+    // the new address last resolves all three cases correctly.
+    //
+    // An explicit `address: null` is different again - sanitizeAddress(null)
+    // collapses to `undefined`, same as an omitted address, so a plain merge
+    // would silently keep the old address instead of deleting it. Resolve that
+    // as `undefined` here so syncUserProfileAddress takes its delete branch.
+    const existingPersonalDetails = buildPersonalDetailsFromPrisma(existing);
+    let personalDetails = existingPersonalDetails;
+    if (attributes.personalDetails) {
+      let mergedAddress: UserProfilePersonalDetailsMongo["address"];
+      if (personalDetailsAddressCleared) {
+        mergedAddress = undefined;
+      } else if (personalDetailsAddressProvided) {
+        mergedAddress = {
+          ...existingPersonalDetails?.address,
+          ...attributes.personalDetails.address,
+        };
+      } else {
+        mergedAddress = existingPersonalDetails?.address;
+      }
+      personalDetails = {
+        ...attributes.personalDetails,
+        address: mergedAddress,
+      };
+    }
     await syncUserProfileAddress(updated.id, personalDetails?.address);
 
     let availability: UserAvailability[] = [];
@@ -925,8 +986,7 @@ export const UserProfileService = {
         organizationId: updated.organizationId,
         personalDetails,
         professionalDetails: updated.professionalDetails as
-          | UserProfileProfessionalDetailsMongo
-          | undefined,
+          UserProfileProfessionalDetailsMongo | undefined,
         status: updated.status ?? "DRAFT",
       },
       availability,
@@ -1011,8 +1071,7 @@ export const UserProfileService = {
       organizationId: profile.organizationId,
       personalDetails: personalDetailsForStatus,
       professionalDetails: (profile.professionalDetails ?? undefined) as
-        | UserProfileProfessionalDetailsMongo
-        | undefined,
+        UserProfileProfessionalDetailsMongo | undefined,
       status: profile.status ?? "DRAFT",
     };
     const status = determineProfileStatus(profileForStatus, availability);

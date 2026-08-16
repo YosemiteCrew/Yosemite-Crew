@@ -23,7 +23,7 @@ const DayLabels = ({ days, currentDate, columnsStyle }: DayLabels) => {
         const dateNumber = day.getDate();
         const isToday = isOnPreferredTimeZoneCalendarDay(new Date(), day);
         const dateNumberClass = isToday
-          ? 'bg-text-brand text-white border-transparent'
+          ? 'bg-[var(--blue-strong)] text-white border-transparent'
           : 'bg-card-bg text-text-secondary border-transparent';
         return (
           <div key={idx + day.getDate()} className="flex items-center justify-center gap-2">

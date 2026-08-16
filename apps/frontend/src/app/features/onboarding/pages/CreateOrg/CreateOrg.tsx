@@ -1,8 +1,7 @@
 'use client';
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { HiShoppingBag } from 'react-icons/hi2';
-import { IoLocationSharp } from 'react-icons/io5';
+import { IoBusiness, IoLocationSharp } from 'react-icons/io5';
 
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import { Organisation } from '@yosemite-crew/types';
@@ -18,11 +17,11 @@ import './CreateOrg.css';
 const OrgSteps = [
   {
     title: 'Organization',
-    logo: <HiShoppingBag color="var(--color-neutral-0)" size={20} />,
+    logo: <IoBusiness size={18} />,
   },
   {
     title: 'Address',
-    logo: <IoLocationSharp color="var(--color-neutral-0)" size={20} />,
+    logo: <IoLocationSharp size={18} />,
   },
 ];
 
@@ -102,17 +101,28 @@ const CreateOrg = () => {
   const shouldBlockForTransition = isTransitioning || isCompletedRedirect;
   useFullscreenLoader('create-org-transition', shouldBlockForTransition);
 
-  useEffect(() => {
-    if (!isReady) {
-      return;
+  // Adopt the onboarding snapshot during render (guarded by the previous
+  // values) instead of mirroring it through an effect.
+  const [prevOnboarding, setPrevOnboarding] = useState<{
+    org: typeof org;
+    computedStep: number;
+    isReady: boolean;
+  } | null>(null);
+  if (
+    prevOnboarding?.org !== org ||
+    prevOnboarding?.computedStep !== computedStep ||
+    prevOnboarding?.isReady !== isReady
+  ) {
+    setPrevOnboarding({ org, computedStep, isReady });
+    if (isReady) {
+      if (computedStep >= 0 && computedStep <= 1) {
+        setActiveStep(computedStep);
+      }
+      if (org) {
+        setFormData(org);
+      }
     }
-    if (computedStep >= 0 && computedStep <= 1) {
-      setActiveStep(computedStep);
-    }
-    if (org) {
-      setFormData(org);
-    }
-  }, [org, computedStep, isReady]);
+  }
 
   if (isCompletedRedirect) {
     redirect('/dashboard');
@@ -204,7 +214,7 @@ const CreateOrg = () => {
         onStepSelect={handleStepSelect}
         steps={OrgSteps}
       />
-      <div className="flex flex-col gap-6">
+      <div className="flex w-full flex-col items-center gap-7">
         <h1 className="create-org-title">Create organization</h1>
         {activeStep === 0 && (
           <OrgStep

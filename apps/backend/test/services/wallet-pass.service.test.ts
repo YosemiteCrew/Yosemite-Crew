@@ -508,4 +508,43 @@ describe("wallet next-vaccination-due surfacing", () => {
     const generic = pass.generic as { backFields: Array<{ key: string }> };
     expect(generic.backFields.some((f) => f.key === "nextDue")).toBe(false);
   });
+
+  // Passport assembly moves the latest rabies dose out of `vaccinations`, so a
+  // pet whose only upcoming dose is rabies still has to get a due date.
+  const rabiesOnly: PetPassportDTO = {
+    ...PASSPORT,
+    rabies: { ...PASSPORT.rabies!, nextDueDate: future },
+    vaccinations: [],
+  };
+
+  it("uses the rabies due date when it is the only upcoming one", () => {
+    const pass = buildApplePassJson(rabiesOnly, IDS) as Record<string, unknown>;
+    expect(pass.relevantDate).toBe(future);
+    const generic = pass.generic as {
+      backFields: Array<{ key: string; value: string }>;
+    };
+    const nextDue = generic.backFields.find((f) => f.key === "nextDue");
+    expect(nextDue?.value).toBe(future.slice(0, 10));
+  });
+
+  it("surfaces the rabies-only due date in the Google payload", () => {
+    const payload = buildGooglePayload(rabiesOnly, "issuer-1") as unknown as {
+      genericObjects: Array<{
+        textModulesData: Array<{ id: string; body: string }>;
+      }>;
+    };
+    const nextDue = payload.genericObjects[0].textModulesData.find(
+      (m) => m.id === "nextDue",
+    );
+    expect(nextDue?.body).toBe(future.slice(0, 10));
+  });
+
+  it("prefers the rabies due date when it is sooner than the others", () => {
+    const sooner = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const pass = buildApplePassJson(
+      { ...withDue, rabies: { ...PASSPORT.rabies!, nextDueDate: sooner } },
+      IDS,
+    ) as Record<string, unknown>;
+    expect(pass.relevantDate).toBe(sooner);
+  });
 });

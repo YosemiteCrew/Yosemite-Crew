@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { requirePermission } from "src/middlewares/rbac";
+import { requireWebAuth } from "src/middlewares/auth";
+import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 import { InventoryCountController } from "src/controllers/web/inventory-count.controller";
 
 export const inventoryCountRouter = Router({ mergeParams: true });
@@ -9,23 +10,39 @@ const BASE = "/pms/organisation/:organisationId/inventory-counts";
 inventoryCountRouter
   .route(BASE)
   .post(
+    requireWebAuth,
+    withOrgPermissions(),
     requirePermission("inventory:edit:any"),
     InventoryCountController.record,
   )
-  .get(requirePermission("inventory:view:any"), InventoryCountController.list);
+  .get(
+    requireWebAuth,
+    withOrgPermissions(),
+    requirePermission("inventory:view:any"),
+    InventoryCountController.list,
+  );
 
 inventoryCountRouter.get(
   `${BASE}/unreconciled`,
+  requireWebAuth,
+  withOrgPermissions(),
   requirePermission("inventory:view:any"),
   InventoryCountController.unreconciled,
 );
 
 inventoryCountRouter
   .route(`${BASE}/:countId`)
-  .get(requirePermission("inventory:view:any"), InventoryCountController.get);
+  .get(
+    requireWebAuth,
+    withOrgPermissions(),
+    requirePermission("inventory:view:any"),
+    InventoryCountController.get,
+  );
 
 inventoryCountRouter.post(
   `${BASE}/:countId/reconcile`,
+  requireWebAuth,
+  withOrgPermissions(),
   requirePermission("inventory:edit:any"),
   InventoryCountController.reconcile,
 );

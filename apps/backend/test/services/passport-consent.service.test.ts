@@ -216,36 +216,103 @@ describe("PassportConsentService.requestConsent", () => {
 });
 
 describe("PassportConsentService.grantConsent", () => {
-  it("grants with the parent consent method", async () => {
+  // Consent to share clinical records across practices belongs to the pet's
+  // owner, so every granted case must be authenticated AS that owner.
+  const asPrimaryParent = (linkedUserId: string | null = "user-1") => {
+    prismaMock.parentPatient.findFirst.mockResolvedValue({ parentId: "par-1" });
+    prismaMock.parent.findUnique.mockResolvedValue({
+      id: "par-1",
+      linkedUserId,
+    });
+  };
+
+  it("grants when the caller is the pet's primary parent", async () => {
+    asPrimaryParent();
     const dto = await PassportConsentService.grantConsent({
       consentId: "con-1",
       organisationId: "org-1",
       method: "EMAIL",
-      parentId: "par-1",
+      grantingUserId: "user-1",
     });
     expect(dto.status).toBe("GRANTED");
     expect(dto.consentMethod).toBe("EMAIL");
   });
 
-  it("keeps the existing parent when none is supplied", async () => {
-    prismaMock.passportShareConsent.findUnique.mockResolvedValue(
-      consentRow({ parentId: "par-0" }),
-    );
-    const dto = await PassportConsentService.grantConsent({
+  it("derives parentId from the parent link, never from the caller", async () => {
+    asPrimaryParent();
+    await PassportConsentService.grantConsent({
       consentId: "con-1",
       organisationId: "org-1",
       method: "MOBILE",
+      grantingUserId: "user-1",
     });
-    expect(dto.status).toBe("GRANTED");
+    const data =
+      prismaMock.passportShareConsent.update.mock.calls.at(-1)[0].data;
+    expect(data.parentId).toBe("par-1");
+  });
+
+  it("refuses a staff session that is not the pet's parent", async () => {
+    asPrimaryParent("someone-else");
+    await expect(
+      PassportConsentService.grantConsent({
+        consentId: "con-1",
+        organisationId: "org-1",
+        method: "MOBILE",
+        grantingUserId: "receptionist-9",
+      }),
+    ).rejects.toMatchObject({ statusCode: 403 });
+    expect(prismaMock.passportShareConsent.update).not.toHaveBeenCalled();
+  });
+
+  it("refuses an unauthenticated grant", async () => {
+    asPrimaryParent();
+    await expect(
+      PassportConsentService.grantConsent({
+        consentId: "con-1",
+        organisationId: "org-1",
+        method: "MOBILE",
+        grantingUserId: null,
+      }),
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it("refuses when the pet has no linked parent account", async () => {
+    prismaMock.parentPatient.findFirst.mockResolvedValue(null);
+    await expect(
+      PassportConsentService.grantConsent({
+        consentId: "con-1",
+        organisationId: "org-1",
+        method: "MOBILE",
+        grantingUserId: "user-1",
+      }),
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it("will not resurrect a revoked consent", async () => {
+    asPrimaryParent();
+    prismaMock.passportShareConsent.findUnique.mockResolvedValue(
+      consentRow({ status: "REVOKED" }),
+    );
+    await expect(
+      PassportConsentService.grantConsent({
+        consentId: "con-1",
+        organisationId: "org-1",
+        method: "MOBILE",
+        grantingUserId: "user-1",
+      }),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    expect(prismaMock.passportShareConsent.update).not.toHaveBeenCalled();
   });
 
   it("404s an unknown or out-of-org consent", async () => {
+    asPrimaryParent();
     prismaMock.passportShareConsent.findUnique.mockResolvedValue(null);
     await expect(
       PassportConsentService.grantConsent({
         consentId: "con-1",
         organisationId: "org-1",
         method: "MOBILE",
+        grantingUserId: "user-1",
       }),
     ).rejects.toMatchObject({ statusCode: 404 });
 
@@ -255,38 +322,26 @@ describe("PassportConsentService.grantConsent", () => {
         consentId: "con-1",
         organisationId: "org-9",
         method: "MOBILE",
+        grantingUserId: "user-1",
       }),
     ).rejects.toMatchObject({ statusCode: 404 });
   });
 
-  it("emits PASSPORT_CONSENT_GRANTED with actor when provided", async () => {
+  it("emits PASSPORT_CONSENT_GRANTED with the parent actor", async () => {
+    asPrimaryParent();
     await PassportConsentService.grantConsent({
       consentId: "con-1",
       organisationId: "org-1",
       method: "EMAIL",
-      actor: { type: "PMS_USER", id: "vet-2" },
+      grantingUserId: "user-1",
+      actor: { type: "PARENT", id: "user-1" },
     });
     expect(mockRecordSafely).toHaveBeenCalledWith(
       expect.objectContaining({
         eventType: "PASSPORT_CONSENT_GRANTED",
-        actorType: "PMS_USER",
-        actorId: "vet-2",
+        actorType: "PARENT",
+        actorId: "user-1",
         entityType: "COMPANION",
-      }),
-    );
-  });
-
-  it("emits PASSPORT_CONSENT_GRANTED with default actor when none provided", async () => {
-    await PassportConsentService.grantConsent({
-      consentId: "con-1",
-      organisationId: "org-1",
-      method: "MOBILE",
-    });
-    expect(mockRecordSafely).toHaveBeenCalledWith(
-      expect.objectContaining({
-        eventType: "PASSPORT_CONSENT_GRANTED",
-        actorType: "PMS_USER",
-        actorId: null,
       }),
     );
   });

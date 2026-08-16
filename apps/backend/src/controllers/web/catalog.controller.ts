@@ -8,6 +8,12 @@ import {
   CatalogServiceError,
   type CatalogProductUpsertInput,
 } from "src/services/catalog.service";
+import type { OrgRequest } from "src/middlewares/rbac";
+import {
+  calendarPrefillBaseSchema,
+  parseTristateFlag,
+  utcDateStringSchema,
+} from "src/controllers/web/shared/catalog-service.schemas";
 import {
   fromCatalogRequestDTO,
   fromCatalogResolveOperationRequestDTO,
@@ -210,30 +216,10 @@ const catalogNearbySearchQuerySchema = z.object({
 const catalogBookableSlotsSchema = z.object({
   productItemId: z.string().trim().min(1).optional(),
   serviceId: z.string().trim().min(1).optional(),
-  date: z
-    .string()
-    .trim()
-    .refine(
-      (value) => dayjs.utc(value, "YYYY-MM-DD", true).isValid(),
-      "Invalid date format (use YYYY-MM-DD)",
-    ),
+  date: utcDateStringSchema,
 });
 
-const catalogCalendarPrefillSchema = z.object({
-  organisationId: z.string().trim().min(1),
-  date: z
-    .string()
-    .trim()
-    .refine(
-      (value) => dayjs.utc(value, "YYYY-MM-DD", true).isValid(),
-      "Invalid date format (use YYYY-MM-DD)",
-    ),
-  minuteOfDay: z
-    .number()
-    .int()
-    .min(0)
-    .max(24 * 60 - 1),
-  leadId: z.string().trim().min(1).optional(),
+const catalogCalendarPrefillSchema = calendarPrefillBaseSchema.extend({
   productItemIds: z.array(z.string().trim().min(1)).min(1).optional(),
   serviceIds: z.array(z.string().trim().min(1)).min(1).optional(),
 });
@@ -255,6 +241,41 @@ const handleError = (res: Response, error: unknown, defaultMessage: string) => {
 
   logger.error(defaultMessage, error);
   return res.status(500).json({ message: defaultMessage });
+};
+
+const stripOrganisationPrefix = (value?: string) =>
+  value?.replace(/^Organization\//, "");
+
+/**
+ * Resolve the organisation the RBAC layer actually authorized for this request.
+ *
+ * Client-supplied organisation identifiers (query, body, FHIR Parameters) are
+ * only ever used to detect a mismatch: `withOrgPermissions` may have authorized
+ * a different organisation than the one named in the payload, so honouring the
+ * payload would let a caller act outside the organisation they were checked
+ * against. Responds and returns `undefined` when the request cannot proceed.
+ */
+const resolveAuthorizedOrganisationId = (
+  req: Request,
+  res: Response,
+  provided?: string,
+): string | undefined => {
+  const authorized = (req as OrgRequest).organisationId;
+
+  if (!authorized) {
+    res.status(400).json({ message: "Organisation identifier is required." });
+    return undefined;
+  }
+
+  const requested = stripOrganisationPrefix(provided);
+  if (requested && requested !== authorized) {
+    res.status(403).json({
+      message: "Organisation does not match the authorized organisation.",
+    });
+    return undefined;
+  }
+
+  return authorized;
 };
 
 const parseKinds = (value?: string) => {
@@ -413,8 +434,18 @@ export const CatalogController = {
         });
       }
 
+      const { organisationId: payloadOrganisationId, ...payload } =
+        fromCatalogRequestDTO(parsed.data);
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        payloadOrganisationId,
+      );
+      if (!organisationId) return;
+
       const updated = await CatalogService.updateProduct(req.params.id, {
-        ...fromCatalogRequestDTO(parsed.data),
+        ...payload,
+        organisationId,
         expectedVersion: parseIfMatchVersion(req),
       });
       setVersionHeader(res, updated.version);
@@ -426,10 +457,15 @@ export const CatalogController = {
 
   getProductById: async (req: Request<{ id: string }>, res: Response) => {
     try {
-      const organisationId =
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
         typeof req.query.organisationId === "string"
           ? req.query.organisationId
-          : undefined;
+          : undefined,
+      );
+      if (!organisationId) return;
+
       const product = await CatalogService.getProductById(
         req.params.id,
         organisationId,
@@ -443,10 +479,15 @@ export const CatalogController = {
 
   getPackageDetail: async (req: Request<{ id: string }>, res: Response) => {
     try {
-      const organisationId =
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
         typeof req.query.organisationId === "string"
           ? req.query.organisationId
-          : undefined;
+          : undefined,
+      );
+      if (!organisationId) return;
+
       const pkg = await CatalogService.getPackageDetail(
         req.params.id,
         organisationId,
@@ -472,26 +513,22 @@ export const CatalogController = {
         });
       }
 
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        queryResult.data.organization ?? queryResult.data["provided-by"],
+      );
+      if (!organisationId) return;
+
       const products = await CatalogService.listProducts({
-        organisationId:
-          queryResult.data.organization ??
-          queryResult.data["provided-by"] ??
-          req.params.organisationId,
+        organisationId,
         specialityId:
           queryResult.data.specialty ?? queryResult.data.specialityId,
         kinds: parseKinds(queryResult.data.kind ?? queryResult.data.kinds),
-        active:
-          queryResult.data.active === "true"
-            ? true
-            : queryResult.data.active === "false"
-              ? false
-              : undefined,
-        supportsInpatient:
-          queryResult.data.supportsInpatient === "true"
-            ? true
-            : queryResult.data.supportsInpatient === "false"
-              ? false
-              : undefined,
+        active: parseTristateFlag(queryResult.data.active),
+        supportsInpatient: parseTristateFlag(
+          queryResult.data.supportsInpatient,
+        ),
         includeInactive:
           queryResult.data.includeInactive === "true" ||
           (isFhirRoute && queryResult.data.active === undefined),
@@ -549,9 +586,16 @@ export const CatalogController = {
         });
       }
 
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        parsed.data.organisationId,
+      );
+      if (!organisationId) return;
+
       const result = await CatalogService.resolveSelection(
         parsed.data.productItemId,
-        parsed.data.organisationId,
+        organisationId,
       );
 
       return res.status(200).json(result);
@@ -571,10 +615,16 @@ export const CatalogController = {
       }
 
       const operationInput = fromCatalogResolveOperationRequestDTO(parsed.data);
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        operationInput.organisationId,
+      );
+      if (!organisationId) return;
 
       const result = await CatalogService.resolveSelection(
         operationInput.productItemId,
-        operationInput.organisationId,
+        organisationId,
       );
 
       return res.status(200).json(toCatalogResolveOperationResponseDTO(result));
@@ -604,9 +654,15 @@ export const CatalogController = {
       }
 
       const operationInput = fromCatalogSearchOperationRequestDTO(parsed.data);
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        operationInput.organisationId,
+      );
+      if (!organisationId) return;
 
       const result = await CatalogService.searchItems({
-        organisationId: operationInput.organisationId,
+        organisationId,
         q: operationInput.q,
         specialityId: operationInput.specialityId,
         kinds: operationInput.kinds,
@@ -735,10 +791,17 @@ export const CatalogController = {
         });
       }
 
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        req.params.organisationId,
+      );
+      if (!organisationId) return;
+
       const updated = await CatalogService.updateSpeciality(
         req.params.specialityId,
         {
-          organisationId: req.params.organisationId,
+          organisationId,
           name: parsed.data.name,
           headUserId: parsed.data.headUserId,
           headName: parsed.data.headName,
@@ -818,12 +881,7 @@ export const CatalogController = {
         includeInactive:
           parsed.data.status === "ALL" || parsed.data.status === "ARCHIVED",
         search: parsed.data.search,
-        supportsInpatient:
-          parsed.data.supportsInpatient === "true"
-            ? true
-            : parsed.data.supportsInpatient === "false"
-              ? false
-              : undefined,
+        supportsInpatient: parseTristateFlag(parsed.data.supportsInpatient),
       });
 
       return res.status(200).json({
@@ -972,12 +1030,7 @@ export const CatalogController = {
         includeInactive:
           parsed.data.status === "ALL" || parsed.data.status === "ARCHIVED",
         search: parsed.data.search,
-        supportsInpatient:
-          parsed.data.supportsInpatient === "true"
-            ? true
-            : parsed.data.supportsInpatient === "false"
-              ? false
-              : undefined,
+        supportsInpatient: parseTristateFlag(parsed.data.supportsInpatient),
       });
 
       return res.status(200).json({
@@ -1247,8 +1300,15 @@ export const CatalogController = {
         });
       }
 
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        parsed.data.organisationId,
+      );
+      if (!organisationId) return;
+
       const matches = await CatalogService.getCalendarPrefillMatches({
-        organisationId: parsed.data.organisationId,
+        organisationId,
         date: dayjs.utc(parsed.data.date, "YYYY-MM-DD", true).toDate(),
         minuteOfDay: parsed.data.minuteOfDay,
         leadId: parsed.data.leadId,

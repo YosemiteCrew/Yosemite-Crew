@@ -17,7 +17,6 @@ import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 import {
   CategoryOptionsByBusiness,
   DispensaryRecord,
-  DispensaryRequestType,
   DispensaryStatus,
   InventoryFiltersState,
   InventoryItem,
@@ -25,7 +24,10 @@ import {
   SubCategoryOptions,
   SubCategoryByCategory,
 } from '@/app/features/inventory/pages/Inventory/types';
-import { defaultFilters } from '@/app/features/inventory/pages/Inventory/utils';
+import {
+  defaultFilters,
+  effectiveStockHealthKey,
+} from '@/app/features/inventory/pages/Inventory/utils';
 import { InventorySectionKey } from '@/app/features/inventory/components/AddInventory/InventoryConfig';
 import { BusinessType } from '@/app/features/organization/types/org';
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -39,32 +41,28 @@ import { PERMISSIONS } from '@/app/lib/permissions';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import Fallback from '@/app/ui/overlays/Fallback';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import { IoInformationCircleOutline } from 'react-icons/io5';
+import {
+  IoAddOutline,
+  IoChevronDownOutline,
+  IoInformationCircleOutline,
+  IoOptionsOutline,
+  IoSearchOutline,
+} from 'react-icons/io5';
+import clsx from 'clsx';
 import {
   listDispenseRequests,
   DispenseRequestApi,
 } from '@/app/features/inventory/services/dispensaryService';
 import { dispensePrescription } from '@/app/features/appointments/services/prescriptionWorkflowService';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
+import { usePhonePrimaryAction } from '@/app/ui/layout/PhoneShell/usePhonePrimaryAction';
+import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
 import DispensaryDetailModal from '@/app/features/inventory/components/DispensaryDetailModal';
-import Modal from '@/app/ui/overlays/Modal';
-import Filters from '@/app/ui/filters/Filters';
+import InventoryPhoneCatalog from '@/app/features/inventory/pages/Inventory/InventoryPhoneCatalog';
 import type { InventoryTurnoverFilterState } from '@/app/ui/filters/InventoryTurnoverFilters';
 import { StatusOption, status } from '@/app/features/companions/pages/Companions/types';
 import { Primary } from '@/app/ui/primitives/Buttons';
-import {
-  FiCheck,
-  FiChevronDown,
-  FiChevronUp,
-  FiFilter,
-  FiPlus,
-  FiSearch,
-  FiSliders,
-  FiX,
-} from 'react-icons/fi';
-import { TbLayoutGrid, TbPill } from 'react-icons/tb';
-import { LuFileText } from 'react-icons/lu';
-import { FaCaretDown } from 'react-icons/fa6';
+import SegmentedPill from '@/app/ui/primitives/SegmentedPill/SegmentedPill';
 
 const INVENTORY_PAGE_SKELETON = <PageSkeleton variant="list" />;
 
@@ -79,6 +77,10 @@ const InventoryTurnoverTable = dynamic(() => import('@/app/ui/tables/InventoryTu
   loading: () => <InventorySectionSkeleton />,
 });
 const InventoryTurnoverFilters = dynamic(() => import('@/app/ui/filters/InventoryTurnoverFilters'));
+const TurnoverAnalytics = dynamic(
+  () => import('@/app/features/inventory/components/TurnoverAnalytics'),
+  { loading: () => <InventorySectionSkeleton /> }
+);
 const DispensaryTable = dynamic(() => import('@/app/ui/tables/DispensaryTable'), {
   loading: () => <InventorySectionSkeleton />,
 });
@@ -134,7 +136,9 @@ export const filterAndSortInventory = (
   const selectedSupplierSet = new Set(selectedSuppliers);
   const nextFiltered = inventory.filter((item) => {
     const statusKey = (item.status || item.basicInfo.status || '').toUpperCase();
-    const stockHealthKey = (item.stockHealth || '').toUpperCase().replaceAll(' ', '_');
+    // Use the same effective (explicit-or-derived) key as the header counts and the
+    // table labels, so the low-stock/expired status filter keeps derived rows visible.
+    const stockHealthKey = effectiveStockHealthKey(item);
     const categoryMatch =
       (filters.category === 'all' && selectedCategories.length === 0) ||
       selectedCategorySet.has(item.basicInfo.category ?? '') ||
@@ -210,7 +214,10 @@ export const mapDispenseRequestToRecord = (req: DispenseRequestApi): DispensaryR
     requestType,
     invoiceId: req.invoiceId ?? undefined,
     paymentStatus: req.paymentStatus ?? undefined,
-    timeDispensed: req.reviewedAt ?? undefined,
+    // reviewedAt marks when the request was reviewed (dispensed OR marked not
+    // dispensed) - only surface it as "Dispensed" when it was actually dispensed,
+    // otherwise a "Not dispensed" row wrongly shows a dispensed timestamp (bug #1968).
+    timeDispensed: req.status === 'DISPENSED' ? (req.reviewedAt ?? undefined) : undefined,
     items: req.medications.map((m) => {
       const metadataDoseUnit =
         typeof m.metadata?.doseUnit === 'string' ? m.metadata.doseUnit : undefined;
@@ -278,6 +285,14 @@ type InventoryFilterBarProps = {
   setSortMode: React.Dispatch<React.SetStateAction<SortMode>>;
 };
 
+const chipClass = (active: boolean) =>
+  clsx(
+    'inline-flex items-center rounded-full! border px-[13px] py-1.5 text-[12px] transition-colors',
+    active
+      ? 'border-[var(--chip-selected-border)] bg-[var(--chip-selected-bg)] text-[var(--chip-selected-ink)] font-bold'
+      : 'border-[var(--hairline)] text-[var(--ink-muted)] font-semibold hover:bg-card-hover'
+  );
+
 export const InventoryFilterBar = ({
   filters,
   selectedFilterChips,
@@ -292,6 +307,7 @@ export const InventoryFilterBar = ({
   const panelRef = useRef<HTMLDivElement>(null);
 
   const positionPanel = useCallback(() => {
+    /* v8 ignore next -- triggerRef is always attached to the rendered Sort button before positionPanel runs */
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
     setDropdownStyle({
@@ -327,93 +343,96 @@ export const InventoryFilterBar = ({
   }, [sortOpen]);
 
   return (
-    <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-      <div className="flex items-center gap-2">
-        {(['ACTIVE', 'HIDDEN'] as const).map((vis) => {
-          const label = getVisibilityLabel(vis);
-          const active = filters.visibility === vis;
-          return (
-            <button
-              key={vis}
-              type="button"
-              onClick={() => setFilters((prev) => ({ ...prev, visibility: vis }))}
-              className={`inline-flex h-9 items-center rounded-full px-4 text-body-4 border transition-colors ${active ? 'border-blue-text text-blue-text bg-blue-light' : 'border-card-border text-text-primary hover:bg-card-hover bg-white'}`}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={() => setFilterOpen(true)}
-          className="inline-flex h-11 items-center gap-2 rounded-2xl border border-card-border bg-white px-4 text-body-4 text-text-primary"
-        >
-          <FiSliders size={18} aria-hidden="true" />
-          <span>Filter</span>
-          {selectedFilterChips.length > 0 ? (
-            <span className="rounded-full bg-badge-blue-bg px-2 text-caption-1 text-badge-blue-text">
-              {selectedFilterChips.length}
-            </span>
-          ) : (
-            <FiChevronDown size={16} aria-hidden="true" className="text-text-secondary" />
-          )}
-        </button>
-        <button
-          ref={triggerRef}
-          type="button"
-          onClick={() => setSortOpen((v) => !v)}
-          className="inline-flex h-11 items-center gap-2 rounded-2xl border border-card-border bg-white px-4 text-body-4 text-text-primary"
-        >
-          <FiFilter size={18} aria-hidden="true" />
-          <span>Sort by</span>
-          <FaCaretDown
-            size={13}
-            aria-hidden="true"
-            className={`text-text-secondary transition-transform ${sortOpen ? 'rotate-180' : ''}`}
-          />
-        </button>
-        {sortOpen &&
-          createPortal(
-            <div
-              ref={panelRef}
-              className="rounded-2xl border border-card-border bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
-              style={dropdownStyle}
-            >
-              {SORT_OPTIONS.map((option) => {
-                const isActive = option.key === sortMode;
-                return (
-                  <button
-                    key={option.key}
-                    type="button"
-                    onClick={() => {
-                      setSortMode(option.key);
-                      setSortOpen(false);
-                    }}
-                    className={`w-full flex items-center px-3 py-2.5 text-body-4 text-left transition-colors ${isActive ? 'font-medium text-text-primary' : 'text-text-secondary hover:bg-card-hover'}`}
-                  >
-                    {option.label}
-                    {isActive && <span className="ml-auto font-semibold">✓</span>}
-                  </button>
-                );
-              })}
-            </div>,
-            document.body
-          )}
-        <div className="relative w-full sm:w-auto sm:min-w-72">
-          <FiSearch
-            size={18}
-            aria-hidden="true"
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary"
-          />
-          <input
-            aria-label="Search inventory"
-            value={filters.search}
-            onChange={(event) => setFilters((prev) => ({ ...prev, search: event.target.value }))}
-            placeholder="Search inventory"
-            className="h-11 w-full rounded-2xl border border-card-border bg-white pl-11 pr-4 text-body-4 text-text-primary outline-none focus:border-input-border-active"
-          />
+    <div className="flex flex-col gap-3">
+      {/* Category and Low-stock quick pills were removed here: both are covered by
+          the Filter dropdown (category + stock-health), leaving only Active/Hidden. */}
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex items-center gap-2">
+          {(['ACTIVE', 'HIDDEN'] as const).map((vis) => {
+            const label = getVisibilityLabel(vis);
+            const active = filters.visibility === vis;
+            return (
+              <button
+                key={vis}
+                type="button"
+                onClick={() => setFilters((prev) => ({ ...prev, visibility: vis }))}
+                className={chipClass(active)}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setFilterOpen(true)}
+            className="inline-flex h-[38px] items-center gap-2 rounded-full! border border-[var(--hairline)] bg-transparent px-[14px] text-[12.5px] font-semibold text-[var(--ink-muted)] transition-colors hover:bg-card-hover"
+          >
+            <IoOptionsOutline size={16} aria-hidden="true" />
+            <span>Filter</span>
+            {selectedFilterChips.length > 0 ? (
+              <span className="rounded-full bg-badge-blue-bg px-2 text-caption-1 text-badge-blue-text">
+                {selectedFilterChips.length}
+              </span>
+            ) : (
+              <IoChevronDownOutline size={14} aria-hidden="true" />
+            )}
+          </button>
+          <button
+            ref={triggerRef}
+            type="button"
+            onClick={() => setSortOpen((v) => !v)}
+            className="inline-flex h-[38px] items-center gap-1.5 rounded-full! border border-[var(--hairline)] bg-transparent px-[14px] text-[12.5px] font-semibold text-[var(--ink-muted)] transition-colors hover:bg-card-hover"
+          >
+            <span>Sort: {SORT_OPTIONS.find((option) => option.key === sortMode)?.label}</span>
+            <IoChevronDownOutline
+              size={13}
+              aria-hidden="true"
+              className={clsx('transition-transform', sortOpen && 'rotate-180')}
+            />
+          </button>
+          {sortOpen &&
+            createPortal(
+              <div
+                ref={panelRef}
+                className="rounded-2xl border border-card-border bg-neutral-0 shadow-[0_8px_24px_var(--color-shadow-soft)] overflow-hidden"
+                style={dropdownStyle}
+              >
+                {SORT_OPTIONS.map((option) => {
+                  const isActive = option.key === sortMode;
+                  return (
+                    <button
+                      key={option.key}
+                      type="button"
+                      onClick={() => {
+                        setSortMode(option.key);
+                        setSortOpen(false);
+                      }}
+                      className={`w-full flex items-center px-3 py-2 text-[13px] text-left transition-colors ${isActive ? 'font-medium text-text-primary' : 'text-text-secondary hover:bg-card-hover'}`}
+                    >
+                      {option.label}
+                      {isActive && <span className="ml-auto font-semibold">✓</span>}
+                    </button>
+                  );
+                })}
+              </div>,
+              document.body
+            )}
+          <div className="relative w-full sm:w-auto sm:min-w-72">
+            <IoSearchOutline
+              size={18}
+              aria-hidden="true"
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--ink-muted)]"
+            />
+            <input
+              aria-label="Search inventory"
+              value={filters.search}
+              onChange={(event) => setFilters((prev) => ({ ...prev, search: event.target.value }))}
+              placeholder="Search inventory"
+              className="h-[38px] w-full rounded-full! border border-[var(--hairline)] bg-transparent pl-11 pr-4 text-[13px] text-text-primary outline-none focus:border-input-border-active"
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -469,26 +488,34 @@ export const DispensaryFilterBar = ({
   setDispensarySearch,
 }: DispensaryFilterBarProps) => (
   <div className="flex flex-wrap items-center justify-between gap-3">
-    <div className="flex items-center gap-2 shrink-0">
-      <Filters
-        statusOptions={DISPENSARY_STATUS_FILTERS}
-        activeStatus={dispensaryStatusFilter}
-        setActiveStatus={(v) => setDispensaryStatusFilter(v as DispensaryStatus | 'ALL')}
-        className="!w-auto shrink-0"
-      />
+    <div className="flex flex-wrap items-center gap-2 shrink-0">
+      {DISPENSARY_STATUS_FILTERS.map((option) => {
+        const active = dispensaryStatusFilter === option.key;
+        return (
+          <button
+            key={option.key}
+            type="button"
+            aria-pressed={active}
+            onClick={() => setDispensaryStatusFilter(option.key as DispensaryStatus | 'ALL')}
+            className={chipClass(active)}
+          >
+            {option.name}
+          </button>
+        );
+      })}
     </div>
     <div className="relative w-full sm:w-auto sm:min-w-72">
-      <FiSearch
+      <IoSearchOutline
         size={18}
         aria-hidden="true"
-        className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary"
+        className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--ink-muted)]"
       />
       <input
         aria-label="Search dispensary"
         value={dispensarySearch}
         onChange={(event) => setDispensarySearch(event.target.value)}
         placeholder="Search dispensary"
-        className="h-11 w-full rounded-2xl border border-card-border bg-white pl-11 pr-4 text-body-4 text-text-primary outline-none focus:border-input-border-active"
+        className="h-[38px] w-full rounded-full! border border-[var(--hairline)] bg-transparent pl-11 pr-4 text-[13px] text-text-primary outline-none focus:border-input-border-active"
       />
     </div>
   </div>
@@ -538,14 +565,12 @@ export const ActiveFilterBar = (props: ActiveFilterBarProps) => {
 
 export const filterDispensaryRecords = (
   records: DispensaryRecord[],
-  requestType: DispensaryRequestType,
   statusFilter: DispensaryStatus | 'ALL',
   search: string
 ) => {
   const normalizedSearch = search.trim().toLowerCase();
 
   return records.filter((record) => {
-    const typeMatch = requestType === 'ALL' || record.requestType === requestType;
     const statusMatch = statusFilter === 'ALL' || record.status === statusFilter;
     const searchMatch =
       normalizedSearch === '' ||
@@ -554,12 +579,15 @@ export const filterDispensaryRecords = (
       (record.location || '').toLowerCase().includes(normalizedSearch) ||
       (record.items ?? []).some((item) => item.name.toLowerCase().includes(normalizedSearch));
 
-    return typeMatch && statusMatch && searchMatch;
+    return statusMatch && searchMatch;
   });
 };
 
 type InventoryTableContentProps = {
   activeView: InventoryView;
+  turnover: InventoryTurnoverItem[];
+  inventory: InventoryItem[];
+  setActiveView: React.Dispatch<React.SetStateAction<InventoryView>>;
   turnoverFilters: InventoryTurnoverFilterState;
   setTurnoverFilters: React.Dispatch<React.SetStateAction<InventoryTurnoverFilterState>>;
   turnoverCategoryOptions: string[];
@@ -572,11 +600,15 @@ type InventoryTableContentProps = {
   setActiveDispensaryRecord: React.Dispatch<React.SetStateAction<DispensaryRecord | null>>;
   setDispensaryModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
   onRestock: (item: InventoryItem) => void;
+  onViewHistory: (item: InventoryItem) => void;
   onDispense?: (record: DispensaryRecord) => Promise<void>;
 };
 
 export const InventoryTableContent = ({
   activeView,
+  turnover,
+  inventory,
+  setActiveView,
   turnoverFilters,
   setTurnoverFilters,
   turnoverCategoryOptions,
@@ -589,15 +621,23 @@ export const InventoryTableContent = ({
   setActiveDispensaryRecord,
   setDispensaryModalOpen,
   onRestock,
+  onViewHistory,
   onDispense,
 }: InventoryTableContentProps) => {
   if (activeView === 'analytics') {
     return (
-      <div className="flex flex-col gap-4 pt-3">
+      <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto pt-3 pr-1">
         <InventoryTurnoverFilters
           filters={turnoverFilters}
           setFilters={setTurnoverFilters}
           categories={turnoverCategoryOptions}
+        />
+        <TurnoverAnalytics
+          turnover={turnover}
+          inventory={inventory}
+          setActiveView={setActiveView}
+          onReorder={onRestock}
+          onViewHistory={onViewHistory}
         />
         <InventoryTurnoverTable filteredList={filteredTurnoverList} />
       </div>
@@ -638,6 +678,25 @@ export const getInventoryPageTitle = (view: InventoryView): string => {
   return 'Inventory';
 };
 
+const pluralize = (count: number, singular: string, plural: string) =>
+  `${count} ${count === 1 ? singular : plural}`;
+
+export const getInventorySubtitle = (
+  view: InventoryView,
+  lowStockCount: number,
+  expiredCount: number
+): string | null => {
+  if (view === 'turnover') return 'Prescriptions waiting to be pulled from stock';
+  if (view === 'inventory') {
+    return `${pluralize(lowStockCount, 'item', 'items')} below reorder point · ${pluralize(
+      expiredCount,
+      'expired batch',
+      'expired batches'
+    )}`;
+  }
+  return null;
+};
+
 export const toggleSetItem = (prev: Set<string>, key: string): Set<string> => {
   const next = new Set(prev);
   if (next.has(key)) {
@@ -651,180 +710,6 @@ export const toggleSetItem = (prev: Set<string>, key: string): Set<string> => {
 import { InventoryFilterModal } from './InventoryFilterModal';
 export { InventoryFilterModal, type FilterChip } from './InventoryFilterModal';
 
-type DispensaryFilterModalProps = {
-  dispensaryFilterOpen: boolean;
-  setDispensaryFilterOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  dispensaryStatusFilter: DispensaryStatus | 'ALL';
-  setDispensaryStatusFilter: React.Dispatch<React.SetStateAction<DispensaryStatus | 'ALL'>>;
-  dispensaryRequestType: DispensaryRequestType;
-  setDispensaryRequestType: React.Dispatch<React.SetStateAction<DispensaryRequestType>>;
-  filterOpenSections: Set<string>;
-  toggleFilterSection: (key: string) => void;
-};
-
-export const DispensaryFilterModal = ({
-  dispensaryFilterOpen,
-  setDispensaryFilterOpen,
-  dispensaryStatusFilter,
-  setDispensaryStatusFilter,
-  dispensaryRequestType,
-  setDispensaryRequestType,
-  filterOpenSections,
-  toggleFilterSection,
-}: DispensaryFilterModalProps) => {
-  return (
-    <Modal showModal={dispensaryFilterOpen} setShowModal={setDispensaryFilterOpen}>
-      <div className="flex h-full flex-col">
-        <div className="flex items-center justify-between pb-4 shrink-0">
-          <div className="flex items-center gap-2 text-body-3-emphasis text-text-primary">
-            <FiSliders size={18} aria-hidden="true" />
-            <span>Filter</span>
-          </div>
-          <div className="flex items-center gap-2">
-            {(dispensaryStatusFilter !== 'ALL' || dispensaryRequestType !== 'ALL') && (
-              <button
-                type="button"
-                onClick={() => {
-                  setDispensaryStatusFilter('ALL');
-                  setDispensaryRequestType('ALL');
-                }}
-                className="rounded-full border border-blue-text px-4 py-1.5 text-body-4 text-blue-text hover:bg-blue-light transition-colors"
-              >
-                Clear all
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setDispensaryFilterOpen(false)}
-              aria-label="Close"
-              className="inline-flex size-8 items-center justify-center rounded-full text-text-secondary hover:bg-card-hover transition-colors"
-            >
-              <FiX size={18} />
-            </button>
-          </div>
-        </div>
-        <div className="flex flex-1 flex-col overflow-y-auto pr-1 divide-y divide-card-border">
-          <div>
-            <button
-              type="button"
-              onClick={() => toggleFilterSection('disp-status')}
-              className="flex w-full items-center justify-between py-3 text-left"
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-body-4 text-text-primary">Status</span>
-                {dispensaryStatusFilter !== 'ALL' && (
-                  <span className="inline-flex size-5 items-center justify-center rounded-full bg-blue-text text-[10px] font-bold text-white">
-                    1
-                  </span>
-                )}
-              </div>
-              {filterOpenSections.has('disp-status') ? (
-                <FiChevronUp size={16} className="text-text-secondary" />
-              ) : (
-                <FiChevronDown size={16} className="text-text-secondary" />
-              )}
-            </button>
-            {filterOpenSections.has('disp-status') && (
-              <div className="flex flex-col gap-3 pb-3">
-                {(
-                  [
-                    { value: 'ALL', label: 'All' },
-                    { value: 'PENDING', label: 'Pending' },
-                    { value: 'DISPENSED', label: 'Dispensed' },
-                    { value: 'NOT_DISPENSED', label: 'Not dispensed' },
-                  ] as const
-                ).map(({ value, label }) => (
-                  <label
-                    key={value}
-                    className="flex items-center gap-3 text-body-4 text-text-primary cursor-pointer"
-                  >
-                    <input
-                      type="radio"
-                      name="dispensary-status"
-                      checked={dispensaryStatusFilter === value}
-                      onChange={() => setDispensaryStatusFilter(value)}
-                      className="accent-blue-text"
-                    />
-                    <span>{label}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-          <div>
-            <button
-              type="button"
-              onClick={() => toggleFilterSection('disp-type')}
-              className="flex w-full items-center justify-between py-3 text-left"
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-body-4 text-text-primary">Request type</span>
-                {dispensaryRequestType !== 'ALL' && (
-                  <span className="inline-flex size-5 items-center justify-center rounded-full bg-blue-text text-[10px] font-bold text-white">
-                    1
-                  </span>
-                )}
-              </div>
-              {filterOpenSections.has('disp-type') ? (
-                <FiChevronUp size={16} className="text-text-secondary" />
-              ) : (
-                <FiChevronDown size={16} className="text-text-secondary" />
-              )}
-            </button>
-            {filterOpenSections.has('disp-type') && (
-              <div className="flex flex-col gap-3 pb-3">
-                {(
-                  [
-                    { value: 'ALL', label: 'All requests' },
-                    { value: 'PATIENT', label: 'Patient' },
-                    { value: 'IN_HOUSE', label: 'Inhouse' },
-                  ] as const
-                ).map(({ value, label }) => (
-                  <label
-                    key={value}
-                    className="flex items-center gap-3 text-body-4 text-text-primary cursor-pointer"
-                  >
-                    <input
-                      type="radio"
-                      name="dispensary-type"
-                      checked={dispensaryRequestType === value}
-                      onChange={() => setDispensaryRequestType(value)}
-                      className="accent-blue-text"
-                    />
-                    <span>{label}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3 border-t border-card-border pt-5 mt-5 shrink-0">
-          <button
-            type="button"
-            aria-label="Apply dispensary filters"
-            onClick={() => setDispensaryFilterOpen(false)}
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-text-primary px-4 text-body-3-emphasis text-white hover:opacity-90 transition-opacity"
-          >
-            <FiCheck size={18} aria-hidden="true" />
-            Apply
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setDispensaryStatusFilter('ALL');
-              setDispensaryRequestType('ALL');
-              setDispensaryFilterOpen(false);
-            }}
-            className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-card-border bg-white px-4 text-body-3-emphasis text-text-primary hover:bg-card-hover transition-colors"
-          >
-            Discard
-          </button>
-        </div>
-      </div>
-    </Modal>
-  );
-};
-
 const resolveActiveInventory = (
   filteredInventory: InventoryItem[],
   activeInventory: InventoryItem | null
@@ -837,9 +722,9 @@ const resolveActiveInventory = (
 // its previous value — the null-sentinel derived-state pattern factored out so
 // each call site stays a single statement rather than an inline prev-compare.
 const useOnValueChange = <T,>(value: T, onChange: () => void): void => {
-  const prevRef = useRef<{ value: T }>(undefined);
-  if (prevRef.current?.value !== value) {
-    prevRef.current = { value };
+  const [prev, setPrev] = useState<{ value: T } | undefined>(undefined);
+  if (prev?.value !== value) {
+    setPrev({ value });
     onChange();
   }
 };
@@ -858,7 +743,7 @@ const useInventoryContent = () => {
   const rooms = useRoomsForPrimaryOrg();
   const headerSearchQuery = useSearchStore((s) => s.query);
   const searchParams = useSearchParams();
-  const handledDeepLinkRef = useRef<string | null>(null);
+  const [handledDeepLinkId, setHandledDeepLinkId] = useState<string | null>(null);
 
   const resolvedOrgType = primaryOrgId ? orgsById[primaryOrgId]?.type : undefined;
   const resolvedBusinessType: BusinessType =
@@ -874,30 +759,39 @@ const useInventoryContent = () => {
   const [filters, setFilters] = useState<InventoryFiltersState>(defaultFilters);
   const [dispensaryRecords, setDispensaryRecords] = useState<DispensaryRecord[]>([]);
 
-  const fetchDispensaryRecords = useCallback(async () => {
-    if (!primaryOrgId) return;
-    const orgAtCallTime = primaryOrgId;
+  // Pure fetch (null = leave current state alone) so the refresh effect can apply
+  // the result in a subscription-style callback.
+  const resolveDispensaryRecords = useCallback(async (): Promise<DispensaryRecord[] | null> => {
+    if (!primaryOrgId || !canViewPrescription) return null;
     try {
-      const data = await listDispenseRequests(orgAtCallTime);
-      setDispensaryRecords((prev) =>
-        primaryOrgId === orgAtCallTime ? data.map(mapDispenseRequestToRecord) : prev
-      );
+      const data = await listDispenseRequests(primaryOrgId);
+      return data.map(mapDispenseRequestToRecord);
     } catch {
       // silently fail — table shows empty state
+      return null;
     }
-  }, [primaryOrgId]);
+  }, [primaryOrgId, canViewPrescription]);
 
-  useEffect(() => {
+  const fetchDispensaryRecords = useCallback(async () => {
+    const records = await resolveDispensaryRecords();
+    if (records) setDispensaryRecords(records);
+  }, [resolveDispensaryRecords]);
+
+  // Org/permission changed: drop the previous org's rows during render, then
+  // refetch after commit.
+  useOnValueChange(resolveDispensaryRecords, () => {
     setDispensaryRecords([]);
-    fetchDispensaryRecords();
-  }, [fetchDispensaryRecords]);
+  });
+  useEffect(() => {
+    void resolveDispensaryRecords().then((records) => {
+      if (records) setDispensaryRecords(records);
+    });
+  }, [resolveDispensaryRecords]);
   const [activeDispensaryRecord, setActiveDispensaryRecord] = useState<DispensaryRecord | null>(
     null
   );
   const [dispensaryModalOpen, setDispensaryModalOpen] = useState(false);
-  const [dispensaryRequestType, setDispensaryRequestType] = useState<DispensaryRequestType>('ALL');
   const [dispensarySearch, setDispensarySearch] = useState('');
-  const [dispensaryFilterOpen, setDispensaryFilterOpen] = useState(false);
   const [dispensaryStatusFilter, setDispensaryStatusFilter] = useState<DispensaryStatus | 'ALL'>(
     'ALL'
   );
@@ -921,6 +815,18 @@ const useInventoryContent = () => {
   const [activeView, setActiveView] = useState<InventoryView>('inventory');
   const [sortMode, setSortMode] = useState<'name' | 'expiry' | 'stock'>('name');
   const { plannerSectionRef } = usePlannerAutoLock({ activeView: 'list', topOffset: 72 });
+  const isPhone = useIsPhone();
+  // The catalog is the only inventory view with a bespoke phone screen; dispensary
+  // and turnover keep their shared card lists on phone.
+  const showPhoneCatalog = isPhone && activeView === 'inventory';
+
+  // The phone shell's FAB has no reference to this page's create flow; opt in so
+  // "New product" opens the same modal the desktop "Add product" button does,
+  // under the same guards that enable that button.
+  usePhonePrimaryAction('product', () => {
+    if (!canEditInventory || activeView === 'turnover' || savingItem || !primaryOrgId) return;
+    setAddPopup(true);
+  });
 
   const loadingList = status === 'loading';
   const error = actionError ?? loadError;
@@ -1024,11 +930,11 @@ const useInventoryContent = () => {
 
   const deepLinkedInventoryId = String(searchParams.get('inventoryId') ?? '').trim();
   const deepLinkTarget =
-    deepLinkedInventoryId && handledDeepLinkRef.current !== deepLinkedInventoryId
+    deepLinkedInventoryId && handledDeepLinkId !== deepLinkedInventoryId
       ? inventory.find((item) => item.id === deepLinkedInventoryId)
       : undefined;
   if (deepLinkTarget !== undefined) {
-    handledDeepLinkRef.current = deepLinkedInventoryId;
+    setHandledDeepLinkId(deepLinkedInventoryId);
     setActiveInventory(deepLinkTarget);
     setViewInventory(true);
     setInfoInitialSection(undefined);
@@ -1138,6 +1044,22 @@ const useInventoryContent = () => {
     setViewInventory(true);
   }, []);
 
+  // "History" on the turnover product panel opens the same record sheet on the
+  // batch and expiry section, which carries the item's stock movement history.
+  const handleViewHistory = useCallback((item: InventoryItem) => {
+    setActiveInventory(item);
+    setInfoInitialSection('batch');
+    setViewInventory(true);
+  }, []);
+
+  // The phone catalog opens the same record sheet the desktop table's "view"
+  // action does (InventoryInfo), with no forced section.
+  const handleViewInventoryItem = useCallback((item: InventoryItem) => {
+    setActiveInventory(item);
+    setInfoInitialSection(undefined);
+    setViewInventory(true);
+  }, []);
+
   const toggleCategoryFilter = useCallback(
     (category: string) => {
       setFilters((prev) => {
@@ -1214,6 +1136,7 @@ const useInventoryContent = () => {
       })
     );
     if (filters.category !== 'all' && !(filters.categories ?? []).includes(filters.category)) {
+      /* v8 ignore next 5 -- filters.category is only ever 'all' or a member of filters.categories (both set exclusively by toggleCategoryFilter), so this single-category chip is unreachable */
       chips.push({
         id: `categorySingle-${filters.category}`,
         label: filters.category,
@@ -1225,15 +1148,45 @@ const useInventoryContent = () => {
 
   const pageTitle = getInventoryPageTitle(activeView);
   const filteredDispensaryRecords = useMemo(
-    () =>
-      filterDispensaryRecords(
-        dispensaryRecords,
-        dispensaryRequestType,
-        dispensaryStatusFilter,
-        dispensarySearch
-      ),
-    [dispensaryRecords, dispensaryRequestType, dispensaryStatusFilter, dispensarySearch]
+    () => filterDispensaryRecords(dispensaryRecords, dispensaryStatusFilter, dispensarySearch),
+    [dispensaryRecords, dispensaryStatusFilter, dispensarySearch]
   );
+
+  // Totals reflect the same visibility (Active/Hidden) the catalog is scoped to, so a
+  // count never claims low-stock/expired rows the current view does not actually show.
+  const visibilityScopedInventory = useMemo(() => {
+    const visibility = (filters.visibility ?? 'ALL').toUpperCase();
+    if (visibility === 'ALL') return inventory;
+    return inventory.filter(
+      (item) => (item.status || item.basicInfo.status || '').toUpperCase() === visibility
+    );
+  }, [inventory, filters.visibility]);
+  const lowStockCount = useMemo(
+    () =>
+      visibilityScopedInventory.filter((item) => effectiveStockHealthKey(item) === 'LOW_STOCK')
+        .length,
+    [visibilityScopedInventory]
+  );
+  const expiredCount = useMemo(
+    () =>
+      visibilityScopedInventory.filter((item) => effectiveStockHealthKey(item) === 'EXPIRED')
+        .length,
+    [visibilityScopedInventory]
+  );
+
+  const getTitleCount = () => {
+    if (activeView === 'turnover') return filteredDispensaryRecords.length;
+    if (activeView === 'analytics') return filteredTurnoverList.length;
+    return filteredInventory.length;
+  };
+  const titleCount = getTitleCount();
+  const subtitle = getInventorySubtitle(activeView, lowStockCount, expiredCount);
+
+  const viewOptions = [
+    { value: 'inventory' as const, label: 'Catalog' },
+    ...(canViewPrescription ? [{ value: 'turnover' as const, label: 'Dispensary' }] : []),
+    { value: 'analytics' as const, label: 'Turnover' },
+  ];
 
   const handleDispense = useCallback(
     async (record: DispensaryRecord) => {
@@ -1249,11 +1202,12 @@ const useInventoryContent = () => {
   );
 
   return (
-    <div className="relative min-w-0 flex h-full min-h-0 flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-3!">
+    <div className="relative min-w-0 h-full min-h-0 yc-page-content">
       <div className="flex justify-between items-center w-full flex-wrap gap-3">
         <div className="flex flex-col gap-1">
-          <h1 className="text-text-primary text-heading-2 flex items-center gap-2">
+          <h1 className="text-page-title flex items-center gap-2">
             <span>{pageTitle}</span>
+            <span className="text-page-title-count">({titleCount})</span>
             {activeView === 'inventory' && (
               <GlassTooltip
                 content="Organize stock, track batches and expiry, and monitor turnover so you know what to reorder and which items need attention."
@@ -1269,123 +1223,92 @@ const useInventoryContent = () => {
               </GlassTooltip>
             )}
           </h1>
+          {subtitle && <p className="text-[13.5px] text-[var(--ink-muted)]">{subtitle}</p>}
         </div>
         <div className="ml-auto flex items-center justify-end gap-3 flex-wrap">
-          {canEditInventory && activeView !== 'turnover' && (
+          <SegmentedPill
+            ariaLabel="Inventory view"
+            options={viewOptions}
+            value={activeView}
+            onChange={setActiveView}
+          />
+          {canEditInventory && activeView !== 'turnover' && !isPhone && (
             <Primary
               href="#"
-              text={savingItem ? 'Saving...' : 'Add item'}
+              text={savingItem ? 'Saving...' : 'Add product'}
               onClick={() => setAddPopup(true)}
               isDisabled={savingItem || !primaryOrgId}
-              icon={<FiPlus size={18} aria-hidden="true" />}
-              className="h-11!"
+              icon={<IoAddOutline size={18} aria-hidden="true" />}
+              className="h-10!"
             />
-          )}
-          {activeView === 'analytics' ? (
-            <button
-              type="button"
-              onClick={() => setActiveView('inventory')}
-              className="inline-flex h-11 items-center justify-center rounded-2xl border border-text-primary bg-white px-5 text-body-4-emphasis text-text-primary hover:bg-card-hover transition-colors"
-            >
-              Inventory
-            </button>
-          ) : (
-            <GlassTooltip content="Turnover analytics" side="bottom">
-              <button
-                type="button"
-                aria-label="Turnover analytics"
-                onClick={() => setActiveView('analytics')}
-                className="inline-flex size-11 items-center justify-center rounded-full border border-card-border bg-white text-text-primary hover:bg-card-hover transition-colors"
-              >
-                <LuFileText size={20} aria-hidden="true" />
-              </button>
-            </GlassTooltip>
-          )}
-          {canViewPrescription && activeView !== 'analytics' && (
-            <fieldset
-              aria-label="Inventory view"
-              className="relative flex h-10 w-[260px] items-stretch overflow-hidden rounded-[999px]! border border-card-border bg-white m-0 p-0"
-            >
-              <legend className="sr-only">Inventory view</legend>
-              <div
-                aria-hidden
-                className={`pointer-events-none absolute top-0 bottom-0 w-1/2 rounded-[999px]! transition-all duration-300 ease-in-out ${activeView === 'inventory' ? 'bg-(--color-primary-700)' : 'bg-success-700'}`}
-                style={{ transform: `translateX(${activeView === 'inventory' ? '0%' : '100%'})` }}
-              />
-              <button
-                type="button"
-                onClick={() => setActiveView('inventory')}
-                aria-pressed={activeView === 'inventory'}
-                className={`relative z-10 flex w-1/2 items-center justify-center gap-1.5 text-body-4 transition-colors ${
-                  activeView === 'inventory'
-                    ? 'text-white duration-150 delay-150'
-                    : 'text-text-secondary hover:text-text-primary duration-100 delay-0'
-                }`}
-              >
-                <TbLayoutGrid size={15} aria-hidden="true" className="shrink-0" />
-                <span>Inventory</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveView('turnover')}
-                aria-pressed={activeView === 'turnover'}
-                className={`relative z-10 flex w-1/2 items-center justify-center gap-1.5 text-body-4 transition-colors ${
-                  activeView === 'turnover'
-                    ? 'text-white duration-150 delay-150'
-                    : 'text-text-secondary hover:text-text-primary duration-100 delay-0'
-                }`}
-              >
-                <TbPill size={15} aria-hidden="true" className="shrink-0" />
-                <span>Dispensary</span>
-              </button>
-            </fieldset>
           )}
         </div>
       </div>
 
-      {error && <div className="text-red-500 text-sm font-satoshi font-semibold">{error}</div>}
+      {error && <div className="text-text-error text-sm font-satoshi font-semibold">{error}</div>}
 
       <PermissionGate allOf={[PERMISSIONS.INVENTORY_VIEW_ANY]} fallback={<Fallback />}>
-        <div className={wrapperClassName}>
-          <div className="flex w-full shrink-0 flex-col gap-4">
-            <ActiveFilterBar
-              activeView={activeView}
-              filters={filters}
-              selectedFilterChips={selectedFilterChips}
-              sortMode={sortMode}
-              setFilterOpen={setFilterOpen}
-              setFilters={setFilters}
-              setSortMode={setSortMode}
-              dispensarySearch={dispensarySearch}
-              dispensaryStatusFilter={dispensaryStatusFilter}
-              setDispensaryStatusFilter={setDispensaryStatusFilter}
-              setDispensarySearch={setDispensarySearch}
-            />
-          </div>
-
-          {loadingList && activeView === 'inventory' && (
-            <div className="text-grey-noti text-sm font-satoshi">Loading inventory…</div>
-          )}
-
-          <div ref={plannerSectionRef} className={plannerSectionClassName}>
-            <InventoryTableContent
-              activeView={activeView}
-              turnoverFilters={turnoverFilters}
-              setTurnoverFilters={setTurnoverFilters}
-              turnoverCategoryOptions={turnoverCategoryOptions}
-              filteredTurnoverList={filteredTurnoverList}
+        {showPhoneCatalog ? (
+          <div className="flex w-full flex-col gap-4 pt-1">
+            <InventoryPhoneCatalog
               filteredInventory={filteredInventory}
-              setActiveInventory={setActiveInventory}
-              setViewInventory={setViewInventory}
-              setInfoInitialSection={setInfoInitialSection}
-              filteredDispensaryRecords={filteredDispensaryRecords}
-              setActiveDispensaryRecord={setActiveDispensaryRecord}
-              setDispensaryModalOpen={setDispensaryModalOpen}
+              filters={filters}
+              setFilters={setFilters}
+              categoryOptions={categoryOptions}
+              toggleCategoryFilter={toggleCategoryFilter}
+              lowStockCount={lowStockCount}
+              loading={loadingList}
+              onView={handleViewInventoryItem}
               onRestock={handleRestock}
-              onDispense={canEditPrescription ? handleDispense : undefined}
+              canRestock={canEditInventory}
             />
           </div>
-        </div>
+        ) : (
+          <div className={wrapperClassName}>
+            <div className="flex w-full shrink-0 flex-col gap-4">
+              <ActiveFilterBar
+                activeView={activeView}
+                filters={filters}
+                selectedFilterChips={selectedFilterChips}
+                sortMode={sortMode}
+                setFilterOpen={setFilterOpen}
+                setFilters={setFilters}
+                setSortMode={setSortMode}
+                dispensarySearch={dispensarySearch}
+                dispensaryStatusFilter={dispensaryStatusFilter}
+                setDispensaryStatusFilter={setDispensaryStatusFilter}
+                setDispensarySearch={setDispensarySearch}
+              />
+            </div>
+
+            {loadingList && activeView === 'inventory' && (
+              <div className="text-grey-noti text-sm font-satoshi">Loading inventory…</div>
+            )}
+
+            <div ref={plannerSectionRef} className={plannerSectionClassName}>
+              <InventoryTableContent
+                activeView={activeView}
+                turnover={turnover}
+                inventory={inventory}
+                setActiveView={setActiveView}
+                turnoverFilters={turnoverFilters}
+                setTurnoverFilters={setTurnoverFilters}
+                turnoverCategoryOptions={turnoverCategoryOptions}
+                filteredTurnoverList={filteredTurnoverList}
+                filteredInventory={filteredInventory}
+                setActiveInventory={setActiveInventory}
+                setViewInventory={setViewInventory}
+                setInfoInitialSection={setInfoInitialSection}
+                filteredDispensaryRecords={filteredDispensaryRecords}
+                setActiveDispensaryRecord={setActiveDispensaryRecord}
+                setDispensaryModalOpen={setDispensaryModalOpen}
+                onRestock={handleRestock}
+                onViewHistory={handleViewHistory}
+                onDispense={canEditPrescription ? handleDispense : undefined}
+              />
+            </div>
+          </div>
+        )}
 
         <DispensaryDetailModal
           record={activeDispensaryRecord}
@@ -1420,17 +1343,6 @@ const useInventoryContent = () => {
           toggleCategoryFilter={toggleCategoryFilter}
           toggleExpandedCategory={toggleExpandedCategory}
           supplierFilterOptions={supplierFilterOptions}
-        />
-
-        <DispensaryFilterModal
-          dispensaryFilterOpen={dispensaryFilterOpen}
-          setDispensaryFilterOpen={setDispensaryFilterOpen}
-          dispensaryStatusFilter={dispensaryStatusFilter}
-          setDispensaryStatusFilter={setDispensaryStatusFilter}
-          dispensaryRequestType={dispensaryRequestType}
-          setDispensaryRequestType={setDispensaryRequestType}
-          filterOpenSections={filterOpenSections}
-          toggleFilterSection={toggleFilterSection}
         />
 
         {activeInventory && (

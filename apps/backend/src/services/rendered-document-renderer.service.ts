@@ -237,10 +237,10 @@ const buildOrganizationAddressLines = (
       organization.address?.state,
       organization.address?.postalCode,
     ]
-      .filter((line): line is string => Boolean(line && line.trim()))
+      .filter((line): line is string => Boolean(line?.trim()))
       .join(", "),
     organization.address?.country,
-  ].filter((line): line is string => Boolean(line && line.trim()));
+  ].filter((line): line is string => Boolean(line?.trim()));
 
 const buildOrganizationBranding = (
   organization: OrganizationBrand,
@@ -429,7 +429,7 @@ const loadTemplateInstanceDocument = async (
   return {
     ...record,
     version,
-  } as unknown as TemplateInstanceDocumentSource;
+  };
 };
 
 const loadFormSubmissionDocument = async (
@@ -1217,9 +1217,9 @@ const loadAppointmentClinicalHeader = async (
   }
 
   return readAppointmentHeader({
-    patient: appointment.patient as unknown as Record<string, unknown>,
-    lead: appointment.lead as unknown as Record<string, unknown>,
-    room: appointment.room as unknown as Record<string, unknown>,
+    patient: appointment.patient,
+    lead: appointment.lead,
+    room: appointment.room,
   });
 };
 

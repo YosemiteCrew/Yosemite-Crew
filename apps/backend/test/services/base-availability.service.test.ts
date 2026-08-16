@@ -1,11 +1,7 @@
 import { BaseAvailabilityService } from "../../src/services/base-availability.service";
-import BaseAvailabilityModel from "../../src/models/base-availability";
 import { prisma } from "src/config/prisma";
-import mongoose from "mongoose";
 
 // --- Mocks ---
-jest.mock("../../src/models/base-availability");
-
 jest.mock("src/config/prisma", () => ({
   prisma: {
     baseAvailability: {
@@ -21,93 +17,51 @@ describe("BaseAvailabilityService", () => {
   const mockUserId = "user_123";
   const validSlot = { startTime: "09:00", endTime: "17:00", isAvailable: true };
   const validAvailability = [
-    { dayOfWeek: "MONDAY", slots: [validSlot] },
-    { dayOfWeek: "TUESDAY", slots: [validSlot] },
+    { dayOfWeek: "MONDAY", slots: [validSlot], organisationId: "org-1" },
+    { dayOfWeek: "TUESDAY", slots: [validSlot], organisationId: "org-1" },
   ];
 
-  // Helper to create mock Mongoose documents
-  const createMockDoc = (data: any) => ({
-    ...data,
-    _id: "doc_id_123",
+  // Helper to create a mock Prisma row
+  const createRow = (data: any) => ({
+    id: "row_id_123",
+    userId: mockUserId,
+    organisationId: "org-1",
+    dayOfWeek: "MONDAY",
+    slots: [validSlot],
     createdAt: new Date(),
     updatedAt: new Date(),
-    toObject: jest.fn().mockReturnValue({ ...data, _id: "doc_id_123" }),
+    ...data,
   });
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  describe("Postgres branches", () => {
-    const originalReadFromPostgres = process.env.READ_FROM_POSTGRES;
-    const originalReadyStateDescriptor = Object.getOwnPropertyDescriptor(
-      mongoose.connection,
-      "readyState",
-    );
-
-    beforeEach(() => {
-      process.env.READ_FROM_POSTGRES = "true";
-      Object.defineProperty(mongoose.connection, "readyState", {
-        value: 0,
-        configurable: true,
-      });
-      (prisma.baseAvailability.findFirst as jest.Mock).mockReset();
-      (prisma.baseAvailability.findMany as jest.Mock).mockReset();
-      (prisma.baseAvailability.createMany as jest.Mock).mockReset();
-      (prisma.baseAvailability.deleteMany as jest.Mock).mockReset();
-    });
-
-    afterEach(() => {
-      process.env.READ_FROM_POSTGRES = originalReadFromPostgres;
-      if (originalReadyStateDescriptor) {
-        Object.defineProperty(
-          mongoose.connection,
-          "readyState",
-          originalReadyStateDescriptor,
-        );
-      }
-    });
-
-    it("create: should write via prisma when mongo unavailable", async () => {
+  describe("Postgres persistence", () => {
+    it("create: should write via prisma", async () => {
       (prisma.baseAvailability.findFirst as jest.Mock).mockResolvedValueOnce(
         null,
       );
       (prisma.baseAvailability.findMany as jest.Mock).mockResolvedValueOnce([
-        {
-          id: "row-1",
-          userId: mockUserId,
-          organisationId: "org-1",
-          dayOfWeek: "MONDAY",
-          slots: [validSlot],
-        },
+        createRow({ dayOfWeek: "MONDAY" }),
       ]);
 
       const res = await BaseAvailabilityService.create({
         userId: mockUserId,
-        availability: [
-          { ...validAvailability[0], organisationId: "org-1" } as any,
-        ],
+        availability: [validAvailability[0] as any],
       });
 
       expect(prisma.baseAvailability.createMany).toHaveBeenCalled();
       expect(res[0].dayOfWeek).toBe("MONDAY");
     });
 
-    it("update: should replace via prisma when mongo unavailable", async () => {
+    it("update: should replace via prisma", async () => {
       (prisma.baseAvailability.findMany as jest.Mock).mockResolvedValueOnce([
-        {
-          id: "row-1",
-          userId: mockUserId,
-          organisationId: "org-1",
-          dayOfWeek: "TUESDAY",
-          slots: [validSlot],
-        },
+        createRow({ dayOfWeek: "TUESDAY" }),
       ]);
 
       const res = await BaseAvailabilityService.update(mockUserId, {
-        availability: [
-          { ...validAvailability[1], organisationId: "org-1" } as any,
-        ],
+        availability: [validAvailability[1] as any],
       });
 
       expect(prisma.baseAvailability.deleteMany).toHaveBeenCalled();
@@ -115,19 +69,9 @@ describe("BaseAvailabilityService", () => {
       expect(res[0].dayOfWeek).toBe("TUESDAY");
     });
 
-    it("getByUserId: should read via prisma when read from postgres", async () => {
-      Object.defineProperty(mongoose.connection, "readyState", {
-        value: mongoose.ConnectionStates.connected,
-        configurable: true,
-      }); // read path uses isReadFromPostgres only
+    it("getByUserId: should read via prisma", async () => {
       (prisma.baseAvailability.findMany as jest.Mock).mockResolvedValueOnce([
-        {
-          id: "row-1",
-          userId: mockUserId,
-          organisationId: "org-1",
-          dayOfWeek: "MONDAY",
-          slots: [validSlot],
-        },
+        createRow({ dayOfWeek: "MONDAY" }),
       ]);
 
       const res = await BaseAvailabilityService.getByUserId(mockUserId);
@@ -240,20 +184,22 @@ describe("BaseAvailabilityService", () => {
           {
             dayOfWeek: "MONDAY",
             slots: [{ startTime: "09:00", endTime: "10:00" }],
+            organisationId: "org-1",
           },
         ],
       };
-      (BaseAvailabilityModel.findOne as jest.Mock).mockResolvedValue(null);
-      (BaseAvailabilityModel.insertMany as jest.Mock).mockResolvedValue([
-        createMockDoc({
-          ...payload.availability[0],
-          userId: mockUserId,
-          slots: [{ ...payload.availability[0].slots[0], isAvailable: true }],
-        }),
+      (prisma.baseAvailability.findFirst as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
+      (prisma.baseAvailability.findMany as jest.Mock).mockResolvedValueOnce([
+        createRow({ slots: [{ startTime: "09:00", endTime: "10:00" }] }),
       ]);
 
-      const result = await BaseAvailabilityService.create(payload);
-      expect(result[0].slots[0].isAvailable).toBe(true);
+      await BaseAvailabilityService.create(payload);
+
+      const createArgs = (prisma.baseAvailability.createMany as jest.Mock).mock
+        .calls[0][0];
+      expect(createArgs.data[0].slots[0].isAvailable).toBe(true);
     });
 
     // Testing availability entry validation
@@ -297,31 +243,31 @@ describe("BaseAvailabilityService", () => {
 
   describe("create", () => {
     it("should create new availability if user does not exist", async () => {
-      (BaseAvailabilityModel.findOne as jest.Mock).mockResolvedValue(null);
-      (BaseAvailabilityModel.insertMany as jest.Mock).mockResolvedValue(
-        validAvailability.map((a) =>
-          createMockDoc({ ...a, userId: mockUserId }),
-        ),
+      (prisma.baseAvailability.findFirst as jest.Mock).mockResolvedValueOnce(
+        null,
       );
+      (prisma.baseAvailability.findMany as jest.Mock).mockResolvedValueOnce([
+        createRow({ dayOfWeek: "MONDAY" }),
+        createRow({ dayOfWeek: "TUESDAY" }),
+      ]);
 
       const result = await BaseAvailabilityService.create({
         userId: mockUserId,
         availability: validAvailability,
       });
 
-      expect(BaseAvailabilityModel.findOne).toHaveBeenCalledWith(
-        { userId: mockUserId },
-        null,
-        { sanitizeFilter: true },
-      );
-      expect(BaseAvailabilityModel.insertMany).toHaveBeenCalled();
+      expect(prisma.baseAvailability.findFirst).toHaveBeenCalledWith({
+        where: { userId: mockUserId },
+        select: { id: true },
+      });
+      expect(prisma.baseAvailability.createMany).toHaveBeenCalled();
       expect(result).toHaveLength(2);
       expect(result[0].dayOfWeek).toBe("MONDAY");
     });
 
     it("should throw 409 if availability already exists", async () => {
-      (BaseAvailabilityModel.findOne as jest.Mock).mockResolvedValue({
-        _id: "existing",
+      (prisma.baseAvailability.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: "existing",
       });
 
       await expect(
@@ -335,21 +281,19 @@ describe("BaseAvailabilityService", () => {
 
   describe("update", () => {
     it("should delete old and insert new availability", async () => {
-      // Mock insertMany return
-      (BaseAvailabilityModel.insertMany as jest.Mock).mockResolvedValue(
-        validAvailability.map((a) =>
-          createMockDoc({ ...a, userId: mockUserId }),
-        ),
-      );
+      (prisma.baseAvailability.findMany as jest.Mock).mockResolvedValueOnce([
+        createRow({ dayOfWeek: "MONDAY" }),
+        createRow({ dayOfWeek: "TUESDAY" }),
+      ]);
 
       const result = await BaseAvailabilityService.update(mockUserId, {
         availability: validAvailability,
       });
 
-      expect(BaseAvailabilityModel.deleteMany).toHaveBeenCalledWith({
-        userId: mockUserId,
+      expect(prisma.baseAvailability.deleteMany).toHaveBeenCalledWith({
+        where: { userId: mockUserId },
       });
-      expect(BaseAvailabilityModel.insertMany).toHaveBeenCalled();
+      expect(prisma.baseAvailability.createMany).toHaveBeenCalled();
       expect(result).toHaveLength(2);
     });
 
@@ -361,98 +305,67 @@ describe("BaseAvailabilityService", () => {
   });
 
   describe("getByUserId", () => {
-    it("should return availability sorted by day order", async () => {
-      const unsortedDocs = [
-        createMockDoc({ dayOfWeek: "WEDNESDAY", slots: [] }),
-        createMockDoc({ dayOfWeek: "MONDAY", slots: [] }),
-      ];
-
-      // Mock finding docs. Note: Service manually sorts using `sortByDayOrder` AFTER DB sort?
-      // Actually `getByUserId` uses .sort({ dayOfWeek: 1 }) which is alphabetical in Mongo unless collation is used.
-      // But `buildDomainAvailability` doesn't sort. The service uses `sortByDayOrder` in create/update but NOT in getByUserId?
-      // Wait, looking at source: `getByUserId` returns `documents.map(...)`. It relies on Mongo sort.
-      // However, `create` and `update` use `sortByDayOrder`.
-
-      const mockFindChain = {
-        sort: jest.fn().mockResolvedValue(unsortedDocs),
-      };
-      (BaseAvailabilityModel.find as jest.Mock).mockReturnValue(mockFindChain);
+    it("should return availability rows for the user", async () => {
+      (prisma.baseAvailability.findMany as jest.Mock).mockResolvedValueOnce([
+        createRow({ dayOfWeek: "WEDNESDAY" }),
+        createRow({ dayOfWeek: "MONDAY" }),
+      ]);
 
       const result = await BaseAvailabilityService.getByUserId(mockUserId);
 
-      expect(BaseAvailabilityModel.find).toHaveBeenCalledWith({
-        userId: mockUserId,
+      expect(prisma.baseAvailability.findMany).toHaveBeenCalledWith({
+        where: { userId: mockUserId },
+        orderBy: { dayOfWeek: "asc" },
       });
       expect(result).toHaveLength(2);
     });
   });
 
-  describe("Internal Utilities (Coverage for pruneUndefined & buildDomainAvailability)", () => {
-    // We can trigger `pruneUndefined` logic by passing objects with undefined fields in `toObject` mock
-    it("should prune undefined values from domain object", async () => {
-      (BaseAvailabilityModel.findOne as jest.Mock).mockResolvedValue(null);
-
-      const mockDocWithUndefined = {
-        userId: mockUserId,
-        dayOfWeek: "MONDAY",
-        slots: undefined, // Should be pruned if logic hits array branch? No, slots is array usually.
-        extra: undefined,
-        nested: { val: undefined, keep: 1 },
-        list: [undefined, 1],
-      };
-
-      const doc = {
-        ...createMockDoc({}),
-        toObject: jest.fn().mockReturnValue(mockDocWithUndefined),
-      };
-
-      (BaseAvailabilityModel.insertMany as jest.Mock).mockResolvedValue([doc]);
+  describe("Domain mapping (buildDomainAvailabilityFromPrisma & pruneUndefined)", () => {
+    it("should map the prisma row into a domain object", async () => {
+      (prisma.baseAvailability.findFirst as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
+      (prisma.baseAvailability.findMany as jest.Mock).mockResolvedValueOnce([
+        createRow({ dayOfWeek: "MONDAY" }),
+      ]);
 
       const result = await BaseAvailabilityService.create({
         userId: mockUserId,
-        availability: [{ dayOfWeek: "MONDAY", slots: [validSlot] }],
+        availability: [validAvailability[0]],
       });
 
-      // Verify pruning logic via the result of buildDomainAvailability called inside create
-      // Although buildDomainAvailability maps specific fields, `pruneUndefined` is recursive.
-      // Since strict typing usually prevents random fields, we trust the function coverage from normal execution.
-      // But to be sure, let's test specific prune branches if possible.
-
-      // Actually, `buildDomainAvailability` calls `pruneUndefined` on the constructed object.
-      // The constructed object has known keys.
       expect(result[0]).toBeDefined();
+      expect(result[0].dayOfWeek).toBe("MONDAY");
     });
 
-    // Explicitly testing `pruneUndefined` recursion via a manipulated test if needed,
-    // but standard flows cover standard objects.
-    // Let's ensure Array pruning is covered.
-    it("should handle Date objects in pruneUndefined", async () => {
-      // Date objects are preserved
-      const doc = createMockDoc({ dayOfWeek: "MONDAY", slots: [] });
-      // Force toObject to return Date in a field (e.g. createdAt is already there)
-      (BaseAvailabilityModel.insertMany as jest.Mock).mockResolvedValue([doc]);
+    it("should preserve Date objects during pruning", async () => {
+      (prisma.baseAvailability.findFirst as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
+      (prisma.baseAvailability.findMany as jest.Mock).mockResolvedValueOnce([
+        createRow({ dayOfWeek: "MONDAY", createdAt: new Date() }),
+      ]);
 
       const result = await BaseAvailabilityService.create({
         userId: mockUserId,
-        availability: validAvailability,
+        availability: [validAvailability[0]],
       });
       expect(result[0].createdAt).toBeInstanceOf(Date);
     });
   });
 
   describe("Sorting Logic (sortByDayOrder)", () => {
-    // This is used in Create and Update
+    // This is used in create and update
     it("should sort days correctly (Monday -> Sunday)", async () => {
-      const inputDocs = [
-        createMockDoc({ dayOfWeek: "SUNDAY", slots: [] }),
-        createMockDoc({ dayOfWeek: "TUESDAY", slots: [] }),
-        createMockDoc({ dayOfWeek: "MONDAY", slots: [] }),
-      ];
-
-      (BaseAvailabilityModel.findOne as jest.Mock).mockResolvedValue(null);
-      (BaseAvailabilityModel.insertMany as jest.Mock).mockResolvedValue(
-        inputDocs,
+      (prisma.baseAvailability.findFirst as jest.Mock).mockResolvedValueOnce(
+        null,
       );
+      (prisma.baseAvailability.findMany as jest.Mock).mockResolvedValueOnce([
+        createRow({ dayOfWeek: "SUNDAY" }),
+        createRow({ dayOfWeek: "TUESDAY" }),
+        createRow({ dayOfWeek: "MONDAY" }),
+      ]);
 
       const result = await BaseAvailabilityService.create({
         userId: mockUserId,

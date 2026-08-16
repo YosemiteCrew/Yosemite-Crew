@@ -22,11 +22,11 @@ jest.mock('@/app/services/axios', () => ({
 
 // Mock Auth Store
 jest.mock('@/app/stores/authStore', () => ({
-  useAuthStore: jest.fn(),
+  useAuthStore: Object.assign(jest.fn(), { getState: jest.fn() }),
 }));
 
 // Mock Iconify
-jest.mock('@iconify/react/dist/iconify.js', () => ({
+jest.mock('@/app/ui/icons/Icon', () => ({
   Icon: () => <span data-testid="mock-icon" />,
 }));
 
@@ -68,6 +68,7 @@ describe('OtpModal Component', () => {
       resendCode: mockResendCode,
       signIn: mockSignIn,
     });
+    (useAuthStore.getState as jest.Mock).mockReturnValue({ pendingSignUp: null });
   });
 
   afterEach(() => {
@@ -237,7 +238,7 @@ describe('OtpModal Component', () => {
     expect(mockConfirmSignUp).toHaveBeenCalledWith(defaultProps.email, '012345');
     expect(mockSetShowVerifyModal).toHaveBeenCalledWith(false);
     expect(mockSignIn).toHaveBeenCalledWith(defaultProps.email, defaultProps.password);
-    expect(postData).toHaveBeenCalledWith('/fhir/v1/user');
+    expect(postData).toHaveBeenCalledWith('/fhir/v1/user', undefined);
     expect(mockPush).toHaveBeenCalledWith('/appointments');
   });
 

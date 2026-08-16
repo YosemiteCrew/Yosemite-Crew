@@ -7,6 +7,12 @@ export interface MerckHealthlinkClientConfig {
   timeoutMs: number;
 }
 
+const normalizeContentType = (header: unknown): string => {
+  if (typeof header === "string") return header.trim();
+  if (Array.isArray(header)) return header.join("; ").trim();
+  return "";
+};
+
 export class MerckHealthlinkClient {
   private readonly http: AxiosInstance;
 
@@ -38,12 +44,7 @@ export class MerckHealthlinkClient {
     const data: unknown = response.data;
     const text = typeof data === "string" ? data : JSON.stringify(data ?? "");
     const contentTypeHeader: unknown = response.headers?.["content-type"];
-    const contentType =
-      typeof contentTypeHeader === "string"
-        ? contentTypeHeader.trim()
-        : Array.isArray(contentTypeHeader)
-          ? contentTypeHeader.join("; ").trim()
-          : "";
+    const contentType = normalizeContentType(contentTypeHeader);
     const finalUrl =
       (response.request as { res?: { responseUrl?: string } })?.res
         ?.responseUrl ?? null;

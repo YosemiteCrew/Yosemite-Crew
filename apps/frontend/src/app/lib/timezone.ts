@@ -421,7 +421,14 @@ export const getHourInPreferredTimeZone = (value: Date): number => {
   return getDatePartsInPreferredTimeZone(value).hour;
 };
 
-const getOffsetMinutesForTimeZoneAtInstant = (timeZone: string, instant: Date): number => {
+// Intl.DateTimeFormat construction is the expensive part of an offset lookup, and the offset
+// helper is called in tight loops (e.g. once per cell when building the phone month grid). The
+// formatter is immutable and reusable for any instant, so cache one per timezone.
+const offsetFormatterByTimeZone = new Map<string, Intl.DateTimeFormat>();
+
+const getOffsetFormatter = (timeZone: string): Intl.DateTimeFormat => {
+  const cached = offsetFormatterByTimeZone.get(timeZone);
+  if (cached) return cached;
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone,
     timeZoneName: 'shortOffset',
@@ -429,7 +436,12 @@ const getOffsetMinutesForTimeZoneAtInstant = (timeZone: string, instant: Date): 
     minute: '2-digit',
     hourCycle: 'h23',
   });
-  const offsetLabel = formatter
+  offsetFormatterByTimeZone.set(timeZone, formatter);
+  return formatter;
+};
+
+const getOffsetMinutesForTimeZoneAtInstant = (timeZone: string, instant: Date): number => {
+  const offsetLabel = getOffsetFormatter(timeZone)
     .formatToParts(instant)
     .find((part) => part.type === 'timeZoneName')?.value;
   const match = /GMT([+-])(\d{1,2})(?::?(\d{2}))?/.exec(offsetLabel ?? '');
@@ -440,14 +452,18 @@ const getOffsetMinutesForTimeZoneAtInstant = (timeZone: string, instant: Date): 
   return sign * (hours * 60 + minutes);
 };
 
-export const buildDateInPreferredTimeZone = (calendarDay: Date, minuteOfDay: number): Date => {
-  const { year, month, day } = getDatePartsInPreferredTimeZone(calendarDay);
-  const clampedMinute = Math.max(0, Math.min(24 * 60 - 1, Math.round(minuteOfDay)));
-  const hour = Math.floor(clampedMinute / 60);
-  const minute = clampedMinute % 60;
+// Resolve the UTC instant for a wall-clock time (year/month/day + hour/minute) in a given zone by
+// looking up the zone's offset for that local time. A short fixpoint settles DST transitions where
+// the offset used to place the instant differs from the offset at the resulting instant.
+const zonedWallClockToInstant = (
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  timeZone: string
+): Date => {
   const naiveUtcMs = Date.UTC(year, month - 1, day, hour, minute, 0, 0);
-  const timeZone = getPreferredTimeZone();
-
   let instant = new Date(naiveUtcMs);
   for (let attempt = 0; attempt < 3; attempt++) {
     const offsetMinutes = getOffsetMinutesForTimeZoneAtInstant(timeZone, instant);
@@ -458,8 +474,23 @@ export const buildDateInPreferredTimeZone = (calendarDay: Date, minuteOfDay: num
     }
     instant = nextInstant;
   }
-
   return instant;
 };
+
+export const buildDateInPreferredTimeZone = (calendarDay: Date, minuteOfDay: number): Date => {
+  const { year, month, day } = getDatePartsInPreferredTimeZone(calendarDay);
+  const clampedMinute = Math.max(0, Math.min(24 * 60 - 1, Math.round(minuteOfDay)));
+  const hour = Math.floor(clampedMinute / 60);
+  const minute = clampedMinute % 60;
+  return zonedWallClockToInstant(year, month, day, hour, minute, getPreferredTimeZone());
+};
+
+// Build the instant that represents (year, month, day) at LOCAL NOON in the preferred time zone.
+// Anchoring at local noon - never at UTC noon - keeps the calendar-day round-trip stable through
+// getDateKeyInPreferredTimeZone in every zone, including those 12+ hours ahead of UTC (e.g.
+// Pacific/Auckland at UTC+12/+13), where a UTC-noon anchor resolves to the following calendar day.
+// Noon sits far from any day boundary, so a DST shift can never move it onto a neighbouring date.
+export const buildPreferredTimeZoneDayInstant = (year: number, month: number, day: number): Date =>
+  zonedWallClockToInstant(year, month, day, 12, 0, getPreferredTimeZone());
 
 export { TIMEZONE_STORAGE_KEY, DEFAULT_TIMEZONE };

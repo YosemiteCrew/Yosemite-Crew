@@ -372,7 +372,8 @@ describe('OrgGuard', () => {
         membershipsByOrgId: {
           [orgId]: {
             roleDisplay: 'Owner',
-            effectivePermissions: ['analytics:view:any'],
+            // Permissions derive from roleCode, mirroring a real mapping.
+            roleCode: 'OWNER',
           },
         },
       })
@@ -409,6 +410,10 @@ describe('OrgGuard', () => {
             roleDisplay: 'Admin',
             roleCode: 'ADMIN',
             effectivePermissions: ['appointments:view:any'],
+            // Permissions resolve from the role, so the integrations grant the
+            // ADMIN baseline carries has to be revoked explicitly for this
+            // membership to genuinely lack access to /integrations.
+            revokedPermissions: ['integrations:view:any'],
           },
         },
       })
@@ -421,7 +426,9 @@ describe('OrgGuard', () => {
     );
 
     await waitFor(() => {
-      expect(redirect).toHaveBeenCalledWith('/organization');
+      // Redirected off /integrations, and the ADMIN baseline makes the dashboard
+      // the first route this membership can actually reach.
+      expect(redirect).toHaveBeenCalledWith('/dashboard');
     });
   });
 });

@@ -13,7 +13,7 @@ const MobileSearchBar = ({ placeholder = 'Search' }: MobileSearchBarProps) => {
   const inputId = useId();
 
   return (
-    <div className="lg:hidden flex items-center gap-2 w-full border border-input-border-default rounded-2xl px-3.5 h-10.5 focus-within:border-input-border-active transition-colors bg-white">
+    <div className="lg:hidden flex items-center gap-2 w-full border border-input-border-default rounded-2xl px-3.5 h-10.5 focus-within:border-input-border-active transition-colors bg-neutral-0">
       <label className="sr-only" htmlFor={inputId}>
         {placeholder}
       </label>
@@ -28,7 +28,7 @@ const MobileSearchBar = ({ placeholder = 'Search' }: MobileSearchBarProps) => {
       />
       <IoIosSearch
         size={18}
-        color="var(--color-neutral-500)"
+        color="var(--color-text-tertiary)"
         aria-hidden="true"
         className="shrink-0"
       />

@@ -56,6 +56,24 @@ describe('ModalBase', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('stays open when the click lands inside another modal', () => {
+    const { setShowModal, onClose } = renderModal();
+
+    // Modals portal to document.body, so one opened from inside another is a
+    // DOM sibling. Clicking it must not read as an outside click here.
+    const sibling = document.createElement('dialog');
+    sibling.className = 'yc-modal-dialog';
+    const inner = document.createElement('button');
+    sibling.appendChild(inner);
+    document.body.appendChild(sibling);
+
+    fireEvent.mouseDown(inner);
+    expect(setShowModal).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+
+    sibling.remove();
+  });
+
   it('does not close when canClose returns false', () => {
     const { setShowModal, onClose } = renderModal({ canClose: () => false });
 
@@ -98,5 +116,64 @@ describe('ModalBase', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
 
     ignored.remove();
+  });
+
+  describe('body scroll lock', () => {
+    const renderLockable = (showModal: boolean) =>
+      render(
+        <ModalBase
+          showModal={showModal}
+          setShowModal={jest.fn()}
+          overlayClassName="overlay"
+          containerClassName="container"
+          aria-label="Test modal"
+        >
+          <div>Modal content</div>
+        </ModalBase>
+      );
+
+    afterEach(() => {
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+      document.documentElement.style.overflow = '';
+    });
+
+    it('locks body scroll while open', () => {
+      renderLockable(true);
+
+      expect(document.body.style.overflow).toBe('hidden');
+      expect(document.documentElement.style.overflow).toBe('hidden');
+    });
+
+    it('releases the lock when closed', () => {
+      const { rerender } = renderLockable(true);
+
+      rerender(
+        <ModalBase
+          showModal={false}
+          setShowModal={jest.fn()}
+          overlayClassName="overlay"
+          containerClassName="container"
+          aria-label="Test modal"
+        >
+          <div>Modal content</div>
+        </ModalBase>
+      );
+
+      expect(document.body.style.overflow).toBe('');
+      expect(document.documentElement.style.overflow).toBe('');
+    });
+
+    it('releases the lock when unmounted while still open', () => {
+      const { unmount } = renderLockable(true);
+      expect(document.body.style.overflow).toBe('hidden');
+
+      unmount();
+
+      // Without cleanup the page stays unscrollable with no modal to close.
+      expect(document.body.style.overflow).toBe('');
+      expect(document.body.style.paddingRight).toBe('');
+      expect(document.documentElement.style.overflow).toBe('');
+    });
   });
 });

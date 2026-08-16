@@ -160,6 +160,23 @@ describe('ProfileHeader Component', () => {
     expect(triggerPickerMock).toHaveBeenCalledTimes(1);
   });
 
+  it('exposes button role and label on the camera button for screen readers', () => {
+    const mockRef = {current: null};
+    const {UNSAFE_getByType} = render(
+      <ProfileHeader
+        title="John"
+        pickerRef={mockRef}
+        onImageSelected={mockOnImageSelected}
+      />,
+    );
+
+    const cameraIcon = UNSAFE_getByType(Image);
+    const cameraButton = cameraIcon.parent as any;
+
+    expect(cameraButton.props.accessibilityRole).toBe('button');
+    expect(cameraButton.props.accessibilityLabel).toBe('Change profile photo');
+  });
+
   it('does not crash if camera button is pressed but ref.current is null', () => {
     // Explicitly set current to null
     const mockRef = {current: null};

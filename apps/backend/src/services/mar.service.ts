@@ -154,7 +154,7 @@ export const MARService = {
     params: AdministerMAREntryParams,
   ) {
     const entry = await assertMAREntry(id, organisationId);
-    guardTransition(entry.status as MARStatus, "GIVEN");
+    guardTransition(entry.status, "GIVEN");
 
     const updated = await prisma.mAREntry.update({
       where: { id },
@@ -188,7 +188,7 @@ export const MARService = {
     heldBy?: string,
   ) {
     const entry = await assertMAREntry(id, organisationId);
-    guardTransition(entry.status as MARStatus, "HELD");
+    guardTransition(entry.status, "HELD");
 
     const updated = await prisma.mAREntry.update({
       where: { id },
@@ -217,7 +217,7 @@ export const MARService = {
     actorId?: string,
   ) {
     const entry = await assertMAREntry(id, organisationId);
-    guardTransition(entry.status as MARStatus, "MISSED");
+    guardTransition(entry.status, "MISSED");
 
     const updated = await prisma.mAREntry.update({
       where: { id },

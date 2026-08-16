@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useId, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { IoIosWarning } from 'react-icons/io';
 import { Option } from '@/app/features/companions/types/companion';
-import { IoChevronDown } from 'react-icons/io5';
-import { FiCheck } from 'react-icons/fi';
+import { IoCheckmarkOutline, IoChevronDown } from 'react-icons/io5';
 import { useDropdown, useFilteredOptions } from '@/app/hooks/useDropdown';
+import { useListboxKeyboardNav } from '@/app/ui/inputs/Dropdown/useDropdownKeyboardNav';
+import { useDropdownPositioning } from '@/app/ui/inputs/Dropdown/useDropdownPositioning';
 
 type DropdownProps = {
   placeholder: string;
@@ -15,204 +16,6 @@ type DropdownProps = {
   searchable?: boolean;
   icon?: React.ReactNode;
   portal?: boolean;
-};
-
-const DROPDOWN_MAX_HEIGHT = 200;
-const DROPDOWN_MIN_HEIGHT = 72;
-
-/** Wrap the active option index when navigating with the arrow keys. */
-const wrapActiveIndex = (current: number, optionCount: number, delta: 1 | -1): number => {
-  if (delta === 1) return current + 1 >= optionCount ? 0 : current + 1;
-  return current <= 0 ? optionCount - 1 : current - 1;
-};
-
-const usePortalPositioning = (
-  dropdownRef: React.RefObject<HTMLDivElement | null>,
-  open: boolean,
-  portal: boolean,
-  closeDropdown: () => void
-) => {
-  const [portalStyle, setPortalStyle] = React.useState<React.CSSProperties | null>(null);
-
-  const computeStyle = useCallback(() => {
-    const rect = dropdownRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const spaceBelow = globalThis.window.innerHeight - rect.bottom;
-    const panelMaxHeight = Math.min(
-      DROPDOWN_MAX_HEIGHT,
-      Math.max(DROPDOWN_MIN_HEIGHT, spaceBelow - 8)
-    );
-    setPortalStyle({
-      position: 'absolute',
-      left: rect.left + globalThis.window.scrollX,
-      width: rect.width,
-      top: rect.bottom + globalThis.window.scrollY - 1,
-      maxHeight: panelMaxHeight,
-      zIndex: 5000,
-    });
-  }, [dropdownRef]);
-
-  const computeStyleRef = useRef(computeStyle);
-  computeStyleRef.current = computeStyle;
-
-  useLayoutEffect(() => {
-    if (!open || !portal) {
-      setPortalStyle(null);
-      return;
-    }
-    computeStyleRef.current();
-  }, [open, portal]);
-
-  useEffect(() => {
-    if (!open || !portal) return;
-    const stableResize = () => computeStyleRef.current();
-    const handleOuterScroll = (event: Event) => {
-      const target = event.target;
-      if (target instanceof HTMLElement && target.closest('[data-portal-dropdown]')) return;
-      closeDropdown();
-    };
-    globalThis.window.addEventListener('resize', stableResize);
-    globalThis.window.addEventListener('scroll', handleOuterScroll, true);
-    return () => {
-      globalThis.window.removeEventListener('resize', stableResize);
-      globalThis.window.removeEventListener('scroll', handleOuterScroll, true);
-    };
-  }, [closeDropdown, open, portal]);
-
-  return portalStyle;
-};
-
-type ActiveOptionArgs = {
-  open: boolean;
-  listboxId: string;
-  filteredOptions: Option[];
-  valueSet: Set<string>;
-  openDropdown: () => void;
-  closeDropdown: () => void;
-  toggleOption: (option: Option) => void;
-};
-
-const useActiveOption = ({
-  open,
-  listboxId,
-  filteredOptions,
-  valueSet,
-  openDropdown,
-  closeDropdown,
-  toggleOption,
-}: ActiveOptionArgs) => {
-  const [activeIndex, setActiveIndex] = React.useState(-1);
-
-  const activeOptionId =
-    activeIndex >= 0 && activeIndex < filteredOptions.length
-      ? `${listboxId}-option-${filteredOptions[activeIndex].value}`
-      : undefined;
-
-  const [activeIndexDeps, setActiveIndexDeps] = React.useState({ filteredOptions, open, valueSet });
-  if (
-    filteredOptions !== activeIndexDeps.filteredOptions ||
-    open !== activeIndexDeps.open ||
-    valueSet !== activeIndexDeps.valueSet
-  ) {
-    setActiveIndexDeps({ filteredOptions, open, valueSet });
-    if (!open || filteredOptions.length === 0) {
-      setActiveIndex(-1);
-    } else if (activeIndex < 0 || activeIndex >= filteredOptions.length) {
-      const selectedIndex = filteredOptions.findIndex((option) => valueSet.has(option.value));
-      setActiveIndex(Math.max(selectedIndex, 0));
-    }
-  }
-
-  useEffect(() => {
-    if (!open || !activeOptionId) return;
-    document.getElementById(activeOptionId)?.scrollIntoView({ block: 'nearest' });
-  }, [activeOptionId, open]);
-
-  const handleArrowKey = useCallback(
-    (delta: 1 | -1) => {
-      const optionCount = filteredOptions.length;
-      if (optionCount === 0) return;
-      if (!open) {
-        openDropdown();
-        return;
-      }
-      setActiveIndex((current) => wrapActiveIndex(current, optionCount, delta));
-    },
-    [filteredOptions.length, open, openDropdown]
-  );
-
-  const handleConfirmKey = useCallback(() => {
-    const optionCount = filteredOptions.length;
-    if (!open) {
-      openDropdown();
-      return;
-    }
-    if (activeIndex < 0 || activeIndex >= optionCount) return;
-    toggleOption(filteredOptions[activeIndex]);
-  }, [activeIndex, filteredOptions, open, openDropdown, toggleOption]);
-
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent) => {
-      const optionCount = filteredOptions.length;
-      switch (event.key) {
-        case 'Escape':
-          event.preventDefault();
-          closeDropdown();
-          return;
-        case 'ArrowDown':
-          event.preventDefault();
-          handleArrowKey(1);
-          return;
-        case 'ArrowUp':
-          event.preventDefault();
-          handleArrowKey(-1);
-          return;
-        case 'Home':
-          if (!open || optionCount === 0) return;
-          event.preventDefault();
-          setActiveIndex(0);
-          return;
-        case 'End':
-          if (!open || optionCount === 0) return;
-          event.preventDefault();
-          setActiveIndex(optionCount - 1);
-          return;
-        case 'Enter':
-        case ' ':
-          event.preventDefault();
-          handleConfirmKey();
-          return;
-        default:
-      }
-    },
-    [closeDropdown, filteredOptions.length, handleArrowKey, handleConfirmKey, open]
-  );
-
-  return { activeIndex, activeOptionId, setActiveIndex, handleKeyDown };
-};
-
-const getFloatingLabelStyle = (isFloated: boolean): React.CSSProperties => {
-  const baseStyle: React.CSSProperties = {
-    fontFamily: 'var(--font-satoshi), sans-serif',
-    fontWeight: 400,
-    lineHeight: '120%',
-  };
-  if (isFloated) {
-    return {
-      ...baseStyle,
-      top: 0,
-      transform: 'translateY(-50%)',
-      fontSize: 12,
-      color: 'var(--color-neutral-900)',
-    };
-  }
-  return {
-    ...baseStyle,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    fontSize: 16,
-    color: 'var(--color-input-text-placeholder)',
-  };
 };
 
 type MultiSelectPanelProps = {
@@ -241,8 +44,8 @@ const MultiSelectPanel = ({
   <div
     id={listboxId}
     data-portal-dropdown
-    className="border-input-text-placeholder-active max-h-50 overflow-y-auto scrollbar-hidden z-200 rounded-b-2xl border border-t bg-white flex flex-col items-stretch w-full px-3 py-2.5"
-    style={shouldPortal ? (portalStyle ?? undefined) : undefined}
+    className="border-[var(--blue)] max-h-50 overflow-y-auto scrollbar-hidden z-200 rounded-b-[12px] border border-t bg-[var(--screen)] shadow-[0_16px_34px_var(--sh12)] flex flex-col items-stretch w-full px-3 py-2.5"
+    style={shouldPortal && portalStyle ? portalStyle : undefined}
   >
     {filteredOptions.length > 0 ? (
       filteredOptions.map((option) => {
@@ -252,7 +55,7 @@ const MultiSelectPanel = ({
             type="button"
             id={`${listboxId}-option-${option.value}`}
             aria-pressed={isSelected}
-            className={`flex items-center justify-between gap-2 px-5 py-3 text-left text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full ${
+            className={`flex items-center justify-between gap-2 px-5 py-2 text-left text-[13px] hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full ${
               activeOptionId === `${listboxId}-option-${option.value}`
                 ? 'bg-card-hover text-text-primary!'
                 : ''
@@ -270,7 +73,11 @@ const MultiSelectPanel = ({
               )}
             </span>
             {isSelected && (
-              <FiCheck size={14} className="shrink-0 text-text-brand" aria-hidden="true" />
+              <IoCheckmarkOutline
+                size={14}
+                className="shrink-0 text-text-brand"
+                aria-hidden="true"
+              />
             )}
           </button>
         );
@@ -285,12 +92,16 @@ const MultiSelectPanel = ({
 
 const getTriggerClassName = (open: boolean, hasSelection: boolean, error?: string): string => {
   const base =
-    'relative w-full flex min-h-12 items-center px-5 pr-11 py-2.75 min-w-30 border cursor-pointer bg-(--whitebg) focus-visible:outline-none!';
-  const borderState = open
-    ? 'border-input-text-placeholder-active! border-b-0! rounded-t-2xl! z-20'
-    : 'border-input-border-default! rounded-2xl!';
-  const errorState = !hasSelection && error ? 'border-input-border-error!' : '';
-  return `${base} ${borderState} ${errorState}`;
+    'relative w-full flex h-[44px] items-center px-[14px] pr-11 min-w-30 border-[1.5px] cursor-pointer bg-[var(--field-bg)] text-[14px] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)]';
+  let borderState: string;
+  if (open) {
+    borderState = 'border-[var(--blue)]! border-b-0! rounded-t-[12px]! z-20';
+  } else if (!hasSelection && error) {
+    borderState = 'border-[var(--danger)]! rounded-[12px]!';
+  } else {
+    borderState = 'border-[var(--hairline)]! rounded-[12px]!';
+  }
+  return `${base} ${borderState}`;
 };
 
 type TriggerContentProps = {
@@ -339,13 +150,13 @@ const MultiSelectTriggerContent = ({
           onKeyDown(event);
         }}
         placeholder={hasSelection ? selectedLabel : ''}
-        className="w-full bg-transparent text-left text-body-4 text-black-text outline-none placeholder:text-input-text-placeholder"
+        className="w-full bg-transparent text-left text-[14px] text-[var(--ink-body)] outline-none placeholder:text-[var(--ink-faint)]"
       />
     );
   }
   return (
     <span
-      className="min-w-0 flex-1 truncate text-left text-body-4 text-black-text"
+      className="min-w-0 flex-1 truncate text-left text-[14px] text-[var(--ink-body)]"
       title={hasSelection ? selectedLabel : placeholder}
     >
       {hasSelection ? selectedLabel : ''}
@@ -393,7 +204,12 @@ const MultiSelectDropdown = ({
   const filteredOptions = useFilteredOptions(list, searchQuery);
   const shouldPortal = portal && typeof document !== 'undefined';
 
-  const portalStyle = usePortalPositioning(dropdownRef, open, portal, closeDropdown);
+  const { portalStyle } = useDropdownPositioning({
+    open,
+    portal,
+    dropdownRef,
+    onOuterScrollDismiss: closeDropdown,
+  });
 
   const toggleOption = useCallback(
     (option: Option) => {
@@ -404,14 +220,16 @@ const MultiSelectDropdown = ({
     [onChange, value, valueSet]
   );
 
-  const { activeOptionId, setActiveIndex, handleKeyDown } = useActiveOption({
+  const { activeOptionId, setActiveIndex, handleKeyDown } = useListboxKeyboardNav({
     open,
-    listboxId,
-    filteredOptions,
-    valueSet,
     openDropdown,
     closeDropdown,
-    toggleOption,
+    options: filteredOptions,
+    listboxId,
+    selectionKey: valueSet,
+    getOptionValue: (option) => option.value,
+    isOptionSelected: (option) => valueSet.has(option.value),
+    selectOption: toggleOption,
   });
 
   const panel = (
@@ -430,6 +248,10 @@ const MultiSelectDropdown = ({
 
   return (
     <div className="flex flex-col">
+      <span className="mb-1.5 flex items-center gap-1 truncate text-[12.5px] font-semibold text-[var(--ink-soft)]">
+        {icon}
+        {placeholder}
+      </span>
       <div className="relative w-full" ref={dropdownRef}>
         <button
           type="button"
@@ -459,13 +281,13 @@ const MultiSelectDropdown = ({
             onSearchChange={setSearchQuery}
             onKeyDown={handleKeyDown}
           />
-          <span className="absolute right-5 top-1/2 -translate-y-1/2 flex items-center justify-center">
+          <span className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center justify-center">
             <IoChevronDown
-              size={15}
+              size={14}
               aria-hidden="true"
               style={{
                 flexShrink: 0,
-                color: 'var(--color-input-text-placeholder-active)',
+                color: 'var(--ink-faint)',
                 transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
                 transition: 'transform 150ms ease',
               }}
@@ -476,19 +298,11 @@ const MultiSelectDropdown = ({
             />
           </span>
         </button>
-        <span
-          aria-hidden
-          className="pointer-events-none absolute left-5 z-30 flex items-center gap-1 bg-(--whitebg) px-1 transition-all duration-150"
-          style={getFloatingLabelStyle(hasSelection || open)}
-        >
-          {icon}
-          {placeholder}
-        </span>
         {open && shouldPortal && portalStyle && createPortal(panel, document.body)}
         {open && !shouldPortal && <div className="absolute top-full left-0 w-full">{panel}</div>}
       </div>
       {error && (
-        <div className="mt-1.5 flex items-center gap-1 px-4 text-caption-2 text-text-error">
+        <div className="mt-1.5 flex items-center gap-1 text-caption-2 text-text-error">
           <IoIosWarning className="text-text-error" size={14} />
           <span>{error}</span>
         </div>

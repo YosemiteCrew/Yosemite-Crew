@@ -1,6 +1,4 @@
-import mongoose, { Schema, Document } from "mongoose";
-
-export interface OccupancyMongo extends Document {
+export interface OccupancyMongo {
   userId: string;
   organisationId: string;
   startTime: Date;
@@ -9,28 +7,4 @@ export interface OccupancyMongo extends Document {
   referenceId?: string;
 }
 
-const OccupancySchema = new Schema(
-  {
-    userId: { type: String, required: true },
-    organisationId: { type: String, required: true },
-    startTime: { type: Date, required: true },
-    endTime: { type: Date, required: true },
-    sourceType: {
-      type: String,
-      enum: ["APPOINTMENT", "BLOCKED", "SURGERY"],
-      default: "APPOINTMENT",
-    },
-    referenceId: { type: String },
-  },
-  { timestamps: true },
-);
-
-OccupancySchema.index({ userId: 1, startTime: 1, endTime: 1 });
-OccupancySchema.index({ userId: 1, organisationId: 1, startTime: 1 });
-
-export type OccupancyDocument = mongoose.HydratedDocument<OccupancyMongo>;
-
-export const OccupancyModel = mongoose.model<OccupancyMongo>(
-  "Occupancy",
-  OccupancySchema,
-);
+export type OccupancyDocument = OccupancyMongo;

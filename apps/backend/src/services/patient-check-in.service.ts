@@ -13,18 +13,10 @@ export class PatientCheckInError extends Error {
 }
 
 type TriagePriority =
-  | "IMMEDIATE"
-  | "URGENT"
-  | "LESS_URGENT"
-  | "STANDARD"
-  | "NON_URGENT";
+  "IMMEDIATE" | "URGENT" | "LESS_URGENT" | "STANDARD" | "NON_URGENT";
 
 type CheckInStatus =
-  | "WAITING"
-  | "IN_CONSULTATION"
-  | "COMPLETED"
-  | "NO_SHOW"
-  | "CANCELLED";
+  "WAITING" | "IN_CONSULTATION" | "COMPLETED" | "NO_SHOW" | "CANCELLED";
 
 const TERMINAL_STATUSES: CheckInStatus[] = [
   "COMPLETED",
@@ -144,7 +136,7 @@ export const PatientCheckInService = {
 
   async markSeen(id: string, organisationId: string) {
     const existing = await assertCheckIn(id, organisationId);
-    if (TERMINAL_STATUSES.includes(existing.status as CheckInStatus)) {
+    if (TERMINAL_STATUSES.includes(existing.status)) {
       throw new PatientCheckInError(
         `Cannot mark as seen a check-in with status ${existing.status}.`,
         409,
@@ -185,7 +177,7 @@ export const PatientCheckInService = {
 
   async complete(id: string, organisationId: string) {
     const existing = await assertCheckIn(id, organisationId);
-    if (TERMINAL_STATUSES.includes(existing.status as CheckInStatus)) {
+    if (TERMINAL_STATUSES.includes(existing.status)) {
       throw new PatientCheckInError(
         `Cannot complete a check-in with status ${existing.status}.`,
         409,
@@ -200,7 +192,7 @@ export const PatientCheckInService = {
 
   async cancel(id: string, organisationId: string) {
     const existing = await assertCheckIn(id, organisationId);
-    if (TERMINAL_STATUSES.includes(existing.status as CheckInStatus)) {
+    if (TERMINAL_STATUSES.includes(existing.status)) {
       throw new PatientCheckInError(
         `Cannot cancel a check-in with status ${existing.status}.`,
         409,
@@ -215,7 +207,7 @@ export const PatientCheckInService = {
 
   async markNoShow(id: string, organisationId: string) {
     const existing = await assertCheckIn(id, organisationId);
-    if (TERMINAL_STATUSES.includes(existing.status as CheckInStatus)) {
+    if (TERMINAL_STATUSES.includes(existing.status)) {
       throw new PatientCheckInError(
         `Cannot mark no-show for a check-in with status ${existing.status}.`,
         409,

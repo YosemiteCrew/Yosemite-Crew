@@ -78,10 +78,8 @@ describe('invoiceService', () => {
     expect(invoiceState.startLoading).toHaveBeenCalled();
     expect(getData).toHaveBeenCalledWith(
       '/v1/finance/invoices',
-      expect.objectContaining({
-        organisationId: 'org-1',
-        _cacheBust: expect.any(Number),
-      })
+      { organisationId: 'org-1' },
+      { dedupe: false }
     );
     expect(invoiceState.setInvoicesForOrg).toHaveBeenCalledWith('org-1', []);
   });
@@ -419,11 +417,8 @@ describe('invoiceService', () => {
 
     expect(getData).toHaveBeenCalledWith(
       '/v1/finance/invoices',
-      expect.objectContaining({
-        organisationId: 'org-1',
-        appointmentId: 'apt-1',
-        _cacheBust: expect.any(Number),
-      })
+      { organisationId: 'org-1', appointmentId: 'apt-1' },
+      { dedupe: false }
     );
     expect(invoiceState.upsertInvoice).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'inv-1', appointmentId: 'apt-1' })
@@ -579,10 +574,103 @@ describe('invoiceService', () => {
     );
   });
 
+  it('appends a same-name same-quantity line billed at a different amount', async () => {
+    // Regression: dedupe keyed on name+quantity alone dropped a second, genuinely
+    // different charge for the same item — an underbilling window. A whole-currency-unit
+    // price difference is not rounding drift and must reach the invoice.
+    invoiceState.getInvoicesByOrgId = jest.fn().mockReturnValue([
+      {
+        id: 'inv-1',
+        organisationId: 'org-1',
+        appointmentId: 'appt-1',
+        status: 'AWAITING_PAYMENT',
+        items: [
+          {
+            id: 'li-existing',
+            name: 'Bandage change',
+            quantity: 1,
+            unitPrice: 20,
+            total: 20,
+          },
+        ],
+      },
+    ]);
+
+    await addLineItemsToAppointments(
+      [
+        {
+          id: 'li-second',
+          name: 'Bandage change',
+          quantity: 1,
+          unitPrice: 75,
+          total: 75,
+        },
+      ],
+      'appt-1',
+      'USD'
+    );
+
+    expect(postData).toHaveBeenCalledWith('/v1/finance/invoices/inv-1/lines', {
+      currency: 'usd',
+      items: [
+        {
+          name: 'Bandage change',
+          description: 'Bandage change',
+          quantity: 1,
+          unitPrice: 75,
+          total: 75,
+        },
+      ],
+    });
+  });
+
+  it('appends a same-name line whose price differs by a whole cent', async () => {
+    // The dedupe guard collapses sub-cent drift only. A full cent apart is a real
+    // price difference and must still be billed.
+    invoiceState.getInvoicesByOrgId = jest.fn().mockReturnValue([
+      {
+        id: 'inv-1',
+        organisationId: 'org-1',
+        appointmentId: 'appt-1',
+        status: 'AWAITING_PAYMENT',
+        items: [
+          {
+            id: 'li-existing',
+            name: 'Nail trim',
+            quantity: 2,
+            unitPrice: 10.0,
+            total: 20.0,
+          },
+        ],
+      },
+    ]);
+
+    await addLineItemsToAppointments(
+      [
+        {
+          id: 'li-second',
+          name: 'Nail trim',
+          quantity: 2,
+          unitPrice: 10.01,
+          total: 20.02,
+        },
+      ],
+      'appt-1',
+      'USD'
+    );
+
+    expect(postData).toHaveBeenCalledWith(
+      '/v1/finance/invoices/inv-1/lines',
+      expect.objectContaining({
+        items: [expect.objectContaining({ name: 'Nail trim', unitPrice: 10.01 })],
+      })
+    );
+  });
+
   it('does not re-append a line already on the invoice under a sub-cent price drift', async () => {
     // Regression: the same booked service reaches the invoice via two pipelines whose
-    // prices differ by rounding (257.127 persisted vs 257.13 re-seeded). Dedupe is keyed
-    // on name+quantity (not price), so the rounded copy must NOT append a duplicate.
+    // prices differ by rounding (257.127 persisted vs 257.13 re-seeded). Dedupe compares
+    // unit price at cent precision, so the rounded copy must NOT append a duplicate.
     invoiceState.getInvoicesByOrgId = jest.fn().mockReturnValue([
       {
         id: 'inv-1',
@@ -1112,11 +1200,8 @@ describe('invoiceService', () => {
 
     expect(getData).toHaveBeenCalledWith(
       '/v1/finance/invoices',
-      expect.objectContaining({
-        organisationId: 'org-1',
-        appointmentId: 'appt-1',
-        _cacheBust: expect.any(Number),
-      })
+      { organisationId: 'org-1', appointmentId: 'appt-1' },
+      { dedupe: false }
     );
     expect(billing.pastInvoices).toHaveLength(1);
     expect(billing.pastInvoices[0].items.map((item) => item.name)).toEqual([
@@ -1151,7 +1236,8 @@ describe('invoiceService', () => {
 
       expect(getData).toHaveBeenCalledWith(
         '/v1/finance/invoices',
-        expect.objectContaining({ organisationId: 'org-1', appointmentId: 'appt-1' })
+        { organisationId: 'org-1', appointmentId: 'appt-1' },
+        { dedupe: false }
       );
       expect(invoiceState.upsertInvoice).toHaveBeenCalledTimes(1);
     });

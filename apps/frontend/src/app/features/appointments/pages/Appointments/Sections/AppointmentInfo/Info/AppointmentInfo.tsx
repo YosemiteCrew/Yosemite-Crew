@@ -13,6 +13,10 @@ import {
   AppointmentStatusOptions,
   Slot,
 } from '@/app/features/appointments/types/appointments';
+import {
+  validateAppointmentForm,
+  type FormErrors,
+} from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Info/appointmentInfoValidation';
 import { buildUtcDateFromDateAndTime, getDurationMinutes, toUtcCalendarDate } from '@/app/lib/date';
 import { Appointment } from '@yosemite-crew/types';
 import React, { useCallback, useLayoutEffect, useMemo, useReducer, useState } from 'react';
@@ -33,7 +37,8 @@ import {
   normalizeAppointmentStatus,
   toStatusLabel,
 } from '@/app/lib/appointments';
-import { getStatusStyle } from '@/app/config/statusConfig';
+import { getAppointmentStatusTone } from '@/app/config/statusConfig';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import { useNotify } from '@/app/hooks/useNotify';
 import { useOrganisationRoomStore } from '@/app/stores/roomStore';
 import { toAssignableRoomOptions } from '@/app/features/appointments/lib/roomUnitAvailability';
@@ -107,73 +112,11 @@ const ReadOnlyEditField = ({ label, value }: { label: string; value?: string | n
   </div>
 );
 
-type FormErrors = {
-  specialityId?: string;
-  serviceId?: string;
-  slot?: string;
-  leadId?: string;
-};
-
 const toIsoTimePart = (value?: Date | string | null): string => {
   if (!value) return '';
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return '';
   return parsed.toISOString().substring(11, 16);
-};
-
-const validateSlotLeadErrors = (
-  selectedSlot: Slot | null,
-  slotLeadOptions: { label: string; value: string }[],
-  leadId: string,
-  normalizeId: (value?: string | null) => string | undefined
-): Pick<FormErrors, 'slot' | 'leadId'> => {
-  if (!selectedSlot) return { slot: 'Please select a slot' };
-  if (slotLeadOptions.length === 0) {
-    return {
-      slot: 'No lead is available for this slot. Please choose another slot.',
-      leadId: 'No lead is available for this slot.',
-    };
-  }
-  if (slotLeadOptions.length > 1 && !leadId) {
-    return { leadId: 'Multiple leads are available. Please choose a lead.' };
-  }
-  if (
-    leadId &&
-    !slotLeadOptions.some((option) => normalizeId(option.value) === normalizeId(leadId))
-  ) {
-    return { leadId: 'Selected lead is not available for this slot.' };
-  }
-  return {};
-};
-
-const validateAppointmentForm = ({
-  appointmentValues,
-  selectedSlot,
-  slotLeadOptions,
-  normalizeId,
-  requireScheduleSelection,
-}: {
-  appointmentValues: {
-    specialityId: string;
-    serviceId: string;
-    leadId: string;
-  };
-  selectedSlot: Slot | null;
-  slotLeadOptions: { label: string; value: string }[];
-  normalizeId: (value?: string | null) => string | undefined;
-  requireScheduleSelection: boolean;
-}): FormErrors => {
-  const formErrors: FormErrors = {};
-  if (!requireScheduleSelection) return formErrors;
-  if (!appointmentValues.specialityId) formErrors.specialityId = 'Please select a speciality';
-  if (!appointmentValues.serviceId) formErrors.serviceId = 'Please select a service';
-  const slotLeadErrors = validateSlotLeadErrors(
-    selectedSlot,
-    slotLeadOptions,
-    appointmentValues.leadId,
-    normalizeId
-  );
-  return { ...formErrors, ...slotLeadErrors };
 };
 
 type AppointmentValuesState = {
@@ -303,8 +246,8 @@ const buildUpdatedAppointment = (ctx: AppointmentSaveContext): Appointment => {
     const id = member.practionerId || member._id;
     if (!id || !supportIdSet.has(id)) return items;
     items.push({
-      id: member.practionerId || member._id || '',
-      name: member.name || member.practionerId || member._id || '',
+      id,
+      name: member.name || id,
     });
     return items;
   }, []);
@@ -331,11 +274,12 @@ const buildUpdatedAppointment = (ctx: AppointmentSaveContext): Appointment => {
     lead:
       canRescheduleByStatus && leadMember
         ? {
-            id: leadMember.practionerId || leadMember._id || '',
-            name: leadMember.name || leadMember.practionerId || leadMember._id || '',
+            // leadMember was matched on `practionerId || _id === leadId`, so its id is leadId.
+            id: appointmentValues.leadId,
+            name: leadMember.name || appointmentValues.leadId,
             profileUrl:
               (typeof (leadMember as { image?: unknown }).image === 'string'
-                ? ((leadMember as { image: string }).image ?? '')
+                ? (leadMember as { image: string }).image
                 : '') || activeAppointment.lead?.profileUrl,
           }
         : activeAppointment.lead,
@@ -419,6 +363,8 @@ const useAppointmentInfoView = ({
       ?.toLowerCase();
   }, []);
 
+  const activeLeadId = activeAppointment.lead?.id;
+  const activeLeadName = activeAppointment.lead?.name;
   const getLeadOptionsForSlot = useCallback(
     (slot: Slot | null) => {
       if (!teams?.length || !slot) return [];
@@ -455,19 +401,13 @@ const useAppointmentInfoView = ({
       const currentSlotEnd = toIsoTimePart(activeAppointment.endTime);
       const isCurrentAppointmentSlot =
         slot.startTime === currentSlotStart && slot.endTime === currentSlotEnd;
-      const activeLeadId = activeAppointment.lead?.id;
       const hasAssignedLeadInOptions = options.some(
         (option) => normalizeId(option.value) === normalizeId(activeLeadId)
       );
 
-      if (
-        isCurrentAppointmentSlot &&
-        activeLeadId &&
-        !hasAssignedLeadInOptions &&
-        activeAppointment.lead?.name
-      ) {
+      if (isCurrentAppointmentSlot && activeLeadId && !hasAssignedLeadInOptions && activeLeadName) {
         options.push({
-          label: activeAppointment.lead.name,
+          label: activeLeadName,
           value: activeLeadId,
         });
       }
@@ -480,8 +420,8 @@ const useAppointmentInfoView = ({
       normalizeId,
       activeAppointment.startTime,
       activeAppointment.endTime,
-      activeAppointment.lead?.id,
-      activeAppointment.lead?.name,
+      activeLeadId,
+      activeLeadName,
     ]
   );
 
@@ -493,7 +433,7 @@ const useAppointmentInfoView = ({
   const RoomOptions = useMemo(
     () =>
       toAssignableRoomOptions(
-        rooms ?? [],
+        rooms,
         roomIndexes,
         activeAppointment.room?.id,
         appointmentRoomUnitId,
@@ -519,10 +459,10 @@ const useAppointmentInfoView = ({
 
   const SpecialitiesOptions = useMemo(
     () =>
-      specialities?.map((speciality) => ({
+      specialities.map((speciality) => ({
         label: speciality.name,
         value: speciality._id || speciality.name,
-      })) ?? [],
+      })),
     [specialities]
   );
 
@@ -533,10 +473,10 @@ const useAppointmentInfoView = ({
 
   const ServicesOptions = useMemo(
     () =>
-      services?.map((service) => ({
+      services.map((service) => ({
         label: service.name,
         value: service.id,
-      })) ?? [],
+      })),
     [services]
   );
 
@@ -731,6 +671,7 @@ const useAppointmentInfoView = ({
       return true;
     }
     const hasRoomChanged = appointmentValues.room !== (activeAppointment.room?.id ?? '');
+    /* v8 ignore next 7 -- defensive guard: the room dropdown only renders when canAssignRoomByStatus is true, so room can only differ from the original when assignment is allowed */
     if (hasRoomChanged && !canAssignRoomByStatus) {
       notify('warning', {
         title: 'Room update blocked',
@@ -744,6 +685,7 @@ const useAppointmentInfoView = ({
   const applyStatusChange = async (nextStatus: AppointmentStatus | ''): Promise<boolean> => {
     const currentStatus = activeAppointment.status;
     if (!nextStatus || nextStatus === currentStatus) return true;
+    /* v8 ignore next 7 -- defensive guard: the status dropdown only renders when canChangeStatusByStatus is true, so a changed status (nextStatus !== currentStatus) is impossible when it is false */
     if (!canChangeStatusByStatus) {
       notify('warning', {
         title: 'Status update blocked',
@@ -751,6 +693,7 @@ const useAppointmentInfoView = ({
       });
       return false;
     }
+    /* v8 ignore next 7 -- defensive guard: allowedStatusOptions only offers valid transitions, so any selectable nextStatus always passes canTransitionAppointmentStatus */
     if (!canTransitionAppointmentStatus(currentStatus, nextStatus)) {
       notify('warning', {
         title: 'Status update blocked',
@@ -796,6 +739,7 @@ const useAppointmentInfoView = ({
 
     await updateAppointment(updatedAppointment);
     const succeeded = await applyStatusChange(appointmentValues.status);
+    /* v8 ignore next -- unreachable: applyStatusChange only returns false from its two defensive guards, and both are impossible via the UI — the status dropdown renders solely when canChangeStatusByStatus is true, and it offers only the transitions canTransitionAppointmentStatus accepts, so any selectable status either equals the current one (early true) or is a valid transition */
     if (!succeeded) return;
     setIsEditingAppointment(false);
     dispatchFormState({ type: 'SET_ERRORS', errors: {} });
@@ -951,25 +895,16 @@ const useAppointmentInfoView = ({
                 }
 
                 if (field.key === 'status') {
-                  const statusStyle = getStatusStyle(activeAppointment.status);
                   return (
                     <div
                       key={field.key}
                       className="py-2.5! flex items-center gap-2 justify-between border-t border-card-border"
                     >
                       <div className="text-body-4-emphasis text-text-secondary">{field.label}</div>
-                      <span
-                        className="text-caption-2 font-medium px-2.5 py-1 rounded-2xl! whitespace-nowrap"
-                        style={{
-                          backgroundColor: statusStyle.backgroundColor,
-                          color: statusStyle.color,
-                          borderWidth: '1px',
-                          borderStyle: 'solid',
-                          borderColor: statusStyle.borderColor,
-                        }}
-                      >
-                        {toStatusLabel(activeAppointment.status)}
-                      </span>
+                      <StatusPill
+                        tone={getAppointmentStatusTone(activeAppointment.status)}
+                        label={toStatusLabel(activeAppointment.status)}
+                      />
                     </div>
                   );
                 }

@@ -32,7 +32,10 @@ const SelectDefaultItem = React.memo(
     <PressableOpacity
       style={[styles.item, isSelected && styles.itemSelected]}
       onPress={() => onPress(item)}
-      activeOpacity={0.7}>
+      activeOpacity={0.7}
+      accessibilityRole="radio"
+      accessibilityState={{selected: isSelected}}
+      accessibilityLabel={item.label}>
       <Text style={styles.itemLabel}>{item.label}</Text>
       {isSelected && (
         <View style={styles.checkmark}>
@@ -62,7 +65,10 @@ const SelectCustomItem = React.memo(
     <PressableOpacity
       style={styles.touchableItem}
       onPress={() => onPress(item)}
-      activeOpacity={0.7}>
+      activeOpacity={0.7}
+      accessibilityRole="radio"
+      accessibilityState={{selected: isSelected}}
+      accessibilityLabel={item.label}>
       {renderContent(item, isSelected)}
     </PressableOpacity>
   ),

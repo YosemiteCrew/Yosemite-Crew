@@ -40,7 +40,9 @@ describe('AvailabilityCard', () => {
     expect(screen.getByText('Vet')).toBeInTheDocument();
     expect(screen.getByText('Surgery, Dental')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument();
-    expect(screen.getByText('Available')).toBeInTheDocument();
+    expect(screen.getByText('Available')).toHaveStyle({
+      backgroundColor: 'var(--color-pill-success-bg)',
+    });
   });
 
   it('renders speciality objects using their name field', () => {
@@ -58,7 +60,7 @@ describe('AvailabilityCard', () => {
     expect(screen.getByText('Cardiology')).toBeInTheDocument();
   });
 
-  it('falls back to JSON.stringify when a speciality object has no name', () => {
+  it('falls back to the code when a speciality record has no name', () => {
     render(
       <AvailabilityCard
         team={
@@ -70,7 +72,25 @@ describe('AvailabilityCard', () => {
         handleViewTeam={jest.fn()}
       />
     );
-    expect(screen.getByText('{"code":"X1"}')).toBeInTheDocument();
+    // This used to render the literal `{"code":"X1"}` at a clinician.
+    expect(screen.getByText('X1')).toBeInTheDocument();
+    expect(screen.queryByText('{"code":"X1"}')).not.toBeInTheDocument();
+  });
+
+  it('keeps an unidentifiable speciality visible rather than dropping it', () => {
+    render(
+      <AvailabilityCard
+        team={
+          {
+            ...baseTeam,
+            speciality: [{ name: 'Cardiology' }, {}],
+          } as unknown as Team
+        }
+        handleViewTeam={jest.fn()}
+      />
+    );
+    // Dropping it would silently understate how many specialities a team holds.
+    expect(screen.getByText('Cardiology, Unnamed speciality')).toBeInTheDocument();
   });
 
   it('renders "-" when speciality is missing or empty', () => {

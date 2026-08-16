@@ -1,38 +1,35 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import clsx from 'clsx';
+import './TaskBoard.css';
 import { useBoardDragScroll } from '@/app/hooks/useBoardDragScroll';
 import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import { buildDragPreview } from '@/app/lib/buildDragPreview';
-import { BoardColumnHeader, attachBoardColumnDnDListeners } from '@/app/ui/board/boardShared';
+import { attachBoardColumnDnDListeners } from '@/app/ui/board/boardShared';
 import BoardScopeToggle from '@/app/ui/primitives/BoardScopeToggle/BoardScopeToggle';
 import Image from 'next/image';
+import { useCompanionsForPrimaryOrg } from '@/app/hooks/useCompanion';
+import { StoredCompanion } from '@/app/features/companions/pages/Companions/types';
 import { Task, TaskStatus } from '@/app/features/tasks/types/task';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import { changeTaskStatus } from '@/app/features/tasks/services/taskService';
-import {
-  isOnPreferredTimeZoneCalendarDay,
-  formatDateInPreferredTimeZone,
-} from '@/app/lib/timezone';
-import Back from '@/app/ui/primitives/Icons/Back';
-import Next from '@/app/ui/primitives/Icons/Next';
-import Datepicker from '@/app/ui/inputs/Datepicker';
+import { useTaskStore } from '@/app/stores/taskStore';
+import { formatDateInPreferredTimeZone } from '@/app/lib/timezone';
+import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { useAuthStore } from '@/app/stores/authStore';
-import { IoAdd, IoEyeOutline } from 'react-icons/io5';
-import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import { Primary } from '@/app/ui/primitives/Buttons';
+import { IoAdd } from 'react-icons/io5';
 import { useMemberMap } from '@/app/hooks/useMemberMap';
-import { MdOutlineAutorenew } from 'react-icons/md';
-import { IoIosCalendar } from 'react-icons/io';
 import { useNotify } from '@/app/hooks/useNotify';
 import {
-  canRescheduleTask,
   canTransitionTaskStatus,
   canShowTaskStatusChangeAction,
   getInvalidTaskStatusTransitionMessage,
-  getPreferredNextTaskStatus,
-  getTaskQuickDetails,
 } from '@/app/lib/tasks';
+import {
+  getTaskCategoryLabel,
+  getTaskPriorityRank,
+} from '@/app/features/tasks/constants/taskTaxonomy';
 
 type BoardStatus = TaskStatus;
 
@@ -46,23 +43,16 @@ const BOARD_COLUMNS: Array<{ key: BoardStatus; label: string }> = [
 type MemberIdentity = {
   name: string;
   imageUrl?: string;
+  /** Card label for the assignee — "you" for the signed-in user, per the design. */
+  label?: string;
 };
 
-type TaskCardProps = {
-  task: Task;
-  columnLabel: string;
-  columnStyle: { backgroundColor: string; color: string };
-  draggedTaskId: string | null;
-  canEditTasks: boolean;
-  updatingStatusId: string | null;
-  assignedBy: MemberIdentity;
-  assignedTo: MemberIdentity;
-  onOpen: (task: Task) => void;
-  onChangeStatus: (task: Task) => void;
-  onReschedule: (task: Task) => void;
-  onDragStart: (event: React.DragEvent<HTMLElement>, task: Task) => void;
-  onDragEnd: () => void;
-};
+/**
+ * Statuses whose columns collapse to the first few cards behind a "+N more"
+ * link, as the design's Completed column does.
+ */
+const COLLAPSING_COLUMNS: ReadonlySet<BoardStatus> = new Set(['COMPLETED', 'CANCELLED']);
+const COLLAPSED_CARD_COUNT = 2;
 
 const getInitialsStatic = (name: string) =>
   name
@@ -72,186 +62,256 @@ const getInitialsStatic = (name: string) =>
     .map((part) => part.charAt(0).toUpperCase())
     .join('') || '--';
 
-const getColumnBadgeStyle = (status: BoardStatus) => {
-  switch (status) {
-    case 'COMPLETED':
-      return { backgroundColor: 'rgba(16, 185, 129, 0.18)', color: 'rgb(6, 95, 70)' };
-    case 'CANCELLED':
-      return { backgroundColor: 'rgba(239, 68, 68, 0.16)', color: 'rgb(153, 27, 27)' };
-    case 'IN_PROGRESS':
-      return { backgroundColor: 'rgba(59, 130, 246, 0.18)', color: 'rgb(30, 64, 175)' };
-    default:
-      return { backgroundColor: 'rgba(245, 158, 11, 0.18)', color: 'rgb(146, 64, 14)' };
+const getColumnDotColor = (status: BoardStatus): string => getStatusStyle(status).borderColor;
+
+/**
+ * The companion a task is about. Tasks loaded from the PMS carry the link on
+ * `patientId` after the patient rename; records created before it still carry
+ * `companionId`, so both have to be read or backend tasks lose their thumbnail.
+ */
+const getTaskCompanionId = (task: Task): string | undefined => task.companionId ?? task.patientId;
+
+/** One grey meta line under the card title, matching the design's density. */
+const buildBoardMeta = (task: Task, assigneeName: string): string => {
+  if (task.audience === 'PARENT_TASK') {
+    return ['Parent task', assigneeName].filter(Boolean).join(' · ');
   }
+  const category = getTaskCategoryLabel(task.category) || 'Task';
+  const time = formatDateInPreferredTimeZone(new Date(task.dueAt), {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+  if (task.status === 'CANCELLED') {
+    return ['Cancelled', assigneeName].filter(Boolean).join(' · ');
+  }
+  const when = task.status === 'COMPLETED' ? 'done' : `due ${time}`;
+  return [category, when, assigneeName].filter(Boolean).join(' · ');
+};
+
+/**
+ * Fraction (0-1) of the run-up to the due time an in-progress task has burned
+ * through, driving the design's slim progress track. Returns null when the task
+ * carries no usable timestamps, so the track is only drawn where it means
+ * something.
+ */
+const getTaskElapsedFraction = (task: Task): number | null => {
+  if (task.status !== 'IN_PROGRESS') return null;
+  const startedAt = task.updatedAt ?? task.createdAt;
+  if (!startedAt) return null;
+  const start = new Date(startedAt).getTime();
+  const due = new Date(task.dueAt).getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(due) || due <= start) return null;
+  const elapsed = (Date.now() - start) / (due - start);
+  return Math.min(1, Math.max(0, elapsed));
+};
+
+const getTaskTitleColorClass = (isDone: boolean, isCancelled: boolean): string => {
+  if (isDone) return 'text-text-tertiary line-through';
+  if (isCancelled) return 'text-text-tertiary';
+  return 'text-[var(--ink)]';
+};
+
+/**
+ * The companion thumbnail source. A stored photo can be a legacy relative key,
+ * an http:// URL or an 'undefined' placeholder, none of which next/image
+ * accepts — it throws and takes the whole board down. Resolving it through the
+ * same guard every other companion avatar uses degrades a rejected value to the
+ * species fallback. Returns '' when there is no photo, so the initial shows.
+ */
+const getCompanionThumbnailUrl = (companion?: StoredCompanion): string =>
+  companion?.photoUrl
+    ? getSafeImageUrl(companion.photoUrl, companion.type?.toLowerCase() as ImageType)
+    : '';
+
+/** The assignee name shown in the meta line, blank when there is no real name. */
+const getMetaAssigneeName = (assignedTo: MemberIdentity): string =>
+  assignedTo.name && assignedTo.name !== '-' ? (assignedTo.label ?? assignedTo.name) : '';
+
+type TaskCardVisualFlags = {
+  isParentTask: boolean;
+  isMuted: boolean;
+  isDone: boolean;
+  isCancelled: boolean;
+  isDragging: boolean;
+};
+
+const getTaskCardClassName = ({ isParentTask, isMuted, isDragging }: TaskCardVisualFlags): string =>
+  clsx(
+    'group/card relative w-full shrink-0 overflow-hidden rounded-[13px]! bg-neutral-0 px-3.5 py-3 text-left transition-colors flex flex-col items-stretch justify-start border',
+    isParentTask
+      ? 'border-[var(--pink)] shadow-[0_4px_12px_var(--glow-p12)]'
+      : 'border-card-border',
+    !isParentTask && !isMuted && 'shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)]',
+    // No opacity for done/cancelled: the card is a live onClick target, and its
+    // descendant meta line uses text-text-tertiary, which composited to 3.16:1
+    // at 0.70 and 2.61:1 at 0.60. Both states already recede in ink - the title
+    // goes text-text-tertiary (plus line-through for done) - and isMuted drops
+    // the shadow. Dragging keeps its dim: that is transient feedback while the
+    // pointer is moving the card, not a resting state anyone reads.
+    isDragging
+      ? 'opacity-60 shadow-none'
+      : !isParentTask && 'hover:border-input-border-active! hover:bg-card-hover!'
+  );
+
+const AssigneeAvatar = ({ assignedTo }: { assignedTo: MemberIdentity }) =>
+  assignedTo.imageUrl ? (
+    <Image
+      src={getSafeImageUrl(assignedTo.imageUrl, 'person')}
+      alt={assignedTo.name}
+      width={22}
+      height={22}
+      className="size-[22px] rounded-full border border-card-border object-cover"
+    />
+  ) : (
+    <span className="size-[22px] shrink-0 rounded-full bg-[var(--avatar-violet-bg)] text-[9px] font-bold text-[var(--avatar-violet-ink)] flex items-center justify-center">
+      {getInitialsStatic(assignedTo.name)}
+    </span>
+  );
+
+const CompanionThumbnail = ({ companion }: { companion?: StoredCompanion }) => {
+  const photoUrl = getCompanionThumbnailUrl(companion);
+  return (
+    <span
+      className="size-[22px] shrink-0 overflow-hidden rounded-full"
+      style={{ backgroundColor: 'var(--avatar-amber-bg)' }}
+    >
+      {photoUrl ? (
+        <Image
+          src={photoUrl}
+          alt={companion?.name ?? ''}
+          width={22}
+          height={22}
+          className="size-full object-cover"
+        />
+      ) : (
+        <span
+          className="flex size-full items-center justify-center text-[9px] font-bold"
+          style={{ color: 'var(--avatar-amber-ink)' }}
+        >
+          {getInitialsStatic(companion?.name ?? '').charAt(0)}
+        </span>
+      )}
+    </span>
+  );
+};
+
+type TaskCardFooterProps = {
+  isMuted: boolean;
+  isParentTask: boolean;
+  assignedTo: MemberIdentity;
+  companion?: StoredCompanion;
+};
+
+/** The card's bottom row: the assignee chip on the left, companion on the right. */
+const TaskCardFooter = ({ isMuted, isParentTask, assignedTo, companion }: TaskCardFooterProps) => {
+  const hasFooterRow = !isMuted && !isParentTask;
+  const showAvatar = hasFooterRow && Boolean(assignedTo.name) && assignedTo.name !== '-';
+  const showCompanion = hasFooterRow && Boolean(companion);
+  if (!showAvatar && !showCompanion) return null;
+  const assigneeLabel = assignedTo.label ?? assignedTo.name;
+  return (
+    <div className="relative z-10 mt-2 flex items-center justify-between gap-2">
+      <span className="flex min-w-0 items-center gap-1.5">
+        {showAvatar && <AssigneeAvatar assignedTo={assignedTo} />}
+        {showAvatar && (
+          <span className="truncate text-[11px] text-text-secondary">{assigneeLabel}</span>
+        )}
+      </span>
+      {showCompanion && <CompanionThumbnail companion={companion} />}
+    </div>
+  );
+};
+
+type TaskCardProps = {
+  task: Task;
+  draggedTaskId: string | null;
+  canEditTasks: boolean;
+  updatingStatusId: string | null;
+  assignedTo: MemberIdentity;
+  /** The companion the task is linked to, shown as a thumbnail per the design. */
+  companion?: StoredCompanion;
+  onOpen: (task: Task) => void;
+  onDragStart: (event: React.DragEvent<HTMLElement>, task: Task) => void;
+  onDragEnd: () => void;
 };
 
 const TaskCard = ({
   task,
-  columnLabel,
-  columnStyle,
   draggedTaskId,
   canEditTasks,
   updatingStatusId,
-  assignedBy,
   assignedTo,
+  companion,
   onOpen,
-  onChangeStatus,
-  onReschedule,
   onDragStart,
   onDragEnd,
-}: TaskCardProps) => (
-  <article
-    aria-label={`Open task ${task.name || '-'}`}
-    className={`relative w-full min-h-[112px] shrink-0 rounded-2xl! overflow-hidden border border-card-border bg-gradient-to-b from-white to-card-hover px-3 py-2.5 text-left transition-colors flex flex-col items-stretch justify-start ${
-      draggedTaskId === (task._id ?? null)
-        ? 'opacity-60 shadow-none'
-        : 'hover:border-input-border-active! hover:bg-card-hover!'
-    }`}
-    draggable={canEditTasks && canShowTaskStatusChangeAction(task.status)}
-    onDragStart={(event) => onDragStart(event, task)}
-    onDragEnd={onDragEnd}
-  >
-    <button
-      type="button"
-      aria-label={`Open task ${task.name || '-'}`}
-      className="absolute inset-0 rounded-2xl!"
-      onClick={() => onOpen(task)}
-    />
-    <div className="relative z-10 flex items-start justify-between gap-2">
-      <div className="truncate text-[12px] leading-4 font-semibold text-text-primary">
-        {task.name || '-'}
-      </div>
+}: TaskCardProps) => {
+  // Pink is reserved on this screen for pet-parent tasks only.
+  const isParentTask = task.audience === 'PARENT_TASK';
+  const isDone = task.status === 'COMPLETED';
+  const isCancelled = task.status === 'CANCELLED';
+  const isMuted = isDone || isCancelled;
+  const isDragging = draggedTaskId === (task._id ?? null);
+  const taskName = task.name || '-';
+  const meta = buildBoardMeta(task, getMetaAssigneeName(assignedTo));
+  const elapsedFraction = getTaskElapsedFraction(task);
+
+  return (
+    <article
+      aria-label={`Open task ${taskName}`}
+      className={getTaskCardClassName({ isParentTask, isMuted, isDone, isCancelled, isDragging })}
+      draggable={canEditTasks && canShowTaskStatusChangeAction(task.status)}
+      onDragStart={(event) => onDragStart(event, task)}
+      onDragEnd={onDragEnd}
+    >
+      <button
+        type="button"
+        aria-label={`Open task ${taskName}`}
+        className="absolute inset-0 rounded-[13px]!"
+        onClick={() => onOpen(task)}
+      />
       <div
-        className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold"
-        style={{
-          ...getColumnBadgeStyle(task.status),
-          borderColor: columnStyle.color,
-        }}
+        className={clsx(
+          'relative z-10 flex items-center gap-1.5 text-[13px] font-bold leading-4',
+          getTaskTitleColorClass(isDone, isCancelled)
+        )}
       >
-        {columnLabel}
+        {isParentTask && (
+          <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-[var(--pink)]" />
+        )}
+        <span className="min-w-0 break-words">{taskName}</span>
       </div>
-    </div>
 
-    <div className="relative z-10 mt-1.5 grid grid-cols-1 gap-1">
-      {getTaskQuickDetails(task)
-        .slice(0, 2)
-        .map((item) => (
-          <div
-            key={item.label}
-            className="flex items-start gap-1.5 text-[10px] leading-4 text-text-secondary"
-          >
-            <span className="shrink-0 font-medium text-text-primary">{item.label}:</span>
-            <span className="line-clamp-1 min-w-0">{item.value}</span>
-          </div>
-        ))}
-      {[
-        { label: 'From', value: assignedBy },
-        { label: 'To', value: assignedTo },
-      ].map((item) => (
-        <div key={item.label} className="flex items-center gap-1.5">
-          {item.value.imageUrl ? (
-            <Image
-              src={item.value.imageUrl}
-              alt={item.value.name}
-              width={18}
-              height={18}
-              className="size-[18px] rounded-full border border-card-border object-cover"
-            />
-          ) : (
-            <div className="size-[18px] rounded-full border border-card-border bg-white text-[8px] font-semibold text-text-secondary flex items-center justify-center">
-              {getInitialsStatic(item.value.name)}
-            </div>
-          )}
-          <div className="min-w-0 flex items-center gap-1.5">
-            <span className="text-[10px] text-text-secondary">{item.label}</span>
-            <span className="truncate text-[10px] text-text-primary">{item.value.name}</span>
-          </div>
-        </div>
-      ))}
-    </div>
+      <div className="relative z-10 mt-[3px] text-[11px] leading-4 text-text-tertiary">{meta}</div>
 
-    <div className="relative z-10 mt-1.5 rounded-xl border border-card-border bg-white/80 px-2 py-1">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] text-text-secondary">Due</span>
-        <span className="text-[10px] text-text-primary">
-          {formatDateInPreferredTimeZone(new Date(task.dueAt), {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-          })}
-          {' \u2022 '}
-          {formatDateInPreferredTimeZone(new Date(task.dueAt), {
-            hour: 'numeric',
-            minute: '2-digit',
-          })}
-        </span>
-      </div>
-    </div>
-    <div className="relative z-10 mt-1.5 flex items-center gap-1.5 flex-wrap max-w-[168px]">
-      <GlassTooltip content="View task" side="bottom">
-        <button
-          type="button"
-          aria-label={`View task ${task.name || '-'}`}
-          className="size-7 rounded-full! border border-black-text! bg-white flex items-center justify-center"
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            onOpen(task);
-          }}
-        >
-          <IoEyeOutline size={14} color="var(--color-neutral-900)" />
-        </button>
-      </GlassTooltip>
-      {canEditTasks && canShowTaskStatusChangeAction(task.status) && (
-        <GlassTooltip content="Change status" side="bottom">
-          <button
-            type="button"
-            aria-label={`Change status for ${task.name || '-'}`}
-            className="size-7 rounded-full! border border-black-text! bg-white flex items-center justify-center"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              onChangeStatus(task);
-            }}
-          >
-            <MdOutlineAutorenew size={13} color="var(--color-neutral-900)" />
-          </button>
-        </GlassTooltip>
+      {elapsedFraction !== null && (
+        <progress
+          className="yc-task-progress relative z-10 mt-[9px]"
+          aria-label={`Time elapsed toward due for ${taskName}`}
+          max={100}
+          value={Math.round(elapsedFraction * 100)}
+        />
       )}
-      {canEditTasks && canRescheduleTask(task.status) && (
-        <GlassTooltip content="Reschedule" side="bottom">
-          <button
-            type="button"
-            aria-label={`Reschedule ${task.name || '-'}`}
-            className="size-7 rounded-full! border border-black-text! bg-white flex items-center justify-center"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              onReschedule(task);
-            }}
-          >
-            <IoIosCalendar size={13} color="var(--color-neutral-900)" />
-          </button>
-        </GlassTooltip>
-      )}
-    </div>
 
-    {updatingStatusId === task._id && (
-      <div className="relative z-10 mt-1 text-[10px] text-text-secondary">Updating...</div>
-    )}
-  </article>
-);
+      <TaskCardFooter
+        isMuted={isMuted}
+        isParentTask={isParentTask}
+        assignedTo={assignedTo}
+        companion={companion}
+      />
+
+      {updatingStatusId === task._id && (
+        <div className="relative z-10 mt-1 text-[10px] text-text-secondary">Updating...</div>
+      )}
+    </article>
+  );
+};
 
 type TaskBoardProps = {
   tasks: Task[];
-  currentDate: Date;
-  setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   canEditTasks: boolean;
   setActiveTask?: (task: Task) => void;
   setViewPopup?: React.Dispatch<React.SetStateAction<boolean>>;
-  setChangeStatusPopup?: React.Dispatch<React.SetStateAction<boolean>>;
-  setChangeStatusPreferredStatus?: React.Dispatch<React.SetStateAction<TaskStatus | null>>;
-  setReschedulePopup?: React.Dispatch<React.SetStateAction<boolean>>;
   onAddTask?: () => void;
 };
 
@@ -262,21 +322,42 @@ const normalizeId = (value?: string | null) =>
     .pop()
     ?.toLowerCase() ?? '';
 
+type BoardToolbarProps = {
+  showMineOnly: boolean;
+  setShowMineOnly: (value: boolean) => void;
+};
+
+/**
+ * The design's board has no toolbar band — the columns sit directly on the page
+ * and "New task" lives in the page header. Only the scope toggle survives here,
+ * as a bare control row, because the board is the one view with no filter bar.
+ */
+const BoardToolbar = ({ showMineOnly, setShowMineOnly }: BoardToolbarProps) => (
+  <div className="flex flex-wrap items-center justify-end gap-2">
+    <BoardScopeToggle
+      showMineOnly={showMineOnly}
+      onChange={setShowMineOnly}
+      allLabel="All tasks"
+      mineLabel="My tasks"
+    />
+  </div>
+);
+
 type BoardColumnProps = {
-  column: (typeof BOARD_COLUMNS)[number];
+  column: { key: BoardStatus; label: string };
   columnTasks: Task[];
   draggedTaskId: string | null;
   canEditTasks: boolean;
   updatingStatusId: string | null;
-  setDropRef: (element: HTMLDivElement | null) => void;
-  setScrollRef: (element: HTMLDivElement | null) => void;
-  onWheelBoundary: React.WheelEventHandler<HTMLDivElement>;
   resolveMemberIdentity: (memberId?: string) => MemberIdentity;
-  openTask: (task: Task) => void;
-  openChangeStatus: (task: Task) => void;
-  openReschedule: (task: Task) => void;
-  handleTaskCardDragStart: (event: React.DragEvent<HTMLElement>, task: Task) => void;
-  onTaskDragEnd: () => void;
+  resolveCompanion: (companionId?: string) => StoredCompanion | undefined;
+  onOpen: (task: Task) => void;
+  onDragStart: (event: React.DragEvent<HTMLElement>, task: Task) => void;
+  onDragEnd: () => void;
+  onAddTask?: () => void;
+  onWheelBoundary: (event: React.WheelEvent<HTMLElement>) => void;
+  setDropElement: (element: HTMLDivElement | null) => void;
+  setScrollElement: (element: HTMLDivElement | null) => void;
 };
 
 const BoardColumn = ({
@@ -285,154 +366,108 @@ const BoardColumn = ({
   draggedTaskId,
   canEditTasks,
   updatingStatusId,
-  setDropRef,
-  setScrollRef,
-  onWheelBoundary,
   resolveMemberIdentity,
-  openTask,
-  openChangeStatus,
-  openReschedule,
-  handleTaskCardDragStart,
-  onTaskDragEnd,
+  resolveCompanion,
+  onOpen,
+  onDragStart,
+  onDragEnd,
+  onAddTask,
+  onWheelBoundary,
+  setDropElement,
+  setScrollElement,
 }: BoardColumnProps) => {
+  const [isExpanded, setIsExpanded] = useState(false);
   const hasTasks = columnTasks.length > 0;
-  const style = getStatusStyle(column.key);
+  // The design truncates the settled columns and offers a "+N more" link.
+  const collapses = COLLAPSING_COLUMNS.has(column.key) && columnTasks.length > COLLAPSED_CARD_COUNT;
+  const isCollapsed = collapses && !isExpanded;
+  const visibleTasks = isCollapsed ? columnTasks.slice(0, COLLAPSED_CARD_COUNT) : columnTasks;
+  const hiddenCount = columnTasks.length - visibleTasks.length;
   return (
     <div
-      key={column.key}
-      ref={setDropRef}
-      className="w-[320px] min-w-[320px] max-w-[320px] h-full rounded-2xl border border-card-border bg-white overflow-hidden flex flex-col min-h-0"
+      ref={setDropElement}
+      // Fluid quarter-width columns on desktop (the design's 4-up grid); the
+      // fixed 320px track keeps the board usable as a scroller below that.
+      className="w-[320px] min-w-[320px] max-w-[320px] lg:w-auto lg:min-w-0 lg:max-w-none h-full rounded-2xl bg-[var(--inset)] overflow-hidden flex flex-col min-h-0"
     >
-      <BoardColumnHeader label={column.label} count={columnTasks.length} style={style} />
+      <div className="px-3.5 pt-3.5 pb-2.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span
+              aria-hidden="true"
+              className="size-2 shrink-0 rounded-full"
+              style={{ backgroundColor: getColumnDotColor(column.key) }}
+            />
+            <div className="text-[12px] font-bold uppercase text-[var(--ink-muted)]">
+              {column.label}
+            </div>
+          </div>
+          <div className="text-[11.5px] font-bold text-text-tertiary">{columnTasks.length}</div>
+        </div>
+      </div>
       <div
-        ref={setScrollRef}
-        className="flex-1 min-h-0 h-0 flex flex-col gap-2 p-3 pb-4 bg-white overflow-y-auto"
+        ref={setScrollElement}
+        className="flex-1 min-h-0 h-0 flex flex-col gap-2.5 px-2.5 pb-3 overflow-y-auto"
         onWheel={onWheelBoundary}
         data-calendar-scroll="true"
       >
-        {columnTasks.map((task) => (
+        {visibleTasks.map((task) => (
           <TaskCard
             key={task._id}
             task={task}
-            columnLabel={column.label}
-            columnStyle={style}
             draggedTaskId={draggedTaskId}
             canEditTasks={canEditTasks}
             updatingStatusId={updatingStatusId}
-            assignedBy={resolveMemberIdentity(task.assignedBy)}
             assignedTo={resolveMemberIdentity(task.assignedTo)}
-            onOpen={openTask}
-            onChangeStatus={openChangeStatus}
-            onReschedule={openReschedule}
-            onDragStart={handleTaskCardDragStart}
-            onDragEnd={onTaskDragEnd}
+            companion={resolveCompanion(getTaskCompanionId(task))}
+            onOpen={onOpen}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
           />
         ))}
+        {collapses && (
+          <button
+            type="button"
+            onClick={() => setIsExpanded((prev) => !prev)}
+            className="text-center text-[11.5px] font-semibold"
+            style={{ color: 'var(--blue-text)' }}
+          >
+            {isCollapsed ? `+ ${hiddenCount} more` : 'Show less'}
+          </button>
+        )}
         {!hasTasks && (
-          <div className="rounded-2xl border border-dashed border-card-border bg-white px-3 py-4 text-center text-caption-1 text-text-secondary">
+          <div className="rounded-[13px] border border-dashed border-card-border bg-neutral-0 px-3 py-4 text-center text-caption-1 text-text-secondary">
             No tasks
           </div>
+        )}
+        {canEditTasks && column.key === 'PENDING' && (
+          <button
+            type="button"
+            aria-label="Add task to Pending"
+            onClick={onAddTask}
+            className="mt-auto flex items-center justify-center gap-1.5 rounded-[11px] border border-dashed border-[var(--divider)] px-3 py-2.5 text-[12px] font-semibold text-text-tertiary transition-colors hover:border-input-border-active hover:text-text-primary"
+          >
+            <IoAdd size={14} aria-hidden="true" />
+            Add
+          </button>
         )}
       </div>
     </div>
   );
 };
 
-type BoardHeaderProps = {
-  currentDate: Date;
-  setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
-  canEditTasks: boolean;
-  onAddTask?: () => void;
-  showMineOnly: boolean;
-  setShowMineOnly: (value: boolean) => void;
-};
-
-const BoardHeader = ({
-  currentDate,
-  setCurrentDate,
-  canEditTasks,
-  onAddTask,
-  showMineOnly,
-  setShowMineOnly,
-}: BoardHeaderProps) => (
-  <div className="border-b border-card-border bg-white px-3 py-2">
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <div className="flex items-center gap-2 text-body-4-emphasis text-text-primary flex-1 min-w-[340px]">
-        <GlassTooltip content="Select date" side="bottom">
-          <Datepicker
-            currentDate={currentDate}
-            setCurrentDate={setCurrentDate}
-            placeholder="Select Date"
-          />
-        </GlassTooltip>
-        <div className="flex items-center gap-2">
-          <Back
-            onClick={() =>
-              setCurrentDate((prev) => {
-                const next = new Date(prev);
-                next.setDate(next.getDate() - 1);
-                return next;
-              })
-            }
-          />
-          <div>
-            {formatDateInPreferredTimeZone(currentDate, {
-              weekday: 'long',
-              month: 'short',
-              day: '2-digit',
-              year: 'numeric',
-            })}
-          </div>
-          <Next
-            onClick={() =>
-              setCurrentDate((prev) => {
-                const next = new Date(prev);
-                next.setDate(next.getDate() + 1);
-                return next;
-              })
-            }
-          />
-        </div>
-      </div>
-      <div className="relative z-20 flex items-center justify-end gap-2 flex-1 min-w-[420px]">
-        {canEditTasks && (
-          <Primary
-            text="Add"
-            ariaLabel="Add task"
-            onClick={onAddTask}
-            icon={<IoAdd size={18} aria-hidden="true" />}
-            className="gap-2 px-4 whitespace-nowrap hover:scale-100"
-          />
-        )}
-        <BoardScopeToggle
-          showMineOnly={showMineOnly}
-          onChange={setShowMineOnly}
-          allLabel="All tasks"
-          mineLabel="My tasks"
-        />
-      </div>
-    </div>
-  </div>
-);
-
 const TaskBoard = ({
   tasks,
-  currentDate,
-  setCurrentDate,
   canEditTasks,
   setActiveTask,
   setViewPopup,
-  setChangeStatusPopup,
-  setChangeStatusPreferredStatus,
-  setReschedulePopup,
   onAddTask,
 }: TaskBoardProps) => {
   const { notify } = useNotify();
   const team = useTeamForPrimaryOrg();
+  const companions = useCompanionsForPrimaryOrg();
   const { resolveMemberName } = useMemberMap();
-  const authUserId = useAuthStore(
-    (s) => s.attributes?.sub || s.attributes?.email || s.attributes?.['cognito:username'] || ''
-  );
+  const authUserId = useAuthStore((s) => s.attributes?.sub || s.attributes?.email || '');
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [showMineOnly, setShowMineOnly] = useState(false);
@@ -501,32 +536,53 @@ const TaskBoard = ({
     return map;
   }, [team]);
 
+  const companionById = useMemo(() => {
+    const map: Record<string, StoredCompanion> = {};
+    companions?.forEach((companion) => {
+      const normalized = normalizeId(companion.id);
+      if (normalized) map[normalized] = companion;
+    });
+    return map;
+  }, [companions]);
+
+  const resolveCompanion = (companionId?: string): StoredCompanion | undefined => {
+    const normalized = normalizeId(companionId);
+    return normalized ? companionById[normalized] : undefined;
+  };
+
   const resolveMemberIdentity = (memberId?: string): MemberIdentity => {
     const raw = String(memberId ?? '').trim();
     if (!raw) return { name: '-' };
     const resolved = resolveMemberName(raw);
     const identity = teamIdentityById[normalizeId(raw)];
+    // The design labels the signed-in user "you" rather than by name.
+    const label =
+      currentUserAssigneeId && normalizeId(raw) === currentUserAssigneeId ? 'you' : undefined;
     if (identity) {
       return {
         name: resolved && resolved !== '-' ? resolved : identity.name,
         imageUrl: identity.imageUrl,
+        label,
       };
     }
     return {
       name: resolved && resolved !== '-' ? resolved : teamNameById[normalizeId(raw)] || raw,
+      label,
     };
   };
 
-  const todayTasks = useMemo(
+  // The design board shows the whole backlog (not one day). Scope narrows only to
+  // "My tasks" when the toggle is on; ordering keeps the most urgent first.
+  const visibleTasks = useMemo(
     () =>
       tasks
-        .filter(
-          (task) =>
-            isOnPreferredTimeZoneCalendarDay(new Date(task.dueAt), currentDate) &&
-            (!showMineOnly || normalizeId(task.assignedTo) === currentUserAssigneeId)
-        )
-        .sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime()),
-    [tasks, currentDate, showMineOnly, currentUserAssigneeId]
+        .filter((task) => !showMineOnly || normalizeId(task.assignedTo) === currentUserAssigneeId)
+        .sort((a, b) => {
+          const priorityDelta = getTaskPriorityRank(b.priority) - getTaskPriorityRank(a.priority);
+          if (priorityDelta !== 0) return priorityDelta;
+          return new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime();
+        }),
+    [tasks, showMineOnly, currentUserAssigneeId]
   );
 
   const groupedTasks = useMemo(() => {
@@ -536,27 +592,16 @@ const TaskBoard = ({
       COMPLETED: [],
       CANCELLED: [],
     };
-    todayTasks.forEach((task) => {
+    visibleTasks.forEach((task) => {
       if (!grouped[task.status]) return;
       grouped[task.status].push(task);
     });
     return grouped;
-  }, [todayTasks]);
+  }, [visibleTasks]);
 
   const openTask = (task: Task) => {
     setActiveTask?.(task);
     setViewPopup?.(true);
-  };
-
-  const openChangeStatus = (task: Task) => {
-    setActiveTask?.(task);
-    setChangeStatusPreferredStatus?.(getPreferredNextTaskStatus(task.status));
-    setChangeStatusPopup?.(true);
-  };
-
-  const openReschedule = (task: Task) => {
-    setActiveTask?.(task);
-    setReschedulePopup?.(true);
   };
 
   const { autoScrollBoardOnDrag } = useBoardDragScroll();
@@ -565,9 +610,11 @@ const TaskBoard = ({
 
   const moveToStatus = useCallback(
     async (taskId: string, nextStatus: BoardStatus) => {
-      const task = todayTasks.find((item) => item._id === taskId);
+      const task = visibleTasks.find((item) => item._id === taskId);
+      /* v8 ignore next */
       if (!task?._id) return;
       if (task.status === nextStatus) return;
+      /* v8 ignore next */
       if (!canEditTasks) return;
       if (!canTransitionTaskStatus(task.status, nextStatus)) {
         notify('warning', {
@@ -583,15 +630,25 @@ const TaskBoard = ({
           ...task,
           status: nextStatus,
         });
+      } catch {
+        // changeTaskStatus applies the new status optimistically before calling the API.
+        // Restoring the pre-drag task keeps the card out of a column the server rejected.
+        useTaskStore.getState().upsertTask(task);
+        notify('error', {
+          title: 'Status change failed',
+          text: 'Unable to update the task status. Please try again.',
+        });
       } finally {
         setUpdatingStatusId(null);
       }
     },
-    [canEditTasks, notify, todayTasks]
+    [canEditTasks, notify, visibleTasks]
   );
 
   const moveToStatusRef = useRef(moveToStatus);
-  moveToStatusRef.current = moveToStatus;
+  useEffect(() => {
+    moveToStatusRef.current = moveToStatus;
+  });
 
   const handleTaskCardDragStart = useCallback((event: React.DragEvent<HTMLElement>, task: Task) => {
     setDraggedTaskId(task._id ?? null);
@@ -606,6 +663,7 @@ const TaskBoard = ({
 
   useEffect(() => {
     const boardRoot = boardRootRef.current;
+    /* v8 ignore next */
     if (!boardRoot) return;
 
     const handleBoardDragOver = (event: DragEvent) => {
@@ -621,6 +679,7 @@ const TaskBoard = ({
     const cleanups = BOARD_COLUMNS.flatMap((column) => {
       const dropElement = columnDropRefs.current[column.key];
       const scrollElement = columnScrollRefs.current[column.key];
+      /* v8 ignore next */
       if (!dropElement || !scrollElement) return [];
 
       return attachBoardColumnDnDListeners({
@@ -640,24 +699,17 @@ const TaskBoard = ({
   }, [autoScrollBoardOnDrag, canEditTasks, draggedTaskId]);
 
   return (
-    <div className="h-full min-h-0 rounded-2xl border border-grey-light bg-white overflow-hidden flex flex-col">
-      <BoardHeader
-        currentDate={currentDate}
-        setCurrentDate={setCurrentDate}
-        canEditTasks={canEditTasks}
-        onAddTask={onAddTask}
-        showMineOnly={showMineOnly}
-        setShowMineOnly={setShowMineOnly}
-      />
+    <div className="h-full min-h-0 overflow-hidden flex flex-col gap-3">
+      <BoardToolbar showMineOnly={showMineOnly} setShowMineOnly={setShowMineOnly} />
 
       <div
         ref={boardRootRef}
-        className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden p-3 scrollbar-x-float"
+        className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden lg:overflow-x-hidden scrollbar-x-float"
         data-calendar-scroll="true"
         data-board-scroll-root="true"
         onWheel={onWheelHorizontal}
       >
-        <div className="h-full min-w-max flex items-stretch gap-3">
+        <div className="h-full min-w-max flex items-stretch gap-3 lg:grid lg:grid-cols-4 lg:min-w-0">
           {BOARD_COLUMNS.map((column) => (
             <BoardColumn
               key={column.key}
@@ -666,19 +718,19 @@ const TaskBoard = ({
               draggedTaskId={draggedTaskId}
               canEditTasks={canEditTasks}
               updatingStatusId={updatingStatusId}
-              setDropRef={(element) => {
+              resolveMemberIdentity={resolveMemberIdentity}
+              resolveCompanion={resolveCompanion}
+              onOpen={openTask}
+              onDragStart={handleTaskCardDragStart}
+              onDragEnd={() => setDraggedTaskId(null)}
+              onAddTask={onAddTask}
+              onWheelBoundary={onWheelBoundary}
+              setDropElement={(element) => {
                 columnDropRefs.current[column.key] = element;
               }}
-              setScrollRef={(element) => {
+              setScrollElement={(element) => {
                 columnScrollRefs.current[column.key] = element;
               }}
-              onWheelBoundary={onWheelBoundary}
-              resolveMemberIdentity={resolveMemberIdentity}
-              openTask={openTask}
-              openChangeStatus={openChangeStatus}
-              openReschedule={openReschedule}
-              handleTaskCardDragStart={handleTaskCardDragStart}
-              onTaskDragEnd={() => setDraggedTaskId(null)}
             />
           ))}
         </div>

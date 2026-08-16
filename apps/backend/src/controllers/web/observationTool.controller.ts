@@ -45,7 +45,6 @@ const resolveUserId = (req: Request): string | undefined => {
 const CreateAppointmentSubmissionSchema = z.object({
   toolId: z.string().min(1),
   companionId: z.string().min(1),
-  filledBy: z.string().min(1),
   answers: z.record(z.unknown()),
   taskId: z.string().min(1).optional(),
   summary: z.string().optional(),
@@ -263,13 +262,17 @@ export const ObservationToolSubmissionController = {
           .json({ message: "Missing organisation context" });
       }
 
+      const filledBy = (req as AuthenticatedRequest).userId;
+      if (!filledBy) {
+        return res.status(401).json({ message: "Unauthenticated" });
+      }
+
       const parsed = CreateAppointmentSubmissionSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ message: "Invalid request body" });
       }
 
-      const { toolId, companionId, filledBy, answers, taskId, summary } =
-        parsed.data;
+      const { toolId, companionId, answers, taskId, summary } = parsed.data;
 
       const submission =
         await ObservationToolSubmissionService.createForAppointment({
@@ -278,7 +281,7 @@ export const ObservationToolSubmissionController = {
           toolId,
           patientId: companionId,
           filledBy,
-          answers: answers as CreateObservationToolSubmissionInput["answers"],
+          answers: answers,
           taskId,
           summary,
         });

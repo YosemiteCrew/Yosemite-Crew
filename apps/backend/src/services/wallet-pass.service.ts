@@ -122,11 +122,14 @@ const rabiesLine = (passport: PetPassportDTO): string | undefined => {
 
 // The soonest upcoming vaccination due date (ISO). Used to surface the pass
 // near that date (Apple `relevantDate`) and show a "next due" line. Past dates
-// are ignored.
+// are ignored. Passport assembly lifts the latest rabies dose out of
+// `vaccinations` into `rabies`, so its due date has to be considered too.
 const soonestNextDueIso = (passport: PetPassportDTO): string | undefined => {
   const now = Date.now();
-  const upcoming = passport.vaccinations
-    .map((vaccination) => vaccination.nextDueDate)
+  const upcoming = [
+    ...passport.vaccinations.map((vaccination) => vaccination.nextDueDate),
+    passport.rabies?.nextDueDate,
+  ]
     .filter(isNonEmpty)
     .map((value) => new Date(value))
     .filter((date) => !Number.isNaN(date.getTime()) && date.getTime() >= now)

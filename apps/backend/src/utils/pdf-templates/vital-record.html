@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>{{title}}</title>
+    <style>
+      body {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 12px;
+        padding: 36px;
+        color: #1f2937;
+        background: #fff;
+      }
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        gap: 24px;
+        padding-bottom: 18px;
+        border-bottom: 2px solid #1f2937;
+        margin-bottom: 24px;
+      }
+
+      .brand {
+        display: flex;
+        gap: 14px;
+        align-items: flex-start;
+      }
+
+      .brand-logo-wrap {
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
+        overflow: hidden;
+        background: #f3f4f6;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .brand-logo {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+
+      .brand-name {
+        font-size: 18px;
+        font-weight: 700;
+        color: #111827;
+        margin-bottom: 4px;
+      }
+
+      .brand-address,
+      .brand-contact {
+        color: #4b5563;
+        line-height: 1.4;
+      }
+
+      .brand-contact {
+        margin-top: 4px;
+      }
+
+      .document-meta {
+        text-align: right;
+        min-width: 180px;
+      }
+
+      .document-kind {
+        display: inline-block;
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #2563eb;
+        font-weight: 700;
+        margin-bottom: 10px;
+      }
+
+      h1 {
+        font-size: 22px;
+        margin: 0 0 8px;
+        color: #111827;
+      }
+
+      .submitted {
+        font-size: 10px;
+        color: #6b7280;
+      }
+
+      h2 {
+        font-size: 15px;
+        margin-top: 24px;
+        border-bottom: 1px solid #d1d5db;
+        padding-bottom: 4px;
+        color: #111827;
+      }
+
+      .field {
+        margin: 6px 0;
+      }
+
+      .label {
+        font-weight: bold;
+      }
+
+      .value {
+        margin-left: 6px;
+        word-break: break-word;
+      }
+
+      footer {
+        margin-top: 40px;
+        padding-top: 12px;
+        border-top: 1px solid #e5e7eb;
+        font-size: 10px;
+        color: #6b7280;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="header">
+      {{brandSection}}
+      <div class="document-meta">
+        <div class="document-kind">{{templateLabel}}</div>
+        <h1>{{title}}</h1>
+        <div class="submitted">Submitted at: {{submittedAt}}</div>
+      </div>
+    </div>
+
+    {{sections}}
+
+    <footer>
+      Generated from the vital record template registry and rendered by the
+      backend.
+    </footer>
+  </body>
+</html>

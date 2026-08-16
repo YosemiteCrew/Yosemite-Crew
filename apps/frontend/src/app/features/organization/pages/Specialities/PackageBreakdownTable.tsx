@@ -1,11 +1,10 @@
 import React from 'react';
-import { MdDeleteForever } from 'react-icons/md';
-import { AiOutlineInfoCircle } from 'react-icons/ai';
 import { PackageBreakdownItem } from '@/app/features/organization/types/revamp';
 import { computePackageBreakdownItem } from '@/app/features/organization/services/catalogCalculations';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
 import { formatMoney } from '@/app/lib/money';
+import { IoInformationCircleOutline, IoTrash } from 'react-icons/io5';
 
 const TYPE_LABELS: Record<string, string> = {
   CONSULTATION: 'Consultation',
@@ -57,7 +56,7 @@ const NestedBreakdownTooltip = ({
           {items.map((item, i) => {
             const { net } = computePackageBreakdownItem(item);
             return (
-              <tr key={item.id} style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+              <tr key={item.id} style={{ borderTop: '1px solid var(--hairline)' }}>
                 <td style={{ padding: '3px 6px', opacity: 0.5 }}>{i + 1}.</td>
                 <td style={{ padding: '3px 6px', opacity: 0.7 }}>
                   {TYPE_LABELS[item.type] ?? item.type}
@@ -79,7 +78,7 @@ const NestedBreakdownTooltip = ({
         </tbody>
         <tfoot>
           {additionalDiscount > 0 && (
-            <tr style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
+            <tr style={{ borderTop: '1px solid var(--hairline-hover)' }}>
               <td
                 colSpan={6}
                 style={{ padding: '3px 6px', textAlign: 'right', opacity: 0.6, fontSize: 12 }}
@@ -91,7 +90,7 @@ const NestedBreakdownTooltip = ({
               </td>
             </tr>
           )}
-          <tr style={{ borderTop: '1px solid rgba(255,255,255,0.2)' }}>
+          <tr style={{ borderTop: '1px solid var(--hairline-hover)' }}>
             <td
               colSpan={6}
               style={{ padding: '4px 6px', textAlign: 'right', opacity: 0.7, fontSize: 12 }}
@@ -179,7 +178,7 @@ const PackageBreakdownTable = ({
                         maxWidth={440}
                       >
                         <span className="cursor-default text-text-secondary hover:text-text-brand transition-colors">
-                          <AiOutlineInfoCircle size={14} aria-hidden="true" />
+                          <IoInformationCircleOutline size={14} aria-hidden="true" />
                         </span>
                       </GlassTooltip>
                     )}
@@ -239,11 +238,7 @@ const PackageBreakdownTable = ({
                       onClick={() => onRemoveItem?.(item.id)}
                       className="flex items-center justify-center size-7 rounded-full border border-transparent hover:border-danger-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-600"
                     >
-                      <MdDeleteForever
-                        size={16}
-                        color="var(--color-danger-600)"
-                        aria-hidden="true"
-                      />
+                      <IoTrash size={16} color="var(--color-danger-600)" aria-hidden="true" />
                     </button>
                   </td>
                 )}
@@ -279,7 +274,7 @@ const PackageBreakdownTable = ({
                 </span>
               ) : (
                 <span
-                  className="inline-flex items-center gap-2 justify-end rounded-2xl bg-blue-50 px-4 py-2 text-body-3-emphasis text-text-brand whitespace-nowrap"
+                  className="inline-flex items-center gap-2 justify-end rounded-2xl bg-primary-100 px-4 py-2 text-body-3-emphasis text-text-brand whitespace-nowrap"
                   style={{ minWidth: 120, height: 40 }}
                 >
                   {formatMoney(totalCost, orgCurrency)}

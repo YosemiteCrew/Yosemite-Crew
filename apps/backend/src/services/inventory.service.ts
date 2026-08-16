@@ -1,10 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, @typescript-eslint/require-await, @typescript-eslint/no-duplicate-type-constituents */
 // src/services/inventory.service.ts
 import dayjs from "dayjs";
 import { prisma } from "src/config/prisma";
 import { getOrgBillingCurrency } from "src/utils/billing";
 import {
-  InventoryBusinessType,
   InventoryItemType,
   InventoryBatch as PrismaInventoryBatch,
   InventoryItem as PrismaInventoryItem,
@@ -22,39 +20,16 @@ import {
 
 // Make sure this matches your schema's BusinessType
 export type BusinessType =
-  | "HOSPITAL"
-  | "GROOMING"
-  | "BOARDING"
-  | "BREEDING"
-  | "GENERAL";
+  "HOSPITAL" | "GROOMING" | "BOARDING" | "BREEDING" | "GENERAL";
 
 export type InventoryStatus = "ACTIVE" | "HIDDEN" | "DELETED";
 type InventoryStatusFilter =
-  | InventoryStatus
-  | { $in: InventoryStatus[] }
-  | { $ne: InventoryStatus };
+  InventoryStatus | { $in: InventoryStatus[] } | { $ne: InventoryStatus };
 
 export type StockHealthStatus =
-  | "HEALTHY"
-  | "LOW_STOCK"
-  | "EXPIRED"
-  | "EXPIRING_SOON";
+  "HEALTHY" | "LOW_STOCK" | "EXPIRED" | "EXPIRING_SOON";
 
-type FilterQuery<T> = Record<string, unknown>;
-
-const InventoryItemModel: any = {};
-const InventoryBatchModel: any = {};
-const InventoryVendorModel: any = {};
-const InventoryMetaFieldModel: any = {};
-const InventoryCategoryModel: any = {};
-const InventorySubcategoryModel: any = {};
-const StockMovementModel: any = {};
-const shouldDualWrite = false;
-const handleDualWriteError = (_scope: string, _err: unknown) => undefined;
-const syncInventoryItemToPostgres = async (_doc: unknown) => undefined;
-const syncInventoryBatchToPostgres = async (_doc: unknown) => undefined;
-const syncInventoryVendorToPostgres = async (_doc: unknown) => undefined;
-const syncInventoryMetaFieldToPostgres = async (_doc: unknown) => undefined;
+type FilterQuery = Record<string, unknown>;
 
 const resolveUnitQuantity = (
   unitQuantity?: number | null,
@@ -72,12 +47,7 @@ const readPositiveNumber = (value: unknown): number | undefined => {
   return undefined;
 };
 
-type InventoryItemMongo = PrismaInventoryItem;
-type InventoryBatchMongo = PrismaInventoryBatch;
 type InventoryVendorMongo = Prisma.InventoryVendorGetPayload<
-  Record<string, never>
->;
-type InventoryMetaFieldMongo = Prisma.InventoryMetaFieldGetPayload<
   Record<string, never>
 >;
 
@@ -221,12 +191,12 @@ const asPositiveInteger = (value: unknown): number | undefined => {
 const normalizeInventoryItemType = (
   category: string,
   explicitType?: "MEDICAL" | "NON_MEDICAL" | null,
-): InventoryItemType =>
-  explicitType === "MEDICAL" || explicitType === "NON_MEDICAL"
-    ? explicitType
-    : isMedicalInventoryCategory(category)
-      ? "MEDICAL"
-      : "NON_MEDICAL";
+): InventoryItemType => {
+  if (explicitType === "MEDICAL" || explicitType === "NON_MEDICAL") {
+    return explicitType;
+  }
+  return isMedicalInventoryCategory(category) ? "MEDICAL" : "NON_MEDICAL";
+};
 
 const getCurrentStock = (item: Pick<PrismaInventoryItem, "onHand">) =>
   item.onHand ?? 0;
@@ -314,10 +284,10 @@ const sortInventoryRows = <T extends InventorySortableRow>(
 // In Postgres read-mode we still return objects shaped like the legacy models.
 const toMongoId = (value: string) => value;
 
-type InventoryItemLike = (InventoryItemMongo | PrismaInventoryItem) & {
+type InventoryItemLike = PrismaInventoryItem & {
   _id: string;
 };
-type InventoryBatchLike = (InventoryBatchMongo | PrismaInventoryBatch) & {
+type InventoryBatchLike = PrismaInventoryBatch & {
   _id: string;
 };
 
@@ -509,10 +479,7 @@ const computeStockHealthStatus = (args: {
   return "HEALTHY";
 };
 
-const applyOptionalBusinessType = (
-  query: FilterQuery<InventoryItemMongo>,
-  value: unknown,
-) => {
+const applyOptionalBusinessType = (query: FilterQuery, value: unknown) => {
   if (value === undefined) return;
   const businessType = sanitizeBusinessType(value);
   if (!businessType) {
@@ -522,7 +489,7 @@ const applyOptionalBusinessType = (
 };
 
 const applyOptionalStringFilter = (
-  query: FilterQuery<InventoryItemMongo>,
+  query: FilterQuery,
   value: unknown,
   fieldName: "category" | "subCategory",
 ) => {
@@ -558,7 +525,7 @@ const resolveStatusFilter = (
 };
 
 const applySearchFilter = (
-  query: FilterQuery<InventoryItemMongo>,
+  query: FilterQuery,
   search: ListInventoryFilter["search"],
 ) => {
   if (!search) return;
@@ -611,10 +578,7 @@ const shouldIncludeItem = (args: {
 };
 
 export type InventoryTurnoverStatus =
-  | "EXCELLENT"
-  | "HEALTHY"
-  | "MODERATE"
-  | "LOW";
+  "EXCELLENT" | "HEALTHY" | "MODERATE" | "LOW";
 
 export interface InventoryTurnoverRow {
   itemId: string;
@@ -824,9 +788,7 @@ type CreateInventoryItemValidation = {
   attachments?: unknown;
 };
 
-const validateCreateInventoryItemInput = async (
-  input: CreateInventoryItemInput,
-): Promise<CreateInventoryItemValidation> => {
+const ensureRequiredCreateFields = (input: CreateInventoryItemInput) => {
   if (!input.organisationId) {
     throw new InventoryServiceError("organisationId is required", 400);
   }
@@ -842,6 +804,88 @@ const validateCreateInventoryItemInput = async (
   if (typeof input.sku === "string" && input.sku.trim().length === 0) {
     throw new InventoryServiceError("sku is required", 400);
   }
+};
+
+const ensureValidCategorySelection = (
+  category: string,
+  subCategory?: string,
+) => {
+  const categoryCheck = validateInventoryCategorySelection(
+    category,
+    subCategory,
+  );
+  const isInvalidSubcategory =
+    categoryCheck.categoryExists && categoryCheck.subcategoryValid === false;
+  if (isInvalidSubcategory) {
+    throw new InventoryServiceError("subcategory must belong to category", 400);
+  }
+};
+
+const ensureMedicalFields = (
+  itemType: InventoryItemType,
+  fields: ReadonlyArray<readonly [string, unknown]>,
+) => {
+  if (itemType !== "MEDICAL") return;
+  for (const [field, value] of fields) {
+    if (!isNonEmptyString(value)) {
+      throw new InventoryServiceError(
+        `${field} is required for medical items`,
+        400,
+      );
+    }
+  }
+};
+
+const ensureNonNegativeNumbers = (
+  entries: ReadonlyArray<readonly [string, number | null | undefined]>,
+) => {
+  for (const [field, value] of entries) {
+    if (typeof value === "number" && value < 0) {
+      throw new InventoryServiceError(`${field} cannot be negative`, 400);
+    }
+  }
+};
+
+const ensureCreateBatchExpiryRules = (input: CreateInventoryItemInput) => {
+  if (!input.expiryTrackingRequired) return;
+  if ((input.batches?.length ?? 0) === 0) {
+    throw new InventoryServiceError(
+      "expiry date is required when expiry tracking is enabled",
+      400,
+    );
+  }
+  const missingExpiry = input.batches?.some(
+    (batch) =>
+      batch.expiryDate == null || Number.isNaN(batch.expiryDate.getTime()),
+  );
+  if (missingExpiry) {
+    throw new InventoryServiceError(
+      "expiry date is required when expiry tracking is enabled",
+      400,
+    );
+  }
+};
+
+const ensureCreateSkuUnique = async (organisationId: string, sku?: string) => {
+  if (!sku) return;
+  const existingSku = await prisma.inventoryItem.findFirst({
+    where: {
+      organisationId,
+      sku,
+    },
+  });
+  if (existingSku) {
+    throw new InventoryServiceError(
+      "sku must be unique within the organisation",
+      409,
+    );
+  }
+};
+
+const validateCreateInventoryItemInput = async (
+  input: CreateInventoryItemInput,
+): Promise<CreateInventoryItemValidation> => {
+  ensureRequiredCreateFields(input);
 
   const organisationId = ensureNonEmptyString(
     input.organisationId,
@@ -854,35 +898,18 @@ const validateCreateInventoryItemInput = async (
   const category = ensureNonEmptyString(input.category, "category");
   const subCategory = asNonEmptyString(input.subCategory);
 
-  const categoryCheck = validateInventoryCategorySelection(
-    category,
-    subCategory,
-  );
-  const isInvalidSubcategory =
-    categoryCheck.categoryExists && categoryCheck.subcategoryValid === false;
-  if (isInvalidSubcategory) {
-    throw new InventoryServiceError("subcategory must belong to category", 400);
-  }
+  ensureValidCategorySelection(category, subCategory);
 
   const itemType = normalizeInventoryItemType(category, input.itemType ?? null);
 
-  if (itemType === "MEDICAL") {
-    for (const [field, value] of [
-      ["genericName", input.genericName],
-      ["strength", input.strength],
-      ["dosageForm", input.dosageForm],
-      ["routeOfAdministration", input.routeOfAdministration],
-    ] as const) {
-      if (!isNonEmptyString(value)) {
-        throw new InventoryServiceError(
-          `${field} is required for medical items`,
-          400,
-        );
-      }
-    }
-  }
+  ensureMedicalFields(itemType, [
+    ["genericName", input.genericName],
+    ["strength", input.strength],
+    ["dosageForm", input.dosageForm],
+    ["routeOfAdministration", input.routeOfAdministration],
+  ]);
 
-  for (const [field, value] of [
+  ensureNonNegativeNumbers([
     ["initialOnHand", input.initialOnHand],
     ["allocated", input.allocated],
     ["initialAllocated", input.initialAllocated],
@@ -896,46 +923,10 @@ const validateCreateInventoryItemInput = async (
       "packageQuantity",
       resolveUnitQuantity(input.unitQuantity, input.packageQuantity),
     ],
-  ] as const) {
-    if (typeof value === "number" && value < 0) {
-      throw new InventoryServiceError(`${field} cannot be negative`, 400);
-    }
-  }
+  ]);
 
-  if (input.expiryTrackingRequired && (input.batches?.length ?? 0) === 0) {
-    throw new InventoryServiceError(
-      "expiry date is required when expiry tracking is enabled",
-      400,
-    );
-  }
-
-  if (input.expiryTrackingRequired && input.batches?.length) {
-    const missingExpiry = input.batches.some(
-      (batch) =>
-        batch.expiryDate == null || Number.isNaN(batch.expiryDate.getTime()),
-    );
-    if (missingExpiry) {
-      throw new InventoryServiceError(
-        "expiry date is required when expiry tracking is enabled",
-        400,
-      );
-    }
-  }
-
-  if (input.sku) {
-    const existingSku = await prisma.inventoryItem.findFirst({
-      where: {
-        organisationId,
-        sku: input.sku,
-      },
-    });
-    if (existingSku) {
-      throw new InventoryServiceError(
-        "sku must be unique within the organisation",
-        409,
-      );
-    }
-  }
+  ensureCreateBatchExpiryRules(input);
+  await ensureCreateSkuUnique(organisationId, input.sku);
 
   return {
     organisationId,
@@ -978,7 +969,7 @@ const createInventoryItemInPostgres = async (
   const item = await prisma.inventoryItem.create({
     data: {
       organisationId,
-      businessType: businessType as InventoryBusinessType,
+      businessType: businessType,
       itemType,
       name: input.name,
       sku: input.sku ?? undefined,
@@ -987,7 +978,7 @@ const createInventoryItemInPostgres = async (
       description: input.description ?? undefined,
       imageUrl: input.imageUrl ?? undefined,
       attachments: attachments as Prisma.InputJsonValue | undefined,
-      attributes: (input.attributes ?? {}) as Prisma.InputJsonValue,
+      attributes: input.attributes ?? {},
       genericName: input.genericName ?? undefined,
       strength: input.strength ?? undefined,
       dosageForm: input.dosageForm ?? undefined,
@@ -1011,7 +1002,7 @@ const createInventoryItemInPostgres = async (
       vendorId: input.vendorId ?? undefined,
       onHand: input.initialOnHand ?? 0,
       allocated: itemAllocated,
-      status: (input.status ?? "ACTIVE") as InventoryItemStatus,
+      status: input.status ?? "ACTIVE",
     },
   });
 
@@ -1058,6 +1049,221 @@ const createInventoryItemInPostgres = async (
   };
 };
 
+type DirectUpdateField =
+  "name" | "category" | "attributes" | "allocated" | "status";
+
+type NullableUpdateField =
+  | "subCategory"
+  | "description"
+  | "imageUrl"
+  | "genericName"
+  | "strength"
+  | "dosageForm"
+  | "routeOfAdministration"
+  | "drugClass"
+  | "storageInstructions"
+  | "unitOfMeasure"
+  | "storageLocation"
+  | "sellingPrice"
+  | "taxRate"
+  | "minimumStock"
+  | "emergencyStockLevel"
+  | "reorderLevel"
+  | "vendorId";
+
+type BooleanUpdateField =
+  "prescriptionRequired" | "controlledItem" | "expiryTrackingRequired";
+
+const applyDirectUpdates = (
+  data: Prisma.InventoryItemUpdateInput,
+  input: UpdateInventoryItemInput,
+  fields: ReadonlyArray<DirectUpdateField>,
+) => {
+  for (const field of fields) {
+    const value = input[field];
+    if (value !== undefined) {
+      (data as Record<string, unknown>)[field] = value;
+    }
+  }
+};
+
+const applyNullableUpdates = (
+  data: Prisma.InventoryItemUpdateInput,
+  input: UpdateInventoryItemInput,
+  fields: ReadonlyArray<NullableUpdateField>,
+) => {
+  for (const field of fields) {
+    const value = input[field];
+    if (value !== undefined) {
+      (data as Record<string, unknown>)[field] = value ?? null;
+    }
+  }
+};
+
+const applyBooleanUpdates = (
+  data: Prisma.InventoryItemUpdateInput,
+  input: UpdateInventoryItemInput,
+  fields: ReadonlyArray<BooleanUpdateField>,
+) => {
+  for (const field of fields) {
+    const value = input[field];
+    if (value !== undefined) {
+      (data as Record<string, unknown>)[field] = value ?? false;
+    }
+  }
+};
+
+const applyPackagingUpdates = (
+  data: Prisma.InventoryItemUpdateInput,
+  input: UpdateInventoryItemInput,
+) => {
+  const attributes = (input.attributes ?? {}) as Record<string, unknown>;
+  const stockUnitType =
+    asNonEmptyString(input.stockUnitType) ??
+    asNonEmptyString(attributes.stockType) ??
+    asNonEmptyString(attributes.stockUnitType);
+  const packageQuantity =
+    resolveUnitQuantity(input.unitQuantity, input.packageQuantity) ??
+    readPositiveNumber(attributes.unitQnt) ??
+    readPositiveNumber(attributes.unitQuantity);
+  if (stockUnitType !== undefined) {
+    data.stockUnitType = stockUnitType;
+  }
+  if (
+    input.unitQuantity !== undefined ||
+    input.packageQuantity !== undefined ||
+    attributes.unitQnt !== undefined ||
+    attributes.unitQuantity !== undefined
+  ) {
+    data.packageQuantity = packageQuantity ?? null;
+  }
+};
+
+const applyPricingUpdates = async (
+  data: Prisma.InventoryItemUpdateInput,
+  input: UpdateInventoryItemInput,
+  existing: PrismaInventoryItem,
+) => {
+  if (input.unitCost !== undefined || input.costPrice !== undefined) {
+    data.unitCost = input.costPrice ?? input.unitCost ?? null;
+  }
+  if (input.currency !== undefined) {
+    data.currency = await getOrgBillingCurrency(existing.organisationId);
+  }
+};
+
+const resolveUniqueSkuForUpdate = async (
+  itemId: string,
+  organisationId: string,
+  input: UpdateInventoryItemInput,
+): Promise<string | null | undefined> => {
+  if (input.sku === undefined) {
+    return undefined;
+  }
+  const nextSku = asNonEmptyString(input.sku) ?? null;
+
+  if (typeof nextSku === "string") {
+    const duplicate = await prisma.inventoryItem.findFirst({
+      where: {
+        organisationId,
+        sku: nextSku,
+        NOT: { id: itemId },
+      },
+    });
+    if (duplicate) {
+      throw new InventoryServiceError(
+        "sku must be unique within the organisation",
+        409,
+      );
+    }
+  }
+  return nextSku;
+};
+
+const buildInventoryItemUpdateData = async (
+  input: UpdateInventoryItemInput,
+  existing: PrismaInventoryItem,
+  nextItemType: InventoryItemType,
+  nextSku: string | null | undefined,
+): Promise<Prisma.InventoryItemUpdateInput> => {
+  const data: Prisma.InventoryItemUpdateInput = {};
+
+  if (input.itemType !== undefined) {
+    data.itemType = input.itemType;
+  } else if (nextItemType !== existing.itemType) {
+    data.itemType = nextItemType;
+  }
+  if (nextSku !== undefined) data.sku = nextSku;
+  if (input.attachments !== undefined) {
+    data.attachments =
+      input.attachments === null
+        ? Prisma.DbNull
+        : (input.attachments as Prisma.InputJsonValue);
+  }
+
+  applyDirectUpdates(data, input, [
+    "name",
+    "category",
+    "attributes",
+    "allocated",
+    "status",
+  ]);
+  applyNullableUpdates(data, input, [
+    "subCategory",
+    "description",
+    "imageUrl",
+    "genericName",
+    "strength",
+    "dosageForm",
+    "routeOfAdministration",
+    "drugClass",
+    "storageInstructions",
+    "unitOfMeasure",
+    "storageLocation",
+    "sellingPrice",
+    "taxRate",
+    "minimumStock",
+    "emergencyStockLevel",
+    "reorderLevel",
+    "vendorId",
+  ]);
+  applyBooleanUpdates(data, input, [
+    "prescriptionRequired",
+    "controlledItem",
+    "expiryTrackingRequired",
+  ]);
+  applyPackagingUpdates(data, input);
+  await applyPricingUpdates(data, input, existing);
+
+  return data;
+};
+
+const setInventoryItemStatus = async (
+  itemId: string,
+  organisationId: string,
+  status: InventoryStatus,
+): Promise<InventoryItemLike> => {
+  ensureObjectId(itemId, "itemId");
+  const safeOrganisationId = ensureNonEmptyString(
+    organisationId,
+    "organisationId",
+  );
+  const item = await prisma.inventoryItem.findFirst({
+    where: { id: itemId, organisationId: safeOrganisationId },
+  });
+  if (!item) {
+    throw new InventoryServiceError("Inventory item not found", 404);
+  }
+  const updated = await prisma.inventoryItem.update({
+    where: { id: itemId },
+    data: { status },
+  });
+  return {
+    ...updated,
+    _id: updated.id,
+  };
+};
+
 const planFifoConsumption = (
   batches: ReadonlyArray<{ quantity?: number | null }>,
   quantity: number,
@@ -1084,6 +1290,164 @@ const planFifoConsumption = (
   }
 
   return plan;
+};
+
+const buildInventoryListItem = (
+  item: InventoryItemLike,
+  itemBatches: InventoryBatchLike[],
+  expiringWithinDays: number | undefined,
+) => {
+  const nearestExpiry = getNearestExpiry(itemBatches);
+  const pricing = getItemPricingSummary(item);
+  const stockHealth = computeStockHealthStatus({
+    onHand: item.onHand ?? 0,
+    reorderLevel: item.reorderLevel ?? null,
+    nearestExpiry,
+    soonThresholdDays: expiringWithinDays ?? 7,
+  });
+  const stockStatus = getItemStockStatus({
+    active: item.status === "ACTIVE",
+    currentStock: getCurrentStock(item),
+    minimumStock: item.minimumStock ?? null,
+    reorderLevel: item.reorderLevel ?? null,
+    expiryDate: nearestExpiry,
+  });
+
+  return {
+    ...item,
+    stockHealth,
+    stockStatus,
+    currentStock: item.onHand ?? 0,
+    minimumStock: item.minimumStock ?? null,
+    emergencyStockLevel: item.emergencyStockLevel ?? null,
+    unitOfMeasure: item.unitOfMeasure ?? null,
+    stockUnitType: item.stockUnitType ?? item.unitOfMeasure ?? null,
+    costPrice: item.unitCost ?? null,
+    grossProfit: pricing.grossProfit,
+    marginPercentage: pricing.marginPercentage,
+    nearestExpiryDate: nearestExpiry,
+    batches: itemBatches,
+  } as InventoryListItem & {
+    currentStock: number;
+    stockStatus: string;
+    minimumStock: number | null;
+    emergencyStockLevel: number | null;
+    unitOfMeasure: string | null;
+    stockUnitType: string | null;
+    costPrice: number | null;
+    grossProfit: number;
+    marginPercentage: number | null;
+    nearestExpiryDate: Date | null;
+  };
+};
+
+/**
+ * Resolves the vendor filter to a list of vendor ids. Returns `null` when a
+ * vendor filter was supplied but matched nothing (the caller should return an
+ * empty result), and `[]` when no vendor filter applies.
+ */
+const resolveVendorIdsFilter = async (
+  organisationId: string,
+  vendorSearch: string | undefined,
+): Promise<string[] | null> => {
+  if (!vendorSearch) {
+    return [];
+  }
+  const vendors = await prisma.inventoryVendor.findMany({
+    where: {
+      organisationId,
+      OR: [
+        { id: vendorSearch },
+        { name: { contains: vendorSearch, mode: "insensitive" } },
+        {
+          vendorItemCode: {
+            contains: vendorSearch,
+            mode: "insensitive",
+          },
+        },
+      ],
+    },
+    select: { id: true },
+  });
+  const vendorIds = vendors.map((vendor) => vendor.id);
+  return vendorIds.length ? vendorIds : null;
+};
+
+const applyListStatusWhere = (
+  where: Prisma.InventoryItemWhereInput,
+  query: FilterQuery,
+) => {
+  if (!query.status) return;
+  if (typeof query.status === "string") {
+    where.status = query.status as InventoryItemStatus;
+  } else if (typeof query.status === "object" && "$in" in query.status) {
+    where.status = {
+      in: (query.status as { $in: InventoryStatus[] })
+        .$in as InventoryItemStatus[],
+    };
+  } else if (typeof query.status === "object" && "$ne" in query.status) {
+    where.status = {
+      not: (query.status as { $ne: InventoryStatus }).$ne,
+    };
+  }
+};
+
+const mongoOrEntryToPrisma = (
+  entry: Record<string, unknown>,
+): Prisma.InventoryItemWhereInput => {
+  const key = Object.keys(entry)[0];
+  const value = entry[key] as { $regex?: string; $options?: string } | RegExp;
+  let pattern = "";
+  if (value instanceof RegExp) {
+    pattern = value.source;
+  } else if (
+    typeof value === "object" &&
+    value !== null &&
+    "$regex" in value &&
+    typeof value.$regex === "string"
+  ) {
+    pattern = value.$regex;
+  }
+  return pattern ? { [key]: { contains: pattern, mode: "insensitive" } } : {};
+};
+
+const buildListItemsWhere = (
+  query: FilterQuery,
+  organisationId: string,
+  vendorIds: string[],
+): Prisma.InventoryItemWhereInput => {
+  const where: Prisma.InventoryItemWhereInput = {
+    organisationId,
+  };
+
+  if (query.businessType) {
+    where.businessType = query.businessType;
+  }
+  if (query.category) where.category = query.category;
+  if (query.subCategory) where.subCategory = query.subCategory;
+  if (vendorIds.length) {
+    where.vendorId = { in: vendorIds };
+  }
+  applyListStatusWhere(where, query);
+
+  if (query.$or) {
+    where.OR = (query.$or as Array<Record<string, unknown>>).map(
+      mongoOrEntryToPrisma,
+    );
+  }
+
+  return where;
+};
+
+const matchesStockStatusFilter = (
+  stockStatus: string,
+  filterValue: InventoryStockStatus | InventoryStockStatus[] | undefined,
+) => {
+  if (filterValue === undefined) return true;
+  if (Array.isArray(filterValue)) {
+    return filterValue.includes(stockStatus as InventoryStockStatus);
+  }
+  return stockStatus === filterValue;
 };
 
 export const InventoryService = {
@@ -1121,45 +1485,24 @@ export const InventoryService = {
     const nextSubCategory =
       asNonEmptyString(input.subCategory) ?? existing.subCategory ?? undefined;
     if (nextCategory) {
-      const categoryCheck = validateInventoryCategorySelection(
-        nextCategory,
-        nextSubCategory,
-      );
-      const isInvalidSubcategory =
-        categoryCheck.categoryExists &&
-        categoryCheck.subcategoryValid === false;
-      if (isInvalidSubcategory) {
-        throw new InventoryServiceError(
-          "subcategory must belong to category",
-          400,
-        );
-      }
+      ensureValidCategorySelection(nextCategory, nextSubCategory);
     }
 
     const nextItemType = normalizeInventoryItemType(
       nextCategory ?? "GENERAL",
       input.itemType ?? existing.itemType,
     );
-    if (nextItemType === "MEDICAL") {
-      for (const [field, value] of [
-        ["genericName", input.genericName ?? existing.genericName],
-        ["strength", input.strength ?? existing.strength],
-        ["dosageForm", input.dosageForm ?? existing.dosageForm],
-        [
-          "routeOfAdministration",
-          input.routeOfAdministration ?? existing.routeOfAdministration,
-        ],
-      ] as const) {
-        if (!asNonEmptyString(value)) {
-          throw new InventoryServiceError(
-            `${field} is required for medical items`,
-            400,
-          );
-        }
-      }
-    }
+    ensureMedicalFields(nextItemType, [
+      ["genericName", input.genericName ?? existing.genericName],
+      ["strength", input.strength ?? existing.strength],
+      ["dosageForm", input.dosageForm ?? existing.dosageForm],
+      [
+        "routeOfAdministration",
+        input.routeOfAdministration ?? existing.routeOfAdministration,
+      ],
+    ]);
 
-    for (const [field, value] of [
+    ensureNonNegativeNumbers([
       ["minimumStock", input.minimumStock],
       ["emergencyStockLevel", input.emergencyStockLevel],
       ["reorderLevel", input.reorderLevel],
@@ -1171,136 +1514,20 @@ export const InventoryService = {
         resolveUnitQuantity(input.unitQuantity, input.packageQuantity),
       ],
       ["allocated", input.allocated],
-    ] as const) {
-      if (typeof value === "number" && value < 0) {
-        throw new InventoryServiceError(`${field} cannot be negative`, 400);
-      }
-    }
+    ]);
 
-    const nextSku =
-      input.sku === undefined
-        ? undefined
-        : (asNonEmptyString(input.sku) ?? null);
+    const nextSku = await resolveUniqueSkuForUpdate(
+      itemId,
+      safeOrganisationId,
+      input,
+    );
 
-    if (typeof nextSku === "string") {
-      const duplicate = await prisma.inventoryItem.findFirst({
-        where: {
-          organisationId: safeOrganisationId,
-          sku: nextSku,
-          NOT: { id: itemId },
-        },
-      });
-      if (duplicate) {
-        throw new InventoryServiceError(
-          "sku must be unique within the organisation",
-          409,
-        );
-      }
-    }
-
-    const data: Prisma.InventoryItemUpdateInput = {};
-
-    if (input.itemType !== undefined) {
-      data.itemType = input.itemType;
-    } else if (nextItemType !== existing.itemType) {
-      data.itemType = nextItemType;
-    }
-    if (input.name !== undefined) data.name = input.name;
-    if (nextSku !== undefined) data.sku = nextSku;
-    if (input.category !== undefined) data.category = input.category;
-    if (input.subCategory !== undefined) {
-      data.subCategory = input.subCategory ?? null;
-    }
-    if (input.description !== undefined) {
-      data.description = input.description ?? null;
-    }
-    if (input.imageUrl !== undefined) {
-      data.imageUrl = input.imageUrl ?? null;
-    }
-    if (input.attachments !== undefined) {
-      data.attachments =
-        input.attachments === null
-          ? Prisma.DbNull
-          : (input.attachments as Prisma.InputJsonValue);
-    }
-    if (input.attributes !== undefined) {
-      data.attributes = input.attributes as Prisma.InputJsonValue;
-    }
-    if (input.genericName !== undefined)
-      data.genericName = input.genericName ?? null;
-    if (input.strength !== undefined) data.strength = input.strength ?? null;
-    if (input.dosageForm !== undefined)
-      data.dosageForm = input.dosageForm ?? null;
-    if (input.routeOfAdministration !== undefined) {
-      data.routeOfAdministration = input.routeOfAdministration ?? null;
-    }
-    if (input.drugClass !== undefined) data.drugClass = input.drugClass ?? null;
-    if (input.prescriptionRequired !== undefined) {
-      data.prescriptionRequired = input.prescriptionRequired ?? false;
-    }
-    if (input.controlledItem !== undefined) {
-      data.controlledItem = input.controlledItem ?? false;
-    }
-    if (input.storageInstructions !== undefined) {
-      data.storageInstructions = input.storageInstructions ?? null;
-    }
-    if (input.expiryTrackingRequired !== undefined) {
-      data.expiryTrackingRequired = input.expiryTrackingRequired ?? false;
-    }
-    const attributes = (input.attributes ?? {}) as Record<string, unknown>;
-    const stockUnitType =
-      asNonEmptyString(input.stockUnitType) ??
-      asNonEmptyString(attributes.stockType) ??
-      asNonEmptyString(attributes.stockUnitType);
-    const unitOfMeasure = input.unitOfMeasure;
-    const packageQuantity =
-      resolveUnitQuantity(input.unitQuantity, input.packageQuantity) ??
-      readPositiveNumber(attributes.unitQnt) ??
-      readPositiveNumber(attributes.unitQuantity);
-    if (stockUnitType !== undefined) {
-      data.stockUnitType = stockUnitType ?? null;
-    }
-    if (unitOfMeasure !== undefined) {
-      data.unitOfMeasure = unitOfMeasure ?? null;
-    }
-    if (
-      input.unitQuantity !== undefined ||
-      input.packageQuantity !== undefined ||
-      attributes.unitQnt !== undefined ||
-      attributes.unitQuantity !== undefined
-    ) {
-      data.packageQuantity = packageQuantity ?? null;
-    }
-    if (input.storageLocation !== undefined) {
-      data.storageLocation = input.storageLocation ?? null;
-    }
-
-    if (input.unitCost !== undefined || input.costPrice !== undefined) {
-      data.unitCost = input.costPrice ?? input.unitCost ?? null;
-    }
-    if (input.sellingPrice !== undefined) {
-      data.sellingPrice = input.sellingPrice ?? null;
-    }
-    if (input.taxRate !== undefined) data.taxRate = input.taxRate ?? null;
-    if (input.currency !== undefined) {
-      data.currency = await getOrgBillingCurrency(existing.organisationId);
-    }
-    if (input.minimumStock !== undefined) {
-      data.minimumStock = input.minimumStock ?? null;
-    }
-    if (input.emergencyStockLevel !== undefined) {
-      data.emergencyStockLevel = input.emergencyStockLevel ?? null;
-    }
-    if (input.reorderLevel !== undefined) {
-      data.reorderLevel = input.reorderLevel ?? null;
-    }
-    if (input.allocated !== undefined) {
-      data.allocated = input.allocated;
-    }
-    if (input.vendorId !== undefined) data.vendorId = input.vendorId ?? null;
-    if (input.status !== undefined) {
-      data.status = input.status as InventoryItemStatus;
-    }
+    const data = await buildInventoryItemUpdateData(
+      input,
+      existing,
+      nextItemType,
+      nextSku,
+    );
 
     const updated = await prisma.inventoryItem.update({
       where: { id: itemId },
@@ -1331,75 +1558,21 @@ export const InventoryService = {
     itemId: string,
     organisationId: string,
   ): Promise<InventoryItemLike> {
-    ensureObjectId(itemId, "itemId");
-    const safeOrganisationId = ensureNonEmptyString(
-      organisationId,
-      "organisationId",
-    );
-    const item = await prisma.inventoryItem.findFirst({
-      where: { id: itemId, organisationId: safeOrganisationId },
-    });
-    if (!item) {
-      throw new InventoryServiceError("Inventory item not found", 404);
-    }
-    const updated = await prisma.inventoryItem.update({
-      where: { id: itemId },
-      data: { status: "HIDDEN" },
-    });
-    return {
-      ...updated,
-      _id: updated.id,
-    };
+    return setInventoryItemStatus(itemId, organisationId, "HIDDEN");
   },
 
   async archiveItem(
     itemId: string,
     organisationId: string,
   ): Promise<InventoryItemLike> {
-    ensureObjectId(itemId, "itemId");
-    const safeOrganisationId = ensureNonEmptyString(
-      organisationId,
-      "organisationId",
-    );
-    const item = await prisma.inventoryItem.findFirst({
-      where: { id: itemId, organisationId: safeOrganisationId },
-    });
-    if (!item) {
-      throw new InventoryServiceError("Inventory item not found", 404);
-    }
-    const updated = await prisma.inventoryItem.update({
-      where: { id: itemId },
-      data: { status: "DELETED" },
-    });
-    return {
-      ...updated,
-      _id: updated.id,
-    };
+    return setInventoryItemStatus(itemId, organisationId, "DELETED");
   },
 
   async activeItem(
     itemId: string,
     organisationId: string,
   ): Promise<InventoryItemLike> {
-    ensureObjectId(itemId, "itemId");
-    const safeOrganisationId = ensureNonEmptyString(
-      organisationId,
-      "organisationId",
-    );
-    const item = await prisma.inventoryItem.findFirst({
-      where: { id: itemId, organisationId: safeOrganisationId },
-    });
-    if (!item) {
-      throw new InventoryServiceError("Inventory item not found", 404);
-    }
-    const updated = await prisma.inventoryItem.update({
-      where: { id: itemId },
-      data: { status: "ACTIVE" },
-    });
-    return {
-      ...updated,
-      _id: updated.id,
-    };
+    return setInventoryItemStatus(itemId, organisationId, "ACTIVE");
   },
 
   // ─────────────────────────────────────────────
@@ -1418,7 +1591,7 @@ export const InventoryService = {
       filter.organisationId,
       "organisationId",
     );
-    const query: FilterQuery<InventoryItemMongo> = {
+    const query: FilterQuery = {
       organisationId,
     };
     const expiringWithinDays = sanitizePositiveNumber(
@@ -1433,135 +1606,15 @@ export const InventoryService = {
     applySearchFilter(query, filter.search);
     const stockStatusFilter = sanitizeStockStatus(filter.stockStatus);
 
-    const vendorSearch = asNonEmptyString(filter.vendor);
-    let vendorIds: string[] = [];
-    if (vendorSearch) {
-      const vendors = await prisma.inventoryVendor.findMany({
-        where: {
-          organisationId,
-          OR: [
-            { id: vendorSearch },
-            { name: { contains: vendorSearch, mode: "insensitive" } },
-            {
-              vendorItemCode: {
-                contains: vendorSearch,
-                mode: "insensitive",
-              },
-            },
-          ],
-        },
-        select: { id: true },
-      });
-      vendorIds = vendors.map((vendor) => vendor.id);
-      if (!vendorIds.length && filter.vendor) {
-        return [];
-      }
-    }
-
-    if (vendorIds.length) {
-      (query as { vendorId?: { $in: string[] } }).vendorId = {
-        $in: vendorIds,
-      };
-    }
-
-    const applyItemMeta = (
-      item: InventoryItemLike,
-      itemBatches: InventoryBatchLike[],
-    ) => {
-      const nearestExpiry = getNearestExpiry(itemBatches);
-      const pricing = getItemPricingSummary(item);
-      const stockHealth = computeStockHealthStatus({
-        onHand: item.onHand ?? 0,
-        reorderLevel: item.reorderLevel ?? null,
-        nearestExpiry,
-        soonThresholdDays: expiringWithinDays ?? 7,
-      });
-      const stockStatus = getItemStockStatus({
-        active: item.status === "ACTIVE",
-        currentStock: getCurrentStock(item),
-        minimumStock: item.minimumStock ?? null,
-        reorderLevel: item.reorderLevel ?? null,
-        expiryDate: nearestExpiry,
-      });
-
-      return {
-        ...item,
-        stockHealth,
-        stockStatus,
-        currentStock: item.onHand ?? 0,
-        minimumStock: item.minimumStock ?? null,
-        emergencyStockLevel: item.emergencyStockLevel ?? null,
-        unitOfMeasure: item.unitOfMeasure ?? null,
-        stockUnitType: item.stockUnitType ?? item.unitOfMeasure ?? null,
-        costPrice: item.unitCost ?? null,
-        grossProfit: pricing.grossProfit,
-        marginPercentage: pricing.marginPercentage,
-        nearestExpiryDate: nearestExpiry,
-        batches: itemBatches,
-      } as InventoryListItem & {
-        currentStock: number;
-        stockStatus: string;
-        minimumStock: number | null;
-        emergencyStockLevel: number | null;
-        unitOfMeasure: string | null;
-        stockUnitType: string | null;
-        costPrice: number | null;
-        grossProfit: number;
-        marginPercentage: number | null;
-        nearestExpiryDate: Date | null;
-      };
-    };
-
-    const where: Prisma.InventoryItemWhereInput = {
+    const vendorIds = await resolveVendorIdsFilter(
       organisationId,
-    };
-
-    if (query.businessType) {
-      where.businessType = query.businessType as InventoryBusinessType;
-    }
-    if (query.category) where.category = query.category as string;
-    if (query.subCategory) where.subCategory = query.subCategory as string;
-    if (vendorIds.length) {
-      where.vendorId = { in: vendorIds };
-    }
-    if (query.status) {
-      if (typeof query.status === "string") {
-        where.status = query.status as InventoryItemStatus;
-      } else if (typeof query.status === "object" && "$in" in query.status) {
-        where.status = {
-          in: (query.status as { $in: InventoryStatus[] })
-            .$in as InventoryItemStatus[],
-        };
-      } else if (typeof query.status === "object" && "$ne" in query.status) {
-        where.status = {
-          not: (query.status as { $ne: InventoryStatus })
-            .$ne as InventoryItemStatus,
-        };
-      }
+      asNonEmptyString(filter.vendor),
+    );
+    if (vendorIds === null) {
+      return [];
     }
 
-    if (query.$or) {
-      where.OR = (query.$or as Array<Record<string, unknown>>).map((entry) => {
-        const key = Object.keys(entry)[0];
-        const value = entry[key] as
-          | { $regex?: string; $options?: string }
-          | RegExp;
-        let pattern = "";
-        if (value instanceof RegExp) {
-          pattern = value.source;
-        } else if (
-          typeof value === "object" &&
-          value !== null &&
-          "$regex" in value &&
-          typeof value.$regex === "string"
-        ) {
-          pattern = value.$regex;
-        }
-        return pattern
-          ? { [key]: { contains: pattern, mode: "insensitive" } }
-          : {};
-      }) as Prisma.InventoryItemWhereInput[];
-    }
+    const where = buildListItemsWhere(query, organisationId, vendorIds);
 
     const items = await prisma.inventoryItem.findMany({
       where,
@@ -1579,9 +1632,10 @@ export const InventoryService = {
 
     const result = items
       .map((item) =>
-        applyItemMeta(
+        buildInventoryListItem(
           { ...item, _id: item.id },
           batchesByItem.get(item.id) ?? [],
+          expiringWithinDays,
         ),
       )
       .filter(
@@ -1590,13 +1644,7 @@ export const InventoryService = {
             filter,
             stockHealth: item.stockHealth,
             expiringWithinDays,
-          }) &&
-          (stockStatusFilter === undefined ||
-            (Array.isArray(stockStatusFilter)
-              ? stockStatusFilter.includes(
-                  item.stockStatus as InventoryStockStatus,
-                )
-              : item.stockStatus === stockStatusFilter)),
+          }) && matchesStockStatusFilter(item.stockStatus, stockStatusFilter),
       );
 
     const sorted = filter.sortBy
@@ -1865,7 +1913,6 @@ export const InventoryService = {
       where: { id: batch.itemId },
       data: { onHand, allocated },
     });
-    return;
   },
 
   // ─────────────────────────────────────────────
@@ -1909,10 +1956,12 @@ export const InventoryService = {
       });
     }
 
-    const { onHand, allocated } = await recomputeStockFromBatches(safeItemId);
+    // Reservations are tracked on the item (see allocateStock), not on batches,
+    // so consumption must not recompute `allocated` from the batch rows.
+    const { onHand } = await recomputeStockFromBatches(safeItemId);
     const updated = await prisma.inventoryItem.update({
       where: { id: safeItemId },
-      data: { onHand, allocated },
+      data: { onHand },
     });
 
     return {
@@ -1944,7 +1993,7 @@ export const InventoryService = {
     return results;
   },
 
-  async getInventoryTurnoverByItem(params: {
+  getInventoryTurnoverByItem(params: {
     organisationId: string;
     from?: Date; // default: 12 months ago
     to?: Date; // default: now
@@ -2138,7 +2187,7 @@ export const InventoryAllocationService = {
     return {
       ...updated,
       _id: toMongoId(updated.id),
-    } as unknown as InventoryItemDocument;
+    };
   },
 };
 
@@ -2162,7 +2211,7 @@ export const InventoryVendorService = {
       "organisationId",
     );
 
-    return prisma.inventoryVendor.create({
+    const created = await prisma.inventoryVendor.create({
       data: {
         organisationId,
         name: input.name,
@@ -2174,7 +2223,8 @@ export const InventoryVendorService = {
         leadTimeDays: input.leadTimeDays ?? undefined,
         contactInfo: (input.contactInfo ?? undefined) as Prisma.InputJsonValue,
       },
-    }) as unknown as InventoryVendorDocument;
+    });
+    return created as unknown as InventoryVendorDocument;
   },
 
   async updateVendor(
@@ -2211,7 +2261,7 @@ export const InventoryVendorService = {
     return updated as unknown as InventoryVendorDocument;
   },
 
-  async listVendors(organisationId: string) {
+  listVendors(organisationId: string) {
     const safeOrganisationId = ensureNonEmptyString(
       organisationId,
       "organisationId",
@@ -2222,7 +2272,7 @@ export const InventoryVendorService = {
     });
   },
 
-  async getVendor(vendorId: string, organisationId: string) {
+  getVendor(vendorId: string, organisationId: string) {
     ensureObjectId(vendorId);
     const safeOrganisationId = ensureNonEmptyString(
       organisationId,
@@ -2257,14 +2307,15 @@ export const InventoryMetaFieldService = {
       throw new InventoryServiceError("Invalid businessType", 400);
     }
 
-    return prisma.inventoryMetaField.create({
+    const created = await prisma.inventoryMetaField.create({
       data: {
         businessType,
         fieldKey: input.fieldKey,
         label: input.label,
         values: input.values ?? [],
       },
-    }) as unknown as InventoryMetaFieldDocument;
+    });
+    return created as unknown as InventoryMetaFieldDocument;
   },
 
   async updateField(
@@ -2288,10 +2339,9 @@ export const InventoryMetaFieldService = {
     await prisma.inventoryMetaField.deleteMany({
       where: { id: fieldId },
     });
-    return;
   },
 
-  async listFields(businessType: string) {
+  listFields(businessType: string) {
     const safeBusinessType = sanitizeBusinessType(businessType);
     if (!safeBusinessType) {
       throw new InventoryServiceError("Invalid businessType", 400);
@@ -2318,7 +2368,7 @@ export const InventoryAlertService = {
     });
   },
 
-  async getExpiringItems(organisationId: string, days = 7) {
+  getExpiringItems(organisationId: string, days = 7) {
     const safeOrganisationId = ensureNonEmptyString(
       organisationId,
       "organisationId",

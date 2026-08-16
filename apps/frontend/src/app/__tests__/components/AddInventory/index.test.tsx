@@ -35,8 +35,17 @@ jest.mock('@/app/features/inventory/components/AddInventory/InventoryConfig', ()
 // This allows us to drive the internal state of the parent component completely from the test.
 jest.mock('@/app/features/inventory/components/AddInventory/FormSection', () => ({
   __esModule: true,
-  default: ({ sectionKey, onFieldChange, onSave, saveLabel, onAddBatch, onRemoveBatch }: any) => (
+  default: ({
+    sectionKey,
+    onFieldChange,
+    onSave,
+    saveLabel,
+    onAddBatch,
+    onRemoveBatch,
+    headerSlot,
+  }: any) => (
     <div data-testid={`section-${sectionKey}`}>
+      {headerSlot}
       <button data-testid="save-btn" onClick={onSave}>
         {saveLabel}
       </button>
@@ -73,6 +82,10 @@ jest.mock('@/app/features/inventory/components/AddInventory/FormSection', () => 
       <input
         data-testid="in-reorder"
         onChange={(e) => onFieldChange('stock', 'reorderLevel', e.target.value)}
+      />
+      <input
+        data-testid="in-withdrawl"
+        onChange={(e) => onFieldChange('stock', 'withdrawlPeriod', e.target.value)}
       />
 
       {/* Classification Fields */}
@@ -115,6 +128,10 @@ jest.mock('@/app/features/inventory/components/AddInventory/FormSection', () => 
       <input
         data-testid="in-batch-0"
         onChange={(e) => onFieldChange('batch', 'batch', e.target.value, 0)}
+      />
+      <input
+        data-testid="in-tracking"
+        onChange={(e) => onFieldChange('batch', 'tracking', e.target.value, 0)}
       />
     </div>
   ),
@@ -336,6 +353,63 @@ describe('AddInventory Component', () => {
     });
   });
 
+  it('clears drug-only stock and batch fields when Non-drug is selected', async () => {
+    // FormSection hides withdrawlPeriod and tracking for a non-drug item. Values entered
+    // while the item was still a Drug must be cleared too, or they ship in the payload.
+    render(<AddInventory {...props} />);
+
+    fireEvent.change(screen.getByTestId('in-name'), { target: { value: 'Surgical glove' } });
+    fireEvent.change(screen.getByTestId('in-cat'), { target: { value: 'Surgical supply' } });
+    fireEvent.click(screen.getByTestId('save-btn'));
+
+    fireEvent.change(screen.getByTestId('in-tracking'), { target: { value: 'Batch tracked' } });
+    fireEvent.change(screen.getByTestId('in-withdrawl'), { target: { value: '14 days' } });
+    fireEvent.change(screen.getByTestId('in-item-type'), { target: { value: 'Non-drug' } });
+    fireEvent.click(screen.getByTestId('save-btn'));
+
+    fireEvent.change(screen.getByTestId('in-curr'), { target: { value: '100' } });
+    fireEvent.change(screen.getByTestId('in-reorder'), { target: { value: '10' } });
+    fireEvent.click(screen.getByTestId('save-btn'));
+    fireEvent.click(screen.getByTestId('save-btn'));
+    fireEvent.change(screen.getByTestId('in-cost'), { target: { value: '10' } });
+    fireEvent.change(screen.getByTestId('in-sell'), { target: { value: '20' } });
+    fireEvent.click(screen.getByTestId('save-btn'));
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('save-btn'));
+    });
+
+    const submitted = mockSubmit.mock.calls.at(-1)?.[0];
+    expect(submitted.stock.withdrawlPeriod).toBe('');
+    expect(submitted.batch.tracking).toBeUndefined();
+  });
+
+  it('does not default an unchosen item type to Drug', async () => {
+    // A business type whose form exposes no itemType control must not silently ship a
+    // Drug/MEDICAL classification for a non-medical item.
+    render(<AddInventory {...props} />);
+
+    fireEvent.change(screen.getByTestId('in-name'), { target: { value: 'Grooming towel' } });
+    fireEvent.change(screen.getByTestId('in-cat'), { target: { value: 'Supplies' } });
+    fireEvent.click(screen.getByTestId('save-btn'));
+    fireEvent.click(screen.getByTestId('save-btn'));
+
+    fireEvent.change(screen.getByTestId('in-curr'), { target: { value: '100' } });
+    fireEvent.change(screen.getByTestId('in-reorder'), { target: { value: '10' } });
+    fireEvent.click(screen.getByTestId('save-btn'));
+    fireEvent.click(screen.getByTestId('save-btn'));
+    fireEvent.change(screen.getByTestId('in-cost'), { target: { value: '10' } });
+    fireEvent.change(screen.getByTestId('in-sell'), { target: { value: '20' } });
+    fireEvent.click(screen.getByTestId('save-btn'));
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('save-btn'));
+    });
+
+    const submitted = mockSubmit.mock.calls.at(-1)?.[0];
+    expect(submitted.classification.itemType).toBeUndefined();
+  });
+
   it('validates numeric fields (Pricing) correctly', async () => {
     render(<AddInventory {...props} />);
 
@@ -424,5 +498,135 @@ describe('AddInventory Component', () => {
     expect(mockSetShowModal).not.toHaveBeenCalledWith(false);
     expect(consoleSpy).toHaveBeenCalled();
     consoleSpy.mockRestore();
+  });
+
+  // --------------------------------------------------------------------------
+  // Extended coverage — dev logging, validation edges, navigation & toggle
+  // --------------------------------------------------------------------------
+
+  it('logs validation warnings in development mode when advancing fails', () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    (process.env as Record<string, string | undefined>).NODE_ENV = 'development';
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    render(<AddInventory {...props} />);
+    // Attempt to advance from an empty basicInfo section
+    fireEvent.click(screen.getByTestId('save-btn'));
+
+    expect(warnSpy).toHaveBeenCalled();
+    expect(screen.getByTestId('active-label')).toHaveTextContent('basicInfo');
+
+    warnSpy.mockRestore();
+    (process.env as Record<string, string | undefined>).NODE_ENV = originalNodeEnv;
+  });
+
+  it('rejects a basic-info name longer than 100 characters', () => {
+    render(<AddInventory {...props} />);
+
+    fireEvent.change(screen.getByTestId('in-name'), { target: { value: 'x'.repeat(101) } });
+    fireEvent.change(screen.getByTestId('in-cat'), { target: { value: 'Cat' } });
+    fireEvent.click(screen.getByTestId('save-btn'));
+
+    expect(screen.getByTestId('active-label')).toHaveTextContent('basicInfo');
+    expect(screen.getByTestId('basic-error')).toBeInTheDocument();
+  });
+
+  it('requires purchase cost and selling price on the pricing step', () => {
+    render(<AddInventory {...props} />);
+
+    fireEvent.change(screen.getByTestId('in-name'), { target: { value: 'Item' } });
+    fireEvent.change(screen.getByTestId('in-cat'), { target: { value: 'Cat' } });
+    fireEvent.change(screen.getByTestId('in-reorder'), { target: { value: '5' } });
+
+    fireEvent.click(screen.getByTestId('save-btn')); // basic -> classification
+    fireEvent.click(screen.getByTestId('save-btn')); // classification -> batch
+    fireEvent.click(screen.getByTestId('save-btn')); // batch -> stock
+    fireEvent.click(screen.getByTestId('save-btn')); // stock -> pricing
+    expect(screen.getByTestId('active-label')).toHaveTextContent('pricing');
+
+    // Leave both cost and selling empty — validation must block on pricing
+    fireEvent.click(screen.getByTestId('save-btn'));
+    expect(screen.getByTestId('active-label')).toHaveTextContent('pricing');
+  });
+
+  it('validates the reorder level on the stock step', () => {
+    render(<AddInventory {...props} />);
+
+    fireEvent.change(screen.getByTestId('in-name'), { target: { value: 'Item' } });
+    fireEvent.change(screen.getByTestId('in-cat'), { target: { value: 'Cat' } });
+
+    fireEvent.click(screen.getByTestId('save-btn')); // basic -> classification
+    fireEvent.click(screen.getByTestId('save-btn')); // classification -> batch
+    fireEvent.click(screen.getByTestId('save-btn')); // batch -> stock
+    expect(screen.getByTestId('active-label')).toHaveTextContent('stock');
+
+    // Empty reorder level
+    fireEvent.click(screen.getByTestId('save-btn'));
+    expect(screen.getByTestId('active-label')).toHaveTextContent('stock');
+
+    // Non-numeric reorder level
+    fireEvent.change(screen.getByTestId('in-reorder'), { target: { value: 'abc' } });
+    fireEvent.click(screen.getByTestId('save-btn'));
+    expect(screen.getByTestId('active-label')).toHaveTextContent('stock');
+  });
+
+  it('navigates between sections using the label tabs', () => {
+    render(<AddInventory {...props} />);
+
+    fireEvent.change(screen.getByTestId('in-name'), { target: { value: 'Item' } });
+    fireEvent.change(screen.getByTestId('in-cat'), { target: { value: 'Cat' } });
+
+    // Forward jump validates the current section (valid) and advances
+    fireEvent.click(screen.getByTestId('go-stock'));
+    expect(screen.getByTestId('active-label')).toHaveTextContent('stock');
+
+    // Backward jump skips validation and moves immediately
+    fireEvent.click(screen.getByTestId('go-basic'));
+    expect(screen.getByTestId('active-label')).toHaveTextContent('basicInfo');
+  });
+
+  it('toggles the "Visible in Inventory" switch on the basic-info step', () => {
+    render(<AddInventory {...props} />);
+
+    expect(screen.getByRole('switch', { name: 'Visible in Inventory' })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    );
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Visible in Inventory' }));
+
+    expect(screen.getByRole('switch', { name: 'Visible in Inventory' })).toHaveAttribute(
+      'aria-checked',
+      'false'
+    );
+  });
+
+  it('re-validates every section and jumps to the first invalid one on final save', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    render(<AddInventory {...props} />);
+
+    fireEvent.change(screen.getByTestId('in-name'), { target: { value: 'Item' } });
+    fireEvent.change(screen.getByTestId('in-cat'), { target: { value: 'Cat' } });
+    fireEvent.change(screen.getByTestId('in-reorder'), { target: { value: '5' } });
+    fireEvent.change(screen.getByTestId('in-cost'), { target: { value: '10' } });
+    fireEvent.change(screen.getByTestId('in-sell'), { target: { value: '20' } });
+
+    fireEvent.click(screen.getByTestId('save-btn')); // basic -> classification
+    fireEvent.click(screen.getByTestId('save-btn')); // classification -> batch
+    fireEvent.click(screen.getByTestId('save-btn')); // batch -> stock
+    fireEvent.click(screen.getByTestId('save-btn')); // stock -> pricing
+    fireEvent.click(screen.getByTestId('save-btn')); // pricing -> vendor
+    expect(screen.getByTestId('active-label')).toHaveTextContent('vendor');
+
+    // Invalidate basic info while on the vendor (last) step, then save
+    fireEvent.change(screen.getByTestId('in-name'), { target: { value: '' } });
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('save-btn'));
+    });
+
+    expect(screen.getByTestId('active-label')).toHaveTextContent('basicInfo');
+    expect(mockSubmit).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 });

@@ -25,11 +25,7 @@ type ReminderType =
   | "CUSTOM";
 
 type ReminderStatus =
-  | "PENDING"
-  | "SENT"
-  | "RESPONDED"
-  | "EXPIRED"
-  | "CANCELLED";
+  "PENDING" | "SENT" | "RESPONDED" | "EXPIRED" | "CANCELLED";
 
 const CARE_TYPE_LABELS: Record<ReminderType, string> = {
   VACCINATION_BOOSTER: "a vaccination booster",
@@ -105,8 +101,7 @@ const dispatchNotification = async (
   ownerUserId: string | null,
   ownerEmail: string | null,
 ) => {
-  const typeLabel =
-    CARE_TYPE_LABELS[reminder.reminderType as ReminderType] ?? "care";
+  const typeLabel = CARE_TYPE_LABELS[reminder.reminderType] ?? "care";
   const body =
     reminder.customMessage ??
     `${patientName} is due for ${typeLabel}. Please book an appointment at your earliest convenience.`;

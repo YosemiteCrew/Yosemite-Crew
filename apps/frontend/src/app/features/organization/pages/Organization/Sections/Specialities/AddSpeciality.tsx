@@ -1,12 +1,13 @@
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import Modal from '@/app/ui/overlays/Modal';
-import React, { useEffect, useState } from 'react';
+import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
+import React, { useState } from 'react';
 import SpecialityCard from '@/app/features/organization/pages/Organization/Sections/Specialities/SpecialityCard';
 import { SpecialityWeb } from '@/app/features/organization/types/speciality';
 import SpecialitySearchWeb from '@/app/ui/inputs/SpecialitySearch/SpecialitySearchWeb';
 import { createBulkSpecialityServices } from '@/app/features/organization/services/specialityService';
-import Close from '@/app/ui/primitives/Icons/Close';
 import { useNotify } from '@/app/hooks/useNotify';
 import { useOrgStore } from '@/app/stores/orgStore';
 import {
@@ -59,7 +60,14 @@ const AddSpeciality = ({ showModal, setShowModal, specialities }: AddSpecialityP
   );
   const businessType = getResolvedBusinessType(primaryOrg?.type);
 
-  useEffect(() => {
+  // Re-apply the starter services when the business type or org resolves late
+  // (adjusted during render, per React's "adjusting state when a prop changes" pattern).
+  const [prevStarterKey, setPrevStarterKey] = useState({ businessType, primaryOrgId });
+  if (
+    prevStarterKey.businessType !== businessType ||
+    prevStarterKey.primaryOrgId !== primaryOrgId
+  ) {
+    setPrevStarterKey({ businessType, primaryOrgId });
     setFormData((previous) => {
       let hasChanges = false;
       const nextState = previous.map((speciality) => {
@@ -69,7 +77,7 @@ const AddSpeciality = ({ showModal, setShowModal, specialities }: AddSpecialityP
       });
       return hasChanges ? nextState : previous;
     });
-  }, [businessType, primaryOrgId]);
+  }
 
   const removeSpeciality = (index: number) => {
     setFormData((prev) => prev.filter((_, i) => i !== index));
@@ -94,19 +102,11 @@ const AddSpeciality = ({ showModal, setShowModal, specialities }: AddSpecialityP
   };
 
   return (
-    <Modal showModal={showModal} setShowModal={setShowModal}>
+    <Modal showModal={showModal} setShowModal={setShowModal} size="md">
       <div className="flex flex-col h-full gap-6">
-        <div className="flex justify-between items-center">
-          <div className="opacity-0">
-            <Close onClick={() => {}} />
-          </div>
-          <div className="flex justify-center items-center gap-2">
-            <div className="text-body-1 text-text-primary">Add specialties</div>
-          </div>
-          <Close onClick={() => setShowModal(false)} />
-        </div>
+        <ModalHeader title="Add specialties" onClose={() => setShowModal(false)} />
 
-        <div className="flex overflow-y-auto flex-1 w-full flex-col gap-6 justify-between scrollbar-hidden">
+        <div className="flex overflow-y-auto flex-1 w-full flex-col gap-6 scrollbar-hidden">
           <div className="flex flex-col gap-3">
             <SpecialitySearchWeb
               specialities={formData}
@@ -127,13 +127,11 @@ const AddSpeciality = ({ showModal, setShowModal, specialities }: AddSpecialityP
               </Accordion>
             ))}
           </div>
-          <Primary
-            href="#"
-            text="Save"
-            className="max-h-12! text-lg! tracking-[-0.36px]!"
-            onClick={handleSubmit}
-          />
         </div>
+
+        <ModalFooter align="stretch">
+          <Primary href="#" text="Save" onClick={handleSubmit} />
+        </ModalFooter>
       </div>
     </Modal>
   );

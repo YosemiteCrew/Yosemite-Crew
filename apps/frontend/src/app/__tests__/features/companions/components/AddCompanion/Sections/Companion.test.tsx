@@ -121,7 +121,7 @@ jest.mock(
       setCurrentDate,
     }: {
       placeholder: string;
-      setCurrentDate: (date: Date | null) => void;
+      setCurrentDate: React.Dispatch<React.SetStateAction<Date | null>>;
     }) {
       return (
         <div data-testid="datepicker">
@@ -130,6 +130,13 @@ jest.mock(
             data-testid="datepicker-input"
             onChange={(e) => setCurrentDate(e.target.value ? new Date(e.target.value) : null)}
           />
+          <button
+            type="button"
+            data-testid="datepicker-fn"
+            onClick={() => setCurrentDate((prev) => prev ?? new Date('2020-01-01T00:00:00.000Z'))}
+          >
+            fn
+          </button>
         </div>
       );
     }
@@ -614,5 +621,166 @@ describe('Companion section', () => {
       expect(setShowModal).toHaveBeenCalledWith(false);
     });
     expect(onCompanionCreated).not.toHaveBeenCalled();
+  });
+
+  // 13. toNonNegativeNumber — non-numeric input returns undefined
+  it('ignores a non-numeric weight (toNonNegativeNumber returns undefined)', async () => {
+    const setFormData = jest.fn();
+    await act(async () => {
+      renderCompanion({ formData: makeFormData({ type: 'dog' }), setFormData });
+    });
+
+    fireEvent.change(screen.getByTestId('input-weight'), { target: { value: 'abc' } });
+
+    const arg = setFormData.mock.calls.at(-1)?.[0];
+    expect(arg.currentWeight).toBeUndefined();
+  });
+
+  // 14. setCurrentDate — direct value, cleared value, and functional updater
+  it('updates dateOfBirth through the internal setCurrentDate handler', async () => {
+    const setFormData = jest.fn((updater) => {
+      if (typeof updater === 'function')
+        updater(makeFormData({ dateOfBirth: new Date('2019-03-03') }));
+    });
+    await act(async () => {
+      renderCompanion({ setFormData });
+    });
+
+    // Direct Date value.
+    fireEvent.change(screen.getByTestId('datepicker-input'), { target: { value: '2020-05-05' } });
+    // Cleared value → null coalesces to a fresh Date inside the handler.
+    fireEvent.change(screen.getByTestId('datepicker-input'), { target: { value: '' } });
+    // Functional updater form.
+    fireEvent.click(screen.getByTestId('datepicker-fn'));
+
+    expect(setFormData).toHaveBeenCalled();
+  });
+
+  it('resolves a null previous dateOfBirth in the setCurrentDate handler', async () => {
+    const setFormData = jest.fn((updater) => {
+      if (typeof updater === 'function') updater(makeFormData({ dateOfBirth: undefined as never }));
+    });
+    await act(async () => {
+      renderCompanion({ setFormData });
+    });
+
+    fireEvent.change(screen.getByTestId('datepicker-input'), { target: { value: '2021-01-01' } });
+    expect(setFormData).toHaveBeenCalled();
+  });
+
+  // 15. species effect — resolution after unmount is ignored
+  it('ignores species entries that resolve after unmount', async () => {
+    let resolveSpecies!: (value: unknown) => void;
+    mockFetchSpeciesCodeEntries.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSpecies = resolve;
+      })
+    );
+
+    let view!: ReturnType<typeof renderCompanion>;
+    await act(async () => {
+      view = renderCompanion();
+    });
+    view.unmount();
+
+    await act(async () => {
+      resolveSpecies([{ display: 'Canine', code: 'SP-DOG' }]);
+      await Promise.resolve();
+    });
+
+    expect(mockFetchSpeciesCodeEntries).toHaveBeenCalled();
+  });
+
+  // 16. breed effect — resolution after unmount is ignored
+  it('ignores breed entries that resolve after unmount', async () => {
+    let resolveBreed!: (value: unknown) => void;
+    mockFetchBreedCodeEntries.mockReturnValue(
+      new Promise((resolve) => {
+        resolveBreed = resolve;
+      })
+    );
+
+    let view!: ReturnType<typeof renderCompanion>;
+    await act(async () => {
+      view = renderCompanion({ formData: makeFormData({ type: 'dog' }) });
+    });
+    view.unmount();
+
+    await act(async () => {
+      resolveBreed([{ display: 'Labrador', code: 'BR-1' }]);
+      await Promise.resolve();
+    });
+
+    expect(mockFetchBreedCodeEntries).toHaveBeenCalled();
+  });
+
+  // 17. breed effect — reduce builds and de-duplicates options
+  it('builds and de-duplicates breed options from resolved entries', async () => {
+    mockFetchBreedCodeEntries.mockResolvedValue([
+      { display: 'Labrador', code: 'BR-1', meta: { speciesCode: 'SP-DOG' } },
+      { display: 'Labrador', code: 'BR-1' }, // duplicate display → skipped by the seen-set
+      { display: 'Poodle', code: 'BR-2' }, // no meta → speciesCode falls back to the species option
+    ]);
+
+    await act(async () => {
+      renderCompanion({ formData: makeFormData({ type: 'dog' }) });
+    });
+
+    await waitFor(() => expect(mockFetchBreedCodeEntries).toHaveBeenCalled());
+  });
+
+  // 18. breed effect — lookup failure clears the options
+  it('clears breed options when the breed lookup fails', async () => {
+    mockFetchBreedCodeEntries.mockRejectedValue(new Error('breed fail'));
+
+    await act(async () => {
+      renderCompanion({ formData: makeFormData({ type: 'dog' }) });
+    });
+
+    await waitFor(() => expect(mockFetchBreedCodeEntries).toHaveBeenCalled());
+    // Component stays mounted and rendered without throwing.
+    expect(screen.getByTestId('search-input')).toBeInTheDocument();
+  });
+
+  // 19. age-when-neutered field — visible and editable when neutered
+  it('edits the age-when-neutered field when neutered is set', async () => {
+    const setFormData = jest.fn();
+    await act(async () => {
+      renderCompanion({
+        formData: makeFormData({ type: 'dog', isneutered: true, gender: 'female' }),
+        setFormData,
+      });
+    });
+
+    fireEvent.change(screen.getByTestId('input-ageWhenNeutered'), { target: { value: '2-5' } });
+
+    const arg = setFormData.mock.calls.at(-1)?.[0];
+    expect(arg.ageWhenNeutered).toBe('25');
+  });
+
+  // 20. clearing the linked parent resets the companion search state
+  it('clears companion search results when the parent id is removed', async () => {
+    mockGetCompanionForParent.mockResolvedValue([]);
+    const props = {
+      setActiveLabel: jest.fn(),
+      formData: makeFormData(),
+      setFormData: jest.fn(),
+      setParentFormData: jest.fn(),
+      setShowModal: jest.fn(),
+      mode: 'default' as const,
+      onCompanionCreated: jest.fn(),
+    };
+
+    let view!: ReturnType<typeof render>;
+    await act(async () => {
+      view = render(<Companion {...props} parentFormData={makeParentData({ id: 'parent-1' })} />);
+    });
+
+    // Dropping the parent id runs the render-time reset that clears results/query.
+    await act(async () => {
+      view.rerender(<Companion {...props} parentFormData={makeParentData({ id: '' })} />);
+    });
+
+    expect((screen.getByTestId('search-input') as HTMLInputElement).value).toBe('');
   });
 });

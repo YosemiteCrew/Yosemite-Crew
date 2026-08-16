@@ -102,8 +102,19 @@ export const useAppointmentFormData = ({
     };
   }, [activeAppointment?.id, resolvedActiveLabel, resolvedActiveSubLabel, withSignatureMetaRef]);
 
-  // Re-apply signature metadata to the SOAP fields when the underlying forms change.
-  useEffect(() => {
+  // Re-apply signature metadata to the SOAP fields when the underlying forms
+  // change — adjusted during render via a prev-compare rather than an effect.
+  const [prevMetaInputs, setPrevMetaInputs] = useState({
+    formsById,
+    customForms,
+    withSignatureMeta,
+  });
+  if (
+    prevMetaInputs.formsById !== formsById ||
+    prevMetaInputs.customForms !== customForms ||
+    prevMetaInputs.withSignatureMeta !== withSignatureMeta
+  ) {
+    setPrevMetaInputs({ formsById, customForms, withSignatureMeta });
     setFormData((prev) => ({
       ...prev,
       subjective: withSignatureMeta(prev.subjective),
@@ -112,7 +123,7 @@ export const useAppointmentFormData = ({
       plan: withSignatureMeta(prev.plan),
       discharge: withSignatureMeta(prev.discharge),
     }));
-  }, [formsById, customForms, withSignatureMeta]);
+  }
 
   // Invoice totals are derived from the line items and the appointment's service
   // cost during render, then overlaid onto the value handed to children so

@@ -60,6 +60,32 @@ describe("MerckHealthlinkClient", () => {
     });
   });
 
+  it("search joins array content-type headers", async () => {
+    const http = {
+      get: jest.fn().mockResolvedValue({
+        data: "payload",
+        headers: { "content-type": ["text/xml", "charset=utf-8"] },
+        status: 200,
+        request: {},
+      }),
+    };
+    mockAxios.create.mockReturnValue(http as any);
+
+    const client = new MerckHealthlinkClient({
+      baseUrl: "https://merck.local",
+      username: "user",
+      password: "pass",
+      timeoutMs: 5000,
+    });
+
+    await expect(client.search({})).resolves.toEqual({
+      data: "payload",
+      contentType: "text/xml; charset=utf-8",
+      status: 200,
+      finalUrl: null,
+    });
+  });
+
   it("search handles string responses and missing content type", async () => {
     const http = {
       get: jest.fn().mockResolvedValue({

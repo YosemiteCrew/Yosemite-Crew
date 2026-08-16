@@ -30,21 +30,31 @@ import {
 import { StreamChat } from 'stream-chat';
 import type { Channel as StreamChannel } from 'stream-chat';
 import type { ChannelPreviewUIComponentProps, ChannelListProps } from 'stream-chat-react';
-import { LuSearch, LuCommand, LuMessageSquarePlus, LuArchive, LuGlobe } from 'react-icons/lu';
+import { LuCommand } from 'react-icons/lu';
+import {
+  IoArchiveOutline,
+  IoChatbubbleEllipsesOutline,
+  IoGlobeOutline,
+  IoSearchOutline,
+} from 'react-icons/io5';
 import Primary from '@/app/ui/primitives/Buttons/Primary';
+import SegmentedPill from '@/app/ui/primitives/SegmentedPill/SegmentedPill';
 import Text from '@/app/ui/Text';
-import { Badge } from '@/app/ui';
 import ConversationRow from './ConversationRow';
+import ConversationInfoPanel from './ConversationInfoPanel';
+import { deriveConversationPinned } from './conversationInfoPanelUtils';
+import ChannelHeaderBar from './ChannelHeaderBar';
 import { ChatAvatar } from './ChatAvatar';
 import { ChatHeaderContext } from './ChatHeaderContext';
 import ChatMessage from './ChatMessage';
 import ChatComposer from './ChatComposer';
 import ChatCommandPalette from './ChatCommandPalette';
 import ShareEntityModal from './ShareEntityModal';
-import MessageSearch from './MessageSearch';
 import NetworkDirectoryModal from './NetworkDirectoryModal';
 import { GroupModal, type OrgUserOption } from './GroupModal';
 import { useChatNotifications } from '../hooks/useChatNotifications';
+import { useChannelInfoDrawer } from '../hooks/useChannelInfoDrawer';
+import { useChannelSessionActions } from '../hooks/useChannelSessionActions';
 import { ChatShareContext } from './chatShareContext';
 import clsx from 'clsx';
 import {
@@ -53,6 +63,7 @@ import {
   formatRowTime,
   getChannelDisplayInfo,
   getSessionIdFromChannel,
+  isChannelMuted,
   isCounterpartOnline,
   matchesChannelId,
   matchesDirectSession,
@@ -68,10 +79,9 @@ import './ChatContainer.css';
 import {
   getChatClient,
   connectStreamUser,
-  endChatChannel,
   getAppointmentChannel,
 } from '@/app/features/chat/services/streamChatService';
-import { buildWorkspaceHref } from '@/app/lib/appointmentWorkspace';
+import { buildCompanionOverviewHref } from '@/app/lib/companionHistoryRoute';
 import {
   createOrgDirectChat,
   createOrgGroupChat,
@@ -81,7 +91,6 @@ import {
   updateGroup,
   deleteGroup,
   getChatSessions,
-  getChatSession,
   listOrgChatSessions,
 } from '@/app/features/chat/services/chatService';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
@@ -92,8 +101,6 @@ import { useAppointmentStore } from '@/app/stores/appointmentStore';
 import { useCompanionStore } from '@/app/stores/companionStore';
 import { useLoadAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
 import { useLoadCompanionsForPrimaryOrg } from '@/app/hooks/useCompanion';
-import { changeAppointmentStatus } from '@/app/features/appointments/services/appointmentService';
-import { useRouter } from 'next/navigation';
 import Reschedule from '@/app/features/appointments/pages/Appointments/Sections/Reschedule';
 import AddAppointmentCentralModal from '@/app/features/appointments/pages/Appointments/Sections/AddAppointmentCentralModal';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
@@ -109,9 +116,17 @@ const ChatSessionStatusContext = createContext<{
   statusByAppointmentId: {},
   refreshStatuses: () => undefined,
 });
+// Lets the thread header render the phone "back" control inline (design: one
+// unified compact bar — round back + avatar + name + status — instead of a
+// separate "← Back" strip stacked above the header).
+const ChatBackContext = createContext<{ showBack: boolean; onBack: () => void }>({
+  showBack: false,
+  onBack: () => undefined,
+});
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
+import { useConfirm } from '@/app/ui/overlays/Modal/ConfirmModal';
 
 const CHAT_PAGE_SKELETON = <PageSkeleton variant="list" />;
 
@@ -123,67 +138,33 @@ interface ChatContainerProps {
   onScopeChange?: (scope: ChatScope) => void;
 }
 
-// Active-pill colour per position mirrors the Calendar / Board / Table view
-// switcher (TitleCalendar): primary, success, then the dark text colour.
-const SCOPE_TABS: ReadonlyArray<{ key: ChatScope; label: string; slider: string }> = [
-  // "Pet parents" is the designated owner term (matches the per-chat badge);
-  // avoids the old "Clients" tab vs "Pet parent" badge collision on this screen.
-  { key: 'clients', label: 'Pet parents', slider: 'bg-(--color-primary-700)' },
-  { key: 'colleagues', label: 'Colleagues', slider: 'bg-success-700' },
-  { key: 'groups', label: 'Groups', slider: 'bg-text-primary' },
+// Design labels these audience tabs "Clients / Team / Groups" (the middle tab
+// reads "Team", not "Colleagues"; the scope value stays `colleagues`). The
+// per-chat "Pet parent" badge is kept as the fixed owner term on the individual
+// client conversation header.
+const SCOPE_OPTIONS: ReadonlyArray<{ value: ChatScope; label: string }> = [
+  { value: 'clients', label: 'Clients' },
+  { value: 'colleagues', label: 'Team' },
+  { value: 'groups', label: 'Groups' },
 ];
 
 /**
- * Self-contained audience switcher. The active pill is driven by LOCAL state so
- * it paints and starts sliding immediately on click; the heavier scope change is
- * deferred to the parent on the next macrotask so re-filtering the channel list
- * never blocks the animation. (startTransition is intentionally avoided: it can
- * commit the final state without an intermediate paint, cancelling the CSS
- * transition.) Motion mirrors the Calendar/Board/Table view switcher.
+ * Audience switcher. Uses the shared neutral raised-white-pill SegmentedPill
+ * (track var(--band)+hairline, active segment raised var(--screen) with weight
+ * 700 ink text) per the warm-bone design, replacing the earlier colored
+ * sliding-pill control.
  */
 function ChatScopeSwitcher({
   scope,
   onScopeChange,
 }: Readonly<{ scope?: ChatScope; onScopeChange?: (next: ChatScope) => void }>) {
-  const activeIndex = Math.max(
-    0,
-    SCOPE_TABS.findIndex((t) => t.key === scope)
-  );
-
   return (
-    <fieldset
-      aria-label="Chat audience"
-      className="relative m-0 flex h-10 w-full items-stretch overflow-hidden rounded-[999px]! border border-card-border bg-white p-0"
-    >
-      <legend className="sr-only">Chat audience</legend>
-      <div
-        aria-hidden
-        className={clsx(
-          'absolute top-0 bottom-0 w-1/3 rounded-[999px]! transition-all duration-300 ease-in-out',
-          SCOPE_TABS[activeIndex].slider
-        )}
-        style={{ transform: `translateX(${activeIndex * 100}%)` }}
-      />
-      {SCOPE_TABS.map((t, i) => {
-        const isActive = activeIndex === i;
-        return (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => onScopeChange?.(t.key)}
-            aria-pressed={isActive}
-            className={clsx(
-              'relative z-10 flex w-1/3 items-center justify-center gap-1.5 text-body-4 transition-colors',
-              isActive
-                ? 'text-neutral-0 duration-150 delay-150'
-                : 'text-text-secondary hover:text-text-primary duration-100 delay-0'
-            )}
-          >
-            {t.label}
-          </button>
-        );
-      })}
-    </fieldset>
+    <SegmentedPill
+      ariaLabel="Chat audience"
+      value={scope ?? 'clients'}
+      onChange={(next) => onScopeChange?.(next)}
+      options={SCOPE_OPTIONS}
+    />
   );
 }
 
@@ -261,253 +242,199 @@ interface ChannelState {
 
 export type { ChatScope };
 
+// Read the frozen/closed flags off the channel's current data payload.
+const readChannelState = (channel: StreamChannel | null | undefined): ChannelState => {
+  const channelData = channel?.data as any;
+  return {
+    frozen: channelData?.frozen === true,
+    updatedAt: channelData?.updated_at,
+    closedAt: channelData?.closedAt || channelData?.closed_at,
+  };
+};
+
 // Custom hook for channel state management
 const useChannelState = () => {
   const { channel } = useChannelStateContext();
-  const [state, setState] = useState<ChannelState>({
-    frozen: false,
-    updatedAt: undefined,
-    closedAt: undefined,
-  });
+  const [state, setState] = useState<ChannelState>(() => readChannelState(channel));
+
+  // Re-read during render (compare-guard) when the channel itself changes; the
+  // effect below only subscribes for external updates on that channel.
+  const [prevChannel, setPrevChannel] = useState(channel);
+  if (prevChannel !== channel) {
+    setPrevChannel(channel);
+    if (channel) setState(readChannelState(channel));
+  }
 
   useEffect(() => {
-    if (channel) {
-      const channelData = channel.data as any;
-      const isFrozen = channelData?.frozen === true;
-      const updatedAt = channelData?.updated_at;
-      const closedAt = channelData?.closedAt || channelData?.closed_at;
+    if (!channel) return;
+    // Listen for channel updates
+    const handleChannelUpdate = () => {
+      setState(readChannelState(channel));
+    };
 
-      setState({ frozen: isFrozen, updatedAt, closedAt });
+    channel.on('channel.updated', handleChannelUpdate);
 
-      // Listen for channel updates
-      const handleChannelUpdate = () => {
-        const updatedData = channel.data as any;
-        const newFrozen = updatedData?.frozen === true;
-        const newUpdatedAt = updatedData?.updated_at;
-        const newClosedAt = updatedData?.closedAt || updatedData?.closed_at;
-        setState({ frozen: newFrozen, updatedAt: newUpdatedAt, closedAt: newClosedAt });
-      };
-
-      channel.on('channel.updated', handleChannelUpdate);
-
-      return () => {
-        channel.off('channel.updated', handleChannelUpdate);
-      };
-    }
+    return () => {
+      channel.off('channel.updated', handleChannelUpdate);
+    };
   }, [channel]);
 
   return state;
+};
+
+type HeaderChannelInfo = {
+  title: string;
+  channelMemberCount: number;
+  isClientChat: boolean;
+  isGroupChat: boolean;
+  appointmentId?: string;
+  patientId?: string;
+};
+
+// Derive the header's channel-shaped booleans/labels in one place so the
+// component body stays readable (and under the cognitive-complexity limit).
+const deriveHeaderChannelInfo = (
+  channel: StreamChannel | null | undefined,
+  currentUserId?: string | null
+): HeaderChannelInfo => {
+  const { title } = getChannelDisplayInfo(channel, currentUserId);
+  const scope = channel ? resolveChannelScope(channel) : 'colleagues';
+  const channelMemberCount = channel?.state?.members
+    ? Object.keys(channel.state.members).length
+    : 0;
+  const data = (channel?.data as any) ?? {};
+  const dataType = typeof data.type === 'string' ? data.type : undefined;
+  const chatCategory = typeof data.chatCategory === 'string' ? data.chatCategory : undefined;
+  const isTeamChannel = (channel?.type || '').toLowerCase() === 'team';
+  const isOrgGroupType = dataType === 'ORG_GROUP' || (chatCategory || '').toLowerCase() === 'group';
+  return {
+    title,
+    channelMemberCount,
+    isClientChat: scope === 'clients',
+    isGroupChat: scope === 'groups' || isOrgGroupType || (isTeamChannel && channelMemberCount > 2),
+    appointmentId: data.appointmentId,
+    patientId: data.patientId as string | undefined,
+  };
+};
+
+const getHeaderStatusText = ({
+  isGroupChat,
+  hasSessionClosed,
+  online,
+  channelMemberCount,
+  isClientChat,
+}: {
+  isGroupChat: boolean;
+  hasSessionClosed: boolean;
+  online: boolean;
+  channelMemberCount: number;
+  isClientChat: boolean;
+}): string => {
+  let baseStatus: string;
+  if (isGroupChat) baseStatus = `${channelMemberCount} members`;
+  else if (hasSessionClosed) baseStatus = 'Chat closed';
+  else baseStatus = online ? 'Active now' : 'Offline';
+  return isClientChat && !hasSessionClosed ? `${baseStatus} · via pet parent app` : baseStatus;
 };
 
 const ChannelHeaderWithCounterpart: FC<{
   currentUserId?: string | null;
 }> = ({ currentUserId }) => {
   const { channel } = useChannelStateContext();
-  const chatSessionStatusCtx = use(ChatSessionStatusContext);
-  const { statusByAppointmentId } = chatSessionStatusCtx;
+  const { statusByAppointmentId, refreshStatuses } = use(ChatSessionStatusContext);
+  const { showBack, onBack } = use(ChatBackContext);
   const groupModalCtx = use(GroupModalContext);
-  const { notify } = useNotify();
-  const [closingSession, setClosingSession] = useState(false);
-  const [sessionClosed, setSessionClosed] = useState(false);
-  const [rescheduleOpen, setRescheduleOpen] = useState(false);
-  const [followUpOpen, setFollowUpOpen] = useState(false);
-  const [completingAppointment, setCompletingAppointment] = useState(false);
-  const { title } = getChannelDisplayInfo(channel, currentUserId);
-  const scope = channel ? resolveChannelScope(channel) : 'colleagues';
-  const channelMemberCount = channel?.state?.members
-    ? Object.keys(channel.state.members).length
-    : 0;
-  const dataType =
-    typeof (channel?.data as any)?.type === 'string' ? (channel?.data as any).type : undefined;
-  const chatCategory =
-    typeof (channel?.data as any)?.chatCategory === 'string'
-      ? (channel?.data as any).chatCategory
-      : undefined;
-  const isTeamChannel = (channel?.type || '').toLowerCase() === 'team';
-  const isOrgGroupType = dataType === 'ORG_GROUP' || (chatCategory || '').toLowerCase() === 'group';
-  const isClientChat = scope === 'clients';
-  const isGroupChat =
-    scope === 'groups' || isOrgGroupType || (isTeamChannel && channelMemberCount > 2);
-
-  const appointmentId = (channel?.data as any)?.appointmentId;
+  const { title, channelMemberCount, isClientChat, isGroupChat, appointmentId, patientId } =
+    deriveHeaderChannelInfo(channel, currentUserId);
   const backendStatus = appointmentId ? statusByAppointmentId[appointmentId] : undefined;
-  const patientId = (channel?.data as any)?.patientId as string | undefined;
   const appointment = useAppointmentStore((s) =>
     appointmentId ? s.appointmentsById[appointmentId] : undefined
   );
   const companion = useCompanionStore((s) => (patientId ? s.companionsById[patientId] : undefined));
-  const router = useRouter();
+  const { confirm, confirmDialog } = useConfirm();
 
-  // Check if session is already closed
-  useEffect(() => {
-    if (channel) {
-      const status = (channel.data as any)?.status;
-      const frozen = (channel.data as any)?.frozen;
-      const isSessionClosed = status === 'ended' || frozen === true || backendStatus === 'ended';
-      setSessionClosed(isSessionClosed);
-    }
-  }, [channel, backendStatus]);
+  const {
+    sessionClosed,
+    closingSession,
+    completingAppointment,
+    rescheduleOpen,
+    setRescheduleOpen,
+    followUpOpen,
+    setFollowUpOpen,
+    handleCloseSession,
+    handleApptAction,
+  } = useChannelSessionActions({
+    channel,
+    appointment,
+    appointmentId,
+    backendStatus,
+    refreshStatuses,
+    confirm,
+  });
 
-  const handleCloseSession = async () => {
-    if (!channel) return;
+  const {
+    infoOpen,
+    openInfo,
+    closeInfo,
+    toggleInfo,
+    infoMuted,
+    handleToggleMute,
+    handleArchiveConversation,
+  } = useChannelInfoDrawer(channel);
 
-    // Prevent duplicate calls if already closing or already closed
-    if (closingSession || sessionClosed) return;
-
-    const confirmed = confirm(
-      'Are you sure you want to close this chat session? The client will no longer be able to send messages.'
-    );
-    if (!confirmed) {
-      return;
-    }
-
-    setClosingSession(true);
-    try {
-      const appointmentId = (channel.data as any)?.appointmentId;
-      if (appointmentId) {
-        const session = await getChatSession(appointmentId);
-        const sessionId = (session as any)?._id || (session as any)?.id;
-        if (!sessionId) {
-          throw new Error('Chat session not found for this appointment');
-        }
-        await endChatChannel(sessionId);
-        chatSessionStatusCtx.refreshStatuses();
-        setSessionClosed(true);
-        notify('success', {
-          title: 'Chat session closed',
-          text: 'Chat session closed successfully',
-        });
-      }
-    } catch (error) {
-      console.error('Failed to close chat session:', error);
-      notify('error', {
-        title: 'Couldn’t close chat session',
-        text: 'Please try again.',
-      });
-    } finally {
-      setClosingSession(false);
-    }
-  };
-
-  const hasSessionClosed = sessionClosed;
   const online = isCounterpartOnline(channel, currentUserId);
-  let baseStatus: string;
-  if (isGroupChat) baseStatus = `${channelMemberCount} members`;
-  else if (hasSessionClosed) baseStatus = 'Chat closed';
-  else baseStatus = online ? 'Active now' : 'Offline';
-  const statusText =
-    isClientChat && !hasSessionClosed ? `${baseStatus} · via pet parent app` : baseStatus;
-
-  const handleAppointmentComplete = async () => {
-    if (!appointment || completingAppointment) return;
-    setCompletingAppointment(true);
-    try {
-      await changeAppointmentStatus(appointment, 'COMPLETED');
-      notify('success', {
-        title: 'Appointment completed',
-        text: 'The visit has been marked complete.',
-      });
-    } catch (error) {
-      notify('error', {
-        title: 'Unable to complete',
-        text: error instanceof Error ? error.message : 'Please try again.',
-      });
-    } finally {
-      setCompletingAppointment(false);
-    }
-  };
-
-  const handleApptAction = (action: string) => {
-    if (!appointmentId) {
-      router.push('/appointments');
-      return;
-    }
-    if (action === 'Reschedule') {
-      if (appointment) {
-        setRescheduleOpen(true);
-        return;
-      }
-      router.push(buildWorkspaceHref(appointmentId));
-      return;
-    }
-    if (action === 'Send form') {
-      router.push(buildWorkspaceHref(appointmentId, 'INVOICE'));
-      return;
-    }
-    if (action === 'Mark complete') {
-      void handleAppointmentComplete();
-      return;
-    }
-    if (action === 'Book follow-up') {
-      if (appointment?.companion?.id || appointment?.patient?.id) {
-        setFollowUpOpen(true);
-        return;
-      }
-      router.push('/appointments');
-      return;
-    }
-    router.push(buildWorkspaceHref(appointmentId));
-  };
+  const statusText = getHeaderStatusText({
+    isGroupChat,
+    hasSessionClosed: sessionClosed,
+    online,
+    channelMemberCount,
+    isClientChat,
+  });
+  const pinnedMessages = deriveConversationPinned(channel);
 
   return (
     <>
-      <header className="flex shrink-0 items-center gap-2 border-b border-chat-divider bg-neutral-0 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
-        <ChatAvatar
-          name={title}
-          online={!isGroupChat && !hasSessionClosed && online}
-          group={isGroupChat}
-          size="sm"
-        />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <span className="flex min-w-0 items-center gap-2">
-            <Text
-              as="span"
-              variant="body-3-emphasis"
-              className="min-w-0 flex-1 truncate text-neutral-900"
-            >
-              {title}
-            </Text>
-            {/* "Pet parent" is the fixed owner term and is NOT subject to the animal-terminology rewrite. */}
-            {isClientChat && (
-              <span className="hidden shrink-0 items-center self-center sm:inline-flex">
-                <Badge tone="warning">Pet parent</Badge>
-              </span>
-            )}
-          </span>
-          <Text as="span" variant="caption-2" className="truncate text-neutral-500">
-            {statusText}
-          </Text>
-        </div>
-        {/* No phone/video calling in chat. */}
-        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-          <MessageSearch />
-          {isGroupChat && (
-            <Primary
-              text="Group Info"
-              onClick={() => {
-                if (channel) {
-                  groupModalCtx.openEdit?.(channel);
-                }
-              }}
-            />
-          )}
-          {isClientChat && hasSessionClosed && <Badge tone="neutral">Session closed</Badge>}
-          {isClientChat && !hasSessionClosed && (
-            <Primary
-              text={closingSession ? 'Closing…' : 'Close session'}
-              onClick={handleCloseSession}
-              isDisabled={closingSession}
-            />
-          )}
-        </div>
-      </header>
+      {confirmDialog}
+      <ChannelHeaderBar
+        title={title}
+        statusText={statusText}
+        chat={{
+          isClientChat,
+          isGroupChat,
+          sessionClosed,
+          showPresence: online && !isGroupChat && !sessionClosed,
+        }}
+        back={showBack ? { onBack } : undefined}
+        info={{ open: infoOpen, onToggle: toggleInfo }}
+        session={{ closing: closingSession, onClose: handleCloseSession }}
+        onOpenGroupInfo={() => {
+          if (channel) {
+            groupModalCtx.openEdit?.(channel);
+          }
+        }}
+      />
       {isClientChat && (
         <>
+          {infoOpen && (
+            <ConversationInfoPanel
+              channel={channel ?? null}
+              name={title}
+              subtitle={[companion?.name, statusText].filter(Boolean).join(' · ')}
+              online={online && !sessionClosed}
+              clientRecordHref={patientId ? buildCompanionOverviewHref(patientId) : undefined}
+              muted={infoMuted}
+              onToggleMute={handleToggleMute}
+              onArchive={handleArchiveConversation}
+              onClose={closeInfo}
+            />
+          )}
           <ChatHeaderContext
             allergy={companion?.allergy?.trim() || undefined}
             alerts={companion?.alerts}
             appointment={appointment}
             completing={completingAppointment}
+            pinned={pinnedMessages}
+            onOpenPinned={openInfo}
             onAction={handleApptAction}
           />
           {appointment && (
@@ -528,14 +455,6 @@ const ChannelHeaderWithCounterpart: FC<{
       )}
     </>
   );
-};
-
-const isChannelMuted = (channel: StreamChannel | null | undefined): boolean => {
-  try {
-    return Boolean(channel?.muteStatus?.().muted);
-  } catch {
-    return false;
-  }
 };
 
 type TriageHandlers = {
@@ -646,7 +565,7 @@ const ChatClosedFooter: FC<{ closedAt?: string }> = ({ closedAt }) => {
         Chat session closed
       </Text>
       {formattedClosedTime && (
-        <Text as="p" variant="caption-2" className="text-neutral-500">
+        <Text as="p" variant="caption-2" className="text-text-tertiary">
           {formattedClosedTime}
         </Text>
       )}
@@ -701,33 +620,31 @@ const RegularChannelWindow: FC<{ currentUserId?: string | null }> = ({ currentUs
 
 const ChatEmptyThread: FC = () => (
   <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
-    <span className="mb-1 flex size-12 items-center justify-center rounded-full bg-chat-panel text-primary-600">
-      <LuMessageSquarePlus className="size-6" />
+    <span className="mb-1 flex h-12 w-12 items-center justify-center rounded-full bg-chat-panel text-[var(--blue-text)]">
+      <IoChatbubbleEllipsesOutline className="h-6 w-6" />
     </span>
     <Text as="p" variant="body-3-emphasis" className="text-neutral-700">
       No messages yet
     </Text>
-    <Text as="p" variant="caption-1" className="text-neutral-500">
+    <Text as="p" variant="caption-1" className="text-text-tertiary">
       Send the first message to start the conversation.
     </Text>
   </div>
 );
 
 const ChatWindow: FC<ChatWindowProps> = ({ showBackButton, onBack, currentUserId }) => {
-  const shouldShowBackButton = showBackButton;
+  const backContextValue = useMemo(
+    () => ({ showBack: showBackButton, onBack }),
+    [showBackButton, onBack]
+  );
 
   return (
-    <>
-      {shouldShowBackButton && (
-        <button type="button" className="chat-back-button" onClick={onBack}>
-          ← Back
-        </button>
-      )}
+    <ChatBackContext.Provider value={backContextValue}>
       <Channel Message={ChatMessage} EmptyStateIndicator={ChatEmptyThread}>
         <RegularChannelWindow currentUserId={currentUserId} />
         <Thread />
       </Channel>
-    </>
+    </ChatBackContext.Provider>
   );
 };
 
@@ -874,9 +791,9 @@ const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
   return (
     <>
       <div className="flex items-center justify-between px-3 pt-3">
-        <Text as="h2" variant="heading-3" className="text-neutral-900">
-          Messages
-        </Text>
+        <h2 className="m-0 font-newsreader text-[20px] font-normal tracking-[-0.015em] text-[var(--ink)] xl:text-[23px]">
+          Chat
+        </h2>
         <button
           type="button"
           onClick={onToggleArchived}
@@ -884,11 +801,11 @@ const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
           className={clsx(
             'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors',
             showArchived
-              ? 'border-primary-500 bg-chat-panel text-primary-700'
-              : 'border-chat-divider text-neutral-500 hover:bg-chat-surface-soft hover:text-neutral-900'
+              ? 'border-[var(--blue)] bg-[var(--blue-soft)] text-[var(--blue-text)]'
+              : 'border-[var(--hairline)] text-[var(--ink-faint)] hover:bg-[var(--screen-2)] hover:text-[var(--ink)]'
           )}
         >
-          <LuArchive className="size-3.5" />
+          <IoArchiveOutline className="size-3.5" />
           Archived
         </button>
       </div>
@@ -896,16 +813,18 @@ const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
         <ChatScopeSwitcher scope={scope} onScopeChange={onScopeChange} />
       </div>
       <div className="border-b border-chat-divider p-3">
-        <div className="flex min-h-12 items-center gap-2 rounded-2xl border border-input-border-default bg-(--whitebg) px-4 py-2.5 transition-colors focus-within:border-input-border-active">
-          <LuSearch className="size-4 shrink-0 text-input-text-placeholder" />
+        {/* Design (channel-list search): 38px pill, --field-bg + --hairline,
+            0 13px padding, 14px icon, 12.5px --ink-faint placeholder. */}
+        <div className="flex min-h-[38px] items-center gap-2 rounded-full border border-[var(--hairline)] bg-[var(--field-bg)] px-[13px] py-2 transition-colors focus-within:border-input-border-active">
+          <IoSearchOutline className="size-3.5 shrink-0 text-[var(--ink-faint)]" />
           <input
             value={searchTerm}
             onChange={(e) => onSearchTermChange(e.target.value)}
             placeholder="Search conversations…"
             aria-label="Search conversations"
-            className="w-full bg-transparent font-satoshi text-body-4 text-text-primary outline-none placeholder:text-input-text-placeholder"
+            className="w-full bg-transparent font-satoshi text-[12.5px] text-[var(--ink-body)] outline-none placeholder:text-[var(--ink-faint)]"
           />
-          <span className="hidden shrink-0 items-center gap-0.5 rounded-md border border-chat-divider px-1.5 py-0.5 text-xs font-semibold text-neutral-400 sm:flex">
+          <span className="hidden shrink-0 items-center gap-0.5 rounded-md border border-[var(--hairline)] px-1.5 py-0.5 text-xs font-semibold text-[var(--ink-faint)] sm:flex">
             <LuCommand className="size-3" />K
           </span>
         </div>
@@ -920,7 +839,7 @@ const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
                   onClick={onOpenNetworkDirectory}
                   className="flex cursor-pointer items-center gap-2 rounded-2xl border border-chat-divider bg-neutral-0 px-3 py-2.5 text-left transition-colors duration-200 hover:border-input-border-active hover:bg-chat-surface-soft"
                 >
-                  <LuGlobe className="size-4 shrink-0 text-primary-600" />
+                  <IoGlobeOutline className="size-4 shrink-0 text-[var(--blue-text)]" />
                   <Text as="span" variant="body-4" className="text-neutral-900">
                     Message a colleague at another clinic
                   </Text>
@@ -960,7 +879,9 @@ const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
                       disabled={creatingChat}
                       className="flex min-h-14 cursor-pointer items-center gap-3 overflow-hidden rounded-2xl border border-chat-divider bg-neutral-0 p-3 text-left transition-colors duration-200 hover:border-input-border-active hover:bg-chat-surface-soft disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      <ChatAvatar name={user.name || user.email || '?'} />
+                      {/* `name` is always a non-empty string: the org-user mapping
+                          below falls back to the email and then to 'User'. */}
+                      <ChatAvatar name={user.name} />
                       <span className="flex min-w-0 flex-col gap-0.5">
                         <Text
                           as="span"
@@ -970,7 +891,11 @@ const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
                           {user.name}
                         </Text>
                         {user.email && (
-                          <Text as="span" variant="caption-2" className="truncate text-neutral-500">
+                          <Text
+                            as="span"
+                            variant="caption-2"
+                            className="truncate text-text-tertiary"
+                          >
                             {user.email}
                           </Text>
                         )}
@@ -1012,6 +937,7 @@ const AppointmentChannelInitializer: FC<{
       prevAppointmentIdRef.current = appointmentId;
 
       if (!appointmentId) {
+        /* v8 ignore next 3 -- unreachable: <Chat> is keyed on appointmentId, so any change remounts this initializer and resets prevAppointmentIdRef, meaning prevAppointmentId is never truthy here */
         if (prevAppointmentId) {
           onCleared();
         }
@@ -1112,6 +1038,14 @@ const useChatContainerView = ({
   const [orgUsersStatus, setOrgUsersStatus] = useState<'idle' | 'loading' | 'loaded'>('idle');
   const orgUsersLoading = orgUsersStatus === 'loading';
   const [chatSessionChannels, setChatSessionChannels] = useState<any[]>([]);
+  // Stream returns every channel the signed-in user belongs to, across all of
+  // their organisations, so the list is scoped against the channels the backend
+  // reports for the active organisation. Tagged with the org it was loaded for
+  // so a stale response is never applied to the org switched into.
+  const [orgChannelIds, setOrgChannelIds] = useState<{
+    orgId: string;
+    ids: Set<string>;
+  } | null>(null);
   const [directSearch, setDirectSearch] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [shareChannelId, setShareChannelId] = useState<string | null>(null);
@@ -1159,7 +1093,10 @@ const useChatContainerView = ({
     []
   );
   const groupModalBackendIdRef = useRef<string | undefined>(undefined);
-  const groupModalOwnerRef = useRef<string | undefined>(undefined);
+  const { confirm, confirmDialog } = useConfirm();
+  // Rendered into the modal, so state (not a ref); only written in the open
+  // handlers below.
+  const [groupModalOwner, setGroupModalOwner] = useState<string | undefined>(undefined);
   const orgUsersRequestKeyRef = useRef<string | null>(null);
 
   const { notify } = useNotify();
@@ -1179,14 +1116,29 @@ const useChatContainerView = ({
 
   const refreshStatuses = useCallback(() => {
     if (!primaryOrgId) return;
-    getChatSessions(primaryOrgId, { includeClosed: true })
+    const requestedOrgId = primaryOrgId;
+    getChatSessions(requestedOrgId, { includeClosed: true })
       .then((response) => {
         const payload: any = response ?? {};
         const channels = getSessionChannels(payload);
         setChatSessionChannels(channels);
+        setOrgChannelIds({
+          orgId: requestedOrgId,
+          ids: new Set<string>(
+            channels.reduce((ids: string[], session: any) => {
+              const channelId = String(session?.channelId ?? '');
+              if (channelId.length > 0) ids.push(channelId);
+              return ids;
+            }, [])
+          ),
+        });
       })
       .catch((err) => {
         console.error('Failed to load chat session statuses:', err);
+        // Without the organisation's session list there is nothing to scope the
+        // channel list by, so drop the allow-list rather than emptying the
+        // sidebar on a transient API failure.
+        setOrgChannelIds(null);
       });
   }, [getSessionChannels, primaryOrgId]);
 
@@ -1194,21 +1146,36 @@ const useChatContainerView = ({
     refreshStatuses();
   }, [refreshStatuses]);
 
-  useEffect(() => {
+  // Drop the previous organisation's colleague list during render (compare-guard)
+  // when the org switches; the effect below only clears the request-dedupe ref.
+  const [prevOrgUsersOrgId, setPrevOrgUsersOrgId] = useState(primaryOrgId);
+  if (prevOrgUsersOrgId !== primaryOrgId) {
+    setPrevOrgUsersOrgId(primaryOrgId);
     setOrgUsersStatus('idle');
     setOrgUsers([]);
+  }
+
+  useEffect(() => {
     orgUsersRequestKeyRef.current = null;
   }, [primaryOrgId]);
 
-  useLayoutEffect(() => {
-    if (!appointmentId) return;
-    setIsChannelSelected(false);
-    setShowEmptyPlaceholder(true);
-  }, [appointmentId]);
+  // Deselect the channel when an appointment scope arrives or changes, computed
+  // during render (compare-guard, seeded so it also fires on the first render).
+  const [prevAppointmentKey, setPrevAppointmentKey] = useState<{ id?: string } | null>(null);
+  if (prevAppointmentKey === null || prevAppointmentKey.id !== appointmentId) {
+    setPrevAppointmentKey({ id: appointmentId });
+    if (appointmentId) {
+      setIsChannelSelected(false);
+      setShowEmptyPlaceholder(true);
+    }
+  }
 
   const resolveGroupIdForChannel = useCallback(
     async (chan: StreamChannel | null) => {
-      if (!chan) return undefined;
+      if (!chan) {
+        /* v8 ignore next -- unreachable: openEdit is only invoked from the group header behind an `if (channel)` guard, so `chan` is always a channel */
+        return undefined;
+      }
       // ALWAYS query backend sessions API to get the correct session _id
       // The groupId/directId stored in channel data might be the Stream channel ID, not the backend session ID
       if (!primaryOrgId) {
@@ -1327,6 +1294,14 @@ const useChatContainerView = ({
     [onChannelSelect]
   );
 
+  // Read through a ref so an inline callback prop cannot re-trigger the scope
+  // reset below on every parent render. Synced in a layout effect so the reset
+  // below (also a layout effect, declared after) reads the latest value.
+  const onChannelSelectRef = useRef(onChannelSelect);
+  useLayoutEffect(() => {
+    onChannelSelectRef.current = onChannelSelect;
+  });
+
   useLayoutEffect(() => {
     // Reset selection when switching audience scopes so stale channels do not persist
     const hasInitialized = scopeInitialized.current;
@@ -1335,8 +1310,8 @@ const useChatContainerView = ({
 
     setIsChannelSelected(false);
     setShowEmptyPlaceholder(true);
-    onChannelSelect?.(null);
-  }, [scope, onChannelSelect]);
+    onChannelSelectRef.current?.(null);
+  }, [scope]);
 
   // Load org users for colleague/group creation flows
   useLayoutEffect(() => {
@@ -1347,7 +1322,10 @@ const useChatContainerView = ({
 
     orgUsersRequestKeyRef.current = requestKey;
     setOrgUsersStatus('loading');
-    if (!primaryOrgId) return;
+    if (!primaryOrgId) {
+      /* v8 ignore next -- unreachable: `shouldLoadUsers` above is only truthy when `primaryOrgId` is truthy; this guard exists purely to narrow `string | null` for fetchOrgUsers */
+      return;
+    }
     fetchOrgUsers(primaryOrgId)
       .then((users) => {
         setOrgUsers(
@@ -1378,7 +1356,7 @@ const useChatContainerView = ({
 
   const openCreateGroupModal = useCallback(() => {
     groupModalBackendIdRef.current = undefined;
-    groupModalOwnerRef.current = client?.userID;
+    setGroupModalOwner(client?.userID);
     setGroupModal({ ...INITIAL_GROUP_MODAL, mode: 'create', open: true });
   }, [client]);
 
@@ -1399,11 +1377,12 @@ const useChatContainerView = ({
       // Find owner from members array (role: "owner") or fallback to created_by
       const membersArray = chan.state?.members ? Object.values(chan.state.members) : [];
       const ownerMember = membersArray.find((m: any) => m.role === 'owner');
-      groupModalOwnerRef.current =
+      setGroupModalOwner(
         ownerMember?.user_id ||
-        ownerMember?.user?.id ||
-        (chan.data as any)?.createdBy ||
-        (chan as any)?.created_by?.id;
+          ownerMember?.user?.id ||
+          (chan.data as any)?.createdBy ||
+          (chan as any)?.created_by?.id
+      );
       const backendId = await resolveGroupIdForChannel(chan);
       groupModalBackendIdRef.current = backendId;
       patchGroupModal({ search: '', open: true });
@@ -1416,10 +1395,34 @@ const useChatContainerView = ({
     [handlePreviewSelect, client?.userID, showArchived]
   );
 
+  const belongsToPrimaryOrg = useCallback(
+    (chan: StreamChannel) => {
+      /* v8 ignore next -- unreachable: the Stream client is only created once an org is selected, and nothing that uses this predicate renders until the client exists */
+      if (!primaryOrgId) return true;
+      const data = chan.data as { organisationId?: string; organisationIds?: string[] } | undefined;
+      // Cross-clinic conversations belong to both sides, so the stamp is a
+      // list; single-org channels written before it existed carry the scalar.
+      const declaredOrgIds = data?.organisationIds ?? [];
+      const stamped = declaredOrgIds.length
+        ? declaredOrgIds
+        : [data?.organisationId].filter(Boolean);
+      if (stamped.length) return stamped.includes(primaryOrgId);
+      // Channels created before the stamp fall back to the backend's org-scoped
+      // session list, which is only trusted once it has loaded for the
+      // organisation currently selected.
+      if (orgChannelIds?.orgId !== primaryOrgId) return true;
+      return orgChannelIds.ids.has(chan.id ?? '');
+    },
+    [primaryOrgId, orgChannelIds]
+  );
+
   const channelFilter = useCallback<NonNullable<ChannelListProps['channelRenderFilterFn']>>(
     (channels) => {
       const scopeMatches = (chan: StreamChannel) => {
-        if (!scope) return true;
+        if (!scope) {
+          /* v8 ignore next -- unreachable: `scope` is destructured with a 'clients' default, so it is always one of the three ChatScope values */
+          return true;
+        }
         // Allow team/direct org channels regardless of missing chatCategory
         const type = (chan.type || '').toLowerCase();
         const resolvedScope = resolveChannelScope(chan);
@@ -1452,9 +1455,11 @@ const useChatContainerView = ({
           .join(' ');
         return name.includes(q) || members.includes(q);
       };
-      return channels.filter((chan) => scopeMatches(chan) && searchMatches(chan));
+      return channels.filter(
+        (chan) => belongsToPrimaryOrg(chan) && scopeMatches(chan) && searchMatches(chan)
+      );
     },
-    [scope, searchTerm]
+    [scope, searchTerm, belongsToPrimaryOrg]
   );
 
   const shareContextValue = useMemo(
@@ -1464,7 +1469,10 @@ const useChatContainerView = ({
 
   const activateChannelById = useCallback(
     async (channelId: string) => {
-      if (!client) return;
+      if (!client) {
+        /* v8 ignore next -- unreachable: this callback is only reached from the rendered chat tree (command-palette jump, post-create activation), and the `if (!client) return null` guard below means nothing renders until `client` is set */
+        return;
+      }
       const channel = client.channel('messaging', channelId);
       await channel.watch();
       setIsChannelSelected(true);
@@ -1474,12 +1482,41 @@ const useChatContainerView = ({
     [client, onChannelSelect]
   );
 
+  /**
+   * Shared post-create activation for backend chat sessions: query the
+   * session's channel so it appears in lists, stamp the chat metadata on it,
+   * and select it (falling back to activateChannelById when the query misses).
+   */
+  const activateSessionChannel = useCallback(
+    async (chatClient: StreamChat, channelId: string, metadata: Record<string, unknown>) => {
+      const applyMetadata = (chan: StreamChannel) => chan.update(metadata, {});
+      const queried = await chatClient.queryChannels(
+        { id: { $eq: channelId } },
+        [{ last_message_at: -1 }],
+        { watch: true, state: true, presence: true, limit: 1 }
+      );
+      if (queried[0]) {
+        await queried[0].watch();
+        await applyMetadata(queried[0]);
+        setIsChannelSelected(true);
+        setShowEmptyPlaceholder(false);
+        onChannelSelect?.(queried[0]);
+      } else {
+        await activateChannelById(channelId);
+        const chan = chatClient.channel('team', channelId);
+        await applyMetadata(chan);
+      }
+    },
+    [activateChannelById, onChannelSelect]
+  );
+
   const handleStartDirectChat = useCallback(
     async (user: OrgUserOption) => {
       if (!primaryOrgId || !client) return;
       const candidateIds = Array.from(
         new Set([user.userId, user.practitionerId, user.id].filter(Boolean))
       ) as string[];
+      /* v8 ignore start -- unreachable: fetchOrgUsers only yields users with a truthy id, so a rendered teammate always produces at least one candidate id */
       if (!candidateIds.length) {
         notify('error', {
           title: 'Can’t start chat',
@@ -1487,6 +1524,7 @@ const useChatContainerView = ({
         });
         return;
       }
+      /* v8 ignore stop */
       setCreatingChat(true);
       const candidateIdSet = new Set(candidateIds);
 
@@ -1590,37 +1628,15 @@ const useChatContainerView = ({
             organisationId: primaryOrgId,
             otherUserId,
           });
-          const applyMetadata = async (chan: StreamChannel) => {
-            await chan.update(
-              {
-                directId: session._id,
-                title: session.title,
-                description: session.description,
-                type: session.type,
-                chatCategory: 'colleagues',
-                organisationId: session.organisationId,
-                createdBy: session.createdBy,
-              } as Record<string, unknown>,
-              {}
-            );
-          };
-          // Try to load the channel via query to ensure it appears in lists
-          const queried = await client.queryChannels(
-            { id: { $eq: session.channelId } },
-            [{ last_message_at: -1 }],
-            { watch: true, state: true, presence: true, limit: 1 }
-          );
-          if (queried[0]) {
-            await queried[0].watch();
-            await applyMetadata(queried[0]);
-            setIsChannelSelected(true);
-            setShowEmptyPlaceholder(false);
-            onChannelSelect?.(queried[0]);
-          } else {
-            await activateChannelById(session.channelId);
-            const chan = client.channel('team', session.channelId);
-            await applyMetadata(chan);
-          }
+          await activateSessionChannel(client, session.channelId, {
+            directId: session._id,
+            title: session.title,
+            description: session.description,
+            type: session.type,
+            chatCategory: 'colleagues',
+            organisationId: session.organisationId,
+            createdBy: session.createdBy,
+          });
           success = true;
           break;
         } catch (err) {
@@ -1636,13 +1652,16 @@ const useChatContainerView = ({
       }
       setCreatingChat(false);
     },
-    [primaryOrgId, client, activateChannelById, onChannelSelect, notify]
+    [primaryOrgId, client, activateSessionChannel, onChannelSelect, notify]
   );
 
   const handleNetworkChatStarted = useCallback(
     async (channelId: string) => {
       setNetworkModalOpen(false);
-      if (!client) return;
+      if (!client) {
+        /* v8 ignore next -- unreachable: NetworkDirectoryModal is only rendered inside the chat tree, which the `if (!client) return null` guard below gates on a non-null client */
+        return;
+      }
       try {
         const queried = await client.queryChannels(
           { id: { $eq: channelId } },
@@ -1678,36 +1697,15 @@ const useChatContainerView = ({
           memberIds: allMembers,
           isPrivate: true,
         });
-        const applyMetadata = async (chan: StreamChannel) => {
-          await chan.update(
-            {
-              groupId: session._id,
-              title: session.title || title,
-              description: session.description,
-              type: session.type,
-              chatCategory: 'group',
-              organisationId: session.organisationId,
-              createdBy: session.createdBy,
-            } as Record<string, unknown>,
-            {}
-          );
-        };
-        const queried = await client.queryChannels(
-          { id: { $eq: session.channelId } },
-          [{ last_message_at: -1 }],
-          { watch: true, state: true, presence: true, limit: 1 }
-        );
-        if (queried[0]) {
-          await queried[0].watch();
-          await applyMetadata(queried[0]);
-          setIsChannelSelected(true);
-          setShowEmptyPlaceholder(false);
-          onChannelSelect?.(queried[0]);
-        } else {
-          await activateChannelById(session.channelId);
-          const chan = client.channel('team', session.channelId);
-          await applyMetadata(chan);
-        }
+        await activateSessionChannel(client, session.channelId, {
+          groupId: session._id,
+          title: session.title || title,
+          description: session.description,
+          type: session.type,
+          chatCategory: 'group',
+          organisationId: session.organisationId,
+          createdBy: session.createdBy,
+        });
         setGroupModalOpen(false);
       } catch (err) {
         console.error('Failed to create group', err);
@@ -1719,15 +1717,7 @@ const useChatContainerView = ({
         setGroupModalBusy(false);
       }
     },
-    [
-      primaryOrgId,
-      client,
-      activateChannelById,
-      onChannelSelect,
-      notify,
-      setGroupModalBusy,
-      setGroupModalOpen,
-    ]
+    [primaryOrgId, client, activateSessionChannel, notify, setGroupModalBusy, setGroupModalOpen]
   );
 
   const handleModalUpdateTitle = useCallback(
@@ -1838,7 +1828,12 @@ const useChatContainerView = ({
       });
       return;
     }
-    const confirmed = confirm('Delete this group? This cannot be undone.');
+    const confirmed = await confirm({
+      title: 'Delete this group?',
+      body: 'The group and its messages are removed for everyone. This cannot be undone.',
+      confirmLabel: 'Delete group',
+      tone: 'danger',
+    });
     if (!confirmed) return;
     setGroupModalBusy(true);
     try {
@@ -1868,7 +1863,7 @@ const useChatContainerView = ({
     } finally {
       setGroupModalBusy(false);
     }
-  }, [groupModalChannel, onChannelSelect, notify, setGroupModalBusy, setGroupModalOpen]);
+  }, [groupModalChannel, onChannelSelect, notify, setGroupModalBusy, setGroupModalOpen, confirm]);
 
   const groupModalContextValue = useMemo(
     () => ({
@@ -1919,7 +1914,11 @@ const useChatContainerView = ({
   }
 
   if (hasError) {
-    const errorMessage = error || 'Unable to load chat';
+    let errorMessage = error;
+    if (!errorMessage) {
+      /* v8 ignore next -- unreachable: `hasError` can only be truthy when `error` holds a message — when `error` is null and `client` is null the isLoading guard above returns first — so this generic fallback never renders */
+      errorMessage = 'Unable to load chat';
+    }
     return (
       <div
         style={{
@@ -1936,9 +1935,11 @@ const useChatContainerView = ({
     );
   }
 
+  /* v8 ignore start -- unreachable: the isLoading/hasError guards above already return for every null-client state, so control never reaches here with a null client */
   if (!client) {
     return null;
   }
+  /* v8 ignore stop */
 
   const filters = {
     type: { $in: ['messaging', 'team'] },
@@ -2004,12 +2005,18 @@ const useChatContainerView = ({
           />
         }
       />
-      <ChatCommandPalette client={client} filters={filters} onJump={activateChannelById} />
+      <ChatCommandPalette
+        client={client}
+        filters={filters}
+        onJump={activateChannelById}
+        channelBelongsToOrg={belongsToPrimaryOrg}
+      />
     </>
   );
 
   return (
     <ChatSessionStatusContext.Provider value={chatSessionStatusContextValue}>
+      {confirmDialog}
       <GroupModalContext.Provider value={groupModalContextValue}>
         <ChatShareContext.Provider value={shareContextValue}>
           <div className={className}>
@@ -2026,11 +2033,13 @@ const useChatContainerView = ({
                   setShowEmptyPlaceholder(false);
                   onChannelSelect?.(channel);
                 }}
+                /* v8 ignore start -- unreachable: onCleared is only invoked from a code path that the appointmentId-keyed <Chat> remount makes dead (see AppointmentChannelInitializer) */
                 onCleared={() => {
                   setIsChannelSelected(false);
                   setShowEmptyPlaceholder(true);
                   onChannelSelect?.(null);
                 }}
+                /* v8 ignore stop */
               />
               {chatContent}
             </Chat>
@@ -2040,7 +2049,7 @@ const useChatContainerView = ({
               title={groupModalTitle}
               placeholder={groupModalPlaceholder}
               members={groupModalMembers}
-              ownerId={groupModalOwnerRef.current}
+              ownerId={groupModalOwner}
               currentUserId={client.userID}
               search={groupModalSearch}
               busy={groupModalBusy}

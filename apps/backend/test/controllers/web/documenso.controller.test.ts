@@ -7,6 +7,7 @@ import {
   it,
   jest,
 } from "@jest/globals";
+import crypto from "crypto";
 import type { Request, Response } from "express";
 import { DocumensoWebhookController } from "../../../src/controllers/web/documenso.controller";
 import { prisma } from "../../../src/config/prisma";
@@ -60,9 +61,6 @@ jest.mock("../../../src/config/prisma", () => ({
       findUnique: jest.fn(),
     },
   },
-}));
-jest.mock("../../../src/config/read-switch", () => ({
-  isReadFromPostgres: jest.fn(() => true),
 }));
 jest.mock("../../../src/services/pet-clinical-records.service", () => ({
   notifyOwnerOfPassportUpdate: jest.fn(),
@@ -131,16 +129,54 @@ describe("DocumensoWebhookController", () => {
     expect(jsonMock).toHaveBeenCalledWith({ message: "Invalid payload" });
   });
 
-  it("completes a passport clinical record when its document signs", async () => {
+  it("rejects payloads that carry an event but no document id", async () => {
     req = {
       ...req,
       body: Buffer.from(
         JSON.stringify({
           event: "DOCUMENT_COMPLETED",
-          payload: { id: "doc-pass-1" },
+          payload: {},
         }),
       ),
     };
+
+    const mockedPrisma = prisma as any;
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
+    expect(mockedPrisma.formSubmission.findFirst).not.toHaveBeenCalled();
+    expect(mockedLogger.error).toHaveBeenCalledWith(
+      "[DocumensoWebhook] Invalid payload",
+    );
+    expect(statusMock).toHaveBeenCalledWith(400);
+    expect(jsonMock).toHaveBeenCalledWith({ message: "Invalid payload" });
+  });
+
+  /**
+   * A passport attestation is only honoured from a cryptographically verified
+   * callback, so these tests must configure the secret and sign the body the
+   * same way Documenso does (HMAC-SHA256 hex over the raw payload).
+   */
+  const PASSPORT_SECRET = "passport-webhook-secret";
+  const signedPassportRequest = (body: Record<string, unknown>) => {
+    process.env.DOCUMENSO_WEBHOOK_SECRET = PASSPORT_SECRET;
+    const raw = Buffer.from(JSON.stringify(body));
+    const signature = crypto
+      .createHmac("sha256", PASSPORT_SECRET)
+      .update(raw)
+      .digest("hex");
+    return {
+      ...req,
+      body: raw,
+      headers: { "x-documenso-signature": signature },
+    };
+  };
+
+  it("completes a passport clinical record when its document signs", async () => {
+    req = signedPassportRequest({
+      event: "DOCUMENT_COMPLETED",
+      payload: { id: "doc-pass-1" },
+    });
     const mockedPrisma = prisma as any;
     mockedPrisma.clinicalArtifactAttestation.findFirst.mockResolvedValueOnce({
       id: "att-1",
@@ -166,16 +202,88 @@ describe("DocumensoWebhookController", () => {
     expect(mockedPrisma.formSubmission.findFirst).not.toHaveBeenCalled();
   });
 
-  it("completes a passport record with no encounter without notifying", async () => {
+  it("never resurrects a record revoked while its signature was outstanding", async () => {
+    req = signedPassportRequest({
+      event: "DOCUMENT_COMPLETED",
+      payload: { id: "doc-pass-revoked" },
+    });
+    const mockedPrisma = prisma as any;
+    // The revoked/superseded/VOID filter is applied in the query itself, so a
+    // revoked record simply does not match and nothing is updated.
+    mockedPrisma.clinicalArtifactAttestation.findFirst.mockResolvedValueOnce(
+      null,
+    );
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
+    expect(
+      mockedPrisma.clinicalArtifactAttestation.findFirst,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          documensoDocumentId: "doc-pass-revoked",
+          revokedAt: null,
+          supersededById: null,
+          artifact: { status: { not: "VOID" } },
+        }),
+      }),
+    );
+    expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
+    expect(notifyOwnerOfPassportUpdate).not.toHaveBeenCalled();
+  });
+
+  it("refuses to attest a passport record when the webhook is unverified", async () => {
+    // No DOCUMENSO_WEBHOOK_SECRET: the document id is the only credential, and
+    // it is an external identifier, so it must not create a clinical signature.
+    delete process.env.DOCUMENSO_WEBHOOK_SECRET;
     req = {
       ...req,
       body: Buffer.from(
         JSON.stringify({
           event: "DOCUMENT_COMPLETED",
-          payload: { id: "doc-pass-2" },
+          payload: { id: "doc-pass-forged" },
         }),
       ),
+      headers: {},
     };
+    const mockedPrisma = prisma as any;
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
+    expect(
+      mockedPrisma.clinicalArtifactAttestation.findFirst,
+    ).not.toHaveBeenCalled();
+    expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
+    expect(mockedLogger.warn).toHaveBeenCalledWith(
+      expect.stringContaining("webhook signature not verified"),
+    );
+  });
+
+  it("rejects a passport completion carrying a bad signature", async () => {
+    process.env.DOCUMENSO_WEBHOOK_SECRET = PASSPORT_SECRET;
+    req = {
+      ...req,
+      body: Buffer.from(
+        JSON.stringify({
+          event: "DOCUMENT_COMPLETED",
+          payload: { id: "doc-pass-1" },
+        }),
+      ),
+      // Deliberately the wrong length, which used to throw inside
+      // timingSafeEqual and surface as a 500 rather than a 401.
+      headers: { "x-documenso-signature": "deadbeef" },
+    };
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
+    expect(statusMock).toHaveBeenCalledWith(401);
+  });
+
+  it("completes a passport record with no encounter without notifying", async () => {
+    req = signedPassportRequest({
+      event: "DOCUMENT_COMPLETED",
+      payload: { id: "doc-pass-2" },
+    });
     const mockedPrisma = prisma as any;
     mockedPrisma.clinicalArtifactAttestation.findFirst.mockResolvedValueOnce({
       id: "att-2",
@@ -364,5 +472,361 @@ describe("DocumensoWebhookController", () => {
     expect(mockedPacketService.resetSigning).not.toHaveBeenCalled();
     expect(statusMock).toHaveBeenCalledWith(200);
     expect(jsonMock).toHaveBeenCalledWith({ received: true });
+  });
+
+  it("returns 500 when a webhook lookup throws", async () => {
+    req = {
+      ...req,
+      body: Buffer.from(
+        JSON.stringify({
+          event: "DOCUMENT_COMPLETED",
+          payload: { id: "boom-doc" },
+        }),
+      ),
+    };
+
+    const mockedPrisma = prisma as any;
+    mockedPrisma.formSubmission.findFirst.mockRejectedValue(
+      new Error("db down"),
+    );
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
+    expect(mockedLogger.error).toHaveBeenCalledWith(
+      "[DocumensoWebhook] Error",
+      expect.any(Error),
+    );
+    expect(statusMock).toHaveBeenCalledWith(500);
+    expect(jsonMock).toHaveBeenCalledWith({ message: "Webhook failed" });
+  });
+
+  it("returns 500 when the form is missing for a completed document", async () => {
+    req = {
+      ...req,
+      body: Buffer.from(
+        JSON.stringify({
+          event: "DOCUMENT_COMPLETED",
+          payload: { id: "doc-nf" },
+        }),
+      ),
+    };
+
+    const mockedPrisma = prisma as any;
+    mockedPrisma.formSubmission.findFirst.mockResolvedValue({
+      id: "submission-nf",
+      formId: "form-nf",
+      formVersion: 1,
+      appointmentId: null,
+      patientId: null,
+      parentId: null,
+      signing: { status: "NOT_STARTED", documentId: "doc-nf" },
+    });
+    mockedPrisma.form.findUnique.mockResolvedValue(null);
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
+    expect(mockedPrisma.form.findUnique).toHaveBeenCalledWith({
+      where: { id: "form-nf" },
+      select: { orgId: true },
+    });
+    expect(mockedPrisma.formSubmission.update).not.toHaveBeenCalled();
+    expect(mockedLogger.error).toHaveBeenCalledWith(
+      "[DocumensoWebhook] Error",
+      expect.any(Error),
+    );
+    expect(statusMock).toHaveBeenCalledWith(500);
+    expect(jsonMock).toHaveBeenCalledWith({ message: "Webhook failed" });
+  });
+
+  it("returns 500 when the organisation has no Documenso API key", async () => {
+    req = {
+      ...req,
+      body: Buffer.from(
+        JSON.stringify({
+          event: "DOCUMENT_COMPLETED",
+          payload: { id: "doc-nokey" },
+        }),
+      ),
+    };
+
+    const mockedPrisma = prisma as any;
+    mockedPrisma.formSubmission.findFirst.mockResolvedValue({
+      id: "submission-nokey",
+      formId: "form-nokey",
+      formVersion: 1,
+      appointmentId: null,
+      patientId: null,
+      parentId: null,
+      signing: { status: "NOT_STARTED", documentId: "doc-nokey" },
+    });
+    mockedPrisma.form.findUnique.mockResolvedValue({ orgId: "org-nokey" });
+
+    const mockedDocumensoService = DocumensoService as unknown as {
+      resolveOrganisationApiKey: jest.Mock;
+      downloadSignedDocument: jest.Mock;
+    };
+    (mockedDocumensoService.resolveOrganisationApiKey as any).mockResolvedValue(
+      null,
+    );
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
+    expect(
+      mockedDocumensoService.downloadSignedDocument,
+    ).not.toHaveBeenCalled();
+    expect(mockedPrisma.formSubmission.update).not.toHaveBeenCalled();
+    expect(statusMock).toHaveBeenCalledWith(500);
+    expect(jsonMock).toHaveBeenCalledWith({ message: "Webhook failed" });
+  });
+
+  it("returns 500 when the signing payload has no document id", async () => {
+    req = {
+      ...req,
+      body: Buffer.from(
+        JSON.stringify({
+          event: "DOCUMENT_COMPLETED",
+          payload: { id: "doc-noid" },
+        }),
+      ),
+    };
+
+    const mockedPrisma = prisma as any;
+    mockedPrisma.formSubmission.findFirst.mockResolvedValue({
+      id: "submission-noid",
+      formId: "form-noid",
+      formVersion: 1,
+      appointmentId: null,
+      patientId: null,
+      parentId: null,
+      signing: { status: "NOT_STARTED" },
+    });
+    mockedPrisma.form.findUnique.mockResolvedValue({ orgId: "org-noid" });
+
+    const mockedDocumensoService = DocumensoService as unknown as {
+      resolveOrganisationApiKey: jest.Mock;
+      downloadSignedDocument: jest.Mock;
+    };
+    (mockedDocumensoService.resolveOrganisationApiKey as any).mockResolvedValue(
+      "some-key",
+    );
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
+    expect(
+      mockedDocumensoService.downloadSignedDocument,
+    ).not.toHaveBeenCalled();
+    expect(mockedPrisma.formSubmission.update).not.toHaveBeenCalled();
+    expect(statusMock).toHaveBeenCalledWith(500);
+    expect(jsonMock).toHaveBeenCalledWith({ message: "Webhook failed" });
+  });
+
+  it("still returns 200 when form assignment sync fails after completion", async () => {
+    req = {
+      ...req,
+      body: Buffer.from(
+        JSON.stringify({
+          event: "DOCUMENT_COMPLETED",
+          payload: { id: "doc-sync" },
+        }),
+      ),
+    };
+
+    const mockedPrisma = prisma as any;
+    mockedPrisma.formSubmission.findFirst.mockResolvedValue({
+      id: "submission-sync",
+      formId: "form-sync",
+      formVersion: 3,
+      appointmentId: "appt-9",
+      patientId: "comp-9",
+      parentId: "parent-9",
+      signing: { status: "NOT_STARTED", documentId: "555" },
+    });
+    mockedPrisma.formSubmission.update.mockResolvedValue(undefined);
+    mockedPrisma.form.findUnique.mockResolvedValue({ orgId: "org-sync" });
+
+    const mockedDocumensoService = DocumensoService as unknown as {
+      resolveOrganisationApiKey: jest.Mock;
+      downloadSignedDocument: jest.Mock;
+    };
+    (mockedDocumensoService.resolveOrganisationApiKey as any).mockResolvedValue(
+      "sync-key",
+    );
+    (mockedDocumensoService.downloadSignedDocument as any).mockResolvedValue({
+      downloadUrl: "https://files.example/synced.pdf",
+    });
+
+    const mockedAssignmentService = FormAssignmentService as unknown as {
+      markSignedFromSubmission: jest.Mock;
+    };
+    (mockedAssignmentService.markSignedFromSubmission as any).mockRejectedValue(
+      new Error("assignment sync failed"),
+    );
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
+    expect(mockedPrisma.formSubmission.update).toHaveBeenCalled();
+    expect(mockedLogger.warn).toHaveBeenCalledWith(
+      "[DocumensoWebhook] Failed to sync form assignment signed status",
+      expect.objectContaining({ submissionId: "submission-sync" }),
+    );
+    expect(statusMock).toHaveBeenCalledWith(200);
+  });
+
+  it("marks the submission signed without a pdf when download returns nothing", async () => {
+    req = {
+      ...req,
+      body: Buffer.from(
+        JSON.stringify({
+          event: "DOCUMENT_COMPLETED",
+          payload: { id: "doc-nopdf" },
+        }),
+      ),
+    };
+
+    const mockedPrisma = prisma as any;
+    mockedPrisma.formSubmission.findFirst.mockResolvedValue({
+      id: "submission-nopdf",
+      formId: "form-nopdf",
+      formVersion: 1,
+      appointmentId: null,
+      patientId: null,
+      parentId: null,
+      signing: { status: "NOT_STARTED", documentId: "777" },
+    });
+    mockedPrisma.formSubmission.update.mockResolvedValue(undefined);
+    mockedPrisma.form.findUnique.mockResolvedValue({ orgId: "org-nopdf" });
+
+    const mockedDocumensoService = DocumensoService as unknown as {
+      resolveOrganisationApiKey: jest.Mock;
+      downloadSignedDocument: jest.Mock;
+    };
+    (mockedDocumensoService.resolveOrganisationApiKey as any).mockResolvedValue(
+      "nopdf-key",
+    );
+    (mockedDocumensoService.downloadSignedDocument as any).mockResolvedValue(
+      null,
+    );
+
+    const mockedAssignmentService = FormAssignmentService as unknown as {
+      markSignedFromSubmission: jest.Mock;
+    };
+    (mockedAssignmentService.markSignedFromSubmission as any).mockResolvedValue(
+      undefined,
+    );
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
+    const updateArg = mockedPrisma.formSubmission.update.mock.calls[0][0];
+    expect(updateArg.where).toEqual({ id: "submission-nopdf" });
+    expect(updateArg.data.signing.status).toBe("SIGNED");
+    expect(updateArg.data.signing.pdf).toBeUndefined();
+    expect(statusMock).toHaveBeenCalledWith(200);
+  });
+
+  it("skips completion work when the submission is already signed", async () => {
+    req = {
+      ...req,
+      body: Buffer.from(
+        JSON.stringify({
+          event: "DOCUMENT_COMPLETED",
+          payload: { id: "doc-signed" },
+        }),
+      ),
+    };
+
+    const mockedPrisma = prisma as any;
+    mockedPrisma.formSubmission.findFirst.mockResolvedValue({
+      id: "submission-signed",
+      formId: "form-signed",
+      formVersion: 1,
+      appointmentId: null,
+      patientId: null,
+      parentId: null,
+      signing: { status: "SIGNED", documentId: "doc-signed" },
+    });
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
+    expect(mockedPrisma.form.findUnique).not.toHaveBeenCalled();
+    expect(mockedPrisma.formSubmission.update).not.toHaveBeenCalled();
+    expect(statusMock).toHaveBeenCalledWith(200);
+    expect(jsonMock).toHaveBeenCalledWith({ received: true });
+  });
+
+  it("skips completion work when the submission has no signing payload", async () => {
+    req = {
+      ...req,
+      body: Buffer.from(
+        JSON.stringify({
+          event: "DOCUMENT_COMPLETED",
+          payload: { id: "doc-nosign" },
+        }),
+      ),
+    };
+
+    const mockedPrisma = prisma as any;
+    mockedPrisma.formSubmission.findFirst.mockResolvedValue({
+      id: "submission-nosign",
+      formId: "form-nosign",
+      formVersion: 1,
+      appointmentId: null,
+      patientId: null,
+      parentId: null,
+      signing: null,
+    });
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
+    expect(mockedPrisma.form.findUnique).not.toHaveBeenCalled();
+    expect(mockedPrisma.formSubmission.update).not.toHaveBeenCalled();
+    expect(statusMock).toHaveBeenCalledWith(200);
+  });
+
+  it("skips reset when a deleted submission is already signed", async () => {
+    req = {
+      ...req,
+      body: Buffer.from(
+        JSON.stringify({
+          event: "DOCUMENT_DELETED",
+          payload: { id: "doc-delsigned" },
+        }),
+      ),
+    };
+
+    const mockedPrisma = prisma as any;
+    mockedPrisma.formSubmission.findFirst.mockResolvedValue({
+      id: "submission-delsigned",
+      formId: "form-delsigned",
+      signing: { status: "SIGNED", documentId: "888" },
+    });
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
+    expect(mockedPrisma.formSubmission.update).not.toHaveBeenCalled();
+    expect(statusMock).toHaveBeenCalledWith(200);
+  });
+
+  it("skips reset when a deleted submission has no signing payload", async () => {
+    req = {
+      ...req,
+      body: Buffer.from(
+        JSON.stringify({
+          event: "DOCUMENT_DELETED",
+          payload: { id: "doc-delnosign" },
+        }),
+      ),
+    };
+
+    const mockedPrisma = prisma as any;
+    mockedPrisma.formSubmission.findFirst.mockResolvedValue({
+      id: "submission-delnosign",
+      formId: "form-delnosign",
+      signing: null,
+    });
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
+    expect(mockedPrisma.formSubmission.update).not.toHaveBeenCalled();
+    expect(statusMock).toHaveBeenCalledWith(200);
   });
 });

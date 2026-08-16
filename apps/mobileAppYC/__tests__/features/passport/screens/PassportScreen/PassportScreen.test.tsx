@@ -23,6 +23,60 @@ jest.mock('@/features/passport/services/passportService', () => ({
   },
 }));
 
+// Mirrors src/localization/resources/en/common.json so the assertions below
+// read as the copy a user actually sees, while still proving every string
+// goes through t().
+const PASSPORT_TRANSLATIONS: Record<string, string> = {
+  'passport.title': 'Pet Passport',
+  'passport.empty': 'No passport has been issued for this pet yet.',
+  'passport.sexLabel': 'Sex',
+  'passport.dateOfBirthLabel': 'Date of birth',
+  'passport.microchipLabel': 'Microchip',
+  'passport.passportNumberLabel': 'Passport number',
+  'passport.issuingDetailsTitle': 'Issuing details',
+  'passport.issuingPracticeLabel': 'Issuing practice',
+  'passport.rabiesTitle': 'Rabies vaccination',
+  'passport.rabiesNextDue': 'Next due {{date}}',
+  'passport.rabiesOnRecord': 'On record',
+  'passport.vaccinationsTitle': 'Vaccinations',
+  'passport.vaccinationsEmpty': 'No vaccinations recorded',
+  'passport.parasiteTreatmentsTitle': 'Parasite treatments',
+  'passport.parasiteTreatmentsEmpty': 'No parasite treatments recorded',
+  'passport.rabiesTitrationsTitle': 'Rabies titrations',
+  'passport.rabiesTitrationsEmpty': 'No rabies titrations recorded',
+  'passport.clinicalExamsTitle': 'Clinical exams',
+  'passport.clinicalExamsEmpty': 'No clinical exams recorded',
+  'passport.resultLabel': 'Result',
+  'passport.resultValue': '{{value}} IU/mL',
+  'passport.fitForTravel': 'Fit for travel',
+  'passport.notFitForTravel': 'Not fit for travel',
+  'passport.findingsLabel': 'Findings',
+  'passport.addToAppleWallet': 'Add to Apple Wallet',
+  'passport.addToGoogleWallet': 'Add to Google Wallet',
+  'passport.walletErrorTitle': 'Wallet pass unavailable',
+  'passport.walletErrorMessage':
+    'This pet passport could not be added to {{wallet}} Wallet yet.',
+  'passport.uploadsTitle': 'Your uploads',
+  'passport.uploadsEmpty': 'No historical records uploaded yet.',
+  'passport.dateLabel': 'Date',
+  'passport.clinicLabel': 'Clinic',
+  'passport.pendingReview': 'Pending review',
+};
+
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, options?: Record<string, unknown>) => {
+      if (key === 'passport.recordCount') {
+        return `${options?.count} record${options?.count === 1 ? '' : 's'}`;
+      }
+      return (PASSPORT_TRANSLATIONS[key] ?? key).replace(
+        /{{(\w+)}}/g,
+        (_match, name: string) => String(options?.[name] ?? ''),
+      );
+    },
+  }),
+}));
+
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
 const mockParentNavigate = jest.fn();
@@ -284,6 +338,62 @@ describe('PassportScreen', () => {
     expect(getByText('Healthy')).toBeTruthy();
   });
 
+  it('renders the localised screen title', () => {
+    const store = buildStore({
+      passport: {byCompanionId: {}, loading: false, error: null},
+    });
+
+    const {getByText} = render(
+      <Provider store={store}>
+        <PassportScreen />
+      </Provider>,
+    );
+
+    expect(getByText('Pet Passport')).toBeTruthy();
+  });
+
+  it('pluralises the record count on each section', () => {
+    const store = buildStore({
+      passport: {
+        byCompanionId: {[mockCompanionId]: mockPassport},
+        loading: false,
+        error: null,
+      },
+    });
+
+    const {getAllByText} = render(
+      <Provider store={store}>
+        <PassportScreen />
+      </Provider>,
+    );
+
+    expect(getAllByText('1 record').length).toBe(4);
+    expect(getAllByText('Next due 01/01/2027').length).toBeGreaterThan(0);
+  });
+
+  it('falls back to the on-record subtitle when the rabies shot has no next due date', () => {
+    const store = buildStore({
+      passport: {
+        byCompanionId: {
+          [mockCompanionId]: {
+            ...mockPassport,
+            rabies: {...mockPassport.rabies, nextDueDate: undefined},
+          },
+        },
+        loading: false,
+        error: null,
+      },
+    });
+
+    const {getByText} = render(
+      <Provider store={store}>
+        <PassportScreen />
+      </Provider>,
+    );
+
+    expect(getByText('On record')).toBeTruthy();
+  });
+
   it('renders with photo, no rabies/issuance/microchip, and an unfit exam', () => {
     const minimalPassport = {
       identity: {
@@ -444,6 +554,25 @@ describe('PassportScreen', () => {
       expect(getByText('Old rabies certificate')).toBeTruthy();
       expect(getByText('Old Town Vets')).toBeTruthy();
       expect(getByText('Pending review')).toBeTruthy();
+    });
+
+    it('omits the date row for a historical record with no issue date', () => {
+      const store = buildStore({
+        passport: {byCompanionId: {}, loading: false, error: null},
+        documents: {
+          ...emptyDocumentsState,
+          documents: [{...mockHistoricalDoc, issueDate: undefined}],
+        },
+      });
+
+      const {getByText, queryByText} = render(
+        <Provider store={store}>
+          <PassportScreen />
+        </Provider>,
+      );
+
+      expect(getByText('Old rabies certificate')).toBeTruthy();
+      expect(queryByText('Date')).toBeNull();
     });
 
     it('excludes documents for a different companion, category, or subcategory', () => {

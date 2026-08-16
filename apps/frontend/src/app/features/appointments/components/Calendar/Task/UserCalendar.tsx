@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import { HOURS_IN_DAY } from '@/app/features/appointments/components/Calendar/weekHelpers';
@@ -27,7 +27,7 @@ import {
   useNowIndicator,
   useSlotOffsetMinutes,
 } from '@/app/features/appointments/components/Calendar/useCalendarSlots';
-import { DropAvailabilityInterval } from '@/app/features/appointments/components/Calendar/availabilityIntervals';
+import type { TaskCalendarInteractionProps } from '@/app/features/appointments/components/Calendar/Task/taskCalendarInteractionProps';
 
 const HOUR_ROW_GAP_PX = 0;
 
@@ -39,23 +39,7 @@ type UserCalendarProps = {
   handleChangeStatusTask?: (task: Task) => void;
   handleRescheduleTask?: (task: Task) => void;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
-  canEditTasks?: boolean;
-  draggedTaskId?: string | null;
-  draggedTaskLabel?: string | null;
-  canDragTask?: (task: Task) => boolean;
-  onTaskDragStart?: (task: Task) => void;
-  onTaskDragEnd?: () => void;
-  onTaskDropAt?: (date: Date, minuteOfDay: number, targetAssigneeId?: string) => void;
-  onCreateTaskAt?: (date: Date, minuteOfDay: number, targetAssigneeId?: string) => void;
-  onDragHoverTarget?: (date: Date, targetAssigneeId?: string) => void;
-  getDropAvailabilityIntervals?: (
-    date: Date,
-    targetAssigneeId?: string
-  ) => DropAvailabilityInterval[];
-  draggedTaskDurationMinutes?: number;
-  slotStepMinutes?: number;
-  resolveDisplayName?: (memberId?: string) => string;
-};
+} & TaskCalendarInteractionProps;
 
 const UserCalendar: React.FC<UserCalendarProps> = ({
   events,
@@ -84,7 +68,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   const { handleNextDay, handlePrevDay } = useCalendarNavigation(setCurrentDate);
   const height = getHourRowHeightPx(zoomMode);
   const HOUR_ROW_TOP_OFFSET_PX = 8;
-  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [scrollContainer, setScrollContainer] = useState<HTMLDivElement | null>(null);
   const onWheelBoundary = useScrollBoundaryWheel();
   const onWheelHorizontal = useWheelToHorizontalScroll();
   const teamColumnsStyle = useMemo(
@@ -164,7 +148,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
     events: getTimedTaskProxyEvents(events),
     height,
     nowPosition,
-    scrollContainer: scrollRef.current,
+    scrollContainer,
     hourRowGapPx: HOUR_ROW_GAP_PX,
     hourRowTopOffsetPx: HOUR_ROW_TOP_OFFSET_PX,
   });
@@ -187,7 +171,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
           />
 
           <div
-            ref={scrollRef}
+            ref={setScrollContainer}
             className="relative flex-1 min-h-0"
             style={{
               height: '100%',
@@ -208,7 +192,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                     height={height}
                     slotOffsetMinutes={slotOffsetMinutes}
                     showSlotTimeLabels={showSlotTimeLabels}
-                    className="sticky left-0 z-20 bg-white"
+                    className="sticky left-0 z-20 bg-neutral-0"
                   />
                   <div className="grid min-w-max" style={teamColumnsStyle}>
                     {teamColumns.map((column, index) => {
@@ -257,7 +241,10 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                       );
                     })}
                   </div>
-                  <div className="sticky right-0 z-20 bg-white" style={{ height: `${height}px` }} />
+                  <div
+                    className="sticky right-0 z-20 bg-neutral-0"
+                    style={{ height: `${height}px` }}
+                  />
                 </div>
               ))}
               <div style={{ height: zoomMode === 'out' ? 30 : 40 }} />

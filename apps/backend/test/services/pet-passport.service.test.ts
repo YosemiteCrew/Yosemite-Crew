@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   PetPassportService,
   PetPassportServiceError,
@@ -15,7 +16,7 @@ jest.mock("src/config/prisma", () => ({
     parasiteTreatment: { findMany: jest.fn() },
     rabiesTitration: { findMany: jest.fn() },
     clinicalExamination: { findMany: jest.fn() },
-    petPassport: { create: jest.fn(), findFirst: jest.fn() },
+    petPassport: { create: jest.fn(), findFirst: jest.fn(), update: jest.fn() },
     organization: { findUnique: jest.fn() },
     parentPatient: { findFirst: jest.fn() },
     parent: { findUnique: jest.fn() },
@@ -34,7 +35,7 @@ const prismaMock = prisma as unknown as {
   parasiteTreatment: { findMany: jest.Mock };
   rabiesTitration: { findMany: jest.Mock };
   clinicalExamination: { findMany: jest.Mock };
-  petPassport: { create: jest.Mock; findFirst: jest.Mock };
+  petPassport: { create: jest.Mock; findFirst: jest.Mock; update: jest.Mock };
   organization: { findUnique: jest.Mock };
   parentPatient: { findFirst: jest.Mock };
   parent: { findUnique: jest.Mock };
@@ -410,16 +411,25 @@ describe("PetPassportService.clinicalExams", () => {
   });
 });
 
-describe("PetPassportService.getPublicPassport", () => {
-  it("404s when no passport has been issued", async () => {
+describe("PetPassportService.getPublicPassportByToken", () => {
+  it("404s on an empty token without touching the database", async () => {
+    prismaMock.petPassport.findFirst.mockClear();
+    await expect(
+      PetPassportService.getPublicPassportByToken(""),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(prismaMock.petPassport.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("404s for an unknown or revoked token", async () => {
     prismaMock.petPassport.findFirst.mockResolvedValue(null);
     await expect(
-      PetPassportService.getPublicPassport("pat-1"),
+      PetPassportService.getPublicPassportByToken("nope"),
     ).rejects.toMatchObject({ statusCode: 404 });
   });
 
-  it("assembles an owner-free record from the issuing org", async () => {
+  it("looks the token up by hash and excludes revoked links", async () => {
     prismaMock.petPassport.findFirst.mockResolvedValue({
+      patientId: "pat-1",
       organisationId: "org-1",
       passportNumber: "GB-YC-1",
       issuingCountry: null,
@@ -429,9 +439,86 @@ describe("PetPassportService.getPublicPassport", () => {
       issueDate: new Date("2024-06-24T00:00:00.000Z"),
       status: null,
     });
-    const passport = await PetPassportService.getPublicPassport("pat-1");
+    await PetPassportService.getPublicPassportByToken("raw-token");
+    // First call is the token resolution; assemblePassport looks the row up again.
+    const where = prismaMock.petPassport.findFirst.mock.calls[0][0].where;
+    // The raw token must never be used as a query value.
+    expect(where.publicTokenHash).toBe(
+      createHash("sha256").update("raw-token").digest("hex"),
+    );
+    expect(where.publicTokenHash).not.toBe("raw-token");
+    expect(where.publicTokenRevokedAt).toBeNull();
+  });
+
+  it("assembles an owner-free record from the issuing org", async () => {
+    prismaMock.petPassport.findFirst.mockResolvedValue({
+      patientId: "pat-1",
+      organisationId: "org-1",
+      passportNumber: "GB-YC-1",
+      issuingCountry: null,
+      issuingAuthority: null,
+      issuingVetName: null,
+      issuingVetLicense: null,
+      issueDate: new Date("2024-06-24T00:00:00.000Z"),
+      status: null,
+    });
+    const passport =
+      await PetPassportService.getPublicPassportByToken("raw-token");
     expect(passport.owner).toBeUndefined();
     expect(passport.identity.name).toBe("Doggy");
-    expect(passport.issuance?.passportNumber).toBe("GB-YC-1");
+  });
+});
+
+describe("PetPassportService public share link", () => {
+  it("stores only the hash and returns the raw token once", async () => {
+    prismaMock.petPassport.findFirst.mockResolvedValue({ id: "pp-1" });
+    prismaMock.petPassport.update.mockResolvedValue({});
+    const { token } = await PetPassportService.issuePublicToken({
+      patientId: "pat-1",
+      organisationId: "org-1",
+    });
+    const data = prismaMock.petPassport.update.mock.calls.at(-1)[0].data;
+    expect(token).toHaveLength(43);
+    expect(data.publicTokenHash).toBe(
+      createHash("sha256").update(token).digest("hex"),
+    );
+    expect(JSON.stringify(data)).not.toContain(token);
+    expect(data.publicTokenRevokedAt).toBeNull();
+  });
+
+  it("issues a different token every time so rotation supersedes old links", async () => {
+    prismaMock.petPassport.findFirst.mockResolvedValue({ id: "pp-1" });
+    prismaMock.petPassport.update.mockResolvedValue({});
+    const first = await PetPassportService.issuePublicToken({
+      patientId: "pat-1",
+      organisationId: "org-1",
+    });
+    const second = await PetPassportService.issuePublicToken({
+      patientId: "pat-1",
+      organisationId: "org-1",
+    });
+    expect(first.token).not.toBe(second.token);
+  });
+
+  it("clears the hash on revoke so the link stops resolving", async () => {
+    prismaMock.petPassport.findFirst.mockResolvedValue({ id: "pp-1" });
+    prismaMock.petPassport.update.mockResolvedValue({});
+    await PetPassportService.revokePublicToken({
+      patientId: "pat-1",
+      organisationId: "org-1",
+    });
+    const data = prismaMock.petPassport.update.mock.calls.at(-1)[0].data;
+    expect(data.publicTokenHash).toBeNull();
+    expect(data.publicTokenRevokedAt).toBeInstanceOf(Date);
+  });
+
+  it("404s when the pet has no issued passport", async () => {
+    prismaMock.petPassport.findFirst.mockResolvedValue(null);
+    await expect(
+      PetPassportService.issuePublicToken({
+        patientId: "pat-x",
+        organisationId: "org-1",
+      }),
+    ).rejects.toMatchObject({ statusCode: 404 });
   });
 });

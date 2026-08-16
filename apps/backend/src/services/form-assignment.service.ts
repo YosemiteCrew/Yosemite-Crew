@@ -160,17 +160,17 @@ const normalizeAssignmentStatus = (
     case "DRAFT":
       return "draft" as FormAssignmentLike["status"];
     case "SENT":
-      return "sent" as FormAssignmentLike["status"];
+      return "sent";
     case "VIEWED":
-      return "viewed" as FormAssignmentLike["status"];
+      return "viewed";
     case "SUBMITTED":
-      return "submitted" as FormAssignmentLike["status"];
+      return "submitted";
     case "SIGNED":
-      return "signed" as FormAssignmentLike["status"];
+      return "signed";
     case "EXPIRED":
-      return "expired" as FormAssignmentLike["status"];
+      return "expired";
     case "CANCELLED":
-      return "cancelled" as FormAssignmentLike["status"];
+      return "cancelled";
     default:
       return "draft" as FormAssignmentLike["status"];
   }
@@ -229,21 +229,27 @@ const normalizeLifecycleAssignmentStatus = (
     case "DRAFT":
       return "DRAFT" as FormAssignmentListItem["status"];
     case "SENT":
-      return "SENT" as FormAssignmentListItem["status"];
+      return "SENT";
     case "VIEWED":
-      return "VIEWED" as FormAssignmentListItem["status"];
+      return "VIEWED";
     case "SUBMITTED":
-      return "SUBMITTED" as FormAssignmentListItem["status"];
+      return "SUBMITTED";
     case "SIGNED":
-      return "SIGNED" as FormAssignmentListItem["status"];
+      return "SIGNED";
     case "EXPIRED":
-      return "EXPIRED" as FormAssignmentListItem["status"];
+      return "EXPIRED";
     case "CANCELLED":
-      return "CANCELLED" as FormAssignmentListItem["status"];
+      return "CANCELLED";
     default:
       return "DRAFT" as FormAssignmentListItem["status"];
   }
 };
+
+// The organisation list endpoint has no pagination parameters and its callers expect the
+// whole result set, so this is a backstop against an unbounded scan rather than a page
+// size: high enough that no real organisation reaches it, finite so one cannot be used to
+// materialise an arbitrarily large result.
+const ORGANISATION_LIST_MAX_ROWS = 500;
 
 const normalizeOrganisationListStatuses = (
   status?: string,
@@ -690,8 +696,24 @@ export const FormAssignmentService = {
         organisationId: params.organisationId,
         ...(params.companionId ? { companionId: params.companionId } : {}),
         ...(statuses ? { status: { in: statuses } } : {}),
+        // Appointment.patient is a Json column; matching the parent here keeps the filter
+        // in the database rather than materialising every assignment in the organisation
+        // and discarding most of them after the fact.
+        ...(params.parentId
+          ? {
+              appointment: {
+                is: {
+                  patient: {
+                    path: ["parent", "id"],
+                    equals: params.parentId,
+                  },
+                },
+              },
+            }
+          : {}),
       },
       orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+      take: ORGANISATION_LIST_MAX_ROWS,
       include: {
         template: {
           select: {
@@ -713,20 +735,10 @@ export const FormAssignmentService = {
       },
     });
 
-    const filteredRows = params.parentId
-      ? rows.filter((row) => {
-          const parentId = getNestedString(row.appointment?.patient, [
-            "parent",
-            "id",
-          ]);
-          return parentId === params.parentId;
-        })
-      : rows;
-
-    const formIds = [...new Set(filteredRows.map((row) => row.templateId))];
+    const formIds = [...new Set(rows.map((row) => row.templateId))];
     const appointmentIds = [
       ...new Set(
-        filteredRows
+        rows
           .map((row) => row.appointmentId)
           .filter((id): id is string => Boolean(id)),
       ),
@@ -755,7 +767,7 @@ export const FormAssignmentService = {
 
     const submissionDocuments = buildSubmissionDocumentMap(submissions);
 
-    return filteredRows.map((row) => {
+    return rows.map((row) => {
       const key = buildSubmissionKey({
         formId: row.templateId,
         formVersion: row.templateVersion,

@@ -1,0 +1,228 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`PhoneDayRail matches the design snapshot for the folded day 1`] = `
+<section
+  aria-label="Day schedule"
+  class="yc-day-rail"
+>
+  <span
+    class="yc-day-rail__label yc-day-rail__label--first"
+    style="top: 0%;"
+  >
+    08:00
+  </span>
+  <span
+    class="yc-day-rail__label"
+    style="top: 15.267%;"
+  >
+    09:00
+  </span>
+  <span
+    class="yc-day-rail__label"
+    style="top: 30.534%;"
+  >
+    10:00
+  </span>
+  <span
+    class="yc-day-rail__label"
+    style="top: 45.802%;"
+  >
+    11:00
+  </span>
+  <span
+    class="yc-day-rail__label"
+    style="top: 61.069%;"
+  >
+    12:00
+  </span>
+  <span
+    class="yc-day-rail__label"
+    style="top: 69.466%;"
+  >
+    14:00
+  </span>
+  <span
+    class="yc-day-rail__label"
+    style="top: 84.733%;"
+  >
+    15:00
+  </span>
+  <span
+    class="yc-day-rail__label yc-day-rail__label--last"
+    style="top: 100%;"
+  >
+    16:00
+  </span>
+  <span
+    class="yc-day-rail__line"
+    style="top: 15.267%;"
+  />
+  <span
+    class="yc-day-rail__line"
+    style="top: 30.534%;"
+  />
+  <span
+    class="yc-day-rail__line"
+    style="top: 45.802%;"
+  />
+  <span
+    class="yc-day-rail__line"
+    style="top: 84.733%;"
+  />
+  <span
+    class="yc-day-rail__line"
+    style="top: 100%;"
+  />
+  <div
+    class="yc-day-rail__fold"
+    data-testid="day-rail-fold"
+    style="top: 61.069%; height: 8.397%;"
+  >
+    <button
+      class="yc-day-rail__fold-expand"
+      type="button"
+    >
+      <span
+        data-testid="icon-expand"
+      />
+      12:00 to 14:00 free · folded
+    </button>
+    <button
+      class="yc-day-rail__fold-book"
+      type="button"
+    >
+      <span
+        data-testid="icon-add"
+      />
+      Book
+    </button>
+  </div>
+  <div
+    class="yc-day-rail__block"
+    data-testid="day-rail-block"
+    style="top: 7.634%; height: 15.267%; left: calc(56px + 0 * (100% - 66px)); width: calc(-0px + 1 * (100% - 66px)); --block-bg: var(--status-checked-in-bg); --block-border: var(--status-checked-in-border); --block-text: var(--status-checked-in-text);"
+  >
+    <span
+      class="yc-day-rail__block-head"
+    >
+      <button
+        class="yc-day-rail__block-title yc-day-rail__block-title--interactive"
+        type="button"
+      >
+        Poppy · annual check-up
+      </button>
+      <span
+        class="yc-day-rail__block-status"
+      >
+        Checked in
+      </span>
+    </span>
+    <span
+      class="yc-day-rail__block-meta"
+    >
+      08:30–09:30 · Rm 1 · Lena Hartmann
+    </span>
+    <button
+      class="yc-day-rail__block-action"
+      type="button"
+    >
+      Start visit
+    </button>
+  </div>
+  <div
+    class="yc-day-rail__block"
+    data-testid="day-rail-block"
+    style="top: 26.717%; height: 11.451%; left: calc(56px + 0 * (100% - 66px)); width: calc(-0px + 1 * (100% - 66px)); --block-bg: var(--status-upcoming-bg); --block-border: var(--status-upcoming-border); --block-text: var(--status-upcoming-text);"
+  >
+    <span
+      class="yc-day-rail__block-head"
+    >
+      <button
+        class="yc-day-rail__block-title yc-day-rail__block-title--interactive"
+        type="button"
+      >
+        Poppy · ear recheck
+      </button>
+    </span>
+    <span
+      class="yc-day-rail__block-meta"
+    >
+      09:45–10:30 · Rm 1 · Lena Hartmann
+    </span>
+  </div>
+  <div
+    class="yc-day-rail__block"
+    data-testid="day-rail-block"
+    style="top: 47.329%; height: 12.213%; left: calc(56px + 0 * (100% - 66px)); width: calc(-0px + 1 * (100% - 66px)); --block-bg: var(--status-upcoming-bg); --block-border: var(--status-upcoming-border); --block-text: var(--status-upcoming-text);"
+  >
+    <span
+      class="yc-day-rail__block-head"
+    >
+      <button
+        class="yc-day-rail__block-title yc-day-rail__block-title--interactive"
+        type="button"
+      >
+        Poppy · senior wellness
+      </button>
+    </span>
+    <span
+      class="yc-day-rail__block-meta"
+    >
+      11:06–11:54 · Rm 1 · Lena Hartmann
+    </span>
+  </div>
+  <div
+    class="yc-day-rail__block"
+    data-testid="day-rail-block"
+    style="top: 69.466%; height: 11.45%; left: calc(56px + 0 * (100% - 66px)); width: calc(-0px + 1 * (100% - 66px)); --block-bg: var(--status-upcoming-bg); --block-border: var(--status-upcoming-border); --block-text: var(--status-upcoming-text);"
+  >
+    <span
+      class="yc-day-rail__block-head"
+    >
+      <button
+        class="yc-day-rail__block-title yc-day-rail__block-title--interactive"
+        type="button"
+      >
+        Poppy · vaccination
+      </button>
+    </span>
+    <span
+      class="yc-day-rail__block-meta"
+    >
+      14:00–14:45 · Rm 1 · Lena Hartmann
+    </span>
+  </div>
+  <div
+    class="yc-day-rail__block"
+    data-testid="day-rail-block"
+    style="top: 84.733%; height: 15.267%; left: calc(56px + 0 * (100% - 66px)); width: calc(-0px + 1 * (100% - 66px)); --block-bg: var(--status-upcoming-bg); --block-border: var(--status-upcoming-border); --block-text: var(--status-upcoming-text);"
+  >
+    <span
+      class="yc-day-rail__block-head"
+    >
+      <button
+        class="yc-day-rail__block-title yc-day-rail__block-title--interactive"
+        type="button"
+      >
+        Poppy · lameness exam
+      </button>
+    </span>
+    <span
+      class="yc-day-rail__block-meta"
+    >
+      15:00–16:00 · Rm 1 · Lena Hartmann
+    </span>
+  </div>
+  <span
+    class="yc-day-rail__now-line"
+    data-testid="day-rail-now-line"
+    style="top: 35.623%;"
+  />
+  <span
+    class="yc-day-rail__now-pill"
+    style="top: 35.623%;"
+  >
+    10:20
+  </span>
+</section>
+`;

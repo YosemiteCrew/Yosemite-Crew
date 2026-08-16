@@ -11,7 +11,7 @@ export type FinanceEventInput = {
   processedAt?: Date | null;
 };
 
-// Resolve a staff member's display name from their Cognito user id so events can
+// Resolve a staff member's display name from their app user id so events can
 // record WHO performed an action (e.g. marked an encounter ready for billing).
 export const resolveActorDisplayName = async (
   actorUserId?: string | null,
@@ -28,7 +28,7 @@ export const resolveActorDisplayName = async (
     return null;
   }
   const name = [user.firstName, user.lastName]
-    .filter((part): part is string => Boolean(part && part.trim()))
+    .filter((part): part is string => Boolean(part?.trim()))
     .join(" ")
     .trim();
   return name || user.email || null;

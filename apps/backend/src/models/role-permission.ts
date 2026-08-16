@@ -15,6 +15,12 @@ export type Permission =
   | "vaccinations:edit:own"
   | "passport:edit:any"
   | "passport:edit:own"
+  // Attesting a passport record is a veterinarian's clinical signature, not a
+  // general record edit: it is what makes the record count toward the pet's
+  // health document (EU 576/2013, UK AHC/OV, USDA APHIS all require a
+  // veterinarian). Kept separate from passport:edit:any, which every staff role
+  // holds, so capture stays open while signing stays restricted.
+  | "passport:attest:any"
   // Task
   | "tasks:view:any"
   | "tasks:edit:any"
@@ -284,13 +290,13 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
     "prescription:view:any",
     "prescription:view:own",
     "prescription:edit:own",
-    "prescription:edit:any",
 
     "companions:view:any",
     "companions:edit:any",
     "companions:share:any",
     "vaccinations:edit:any",
     "passport:edit:any",
+    "passport:attest:any",
 
     "tasks:view:any",
     "tasks:view:own",

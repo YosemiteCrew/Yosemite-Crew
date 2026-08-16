@@ -104,6 +104,15 @@ jest.mock('@/app/ui/inputs/Datepicker', () => {
   };
 });
 
+jest.mock(
+  '@/app/features/inventory/components/AddInventory/ImageUploadField',
+  () => (props: any) => (
+    <button data-testid="upload-field" onClick={() => props.onChange('http://img/new.png')}>
+      {props.label}
+    </button>
+  )
+);
+
 jest.mock('@/app/features/inventory/components/AddInventory/InventoryConfig', () => ({
   InventoryFormConfig: {
     clinic: {
@@ -146,6 +155,13 @@ jest.mock('@/app/features/inventory/components/AddInventory/InventoryConfig', ()
         { kind: 'item', field: { name: 'unknown', component: 'unknown' } },
       ],
       emptySection: [],
+      classification: [
+        {
+          kind: 'item',
+          field: { name: 'genericName', component: 'text', placeholder: 'Generic Name' },
+        },
+        { kind: 'item', field: { name: 'brand', component: 'text', placeholder: 'Brand' } },
+      ],
       batch: [
         {
           kind: 'item',
@@ -155,6 +171,7 @@ jest.mock('@/app/features/inventory/components/AddInventory/InventoryConfig', ()
             placeholder: 'Batch No',
           },
         },
+        { kind: 'item', field: { name: 'tracking', component: 'text', placeholder: 'Tracking' } },
       ],
       stock: [
         {
@@ -178,6 +195,34 @@ jest.mock('@/app/features/inventory/components/AddInventory/InventoryConfig', ()
             },
           ],
         },
+        {
+          kind: 'item',
+          field: { name: 'withdrawlPeriod', component: 'text', placeholder: 'Withdrawal period' },
+        },
+      ],
+      pricing: [
+        {
+          kind: 'item',
+          field: { name: 'purchaseCost', component: 'text', placeholder: 'Unit cost' },
+        },
+      ],
+      // Exercises every renderer branch, including placeholder-less fields.
+      misc: [
+        { kind: 'item', field: { name: 'plainText', component: 'text' } },
+        {
+          kind: 'item',
+          field: { name: 'numericField', component: 'text', placeholder: 'Qty', numeric: true },
+        },
+        { kind: 'item', field: { name: 'plainDate', component: 'date' } },
+        { kind: 'item', field: { name: 'plainDrop', component: 'dropdown' } },
+        {
+          kind: 'item',
+          field: { name: 'subCategory', component: 'dropdown', placeholder: 'Sub Category' },
+        },
+        { kind: 'item', field: { name: 'plainMulti', component: 'multiSelect' } },
+        { kind: 'item', field: { name: 'plainArea', component: 'textarea' } },
+        { kind: 'item', field: { name: 'agree', component: 'checkbox', placeholder: 'I agree' } },
+        { kind: 'item', field: { name: 'photo', component: 'upload', placeholder: 'Photo' } },
       ],
     },
   },
@@ -250,6 +295,14 @@ describe('FormSection Component', () => {
     // Textarea (inside Row)
     const textarea = screen.getByTestId('textarea-description');
     expect(textarea).toHaveValue('Test Desc');
+
+    fireEvent.change(textarea, { target: { value: 'Updated Desc' } });
+    expect(mockOnFieldChange).toHaveBeenLastCalledWith(
+      'basicInfo',
+      'description',
+      'Updated Desc',
+      undefined
+    );
   });
 
   it('handles Date parsing and changes correctly', () => {
@@ -438,5 +491,265 @@ describe('FormSection Component', () => {
 
     fireEvent.click(saveBtn);
     expect(mockOnSave).toHaveBeenCalled();
+  });
+
+  it('parses non-ISO date strings via the native Date fallback', () => {
+    render(
+      <FormSection {...defaultProps} formData={{ basicInfo: { expiry: 'Jan 15 2023' } } as any} />
+    );
+    // Native Date fallback returns a valid date (line 50 non-null branch).
+    expect(screen.getByTestId('date-value')).not.toHaveTextContent('null');
+  });
+
+  it('hides drug-only classification fields for non-drug items', () => {
+    render(
+      <FormSection
+        {...defaultProps}
+        sectionKey={'classification' as any}
+        sectionTitle="Classification"
+        formData={{ classification: { itemType: 'non-drug' } } as any}
+        errors={{} as any}
+      />
+    );
+    // Drug-only field is dropped, generic field stays (lines 134-135, 265, 267).
+    expect(screen.queryByTestId('input-genericName')).not.toBeInTheDocument();
+    expect(screen.getByTestId('input-brand')).toBeInTheDocument();
+  });
+
+  it('hides drug-only batch fields for non-drug items', () => {
+    render(
+      <FormSection
+        {...defaultProps}
+        sectionKey={'batch' as any}
+        formData={
+          { classification: { itemType: 'non-drug' }, batches: [{ batchNumber: 'B1' }] } as any
+        }
+        errors={{} as any}
+      />
+    );
+    // Line 136.
+    expect(screen.getByTestId('input-batchNumber')).toBeInTheDocument();
+    expect(screen.queryByTestId('input-tracking')).not.toBeInTheDocument();
+  });
+
+  it('hides drug-only stock fields for non-drug items', () => {
+    render(
+      <FormSection
+        {...defaultProps}
+        sectionKey={'stock' as any}
+        sectionTitle="Stock"
+        formData={{ classification: { itemType: 'non-drug' }, stock: { stockLocation: '' } } as any}
+        errors={{} as any}
+      />
+    );
+    // Line 137.
+    expect(screen.queryByTestId('input-withdrawlPeriod')).not.toBeInTheDocument();
+  });
+
+  it('keeps fields for non-drug items in unrelated sections', () => {
+    render(
+      <FormSection
+        {...defaultProps}
+        sectionKey={'basicInfo' as any}
+        formData={{ classification: { itemType: 'non-drug' }, basicInfo: { itemName: 'x' } } as any}
+        errors={{} as any}
+      />
+    );
+    // Section not in any drug-only group -> field renders (line 138).
+    expect(screen.getByTestId('input-itemName')).toBeInTheDocument();
+  });
+
+  it('renders every field component type in a section', () => {
+    render(
+      <FormSection
+        {...defaultProps}
+        sectionKey={'misc' as any}
+        sectionTitle="Misc"
+        formData={{ misc: { agree: 'false' } } as any}
+        errors={{} as any}
+      />
+    );
+    // Placeholder-less text/date/dropdown/multiselect/textarea + subCategory + checkbox + upload
+    // (lines 171-174, 236, 291, 312, 325, 340, 347-371).
+    expect(screen.getByTestId('input-plainText')).toBeInTheDocument();
+    expect(screen.getByTestId('datepicker-')).toBeInTheDocument();
+    expect(screen.getByTestId('dropdown-')).toBeInTheDocument();
+    expect(screen.getByTestId('dropdown-Sub Category')).toBeInTheDocument();
+    expect(screen.getByTestId('multiselect-')).toBeInTheDocument();
+    expect(screen.getByTestId('textarea-plainArea')).toBeInTheDocument();
+    expect(screen.getByText('I agree')).toBeInTheDocument();
+    expect(screen.getByTestId('upload-field')).toBeInTheDocument();
+  });
+
+  it('strips non-numeric characters from numeric fields', () => {
+    render(
+      <FormSection
+        {...defaultProps}
+        sectionKey={'misc' as any}
+        sectionTitle="Misc"
+        formData={{ misc: { numericField: '' } } as any}
+        errors={{} as any}
+      />
+    );
+    fireEvent.change(screen.getByTestId('input-numericField'), { target: { value: 'abc12.5' } });
+    // Numeric sanitisation (line 239).
+    expect(mockOnFieldChange).toHaveBeenLastCalledWith('misc', 'numericField', '12.5', undefined);
+  });
+
+  it('toggles checkbox fields and reads truthy string values', () => {
+    const { rerender } = render(
+      <FormSection
+        {...defaultProps}
+        sectionKey={'misc' as any}
+        sectionTitle="Misc"
+        formData={{ misc: { agree: 'true' } } as any}
+        errors={{} as any}
+      />
+    );
+    const checkbox = screen.getByRole('checkbox');
+    expect(checkbox).toBeChecked(); // value 'true' -> checked
+    fireEvent.click(checkbox);
+    expect(mockOnFieldChange).toHaveBeenLastCalledWith('misc', 'agree', 'false', undefined);
+
+    rerender(
+      <FormSection
+        {...defaultProps}
+        sectionKey={'misc' as any}
+        sectionTitle="Misc"
+        formData={{ misc: { agree: 'false' } } as any}
+        errors={{} as any}
+      />
+    );
+    fireEvent.click(screen.getByRole('checkbox'));
+    expect(mockOnFieldChange).toHaveBeenLastCalledWith('misc', 'agree', 'true', undefined);
+
+    rerender(
+      <FormSection
+        {...defaultProps}
+        sectionKey={'misc' as any}
+        sectionTitle="Misc"
+        formData={{ misc: { agree: 'Yes' } } as any}
+        errors={{} as any}
+      />
+    );
+    // 'Yes' also reads as checked (line 348).
+    expect(screen.getByRole('checkbox')).toBeChecked();
+  });
+
+  it('forwards uploaded image urls', () => {
+    render(
+      <FormSection
+        {...defaultProps}
+        sectionKey={'misc' as any}
+        sectionTitle="Misc"
+        formData={{ misc: { photo: '' } } as any}
+        errors={{} as any}
+        organisationId="org-1"
+      />
+    );
+    fireEvent.click(screen.getByTestId('upload-field'));
+    // Upload component wiring (lines 362-371).
+    expect(mockOnFieldChange).toHaveBeenLastCalledWith(
+      'misc',
+      'photo',
+      'http://img/new.png',
+      undefined
+    );
+  });
+
+  it('coerces numeric and empty multiselect values', () => {
+    const { rerender } = render(
+      <FormSection
+        {...defaultProps}
+        sectionKey={'misc' as any}
+        sectionTitle="Misc"
+        formData={{ misc: { plainMulti: 42 } } as any}
+        errors={{} as any}
+      />
+    );
+    // Numeric value coerced to a string list (line 179).
+    expect(screen.getByTestId('ms-value')).toHaveTextContent('["42"]');
+
+    rerender(
+      <FormSection
+        {...defaultProps}
+        sectionKey={'misc' as any}
+        sectionTitle="Misc"
+        formData={{ misc: { plainMulti: '' } } as any}
+        errors={{} as any}
+      />
+    );
+    // Empty string -> empty list (line 183).
+    expect(screen.getByTestId('ms-value')).toHaveTextContent('[]');
+  });
+
+  it('shows available stock from the raw value when derived stock is unavailable', () => {
+    render(
+      <FormSection
+        {...defaultProps}
+        sectionKey={'stock' as any}
+        sectionTitle="Stock"
+        formData={{ stock: { available: '55' } } as any}
+        errors={{} as any}
+      />
+    );
+    // getAvailableStock undefined -> toNumberSafe(value) fallback (line 193).
+    expect(screen.getByText('55')).toBeInTheDocument();
+  });
+
+  it('falls back to zero when available stock cannot be resolved', () => {
+    render(
+      <FormSection
+        {...defaultProps}
+        sectionKey={'stock' as any}
+        sectionTitle="Stock"
+        formData={{ stock: { available: 'xyz' } } as any}
+        errors={{} as any}
+      />
+    );
+    // Both derived and numeric coercion fail -> '0' (line 193 final fallback).
+    expect(screen.getAllByText('0').length).toBeGreaterThan(0);
+    expect(screen.queryByText('xyz')).not.toBeInTheDocument();
+  });
+
+  it('renders the pricing summary for the pricing section', () => {
+    render(
+      <FormSection
+        {...defaultProps}
+        sectionKey={'pricing' as any}
+        sectionTitle="Pricing"
+        formData={
+          { pricing: { purchaseCost: '10', selling: '20' }, stock: { current: '5' } } as any
+        }
+        errors={{} as any}
+      />
+    );
+    // PricingSummary renders below the pricing fields.
+    expect(screen.getByText('Gross profit per unit :')).toBeInTheDocument();
+    expect(screen.getByText('$10')).toBeInTheDocument();
+    expect(screen.getByText('Margin :')).toBeInTheDocument();
+    expect(screen.getByText('50%')).toBeInTheDocument();
+    expect(screen.getByText('Total stock value')).toBeInTheDocument();
+    expect(screen.getByText('$50')).toBeInTheDocument();
+  });
+
+  it('coerces unsupported multiselect value types to an empty list', () => {
+    render(
+      <FormSection
+        {...defaultProps}
+        sectionKey={'misc' as any}
+        sectionTitle="Misc"
+        formData={{ misc: { plainMulti: { nested: true } } } as any}
+        errors={{} as any}
+      />
+    );
+    // Object values fall through to the empty-list branch of getMultiSelectValues.
+    expect(screen.getByTestId('ms-value')).toHaveTextContent('[]');
+  });
+
+  it('renders nothing configured for an unknown business type', () => {
+    render(<FormSection {...defaultProps} businessType={'unknown' as any} />);
+    // InventoryFormConfig[businessType] ?? {} branch (line 395).
+    expect(screen.getByText('No fields configured.')).toBeInTheDocument();
   });
 });

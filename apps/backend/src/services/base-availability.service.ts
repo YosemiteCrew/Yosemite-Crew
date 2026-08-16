@@ -1,14 +1,11 @@
-import mongoose from "mongoose";
-import BaseAvailabilityModel, {
-  type BaseAvailabilityDocument,
-  type BaseAvailabilityMongo,
-  type AvailabilitySlotMongo,
+import type {
+  BaseAvailabilityMongo,
+  AvailabilitySlotMongo,
 } from "../models/base-availability";
 import type { UserAvailability, DayOfWeek } from "@yosemite-crew/types";
 import { prisma } from "src/config/prisma";
-import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
+import { pruneUndefined } from "src/utils/prune-undefined";
 import { Prisma } from "@prisma/client";
-import { isReadFromPostgres } from "src/config/read-switch";
 
 export class BaseAvailabilityServiceError extends Error {
   constructor(
@@ -174,78 +171,6 @@ const sanitizeAvailabilityEntry = (
   };
 };
 
-const pruneArrayUndefined = (arrayValue: unknown[]): void => {
-  for (let index = arrayValue.length - 1; index >= 0; index -= 1) {
-    const next = pruneUndefined(arrayValue[index]);
-
-    if (next === undefined) {
-      arrayValue.splice(index, 1);
-    } else {
-      arrayValue[index] = next;
-    }
-  }
-};
-
-const pruneRecordUndefined = (record: UnknownRecord): void => {
-  for (const key of Object.keys(record)) {
-    const next = pruneUndefined(record[key]);
-
-    if (next === undefined) {
-      delete record[key];
-    } else {
-      record[key] = next;
-    }
-  }
-};
-
-const isPlainObject = (value: unknown): value is UnknownRecord =>
-  Boolean(value) && typeof value === "object" && !(value instanceof Date);
-
-const pruneUndefined = <T>(value: T): T => {
-  if (Array.isArray(value)) {
-    pruneArrayUndefined(value as unknown[]);
-    return value;
-  }
-
-  if (isPlainObject(value)) {
-    pruneRecordUndefined(value);
-    return value;
-  }
-
-  return value;
-};
-
-const buildDomainAvailability = (
-  document: BaseAvailabilityDocument,
-): UserAvailability => {
-  const raw = document.toObject({
-    virtuals: false,
-  }) as BaseAvailabilityMongo & { _id: unknown };
-
-  const idSource = raw._id ?? document._id;
-
-  let id: string | undefined;
-
-  if (typeof idSource === "string") {
-    id = idSource;
-  } else if (
-    typeof idSource === "object" &&
-    idSource !== null &&
-    "toString" in idSource
-  ) {
-    id = String((idSource as { toString: () => string }).toString());
-  }
-
-  return pruneUndefined({
-    _id: id,
-    userId: raw.userId,
-    dayOfWeek: raw.dayOfWeek,
-    slots: raw.slots,
-    createdAt: document.createdAt,
-    updatedAt: document.updatedAt,
-  });
-};
-
 const buildDomainAvailabilityFromPrisma = (row: {
   id: string;
   userId: string;
@@ -270,36 +195,6 @@ const ensureOrganisationIds = (availability: BaseAvailabilityMongo[]) => {
       "organisationId is required for each availability entry.",
       400,
     );
-  }
-};
-
-const isMongoAvailable = () =>
-  mongoose.connection.readyState === mongoose.ConnectionStates.connected;
-
-const syncBaseAvailabilityToPostgres = async (
-  userId: string,
-  availability: BaseAvailabilityMongo[],
-) => {
-  if (!shouldDualWrite) return;
-  try {
-    await prisma.baseAvailability.deleteMany({ where: { userId } });
-    if (availability.length) {
-      const rows = availability
-        .filter((entry) => !!entry.organisationId)
-        .map((entry) => ({
-          userId,
-          organisationId: entry.organisationId as string,
-          dayOfWeek: entry.dayOfWeek,
-          slots: entry.slots as unknown as Prisma.InputJsonValue,
-        }));
-
-      if (!rows.length) return;
-      await prisma.baseAvailability.createMany({
-        data: rows,
-      });
-    }
-  } catch (err) {
-    handleDualWriteError("BaseAvailability", err);
   }
 };
 
@@ -402,42 +297,10 @@ export const BaseAvailabilityService = {
     payload: CreateBaseAvailabilityPayload,
   ): Promise<UserAvailability[]> {
     const { userId, availability } = sanitizeCreatePayload(payload);
-    const usePostgresWrite = isReadFromPostgres() && !isMongoAvailable();
-
-    if (usePostgresWrite) {
-      ensureOrganisationIds(availability);
-      const existing = await prisma.baseAvailability.findFirst({
-        where: { userId },
-        select: { id: true },
-      });
-
-      if (existing) {
-        throw new BaseAvailabilityServiceError(
-          "Base availability already exists for this user.",
-          409,
-        );
-      }
-
-      await prisma.baseAvailability.createMany({
-        data: availability.map((entry) => ({
-          userId,
-          organisationId: entry.organisationId as string,
-          dayOfWeek: entry.dayOfWeek,
-          slots: entry.slots as unknown as Prisma.InputJsonValue,
-        })),
-      });
-
-      const created = await prisma.baseAvailability.findMany({
-        where: { userId },
-        orderBy: { dayOfWeek: "asc" },
-      });
-
-      const domain = created.map(buildDomainAvailabilityFromPrisma);
-      return sortByDayOrder(domain);
-    }
-
-    const existing = await BaseAvailabilityModel.findOne({ userId }, null, {
-      sanitizeFilter: true,
+    ensureOrganisationIds(availability);
+    const existing = await prisma.baseAvailability.findFirst({
+      where: { userId },
+      select: { id: true },
     });
 
     if (existing) {
@@ -447,10 +310,21 @@ export const BaseAvailabilityService = {
       );
     }
 
-    const documents = await BaseAvailabilityModel.insertMany(availability);
-    await syncBaseAvailabilityToPostgres(userId, availability);
+    await prisma.baseAvailability.createMany({
+      data: availability.map((entry) => ({
+        userId,
+        organisationId: entry.organisationId as string,
+        dayOfWeek: entry.dayOfWeek,
+        slots: entry.slots as unknown as Prisma.InputJsonValue,
+      })),
+    });
 
-    const domain = documents.map((doc) => buildDomainAvailability(doc));
+    const created = await prisma.baseAvailability.findMany({
+      where: { userId },
+      orderBy: { dayOfWeek: "asc" },
+    });
+
+    const domain = created.map(buildDomainAvailabilityFromPrisma);
     return sortByDayOrder(domain);
   },
 
@@ -462,53 +336,33 @@ export const BaseAvailabilityService = {
       userId,
       payload,
     );
-    const usePostgresWrite = isReadFromPostgres() && !isMongoAvailable();
+    ensureOrganisationIds(availability);
+    await prisma.baseAvailability.deleteMany({
+      where: { userId: identifier },
+    });
+    await prisma.baseAvailability.createMany({
+      data: availability.map((entry) => ({
+        userId: identifier,
+        organisationId: entry.organisationId as string,
+        dayOfWeek: entry.dayOfWeek,
+        slots: entry.slots as unknown as Prisma.InputJsonValue,
+      })),
+    });
 
-    if (usePostgresWrite) {
-      ensureOrganisationIds(availability);
-      await prisma.baseAvailability.deleteMany({
-        where: { userId: identifier },
-      });
-      await prisma.baseAvailability.createMany({
-        data: availability.map((entry) => ({
-          userId: identifier,
-          organisationId: entry.organisationId as string,
-          dayOfWeek: entry.dayOfWeek,
-          slots: entry.slots as unknown as Prisma.InputJsonValue,
-        })),
-      });
-
-      const rows = await prisma.baseAvailability.findMany({
-        where: { userId: identifier },
-        orderBy: { dayOfWeek: "asc" },
-      });
-      const domain = rows.map(buildDomainAvailabilityFromPrisma);
-      return sortByDayOrder(domain);
-    }
-
-    await BaseAvailabilityModel.deleteMany({ userId: identifier });
-    const documents = await BaseAvailabilityModel.insertMany(availability);
-    await syncBaseAvailabilityToPostgres(identifier, availability);
-
-    const domain = documents.map((doc) => buildDomainAvailability(doc));
+    const rows = await prisma.baseAvailability.findMany({
+      where: { userId: identifier },
+      orderBy: { dayOfWeek: "asc" },
+    });
+    const domain = rows.map(buildDomainAvailabilityFromPrisma);
     return sortByDayOrder(domain);
   },
 
   async getByUserId(userId: unknown): Promise<UserAvailability[]> {
     const identifier = requireUserId(userId);
-
-    if (isReadFromPostgres()) {
-      const rows = await prisma.baseAvailability.findMany({
-        where: { userId: identifier },
-        orderBy: { dayOfWeek: "asc" },
-      });
-      return rows.map(buildDomainAvailabilityFromPrisma);
-    }
-
-    const documents = await BaseAvailabilityModel.find({
-      userId: identifier,
-    }).sort({ dayOfWeek: 1 });
-
-    return documents.map((doc) => buildDomainAvailability(doc));
+    const rows = await prisma.baseAvailability.findMany({
+      where: { userId: identifier },
+      orderBy: { dayOfWeek: "asc" },
+    });
+    return rows.map(buildDomainAvailabilityFromPrisma);
   },
 };

@@ -1,4 +1,3 @@
-import { Types } from "mongoose";
 import type { UserOrganizationMongo } from "../models/user-organization";
 import type { OrganizationMongo } from "../models/organization";
 import {
@@ -14,7 +13,12 @@ import { StripeService } from "./stripe.service";
 import { sendFreePlanLimitReachedEmail } from "src/utils/org-usage-notifications";
 import { sendEmailTemplate } from "src/utils/email";
 import logger from "src/utils/logger";
+import { pruneUndefined } from "src/utils/prune-undefined";
 import { prisma } from "src/config/prisma";
+import {
+  markFreeLimitReachedAt,
+  type OrgUsageCountersDoc,
+} from "./shared/org-usage-limit";
 import type { UserOrganization as PrismaUserOrganization } from "@prisma/client";
 
 export type UserOrganizationFHIRPayload = UserOrganizationRequestDTO;
@@ -136,37 +140,6 @@ function computeEffectivePermissions(
   return [...combined];
 }
 
-const pruneUndefined = <T>(value: T): T => {
-  if (Array.isArray(value)) {
-    const arrayValue = value as unknown[];
-    const cleaned: unknown[] = arrayValue
-      .map((item) => pruneUndefined(item))
-      .filter((item) => item !== undefined);
-    return cleaned as unknown as T;
-  }
-
-  if (value && typeof value === "object") {
-    if (value instanceof Date) {
-      return value;
-    }
-
-    const record = value as Record<string, unknown>;
-    const cleanedRecord: Record<string, unknown> = {};
-
-    for (const [key, entryValue] of Object.entries(record)) {
-      const next = pruneUndefined(entryValue);
-
-      if (next !== undefined) {
-        cleanedRecord[key] = next;
-      }
-    }
-
-    return cleanedRecord as unknown as T;
-  }
-
-  return value;
-};
-
 const requireSafeString = (value: unknown, fieldName: string): string => {
   if (value == null) {
     throw new UserOrganizationServiceError(`${fieldName} is required.`, 400);
@@ -263,10 +236,7 @@ const ensureSafeIdentifier = (value: unknown): string | undefined => {
     return undefined;
   }
 
-  if (
-    !Types.ObjectId.isValid(identifier) &&
-    !/^[A-Za-z0-9\-.]{1,64}$/.test(identifier)
-  ) {
+  if (!/^[A-Za-z0-9\-.]{1,64}$/.test(identifier)) {
     throw new UserOrganizationServiceError("Invalid identifier format.", 400);
   }
 
@@ -322,38 +292,6 @@ const isFreePlan = async (orgId: string) => {
   return !billing || billing.plan === "free";
 };
 
-type OrgUsageCountersDoc = {
-  id: string;
-  orgId: string;
-  freeLimitReachedAt?: Date | null;
-  usersActiveCount?: number | null;
-  usersBillableCount?: number | null;
-  appointmentsUsed?: number | null;
-  toolsUsed?: number | null;
-  freeAppointmentsLimit?: number | null;
-  freeToolsLimit?: number | null;
-  freeUsersLimit?: number | null;
-};
-
-const markFreeLimitReachedAt = async (usage: OrgUsageCountersDoc | null) => {
-  if (
-    !usage ||
-    usage.freeLimitReachedAt ||
-    ((usage.usersActiveCount ?? 0) < (usage.freeUsersLimit ?? 0) &&
-      (usage.appointmentsUsed ?? 0) < (usage.freeAppointmentsLimit ?? 0) &&
-      (usage.toolsUsed ?? 0) < (usage.freeToolsLimit ?? 0))
-  ) {
-    return false;
-  }
-
-  const updated = await prisma.organizationUsageCounter.updateMany({
-    where: { id: usage.id, freeLimitReachedAt: null },
-    data: { freeLimitReachedAt: new Date() },
-  });
-
-  return updated.count > 0;
-};
-
 const resolveOrganisationObjectId = async (
   reference: string,
 ): Promise<string> => {
@@ -376,28 +314,37 @@ const reserveMemberSlot = async (orgId: string) => {
   await ensureOrgUsageCounters(orgId);
 
   if (await isFreePlan(orgId)) {
-    const current = await prisma.organizationUsageCounter.findUnique({
-      where: { orgId },
+    // Check-and-increment in a single conditional UPDATE. Reading the count and
+    // incrementing it separately lets two concurrent joins both pass the limit check
+    // and oversubscribe the plan, so the limit is compared against the row's own
+    // column in the WHERE clause instead.
+    const reserved = await prisma.organizationUsageCounter.updateMany({
+      where: {
+        orgId: String(orgId),
+        usersActiveCount: {
+          lt: prisma.organizationUsageCounter.fields.freeUsersLimit,
+        },
+      },
+      data: { usersActiveCount: { increment: 1 } },
     });
 
-    if (
-      !current ||
-      (current.usersActiveCount ?? 0) >= (current.freeUsersLimit ?? 0)
-    ) {
+    if (reserved.count === 0) {
       throw new UserOrganizationServiceError(
         "Free plan member limit reached.",
         403,
       );
     }
 
-    const updated = await prisma.organizationUsageCounter.update({
+    const updated = await prisma.organizationUsageCounter.findUnique({
       where: { orgId },
-      data: { usersActiveCount: { increment: 1 } },
     });
 
-    const updatedUsage = updated as unknown as OrgUsageCountersDoc;
-    const didReachLimit = await markFreeLimitReachedAt(updatedUsage);
-    if (didReachLimit) {
+    const updatedUsage = updated as unknown as OrgUsageCountersDoc | null;
+    const didReachLimit = await markFreeLimitReachedAt(
+      updatedUsage,
+      (counters) => ({ id: counters.id }),
+    );
+    if (didReachLimit && updatedUsage) {
       void sendFreePlanLimitReachedEmail({ orgId, usage: updatedUsage });
     }
     return true;
@@ -526,10 +473,12 @@ const mapOrganizationFromPrisma = (org: {
   ratingCount: number | null;
   appointmentCheckInBufferMinutes: number | null;
   appointmentCheckInRadiusMeters: number | null;
+  crossOrgMessagingEnabled: boolean | null;
   createdAt: Date;
   updatedAt: Date;
 }) => ({
   _id: org.id,
+  crossOrgMessagingEnabled: org.crossOrgMessagingEnabled ?? false,
   fhirId: org.fhirId ?? undefined,
   name: org.name,
   taxId: org.taxId ?? undefined,
@@ -603,17 +552,11 @@ const normalizeLookupIdentifier = (
   return identifier;
 };
 
-const resolveIdQuery = (
-  id: unknown,
-): { _id?: string; fhirId?: string } | null => {
+const resolveIdQuery = (id: unknown): string | null => {
   const identifier = normalizeLookupIdentifier(id, "Identifier");
 
-  if (Types.ObjectId.isValid(identifier)) {
-    return { _id: identifier };
-  }
-
   if (/^[A-Za-z0-9\-.]{1,64}$/.test(identifier)) {
-    return { fhirId: identifier };
+    return identifier;
   }
 
   return null;
@@ -821,10 +764,10 @@ export const UserOrganizationService = {
   ): Promise<
     UserOrganizationResponseDTO | UserOrganizationResponseDTO[] | null
   > {
-    const idQuery = resolveIdQuery(id);
-    if (idQuery) {
+    const identifier = resolveIdQuery(id);
+    if (identifier) {
       const mapping = await prisma.userOrganization.findFirst({
-        where: idQuery._id ? { id: idQuery._id } : { fhirId: idQuery.fhirId },
+        where: { OR: [{ id: identifier }, { fhirId: identifier }] },
       });
 
       if (mapping) {
@@ -964,18 +907,19 @@ export const UserOrganizationService = {
     const persistable = pruneUndefined(
       sanitizeUserOrganizationAttributes(userOrganisation),
     );
-    let orgObjectId: string | null = null;
-    if (persistable.active !== false) {
-      orgObjectId = await resolveOrganisationObjectId(
-        persistable.organizationReference,
-      );
-      await reserveMemberSlot(orgObjectId);
+    const { orgObjectId, seatDelta } = await reserveSeatForNewMapping(
+      persistable,
+      persistable.active !== false,
+    );
+    if (orgObjectId) {
       await syncSeatsIfBusiness(orgObjectId);
     }
 
-    const document = await prisma.userOrganization.create({
-      data: persistable,
-    });
+    const { document } = await createUserOrganizationWithRollback(
+      persistable,
+      seatDelta,
+      orgObjectId,
+    );
 
     if (!document) {
       throw new UserOrganizationServiceError(

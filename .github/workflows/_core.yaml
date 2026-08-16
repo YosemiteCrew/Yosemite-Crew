@@ -1,0 +1,268 @@
+name: Core
+
+# Reusable core of the pipeline: work out what changed, build every shared
+# artifact exactly once, and run the static checks. Called by ci.yaml, so its
+# jobs execute in the caller's run and its artifacts and outputs reach the test,
+# Sonar and frontend-quality stages by ordinary same-run means.
+
+on:
+  workflow_call:
+    inputs:
+      force_push_base:
+        description: Base SHA override, for re-running after a force push.
+        required: false
+        type: string
+    outputs:
+      matrix:
+        description: Job matrix of affected workspaces.
+        value: ${{ jobs.detect.outputs.matrix }}
+      has-any:
+        description: Whether any workspace is affected.
+        value: ${{ jobs.detect.outputs.has-any }}
+      frontend:
+        description: Whether the frontend workspace is affected.
+        value: ${{ jobs.detect.outputs.frontend }}
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  detect:
+    name: Detect affected workspaces
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      has-any: ${{ steps.matrix.outputs.has_any }}
+      frontend: ${{ steps.matrix.outputs.frontend }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          # Detection diffs against a base commit, so the full history must be
+          # present. A shallow clone makes every base unreachable, which the
+          # resolver reports as run_all - correct, but it would run everything
+          # on every event.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Cache Turborepo
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .turbo
+          # Keyed on run_id so the entry always saves, with the lockfile hash as
+          # the restore prefix. The previous github.sha suffix could never
+          # restore (the sha is new every run) and the github.job discriminator
+          # split one shared cache across jobs.
+          key: turbo-detect-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}-${{ github.run_id }}
+          restore-keys: |
+            turbo-detect-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}-
+            turbo-detect-${{ runner.os }}-
+
+      - name: Compute base SHA
+        id: base
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          EVENT_BEFORE: ${{ github.event.before }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          MERGE_GROUP_BASE_SHA: ${{ github.event.merge_group.base_sha }}
+          FORCE_PUSH_BASE: ${{ inputs.force_push_base }}
+        run: ./scripts/ci/compute-base-sha.sh >> "$GITHUB_OUTPUT"
+
+      # The repository root is deliberately absent from the workspace inventory,
+      # so nothing in the workspace matrix ever runs scripts/ci or
+      # scripts/security tests. They gate CI behaviour and the supply-chain
+      # exception policy, so they run here, in the one job every event reaches.
+      - name: Test the CI and security scripts
+        run: pnpm run test:scripts
+
+      - name: Resolve workspace inventory
+        run: pnpm ls -r --depth -1 --json > workspaces.json
+
+      - name: Detect affected workspaces
+        id: matrix
+        shell: bash
+        env:
+          BASE_SHA: ${{ steps.base.outputs.sha }}
+          RUN_ALL: ${{ steps.base.outputs.run_all }}
+        run: |
+          set -euo pipefail
+
+          # Every branch that cannot answer "what changed" with confidence widens
+          # to the whole repo. Narrowing on a guess is how a broken workspace
+          # ships green.
+          run_all() {
+            echo "Running all workspaces: $1"
+            node scripts/ci/affected-matrix.mjs --workspaces workspaces.json --all >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+
+          if [ "$RUN_ALL" = "true" ]; then
+            run_all "no trustworthy base SHA"
+          fi
+
+          # Two families of change that turbo's file-level filter cannot see, and
+          # that therefore have to widen the matrix by hand or the aggregate
+          # check goes green having linted, built and tested nothing.
+          #
+          # Root configuration: a lockfile, root manifest, workspace definition
+          # or turbo config change can alter any workspace's dependency graph.
+          # pnpm-workspace.yaml matters most, since a diff that only adds,
+          # removes or renames a workspace glob leaves the dry run empty.
+          #
+          # The pipeline itself: none of .github or scripts/ci belongs to a
+          # workspace, so a change confined to them reports zero affected tasks.
+          # Without this a pull request that only edits the pipeline would pass
+          # without ever exercising the pipeline code it changed, which is the
+          # one diff where running everything matters most.
+          if git diff --name-only "$BASE_SHA" HEAD | grep -qE '^(pnpm-lock\.yaml|pnpm-workspace\.yaml|package\.json|turbo\.json)$|^\.github/(workflows|actions)/|^scripts/ci/'; then
+            run_all "lockfile or root configuration changed"
+          fi
+
+          if ! pnpm exec turbo run build test --filter="...[${BASE_SHA}]" --dry=json > affected.json; then
+            run_all "turbo dry run failed"
+          fi
+
+          node scripts/ci/affected-matrix.mjs --workspaces workspaces.json --dry affected.json >> "$GITHUB_OUTPUT"
+
+      - name: Show detection result
+        env:
+          MATRIX: ${{ steps.matrix.outputs.matrix }}
+          HAS_ANY: ${{ steps.matrix.outputs.has_any }}
+        run: |
+          echo "has_any=$HAS_ANY"
+          echo "$MATRIX" | node -e 'process.stdin.on("data", d => console.log(JSON.stringify(JSON.parse(d), null, 2)))'
+
+  build:
+    name: Build shared packages and frontend
+    needs: detect
+    if: needs.detect.outputs.has-any == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Cache Turborepo
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: turbo-build-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}-${{ github.run_id }}
+          path: .turbo
+          restore-keys: |
+            turbo-build-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}-
+            turbo-build-${{ runner.os }}-
+
+      - name: Cache Next.js build cache
+        if: needs.detect.outputs.frontend == 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: apps/frontend/.next/cache
+          key: next-build-${{ runner.os }}-${{ hashFiles('apps/frontend/package.json', 'apps/frontend/next.config.*', 'pnpm-lock.yaml') }}
+          restore-keys: |
+            next-build-${{ runner.os }}-
+
+      # The database package's build compiles against the generated client, so
+      # this has to precede the package build rather than sit with the app jobs.
+      - name: Generate Prisma client
+        run: pnpm --filter @yosemite-crew/database run prisma:generate
+
+      - name: Build shared packages
+        run: pnpm exec turbo run build --filter='./packages/*'
+
+      # Tarred rather than uploaded as a directory tree: dist output is many
+      # small files, and upload-artifact is markedly slower per file than per byte.
+      - name: Pack shared package dist output
+        run: tar -czf dist-packages.tar.gz packages/*/dist
+
+      - name: Upload shared package dist output
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dist-packages
+          path: dist-packages.tar.gz
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Build frontend
+        if: needs.detect.outputs.frontend == 'true'
+        run: pnpm --filter frontend run build
+
+      - name: Upload frontend build output
+        if: needs.detect.outputs.frontend == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: next-build
+          # .next is a dotfile directory, and upload-artifact v4 skips hidden
+          # files by default, so without this the build uploads as zero files
+          # and the download side finds nothing. This is what failed the first
+          # live run.
+          include-hidden-files: true
+          # .next/cache is restored from the Actions cache above, so shipping it
+          # through the artifact as well would only pay for it twice.
+          path: |
+            apps/frontend/.next
+            !apps/frontend/.next/cache
+          if-no-files-found: error
+          retention-days: 1
+
+  static:
+    name: Static (${{ matrix.workspace }})
+    needs: [detect, build]
+    if: needs.detect.outputs.has-any == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.detect.outputs.matrix) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Download shared package dist output
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist-packages
+
+      - name: Unpack shared package dist output
+        run: tar -xzf dist-packages.tar.gz
+
+      - name: Generate Prisma client
+        if: matrix.needs_prisma
+        run: pnpm --filter @yosemite-crew/database run prisma:generate
+
+      - name: Lint
+        if: matrix.has_lint
+        run: pnpm --filter "${{ matrix.workspace }}" run lint
+
+      - name: Type-check
+        if: matrix.has_type_check
+        run: pnpm --filter "${{ matrix.workspace }}" run type-check
+
+      # Apps only. Shared package dist arrives from the build job, and the
+      # frontend's production build is the next-build artifact. dev-docs runs
+      # here, whose postbuild copies the site into apps/frontend/public/dev-docs -
+      # that is what makes deleting dev-docs-build.yml safe.
+      - name: Build
+        if: matrix.has_build && matrix.workspace != 'frontend' && startsWith(matrix.dir, 'apps/')
+        run: pnpm --filter "${{ matrix.workspace }}" run build

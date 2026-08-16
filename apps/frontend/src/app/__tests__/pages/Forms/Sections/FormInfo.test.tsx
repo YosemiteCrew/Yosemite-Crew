@@ -88,7 +88,7 @@ jest.mock('@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRend
   default: () => <div>form-renderer</div>,
 }));
 
-jest.mock('@iconify/react', () => ({
+jest.mock('@/app/ui/icons/Icon', () => ({
   Icon: () => <span>icon</span>,
 }));
 
@@ -163,7 +163,8 @@ describe('FormInfo', () => {
     expect(screen.getByRole('button', { name: 'Unpublish' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Archive' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Edit form' })).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'close' })).toHaveLength(2);
+    // The shared panel header contributes exactly one close control.
+    expect(screen.getAllByRole('button', { name: 'close' })).toHaveLength(1);
   });
 
   it('uses form view copy for non-editable legacy forms', () => {

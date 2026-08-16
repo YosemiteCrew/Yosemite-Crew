@@ -174,5 +174,115 @@ describe('Forms Data and Utility Functions', () => {
       const signatureFields = flat.filter((f: any) => f.type === 'signature');
       expect(signatureFields).toHaveLength(0);
     });
+
+    it('should keep the Boarder - Boarding Checklist option fields exactly as designed', () => {
+      const template = CategoryTemplates['Boarder - Boarding Checklist'] as any[];
+      const boardingOptions = template.find((f: any) => f.id === 'boarding_options');
+      expect(boardingOptions?.fields?.[0]).toEqual({
+        id: 'day_boarding_services',
+        type: 'checkbox',
+        label: 'Day boarding services',
+        options: [
+          { label: 'Day care options', value: 'day_care_options' },
+          { label: 'Overnight stay details', value: 'overnight_stay_details' },
+          { label: 'Weekly boarding plans', value: 'weekly_boarding_plans' },
+        ],
+        multiple: true,
+      });
+      expect(boardingOptions?.fields?.[1]).toEqual({
+        id: 'overnight_boarding_services',
+        type: 'radio',
+        label: 'Overnight boarding services',
+        options: [
+          { label: 'Yes', value: 'yes' },
+          { label: 'No', value: 'no' },
+        ],
+      });
+      const comfort = template.find((f: any) => f.id === 'comfort_environment');
+      expect(comfort?.fields?.map((f: any) => [f.id, f.type, f.options?.length])).toEqual([
+        ['room_type_selection', 'radio', 3],
+        ['playgroup_participation', 'radio', 2],
+        ['bedding_preferences', 'radio', 3],
+      ]);
+      expect(comfort?.fields?.[2]).toEqual({
+        id: 'bedding_preferences',
+        type: 'radio',
+        label: 'Bedding preferences',
+        options: [
+          { label: 'Facility bedding', value: 'facility_bedding' },
+          { label: 'Own bedding', value: 'own_bedding' },
+          { label: 'Orthopaedic bedding', value: 'orthopaedic_bedding' },
+        ],
+      });
+    });
+
+    it('should keep the Boarder - Dietary Plan option fields exactly as designed', () => {
+      const template = CategoryTemplates['Boarder - Dietary Plan'] as any[];
+      expect(template.map((f: any) => f.id)).toEqual([
+        'dietary_type',
+        'diet_special_notes',
+        'feeding_frequency',
+        'specific_feeding_times',
+        'portion_preferences',
+        'portion_special_notes',
+        'brand_preferences',
+        'feeding_method',
+        'feeding_method_notes',
+        'treat_preferences',
+        'water_preferences',
+        'water_additional_info',
+      ]);
+      expect(template.find((f: any) => f.id === 'treat_preferences')).toEqual({
+        id: 'treat_preferences',
+        type: 'checkbox',
+        label: 'Treat preferences',
+        options: [
+          { label: 'Jerky treats', value: 'jerky' },
+          { label: 'Dental sticks', value: 'dental_sticks' },
+          { label: 'Dehydrated meat', value: 'dehydrated_meat' },
+          { label: 'Homemade treats', value: 'homemade' },
+          { label: 'Training treats only', value: 'training_only' },
+          { label: 'No treats (parent restricted)', value: 'no_treats' },
+        ],
+        multiple: true,
+      });
+      expect(template.find((f: any) => f.id === 'water_preferences')).toEqual({
+        id: 'water_preferences',
+        type: 'radio',
+        label: 'Water preferences',
+        options: [
+          { label: 'Filtered / RO water only', value: 'filtered_ro' },
+          { label: 'Regular tap water', value: 'tap_water' },
+          { label: 'Bottled mineral water', value: 'bottled_mineral' },
+          { label: 'Mix with electrolytes', value: 'electrolytes_mix' },
+        ],
+      });
+    });
+
+    it('should keep the Boarder - Daily Summary radio fields exactly as designed', () => {
+      const template = CategoryTemplates['Boarder - Daily Summary'] as any[];
+      expect(template.find((f: any) => f.id === 'meals_provided')).toEqual({
+        id: 'meals_provided',
+        type: 'radio',
+        label: 'Meals provided to companion',
+        options: [
+          { label: 'Administered 1x daily', value: '1x_daily' },
+          { label: 'Administered 2x daily', value: '2x_daily' },
+          { label: 'Administered 3x daily', value: '3x_daily' },
+        ],
+      });
+      expect(template.find((f: any) => f.id === 'daily_poop_completed')).toEqual({
+        id: 'daily_poop_completed',
+        type: 'radio',
+        label: 'Daily pooping completed',
+        options: [
+          { label: 'Completed 1x', value: '1x' },
+          { label: 'Completed 2x', value: '2x' },
+        ],
+      });
+      expect(template.find((f: any) => f.id === 'medication_administered')?.options).toEqual([
+        { label: 'Scheduled time entry', value: 'scheduled_time' },
+      ]);
+    });
   });
 });

@@ -76,6 +76,94 @@ describe("ControlledSubstanceLogService.create", () => {
     expect(result.deaSchedule).toBe("III");
     expect(result.amountWasted).toBe(0.5);
   });
+
+  it("accepts an entry where administered plus wasted exactly equals drawn", async () => {
+    mockCreate.mockResolvedValue(baseEntry);
+    await ControlledSubstanceLogService.create({
+      organisationId: "org-1",
+      loggedAt: new Date("2026-06-30T10:00:00Z"),
+      drug: "Ketamine",
+      deaSchedule: "III",
+      unit: "MG",
+      amountDrawn: 5,
+      amountAdministered: 4.5,
+      amountWasted: 0.5,
+      balanceBefore: 100,
+      balanceAfter: 95,
+    });
+    expect(mockCreate).toHaveBeenCalled();
+  });
+
+  it("rejects an entry where administered exceeds drawn", async () => {
+    await expect(
+      ControlledSubstanceLogService.create({
+        organisationId: "org-1",
+        loggedAt: new Date("2026-06-30T10:00:00Z"),
+        drug: "Ketamine",
+        deaSchedule: "III",
+        unit: "MG",
+        amountDrawn: 1,
+        amountAdministered: 100,
+      }),
+    ).rejects.toMatchObject({
+      name: "ControlledSubstanceLogError",
+      statusCode: 400,
+      message:
+        "Amount administered plus amount wasted cannot exceed amount drawn.",
+    });
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("rejects an entry where administered plus wasted exceeds drawn", async () => {
+    await expect(
+      ControlledSubstanceLogService.create({
+        organisationId: "org-1",
+        loggedAt: new Date("2026-06-30T10:00:00Z"),
+        drug: "Ketamine",
+        deaSchedule: "III",
+        unit: "MG",
+        amountDrawn: 5,
+        amountAdministered: 4.5,
+        amountWasted: 1,
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("rejects an entry whose balance after does not reconcile with amount drawn", async () => {
+    await expect(
+      ControlledSubstanceLogService.create({
+        organisationId: "org-1",
+        loggedAt: new Date("2026-06-30T10:00:00Z"),
+        drug: "Ketamine",
+        deaSchedule: "III",
+        unit: "MG",
+        amountDrawn: 5,
+        amountAdministered: 5,
+        balanceBefore: 100,
+        balanceAfter: 80,
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Balance after must equal balance before minus amount drawn.",
+    });
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("skips the balance check when only one balance is supplied", async () => {
+    mockCreate.mockResolvedValue(baseEntry);
+    await ControlledSubstanceLogService.create({
+      organisationId: "org-1",
+      loggedAt: new Date("2026-06-30T10:00:00Z"),
+      drug: "Ketamine",
+      deaSchedule: "III",
+      unit: "MG",
+      amountDrawn: 5,
+      amountAdministered: 5,
+      balanceBefore: 100,
+    });
+    expect(mockCreate).toHaveBeenCalled();
+  });
 });
 
 describe("ControlledSubstanceLogService.get", () => {
@@ -122,6 +210,66 @@ describe("ControlledSubstanceLogService.update", () => {
       balanceAfter: 100,
     });
     expect(result.balanceAfter).toBe(100);
+  });
+
+  it("applies a reconciling amount correction", async () => {
+    const updated = { ...baseEntry, amountDrawn: 6, amountAdministered: 5 };
+    mockFindFirst.mockResolvedValue(baseEntry);
+    mockUpdate.mockResolvedValue(updated);
+    const result = await ControlledSubstanceLogService.update("cs-1", "org-1", {
+      lotNumber: "KET-2026-002",
+      strength: 120,
+      amountDrawn: 6,
+      amountAdministered: 5,
+      amountWasted: 1,
+      wastedWitness: "nurse-2",
+      balanceAfter: 94,
+      administeredBy: "vet-2",
+      notes: "corrected after recount",
+    });
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ amountDrawn: 6, amountWasted: 1 }),
+      }),
+    );
+    expect(result.amountAdministered).toBe(5);
+  });
+
+  it("rejects a patch that makes administered exceed the stored drawn amount", async () => {
+    mockFindFirst.mockResolvedValue(baseEntry);
+    await expect(
+      ControlledSubstanceLogService.update("cs-1", "org-1", {
+        amountAdministered: 100,
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message:
+        "Amount administered plus amount wasted cannot exceed amount drawn.",
+    });
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("rejects a patch that lowers drawn below the stored administered amount", async () => {
+    mockFindFirst.mockResolvedValue(baseEntry);
+    await expect(
+      ControlledSubstanceLogService.update("cs-1", "org-1", {
+        amountDrawn: 1,
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("rejects a balance correction that no longer reconciles", async () => {
+    mockFindFirst.mockResolvedValue(baseEntry);
+    await expect(
+      ControlledSubstanceLogService.update("cs-1", "org-1", {
+        balanceAfter: 80,
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Balance after must equal balance before minus amount drawn.",
+    });
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 
   it("throws 404 when not found", async () => {

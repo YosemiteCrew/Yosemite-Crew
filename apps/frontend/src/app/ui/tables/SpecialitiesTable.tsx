@@ -28,12 +28,19 @@ const SpecialitiesTable = ({ filteredList, setActive, setView }: SpecialitiesTab
       render: (item: SpecialityWeb) => <ProfileTitle>{item.name}</ProfileTitle>,
     },
     {
-      label: 'Services / Packages',
+      label: 'Services',
       key: 'Services',
       width: '30%',
-      render: (item: SpecialityWeb) => (
-        <ProfileTitle>{getServiceNames(item.services) || '—'}</ProfileTitle>
-      ),
+      // Comma-joined service names, clamped so a speciality with many services
+      // does not stand several lines taller than its neighbours.
+      render: (item: SpecialityWeb) => {
+        const names = getServiceNames(item.services);
+        return (
+          <div className="appointment-profile-title cell-truncate" title={names || undefined}>
+            {names || '—'}
+          </div>
+        );
+      },
     },
     {
       label: 'Team members',

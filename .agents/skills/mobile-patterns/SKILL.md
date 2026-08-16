@@ -18,16 +18,19 @@ TRIGGER: any task in apps/mobileAppYC — screens, components, navigation, state
 ```
 apps/mobileAppYC/
   src/
-    screens/        ← Full-screen views
-    components/     ← Reusable UI components
+    app/            ← Redux store.ts + typed hooks.ts
+    features/       ← feature slices: <domain>/{screens,components,hooks,services,<domain>Slice.ts,selectors.ts}
+    shared/         ← cross-feature components, screens, stores, services, utils
     navigation/     ← React Navigation config
-    store/          ← Redux Toolkit slices
-    services/       ← API calls (axios)
-    hooks/          ← Custom React hooks
-    utils/          ← Pure utility functions
-    i18n/           ← Translation files (i18next)
-    assets/         ← Images, fonts
+    localization/   ← translation files (i18next)
+    theme/          ← design tokens and theming
+    config/         ← environment/config values
+    context/        ← React contexts
+    types/          ← shared TS types
+    assets/         ← images, fonts
 ```
+
+New code follows the feature-slice pattern: put screens, components, and services inside the owning `src/features/<domain>/` directory, not in global folders.
 
 ---
 
@@ -99,7 +102,7 @@ Never hardcode English strings in components.
 
 ## Authentication
 
-AWS Amplify Auth is the mobile auth provider. Firebase handles push notifications and supplementary auth flows. Never bypass Amplify for core auth.
+SuperTokens is the mobile auth provider (email OTP + social through the provider; `supertokens-react-native` manages sessions). Firebase remains for push notifications only. Never bypass the SuperTokens session layer for core auth.
 
 ---
 
@@ -174,6 +177,90 @@ npx tsc --noemit                                    # from apps/mobileAppYC/
 pnpm --filter mobileAppYC run lint
 pnpm --filter mobileAppYC run test -- --testPathPattern="<YourFile>"
 ```
+
+---
+
+## App Store Submission
+
+Full reference: [`docs/guide/mobile-app-submission-guide.md`](../../../docs/guide/mobile-app-submission-guide.md)
+
+### Pre-Submission Checklist
+
+Before every submission run these checks — **do not bump versions mid-review**:
+
+1. **Production config** — `src/config/variables.local.ts`:
+   - `USE_DEV_API = false`
+   - `UI_FEATURE_FLAGS.forceLiquidGlassBorder = false`
+   - `MOBILE_CONFIG_BEHAVIOR.overrides.forceLiquidGlassBorder = false`
+
+2. **Silence console output** — `App.tsx` lines 203–207 must be uncommented:
+
+   ```ts
+   const noop = () => {};
+   console.log = noop;
+   console.info = noop;
+   console.debug = noop;
+   console.trace = noop;
+   ```
+
+3. **Version bumps** (only for a new submission or after rejection):
+
+   | Platform | File                              | Field                     |
+   | -------- | --------------------------------- | ------------------------- |
+   | Android  | `android/app/build.gradle`        | `versionCode`             |
+   | Android  | `android/app/build.gradle`        | `versionName`             |
+   | iOS      | `mobileAppYC.xcodeproj` (pbxproj) | `MARKETING_VERSION`       |
+   | iOS      | `mobileAppYC.xcodeproj` (pbxproj) | `CURRENT_PROJECT_VERSION` |
+
+   Read the current values from those files and bump by one — never trust a hardcoded
+   version table in docs; they go stale after every release.
+
+### Android Build
+
+```bash
+# From apps/mobileAppYC/android/ — clean first
+rm -rf app/build build .cxx .gradle && ./gradlew clean
+
+# APK (testing/sideload)
+./gradlew assembleRelease
+# Output: android/app/build/outputs/apk/release/app-release.apk
+
+# AAB (Play Store)
+./gradlew bundleRelease
+# Output: android/app/build/outputs/bundle/release/app-release.aab
+```
+
+Keystore `my-release-key.keystore` must be at `android/app/` and `android/gradle.properties` must have `YC_RELEASE_STORE_FILE`, `YC_RELEASE_STORE_PASSWORD`, `YC_RELEASE_KEY_ALIAS`, `YC_RELEASE_KEY_PASSWORD`.
+
+### iOS Build
+
+```bash
+# From apps/mobileAppYC/ios/ — clean first
+rm -rf Pods build Podfile.lock ~/Library/Developer/Xcode/DerivedData/*
+pod deintegrate && pod install
+```
+
+Archive in Xcode:
+
+1. Open `ios/mobileAppYC.xcworkspace` (**not** `.xcodeproj`).
+2. Select a physical device or "Any iOS Device (arm64)" — **not** a Simulator.
+3. **Product → Clean Build Folder** (`⇧⌘K`) → **Product → Archive**.
+4. In Organizer: **Distribute App** → upload to both **Preflight** and **App Store Connect**.
+
+### Post-Approval
+
+After both stores go live, update `README.md`:
+
+- **Current production releases** table with new versions.
+- **Release history** table — add a row per platform with version + feature summary.
+
+### Common Pitfalls
+
+- Opening `.xcodeproj` instead of `.xcworkspace` — Pods will not be linked.
+- Forgetting `pod install` after cleaning — build fails with missing headers.
+- `USE_DEV_API = true` left on — app hits dev backend in production.
+- Wrong keystore signing AAB — Play Store upload rejected.
+- Bumping version mid-review — Apple treats it as a new binary and restarts review.
 
 ---
 

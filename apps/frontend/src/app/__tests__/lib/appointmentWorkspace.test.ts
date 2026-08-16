@@ -9,6 +9,7 @@ import {
   resolveEncounterMode,
   resolveLandingStep,
   richTextIsEmpty,
+  formatElapsed,
   formatStampTime,
   formatStampDate,
   resolveSectionLock,
@@ -16,6 +17,7 @@ import {
 import { setPreferredTimeZone } from '@/app/lib/timezone';
 import { buildEmptyEncounter } from '@/app/features/appointments/services/workspaceInitialData';
 import type { AppointmentEncounter } from '@/app/features/appointments/types/workspace';
+import type { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 
 const base = (): AppointmentEncounter => buildEmptyEncounter('a1', 'OUTPATIENT');
 
@@ -41,6 +43,12 @@ describe('appointmentWorkspace lib', () => {
       'SUMMARY'
     );
     expect(resolveWorkspaceStepForIntent(null)).toBeUndefined();
+    expect(
+      resolveWorkspaceStepForIntent({
+        label: 'unmapped' as AppointmentViewIntent['label'],
+        subLabel: 'unmapped',
+      })
+    ).toBeUndefined();
   });
 
   describe('stamp formatters use the preferred time zone', () => {
@@ -171,6 +179,16 @@ describe('appointmentWorkspace lib', () => {
     expect(richTextIsEmpty('<p></p>')).toBe(true);
     expect(richTextIsEmpty('<p>&nbsp;</p>')).toBe(true);
     expect(richTextIsEmpty('<p>hello</p>')).toBe(false);
+  });
+
+  it('formats elapsed millisecond spans as HH:MM:SS', () => {
+    expect(formatElapsed(0)).toBe('00:00:00');
+    expect(formatElapsed(999)).toBe('00:00:00');
+    expect(formatElapsed(61_000)).toBe('00:01:01');
+    expect(formatElapsed(3_661_000)).toBe('01:01:01');
+    expect(formatElapsed(86_399_000)).toBe('23:59:59');
+    // Negative spans clamp to zero.
+    expect(formatElapsed(-5_000)).toBe('00:00:00');
   });
 
   describe('resolveSectionLock', () => {

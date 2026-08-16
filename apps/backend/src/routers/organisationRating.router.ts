@@ -1,17 +1,17 @@
 import { Router } from "express";
 import { OrganisationRatingController } from "src/controllers/app/organisationRating.controller";
-import { authorizeCognitoMobile } from "src/middlewares/auth";
+import { requireMobileAuth } from "src/middlewares/auth";
 const router = Router();
 
 router.post(
   "/:organisationId",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   OrganisationRatingController.rateOrganisation,
 );
 
 router.get(
   "/:organisationId/is-rated",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   OrganisationRatingController.isUserRatedOrganisation,
 );
 

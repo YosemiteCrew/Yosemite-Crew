@@ -358,29 +358,23 @@ describe('Appointment Service', () => {
 
   // --- Section 3: updateAppointment ---
   describe('updateAppointment', () => {
-    it('warns and returns if no org id is available from store or payload', async () => {
+    it('throws if no org id is available from store or payload', async () => {
       (useOrgStore.getState as jest.Mock).mockReturnValue({ primaryOrgId: null });
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
       const payload = makeBaseAppointment({ organisationId: undefined });
 
-      await updateAppointment(payload);
-
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'No primary organization selected. Cannot update appointment.'
+      await expect(updateAppointment(payload)).rejects.toThrow(
+        'No organisation selected. Cannot update appointment.'
       );
       expect(mockedPatchData).not.toHaveBeenCalled();
-      consoleSpy.mockRestore();
     });
 
-    it('warns and returns if payload is missing appointment.id', async () => {
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    it('throws if payload is missing appointment.id', async () => {
       const payload = makeBaseAppointment({ id: undefined });
 
-      await updateAppointment(payload);
-
-      expect(consoleSpy).toHaveBeenCalledWith('updateAppointment: missing appointment.id', payload);
+      await expect(updateAppointment(payload)).rejects.toThrow(
+        'Cannot update appointment: appointment ID missing.'
+      );
       expect(mockedPatchData).not.toHaveBeenCalled();
-      consoleSpy.mockRestore();
     });
 
     it('patches converted DTO and upserts mapped appointment on success', async () => {
@@ -714,9 +708,21 @@ describe('Appointment Service', () => {
 
   // --- Section 5: acceptAppointment ---
   describe('acceptAppointment', () => {
-    it('returns if appointment.id is missing', async () => {
+    it('throws if appointment.id is missing', async () => {
       mockedPatchData.mockResolvedValue({});
-      await acceptAppointment(makeBaseAppointment({ id: undefined }));
+      await expect(acceptAppointment(makeBaseAppointment({ id: undefined }))).rejects.toThrow(
+        'Cannot accept appointment: appointment ID missing.'
+      );
+      expect(mockedPatchData).not.toHaveBeenCalled();
+      expect(mockAppointmentStoreUpsertAppointment).not.toHaveBeenCalled();
+    });
+
+    it('throws if no organisation id can be resolved', async () => {
+      (useOrgStore.getState as jest.Mock).mockReturnValue({ primaryOrgId: null });
+
+      await expect(
+        acceptAppointment(makeBaseAppointment({ id: 'appt-no-org', organisationId: undefined }))
+      ).rejects.toThrow('No organisation selected. Cannot accept appointment.');
       expect(mockedPatchData).not.toHaveBeenCalled();
       expect(mockAppointmentStoreUpsertAppointment).not.toHaveBeenCalled();
     });
@@ -821,9 +827,11 @@ describe('Appointment Service', () => {
 
   // --- Section 6: cancelAppointment ---
   describe('cancelAppointment', () => {
-    it('returns if appointment.id is missing', async () => {
+    it('throws if appointment.id is missing', async () => {
       mockedPatchData.mockResolvedValue({});
-      await cancelAppointment(makeBaseAppointment({ id: undefined }));
+      await expect(cancelAppointment(makeBaseAppointment({ id: undefined }))).rejects.toThrow(
+        'Cannot cancel appointment: appointment ID missing.'
+      );
       expect(mockedPatchData).not.toHaveBeenCalled();
       expect(mockAppointmentStoreUpsertAppointment).not.toHaveBeenCalled();
     });
@@ -881,8 +889,10 @@ describe('Appointment Service', () => {
       expect(mockAppointmentStoreUpsertAppointment).toHaveBeenCalledWith(returnedAppointment);
     });
 
-    it('returns if appointment.id is missing', async () => {
-      await checkInAppointment(makeBaseAppointment({ id: undefined }));
+    it('throws if appointment.id is missing', async () => {
+      await expect(checkInAppointment(makeBaseAppointment({ id: undefined }))).rejects.toThrow(
+        'Cannot checkin appointment: appointment ID missing.'
+      );
       expect(mockedPatchData).not.toHaveBeenCalled();
     });
   });
@@ -906,8 +916,10 @@ describe('Appointment Service', () => {
       );
     });
 
-    it('returns if appointment.id is missing', async () => {
-      await rejectAppointment(makeBaseAppointment({ id: undefined }));
+    it('throws if appointment.id is missing', async () => {
+      await expect(rejectAppointment(makeBaseAppointment({ id: undefined }))).rejects.toThrow(
+        'Cannot reject appointment: appointment ID missing.'
+      );
       expect(mockedPatchData).not.toHaveBeenCalled();
     });
   });

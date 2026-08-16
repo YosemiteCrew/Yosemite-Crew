@@ -109,12 +109,33 @@ describe("PassportConsentController", () => {
       expect(statusMock).toHaveBeenCalledWith(200);
     });
 
-    it("500s without permissions, 400s bad params + body", async () => {
+    it("forwards the authenticated parent as the granting user", async () => {
+      service.grantConsent.mockResolvedValue({ status: "GRANTED" } as never);
       await PassportConsentController.grantConsent(
-        { params: consentParams, body } as unknown as Request,
+        authed(consentParams, { body }),
         res as Response,
       );
-      expect(statusMock).toHaveBeenCalledWith(500);
+      expect(service.grantConsent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          grantingUserId: expect.any(String),
+          actor: expect.objectContaining({ type: "PARENT" }),
+        }),
+      );
+    });
+
+    it("does not accept a caller-supplied parentId", async () => {
+      service.grantConsent.mockResolvedValue({ status: "GRANTED" } as never);
+      await PassportConsentController.grantConsent(
+        authed(consentParams, { body: { ...body, parentId: "forged" } }),
+        res as Response,
+      );
+      // Stripped by the schema, so the audit trail cannot name a fake owner.
+      expect(service.grantConsent).toHaveBeenCalledWith(
+        expect.not.objectContaining({ parentId: "forged" }),
+      );
+    });
+
+    it("400s bad params + body, 500s on an unexpected error", async () => {
       await PassportConsentController.grantConsent(
         authed({ organisationId: "", consentId: "" }, { body }),
         res as Response,

@@ -1,6 +1,8 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import PackagesTab from '@/app/features/organization/pages/Specialities/PackagesTab';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import PackagesTab, {
+  type PackagesTabHandle,
+} from '@/app/features/organization/pages/Specialities/PackagesTab';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useNotify } from '@/app/hooks/useNotify';
 
@@ -44,8 +46,15 @@ jest.mock('@/app/features/organization/pages/Specialities/PackageBreakdownTable'
 
 jest.mock('@/app/ui/overlays/Modal/CenterModal', () => ({
   __esModule: true,
-  default: ({ showModal, children }: any) =>
-    showModal ? <div data-testid="center-modal">{children}</div> : null,
+  default: ({ showModal, setShowModal, children }: any) =>
+    showModal ? (
+      <div data-testid="center-modal">
+        <button type="button" onClick={() => setShowModal(false)}>
+          Backdrop Close
+        </button>
+        {children}
+      </div>
+    ) : null,
 }));
 
 jest.mock('@/app/ui/overlays/Modal/ModalHeader', () => ({
@@ -98,28 +107,100 @@ jest.mock('@/app/features/organization/services/catalogCalculations', () => ({
   computePackageTotals: jest.fn(() => ({ totalCost: 100, grossTotal: 120 })),
 }));
 
-jest.mock('react-icons/ri', () => ({
-  RiEdit2Line: () => <span data-testid="edit-icon" />,
-}));
+jest.mock(
+  'react-icons/ri',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/md', () => ({
-  MdDeleteForever: () => <span data-testid="delete-icon" />,
-  MdOutlineArchive: () => <span data-testid="archive-icon" />,
-}));
+jest.mock(
+  'react-icons/md',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/lu', () => ({
-  LuBedSingle: () => <span data-testid="bed-icon" />,
-  LuCheck: () => <span data-testid="check-icon" />,
-}));
+jest.mock(
+  'react-icons/lu',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/io5', () => ({
-  IoChevronDown: () => <span data-testid="chevron-icon" />,
-}));
+jest.mock(
+  'react-icons/io5',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/ai', () => ({
-  AiOutlineInfoCircle: () => <span data-testid="info-icon" />,
-  AiOutlinePlus: () => <span data-testid="plus-icon" />,
-}));
+jest.mock(
+  'react-icons/ai',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
 // --- Test Data ---
 
@@ -300,5 +381,61 @@ describe('PackagesTab', () => {
     // Modal close button (from ModalHeader mock)
     fireEvent.click(screen.getByRole('button', { name: 'Modal Close' }));
     expect(screen.queryByTestId('center-modal')).not.toBeInTheDocument();
+  });
+
+  it('closes the archive modal via the modal backdrop', () => {
+    render(<PackagesTab specialityId="spec-1" organisationId="org-1" />);
+    fireEvent.click(screen.getAllByRole('button', { name: /Archive Wellness Package/i })[0]);
+    fireEvent.click(screen.getByText('Backdrop Close'));
+    expect(screen.queryByTestId('center-modal')).not.toBeInTheDocument();
+    expect(mockArchivePackage).not.toHaveBeenCalled();
+  });
+
+  it('notifies an error and keeps the modal open when archiving fails', async () => {
+    mockArchivePackage.mockRejectedValueOnce(new Error('archive failed'));
+    render(<PackagesTab specialityId="spec-1" organisationId="org-1" />);
+    fireEvent.click(screen.getAllByRole('button', { name: /Archive Wellness Package/i })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Archive' }));
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ title: 'Unable to archive package' })
+      )
+    );
+    expect(screen.getByTestId('center-modal')).toBeInTheDocument();
+  });
+
+  // --- Section 5: Imperative handle + card variants ---
+
+  it('opens the add draft at the top via the openAdd handle', () => {
+    const ref = React.createRef<PackagesTabHandle>();
+    render(<PackagesTab specialityId="spec-1" organisationId="org-1" ref={ref} />);
+    act(() => {
+      ref.current?.openAdd();
+    });
+    expect(screen.getByTestId('add-draft')).toBeInTheDocument();
+    expect(screen.queryByText('Click to add package')).not.toBeInTheDocument();
+  });
+
+  it('does not hydrate when editing a package that already has a breakdown', () => {
+    render(<PackagesTab specialityId="spec-1" organisationId="org-1" />);
+    fireEvent.click(screen.getAllByRole('button', { name: /Edit Premium Package/i })[0]);
+    expect(screen.getByTestId('edit-draft-pkg-2')).toBeInTheDocument();
+    expect(mockHydratePackageDetail).not.toHaveBeenCalled();
+  });
+
+  it('renders an em dash when a package has no description', () => {
+    (useRevampCatalogStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({
+        packages: [{ ...mockPackage, description: '' }],
+        archivePackage: mockArchivePackage,
+        hydratePackageDetail: mockHydratePackageDetail,
+        loadSpecialityCatalog: mockLoadSpecialityCatalog,
+        loadedSpecialityIds: ['spec-1:active'],
+      })
+    );
+    render(<PackagesTab specialityId="spec-1" organisationId="org-1" />);
+    // Both the narrow and the wide layout render the em-dash fallback.
+    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(2);
   });
 });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 // Import Path: Go up 7 levels to 'src/app', then down to 'pages'
 import Chat from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Tasks/Chat';
 import { useAuthStore } from '@/app/stores/authStore';
@@ -9,6 +9,24 @@ import {
   getChatSession,
 } from '@/app/features/chat/services/chatService';
 import { Appointment } from '@yosemite-crew/types';
+
+// The native confirm() these flows used has been replaced by the ConfirmModal
+// hook. Mock the hook so each test can decide the answer without driving the
+// dialog, keeping the assertions focused on the downstream action.
+let mockConfirmResult = true;
+const setConfirmResult = (value: boolean) => {
+  mockConfirmResult = value;
+};
+const mockConfirm = jest.fn(async () => mockConfirmResult);
+jest.mock('@/app/ui/overlays/Modal/ConfirmModal', () => ({
+  useConfirm: () => ({ confirm: mockConfirm, confirmDialog: null }),
+}));
+
+// Default to confirming, so a test that declines cannot leak into the next one.
+beforeEach(() => {
+  mockConfirmResult = true;
+  mockConfirm.mockClear();
+});
 
 // --- Mocks ---
 
@@ -26,19 +44,40 @@ jest.mock('@/app/stores/authStore');
 // Mock Chat Service
 jest.mock('@/app/features/chat/services/chatService');
 
+type CapturedButton = {
+  text: string;
+  isDisabled: boolean;
+  onClick: (event: unknown) => void;
+};
+
+// The rendered buttons are `disabled` when the component disables them, so
+// fireEvent can't reach their handler. Capturing the props lets the tests invoke
+// the handler directly to exercise its internal guards.
+const mockPrimaryProps: CapturedButton[] = [];
+const mockSecondaryProps: CapturedButton[] = [];
+
 // Mock UI Buttons (Pass-through to standard buttons for easier testing)
 jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ text, onClick, isDisabled }: any) => (
-    <button data-testid="primary-btn" onClick={onClick} disabled={isDisabled}>
-      {text}
-    </button>
-  ),
-  Secondary: ({ text, onClick, isDisabled }: any) => (
-    <button data-testid="secondary-btn" onClick={onClick} disabled={isDisabled}>
-      {text}
-    </button>
-  ),
+  Primary: ({ text, onClick, isDisabled }: any) => {
+    mockPrimaryProps.push({ text, onClick, isDisabled });
+    return (
+      <button data-testid="primary-btn" onClick={onClick} disabled={isDisabled}>
+        {text}
+      </button>
+    );
+  },
+  Secondary: ({ text, onClick, isDisabled }: any) => {
+    mockSecondaryProps.push({ text, onClick, isDisabled });
+    return (
+      <button data-testid="secondary-btn" onClick={onClick} disabled={isDisabled}>
+        {text}
+      </button>
+    );
+  },
 }));
+
+const lastButton = (captured: CapturedButton[]) => captured[captured.length - 1];
+const clickEvent = () => ({ preventDefault: jest.fn() });
 
 describe('Chat Component', () => {
   // --- Test Data ---
@@ -56,6 +95,8 @@ describe('Chat Component', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockPrimaryProps.length = 0;
+    mockSecondaryProps.length = 0;
 
     // Default Auth State
     (useAuthStore as unknown as jest.Mock).mockReturnValue({
@@ -63,7 +104,7 @@ describe('Chat Component', () => {
     });
 
     // Default Window Mocks
-    jest.spyOn(globalThis, 'confirm').mockReturnValue(true);
+    setConfirmResult(true);
     jest.spyOn(globalThis, 'alert').mockImplementation(() => {});
     jest.spyOn(console, 'error').mockImplementation(() => {});
   });
@@ -77,6 +118,56 @@ describe('Chat Component', () => {
     expect(screen.getByText('This is not your appointment')).toBeInTheDocument();
     expect(screen.getByText(/This appointment is assigned to Dr. Jones/)).toBeInTheDocument();
     expect(getChatSession).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the email claim when the auth attributes have no sub', async () => {
+    (useAuthStore as unknown as jest.Mock).mockReturnValue({
+      attributes: { email: 'vet@example.com' },
+    });
+    (getChatSession as jest.Mock).mockResolvedValue({ _id: 'session-1', status: 'OPEN' });
+
+    const emailLeadAppointment = {
+      id: 'appt-1',
+      lead: { id: 'vet@example.com', name: 'Dr. Smith' },
+    } as unknown as Appointment;
+
+    render(<Chat activeAppointment={emailLeadAppointment} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Open Chat')).toBeInTheDocument();
+    });
+    expect(getChatSession).toHaveBeenCalledWith('appt-1', { silent: true });
+  });
+
+  it("treats the appointment as another user's when no auth attributes are loaded", () => {
+    (useAuthStore as unknown as jest.Mock).mockReturnValue({ attributes: undefined });
+
+    render(<Chat activeAppointment={mockActiveAppointment} />);
+
+    expect(screen.getByText('This is not your appointment')).toBeInTheDocument();
+    expect(getChatSession).not.toHaveBeenCalled();
+  });
+
+  it('names an unnamed lead as "another practitioner"', () => {
+    const unnamedLeadAppointment = {
+      id: 'appt-3',
+      lead: { id: 'other-user' },
+    } as unknown as Appointment;
+
+    render(<Chat activeAppointment={unnamedLeadAppointment} />);
+
+    expect(
+      screen.getByText(/This appointment is assigned to another practitioner/)
+    ).toBeInTheDocument();
+  });
+
+  it('names a missing lead as "another practitioner" when there is no appointment', () => {
+    render(<Chat activeAppointment={null} />);
+
+    expect(screen.getByText('This is not your appointment')).toBeInTheDocument();
+    expect(
+      screen.getByText(/This appointment is assigned to another practitioner/)
+    ).toBeInTheDocument();
   });
 
   it('renders the loading state initially for own appointment', async () => {
@@ -125,6 +216,16 @@ describe('Chat Component', () => {
       status: 'OPEN',
       frozen: true,
     });
+
+    render(<Chat activeAppointment={mockActiveAppointment} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('This chat session has been closed')).toBeInTheDocument();
+    });
+  });
+
+  it("renders closed session interface when the session status is 'ended'", async () => {
+    (getChatSession as jest.Mock).mockResolvedValue({ id: 'session-ended', status: 'ended' });
 
     render(<Chat activeAppointment={mockActiveAppointment} />);
 
@@ -234,6 +335,39 @@ describe('Chat Component', () => {
     expect(mockPush).not.toHaveBeenCalled();
   });
 
+  it('caches the created session id when opening chat', async () => {
+    (getChatSession as jest.Mock).mockRejectedValue({ status: 404 });
+    (createChatSession as jest.Mock).mockResolvedValue({ _id: 'created-session' });
+    (closeChatSession as jest.Mock).mockResolvedValue({});
+
+    render(<Chat activeAppointment={mockActiveAppointment} />);
+    await waitFor(() => expect(screen.getByText('Open Chat')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText('Open Chat'));
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/chat?appointmentId=appt-1'));
+
+    // The cached id is reused on close — no second lookup is needed.
+    (getChatSession as jest.Mock).mockClear();
+    fireEvent.click(screen.getByText('Close Chat Session'));
+
+    await waitFor(() => expect(closeChatSession).toHaveBeenCalledWith('created-session'));
+    expect(getChatSession).not.toHaveBeenCalled();
+  });
+
+  it('falls back to a generic message when opening chat fails without a message', async () => {
+    (getChatSession as jest.Mock).mockRejectedValue({ status: 404 });
+    (createChatSession as jest.Mock).mockRejectedValue({});
+
+    render(<Chat activeAppointment={mockActiveAppointment} />);
+    await waitFor(() => expect(screen.getByText('Open Chat')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText('Open Chat'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to open chat')).toBeInTheDocument();
+    });
+  });
+
   it('handles missing appointment ID when opening chat', async () => {
     // Edge case: Appointment object exists but ID is null
     const noIdAppt = { ...mockActiveAppointment, id: null } as any;
@@ -247,13 +381,27 @@ describe('Chat Component', () => {
 
     // If we somehow clicked it (e.g. race condition), it should handle it
     fireEvent.click(openBtn);
+    expect(createChatSession).not.toHaveBeenCalled();
+  });
+
+  it('surfaces "No appointment selected" when the open handler runs without an id', async () => {
+    const noIdAppt = { ...mockActiveAppointment, id: null } as any;
+    render(<Chat activeAppointment={noIdAppt} />);
+
+    // The button is disabled, so invoke the handler directly to reach its guard.
+    await act(async () => {
+      lastButton(mockPrimaryProps).onClick(clickEvent());
+    });
+
+    expect(screen.getByText('No appointment selected')).toBeInTheDocument();
+    expect(createChatSession).not.toHaveBeenCalled();
   });
 
   // --- Section 4: Close Chat Interaction ---
 
   it('cancels closing chat if user denies confirmation', async () => {
     (getChatSession as jest.Mock).mockRejectedValue({ status: 404 });
-    (globalThis.confirm as jest.Mock).mockReturnValue(false); // User clicks Cancel
+    setConfirmResult(false); // User declines
 
     render(<Chat activeAppointment={mockActiveAppointment} />);
     await waitFor(() => expect(screen.getByText('Close Chat Session')).toBeInTheDocument());
@@ -265,8 +413,17 @@ describe('Chat Component', () => {
 
   it('closes chat successfully when confirmed', async () => {
     (getChatSession as jest.Mock).mockResolvedValue({ _id: 'session-1', status: 'OPEN' });
-    (globalThis.confirm as jest.Mock).mockReturnValue(true); // User clicks OK
-    (closeChatSession as jest.Mock).mockResolvedValue({});
+    setConfirmResult(true); // User confirms
+    // Hold the close open so the in-flight label is observable: the
+    // confirmation is now awaited, so an instantly resolving close would land
+    // before the first assertion polls.
+    let resolveClose: (value?: unknown) => void = () => {};
+    (closeChatSession as jest.Mock).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveClose = resolve;
+        })
+    );
 
     render(<Chat activeAppointment={mockActiveAppointment} />);
     await waitFor(() => expect(screen.getByText('Close Chat Session')).toBeInTheDocument());
@@ -274,11 +431,14 @@ describe('Chat Component', () => {
     const closeBtn = screen.getByText('Close Chat Session');
     fireEvent.click(closeBtn);
 
-    // Check loading state
-    expect(screen.getByText('Closing...')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Closing...')).toBeInTheDocument());
 
     await waitFor(() => {
       expect(closeChatSession).toHaveBeenCalledWith('session-1');
+    });
+
+    await act(async () => {
+      resolveClose({});
     });
 
     expect(globalThis.alert).toHaveBeenCalledWith('Chat session closed successfully');
@@ -287,6 +447,97 @@ describe('Chat Component', () => {
     await waitFor(() => {
       expect(screen.getByText('This chat session has been closed')).toBeInTheDocument();
     });
+  });
+
+  it('looks the session id up when closing a chat with no cached session', async () => {
+    (getChatSession as jest.Mock)
+      // Mount probe: no session cached yet.
+      .mockRejectedValueOnce({ status: 404 })
+      // Close lookup: the backend answers with an `id` rather than an `_id`.
+      .mockResolvedValueOnce({ id: 'session-lazy' });
+    (closeChatSession as jest.Mock).mockResolvedValue({});
+
+    render(<Chat activeAppointment={mockActiveAppointment} />);
+    await waitFor(() => expect(screen.getByText('Close Chat Session')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText('Close Chat Session'));
+
+    await waitFor(() => expect(closeChatSession).toHaveBeenCalledWith('session-lazy'));
+    // The close lookup is not silent — the user acted, so failures must surface.
+    expect(getChatSession).toHaveBeenLastCalledWith('appt-1');
+  });
+
+  it('errors when no chat session can be resolved for the appointment', async () => {
+    (getChatSession as jest.Mock)
+      .mockRejectedValueOnce({ status: 404 })
+      // Close lookup resolves, but carries neither `_id` nor `id`.
+      .mockResolvedValueOnce({});
+
+    render(<Chat activeAppointment={mockActiveAppointment} />);
+    await waitFor(() => expect(screen.getByText('Close Chat Session')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText('Close Chat Session'));
+
+    await waitFor(() => {
+      expect(screen.getByText('No chat session found for this appointment')).toBeInTheDocument();
+    });
+    expect(closeChatSession).not.toHaveBeenCalled();
+  });
+
+  it('falls back to a generic message when closing chat fails without a message', async () => {
+    (getChatSession as jest.Mock).mockResolvedValue({ _id: 'session-1', status: 'OPEN' });
+    (closeChatSession as jest.Mock).mockRejectedValue({});
+
+    render(<Chat activeAppointment={mockActiveAppointment} />);
+    await waitFor(() => expect(screen.getByText('Close Chat Session')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText('Close Chat Session'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to close chat session')).toBeInTheDocument();
+    });
+  });
+
+  it('ignores a close request that arrives while a close is already in flight', async () => {
+    (getChatSession as jest.Mock).mockResolvedValue({ _id: 'session-1', status: 'OPEN' });
+
+    let resolveClose: (value?: unknown) => void = () => {};
+    (closeChatSession as jest.Mock).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveClose = resolve;
+        })
+    );
+
+    render(<Chat activeAppointment={mockActiveAppointment} />);
+    await waitFor(() => expect(screen.getByText('Close Chat Session')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText('Close Chat Session'));
+    await waitFor(() => expect(closeChatSession).toHaveBeenCalledTimes(1));
+
+    // The button is disabled while the close is in flight, so invoke the handler
+    // directly to exercise the in-flight guard.
+    await act(async () => {
+      lastButton(mockSecondaryProps).onClick(clickEvent());
+    });
+    expect(closeChatSession).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveClose({});
+    });
+    expect(screen.getByText('This chat session has been closed')).toBeInTheDocument();
+  });
+
+  it('surfaces "No appointment selected" when the close handler runs without an id', async () => {
+    const noIdAppt = { ...mockActiveAppointment, id: null } as any;
+    render(<Chat activeAppointment={noIdAppt} />);
+
+    await act(async () => {
+      lastButton(mockSecondaryProps).onClick(clickEvent());
+    });
+
+    expect(screen.getByText('No appointment selected')).toBeInTheDocument();
+    expect(closeChatSession).not.toHaveBeenCalled();
   });
 
   it('handles error when closing chat fails', async () => {
@@ -320,9 +571,9 @@ describe('Chat Component', () => {
 
     const closeBtn = screen.getByText('Close Chat Session');
 
-    // First Click
+    // First Click - the confirmation is awaited, so the call is not synchronous.
     fireEvent.click(closeBtn);
-    expect(closeChatSession).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(closeChatSession).toHaveBeenCalledTimes(1));
 
     // Second Click (while loading)
     fireEvent.click(closeBtn);

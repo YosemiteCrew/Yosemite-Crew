@@ -1,13 +1,18 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import posthog from 'posthog-js';
+import { useEffect, useRef, useState } from 'react';
 import { getStorageItem } from '@/app/lib/browserStorage';
 import { COOKIE_CONSENT_KEY, POSTHOG_READY_EVENT } from '@/app/lib/posthog';
-import { useAuthStore } from '@/app/stores/authStore';
+import { getLoadedPostHog } from '@/app/lib/posthogClient';
+import { useLazyAuthSlice } from '@/app/hooks/useLazyAuthStore';
+import type { AuthStore } from '@/app/stores/authStore';
 
 const hasConsent = () => getStorageItem('local', COOKIE_CONSENT_KEY) === 'true';
-const isPostHogLoaded = () => (posthog as { __loaded?: boolean }).__loaded === true;
+// Null until PostHogBootstrap has loaded the analytics chunk, which only happens
+// after consent. Every call below is already gated on that, so reading the
+// handle synchronously is safe and keeps this component's sync path intact.
+const isPostHogLoaded = () =>
+  (getLoadedPostHog() as { __loaded?: boolean } | null)?.__loaded === true;
 const addDefinedValue = (
   properties: Record<string, string>,
   key: string,
@@ -18,65 +23,87 @@ const addDefinedValue = (
   }
 };
 
+const selectAttributes = (state: AuthStore) => state.attributes;
+const selectStatus = (state: AuthStore) => state.status;
+
 const PostHogUserSync = () => {
-  const attributes = useAuthStore((state) => state.attributes);
-  const status = useAuthStore((state) => state.status);
+  // Mounted in the root layout, so importing the auth store here would put the
+  // SuperTokens stack on every route. Lazy-loading alone is not enough: the
+  // subscription would still fetch that chunk after hydration for every public
+  // visitor, including the ones who never consent. Nothing here can identify
+  // anyone until analytics is both consented and running, so the auth store is
+  // not fetched until then either.
+  const [analyticsActive, setAnalyticsActive] = useState(false);
+  const attributes = useLazyAuthSlice(selectAttributes, null, Object.is, analyticsActive);
+  const status = useLazyAuthSlice(selectStatus, 'idle', Object.is, analyticsActive);
   const identifiedIdRef = useRef<string | null>(null);
   const consentedRef = useRef(false);
   const readyRef = useRef(false);
 
   // syncIdentityRef always points at a closure over the latest attributes/status
-  // (refreshed every render below) so the mount-only event listeners and the
+  // (refreshed after every render below) so the mount-only event listeners and the
   // reactive effect can share one implementation without re-subscribing listeners.
   const syncIdentityRef = useRef<() => void>(() => {});
-  syncIdentityRef.current = () => {
-    const consented = consentedRef.current;
-    const ready = readyRef.current;
+  // No dep array: refresh the closure after every render, before the effects
+  // below (declaration order) ever invoke it.
+  useEffect(() => {
+    syncIdentityRef.current = () => {
+      const consented = consentedRef.current;
+      const ready = readyRef.current;
 
-    if (!consented || !ready) {
-      if (identifiedIdRef.current && ready) {
-        posthog.reset();
-      }
-      identifiedIdRef.current = null;
-      return;
-    }
+      const posthog = getLoadedPostHog();
 
-    if (status !== 'authenticated' && status !== 'signin-authenticated') {
-      if (identifiedIdRef.current) {
-        posthog.reset();
+      if (!consented || !ready) {
+        if (identifiedIdRef.current && ready) {
+          posthog?.reset();
+        }
         identifiedIdRef.current = null;
+        return;
       }
-      return;
-    }
 
-    const distinctId = attributes?.sub ?? attributes?.email;
-    if (!distinctId || identifiedIdRef.current === distinctId) {
-      return;
-    }
+      if (status !== 'authenticated' && status !== 'signin-authenticated') {
+        if (identifiedIdRef.current) {
+          posthog?.reset();
+          identifiedIdRef.current = null;
+        }
+        return;
+      }
 
-    const personProperties: Record<string, string> = {};
-    addDefinedValue(personProperties, 'email', attributes?.email);
-    addDefinedValue(personProperties, 'first_name', attributes?.given_name);
-    addDefinedValue(personProperties, 'last_name', attributes?.family_name);
-    addDefinedValue(personProperties, 'role', attributes?.['custom:role']);
+      const distinctId = attributes?.sub ?? attributes?.email;
+      if (!distinctId || identifiedIdRef.current === distinctId) {
+        return;
+      }
 
-    posthog.identify(distinctId, personProperties);
-    identifiedIdRef.current = distinctId;
-  };
+      const personProperties: Record<string, string> = {};
+      addDefinedValue(personProperties, 'email', attributes?.email);
+      addDefinedValue(personProperties, 'first_name', attributes?.given_name);
+      addDefinedValue(personProperties, 'last_name', attributes?.family_name);
+      addDefinedValue(personProperties, 'role', attributes?.['custom:role']);
+
+      posthog?.identify(distinctId, personProperties);
+      identifiedIdRef.current = distinctId;
+    };
+  });
 
   useEffect(() => {
     consentedRef.current = hasConsent();
     readyRef.current = isPostHogLoaded();
+    // Mirrors the refs into state, which is what actually releases the auth
+    // store fetch above.
+    const refreshActive = () => setAnalyticsActive(consentedRef.current && readyRef.current);
+    refreshActive();
     syncIdentityRef.current();
 
     const onStorage = (event: StorageEvent) => {
       if (event.key === COOKIE_CONSENT_KEY) {
         consentedRef.current = event.newValue === 'true';
+        refreshActive();
         syncIdentityRef.current();
       }
     };
     const onPostHogReady = () => {
       readyRef.current = true;
+      refreshActive();
       syncIdentityRef.current();
     };
 

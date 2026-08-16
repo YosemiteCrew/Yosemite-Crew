@@ -374,8 +374,16 @@ export const createMainWindow = async (
     deps.clearUnread();
   });
 
+  // Read at call time, not once at startup: the menu action must see a channel the
+  // user changed in Settings since launch.
+  const preferredUpdateChannel = () => deps.settingsStore?.load().updateChannel;
+
   createAppMenu({
-    checkForUpdates: () => void checkForUpdatesManually({ logger: deps.logger }),
+    checkForUpdates: () =>
+      void checkForUpdatesManually({
+        logger: deps.logger,
+        preferredChannel: preferredUpdateChannel(),
+      }),
     openCommandPalette: deps.openCommandPalette,
     createSettingsWindow: deps.createSettingsWindow,
     newTab: deps.newTab,
@@ -452,7 +460,12 @@ export const createMainWindow = async (
   });
   coldStartWatchdog.start();
 
-  await initAutoUpdates({ logger: deps.logger });
+  // Pass the stored channel so an explicit Stable choice is honoured; without it the
+  // version-derived default would put a beta build on the beta channel regardless.
+  await initAutoUpdates({
+    logger: deps.logger,
+    preferredChannel: preferredUpdateChannel(),
+  });
   return {
     mainWindow,
     tabManager,

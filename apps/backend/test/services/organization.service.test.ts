@@ -46,12 +46,6 @@ jest.mock("src/utils/logger", () => ({
   error: jest.fn(),
 }));
 
-jest.mock("src/utils/dual-write", () => ({
-  shouldDualWrite: false,
-  isDualWriteStrict: false,
-  handleDualWriteError: jest.fn(),
-}));
-
 jest.mock("src/config/prisma", () => ({
   prisma: {
     organization: {
@@ -243,6 +237,40 @@ describe("OrganizationService", () => {
       });
     });
 
+    it("creates an organisation from a minimal payload without optional fields", async () => {
+      const minimalDto: any = {
+        resourceType: "Organization",
+        name: "Minimal Hospital",
+        phoneNo: "1234567890",
+        type: "HOSPITAL",
+        taxId: "TAX-456",
+      };
+      (TypesPkg.fromOrganizationRequestDTO as jest.Mock).mockReturnValueOnce({
+        ...minimalDto,
+      });
+      (prisma.organization.create as jest.Mock).mockResolvedValueOnce(baseOrg);
+      (
+        prisma.organization.findUniqueOrThrow as jest.Mock
+      ).mockResolvedValueOnce(baseOrg);
+
+      const result = await OrganizationService.upsert(minimalDto);
+
+      expect(prisma.organization.findFirst).not.toHaveBeenCalled();
+      expect(prisma.organization.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            fhirId: undefined,
+            imageUrl: undefined,
+            appointmentLockWindowOutpatientMinutes: undefined,
+            appointmentLockWindowInpatientMinutes: undefined,
+            appointmentCheckInBufferMinutes: 5,
+            appointmentCheckInRadiusMeters: 200,
+          }),
+        }),
+      );
+      expect(result.created).toBe(true);
+    });
+
     it("updates an existing organisation", async () => {
       (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(
         baseOrg,
@@ -331,6 +359,95 @@ describe("OrganizationService", () => {
       await expect(
         OrganizationService.resolveOrganisation({ name: "Hospital" }),
       ).resolves.toMatchObject({ isPmsOrganisation: true });
+    });
+
+    // /check is unauthenticated and backs signup, so the match may only confirm existence.
+    it.each([
+      ["placeId", { placeId: "place-1" }],
+      ["name", { name: "Sensitive" }],
+    ])(
+      "withholds confidential organisation details from a %s match",
+      async (_label, input) => {
+        (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce({
+          ...baseOrg,
+          name: "Sensitive Hospital",
+          taxId: "TAX-SECRET",
+          dunsNumber: "DUNS-SECRET",
+          stripeAccountId: "acct_secret",
+          healthAndSafetyCertNo: "HS-SECRET",
+          animalWelfareComplianceCertNo: "AW-SECRET",
+          fireAndEmergencyCertNo: "FE-SECRET",
+          phoneNo: "555-0100",
+          googlePlacesId: "place-1",
+          address: {
+            addressLine: "1 Secret Way",
+            country: "US",
+            city: "City",
+            state: "CA",
+            postalCode: "90001",
+            latitude: 10,
+            longitude: 20,
+            location: null,
+          },
+        });
+
+        const result = await OrganizationService.resolveOrganisation(input);
+        const organisation = result.organisation as unknown as Record<
+          string,
+          unknown
+        >;
+
+        expect(result.isPmsOrganisation).toBe(true);
+        expect(organisation).toMatchObject({
+          _id: orgId,
+          name: "Sensitive Hospital",
+          googlePlacesId: "place-1",
+        });
+        expect(organisation.taxId).toBe("");
+        expect(organisation.phoneNo).toBe("");
+        expect(organisation.DUNSNumber).toBeUndefined();
+        expect(organisation.stripeAccountId).toBeUndefined();
+        expect(organisation.healthAndSafetyCertNo).toBeUndefined();
+        expect(organisation.animalWelfareComplianceCertNo).toBeUndefined();
+        expect(organisation.fireAndEmergencyCertNo).toBeUndefined();
+        expect(organisation.address).toBeUndefined();
+        expect(organisation.imageURL).toBeUndefined();
+
+        const serialized = JSON.stringify(organisation);
+        expect(serialized).not.toContain("SECRET");
+        expect(serialized).not.toContain("acct_secret");
+        expect(serialized).not.toContain("555-0100");
+      },
+    );
+
+    it("withholds confidential organisation details from a coordinate match", async () => {
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      (prisma.organization.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          ...baseOrg,
+          taxId: "TAX-SECRET",
+          stripeAccountId: "acct_secret",
+          address: {
+            addressLine: "1 Secret Way",
+            country: "US",
+            city: "City",
+            state: "CA",
+            postalCode: "90001",
+            latitude: 10,
+            longitude: 20,
+            location: null,
+          },
+        },
+      ]);
+
+      const result = await OrganizationService.resolveOrganisation({
+        lat: 10,
+        lng: 20,
+      });
+
+      expect(result.isPmsOrganisation).toBe(true);
+      expect(JSON.stringify(result.organisation)).not.toContain("SECRET");
+      expect(JSON.stringify(result.organisation)).not.toContain("acct_secret");
     });
 
     it("returns a non-PMS result when no organisation matches", async () => {

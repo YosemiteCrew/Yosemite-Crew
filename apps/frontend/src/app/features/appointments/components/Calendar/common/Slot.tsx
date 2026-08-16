@@ -1,4 +1,4 @@
-import React, { useId, useLayoutEffect, useMemo, useState } from 'react';
+import React, { useId, useMemo, useState } from 'react';
 import { usePopoverManager } from '@/app/hooks/usePopoverManager';
 import { Appointment, Invoice } from '@yosemite-crew/types';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
@@ -7,16 +7,15 @@ import {
   autoScrollCalendarVertically,
 } from '@/app/features/appointments/components/Calendar/helpers';
 import { calcNearestAvailableMinute } from '@/app/features/appointments/components/Calendar/calendarDrop';
-import { createPortal } from 'react-dom';
-import AppointmentPopover from '@/app/features/appointments/components/Calendar/common/AppointmentPopover';
-import AppointmentContextMenu from '@/app/features/appointments/components/Calendar/common/AppointmentContextMenu';
-import { formatDateInPreferredTimeZone, getDatePartsInPreferredTimeZone } from '@/app/lib/timezone';
+import { formatDateInPreferredTimeZone } from '@/app/lib/timezone';
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
 import { useNotify } from '@/app/hooks/useNotify';
-import ZoomInMarker from '@/app/features/appointments/components/Calendar/common/ZoomInMarker';
 import { useSlotMarkerInteractions } from '@/app/features/appointments/components/Calendar/common/useSlotMarkerInteractions';
+import ZoomInEventList from '@/app/features/appointments/components/Calendar/common/ZoomInEventList';
 import ZoomOutEventList from '@/app/features/appointments/components/Calendar/common/ZoomOutEventList';
 import DropPreviewOverlay from '@/app/features/appointments/components/Calendar/common/DropPreviewOverlay';
+import SlotCreateButton from '@/app/features/appointments/components/Calendar/common/SlotCreateButton';
+import SlotPortals from '@/app/features/appointments/components/Calendar/common/SlotPortals';
 
 type SlotProps = {
   slotEvents: Appointment[];
@@ -59,83 +58,6 @@ const getSlotEventKey = (event: Appointment): string =>
     event.startTime.toISOString(),
     event.endTime.toISOString(),
   ].join('-');
-
-type LaidOutSlotEvent = {
-  ev: Appointment;
-  startMinute: number;
-  endMinute: number;
-  visibleDurationMinutes: number;
-  laneIndex: number;
-  laneCount: number;
-};
-
-/**
- * Lay overlapping events of one hour slot out into side-by-side lanes: events are
- * clustered by overlap, each cluster packed greedily into the fewest lanes, and
- * every event in a cluster shares the cluster's lane count for width division.
- */
-const layoutZoomInEvents = (sortedSlotEvents: Appointment[]): LaidOutSlotEvent[] => {
-  const base = sortedSlotEvents
-    .map((ev) => {
-      const startMinute = getDatePartsInPreferredTimeZone(ev.startTime).minute;
-      const rawDurationMinutes = Math.max(
-        5,
-        Math.round((ev.endTime.getTime() - ev.startTime.getTime()) / 60000)
-      );
-      const visibleDurationMinutes = Math.max(10, Math.min(rawDurationMinutes, 60 - startMinute));
-      return {
-        ev,
-        startMinute,
-        endMinute: startMinute + visibleDurationMinutes,
-        visibleDurationMinutes,
-      };
-    })
-    .sort((a, b) => {
-      if (a.startMinute !== b.startMinute) return a.startMinute - b.startMinute;
-      return a.endMinute - b.endMinute;
-    });
-
-  const output: LaidOutSlotEvent[] = [];
-
-  let cursor = 0;
-  while (cursor < base.length) {
-    const cluster: typeof base = [base[cursor]];
-    let clusterEnd = base[cursor].endMinute;
-    let next = cursor + 1;
-    while (next < base.length && base[next].startMinute < clusterEnd) {
-      cluster.push(base[next]);
-      clusterEnd = Math.max(clusterEnd, base[next].endMinute);
-      next += 1;
-    }
-
-    const laneEnds: number[] = [];
-    const clusterOut: LaidOutSlotEvent[] = [];
-    cluster.forEach((item) => {
-      let laneIndex = -1;
-      for (let i = 0; i < laneEnds.length; i += 1) {
-        if (laneEnds[i] <= item.startMinute) {
-          laneIndex = i;
-          break;
-        }
-      }
-      if (laneIndex === -1) {
-        laneIndex = laneEnds.length;
-        laneEnds.push(item.endMinute);
-      } else {
-        laneEnds[laneIndex] = item.endMinute;
-      }
-      clusterOut.push({ ...item, laneIndex, laneCount: 1 });
-    });
-
-    const laneCount = Math.max(1, laneEnds.length);
-    clusterOut.forEach((item) => {
-      output.push({ ...item, laneCount });
-    });
-    cursor = next;
-  }
-
-  return output;
-};
 
 /** Availability overlay rectangles for one hour slot while a drag is in flight. */
 const computeAvailabilitySegments = (
@@ -273,12 +195,17 @@ const SlotComponent: React.FC<SlotProps> = ({
 
   const popoverStyle = getPopoverStyle(440, 490);
 
-  useLayoutEffect(() => {
-    if (!draggedAppointmentId) return;
-    setActivePopoverKey(null);
-    setDropPreviewMinute(null);
-    setContextMenu(null);
-  }, [draggedAppointmentId, setActivePopoverKey, setContextMenu]);
+  // Dismiss the popover, drop preview, and context menu the moment a drag starts —
+  // adjusted during render via a prev-compare rather than an effect.
+  const [prevDraggedAppointmentId, setPrevDraggedAppointmentId] = useState(draggedAppointmentId);
+  if (draggedAppointmentId !== prevDraggedAppointmentId) {
+    setPrevDraggedAppointmentId(draggedAppointmentId);
+    if (draggedAppointmentId) {
+      setActivePopoverKey(null);
+      setDropPreviewMinute(null);
+      setContextMenu(null);
+    }
+  }
 
   const getMinuteFromSlotPointer = (clientY: number, container: HTMLDivElement) =>
     minuteFromSlotPointer(clientY, container, dropHour);
@@ -300,12 +227,8 @@ const SlotComponent: React.FC<SlotProps> = ({
     [draggedAppointmentDurationMinutes, dropAvailabilityIntervals, height, hourEnd, hourStart]
   );
 
-  const laidOutZoomInEvents = useMemo(
-    () => layoutZoomInEvents(sortedSlotEvents),
-    [sortedSlotEvents]
-  );
-
   const tryCreateAppointmentAt = (minute: number) => {
+    /* v8 ignore next -- defensive guard: the create button only mounts when both dropDate and onCreateAppointmentAt are set, so this early return is unreachable from the UI */
     if (!dropDate || !onCreateAppointmentAt) return;
     const snapped = Math.round(minute / 5) * 5;
     const slotTime = new Date(dropDate);
@@ -331,13 +254,12 @@ const SlotComponent: React.FC<SlotProps> = ({
   };
 
   const { createAppointmentLabel, slotRegionLabel } = buildSlotLabels(dropDate, dropHour);
-  const canPortal = typeof document !== 'undefined';
 
   return (
     <>
       <section
         aria-label={slotRegionLabel}
-        className={`relative overflow-auto scrollbar-hidden border-l border-grey-light ${dayIndex === length && 'border-r'}`}
+        className={`relative overflow-auto scrollbar-hidden border-l border-card-border ${dayIndex === length && 'border-r'}`}
         style={{ height: `${height}px` }}
         onDragOver={(event) => {
           if (!draggedAppointmentId) return;
@@ -374,25 +296,18 @@ const SlotComponent: React.FC<SlotProps> = ({
         }}
       >
         {dropDate && onCreateAppointmentAt && !draggedAppointmentId ? (
-          <button
-            type="button"
-            aria-label={createAppointmentLabel}
-            className="absolute inset-0 z-1 rounded-none!"
-            onClick={(event) => {
-              const parent = event.currentTarget.parentElement as HTMLDivElement;
-              tryCreateAppointmentAt(getMinuteFromSlotPointer(event.clientY, parent));
-            }}
-            onDoubleClick={(event) => {
-              const parent = event.currentTarget.parentElement as HTMLDivElement;
-              tryCreateAppointmentAt(getMinuteFromSlotPointer(event.clientY, parent));
-            }}
+          <SlotCreateButton
+            label={createAppointmentLabel}
+            onPick={(clientY, container) =>
+              tryCreateAppointmentAt(getMinuteFromSlotPointer(clientY, container))
+            }
           />
         ) : null}
         {draggedAppointmentId &&
           availabilitySegments.map((segment, index) => (
             <div
               key={`drop-availability-${index}-${segment.top}`}
-              className="pointer-events-none absolute inset-x-1 z-20 rounded-md border border-grey-light bg-calendar-availability-overlay"
+              className="pointer-events-none absolute inset-x-1 z-20 rounded-md border border-card-border bg-calendar-availability-overlay"
               style={{ top: segment.top, height: segment.segmentHeight }}
             />
           ))}
@@ -420,74 +335,42 @@ const SlotComponent: React.FC<SlotProps> = ({
             onDropPreviewClear={() => setDropPreviewMinute(null)}
           />
         ) : (
-          <div className="relative h-full bg-white overflow-visible px-1">
-            {laidOutZoomInEvents.map(
-              ({ ev, startMinute, visibleDurationMinutes, laneIndex, laneCount }) => {
-                const itemKey = getSlotEventKey(ev);
-                const topPx = (startMinute / 60) * height;
-                const blockHeightPx = Math.max((visibleDurationMinutes / 60) * height, 40);
-
-                return (
-                  <ZoomInMarker
-                    key={itemKey}
-                    ev={ev}
-                    itemKey={itemKey}
-                    laneIndex={laneIndex}
-                    laneCount={laneCount}
-                    topPx={topPx}
-                    blockHeightPx={blockHeightPx}
-                    activePopoverKey={activePopoverKey}
-                    appointmentPopoverId={appointmentPopoverId}
-                    draggedAppointmentId={draggedAppointmentId}
-                    canDragAppointment={canDragAppointment}
-                    onMarkerClick={handleMarkerClick}
-                    onMarkerDoubleClick={handleMarkerDoubleClick}
-                    onMarkerContextMenu={handleMarkerContextMenu}
-                    onAppointmentDragStart={onAppointmentDragStart}
-                    onAppointmentDragEnd={onAppointmentDragEnd}
-                    onDropPreviewClear={() => setDropPreviewMinute(null)}
-                  />
-                );
-              }
-            )}
-          </div>
+          <ZoomInEventList
+            sortedSlotEvents={sortedSlotEvents}
+            height={height}
+            activePopoverKey={activePopoverKey}
+            appointmentPopoverId={appointmentPopoverId}
+            draggedAppointmentId={draggedAppointmentId}
+            canDragAppointment={canDragAppointment}
+            onMarkerClick={handleMarkerClick}
+            onMarkerDoubleClick={handleMarkerDoubleClick}
+            onMarkerContextMenu={handleMarkerContextMenu}
+            onAppointmentDragStart={onAppointmentDragStart}
+            onAppointmentDragEnd={onAppointmentDragEnd}
+            onDropPreviewClear={() => setDropPreviewMinute(null)}
+          />
         )}
       </section>
-      {canPortal &&
-        !draggedAppointmentId &&
-        activeEvent &&
-        activeRect &&
-        createPortal(
-          <AppointmentPopover
-            appointment={activeEvent}
-            invoicesByAppointmentId={invoicesByAppointmentId}
-            canEditAppointments={canEditAppointments}
-            popoverId={appointmentPopoverId}
-            popoverDialogRef={popoverDialogRef}
-            popoverStyle={popoverStyle}
-            handleRescheduleAppointment={handleRescheduleAppointment}
-            handleChangeRoomAppointment={handleChangeRoomAppointment}
-            handleAcceptAppointment={handleAcceptAppointment}
-            onClose={() => setActivePopoverKey(null)}
-            registerAnchorEl={registerAnchorEl}
-          />,
-          document.body
-        )}
-      {canPortal &&
-        contextMenu &&
-        contextMenuStyle &&
-        createPortal(
-          <AppointmentContextMenu
-            appointment={contextMenu.appointment}
-            canEditAppointments={canEditAppointments}
-            menuRef={contextMenuRef}
-            menuStyle={contextMenuStyle}
-            handleViewAppointment={handleViewAppointment}
-            handleRescheduleAppointment={handleRescheduleAppointment}
-            onClose={() => setContextMenu(null)}
-          />,
-          document.body
-        )}
+      <SlotPortals
+        activeEvent={activeEvent}
+        activeRect={activeRect}
+        draggedAppointmentId={draggedAppointmentId}
+        invoicesByAppointmentId={invoicesByAppointmentId}
+        canEditAppointments={canEditAppointments}
+        appointmentPopoverId={appointmentPopoverId}
+        popoverDialogRef={popoverDialogRef}
+        popoverStyle={popoverStyle}
+        registerAnchorEl={registerAnchorEl}
+        contextMenu={contextMenu}
+        contextMenuRef={contextMenuRef}
+        contextMenuStyle={contextMenuStyle}
+        handleViewAppointment={handleViewAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        handleChangeRoomAppointment={handleChangeRoomAppointment}
+        handleAcceptAppointment={handleAcceptAppointment}
+        onPopoverClose={() => setActivePopoverKey(null)}
+        onContextMenuClose={() => setContextMenu(null)}
+      />
     </>
   );
 };

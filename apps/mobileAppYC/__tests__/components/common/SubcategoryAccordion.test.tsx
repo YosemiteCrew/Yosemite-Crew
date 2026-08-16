@@ -97,6 +97,13 @@ describe('SubcategoryAccordion', () => {
     expect(UNSAFE_getAllByType(Image)).toHaveLength(1);
   });
 
+  it('applies the no-subtitle layout when subtitle is empty', () => {
+    const {queryByText} = render(
+      <SubcategoryAccordion {...defaultProps} subtitle="" />,
+    );
+    expect(queryByText('Test Subtitle')).toBeNull();
+  });
+
   it('applies custom container styles', () => {
     const customStyle = {marginTop: 20};
     const {getByText} = render(
@@ -145,5 +152,16 @@ describe('SubcategoryAccordion', () => {
     fireEvent.press(headerButton);
     expect(queryByText('Accordion Content')).toBeNull();
     expect(withTiming).toHaveBeenCalledWith(0, expect.any(Object));
+  });
+
+  it('exposes a button role, title label, and expanded state on the header', () => {
+    const {getByLabelText} = render(<SubcategoryAccordion {...defaultProps} />);
+
+    const header = getByLabelText('Test Title');
+    expect(header.props.accessibilityRole).toBe('button');
+    expect(header.props.accessibilityState).toEqual({expanded: false});
+
+    fireEvent.press(header);
+    expect(header.props.accessibilityState).toEqual({expanded: true});
   });
 });

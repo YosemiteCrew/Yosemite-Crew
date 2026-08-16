@@ -3,8 +3,6 @@ import {
   toCompanionResponseDTO,
   type CompanionRequestDTO,
   type Companion,
-  type CompanionType,
-  type Gender,
   type RecordStatus,
   type SourceType,
 } from "@yosemite-crew/types";
@@ -23,7 +21,7 @@ import {
 import { AuditTrailService } from "./audit-trail.service";
 import { ParentService } from "./parent.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
-import escapeStringRegexp from "escape-string-regexp";
+import { escapeLikePattern } from "../utils/escape-like";
 import logger from "src/utils/logger";
 import { TaskLibraryService } from "./taskLibrary.service";
 import { CreateFromLibraryInput, TaskService } from "./task.service";
@@ -166,17 +164,17 @@ const toPersistable = (payload: CompanionRequestDTO): CompanionPersistable => {
     medicalRecords:
       companion.medicalRecords as unknown as Prisma.JsonValue | null,
     alerts: companion.alerts as unknown as Prisma.JsonValue | null,
-  } as CompanionPersistable;
+  };
 };
 
 const toPatientWriteData = (persistable: CompanionPersistable) => ({
   name: persistable.name,
-  type: persistable.type as PrismaPatientType,
+  type: persistable.type,
   breed: persistable.breed ?? "",
   speciesCode: persistable.speciesCode ?? undefined,
   breedCode: persistable.breedCode ?? undefined,
   dateOfBirth: persistable.dateOfBirth,
-  gender: persistable.gender as PrismaGender,
+  gender: persistable.gender,
   photoUrl: persistable.photoUrl ?? undefined,
   currentWeight: persistable.currentWeight ?? undefined,
   colour: persistable.colour ?? undefined,
@@ -256,12 +254,12 @@ const validateCompanionCodes = async (
 const mapCompanion = (doc: CompanionRecord): Companion => ({
   id: doc.id,
   name: doc.name,
-  type: doc.type as CompanionType,
+  type: doc.type,
   breed: doc.breed ?? "",
   speciesCode: doc.speciesCode ?? undefined,
   breedCode: doc.breedCode ?? undefined,
   dateOfBirth: doc.dateOfBirth,
-  gender: doc.gender as Gender,
+  gender: doc.gender,
   photoUrl: doc.photoUrl ?? undefined,
   currentWeight: doc.currentWeight ?? undefined,
   colour: doc.colour ?? undefined,
@@ -459,12 +457,27 @@ export const CompanionService = {
       species: persistable.type,
     });
 
-    return { response: toFHIRFromPrisma(updated as CompanionRecord) };
+    return { response: toFHIRFromPrisma(updated) };
   },
 
-  async listByParent(parentId: string) {
+  async listByParent(parentId: string, context: CompanionCreateContext) {
     if (!parentId || typeof parentId !== "string") {
       throw new CompanionServiceError("Invalid Parent Document Id", 400);
+    }
+
+    if (!context?.authUserId) {
+      throw new CompanionServiceError(
+        "Authenticated user is required to list companions.",
+        401,
+      );
+    }
+
+    const parent = await ParentService.findByLinkedUserId(context.authUserId);
+
+    // A parent the caller does not own is reported as missing rather than forbidden, so the
+    // endpoint cannot confirm that a parent id exists.
+    if (!parent?.id || parent.id !== parentId) {
+      throw new CompanionServiceError("Parent not found.", 404);
     }
 
     const companionIds =
@@ -539,7 +552,7 @@ export const CompanionService = {
     const doc = await prisma.patient.findUnique({ where: { id } });
     if (!doc) return null;
 
-    return { response: toFHIRFromPrisma(doc as CompanionRecord) };
+    return { response: toFHIRFromPrisma(doc) };
   },
 
   async getByName(name: string) {
@@ -552,7 +565,7 @@ export const CompanionService = {
       throw new CompanionServiceError("Name is required for searching.", 400);
     }
 
-    const safe = escapeStringRegexp(trimmed);
+    const safe = escapeLikePattern(trimmed);
     const documents = await prisma.patient.findMany({
       where: { name: { contains: safe, mode: "insensitive" } },
     });
@@ -595,7 +608,7 @@ export const CompanionService = {
       nextAlerts: persistable.alerts,
     });
 
-    return { response: toFHIRFromPrisma(doc as CompanionRecord) };
+    return { response: toFHIRFromPrisma(doc) };
   },
 
   async delete(id: string, context?: CompanionCreateContext) {

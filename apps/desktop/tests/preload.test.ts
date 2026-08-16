@@ -221,6 +221,22 @@ describe('preload bridge', () => {
     });
   });
 
+  describe('onIdleUnlockFailed', () => {
+    test('fires the callback and unsubscribes on cleanup', () => {
+      const callback = jest.fn();
+      const cleanup = mockExposed.ycDesktop.onIdleUnlockFailed(callback);
+
+      const handler = mockListeners['yc:idle-unlock-failed'];
+      expect(handler).toBeDefined();
+
+      handler({});
+      expect(callback).toHaveBeenCalledTimes(1);
+
+      cleanup();
+      expect(mockListeners['yc:idle-unlock-failed']).toBeUndefined();
+    });
+  });
+
   describe('newTab with no args', () => {
     test('invokes yc:tab-new with undefined', async () => {
       mockInvoked.length = 0;
@@ -277,6 +293,34 @@ describe('preload bridge', () => {
       expect(mockSent).toHaveLength(1);
       expect(mockSent[0].channel).toBe('yc:window-drag-by');
       expect(mockSent[0].args).toEqual([12, -7]);
+    });
+  });
+
+  describe('window caption controls', () => {
+    test.each([
+      ['windowMinimize', 'yc:window-minimize'],
+      ['windowToggleMaximize', 'yc:window-toggle-maximize'],
+      ['windowClose', 'yc:window-close'],
+    ] as const)('%s sends %s with no args (fire-and-forget)', (method, channel) => {
+      mockSent.length = 0;
+      const result = (mockExposed.ycDesktop[method] as () => unknown)();
+      expect(result).toBeUndefined();
+      expect(mockSent).toHaveLength(1);
+      expect(mockSent[0].channel).toBe(channel);
+      expect(mockSent[0].args).toEqual([]);
+    });
+  });
+
+  describe('idle lock', () => {
+    test.each(['biometric', 'password'] as const)('idleUnlock forwards the %s mode', (mode) => {
+      mockSent.length = 0;
+      const result = (mockExposed.ycDesktop.idleUnlock as (m: 'biometric' | 'password') => unknown)(
+        mode
+      );
+      expect(result).toBeUndefined();
+      expect(mockSent).toHaveLength(1);
+      expect(mockSent[0].channel).toBe('yc:idle-unlock');
+      expect(mockSent[0].args).toEqual([mode]);
     });
   });
 

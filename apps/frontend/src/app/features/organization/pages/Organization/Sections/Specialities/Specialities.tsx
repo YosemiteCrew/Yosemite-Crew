@@ -1,16 +1,14 @@
-import AccordionButton from '@/app/ui/primitives/Accordion/AccordionButton';
-import SpecialitiesTable from '@/app/ui/tables/SpecialitiesTable';
+import SectionCard from '@/app/ui/primitives/SectionCard/SectionCard';
 import SpecialitiesTableRevamp from '@/app/ui/tables/SpecialitiesTableRevamp';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import AddSpeciality from '@/app/features/organization/pages/Organization/Sections/Specialities/AddSpeciality';
 import SpecialityInfo from '@/app/features/organization/pages/Organization/Sections/Specialities/SpecialityInfo';
 import { useSpecialitiesWithServiceNamesForPrimaryOrg } from '@/app/hooks/useSpecialities';
 import { SpecialityWeb } from '@/app/features/organization/types/speciality';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
+import Fallback from '@/app/ui/overlays/Fallback';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { usePermissions } from '@/app/hooks/usePermissions';
-import { isAppointmentRevampEnabled } from '@/app/lib/featureFlags';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 
@@ -25,18 +23,20 @@ const Specialities = () => {
   const { can } = usePermissions();
   const canEditSpecialities = can(PERMISSIONS.SPECIALITIES_EDIT_ANY);
   const router = useRouter();
-  const revampEnabled = isAppointmentRevampEnabled();
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const revampSpecialities = useRevampCatalogStore((s) => s.specialities);
   const loadOrganisationCatalog = useRevampCatalogStore((s) => s.loadOrganisationCatalog);
 
-  const [addPopup, setAddPopup] = useState(false);
   const [viewPopup, setViewPopup] = useState(false);
   const [activeSpeciality, setActiveSpeciality] = useState<SpecialityWeb | null>(
     specialities[0] ?? null
   );
 
-  useEffect(() => {
+  // Re-point the selection when the specialities list changes (adjusted during
+  // render, per React's "adjusting state when a prop changes" pattern).
+  const [prevSpecialities, setPrevSpecialities] = useState(specialities);
+  if (prevSpecialities !== specialities) {
+    setPrevSpecialities(specialities);
     setActiveSpeciality((prev) => {
       if (specialities.length === 0) return null;
       if (prev?._id) {
@@ -45,74 +45,50 @@ const Specialities = () => {
       }
       return specialities[0];
     });
-  }, [specialities]);
-
-  useEffect(() => {
-    if (!revampEnabled || !primaryOrgId) return;
-    Promise.resolve(loadOrganisationCatalog(primaryOrgId)).catch(() => undefined);
-  }, [loadOrganisationCatalog, primaryOrgId, revampEnabled]);
-
-  if (revampEnabled) {
-    const catalogSpecialities = primaryOrgId
-      ? revampSpecialities.reduce<RevampSpecialityTableRow[]>((rows, speciality) => {
-          if (speciality.organisationId !== primaryOrgId) return rows;
-          rows.push({
-            _id: speciality.id,
-            revampId: speciality.id,
-            organisationId: speciality.organisationId,
-            name: speciality.name,
-            headUserId: speciality.headVetId,
-            teamMemberIds: speciality.teamMemberIds,
-            activeServiceCount: speciality.activeServiceCount,
-            activePackageCount: speciality.activePackageCount,
-            services: [],
-          });
-          return rows;
-        }, [])
-      : [];
-    return (
-      <PermissionGate allOf={[PERMISSIONS.SPECIALITIES_VIEW_ANY]}>
-        <AccordionButton
-          title="Specialties, services & packages"
-          buttonTitle="Manage"
-          buttonClick={() => router.push('/organization/specialities')}
-          showButton={canEditSpecialities}
-        >
-          <SpecialitiesTableRevamp
-            filteredList={catalogSpecialities}
-            onManageTeam={(s) => {
-              setActiveSpeciality(s);
-              setViewPopup(true);
-            }}
-          />
-        </AccordionButton>
-        {activeSpeciality && (
-          <SpecialityInfo
-            showModal={viewPopup}
-            setShowModal={setViewPopup}
-            activeSpeciality={activeSpeciality}
-            canEditSpecialities={canEditSpecialities}
-          />
-        )}
-      </PermissionGate>
-    );
   }
 
+  useEffect(() => {
+    if (!primaryOrgId) return;
+    Promise.resolve(loadOrganisationCatalog(primaryOrgId)).catch(() => undefined);
+  }, [loadOrganisationCatalog, primaryOrgId]);
+
+  const catalogSpecialities = primaryOrgId
+    ? revampSpecialities.reduce<RevampSpecialityTableRow[]>((rows, speciality) => {
+        if (speciality.organisationId !== primaryOrgId) return rows;
+        rows.push({
+          _id: speciality.id,
+          revampId: speciality.id,
+          organisationId: speciality.organisationId,
+          name: speciality.name,
+          headUserId: speciality.headVetId,
+          teamMemberIds: speciality.teamMemberIds,
+          activeServiceCount: speciality.activeServiceCount,
+          activePackageCount: speciality.activePackageCount,
+          services: [],
+        });
+        return rows;
+      }, [])
+    : [];
+
   return (
-    <PermissionGate allOf={[PERMISSIONS.SPECIALITIES_VIEW_ANY]}>
-      <AccordionButton
+    <PermissionGate
+      allOf={[PERMISSIONS.SPECIALITIES_VIEW_ANY]}
+      fallback={<Fallback resource="specialities, services and packages" />}
+    >
+      <SectionCard
         title="Specialties, services & packages"
-        buttonTitle="Add"
-        buttonClick={setAddPopup}
+        buttonTitle="Manage"
+        buttonClick={() => router.push('/organization/specialities')}
         showButton={canEditSpecialities}
       >
-        <SpecialitiesTable
-          filteredList={specialities}
-          setActive={setActiveSpeciality}
-          setView={setViewPopup}
+        <SpecialitiesTableRevamp
+          filteredList={catalogSpecialities}
+          onManageTeam={(s) => {
+            setActiveSpeciality(s);
+            setViewPopup(true);
+          }}
         />
-      </AccordionButton>
-      <AddSpeciality showModal={addPopup} setShowModal={setAddPopup} specialities={specialities} />
+      </SectionCard>
       {activeSpeciality && (
         <SpecialityInfo
           showModal={viewPopup}

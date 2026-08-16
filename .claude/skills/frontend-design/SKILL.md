@@ -21,7 +21,7 @@ TRIGGER: any task involving JSX, styling, layout, new components, or visual chan
 src/app/ui/                 ← start here
   Button.tsx                ← variants: primary | secondary | danger
   Card.tsx                  ← variants: default | bordered | subtle
-  Badge.tsx                 ← status chips / labels
+  Badge.tsx                 ← non-status labels (status chips use StatusPill)
   Input.tsx                 ← base input with token borders
   Stack.tsx                 ← flex layout helper
   Text.tsx                  ← typography variants
@@ -31,7 +31,10 @@ src/app/ui/                 ← start here
   overlays/                 ← Modal, Toast, Loader
   layout/                   ← Header, Sidebar, guards
   primitives/Buttons/       ← Primary, Secondary, Delete (low-level)
+  primitives/StatusPill/    ← THE status pill (tone-coloured, uppercase)
+  primitives/SegmentedPill/ ← segmented pill controls (view/tab toggles)
   filters/                  ← Forms, Inventory, general filters
+  board/                    ← kanban board components
   widgets/                  ← domain widgets
 ```
 
@@ -48,9 +51,11 @@ The design-token source of truth is `apps/frontend/src/app/globals.css` under `@
 --color-*          (e.g. --color-neutral-200, --color-primary-500)
 
 /* Typography */
---font-satoshi     (primary - all weights 300-900)
---font-grotesk     (secondary)
+--font-satoshi     (body/UI - all weights 300-900)
+--font-newsreader  (display serif - page titles, marketing moments)
 ```
+
+Satoshi is the body/UI font; Newsreader (`--font-newsreader`, applied via `.text-page-title` / `.font-newsreader`) is the display serif for page titles and marketing moments. The durable rule: never re-add `--font-grotesk` or `--grotesk-font` (see `src/app/ui/tokens.md`).
 
 Reference documentation: `src/app/ui/tokens.md` (derived guide, not source of truth)
 
@@ -74,7 +79,7 @@ Layout → Spacing → Sizing → Typography → Colors → Borders → Effects 
 
 Use the `<Text>` component for all copy, not bare `<p>` / `<span>` tags.
 
-Font: **Satoshi** (300 Light → 900 Black). Never default to Inter, Roboto, or system fonts for new UI.
+Body/UI font: **Satoshi** (300 Light → 900 Black). Display serif: **Newsreader** for page titles and marketing moments (`.text-page-title` in `globals.css` applies it). Never default to Inter, Roboto, or system fonts for new UI.
 
 ## UI Text Normalization
 
@@ -106,7 +111,7 @@ Font: **Satoshi** (300 Light → 900 Black). Never default to Inter, Roboto, or 
 
 Use Zustand stores in `src/app/stores/`. Each domain has its own store. Do not introduce new state management libraries.
 
-Available stores: appointment, auth, availability, companion, document, forms, integration, inventory, invoice, org, parent, profile, room, search, service, subscription, task, team, universalSearch.
+Available stores: appointment, appointmentWorkspace, auth, availability, companion, counter, document, forms, fullscreenLoader, integration, inventory, invoice, org, parent, profile, revampCatalog, room, routeLoader, search, service, signingOverlay, speciality, subscription, task, team, universalSearch. Lists drift — enumerate `src/app/stores/` before creating any store.
 
 ---
 

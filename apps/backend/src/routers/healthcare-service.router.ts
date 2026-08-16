@@ -1,21 +1,26 @@
 import { NextFunction, Request, Response, Router } from "express";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 import { CatalogController } from "src/controllers/web/catalog.controller";
 
 const router = Router();
+
+const resolveOrganisationQueryValue = (req: Request): string | undefined => {
+  if (typeof req.query.organization === "string") {
+    return req.query.organization;
+  }
+  if (typeof req.query["provided-by"] === "string") {
+    return req.query["provided-by"];
+  }
+  return undefined;
+};
 
 const attachOrganisationIdFromQuery = (
   req: Request,
   _res: Response,
   next: NextFunction,
 ) => {
-  const organization =
-    typeof req.query.organization === "string"
-      ? req.query.organization
-      : typeof req.query["provided-by"] === "string"
-        ? req.query["provided-by"]
-        : undefined;
+  const organization = resolveOrganisationQueryValue(req);
 
   if (organization && !req.params.organisationId) {
     req.params.organisationId = organization.replace(/^Organization\//, "");
@@ -26,7 +31,7 @@ const attachOrganisationIdFromQuery = (
 
 router.post(
   "/",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   CatalogController.createProduct,
@@ -34,7 +39,7 @@ router.post(
 
 router.patch(
   "/:id",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   CatalogController.updateProduct,
@@ -42,7 +47,7 @@ router.patch(
 
 router.get(
   "/:id",
-  authorizeCognito,
+  requireWebAuth,
   attachOrganisationIdFromQuery,
   withOrgPermissions(),
   requirePermission("specialities:view:any"),
@@ -51,7 +56,7 @@ router.get(
 
 router.get(
   "/",
-  authorizeCognito,
+  requireWebAuth,
   attachOrganisationIdFromQuery,
   withOrgPermissions(),
   requirePermission("specialities:view:any"),
@@ -60,7 +65,7 @@ router.get(
 
 router.post(
   String.raw`/\$resolve-selection`,
-  authorizeCognito,
+  requireWebAuth,
   attachOrganisationIdFromQuery,
   withOrgPermissions(),
   requirePermission("specialities:view:any"),
@@ -69,7 +74,7 @@ router.post(
 
 router.post(
   String.raw`/\$search-components`,
-  authorizeCognito,
+  requireWebAuth,
   attachOrganisationIdFromQuery,
   withOrgPermissions(),
   requirePermission("specialities:view:any"),

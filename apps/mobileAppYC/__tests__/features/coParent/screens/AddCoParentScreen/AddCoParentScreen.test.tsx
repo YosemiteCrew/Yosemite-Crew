@@ -112,6 +112,27 @@ const mockOpen = jest.fn();
 const mockClose = jest.fn();
 
 jest.mock(
+  '@/shared/components/common/CompanionSelector/CompanionSelector',
+  () => ({
+    CompanionSelector: ({onSelect, companions}: any) => {
+      const {TouchableOpacity, Text, View} = require('react-native');
+      return (
+        <View testID="companion-selector">
+          {companions.map((c: any) => (
+            <TouchableOpacity
+              key={c.id}
+              onPress={() => onSelect(c.id)}
+              testID={`select-companion-${c.id}`}>
+              <Text>Select {c.name}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      );
+    },
+  }),
+);
+
+jest.mock(
   '../../../../../src/features/coParent/components/AddCoParentBottomSheet/AddCoParentBottomSheet',
   () => {
     const ReactMock = require('react');
@@ -185,7 +206,7 @@ describe('AddCoParentScreen', () => {
     );
 
     expect(screen.getByText('Add co-parent')).toBeTruthy();
-    expect(screen.getByText('Send an invite')).toBeTruthy();
+    expect(screen.getByText('Send invite')).toBeTruthy();
     expect(screen.getByTestId('Co-Parent name')).toBeTruthy();
     expect(screen.getByTestId('Email address')).toBeTruthy();
     expect(screen.getByTestId('Mobile (optional)')).toBeTruthy();
@@ -257,6 +278,53 @@ describe('AddCoParentScreen', () => {
       }),
     );
     expect(mockOpen).toHaveBeenCalled();
+  });
+
+  it('shows a companion selector when the account has more than one companion, and lets the user override the default', async () => {
+    const secondCompanion = {
+      id: 'comp-2',
+      name: 'Lucy',
+      profileImage: 'https://img/lucy.jpg',
+    };
+    mockState.companion.companions = [mockCompanion, secondCompanion];
+    mockState.companion.selectedCompanionId = 'comp-1';
+
+    render(
+      <AddCoParentScreen
+        navigation={mockNavigation as any}
+        route={{} as any}
+      />,
+    );
+
+    expect(screen.getByTestId('companion-selector')).toBeTruthy();
+
+    // Override the default (globally-selected) companion.
+    fireEvent.press(screen.getByTestId('select-companion-comp-2'));
+
+    fillValidForm();
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('send-invite-btn'));
+    });
+
+    expect(mockAddCoParent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        inviteRequest: expect.objectContaining({companionId: 'comp-2'}),
+        companionName: 'Lucy',
+        companionImage: 'https://img/lucy.jpg',
+      }),
+    );
+  });
+
+  it('does not show a companion selector when the account has only one companion', () => {
+    render(
+      <AddCoParentScreen
+        navigation={mockNavigation as any}
+        route={{} as any}
+      />,
+    );
+
+    expect(screen.queryByTestId('companion-selector')).toBeNull();
   });
 
   it('shows an alert and skips dispatch when no companion is selected', async () => {

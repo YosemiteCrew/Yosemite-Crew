@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { IoAdd, IoPencil, IoSearch } from 'react-icons/io5';
-import { MdDeleteForever } from 'react-icons/md';
+import { IoAdd, IoPencil, IoSearch, IoTrash } from 'react-icons/io5';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 
@@ -257,6 +256,7 @@ const useSpecialityStepContent = ({
   };
 
   const handleSaveService = () => {
+    /* v8 ignore next 3 -- unreachable: the service editor modal only renders while serviceEditor is set */
     if (!serviceEditor) {
       return;
     }
@@ -308,6 +308,7 @@ const useSpecialityStepContent = ({
 
   const handleServiceNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setServiceEditor((previous) =>
+      /* v8 ignore next 2 -- unreachable: modal inputs only render while serviceEditor is set */
       previous == null
         ? previous
         : { ...previous, service: { ...previous.service, name: event.target.value } }
@@ -316,6 +317,7 @@ const useSpecialityStepContent = ({
 
   const handleServiceDurationChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setServiceEditor((previous) =>
+      /* v8 ignore next 2 -- unreachable: modal inputs only render while serviceEditor is set */
       previous == null
         ? previous
         : {
@@ -327,6 +329,7 @@ const useSpecialityStepContent = ({
 
   const handleServiceCostChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setServiceEditor((previous) =>
+      /* v8 ignore next 2 -- unreachable: modal inputs only render while serviceEditor is set */
       previous == null
         ? previous
         : { ...previous, service: { ...previous.service, cost: Number(event.target.value || 0) } }
@@ -487,7 +490,7 @@ const useSpecialityStepContent = ({
                       aria-label={`Delete ${speciality.name}`}
                       onClick={() => handleRemoveSpeciality(speciality.name)}
                     >
-                      <MdDeleteForever size={18} />
+                      <IoTrash size={18} />
                     </button>
                   </div>
 
@@ -515,7 +518,7 @@ const useSpecialityStepContent = ({
                                 aria-label={`Delete ${service.name}`}
                                 onClick={() => handleRemoveService(speciality.name, service.name)}
                               >
-                                <MdDeleteForever size={16} />
+                                <IoTrash size={16} />
                               </button>
                             </div>
                           </div>

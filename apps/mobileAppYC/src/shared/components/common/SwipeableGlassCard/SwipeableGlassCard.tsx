@@ -47,6 +47,7 @@ export interface SwipeableGlassCardProps {
   springConfig?: SpringConfig;
   actionOverlap?: number;
   enableHorizontalSwipeOnly?: boolean;
+  actionAccessibilityLabel?: string;
 }
 
 const DEFAULT_ACTION_WIDTH = 70;
@@ -68,6 +69,7 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
   springConfig,
   actionOverlap = DEFAULT_OVERLAP,
   enableHorizontalSwipeOnly = false,
+  actionAccessibilityLabel = 'Action',
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -230,7 +232,9 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
     <PressableOpacity
       activeOpacity={0.85}
       style={styles.actionButton}
-      onPress={handleActionPress}>
+      onPress={handleActionPress}
+      accessibilityRole="button"
+      accessibilityLabel={actionAccessibilityLabel}>
       <View style={styles.actionIconWrapper}>
         <Image
           source={actionIcon}

@@ -196,7 +196,7 @@ const normalizeOptionalString = (value: unknown) => {
 const normalizeOptionalCode = (value: unknown) => {
   const normalized = normalizeOptionalString(value);
 
-  if (normalized && normalized.includes("$")) {
+  if (normalized?.includes("$")) {
     throw new RoomValidationError("Invalid character in code.");
   }
 
@@ -823,12 +823,13 @@ const buildSummary = (
     occupiedUnitIds.has(unit.id),
   ).length;
   const vacantUnits = Math.max(totalUnits - occupiedUnits, 0);
-  const occupancyDisplay =
-    totalUnits > 0
-      ? vacantUnits === 0
-        ? "Occupied"
-        : `Vacant (${vacantUnits})`
-      : room.occupancyStatus;
+  let occupancyDisplay: string;
+  if (totalUnits > 0) {
+    occupancyDisplay =
+      vacantUnits === 0 ? "Occupied" : `Vacant (${vacantUnits})`;
+  } else {
+    occupancyDisplay = room.occupancyStatus;
+  }
 
   return {
     ...toRecord(room, specialities, staff),
@@ -1029,20 +1030,11 @@ export const OrganisationRoomService = {
       return summaries;
     }
 
+    // Rooms are included when they have any vacant unit, so they may still be
+    // partly occupied: only the unit list is narrowed, never the counts.
     return summaries.filter(isSummaryVacant).map((room) => ({
       ...room,
       units: room.units.filter((unit) => !unit.isOccupied),
-      unitGroups: room.unitGroups.map((group) => ({
-        ...group,
-        occupiedCount: 0,
-        vacantCount: group.unitCount,
-      })),
-      occupiedUnits: 0,
-      vacantUnits: room.totalUnits,
-      occupancyDisplay:
-        room.totalUnits > 0
-          ? `Vacant (${room.totalUnits})`
-          : room.occupancyDisplay,
     }));
   },
 

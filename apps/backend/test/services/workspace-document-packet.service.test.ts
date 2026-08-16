@@ -1,6 +1,7 @@
 import { prisma } from "src/config/prisma";
 import { WorkspaceService } from "src/services/workspace.prisma.service";
 import axios from "axios";
+import dns from "node:dns";
 import { DocumensoService } from "../../src/services/documenso.service";
 import { buildMergedClinicalPacketPdf } from "../../src/services/clinical-packet-pdf.service";
 import { renderCombinedClinicalPacketPdf } from "../../src/services/rendered-document-renderer.service";
@@ -49,6 +50,7 @@ jest.mock("../../src/services/documenso.service", () => ({
     createDocument: jest.fn(),
     distributeDocument: jest.fn(),
     downloadSignedDocument: jest.fn(),
+    getDocumentStatus: jest.fn(),
   },
 }));
 
@@ -89,6 +91,7 @@ const mockedDocumenso = DocumensoService as unknown as {
   createDocument: jest.Mock;
   distributeDocument: jest.Mock;
   downloadSignedDocument: jest.Mock;
+  getDocumentStatus: jest.Mock;
 };
 const mockedAxios = axios as unknown as {
   get: jest.Mock;
@@ -147,9 +150,28 @@ const basePacket = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+let lookupSpy: jest.SpyInstance;
+
+/** Bytes that open with the PDF marker, as any real document does. */
+const pdfBytes = (marker: string): Buffer =>
+  Buffer.from(`%PDF-1.7\n${marker}\n%%EOF\n`);
+
 beforeEach(() => {
   jest.clearAllMocks();
   process.env.DOCUMENSO_URL = "https://sign.example";
+  // The signed-packet link is checked before it is used, which resolves the
+  // host. Keep that resolution deterministic and offline: the placeholder hosts
+  // in this suite stand for ordinary public endpoints. Cases about which hosts
+  // are permitted live in workspace-document-packet.service.url-validation.
+  lookupSpy = jest
+    .spyOn(dns.promises, "lookup")
+    .mockResolvedValue([
+      { address: "203.0.113.10", family: 4 },
+    ] as unknown as dns.LookupAddress);
+});
+
+afterEach(() => {
+  lookupSpy.mockRestore();
 });
 
 describe("WorkspaceDocumentPacketService.createForEncounter / getById", () => {
@@ -184,6 +206,20 @@ describe("WorkspaceDocumentPacketService.createForEncounter / getById", () => {
           documents: expect.any(Array),
         }),
       }),
+    );
+
+    // Packet assembly has no request permissions of its own; it must ask for
+    // system access or it silently persists an empty clinical packet.
+    expect(mockedWorkspaceService.getEncounterBootstrap).toHaveBeenCalledWith(
+      { organisationId: "org-1", encounterId: "enc-1" },
+      undefined,
+      { systemAccess: true },
+    );
+    const created =
+      mockedPrisma.workspaceDocumentPacket.create.mock.calls[0][0];
+    expect(created.data.documents).toHaveLength(1);
+    expect(created.data.documents[0]).toEqual(
+      expect.objectContaining({ documentId: "doc-1" }),
     );
   });
 
@@ -282,6 +318,35 @@ describe("WorkspaceDocumentPacketService.createForEncounter / getById", () => {
 
     expect(packet.packetId).toBe("packet-1");
     expect(packet.signing).toBeNull();
+  });
+
+  it("never returns the signing bearer url when reading a packet", async () => {
+    mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(
+      basePacket({
+        id: "packet-1",
+        documents: [],
+        signing: {
+          required: true,
+          provider: "DOCUMENSO",
+          status: "IN_PROGRESS",
+          documentId: "123",
+          signerId: "user-1",
+          signerEmail: "vet@example.com",
+          signerName: "Vet",
+          signingUrl: "https://sign.example/sign/secret-token",
+          documentIds: ["d1"],
+        },
+      }),
+    );
+
+    const packet = await WorkspaceDocumentPacketService.getById(
+      "org-1",
+      "packet-1",
+    );
+
+    expect(packet.signing?.status).toBe("IN_PROGRESS");
+    expect(packet.signing?.signingUrl).toBeNull();
+    expect(JSON.stringify(packet)).not.toContain("secret-token");
   });
 
   it("treats a signing blob without a string status as no signing", async () => {
@@ -394,19 +459,69 @@ describe("WorkspaceDocumentPacketService.sign", () => {
     expect(result.signing?.status).toBe("IN_PROGRESS");
   });
 
-  it("uses an explicit signer email when provided", async () => {
+  it("never merges an INVOICE rendered document into the signed clinical packet", async () => {
     arrange();
-    mockedPrisma.user.findFirst.mockResolvedValue(null);
+    // A visit with a finalized invoice: the invoice shows in All Documents but is not a packet
+    // member, so signing must exclude it while still merging the clinical docs.
+    mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(
+      basePacket({
+        documents: [
+          docRow("d1", "SOAP_NOTE"),
+          { ...docRow("d2", "FORM"), sourceKind: "FORM_SUBMISSION" },
+          { ...docRow("inv", "INVOICE"), sourceKind: "INVOICE" },
+        ],
+      }),
+    );
 
     await WorkspaceDocumentPacketService.sign({
       organisationId: "org-1",
       packetId: "pkt-1",
       signerId: "user-1",
-      signerEmail: "override@example.com",
+      signerName: "Dr Jane",
     });
 
+    expect(mockedBuildPacketPdf).toHaveBeenCalledWith(
+      expect.objectContaining({
+        documents: [
+          expect.objectContaining({ documentId: "d1" }),
+          expect.objectContaining({ documentId: "d2" }),
+        ],
+      }),
+    );
+    const updateArg =
+      mockedPrisma.workspaceDocumentPacket.update.mock.calls[0][0];
+    expect(updateArg.data.signing.documentIds).toEqual(["d1", "d2"]);
+  });
+
+  it("refuses to sign when the authenticated signer has no resolvable email", async () => {
+    arrange();
+    mockedPrisma.user.findFirst.mockResolvedValue(null);
+
+    await expect(
+      WorkspaceDocumentPacketService.sign({
+        organisationId: "org-1",
+        packetId: "pkt-1",
+        signerId: "user-1",
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+
+    expect(mockedDocumenso.createDocument).not.toHaveBeenCalled();
+  });
+
+  it("always addresses the signing request to the authenticated signer's own record", async () => {
+    arrange();
+
+    await WorkspaceDocumentPacketService.sign({
+      organisationId: "org-1",
+      packetId: "pkt-1",
+      signerId: "user-1",
+    });
+
+    expect(mockedPrisma.user.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { userId: "user-1" } }),
+    );
     expect(mockedDocumenso.createDocument).toHaveBeenCalledWith(
-      expect.objectContaining({ signerEmail: "override@example.com" }),
+      expect.objectContaining({ signerEmail: "vet@example.com" }),
     );
   });
 
@@ -732,6 +847,7 @@ describe("WorkspaceDocumentPacketService.completeSigning", () => {
       }),
     );
     mockedDocumenso.resolveOrganisationApiKey.mockResolvedValue("api-key");
+    mockedDocumenso.getDocumentStatus.mockResolvedValue("COMPLETED");
     mockedDocumenso.downloadSignedDocument.mockResolvedValue({
       downloadUrl: "https://signed.example/packet.pdf",
     });
@@ -745,6 +861,10 @@ describe("WorkspaceDocumentPacketService.completeSigning", () => {
     const result =
       await WorkspaceDocumentPacketService.completeSigning("pkt-1");
 
+    expect(mockedDocumenso.getDocumentStatus).toHaveBeenCalledWith({
+      documentId: 123,
+      apiKey: "api-key",
+    });
     expect(mockedDocumenso.downloadSignedDocument).toHaveBeenCalledWith({
       documentId: 123,
       apiKey: "api-key",
@@ -752,6 +872,8 @@ describe("WorkspaceDocumentPacketService.completeSigning", () => {
     const updateArg =
       mockedPrisma.workspaceDocumentPacket.update.mock.calls[0][0];
     expect(updateArg.data.status).toBe("FINAL");
+    expect(updateArg.data.signedBy).toBe("user-1");
+    expect(updateArg.data.signedAt).toBeInstanceOf(Date);
     expect(updateArg.data.signing).toEqual(
       expect.objectContaining({
         status: "SIGNED",
@@ -761,6 +883,111 @@ describe("WorkspaceDocumentPacketService.completeSigning", () => {
     expect(mockedPrisma.renderedDocument.update).toHaveBeenCalledTimes(2);
     expect(mockedPrisma.documentSignature.upsert).toHaveBeenCalledTimes(2);
     expect(result?.status).toBe("FINAL");
+  });
+
+  it("does NOT finalise a packet whose Documenso document is still PENDING, even though the PDF downloads", async () => {
+    // The regression guard. Documenso happily serves a downloadable PDF for a
+    // document nobody has signed yet, so a successful download is not evidence
+    // of a signature. Finalising on the download alone stamped unsigned packets
+    // as legally SIGNED.
+    mockedPrisma.workspaceDocumentPacket.findUnique.mockResolvedValue(
+      basePacket({
+        signing: {
+          status: "IN_PROGRESS",
+          documentId: "123",
+          signerId: "user-1",
+          signerName: "Dr Jane",
+          documentIds: ["d1", "d2"],
+        },
+      }),
+    );
+    mockedDocumenso.resolveOrganisationApiKey.mockResolvedValue("api-key");
+    mockedDocumenso.getDocumentStatus.mockResolvedValue("PENDING");
+    // The download would succeed — this is what made the old code stamp it.
+    mockedDocumenso.downloadSignedDocument.mockResolvedValue({
+      downloadUrl: "https://signed.example/packet.pdf",
+    });
+    // Every write below would also succeed. The gate, not a failing write, is
+    // what must stop the packet being finalised — so this test fails on its own
+    // assertions rather than on an incidental crash if the gate is removed.
+    mockedPrisma.workspaceDocumentPacket.update.mockImplementation(
+      async ({ data }: { data: Record<string, unknown> }) =>
+        basePacket({ status: data.status, signing: data.signing }),
+    );
+    mockedPrisma.renderedDocument.update.mockResolvedValue({});
+    mockedPrisma.documentSignature.upsert.mockResolvedValue({});
+
+    const result =
+      await WorkspaceDocumentPacketService.completeSigning("pkt-1");
+
+    // Nothing may be written: no packet finalisation, no signedAt, no child
+    // document stamped, no signature row.
+    expect(mockedPrisma.workspaceDocumentPacket.update).not.toHaveBeenCalled();
+    expect(mockedPrisma.renderedDocument.update).not.toHaveBeenCalled();
+    expect(mockedPrisma.documentSignature.upsert).not.toHaveBeenCalled();
+
+    // The packet is returned truthfully, as it stands.
+    expect(result?.status).toBe("DRAFT");
+    expect(result?.signing?.status).toBe("IN_PROGRESS");
+    expect(result?.signedAt).toBeNull();
+    expect(result?.signedBy).toBeNull();
+  });
+
+  it.each([["DRAFT"], ["REJECTED"]])(
+    "does NOT finalise a packet whose Documenso document is %s",
+    async (documensoStatus) => {
+      mockedPrisma.workspaceDocumentPacket.findUnique.mockResolvedValue(
+        basePacket({
+          signing: {
+            status: "IN_PROGRESS",
+            documentId: "123",
+            signerId: "user-1",
+            documentIds: ["d1"],
+          },
+        }),
+      );
+      mockedDocumenso.resolveOrganisationApiKey.mockResolvedValue("api-key");
+      mockedDocumenso.getDocumentStatus.mockResolvedValue(documensoStatus);
+      mockedDocumenso.downloadSignedDocument.mockResolvedValue({
+        downloadUrl: "https://signed.example/packet.pdf",
+      });
+
+      const result =
+        await WorkspaceDocumentPacketService.completeSigning("pkt-1");
+
+      expect(
+        mockedPrisma.workspaceDocumentPacket.update,
+      ).not.toHaveBeenCalled();
+      expect(result?.status).toBe("DRAFT");
+      expect(result?.signedAt).toBeNull();
+    },
+  );
+
+  it("propagates a Documenso status-read failure rather than finalising blind", async () => {
+    mockedPrisma.workspaceDocumentPacket.findUnique.mockResolvedValue(
+      basePacket({
+        signing: {
+          status: "IN_PROGRESS",
+          documentId: "123",
+          signerId: "user-1",
+          documentIds: ["d1"],
+        },
+      }),
+    );
+    mockedDocumenso.resolveOrganisationApiKey.mockResolvedValue("api-key");
+    mockedDocumenso.getDocumentStatus.mockRejectedValue(
+      new Error("documenso unreachable"),
+    );
+    mockedDocumenso.downloadSignedDocument.mockResolvedValue({
+      downloadUrl: "https://signed.example/packet.pdf",
+    });
+
+    await expect(
+      WorkspaceDocumentPacketService.completeSigning("pkt-1"),
+    ).rejects.toThrow("documenso unreachable");
+
+    // An unreadable status must never be mistaken for a signature.
+    expect(mockedPrisma.workspaceDocumentPacket.update).not.toHaveBeenCalled();
   });
 
   it("returns null when the packet is missing", async () => {
@@ -783,6 +1010,9 @@ describe("WorkspaceDocumentPacketService.completeSigning", () => {
 
     await WorkspaceDocumentPacketService.completeSigning("pkt-1");
 
+    // An already-signed packet short-circuits before Documenso is consulted at
+    // all — the gate must not turn the idempotent path into a network call.
+    expect(mockedDocumenso.getDocumentStatus).not.toHaveBeenCalled();
     expect(mockedDocumenso.downloadSignedDocument).not.toHaveBeenCalled();
     expect(mockedPrisma.workspaceDocumentPacket.update).not.toHaveBeenCalled();
   });
@@ -796,6 +1026,7 @@ describe("WorkspaceDocumentPacketService.completeSigning", () => {
       await WorkspaceDocumentPacketService.completeSigning("pkt-1");
 
     expect(result?.packetId).toBe("pkt-1");
+    expect(mockedDocumenso.getDocumentStatus).not.toHaveBeenCalled();
     expect(mockedDocumenso.downloadSignedDocument).not.toHaveBeenCalled();
     expect(mockedPrisma.workspaceDocumentPacket.update).not.toHaveBeenCalled();
   });
@@ -832,6 +1063,7 @@ describe("WorkspaceDocumentPacketService.completeSigning", () => {
       }),
     );
     mockedDocumenso.resolveOrganisationApiKey.mockResolvedValue("api-key");
+    mockedDocumenso.getDocumentStatus.mockResolvedValue("COMPLETED");
     mockedDocumenso.downloadSignedDocument.mockResolvedValue(null);
 
     await expect(
@@ -852,6 +1084,7 @@ describe("WorkspaceDocumentPacketService.completeSigning", () => {
       }),
     );
     mockedDocumenso.resolveOrganisationApiKey.mockResolvedValue("api-key");
+    mockedDocumenso.getDocumentStatus.mockResolvedValue("COMPLETED");
     mockedDocumenso.downloadSignedDocument.mockResolvedValue({
       downloadUrl: "https://signed.example/packet.pdf",
     });
@@ -896,6 +1129,7 @@ describe("WorkspaceDocumentPacketService.reconcile", () => {
       }),
     );
     mockedDocumenso.resolveOrganisationApiKey.mockResolvedValue("api-key");
+    mockedDocumenso.getDocumentStatus.mockResolvedValue("COMPLETED");
     mockedDocumenso.downloadSignedDocument.mockResolvedValue({
       downloadUrl: "https://signed.example/packet.pdf",
     });
@@ -912,7 +1146,42 @@ describe("WorkspaceDocumentPacketService.reconcile", () => {
     );
 
     expect(result.status).toBe("FINAL");
+    expect(mockedDocumenso.getDocumentStatus).toHaveBeenCalled();
     expect(mockedDocumenso.downloadSignedDocument).toHaveBeenCalled();
+  });
+
+  it("reports an unsigned packet as still DRAFT instead of throwing", async () => {
+    // The endpoint the frontend calls when the signing overlay closes. The user
+    // may simply have closed the frame without signing — a truthful "still
+    // IN_PROGRESS" packet is the right answer there, not an error.
+    const inProgress = basePacket({
+      signing: {
+        status: "IN_PROGRESS",
+        documentId: "123",
+        signerId: "user-1",
+        documentIds: ["d1"],
+      },
+    });
+    mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(
+      inProgress,
+    );
+    mockedPrisma.workspaceDocumentPacket.findUnique.mockResolvedValue(
+      inProgress,
+    );
+    mockedDocumenso.resolveOrganisationApiKey.mockResolvedValue("api-key");
+    mockedDocumenso.getDocumentStatus.mockResolvedValue("PENDING");
+    mockedDocumenso.downloadSignedDocument.mockResolvedValue({
+      downloadUrl: "https://signed.example/packet.pdf",
+    });
+
+    const result = await WorkspaceDocumentPacketService.reconcile(
+      "org-1",
+      "pkt-1",
+    );
+
+    expect(result.status).toBe("DRAFT");
+    expect(result.signing?.status).toBe("IN_PROGRESS");
+    expect(mockedPrisma.workspaceDocumentPacket.update).not.toHaveBeenCalled();
   });
 
   it("returns the packet untouched when already FINAL", async () => {
@@ -929,6 +1198,7 @@ describe("WorkspaceDocumentPacketService.reconcile", () => {
     );
 
     expect(result.status).toBe("FINAL");
+    expect(mockedDocumenso.getDocumentStatus).not.toHaveBeenCalled();
     expect(mockedDocumenso.downloadSignedDocument).not.toHaveBeenCalled();
     expect(mockedPrisma.workspaceDocumentPacket.update).not.toHaveBeenCalled();
   });
@@ -1014,7 +1284,7 @@ describe("WorkspaceDocumentPacketService.buildEncounterPacketPdf", () => {
       downloadUrl: "https://signed.example/packet.pdf",
     });
     mockedAxios.get.mockResolvedValue({
-      data: Buffer.from("signed-pdf"),
+      data: pdfBytes("signed"),
     });
 
     const pdf = await WorkspaceDocumentPacketService.buildEncounterPacketPdf(
@@ -1022,7 +1292,7 @@ describe("WorkspaceDocumentPacketService.buildEncounterPacketPdf", () => {
       "enc-1",
     );
 
-    expect(pdf.toString()).toBe("signed-pdf");
+    expect(pdf).toEqual(pdfBytes("signed"));
     expect(mockedWorkspaceService.getEncounterBootstrap).not.toHaveBeenCalled();
     expect(mockedRenderCombinedPacketPdf).not.toHaveBeenCalled();
     expect(mockedBuildPacketPdf).not.toHaveBeenCalled();
@@ -1225,7 +1495,8 @@ describe("WorkspaceDocumentPacketService.buildEncounterPacketPdfForParent", () =
         organisationId: "org-1",
         encounterId: "enc-1",
       },
-      [],
+      undefined,
+      { systemAccess: true },
     );
   });
 

@@ -4,13 +4,14 @@ import { z } from "zod";
 import {
   TaskWorkflowService,
   TaskWorkflowServiceError,
+  type ScheduleActor,
 } from "src/services/task-workflow.service";
 import {
   taskScheduleFhirMapper,
   type TaskScheduleLike,
 } from "src/services/task-schedule.fhir.mapper";
 import { createFhirErrorHandler } from "src/controllers/web/fhir-controller.shared";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import type { OrgRequest } from "src/middlewares/rbac";
 
 const parametersSchema = z
   .object({ resourceType: z.literal("Parameters") })
@@ -29,6 +30,15 @@ const parseParameters = (body: unknown) => {
     return undefined;
   }
   return parametersSchema.parse(body) as unknown as Parameters;
+};
+
+// The actor is read off the verified session, never from `x-user-id`.
+const resolveScheduleActor = (req: Request): ScheduleActor => {
+  const orgReq = req as OrgRequest;
+  return {
+    actorId: typeof orgReq.userId === "string" ? orgReq.userId : "",
+    canEditAny: orgReq.userPermissions?.includes("tasks:edit:any") ?? false,
+  };
 };
 
 const buildScheduleBundle = (schedules: TaskScheduleLike[]): Bundle => ({
@@ -59,7 +69,7 @@ export const TaskScheduleFhirController = {
       const record = await TaskWorkflowService.launchFromTemplateInstance(
         req.params.instanceId,
         req.params.organisationId,
-        resolveUserIdFromRequest(req) ?? "",
+        resolveScheduleActor(req),
         {
           force: taskScheduleFhirMapper.getBooleanParameter(
             parameters,
@@ -78,12 +88,7 @@ export const TaskScheduleFhirController = {
 
       return res
         .status(200)
-        .json(
-          taskScheduleFhirMapper.toTask(
-            record.schedule as TaskScheduleLike,
-            record.taskIds,
-          ),
-        );
+        .json(taskScheduleFhirMapper.toTask(record.schedule, record.taskIds));
     } catch (error) {
       return handleError(error, res);
     }
@@ -93,12 +98,10 @@ export const TaskScheduleFhirController = {
     try {
       const schedule = await TaskWorkflowService.pauseSchedule(
         req.params.instanceId,
-        resolveUserIdFromRequest(req) ?? "",
+        resolveScheduleActor(req),
         req.params.organisationId,
       );
-      return res
-        .status(200)
-        .json(taskScheduleFhirMapper.toTask(schedule as TaskScheduleLike));
+      return res.status(200).json(taskScheduleFhirMapper.toTask(schedule));
     } catch (error) {
       return handleError(error, res);
     }
@@ -108,12 +111,10 @@ export const TaskScheduleFhirController = {
     try {
       const schedule = await TaskWorkflowService.resumeSchedule(
         req.params.instanceId,
-        resolveUserIdFromRequest(req) ?? "",
+        resolveScheduleActor(req),
         req.params.organisationId,
       );
-      return res
-        .status(200)
-        .json(taskScheduleFhirMapper.toTask(schedule as TaskScheduleLike));
+      return res.status(200).json(taskScheduleFhirMapper.toTask(schedule));
     } catch (error) {
       return handleError(error, res);
     }
@@ -123,12 +124,10 @@ export const TaskScheduleFhirController = {
     try {
       const schedule = await TaskWorkflowService.cancelSchedule(
         req.params.instanceId,
-        resolveUserIdFromRequest(req) ?? "",
+        resolveScheduleActor(req),
         req.params.organisationId,
       );
-      return res
-        .status(200)
-        .json(taskScheduleFhirMapper.toTask(schedule as TaskScheduleLike));
+      return res.status(200).json(taskScheduleFhirMapper.toTask(schedule));
     } catch (error) {
       return handleError(error, res);
     }
@@ -140,7 +139,7 @@ export const TaskScheduleFhirController = {
       const record = await TaskWorkflowService.regenerateSchedule(
         req.params.instanceId,
         req.params.organisationId,
-        resolveUserIdFromRequest(req) ?? "",
+        resolveScheduleActor(req),
         {
           force: true,
           notify: taskScheduleFhirMapper.getBooleanParameter(
@@ -155,12 +154,7 @@ export const TaskScheduleFhirController = {
       );
       return res
         .status(200)
-        .json(
-          taskScheduleFhirMapper.toTask(
-            record.schedule as TaskScheduleLike,
-            record.taskIds,
-          ),
-        );
+        .json(taskScheduleFhirMapper.toTask(record.schedule, record.taskIds));
     } catch (error) {
       return handleError(error, res);
     }

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth, requireMobileAuth } from "src/middlewares/auth";
 import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
 import { PetPassportController } from "src/controllers/web/pet-passport.controller";
 import { PassportConsentController } from "src/controllers/web/passport-consent.controller";
@@ -11,7 +11,7 @@ const router = Router();
 // body). The passport reads them back via the encounter.
 router.post(
   "/pms/organisation/:organisationId/companion/:patientId/immunizations",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("vaccinations:edit:any"),
   PetPassportController.recordImmunization,
@@ -19,7 +19,7 @@ router.post(
 
 router.post(
   "/pms/organisation/:organisationId/companion/:patientId/treatments",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("passport:edit:any"),
   PetPassportController.recordParasiteTreatment,
@@ -27,7 +27,7 @@ router.post(
 
 router.post(
   "/pms/organisation/:organisationId/companion/:patientId/titrations",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("passport:edit:any"),
   PetPassportController.recordRabiesTitration,
@@ -35,7 +35,7 @@ router.post(
 
 router.post(
   "/pms/organisation/:organisationId/companion/:patientId/clinical-exams",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("passport:edit:any"),
   PetPassportController.recordClinicalExam,
@@ -45,33 +45,51 @@ router.post(
 // state the passport surfaces) or revokes it.
 router.post(
   "/pms/organisation/:organisationId/companion/:patientId/records/:recordId/sign",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
-  requirePermission("passport:edit:any"),
+  requirePermission("passport:attest:any"),
   PetPassportController.signRecord,
 );
 
 router.post(
   "/pms/organisation/:organisationId/companion/:patientId/records/:recordId/attest",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
-  requirePermission("passport:edit:any"),
+  requirePermission("passport:attest:any"),
   PetPassportController.attestRecord,
 );
 
 router.post(
   "/pms/organisation/:organisationId/companion/:patientId/records/:recordId/revoke",
-  authorizeCognito,
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("passport:attest:any"),
+  PetPassportController.revokeRecord,
+);
+
+// Public share link for the QR / wallet pass. Issuing rotates the token, which
+// is also how a circulating link is revoked.
+router.post(
+  "/pms/organisation/:organisationId/companion/:patientId/share-link",
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("passport:edit:any"),
-  PetPassportController.revokeRecord,
+  PetPassportController.issuePublicToken,
+);
+
+router.delete(
+  "/pms/organisation/:organisationId/companion/:patientId/share-link",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("passport:edit:any"),
+  PetPassportController.revokePublicToken,
 );
 
 // Cross-practice sharing consent (per recipient practice; pet-parent consent
 // recorded). The owning practice requests; the parent grants via mobile/email.
 router.post(
   "/pms/organisation/:organisationId/companion/:patientId/consents",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("passport:edit:any"),
   PassportConsentController.requestConsent,
@@ -79,23 +97,25 @@ router.post(
 
 router.get(
   "/pms/organisation/:organisationId/consents",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("companions:view:any"),
   PassportConsentController.listConsents,
 );
 
+// Granting is the PET PARENT's action, so this is a mobile-authenticated route
+// and carries no staff permission gate. The service verifies the caller is the
+// pet's primary parent; a practice must never be able to authorise its own
+// access to another practice's records.
 router.post(
-  "/pms/organisation/:organisationId/consents/:consentId/grant",
-  authorizeCognito,
-  withOrgPermissions(),
-  requirePermission("passport:edit:any"),
+  "/mobile/organisation/:organisationId/consents/:consentId/grant",
+  requireMobileAuth,
   PassportConsentController.grantConsent,
 );
 
 router.post(
   "/pms/organisation/:organisationId/consents/:consentId/revoke",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("passport:edit:any"),
   PassportConsentController.revokeConsent,
@@ -103,7 +123,7 @@ router.post(
 
 router.post(
   "/pms/organisation/:organisationId/companion/:patientId/issue",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("passport:edit:any"),
   PetPassportController.issuePassport,
@@ -111,7 +131,7 @@ router.post(
 
 router.get(
   "/pms/organisation/:organisationId/companion/:patientId/passport",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("companions:view:any"),
   PetPassportController.getPassport,
@@ -119,7 +139,7 @@ router.get(
 
 router.get(
   "/pms/organisation/:organisationId/companion/:patientId/wallet/apple",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("companions:view:any"),
   PetPassportController.getApplePass,
@@ -127,7 +147,7 @@ router.get(
 
 router.get(
   "/pms/organisation/:organisationId/companion/:patientId/wallet/google",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("companions:view:any"),
   PetPassportController.getGooglePass,

@@ -1,11 +1,10 @@
 .DocsWrapper {
-  padding: 24px 20px;
+  padding: 24px 20px 32px;
   display: flex;
   flex-direction: column;
   gap: 16px;
   min-height: calc(100vh - 80px);
-  background: var(--color-brand-100);
-  padding-bottom: 32px;
+  background: var(--page);
   font-family: var(--font-satoshi);
 }
 
@@ -21,12 +20,14 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--color-brand-950);
+  color: var(--color-text-brand);
   padding: 6px 10px;
   border-radius: 8px;
   border: 1px solid var(--color-card-border);
   background: var(--color-surface-card);
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .DocsBackLink:hover {
@@ -35,38 +36,411 @@
   text-decoration: none;
 }
 
-.DocsOpenLink {
-  transition: opacity 0.15s ease;
-}
-
 .DocsOpenLink:hover {
+  /* The underline is the whole affordance. Dimming to 0.8 on top of it lowered
+     the link's contrast at exactly the moment the pointer was on it. */
   text-decoration: underline;
-  opacity: 0.8;
 }
 
-.DocsFrame {
+/* ---- Reader shell ---- */
+.DocsShell {
+  display: flex;
   flex: 1;
-  background: var(--color-surface-card);
+  min-height: 0;
+  height: 760px;
+  max-height: calc(100vh - 150px);
+  background: var(--screen);
   border: 1px solid var(--color-card-border);
-  border-radius: 14px;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  border-radius: 24px;
   overflow: hidden;
-  min-height: calc(100vh - 140px);
-  height: calc(100vh - 140px);
-  max-height: none;
+  box-shadow:
+    0 2px 6px var(--sh05),
+    0 28px 70px var(--sh10);
 }
 
-.DocsFrame iframe {
-  display: block;
+.DocsNav {
+  flex: none;
+  width: 250px;
+  background: var(--screen-2);
+  border-right: 1px solid var(--color-card-border);
+  padding: 20px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+}
+
+.DocsNavBrand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 10px 14px;
+}
+
+.DocsNavBrandText {
+  display: flex;
+  flex-direction: column;
+}
+
+.DocsNavBrandTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.DocsNavBrandKicker {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cyan-text);
+}
+
+.DocsSearch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 12px;
+  margin: 0 4px 12px;
+  background: var(--field-bg);
+  border: 1px solid var(--color-card-border);
+  border-radius: 9999px;
+  color: var(--color-text-tertiary);
+}
+
+.DocsSearchInput {
+  flex: 1;
+  min-width: 0;
   border: none;
+  background: transparent;
+  outline: none;
+  font-size: 12px;
+  color: var(--color-text-primary);
+  font-family: var(--font-satoshi);
+}
+
+.DocsSearchInput::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.DocsNavSection {
+  padding: 0 10px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.DocsNavSection.spaced {
+  padding-top: 14px;
+}
+
+.DocsNavItem {
+  display: flex;
+  align-items: center;
+  height: 34px;
+  border-radius: 10px;
+  padding: 0 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
   width: 100%;
-  height: 100%;
-  min-height: inherit;
+  font-family: var(--font-satoshi);
+}
+
+.DocsNavItem:hover {
+  background: var(--color-card-hover);
+}
+
+.DocsNavItem.is-active {
+  background: var(--nav-active-bg);
+  color: var(--cyan-text);
+  font-weight: 700;
+}
+
+.DocsNavEmpty {
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+.DocsNavGithub {
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  font-size: 11.5px;
+  color: var(--color-text-tertiary);
+  background: transparent;
+  border: none;
+  text-decoration: none;
+}
+
+.DocsNavGithub:hover {
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.DocsMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.DocsMainHead {
+  flex: none;
+  padding: 14px 32px;
+  border-bottom: 1px solid var(--color-card-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.DocsBreadcrumb {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+.DocsBreadcrumb strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.DocsMainHeadActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.DocsVersionBadge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 3px 10px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  background: var(--nav-active-bg);
+  color: var(--cyan-text);
+}
+
+.DocsCopyBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  border: 1px solid var(--color-card-border);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font-satoshi);
+}
+
+.DocsBody {
+  flex: 1;
+  min-height: 0;
+  padding: 26px 40px;
+  display: flex;
+  gap: 28px;
+  overflow: auto;
+}
+
+.DocsArticle {
+  flex: 1.25;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.DocsArticleTitle {
+  margin: 0;
+  font-family: var(--font-newsreader);
+  font-weight: 400;
+  font-size: 30px;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+
+.DocsArticleText {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--color-text-primary);
+}
+
+.DocsArticleText strong {
+  color: var(--ink);
+}
+
+.DocsInlineCode {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  background: var(--inset);
+  border: 1px solid var(--divider);
+  border-radius: 6px;
+  padding: 1px 6px;
+}
+
+.DocsEndpoint {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 14px;
+  background: var(--inset);
+  border: 1px solid var(--divider);
+  border-radius: 12px;
+}
+
+.DocsMethod {
+  padding: 3px 9px;
+  border-radius: 7px;
+  background: var(--color-cyan);
+  color: #1d1c1b;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.DocsEndpointPath {
+  font-family: ui-monospace, monospace;
+  font-size: 12.5px;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.DocsEndpointScope {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--color-text-tertiary);
+}
+
+.DocsNote {
+  padding: 12px 16px;
+  background: var(--inset);
+  border: 1px solid var(--divider);
+  border-radius: 12px;
+  display: flex;
+  gap: 10px;
+}
+
+.DocsNoteText {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--color-text-primary);
+}
+
+.DocsCode {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.DocsCodePanel {
+  background: var(--spot);
+  border-radius: 16px;
+  box-shadow: 0 14px 40px var(--sh20);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.DocsCodePanelHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(244, 239, 230, 0.1);
+}
+
+.DocsCodePanelLabel {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgba(244, 239, 230, 0.55);
+}
+
+.DocsCodeCopy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--color-cyan);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-satoshi);
+}
+
+.DocsCodePre {
+  margin: 0;
+  padding: 14px 16px;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 1.65;
+  color: #f4efe6;
+  overflow-x: auto;
+}
+
+@media (max-width: 900px) {
+  .DocsBody {
+    flex-direction: column;
+  }
 }
 
 @media (max-width: 767px) {
-  .DocsFrame {
-    min-height: calc(100vh - 200px);
-    height: calc(100vh - 200px);
+  .DocsShell {
+    flex-direction: column;
+    height: auto;
+    max-height: none;
+  }
+
+  .DocsNav {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--color-card-border);
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    overflow-x: auto;
+  }
+
+  .DocsNavBrand,
+  .DocsSearch,
+  .DocsNavSection,
+  .DocsNavGithub {
+    display: none;
+  }
+
+  .DocsNavItem {
+    width: auto;
+    flex: none;
+    white-space: nowrap;
+  }
+
+  .DocsMainHead {
+    padding: 14px 18px;
+  }
+
+  .DocsBody {
+    padding: 18px;
   }
 }

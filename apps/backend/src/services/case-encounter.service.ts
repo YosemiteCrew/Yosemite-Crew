@@ -12,8 +12,10 @@ import type {
   Encounter as EncounterDomain,
   EncounterClass,
   EncounterStatus,
+  ResolvedCatalogItem,
   WorkspaceFinalizationGate,
 } from "@yosemite-crew/types";
+import { isSpeciesCompatible } from "./shared/normalize-tokens";
 
 type CaseRow = {
   id: string;
@@ -169,6 +171,7 @@ type RoomUnitAssignmentDelegate = {
       admissionId?: string;
       unitId?: string;
       releasedAt?: Date | null;
+      admission?: { organisationId: string };
     };
     orderBy: { assignedAt: "asc" | "desc" };
   }): Promise<RoomUnitAssignmentRow[]>;
@@ -350,6 +353,33 @@ const normalizeOptionalString = (value?: string | null) => {
   return trimmed.length > 0 ? trimmed : undefined;
 };
 
+/**
+ * Resolve the organisation every query in a call must be scoped to.
+ *
+ * `authorizedOrganisationId` is the organisation the caller has been proven a
+ * member of; `requestedOrganisationId` is whatever the payload named. The two
+ * are only allowed to disagree by the payload staying silent.
+ */
+const assertAuthorizedOrganisation = (
+  authorizedOrganisationId: string,
+  requestedOrganisationId?: string | null,
+) => {
+  const organisationId = requireString(
+    authorizedOrganisationId,
+    "organisationId",
+  );
+  const requested = normalizeOptionalString(requestedOrganisationId);
+
+  if (requested && requested !== organisationId) {
+    throw new CaseEncounterServiceError(
+      "organisationId does not match the authorized organisation.",
+      403,
+    );
+  }
+
+  return organisationId;
+};
+
 const getTransactionDelegate = <TDelegate>(
   tx: Prisma.TransactionClient,
   key: string,
@@ -370,8 +400,17 @@ const resolveAssignableUnitContext = async (params: {
   tx: Prisma.TransactionClient;
   encounter: EncounterRow;
   unitId: string;
+  authorizedOrganisationId: string;
 }) => {
-  const { tx, encounter, unitId } = params;
+  const { tx, encounter, unitId, authorizedOrganisationId } = params;
+
+  if (encounter.organisationId !== authorizedOrganisationId) {
+    throw new CaseEncounterServiceError(
+      "Encounter organisation mismatch.",
+      403,
+    );
+  }
+
   const roomUnitDelegate = getTransactionDelegate<RoomUnitDelegate>(
     tx,
     "roomUnit",
@@ -393,7 +432,7 @@ const resolveAssignableUnitContext = async (params: {
     throw new CaseEncounterServiceError("Room unit not found.", 404);
   }
 
-  if (unit.organisationId !== encounter.organisationId) {
+  if (unit.organisationId !== authorizedOrganisationId) {
     throw new CaseEncounterServiceError("Unit organisation mismatch.", 409);
   }
 
@@ -423,7 +462,7 @@ const resolveAssignableUnitContext = async (params: {
     throw new CaseEncounterServiceError("Room unit group not found.", 404);
   }
 
-  if (group.organisationId !== encounter.organisationId) {
+  if (group.organisationId !== authorizedOrganisationId) {
     throw new CaseEncounterServiceError(
       "Room unit group organisation mismatch.",
       409,
@@ -469,11 +508,9 @@ const getPackageMetadata = (
     typeof item.kind === "string" && item.kind.trim()
       ? item.kind.trim()
       : undefined,
-  sourceVersion:
-    typeof item.sourceVersion === "number" &&
-    Number.isFinite(item.sourceVersion)
-      ? item.sourceVersion
-      : null,
+  // The only call site builds `item` without a sourceVersion, so package
+  // expansion metadata always records null here.
+  sourceVersion: null,
 });
 
 const createPackageTemplateInstances = async (params: {
@@ -526,7 +563,7 @@ const createPackageTemplateInstances = async (params: {
           productItemId: params.selection.productItemId,
           productKind: params.selection.productKind,
           templateKind: binding.templateKind,
-        } as Prisma.InputJsonValue,
+        },
         authorId: null,
       },
     });
@@ -649,6 +686,31 @@ const maybeExpandPackageTreatmentItems = async (params: {
   await expandPackageTreatmentItems(params);
 };
 
+const buildPackageItemPriceSnapshot = (
+  item: ResolvedCatalogItem,
+  included: boolean,
+  packageProductItemId: string,
+  packageMetadata: ReturnType<typeof getPackageMetadata>,
+) => ({
+  productItemId: item.productItemId,
+  code: item.code,
+  name: item.name,
+  kind: item.kind,
+  quantity: item.quantity,
+  currency: item.currency,
+  unitPrice: included ? 0 : item.unitPrice,
+  referenceUnitPrice: item.referenceUnitPrice ?? null,
+  defaultDiscountPercent: item.defaultDiscountPercent ?? null,
+  maxDiscountPercent: item.maxDiscountPercent ?? null,
+  discountPercent: included ? 0 : item.discountPercent,
+  grossAmount: included ? 0 : item.grossAmount,
+  discountAmount: included ? 0 : item.discountAmount,
+  finalAmount: included ? 0 : item.finalAmount,
+  isPackageComponent: item.isPackageComponent,
+  packageProductItemId,
+  ...packageMetadata,
+});
+
 const expandPackageTreatmentItems = async (params: {
   tx: {
     workspaceTreatmentItem: WorkspaceTreatmentItemDelegate;
@@ -703,7 +765,7 @@ const expandPackageTreatmentItems = async (params: {
     const createdPrescription = await params.tx.prescription.create({
       data: {
         artifactId: createdArtifact.id,
-        medications: medicationRows as Prisma.InputJsonValue,
+        medications: medicationRows,
         items: {
           create: medicationRows,
         },
@@ -713,7 +775,7 @@ const expandPackageTreatmentItems = async (params: {
           packageItemId: packageProductItemId,
           productKind: params.selection.productKind,
           sourceVersion: null,
-        } as Prisma.InputJsonValue,
+        },
       },
     });
     packagePrescriptionId = createdPrescription.id;
@@ -743,25 +805,12 @@ const expandPackageTreatmentItems = async (params: {
       },
       packageProductItemId,
     );
-    const priceSnapshot = {
-      productItemId: item.productItemId,
-      code: item.code,
-      name: item.name,
-      kind: item.kind,
-      quantity: item.quantity,
-      currency: item.currency,
-      unitPrice: included ? 0 : item.unitPrice,
-      referenceUnitPrice: item.referenceUnitPrice ?? null,
-      defaultDiscountPercent: item.defaultDiscountPercent ?? null,
-      maxDiscountPercent: item.maxDiscountPercent ?? null,
-      discountPercent: included ? 0 : item.discountPercent,
-      grossAmount: included ? 0 : item.grossAmount,
-      discountAmount: included ? 0 : item.discountAmount,
-      finalAmount: included ? 0 : item.finalAmount,
-      isPackageComponent: item.isPackageComponent,
+    const priceSnapshot = buildPackageItemPriceSnapshot(
+      item,
+      included,
       packageProductItemId,
-      ...packageMetadata,
-    };
+      packageMetadata,
+    );
 
     await params.tx.workspaceTreatmentItem.create({
       data: {
@@ -856,63 +905,11 @@ const assertPeriod = (start?: Date, end?: Date) => {
   }
 };
 
-const normalizeStringTokens = (value: unknown): string[] => {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return [
-    ...new Set(
-      value
-        .map((item) =>
-          typeof item === "string" ? item.trim().toLowerCase() : "",
-        )
-        .filter((item) => item.length > 0),
-    ),
-  ];
-};
-
-const getCompanionSpeciesTokens = (companion: CompanionRow) => {
-  const tokens = new Set<string>();
-  const type = companion.type.trim().toLowerCase();
-
-  if (type) {
-    tokens.add(type);
-  }
-
-  if (companion.speciesCode?.trim()) {
-    tokens.add(companion.speciesCode.trim().toLowerCase());
-  }
-
-  const aliases: Record<string, string[]> = {
-    dog: ["canine"],
-    cat: ["feline"],
-    horse: ["equine"],
-    other: ["other"],
-  };
-
-  for (const alias of aliases[type] ?? []) {
-    tokens.add(alias);
-  }
-
-  return tokens;
-};
-
 const assertRoomUnitSpeciesCompatibility = (
   unit: RoomUnitRow,
   companion: CompanionRow,
 ) => {
-  const constraints = normalizeStringTokens(unit.speciesConstraints);
-  if (constraints.length === 0) {
-    return;
-  }
-
-  const allowedSpecies = getCompanionSpeciesTokens(companion);
-  const isCompatible = constraints.some((constraint) =>
-    allowedSpecies.has(constraint),
-  );
-
-  if (!isCompatible) {
+  if (!isSpeciesCompatible(unit.speciesConstraints, companion)) {
     throw new CaseEncounterServiceError(
       "Room unit is not compatible with this companion's species.",
       409,
@@ -924,17 +921,7 @@ const assertRoomUnitGroupSpeciesCompatibility = (
   group: RoomUnitGroupRow,
   companion: CompanionRow,
 ) => {
-  const constraints = normalizeStringTokens(group.speciesConstraints);
-  if (constraints.length === 0) {
-    return;
-  }
-
-  const allowedSpecies = getCompanionSpeciesTokens(companion);
-  const isCompatible = constraints.some((constraint) =>
-    allowedSpecies.has(constraint),
-  );
-
-  if (!isCompatible) {
+  if (!isSpeciesCompatible(group.speciesConstraints, companion)) {
     throw new CaseEncounterServiceError(
       "Room unit group is not compatible with this companion's species.",
       409,
@@ -1064,10 +1051,13 @@ const attachEncounterAppointmentIds = async (
 };
 
 export const CaseEncounterService = {
-  async createCase(input: CaseDomain): Promise<CaseDomain> {
-    const organisationId = requireString(
+  async createCase(
+    input: CaseDomain,
+    authorizedOrganisationId: string,
+  ): Promise<CaseDomain> {
+    const organisationId = assertAuthorizedOrganisation(
+      authorizedOrganisationId,
       input.organisationId,
-      "organisationId",
     );
     const patientId = requireString(input.patientId, "patientId");
     const status = toCaseStatus(input.status);
@@ -1084,17 +1074,24 @@ export const CaseEncounterService = {
       },
     });
 
-    return toCaseDomain(created as CaseRow);
+    return toCaseDomain(created);
   },
 
   async updateCase(
     caseId: string,
+    authorizedOrganisationId: string,
     input: Partial<CaseDomain>,
   ): Promise<CaseDomain> {
     const id = requireString(caseId, "caseId");
+    const organisationId = assertAuthorizedOrganisation(
+      authorizedOrganisationId,
+      input.organisationId,
+    );
     const status = input.status ? toCaseStatus(input.status) : undefined;
 
-    const existing = await prisma.case.findUnique({ where: { id } });
+    const existing = await prisma.case.findFirst({
+      where: { id, organisationId },
+    });
     if (!existing) {
       throw new CaseEncounterServiceError("Case not found.", 404);
     }
@@ -1119,28 +1116,40 @@ export const CaseEncounterService = {
       },
     });
 
-    return toCaseDomain(updated as CaseRow);
+    return toCaseDomain(updated);
   },
 
-  async getCaseById(caseId: string): Promise<CaseDomain> {
+  async getCaseById(
+    caseId: string,
+    authorizedOrganisationId: string,
+  ): Promise<CaseDomain> {
     const id = requireString(caseId, "caseId");
-    const row = await prisma.case.findUnique({ where: { id } });
+    const organisationId = requireString(
+      authorizedOrganisationId,
+      "organisationId",
+    );
+    const row = await prisma.case.findFirst({ where: { id, organisationId } });
     if (!row) {
       throw new CaseEncounterServiceError("Case not found.", 404);
     }
-    return toCaseDomain(row as CaseRow);
+    return toCaseDomain(row);
   },
 
   async listCases(filters: {
-    organisationId?: string;
+    organisationId: string;
     patientId?: string;
     parentId?: string;
     status?: CaseStatus;
     appointmentKind?: AppointmentKind;
   }) {
+    const organisationId = requireString(
+      filters.organisationId,
+      "organisationId",
+    );
+
     const rows = (await prisma.case.findMany({
       where: {
-        organisationId: normalizeOptionalString(filters.organisationId),
+        organisationId,
         patientId: normalizeOptionalString(filters.patientId),
         parentId: normalizeOptionalString(filters.parentId),
         status: filters.status,
@@ -1152,11 +1161,14 @@ export const CaseEncounterService = {
     return rows.map(toCaseDomain);
   },
 
-  async createEncounter(input: EncounterDomain): Promise<EncounterDomain> {
+  async createEncounter(
+    input: EncounterDomain,
+    authorizedOrganisationId: string,
+  ): Promise<EncounterDomain> {
     const caseId = requireString(input.caseId, "caseId");
-    const organisationId = requireString(
+    const organisationId = assertAuthorizedOrganisation(
+      authorizedOrganisationId,
       input.organisationId,
-      "organisationId",
     );
     const patientId = requireString(input.patientId, "patientId");
     const status = toEncounterStatus(input.status);
@@ -1266,16 +1278,21 @@ export const CaseEncounterService = {
     });
 
     return {
-      ...toEncounterDomain(created as EncounterRow),
+      ...toEncounterDomain(created),
       appointmentId: normalizeOptionalString(input.appointmentId),
     };
   },
 
   async updateEncounter(
     encounterId: string,
+    authorizedOrganisationId: string,
     input: Partial<EncounterDomain>,
   ): Promise<EncounterDomain> {
     const id = requireString(encounterId, "encounterId");
+    const organisationId = assertAuthorizedOrganisation(
+      authorizedOrganisationId,
+      input.organisationId,
+    );
     const status = input.status ? toEncounterStatus(input.status) : undefined;
     const encounterClass = input.encounterClass
       ? toEncounterClass(input.encounterClass)
@@ -1283,9 +1300,9 @@ export const CaseEncounterService = {
     assertPeriod(input.periodStart, input.periodEnd);
 
     const updatedEncounter = await prisma.$transaction(async (tx) => {
-      const row = (await tx.encounter.findUnique({
-        where: { id },
-      })) as EncounterRow | null;
+      const row = await tx.encounter.findFirst({
+        where: { id, organisationId },
+      });
       if (!row) {
         throw new CaseEncounterServiceError("Encounter not found.", 404);
       }
@@ -1363,7 +1380,7 @@ export const CaseEncounterService = {
         }
       }
 
-      return (await tx.encounter.update({
+      return await tx.encounter.update({
         where: { id },
         data: {
           status,
@@ -1384,7 +1401,7 @@ export const CaseEncounterService = {
           periodStart: input.periodStart ?? undefined,
           periodEnd: input.periodEnd ?? undefined,
         },
-      })) as EncounterRow;
+      });
     });
 
     return (
@@ -1394,6 +1411,7 @@ export const CaseEncounterService = {
 
   async dischargeEncounter(
     encounterId: string,
+    authorizedOrganisationId: string,
     input?: {
       dischargedAt?: Date;
       periodEnd?: Date;
@@ -1402,14 +1420,18 @@ export const CaseEncounterService = {
     },
   ): Promise<EncounterDomain> {
     const id = requireString(encounterId, "encounterId");
+    const organisationId = requireString(
+      authorizedOrganisationId,
+      "organisationId",
+    );
     assertPeriod(undefined, input?.dischargedAt);
     assertPeriod(undefined, input?.periodEnd);
     let finalizationGate: WorkspaceFinalizationGate | null = null;
 
     const updatedEncounter = await prisma.$transaction(async (tx) => {
-      const encounter = (await tx.encounter.findUnique({
-        where: { id },
-      })) as EncounterRow | null;
+      const encounter = await tx.encounter.findFirst({
+        where: { id, organisationId },
+      });
 
       if (!encounter) {
         throw new CaseEncounterServiceError("Encounter not found.", 404);
@@ -1482,13 +1504,13 @@ export const CaseEncounterService = {
         },
       });
 
-      return (await tx.encounter.update({
+      return await tx.encounter.update({
         where: { id },
         data: {
           status: "finished",
           periodEnd: nextPeriodEnd,
         },
-      })) as EncounterRow;
+      });
     });
 
     const overrideReason = input?.overrideReason?.trim();
@@ -1537,6 +1559,7 @@ export const CaseEncounterService = {
 
   async assignUnit(
     encounterId: string,
+    authorizedOrganisationId: string,
     input: {
       unitId: string;
       assignedAt?: Date;
@@ -1545,6 +1568,10 @@ export const CaseEncounterService = {
     },
   ): Promise<EncounterDomain> {
     const id = requireString(encounterId, "encounterId");
+    const organisationId = requireString(
+      authorizedOrganisationId,
+      "organisationId",
+    );
     const unitId = requireString(input.unitId, "unitId");
     const assignedAt = input.assignedAt ?? new Date();
 
@@ -1553,9 +1580,9 @@ export const CaseEncounterService = {
     }
 
     const updatedEncounter = await prisma.$transaction(async (tx) => {
-      const encounter = (await tx.encounter.findUnique({
-        where: { id },
-      })) as EncounterRow | null;
+      const encounter = await tx.encounter.findFirst({
+        where: { id, organisationId },
+      });
 
       if (!encounter) {
         throw new CaseEncounterServiceError("Encounter not found.", 404);
@@ -1590,6 +1617,7 @@ export const CaseEncounterService = {
         tx,
         encounter,
         unitId,
+        authorizedOrganisationId: organisationId,
       });
 
       const conflictingAssignment = await assignmentDelegate.findFirst({
@@ -1651,21 +1679,38 @@ export const CaseEncounterService = {
   },
 
   async listUnitAssignments(filters: {
-    encounterId?: string;
+    organisationId: string;
+    encounterId: string;
     admissionId?: string;
     unitId?: string;
     activeOnly?: boolean;
   }) {
+    const organisationId = requireString(
+      filters.organisationId,
+      "organisationId",
+    );
+    const encounterId = requireString(filters.encounterId, "encounterId");
+
+    const encounter = await prisma.encounter.findFirst({
+      where: { id: encounterId, organisationId },
+      select: { id: true },
+    });
+
+    if (!encounter) {
+      throw new CaseEncounterServiceError("Encounter not found.", 404);
+    }
+
     const assignmentDelegate = (
       prisma as unknown as { roomUnitAssignment: RoomUnitAssignmentDelegate }
     ).roomUnitAssignment;
 
     const rows = await assignmentDelegate.findMany({
       where: {
-        encounterId: normalizeOptionalString(filters.encounterId),
+        encounterId,
         admissionId: normalizeOptionalString(filters.admissionId),
         unitId: normalizeOptionalString(filters.unitId),
         releasedAt: filters.activeOnly ? null : undefined,
+        admission: { organisationId },
       },
       orderBy: { assignedAt: "asc" },
     });
@@ -1673,10 +1718,17 @@ export const CaseEncounterService = {
     return rows.map(toRoomUnitAssignmentDomain);
   },
 
-  async listAdmissionUnitAssignments(admissionId: string) {
+  async listAdmissionUnitAssignments(
+    admissionId: string,
+    authorizedOrganisationId: string,
+  ) {
     const id = requireString(admissionId, "admissionId");
-    const admission = await prisma.admission.findUnique({
-      where: { encounterId: id },
+    const organisationId = requireString(
+      authorizedOrganisationId,
+      "organisationId",
+    );
+    const admission = await prisma.admission.findFirst({
+      where: { encounterId: id, organisationId },
     });
 
     if (!admission) {
@@ -1702,9 +1754,14 @@ export const CaseEncounterService = {
 
   async startEncounter(
     encounterId: string,
+    authorizedOrganisationId: string,
     input?: { startedAt?: Date },
   ): Promise<EncounterDomain> {
     const id = requireString(encounterId, "encounterId");
+    const organisationId = requireString(
+      authorizedOrganisationId,
+      "organisationId",
+    );
     const startedAt = input?.startedAt ?? new Date();
 
     if (Number.isNaN(startedAt.getTime())) {
@@ -1712,9 +1769,9 @@ export const CaseEncounterService = {
     }
 
     const updatedEncounter = await prisma.$transaction(async (tx) => {
-      const encounter = (await tx.encounter.findUnique({
-        where: { id },
-      })) as EncounterRow | null;
+      const encounter = await tx.encounter.findFirst({
+        where: { id, organisationId },
+      });
 
       if (!encounter) {
         throw new CaseEncounterServiceError("Encounter not found.", 404);
@@ -1722,13 +1779,23 @@ export const CaseEncounterService = {
 
       assertEncounterIsOpen(encounter, "start");
 
-      return (await tx.encounter.update({
+      // `periodStart` is seeded at check-in with the booked slot start (often in
+      // the future), so it is not a real start until the encounter actually moves
+      // into "in-progress". Stamp the real actual-start on that first transition;
+      // once genuinely started, preserve the recorded start so re-entry (e.g. an
+      // undo of ready-for-discharge) never resets the visit timer.
+      const alreadyStarted =
+        encounter.status === "in-progress" || encounter.status === "onleave";
+
+      return await tx.encounter.update({
         where: { id },
         data: {
           status: "in-progress",
-          periodStart: encounter.periodStart ?? startedAt,
+          periodStart: alreadyStarted
+            ? (encounter.periodStart ?? startedAt)
+            : startedAt,
         },
-      })) as EncounterRow;
+      });
     });
 
     return (
@@ -1738,14 +1805,19 @@ export const CaseEncounterService = {
 
   async markEncounterReadyForDischarge(
     encounterId: string,
+    authorizedOrganisationId: string,
     actorUserId?: string,
   ): Promise<EncounterDomain> {
     const id = requireString(encounterId, "encounterId");
+    const organisationId = requireString(
+      authorizedOrganisationId,
+      "organisationId",
+    );
 
     const updatedEncounter = await prisma.$transaction(async (tx) => {
-      const encounter = (await tx.encounter.findUnique({
-        where: { id },
-      })) as EncounterRow | null;
+      const encounter = await tx.encounter.findFirst({
+        where: { id, organisationId },
+      });
 
       if (!encounter) {
         throw new CaseEncounterServiceError("Encounter not found.", 404);
@@ -1753,12 +1825,12 @@ export const CaseEncounterService = {
 
       assertEncounterIsOpen(encounter, "mark ready for discharge");
 
-      return (await tx.encounter.update({
+      return await tx.encounter.update({
         where: { id },
         data: {
           status: "onleave",
         },
-      })) as EncounterRow;
+      });
     });
 
     await FinanceEventService.recordReadinessEvent({
@@ -1776,13 +1848,18 @@ export const CaseEncounterService = {
 
   async markEncounterNotReadyForDischarge(
     encounterId: string,
+    authorizedOrganisationId: string,
   ): Promise<EncounterDomain> {
     const id = requireString(encounterId, "encounterId");
+    const organisationId = requireString(
+      authorizedOrganisationId,
+      "organisationId",
+    );
 
     const updatedEncounter = await prisma.$transaction(async (tx) => {
-      const encounter = (await tx.encounter.findUnique({
-        where: { id },
-      })) as EncounterRow | null;
+      const encounter = await tx.encounter.findFirst({
+        where: { id, organisationId },
+      });
 
       if (!encounter) {
         throw new CaseEncounterServiceError("Encounter not found.", 404);
@@ -1790,12 +1867,12 @@ export const CaseEncounterService = {
 
       assertEncounterIsOnLeave(encounter, "undo ready for discharge");
 
-      return (await tx.encounter.update({
+      return await tx.encounter.update({
         where: { id },
         data: {
           status: "in-progress",
         },
-      })) as EncounterRow;
+      });
     });
 
     return (
@@ -1803,7 +1880,7 @@ export const CaseEncounterService = {
     )[0];
   },
 
-  async listActiveInpatientEncounters(filters: { organisationId?: string }) {
+  async listActiveInpatientEncounters(filters: { organisationId: string }) {
     const organisationId = requireString(
       filters.organisationId,
       "organisationId",
@@ -1850,30 +1927,40 @@ export const CaseEncounterService = {
     return attachEncounterAppointmentIds(orderedEncounters);
   },
 
-  async getEncounterById(encounterId: string): Promise<EncounterDomain> {
+  async getEncounterById(
+    encounterId: string,
+    authorizedOrganisationId: string,
+  ): Promise<EncounterDomain> {
     const id = requireString(encounterId, "encounterId");
-    const row = await prisma.encounter.findUnique({ where: { id } });
+    const organisationId = requireString(
+      authorizedOrganisationId,
+      "organisationId",
+    );
+    const row = await prisma.encounter.findFirst({
+      where: { id, organisationId },
+    });
     if (!row) {
       throw new CaseEncounterServiceError("Encounter not found.", 404);
     }
-    return (
-      await attachEncounterAppointmentIds([
-        toEncounterDomain(row as EncounterRow),
-      ])
-    )[0];
+    return (await attachEncounterAppointmentIds([toEncounterDomain(row)]))[0];
   },
 
   async listEncounters(filters: {
-    organisationId?: string;
+    organisationId: string;
     caseId?: string;
     patientId?: string;
     parentId?: string;
     status?: EncounterStatus;
     appointmentKind?: AppointmentKind;
   }) {
+    const organisationId = requireString(
+      filters.organisationId,
+      "organisationId",
+    );
+
     const rows = (await prisma.encounter.findMany({
       where: {
-        organisationId: normalizeOptionalString(filters.organisationId),
+        organisationId,
         caseId: normalizeOptionalString(filters.caseId),
         patientId: normalizeOptionalString(filters.patientId),
         parentId: normalizeOptionalString(filters.parentId),

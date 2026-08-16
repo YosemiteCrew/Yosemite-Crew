@@ -1,0 +1,803 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
+<section
+  aria-label="Month overview"
+  class="flex flex-col gap-3 bg-[var(--screen)]"
+>
+  <div
+    class="flex justify-end"
+  >
+    <span
+      class="flex items-center gap-1 rounded-full border border-[var(--hairline)] bg-[var(--field-bg)] p-[3px]"
+    >
+      <button
+        aria-label="Previous month"
+        class="flex size-[26px] cursor-pointer items-center justify-center rounded-full text-[var(--ink-faint)] hover:text-[var(--ink)]"
+        type="button"
+      >
+        <span
+          data-testid="icon-chevron-back"
+        />
+      </button>
+      <span
+        class="px-[3px] text-xs font-bold text-[var(--ink)]"
+      >
+        July 2026
+      </span>
+      <button
+        aria-label="Next month"
+        class="flex size-[26px] cursor-pointer items-center justify-center rounded-full text-[var(--ink-faint)] hover:text-[var(--ink)]"
+        type="button"
+      >
+        <span
+          data-testid="icon-chevron-forward"
+        />
+      </button>
+    </span>
+  </div>
+  <div
+    class="flex items-end justify-between"
+  >
+    <div
+      class="flex flex-col gap-px"
+    >
+      <h2
+        class="m-0 font-newsreader text-2xl font-normal tracking-[-0.015em] text-[var(--ink)]"
+      >
+        July
+      </h2>
+      <span
+        class="text-xs text-[var(--ink-muted)]"
+      >
+        4 appointments · busiest week: 28
+      </span>
+    </div>
+    <div
+      aria-label="Calendar view"
+      class="inline-flex items-center rounded-full! border border-[var(--hairline)] bg-[var(--band)] p-[3px] "
+      role="group"
+    >
+      <button
+        aria-pressed="false"
+        class="rounded-full! px-[13px] py-[5px] text-[11.5px] transition-colors cursor-pointer font-semibold text-[var(--ink-muted)] hover:text-[var(--ink)]"
+        type="button"
+      >
+        Day
+      </button>
+      <button
+        aria-pressed="false"
+        class="rounded-full! px-[13px] py-[5px] text-[11.5px] transition-colors cursor-pointer font-semibold text-[var(--ink-muted)] hover:text-[var(--ink)]"
+        type="button"
+      >
+        Week
+      </button>
+      <button
+        aria-pressed="true"
+        class="rounded-full! px-[13px] py-[5px] text-[11.5px] transition-colors cursor-pointer bg-[var(--screen)] font-bold text-[var(--ink)] shadow-[0_1px_3px_var(--sh08)]"
+        type="button"
+      >
+        Month
+      </button>
+    </div>
+  </div>
+  <div
+    class="rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] px-2.5 pb-2.5 pt-3 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]"
+  >
+    <div
+      class="mb-1.5 grid grid-cols-7"
+    >
+      <span
+        class="text-center text-[9px] font-bold tracking-[0.08em] text-[var(--ink-faint)]"
+      >
+        MON
+      </span>
+      <span
+        class="text-center text-[9px] font-bold tracking-[0.08em] text-[var(--ink-faint)]"
+      >
+        TUE
+      </span>
+      <span
+        class="text-center text-[9px] font-bold tracking-[0.08em] text-[var(--ink-faint)]"
+      >
+        WED
+      </span>
+      <span
+        class="text-center text-[9px] font-bold tracking-[0.08em] text-[var(--ink-faint)]"
+      >
+        THU
+      </span>
+      <span
+        class="text-center text-[9px] font-bold tracking-[0.08em] text-[var(--ink-faint)]"
+      >
+        FRI
+      </span>
+      <span
+        class="text-center text-[9px] font-bold tracking-[0.08em] text-[var(--ink-faint)]"
+      >
+        SAT
+      </span>
+      <span
+        class="text-center text-[9px] font-bold tracking-[0.08em] text-[var(--ink-faint)]"
+      >
+        SUN
+      </span>
+    </div>
+    <div
+      class="grid grid-cols-7 gap-y-[3px]"
+    >
+      <button
+        aria-label="2026-06-29 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.35]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          29
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-06-29"
+        />
+      </button>
+      <button
+        aria-label="2026-06-30 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.35]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          30
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-06-30"
+        />
+      </button>
+      <button
+        aria-label="2026-07-01 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          1
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-01"
+        />
+      </button>
+      <button
+        aria-label="2026-07-02 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          2
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-02"
+        />
+      </button>
+      <button
+        aria-label="2026-07-03 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          3
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-03"
+        />
+      </button>
+      <button
+        aria-label="2026-07-04 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          4
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-04"
+        />
+      </button>
+      <button
+        aria-label="2026-07-05 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          5
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-05"
+        />
+      </button>
+      <button
+        aria-label="2026-07-06 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          6
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-06"
+        />
+      </button>
+      <button
+        aria-current="date"
+        aria-label="2026-07-07 · 4 appointments"
+        aria-pressed="true"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
+        type="button"
+      >
+        <span
+          class="flex size-[26px] items-center justify-center rounded-full bg-[var(--blue-strong)] text-[12.5px] font-bold text-white shadow-[0_4px_12px_var(--glow-b26)]"
+        >
+          7
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-07"
+        >
+          <span
+            class="size-1 rounded-full"
+            style="background: var(--blue);"
+          />
+        </span>
+      </button>
+      <button
+        aria-label="2026-07-08 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          8
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-08"
+        />
+      </button>
+      <button
+        aria-label="2026-07-09 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          9
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-09"
+        />
+      </button>
+      <button
+        aria-label="2026-07-10 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          10
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-10"
+        />
+      </button>
+      <button
+        aria-label="2026-07-11 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          11
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-11"
+        />
+      </button>
+      <button
+        aria-label="2026-07-12 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          12
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-12"
+        />
+      </button>
+      <button
+        aria-label="2026-07-13 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          13
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-13"
+        />
+      </button>
+      <button
+        aria-label="2026-07-14 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          14
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-14"
+        />
+      </button>
+      <button
+        aria-label="2026-07-15 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          15
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-15"
+        />
+      </button>
+      <button
+        aria-label="2026-07-16 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          16
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-16"
+        />
+      </button>
+      <button
+        aria-label="2026-07-17 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          17
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-17"
+        />
+      </button>
+      <button
+        aria-label="2026-07-18 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          18
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-18"
+        />
+      </button>
+      <button
+        aria-label="2026-07-19 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          19
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-19"
+        />
+      </button>
+      <button
+        aria-label="2026-07-20 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          20
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-20"
+        />
+      </button>
+      <button
+        aria-label="2026-07-21 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          21
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-21"
+        />
+      </button>
+      <button
+        aria-label="2026-07-22 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          22
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-22"
+        />
+      </button>
+      <button
+        aria-label="2026-07-23 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          23
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-23"
+        />
+      </button>
+      <button
+        aria-label="2026-07-24 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          24
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-24"
+        />
+      </button>
+      <button
+        aria-label="2026-07-25 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          25
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-25"
+        />
+      </button>
+      <button
+        aria-label="2026-07-26 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          26
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-26"
+        />
+      </button>
+      <button
+        aria-label="2026-07-27 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          27
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-27"
+        />
+      </button>
+      <button
+        aria-label="2026-07-28 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          28
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-28"
+        />
+      </button>
+      <button
+        aria-label="2026-07-29 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          29
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-29"
+        />
+      </button>
+      <button
+        aria-label="2026-07-30 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          30
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-30"
+        />
+      </button>
+      <button
+        aria-label="2026-07-31 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          31
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-07-31"
+        />
+      </button>
+      <button
+        aria-label="2026-08-01 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.35]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          1
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-08-01"
+        />
+      </button>
+      <button
+        aria-label="2026-08-02 · 0 appointments"
+        aria-pressed="false"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.35]"
+        type="button"
+      >
+        <span
+          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+        >
+          2
+        </span>
+        <span
+          class="flex h-1 gap-[2px]"
+          data-testid="dots-2026-08-02"
+        />
+      </button>
+    </div>
+  </div>
+  <div
+    class="flex items-center justify-between"
+  >
+    <span
+      class="text-[12.5px] font-bold text-[var(--ink)]"
+    >
+      Tue 7 · 4 appointments
+    </span>
+    <button
+      class="flex cursor-pointer items-center gap-1 text-[11.5px] font-bold text-[var(--blue-text)]"
+      type="button"
+    >
+      Open day
+      <span
+        data-testid="icon-arrow-forward"
+      />
+    </button>
+  </div>
+  <div
+    class="flex flex-col gap-[7px] overflow-hidden"
+  >
+    <div
+      class="flex items-center gap-2.5 rounded-[13px] bg-[var(--screen)] px-3 py-[9px] border border-[var(--hairline)] shadow-[0_1px_2px_var(--sh03)]"
+    >
+      <span
+        class="w-[34px] flex-none text-[10.5px] font-bold tabular-nums text-[var(--ink-faint)]"
+      >
+        10:00
+      </span>
+      <span
+        class="min-w-0 flex-1"
+      >
+        <span
+          class="block truncate text-xs font-bold text-[var(--ink)]"
+        >
+          Poppy
+        </span>
+        <span
+          class="block truncate text-[10px] text-[var(--ink-faint)]"
+        />
+      </span>
+      <span
+        class="inline-flex flex-none items-center gap-[3px] rounded-full border px-2 py-[2.5px] text-[8.5px] font-bold bg-[var(--status-upcoming-bg)] text-[var(--status-upcoming-text)] border-[var(--status-upcoming-border)]"
+      >
+        UPCOMING
+      </span>
+    </div>
+    <div
+      class="flex items-center gap-2.5 rounded-[13px] bg-[var(--screen)] px-3 py-[9px] border border-[var(--hairline)] shadow-[0_1px_2px_var(--sh03)]"
+    >
+      <span
+        class="w-[34px] flex-none text-[10.5px] font-bold tabular-nums text-[var(--ink-faint)]"
+      >
+        10:01
+      </span>
+      <span
+        class="min-w-0 flex-1"
+      >
+        <span
+          class="block truncate text-xs font-bold text-[var(--ink)]"
+        >
+          Poppy
+        </span>
+        <span
+          class="block truncate text-[10px] text-[var(--ink-faint)]"
+        />
+      </span>
+      <span
+        class="inline-flex flex-none items-center gap-[3px] rounded-full border px-2 py-[2.5px] text-[8.5px] font-bold bg-[var(--status-upcoming-bg)] text-[var(--status-upcoming-text)] border-[var(--status-upcoming-border)]"
+      >
+        UPCOMING
+      </span>
+    </div>
+    <div
+      class="flex items-center gap-2.5 rounded-[13px] bg-[var(--screen)] px-3 py-[9px] border border-[var(--hairline)] shadow-[0_1px_2px_var(--sh03)]"
+    >
+      <span
+        class="w-[34px] flex-none text-[10.5px] font-bold tabular-nums text-[var(--ink-faint)]"
+      >
+        10:02
+      </span>
+      <span
+        class="min-w-0 flex-1"
+      >
+        <span
+          class="block truncate text-xs font-bold text-[var(--ink)]"
+        >
+          Poppy
+        </span>
+        <span
+          class="block truncate text-[10px] text-[var(--ink-faint)]"
+        />
+      </span>
+      <span
+        class="inline-flex flex-none items-center gap-[3px] rounded-full border px-2 py-[2.5px] text-[8.5px] font-bold bg-[var(--status-upcoming-bg)] text-[var(--status-upcoming-text)] border-[var(--status-upcoming-border)]"
+      >
+        UPCOMING
+      </span>
+    </div>
+    <span
+      class="text-center text-[11px] font-semibold text-[var(--ink-faint)]"
+    >
+      +1 more · swipe up
+    </span>
+  </div>
+</section>
+`;

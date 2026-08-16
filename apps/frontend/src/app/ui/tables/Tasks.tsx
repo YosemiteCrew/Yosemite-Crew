@@ -1,7 +1,7 @@
 import React from 'react';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
-import { IoEyeOutline } from 'react-icons/io5';
-import { MdOutlineAutorenew } from 'react-icons/md';
+import { IoEyeOutline, IoSyncOutline } from 'react-icons/io5';
 import { IoIosCalendar } from 'react-icons/io';
 import TaskCard from '@/app/ui/cards/TaskCard';
 import { getFormattedDate } from '@/app/features/appointments/components/Calendar/weekHelpers';
@@ -13,11 +13,12 @@ import {
 } from '@/app/lib/tasks';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 
-import { getTaskStatusStyle } from '@/app/ui/tables/tableUtils';
+import { getTaskStatusTone } from '@/app/ui/tables/tableUtils';
 
 import './DataTable.css';
 import { toTitleCase } from '@/app/lib/validators';
 import { useMemberMap } from '@/app/hooks/useMemberMap';
+import PaginatedCardList from '@/app/ui/tables/PaginatedCardList';
 
 type Column<T> = {
   label: string;
@@ -81,7 +82,16 @@ const Tasks = ({
       label: 'Description',
       key: 'description',
       width: '200px',
-      render: (item: Task) => <div className="appointment-profile-title">{item.description}</div>,
+      // Free text in a 200px column: clamped to two lines so a long description
+      // cannot outgrow the rows beside it.
+      render: (item: Task) => (
+        <div
+          className="appointment-profile-title cell-clamp-2"
+          title={item.description || undefined}
+        >
+          {item.description}
+        </div>
+      ),
     },
     {
       label: 'Category',
@@ -120,9 +130,7 @@ const Tasks = ({
       key: 'status',
       width: '130px',
       render: (item: Task) => (
-        <div className="appointment-status" style={getTaskStatusStyle(item.status)}>
-          {toTitleCase(item.status)}
-        </div>
+        <StatusPill tone={getTaskStatusTone(item.status)} label={toTitleCase(item.status)} />
       ),
     },
     {
@@ -137,7 +145,7 @@ const Tasks = ({
                 type="button"
                 onClick={() => handleViewTask(item)}
                 aria-label={`View task ${item.name}`}
-                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-[var(--divider)] flex items-center justify-center cursor-pointer"
                 title="View task"
               >
                 <IoEyeOutline size={18} color="var(--color-neutral-900)" />
@@ -149,10 +157,10 @@ const Tasks = ({
                   type="button"
                   onClick={() => handleChangeStatusTask(item)}
                   aria-label={`Change status for ${item.name}`}
-                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-[var(--divider)] flex items-center justify-center cursor-pointer"
                   title="Change status"
                 >
-                  <MdOutlineAutorenew size={18} color="var(--color-neutral-900)" />
+                  <IoSyncOutline size={18} color="var(--color-neutral-900)" />
                 </button>
               </GlassTooltip>
             )}
@@ -162,7 +170,7 @@ const Tasks = ({
                   type="button"
                   onClick={() => handleRescheduleTask(item)}
                   aria-label={`Reschedule ${item.name}`}
-                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-[var(--divider)] flex items-center justify-center cursor-pointer"
                   title="Reschedule"
                 >
                   <IoIosCalendar size={18} color="var(--color-neutral-900)" />
@@ -187,29 +195,24 @@ const Tasks = ({
           tableClassName="tasks-table-fixed"
         />
       </div>
-      <div className="xl:hidden h-full min-h-0 overflow-y-auto pr-1 pb-2 flex gap-4 sm:gap-6 flex-wrap content-start">
-        {(() => {
-          if (filteredList.length === 0) {
-            return (
-              <div className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary">
-                No data available
-              </div>
-            );
-          }
-          return filteredList.map((item: Task, i) => (
-            <TaskCard
-              key={item.name + i}
-              item={item}
-              assignedByLabel={getMemberNameById(item.assignedBy)}
-              assignedToLabel={getMemberNameById(item.assignedTo)}
-              handleViewTask={handleViewTask}
-              handleChangeStatusTask={handleChangeStatusTask}
-              handleRescheduleTask={handleRescheduleTask}
-              canEditTasks={canEditTasks}
-            />
-          ));
-        })()}
-      </div>
+      <PaginatedCardList
+        items={filteredList}
+        pageSize={small ? 5 : 10}
+        className="xl:hidden"
+        listClassName="pb-2"
+        renderCard={(item: Task, i) => (
+          <TaskCard
+            key={item.name + i}
+            item={item}
+            assignedByLabel={getMemberNameById(item.assignedBy)}
+            assignedToLabel={getMemberNameById(item.assignedTo)}
+            handleViewTask={handleViewTask}
+            handleChangeStatusTask={handleChangeStatusTask}
+            handleRescheduleTask={handleRescheduleTask}
+            canEditTasks={canEditTasks}
+          />
+        )}
+      />
     </div>
   );
 };

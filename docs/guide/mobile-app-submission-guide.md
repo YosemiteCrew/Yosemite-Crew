@@ -209,10 +209,10 @@ Example format:
 
 | Platform | File                              | Field                     | Current value |
 | -------- | --------------------------------- | ------------------------- | ------------- |
-| Android  | `android/app/build.gradle`        | `versionCode`             | 12            |
-| Android  | `android/app/build.gradle`        | `versionName`             | `"1.0.10"`    |
-| iOS      | `mobileAppYC.xcodeproj` (pbxproj) | `MARKETING_VERSION`       | `1.0.4`       |
-| iOS      | `mobileAppYC.xcodeproj` (pbxproj) | `CURRENT_PROJECT_VERSION` | `8`           |
+| Android  | `android/app/build.gradle`        | `versionCode`             | 15            |
+| Android  | `android/app/build.gradle`        | `versionName`             | `"1.0.12"`    |
+| iOS      | `mobileAppYC.xcodeproj` (pbxproj) | `MARKETING_VERSION`       | `1.0.7`       |
+| iOS      | `mobileAppYC.xcodeproj` (pbxproj) | `CURRENT_PROJECT_VERSION` | `12`          |
 
 ---
 

@@ -57,12 +57,13 @@ export const DeleteProfileBottomSheet = ({
     <ConfirmActionBottomSheet
       ref={sheetRef}
       snapPoints={['35%', '45%']}
+      destructive
       title="Delete profile"
       message={`Are you sure you want to delete ${companionName}'s profile?`}
       primaryButton={{
         label: 'Delete',
         onPress: handleDelete,
-        tintColor: theme.colors.secondary,
+        tintColor: theme.colors.danger,
         textStyle: styles.deleteButtonText,
         style: styles.button,
       }}

@@ -4,13 +4,10 @@ import { axe, toHaveNoViolations } from 'jest-axe';
 import Organizations from '@/app/features/organizations/pages/Organizations';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useOrgWithMemberships } from '@/app/hooks/useOrgSelectors';
-import { getData } from '@/app/services/axios';
+import { loadInvites } from '@/app/features/organization/services/teamService';
 
 expect.extend(toHaveNoViolations);
 
-// --- Mocks ---
-
-// Mock Hooks & Services
 jest.mock('@/app/stores/orgStore', () => ({
   useOrgStore: jest.fn(),
 }));
@@ -19,25 +16,25 @@ jest.mock('@/app/hooks/useOrgSelectors', () => ({
   useOrgWithMemberships: jest.fn(),
 }));
 
-jest.mock('@/app/services/axios', () => ({
-  getData: jest.fn(),
+jest.mock('@/app/features/organization/services/teamService', () => ({
+  loadInvites: jest.fn(),
 }));
 
-// Mock UI Components
 jest.mock('@/app/ui/layout/guards/ProtectedRoute', () => ({
   __esModule: true,
   default: ({ children }: any) => <div data-testid="protected-route">{children}</div>,
 }));
 
-jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ text, href }: any) => (
-    <a href={href} data-testid="create-org-btn">
-      {text}
-    </a>
-  ),
+jest.mock('@/app/features/organizations/components/OrgGreeting/OrgGreeting', () => ({
+  __esModule: true,
+  default: ({ orgCount }: any) => <h1 data-testid="org-greeting">Belongs to {orgCount}</h1>,
 }));
 
-// Use absolute paths for components imported relatively in source
+jest.mock('@/app/ui/cards/CreateOrgCard/CreateOrgCard', () => ({
+  __esModule: true,
+  default: () => <div data-testid="create-org-card" />,
+}));
+
 jest.mock('@/app/ui/tables/OrgInvites', () => ({
   __esModule: true,
   default: ({ invites }: any) => (
@@ -55,96 +52,58 @@ jest.mock('@/app/ui/tables/OrganizationList', () => ({
 }));
 
 describe('Organizations Page', () => {
-  const mockOrgs = [
-    { id: 'org-1', name: 'Org One' },
-    { id: 'org-2', name: 'Org Two' },
-  ];
+  const mockOrgs = [{ org: { name: 'Org One' } }, { org: { name: 'Org Two' } }];
 
-  const mockInvitesResponse = {
-    data: [
-      {
-        _id: 'inv-1',
-        status: 'PENDING',
-        invite: { email: 'test@test.com', role: 'ADMIN' },
-      },
-    ],
-  };
+  const mockInvites = [{ _id: 'inv-1', organisationId: 'org-1' }];
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  // --- 1. Loading State ---
-
-  it('renders loader while loading', () => {
+  it('renders loader while orgs are loading', () => {
     (useOrgStore as unknown as jest.Mock).mockImplementation((selector) =>
       selector({ status: 'loading' })
     );
     (useOrgWithMemberships as jest.Mock).mockReturnValue([]);
-
-    // FIX: Return a pending promise. This prevents the 'loadInvites' async function
-    // from resolving and calling 'setInvites' after the test finishes, avoiding "act" warnings.
-    (getData as jest.Mock).mockReturnValue(new Promise(() => {}));
+    // Keep loadInvites pending so no post-unmount state update fires
+    (loadInvites as jest.Mock).mockReturnValue(new Promise(() => {}));
 
     render(<Organizations />);
 
     expect(screen.getByTestId('organizations-loader')).toBeInTheDocument();
   });
 
-  // --- 2. Successful Rendering ---
-
-  it('renders the page structure, orgs, and invites when loaded', async () => {
-    // Mock Store to not be loading
+  it('renders greeting, org list, invites and the create card when loaded', async () => {
     (useOrgStore as unknown as jest.Mock).mockImplementation((selector) =>
       selector({ status: 'succeeded' })
     );
-    // Mock Orgs
     (useOrgWithMemberships as jest.Mock).mockReturnValue(mockOrgs);
-    // Mock Invites API
-    (getData as jest.Mock).mockResolvedValue(mockInvitesResponse);
+    (loadInvites as jest.Mock).mockResolvedValue(mockInvites);
 
     render(<Organizations />);
 
-    // Check Headers & Buttons
-    expect(screen.getByRole('heading', { level: 1, name: 'Overview' })).toBeInTheDocument();
-    expect(screen.getByTestId('create-org-btn')).toHaveAttribute('href', '/create-org');
-    expect(screen.getByText('Existing organisations')).toBeInTheDocument();
-    expect(screen.getByText('Invites')).toBeInTheDocument();
-
-    // Check Organization List
+    expect(screen.getByTestId('org-greeting')).toHaveTextContent('Belongs to 2');
     expect(screen.getByTestId('org-list')).toHaveTextContent('Orgs: 2');
+    expect(screen.getByTestId('create-org-card')).toBeInTheDocument();
 
-    // Check Invites Load
     await waitFor(() => {
-      expect(getData).toHaveBeenCalledWith('/fhir/v1/organisation-invites/me/pending');
+      expect(loadInvites).toHaveBeenCalled();
       expect(screen.getByTestId('org-invites-list')).toHaveTextContent('Invites: 1');
     });
   });
 
-  // --- 3. Error Handling ---
-
-  it('handles invite fetch errors gracefully', async () => {
-    // Suppress console error for this specific test
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-
+  it('handles invite fetch errors gracefully (empty invites)', async () => {
     (useOrgStore as unknown as jest.Mock).mockImplementation((selector) =>
       selector({ status: 'succeeded' })
     );
     (useOrgWithMemberships as jest.Mock).mockReturnValue([]);
-
-    // Mock API Failure
-    (getData as jest.Mock).mockRejectedValue(new Error('Network Error'));
+    (loadInvites as jest.Mock).mockRejectedValue(new Error('Network Error'));
 
     render(<Organizations />);
 
     await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith('Failed to load invites:', expect.any(Error));
+      expect(screen.getByTestId('org-invites-list')).toHaveTextContent('No Invites');
     });
-
-    // Should render empty invites list
-    expect(screen.getByTestId('org-invites-list')).toHaveTextContent('No Invites');
-
-    consoleSpy.mockRestore();
   });
 
   it('has no axe violations when loaded', async () => {
@@ -152,28 +111,13 @@ describe('Organizations Page', () => {
       selector({ status: 'succeeded' })
     );
     (useOrgWithMemberships as jest.Mock).mockReturnValue(mockOrgs);
-    (getData as jest.Mock).mockResolvedValue({ data: [] });
+    (loadInvites as jest.Mock).mockResolvedValue([]);
 
     const { container } = render(<Organizations />);
-    await screen.findByRole('heading', { level: 1, name: 'Overview' });
+    await screen.findByTestId('org-greeting');
+    // Let the invites promise settle so the inline loader is replaced
+    await screen.findByTestId('org-invites-list');
     const results = await axe(container);
     expect(results).toHaveNoViolations();
-  });
-
-  // --- 4. Empty State ---
-
-  it('renders empty lists correctly', async () => {
-    (useOrgStore as unknown as jest.Mock).mockImplementation((selector) =>
-      selector({ status: 'succeeded' })
-    );
-    (useOrgWithMemberships as jest.Mock).mockReturnValue([]);
-    (getData as jest.Mock).mockResolvedValue({ data: [] });
-
-    render(<Organizations />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('org-list')).toHaveTextContent('No Orgs');
-      expect(screen.getByTestId('org-invites-list')).toHaveTextContent('No Invites');
-    });
   });
 });

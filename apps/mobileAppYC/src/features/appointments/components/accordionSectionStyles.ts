@@ -59,6 +59,6 @@ export const createAccordionSectionStyles = (theme: any) => ({
   },
   selectButtonText: {
     ...theme.typography.titleSmall,
-    color: theme.colors.white,
+    color: theme.colors.ctaText,
   },
 });

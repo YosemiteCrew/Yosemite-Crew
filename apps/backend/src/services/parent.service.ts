@@ -10,7 +10,7 @@ import { AuditTrailService } from "./audit-trail.service";
 import { AuthUserMobileService } from "./authUserMobile.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
 import logger from "src/utils/logger";
-import escapeStringRegexp from "escape-string-regexp";
+import { escapeLikePattern } from "../utils/escape-like";
 
 export class ParentServiceError extends Error {
   constructor(
@@ -415,10 +415,16 @@ export const ParentService = {
         profileImageUrl: parent.profileImageUrl ?? undefined,
         isProfileComplete: false,
         linkedUserId: parent.linkedUserId ?? undefined,
-        createdFrom: parent.createdFrom as ParentCreatedFrom,
-        alerts: (parent as Parent & { alerts?: Parent["alerts"] }).alerts as
-          | Prisma.InputJsonValue
-          | undefined,
+        createdFrom: parent.createdFrom,
+        // Client alerts are staff-authored and only the PMS path may set them, matching
+        // the update path. A mobile self-registration must not be able to seed its own
+        // alerts through the public POST.
+        ...(ctx.source === "pms"
+          ? {
+              alerts: (parent as Parent & { alerts: Parent["alerts"] })
+                .alerts as Prisma.InputJsonValue | undefined,
+            }
+          : {}),
       },
     });
 
@@ -518,7 +524,7 @@ export const ParentService = {
         timezone: parent.timezone ?? undefined,
         profileImageUrl: parent.profileImageUrl ?? undefined,
         isProfileComplete: false,
-        createdFrom: parent.createdFrom as ParentCreatedFrom | undefined,
+        createdFrom: parent.createdFrom,
         // Only the PMS path manages client alerts: it sends the full alert set, so an
         // absent/empty set there means "cleared" (JsonNull, since Prisma treats undefined
         // as "leave unchanged"). Mobile self-service updates never carry alerts, so the
@@ -526,9 +532,8 @@ export const ParentService = {
         ...(ctx?.source === "pms"
           ? {
               alerts:
-                ((parent as Parent & { alerts?: Parent["alerts"] }).alerts as
-                  | Prisma.InputJsonValue
-                  | undefined) ?? Prisma.JsonNull,
+                (parent.alerts as Prisma.InputJsonValue | undefined) ??
+                Prisma.JsonNull,
             }
           : {}),
       },
@@ -634,7 +639,7 @@ export const ParentService = {
       throw new ParentServiceError("Name is required for searching.", 400);
     }
 
-    const safe = escapeStringRegexp(trimmed);
+    const safe = escapeLikePattern(trimmed);
 
     const docs = await prisma.parent.findMany({
       where: {

@@ -1,59 +1,71 @@
-import AccordionButton from '@/app/ui/primitives/Accordion/AccordionButton';
-import React, { useMemo } from 'react';
-import ProfileCard from '@/app/features/organization/pages/Organization/Sections/ProfileCard';
-import { useCounterForPrimaryOrg, useSubscriptionForPrimaryOrg } from '@/app/hooks/useBilling';
-import { toTitle } from '@/app/lib/validators';
+import React from 'react';
+import Link from 'next/link';
+import { IoCardOutline } from 'react-icons/io5';
+import { useSubscriptionForPrimaryOrg } from '@/app/hooks/useBilling';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
+import Fallback from '@/app/ui/overlays/Fallback';
 import { PERMISSIONS } from '@/app/lib/permissions';
-import {
-  field,
-  ProfileField,
-} from '@/app/features/organization/pages/Organization/Sections/profileFields';
-import StripeSettingsButton from '@/app/features/billing/components/StripeSettingsButton';
+import { usePermissions } from '@/app/hooks/usePermissions';
 
-const BasicFields: ProfileField[] = [
-  field('Current plan', 'plan', 'text', false),
-  field('Next invoice date', 'nextInvoiceDate', 'date', false),
-  field('Joining date', 'joiningDate', 'date'),
-  field('Appointments', 'appointments', 'text', false),
-  field('Observational tools', 'obervationalTools', 'text', true, false),
-  field('Users', 'members', 'text', false),
-];
+type PaymentStatus = {
+  connected: boolean;
+  text: string;
+};
 
-const formatUsage = (used?: number, limit?: number): string => {
-  if (typeof used !== 'number' && typeof limit !== 'number') return '0';
-  if (typeof limit !== 'number') return String(used ?? 0);
-  return `${used ?? 0} / ${limit}`;
+const resolveStatus = (chargesEnabled?: boolean, payoutsEnabled?: boolean): PaymentStatus => {
+  if (chargesEnabled) {
+    return {
+      connected: true,
+      text: payoutsEnabled ? 'Charges enabled · payouts weekly' : 'Charges enabled',
+    };
+  }
+  return { connected: false, text: 'Not connected yet' };
 };
 
 const Payment = () => {
   const subscription = useSubscriptionForPrimaryOrg();
-  const counter = useCounterForPrimaryOrg();
+  const { can } = usePermissions();
+  const canManageStripe = can({
+    allOf: [PERMISSIONS.ORG_EDIT, PERMISSIONS.SUBSCRIPTION_EDIT_ANY],
+  });
 
-  const values = useMemo(
-    () => ({
-      plan: toTitle(subscription?.plan),
-      joiningDate: subscription?.joinedAt,
-      nextInvoiceDate: subscription?.nextInvoiceAt,
-      appointments: formatUsage(counter?.appointmentsUsed, counter?.freeAppointmentsLimit),
-      obervationalTools: formatUsage(counter?.toolsUsed, counter?.freeToolsLimit),
-      members: formatUsage(counter?.usersBillableCount, counter?.freeUsersLimit),
-    }),
-    [subscription, counter]
+  const status = resolveStatus(
+    subscription?.connectChargesEnabled,
+    subscription?.connectPayoutsEnabled
   );
+  const orgId = subscription?.orgId;
+  const showManage = canManageStripe && !!orgId;
 
   return (
-    <PermissionGate allOf={[PERMISSIONS.SUBSCRIPTION_VIEW_ANY]}>
-      <AccordionButton
-        title="Payment"
-        showButton={false}
-        finance
-        actions={<StripeSettingsButton />}
-      >
-        <div className="flex flex-col gap-4">
-          <ProfileCard title="Plan overview" fields={BasicFields} org={values} />
-        </div>
-      </AccordionButton>
+    <PermissionGate
+      allOf={[PERMISSIONS.SUBSCRIPTION_VIEW_ANY]}
+      fallback={<Fallback resource="billing and subscription" />}
+    >
+      <div className="flex items-center gap-3 rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] px-5! py-[15px]! shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+        <span className="flex size-9 flex-none items-center justify-center rounded-[11px] bg-[var(--blue-soft)] text-[var(--blue-text)]">
+          <IoCardOutline size={16} aria-hidden="true" />
+        </span>
+        <span className="flex-1 min-w-0">
+          <span className="block text-[13.5px] font-bold text-[var(--ink)]">Payments · Stripe</span>
+          <span className="flex items-center gap-[5px] text-[11.5px] text-[var(--ink-faint)]">
+            <span
+              className={`size-[6px] flex-none rounded-full ${
+                status.connected ? 'bg-[var(--success)] animate-pulse' : 'bg-[var(--ink-faint2)]'
+              }`}
+              aria-hidden="true"
+            />
+            {status.text}
+          </span>
+        </span>
+        {showManage && (
+          <Link
+            href={`/stripe-onboarding?orgId=${orgId}`}
+            className="flex-none text-[12px] font-semibold text-[var(--blue-text)] hover:text-[var(--nav-active)] transition-colors"
+          >
+            {status.connected ? 'Manage' : 'Connect'}
+          </Link>
+        )}
+      </div>
     </PermissionGate>
   );
 };

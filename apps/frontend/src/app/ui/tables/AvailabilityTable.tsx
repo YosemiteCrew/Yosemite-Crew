@@ -1,15 +1,20 @@
 import React from 'react';
+import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
 
 import Image from 'next/image';
-import { IoEye } from 'react-icons/io5';
+import { IoEyeOutline } from 'react-icons/io5';
 import { Team } from '@/app/features/organization/types/team';
 
 import AvailabilityCard from '@/app/ui/cards/AvailabilityCard';
 import { toTitleCase } from '@/app/lib/validators';
 import { getSafeImageUrl } from '@/app/lib/urls';
 
-import { formatWeeklyWorkingHours, getAvailabilityStatusStyle } from '@/app/ui/tables/tableUtils';
+import {
+  formatWeeklyWorkingHours,
+  getAvailabilityStatusTone,
+  toSpecialityNames,
+} from '@/app/ui/tables/tableUtils';
 
 import './DataTable.css';
 
@@ -77,17 +82,30 @@ const AvailabilityTable = ({
       label: 'Speciality',
       key: 'speciality',
       width: '18%',
-      render: (item: Team) => (
-        <div className="appointment-profile-title">
-          {Array.isArray(item?.speciality) && item.speciality.length > 0
-            ? item.speciality
-                .map((spec: any) =>
-                  typeof spec === 'string' ? spec : spec?.name || JSON.stringify(spec)
-                )
-                .join(', ')
-            : '-'}
-        </div>
-      ),
+      render: (item: Team) => {
+        const names = toSpecialityNames(item.speciality);
+        if (names.length === 0) return <div className="appointment-profile-title">-</div>;
+        // Joining every speciality made this the only cell in PIMS whose height
+        // tracked its data: six specialities wrapped to six lines and stretched
+        // the row to 159px next to a 67px neighbour. Lead with the first and
+        // count the rest, keeping the full list on hover.
+        const [first, ...rest] = names;
+        // The count is a non-shrinking sibling of the truncating name, not a child
+        // of it: clamping the combined line let a long first speciality push the
+        // "+N" past the clip edge, so the only hint that more existed vanished
+        // exactly when it was needed most.
+        return (
+          <div
+            className="appointment-profile-title flex min-w-0 items-baseline"
+            title={names.join(', ')}
+          >
+            <div className="min-w-0 flex-1 cell-truncate">{first}</div>
+            {rest.length > 0 && (
+              <span className="cell-overflow-count shrink-0">{`+${rest.length}`}</span>
+            )}
+          </div>
+        );
+      },
     },
     {
       label: "Today's Appointment",
@@ -112,9 +130,7 @@ const AvailabilityTable = ({
       key: 'status',
       width: '12%',
       render: (item: Team) => (
-        <div className="appointment-status" style={getAvailabilityStatusStyle(item.status)}>
-          {item.status}
-        </div>
+        <StatusPill tone={getAvailabilityStatusTone(item.status)} label={item.status} />
       ),
     },
   ];
@@ -128,9 +144,9 @@ const AvailabilityTable = ({
           type="button"
           onClick={() => handleViewTeam(item)}
           aria-label={`View availability for ${item.name}`}
-          className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+          className="size-[38px] rounded-full! border border-[var(--hairline)] bg-transparent text-[var(--ink-soft)] flex items-center justify-center cursor-pointer transition-colors hover:border-[var(--divider)] hover:text-[var(--ink)]"
         >
-          <IoEye size={18} color="var(--color-neutral-900)" />
+          <IoEyeOutline size={18} aria-hidden="true" />
         </button>
       </div>
     ),

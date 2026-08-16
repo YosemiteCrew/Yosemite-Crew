@@ -1,6 +1,11 @@
 import React from 'react';
 import {render, fireEvent, waitFor, act} from '@testing-library/react-native';
-import {DeviceEventEmitter, View as MockView} from 'react-native';
+import {
+  DeviceEventEmitter,
+  View as MockView,
+  Platform,
+  ActivityIndicator,
+} from 'react-native';
 import {OTPVerificationScreen} from '@/features/auth/screens/OTPVerificationScreen';
 import * as passwordlessAuth from '@/features/auth/services/passwordlessAuth';
 import {useAuth} from '@/features/auth/context/AuthContext';
@@ -82,7 +87,7 @@ jest.mock('@/shared/components/common', () => {
         testID="mock-otp-input"
         onChangeText={props.onComplete}
         value={props.value}
-        maxLength={4}
+        maxLength={6}
         accessibilityLabel={props.error ? `Error: ${props.error}` : undefined}
       />
     ),
@@ -196,7 +201,7 @@ describe('OTPVerificationScreen', () => {
 
   it('renders correctly for a new user', () => {
     const {getByText, getByTestId} = renderComponent(true);
-    expect(getByText('Check your email')).toBeTruthy();
+    expect(getByText('Check your inbox')).toBeTruthy();
     expect(getByText('test@example.com')).toBeTruthy();
     expect(
       getByText(/Enter the code to create your Yosemite Crew account./),
@@ -225,17 +230,18 @@ describe('OTPVerificationScreen', () => {
     expect(verifyButton).toBeDisabled();
 
     act(() => {
-      fireEvent.changeText(otpInput, '1234');
+      fireEvent.changeText(otpInput, '123456');
     });
 
     await findByText('Loading...');
-    expect(mockedCompleteSignIn).toHaveBeenCalledWith('1234');
+    expect(mockedCompleteSignIn).toHaveBeenCalledWith('123456');
     expect(verifyButton).toBeDisabled();
 
     await act(async () => {
       resolveSignIn!({
-        user: {userId: 'user-123', username: 'test@example.com'},
-        attributes: {email: 'test@example.com'},
+        userId: 'user-123',
+        email: 'test@example.com',
+        isNewUser: false,
         profile: {
           exists: true,
           isComplete: true,
@@ -264,8 +270,9 @@ describe('OTPVerificationScreen', () => {
   it('handles successful verification for an existing user and logs them in', async () => {
     const mockTokens = {accessToken: 'abc', idToken: 'def'};
     mockedCompleteSignIn.mockResolvedValue({
-      user: {userId: 'user-123', username: 'test@example.com'},
-      attributes: {email: 'test@example.com'},
+      userId: 'user-123',
+      email: 'test@example.com',
+      isNewUser: false,
       profile: {
         exists: true,
         isComplete: true,
@@ -280,12 +287,12 @@ describe('OTPVerificationScreen', () => {
     const otpInput = getByTestId('mock-otp-input');
 
     await act(async () => {
-      fireEvent.changeText(otpInput, '1234');
+      fireEvent.changeText(otpInput, '123456');
       await Promise.resolve();
     });
 
     await waitFor(() => {
-      expect(mockedCompleteSignIn).toHaveBeenCalledWith('1234');
+      expect(mockedCompleteSignIn).toHaveBeenCalledWith('123456');
       expect(mockedRemoveItem).toHaveBeenCalledWith(
         PENDING_PROFILE_STORAGE_KEY,
       );
@@ -303,8 +310,9 @@ describe('OTPVerificationScreen', () => {
   it('handles successful verification for a new user and navigates to CreateAccount', async () => {
     const mockTokens = {accessToken: 'abc', idToken: 'def'};
     mockedCompleteSignIn.mockResolvedValue({
-      user: {userId: 'user-123', username: 'test@example.com'},
-      attributes: {email: 'test@example.com', given_name: 'Test'},
+      userId: 'user-123',
+      email: 'test@example.com',
+      isNewUser: true,
       profile: {
         exists: false,
         isComplete: false,
@@ -319,12 +327,12 @@ describe('OTPVerificationScreen', () => {
     const otpInput = getByTestId('mock-otp-input');
 
     await act(async () => {
-      fireEvent.changeText(otpInput, '1234');
+      fireEvent.changeText(otpInput, '123456');
       await Promise.resolve();
     });
 
     await waitFor(() => {
-      expect(mockedCompleteSignIn).toHaveBeenCalledWith('1234');
+      expect(mockedCompleteSignIn).toHaveBeenCalledWith('123456');
       expect(mockedSetItem).toHaveBeenCalledWith(
         PENDING_PROFILE_STORAGE_KEY,
         expect.any(String),
@@ -334,7 +342,6 @@ describe('OTPVerificationScreen', () => {
         userId: 'user-123',
         email: 'test@example.com',
         profileToken: 'token-abc',
-        initialAttributes: {firstName: 'Test'},
         tokens: mockTokens,
         showOtpSuccess: false,
       });
@@ -349,7 +356,6 @@ describe('OTPVerificationScreen', () => {
               userId: 'user-123',
               email: 'test@example.com',
               profileToken: 'token-abc',
-              initialAttributes: {firstName: 'Test'},
               tokens: mockTokens,
               showOtpSuccess: true,
             }),
@@ -370,10 +376,10 @@ describe('OTPVerificationScreen', () => {
     const {getByTestId} = renderComponent(false);
 
     act(() => {
-      fireEvent.changeText(getByTestId('mock-otp-input'), '1234');
+      fireEvent.changeText(getByTestId('mock-otp-input'), '123456');
     });
 
-    expect(mockedCompleteSignIn).toHaveBeenCalledWith('1234');
+    expect(mockedCompleteSignIn).toHaveBeenCalledWith('123456');
 
     await act(async () => {
       fireEvent.press(getByTestId('mock-header'));
@@ -390,8 +396,9 @@ describe('OTPVerificationScreen', () => {
 
     await act(async () => {
       resolveSignIn!({
-        user: {userId: 'user-123', username: 'test@example.com'},
-        attributes: {email: 'test@example.com'},
+        userId: 'user-123',
+        email: 'test@example.com',
+        isNewUser: false,
         profile: {
           exists: true,
           isComplete: true,
@@ -421,7 +428,7 @@ describe('OTPVerificationScreen', () => {
     const otpInput = getByTestId('mock-otp-input');
 
     await act(async () => {
-      fireEvent.changeText(otpInput, '1234');
+      fireEvent.changeText(otpInput, '123456');
       try {
         await Promise.resolve();
       } catch (_error) {}
@@ -444,7 +451,7 @@ describe('OTPVerificationScreen', () => {
     const otpInput = getByTestId('mock-otp-input');
 
     await act(async () => {
-      fireEvent.changeText(otpInput, '1234');
+      fireEvent.changeText(otpInput, '123456');
       try {
         await Promise.resolve();
       } catch (_error) {}
@@ -493,6 +500,18 @@ describe('OTPVerificationScreen', () => {
     expect(mockedRequestCode).toHaveBeenCalledWith('test@example.com');
     expect(getByText('00:60 sec')).toBeTruthy();
     expect(queryByText('Resend')).toBeFalsy();
+  });
+
+  it('exposes a button role and label on the resend button', () => {
+    const {getByLabelText} = renderComponent();
+
+    act(() => {
+      jest.advanceTimersByTime(60000);
+    });
+
+    const resendButton = getByLabelText('Resend code');
+    expect(resendButton.props.accessibilityRole).toBe('button');
+    expect(resendButton.props.accessibilityState).toEqual({disabled: false});
   });
 
   it('handles failed OTP resend and shows error', async () => {
@@ -580,7 +599,7 @@ describe('OTPVerificationScreen', () => {
     const otpInput = getByTestId('mock-otp-input');
 
     await act(async () => {
-      fireEvent.changeText(otpInput, '1234');
+      fireEvent.changeText(otpInput, '123456');
       await Promise.resolve();
     });
 
@@ -591,8 +610,8 @@ describe('OTPVerificationScreen', () => {
     });
 
     mockedCompleteSignIn.mockResolvedValueOnce({
-      user: {userId: 'user-retry', username: 'test@example.com'},
-      attributes: {email: 'test@example.com'},
+      userId: 'user-retry',
+      email: 'test@example.com',
       profile: {
         exists: true,
         isComplete: true,
@@ -604,7 +623,7 @@ describe('OTPVerificationScreen', () => {
     });
 
     await act(async () => {
-      fireEvent.changeText(otpInput, '1234');
+      fireEvent.changeText(otpInput, '123456');
       await Promise.resolve();
     });
 
@@ -615,6 +634,102 @@ describe('OTPVerificationScreen', () => {
     await waitFor(() => {
       expect(mockedLogin).toHaveBeenCalled();
     });
+  });
+
+  it('shows the digit-count error when the entered code trims below the expected length', () => {
+    const {getByTestId} = renderComponent();
+    const otpInput = getByTestId('mock-otp-input');
+
+    // A six-character value (matching expectedLength so auto-verify fires)
+    // that trims to four digits fails the length check inside validateCode.
+    act(() => {
+      fireEvent.changeText(otpInput, '  1234');
+    });
+
+    expect(getByTestId('mock-otp-input').props.accessibilityLabel).toBe(
+      'Error: Please enter the 6-digit code.',
+    );
+    expect(mockedCompleteSignIn).not.toHaveBeenCalled();
+  });
+
+  it('ignores a resend request once cancellation has started', async () => {
+    const {getByText, getByTestId} = renderComponent();
+
+    act(() => {
+      jest.advanceTimersByTime(60000);
+    });
+
+    await act(async () => {
+      fireEvent.press(getByTestId('mock-header'));
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(mockedSignOutEverywhere).toHaveBeenCalled();
+    });
+
+    fireEvent.press(getByText('Resend'));
+    expect(mockedRequestCode).not.toHaveBeenCalled();
+  });
+
+  it('does not clear the resending flag when cancelled during a resend', async () => {
+    let resolveResend: () => void = () => {};
+    mockedRequestCode.mockReturnValue(
+      new Promise<void>(resolve => {
+        resolveResend = resolve;
+      }),
+    );
+
+    const {getByText, getByTestId} = renderComponent();
+    act(() => {
+      jest.advanceTimersByTime(60000);
+    });
+
+    await act(async () => {
+      fireEvent.press(getByText('Resend'));
+      await Promise.resolve();
+    });
+
+    // Cancel while the resend request is still in flight.
+    await act(async () => {
+      fireEvent.press(getByTestId('mock-header'));
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      resolveResend();
+      await Promise.resolve();
+    });
+
+    expect(mockedRequestCode).toHaveBeenCalledWith('test@example.com');
+  });
+
+  it('shows a loading spinner while a resend request is pending', async () => {
+    mockedRequestCode.mockReturnValue(new Promise<void>(() => {}));
+    const {getByText, queryByText, UNSAFE_getByType} = renderComponent();
+
+    act(() => {
+      jest.advanceTimersByTime(60000);
+    });
+
+    await act(async () => {
+      fireEvent.press(getByText('Resend'));
+      await Promise.resolve();
+    });
+
+    expect(queryByText('Resend')).toBeNull();
+    expect(UNSAFE_getByType(ActivityIndicator)).toBeTruthy();
+  });
+
+  it('renders with the android keyboard-avoiding behavior', () => {
+    const originalOS = Platform.OS;
+    Platform.OS = 'android';
+
+    try {
+      const {getByText} = renderComponent();
+      expect(getByText('Check your inbox')).toBeTruthy();
+    } finally {
+      Platform.OS = originalOS;
+    }
   });
 
   describe('Demo/Review login mode', () => {
@@ -650,6 +765,12 @@ describe('OTPVerificationScreen', () => {
       fireEvent.press(getByText('Use provided password'));
 
       expect(getByTestId('mock-demo-input').props.value).toBe('demoPass123');
+    });
+
+    it('exposes a button role and label on the prefill-password helper button', () => {
+      const {getByLabelText} = renderDemoComponent();
+      const prefillButton = getByLabelText('Use provided password');
+      expect(prefillButton.props.accessibilityRole).toBe('button');
     });
 
     it('updates the password field and clears a previous error as the user types', async () => {
@@ -697,8 +818,6 @@ describe('OTPVerificationScreen', () => {
         expect(mockedCompleteSignIn).toHaveBeenCalledWith('demoPass123');
       });
 
-      expect(API_CONFIG.baseUrl).toBe(DEVELOPMENT_API_BASE_URL);
-      expect(API_CONFIG.pmsBaseUrl).toBe(DEVELOPMENT_API_BASE_URL);
       expect(mockedSetItem).toHaveBeenCalledWith(DEMO_API_MODE_KEY, 'true');
       expect(mockedEmit).toHaveBeenCalledWith(DEV_API_MODE_CHANGED_EVENT, {
         isDevApi: true,
@@ -733,6 +852,81 @@ describe('OTPVerificationScreen', () => {
       });
 
       expect(API_CONFIG.baseUrl).toBe(expectedBaseUrl);
+    });
+
+    it('treats the demo login email as review login without a demo challenge type', () => {
+      const route = {
+        params: {
+          email: 'demo@yosemitecrew.com',
+          isNewUser: false,
+        },
+      };
+      const {getByText, queryByTestId} = render(
+        <OTPVerificationScreen
+          navigation={mockNavigation as any}
+          route={route as any}
+        />,
+      );
+
+      expect(getByText(/This is the App Review login/)).toBeTruthy();
+      expect(queryByTestId('mock-otp-input')).toBeNull();
+    });
+
+    it('restores the production API base URL when dev API is disabled on demo failure', async () => {
+      const originalUseDevApi = MOBILE_CONFIG_BEHAVIOR.useDevApi;
+      const originalOverride = MOBILE_CONFIG_BEHAVIOR.overrides?.apiBaseUrl;
+      MOBILE_CONFIG_BEHAVIOR.useDevApi = false;
+      if (MOBILE_CONFIG_BEHAVIOR.overrides) {
+        MOBILE_CONFIG_BEHAVIOR.overrides.apiBaseUrl = undefined;
+      }
+      mockedCompleteSignIn.mockRejectedValue(new Error('bad demo password'));
+      mockedFormatError.mockReturnValue('bad demo password');
+
+      try {
+        const {getByTestId, getByText} = renderDemoComponent();
+        fireEvent.changeText(getByTestId('mock-demo-input'), 'demoPass123');
+
+        await act(async () => {
+          fireEvent.press(getByText('Sign in with password'));
+          await Promise.resolve();
+        });
+
+        await waitFor(() => {
+          expect(getByTestId('mock-demo-input').props.accessibilityLabel).toBe(
+            'Error: bad demo password',
+          );
+        });
+
+        expect(API_CONFIG.baseUrl).toBe(PRODUCTION_API_BASE_URL);
+        expect(API_CONFIG.pmsBaseUrl).toBe(PRODUCTION_API_BASE_URL);
+      } finally {
+        MOBILE_CONFIG_BEHAVIOR.useDevApi = originalUseDevApi;
+        if (MOBILE_CONFIG_BEHAVIOR.overrides) {
+          MOBILE_CONFIG_BEHAVIOR.overrides.apiBaseUrl = originalOverride;
+        }
+      }
+    });
+
+    it('does not re-verify when submit fires after cancellation', async () => {
+      const {getByTestId} = renderDemoComponent();
+      fireEvent.changeText(getByTestId('mock-demo-input'), 'demoPass123');
+
+      // Cancel the flow via the header back button.
+      await act(async () => {
+        fireEvent.press(getByTestId('mock-header'));
+        await Promise.resolve();
+      });
+      await waitFor(() => {
+        expect(mockedSignOutEverywhere).toHaveBeenCalled();
+      });
+
+      // Submitting now is a no-op because cancellation already started.
+      await act(async () => {
+        fireEvent(getByTestId('mock-demo-input'), 'submitEditing');
+        await Promise.resolve();
+      });
+
+      expect(mockedCompleteSignIn).not.toHaveBeenCalled();
     });
   });
 
@@ -795,7 +989,7 @@ describe('OTPVerificationScreen', () => {
 
       await waitFor(() => {
         expect(consoleWarnSpy).toHaveBeenCalledWith(
-          '[OTP] Failed to cancel Amplify session',
+          '[OTP] Failed to cancel SuperTokens session',
           expect.any(Error),
         );
         expect(mockNavigation.reset).toHaveBeenCalledWith({

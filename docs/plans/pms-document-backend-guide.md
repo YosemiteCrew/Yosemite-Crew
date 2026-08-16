@@ -1,5 +1,7 @@
 # PMS Document Upload: Backend Patch Guide
 
+> Status: implemented. `visitType`, `issuingBusinessName`, and `issueDate` are accepted and forwarded in `apps/backend/src/controllers/app/document.controller.ts`. Kept for historical context; the code is the source of truth.
+
 ## Context
 
 This is a small backend patch guide for the Yosemite Crew PMS (veterinary Practice Management System) web app. It fixes a mismatch where the frontend now sends three extra document fields that the backend create path silently drops.

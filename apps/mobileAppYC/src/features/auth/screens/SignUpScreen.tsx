@@ -1,53 +1,35 @@
-/* eslint-disable react-native/no-inline-styles */
-import React, {useState} from 'react';
+import React, {useState, useMemo} from 'react';
 import {View, Text, StyleSheet, Image} from 'react-native';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {SafeArea} from '@/shared/components/common';
-import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {useTheme, useSocialAuth, type SocialProvider} from '@/hooks';
 import {Images} from '@/assets/images';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {AuthStackParamList} from '@/navigation/AuthNavigator';
+import type {Theme} from '@/theme';
 
-// Icon components
-const EmailIcon = () => (
-  <Image
-    source={Images.emailIcon}
-    style={{width: 25, height: 25}}
-    resizeMode="contain"
-  />
-);
-
-const GoogleIcon = () => (
-  <Image
-    source={Images.googleIcon}
-    style={{width: 25, height: 25}}
-    resizeMode="contain"
-  />
-);
-
-const FacebookIcon = () => (
-  <Image
-    source={Images.facebookIcon}
-    style={{width: 25, height: 25}}
-    resizeMode="contain"
-  />
-);
-
-const AppleIcon = () => (
-  <Image
-    source={Images.appleIcon}
-    style={{width: 25, height: 25}}
-    resizeMode="contain"
-  />
-);
+const LOGO = require('../../../assets/images/yosemite-logo-1024.png');
 
 type SignUpScreenProps = NativeStackScreenProps<AuthStackParamList, 'SignUp'>;
 
+const socialButtons: {
+  provider: SocialProvider;
+  label: string;
+  icon: number;
+}[] = [
+  {provider: 'google', label: 'Sign up with Google', icon: Images.googleIcon},
+  {
+    provider: 'facebook',
+    label: 'Sign up with Facebook',
+    icon: Images.facebookIcon,
+  },
+  {provider: 'apple', label: 'Sign up with Apple', icon: Images.appleIcon},
+];
+
 export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
   const {theme} = useTheme();
-  const styles = createStyles(theme);
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const {login} = useAuth();
   const [socialError, setSocialError] = useState('');
   const {activeProvider, isSocialLoading, handleSocialAuth} = useSocialAuth({
@@ -66,12 +48,20 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
     genericErrorMessage: 'We couldn’t complete the sign up. Kindly retry.',
   });
 
-  const handleSignUp = () => {
+  const handleEmailSignUp = () => {
     navigation.navigate('SignIn');
   };
 
   const handleSignIn = () => {
     navigation.navigate('SignIn');
+  };
+
+  const handleOpenTerms = () => {
+    navigation.navigate('TermsAndConditions');
+  };
+
+  const handleOpenPrivacy = () => {
+    navigation.navigate('PrivacyPolicy');
   };
 
   const attemptSocialAuth = async (provider: SocialProvider) => {
@@ -86,180 +76,219 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
     }
   };
 
-  const handleGoogleSignUp = () => attemptSocialAuth('google');
-
-  const handleFacebookSignUp = () => attemptSocialAuth('facebook');
-
-  const handleAppleSignUp = () => attemptSocialAuth('apple');
-
   return (
     <SafeArea style={styles.container}>
       <View style={styles.content}>
-        {/* Hero Image */}
-        <View style={styles.imageContainer}>
-          <Image
-            source={Images.welcomeIllustration}
-            style={styles.illustration}
-            resizeMode="contain"
-          />
+        {/* Header */}
+        <View style={styles.header}>
+          <Image source={LOGO} style={styles.logo} resizeMode="contain" />
+          <Text style={styles.title}>Create your account</Text>
+          <Text style={styles.subtitle}>
+            Free for pet parents. What's yours stays yours.
+          </Text>
         </View>
 
-        {/* Main Content */}
-        <View style={styles.mainContent}>
-          {/* Title */}
-          <Text style={styles.title}>All companions, one place</Text>
-
-          {/* Sign Up Buttons */}
-          <View style={styles.buttonContainer}>
-            <LiquidGlassButton
-              title="Sign up with email"
-              onPress={handleSignUp}
-              style={styles.emailButton}
-              textStyle={styles.emailButtonText}
-              tintColor={theme.colors.secondary}
-              height={56}
-              borderRadius="lg"
-              leftIcon={<EmailIcon />}
+        {/* Buttons */}
+        <View style={styles.buttonContainer}>
+          <PressableOpacity
+            onPress={handleEmailSignUp}
+            disabled={isSocialLoading}
+            style={styles.emailButton}
+            accessibilityRole="button"
+            accessibilityLabel="Sign up with email"
+            accessibilityState={{disabled: isSocialLoading}}>
+            <Image
+              source={Images.emailIcon}
+              style={[styles.buttonIcon, styles.emailIconTint]}
+              resizeMode="contain"
             />
+            <Text style={styles.emailButtonText}>Sign up with email</Text>
+          </PressableOpacity>
 
-            <LiquidGlassButton
-              title="Sign up with Google"
-              glassEffect="clear"
-              onPress={handleGoogleSignUp}
-              textStyle={styles.socialButtonTextGoogle}
-              height={56}
-              borderRadius="lg"
-              shadowIntensity="medium" // Adds more shadow for visibility
-              leftIcon={<GoogleIcon />}
-              loading={activeProvider === 'google'}
-              disabled={isSocialLoading}
-            />
-
-            <LiquidGlassButton
-              title="Sign up with Facebook"
-              onPress={handleFacebookSignUp}
-              style={styles.facebookButton}
-              textStyle={styles.socialButtonText}
-              tintColor={theme.colors.primary}
-              height={56}
-              borderRadius="lg"
-              leftIcon={<FacebookIcon />}
-              loading={activeProvider === 'facebook'}
-              disabled={isSocialLoading}
-            />
-
-            <LiquidGlassButton
-              title="Sign up with Apple"
-              onPress={handleAppleSignUp}
-              style={styles.appleButton}
-              textStyle={styles.socialButtonText}
-              tintColor={theme.colors.secondary}
-              height={56}
-              borderRadius="lg"
-              leftIcon={<AppleIcon />}
-              loading={activeProvider === 'apple'}
-              disabled={isSocialLoading}
-            />
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
           </View>
 
-          {socialError ? (
-            <Text style={styles.socialErrorText}>{socialError}</Text>
-          ) : null}
-
-          {/* Sign In Link */}
-          <View style={styles.signInContainer}>
-            <Text style={styles.signInText}>Already a member? </Text>
-            <PressableOpacity onPress={handleSignIn}>
-              <Text style={styles.signInLink}>Sign in</Text>
+          {socialButtons.map(({provider, label, icon}) => (
+            <PressableOpacity
+              key={provider}
+              onPress={() => attemptSocialAuth(provider)}
+              disabled={isSocialLoading}
+              style={styles.socialButton}
+              accessibilityRole="button"
+              accessibilityLabel={label}
+              accessibilityState={{disabled: isSocialLoading}}>
+              <Image
+                source={icon}
+                style={styles.buttonIcon}
+                resizeMode="contain"
+              />
+              <Text style={styles.socialButtonText}>
+                {activeProvider === provider ? 'Please wait…' : label}
+              </Text>
             </PressableOpacity>
-          </View>
+          ))}
+        </View>
+
+        {socialError ? (
+          <Text style={styles.socialErrorText}>{socialError}</Text>
+        ) : null}
+
+        <View style={styles.spacer} />
+
+        {/* Terms */}
+        <Text style={styles.terms}>
+          By continuing you agree to Yosemite Crew's{' '}
+          <Text
+            style={styles.termsLink}
+            accessibilityRole="link"
+            onPress={handleOpenTerms}>
+            terms and conditions
+          </Text>{' '}
+          and{' '}
+          <Text
+            style={styles.termsLink}
+            accessibilityRole="link"
+            onPress={handleOpenPrivacy}>
+            privacy policy
+          </Text>
+          .
+        </Text>
+
+        {/* Sign In Link */}
+        <View style={styles.signInContainer}>
+          <Text style={styles.signInText}>Already have an account? </Text>
+          <PressableOpacity
+            onPress={handleSignIn}
+            accessibilityRole="button"
+            accessibilityLabel="Sign in">
+            <Text style={styles.signInLink}>Sign in</Text>
+          </PressableOpacity>
         </View>
       </View>
     </SafeArea>
   );
 };
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.screen,
     },
     content: {
       flex: 1,
+      paddingHorizontal: theme.spacing['5'],
     },
-    imageContainer: {
-      width: '100%',
-      height: '45%',
+    header: {
+      paddingTop: theme.spacing['7'],
+      gap: theme.spacing['1.25'],
     },
-    illustration: {
-      width: '100%',
-      height: '100%',
-    },
-    mainContent: {
-      flex: 1,
-      paddingTop: theme.spacing['3'],
-      paddingBottom: theme.spacing['10'],
-      justifyContent: 'space-between',
+    logo: {
+      width: 60,
+      height: 60,
+      marginBottom: theme.spacing['2.5'],
     },
     title: {
-      ...theme.typography.h3,
-      color: theme.colors.secondary,
-      textAlign: 'center',
+      ...theme.typography.serifTitle,
+      color: theme.colors.ink,
+    },
+    subtitle: {
+      ...theme.typography.body,
+      color: theme.colors.inkMuted,
     },
     buttonContainer: {
-      paddingHorizontal: theme.spacing['6'],
-      gap: theme.spacing['4'],
-      paddingTop: theme.spacing['5'],
+      gap: theme.spacing['3'],
+      paddingTop: theme.spacing['6'],
     },
     emailButton: {
-      backgroundColor: theme.colors.secondary,
-      borderRadius: theme.borderRadius.lg,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: theme.spacing['2.5'],
+      height: 54,
+      borderRadius: theme.borderRadius.button,
+      backgroundColor: theme.colors.cta,
+      ...theme.shadows.cta,
     },
     emailButtonText: {
-      ...theme.typography.cta,
-      color: theme.colors.white,
+      ...theme.typography.buttonLarge,
+      fontSize: theme.typography.body.fontSize,
+      color: theme.colors.ctaText,
+    },
+    buttonIcon: {
+      width: 20,
+      height: 20,
+    },
+    emailIconTint: {
+      tintColor: theme.colors.ctaText,
+    },
+    dividerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing['3'],
+      paddingVertical: theme.spacing['1'],
+    },
+    dividerLine: {
+      flex: 1,
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: theme.colors.hairline,
+    },
+    dividerText: {
+      ...theme.typography.bodySmall,
+      color: theme.colors.inkFaint2,
     },
     socialButton: {
-      borderColor: theme.colors.border,
-      backgroundColor: theme.colors.white,
-      borderRadius: theme.borderRadius.lg,
-    },
-    socialButtonTextGoogle: {
-      ...theme.typography.cta,
-      color: theme.colors.text,
-    },
-    facebookButton: {
-      backgroundColor: theme.colors.primary,
-      borderRadius: theme.borderRadius.lg,
-    },
-    appleButton: {
-      backgroundColor: theme.colors.secondary,
-      borderRadius: theme.borderRadius.lg,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: theme.spacing['2.5'],
+      height: 54,
+      borderRadius: theme.borderRadius.button,
+      borderWidth: 1,
+      borderColor: theme.colors.divider,
+      backgroundColor: theme.colors.screen,
     },
     socialButtonText: {
-      ...theme.typography.cta,
-      color: theme.colors.white,
+      ...theme.typography.buttonLarge,
+      fontSize: theme.typography.body.fontSize,
+      color: theme.colors.inkBody,
     },
     socialErrorText: {
-      ...theme.typography.paragraph,
+      ...theme.typography.bodySmall,
       color: theme.colors.error,
       textAlign: 'center',
       marginTop: theme.spacing['3'],
-      paddingHorizontal: theme.spacing['8'],
+    },
+    spacer: {
+      flex: 1,
+      minHeight: theme.spacing['6'],
+    },
+    terms: {
+      ...theme.typography.bodySmall,
+      color: theme.colors.inkFaint,
+      textAlign: 'center',
+      paddingHorizontal: theme.spacing['6'],
+      marginBottom: theme.spacing['4'],
+    },
+    termsLink: {
+      color: theme.colors.blueText,
+      fontFamily: theme.typography.bodyMedium.fontFamily,
     },
     signInContainer: {
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
-      marginTop: theme.spacing['6'],
+      marginBottom: theme.spacing['4'],
     },
     signInText: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.textSecondary,
+      ...theme.typography.body,
+      color: theme.colors.inkMuted,
     },
     signInLink: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.primary,
+      ...theme.typography.bodyMedium,
+      color: theme.colors.blueText,
     },
   });

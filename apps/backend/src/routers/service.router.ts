@@ -1,48 +1,74 @@
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
 import { ServiceController } from "../controllers/web/service.controller";
-import { authorizeCognito } from "src/middlewares/auth";
+import { attachSessionIfPresent, requireWebAuth } from "src/middlewares/auth";
 import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 
 const router = Router();
 
+// Clinic and slot discovery is a signed-out surface: the pet-parent mobile app
+// browses organisations and bookable windows before the user authenticates, so
+// these read routes stay reachable without a session. The per-IP limiter is the
+// only budget standing between an anonymous caller and unbounded scraping of the
+// directory or repeated slot computation, so cap it here.
+const publicServiceReadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 router.post(
   "/",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   ServiceController.createService,
 );
 router.post(
   "/bulk",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   ServiceController.createMany,
 );
 router.get(
   "/organisation/search",
+  publicServiceReadLimiter,
   ServiceController.listOrganisationByServiceName,
 );
 router.get(
   "/organisation/:organisationId",
+  publicServiceReadLimiter,
   ServiceController.listByOrganisation,
 );
-router.post("/bookable-slots", ServiceController.getBookableSlotsForService);
+// Slot routes expose staff identifiers (`vetIds`) only to authenticated callers.
+// `attachSessionIfPresent` binds the session when one is sent (staff web app,
+// signed-in mobile booking) so those responses keep the assignment hint, while
+// anonymous discovery gets the redacted response the controller returns.
+router.post(
+  "/bookable-slots",
+  publicServiceReadLimiter,
+  attachSessionIfPresent,
+  ServiceController.getBookableSlotsForService,
+);
 router.post(
   "/bookable-slots/calendar-prefill",
+  publicServiceReadLimiter,
+  attachSessionIfPresent,
   ServiceController.getCalendarPrefill,
 );
-router.get("/:id", ServiceController.getServiceById);
+router.get("/:id", publicServiceReadLimiter, ServiceController.getServiceById);
 router.patch(
   "/:id",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   ServiceController.updateService,
 );
 router.delete(
   "/:id",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("specialities:edit:any"),
   ServiceController.deleteService,

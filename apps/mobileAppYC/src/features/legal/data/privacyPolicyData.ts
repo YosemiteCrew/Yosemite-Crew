@@ -492,7 +492,7 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
   createSocialMediaSection(
     'social-discord',
     '4.5. Discord',
-    'https://discord.gg/YVzMa9j7BK',
+    'https://discord.gg/SwM6mX85KD',
     'Discord Netherlands BV,  Schiphol Boulevard 195, 1118 BG Schiphol, Netherlands.',
     'https://discord.com/privacy',
   ),

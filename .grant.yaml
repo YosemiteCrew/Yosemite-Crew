@@ -1,0 +1,91 @@
+# License-compliance policy for the supply-chain gate (#1721).
+# scripts/security/supply-chain.sh licenses runs grant over the repository
+# SBOM with this policy; CI runs the same script (grant denies anything not on
+# the allow list below).
+#
+# The repository is AGPL-3.0 with a CC-BY-3.0/4.0 combining exception
+# (License.txt), so the list is the AGPL-3.0-compatible set plus the two CC-BY
+# versions the exception covers. Additions need the same review as a code
+# change - include the FSF/SPDX compatibility rationale in the PR.
+allow:
+  # The project license family. GPLv3 is one-way compatible with AGPLv3
+  # (AGPL section 13); LGPL permits relicensing under GPL/AGPL terms.
+  - AGPL-3.0-only
+  - AGPL-3.0-or-later
+  - AGPL-3.0
+  - GPL-3.0-only
+  - GPL-3.0-or-later
+  - GPL-3.0
+  - GPL-2.0-or-later
+  - LGPL-2.1-only
+  - LGPL-2.1-or-later
+  - LGPL-2.1
+  - LGPL-3.0-only
+  - LGPL-3.0-or-later
+  - LGPL-3.0
+  # Permissive, GPL-compatible.
+  - MIT
+  - MIT-0
+  - ISC
+  - BSD-2-Clause
+  - BSD-3-Clause
+  - Apache-2.0
+  - Apache-1.1
+  - MPL-2.0
+  - CC0-1.0
+  - Unlicense
+  - 0BSD
+  - BlueOak-1.0.0
+  - Python-2.0
+  - PSF-2.0
+  - Zlib
+  - Artistic-2.0
+  - WTFPL
+  - OFL-1.1
+  - Unicode-DFS-2016
+  - Unicode-3.0
+  # Covered by the Yosemite Crew licensing exception in License.txt.
+  - CC-BY-3.0
+  - CC-BY-4.0
+
+# 295 installed packages carry no machine-readable license in their
+# package.json (mostly store-internal artifacts and packages with nonstandard
+# license fields). Flipping this to true is the documented follow-up hardening
+# once that tail is triaged - see docs/security/supply-chain.md.
+require-license: false
+
+# Package-level exceptions. Every entry carries: the verified reason, an
+# owner, and a re-review date. Verified means the LICENSE file in the installed
+# package was read - not the package.json field.
+ignore-packages:
+  # (BSD-3-Clause OR GPL-2.0) dual license; the project elects BSD-3-Clause.
+  # The scanner flags the GPL-2.0 arm of the expression. Owner: ankit-yc.
+  # Re-review by: 2027-02-09 (or on major version bump, whichever is first).
+  - node-forge
+  # package.json says "bsd" (nonstandard spelling); the LICENSE file is plain
+  # BSD. Owner: ankit-yc.
+  # Re-review by: 2027-02-09 (or on version bump, whichever is first).
+  - multi-sort-stream
+  # package.json says MPL-1.1; the underlying snowball stemmer files carry the
+  # Mozilla MPL-1.1/GPL-2.0/LGPL-2.1 tri-license and are used unmodified,
+  # only inside the generated docs search bundle. Owner: ankit-yc.
+  # Re-review by: 2026-11-01.
+  - lunr-languages
+  # GENUINE FINDING, exception pending a licensing decision - NOT cleared.
+  # The stream-chat family ships GetStream's proprietary Source Code License
+  # Agreement; the @calcom/embed family ships the Cal.com Commercial (EE)
+  # license. Both are vendor SDKs for paid services the product integrates,
+  # used at arm's length over the network, but their compatibility with
+  # AGPL-3.0 distribution needs an explicit decision. Owner: ankit-yc.
+  # Re-review by: 2026-10-01 - do not renew silently.
+  - stream-chat
+  - stream-chat-react
+  - stream-chat-react-native
+  - stream-chat-react-native-core
+  - '@calcom/embed-snippet'
+  - '@calcom/embed-core'
+  - '@calcom/embed-react'
+  # package.json says "Apache 2.0" (nonstandard spelling of Apache-2.0).
+  # Owner: ankit-yc.
+  # Re-review by: 2027-02-09 (or on version bump, whichever is first).
+  - supertokens-react-native

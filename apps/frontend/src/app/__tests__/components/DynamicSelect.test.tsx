@@ -107,6 +107,48 @@ describe('DynamicSelect Component', () => {
     expect(errorText).toHaveClass('text-xs', 'text-red-600', 'mt-1');
   });
 
+  it('should display a "No matches found" message when the search query matches nothing', async () => {
+    render(
+      <DynamicSelect
+        options={mockOptions}
+        value=""
+        onChange={mockOnChange}
+        inname="fruit-selector"
+        placeholder="Select a fruit"
+      />
+    );
+
+    await user.click(screen.getByText('Select a fruit'));
+
+    const searchInput = screen.getByRole('textbox', { name: 'Search Select a fruit' });
+    await user.type(searchInput, 'durian');
+
+    expect(await screen.findByText('No matches found')).toBeInTheDocument();
+    expect(screen.queryByText('No options available')).not.toBeInTheDocument();
+  });
+
+  it('should toggle the dropdown open and closed when the caret is clicked', async () => {
+    const { container } = render(
+      <DynamicSelect
+        options={mockOptions}
+        value=""
+        onChange={mockOnChange}
+        inname="fruit-selector"
+        placeholder="Select a fruit"
+      />
+    );
+
+    const caret = container.querySelector('.dropdown-caret') as SVGElement;
+    expect(caret).not.toHaveClass('rotate');
+
+    await user.click(caret);
+    expect(await screen.findByText('Apple')).toBeInTheDocument();
+    expect(container.querySelector('.dropdown-caret')).toHaveClass('rotate');
+
+    await user.click(container.querySelector('.dropdown-caret') as SVGElement);
+    expect(screen.queryByText('Apple')).not.toBeInTheDocument();
+  });
+
   it('should call onChange with an empty string when the placeholder item is selected', async () => {
     render(
       <DynamicSelect

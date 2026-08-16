@@ -107,7 +107,7 @@ export const PostOpCarePlanController = {
       const record = await PostOpCarePlanService.create({
         organisationId: params.data.organisationId,
         prescribedBy: typedReq.userId ?? undefined,
-        ...parseDates(body.data as Record<string, unknown>),
+        ...parseDates(body.data),
       } as Parameters<typeof PostOpCarePlanService.create>[0]);
       return res.status(201).json(record);
     } catch (err) {
@@ -166,9 +166,7 @@ export const PostOpCarePlanController = {
       const record = await PostOpCarePlanService.update(
         params.data.planId,
         params.data.organisationId,
-        parseDates(body.data as Record<string, unknown>) as Parameters<
-          typeof PostOpCarePlanService.update
-        >[2],
+        parseDates(body.data),
       );
       return res.status(200).json(record);
     } catch (err) {

@@ -87,7 +87,7 @@ const getTemplateOrThrow = async (
 const updateTemplateFromQuestionnaire = async (
   templateId: string,
   questionnaire: Questionnaire,
-  organisationId: string | undefined,
+  organisationId: string,
   userId: string,
 ) => {
   const input = templateMapper.questionnaireToTemplateInput(questionnaire, {
@@ -103,13 +103,13 @@ const updateTemplateFromQuestionnaire = async (
     );
   }
 
-  return TemplateService.update(templateId, input as never, organisationId);
+  return TemplateService.update(templateId, input, organisationId);
 };
 
 const updateTemplateFromPlanDefinition = async (
   templateId: string,
   planDefinition: PlanDefinition,
-  organisationId: string | undefined,
+  organisationId: string,
   userId: string,
 ) => {
   const input = templateMapper.planDefinitionToTemplateInput(planDefinition, {
@@ -125,14 +125,14 @@ const updateTemplateFromPlanDefinition = async (
     );
   }
 
-  return TemplateService.update(templateId, input as never, organisationId);
+  return TemplateService.update(templateId, input, organisationId);
 };
 
 const createInstanceFromQuestionnaireResponse = async (
   instanceId: string | undefined,
   templateId: string,
   response: QuestionnaireResponse,
-  organisationId: string | undefined,
+  organisationId: string,
   userId: string,
   submit: boolean,
 ) => {
@@ -154,12 +154,12 @@ const createInstanceFromQuestionnaireResponse = async (
   let instance = instanceId
     ? await TemplateService.updateInstance(
         instanceId,
-        instanceUpdateData as never,
+        instanceUpdateData,
         organisationId,
       )
     : await TemplateService.createInstance({
         templateId,
-        organisationId: organisationId ?? template.organisationId ?? "",
+        organisationId,
         appointmentId: instanceInput.appointmentId ?? undefined,
         caseId: instanceInput.caseId ?? undefined,
         encounterId: instanceInput.encounterId ?? undefined,
@@ -177,9 +177,7 @@ const createInstanceFromQuestionnaireResponse = async (
   }
 
   return templateMapper.templateInstanceToQuestionnaireResponse(
-    instance as Parameters<
-      typeof templateMapper.templateInstanceToQuestionnaireResponse
-    >[0],
+    instance,
     template,
   );
 };

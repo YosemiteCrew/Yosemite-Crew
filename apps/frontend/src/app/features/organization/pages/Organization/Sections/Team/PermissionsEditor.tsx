@@ -1,8 +1,9 @@
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { Permission, PERMISSIONS, ROLE_PERMISSIONS, RoleCode } from '@/app/lib/permissions';
-import React, { useRef } from 'react';
+import React from 'react';
 import { uniq } from '@/app/features/organization/pages/Organization/Sections/Team/permissionsEditorUtils';
+import '@/app/ui/tables/GenericTable/Generictable.css';
 
 type PermissionRow = {
   key: string;
@@ -13,6 +14,20 @@ type PermissionRow = {
   editEnablePriority?: Permission[];
   viewLabel?: string;
   editLabel?: string;
+  /**
+   * Whether this row must stay on for an OWNER. The permissions that gate the
+   * Team and Organization screens are what an owner would use to undo a
+   * change, so letting an owner revoke them is a self-lockout with no way back.
+   */
+  ownerLocked?: boolean;
+  /**
+   * Whether the view permissions in this row stack rather than replace each
+   * other. Most rows are tiers - `view:any` supersedes `view:own`, `edit:any`
+   * supersedes `edit:limited` - so enabling one must clear the others. Analytics
+   * is not: a role holds `view:any` and `view:clinical` together, so picking one
+   * would silently drop the other with no way to get it back.
+   */
+  additiveView?: boolean;
 };
 
 const PERMISSION_ROWS: PermissionRow[] = [
@@ -79,6 +94,7 @@ const PERMISSION_ROWS: PermissionRow[] = [
     edit: [PERMISSIONS.TEAMS_EDIT_ANY],
     viewEnablePriority: [PERMISSIONS.TEAMS_VIEW_ANY],
     editEnablePriority: [PERMISSIONS.TEAMS_EDIT_ANY],
+    ownerLocked: true,
   },
   {
     key: 'billing',
@@ -105,6 +121,7 @@ const PERMISSION_ROWS: PermissionRow[] = [
     viewEnablePriority: [PERMISSIONS.ANALYTICS_VIEW_ANY, PERMISSIONS.ANALYTICS_VIEW_CLINICAL],
     editEnablePriority: [PERMISSIONS.ANALYTICS_EDIT_ANY],
     viewLabel: 'View (Any/Clinical)',
+    additiveView: true,
   },
   {
     key: 'audit',
@@ -119,6 +136,7 @@ const PERMISSION_ROWS: PermissionRow[] = [
     edit: [PERMISSIONS.ORG_EDIT],
     viewEnablePriority: [PERMISSIONS.ORG_VIEW],
     editEnablePriority: [PERMISSIONS.ORG_EDIT],
+    ownerLocked: true,
   },
   {
     key: 'specialities',
@@ -174,6 +192,20 @@ function removeAll(perms: Permission[], candidates?: Permission[]) {
   return perms.filter((p) => !remove.has(p));
 }
 
+/**
+ * Which permissions an additive group restores: everything the role baseline
+ * grants, so re-enabling gives back exactly what turning it off removed.
+ */
+function pickAdditiveEnablePermissions(
+  roleDefaults: Permission[],
+  enablePriority?: Permission[]
+): Permission[] {
+  if (!enablePriority?.length) return [];
+  const defaultsSet = new Set(roleDefaults);
+  const fromDefaults = enablePriority.filter((p) => defaultsSet.has(p));
+  return fromDefaults.length ? fromDefaults : enablePriority.slice(0, 1);
+}
+
 function pickEnablePermission(
   roleDefaults: Permission[],
   enablePriority?: Permission[]
@@ -185,6 +217,76 @@ function pickEnablePermission(
   return enablePriority[0] ?? null;
 }
 
+/**
+ * Which permissions to add when a group is switched on: every baseline
+ * permission for an additive group, one tier otherwise.
+ */
+function pickEnablePermissions(
+  roleDefaults: Permission[],
+  enablePriority: Permission[] | undefined,
+  additive: boolean
+): Permission[] {
+  if (additive) return pickAdditiveEnablePermissions(roleDefaults, enablePriority);
+  const single = pickEnablePermission(roleDefaults, enablePriority);
+  return single ? [single] : [];
+}
+
+/** Rule: turning EDIT on also turns VIEW on. */
+function withViewEnabled(
+  next: Permission[],
+  row: PermissionRow,
+  roleDefaults: Permission[]
+): Permission[] {
+  const viewCandidates = row.view ?? [];
+  if (!viewCandidates.length || hasAny(next, viewCandidates)) return next;
+  const viewToAdd = pickEnablePermissions(
+    roleDefaults,
+    row.viewEnablePriority ?? viewCandidates,
+    row.additiveView === true
+  );
+  return viewToAdd.length ? uniq([...next, ...viewToAdd]) : next;
+}
+
+/** The permission set that results from toggling one row's view/edit switch. */
+function applyToggle(
+  prev: Permission[],
+  kind: 'view' | 'edit',
+  row: PermissionRow,
+  nextChecked: boolean,
+  roleDefaults: Permission[]
+): Permission[] {
+  const viewCandidates = row.view ?? [];
+  const editCandidates = row.edit ?? [];
+  const isView = kind === 'view';
+
+  // ✅ Rule: turning VIEW off also turns EDIT off
+  if (!nextChecked && isView) {
+    return removeAll(prev, uniq([...viewCandidates, ...editCandidates]));
+  }
+
+  const candidates = isView ? viewCandidates : editCandidates;
+  if (!candidates.length) return prev;
+
+  // Uncheck => remove all in that group
+  if (!nextChecked) return removeAll(prev, candidates);
+
+  // Check => remove conflicts in that group, then add back what applies.
+  const priority = isView ? row.viewEnablePriority : row.editEnablePriority;
+  const toAdd = pickEnablePermissions(roleDefaults, priority, isView && row.additiveView === true);
+  if (!toAdd.length) return prev;
+
+  const next = uniq([...removeAll(prev, candidates), ...toAdd]);
+  return isView ? next : withViewEnabled(next, row, roleDefaults);
+}
+
+const OWNER_LOCKED_PERMISSIONS: Permission[] = PERMISSION_ROWS.reduce<Permission[]>(
+  (permissions, row) => {
+    if (row.ownerLocked === true) permissions.push(...(row.view ?? []), ...(row.edit ?? []));
+    return permissions;
+  },
+  []
+);
+
 function samePermissionSet(a: Permission[], b: Permission[]) {
   if (a.length !== b.length) return false;
   const aSet = new Set(a);
@@ -192,12 +294,19 @@ function samePermissionSet(a: Permission[], b: Permission[]) {
   return true;
 }
 
-function computeSavePayload(draft: Permission[], roleDefaults: Permission[]) {
+function computeSavePayload(
+  draft: Permission[],
+  roleDefaults: Permission[],
+  protectedPermissions: Permission[] = []
+) {
   const draftSet = new Set(draft);
   const defaultsSet = new Set(roleDefaults);
+  const protectedSet = new Set(protectedPermissions);
 
   const extraPerissions = draft.filter((p) => !defaultsSet.has(p));
-  const revokedPermissions = roleDefaults.filter((p) => !draftSet.has(p));
+  // A protected permission is never revoked, so a membership that arrived with
+  // one already revoked heals on the next save rather than staying stuck.
+  const revokedPermissions = roleDefaults.filter((p) => !draftSet.has(p) && !protectedSet.has(p));
 
   return {
     extraPerissions: uniq(extraPerissions),
@@ -219,10 +328,10 @@ const PermissionsEditor = ({ value, onSave, role, readOnly = false }: Permission
   const roleDefaults = React.useMemo(() => ROLE_PERMISSIONS[role] ?? [], [role]);
   const [draft, setDraft] = React.useState<Permission[]>(value);
   const [saving, setSaving] = React.useState(false);
-  const resetKeyRef = useRef<string>('');
   const resetKey = `${role}:${value.join('|')}`;
-  if (resetKeyRef.current !== resetKey) {
-    resetKeyRef.current = resetKey;
+  const [prevResetKey, setPrevResetKey] = React.useState(resetKey);
+  if (prevResetKey !== resetKey) {
+    setPrevResetKey(resetKey);
     if (!samePermissionSet(draft, value)) {
       setDraft(value);
     }
@@ -232,44 +341,12 @@ const PermissionsEditor = ({ value, onSave, role, readOnly = false }: Permission
 
   const toggle = React.useCallback(
     (kind: 'view' | 'edit', row: PermissionRow, nextChecked: boolean) => {
-      setDraft((prev) => {
-        const viewCandidates = row.view ?? [];
-        const editCandidates = row.edit ?? [];
-
-        // ✅ Rule: turning VIEW off also turns EDIT off
-        if (!nextChecked && kind === 'view') {
-          return removeAll(prev, uniq([...viewCandidates, ...editCandidates]));
-        }
-
-        const candidates = kind === 'view' ? viewCandidates : editCandidates;
-        const priority = kind === 'view' ? row.viewEnablePriority : row.editEnablePriority;
-
-        if (!candidates.length) return prev;
-
-        // Uncheck => remove all in that group
-        if (!nextChecked) {
-          return removeAll(prev, candidates);
-        }
-
-        // Check => remove conflicts in that group, add the chosen permission
-        const toAdd = pickEnablePermission(roleDefaults, priority);
-        if (!toAdd) return prev;
-
-        let next = uniq([...removeAll(prev, candidates), toAdd]);
-
-        // ✅ Rule: turning EDIT on also turns VIEW on
-        if (kind === 'edit' && viewCandidates.length && !hasAny(next, viewCandidates)) {
-          const viewToAdd = pickEnablePermission(
-            roleDefaults,
-            row.viewEnablePriority ?? viewCandidates
-          );
-          if (viewToAdd) next = uniq([...next, viewToAdd]);
-        }
-
-        return next;
-      });
+      // An owner never loses the permissions that gate the screens they would
+      // use to reverse a change, so these rows cannot be switched off here.
+      if (!nextChecked && row.ownerLocked && role === 'OWNER') return;
+      setDraft((prev) => applyToggle(prev, kind, row, nextChecked, roleDefaults));
     },
-    [roleDefaults]
+    [role, roleDefaults]
   );
 
   const resetToRoleDefaults = React.useCallback(() => {
@@ -284,14 +361,18 @@ const PermissionsEditor = ({ value, onSave, role, readOnly = false }: Permission
     if (saving) return;
     setSaving(true);
     try {
-      const payload = computeSavePayload(draft, roleDefaults);
+      const payload = computeSavePayload(
+        draft,
+        roleDefaults,
+        role === 'OWNER' ? OWNER_LOCKED_PERMISSIONS : []
+      );
       await onSave(payload);
       // parent should update `value` after save (refetch or optimistic),
       // but we also keep draft as-is; effect will sync when value changes
     } finally {
       setSaving(false);
     }
-  }, [draft, onSave, roleDefaults, saving]);
+  }, [draft, onSave, role, roleDefaults, saving]);
 
   return (
     <Accordion title="Permissions" defaultOpen={false} showEditIcon={false} isEditing={false}>
@@ -308,22 +389,23 @@ const PermissionsEditor = ({ value, onSave, role, readOnly = false }: Permission
           </div>
         )}
         <div className="flex flex-col overflow-hidden">
-          <div className="flex w-full items-center py-3 justify-between border-b border-b-grey-light px-2 bg-white">
-            <div className="text-body-4 text-grey-text">Permission</div>
+          <div className="yc-table-head yc-table-head--static flex w-full items-center justify-between px-2!">
+            <div>Permission</div>
             <div className="flex gap-10 items-center">
-              <div className="text-body-4 text-grey-text w-18 text-center">View</div>
-              <div className="text-body-4 text-grey-text w-18 text-center">Edit</div>
+              <div className="w-18 text-center">View</div>
+              <div className="w-18 text-center">Edit</div>
             </div>
           </div>
           {PERMISSION_ROWS.map((row) => {
-            const viewChecked = hasAny(draft, row.view);
-            const editChecked = hasAny(draft, row.edit);
+            const lockedForOwner = row.ownerLocked === true && role === 'OWNER';
+            const viewChecked = lockedForOwner || hasAny(draft, row.view);
+            const editChecked = lockedForOwner || hasAny(draft, row.edit);
             const viewDisabled = !row.view?.length;
             const editDisabled = !row.edit?.length;
             return (
               <div
                 key={row.key}
-                className="flex w-full items-center py-3 justify-between border-b border-b-grey-light px-2 bg-white last:border-b-0"
+                className="flex w-full items-center py-3 justify-between border-b border-b-grey-light px-2 bg-neutral-0 last:border-b-0"
               >
                 <div className="flex flex-col">
                   <div className="text-body-3 text-text-primary">{row.label}</div>
@@ -331,6 +413,7 @@ const PermissionsEditor = ({ value, onSave, role, readOnly = false }: Permission
                 <div className="flex gap-10 items-center">
                   <div className="w-18 flex justify-center">
                     {viewDisabled ? (
+                      /* v8 ignore next -- every PERMISSION_ROWS entry defines a non-empty `view`, so viewDisabled is never true */
                       <span className="text-muted-400">{'—'}</span>
                     ) : (
                       <input
@@ -339,7 +422,8 @@ const PermissionsEditor = ({ value, onSave, role, readOnly = false }: Permission
                         aria-label={`${row.label} view permission`}
                         checked={viewChecked}
                         onChange={(e) => !readOnly && toggle('view', row, e.target.checked)}
-                        disabled={readOnly}
+                        disabled={readOnly || lockedForOwner}
+                        title={lockedForOwner ? 'An owner keeps this permission' : undefined}
                         className="size-2"
                       />
                     )}
@@ -354,7 +438,8 @@ const PermissionsEditor = ({ value, onSave, role, readOnly = false }: Permission
                         aria-label={`${row.label} edit permission`}
                         checked={editChecked}
                         onChange={(e) => !readOnly && toggle('edit', row, e.target.checked)}
-                        disabled={readOnly}
+                        disabled={readOnly || lockedForOwner}
+                        title={lockedForOwner ? 'An owner keeps this permission' : undefined}
                         className="size-2"
                       />
                     )}

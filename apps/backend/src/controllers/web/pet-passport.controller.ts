@@ -32,6 +32,25 @@ const IssuanceBodySchema = z.object({
   issuingVetLicense: z.string().max(100).optional(),
 });
 
+// Clinical dates end up on a travel health document, so only an unambiguous
+// ISO-8601 calendar date ("2026-02-14") or full ISO-8601 datetime is accepted.
+// The refinement re-checks the parsed value because JavaScript's Date rolls
+// impossible days over silently ("2026-02-30" would become 2 March).
+const ISO_DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+const roundTripsToSameDay = (value: string): boolean => {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return false;
+  if (!ISO_DATE_ONLY_PATTERN.test(value)) return true;
+  return parsed.toISOString().startsWith(value);
+};
+
+const ClinicalDateSchema = z
+  .union([z.string().date(), z.string().datetime({ offset: true })])
+  .refine(roundTripsToSameDay, {
+    message: "Must be a real ISO-8601 date or datetime",
+  });
+
 // Clinical-record capture: each record is hung off the appointment's encounter,
 // so encounterId is required in the body.
 const ImmunizationBodySchema = z.object({
@@ -41,10 +60,10 @@ const ImmunizationBodySchema = z.object({
   manufacturer: z.string().max(200).optional(),
   batchNumber: z.string().max(100).optional(),
   lotNumber: z.string().max(100).optional(),
-  dateAdministered: z.string().min(1),
-  validFrom: z.string().optional(),
-  validUntil: z.string().optional(),
-  nextDueDate: z.string().optional(),
+  dateAdministered: ClinicalDateSchema,
+  validFrom: ClinicalDateSchema.optional(),
+  validUntil: ClinicalDateSchema.optional(),
+  nextDueDate: ClinicalDateSchema.optional(),
   administeringVetName: z.string().max(200).optional(),
   vetLicenseNumber: z.string().max(100).optional(),
   site: z.string().max(200).optional(),
@@ -57,7 +76,7 @@ const TreatmentBodySchema = z.object({
   treatmentType: z.enum(["ECHINOCOCCUS", "TICK", "FLEA", "OTHER"]),
   productName: z.string().min(1).max(200),
   manufacturer: z.string().max(200).optional(),
-  treatedAt: z.string().min(1),
+  treatedAt: ClinicalDateSchema,
   administeringVetName: z.string().max(200).optional(),
   notes: z.string().max(2000).optional(),
 });
@@ -65,14 +84,14 @@ const TreatmentBodySchema = z.object({
 const TitrationBodySchema = z.object({
   encounterId: IdSchema,
   approvedLab: z.string().min(1).max(200),
-  sampleDate: z.string().min(1),
+  sampleDate: ClinicalDateSchema,
   resultIuMl: z.number(),
   reportUrl: z.string().max(2048).optional(),
 });
 
 const ExamBodySchema = z.object({
   encounterId: IdSchema,
-  examinedAt: z.string().min(1),
+  examinedAt: ClinicalDateSchema,
   fitForTravel: z.boolean(),
   findings: z.string().max(2000).optional(),
   weightKg: z.number().optional(),
@@ -404,11 +423,14 @@ export const PetPassportController = {
 
   // Public, unauthenticated QR verification. No org scope on the request; a
   // uniform 404 for anything unresolved keeps the surface unprobeable.
-  getPublicPassport: async (req: Request, res: Response): Promise<Response> => {
+  getPublicPassportByToken: async (
+    req: Request,
+    res: Response,
+  ): Promise<Response> => {
     try {
-      const patientId =
-        typeof req.params.patientId === "string" ? req.params.patientId : "";
-      const passport = await PetPassportService.getPublicPassport(patientId);
+      const token =
+        typeof req.params.token === "string" ? req.params.token : "";
+      const passport = await PetPassportService.getPublicPassportByToken(token);
       return res.status(200).json(passport);
     } catch (err) {
       if (err instanceof PetPassportServiceError) {
@@ -416,6 +438,42 @@ export const PetPassportController = {
       }
       logger.error("Public pet passport resolve failed", err);
       return res.status(404).json({ message: "Passport not found." });
+    }
+  },
+
+  issuePublicToken: async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const typedReq = req as OrgRequest;
+      if (!permissionsLoaded(typedReq, res)) return res;
+      const params = ParamsSchema.safeParse(req.params);
+      if (!params.success) {
+        return res.status(400).json({ message: "Invalid route parameters" });
+      }
+      const result = await PetPassportService.issuePublicToken({
+        patientId: params.data.patientId,
+        organisationId: params.data.organisationId,
+      });
+      return res.status(201).json(result);
+    } catch (err) {
+      return handleError(err, res, "Passport share link issue failed");
+    }
+  },
+
+  revokePublicToken: async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const typedReq = req as OrgRequest;
+      if (!permissionsLoaded(typedReq, res)) return res;
+      const params = ParamsSchema.safeParse(req.params);
+      if (!params.success) {
+        return res.status(400).json({ message: "Invalid route parameters" });
+      }
+      const result = await PetPassportService.revokePublicToken({
+        patientId: params.data.patientId,
+        organisationId: params.data.organisationId,
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return handleError(err, res, "Passport share link revoke failed");
     }
   },
 };

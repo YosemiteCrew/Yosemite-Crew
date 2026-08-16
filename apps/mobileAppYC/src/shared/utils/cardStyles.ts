@@ -19,7 +19,8 @@ const fallbackGap = (gapKey: unknown) => {
 const getSpacing = (theme: any, gapKey: unknown, fallback?: number) =>
   theme?.spacing?.[gapKey as any] ??
   theme?.spacing?.[String(gapKey)] ??
-  (fallback ?? fallbackGap(gapKey));
+  fallback ??
+  fallbackGap(gapKey);
 
 const getBorderRadius = (theme: any, key: string, fallback: number) =>
   theme?.borderRadius?.[key] ?? fallback;
@@ -27,7 +28,10 @@ const getBorderRadius = (theme: any, key: string, fallback: number) =>
 /**
  * Creates common glass card styles with consistent theming
  */
-export const createGlassCardStyles = (theme: Theme, config?: Partial<CardStyleConfig>) => {
+export const createGlassCardStyles = (
+  theme: Theme,
+  config?: Partial<CardStyleConfig>,
+) => {
   const borderRadiusFallback = 16;
   const paddingFallback = 16;
   const colors = (theme as any)?.colors ?? {};
@@ -44,7 +48,7 @@ export const createGlassCardStyles = (theme: Theme, config?: Partial<CardStyleCo
     card: {
       borderRadius: finalConfig.borderRadius,
       borderWidth: finalConfig.borderWidth,
-      borderColor: colors.borderMuted ?? '#EAEAEA',
+      borderColor: colors.borderMuted ?? '#E5DCCF',
       overflow: 'hidden' as const,
       backgroundColor: colors.cardBackground ?? '#FFFFFF',
       padding: finalConfig.padding,
@@ -52,7 +56,7 @@ export const createGlassCardStyles = (theme: Theme, config?: Partial<CardStyleCo
     fallback: {
       borderRadius: finalConfig.borderRadius,
       backgroundColor: colors.cardBackground ?? '#FFFFFF',
-      borderColor: colors.border ?? '#EAEAEA',
+      borderColor: colors.border ?? '#E5DCCF',
       overflow: 'hidden' as const,
     },
   };
@@ -75,12 +79,13 @@ export const createCardContentStyles = (theme: Theme, gapKey: any = '3') => ({
 export const createIconContainerStyles = (
   theme: Theme,
   size: number = 48,
-  borderRadius?: number
+  borderRadius?: number,
 ) => ({
   iconContainer: {
     width: size,
     height: size,
-    borderRadius: borderRadius ?? (theme as any)?.borderRadius?.base ?? size / 2,
+    borderRadius:
+      borderRadius ?? (theme as any)?.borderRadius?.base ?? size / 2,
     backgroundColor: (theme as any)?.colors?.surface ?? '#FFFFFF',
     alignItems: 'center' as const,
     justifyContent: 'center' as const,

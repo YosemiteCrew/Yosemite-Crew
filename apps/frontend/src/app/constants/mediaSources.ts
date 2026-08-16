@@ -41,7 +41,7 @@ export const MEDIA_SOURCES = {
     afterPattern: ycCdn('Images/ftafter.png'),
   },
   auth: {
-    background: ycCdn('Images/SignUpBg.png'),
+    background: ycCdn('Images/SignUpBg-v2.webp'),
     passwordEye: ycCdn('Images/eyes.png'),
   },
   cookies: {
@@ -59,7 +59,6 @@ export const MEDIA_SOURCES = {
     harshit: ycCdn('aboutus-page/harshit.png'),
     anna: ycCdn('aboutus-page/anna.png'),
     harshvardhan: ycCdn('aboutus-page/harshvardhan.png'),
-    sneha: ycCdn('aboutus-page/sneha.png'),
   },
   aboutUs: {
     storyImage: ycCdn('aboutus-page/aboutnew.png'),
@@ -112,6 +111,21 @@ export const MEDIA_SOURCES = {
     slide1: ycCdn('Images/landingbg1.jpg'),
     slide2: ycCdn('Images/landingbg2.jpg'),
     slide3: ycCdn('Images/landingbg3.jpg'),
+    hero: {
+      home: {
+        video: ycCdn('assets/landing/home-dog-field-v2.mp4'),
+        poster: ycCdn('assets/landing/home-dog-portrait.jpg'),
+      },
+      businesses: {
+        video: ycCdn('assets/landing/businesses-horse-vet-v2.mp4'),
+        poster: ycCdn('assets/landing/businesses-horse-portrait.jpg'),
+        image: ycCdn('assets/landing/businesses-dog-vet.jpg'),
+      },
+      petParents: {
+        video: ycCdn('assets/landing/parents-cat-kid-v2.mp4'),
+        poster: ycCdn('assets/landing/parents-cat-portrait.jpg'),
+      },
+    },
   },
   petOwner: {
     hero: ycCdn('pet-parent/petparent.png'),

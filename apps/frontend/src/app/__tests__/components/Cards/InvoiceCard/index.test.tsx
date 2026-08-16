@@ -6,7 +6,7 @@ import { Invoice } from '@yosemite-crew/types';
 // --- Mocks ---
 
 jest.mock('@/app/ui/tables/tableUtils', () => ({
-  getInvoiceStatusStyle: jest.fn(() => ({ color: 'green' })),
+  getInvoiceStatusTone: jest.fn(() => 'success'),
   getInvoiceItemNames: jest.fn(() => 'Grooming'),
 }));
 
@@ -87,6 +87,18 @@ describe('InvoiceCard Component', () => {
     expect(dashes.length).toBeGreaterThan(0);
   });
 
+  it('falls back to zero when the invoice carries no tax total', () => {
+    // taxTotal is optional on Invoice — an untaxed invoice omits it entirely.
+    const untaxedInvoice = { ...mockInvoice, taxTotal: undefined } as any;
+
+    render(<InvoiceCard invoice={untaxedInvoice} handleViewInvoice={mockHandleView} />);
+
+    // Both the (absent) discount and the (absent) tax render as $0.
+    expect(screen.getAllByText('$0')).toHaveLength(2);
+    expect(screen.getByText('$100')).toBeInTheDocument(); // Subtotal unaffected
+    expect(screen.getByText('$110')).toBeInTheDocument(); // Total unaffected
+  });
+
   // --- 3. Status Rendering ---
 
   it('capitalizes status and applies styles', () => {
@@ -95,8 +107,11 @@ describe('InvoiceCard Component', () => {
     // "paid" -> "Paid"
     const statusBadge = screen.getByText('Paid');
     expect(statusBadge).toBeInTheDocument();
-    // JSDOM computes "green" to "rgb(0, 128, 0)"
-    expect(statusBadge).toHaveStyle({ color: 'rgb(0, 128, 0)' });
+    expect(statusBadge).toHaveClass('rounded-full!', 'text-[10px]', 'font-bold', 'uppercase');
+    expect(statusBadge).toHaveAttribute(
+      'style',
+      expect.stringContaining('background-color: var(--color-pill-success-bg)')
+    );
   });
 
   // --- 4. Interaction ---

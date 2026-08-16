@@ -2,7 +2,6 @@
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc.js";
 
-import { Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { NotificationService } from "src/services/notification.service";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
@@ -97,7 +96,7 @@ export const VaccineReminderEngine = {
             metadata: {
               ...metadata,
               vaccineReminder: { sentForDueDate: dueIso },
-            } as Prisma.InputJsonValue,
+            },
           },
         });
       } catch (error) {

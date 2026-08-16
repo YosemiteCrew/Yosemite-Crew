@@ -55,6 +55,49 @@ export const getFormCategoryDisplayLabel = (
   _orgType?: Organisation['type']
 ): string => category;
 
+/**
+ * Categories every org type can use, whatever its speciality. Org-specific
+ * categories (the `Boarder - *` / `Breeder - *` / `Groomer - *` families) are
+ * added on top per org type by `getFormCategoryOptionsForOrgType`.
+ */
+const ORG_AGNOSTIC_FORM_CATEGORIES = new Set<string>([
+  'Consent form',
+  'Prescription',
+  'SOAP',
+  'Discharge Form',
+  'Vitals',
+  'Prescription Template',
+  'Inpatient Schedule',
+  'Task Template',
+  'Custom',
+]);
+
+const ORG_TYPE_CATEGORY_PREFIX: Partial<Record<NonNullable<Organisation['type']>, string>> = {
+  BOARDER: 'Boarder',
+  BREEDER: 'Breeder',
+  GROOMER: 'Groomer',
+};
+
+/**
+ * Single source of truth for which form categories an org may create AND filter
+ * by. Both the builder's Category picker and the Forms list Category filter read
+ * this, so the filter can never drift into offering fewer categories than the
+ * builder can produce.
+ */
+export const getFormCategoryOptionsForOrgType = (
+  orgType?: Organisation['type']
+): FormsCategory[] => {
+  // An unknown org type cannot be narrowed, so offer the whole taxonomy.
+  if (!orgType) return [...FormsCategoryOptions];
+  // HOSPITAL has no category family of its own, so it gets the org-agnostic set.
+  const prefix = ORG_TYPE_CATEGORY_PREFIX[orgType];
+  return FormsCategoryOptions.filter(
+    (category) =>
+      ORG_AGNOSTIC_FORM_CATEGORIES.has(category) ||
+      (prefix !== undefined && category.startsWith(prefix))
+  );
+};
+
 const formsUsageOptions = ['Internal', 'External', 'Internal & External'] as const;
 
 export type FormsUsage = (typeof formsUsageOptions)[number];
@@ -465,35 +508,14 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
       type: 'group',
       label: 'Boarding options',
       fields: [
-        {
-          id: 'day_boarding_services',
-          type: 'checkbox',
-          label: 'Day boarding services',
-          multiple: true,
-          options: [
-            makeOption('Day care options', 'day_care_options'),
-            makeOption('Overnight stay details', 'overnight_stay_details'),
-            makeOption('Weekly boarding plans', 'weekly_boarding_plans'),
-          ],
-        },
-        {
-          id: 'overnight_boarding_services',
-          type: 'radio',
-          label: 'Overnight boarding services',
-          options: [makeOption('Yes', 'yes'), makeOption('No', 'no')],
-        },
-        {
-          id: 'long_term_boarding',
-          type: 'radio',
-          label: 'Long-term boarding options',
-          options: [makeOption('Yes', 'yes'), makeOption('No', 'no')],
-        },
-        {
-          id: 'special_needs_boarding',
-          type: 'radio',
-          label: 'Special needs boarding services',
-          options: [makeOption('Yes', 'yes'), makeOption('No', 'no')],
-        },
+        checkboxField('day_boarding_services', 'Day boarding services', [
+          makeOption('Day care options', 'day_care_options'),
+          makeOption('Overnight stay details', 'overnight_stay_details'),
+          makeOption('Weekly boarding plans', 'weekly_boarding_plans'),
+        ]),
+        yesNoRadio('overnight_boarding_services', 'Overnight boarding services'),
+        yesNoRadio('long_term_boarding', 'Long-term boarding options'),
+        yesNoRadio('special_needs_boarding', 'Special needs boarding services'),
       ],
     },
     {
@@ -501,29 +523,13 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
       type: 'group',
       label: 'Additional services and monitoring',
       fields: [
-        {
-          id: 'cctv_live_updates',
-          type: 'radio',
-          label: 'CCTV and live updates',
-          options: [makeOption('Yes', 'yes'), makeOption('No', 'no')],
-        },
-        {
-          id: 'health_checks_during_stay',
-          type: 'radio',
-          label: 'Health checks during stay',
-          options: [makeOption('Yes', 'yes'), makeOption('No', 'no')],
-        },
-        {
-          id: 'pickup_dropoff',
-          type: 'checkbox',
-          label: 'Pickup and drop-off services',
-          multiple: true,
-          options: [
-            makeOption('Pickup service', 'pickup_service'),
-            makeOption('Drop-Off service', 'dropoff_service'),
-            makeOption('Both services', 'both_services'),
-          ],
-        },
+        yesNoRadio('cctv_live_updates', 'CCTV and live updates'),
+        yesNoRadio('health_checks_during_stay', 'Health checks during stay'),
+        checkboxField('pickup_dropoff', 'Pickup and drop-off services', [
+          makeOption('Pickup service', 'pickup_service'),
+          makeOption('Drop-Off service', 'dropoff_service'),
+          makeOption('Both services', 'both_services'),
+        ]),
       ],
     },
     {
@@ -531,63 +537,38 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
       type: 'group',
       label: 'Comfort and environment',
       fields: [
-        {
-          id: 'room_type_selection',
-          type: 'radio',
-          label: 'Room type selection',
-          options: [
-            makeOption('Standard room', 'standard_room'),
-            makeOption('Premium room', 'premium_room'),
-            makeOption('Suite room', 'suite_room'),
-          ],
-        },
-        {
-          id: 'playgroup_participation',
-          type: 'radio',
-          label: 'Playgroup participation options',
-          options: [
-            makeOption('Participate', 'participate'),
-            makeOption('Do not participate', 'do_not_participate'),
-          ],
-        },
-        {
-          id: 'bedding_preferences',
-          type: 'radio',
-          label: 'Bedding preferences',
-          options: [
-            makeOption('Facility bedding', 'facility_bedding'),
-            makeOption('Own bedding', 'own_bedding'),
-            makeOption('Orthopaedic bedding', 'orthopaedic_bedding'),
-          ],
-        },
+        radioField('room_type_selection', 'Room type selection', [
+          makeOption('Standard room', 'standard_room'),
+          makeOption('Premium room', 'premium_room'),
+          makeOption('Suite room', 'suite_room'),
+        ]),
+        radioField('playgroup_participation', 'Playgroup participation options', [
+          makeOption('Participate', 'participate'),
+          makeOption('Do not participate', 'do_not_participate'),
+        ]),
+        radioField('bedding_preferences', 'Bedding preferences', [
+          makeOption('Facility bedding', 'facility_bedding'),
+          makeOption('Own bedding', 'own_bedding'),
+          makeOption('Orthopaedic bedding', 'orthopaedic_bedding'),
+        ]),
       ],
     },
   ],
   'Boarder - Dietary Plan': [
-    {
-      id: 'dietary_type',
-      type: 'radio',
-      label: 'Dietary type',
-      options: [
-        makeOption('Commercial / Packaged Food', 'commercial_packaged'),
-        makeOption('Raw or Natural Diet', 'raw_natural'),
-        makeOption('Home-Cooked Meals', 'home_cooked'),
-        makeOption('Vegetarian / Vegan', 'vegetarian_vegan'),
-      ],
-    },
+    radioField('dietary_type', 'Dietary type', [
+      makeOption('Commercial / Packaged Food', 'commercial_packaged'),
+      makeOption('Raw or Natural Diet', 'raw_natural'),
+      makeOption('Home-Cooked Meals', 'home_cooked'),
+      makeOption('Vegetarian / Vegan', 'vegetarian_vegan'),
+    ]),
     { id: 'diet_special_notes', type: 'textarea', label: 'Special notes' },
     frequencyRadio('feeding_frequency', 'Feeding frequency and timing'),
     { id: 'specific_feeding_times', type: 'textarea', label: 'Specific feeding times' },
-    {
-      id: 'portion_preferences',
-      type: 'radio',
-      label: 'Portion preferences',
-      options: [
-        makeOption('Fixed weight per meal (grams or cups)', 'fixed_weight'),
-        makeOption('“Until full” feeding', 'until_full'),
-        makeOption('Measured scoop or bowl (parent-defined)', 'measured_scoop'),
-      ],
-    },
+    radioField('portion_preferences', 'Portion preferences', [
+      makeOption('Fixed weight per meal (grams or cups)', 'fixed_weight'),
+      makeOption('“Until full” feeding', 'until_full'),
+      makeOption('Measured scoop or bowl (parent-defined)', 'measured_scoop'),
+    ]),
     { id: 'portion_special_notes', type: 'textarea', label: 'Special notes' },
     {
       id: 'brand_preferences',
@@ -595,44 +576,28 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
       label: 'Brand preferences',
       placeholder: 'Write brand names here',
     },
-    {
-      id: 'feeding_method',
-      type: 'radio',
-      label: 'Feeding method preferences',
-      options: [
-        makeOption('Hand-feeding', 'hand_feeding'),
-        makeOption('Self-feeding bowl', 'self_feeding'),
-        makeOption('Separate feeding area (for anxious companions)', 'separate_area'),
-        makeOption('Eat with other companion', 'eat_with_others'),
-        makeOption('Heated / room-temperature food', 'heated_or_room_temp'),
-      ],
-    },
+    radioField('feeding_method', 'Feeding method preferences', [
+      makeOption('Hand-feeding', 'hand_feeding'),
+      makeOption('Self-feeding bowl', 'self_feeding'),
+      makeOption('Separate feeding area (for anxious companions)', 'separate_area'),
+      makeOption('Eat with other companion', 'eat_with_others'),
+      makeOption('Heated / room-temperature food', 'heated_or_room_temp'),
+    ]),
     { id: 'feeding_method_notes', type: 'textarea', label: 'Special notes' },
-    {
-      id: 'treat_preferences',
-      type: 'checkbox',
-      label: 'Treat preferences',
-      multiple: true,
-      options: [
-        makeOption('Jerky treats', 'jerky'),
-        makeOption('Dental sticks', 'dental_sticks'),
-        makeOption('Dehydrated meat', 'dehydrated_meat'),
-        makeOption('Homemade treats', 'homemade'),
-        makeOption('Training treats only', 'training_only'),
-        makeOption('No treats (parent restricted)', 'no_treats'),
-      ],
-    },
-    {
-      id: 'water_preferences',
-      type: 'radio',
-      label: 'Water preferences',
-      options: [
-        makeOption('Filtered / RO water only', 'filtered_ro'),
-        makeOption('Regular tap water', 'tap_water'),
-        makeOption('Bottled mineral water', 'bottled_mineral'),
-        makeOption('Mix with electrolytes', 'electrolytes_mix'),
-      ],
-    },
+    checkboxField('treat_preferences', 'Treat preferences', [
+      makeOption('Jerky treats', 'jerky'),
+      makeOption('Dental sticks', 'dental_sticks'),
+      makeOption('Dehydrated meat', 'dehydrated_meat'),
+      makeOption('Homemade treats', 'homemade'),
+      makeOption('Training treats only', 'training_only'),
+      makeOption('No treats (parent restricted)', 'no_treats'),
+    ]),
+    radioField('water_preferences', 'Water preferences', [
+      makeOption('Filtered / RO water only', 'filtered_ro'),
+      makeOption('Regular tap water', 'tap_water'),
+      makeOption('Bottled mineral water', 'bottled_mineral'),
+      makeOption('Mix with electrolytes', 'electrolytes_mix'),
+    ]),
     {
       id: 'water_additional_info',
       type: 'textarea',
@@ -671,60 +636,40 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
   ],
   'Boarder - Daily Summary': [
     { id: 'summary_date', type: 'date', label: 'Daily summary date' },
-    {
-      id: 'meals_provided',
-      type: 'radio',
-      label: 'Meals provided to companion',
-      options: [
-        makeOption('Administered 1x daily', '1x_daily'),
-        makeOption('Administered 2x daily', '2x_daily'),
-        makeOption('Administered 3x daily', '3x_daily'),
-      ],
-    },
+    radioField('meals_provided', 'Meals provided to companion', [
+      makeOption('Administered 1x daily', '1x_daily'),
+      makeOption('Administered 2x daily', '2x_daily'),
+      makeOption('Administered 3x daily', '3x_daily'),
+    ]),
     { id: 'meals_additional_notes', type: 'textarea', label: 'Additional Notes / Activity report' },
-    {
-      id: 'medication_administered',
-      type: 'radio',
-      label: 'Medication administered today',
-      options: [makeOption('Scheduled time entry', 'scheduled_time')],
-    },
+    radioField('medication_administered', 'Medication administered today', [
+      makeOption('Scheduled time entry', 'scheduled_time'),
+    ]),
     {
       id: 'medication_additional_notes',
       type: 'textarea',
       label: 'Additional Notes / Activity report',
     },
-    {
-      id: 'daily_walk_completed',
-      type: 'radio',
-      label: 'Daily companion walk completed',
-      options: [
-        makeOption('Completed 1x', '1x'),
-        makeOption('Completed 2x', '2x'),
-        makeOption('Completed 3x', '3x'),
-      ],
-    },
+    radioField('daily_walk_completed', 'Daily companion walk completed', [
+      makeOption('Completed 1x', '1x'),
+      makeOption('Completed 2x', '2x'),
+      makeOption('Completed 3x', '3x'),
+    ]),
     { id: 'walk_additional_notes', type: 'textarea', label: 'Additional Notes / Activity report' },
-    {
-      id: 'daily_exercise_completed',
-      type: 'radio',
-      label: 'Daily exercise completed',
-      options: [
-        makeOption('Completed 1x', '1x'),
-        makeOption('Completed 2x', '2x'),
-        makeOption('Completed 3x', '3x'),
-      ],
-    },
+    radioField('daily_exercise_completed', 'Daily exercise completed', [
+      makeOption('Completed 1x', '1x'),
+      makeOption('Completed 2x', '2x'),
+      makeOption('Completed 3x', '3x'),
+    ]),
     {
       id: 'exercise_additional_notes',
       type: 'textarea',
       label: 'Additional Notes / Activity report',
     },
-    {
-      id: 'daily_poop_completed',
-      type: 'radio',
-      label: 'Daily pooping completed',
-      options: [makeOption('Completed 1x', '1x'), makeOption('Completed 2x', '2x')],
-    },
+    radioField('daily_poop_completed', 'Daily pooping completed', [
+      makeOption('Completed 1x', '1x'),
+      makeOption('Completed 2x', '2x'),
+    ]),
     { id: 'poop_additional_notes', type: 'textarea', label: 'Additional Notes / Activity report' },
     { id: 'pet_behavior_summary', type: 'textarea', label: 'companion behavior summary' },
     { id: 'additional_expense', type: 'textarea', label: 'Additional expense' },

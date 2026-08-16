@@ -1,12 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useId,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import { usePopoverManager } from '@/app/hooks/usePopoverManager';
 import { calcNearestAvailableMinute } from '@/app/features/appointments/components/Calendar/calendarDrop';
@@ -27,7 +19,7 @@ import { AppointmentViewIntent, LaidOutEvent } from '@/app/features/appointments
 import TimeLabels from '@/app/features/appointments/components/Calendar/common/TimeLabels';
 import HorizontalLines from '@/app/features/appointments/components/Calendar/common/HorizontalLines';
 import { Appointment } from '@yosemite-crew/types';
-import { useCalendarNavigation, getDateDisplay } from '@/app/hooks/useCalendarNavigation';
+import { getDateDisplay } from '@/app/hooks/useCalendarNavigation';
 import { createPortal } from 'react-dom';
 import {
   CalendarZoomMode,
@@ -49,6 +41,7 @@ import TimedEventMarker from '@/app/features/appointments/components/Calendar/co
 import { getEventKey } from '@/app/features/appointments/components/Calendar/common/dayCalendarHelpers';
 import { useDayCalendarMarkerInteractions } from '@/app/features/appointments/components/Calendar/common/useDayCalendarMarkerInteractions';
 import { useHasMounted } from '@/app/hooks/useHasMounted';
+import type { AppointmentCalendarInteractionProps } from '@/app/features/appointments/components/Calendar/common/calendarInteractionProps';
 
 type DayCalendarProps = {
   events: Appointment[];
@@ -57,32 +50,10 @@ type DayCalendarProps = {
   handleViewAppointment: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
   handleDetailAppointment: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
   handleOpenWorkspace?: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
-  setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   handleRescheduleAppointment: (appointment: Appointment) => void;
   handleChangeRoomAppointment?: (appointment: Appointment) => void;
   handleAcceptAppointment?: (appointment: Appointment) => void;
-  canEditAppointments: boolean;
-  draggedAppointmentId?: string | null;
-  draggedAppointmentLabel?: string | null;
-  canDragAppointment?: (appointment: Appointment) => boolean;
-  onAppointmentDragStart?: (appointment: Appointment) => void;
-  onAppointmentDragEnd?: () => void;
-  onAppointmentDropAt?: (date: Date, minuteOfDay: number, targetLeadId?: string) => void;
-  onDragHoverTarget?: (date: Date, targetLeadId?: string) => void;
-  onCreateAppointmentAt?: (date: Date, minuteOfDay: number, targetLeadId?: string) => void;
-  getDropAvailabilityIntervals?: (
-    date: Date,
-    targetLeadId?: string
-  ) => Array<{ startMinute: number; endMinute: number }>;
-  getVisibleAvailabilityIntervals?: (
-    date: Date,
-    targetLeadId?: string
-  ) => Array<{ startMinute: number; endMinute: number }>;
-  draggedAppointmentDurationMinutes?: number;
-  slotStepMinutes?: number;
-  availabilityLoaded?: boolean;
-  skipAutoScroll?: boolean;
-};
+} & AppointmentCalendarInteractionProps;
 
 const shouldIgnoreTimelineCreate = (target: EventTarget | null) => {
   if (!(target instanceof HTMLElement)) return false;
@@ -464,7 +435,7 @@ const TimelineOverlays = ({
             ),
           }}
         >
-          <div className="size-full flex items-center justify-center px-2 text-caption-1 text-text-brand truncate">
+          <div className="size-full flex items-center justify-center px-2 text-caption-1 text-blue-text truncate">
             {draggedAppointmentLabel || 'Appointment'}
           </div>
         </div>
@@ -484,7 +455,6 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
   handleChangeRoomAppointment,
   handleAcceptAppointment,
   canEditAppointments,
-  setCurrentDate,
   draggedAppointmentId,
   draggedAppointmentLabel,
   canDragAppointment,
@@ -515,7 +485,6 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
   } = usePopoverManager({ closeOnHoverLeave: false });
   const appointmentPopoverId = useId();
   const timelineInstructionsId = useId();
-  const { handleNextDay, handlePrevDay } = useCalendarNavigation(setCurrentDate);
   const { weekday, dateNumber } = getDateDisplay(date);
   const now = useCalendarNow();
   const invoices = useInvoicesForPrimaryOrg();
@@ -557,7 +526,9 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
   // Keep a ref to the latest focus position so the scroll effect can read it
   // without depending on it — prevents re-scroll on every availability update.
   const getFocusTopPxRef = useRef(getFocusTopPx);
-  getFocusTopPxRef.current = getFocusTopPx;
+  useEffect(() => {
+    getFocusTopPxRef.current = getFocusTopPx;
+  });
 
   useEffect(() => {
     if (!scrollRef.current || skipAutoScroll) return;
@@ -602,12 +573,15 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
 
   const popoverStyle = getPopoverStyle(440, 490);
 
-  useLayoutEffect(() => {
-    if (!draggedAppointmentId) return;
-    setActivePopoverKey(null);
-    setDropPreviewMinute(null);
-    setContextMenu(null);
-  }, [draggedAppointmentId, setActivePopoverKey, setContextMenu]);
+  const [prevDraggedAppointmentId, setPrevDraggedAppointmentId] = useState(draggedAppointmentId);
+  if (prevDraggedAppointmentId !== draggedAppointmentId) {
+    setPrevDraggedAppointmentId(draggedAppointmentId);
+    if (draggedAppointmentId) {
+      setActivePopoverKey(null);
+      setDropPreviewMinute(null);
+      setContextMenu(null);
+    }
+  }
 
   const availabilityIntervals = getDropAvailabilityIntervals?.(date) ?? [];
 
@@ -638,12 +612,7 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
 
   return (
     <div className="h-full flex flex-col">
-      <DayCalendarHeader
-        weekday={weekday}
-        dateNumber={dateNumber}
-        onPrevDay={handlePrevDay}
-        onNextDay={handleNextDay}
-      />
+      <DayCalendarHeader weekday={weekday} dateNumber={dateNumber} />
       {allDayEvents.length > 0 && (
         <AllDayEventsRow
           allDayEvents={allDayEvents}

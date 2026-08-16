@@ -1,14 +1,27 @@
 .TableShell {
-  background: var(--whitebg) !important;
-  border: 1px solid var(--lightgrey) !important;
-  border-radius: 16px !important;
+  background: var(--screen) !important;
+  border: 1px solid var(--hairline) !important;
+  border-radius: 18px !important;
+  box-shadow:
+    0 1px 2px var(--sh03),
+    0 8px 22px var(--sh05) !important;
   overflow: hidden;
   min-height: 0;
+  /* Own a compositing context so the 16px rounded overflow:hidden clip is
+     applied cleanly to the position:sticky thead (otherwise Chrome can leave the
+     sticky header's top edge visually clipped after a scroll repaint). */
+  isolation: isolate;
 }
 
 .TableBodyScroll {
   min-height: 0;
-  padding: 0 16px 16px !important;
+  /* No horizontal padding: the design draws the --screen-2 header band as a
+     direct child of the rounded shell, running full-bleed so the shell's
+     overflow:hidden + 18px radius clips its top corners cleanly. Padding here
+     insets the whole table instead, leaving the band as a square-cornered
+     rectangle floating inside the shell with the corner arcs cutting across it
+     (the reported "cropped" look). The gutter lives on the edge cells below. */
+  padding: 0 0 16px !important;
 }
 
 .TableDiv {
@@ -18,11 +31,23 @@
   border-collapse: separate;
   border-spacing: 0;
 }
+/* 12px top/bottom is the design's row rhythm ("padding: 12px 20px" on every
+   data row); the header re-declares its own 11px below. */
 .TableDiv thead tr th,
 .TableDiv tbody tr td {
-  padding: 6px 11px;
+  padding: 12px 11px;
   vertical-align: middle;
-  border-bottom: 1px solid var(--lightgrey);
+  border-bottom: 1px solid var(--hairline);
+}
+/* The design's 20px row gutter, applied to the edge cells rather than to a
+   wrapper, so the header band still reaches both shell edges. */
+.TableDiv thead tr th:first-child,
+.TableDiv tbody tr td:first-child {
+  padding-left: 20px;
+}
+.TableDiv thead tr th:last-child,
+.TableDiv tbody tr td:last-child {
+  padding-right: 20px;
 }
 .TableDiv tbody tr td {
   position: relative;
@@ -33,20 +58,74 @@
   max-width: 100%;
 }
 .TableDiv thead tr th {
-  padding-top: 16px;
-  padding-bottom: 10px;
+  padding-top: 11px;
+  padding-bottom: 11px;
   text-align: left;
-  color: var(--color-neutral-700);
-  font-size: 16px;
-  font-weight: 400;
+  /* Nothing here used to control wrapping, so any two-word label wrapped once
+     its column was narrow enough and doubled the height of the whole sticky
+     band. Clipping one header is a far smaller defect than resizing the band;
+     GenericTable puts the full label in a `title` so it stays readable. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--table-head-ink);
+  font-size: 10.5px;
+  font-weight: 700;
   font-family: var(--font-satoshi);
-  letter-spacing: -0.32px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   line-height: 120%;
-  background: var(--whitebg);
+  background: var(--screen-2);
   position: sticky;
   top: 0;
   z-index: 10;
-  box-shadow: 0 1px 0 var(--lightgrey);
+  box-shadow: 0 1px 0 var(--hairline);
+}
+
+/* The header band for shells that are not a <table>: the Organisation section's
+   Team / Rooms / Services grids, the inventory grid shell, and the companions
+   grid. Each had hand-rolled its own recipe, so one page could show three
+   header sizes over the same --screen-2 band. Values are kept byte-for-byte in
+   step with `.TableDiv thead tr th` above - if that changes, change this too. */
+.yc-table-head {
+  padding: 11px 20px;
+  background: var(--screen-2);
+  color: var(--table-head-ink);
+  font-family: var(--font-satoshi);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 120%;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  /* Mirrors the th above: without it a multiword label in a narrow drawer
+     column wraps and grows the whole band, which is the defect nowrap was
+     added to `.TableDiv thead tr th` to prevent. */
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 1px 0 var(--hairline);
+}
+/* Clipping sits on the cells so each ellipses independently, as table cells do;
+   on the container it would clip the band instead. */
+.yc-table-head > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Appearance with no container padding. Calendar strips are two-column shells
+   (gutter + day track) that must line up column-for-column with the body grid
+   below them; the recipe's 20px would inset the whole track and desynchronise
+   header from body. Per-cell padding stays on the cells. */
+.yc-table-head--flush {
+  padding: 0;
+}
+
+/* Appearance without the sticky contract: inside a drawer, a modal, or any
+   transformed parent, `position: sticky` resolves against the wrong container
+   and strands the band mid-panel. */
+.yc-table-head--static {
+  position: static;
 }
 
 .TableDiv tbody tr:last-child td {
@@ -65,7 +144,9 @@
   tbody
   tr
   td
-  span:not(a span):not(button span):not(.glass-tooltip):not(.glass-tooltip span) {
+  span:not(a span):not(button span):not(.glass-tooltip):not(.glass-tooltip span):not(
+    .yc-status-pill
+  ):not(.yc-status-pill span):not(.cell-overflow-count) {
   margin: 0px;
   font-family: var(--satoshi-font);
   color: var(--black-text);
@@ -73,4 +154,16 @@
   font-size: 13px;
   line-height: 120%;
   opacity: 60%;
+}
+.TableDiv tbody tr td span.yc-status-pill,
+.TableDiv tbody tr td .yc-status-pill span {
+  font-family: var(--font-satoshi) !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  line-height: normal !important;
+  /* No !important on letter-spacing: WCAG 1.4.12 text spacing requires the user
+     to be able to widen tracking, and an !important here would block that. The
+     selector is specific enough to win without it. */
+  letter-spacing: 0.08em;
+  opacity: 1 !important;
 }

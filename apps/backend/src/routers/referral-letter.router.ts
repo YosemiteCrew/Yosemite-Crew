@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
 import { ReferralLetterController } from "src/controllers/web/referral-letter.controller";
 
@@ -7,7 +7,7 @@ const router = Router();
 
 router.get(
   "/pms/organisation/:organisationId/referral-letters",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:view:any"),
   ReferralLetterController.list,
@@ -15,7 +15,7 @@ router.get(
 
 router.post(
   "/pms/organisation/:organisationId/referral-letters",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   ReferralLetterController.create,
@@ -23,7 +23,7 @@ router.post(
 
 router.get(
   "/pms/organisation/:organisationId/referral-letters/:letterId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:view:any"),
   ReferralLetterController.get,
@@ -31,7 +31,7 @@ router.get(
 
 router.put(
   "/pms/organisation/:organisationId/referral-letters/:letterId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   ReferralLetterController.update,
@@ -39,7 +39,7 @@ router.put(
 
 router.post(
   "/pms/organisation/:organisationId/referral-letters/:letterId/sign",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   ReferralLetterController.sign,
@@ -47,7 +47,7 @@ router.post(
 
 router.post(
   "/pms/organisation/:organisationId/referral-letters/:letterId/send",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   ReferralLetterController.send,
@@ -55,7 +55,7 @@ router.post(
 
 router.post(
   "/pms/organisation/:organisationId/referral-letters/:letterId/cancel",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   ReferralLetterController.cancel,

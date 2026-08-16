@@ -628,7 +628,7 @@ describe('DispensaryDetailModal', () => {
       await waitFor(() => expect(notDispensedMock).toHaveBeenCalledTimes(1));
     });
 
-    it('disables the close button while actioning', async () => {
+    it('ignores the header close control while actioning', async () => {
       let resolve: () => void;
       dispenseMock.mockReturnValue(
         new Promise((res) => {
@@ -636,13 +636,25 @@ describe('DispensaryDetailModal', () => {
         })
       );
       const pendingRecord = { ...baseRecord, status: 'PENDING' as const };
-      render(<DispensaryDetailModal {...defaultProps} record={pendingRecord} />);
+      const setShowModal = jest.fn();
+      render(
+        <DispensaryDetailModal
+          {...defaultProps}
+          record={pendingRecord}
+          setShowModal={setShowModal}
+        />
+      );
 
       fireEvent.click(screen.getByText(/dispense all/i));
-      expect(screen.getByLabelText('Close')).toBeDisabled();
+      fireEvent.click(screen.getByLabelText('Close'));
+      expect(setShowModal).not.toHaveBeenCalled();
 
       resolve!();
-      await waitFor(() => expect(screen.getByLabelText('Close')).not.toBeDisabled());
+      await waitFor(() => expect(dispenseMock).toHaveBeenCalledTimes(1));
+      setShowModal.mockClear();
+
+      fireEvent.click(screen.getByLabelText('Close'));
+      expect(setShowModal).toHaveBeenCalledWith(false);
     });
   });
 });

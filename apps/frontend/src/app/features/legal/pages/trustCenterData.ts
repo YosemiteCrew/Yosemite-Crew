@@ -1,173 +1,204 @@
-import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import { CERT_BADGES, type TocEntry } from '@/app/features/marketing/site';
+
+export type CertStatus = 'COMPLIANT' | 'PLANNED';
+
+export type Certification = {
+  name: string;
+  status: CertStatus;
+  description: string;
+  /** Either a badge image URL, or an ion-icon name rendered inside a tinted tile. */
+  badge?: string;
+  icon?: string;
+  iconBg?: string;
+  iconColor?: string;
+};
+
+export type SecurityPillar = {
+  title: string;
+  items: string[];
+};
+
+export type Subprocessor = {
+  name: string;
+  service: string;
+  location: string;
+};
+
+/** One-line builder for a certification rendered with a badge image. */
+const cert = (
+  name: string,
+  status: CertStatus,
+  description: string,
+  badge: string
+): Certification => ({ name, status, description, badge });
+
+/** One-line builder for a certification rendered as a tinted ion-icon tile. */
+const iconCert = (
+  name: string,
+  status: CertStatus,
+  description: string,
+  icon: string,
+  iconBg: string,
+  iconColor: string
+): Certification => ({ name, status, description, icon, iconBg, iconColor });
 
 export const trustCenterData = {
   hero: {
-    title: 'Security, Privacy, and Compliance',
+    eyebrow: 'Security',
+    title: 'Security, privacy and compliance',
     subtitle:
-      'At Yosemite Crew, protecting your veterinary pet businesses and pet parents data is not just a feature it’s our foundation. We use enterprise grade security to ensure your data is safe, compliant, and always available.',
-    lastUpdated: 'February 2026',
-    email: 'support@yosemitecrew.com',
-    privacyLink: '/privacy-policy',
+      'Protecting the data of pet businesses and pet parents is our foundation, not a feature. We use enterprise-grade security so your data stays safe, compliant and available.',
+    meta: 'Updated February 2026 · support@yosemitecrew.com',
   },
-  tabs: ['Overview', 'Resources', 'Controls', 'Subprocessors'],
+
+  toc: [
+    { id: 'approach', label: 'Our approach to trust' },
+    { id: 'certifications', label: 'Certifications and standards' },
+    { id: 'controls', label: 'Security controls' },
+    { id: 'residency', label: 'Data residency and encryption' },
+    { id: 'subprocessors', label: 'Subprocessors' },
+    { id: 'resources', label: 'Resources' },
+    { id: 'disclosure', label: 'Responsible disclosure' },
+  ] satisfies readonly TocEntry[],
+
+  approachBadges: [
+    { src: CERT_BADGES.gdpr, alt: 'GDPR' },
+    { src: CERT_BADGES.soc2, alt: 'SOC 2' },
+    { src: CERT_BADGES.iso, alt: 'ISO 27001' },
+    { src: CERT_BADGES.fhir, alt: 'FHIR' },
+    { src: CERT_BADGES.fda, alt: '21 CFR Part 11' },
+  ],
 
   certifications: [
-    {
-      name: 'GDPR',
-      status: 'Compliant',
-      description: 'Fully compliant data processing with EU hosting.',
-      icon: MEDIA_SOURCES.footer.gdpr,
-    },
-    {
-      name: 'SOC 2 Type I',
-      status: 'Compliant',
-      description: 'Audited security, availability, and confidentiality controls.',
-      icon: MEDIA_SOURCES.footer.soc2,
-    },
-    {
-      name: 'ISO 27001',
-      status: 'Compliant',
-      description: 'Certified under ISO 27001:2022.',
-      icon: MEDIA_SOURCES.footer.iso,
-    },
-    {
-      name: '21 CFR Part 11',
-      status: 'Compliant',
-      description: 'FDA regulations for electronic records & signatures.',
-      icon: MEDIA_SOURCES.footer.fda,
-    },
-    {
-      name: 'ESIGN Act',
-      status: 'Compliant',
-      description: 'U.S. federal law ensuring validity of e-signatures.',
-      icon: '🇺🇸',
-    },
-    {
-      name: 'UETA',
-      status: 'Compliant',
-      description: 'U.S. state law for electronic transactions.',
-      icon: '⚖️',
-    },
-    {
-      name: 'eIDAS (SES)',
-      status: 'Compliant',
-      description: 'EU regulation for electronic identification (Level 1).',
-      icon: '🇪🇺',
-    },
-    {
-      name: 'ZertES',
-      status: 'Planned',
-      description: 'Swiss Federal law regulating electronic signatures.',
-      icon: '🇨🇭',
-    },
-    {
-      name: 'HIPAA',
-      status: 'Planned',
-      description: 'Protection for patient health information privacy.',
-      icon: '🏥',
-    },
-  ],
-
-  resources: [
-    {
-      id: 'res_soc2_2025',
-      title: 'SOC 2 Type I Report (2025)',
-      type: 'Audit Report',
-      locked: true,
-    },
-    {
-      id: 'res_iso_cert',
-      title: 'ISO 27001 Certificate',
-      type: 'Certificate',
-      locked: true,
-    },
-    {
-      id: 'res_pen_test',
-      title: 'Penetration Test Summary (2025)',
-      type: 'Security Report',
-      locked: true,
-    },
-    {
-      id: 'res_dpa',
-      title: 'Data Processing Agreement (DPA)',
-      type: 'Legal',
-      locked: false,
-      link: '/terms-and-conditions',
-    },
-  ],
+    cert('GDPR', 'COMPLIANT', 'Fully compliant data processing with EU hosting.', CERT_BADGES.gdpr),
+    cert(
+      'SOC 2 Type I',
+      'COMPLIANT',
+      'Audited security, availability and confidentiality controls.',
+      CERT_BADGES.soc2
+    ),
+    cert(
+      'ISO 27001:2022',
+      'COMPLIANT',
+      'Certified information-security management.',
+      CERT_BADGES.iso
+    ),
+    cert(
+      '21 CFR Part 11',
+      'COMPLIANT',
+      'FDA rules for electronic records and signatures.',
+      CERT_BADGES.fda
+    ),
+    iconCert(
+      'ESIGN Act',
+      'COMPLIANT',
+      'US federal law on the validity of e-signatures.',
+      'create-outline',
+      '#e6f2ff',
+      '#257bed'
+    ),
+    iconCert(
+      'UETA',
+      'COMPLIANT',
+      'US state law for electronic transactions.',
+      'swap-horizontal-outline',
+      '#f5f3ff',
+      '#5b21b6'
+    ),
+    iconCert(
+      'eIDAS (SES)',
+      'COMPLIANT',
+      'EU electronic identification, Level 1.',
+      'finger-print-outline',
+      '#e6f4ef',
+      '#006642'
+    ),
+    iconCert(
+      'ZertES',
+      'PLANNED',
+      'Swiss federal law on electronic signatures.',
+      'ribbon-outline',
+      '#fef3e9',
+      '#af5e19'
+    ),
+    iconCert(
+      'HIPAA',
+      'PLANNED',
+      'US protection for patient health information.',
+      'medkit-outline',
+      '#e6f2ff',
+      '#257bed'
+    ),
+  ] satisfies readonly Certification[],
 
   securityPillars: [
     {
-      title: 'Organizational Security',
-      description: 'Governance, risk management, and vendor compliance.',
+      title: 'Organizational security',
       items: [
-        'ISMS Framework aligned with ISO 27001:2022',
-        'Annual Risk Assessments & DPIAs',
-        'Strict Vendor Management (DPAs signed)',
-        'Regular Internal Security Audits',
+        'ISMS aligned with ISO 27001:2022',
+        'Annual risk assessments and DPIAs',
+        'Strict vendor management, DPAs signed',
+        'Regular internal security audits',
       ],
     },
     {
-      title: 'People & Internal Security',
-      description: 'Ensuring our team protects your data.',
+      title: 'People and internal security',
       items: [
-        'Mandatory Security & Privacy Training',
-        'Background Checks & NDAs for all staff',
-        'Quarterly Access Reviews',
-        'Automated Offboarding Protocols',
+        'Mandatory security and privacy training',
+        'Background checks and NDAs for staff',
+        'Quarterly access reviews',
+        'Automated offboarding',
       ],
     },
     {
-      title: 'Infrastructure Security',
-      description: 'Fortified cloud environment and network defense.',
+      title: 'Infrastructure security',
       items: [
-        'Hosted on AWS (Luxembourg) & Google Cloud',
-        'DDoS Protection & WAF enabled',
-        'Weekly Automated Vulnerability Scanning',
-        'Production Isolated from Testing',
+        'Hosted on AWS (Luxembourg) and Google Cloud',
+        'DDoS protection and WAF enabled',
+        'Weekly automated vulnerability scanning',
+        'Production isolated from testing',
       ],
     },
     {
-      title: 'Product Security',
-      description: 'Security built into the application code.',
+      title: 'Product security',
       items: [
-        'AES-256 Encryption (At Rest)',
-        'TLS 1.3 Encryption (In Transit)',
-        'Role-Based Access Control (RBAC)',
-        'Multi-Factor Authentication (MFA) Support',
+        'AES-256 encryption at rest',
+        'TLS 1.3 encryption in transit',
+        'Role-based access control (RBAC)',
+        'Multi-factor authentication support',
       ],
     },
     {
-      title: 'Data Privacy & Operations',
-      description: 'Reliability, backups, and data rights.',
+      title: 'Data privacy and operations',
       items: [
-        'Daily Encrypted Backups (Cross-region)',
-        'GDPR Data Subject Rights Support',
-        '24/7 Incident Response Monitoring',
-        'Business Continuity Plan (BCDR)',
-        '99.99% Uptime Target',
+        'Daily encrypted cross-region backups',
+        'GDPR data-subject rights support',
+        '24/7 incident-response monitoring',
+        'Business continuity plan, 99.99% uptime target',
       ],
     },
-  ],
+  ] satisfies readonly SecurityPillar[],
 
   subProcessors: [
     {
       name: 'Amazon Web Services',
-      service: 'Cloud Infrastructure & Storage',
+      service: 'Cloud infrastructure and storage',
       location: 'Luxembourg (EU)',
-      logo: MEDIA_SOURCES.subProcessorLogos.aws,
     },
     {
       name: 'Supabase, Inc.',
-      service: 'Database Hosting',
+      service: 'Database hosting',
       location: 'Singapore',
-      logo: MEDIA_SOURCES.subProcessorLogos.supabase,
     },
     {
       name: 'Google Cloud',
-      service: 'Maps & Analytics Services',
+      service: 'Maps and analytics services',
       location: 'Ireland (EU)',
-      logo: MEDIA_SOURCES.subProcessorLogos.gcp,
     },
-  ],
-};
+    {
+      name: 'PostHog',
+      service: 'Product analytics (on consent)',
+      location: 'EU',
+    },
+  ] satisfies readonly Subprocessor[],
+} as const;

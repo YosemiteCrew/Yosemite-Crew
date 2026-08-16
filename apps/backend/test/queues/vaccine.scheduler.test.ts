@@ -3,7 +3,7 @@ import { registerVaccineReminderScheduler } from "../../src/queues/vaccine.sched
 
 jest.mock("../../src/queues/vaccine.queues", () => ({
   VaccineReminderQueue: {
-    add: jest.fn(),
+    upsertJobScheduler: jest.fn(),
   },
 }));
 
@@ -13,22 +13,21 @@ jest.mock("src/utils/logger", () => ({
 }));
 
 describe("registerVaccineReminderScheduler", () => {
-  const mockedQueue = VaccineReminderQueue as unknown as { add: jest.Mock };
+  const mockedQueue = VaccineReminderQueue as unknown as {
+    upsertJobScheduler: jest.Mock;
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it("enqueues a daily repeating vaccine-reminder job", async () => {
+  it("registers a daily repeating vaccine-reminder job scheduler", async () => {
     await registerVaccineReminderScheduler();
 
-    expect(mockedQueue.add).toHaveBeenCalledWith(
-      "run",
-      {},
-      {
-        repeat: { every: 24 * 60 * 60 * 1000 },
-        jobId: "vaccine-reminder-repeat",
-      },
+    expect(mockedQueue.upsertJobScheduler).toHaveBeenCalledWith(
+      "vaccine-reminder-repeat",
+      { every: 24 * 60 * 60 * 1000 },
+      { name: "run", data: {} },
     );
   });
 });

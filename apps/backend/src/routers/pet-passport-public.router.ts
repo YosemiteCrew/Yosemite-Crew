@@ -14,12 +14,16 @@ const publicPassportLimiter = rateLimit({
 
 const router = Router();
 
-// No auth middleware: this route is reached from the wallet-pass QR and is
-// gated by the passport existing (issued) and a uniform 404 otherwise.
+// No auth middleware: this route is reached from the wallet-pass QR. The
+// credential is a 256-bit share token, NOT the patient id - the patient id is
+// an internal identifier that is already handed to authenticated clients and
+// embedded in app routes, so it could be neither rotated nor revoked. The
+// owner can rotate or revoke this token at any time, and every failure returns
+// the same uniform 404.
 router.get(
-  "/:patientId",
+  "/token/:token",
   publicPassportLimiter,
-  PetPassportController.getPublicPassport,
+  PetPassportController.getPublicPassportByToken,
 );
 
 export default router;

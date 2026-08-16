@@ -1,0 +1,24 @@
+{
+  "$schema": "accepted override drift - see scripts/ci/check-override-advisories.mjs",
+  "$comment": [
+    "Override findings that are known to be a problem and are accepted for now.",
+    "Adding an entry is a deliberate decision that needs a reason.",
+    "",
+    "There are two shapes, one per kind of finding, and both expire by themselves.",
+    "",
+    "A stale-pin entry (the pinned version is itself vulnerable) is matched on",
+    "package + pinned + advisory. Raise the override, or let a new advisory land",
+    "against the same pin, and the entry stops matching:",
+    "  { \"package\": \"fast-uri\", \"pinned\": \"3.1.3\", \"advisory\": \"GHSA-...\",",
+    "    \"reason\": \"why this is accepted\" }",
+    "",
+    "An uncovered-copy entry (the pin is patched, but no override key selects the",
+    "vulnerable copies) is matched on package + the uncovered versions + advisory,",
+    "and needs the kind field or it will be read as a stale-pin and never match.",
+    "Cover one of the versions, or let a new copy appear, and it stops matching:",
+    "  { \"kind\": \"uncovered-copy\", \"package\": \"uuid\",",
+    "    \"uncovered\": [\"7.0.3\", \"8.0.0\"], \"advisory\": \"GHSA-...\",",
+    "    \"reason\": \"why this is accepted\" }"
+  ],
+  "accepted": []
+}

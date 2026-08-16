@@ -20,7 +20,9 @@ const extraNodeModules = new Proxy(
   },
 );
 
-module.exports = mergeConfig(getDefaultConfig(projectRoot), {
+const defaultConfig = getDefaultConfig(projectRoot);
+
+module.exports = mergeConfig(defaultConfig, {
   projectRoot,
   watchFolders: [workspaceRoot],
   resolver: {
@@ -31,5 +33,7 @@ module.exports = mergeConfig(getDefaultConfig(projectRoot), {
       path.join(workspaceRoot, 'node_modules'),
     ],
     unstable_enableSymlinks: true,
+    // Bundle short looping .mp4 backgrounds (splash / onboarding) as assets.
+    assetExts: [...defaultConfig.resolver.assetExts, 'mp4'],
   },
 });

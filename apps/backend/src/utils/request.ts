@@ -1,5 +1,29 @@
 import type { Request } from "express";
 import type { AuthenticatedRequest } from "src/middlewares/auth";
+import type { OrgRequest } from "src/middlewares/rbac";
+
+/**
+ * The caller identity as established by the auth middleware, with no header fallback.
+ * Use this — never `resolveUserIdFromRequest` — for any authorization decision.
+ */
+export const resolveVerifiedUserId = (req: Request): string | undefined => {
+  const userId = (req as AuthenticatedRequest).userId;
+  if (typeof userId !== "string") return undefined;
+  return userId.trim() || undefined;
+};
+
+/**
+ * The acting organisation as established by `withOrgPermissions`, which only sets it after
+ * confirming the caller is an active member. Undefined on routes that are merely
+ * authenticated, so an audit org can never be taken from an unvalidated `x-org-id` header.
+ */
+export const resolveVerifiedOrganisationId = (
+  req: Request,
+): string | undefined => {
+  const organisationId = (req as OrgRequest).organisationId;
+  if (typeof organisationId !== "string") return undefined;
+  return organisationId.trim() || undefined;
+};
 
 export const resolveUserIdFromRequest = (req: Request): string | undefined => {
   const authRequest = req as AuthenticatedRequest;

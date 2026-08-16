@@ -1,6 +1,7 @@
 import {
   formatTestPrice,
   getOrderStatusBadgeClass,
+  getOrderStatusTone,
   getTestSpecimen,
   getTestTurnaround,
   resolveOrderPdfUrl,
@@ -110,5 +111,16 @@ describe('labTestsUtils', () => {
     expect(getOrderStatusBadgeClass(order({ status: 'unknown' }), new Map())).toBe(
       'bg-card-hover text-text-secondary'
     );
+  });
+
+  it('maps badge classes to status pill tones', () => {
+    const resultProgress = new Map<string, string>([['error', 'Error']]);
+
+    expect(getOrderStatusTone(order({ status: 'submitted' }), new Map())).toBe('success');
+    expect(getOrderStatusTone(order({ status: 'pending review' }), new Map())).toBe('warning');
+    expect(
+      getOrderStatusTone(order({ idexxOrderId: 'error', status: 'created' }), resultProgress)
+    ).toBe('danger');
+    expect(getOrderStatusTone(order({ status: 'unknown' }), new Map())).toBe('neutral');
   });
 });

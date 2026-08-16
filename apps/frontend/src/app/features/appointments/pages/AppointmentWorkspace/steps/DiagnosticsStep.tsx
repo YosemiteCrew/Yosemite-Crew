@@ -1,24 +1,25 @@
+import { useRouter } from 'next/navigation';
 import React, { useCallback, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import type { Appointment } from '@yosemite-crew/types';
 import {
-  LuCalendarDays,
-  LuCheck,
-  LuClock,
-  LuDownload,
-  LuExternalLink,
-  LuEye,
-  LuEyeOff,
-  LuFlaskConical,
-  LuPrinter,
-  LuRefreshCw,
-  LuShare,
-  LuTestTube,
-  LuTrash2,
-} from 'react-icons/lu';
-import { HiUser } from 'react-icons/hi2';
+  IoCalendarOutline,
+  IoCheckmarkOutline,
+  IoDownloadOutline,
+  IoEyeOffOutline,
+  IoEyeOutline,
+  IoFlaskOutline,
+  IoOpenOutline,
+  IoPerson,
+  IoPrintOutline,
+  IoRefreshOutline,
+  IoShareOutline,
+  IoTimeOutline,
+  IoTrashOutline,
+} from 'react-icons/io5';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
+import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 import SearchDropdown from '@/app/ui/inputs/SearchDropdown';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
@@ -42,6 +43,7 @@ import {
   getTestSpecimen,
   toTitleCase,
 } from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/labTestsUtils';
+import { getIdexxTestSearchProps } from '@/app/features/appointments/pages/AppointmentWorkspace/steps/idexxTestSearchProps';
 import type { IdexxTest } from '@/app/features/integrations/services/types';
 import type { DiagnosticOrder } from '@/app/features/appointments/types/workspace';
 import { getSafeIdexxIframeUrl } from '@/app/lib/urls';
@@ -53,6 +55,7 @@ import {
   normalizeWorkspaceBootstrapForEncounter,
 } from '@/app/features/appointments/services/workspaceAggregateService';
 import { getIdexxCombinedResultsPdfBlob } from '@/app/features/integrations/services/idexxService';
+import '@/app/ui/tables/GenericTable/Generictable.css';
 
 type DiagnosticProvider = 'IDEXX' | 'RAD_ANALYZER';
 
@@ -67,10 +70,18 @@ type ProviderOption = {
   label: string;
   available: boolean;
   unavailableReason?: string;
+  /** Provider hub to open on click. IDEXX is always the selected provider, so
+   *  without this the logo looks clickable but nothing happens. */
+  workspaceHref?: string;
 };
 
 const PROVIDERS: ProviderOption[] = [
-  { key: 'IDEXX', label: 'IDEXX', available: true },
+  {
+    key: 'IDEXX',
+    label: 'IDEXX',
+    available: true,
+    workspaceHref: '/appointments/idexx-workspace',
+  },
   {
     key: 'RAD_ANALYZER',
     label: 'RadAnalyzer',
@@ -96,7 +107,8 @@ const ProviderContent = ({ provider }: { provider: ProviderOption }) => {
 
 const getIntegrationPillClass = (disabled: boolean, active: boolean): string => {
   if (disabled) return 'cursor-not-allowed border-neutral-300 text-text-secondary opacity-60';
-  if (active) return 'border-text-brand bg-primary-100 text-text-brand';
+  if (active) return 'border-text-brand bg-primary-100 text-blue-text';
+  /* v8 ignore next 2 -- IDEXX is the only selectable provider and is always active, so an available-but-inactive pill (neither disabled nor active) never renders */
   return 'border-neutral-300 text-text-primary hover:bg-neutral-100';
 };
 
@@ -106,65 +118,68 @@ const IntegrationPills = ({
 }: {
   selected: DiagnosticProvider;
   onSelect: (provider: DiagnosticProvider) => void;
-}) => (
-  <div className="flex flex-wrap items-center gap-3">
-    {PROVIDERS.map((provider) => {
-      const active = selected === provider.key;
-      const disabled = !provider.available;
-      return (
-        <button
-          key={provider.key}
-          type="button"
-          aria-pressed={active}
-          disabled={disabled}
-          title={disabled ? provider.unavailableReason : undefined}
-          onClick={() => {
-            if (!disabled) onSelect(provider.key);
-          }}
-          className={`inline-flex h-12 items-center gap-2 rounded-2xl border px-5 text-body-4 font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand ${getIntegrationPillClass(
-            disabled,
-            active
-          )}`}
-        >
-          <ProviderContent provider={provider} />
-          {disabled ? (
-            <span className="text-caption-2 text-text-secondary">Coming soon</span>
-          ) : (
-            active && <LuExternalLink size={14} aria-hidden="true" />
-          )}
-        </button>
-      );
-    })}
-  </div>
-);
+}) => {
+  const router = useRouter();
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      {PROVIDERS.map((provider) => {
+        const active = selected === provider.key;
+        const disabled = !provider.available;
+        return (
+          <button
+            key={provider.key}
+            type="button"
+            aria-pressed={active}
+            disabled={disabled}
+            title={disabled ? provider.unavailableReason : undefined}
+            aria-label={provider.workspaceHref ? `Open the ${provider.label} workspace` : undefined}
+            onClick={() => {
+              if (disabled) return;
+              onSelect(provider.key);
+              if (provider.workspaceHref) router.push(provider.workspaceHref);
+            }}
+            className={`inline-flex h-12 items-center gap-2 rounded-2xl border px-5 text-body-4 font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand ${getIntegrationPillClass(
+              disabled,
+              active
+            )}`}
+          >
+            <ProviderContent provider={provider} />
+            {disabled ? (
+              <span className="text-caption-2 text-text-secondary">Coming soon</span>
+            ) : (
+              active && <IoOpenOutline size={14} aria-hidden="true" />
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
 
 /**
- * Maps a lab order / result status string to the shared design-system pill
- * tokens (border + bg + text), matching the Invoice section's StatusPill.
+ * Maps a lab order / result status string to a shared StatusPill tone, so
+ * diagnostics states read at the same size and weight as every other status.
  */
-const getStatusPillClasses = (status: string): string => {
+const getStatusTone = (status: string): StatusTone => {
   const key = status.toLowerCase();
   if (key.includes('complete') || key.includes('final') || key.includes('submitted')) {
-    return 'border-pill-success-border bg-pill-success-bg text-pill-success-text';
+    return 'success';
   }
   if (key.includes('process') || key.includes('progress') || key.includes('pending')) {
-    return 'border-pill-info-border bg-pill-info-bg text-pill-info-text';
+    return 'info';
   }
   if (key.includes('error') || key.includes('fail') || key.includes('cancel')) {
-    return 'border-pill-warning-border bg-pill-warning-bg text-pill-warning-text';
+    return 'warning';
   }
-  return 'border-pill-neutral-border bg-pill-neutral-bg text-pill-neutral-text';
+  return 'neutral';
 };
 
 const getIvlsConfirmationLabel = (confirmed: boolean): string =>
   confirmed ? 'Confirmed for selected device' : 'Pending for selected device';
 
-const StatusPill = ({ status }: { status: string }) => (
-  <span
-    className={`inline-flex rounded-2xl border px-3 py-1 text-caption-1 ${getStatusPillClasses(status)}`}
-  >
-    {status}
-  </span>
+const DiagnosticsStatusPill = ({ status }: { status: string }) => (
+  <StatusPill tone={getStatusTone(status)} label={status} />
 );
 
 const MODALITY_LABELS: Record<string, string> = {
@@ -224,7 +239,7 @@ const RESULTS_ROW_GRID = `grid gap-3 ${RESULTS_COLS} sm:items-center`;
 
 const TableHeadings = ({ rowGrid, columns }: { rowGrid: string; columns: string[] }) => (
   <div
-    className={`${rowGrid} hidden border border-transparent px-4 text-caption-2 font-medium tracking-wide text-text-secondary uppercase [&>span]:truncate sm:grid`}
+    className={`${rowGrid} yc-table-head yc-table-head--static hidden rounded-lg border border-transparent px-4! [&>span]:truncate sm:grid`}
   >
     {columns.map((column, index) => (
       <span key={column} className={index === columns.length - 1 ? 'text-right' : undefined}>
@@ -248,7 +263,7 @@ const TestQueueCard = ({
       <h4 className="text-body-3-emphasis text-text-primary">{test.display}</h4>
       {!readOnly && (
         <CircleIconButton
-          icon={<LuTrash2 size={16} aria-hidden="true" />}
+          icon={<IoTrashOutline size={16} aria-hidden="true" />}
           label={`Remove ${test.display}`}
           variant="danger"
           onClick={onRemove}
@@ -256,14 +271,14 @@ const TestQueueCard = ({
       )}
     </div>
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <span className="rounded-sm bg-primary-100 px-2 py-1 text-heading-4 text-text-brand">
+      <span className="rounded-sm bg-primary-100 px-2 py-1 text-heading-4 text-blue-text">
         {formatTestPrice(test)}
       </span>
       <span className="text-body-4 text-text-primary">Code: {test.code}</span>
     </div>
     <div className="mt-auto flex flex-col gap-2 text-caption-1 text-text-primary">
       <p className="flex gap-2">
-        <LuClock className="mt-0.5 shrink-0 text-text-brand" aria-hidden="true" />
+        <IoTimeOutline className="mt-0.5 shrink-0 text-blue-text" aria-hidden="true" />
         <span>
           <strong>Turnaround time:</strong>
           <br />
@@ -271,7 +286,7 @@ const TestQueueCard = ({
         </span>
       </p>
       <p className="flex gap-2">
-        <LuTestTube className="mt-0.5 shrink-0 text-text-brand" aria-hidden="true" />
+        <IoFlaskOutline className="mt-0.5 shrink-0 text-blue-text" aria-hidden="true" />
         <span>
           <strong>Specimen:</strong>
           <br />
@@ -292,27 +307,39 @@ const TestTypeSelect = ({ s }: { s: UseLabTestsReturn }) => (
   />
 );
 
+const PendingTestConfirmation = ({ s }: { s: UseLabTestsReturn }) => {
+  if (!s.pendingTest) return null;
+  const test = s.pendingTest;
+  return (
+    <div
+      data-testid="pending-test-confirmation"
+      className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-card-border bg-neutral-0 p-4"
+    >
+      <div className="flex flex-col gap-1">
+        <span className="text-body-4 font-medium text-text-primary">{test.display}</span>
+        <span className="text-caption-1 text-text-secondary">
+          Code: {test.code} · {formatTestPrice(test)}
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        <Secondary text="Cancel" onClick={s.cancelPendingTest} />
+        <Primary
+          text="Add to Queue"
+          icon={<IoCheckmarkOutline aria-hidden="true" />}
+          onClick={s.confirmPendingTest}
+        />
+      </div>
+    </div>
+  );
+};
+
 const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
   <div className="grid items-stretch gap-5 lg:grid-cols-[1fr_320px]">
     <div className="flex flex-col gap-4">
       <SearchDropdown
         placeholder="Search for lab tests"
-        options={s.tests.map((test) => ({
-          value: test.code,
-          label: `${test.display} (${test.code})`,
-          meta: test,
-        }))}
-        onSelect={s.addTest}
-        query={s.selectedTestLabel || s.query}
-        setQuery={(value: string) => {
-          s.setSelectedTestLabel(value);
-          s.setQuery(value);
-        }}
-        minChars={0}
-        onReachEnd={s.loadMoreTests}
-        hasMore={s.testsHasMore}
-        isLoadingMore={s.testsLoadingMore}
-        optionClassName="w-full text-start rounded-2xl! border border-card-border bg-white px-3 py-2 mb-2 last:mb-0 hover:bg-white transition-colors"
+        {...getIdexxTestSearchProps(s)}
+        onSelect={s.selectSearchResult}
         renderOption={(option) => {
           const test = option.meta as IdexxTest | undefined;
           if (!test) return option.label;
@@ -320,7 +347,7 @@ const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
             <div className="flex flex-col gap-1">
               <div className="flex items-start justify-between gap-2">
                 <span className="pr-2 text-body-4 text-text-primary">{test.display}</span>
-                <span className="whitespace-nowrap rounded bg-primary-100 px-2 py-1 text-label-xsmall text-text-brand">
+                <span className="whitespace-nowrap rounded bg-primary-100 px-2 py-1 text-label-xsmall text-blue-text">
                   {formatTestPrice(test)}
                 </span>
               </div>
@@ -329,6 +356,7 @@ const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
           );
         }}
       />
+      <PendingTestConfirmation s={s} />
       <p className="max-w-2xl text-body-4 text-text-secondary">
         IDEXX test reference data does not explicitly flag tests as in-house vs device-specific in
         this contract. Use reference lab for external IDEXX ordering.
@@ -337,7 +365,7 @@ const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
         <FormDesc
           intype="text"
           inname="lab-notes"
-          inlabel="Notes"
+          inlabel="Order notes"
           value={s.notes}
           onChange={(e) => s.setNotes(e.target.value)}
         />
@@ -356,14 +384,14 @@ const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
         placeholder="Veterinarian"
         options={s.practitionerOptions}
         defaultOption={s.veterinarian}
-        icon={<HiUser aria-hidden="true" />}
+        icon={<IoPerson aria-hidden="true" />}
         onSelect={(option) => s.setVeterinarian(option.value)}
       />
       <LabelDropdown
         placeholder="Technician"
         options={s.practitionerOptions}
         defaultOption={s.technician}
-        icon={<HiUser aria-hidden="true" />}
+        icon={<IoPerson aria-hidden="true" />}
         onSelect={(option) => s.setTechnician(option.value)}
       />
     </div>
@@ -422,23 +450,19 @@ const InhouseOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => {
 const OrderBuilderSection = ({ s, readOnly }: { s: UseLabTestsReturn; readOnly: boolean }) => {
   const isInHouse = s.modality === 'INHOUSE';
   return (
-    <SectionContainer
-      titleClassName="text-yc-20-b-primary"
-      title="Order Builder"
-      className="flex flex-col gap-5"
-    >
+    <SectionContainer title="Order Builder" className="flex flex-col gap-5">
       {isInHouse ? <InhouseOrderBuilder s={s} /> : <ReferenceOrderBuilder s={s} />}
       {isInHouse && !readOnly && (
         <div className="flex flex-wrap justify-end gap-3">
           <Secondary
             text={s.companionInCensus ? 'Added to Census' : 'Add to Census'}
-            icon={<LuCheck aria-hidden="true" />}
+            icon={<IoCheckmarkOutline aria-hidden="true" />}
             onClick={s.handleAddToCensus}
             isDisabled={s.updatingCensus || !s.selectedIvls || s.companionInCensus}
           />
           <Primary
             text={s.updatingCensus ? 'Refreshing…' : 'Refresh Census'}
-            icon={<LuRefreshCw aria-hidden="true" />}
+            icon={<IoRefreshOutline aria-hidden="true" />}
             onClick={() => void s.refreshCensus()}
             isDisabled={s.updatingCensus}
           />
@@ -460,11 +484,7 @@ const ORIGIN_LABELS: Record<string, string> = {
 const PreloadedDiagnosticsSection = ({ items }: { items: DiagnosticOrder[] }) => {
   if (items.length === 0) return null;
   return (
-    <SectionContainer
-      titleClassName="text-yc-20-b-primary"
-      title="Preloaded from Services & Packages"
-      className="flex flex-col gap-3"
-    >
+    <SectionContainer title="Preloaded from Services & Packages" className="flex flex-col gap-3">
       <p className="text-body-4 text-text-secondary">
         Diagnostics included in this appointment&apos;s services and packages. Order them with the
         provider when ready.
@@ -496,11 +516,7 @@ const TestQueueSection = ({
   readOnly: boolean;
   onCreateOrder: () => void;
 }) => (
-  <SectionContainer
-    titleClassName="text-yc-20-b-primary"
-    title="Test Queue"
-    className="flex flex-col gap-5"
-  >
+  <SectionContainer title="Test Queue" className="flex flex-col gap-5">
     {s.selectedTests.length === 0 ? (
       <p className="rounded-2xl bg-neutral-100 p-5 text-body-4 text-text-secondary">
         {readOnly
@@ -523,7 +539,7 @@ const TestQueueSection = ({
       <div className="flex justify-end">
         <Primary
           text={s.creatingOrder ? 'Creating Lab Order…' : 'Create Lab Order'}
-          icon={<LuFlaskConical aria-hidden="true" />}
+          icon={<IoFlaskOutline aria-hidden="true" />}
           onClick={onCreateOrder}
           isDisabled={
             s.creatingOrder || s.loading || s.selectedTests.length === 0 || !s.companionId
@@ -535,11 +551,7 @@ const TestQueueSection = ({
 );
 
 const OrderStatusSection = ({ s }: { s: UseLabTestsReturn }) => (
-  <SectionContainer
-    titleClassName="text-yc-20-b-primary"
-    title="Order Status"
-    className="flex flex-col gap-4"
-  >
+  <SectionContainer title="Order Status" className="flex flex-col gap-4">
     {s.appointmentOrders.length === 0 ? (
       <p className="rounded-2xl bg-neutral-100 p-4 text-body-4 text-text-secondary">
         {s.ordersLoading
@@ -571,17 +583,27 @@ const OrderStatusSection = ({ s }: { s: UseLabTestsReturn }) => (
                       <MetaPill label={formatModality(order.modality) as string} />
                     )}
                   </span>
+                  {/* Order notes are saved at the order level (IDEXX has no per-test notes),
+                      shown here so they remain visible after refreshing or reopening (bug #1973). */}
+                  {order.notes && (
+                    <span
+                      className="truncate text-caption-1 text-text-secondary"
+                      title={order.notes}
+                    >
+                      <strong>Order notes:</strong> {order.notes}
+                    </span>
+                  )}
                 </span>
                 <span className="truncate text-body-4 text-text-secondary">
                   {formatDateTimeLocal(order.updatedAt ?? order.createdAt, '-')}
                 </span>
                 <div className="flex">
-                  <StatusPill status={s.getOrderDisplayStatus(order)} />
+                  <DiagnosticsStatusPill status={s.getOrderDisplayStatus(order)} />
                 </div>
                 <div className="flex items-center justify-end gap-2">
                   <Secondary
                     text={orderActionLabel}
-                    icon={isComplete ? undefined : <LuExternalLink aria-hidden="true" />}
+                    icon={isComplete ? undefined : <IoOpenOutline aria-hidden="true" />}
                     ariaLabel={`${isComplete ? 'Open result PDF' : orderActionLabel} for order ${order.idexxOrderId}`}
                     onClick={() => {
                       s.setActiveOrderForActions(order);
@@ -595,7 +617,7 @@ const OrderStatusSection = ({ s }: { s: UseLabTestsReturn }) => (
                   />
                   <Secondary
                     text="Acknowledgement"
-                    icon={<LuEye aria-hidden="true" />}
+                    icon={<IoEyeOutline aria-hidden="true" />}
                     ariaLabel={`View acknowledgement for order ${order.idexxOrderId}`}
                     onClick={() => s.openOrderAcknowledgement(order)}
                     isDisabled={!resolveOrderPdfUrl(order)}
@@ -610,7 +632,7 @@ const OrderStatusSection = ({ s }: { s: UseLabTestsReturn }) => (
     <div className="flex justify-end">
       <Primary
         text={s.ordersLoading ? 'Refreshing…' : 'Refresh Orders'}
-        icon={<LuRefreshCw aria-hidden="true" />}
+        icon={<IoRefreshOutline aria-hidden="true" />}
         onClick={() => void s.refreshAppointmentOrders()}
         isDisabled={s.ordersLoading}
       />
@@ -625,11 +647,7 @@ const ResultsSection = ({ s }: { s: UseLabTestsReturn }) => {
   const toggle = (id: string) => setExpandedId((current) => (current === id ? null : id));
 
   return (
-    <SectionContainer
-      titleClassName="text-yc-20-b-primary"
-      title="Results"
-      className="flex flex-col gap-4"
-    >
+    <SectionContainer title="Results" className="flex flex-col gap-4">
       {s.results.length === 0 ? (
         <p className="rounded-2xl bg-neutral-100 p-4 text-body-4 text-text-secondary">
           {s.refreshingResults ? 'Refreshing results…' : 'No results available yet.'}
@@ -656,15 +674,15 @@ const ResultsSection = ({ s }: { s: UseLabTestsReturn }) => {
                       {formatDateTimeLocal(result.updatedAt ?? result.createdAt, '-')}
                     </span>
                     <div className="flex">
-                      <StatusPill status={toTitleCase(result.status)} />
+                      <DiagnosticsStatusPill status={toTitleCase(result.status)} />
                     </div>
                     <div className="flex justify-end gap-2">
                       <CircleIconButton
                         icon={
                           expanded ? (
-                            <LuEyeOff size={16} aria-hidden="true" />
+                            <IoEyeOffOutline size={16} aria-hidden="true" />
                           ) : (
-                            <LuEye size={16} aria-hidden="true" />
+                            <IoEyeOutline size={16} aria-hidden="true" />
                           )
                         }
                         label={
@@ -676,13 +694,13 @@ const ResultsSection = ({ s }: { s: UseLabTestsReturn }) => {
                         onClick={() => toggle(result.resultId)}
                       />
                       <CircleIconButton
-                        icon={<LuDownload size={16} aria-hidden="true" />}
+                        icon={<IoDownloadOutline size={16} aria-hidden="true" />}
                         label={`Download results PDF for result ${result.resultId}`}
                         onClick={() => void s.openResultPdfPreview(result.resultId)}
                         disabled={s.pdfPreviewLoadingId === result.resultId}
                       />
                       <CircleIconButton
-                        icon={<LuShare size={16} aria-hidden="true" />}
+                        icon={<IoShareOutline size={16} aria-hidden="true" />}
                         label={`Share results PDF for result ${result.resultId}`}
                         onClick={() => void s.openResultPdfPreview(result.resultId)}
                         disabled={s.pdfPreviewLoadingId === result.resultId}
@@ -732,11 +750,11 @@ const OrderIframeOverlay = ({ s }: { s: UseLabTestsReturn }) => {
   const title = s.iframeOpenSource === 'followup' ? 'IDEXX follow-up ordering' : 'IDEXX ordering';
   return createPortal(
     <div
-      className="fixed inset-0 z-5000 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[5000] flex items-center justify-center bg-[var(--sh55)] p-4 backdrop-blur-sm"
       data-signing-overlay="true"
     >
-      <div className="relative flex size-full max-h-[95vh] max-w-7xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-black/10 px-4 py-2">
+      <div className="relative flex size-full max-h-[95vh] max-w-7xl flex-col overflow-hidden rounded-2xl bg-neutral-0 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-card-border px-4 py-2">
           <span className="flex flex-col">
             <span className="text-body-2 text-text-primary">{title}</span>
             {s.iframeOpenSource === 'followup' ? (
@@ -746,18 +764,11 @@ const OrderIframeOverlay = ({ s }: { s: UseLabTestsReturn }) => {
               </span>
             ) : null}
           </span>
-          <button
-            type="button"
-            onClick={s.closeOrderIframeManually}
-            className="cursor-pointer rounded-full p-2 transition-colors hover:bg-black/5"
-            aria-label="Close IDEXX order frame"
-          >
-            <Close iconOnly />
-          </button>
+          <Close onClick={s.closeOrderIframeManually} />
         </div>
         <div className="relative flex-1">
           {loaded ? null : (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white">
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-neutral-0">
               <YosemiteLoader label="Loading IDEXX" size={120} testId="idexx-order-loader" />
             </div>
           )}
@@ -769,7 +780,7 @@ const OrderIframeOverlay = ({ s }: { s: UseLabTestsReturn }) => {
             loading="lazy"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
-            sandbox="allow-scripts allow-forms allow-popups allow-downloads"
+            sandbox="allow-scripts allow-forms allow-popups allow-downloads allow-same-origin"
             onLoad={() => setLoaded(true)}
           />
         </div>
@@ -780,11 +791,7 @@ const OrderIframeOverlay = ({ s }: { s: UseLabTestsReturn }) => {
 };
 
 const IdexxNotEnabled = () => (
-  <SectionContainer
-    titleClassName="text-yc-20-b-primary"
-    title="IDEXX Diagnostics"
-    className="flex flex-col gap-3"
-  >
+  <SectionContainer title="IDEXX Diagnostics" className="flex flex-col gap-3">
     <p className="text-body-3 text-text-primary">
       IDEXX integration is not enabled for this organization.
     </p>
@@ -830,7 +837,7 @@ const IdexxSection = ({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Secondary
           text={printingAll ? 'Preparing…' : 'Print all Results'}
-          icon={<LuPrinter aria-hidden="true" />}
+          icon={<IoPrintOutline aria-hidden="true" />}
           onClick={() => void onPrintAllResults()}
           isDisabled={printingAll}
         />
@@ -839,11 +846,11 @@ const IdexxSection = ({
             href="/appointments/idexx-workspace"
             text="Open Labs"
             ariaLabel="Open labs workspace"
-            icon={<LuExternalLink aria-hidden="true" />}
+            icon={<IoOpenOutline aria-hidden="true" />}
           />
           <Primary
             text="Treatment Plan"
-            icon={<LuCalendarDays aria-hidden="true" />}
+            icon={<IoCalendarOutline aria-hidden="true" />}
             onClick={onOpenTreatment}
           />
         </div>

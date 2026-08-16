@@ -5,7 +5,12 @@ type WebhookSignature = string | string[] | undefined;
 import logger from "../utils/logger";
 
 import { InvoiceService } from "./invoice.service";
-import { FinancePaymentService } from "./finance/payment";
+import {
+  FinancePaymentService,
+  assertInvoiceInScope,
+  resolveStripeConnectedAccountId,
+  type InvoiceAccessScope,
+} from "./finance/payment";
 import { FinanceSubscriptionService } from "./finance/subscription";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
 import { NotificationService } from "./notification.service";
@@ -55,6 +60,56 @@ const getStripeClient = () => {
 function toStripeAmount(amount: number): number {
   return Math.round(amount * 100);
 }
+
+// Settlement must use what Stripe actually captured, never the invoice total.
+const resolveCapturedAmount = (
+  pi: Stripe.PaymentIntent,
+  charge: Stripe.Charge | null,
+): number | null => {
+  const capturedMinorUnits =
+    charge?.amount_captured ?? charge?.amount ?? pi.amount_received ?? null;
+
+  if (typeof capturedMinorUnits !== "number" || capturedMinorUnits <= 0) {
+    return null;
+  }
+
+  return capturedMinorUnits / 100;
+};
+
+const settleAppointmentBookingInvoice = async (params: {
+  invoiceId: string;
+  appointmentId: string;
+  pi: Stripe.PaymentIntent;
+  charge: Stripe.Charge;
+  connectedAccountId?: string;
+}) => {
+  const { invoiceId, appointmentId, pi, charge, connectedAccountId } = params;
+
+  await FinancePaymentService.handleInvoicePaymentIntentSucceeded({
+    invoiceId,
+    paymentIntentId: pi.id,
+    chargeId: charge.id,
+    receiptUrl: charge.receipt_url ?? null,
+    currency: pi.currency ?? null,
+    amount: resolveCapturedAmount(pi, charge),
+    connectedAccountId: connectedAccountId ?? null,
+    allowUnboundAttempt: true,
+    rawProviderPayload: {
+      paymentIntentId: pi.id,
+      chargeId: charge.id,
+      source: "stripe._handleAppointmentBookingPayment",
+    },
+  });
+
+  await prisma.appointment.updateMany({
+    where: { id: appointmentId },
+    data: {
+      status: "REQUESTED",
+      updatedAt: new Date(),
+      expiresAt: null,
+    },
+  });
+};
 
 export const StripeService = {
   // ----------------------------
@@ -150,6 +205,12 @@ export const StripeService = {
         orgId,
         interval,
       );
+
+    if (!checkoutContext.canAcceptPayments) {
+      throw new Error(
+        "Organisation cannot accept payments yet. Complete Stripe onboarding first.",
+      );
+    }
 
     if (!checkoutContext.externalCustomerId) {
       const customer = await stripe.customers.create({
@@ -321,25 +382,67 @@ export const StripeService = {
     };
   },
 
-  async createPaymentIntentForInvoice(invoiceId: string) {
-    return FinancePaymentService.createPaymentIntentForInvoice(invoiceId);
+  async createPaymentIntentForInvoice(
+    invoiceId: string,
+    scope: InvoiceAccessScope,
+  ) {
+    return FinancePaymentService.createPaymentIntentForInvoice(
+      invoiceId,
+      scope,
+    );
   },
 
   async createCheckoutSessionForInvoice(invoiceId: string) {
     return FinancePaymentService.createCheckoutSessionForInvoice(invoiceId);
   },
 
-  async retrievePaymentIntent(paymentIntentId: string) {
+  async retrievePaymentIntent(
+    paymentIntentId: string,
+    scope: InvoiceAccessScope,
+  ) {
+    const attempt = await prisma.paymentAttempt.findFirst({
+      where: { providerPaymentIntentId: paymentIntentId },
+      orderBy: { createdAt: "desc" },
+      select: {
+        invoice: {
+          select: { id: true, organisationId: true, parentId: true },
+        },
+      },
+    });
+
+    if (!attempt?.invoice) {
+      throw new Error("Payment intent not found");
+    }
+
+    assertInvoiceInScope(attempt.invoice, scope);
+
+    const connectedAccountId = await resolveStripeConnectedAccountId({
+      invoiceId: attempt.invoice.id,
+      paymentIntentId,
+    });
+
     const stripe = getStripeClient();
-    return stripe.paymentIntents.retrieve(paymentIntentId);
+    return stripe.paymentIntents.retrieve(
+      paymentIntentId,
+      {},
+      connectedAccountId ? { stripeAccount: connectedAccountId } : {},
+    );
   },
 
   async retrieveCheckoutSession(sessionId: string) {
-    const stripe = getStripeClient();
-    const session = await stripe.checkout.sessions.retrieve(sessionId, {
-      expand: ["payment_intent"],
+    const connectedAccountId = await resolveStripeConnectedAccountId({
+      checkoutSessionId: sessionId,
     });
 
+    const stripe = getStripeClient();
+    const session = await stripe.checkout.sessions.retrieve(
+      sessionId,
+      {},
+      connectedAccountId ? { stripeAccount: connectedAccountId } : {},
+    );
+
+    // Unauthenticated success/cancel pages read this, so only the two fields
+    // they render are projected out - never the session object itself.
     return {
       status: session.payment_status,
       total: session.amount_total ? session.amount_total / 100 : 0,
@@ -405,9 +508,7 @@ export const StripeService = {
   async handleWebhookEvent(event: Stripe.Event) {
     logger.info("Stripe Webhook received:", event.type);
     const connectedAccountId =
-      typeof (event as Stripe.Event & { account?: string }).account === "string"
-        ? (event as Stripe.Event & { account?: string }).account
-        : undefined;
+      typeof event.account === "string" ? event.account : undefined;
 
     switch (event.type) {
       // marketplace flows (existing)
@@ -419,11 +520,11 @@ export const StripeService = {
         break;
 
       case "payment_intent.payment_failed":
-        await this._handlePaymentFailed(event.data.object, connectedAccountId);
+        await this._handlePaymentFailed(event.data.object);
         break;
 
       case "charge.refunded":
-        await this._handleRefund(event.data.object, connectedAccountId);
+        await this._handleRefund(event.data.object);
         break;
 
       // connect readiness
@@ -433,7 +534,10 @@ export const StripeService = {
 
       // subscription lifecycle
       case "checkout.session.completed":
-        await this._handleCheckoutCompleted(event.data.object);
+        await this._handleCheckoutCompleted(
+          event.data.object,
+          connectedAccountId,
+        );
         break;
 
       case "customer.subscription.updated":
@@ -488,11 +592,14 @@ export const StripeService = {
   // ----------------------------
   // WEBHOOK: SUBSCRIPTIONS
   // ----------------------------
-  async _handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+  async _handleCheckoutCompleted(
+    session: Stripe.Checkout.Session,
+    connectedAccountId?: string,
+  ) {
     if (session.mode === "subscription") {
       return this._handleSubscriptionCheckout(session);
     } else if (session.mode === "payment") {
-      return this._handleInvoiceCheckout(session);
+      return this._handleInvoiceCheckout(session, connectedAccountId);
     }
   },
 
@@ -585,26 +692,12 @@ export const StripeService = {
         ...(connectedAccountId ? { stripeAccount: connectedAccountId } : {}),
       });
 
-      await FinancePaymentService.handleInvoicePaymentIntentSucceeded({
+      await settleAppointmentBookingInvoice({
         invoiceId: openInvoice.id,
-        paymentIntentId: pi.id,
-        chargeId: charge.id,
-        receiptUrl: charge.receipt_url ?? null,
-        currency: pi.currency ?? null,
-        rawProviderPayload: {
-          paymentIntentId: pi.id,
-          chargeId: charge.id,
-          source: "stripe._handleAppointmentBookingPayment",
-        } as Prisma.InputJsonValue,
-      });
-
-      await prisma.appointment.updateMany({
-        where: { id: appointmentId },
-        data: {
-          status: "REQUESTED",
-          updatedAt: new Date(),
-          expiresAt: null,
-        },
+        appointmentId,
+        pi,
+        charge,
+        connectedAccountId,
       });
 
       logger.info(
@@ -649,7 +742,7 @@ export const StripeService = {
             unitPrice: service.cost,
             total: service.cost,
           },
-        ] as unknown as Prisma.InputJsonValue,
+        ],
         subtotal: service.cost,
         discountTotal: 0,
         taxTotal: 0,
@@ -657,26 +750,12 @@ export const StripeService = {
       },
     });
 
-    await FinancePaymentService.handleInvoicePaymentIntentSucceeded({
+    await settleAppointmentBookingInvoice({
       invoiceId: createdInvoice.id,
-      paymentIntentId: pi.id,
-      chargeId: charge.id,
-      receiptUrl: charge.receipt_url ?? null,
-      currency: pi.currency ?? null,
-      rawProviderPayload: {
-        paymentIntentId: pi.id,
-        chargeId: charge.id,
-        source: "stripe._handleAppointmentBookingPayment",
-      } as Prisma.InputJsonValue,
-    });
-
-    await prisma.appointment.updateMany({
-      where: { id: appointmentId },
-      data: {
-        status: "REQUESTED",
-        updatedAt: new Date(),
-        expiresAt: null,
-      },
+      appointmentId,
+      pi,
+      charge,
+      connectedAccountId,
     });
 
     logger.info(`Appointment ${appointmentId} booking PAID. Invoice created`);
@@ -704,15 +783,31 @@ export const StripeService = {
         chargeId,
         receiptUrl: charge?.receipt_url ?? null,
         currency: pi.currency ?? null,
+        amount: resolveCapturedAmount(pi, charge),
+        connectedAccountId: connectedAccountId ?? null,
         rawProviderPayload: {
           paymentIntentId: pi.id,
           invoiceId,
           metadata: pi.metadata,
-        } as Prisma.InputJsonValue,
+        },
       });
 
     if (result.action === "REFUNDED") {
       logger.warn(`Invoice ${invoiceId} refunded from payment-intent webhook`);
+      return;
+    }
+
+    if (result.action === "ACCOUNT_MISMATCH") {
+      logger.error(
+        `Invoice ${invoiceId} payment rejected: event account does not match the invoice organisation`,
+      );
+      return;
+    }
+
+    if (result.action === "MISSING_AMOUNT") {
+      logger.error(
+        `Invoice ${invoiceId} payment rejected: no captured amount reported`,
+      );
       return;
     }
 
@@ -725,11 +820,7 @@ export const StripeService = {
     }
   },
 
-  async _handlePaymentFailed(
-    pi: Stripe.PaymentIntent,
-    _connectedAccountId?: string,
-  ) {
-    void _connectedAccountId;
+  async _handlePaymentFailed(pi: Stripe.PaymentIntent) {
     const appointmentId = pi.metadata?.appointmentId;
     const invoiceId = pi.metadata?.invoiceId;
     const result = await FinancePaymentService.handleInvoicePaymentFailed({
@@ -742,8 +833,7 @@ export const StripeService = {
     }
   },
 
-  async _handleRefund(charge: Stripe.Charge, _connectedAccountId?: string) {
-    void _connectedAccountId;
+  async _handleRefund(charge: Stripe.Charge) {
     const invoiceId = charge.metadata?.invoiceId;
     const result = await FinancePaymentService.markInvoiceRefundedFromWebhook({
       invoiceId,
@@ -791,13 +881,17 @@ export const StripeService = {
     });
   },
 
-  async _handleInvoiceCheckout(session: Stripe.Checkout.Session) {
+  async _handleInvoiceCheckout(
+    session: Stripe.Checkout.Session,
+    connectedAccountId?: string,
+  ) {
     const invoiceId = session.metadata?.invoiceId;
     if (!invoiceId) return;
     const result =
       await FinancePaymentService.handleInvoiceCheckoutSessionCompleted({
         invoiceId,
         sessionId: session.id,
+        connectedAccountId: connectedAccountId ?? null,
         paymentIntentId:
           typeof session.payment_intent === "string"
             ? session.payment_intent
@@ -818,7 +912,7 @@ export const StripeService = {
           amountTotal: session.amount_total ?? null,
           amountTax: session.total_details?.amount_tax ?? null,
           automaticTaxStatus: session.automatic_tax?.status ?? null,
-        } as Prisma.InputJsonValue,
+        },
       });
 
     if (result.action === "REFUNDED") {

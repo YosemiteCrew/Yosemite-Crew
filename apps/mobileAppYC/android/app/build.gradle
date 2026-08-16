@@ -14,6 +14,30 @@ configurations.all {
     exclude group: "com.caverock", module: "androidsvg"
 }
 
+// Patched versions for transitive Maven coordinates flagged by the supply-chain scan.
+def pinnedNettyVersion = "4.1.137.Final"
+def pinnedProtobufVersion = "3.25.9"
+def pinnedPlayServicesBasementVersion = "18.5.0"
+def pinnedOkioVersion = "3.9.1"
+
+// AGP builds its Unified Test Platform classpaths itself and drags netty 4.1.93/4.1.110
+// and protobuf 3.22/3.24 in through grpc-netty and the test platform artifacts, so these
+// pins cannot be declared as ordinary dependency constraints and are applied per
+// configuration instead. Both rules stay inside their major line so a future dependency
+// asking for netty 4.2.x or protobuf 4.x is left alone rather than silently downgraded.
+configurations.all {
+    resolutionStrategy.eachDependency { details ->
+        if (details.requested.group == "io.netty" && details.requested.version?.startsWith("4.1.")) {
+            details.useVersion pinnedNettyVersion
+            details.because "netty 4.1.x codec/http2/handler advisories reported against the locked test-platform classpath"
+        }
+        if (details.requested.group == "com.google.protobuf" && details.requested.version?.startsWith("3.")) {
+            details.useVersion pinnedProtobufVersion
+            details.because "CVE-2024-7254 affects protobuf-java and protobuf-kotlin below 3.25.5"
+        }
+    }
+}
+
 /**
  * This is the configuration block to customize your React Native Android app.
  * By default you don't need to apply any configuration, just uncomment the lines you need.
@@ -119,8 +143,8 @@ android {
         applicationId "com.mobileappyc"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 13
-        versionName "1.0.11"
+        versionCode 15
+        versionName "1.0.12"
         manifestPlaceholders = [
             MAPS_API_KEY: localProperties['MAPS_API_KEY'] ?: System.getenv('MAPS_API_KEY') ?: ''
         ]
@@ -174,6 +198,17 @@ android {
 }
 
 dependencies {
+    constraints {
+        // The instrumentation-test classpath resolves older copies of two libraries the app
+        // itself already ships at these versions, so aligning it introduces no version skew.
+        androidTestImplementation("com.google.android.gms:play-services-basement:$pinnedPlayServicesBasementVersion") {
+            because "GHSA-cm6r-892j-jv2g affects play-services-basement below 18.0.2"
+        }
+        androidTestImplementation("com.squareup.okio:okio:$pinnedOkioVersion") {
+            because "CVE-2023-3635 affects okio below 3.4.0"
+        }
+    }
+
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
     implementation 'com.facebook.android:facebook-android-sdk:latest.release'
@@ -190,3 +225,11 @@ dependencies {
         implementation jscFlavor
     }
 }
+
+// Bundle the react-native-vector-icons glyph fonts used by the warm-bone UI
+// (Ionicons for the redesigned screens, MaterialIcons for chat) so icons render
+// on Android instead of tofu boxes.
+project.ext.vectoricons = [
+    iconFontNames: ['Ionicons.ttf', 'MaterialIcons.ttf']
+]
+apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")

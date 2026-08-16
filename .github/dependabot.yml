@@ -1,3 +1,7 @@
+# NOTE: dependabot reads this file from the DEFAULT branch (main), not from dev -
+# target-branch below only aims the PRs at dev. Any change here must land on
+# main to take effect, so keep the copies on dev and main byte-identical
+# (see PR #2079, which fixed a month of silently inert config changes).
 version: 2
 updates:
   - package-ecosystem: npm
@@ -9,25 +13,140 @@ updates:
       timezone: 'UTC'
     target-branch: dev
     open-pull-requests-limit: 10
+    # Only labels that exist in the repo. Dependabot cannot create labels, so an
+    # unknown name makes it post a config error on every PR it opens instead of
+    # applying the label.
     labels:
       - dependencies
-      - automerge-candidate
     # Use a conventional type(scope) the PR-title gate accepts. A bare 'chore'
     # with include:scope yields 'chore(deps): …', and 'deps' is not an allowed
     # scope, so those PRs would fail pr-governance. 'repo' is the catch-all scope.
     commit-message:
       prefix: 'chore(repo)'
+    ignore:
+      # react-doctor is fully frozen for dependabot - not just minors/majors.
+      # The React Doctor CI action flags any bump of the react-doctor package
+      # itself with its low-supply-chain-score rule (even the 0.2.14 -> 0.2.16
+      # PATCH failed the gate on #2082), so every batch that touches it goes
+      # red on the tool's own judgement of itself. No update-types list means
+      # ignore ALL updates; upgrades are deliberate, manual, and reviewed
+      # together with the pinned CLI version in react-doctor.yml.
+      - dependency-name: 'react-doctor'
+      # The React Native native cluster only ever updates by patch through
+      # dependabot. react-native is 0.x, so 0.81 -> 0.86 - five framework
+      # releases with native template changes and a moved jest environment -
+      # rode a "minor" batch (#2088) and broke type-check plus every mobile
+      # test suite; reanimated and worklets are pinned since the Android build
+      # fix (#2052); stripe-react-native and the nitro modules are 0.x native
+      # code; react-test-renderer must exactly match the react version RN pins
+      # (its 19.2.8 ride-along failed all 457 suites). RN upgrades are
+      # deliberate migrations with device builds, never weekly PRs.
+      - dependency-name: 'react-native'
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']
+      - dependency-name: '@react-native/*'
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']
+      - dependency-name: '@react-native-community/cli*'
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']
+      - dependency-name: 'react-native-reanimated'
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']
+      - dependency-name: 'react-native-worklets'
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']
+      - dependency-name: 'react-native-nitro-*'
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']
+      - dependency-name: '@stripe/stripe-react-native'
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']
+      # react-test-renderer is fully frozen: @testing-library/react-native
+      # requires it to EXACTLY equal the react version RN pins, so even the
+      # 19.1.0 -> 19.1.9 PATCH failed every mobile suite (#2096). It moves
+      # only with a deliberate RN upgrade.
+      - dependency-name: 'react-test-renderer'
+      # posthog-js is fully frozen at ^1.391.7: the React Doctor gate scores
+      # the lowest version a range allows via Socket, and every 1.4x range so
+      # far scores below the 50 minimum (1.413.x scored 31/100 on #2088 and
+      # #2096). Re-bump deliberately once the Socket score recovers.
+      - dependency-name: 'posthog-js'
+      # google-auth-library 11 requires node >=22 at runtime; the backend image
+      # runs node 18 - unfreeze together with the runtime upgrade (#2125).
+      - dependency-name: 'google-auth-library'
+        update-types: ['version-update:semver-major']
+      # react-native-nitro-sound added engines node >=22.21.0 in 0.2.18; the repo
+      # and CI run node 20, so an engine-strict install fails outright. Frozen at
+      # 0.2.17 until the runtime upgrade (#2125).
+      - dependency-name: 'react-native-nitro-sound'
+      # playwright raised its node floor to >=20 in 1.62; the backend image runs
+      # node 18 and the security override pins playwright-core at EXACTLY 1.61.1,
+      # which every playwright release must match exactly. Fully frozen (even
+      # patches) so the pair only moves atomically with the runtime upgrade
+      # (#2125) - a patch bump here without the override recreates the mismatch.
+      - dependency-name: 'playwright'
+      # ioredis 6 raised its node floor to >=20; the backend image runs node 18.
+      # 5.11.1 is the last 5.x release and carries AIKIDO-2026-538318 (medium)
+      # with no 5.x fix available, so the advisory only clears by taking 6.x,
+      # which the runtime upgrade (#2125) has to come first for. This is the
+      # same version main already runs, so the freeze holds parity rather than
+      # accepting anything new.
+      - dependency-name: 'ioredis'
+        update-types: ['version-update:semver-major']
+      # typescript 7 is the native compiler rewrite and nothing in the toolchain
+      # admits it yet: ts-jest 29.4.12 peers "typescript >=4.3 <7" (no published
+      # release, stable or next, allows 7), and typescript-eslint peers
+      # ">=4.8.4 <6.1.0" on BOTH latest and its canary channel. Because .npmrc
+      # sets auto-install-peers without strict-peer-dependencies, an install
+      # stays green while both contracts are violated, so the breakage only
+      # appears at compile and test time (#2200). TS 7 also removed baseUrl and
+      # made rootDir mandatory alongside outDir, which fails the shared package
+      # builds before any app code compiles. Migration is tracked in #1992 and
+      # has to move with ts-jest and typescript-eslint, not ahead of them.
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+      # @babel/core 8 cannot be installed while the app is on React Native
+      # 0.81: @react-native/babel-preset asserts Babel "^7.0.0-0" at load time
+      # and throws "Requires Babel ^7.0.0-0, but was loaded with 8.0.1" for
+      # every mobile file (#2116). This is a hard assertion inside the preset,
+      # not something a config can work around. Unfreeze with the React Native
+      # upgrade that ships a Babel 8 compatible preset.
+      - dependency-name: '@babel/core'
+        update-types: ['version-update:semver-major']
+      # eslint 10 is blocked in two workspaces at once (#2180), so the repo
+      # stays on 9 until both clear:
+      #   frontend - eslint-config-next 15.x loads @rushstack/eslint-patch,
+      #     which refuses to patch an ESLint it does not recognise and fails
+      #     with "Failed to patch ESLint because the calling module was not
+      #     recognized". eslint-config-next 16 drops the patch and declares
+      #     eslint >=9, so this clears with the Next 16 upgrade.
+      #   mobileAppYC - @react-native/eslint-config parses with
+      #     @babel/eslint-parser, whose scope manager ESLint 10 rejects
+      #     ("scopeManager.addGlobals is not a function"). Only
+      #     @babel/eslint-parser 8 supports ESLint 10, and it requires
+      #     @babel/core ^8, which React Native blocks per the entry above.
+      # Backend and desktop were verified to lint clean on 10 already; the hold
+      # is only so all four workspaces move together rather than splitting the
+      # toolchain across two ESLint majors.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
     groups:
+      # Every group is minor-and-patch only, including the named ones below. A
+      # named group without `update-types` silently swallows MAJORS too, which is
+      # how a TypeScript 5 -> 7 bump landed inside "typescript-eslint" and a
+      # Jest 29 -> 30 bump inside "testing": each arrived as an unreviewable
+      # group PR that broke the build, instead of the individual PR a breaking
+      # major needs. Majors now always get their own PR and their own review.
       typescript-eslint:
         patterns:
           - 'typescript'
           - '@types/*'
           - 'eslint*'
           - '@typescript-eslint/*'
+        update-types:
+          - minor
+          - patch
       testing:
         patterns:
           - 'jest*'
           - '@testing-library/*'
+        update-types:
+          - minor
+          - patch
       build-tooling:
         patterns:
           - 'turbo'
@@ -35,6 +154,45 @@ updates:
           - 'prettier'
           - 'husky'
           - 'lint-staged'
+        update-types:
+          - minor
+          - patch
+      # Catch-all. Must stay LAST: a dependency joins the first group it
+      # matches, so an earlier '*' would swallow the named groups above.
+      # Minor and patch only, so major bumps still get an individual PR
+      # and an individual review.
+      minor-and-patch:
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch
+  # Ruby lives only in the mobile app's CocoaPods toolchain. It had no entry at
+  # all, so bundler surfaced solely as SECURITY updates - and those always open
+  # against the default branch, which is how #2131 landed straight on main.
+  # A real entry keeps routine bundler bumps flowing through dev like everything
+  # else; the guard workflow is what stops security PRs merging into main.
+  - package-ecosystem: bundler
+    directory: /apps/mobileAppYC
+    schedule:
+      interval: weekly
+      day: monday
+      time: '05:15'
+      timezone: 'UTC'
+    target-branch: dev
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: 'chore(mobile)'
+    labels:
+      - dependencies
+      - ruby
+    groups:
+      bundler:
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -48,4 +206,13 @@ updates:
       prefix: 'ci(repo)'
     labels:
       - dependencies
-      - github-actions
+      - github_actions
+    groups:
+      # Action majors are routinely breaking, so keep them out of the group
+      # and let each land on its own.
+      actions:
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch

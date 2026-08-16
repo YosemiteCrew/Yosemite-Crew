@@ -19,9 +19,10 @@ import {
   unpublishTemplateForm,
 } from '@/app/features/forms/services/templateFormsService';
 import FormRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRenderer';
-import Close from '@/app/ui/primitives/Icons/Close';
+import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
+import ModalFooter from '@/app/ui/overlays/Modal/ModalFooter';
 import { useErrorTost } from '@/app/ui/overlays/Toast/Toast';
-import { Icon } from '@iconify/react';
+import { Icon } from '@/app/ui/icons/Icon';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { Organisation } from '@yosemite-crew/types';
 
@@ -107,8 +108,7 @@ const FormInfo = ({
   );
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const orgTypeOverride = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE as
-    | Organisation['type']
-    | undefined;
+    Organisation['type'] | undefined;
   const effectiveOrgType = orgTypeOverride || orgType;
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
   const [publishLoading, setPublishLoading] = React.useState(false);
@@ -242,14 +242,14 @@ const FormInfo = ({
               href="#"
               text={unpublishLoading ? 'Unpublishing...' : 'Unpublish'}
               onClick={handleUnpublish}
-              className="h-12! text-[16px]!"
+              size="large"
               isDisabled={unpublishLoading || publishLoading || archiveLoading}
             />
             <Secondary
               href="#"
               text={archiveLoading ? 'Archiving...' : 'Archive'}
               onClick={handleArchive}
-              className="h-12! text-[16px]!"
+              size="large"
               isDisabled={publishLoading || unpublishLoading || archiveLoading}
             />
           </div>
@@ -261,14 +261,14 @@ const FormInfo = ({
               href="#"
               text={unpublishLoading ? 'Moving...' : 'Move to draft'}
               onClick={handleUnpublish}
-              className="h-12! text-[16px]!"
+              size="large"
               isDisabled={publishLoading || unpublishLoading || archiveLoading}
             />
             <Primary
               href="#"
               text={publishLoading ? 'Publishing...' : 'Publish'}
               onClick={handlePublish}
-              className="h-12! text-[16px]!"
+              size="large"
               isDisabled={publishLoading || unpublishLoading || archiveLoading}
             />
           </div>
@@ -280,14 +280,14 @@ const FormInfo = ({
               href="#"
               text={publishLoading ? 'Publishing...' : 'Publish'}
               onClick={handlePublish}
-              className="h-12! text-[16px]!"
+              size="large"
               isDisabled={publishLoading || unpublishLoading || archiveLoading}
             />
             <Secondary
               href="#"
               text={archiveLoading ? 'Archiving...' : 'Archive'}
               onClick={handleArchive}
-              className="h-12! text-[16px]!"
+              size="large"
               isDisabled={publishLoading || unpublishLoading || archiveLoading}
             />
           </div>
@@ -300,19 +300,12 @@ const FormInfo = ({
       key={activeForm._id || activeForm.name}
       showModal={showModal}
       setShowModal={setShowModal}
+      size="md"
     >
       <div className="flex flex-col h-full gap-6">
-        <div className="flex justify-between items-center">
-          <div className="opacity-0">
-            <Close onClick={() => {}} />
-          </div>
-          <div className="flex justify-center items-center gap-2">
-            <div className="text-body-1 text-text-primary">{modalTitle}</div>
-          </div>
-          <Close onClick={() => setShowModal(false)} />
-        </div>
+        <ModalHeader title={modalTitle} onClose={() => setShowModal(false)} />
 
-        <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto pr-1 scrollbar-hidden">
+        <div className="flex flex-col gap-6 w-full flex-1 overflow-y-auto pr-1 scrollbar-hidden">
           <div className="flex flex-col gap-6">
             <EditableAccordion
               key={`details-${activeForm._id || activeForm.name}`}
@@ -352,29 +345,26 @@ const FormInfo = ({
                 </Accordion>
               ))}
           </div>
-          <div className="flex flex-col gap-3 px-3 pb-3">
+        </div>
+        <ModalFooter align="stretch">
+          <div className="flex flex-col gap-3">
             {canMutateTemplateState && renderActions()}
             {canEditTemplateStructure ? (
               <Secondary
                 href="#"
+                size="large"
                 text="Edit form"
                 onClick={() => {
                   setShowModal(false);
                   onEdit(activeForm);
                 }}
-                className="h-12! text-[16px]!"
                 isDisabled={actionLoading}
               />
             ) : (
-              <Secondary
-                href="#"
-                text="Close"
-                onClick={() => setShowModal(false)}
-                className="h-12! text-[16px]!"
-              />
+              <Secondary href="#" size="large" text="Close" onClick={() => setShowModal(false)} />
             )}
           </div>
-        </div>
+        </ModalFooter>
         {ErrorTostPopup}
       </div>
     </Modal>

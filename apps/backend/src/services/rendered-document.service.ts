@@ -1,8 +1,4 @@
-import {
-  Prisma,
-  TemplateKind as PrismaTemplateKind,
-  RenderedDocumentSourceKind as PrismaRenderedDocumentSourceKind,
-} from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import AWS from "aws-sdk";
 import axios from "axios";
 import {
@@ -28,6 +24,14 @@ import { prisma } from "src/config/prisma";
 import { uploadBufferAsFile } from "src/middlewares/upload";
 import { DocumensoService } from "src/services/documenso.service";
 import { renderRenderedDocumentPdfWithMetadata } from "src/services/rendered-document-renderer.service";
+import {
+  INVALID_OUTBOUND_DOCUMENT_URL_MESSAGE,
+  readValidatedPdfResponse,
+  resolveOutboundDocumentUrl,
+  UNEXPECTED_DOCUMENT_RESPONSE_MESSAGE,
+  type OutboundDocumentRequest,
+  type OutboundDocumentResponse,
+} from "src/utils/outbound-document-url";
 
 export class RenderedDocumentServiceError extends Error {
   constructor(
@@ -138,42 +142,97 @@ const normalizeRequiredString = (value: string, fieldName: string): string => {
   return normalized;
 };
 
-const downloadPdfBuffer = async (url: string): Promise<Buffer> => {
+/**
+ * Read the document from our own bucket when the stored link points at an
+ * object we hold. `validatedUrl` must already have been through
+ * `resolveOutboundDocumentUrl` — the object key is derived from it, so it can
+ * only ever be derived from a checked, normalised URL. Returns `null` when the
+ * object is not there, so the caller falls back to the bounded direct fetch.
+ */
+const readPdfFromBucket = async (
+  validatedUrl: string,
+): Promise<Buffer | null> => {
   try {
-    const parsedUrl = new URL(url);
-    const key = decodeURIComponent(parsedUrl.pathname.replace(/^\/+/, ""));
+    const key = decodeURIComponent(
+      new URL(validatedUrl).pathname.replace(/^\/+/, ""),
+    );
 
-    if (key) {
-      const response = await s3
-        .getObject({
-          Bucket: getBucketName(),
-          Key: key,
-        })
-        .promise();
+    if (!key) {
+      return null;
+    }
 
-      if (response.Body) {
-        if (Buffer.isBuffer(response.Body)) {
-          return response.Body;
-        }
+    const response = await s3
+      .getObject({
+        Bucket: getBucketName(),
+        Key: key,
+      })
+      .promise();
 
-        if (response.Body instanceof Uint8Array) {
-          return Buffer.from(response.Body);
-        }
+    if (response.Body) {
+      if (Buffer.isBuffer(response.Body)) {
+        return response.Body;
+      }
 
-        if (typeof response.Body === "string") {
-          return Buffer.from(response.Body);
-        }
+      if (response.Body instanceof Uint8Array) {
+        return Buffer.from(response.Body);
+      }
+
+      if (typeof response.Body === "string") {
+        return Buffer.from(response.Body);
       }
     }
   } catch {
-    // Fall back to direct fetch below. This covers public URLs and non-S3 sources.
+    // Not an object we hold. This covers public URLs and non-S3 sources.
   }
 
-  const response = await axios.get<ArrayBuffer>(url, {
-    responseType: "arraybuffer",
-  });
+  return null;
+};
 
-  return Buffer.from(response.data);
+/**
+ * Confirm the bytes we are about to return are a PDF. An upstream that hands
+ * back something else is an upstream fault rather than a bad request from our
+ * caller, so this reports 502 while an unusable stored link reports 400.
+ */
+const toValidatedPdf = (response: OutboundDocumentResponse): Buffer => {
+  try {
+    return readValidatedPdfResponse(response);
+  } catch (error) {
+    throw new RenderedDocumentServiceError(
+      error instanceof Error
+        ? error.message
+        : UNEXPECTED_DOCUMENT_RESPONSE_MESSAGE,
+      502,
+    );
+  }
+};
+
+const downloadPdfBuffer = async (url: string): Promise<Buffer> => {
+  // Resolve and validate the stored link first: nothing - not the bucket key,
+  // not the request - is derived from an unchecked URL.
+  let outbound: OutboundDocumentRequest;
+  try {
+    outbound = await resolveOutboundDocumentUrl(url);
+  } catch (error) {
+    throw new RenderedDocumentServiceError(
+      error instanceof Error
+        ? error.message
+        : INVALID_OUTBOUND_DOCUMENT_URL_MESSAGE,
+      400,
+    );
+  }
+
+  const storedObject = await readPdfFromBucket(outbound.url);
+  if (storedObject) {
+    // No HTTP headers on this leg, so the leading bytes settle it on their own.
+    return toValidatedPdf({ data: storedObject });
+  }
+
+  const response = await axios.get<ArrayBuffer>(
+    outbound.url,
+    outbound.requestOptions,
+  );
+
+  return toValidatedPdf(response);
 };
 
 type PersistedRenderedDocumentPdfSnapshot = {
@@ -263,6 +322,24 @@ const resolvePersistedRenderedDocumentPdf = async (
   };
 };
 
+const parseRenderedDocumentSigning = (
+  value: unknown,
+): RenderedDocumentSigning | null =>
+  typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as RenderedDocumentSigning)
+    : null;
+
+const hasActiveOrCompletedSigning = (document: {
+  status: string;
+  signing: unknown;
+}): boolean => {
+  if (document.status === "SIGNED") {
+    return true;
+  }
+  const signing = parseRenderedDocumentSigning(document.signing);
+  return signing?.status === "IN_PROGRESS" || signing?.status === "SIGNED";
+};
+
 const rerenderAndPersistClinicalRenderedDocumentPdf = async (
   document: PersistedRenderedDocument,
   client: RenderedDocumentWriteClient = renderedDocumentClient,
@@ -270,6 +347,15 @@ const rerenderAndPersistClinicalRenderedDocumentPdf = async (
   if (document.sourceKind !== "CLINICAL_ARTIFACT") {
     throw new RenderedDocumentServiceError(
       "Rendered document is not a clinical artifact",
+      409,
+    );
+  }
+
+  // Re-rendering overwrites pdfUrl in place, which would replace the bytes a
+  // signature already attests to (or that Documenso is mid-way through signing).
+  if (hasActiveOrCompletedSigning(document)) {
+    throw new RenderedDocumentServiceError(
+      "Rendered document is signed or being signed and cannot be re-rendered",
       409,
     );
   }
@@ -314,7 +400,7 @@ const rerenderAndPersistClinicalRenderedDocumentPdf = async (
     where: { id: document.id },
     data: {
       pdfUrl: upload.url,
-      pdf: pdfSnapshot as unknown as Prisma.InputJsonValue,
+      pdf: pdfSnapshot,
     },
   });
 
@@ -359,16 +445,14 @@ const toRenderedDocumentCreateData = (
 ): Prisma.RenderedDocumentUncheckedCreateInput => ({
   id: draft.id,
   organisationId: draft.organisationId,
-  sourceKind: draft.source.sourceKind as PrismaRenderedDocumentSourceKind,
+  sourceKind: draft.source.sourceKind,
   sourceId: draft.source.sourceId,
   templateInstanceId: input.templateInstanceId ?? undefined,
   clinicalArtifactId: input.clinicalArtifactId ?? undefined,
   templateId: draft.source.templateId ?? undefined,
   templateVersion: draft.source.templateVersion ?? undefined,
   templateVersionId: draft.source.templateVersionId ?? undefined,
-  kind: (draft.kind === "INVOICE"
-    ? "INVOICE"
-    : toLegacyTemplateKind(draft.kind)) as PrismaTemplateKind,
+  kind: draft.kind === "INVOICE" ? "INVOICE" : toLegacyTemplateKind(draft.kind),
   version: draft.version,
   title: draft.title,
   mimeType: draft.mimeType,
@@ -377,9 +461,7 @@ const toRenderedDocumentCreateData = (
   pdfUrl: input.pdfUrl ?? undefined,
   pdf:
     input.pdf === undefined
-      ? (buildRenderedDocumentPdfSnapshot(
-          draft,
-        ) as unknown as Prisma.InputJsonValue)
+      ? buildRenderedDocumentPdfSnapshot(draft)
       : (input.pdf as Prisma.InputJsonValue),
   signedBy: draft.signedBy ?? undefined,
   signedAt: draft.signedAt ?? undefined,
@@ -388,13 +470,12 @@ const toRenderedDocumentCreateData = (
 
 const normalizePersistedRenderedDocument = (
   document: PersistedRenderedDocument,
-): PersistedRenderedDocument =>
-  ({
-    ...document,
-    kind: normalizeTemplateKind(
-      document.kind,
-    ) as PersistedRenderedDocument["kind"],
-  }) as PersistedRenderedDocument;
+): PersistedRenderedDocument => ({
+  ...document,
+  kind: normalizeTemplateKind(
+    document.kind,
+  ) as PersistedRenderedDocument["kind"],
+});
 
 export const createRenderedDocumentRecord = async (
   input: PersistRenderedDocumentInput,
@@ -408,9 +489,18 @@ export const createRenderedDocumentRecord = async (
   });
 };
 
+/**
+ * `null` selects the unscoped read and is only legitimate for callers that have
+ * no organisation context at all (the Documenso completion webhook, which
+ * resolves the document from the provider's own reference). It is spelled out
+ * rather than defaulted so that omitting the tenant scope cannot happen by
+ * accident.
+ */
+export type RenderedDocumentOrgScope = string | null;
+
 export const getPersistedRenderedDocument = async (
   renderedDocumentId: string,
-  organisationId?: string,
+  organisationId: RenderedDocumentOrgScope,
   client: RenderedDocumentWriteClient = renderedDocumentClient,
 ): Promise<PersistedRenderedDocument> => {
   const document = await client.renderedDocument.findUnique({
@@ -425,7 +515,7 @@ export const getPersistedRenderedDocument = async (
   }
 
   if (
-    organisationId !== undefined &&
+    organisationId !== null &&
     document.organisationId !==
       normalizeRequiredString(organisationId, "organisationId")
   ) {
@@ -438,9 +528,45 @@ export const getPersistedRenderedDocument = async (
   return normalizePersistedRenderedDocument(document);
 };
 
+export type RenderedDocumentReadDto = Omit<
+  PersistedRenderedDocument,
+  "signing"
+> & {
+  signing: {
+    required: boolean;
+    provider: string | null;
+    status: string;
+    signerName: string | null;
+  } | null;
+};
+
+/**
+ * `signing.signingUrl` embeds the Documenso recipient token — a bearer
+ * credential that lets whoever holds it sign the document. Read paths return
+ * the signing state without it (and without the signer's address), so a
+ * view-only permission never yields the means to sign.
+ */
+export const toRenderedDocumentReadDto = (
+  document: PersistedRenderedDocument,
+): RenderedDocumentReadDto => {
+  const signing = parseRenderedDocumentSigning(document.signing);
+
+  return {
+    ...document,
+    signing: signing
+      ? {
+          required: Boolean(signing.required),
+          provider: signing.provider ?? null,
+          status: signing.status ?? "NOT_STARTED",
+          signerName: signing.signerName ?? null,
+        }
+      : null,
+  };
+};
+
 export const getPersistedRenderedDocumentPdf = async (
   renderedDocumentId: string,
-  organisationId?: string,
+  organisationId: RenderedDocumentOrgScope,
   client: RenderedDocumentWriteClient = renderedDocumentClient,
 ): Promise<RenderedDocumentPdfResult> => {
   const document = await getPersistedRenderedDocument(
@@ -486,7 +612,7 @@ export const getPersistedRenderedDocumentPdf = async (
 
 export const rerenderPersistedClinicalRenderedDocumentPdf = async (
   renderedDocumentId: string,
-  organisationId?: string,
+  organisationId: string,
   client: RenderedDocumentWriteClient = renderedDocumentClient,
 ): Promise<RenderedDocumentPdfResult> => {
   const document = await getPersistedRenderedDocument(
@@ -502,6 +628,12 @@ export const signPersistedRenderedDocument = async (
   input: PersistRenderedDocumentSignatureInput,
   client: RenderedDocumentWriteClient = renderedDocumentClient,
 ): Promise<PersistedRenderedDocument> => {
+  // The shared signature contract still types `organisationId` as optional, but
+  // signing is never legitimately unscoped.
+  if (!input.organisationId?.trim()) {
+    throw new RenderedDocumentServiceError("organisationId is required", 400);
+  }
+
   const existing = await getPersistedRenderedDocument(
     input.renderedDocumentId,
     input.organisationId,
@@ -521,10 +653,7 @@ export const signPersistedRenderedDocument = async (
   }
 
   if (
-    existing.signing &&
-    typeof existing.signing === "object" &&
-    !Array.isArray(existing.signing) &&
-    (existing.signing as RenderedDocumentSigning).status === "IN_PROGRESS"
+    parseRenderedDocumentSigning(existing.signing)?.status === "IN_PROGRESS"
   ) {
     throw new RenderedDocumentServiceError(
       "Document signing is already in progress",
@@ -596,7 +725,7 @@ export const signPersistedRenderedDocument = async (
     await client.renderedDocument.update({
       where: { id: existing.id },
       data: {
-        pdf: renderedPdfSnapshot as unknown as Prisma.InputJsonValue,
+        pdf: renderedPdfSnapshot,
         signing: {
           required: true,
           provider: "DOCUMENSO",
@@ -607,7 +736,7 @@ export const signPersistedRenderedDocument = async (
           signerEmail: input.signerEmail,
           signerName: input.signerName,
           signingUrl,
-        } as unknown as Prisma.InputJsonValue,
+        },
       },
       include: { signature: true },
     }),
@@ -620,7 +749,7 @@ export const completePersistedRenderedDocumentSigning = async (
 ): Promise<PersistedRenderedDocument> => {
   const existing = await getPersistedRenderedDocument(
     renderedDocumentId,
-    undefined,
+    null,
     client,
   );
 
@@ -692,7 +821,7 @@ export const completePersistedRenderedDocumentSigning = async (
           pdf: {
             url: signedPdf.downloadUrl ?? null,
           },
-        } as unknown as Prisma.InputJsonValue,
+        },
       },
       include: { signature: true },
     }),

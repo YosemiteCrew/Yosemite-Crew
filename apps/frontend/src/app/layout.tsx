@@ -1,6 +1,17 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
+import { Newsreader } from 'next/font/google';
 import './globals.css';
+
+// Warm-bone display serif for page titles + greeting moments. Self-hosted by next/font
+// at build time (served from /_next, so it satisfies the strict app-route CSP), exposed
+// as --font-newsreader-src which the --font-newsreader token consumes (see globals.css).
+const newsreader = Newsreader({
+  subsets: ['latin'],
+  style: ['normal', 'italic'],
+  variable: '--font-newsreader-src',
+  display: 'swap',
+});
 
 import 'react-datepicker/dist/react-datepicker.css';
 import ToastProvider from '@/app/ui/layout/ToastProvider';
@@ -11,6 +22,20 @@ import PostHogUserSync from '@/app/ui/layout/PostHogUserSync';
 import RouteAnnouncer from '@/app/ui/layout/RouteAnnouncer';
 import SkipLink from '@/app/ui/layout/SkipLink';
 import Cookies from '@/app/ui/widgets/Cookies/Cookies';
+
+// The API lives on its own origin, so only its origin (not the full base path)
+// is useful to preconnect. An unset or malformed value simply skips the hint.
+const resolveApiOrigin = (): string | null => {
+  const base = process.env.NEXT_PUBLIC_BASE_URL;
+  if (!base) return null;
+  try {
+    return new URL(base).origin;
+  } catch {
+    return null;
+  }
+};
+
+const apiOrigin = resolveApiOrigin();
 
 export const metadata: Metadata = {
   title: 'Yosemite Crew',
@@ -40,7 +65,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning className={newsreader.variable}>
+      <head>
+        {/* The session check is the first thing the app does after hydration and
+            it goes cross-origin to the API, so the DNS lookup, TCP handshake and
+            TLS negotiation all sit on the critical path. Warming the connection
+            while the document is still parsing takes them off it. */}
+        {apiOrigin ? (
+          <>
+            <link rel="preconnect" href={apiOrigin} crossOrigin="use-credentials" />
+            <link rel="dns-prefetch" href={apiOrigin} />
+          </>
+        ) : null}
+      </head>
       <body>
         <SkipLink />
         <Cookies />

@@ -1,5 +1,6 @@
 import { jest, describe, it, expect, beforeEach } from "@jest/globals";
 import { Request, Response } from "express";
+import type { AppointmentRequestDTO } from "@yosemite-crew/types";
 // 1. FIXED IMPORTS: Up 3 levels to reach 'src' from 'test/controllers/web'
 import { AppointmentController } from "../../../src/controllers/web/appointment.controller";
 import { AppointmentService } from "../../../src/services/appointment.service";
@@ -220,7 +221,7 @@ describe("AppointmentController", () => {
       await AppointmentController.createFromPms(req as any, res as Response);
       expect(
         mockedAppointmentService.createAppointmentFromPms,
-      ).toHaveBeenCalledWith({}, true, undefined);
+      ).toHaveBeenCalledWith({} as AppointmentRequestDTO, true, undefined);
     });
 
     it("should success (201) with createPayment=false", async () => {
@@ -233,7 +234,53 @@ describe("AppointmentController", () => {
       await AppointmentController.createFromPms(req as any, res as Response);
       expect(
         mockedAppointmentService.createAppointmentFromPms,
-      ).toHaveBeenCalledWith({}, false, undefined);
+      ).toHaveBeenCalledWith({} as AppointmentRequestDTO, false, undefined);
+    });
+
+    it("should prefer the query paymentCollectionMethod over the body", async () => {
+      req.query = {
+        createPayment: "false",
+        paymentCollectionMethod: "PAYMENT_LINK",
+      };
+      req.body = { paymentCollectionMethod: "PAYMENT_AT_CLINIC" };
+      mockedAppointmentService.createAppointmentFromPms.mockResolvedValue({
+        id: "a1",
+      } as any);
+
+      await AppointmentController.createFromPms(req as any, res as Response);
+
+      expect(
+        mockedAppointmentService.createAppointmentFromPms,
+      ).toHaveBeenCalledWith(req.body, false, "PAYMENT_LINK");
+      expect(statusMock).toHaveBeenCalledWith(201);
+    });
+
+    it("should fall back to the body paymentCollectionMethod when the query omits it", async () => {
+      req.query = { createPayment: "false" };
+      req.body = { paymentCollectionMethod: "PAYMENT_AT_CLINIC" };
+      mockedAppointmentService.createAppointmentFromPms.mockResolvedValue({
+        id: "a1",
+      } as any);
+
+      await AppointmentController.createFromPms(req as any, res as Response);
+
+      expect(
+        mockedAppointmentService.createAppointmentFromPms,
+      ).toHaveBeenCalledWith(req.body, false, "PAYMENT_AT_CLINIC");
+    });
+
+    it("should ignore a non-string paymentCollectionMethod on either side", async () => {
+      req.query = { createPayment: "false", paymentCollectionMethod: ["a"] };
+      req.body = { paymentCollectionMethod: 42 };
+      mockedAppointmentService.createAppointmentFromPms.mockResolvedValue({
+        id: "a1",
+      } as any);
+
+      await AppointmentController.createFromPms(req as any, res as Response);
+
+      expect(
+        mockedAppointmentService.createAppointmentFromPms,
+      ).toHaveBeenCalledWith(req.body, false, undefined);
     });
 
     it("should handle error", async () => {
@@ -650,6 +697,57 @@ describe("AppointmentController", () => {
         mockedAppointmentService.attachFormsToAppointment,
       ).toHaveBeenCalledWith("org_1", "appt_1", ["form_1"]);
       expect(statusMock).toHaveBeenCalledWith(200);
+    });
+
+    it("should handle service error with status code", async () => {
+      req.params = { organisationId: "org_1", appointmentId: "appt_1" };
+      req.body = { formIds: ["form_1"] };
+      mockedAppointmentService.attachFormsToAppointment.mockRejectedValue(
+        throwErrorWithStatus("Form not found", 404),
+      );
+
+      await AppointmentController.attachFormsToAppointment(
+        req as any,
+        res as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(404);
+      expect(jsonMock).toHaveBeenCalledWith({ message: "Form not found" });
+    });
+  });
+
+  describe("listByCompanionForOrganisation", () => {
+    it("should success (200)", async () => {
+      req.params = { organisationId: "org_1", patientId: "pet_1" };
+      mockedAppointmentService.getAppointmentsForCompanionByOrganisation.mockResolvedValue(
+        [],
+      );
+
+      await AppointmentController.listByCompanionForOrganisation(
+        req as any,
+        res as Response,
+      );
+
+      expect(
+        mockedAppointmentService.getAppointmentsForCompanionByOrganisation,
+      ).toHaveBeenCalledWith("pet_1", "org_1");
+      expect(statusMock).toHaveBeenCalledWith(200);
+      expect(jsonMock).toHaveBeenCalledWith({ data: [] });
+    });
+
+    it("should handle error", async () => {
+      req.params = { organisationId: "org_1", patientId: "pet_1" };
+      mockedAppointmentService.getAppointmentsForCompanionByOrganisation.mockRejectedValue(
+        new Error("Fail"),
+      );
+
+      await AppointmentController.listByCompanionForOrganisation(
+        req as any,
+        res as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(500);
+      expect(jsonMock).toHaveBeenCalledWith({ message: "Fail" });
     });
   });
 

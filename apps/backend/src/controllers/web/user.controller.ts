@@ -1,6 +1,11 @@
 import { Request, Response } from "express";
+import { getAuthService } from "@yosemite-crew/auth";
 import logger from "../../utils/logger";
-import { UserService, UserServiceError } from "../../services/user.service";
+import {
+  UserService,
+  UserServiceError,
+  resolveCanonicalUserId,
+} from "../../services/user.service";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { resolveUserIdFromRequest } from "src/utils/request";
 
@@ -14,11 +19,55 @@ type UpdateUserNameRequest = Request<
   }
 >;
 
+const trimmedString = (value: unknown): string | undefined =>
+  typeof value === "string" && value.trim() ? value.trim() : undefined;
+
+// Names/role come from the signup form (request body) with the session as
+// fallback; the session token no longer carries profile attributes.
+function resolveProvisioningProfile(req: AuthenticatedRequest): {
+  firstName?: string;
+  lastName?: string;
+  role?: string;
+} {
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const role = trimmedString(body.role);
+  return {
+    firstName: trimmedString(body.firstName) ?? req.firstName,
+    lastName: trimmedString(body.lastName) ?? req.lastName,
+    role: role && /^[a-z_-]{1,40}$/i.test(role) ? role : undefined,
+  };
+}
+
+// Best-effort profile sync to the auth provider so /v1/auth/me can serve
+// names and role without touching the database.
+async function syncProfileToAuthProvider(
+  userId: string,
+  profile: { firstName?: string; lastName?: string; role?: string },
+): Promise<void> {
+  const authService = getAuthService();
+  if (!authService) {
+    return;
+  }
+  try {
+    if (profile.firstName && profile.lastName) {
+      await authService.updateUserName(userId, {
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+      });
+    }
+    if (profile.role) {
+      await authService.setUserRole(userId, profile.role);
+    }
+  } catch (syncError) {
+    logger.warn("Auth provider profile sync failed", syncError);
+  }
+}
+
 export const UserController = {
   create: async (req: Request, res: Response) => {
     try {
       const authRequest = req as AuthenticatedRequest;
-      const { userId, email, firstName, lastName } = authRequest;
+      const { userId, email } = authRequest;
 
       if (!userId || !email) {
         return res
@@ -26,12 +75,16 @@ export const UserController = {
           .json({ message: "Missing user identity from token." });
       }
 
+      const profile = resolveProvisioningProfile(authRequest);
+
       const user = await UserService.create({
         id: userId,
         email: email,
-        firstName: firstName!,
-        lastName: lastName!,
+        firstName: profile.firstName!,
+        lastName: profile.lastName!,
       });
+
+      await syncProfileToAuthProvider(userId, profile);
 
       res.status(201).json(user);
     } catch (error: unknown) {
@@ -60,7 +113,22 @@ export const UserController = {
           .json({ message: "Missing user identity from token." });
       }
 
-      if (requesterId !== id) {
+      const [resolvedRequesterId, resolvedTargetId] = await Promise.all([
+        resolveCanonicalUserId(requesterId),
+        resolveCanonicalUserId(id),
+      ]);
+
+      if (!resolvedRequesterId) {
+        return res
+          .status(401)
+          .json({ message: "Missing user identity from token." });
+      }
+
+      if (!resolvedTargetId) {
+        return res.status(404).json({ message: "User not found." });
+      }
+
+      if (resolvedRequesterId !== resolvedTargetId) {
         return res.status(403).json({
           message: "You can only view your own user.",
         });
@@ -101,7 +169,22 @@ export const UserController = {
         return;
       }
 
-      if (requesterId !== id) {
+      const [resolvedRequesterId, resolvedTargetId] = await Promise.all([
+        resolveCanonicalUserId(requesterId),
+        resolveCanonicalUserId(id),
+      ]);
+
+      if (!resolvedRequesterId) {
+        res.status(401).json({ message: "Missing user identity from token." });
+        return;
+      }
+
+      if (!resolvedTargetId) {
+        res.status(404).json({ message: "User not found." });
+        return;
+      }
+
+      if (resolvedRequesterId !== resolvedTargetId) {
         res.status(403).json({ message: "You can only delete your own user." });
         return;
       }

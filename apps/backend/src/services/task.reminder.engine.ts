@@ -3,7 +3,6 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc.js";
 import timezone from "dayjs/plugin/timezone.js";
 
-import { Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { NotificationService } from "src/services/notification.service";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
@@ -84,7 +83,7 @@ export const TaskReminderEngine = {
         await prisma.task.update({
           where: { id: task.id },
           data: {
-            reminder: nextReminder as unknown as Prisma.InputJsonValue,
+            reminder: nextReminder,
           },
         });
       } catch (err) {

@@ -1,6 +1,7 @@
 import React, {useCallback, useMemo, useEffect} from 'react';
 import {FlatList, StyleSheet} from 'react-native';
 import {useTheme} from '@/hooks';
+import type {Theme} from '@/theme';
 import {Header} from '@/shared/components/common/Header/Header';
 import BusinessCard from '@/features/appointments/components/BusinessCard/BusinessCard';
 import {useDispatch, useSelector} from 'react-redux';
@@ -95,7 +96,7 @@ export const BusinessesListScreen: React.FC = () => {
         />
       }
       cardGap={theme.spacing['3']}
-      contentPadding={theme.spacing['4']}>
+      contentPadding={theme.spacing['3']}>
       {contentPaddingStyle => (
         <FlatList
           data={businesses}
@@ -109,12 +110,12 @@ export const BusinessesListScreen: React.FC = () => {
   );
 };
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
-      paddingHorizontal: theme.spacing['4'],
-      paddingBottom: theme.spacing['8'],
-      gap: theme.spacing['4'],
+      paddingHorizontal: theme.spacing['5'],
+      paddingBottom: theme.spacing['6'],
+      gap: theme.spacing['3'],
     },
   });
 

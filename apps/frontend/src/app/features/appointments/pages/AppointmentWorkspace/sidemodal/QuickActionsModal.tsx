@@ -3,13 +3,12 @@ import React from 'react';
 import Image from 'next/image';
 import type { IconType } from 'react-icons';
 import {
-  LuActivity,
-  LuCalculator,
-  LuClipboardList,
-  LuFileText,
-  LuMessageSquare,
-  LuActivitySquare,
-} from 'react-icons/lu';
+  IoCalculatorOutline,
+  IoChatboxOutline,
+  IoClipboardOutline,
+  IoDocumentTextOutline,
+  IoPulseOutline,
+} from 'react-icons/io5';
 import Modal from '@/app/ui/overlays/Modal';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import type { Appointment } from '@yosemite-crew/types';
@@ -42,11 +41,11 @@ type NavItem = {
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { key: 'RECORD', label: 'Record', icon: LuActivitySquare },
-  { key: 'TASKS', label: 'Tasks', icon: LuClipboardList },
-  { key: 'DOCUMENTS', label: 'Documents', icon: LuFileText },
-  { key: 'CHAT', label: 'Chat', icon: LuMessageSquare },
-  { key: 'ACTIVITY', label: 'Activity', icon: LuActivity },
+  { key: 'RECORD', label: 'Record', icon: IoPulseOutline },
+  { key: 'TASKS', label: 'Tasks', icon: IoClipboardOutline },
+  { key: 'DOCUMENTS', label: 'Documents', icon: IoDocumentTextOutline },
+  { key: 'CHAT', label: 'Chat', icon: IoChatboxOutline },
+  { key: 'ACTIVITY', label: 'Activity', icon: IoPulseOutline },
 ];
 
 /** MSD/Merck nav item — icon is the branded glyph, rendered separately. */
@@ -56,7 +55,7 @@ const MSD_LABEL = 'MSD';
 const CALCULATORS_ITEM: NavItem = {
   key: 'CALCULATORS',
   label: 'Calculators',
-  icon: LuCalculator,
+  icon: IoCalculatorOutline,
 };
 
 const NavButton = ({
@@ -79,13 +78,13 @@ const NavButton = ({
       <span
         aria-hidden="true"
         className={`flex size-11 items-center justify-center rounded-full border transition-colors duration-150 ${
-          active ? 'border-text-brand text-text-brand' : 'border-neutral-300 text-neutral-700'
+          active ? 'border-text-brand text-blue-text' : 'border-neutral-300 text-neutral-700'
         }`}
       >
         <Icon size={20} />
       </span>
       <span
-        className={`text-[12px] leading-[120%] ${active ? 'font-bold text-text-brand' : 'font-medium text-neutral-700'}`}
+        className={`text-caption-2 ${active ? 'font-bold text-blue-text' : 'text-neutral-700'}`}
       >
         {item.label}
       </span>
@@ -119,6 +118,7 @@ const QuickActionsModal = ({
         if (!next) onClose();
       }}
       onClose={onClose}
+      size="lg"
     >
       <div className="flex h-full flex-col gap-4">
         <ModalHeader title="Quick actions" onClose={onClose} />
@@ -158,10 +158,8 @@ const QuickActionsModal = ({
               />
             </span>
             <span
-              className={`text-[12px] leading-[120%] ${
-                activeAction === 'MSD'
-                  ? 'font-bold text-text-brand'
-                  : 'font-medium text-neutral-700'
+              className={`text-caption-2 ${
+                activeAction === 'MSD' ? 'font-bold text-blue-text' : 'text-neutral-700'
               }`}
             >
               {MSD_LABEL}

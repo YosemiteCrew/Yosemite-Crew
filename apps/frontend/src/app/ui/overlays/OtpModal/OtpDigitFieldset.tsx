@@ -1,5 +1,5 @@
 import React from 'react';
-import { Icon } from '@iconify/react/dist/iconify.js';
+import { Icon } from '@/app/ui/icons/Icon';
 
 const OTP_DIGIT_KEYS = [
   'otp-digit-1',

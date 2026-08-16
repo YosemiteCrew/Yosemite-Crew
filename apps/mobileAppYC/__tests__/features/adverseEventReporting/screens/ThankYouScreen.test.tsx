@@ -15,7 +15,12 @@ import {mockTheme} from '../../../setup/mockTheme';
 
 // 1. Navigation
 const mockNavigate = jest.fn();
-const mockNavigation = {navigate: mockNavigate} as any;
+const mockParentNavigate = jest.fn();
+const mockGetParent = jest.fn(() => ({navigate: mockParentNavigate}));
+const mockNavigation = {
+  navigate: mockNavigate,
+  getParent: mockGetParent,
+} as any;
 
 // 2. React Native Linking
 // We do NOT mock the whole 'react-native' module. logic handles inside beforeEach.
@@ -54,17 +59,6 @@ jest.mock('../../../../src/shared/utils/commonHelpers', () => ({
 }));
 
 // 6. UI Components (Mocking children to simplify tree)
-jest.mock('../../../../src/shared/components/common/Header/Header', () => ({
-  Header: ({onBack}: any) => {
-    const {TouchableOpacity, Text} = require('react-native');
-    return (
-      <TouchableOpacity onPress={onBack} testID="header-back">
-        <Text>Header</Text>
-      </TouchableOpacity>
-    );
-  },
-}));
-
 jest.mock('../../../../src/shared/components/common/Checkbox/Checkbox', () => ({
   Checkbox: ({value, onValueChange, label}: any) => {
     const {TouchableOpacity, Text} = require('react-native');
@@ -79,36 +73,11 @@ jest.mock('../../../../src/shared/components/common/Checkbox/Checkbox', () => ({
   },
 }));
 
-jest.mock(
-  '../../../../src/shared/components/common/LiquidGlassButton/LiquidGlassButton',
-  () => ({
-    __esModule: true,
-    default: ({title, onPress, loading, disabled}: any) => {
-      const {TouchableOpacity, Text} = require('react-native');
-      return (
-        <TouchableOpacity
-          onPress={onPress}
-          testID={`btn-${title}`}
-          disabled={disabled}>
-          <Text>{loading ? 'Loading...' : title}</Text>
-        </TouchableOpacity>
-      );
-    },
-  }),
-);
-
 // Mock the barrel export for shared components
 jest.mock('../../../../src/shared/components/common', () => ({
   SafeArea: ({children}: any) => {
     const {View} = require('react-native');
     return <View>{children}</View>;
-  },
-}));
-
-jest.mock('../../../../src/assets/images', () => ({
-  Images: {
-    adverse3: {uri: 'adverse3'},
-    phone: {uri: 'phone'},
   },
 }));
 
@@ -178,12 +147,22 @@ describe('ThankYouScreen', () => {
     expect(getByText('Send report to hospital')).toBeTruthy();
   });
 
-  it('navigates back on header press', () => {
+  it('navigates back to home on footer button press', () => {
     const {getByTestId} = render(
       <ThankYouScreen navigation={mockNavigation} route={{} as any} />,
     );
-    fireEvent.press(getByTestId('header-back'));
-    expect(mockNavigate).toHaveBeenCalledWith('Home');
+    fireEvent.press(getByTestId('back-to-home'));
+    expect(mockGetParent).toHaveBeenCalled();
+    expect(mockParentNavigate).toHaveBeenCalledWith('Home');
+  });
+
+  it('does not throw on footer button press when no parent navigator exists', () => {
+    mockGetParent.mockReturnValueOnce(undefined as any);
+    const {getByTestId} = render(
+      <ThankYouScreen navigation={mockNavigation} route={{} as any} />,
+    );
+    fireEvent.press(getByTestId('back-to-home'));
+    expect(mockParentNavigate).not.toHaveBeenCalled();
   });
 
   it('toggles checkbox and validates consent error', () => {
@@ -243,7 +222,7 @@ describe('ThankYouScreen', () => {
       expect.stringContaining('manufacturer'),
     );
     expect(mockResetDraft).toHaveBeenCalled();
-    expect(mockNavigate).toHaveBeenCalledWith('Home');
+    expect(mockParentNavigate).toHaveBeenCalledWith('Home');
   });
 
   it('submits report successfully to hospital (no returned files)', async () => {
@@ -410,11 +389,13 @@ describe('ThankYouScreen', () => {
 
     mockOpenURL.mockResolvedValue(true);
 
-    const {getByText} = render(
+    const {getByText, getByLabelText} = render(
       <ThankYouScreen navigation={mockNavigation} route={{} as any} />,
     );
 
-    fireEvent.press(getByText('Call regulatory authority'));
+    const callButton = getByLabelText('Call regulatory authority');
+    expect(callButton.props.accessibilityRole).toBe('button');
+    fireEvent.press(callButton);
 
     expect(getByText('Fetching authority contact...')).toBeTruthy();
 
@@ -647,5 +628,99 @@ describe('ThankYouScreen', () => {
         'Select a companion to continue.',
       );
     });
+  });
+
+  it('resolves organisation ID to null when linked business is not found', async () => {
+    // draft.linkedBusinessId is set but matches no business -> line 70 falls
+    // through to the `?? null` branch, so resolvedOrganisationId is null.
+    (useSelector as unknown as jest.Mock).mockImplementation(selector =>
+      selector({
+        ...defaultReduxState,
+        linkedBusinesses: {
+          linkedBusinesses: [{id: 'other', businessId: 'x'}],
+        },
+      }),
+    );
+
+    (useAdverseEventReport as jest.Mock).mockReturnValue({
+      draft: {
+        ...defaultDraft,
+        linkedBusinessId: 'missing-id',
+        consentToContact: true,
+      },
+      setConsentToContact: mockSetConsent,
+    });
+
+    const {getByTestId} = render(
+      <ThankYouScreen navigation={mockNavigation} route={{} as any} />,
+    );
+    fireEvent.press(getByTestId('btn-Send report to hospital'));
+
+    await waitFor(() => {
+      expect(showErrorAlert).toHaveBeenCalledWith(
+        'Unable to submit',
+        'Select a linked hospital to continue.',
+      );
+    });
+  });
+
+  it('uses default error message when submission rejects without a message', async () => {
+    // Covers line 167: error?.message ?? 'Failed to submit...' fallback.
+    (useAdverseEventReport as jest.Mock).mockReturnValue({
+      draft: {...defaultDraft, consentToContact: true},
+      setConsentToContact: mockSetConsent,
+      setProductInfo: mockSetProductInfo,
+      resetDraft: mockResetDraft,
+    });
+
+    (adverseEventService.submitReport as jest.Mock).mockRejectedValue({});
+
+    const {getByTestId} = render(
+      <ThankYouScreen navigation={mockNavigation} route={{} as any} />,
+    );
+    fireEvent.press(getByTestId('btn-Send report to hospital'));
+
+    await waitFor(() => {
+      expect(showErrorAlert).toHaveBeenCalledWith(
+        'Unable to submit',
+        'Failed to submit adverse event report.',
+      );
+    });
+  });
+
+  it('uses default error message when authority fetch rejects without a message', async () => {
+    // Covers line 216: error?.message ?? 'Failed to fetch...' fallback.
+    (useAdverseEventReport as jest.Mock).mockReturnValue({
+      draft: {...defaultDraft, consentToContact: true},
+      setConsentToContact: mockSetConsent,
+    });
+
+    (
+      adverseEventService.fetchRegulatoryAuthority as jest.Mock
+    ).mockRejectedValue({});
+
+    const {getByText} = render(
+      <ThankYouScreen navigation={mockNavigation} route={{} as any} />,
+    );
+    fireEvent.press(getByText('Call regulatory authority'));
+
+    await waitFor(() => {
+      expect(showErrorAlert).toHaveBeenCalledWith(
+        'Unable to call authority',
+        'Failed to fetch regulatory authority contact.',
+      );
+    });
+  });
+
+  it('toggles checkbox on with no active error (nothing to clear)', () => {
+    // Covers line 248 else branch: value is true but contactError is empty,
+    // so the clear-error guard is skipped.
+    const {getByTestId} = render(
+      <ThankYouScreen navigation={mockNavigation} route={{} as any} />,
+    );
+
+    fireEvent.press(getByTestId('consent-checkbox'));
+
+    expect(mockSetConsent).toHaveBeenCalledWith(true);
   });
 });

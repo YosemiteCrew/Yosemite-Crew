@@ -1,4 +1,3 @@
-import { isValidObjectId } from "mongoose";
 import type { OrganizationMongo } from "../models/organization";
 import {
   fromOrganizationRequestDTO,
@@ -13,7 +12,8 @@ import { SpecialityService } from "./speciality.service";
 import { OrganisationRoomService } from "./organisation-room.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
 import logger from "src/utils/logger";
-import { Prisma, OrganizationType } from "@prisma/client";
+import { pruneUndefined } from "src/utils/prune-undefined";
+import { Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { buildGeoPoint } from "src/utils/geojson";
 import { calculateDistanceMeters, toRadians } from "src/utils/geo";
@@ -153,37 +153,6 @@ const sanitizeTypeCoding = (
       "Organization type display",
     ),
   };
-};
-
-const pruneUndefined = <T>(value: T): T => {
-  if (Array.isArray(value)) {
-    const arrayValue = value as unknown[];
-    const cleaned: unknown[] = arrayValue
-      .map((item) => pruneUndefined(item))
-      .filter((item) => item !== undefined);
-    return cleaned as unknown as T;
-  }
-
-  if (value && typeof value === "object") {
-    if (value instanceof Date) {
-      return value;
-    }
-
-    const record = value as Record<string, unknown>;
-    const cleanedRecord: Record<string, unknown> = {};
-
-    for (const [key, entryValue] of Object.entries(record)) {
-      const next = pruneUndefined(entryValue);
-
-      if (next !== undefined) {
-        cleanedRecord[key] = next;
-      }
-    }
-
-    return cleanedRecord as unknown as T;
-  }
-
-  return value;
 };
 
 const requireSafeString = (value: unknown, fieldName: string): string => {
@@ -334,10 +303,7 @@ const ensureSafeIdentifier = (value: unknown): string | undefined => {
     return undefined;
   }
 
-  if (
-    !isValidObjectId(identifier) &&
-    !/^[A-Za-z0-9\-.]{1,64}$/.test(identifier)
-  ) {
+  if (!/^[A-Za-z0-9\-.]{1,64}$/.test(identifier)) {
     throw new OrganizationServiceError("Invalid identifier format.", 400);
   }
 
@@ -354,7 +320,7 @@ const resolveOrganisationByPlaceId = async (placeId: string) => {
 
   return {
     isPmsOrganisation: true as const,
-    organisation: buildFHIRResponseFromPrisma(org),
+    organisation: buildPublicSummaryFromPrisma(org),
   };
 };
 
@@ -394,7 +360,7 @@ const resolveOrganisationByCoordinates = async (lat: number, lng: number) => {
 
   return {
     isPmsOrganisation: true as const,
-    organisation: buildFHIRResponseFromPrisma(closest),
+    organisation: buildPublicSummaryFromPrisma(closest),
   };
 };
 
@@ -411,7 +377,7 @@ const resolveOrganisationByName = async (name: string) => {
 
   return {
     isPmsOrganisation: true as const,
-    organisation: buildFHIRResponseFromPrisma(org),
+    organisation: buildPublicSummaryFromPrisma(org),
   };
 };
 
@@ -630,6 +596,25 @@ const buildFHIRResponseFromPrisma = (
   return toOrganizationResponseDTO(response, responseOptions);
 };
 
+/**
+ * Projection for the unauthenticated `/check` route. The full organisation resource carries
+ * tax/DUNS identifiers, compliance certificate numbers, the Stripe account id and contact
+ * details; an anonymous caller only needs to learn that the organisation exists and how to
+ * reference it, so nothing else is assembled here.
+ */
+const buildPublicSummaryFromPrisma = (
+  organisation: PrismaOrganizationWithAddress,
+): ReturnType<typeof toOrganizationResponseDTO> =>
+  toOrganizationResponseDTO({
+    _id: organisation.fhirId ?? organisation.id,
+    name: organisation.name,
+    type: coerceOrganizationType(organisation.type),
+    isActive: organisation.isActive ?? true,
+    googlePlacesId: organisation.googlePlacesId ?? undefined,
+    taxId: "",
+    phoneNo: "",
+  });
+
 const createPersistableFromFHIR = (payload: OrganizationFHIRPayload) => {
   const attributes = fromOrganizationRequestDTO(payload);
 
@@ -664,6 +649,43 @@ const createPersistableFromFHIR = (payload: OrganizationFHIRPayload) => {
   return { persistable, attributes };
 };
 
+const buildOrganizationWriteData = (persistable: OrganizationMongo) => ({
+  fhirId: persistable.fhirId ?? undefined,
+  name: persistable.name,
+  taxId: persistable.taxId,
+  dunsNumber: persistable.DUNSNumber ?? undefined,
+  imageUrl: persistable.imageURL ?? undefined,
+  type: persistable.type,
+  petNamePreference: persistable.petNamePreference ?? undefined,
+  phoneNo: persistable.phoneNo,
+  website: persistable.website ?? undefined,
+  documensoTeamId: persistable.documensoTeamId ?? undefined,
+  documensoApiKey: persistable.documensoApiKey ?? undefined,
+  isVerified: persistable.isVerified ?? false,
+  isActive: persistable.isActive ?? true,
+  typeCoding: (persistable.typeCoding ??
+    undefined) as unknown as Prisma.InputJsonValue,
+  healthAndSafetyCertNo: persistable.healthAndSafetyCertNo ?? undefined,
+  animalWelfareComplianceCertNo:
+    persistable.animalWelfareComplianceCertNo ?? undefined,
+  fireAndEmergencyCertNo: persistable.fireAndEmergencyCertNo ?? undefined,
+  googlePlacesId: persistable.googlePlacesId ?? undefined,
+  stripeAccountId: persistable.stripeAccountId ?? undefined,
+  averageRating: persistable.averageRating ?? 0,
+  ratingCount: persistable.ratingCount ?? 0,
+  appointmentCheckInBufferMinutes:
+    persistable.appointmentCheckInBufferMinutes ??
+    DEFAULT_APPOINTMENT_CHECK_IN_BUFFER_MINUTES,
+  appointmentCheckInRadiusMeters:
+    persistable.appointmentCheckInRadiusMeters ??
+    DEFAULT_APPOINTMENT_CHECK_IN_RADIUS_METERS,
+  appointmentLockWindowOutpatientMinutes:
+    persistable.appointmentLockWindowOutpatientMinutes ?? undefined,
+  appointmentLockWindowInpatientMinutes:
+    persistable.appointmentLockWindowInpatientMinutes ?? undefined,
+  crossOrgMessagingEnabled: persistable.crossOrgMessagingEnabled ?? false,
+});
+
 export const OrganizationService = {
   async upsert(payload: OrganizationFHIRPayload, userId?: string) {
     const { persistable, attributes } = createPersistableFromFHIR(payload);
@@ -677,42 +699,7 @@ export const OrganizationService = {
         })
       : null;
 
-    const data = {
-      fhirId: persistable.fhirId ?? undefined,
-      name: persistable.name,
-      taxId: persistable.taxId,
-      dunsNumber: persistable.DUNSNumber ?? undefined,
-      imageUrl: persistable.imageURL ?? undefined,
-      type: persistable.type as OrganizationType,
-      petNamePreference: persistable.petNamePreference ?? undefined,
-      phoneNo: persistable.phoneNo,
-      website: persistable.website ?? undefined,
-      documensoTeamId: persistable.documensoTeamId ?? undefined,
-      documensoApiKey: persistable.documensoApiKey ?? undefined,
-      isVerified: persistable.isVerified ?? false,
-      isActive: persistable.isActive ?? true,
-      typeCoding: (persistable.typeCoding ??
-        undefined) as unknown as Prisma.InputJsonValue,
-      healthAndSafetyCertNo: persistable.healthAndSafetyCertNo ?? undefined,
-      animalWelfareComplianceCertNo:
-        persistable.animalWelfareComplianceCertNo ?? undefined,
-      fireAndEmergencyCertNo: persistable.fireAndEmergencyCertNo ?? undefined,
-      googlePlacesId: persistable.googlePlacesId ?? undefined,
-      stripeAccountId: persistable.stripeAccountId ?? undefined,
-      averageRating: persistable.averageRating ?? 0,
-      ratingCount: persistable.ratingCount ?? 0,
-      appointmentCheckInBufferMinutes:
-        persistable.appointmentCheckInBufferMinutes ??
-        DEFAULT_APPOINTMENT_CHECK_IN_BUFFER_MINUTES,
-      appointmentCheckInRadiusMeters:
-        persistable.appointmentCheckInRadiusMeters ??
-        DEFAULT_APPOINTMENT_CHECK_IN_RADIUS_METERS,
-      appointmentLockWindowOutpatientMinutes:
-        persistable.appointmentLockWindowOutpatientMinutes ?? undefined,
-      appointmentLockWindowInpatientMinutes:
-        persistable.appointmentLockWindowInpatientMinutes ?? undefined,
-      crossOrgMessagingEnabled: persistable.crossOrgMessagingEnabled ?? false,
-    };
+    const data = buildOrganizationWriteData(persistable);
 
     const organisation = existing
       ? await prisma.organization.update({
@@ -780,8 +767,8 @@ export const OrganizationService = {
             data: {
               userId,
               organizationId: organisation.id,
-              personalDetails: {} as Prisma.InputJsonValue,
-              professionalDetails: {} as Prisma.InputJsonValue,
+              personalDetails: {},
+              professionalDetails: {},
               status: "DRAFT",
             },
           });
@@ -869,42 +856,7 @@ export const OrganizationService = {
 
     await prisma.organization.update({
       where: { id: organisation.id },
-      data: {
-        fhirId: persistable.fhirId ?? undefined,
-        name: persistable.name,
-        taxId: persistable.taxId,
-        dunsNumber: persistable.DUNSNumber ?? undefined,
-        imageUrl: persistable.imageURL ?? undefined,
-        type: persistable.type as OrganizationType,
-        petNamePreference: persistable.petNamePreference ?? undefined,
-        phoneNo: persistable.phoneNo,
-        website: persistable.website ?? undefined,
-        documensoTeamId: persistable.documensoTeamId ?? undefined,
-        documensoApiKey: persistable.documensoApiKey ?? undefined,
-        isVerified: persistable.isVerified ?? false,
-        isActive: persistable.isActive ?? true,
-        typeCoding: (persistable.typeCoding ??
-          undefined) as unknown as Prisma.InputJsonValue,
-        healthAndSafetyCertNo: persistable.healthAndSafetyCertNo ?? undefined,
-        animalWelfareComplianceCertNo:
-          persistable.animalWelfareComplianceCertNo ?? undefined,
-        fireAndEmergencyCertNo: persistable.fireAndEmergencyCertNo ?? undefined,
-        googlePlacesId: persistable.googlePlacesId ?? undefined,
-        stripeAccountId: persistable.stripeAccountId ?? undefined,
-        averageRating: persistable.averageRating ?? 0,
-        ratingCount: persistable.ratingCount ?? 0,
-        appointmentCheckInBufferMinutes:
-          persistable.appointmentCheckInBufferMinutes ??
-          DEFAULT_APPOINTMENT_CHECK_IN_BUFFER_MINUTES,
-        appointmentCheckInRadiusMeters:
-          persistable.appointmentCheckInRadiusMeters ??
-          DEFAULT_APPOINTMENT_CHECK_IN_RADIUS_METERS,
-        appointmentLockWindowOutpatientMinutes:
-          persistable.appointmentLockWindowOutpatientMinutes ?? undefined,
-        appointmentLockWindowInpatientMinutes:
-          persistable.appointmentLockWindowInpatientMinutes ?? undefined,
-        crossOrgMessagingEnabled: persistable.crossOrgMessagingEnabled ?? false,
-      },
+      data: buildOrganizationWriteData(persistable),
     });
 
     const updated = await prisma.organization.findUniqueOrThrow({

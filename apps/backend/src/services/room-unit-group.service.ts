@@ -43,9 +43,12 @@ type RoomUnitGroupDelegate = {
     };
   }): Promise<RoomUnitGroupRow>;
   findUnique(args: { where: { id: string } }): Promise<RoomUnitGroupRow | null>;
+  findFirst(args: {
+    where: { id: string; organisationId: string };
+  }): Promise<RoomUnitGroupRow | null>;
   findMany(args: {
     where: {
-      organisationId?: string;
+      organisationId: string;
       roomId?: string;
       isActive?: boolean;
     };
@@ -120,11 +123,14 @@ const toDomain = (row: RoomUnitGroupRow): RoomUnitGroup => ({
 const getRoomUnitGroupDelegate = (): RoomUnitGroupDelegate =>
   (prisma as unknown as { roomUnitGroup: RoomUnitGroupDelegate }).roomUnitGroup;
 
-const assertRoomExists = async (roomId: string, organisationId: string) => {
-  const room = (await prisma.organisationRoom.findUnique({
+const assertRoomBelongsToOrganisation = async (
+  roomId: string,
+  organisationId: string,
+): Promise<RoomRow> => {
+  const room = await prisma.organisationRoom.findUnique({
     where: { id: roomId },
     select: { id: true, organisationId: true, type: true },
-  })) as RoomRow | null;
+  });
 
   if (!room) {
     throw new RoomUnitGroupServiceError("Organisation room not found.", 404);
@@ -134,12 +140,24 @@ const assertRoomExists = async (roomId: string, organisationId: string) => {
     throw new RoomUnitGroupServiceError("Room organisation mismatch.", 409);
   }
 
+  return room;
+};
+
+const assertRoomSupportsUnits = (room: RoomRow) => {
   if (!roomTypeSupportsUnits(room.type)) {
     throw new RoomUnitGroupServiceError(
       "Units are only supported for ICU, Inpatient, Isolation and Boarding rooms.",
       409,
     );
   }
+};
+
+// Used by create (and by update when actually moving a group to a different
+// room) - a brand-new group-room association must target a room that
+// currently supports units.
+const assertRoomExists = async (roomId: string, organisationId: string) => {
+  const room = await assertRoomBelongsToOrganisation(roomId, organisationId);
+  assertRoomSupportsUnits(room);
 };
 
 export const RoomUnitGroupService = {
@@ -193,12 +211,17 @@ export const RoomUnitGroupService = {
 
   async update(
     id: string,
+    organisationIdInput: string,
     input: Partial<RoomUnitGroup>,
   ): Promise<RoomUnitGroup> {
     try {
       const groupId = requireString(id, "groupId");
-      const current = await getRoomUnitGroupDelegate().findUnique({
-        where: { id: groupId },
+      const organisationId = requireString(
+        organisationIdInput,
+        "organisationId",
+      );
+      const current = await getRoomUnitGroupDelegate().findFirst({
+        where: { id: groupId, organisationId },
       });
 
       if (!current) {
@@ -206,14 +229,28 @@ export const RoomUnitGroupService = {
       }
 
       const roomId = optionalNonEmptyString(input.roomId) ?? current.roomId;
-      await assertRoomExists(roomId, current.organisationId);
+      const room = await assertRoomBelongsToOrganisation(
+        roomId,
+        organisationId,
+      );
+      // Only exempt a same-room *deactivation* from the room-type check -
+      // otherwise a type change away from a unit-capable room could never be
+      // cleaned up (every cleanup request would 409). Any other same-room
+      // update (reactivating, renaming, resizing) must still be rejected
+      // while the room doesn't support units, or it recreates the exact
+      // invalid state - an active group on a non-unit-capable room - that
+      // create and move operations are meant to prevent.
+      const isDeactivating = input.isActive === false;
+      if (roomId !== current.roomId || !isDeactivating) {
+        assertRoomSupportsUnits(room);
+      }
 
-      const unitCount =
-        input.unitCount == null
-          ? undefined
-          : Number.isInteger(input.unitCount)
-            ? input.unitCount
-            : current.unitCount;
+      let unitCount: number | undefined;
+      if (input.unitCount != null) {
+        unitCount = Number.isInteger(input.unitCount)
+          ? input.unitCount
+          : current.unitCount;
+      }
 
       if (unitCount !== undefined && unitCount <= 0) {
         throw new RoomUnitGroupServiceError(
@@ -261,13 +298,13 @@ export const RoomUnitGroupService = {
   },
 
   async list(filters: {
-    organisationId?: string;
+    organisationId: string;
     roomId?: string;
     isActive?: boolean;
   }): Promise<RoomUnitGroup[]> {
     const rows = await getRoomUnitGroupDelegate().findMany({
       where: {
-        organisationId: normalizeOptionalString(filters.organisationId),
+        organisationId: requireString(filters.organisationId, "organisationId"),
         roomId: normalizeOptionalString(filters.roomId),
         isActive: filters.isActive,
       },
@@ -277,8 +314,12 @@ export const RoomUnitGroupService = {
     return rows.map(toDomain);
   },
 
-  async delete(id: string, organisationId?: string): Promise<RoomUnitGroup> {
+  async delete(
+    id: string,
+    organisationIdInput: string,
+  ): Promise<RoomUnitGroup> {
     const groupId = requireString(id, "groupId");
+    const organisationId = requireString(organisationIdInput, "organisationId");
     const existing = await getRoomUnitGroupDelegate().findUnique({
       where: { id: groupId },
     });
@@ -287,7 +328,7 @@ export const RoomUnitGroupService = {
       throw new RoomUnitGroupServiceError("Room unit group not found.", 404);
     }
 
-    if (organisationId && existing.organisationId !== organisationId) {
+    if (existing.organisationId !== organisationId) {
       throw new RoomUnitGroupServiceError("Room organisation mismatch.", 409);
     }
 

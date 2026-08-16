@@ -80,8 +80,6 @@ const useDragAvailabilityInputs = ({
     return slots;
   }, []);
 
-  const buildStartFromCalendarMinutes = useCallback(buildAppointmentStartFromCalendarMinutes, []);
-
   const getAvailabilityKey = useCallback(
     (date: Date, targetLeadId?: string) =>
       buildAvailabilityKey({
@@ -99,7 +97,7 @@ const useDragAvailabilityInputs = ({
     (date: Date, targetLeadId?: string) =>
       computeAvailableStartMinutes({
         allAppointments,
-        buildStart: buildStartFromCalendarMinutes,
+        buildStart: buildAppointmentStartFromCalendarMinutes,
         date,
         dragContext: dragContextRef.current,
         getSlots: getSlotsForMoveValidation,
@@ -111,7 +109,6 @@ const useDragAvailabilityInputs = ({
       }),
     [
       allAppointments,
-      buildStartFromCalendarMinutes,
       dragContextRef,
       getSlotsForMoveValidation,
       normalizeId,
@@ -121,7 +118,7 @@ const useDragAvailabilityInputs = ({
   );
 
   return {
-    buildAppointmentStartFromCalendarMinutes: buildStartFromCalendarMinutes,
+    buildAppointmentStartFromCalendarMinutes,
     buildAvailableStartMinutes,
     getAvailabilityKey,
     getCurrentUserPractitionerId,

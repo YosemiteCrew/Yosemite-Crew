@@ -11,6 +11,7 @@ import {
   mockAvailability,
   mockAppointments,
   mockInvoices,
+  todayISO,
 } from '@/features/appointments/mocks';
 
 describe('features/appointments/mocks', () => {
@@ -24,14 +25,34 @@ describe('features/appointments/mocks', () => {
     });
   });
 
+  it('todayISO returns the device-local calendar day, not the UTC day', () => {
+    // Pins the local-date semantics the fixture and the consuming screens rely on.
+    // Deriving the key with `toISOString().slice(0, 10)` would give the UTC day,
+    // which differs from the local day between midnight and the UTC offset.
+    jest.useFakeTimers().setSystemTime(new Date('2026-07-24T22:30:00Z'));
+    try {
+      const d = new Date();
+      const expected = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+        2,
+        '0',
+      )}-${String(d.getDate()).padStart(2, '0')}`;
+
+      expect(todayISO()).toBe(expected);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('exports employee availability keyed by today for each entry', () => {
-    const todayISO = new Date().toISOString().slice(0, 10);
+    // Reuse the fixture's own helper - deriving this key independently is how this
+    // test used to drift from the fixture in any timezone ahead of UTC.
+    const today = todayISO();
 
     expect(mockAvailability.length).toBeGreaterThan(0);
     mockAvailability.forEach(entry => {
-      expect(entry.slotsByDate[todayISO]).toBeDefined();
-      expect(entry.slotsByDate[todayISO].length).toBeGreaterThan(0);
-      entry.slotsByDate[todayISO].forEach(slot => {
+      expect(entry.slotsByDate[today]).toBeDefined();
+      expect(entry.slotsByDate[today].length).toBeGreaterThan(0);
+      entry.slotsByDate[today].forEach(slot => {
         expect(slot.isAvailable).toBe(true);
         expect(slot.startTime).toBeTruthy();
       });

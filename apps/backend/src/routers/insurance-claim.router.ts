@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
 import { InsuranceClaimController } from "src/controllers/web/insurance-claim.controller";
 
@@ -7,7 +7,7 @@ const router = Router();
 
 router.get(
   "/pms/organisation/:organisationId/insurance-claims",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("billing:view:any"),
   InsuranceClaimController.list,
@@ -15,7 +15,7 @@ router.get(
 
 router.post(
   "/pms/organisation/:organisationId/insurance-claims",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("billing:edit:any"),
   InsuranceClaimController.create,
@@ -23,7 +23,7 @@ router.post(
 
 router.get(
   "/pms/organisation/:organisationId/insurance-claims/:claimId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("billing:view:any"),
   InsuranceClaimController.get,
@@ -31,7 +31,7 @@ router.get(
 
 router.put(
   "/pms/organisation/:organisationId/insurance-claims/:claimId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("billing:edit:any"),
   InsuranceClaimController.update,
@@ -39,7 +39,7 @@ router.put(
 
 router.post(
   "/pms/organisation/:organisationId/insurance-claims/:claimId/submit",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("billing:edit:any"),
   InsuranceClaimController.submit,
@@ -47,7 +47,7 @@ router.post(
 
 router.post(
   "/pms/organisation/:organisationId/insurance-claims/:claimId/status",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("billing:edit:any"),
   InsuranceClaimController.updateStatus,
@@ -55,7 +55,7 @@ router.post(
 
 router.post(
   "/pms/organisation/:organisationId/insurance-claims/:claimId/cancel",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("billing:edit:any"),
   InsuranceClaimController.cancel,

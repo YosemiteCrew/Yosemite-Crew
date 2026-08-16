@@ -10,6 +10,8 @@ import { buildDateInPreferredTimeZone, getPreferredTimeZone } from '@/app/lib/ti
 import { getPreferredTimeValue } from '@/app/lib/date';
 import { canRescheduleTask } from '@/app/lib/tasks';
 import { useNotify } from '@/app/hooks/useNotify';
+import RecurrenceScopeModal from '@/app/features/tasks/components/RecurrenceScopeModal';
+import { isSeriesTask, type RecurrenceScope } from '@/app/features/tasks/constants/taskTaxonomy';
 
 type RescheduleTaskProps = {
   showModal: boolean;
@@ -24,10 +26,13 @@ const RescheduleTask = ({ showModal, setShowModal, activeTask }: RescheduleTaskP
     getPreferredTimeValue(activeTask.dueAt, '00:00')
   );
   const [saving, setSaving] = useState(false);
+  const [scopeModalOpen, setScopeModalOpen] = useState(false);
+  // Holds the new due date while the series scope is chosen.
+  const pendingDueAtRef = useRef<Date | null>(null);
 
-  const prevActiveTaskRef = useRef(activeTask);
-  if (prevActiveTaskRef.current !== activeTask) {
-    prevActiveTaskRef.current = activeTask;
+  const [prevActiveTask, setPrevActiveTask] = useState(activeTask);
+  if (prevActiveTask !== activeTask) {
+    setPrevActiveTask(activeTask);
     setSelectedDate(new Date(activeTask.dueAt));
     setDueTimeValue(getPreferredTimeValue(activeTask.dueAt, '00:00'));
   }
@@ -56,13 +61,30 @@ const RescheduleTask = ({ showModal, setShowModal, activeTask }: RescheduleTaskP
       (Number.isFinite(hour) ? hour : 0) * 60 + (Number.isFinite(minute) ? minute : 0)
     );
 
+    // A task in a recurring series asks which occurrences the move applies to,
+    // rather than silently rescheduling only this one.
+    if (isSeriesTask(activeTask.recurrence)) {
+      pendingDueAtRef.current = nextDueAt;
+      setScopeModalOpen(true);
+      return;
+    }
+
+    await commitReschedule(nextDueAt);
+  };
+
+  const commitReschedule = async (nextDueAt: Date, scope?: RecurrenceScope) => {
     try {
       setSaving(true);
-      await updateTask({
-        ...activeTask,
-        dueAt: nextDueAt,
-        timezone: activeTask.timezone || getPreferredTimeZone(),
-      });
+      await updateTask(
+        {
+          ...activeTask,
+          dueAt: nextDueAt,
+          timezone: activeTask.timezone || getPreferredTimeZone(),
+        },
+        scope
+      );
+      setScopeModalOpen(false);
+      pendingDueAtRef.current = null;
       setShowModal(false);
     } catch (error) {
       console.log(error);
@@ -75,43 +97,61 @@ const RescheduleTask = ({ showModal, setShowModal, activeTask }: RescheduleTaskP
     }
   };
 
+  // Commit the held reschedule against the chosen series scope.
+  const handleScopeConfirm = async (scope: RecurrenceScope) => {
+    const nextDueAt = pendingDueAtRef.current;
+    if (!nextDueAt) return;
+    await commitReschedule(nextDueAt, scope);
+  };
+
   return (
-    <CenterModal showModal={showModal} setShowModal={setShowModal} onClose={handleCancel}>
-      <div className="flex flex-col gap-4 w-full">
-        <ModalHeader title="Reschedule" onClose={handleCancel} />
-        <div className="grid gap-3">
-          <Datepicker
-            currentDate={selectedDate}
-            setCurrentDate={setSelectedDate}
-            type="input"
-            placeholder="Due date"
-          />
-          <Timepicker
-            value={dueTimeValue}
-            label="Due time"
-            name="dueTime"
-            onChange={setDueTimeValue}
-            className="min-h-12!"
-          />
+    <>
+      <CenterModal showModal={showModal} setShowModal={setShowModal} onClose={handleCancel}>
+        <div className="flex flex-col gap-4 w-full">
+          <ModalHeader title="Reschedule" onClose={handleCancel} />
+          <div className="grid gap-3">
+            <Datepicker
+              currentDate={selectedDate}
+              setCurrentDate={setSelectedDate}
+              type="input"
+              placeholder="Due date"
+            />
+            <Timepicker
+              value={dueTimeValue}
+              label="Due time"
+              name="dueTime"
+              onChange={setDueTimeValue}
+            />
+          </div>
+          <div className="flex items-center justify-center gap-2 w-full pb-3 flex-wrap">
+            <Secondary
+              href="#"
+              text="Cancel"
+              onClick={handleCancel}
+              isDisabled={saving}
+              className="w-auto min-w-[120px]"
+            />
+            <Primary
+              href="#"
+              text={saving ? 'Saving...' : 'Update'}
+              onClick={handleSave}
+              isDisabled={saving}
+              className="w-auto min-w-[120px]"
+            />
+          </div>
         </div>
-        <div className="flex items-center justify-center gap-2 w-full pb-3 flex-wrap">
-          <Secondary
-            href="#"
-            text="Cancel"
-            onClick={handleCancel}
-            isDisabled={saving}
-            className="w-auto min-w-[120px]"
-          />
-          <Primary
-            href="#"
-            text={saving ? 'Saving...' : 'Update'}
-            onClick={handleSave}
-            isDisabled={saving}
-            className="w-auto min-w-[120px]"
-          />
-        </div>
-      </div>
-    </CenterModal>
+      </CenterModal>
+      {scopeModalOpen && (
+        <RecurrenceScopeModal
+          showModal={scopeModalOpen}
+          setShowModal={setScopeModalOpen}
+          action="edit"
+          taskName={activeTask.name}
+          busy={saving}
+          onConfirm={handleScopeConfirm}
+        />
+      )}
+    </>
   );
 };
 
