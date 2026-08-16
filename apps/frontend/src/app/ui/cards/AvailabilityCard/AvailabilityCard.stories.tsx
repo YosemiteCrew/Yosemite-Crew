@@ -83,7 +83,7 @@ export const OffDuty: Story = {
   },
 };
 
-export const NoSpecialities: Story = {
+export const EmptyAndOverflowingFields: Story = {
   name: 'Empty and overflowing fields',
   args: {
     team: {

@@ -18,10 +18,7 @@ const stalledSigner: UploaderProps['getSignedUrl'] = () =>
   });
 
 /** Built inside a render so no `File` is constructed while the CSF module is analysed. */
-const makePdf = (name: string) =>
-  new File([new Blob(['fixture'], { type: 'application/pdf' })], name, {
-    type: 'application/pdf',
-  });
+const makePdf = (name: string) => new File(['fixture'], name, { type: 'application/pdf' });
 
 const meta = {
   title: 'Widgets/PdfDocUploader',

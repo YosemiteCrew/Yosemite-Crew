@@ -5,10 +5,7 @@ import { fn } from 'storybook/test';
 import DocUploader from './DocUploader';
 
 /** Built inside a render so no `File` is constructed while the CSF module is analysed. */
-const makePdf = (name: string) =>
-  new File([new Blob(['fixture'], { type: 'application/pdf' })], name, {
-    type: 'application/pdf',
-  });
+const makePdf = (name: string) => new File(['fixture'], name, { type: 'application/pdf' });
 
 /**
  * `file`/`setFile` are owned by the caller, so the stories hold them locally.

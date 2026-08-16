@@ -99,7 +99,10 @@ export const Verified: Story = {
 export const Pending: Story = {
   name: 'Pending verification',
   args: {
-    org: buildRow({ _id: 'org-meadow', name: 'Meadowbrook Boarding', type: 'BOARDER' }, 'admin'),
+    org: buildRow(
+      { _id: 'org-meadow', name: 'Meadowbrook Boarding', type: 'BOARDER', isVerified: false },
+      'admin'
+    ),
   },
   parameters: {
     docs: {
