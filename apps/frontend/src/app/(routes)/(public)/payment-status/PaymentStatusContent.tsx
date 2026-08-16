@@ -164,6 +164,7 @@ export function PaymentStatusContent() {
     // `text-text-tertiary` line below sits at 3.45:1 even on white.
     <div
       data-yc-app
+      data-yc-surface="light"
       className="min-h-[max(720px,100vh)] flex items-center justify-center px-4 pt-22 pb-10 bg-[radial-gradient(circle_at_10%_10%,rgba(250,238,210,0.6),transparent_45%),radial-gradient(circle_at_90%_20%,rgba(210,235,248,0.6),transparent_45%),radial-gradient(circle_at_50%_90%,rgba(215,245,230,0.7),transparent_50%)]"
     >
       <div className="w-full max-w-xl bg-white/80 border border-card-border rounded-2xl px-6 py-10">

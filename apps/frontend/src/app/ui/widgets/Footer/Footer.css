@@ -92,7 +92,11 @@
   position: relative;
   display: inline-block;
   text-decoration: none;
-  color: var(--color-text-tertiary);
+  /* --ink-muted, not a faint ink: this footer's band is theme-aware
+     (--color-brand-100 is #e6f2ff in light and a translucent blue over the dark
+     page in dark), and the faint step only cleared AA on the light one - 5.27
+     light but 4.03 on the dark composite. --ink-muted is 6.13 / 4.66. */
+  color: var(--ink-muted);
   font-family: var(--font-satoshi), sans-serif;
   font-size: 16px;
   font-weight: 400;

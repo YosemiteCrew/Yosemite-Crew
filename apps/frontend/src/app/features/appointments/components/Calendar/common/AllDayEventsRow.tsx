@@ -70,7 +70,7 @@ const AllDayEventsRow = ({
               alt={''}
             />
             <span className="truncate max-w-40">{getCompanionDisplayName(ev)}</span>
-            <span className="opacity-75 truncate max-w-30 font-normal">{ev.concern || ''}</span>
+            <span className="truncate max-w-30 font-normal">{ev.concern || ''}</span>
           </button>
         );
       })}

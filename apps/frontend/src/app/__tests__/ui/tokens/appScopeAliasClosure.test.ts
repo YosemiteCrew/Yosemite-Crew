@@ -206,17 +206,55 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
     const FAINT_TEXT =
       /--ink-faint2?\)|--color-text-tertiary\)|--color-text-extra\)|\btext-text-tertiary\b|--status-[a-z]+-text\)/;
 
+    /**
+     * Dims inside a faint-text component that are NOT over faint text. Keyed by
+     * file and opacity value rather than line number - a line key goes stale the
+     * moment anything above it moves, and a stale key silently re-hides a real
+     * defect. Each was read individually; the reason is what clears it.
+     */
+    const CLEARED: Record<string, string> = {
+      'features/appointments/components/AppointmentBoardCard.tsx::60': 'isDragging - transient',
+      'features/tasks/components/TaskBoard.tsx::60': 'isDragging - transient',
+      'ui/inputs/Dropdown/Dropdown.tsx::60':
+        'gated on the prop that sets the real disabled attribute',
+      'features/integrations/pages/MerckManuals/index.tsx::70': 'fieldset carries disabled',
+      'features/appointments/pages/Appointments/Sections/AppointmentInfo/AppointmentMerckSearch.tsx::70':
+        'audience toggle, disabled',
+      'features/onboarding/components/Steps/TeamOnboarding/AvailabilityStep.tsx::70':
+        'unsupported consultation types - disabled',
+      'features/appointments/components/Calendar/responsive/PhoneMyDayRail.tsx::60':
+        'span is --ink (15:1), not a faint token',
+      'features/appointments/pages/Appointments/Sections/ViewAppointmentOverviewModal/index.tsx::60':
+        'pointer-events-none saving wrapper around a dropdown, no faint text of its own',
+      'features/appointments/pages/Appointments/Sections/AddAppointmentCentralModal/index.tsx::25':
+        'aria-hidden spinner geometry',
+      'features/appointments/pages/Appointments/Sections/AddAppointmentCentralModal/index.tsx::75':
+        'aria-hidden spinner geometry',
+      'features/forms/pages/Forms/Sections/AddForm/components/BuildWrapper.tsx::50':
+        'drag-handle icon glyph, no text',
+    };
+
     for (const file of tsx) {
-      const lines = fs.readFileSync(path.join(root, file), 'utf8').split('\n');
+      const source = fs.readFileSync(path.join(root, file), 'utf8');
+      // FILE-level, not line-level. Opacity composites descendants too, and a
+      // same-line rule cannot see that: TaskBoard dimmed the whole card while
+      // its meta line used text-text-tertiary three hundred lines away, so the
+      // guard passed over 3.16:1 text. If a component paints faint text
+      // anywhere, every dim inside it is suspect until named otherwise.
+      if (!FAINT_TEXT.test(source)) continue;
+      const lines = source.split('\n');
       lines.forEach((line, i) => {
-        if (!FAINT_TEXT.test(line)) return;
         // `cursor-not-allowed` marks the disabled branch of a clsx ternary,
         // where the element also carries a real `disabled` attribute a few
         // lines up - an inactive control, exempt under WCAG 1.4.3.
         if (/cursor-not-allowed/.test(line)) return;
+        // Transient interaction feedback while the pointer moves an element,
+        // like a keyframe step rather than a state anyone reads.
+        if (/isDragging|is-dragging|dragging/i.test(line)) return;
         for (const m of line.matchAll(/(^|[\s"'`:])opacity-(\d{1,3})\b/g)) {
           if (m[1].endsWith(':')) continue; // hover: / disabled: / group-hover:
           if (Number(m[2]) >= 100 || Number(m[2]) === 0) continue; // 0 = hidden
+          if (`${file}::${m[2]}` in CLEARED) continue;
           offenders.push(`${file}:${i + 1}  faint text + opacity-${m[2]}`);
         }
       });

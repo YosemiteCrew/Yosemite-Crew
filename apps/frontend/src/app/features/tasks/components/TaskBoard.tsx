@@ -135,21 +135,19 @@ type TaskCardVisualFlags = {
   isDragging: boolean;
 };
 
-const getTaskCardClassName = ({
-  isParentTask,
-  isMuted,
-  isDone,
-  isCancelled,
-  isDragging,
-}: TaskCardVisualFlags): string =>
+const getTaskCardClassName = ({ isParentTask, isMuted, isDragging }: TaskCardVisualFlags): string =>
   clsx(
     'group/card relative w-full shrink-0 overflow-hidden rounded-[13px]! bg-neutral-0 px-3.5 py-3 text-left transition-colors flex flex-col items-stretch justify-start border',
     isParentTask
       ? 'border-[var(--pink)] shadow-[0_4px_12px_var(--glow-p12)]'
       : 'border-card-border',
     !isParentTask && !isMuted && 'shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)]',
-    isDone && 'opacity-70',
-    isCancelled && 'opacity-60',
+    // No opacity for done/cancelled: the card is a live onClick target, and its
+    // descendant meta line uses text-text-tertiary, which composited to 3.16:1
+    // at 0.70 and 2.61:1 at 0.60. Both states already recede in ink - the title
+    // goes text-text-tertiary (plus line-through for done) - and isMuted drops
+    // the shadow. Dragging keeps its dim: that is transient feedback while the
+    // pointer is moving the card, not a resting state anyone reads.
     isDragging
       ? 'opacity-60 shadow-none'
       : !isParentTask && 'hover:border-input-border-active! hover:bg-card-hover!'

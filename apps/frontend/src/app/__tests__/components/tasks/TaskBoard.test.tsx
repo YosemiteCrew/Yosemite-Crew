@@ -474,16 +474,21 @@ describe('TaskBoard', () => {
       ] as any,
     });
 
-    // Design: completed cards strike through; cancelled cards only dim.
+    // Design: completed cards strike through; both recede through INK, not
+    // opacity. Dimming the card composited its text-text-tertiary meta line to
+    // 3.16:1 (done) and 2.61:1 (cancelled) on a card that is still clickable,
+    // and the title already carries the recede.
     const doneTitle = screen.getByText('Done Task').closest('div');
     expect(doneTitle!.className).toContain('line-through');
+    expect(doneTitle!.className).toContain('text-text-tertiary');
     const voidTitle = screen.getByText('Void Task').closest('div');
     expect(voidTitle!.className).not.toContain('line-through');
+    expect(voidTitle!.className).toContain('text-text-tertiary');
 
     const doneCard = screen.getByRole('button', { name: 'Open task Done Task' }).closest('article');
-    expect(doneCard).toHaveClass('opacity-70');
+    expect(doneCard!.className).not.toMatch(/\bopacity-\d/);
     const voidCard = screen.getByRole('button', { name: 'Open task Void Task' }).closest('article');
-    expect(voidCard).toHaveClass('opacity-60');
+    expect(voidCard!.className).not.toMatch(/\bopacity-\d/);
     // Completed / cancelled → canShowTaskStatusChangeAction is false → not draggable.
     expect(doneCard).toHaveAttribute('draggable', 'false');
     expect(voidCard).toHaveAttribute('draggable', 'false');

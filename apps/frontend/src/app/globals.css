@@ -1815,6 +1815,24 @@ body:has([data-yc-app]) {
   --black-grey: var(--ink-faint);
   --black-grey-Text: var(--ink-faint);
 }
+/* Fixed-light product surfaces.
+   /payment-status, /success and /accessibility/report paint on literal white
+   and #e6f2ff regardless of the chosen theme, so the theme-aware scope below
+   is wrong for them: in dark mode it handed them #9d9285, which is 3.05:1 on
+   white and 2.69:1 on the footer band - the light-mode fix reversing itself.
+   These pin the light inks in BOTH themes. Declared on the surface element
+   rather than on body, so it wins for that subtree by proximity. */
+[data-yc-surface='light'] {
+  --ink-faint: #66635f;
+  --ink-faint2: #66635f;
+  --color-text-tertiary: var(--ink-faint);
+  --color-text-extra: var(--ink-faint2);
+  --color-grey-text: var(--ink-faint);
+  --color-grey-bg: var(--ink-faint);
+  --black-grey: var(--ink-faint);
+  --black-grey-Text: var(--ink-faint);
+}
+
 html[data-theme='dark'] body:has([data-yc-app]) {
   --ink-faint: #9d9285;
   --ink-faint2: #998f82;
