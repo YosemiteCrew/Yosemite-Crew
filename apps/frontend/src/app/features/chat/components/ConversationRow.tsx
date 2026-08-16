@@ -44,8 +44,13 @@ export type ConversationRowProps = Readonly<{
 const HOUR_MS = 60 * 60 * 1000;
 
 /**
- * Unread count pill. Design (Chat workspace conversation list): a 17px --blue
- * (#257bed) pill with white 10px/800 text — not the deeper solid brand badge.
+ * Unread count pill. Design (Chat workspace conversation list): a 17px blue
+ * pill with white 10px/800 text — not the deeper solid brand badge.
+ *
+ * The fill is `--blue-strong`, not `--blue`: white on #257bed is 4.09:1, under
+ * AA for 10px text. `--blue-strong` is the same hue family at 6.48:1, so the
+ * pill still reads as the design's blue rather than the brand badge it was
+ * distinguishing itself from.
  */
 function UnreadBadge({ count }: Readonly<{ count: number }>) {
   return (

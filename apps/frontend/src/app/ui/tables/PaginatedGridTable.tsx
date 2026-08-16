@@ -4,6 +4,7 @@ import { IoChevronBackOutline, IoChevronForwardOutline } from 'react-icons/io5';
 import { buildPagerPageList } from '@/app/ui/tables/tableUtils';
 
 import './DataTable.css';
+import './GenericTable/Generictable.css';
 
 export type GridHeaderCell = { label: string; align?: 'right'; className?: string };
 

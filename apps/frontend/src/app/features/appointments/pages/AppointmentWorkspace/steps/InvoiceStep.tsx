@@ -471,7 +471,7 @@ export const InvoiceBreakdown = ({
   <SectionContainer title="Breakdown" nested className="bg-neutral-0">
     <div className="flex flex-col gap-2">
       <div
-        className={`${ROW_GRID} px-1 text-caption-2 font-medium tracking-wide text-text-secondary uppercase [&>span]:truncate`}
+        className={`${ROW_GRID} yc-table-head yc-table-head--static rounded-lg px-1! [&>span]:truncate`}
       >
         <span>Item Name</span>
         <span>Unit Price</span>

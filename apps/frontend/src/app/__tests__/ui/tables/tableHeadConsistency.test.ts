@@ -74,20 +74,30 @@ const isHeaderStyling = (chunk: string): boolean => {
 };
 
 /**
- * ...and it is a COLUMN header only if the file also declares a column track for
- * the rows beneath. Without this, every uppercase eyebrow and badge in PIMS
- * matches, and the guard becomes noise. The track may be interpolated
- * (`${ROW_GRID}`), so the const declaration in the same file counts.
+ * ...and it is a COLUMN header only if THIS ELEMENT lays its labels over a
+ * column track. Checking the file instead of the element made every lone
+ * uppercase eyebrow in a file that happens to contain a grid an offender -
+ * InvoiceStep's "Payments" section label, for one - while checking neither
+ * matched every badge in PIMS. The track is often interpolated
+ * (`${ROW_GRID}`), so a *_GRID const reference in the class counts.
  */
-const declaresColumnTrack = (source: string): boolean =>
-  /grid-cols-\[/.test(source) ||
-  /gridTemplateColumns/.test(source) ||
-  /\b(GRID_COLS|GRID_COLUMNS|ROW_GRID)\b/.test(source);
+const laysOverAColumnTrack = (chunk: string): boolean =>
+  /grid-cols-\[/.test(chunk) ||
+  /\$\{[A-Za-z_]*(GRID|Grid|grid)[A-Za-z_]*\}/.test(chunk) ||
+  /\bgrid\b/.test(chunk);
 
+/**
+ * Exempt the migrated ELEMENT, never the whole file. A file-level exemption
+ * meant one migrated header bought amnesty for every other band beside it -
+ * `InvoiceStep.tsx` migrated its invoice list and the guard then stopped
+ * looking at the nested Breakdown header two hundred lines below, which was
+ * still hand-rolled. The guard passed with a live offender in the file it was
+ * written to catch.
+ */
 const looksLikeHeaderBand = (source: string): boolean =>
-  !/yc-table-head/.test(source) &&
-  declaresColumnTrack(source) &&
-  (source.match(CLASS_ATTRIBUTE) ?? []).some(isHeaderStyling);
+  (source.match(CLASS_ATTRIBUTE) ?? [])
+    .filter((chunk) => !/yc-table-head/.test(chunk))
+    .some((chunk) => isHeaderStyling(chunk) && laysOverAColumnTrack(chunk));
 
 describe('table header consistency', () => {
   const offenders = listFiles(APP_ROOT)

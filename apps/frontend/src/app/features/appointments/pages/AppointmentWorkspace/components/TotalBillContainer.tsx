@@ -150,7 +150,10 @@ const ColumnHeadings = () => (
     track="minmax(0,1.7fr) 110px 72px 130px 150px 120px 36px"
     gap="12px"
     sticky={false}
-    className="rounded-lg [&>span]:px-3"
+    // Flush: the BillRows below carry no outer padding, so the recipe's 20px
+    // would start the headings 20px right of their values and resolve the
+    // flexible column against a width 40px narrower than the rows.
+    className="yc-table-head--flush rounded-lg [&>span]:px-3"
   />
 );
 

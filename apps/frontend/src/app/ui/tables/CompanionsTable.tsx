@@ -34,6 +34,7 @@ import {
 } from '@/app/features/companions/pages/Companions/companionsDirectory';
 
 import './DataTable.css';
+import './GenericTable/Generictable.css';
 
 const SPECIES_LABEL: Record<string, string> = {
   dog: 'Dog',
