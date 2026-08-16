@@ -391,8 +391,10 @@ const AppointmentBoardCard = ({
   );
   const isDragging = draggedAppointmentId === (appointment.id ?? null);
   const isEmergency = !!appointment.isEmergency;
-  // Completed / cancelled / no-show cards recede — design drops them to 72% and
-  // removes the lift shadow so live work stays dominant in the column.
+  // Completed / cancelled / no-show cards recede by losing the lift shadow, so
+  // live work stays dominant in the column. The design's 72% opacity is
+  // deliberately not applied: it composited the card's own text-text-tertiary
+  // meta line below AA, and the flattened shadow already carries the state.
   const isMuted = isMutedBoardStatus(normalizeStatus(appointment.status));
   const isRequested = isRequestedLikeStatus(appointment.status);
   // Checked-in patients are the ones actually waiting in the clinic, so the design

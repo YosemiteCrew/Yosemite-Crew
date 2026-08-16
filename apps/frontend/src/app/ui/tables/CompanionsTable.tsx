@@ -220,9 +220,7 @@ const CompanionGridCard = ({
   onOpen: (companion: CompanionParent) => void;
 }) => {
   return (
-    <div
-      className={`flex flex-col justify-between gap-3 overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] p-3.5 shadow-[0_1px_2px_var(--sh03),0_10px_26px_var(--sh05)]`}
-    >
+    <div className="flex flex-col justify-between gap-3 overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] p-3.5 shadow-[0_1px_2px_var(--sh03),0_10px_26px_var(--sh05)]">
       <div className="flex items-center gap-3">
         <CompanionAvatar companion={item.companion} size={46} textClassName="text-[20px]" />
         <button
@@ -264,7 +262,7 @@ const CompanionPhoneCard = ({
       type="button"
       onClick={() => onOpen(item)}
       title={terminologyText('Open companion history')}
-      className={`flex w-full items-center gap-[11px] rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] px-3.5 py-[11px] text-left shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)]`}
+      className="flex w-full items-center gap-[11px] rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] px-3.5 py-[11px] text-left shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)]"
     >
       <CompanionAvatar companion={item.companion} size={44} textClassName="text-[19px]" />
       <span className="flex min-w-0 flex-1 flex-col">
