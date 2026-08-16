@@ -84,10 +84,7 @@ const ModalBase = ({
   const previousFocusRef = useRef<HTMLElement | null>(null);
   // Stable per-instance identity used as this modal's token in `modalStack`.
   const stackTokenRef = useRef<object>({});
-  const isTopmostModal = useCallback(
-    () => modalStack[modalStack.length - 1] === stackTokenRef.current,
-    []
-  );
+  const isTopmostModal = useCallback(() => modalStack.at(-1) === stackTokenRef.current, []);
   // React 19 owns the inert attribute via this boolean prop (true = inert, undefined = not inert).
   // Never mix with imperative setAttribute to avoid the empty-string boolean warning.
   // Derived directly from showModal — no need to copy it into state and sync it in an effect.
