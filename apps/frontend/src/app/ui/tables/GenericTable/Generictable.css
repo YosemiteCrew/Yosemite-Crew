@@ -82,6 +82,34 @@
   box-shadow: 0 1px 0 var(--hairline);
 }
 
+/* The header band for shells that are not a <table>: the Organisation section's
+   Team / Rooms / Services grids, the inventory grid shell, and the companions
+   grid. Each had hand-rolled its own recipe, so one page could show three
+   header sizes over the same --screen-2 band. Values are kept byte-for-byte in
+   step with `.TableDiv thead tr th` above - if that changes, change this too. */
+.yc-table-head {
+  padding: 11px 20px;
+  background: var(--screen-2);
+  color: var(--ink-faint);
+  font-family: var(--font-satoshi);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 120%;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 1px 0 var(--hairline);
+}
+
+/* Appearance without the sticky contract: inside a drawer, a modal, or any
+   transformed parent, `position: sticky` resolves against the wrong container
+   and strands the band mid-panel. */
+.yc-table-head--static {
+  position: static;
+}
+
 .TableDiv tbody tr:last-child td {
   border-bottom: none;
 }

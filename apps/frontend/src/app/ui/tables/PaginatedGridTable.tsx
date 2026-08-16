@@ -126,7 +126,7 @@ const PaginatedGridTable = <T,>({
           <div className="min-h-0 flex-1 overflow-auto">
             <div style={{ minWidth: `${minWidthPx}px` }}>
               <div
-                className="sticky top-0 z-10 grid items-center gap-2.5 bg-[var(--screen-2)] px-5 py-[11px] text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)] shadow-[0_1px_0_var(--hairline)]"
+                className="yc-table-head grid items-center gap-2.5"
                 style={{ gridTemplateColumns: gridColumns }}
               >
                 {headerCells.map((cell, index) => (

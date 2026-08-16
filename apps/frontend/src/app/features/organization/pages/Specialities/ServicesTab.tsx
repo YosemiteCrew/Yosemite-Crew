@@ -35,6 +35,7 @@ import {
   IoInformationCircleOutline,
   IoPhonePortraitOutline,
 } from 'react-icons/io5';
+import '@/app/ui/tables/GenericTable/Generictable.css';
 
 export type ServicesTabHandle = { openAdd: () => void };
 
@@ -307,9 +308,7 @@ const ServiceRow = ({
 };
 
 const ServicesTableHeader = () => (
-  <div
-    className={`hidden @3xl:grid ${GRID_COLS} items-center gap-[10px] bg-[var(--screen-2)] px-[22px]! py-[10px]! text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]`}
-  >
+  <div className={`hidden @3xl:grid ${GRID_COLS} items-center gap-[10px] yc-table-head`}>
     <span>Service</span>
     <span>Practitioners</span>
     <span className="text-right">Duration</span>

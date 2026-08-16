@@ -17,6 +17,7 @@ import {
   initialsOf,
   teamStatusPill,
 } from '@/app/features/organization/pages/Organization/Sections/orgDisplay';
+import '@/app/ui/tables/GenericTable/Generictable.css';
 
 const GRID_COLS = 'grid-cols-[1.6fr_1fr_1fr_110px_44px]';
 
@@ -144,7 +145,7 @@ const Team = ({ isVerified = false }: { isVerified?: boolean }) => {
           )}
         </div>
         <div
-          className={`grid ${GRID_COLS} items-center gap-[10px] border-t border-[var(--hairline)] bg-[var(--screen-2)] px-5! py-[9px]! text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]`}
+          className={`grid ${GRID_COLS} items-center gap-[10px] yc-table-head border-t border-[var(--hairline)]`}
         >
           <span>Member</span>
           <span>Role</span>
