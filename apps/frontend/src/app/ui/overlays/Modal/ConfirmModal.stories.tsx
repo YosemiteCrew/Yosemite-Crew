@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import React from 'react';
+import { Primary } from '@/app/ui/primitives/Buttons';
 import { useConfirm } from './ConfirmModal';
 
 /**
@@ -37,17 +38,15 @@ const Demo = ({
   return (
     <div className="flex flex-col items-start gap-4 p-6">
       {confirmDialog}
-      <button
-        type="button"
-        data-testid="open-confirm"
-        className="btn btn--primary rounded-full bg-[var(--cta)] px-5 py-2 text-[var(--cta-text)]"
-        onClick={async () => {
-          const ok = await confirm({ title, body, confirmLabel, tone });
-          setResult(ok ? 'confirmed' : 'declined');
-        }}
-      >
-        {title}
-      </button>
+      <span data-testid="open-confirm-wrap">
+        <Primary
+          text={title}
+          onClick={async () => {
+            const ok = await confirm({ title, body, confirmLabel, tone });
+            setResult(ok ? 'confirmed' : 'declined');
+          }}
+        />
+      </span>
       <span data-testid="confirm-result" className="text-body-4 text-[var(--ink-muted)]">
         Result: {result}
       </span>
