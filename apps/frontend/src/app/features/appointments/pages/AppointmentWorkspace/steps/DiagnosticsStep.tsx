@@ -55,6 +55,7 @@ import {
   normalizeWorkspaceBootstrapForEncounter,
 } from '@/app/features/appointments/services/workspaceAggregateService';
 import { getIdexxCombinedResultsPdfBlob } from '@/app/features/integrations/services/idexxService';
+import '@/app/ui/tables/GenericTable/Generictable.css';
 
 type DiagnosticProvider = 'IDEXX' | 'RAD_ANALYZER';
 
@@ -238,7 +239,7 @@ const RESULTS_ROW_GRID = `grid gap-3 ${RESULTS_COLS} sm:items-center`;
 
 const TableHeadings = ({ rowGrid, columns }: { rowGrid: string; columns: string[] }) => (
   <div
-    className={`${rowGrid} hidden border border-transparent px-4 text-caption-2 font-medium tracking-wide text-text-secondary uppercase [&>span]:truncate sm:grid`}
+    className={`${rowGrid} yc-table-head yc-table-head--static hidden rounded-lg border border-transparent px-4! [&>span]:truncate sm:grid`}
   >
     {columns.map((column, index) => (
       <span key={column} className={index === columns.length - 1 ? 'text-right' : undefined}>

@@ -64,6 +64,7 @@ import {
   usePackageBreakdownHydration,
   usePaymentProgress,
 } from './invoiceStepHooks';
+import '@/app/ui/tables/GenericTable/Generictable.css';
 
 type InvoiceStepProps = {
   appointmentId: string;
@@ -558,7 +559,7 @@ const INVOICE_ROW_GRID = `grid gap-3 ${INVOICE_COLS} sm:items-center`;
 export const InvoiceHeadings = () => (
   <div
     // Match the row's p-4 + 1px border so the column origins line up exactly.
-    className={`${INVOICE_ROW_GRID} hidden border border-transparent px-4 text-caption-2 font-medium tracking-wide text-text-secondary uppercase [&>span]:truncate sm:grid`}
+    className={`${INVOICE_ROW_GRID} yc-table-head yc-table-head--static hidden rounded-lg border border-transparent px-4! [&>span]:truncate sm:grid`}
   >
     <span>Invoice ID</span>
     <span>Time / Date</span>

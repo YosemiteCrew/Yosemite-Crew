@@ -59,10 +59,19 @@ const CLASS_ATTRIBUTE = /className=\{?[`"'][^`"']*[`"']/g;
  * interpolated const (`${ROW_GRID}`), so requiring a literal `grid` here would
  * miss the very cases this guard is for.
  */
-const isHeaderStyling = (chunk: string): boolean =>
-  /uppercase/.test(chunk) &&
-  /tracking-\[0\.1/.test(chunk) &&
-  /text-\[(9|10|10\.5|11)(\.\d+)?px\]/.test(chunk);
+const isHeaderStyling = (chunk: string): boolean => {
+  if (!/uppercase/.test(chunk)) return false;
+  // Either the arbitrary-value spelling...
+  const arbitrary =
+    /tracking-\[0\.1/.test(chunk) && /text-\[(9|10|10\.5|11)(\.\d+)?px\]/.test(chunk);
+  // ...or the semantic-class one. The AppointmentWorkspace side modals used
+  // `text-caption-2 font-medium tracking-wide` - 12px/500/0.025em, an order of
+  // magnitude short on tracking - and the first version of this guard walked
+  // straight past all five of them.
+  const semantic =
+    /text-caption-[12]|text-body-4/.test(chunk) && /tracking-(wide|\[0\.)/.test(chunk);
+  return arbitrary || semantic;
+};
 
 /**
  * ...and it is a COLUMN header only if the file also declares a column track for

@@ -9,6 +9,7 @@ import { TitleAddIcon } from '@/app/features/appointments/pages/AppointmentWorks
 import BilledBadge from '@/app/features/appointments/pages/AppointmentWorkspace/components/BilledBadge';
 import type { LineItem, LineItemBreakdown } from '@/app/features/appointments/types/workspace';
 import { formatMoney } from '@/app/lib/money';
+import '@/app/ui/tables/GenericTable/Generictable.css';
 
 type ServicesPackagesEditorProps = {
   items: LineItem[];
@@ -40,9 +41,7 @@ const ItemTag = ({ kind }: { kind: LineItem['kind'] }) => (
 const ROW_GRID = 'grid gap-3 sm:grid-cols-[1.6fr_100px_1.4fr_110px_120px] sm:items-center';
 
 const ColumnHeadings = () => (
-  <div
-    className={`${ROW_GRID} text-caption-2 font-medium tracking-wide text-text-secondary uppercase`}
-  >
+  <div className={`${ROW_GRID} yc-table-head yc-table-head--static rounded-lg px-[17px]!`}>
     <span>Name</span>
     <span>Qty.</span>
     <span className="hidden sm:block">Instructions</span>
@@ -183,7 +182,7 @@ const ServicesPackagesEditor = ({
           </p>
         ) : (
           <div className="flex flex-col gap-2">
-            <div className="hidden border border-transparent px-4 sm:block">
+            <div className="hidden sm:block">
               <ColumnHeadings />
             </div>
             <ul className="flex flex-col gap-3">
