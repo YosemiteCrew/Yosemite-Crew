@@ -80,7 +80,7 @@ const DropdownPanel = ({
       aria-label={placeholder}
       data-portal-dropdown
       data-terminology-lock={isTerminologyLocked ? 'true' : undefined}
-      className="max-h-[200px] overflow-y-auto scrollbar-hidden z-200 rounded-[13px] border border-[var(--hairline-soft)] bg-[var(--glass-93)] shadow-[0_24px_60px_var(--sh28)] backdrop-blur-[24px] backdrop-saturate-150 flex flex-col items-stretch gap-px w-full p-1.5"
+      className="max-h-[200px] overflow-y-auto scrollbar-hidden z-200 rounded-[13px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_24px_60px_var(--sh28)] flex flex-col items-stretch gap-px w-full p-1.5"
       style={shouldPortal ? (portalStyle ?? undefined) : undefined}
     >
       {filteredOptions.length > 0 &&

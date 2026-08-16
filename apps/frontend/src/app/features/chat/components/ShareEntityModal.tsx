@@ -24,6 +24,7 @@ import { useAppointmentStore } from '@/app/stores/appointmentStore';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import { shareEntityToChannel, type SharedEntityType } from '../services/chatService';
 import { ChatAvatar } from './ChatAvatar';
+import { formatDateInPreferredTimeZone } from '@/app/lib/timezone';
 
 type PickItem = {
   id: string;
@@ -60,12 +61,11 @@ export function ShareEntityModal({
     return Object.entries(appointments).map(([id, raw]) => {
       const a = raw as Appointment;
       const when = a.startTime
-        ? new Date(a.startTime).toLocaleString('en-US', {
+        ? formatDateInPreferredTimeZone(new Date(a.startTime), {
             month: 'short',
             day: 'numeric',
             hour: 'numeric',
             minute: '2-digit',
-            timeZone: 'UTC',
           })
         : undefined;
       return {

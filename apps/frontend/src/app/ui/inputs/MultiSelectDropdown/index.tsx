@@ -44,7 +44,7 @@ const MultiSelectPanel = ({
   <div
     id={listboxId}
     data-portal-dropdown
-    className="border-[var(--blue)] max-h-50 overflow-y-auto scrollbar-hidden z-200 rounded-b-[12px] border border-t bg-[var(--glass-93)] shadow-[0_16px_34px_var(--sh12)] backdrop-blur-[24px] backdrop-saturate-150 flex flex-col items-stretch w-full px-3 py-2.5"
+    className="border-[var(--blue)] max-h-50 overflow-y-auto scrollbar-hidden z-200 rounded-b-[12px] border border-t bg-[var(--screen)] shadow-[0_16px_34px_var(--sh12)] flex flex-col items-stretch w-full px-3 py-2.5"
     style={shouldPortal && portalStyle ? portalStyle : undefined}
   >
     {filteredOptions.length > 0 ? (

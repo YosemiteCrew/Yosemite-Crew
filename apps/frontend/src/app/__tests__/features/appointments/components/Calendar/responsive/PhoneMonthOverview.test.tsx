@@ -259,7 +259,7 @@ describe('PhoneMonthOverview — day peek', () => {
 
     expect(screen.getByText('Poppy · annual check-up')).toBeInTheDocument();
     expect(screen.getByText('Dr. Weber · Rm 1')).toBeInTheDocument();
-    expect(screen.getByText('CHECKED-IN')).toBeInTheDocument();
+    expect(screen.getByText('CHECKED IN')).toBeInTheDocument();
     expect(screen.getByText('Poppy · mass removal')).toBeInTheDocument();
     expect(screen.getByText('IN PROGRESS')).toBeInTheDocument();
     expect(screen.getByText('08:30')).toBeInTheDocument();

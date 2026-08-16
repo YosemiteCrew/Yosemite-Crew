@@ -36,14 +36,12 @@
   max-height: 200px;
   overflow-y: scroll;
   z-index: 10;
-  background: var(--glass-93);
-  border: 1px solid var(--hairline-soft);
+  background: var(--screen);
+  border: 1px solid var(--hairline);
   border-radius: 13px;
   box-shadow:
     0 16px 34px var(--sh12),
     inset 0 1px 0 var(--glass-inset-hi);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
-  backdrop-filter: blur(24px) saturate(1.4);
   padding: 8px;
 }
 .step-search-speciality {

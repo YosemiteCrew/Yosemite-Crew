@@ -58,7 +58,7 @@ export const AppointmentStatusFilters: StatusOption[] = [
   statusFromToken('All', 'all', 'status-requested'),
   statusFromToken('Requested', 'requested', 'status-requested'),
   statusFromToken('Upcoming', 'upcoming', 'status-upcoming'),
-  statusFromToken('Checked-in', 'checked_in', 'status-checked-in'),
+  statusFromToken('Checked in', 'checked_in', 'status-checked-in'),
   statusFromToken('In progress', 'in_progress', 'status-in-progress'),
   statusFromToken('Completed', 'completed', 'status-completed'),
   statusFromToken('Cancelled', 'cancelled', 'status-cancelled'),

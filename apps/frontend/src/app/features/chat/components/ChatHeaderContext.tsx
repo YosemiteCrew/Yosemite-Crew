@@ -6,6 +6,7 @@ import { ChatAvatar } from './ChatAvatar';
 import type { ConversationInfoPinned } from './conversationInfoPanelUtils';
 import { allowReschedule, canTransitionAppointmentStatus } from '@/app/lib/appointments';
 import { canEnterAppointmentWorkspace } from '@/app/lib/appointmentWorkspace';
+import { formatDateInPreferredTimeZone } from '@/app/lib/timezone';
 
 /**
  * Clinical context rendered under the chat header for a pet-parent (appointment)
@@ -103,7 +104,7 @@ export function ChatHeaderContext({
 
   const apptTime = appointment?.startTime ? new Date(appointment.startTime) : undefined;
   const apptLabel = apptTime
-    ? apptTime.toLocaleString(undefined, {
+    ? formatDateInPreferredTimeZone(apptTime, {
         weekday: 'short',
         month: 'short',
         day: 'numeric',

@@ -462,7 +462,7 @@ describe('buildPhoneMonthModel — day peek', () => {
       title: 'Poppy · annual check-up',
       subtitle: 'Dr. Weber · Rm 1',
       status: 'CHECKED_IN',
-      statusLabel: 'CHECKED-IN',
+      statusLabel: 'CHECKED IN',
       isEmergency: false,
     });
   });
@@ -523,7 +523,7 @@ describe('buildPhoneMonthModel — day peek', () => {
     expect(labels).toEqual([
       'REQUESTED',
       'UPCOMING',
-      'CHECKED-IN',
+      'CHECKED IN',
       'IN PROGRESS',
       'COMPLETED',
       'CANCELLED',

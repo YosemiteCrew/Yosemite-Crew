@@ -46,6 +46,29 @@
   font-style: italic;
 }
 
+/* Newsreader (OFL) is ALSO self-hosted here, in addition to next/font in
+   layout.tsx. next/font resolves at BUILD time over the network, so a restricted
+   CI runner or a Google Fonts outage fails `storybook:build` outright with
+   "Failed to fetch Newsreader" — and Chromatic runs that build on every PR, so a
+   network blip would take the visual gate offline rather than degrade it.
+   The token chain is `var(--font-newsreader-src, 'Newsreader')`: in the app
+   next/font still wins, and anywhere that variable is unset (Storybook) this
+   local face resolves instead of silently falling back to Georgia. */
+@font-face {
+  font-family: 'Newsreader';
+  src: url('/fonts/newsreader/Newsreader-Variable.woff2') format('woff2');
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Newsreader';
+  src: url('/fonts/newsreader/Newsreader-VariableItalic.woff2') format('woff2');
+  font-weight: 200 800;
+  font-style: italic;
+  font-display: swap;
+}
+
 /* Newsreader (OFL) — marketing display serif — is loaded once by next/font in
    layout.tsx and reaches every surface through the --font-newsreader token
    below. It is deliberately not declared a second time here: a self-hosted
@@ -1612,19 +1635,11 @@ html[data-theme='dark'] [data-yc-app] ::selection {
  * bg/border/shadow utilities on the same element.
  * ------------------------------------------------------------------ */
 .yc-glass-overlay {
-  background: var(--glass-93);
-  border: 1px solid var(--hairline-soft);
+  background: var(--screen);
+  border: 1px solid var(--hairline);
   box-shadow:
     0 12px 34px var(--sh12),
     inset 0 1px 0 var(--glass-inset-hi);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
-  backdrop-filter: blur(24px) saturate(1.4);
-}
-
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .yc-glass-overlay {
-    background: var(--screen);
-  }
 }
 
 /* Material-luxury edge for ELEVATED in-flow cards & stat tiles. NOT a frost:
@@ -1642,14 +1657,12 @@ html[data-theme='dark'] [data-yc-app] ::selection {
    selector beats the library's single-class defaults regardless of import order;
    react-toastify keeps its own layout, positioning, and progress bar. */
 .Toastify .Toastify__toast {
-  background: var(--glass-93);
-  border: 1px solid var(--hairline-soft);
+  background: var(--screen);
+  border: 1px solid var(--hairline);
   border-radius: 14px;
   box-shadow:
     0 12px 34px var(--sh12),
     inset 0 1px 0 var(--glass-inset-hi);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
-  backdrop-filter: blur(24px) saturate(1.4);
   color: var(--ink);
 }
 
