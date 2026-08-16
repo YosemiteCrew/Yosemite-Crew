@@ -67,10 +67,6 @@ span.cell-overflow-count {
   table-layout: fixed;
   min-width: 1096px; /* 56+220+130+100+110+170+110+200 */
 }
-.inventory-table-fixed {
-  table-layout: fixed;
-  min-width: 1081px; /* compact inventory revamp columns */
-}
 .inventory-turnover-table-fixed {
   table-layout: fixed;
   min-width: 1040px; /* 160+110+130+120+100+120+100+100+100 */
@@ -186,45 +182,6 @@ span.cell-overflow-count {
   border-color: var(--divider);
 }
 
-.InviteDetails {
-  color: var(--color-primary-500);
-  font-size: 16px;
-  font-style: normal;
-  font-weight: 400;
-  line-height: 150%;
-  letter-spacing: -0.32px;
-  font-family: var(--font-satoshi);
-  cursor: pointer;
-}
-.InviteTime {
-  color: var(--color-neutral-900);
-  font-size: 16px;
-  font-style: normal;
-  font-weight: 400;
-  line-height: 150%;
-  letter-spacing: -0.32px;
-  font-family: var(--font-satoshi);
-}
-.InviteExpires {
-  color: var(--color-neutral-900);
-  font-size: 16px;
-  font-style: normal;
-  font-weight: 400;
-  line-height: 150%;
-  letter-spacing: -0.32px;
-  font-family: var(--font-satoshi);
-}
-
-.OrgListDetails {
-  color: var(--color-primary-500);
-  font-size: 16px;
-  font-style: normal;
-  font-weight: 400;
-  line-height: 150%;
-  letter-spacing: -0.32px;
-  font-family: var(--font-satoshi);
-  cursor: pointer;
-}
 .OrgStatus {
   display: flex;
   padding: 8px 16px;
@@ -241,12 +198,6 @@ span.cell-overflow-count {
   line-height: 150%;
   letter-spacing: -0.32px;
   font-family: var(--font-satoshi);
-}
-.OrgListDetailsCol {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: fit-content;
 }
 .action-btn-col {
   display: inline-flex;
@@ -281,16 +232,6 @@ span.cell-overflow-count {
   width: 40px;
   cursor: pointer;
 }
-.action-btn-text {
-  color: var(--color-neutral-900);
-  text-align: center;
-  font-family: var(--font-satoshi);
-  font-size: 16px;
-  font-style: normal;
-  font-weight: 500;
-  line-height: 120%; /* 19.2px */
-  letter-spacing: -0.32px;
-}
 
 .appointment-profile {
   display: flex;
@@ -306,7 +247,12 @@ span.cell-overflow-count {
   max-width: 100%;
   font-family: var(--font-satoshi);
   color: var(--color-neutral-900);
-  font-size: 16px;
+  /* 14px is what Appointments, Tasks and Documents already set explicitly; the old
+     16px base predated the design system, and its own comment called every ledger
+     cell "2-3px oversize". Five tables were never given a rule at all and rendered
+     at 16px next to 14px siblings, so the designed value now lives in the base and
+     only genuine deviations (the denser finance ramp, Forms) override it. */
+  font-size: 14px;
   font-style: normal;
   font-weight: 400;
   line-height: 120%;
@@ -316,8 +262,8 @@ span.cell-overflow-count {
 }
 .appointment-profile-sub {
   font-family: var(--font-satoshi);
-  color: var(--color-neutral-900);
-  font-size: 16px;
+  color: var(--ink-faint);
+  font-size: 12.5px;
   font-style: normal;
   font-weight: 400;
   line-height: 120%;
@@ -353,16 +299,7 @@ span.cell-overflow-count {
   color: var(--ink);
 }
 
-/* Per-table body scale. The shared 16px base predates the design system and
-   renders every ledger cell 2-3px oversize; each frame in the 19 July designs
-   carries its own row size, so the scale lives with the table, not the class. */
-.appointments-table-fixed .appointment-profile-title {
-  font-size: 14px;
-}
-.appointments-table-fixed .appointment-profile-sub {
-  font-size: 12.5px;
-  color: var(--ink-faint);
-}
+/* Per-table body scale — only where a frame genuinely departs from the base. */
 .invoice-table-fixed .appointment-profile-title,
 .invoice-compact-fixed .appointment-profile-title {
   font-size: 13.5px;
@@ -385,17 +322,6 @@ span.cell-overflow-count {
 }
 .forms-table-fixed .appointment-profile-title {
   font-size: 13.5px;
-}
-/* Tasks and Documents were the two tables never given a scale, so they kept the
-   legacy 16px base and stood 2-2.5px larger than every table beside them. */
-.tasks-table-fixed .appointment-profile-title,
-.documents-table .appointment-profile-title {
-  font-size: 14px;
-}
-.tasks-table-fixed .appointment-profile-sub,
-.documents-table .appointment-profile-sub {
-  font-size: 12.5px;
-  color: var(--ink-faint);
 }
 /* DS status micro-badge: ALL-CAPS 10px / 700 / 0.08em, pad 3px 10px, fully round.
    Per-status bg/text/border are supplied inline via getStatusStyle(...).

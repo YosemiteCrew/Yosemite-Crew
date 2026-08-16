@@ -10,6 +10,11 @@ import { NoDataMessage } from '@/app/ui/tables/common';
 import { joinNames } from '@/app/ui/tables/tableUtils';
 import { IoEyeOutline } from 'react-icons/io5';
 
+// `.TableShell` / `.TableDiv` live in the GenericTable sheet, and this is the one
+// table that uses them without rendering GenericTable — without the explicit
+// import it would inherit them only when some other table happened to be in the
+// same route bundle.
+import './GenericTable/Generictable.css';
 import './DataTable.css';
 
 type RoomUnit = {
@@ -108,10 +113,16 @@ const AvailabilitySwitch = ({
 const RoomCellText = ({
   value,
   className = '',
+  title,
 }: {
   value: React.ReactNode;
   className?: string;
-}) => <div className={`appointment-profile-title ${className}`}>{value}</div>;
+  title?: string;
+}) => (
+  <div className={`appointment-profile-title ${className}`} title={title}>
+    {value}
+  </div>
+);
 
 const RoomTable = ({
   filteredList,
@@ -174,6 +185,8 @@ const RoomTable = ({
               {filteredList.map((room, index) => {
                 const availability = getAvailability(room);
                 const occupancyLabel = getOccupancyLabel(room);
+                const specialityNames = joinNames(specialityNameById, room.assignedSpecialiteis);
+                const staffNames = joinNames(staffNameById, room.assignedStaffs);
                 return (
                   <tr key={room.id || `${room.name}-${index}`}>
                     <td className="align-middle">
@@ -190,8 +203,9 @@ const RoomTable = ({
                     </td>
                     <td className="max-w-56 align-middle">
                       <RoomCellText
-                        value={joinNames(specialityNameById, room.assignedSpecialiteis)}
+                        value={specialityNames}
                         className="cell-truncate"
+                        title={specialityNames || undefined}
                       />
                     </td>
                     <td className="align-middle">
@@ -202,8 +216,9 @@ const RoomTable = ({
                     </td>
                     <td className="max-w-52 align-middle">
                       <RoomCellText
-                        value={joinNames(staffNameById, room.assignedStaffs)}
+                        value={staffNames}
                         className="cell-truncate"
+                        title={staffNames || undefined}
                       />
                     </td>
                     <td className="align-middle">
