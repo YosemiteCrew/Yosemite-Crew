@@ -28,7 +28,7 @@ const config: StorybookConfig = {
    * Order matters: the more specific aliases must precede the bare `@/`, or it
    * swallows them. They are kept byte-for-byte in step with tsconfig.json.
    */
-  viteFinal: async (viteConfig) => {
+  viteFinal: (viteConfig) => {
     viteConfig.resolve = viteConfig.resolve ?? {};
     viteConfig.resolve.alias = [
       ...(Array.isArray(viteConfig.resolve.alias) ? viteConfig.resolve.alias : []),
