@@ -21,7 +21,7 @@ const meta = {
   },
   tags: ['autodocs'],
   args: {
-    icon: 'solar:calendar-bold',
+    icon: 'ion:paw-outline',
     width: 28,
     height: 28,
   },
@@ -41,7 +41,7 @@ export const Default: Story = {};
 
 export const Coloured: Story = {
   name: 'Inherits currentColor',
-  args: { icon: 'solar:heart-bold', width: 32, height: 32 },
+  args: { icon: 'solar:verified-check-bold', width: 32, height: 32 },
   decorators: [
     (Story) => (
       <span style={{ color: 'var(--blue-text)' }}>

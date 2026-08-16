@@ -25,9 +25,22 @@ const withStubbedStars = (cached: number | null, response: StubbedResponse) => (
 
   // Only the GitHub call is intercepted - anything else the preview iframe asks
   // for still goes through the real implementation.
+  //
+  // Matched on the parsed hostname, not a substring: `includes` would also
+  // catch `https://evil.example/api.github.com/...`, and a stub that answers
+  // for the wrong host is a stub that hides a bug. Relative URLs resolve
+  // against a base that can never be the real one, so they fall through.
+  const isGitHubApi = (raw: string) => {
+    try {
+      return new URL(raw, 'https://relative.invalid').hostname === 'api.github.com';
+    } catch {
+      return false;
+    }
+  };
+
   globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input.toString();
-    if (!url.includes('api.github.com')) return realFetch(input, init);
+    if (!isGitHubApi(url)) return realFetch(input, init);
     if (response === 'pending') return new Promise<Response>(() => {});
     if (response === 'unavailable') {
       return Promise.resolve({ ok: false, status: 403 } as Response);
