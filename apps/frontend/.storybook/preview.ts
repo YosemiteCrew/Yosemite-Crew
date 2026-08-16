@@ -61,10 +61,22 @@ const preview: Preview = {
         document.documentElement.setAttribute('data-theme', theme);
       }
 
+      // PIMS scopes its readable faint inks to `body:has([data-yc-app])`,
+      // because the public marketing pages need the lighter values for their
+      // always-dark --spot panels. Without the marker here, every story renders
+      // the MARKETING values - so Storybook showed PIMS components with inks
+      // that are unreadable in the product, and Chromatic could never catch a
+      // regression in the scoped tokens. Marketing stories opt out with
+      // `parameters: { surface: 'marketing' }`.
+      // The selector matches a DESCENDANT, so the marker goes on this wrapper
+      // rather than on <body> itself.
+      const marketing = context.parameters?.surface === 'marketing';
+
       return React.createElement(
         'main',
         {
           'aria-labelledby': 'storybook-story-title',
+          ...(marketing ? {} : { 'data-yc-app': '' }),
         },
         React.createElement(
           'h1',
