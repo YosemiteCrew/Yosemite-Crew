@@ -216,6 +216,8 @@ const Sidebar = () => {
                         href={route.href}
                         onClick={onClick}
                         aria-current={isActive ? 'page' : undefined}
+                        aria-disabled={isDisabled || undefined}
+                        tabIndex={isDisabled ? -1 : undefined}
                       >
                         <span className="sr-only">{route.name}</span>
                         <span className="route-collapsed-icon-wrap">{routeIcon}</span>
@@ -231,6 +233,13 @@ const Sidebar = () => {
                     href={route.href}
                     onClick={onClick}
                     aria-current={isActive ? 'page' : undefined}
+                    // A disabled route was disabled to the EYE only - greyed, with
+                    // cursor:not-allowed and a click handler that returns early -
+                    // while still being a focusable link announced as actionable.
+                    // An unverified org's Patients entry could be tabbed to and
+                    // read out as a normal destination it can never reach.
+                    aria-disabled={isDisabled || undefined}
+                    tabIndex={isDisabled ? -1 : undefined}
                   >
                     {routeIcon}
                     <span className="route-label">{route.name}</span>
