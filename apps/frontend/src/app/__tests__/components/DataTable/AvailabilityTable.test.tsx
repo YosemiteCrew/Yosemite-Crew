@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import AvailabilityTable from '@/app/ui/tables/AvailabilityTable';
 import { getAvailabilityStatusStyle, getAvailabilityStatusTone } from '@/app/ui/tables/tableUtils';
@@ -218,7 +218,61 @@ describe('AvailabilityTable Component', () => {
     expect(screen.queryByText('40.1267')).not.toBeInTheDocument();
   });
 
-  // --- 3. Edge Cases ---
+  // --- 3. Speciality summarisation ---
+
+  describe('speciality cell', () => {
+    // The phone card list repeats every value, so assertions scope to the cell.
+    const renderSpecialities = (speciality: unknown) => {
+      render(
+        <AvailabilityTable
+          {...defaultProps}
+          filteredList={[{ ...mockTeam[0], speciality }] as unknown as Team[]}
+        />
+      );
+      return within(screen.getByTestId('cell-speciality'));
+    };
+
+    it('shows a lone speciality with no overflow marker', () => {
+      const cell = renderSpecialities(['Cardiology']);
+
+      expect(cell.getByText('Cardiology')).toBeInTheDocument();
+      expect(cell.queryByText(/^\+\d+$/)).not.toBeInTheDocument();
+    });
+
+    it('leads with the first speciality and counts the rest', () => {
+      const cell = renderSpecialities(['Cardiology', 'Dermatology', 'Oncology']);
+
+      expect(cell.getByText('Cardiology')).toBeInTheDocument();
+      expect(cell.getByText('+2')).toBeInTheDocument();
+      // Dropping the rest from view is only acceptable because they stay reachable.
+      expect(cell.getByTitle('Cardiology, Dermatology, Oncology')).toBeInTheDocument();
+    });
+
+    it('reads names out of speciality records as well as plain strings', () => {
+      const cell = renderSpecialities([{ name: 'Surgery' }, { name: 'Radiology' }]);
+
+      expect(cell.getByText('Surgery')).toBeInTheDocument();
+      expect(cell.getByText('+1')).toBeInTheDocument();
+    });
+
+    it('clamps the cell to one line so a long list cannot stretch the row', () => {
+      const cell = renderSpecialities(['Cardiology', 'Dermatology']);
+
+      // Tailwind's `truncate` is a no-op here — `.appointment-profile-title` is
+      // declared unlayered and wins — so the cell must carry `cell-truncate`.
+      const text = cell.getByTitle('Cardiology, Dermatology');
+      expect(text).toHaveClass('cell-truncate');
+      expect(text).not.toHaveClass('truncate');
+    });
+
+    it('falls back to a dash when there are no specialities', () => {
+      const cell = renderSpecialities([]);
+
+      expect(cell.getByText('-')).toBeInTheDocument();
+    });
+  });
+
+  // --- 4. Edge Cases ---
 
   it('does not crash if event handlers are undefined', () => {
     render(<AvailabilityTable filteredList={mockTeam} />);

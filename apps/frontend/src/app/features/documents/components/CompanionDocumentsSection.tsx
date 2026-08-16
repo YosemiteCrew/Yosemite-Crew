@@ -69,7 +69,7 @@ const FilterPill = ({ active, onClick, children }: FilterPillProps) => (
     aria-pressed={active}
     className={`rounded-full border px-3 py-1.5 text-[12px] ${
       active
-        ? 'border-[var(--divider)] bg-[var(--inset)] font-bold text-[var(--ink)]'
+        ? 'border-[var(--chip-selected-border)] bg-[var(--chip-selected-bg)] font-bold text-[var(--chip-selected-ink)]'
         : 'border-[var(--hairline)] font-semibold text-[var(--ink-muted)]'
     }`}
   >

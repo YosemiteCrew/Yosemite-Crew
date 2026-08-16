@@ -5,10 +5,39 @@
   width: 100%;
 }
 
-/* Spacious cell padding for the Specialities table */
-.specialities-table thead tr th,
-.specialities-table tbody tr td {
-  padding: 12px 20px;
+/* Cell text clamps. Tailwind's `truncate` lives in the utilities layer, but this
+   file is unlayered, so `.appointment-profile-title`'s `white-space: normal` /
+   `overflow-wrap: anywhere` silently beat it — every cell that combined the two
+   wrapped instead of ellipsing, and multi-value cells grew the row without
+   bound. These clamps are declared alongside that rule so they actually win. */
+.cell-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: normal;
+}
+/* Compounded so it also outranks `.appointment-profile-title` itself. */
+.appointment-profile-title.cell-truncate {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+/* Two-line variant for cells whose second line carries real meaning. */
+.cell-clamp-2 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+/* "+3" marker for cells that summarise a list. Inline after the leading value in
+   single-line cells, or on its own line under a stack — hence the span-only gap. */
+.cell-overflow-count {
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+span.cell-overflow-count {
+  margin-left: 6px;
 }
 
 /* table-layout:fixed + explicit colgroup widths on every column locks headers.
@@ -356,6 +385,17 @@
 }
 .forms-table-fixed .appointment-profile-title {
   font-size: 13.5px;
+}
+/* Tasks and Documents were the two tables never given a scale, so they kept the
+   legacy 16px base and stood 2-2.5px larger than every table beside them. */
+.tasks-table-fixed .appointment-profile-title,
+.documents-table .appointment-profile-title {
+  font-size: 14px;
+}
+.tasks-table-fixed .appointment-profile-sub,
+.documents-table .appointment-profile-sub {
+  font-size: 12.5px;
+  color: var(--ink-faint);
 }
 /* DS status micro-badge: ALL-CAPS 10px / 700 / 0.08em, pad 3px 10px, fully round.
    Per-status bg/text/border are supplied inline via getStatusStyle(...).

@@ -1,5 +1,6 @@
 import {
   buildPagerPageList,
+  toSpecialityNames,
   getInvoiceItemNames,
   getInvoiceStatusStyle,
   getInvoiceStatusTone,
@@ -261,6 +262,44 @@ describe('tableUtils', () => {
 
     it('returns an empty run when there are no pages', () => {
       expect(buildPagerPageList(1, 0)).toEqual([]);
+    });
+  });
+
+  describe('toSpecialityNames', () => {
+    it('passes plain string entries straight through', () => {
+      expect(toSpecialityNames(['Cardiology', 'Oncology'] as never)).toEqual([
+        'Cardiology',
+        'Oncology',
+      ]);
+    });
+
+    it('reads the name off record entries', () => {
+      expect(toSpecialityNames([{ name: 'Surgery' }, { name: 'Radiology' }] as never)).toEqual([
+        'Surgery',
+        'Radiology',
+      ]);
+    });
+
+    it('drops blank and whitespace-only entries rather than rendering empty gaps', () => {
+      expect(toSpecialityNames(['Cardiology', '', '   ', { name: '' }] as never)).toEqual([
+        'Cardiology',
+      ]);
+    });
+
+    it('trims surrounding whitespace', () => {
+      expect(toSpecialityNames(['  Cardiology  '] as never)).toEqual(['Cardiology']);
+    });
+
+    it('returns nothing for a non-array value', () => {
+      // The Team payload sometimes carries a single record instead of a list.
+      expect(toSpecialityNames({ name: 'Cardiology' } as never)).toEqual([]);
+      expect(toSpecialityNames(undefined as never)).toEqual([]);
+    });
+
+    it('survives entries missing a name', () => {
+      expect(toSpecialityNames([{ _id: 'x' }, { name: 'Dentistry' }] as never)).toEqual([
+        'Dentistry',
+      ]);
     });
   });
 });

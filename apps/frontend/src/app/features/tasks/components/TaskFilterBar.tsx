@@ -79,7 +79,7 @@ const TaskFilterBar = ({
                     className={clsx(
                       'inline-flex h-6 items-center rounded-full px-3 text-[12px] transition-colors',
                       isActive
-                        ? 'bg-[var(--inset)] font-bold text-[var(--ink)]'
+                        ? 'bg-[var(--chip-selected-bg)] font-bold text-[var(--chip-selected-ink)]'
                         : 'font-semibold text-[var(--ink-muted)] hover:bg-card-hover'
                     )}
                   >
@@ -104,7 +104,7 @@ const TaskFilterBar = ({
               className={clsx(
                 'inline-flex h-7 items-center gap-1.5 rounded-full border px-3.5 text-[12px] transition-colors',
                 isActive
-                  ? 'border-[var(--divider)] bg-[var(--inset)] font-bold text-[var(--ink)]'
+                  ? 'border-[var(--chip-selected-border)] bg-[var(--chip-selected-bg)] font-bold text-[var(--chip-selected-ink)]'
                   : 'border-[var(--hairline)] font-semibold text-[var(--ink-muted)] hover:bg-card-hover'
               )}
             >

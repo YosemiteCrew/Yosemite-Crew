@@ -115,7 +115,8 @@ export const InventoryPhoneCard = ({
 
 const pillBase =
   'flex-none rounded-full! border px-[14px] py-2 text-[12px] transition-colors whitespace-nowrap';
-const activePill = 'border-[var(--divider)] bg-[var(--inset)] font-bold text-[var(--ink)]';
+const activePill =
+  'border-[var(--chip-selected-border)] bg-[var(--chip-selected-bg)] font-bold text-[var(--chip-selected-ink)]';
 const idlePill = 'border-[var(--hairline)] font-semibold text-[var(--ink-muted)]';
 
 type InventoryPhoneFilterPillsProps = {

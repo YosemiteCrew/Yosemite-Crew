@@ -114,6 +114,15 @@ export const formatWeeklyWorkingHours = (value: Team['weeklyWorkingHours']) => {
   }).format(parsed);
 };
 
+/** Specialities arrive either as plain names or as `{ name }` records. */
+export const toSpecialityNames = (value: Team['speciality']): string[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((spec) => (typeof spec === 'string' ? spec : (spec?.name ?? '')))
+    .map((name) => name.trim())
+    .filter(Boolean);
+};
+
 export const getAvailabilityStatusStyle = (status: string) => {
   switch (status.toLowerCase()) {
     case 'available':

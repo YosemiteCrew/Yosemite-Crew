@@ -922,7 +922,7 @@ const IntegrationFilterTabs = ({
           className={clsx(
             'rounded-full! border px-[13px] py-1.5 text-[12px] whitespace-nowrap transition-colors',
             isActive
-              ? 'bg-[var(--inset)] border-[var(--divider)] text-[var(--ink)] font-bold'
+              ? 'bg-[var(--chip-selected-bg)] border-[var(--chip-selected-border)] text-[var(--chip-selected-ink)] font-bold'
               : 'border-[var(--hairline)] text-[var(--ink-muted)] font-semibold hover:border-[var(--divider)]'
           )}
         >

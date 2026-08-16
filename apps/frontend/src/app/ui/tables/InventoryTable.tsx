@@ -129,7 +129,7 @@ const InventoryRow = ({
 
   return (
     <div
-      className="grid items-center gap-2.5 border-t border-card-border px-5 py-[11px] text-[13px] text-text-primary transition-colors hover:bg-[var(--surface-soft)]"
+      className="grid items-center gap-2.5 border-t border-card-border px-5 py-3 text-[13px] text-text-primary transition-colors hover:bg-[var(--surface-soft)]"
       style={{
         gridTemplateColumns: GRID_COLUMNS,
         backgroundColor: expired ? 'var(--danger-bg-faint)' : undefined,
@@ -227,6 +227,7 @@ const InventoryTable = ({
       rows={filteredList}
       pageSize={PAGE_SIZE}
       gridColumns={GRID_COLUMNS}
+      minWidthPx={1320}
       headerCells={HEADER_CELLS}
       itemNoun="items"
       renderRow={(item) => (

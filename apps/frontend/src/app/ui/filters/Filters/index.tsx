@@ -11,7 +11,7 @@ const getDropdownStatusTextColor = (status: StatusOption): string =>
   status.dropdownText ?? status.text ?? 'var(--color-text-primary)';
 
 // Design filter-chip recipe (list toolbars): pill, 6px 13px, 12px text.
-// Neutral: active = --inset fill + --divider border + --ink bold; rest = --hairline border + --ink-muted.
+// Neutral: active = --chip-selected-* ink fill; rest = --hairline border + --ink-muted.
 // Emergency: always danger-toned (--danger-border/--danger-text); active adds --danger-bg fill.
 const getFilterChipClassName = (filterKey: string, activeFilter: string): string => {
   const isActive = filterKey === activeFilter;
@@ -21,7 +21,7 @@ const getFilterChipClassName = (filterKey: string, activeFilter: string): string
       : 'border-[var(--danger-border)]! text-[var(--danger-text)]! font-semibold';
   }
   return isActive
-    ? 'bg-[var(--inset)] border-[var(--divider)]! text-[var(--ink)]! font-bold'
+    ? 'bg-[var(--chip-selected-bg)] border-[var(--chip-selected-border)]! text-[var(--chip-selected-ink)]! font-bold'
     : 'border-[var(--hairline)]! text-[var(--ink-muted)]! font-semibold hover:border-[var(--divider)]!';
 };
 
@@ -35,9 +35,9 @@ const getStatusPillStyle = (status: StatusOption, isActive: boolean): React.CSSP
   }
   if (status.key.toLowerCase() === 'all') {
     return {
-      backgroundColor: 'var(--inset)',
-      borderColor: 'var(--divider)',
-      color: 'var(--ink)',
+      backgroundColor: 'var(--chip-selected-bg)',
+      borderColor: 'var(--chip-selected-border)',
+      color: 'var(--chip-selected-ink)',
       fontWeight: 700,
     };
   }

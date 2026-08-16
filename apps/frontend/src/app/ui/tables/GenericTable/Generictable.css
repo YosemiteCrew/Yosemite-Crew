@@ -61,6 +61,13 @@
   padding-top: 11px;
   padding-bottom: 11px;
   text-align: left;
+  /* Nothing here used to control wrapping, so any two-word label wrapped once
+     its column was narrow enough and doubled the height of the whole sticky
+     band. Clipping one header is a far smaller defect than resizing the band;
+     GenericTable puts the full label in a `title` so it stays readable. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--ink-faint);
   font-size: 10.5px;
   font-weight: 700;
@@ -93,7 +100,7 @@
   td
   span:not(a span):not(button span):not(.glass-tooltip):not(.glass-tooltip span):not(
     .yc-status-pill
-  ):not(.yc-status-pill span) {
+  ):not(.yc-status-pill span):not(.cell-overflow-count) {
   margin: 0px;
   font-family: var(--satoshi-font);
   color: var(--black-text);

@@ -54,7 +54,7 @@ const getFilterClassName = (filterKey: string, activeFilter: string): string => 
   // an `!important` text colour can't override it (the old `text-danger-500!`
   // failed WCAG AA in dark mode).
   if (filterKey === 'emergencies') return 'font-bold';
-  return 'bg-[var(--inset)] font-bold text-[var(--ink)]';
+  return 'bg-[var(--chip-selected-bg)] font-bold text-[var(--chip-selected-ink)]';
 };
 
 const getFilterBorderColor = (filterKey: string, activeFilter: string): string => {

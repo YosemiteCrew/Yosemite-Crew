@@ -16,6 +16,13 @@ type PaginatedGridTableProps<T> = {
   pageSize: number;
   /** `grid-template-columns` track shared by the sticky header and every row. */
   gridColumns: string;
+  /**
+   * Horizontal floor for the grid, in px. Must clear the sum of the fixed
+   * tracks plus gaps and gutters, or the `fr` columns are starved — one shared
+   * 1080px floor left Inventory's twelve columns just 76px to split between its
+   * two flexible tracks, collapsing the item name to about 48px.
+   */
+  minWidthPx?: number;
   headerCells: GridHeaderCell[];
   /** Plural noun for the footer summary, e.g. `items` -> "No items". */
   itemNoun: string;
@@ -33,6 +40,7 @@ const PaginatedGridTable = <T,>({
   itemNoun,
   renderRow,
   renderCard,
+  minWidthPx = 1080,
 }: PaginatedGridTableProps<T>) => {
   const [page, setPage] = useState(1);
 
@@ -116,9 +124,9 @@ const PaginatedGridTable = <T,>({
             .TableShell in Generictable.css). */}
         <div className="isolate flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
           <div className="min-h-0 flex-1 overflow-auto">
-            <div className="min-w-[1080px]">
+            <div style={{ minWidth: `${minWidthPx}px` }}>
               <div
-                className="sticky top-0 z-10 grid items-center gap-2.5 bg-[var(--screen-2)] px-5 py-3 text-[10px] font-bold uppercase tracking-[0.09em] text-[var(--ink-faint)]"
+                className="sticky top-0 z-10 grid items-center gap-2.5 bg-[var(--screen-2)] px-5 py-[11px] text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)] shadow-[0_1px_0_var(--hairline)]"
                 style={{ gridTemplateColumns: gridColumns }}
               >
                 {headerCells.map((cell, index) => (

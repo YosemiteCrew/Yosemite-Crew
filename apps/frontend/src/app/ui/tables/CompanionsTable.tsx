@@ -150,7 +150,7 @@ const CompanionRow = ({
   const isInactive = String(item.companion.status ?? 'inactive').toLowerCase() !== 'active';
   return (
     <div
-      className={`${GRID_COLS} border-t border-[var(--hairline)] px-5 py-[10px] text-[13.5px] text-text-primary transition-colors ${
+      className={`${GRID_COLS} border-t border-[var(--hairline)] px-5 py-3 text-[13.5px] text-text-primary transition-colors ${
         menuOpen ? 'bg-[var(--surface-soft)]' : 'hover:bg-[var(--surface-soft)]'
       } ${isInactive ? 'opacity-[0.62]' : ''}`}
     >

@@ -264,11 +264,16 @@ describe('Header Component', () => {
       />
     );
 
-    // Active non-emergency pill fills with --inset behind a --divider outline and
-    // steps its label to --ink 700, per the planner's filter row.
+    // Active non-emergency pill takes the shared --chip-selected-* ink fill at
+    // 700. The neutral surface tokens it used before sat within 1.1:1 of the
+    // page, so weight was the only thing marking the selection.
     const allPillActive = screen.getByRole('button', { name: 'All' });
-    expect(allPillActive).toHaveClass('bg-[var(--inset)]', 'font-bold', 'text-[var(--ink)]');
-    expect(allPillActive).toHaveStyle({ borderColor: 'var(--divider)' });
+    expect(allPillActive).toHaveClass(
+      'bg-[var(--chip-selected-bg)]',
+      'font-bold',
+      'text-[var(--chip-selected-ink)]'
+    );
+    expect(allPillActive).not.toHaveClass('bg-[var(--inset)]');
 
     // Clicking an inactive pill selects it; clicking the active pill resets to 'all'.
     fireEvent.click(screen.getByRole('button', { name: 'Emergencies' }));

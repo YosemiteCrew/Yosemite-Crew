@@ -150,39 +150,22 @@ const RoomTable = ({
 
   return (
     <div className="table-wrapper">
-      <div className="table-list overflow-x-auto">
+      <div className="table-list TableShell overflow-x-auto">
         {filteredList.length === 0 ? (
           <NoDataMessage />
         ) : (
-          <table className="w-full min-w-[980px] border-collapse">
+          <table className="TableDiv w-full min-w-[980px]">
             <thead>
-              <tr className="bg-[var(--screen-2)]">
-                <th
-                  className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]"
-                  aria-label="Row number"
-                ></th>
-                <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
-                  Room name
-                </th>
-                <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
-                  Code
-                </th>
-                <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
-                  Type
-                </th>
-                <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
-                  Speciality
-                </th>
-                <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
-                  Occupancy
-                </th>
-                <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
-                  Assigned Staff
-                </th>
-                <th className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
-                  Availability
-                </th>
-                <th className="px-4 py-3 text-center text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
+              <tr>
+                <th scope="col" aria-label="Row number"></th>
+                <th scope="col">Room name</th>
+                <th scope="col">Code</th>
+                <th scope="col">Type</th>
+                <th scope="col">Speciality</th>
+                <th scope="col">Occupancy</th>
+                <th scope="col">Assigned Staff</th>
+                <th scope="col">Availability</th>
+                <th scope="col" className="text-center!">
                   Action
                 </th>
               </tr>
@@ -192,37 +175,38 @@ const RoomTable = ({
                 const availability = getAvailability(room);
                 const occupancyLabel = getOccupancyLabel(room);
                 return (
-                  <tr
-                    key={room.id || `${room.name}-${index}`}
-                    className="border-b border-[var(--hairline)] last:border-b-0"
-                  >
-                    <td className="px-4 py-4 align-middle">
+                  <tr key={room.id || `${room.name}-${index}`}>
+                    <td className="align-middle">
                       <RoomCellText value={`${index + 1}.`} />
                     </td>
-                    <td className="px-4 py-4 align-middle">
+                    <td className="align-middle">
                       <RoomCellText value={room.name || '-'} />
                     </td>
-                    <td className="px-4 py-4 align-middle">
+                    <td className="align-middle">
                       <RoomCellText value={getRoomCode(room)} />
                     </td>
-                    <td className="px-4 py-4 align-middle">
+                    <td className="align-middle">
                       <RoomCellText value={toTitle(room.type)} />
                     </td>
-                    <td className="max-w-56 px-4 py-4 align-middle">
+                    <td className="max-w-56 align-middle">
                       <RoomCellText
                         value={joinNames(specialityNameById, room.assignedSpecialiteis)}
+                        className="cell-truncate"
                       />
                     </td>
-                    <td className="px-4 py-4 align-middle">
+                    <td className="align-middle">
                       <RoomCellText
                         value={occupancyLabel}
                         className={isVacantLabel(occupancyLabel) ? 'text-blue-text' : ''}
                       />
                     </td>
-                    <td className="max-w-52 px-4 py-4 align-middle">
-                      <RoomCellText value={joinNames(staffNameById, room.assignedStaffs)} />
+                    <td className="max-w-52 align-middle">
+                      <RoomCellText
+                        value={joinNames(staffNameById, room.assignedStaffs)}
+                        className="cell-truncate"
+                      />
                     </td>
-                    <td className="px-4 py-4 align-middle">
+                    <td className="align-middle">
                       <div className="flex items-center">
                         <AvailabilitySwitch
                           checked={availability}
@@ -232,7 +216,7 @@ const RoomTable = ({
                         />
                       </div>
                     </td>
-                    <td className="px-4 py-4 align-middle">
+                    <td className="align-middle">
                       <div className="action-btn-col items-center">
                         <IconButton
                           label={`View ${room.name}`}
