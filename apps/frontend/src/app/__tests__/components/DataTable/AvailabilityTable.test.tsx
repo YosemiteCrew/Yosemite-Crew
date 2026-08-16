@@ -258,11 +258,31 @@ describe('AvailabilityTable Component', () => {
     it('clamps the cell to one line so a long list cannot stretch the row', () => {
       const cell = renderSpecialities(['Cardiology', 'Dermatology']);
 
-      // Tailwind's `truncate` is a no-op here — `.appointment-profile-title` is
-      // declared unlayered and wins — so the cell must carry `cell-truncate`.
-      const text = cell.getByTitle('Cardiology, Dermatology');
-      expect(text).toHaveClass('cell-truncate');
-      expect(text).not.toHaveClass('truncate');
+      const wrapper = cell.getByTitle('Cardiology, Dermatology');
+      // Tailwind's `truncate` is a no-op on `.appointment-profile-title`, which is
+      // declared unlayered and wins, so the clamp must be `cell-truncate`.
+      const clamped = wrapper.querySelector('.cell-truncate');
+      expect(clamped).toHaveTextContent('Cardiology');
+      expect(wrapper).not.toHaveClass('truncate');
+    });
+
+    it('keeps the overflow count outside the clamp so it cannot be clipped away', () => {
+      const cell = renderSpecialities([
+        'Gastroenterology and Hepatology',
+        'Dermatology',
+        'Oncology',
+      ]);
+
+      const wrapper = cell.getByTitle('Gastroenterology and Hepatology, Dermatology, Oncology');
+      const clamped = wrapper.querySelector('.cell-truncate') as HTMLElement;
+      const count = cell.getByText('+2');
+
+      // Clamping the name and the count together let a long first speciality push
+      // the "+2" past the ellipsis, so it rendered zero pixels wide. The count has
+      // to be a non-shrinking sibling of the clamped name, never inside it.
+      expect(clamped).not.toContainElement(count);
+      expect(count.parentElement).toBe(wrapper);
+      expect(count).toHaveClass('shrink-0');
     });
 
     it('falls back to a dash when there are no specialities', () => {

@@ -90,10 +90,19 @@ const AvailabilityTable = ({
         // the row to 159px next to a 67px neighbour. Lead with the first and
         // count the rest, keeping the full list on hover.
         const [first, ...rest] = names;
+        // The count is a non-shrinking sibling of the truncating name, not a child
+        // of it: clamping the combined line let a long first speciality push the
+        // "+N" past the clip edge, so the only hint that more existed vanished
+        // exactly when it was needed most.
         return (
-          <div className="appointment-profile-title cell-truncate" title={names.join(', ')}>
-            {first}
-            {rest.length > 0 && <span className="cell-overflow-count">{`+${rest.length}`}</span>}
+          <div
+            className="appointment-profile-title flex min-w-0 items-baseline"
+            title={names.join(', ')}
+          >
+            <div className="min-w-0 flex-1 cell-truncate">{first}</div>
+            {rest.length > 0 && (
+              <span className="cell-overflow-count shrink-0">{`+${rest.length}`}</span>
+            )}
           </div>
         );
       },

@@ -44,8 +44,8 @@ const getStatusPillTokens = (status: StatusOption): StatusPillTokens => ({
 });
 
 // Scope pills follow the planner's filter-row recipe: inactive is a bare
-// --hairline outline with --ink-muted 600 type; the selected pill fills with
-// --inset behind a --divider outline and steps the label to --ink 700.
+// --hairline outline with --ink-muted 600 type; the selected pill takes the
+// shared --chip-selected-* ink fill and steps the label to 700.
 const getFilterClassName = (filterKey: string, activeFilter: string): string => {
   if (filterKey !== activeFilter)
     return 'font-semibold text-[var(--ink-muted)] hover:bg-card-hover!';
@@ -61,7 +61,7 @@ const getFilterBorderColor = (filterKey: string, activeFilter: string): string =
   if (filterKey !== activeFilter) return 'var(--hairline)';
   /* v8 ignore next -- unreachable: only called for non-emergency pills (emergency pills use getEmergencyPillStyle) */
   if (filterKey === 'emergencies') return 'var(--color-danger-500)';
-  return 'var(--divider)';
+  return 'var(--chip-selected-border)';
 };
 
 const CALENDAR_VIEW_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [

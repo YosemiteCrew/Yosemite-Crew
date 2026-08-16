@@ -161,91 +161,97 @@ const RoomTable = ({
 
   return (
     <div className="table-wrapper">
-      <div className="table-list TableShell overflow-x-auto">
+      {/* The scroller nests INSIDE the shell, as GenericTable nests
+          .TableBodyScroll: `.TableShell` sets `overflow: hidden` unlayered, which
+          beats a layered `overflow-x-auto` utility on the same element and would
+          clip the trailing columns with no way to reach them. */}
+      <div className="table-list TableShell">
         {filteredList.length === 0 ? (
           <NoDataMessage />
         ) : (
-          <table className="TableDiv w-full min-w-[980px]">
-            <thead>
-              <tr>
-                <th scope="col" aria-label="Row number"></th>
-                <th scope="col">Room name</th>
-                <th scope="col">Code</th>
-                <th scope="col">Type</th>
-                <th scope="col">Speciality</th>
-                <th scope="col">Occupancy</th>
-                <th scope="col">Assigned Staff</th>
-                <th scope="col">Availability</th>
-                <th scope="col" className="text-center!">
-                  Action
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredList.map((room, index) => {
-                const availability = getAvailability(room);
-                const occupancyLabel = getOccupancyLabel(room);
-                const specialityNames = joinNames(specialityNameById, room.assignedSpecialiteis);
-                const staffNames = joinNames(staffNameById, room.assignedStaffs);
-                return (
-                  <tr key={room.id || `${room.name}-${index}`}>
-                    <td className="align-middle">
-                      <RoomCellText value={`${index + 1}.`} />
-                    </td>
-                    <td className="align-middle">
-                      <RoomCellText value={room.name || '-'} />
-                    </td>
-                    <td className="align-middle">
-                      <RoomCellText value={getRoomCode(room)} />
-                    </td>
-                    <td className="align-middle">
-                      <RoomCellText value={toTitle(room.type)} />
-                    </td>
-                    <td className="max-w-56 align-middle">
-                      <RoomCellText
-                        value={specialityNames}
-                        className="cell-truncate"
-                        title={specialityNames || undefined}
-                      />
-                    </td>
-                    <td className="align-middle">
-                      <RoomCellText
-                        value={occupancyLabel}
-                        className={isVacantLabel(occupancyLabel) ? 'text-blue-text' : ''}
-                      />
-                    </td>
-                    <td className="max-w-52 align-middle">
-                      <RoomCellText
-                        value={staffNames}
-                        className="cell-truncate"
-                        title={staffNames || undefined}
-                      />
-                    </td>
-                    <td className="align-middle">
-                      <div className="flex items-center">
-                        <AvailabilitySwitch
-                          checked={availability}
-                          disabled={!canEditRoom}
-                          roomName={room.name}
-                          onChange={(next) => onToggleAvailability?.(room, next)}
+          <div className="overflow-x-auto">
+            <table className="TableDiv w-full min-w-[980px]">
+              <thead>
+                <tr>
+                  <th scope="col" aria-label="Row number"></th>
+                  <th scope="col">Room name</th>
+                  <th scope="col">Code</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Speciality</th>
+                  <th scope="col">Occupancy</th>
+                  <th scope="col">Assigned Staff</th>
+                  <th scope="col">Availability</th>
+                  <th scope="col" className="text-center!">
+                    Action
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredList.map((room, index) => {
+                  const availability = getAvailability(room);
+                  const occupancyLabel = getOccupancyLabel(room);
+                  const specialityNames = joinNames(specialityNameById, room.assignedSpecialiteis);
+                  const staffNames = joinNames(staffNameById, room.assignedStaffs);
+                  return (
+                    <tr key={room.id || `${room.name}-${index}`}>
+                      <td className="align-middle">
+                        <RoomCellText value={`${index + 1}.`} />
+                      </td>
+                      <td className="align-middle">
+                        <RoomCellText value={room.name || '-'} />
+                      </td>
+                      <td className="align-middle">
+                        <RoomCellText value={getRoomCode(room)} />
+                      </td>
+                      <td className="align-middle">
+                        <RoomCellText value={toTitle(room.type)} />
+                      </td>
+                      <td className="max-w-56 align-middle">
+                        <RoomCellText
+                          value={specialityNames}
+                          className="cell-truncate"
+                          title={specialityNames || undefined}
                         />
-                      </div>
-                    </td>
-                    <td className="align-middle">
-                      <div className="action-btn-col items-center">
-                        <IconButton
-                          label={`View ${room.name}`}
-                          onClick={() => handleViewRoom(room)}
-                        >
-                          <IoEyeOutline size={16} aria-hidden="true" />
-                        </IconButton>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      </td>
+                      <td className="align-middle">
+                        <RoomCellText
+                          value={occupancyLabel}
+                          className={isVacantLabel(occupancyLabel) ? 'text-blue-text' : ''}
+                        />
+                      </td>
+                      <td className="max-w-52 align-middle">
+                        <RoomCellText
+                          value={staffNames}
+                          className="cell-truncate"
+                          title={staffNames || undefined}
+                        />
+                      </td>
+                      <td className="align-middle">
+                        <div className="flex items-center">
+                          <AvailabilitySwitch
+                            checked={availability}
+                            disabled={!canEditRoom}
+                            roomName={room.name}
+                            onChange={(next) => onToggleAvailability?.(room, next)}
+                          />
+                        </div>
+                      </td>
+                      <td className="align-middle">
+                        <div className="action-btn-col items-center">
+                          <IconButton
+                            label={`View ${room.name}`}
+                            onClick={() => handleViewRoom(room)}
+                          >
+                            <IoEyeOutline size={16} aria-hidden="true" />
+                          </IconButton>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">
