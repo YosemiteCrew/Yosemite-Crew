@@ -151,4 +151,21 @@ describe('GenericTable', () => {
     expect(screen.getByText('Item 0')).toBeInTheDocument();
     expect(screen.getByText('Item 1')).toBeInTheDocument();
   });
+
+  it('exposes the full header label as a title so a clipped header stays readable', () => {
+    // The base th clips with an ellipsis rather than wrapping (wrapping doubled the
+    // whole sticky band), so this title is the only way back to the full label.
+    const columns = [
+      { key: 'name', label: "Today's Appointment Count" },
+      { key: 'blank', label: '' },
+    ] as const;
+    render(<GenericTable data={buildRows(1)} columns={columns as any} />);
+
+    const labelled = screen.getByRole('columnheader', { name: "Today's Appointment Count" });
+    expect(labelled).toHaveAttribute('title', "Today's Appointment Count");
+
+    // An unlabelled column must not advertise an empty tooltip.
+    const headers = screen.getAllByRole('columnheader');
+    expect(headers[1]).not.toHaveAttribute('title');
+  });
 });
