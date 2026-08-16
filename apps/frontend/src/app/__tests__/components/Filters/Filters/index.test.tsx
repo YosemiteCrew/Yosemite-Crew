@@ -316,9 +316,9 @@ describe('Filters', () => {
       renderListToolbar('all');
 
       expect(screen.getByRole('button', { name: 'All statuses' })).toHaveStyle({
-        backgroundColor: 'var(--inset)',
-        borderColor: 'var(--divider)',
-        color: 'var(--ink)',
+        backgroundColor: 'var(--chip-selected-bg)',
+        borderColor: 'var(--chip-selected-border)',
+        color: 'var(--chip-selected-ink)',
       });
     });
 

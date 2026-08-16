@@ -82,7 +82,16 @@ const Tasks = ({
       label: 'Description',
       key: 'description',
       width: '200px',
-      render: (item: Task) => <div className="appointment-profile-title">{item.description}</div>,
+      // Free text in a 200px column: clamped to two lines so a long description
+      // cannot outgrow the rows beside it.
+      render: (item: Task) => (
+        <div
+          className="appointment-profile-title cell-clamp-2"
+          title={item.description || undefined}
+        >
+          {item.description}
+        </div>
+      ),
     },
     {
       label: 'Category',

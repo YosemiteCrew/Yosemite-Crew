@@ -69,6 +69,41 @@ describe('DispensaryTable', () => {
     expect(screen.getAllByText(/Calpol/).length).toBeGreaterThan(0);
   });
 
+  it('shows the first two items and counts the rest once a script runs long', () => {
+    // One <li> per item made row height track prescription length, so a busy
+    // script set the height of every row on the page.
+    const record = {
+      ...baseRecord,
+      items: [
+        { name: 'Paracetamol', quantity: 1, priceCents: 6500 },
+        { name: 'Calpol', quantity: 2, priceCents: 1000 },
+        { name: 'Metacam', quantity: 1, priceCents: 2000 },
+        { name: 'Ketamine', quantity: 1, priceCents: 3000 },
+      ],
+    };
+    const { container } = render(<DispensaryTable filteredList={[record]} />);
+    // Only the grid row is height-constrained; the phone card has room for the
+    // whole script and deliberately still prints it.
+    const row = tableBranch(container);
+
+    expect(row.getByText(/Paracetamol/)).toBeInTheDocument();
+    expect(row.getByText(/Calpol/)).toBeInTheDocument();
+    // The overflow is summarised, not rendered...
+    expect(row.queryByText(/Metacam/)).not.toBeInTheDocument();
+    expect(row.queryByText(/Ketamine/)).not.toBeInTheDocument();
+    expect(row.getByText('+2')).toBeInTheDocument();
+    // ...and every name stays reachable on hover, so nothing is truly lost.
+    expect(row.getByTitle('Paracetamol, Calpol, Metacam, Ketamine')).toBeInTheDocument();
+
+    // The card branch is unaffected — it still lists all four.
+    expect(cardBranch(container).getByText(/Metacam/)).toBeInTheDocument();
+  });
+
+  it('shows no overflow marker when the script fits', () => {
+    const { container } = render(<DispensaryTable filteredList={[baseRecord]} />);
+    expect(tableBranch(container).queryByText(/^\+\d+$/)).not.toBeInTheDocument();
+  });
+
   it('renders a dash when there are no items', () => {
     const record = { ...baseRecord, items: undefined };
     render(<DispensaryTable filteredList={[record]} />);

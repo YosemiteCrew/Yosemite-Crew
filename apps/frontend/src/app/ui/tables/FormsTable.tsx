@@ -51,7 +51,7 @@ const TemplateNameCell = ({ item }: { item: FormsProps }) => {
         {getTemplateIcon(item.category)}
       </div>
       <div className="flex min-w-0 flex-col">
-        <div className="appointment-profile-title cell-name truncate" title={item.name}>
+        <div className="appointment-profile-title cell-name cell-truncate" title={item.name}>
           {item.name}
         </div>
         {item.description ? (

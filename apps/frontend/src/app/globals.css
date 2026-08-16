@@ -564,6 +564,14 @@ textarea:focus-visible {
   --screen-2: #f1ebe1;
   --hairline: #e5dccf;
   --divider: #d6d1cd;
+  /* Selected filter chip. Every neutral surface token sits within 1.03-1.24:1 of
+     `--page`, so the old `--inset` fill was invisible and weight alone (600 vs
+     700) carried the selected state. An ink fill is the app's existing answer
+     for a chosen option (see the datepicker's selected day) and reads at ~14:1.
+     Both sides are theme tokens, so dark mode inverts them for free. */
+  --chip-selected-bg: var(--ink);
+  --chip-selected-border: var(--ink);
+  --chip-selected-ink: var(--screen);
   --hairline-hover: #d6d1cd;
   /* active nav item (current page) */
   --nav-active: #1657c9;

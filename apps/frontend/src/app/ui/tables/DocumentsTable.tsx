@@ -59,6 +59,7 @@ const DocumentsTable = ({ filteredList, setActive, setView }: DocumentsTableProp
           bordered={false}
           pagination
           pageSize={5}
+          tableClassName="documents-table"
         />
       </div>
       <div className="flex xl:hidden gap-4 sm:gap-10 flex-wrap">

@@ -71,9 +71,16 @@ const renderInvoiceNumber = (item: Invoice) => (
   </div>
 );
 
-const renderServices = (item: Invoice) => (
-  <div className="appointment-profile-title cell-muted">{getInvoiceItemNames(item.items)}</div>
-);
+const renderServices = (item: Invoice) => {
+  // A comma-joined line-item list in a 180px column wrapped to as many lines as
+  // the invoice had items, so one busy row set the height of the whole page.
+  const names = getInvoiceItemNames(item.items);
+  return (
+    <div className="appointment-profile-title cell-muted cell-truncate" title={names || undefined}>
+      {names}
+    </div>
+  );
+};
 
 const renderStatus = (item: Invoice) => (
   <StatusPill tone={getInvoiceStatusTone(item?.status)} label={toTitle(item?.status)} />
@@ -189,7 +196,10 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
           />
         </div>
         <div className="appointment-profile-two min-w-0">
-          <div className="appointment-profile-title cell-name truncate" title={ownerAndCompanion}>
+          <div
+            className="appointment-profile-title cell-name cell-truncate"
+            title={ownerAndCompanion}
+          >
             {ownerAndCompanion}
           </div>
           {subtitle && (

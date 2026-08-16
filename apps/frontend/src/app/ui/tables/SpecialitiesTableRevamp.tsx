@@ -43,7 +43,10 @@ const SpecialitiesTableRevamp = ({ filteredList, onManageTeam }: SpecialitiesTab
       },
     },
     {
-      label: 'Services / Packages',
+      // Counts active services only — the next column counts packages. The old
+      // "Services / Packages" label was inaccurate and, at 100px, wrapped to two
+      // lines and doubled the height of the sticky header band.
+      label: 'Services',
       key: 'Services',
       width: '100px',
       render: (item: SpecialityWeb) => {
@@ -88,7 +91,9 @@ const SpecialitiesTableRevamp = ({ filteredList, onManageTeam }: SpecialitiesTab
               className="size-9 rounded-full object-cover shrink-0"
             />
             <div className="appointment-profile-two min-w-0">
-              <div className="appointment-profile-title truncate">{headName}</div>
+              <div className="appointment-profile-title cell-truncate" title={headName}>
+                {headName}
+              </div>
             </div>
           </div>
         );
@@ -124,7 +129,6 @@ const SpecialitiesTableRevamp = ({ filteredList, onManageTeam }: SpecialitiesTab
           bordered={false}
           pagination
           pageSize={5}
-          tableClassName="specialities-table"
         />
       </div>
       {/* Responsive card grid below lg: 1 col on mobile, 2 on sm, 3 on md */}

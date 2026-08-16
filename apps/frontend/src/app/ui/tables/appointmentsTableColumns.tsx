@@ -194,14 +194,24 @@ export const buildAppointmentColumns = ({
     render: (item: Appointment) => {
       const supportStaff = item.supportStaff ?? [];
 
+      // One line per staff member let a busy appointment grow the row without
+      // bound. Show the first two and count the rest, as the chips elsewhere do.
+      const shown = supportStaff.slice(0, 2);
+      const hidden = supportStaff.length - shown.length;
+
       return (
-        <div className="appointment-profile-two">
+        <div className="appointment-profile-two" title={supportStaff.map((s) => s.name).join(', ')}>
           {supportStaff.length > 0 ? (
-            supportStaff.map((sup) => (
-              <div key={sup.id} className="appointment-profile-sub">
-                {sup.name}
-              </div>
-            ))
+            <>
+              {shown.map((sup) => (
+                <div key={sup.id} className="appointment-profile-sub cell-truncate">
+                  {sup.name}
+                </div>
+              ))}
+              {hidden > 0 && (
+                <div className="appointment-profile-sub cell-overflow-count">{`+${hidden}`}</div>
+              )}
+            </>
           ) : (
             <div className="appointment-profile-sub">-</div>
           )}

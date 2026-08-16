@@ -144,4 +144,62 @@ describe('Tasks table', () => {
     expect(getTaskStatusTone('COMPLETED')).toBe('success');
     expect(getTaskStatusTone('CANCELLED')).toBe('warning');
   });
+
+  it('clamps a long description to two lines and keeps the full text on hover', () => {
+    // Free text in a 200px column: without the clamp one verbose task set the
+    // height of every row on the page.
+    const description =
+      'Call the parent to confirm the pre-anaesthetic fasting window, then reconfirm ' +
+      'the drop-off time and remind them to bring the previous practice records.';
+    const task: any = {
+      id: 't-long',
+      name: 'Follow up',
+      description,
+      category: 'pending',
+      assignedBy: 'u1',
+      assignedTo: 'u2',
+      dueAt: new Date(),
+      status: 'pending',
+    };
+
+    render(
+      <Tasks
+        filteredList={[task]}
+        setActiveTask={jest.fn()}
+        setViewPopup={jest.fn()}
+        setChangeStatusPopup={jest.fn()}
+        setReschedulePopup={jest.fn()}
+      />
+    );
+
+    const cell = screen.getAllByTitle(description)[0];
+    expect(cell).toHaveClass('cell-clamp-2');
+    expect(cell).toHaveTextContent(description);
+  });
+
+  it('leaves a short description unclamped of any tooltip noise', () => {
+    const task: any = {
+      id: 't-short',
+      name: 'Follow up',
+      description: '',
+      category: 'pending',
+      assignedBy: 'u1',
+      assignedTo: 'u2',
+      dueAt: new Date(),
+      status: 'pending',
+    };
+
+    render(
+      <Tasks
+        filteredList={[task]}
+        setActiveTask={jest.fn()}
+        setViewPopup={jest.fn()}
+        setChangeStatusPopup={jest.fn()}
+        setReschedulePopup={jest.fn()}
+      />
+    );
+
+    // An empty description must not advertise an empty tooltip.
+    expect(document.querySelector('.cell-clamp-2')).not.toHaveAttribute('title');
+  });
 });
