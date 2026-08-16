@@ -13,9 +13,9 @@ const config: StorybookConfig = {
     name: '@storybook/nextjs-vite',
     options: {},
   },
-  docs: {
-    autodocs: 'tag',
-  },
+  // No `docs.autodocs`: it was removed in Storybook 9 (this repo is on 10.5.7),
+  // so it was inert config that also failed type-check as soon as a test
+  // imported this file. Autodocs come from the `autodocs` tag on a story.
   /**
    * Mirror the tsconfig `paths` for the production build.
    *
@@ -30,8 +30,20 @@ const config: StorybookConfig = {
    */
   viteFinal: (viteConfig) => {
     viteConfig.resolve = viteConfig.resolve ?? {};
+    // Vite accepts either form, and the framework hands us the OBJECT one: it
+    // arrives holding styled-jsx's preset aliases. Treating a non-array as
+    // empty would silently drop those while fixing the `@/` paths, so both
+    // forms are normalised to entries before appending.
+    const existing = viteConfig.resolve.alias;
+    const inherited = Array.isArray(existing)
+      ? existing
+      : Object.entries(existing ?? {}).map(([find, replacement]) => ({
+          find,
+          replacement: replacement as string,
+        }));
+
     viteConfig.resolve.alias = [
-      ...(Array.isArray(viteConfig.resolve.alias) ? viteConfig.resolve.alias : []),
+      ...inherited,
       { find: /^@\/features\//, replacement: `${path.join(src, 'app/features')}/` },
       { find: /^@\/ui\//, replacement: `${path.join(src, 'app/ui')}/` },
       { find: /^@\/lib\//, replacement: `${path.join(src, 'app/lib')}/` },
