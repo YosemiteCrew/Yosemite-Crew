@@ -1,6 +1,7 @@
 import {
   buildPagerPageList,
   toSpecialityNames,
+  UNNAMED_SPECIALITY,
   getInvoiceItemNames,
   getInvoiceStatusStyle,
   getInvoiceStatusTone,
@@ -280,10 +281,11 @@ describe('tableUtils', () => {
       ]);
     });
 
-    it('drops blank and whitespace-only entries rather than rendering empty gaps', () => {
-      expect(toSpecialityNames(['Cardiology', '', '   ', { name: '' }] as never)).toEqual([
-        'Cardiology',
-      ]);
+    it('drops blank strings but keeps a record that is merely unnamed', () => {
+      // A blank string is noise; a record is a real assignment and must survive
+      // into the count, or the summary understates how many a team holds.
+      expect(toSpecialityNames(['Cardiology', '', '   '] as never)).toEqual(['Cardiology']);
+      expect(toSpecialityNames([{ name: '' }] as never)).toEqual([UNNAMED_SPECIALITY]);
     });
 
     it('trims surrounding whitespace', () => {
@@ -296,8 +298,22 @@ describe('tableUtils', () => {
       expect(toSpecialityNames(undefined as never)).toEqual([]);
     });
 
-    it('survives entries missing a name', () => {
+    it('falls back to a code before a neutral label', () => {
+      expect(toSpecialityNames([{ code: 'X1' }, { name: 'Dentistry' }] as never)).toEqual([
+        'X1',
+        'Dentistry',
+      ]);
+    });
+
+    it('keeps an unidentifiable record so the count stays honest', () => {
       expect(toSpecialityNames([{ _id: 'x' }, { name: 'Dentistry' }] as never)).toEqual([
+        UNNAMED_SPECIALITY,
+        'Dentistry',
+      ]);
+    });
+
+    it('drops null and undefined entries, which are not assignments', () => {
+      expect(toSpecialityNames([null, undefined, { name: 'Dentistry' }] as never)).toEqual([
         'Dentistry',
       ]);
     });

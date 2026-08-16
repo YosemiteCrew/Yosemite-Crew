@@ -114,12 +114,26 @@ export const formatWeeklyWorkingHours = (value: Team['weeklyWorkingHours']) => {
   }).format(parsed);
 };
 
-/** Specialities arrive either as plain names or as `{ name }` records. */
+/** Shown when a speciality record carries neither a name nor a code. */
+export const UNNAMED_SPECIALITY = 'Unnamed speciality';
+
+/**
+ * Specialities arrive either as plain names or as records. A record with no
+ * `name` is still a real assignment, so it has to survive into the count rather
+ * than be dropped - otherwise the summary reads "Cardiology +1" for a
+ * practitioner who holds three. It falls back to any code before a neutral
+ * label; the previous behaviour printed `JSON.stringify(spec)` straight into
+ * the cell, which showed clinicians `{"code":"X1"}`.
+ */
 export const toSpecialityNames = (value: Team['speciality']): string[] => {
   if (!Array.isArray(value)) return [];
   return value
-    .map((spec) => (typeof spec === 'string' ? spec : (spec?.name ?? '')))
-    .map((name) => name.trim())
+    .map((spec: unknown) => {
+      if (typeof spec === 'string') return spec.trim();
+      if (!spec || typeof spec !== 'object') return '';
+      const record = spec as { name?: string; code?: string };
+      return (record.name ?? '').trim() || (record.code ?? '').trim() || UNNAMED_SPECIALITY;
+    })
     .filter(Boolean);
 };
 
