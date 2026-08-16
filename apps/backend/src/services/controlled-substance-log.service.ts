@@ -45,7 +45,15 @@ export type UpdateCsLogParams = Partial<
     | "deaSchedule"
     | "unit"
   >
->;
+> & {
+  correctedBy?: string;
+  correctionReason?: string;
+};
+
+export interface VoidCsLogParams {
+  voidedBy?: string;
+  reason?: string;
+}
 
 export interface ListCsLogParams {
   organisationId: string;
@@ -117,6 +125,23 @@ const assertQuantitiesReconcile = (quantities: {
   }
 };
 
+// The ledger is append-only: an entry is never mutated or deleted. A correction
+// appends a reversing entry (every quantity negated) followed by a replacement
+// entry, and a void appends the reversing entry alone, so the original row and
+// the balances it carries stay readable and reconcilable forever. The trailing
+// `]` in the marker keeps `startsWith` from matching a longer id.
+const reversalMarker = (sourceId: string) => `[reversal:${sourceId}]`;
+const correctionMarker = (sourceId: string) => `[correction:${sourceId}]`;
+
+const buildLedgerNote = (
+  marker: string,
+  reason?: string | null,
+  carriedNotes?: string | null,
+) =>
+  [marker, reason, carriedNotes]
+    .filter((part): part is string => Boolean(part))
+    .join(" ");
+
 const assertRecord = async (id: string, organisationId: string) => {
   const record = await prisma.controlledSubstanceLog.findFirst({
     where: { id, organisationId },
@@ -129,6 +154,56 @@ const assertRecord = async (id: string, organisationId: string) => {
     );
   }
   return record;
+};
+
+type CsLogRecord = Prisma.ControlledSubstanceLogGetPayload<{
+  select: typeof csLogSelect;
+}>;
+
+// A reversal is the exact algebraic negation of an entry that already passed
+// `assertQuantitiesReconcile`, so it nets that entry to zero without being
+// re-validated: the forward-direction invariant (administered + wasted never
+// exceeds drawn) does not survive negation when the original left any slack.
+const buildReversalData = (
+  record: CsLogRecord,
+  notes: string,
+): Prisma.ControlledSubstanceLogCreateInput => ({
+  organisationId: record.organisationId,
+  patientId: record.patientId,
+  encounterId: record.encounterId,
+  loggedAt: record.loggedAt,
+  drug: record.drug,
+  deaSchedule: record.deaSchedule,
+  lotNumber: record.lotNumber,
+  strength: record.strength,
+  unit: record.unit,
+  amountDrawn: -record.amountDrawn,
+  amountAdministered: -record.amountAdministered,
+  amountWasted: -record.amountWasted,
+  wastedWitness: record.wastedWitness,
+  balanceBefore: record.balanceAfter,
+  balanceAfter: record.balanceBefore,
+  administeredBy: record.administeredBy,
+  notes,
+});
+
+const assertNotReversed = async (
+  client: Prisma.TransactionClient,
+  record: CsLogRecord,
+) => {
+  const reversal = await client.controlledSubstanceLog.findFirst({
+    where: {
+      organisationId: record.organisationId,
+      notes: { startsWith: reversalMarker(record.id) },
+    },
+    select: { id: true },
+  });
+  if (reversal) {
+    throw new ControlledSubstanceLogError(
+      "This controlled substance log entry has already been reversed; correct the replacement entry instead.",
+      409,
+    );
+  }
 };
 
 export const ControlledSubstanceLogService = {
@@ -208,49 +283,139 @@ export const ControlledSubstanceLogService = {
           : {}),
       },
       select: csLogSelect,
-      orderBy: { loggedAt: "desc" },
+      // Reversals and corrections carry the logged-at of the entry they amend,
+      // so fall back to insertion order to keep the chain readable.
+      orderBy: [{ loggedAt: "desc" }, { createdAt: "desc" }],
     });
   },
 
+  // Corrects an entry by appending a reversal plus a replacement entry. The
+  // corrected entry is returned; the entry identified by `id` is left intact.
   async update(id: string, organisationId: string, params: UpdateCsLogParams) {
     const existing = await assertRecord(id, organisationId);
 
+    const amountDrawn = params.amountDrawn ?? existing.amountDrawn;
+    const amountAdministered =
+      params.amountAdministered ?? existing.amountAdministered;
+    const amountWasted = params.amountWasted ?? existing.amountWasted;
+    const balanceBefore = params.balanceBefore ?? existing.balanceBefore;
+    const balanceAfter = params.balanceAfter ?? existing.balanceAfter;
+
     assertQuantitiesReconcile({
-      amountDrawn: params.amountDrawn ?? existing.amountDrawn,
-      amountAdministered:
-        params.amountAdministered ?? existing.amountAdministered,
-      amountWasted: params.amountWasted ?? existing.amountWasted,
-      balanceBefore: params.balanceBefore ?? existing.balanceBefore,
-      balanceAfter: params.balanceAfter ?? existing.balanceAfter,
+      amountDrawn,
+      amountAdministered,
+      amountWasted,
+      balanceBefore,
+      balanceAfter,
     });
 
-    const data: Prisma.ControlledSubstanceLogUpdateInput = {};
-    if (params.lotNumber !== undefined) data.lotNumber = params.lotNumber;
-    if (params.strength !== undefined) data.strength = params.strength;
-    if (params.amountDrawn !== undefined) data.amountDrawn = params.amountDrawn;
-    if (params.amountAdministered !== undefined)
-      data.amountAdministered = params.amountAdministered;
-    if (params.amountWasted !== undefined)
-      data.amountWasted = params.amountWasted;
-    if (params.wastedWitness !== undefined)
-      data.wastedWitness = params.wastedWitness;
-    if (params.balanceBefore !== undefined)
-      data.balanceBefore = params.balanceBefore;
-    if (params.balanceAfter !== undefined)
-      data.balanceAfter = params.balanceAfter;
-    if (params.administeredBy !== undefined)
-      data.administeredBy = params.administeredBy;
-    if (params.notes !== undefined) data.notes = params.notes;
+    const { reversal, correction } = await prisma.$transaction(async (tx) => {
+      await assertNotReversed(tx, existing);
 
-    return prisma.controlledSubstanceLog.update({
-      where: { id },
-      data,
-      select: csLogSelect,
+      const reversalEntry = await tx.controlledSubstanceLog.create({
+        data: buildReversalData(
+          existing,
+          buildLedgerNote(reversalMarker(existing.id), params.correctionReason),
+        ),
+        select: csLogSelect,
+      });
+
+      const correctionEntry = await tx.controlledSubstanceLog.create({
+        data: {
+          organisationId: existing.organisationId,
+          patientId: existing.patientId,
+          encounterId: existing.encounterId,
+          loggedAt: existing.loggedAt,
+          drug: existing.drug,
+          deaSchedule: existing.deaSchedule,
+          lotNumber: params.lotNumber ?? existing.lotNumber,
+          strength: params.strength ?? existing.strength,
+          unit: existing.unit,
+          amountDrawn,
+          amountAdministered,
+          amountWasted,
+          wastedWitness: params.wastedWitness ?? existing.wastedWitness,
+          balanceBefore,
+          balanceAfter,
+          administeredBy: params.administeredBy ?? existing.administeredBy,
+          notes: buildLedgerNote(
+            correctionMarker(existing.id),
+            params.correctionReason,
+            params.notes ?? existing.notes,
+          ),
+        },
+        select: csLogSelect,
+      });
+
+      return { reversal: reversalEntry, correction: correctionEntry };
     });
+
+    await AuditTrailService.recordSafely({
+      organisationId,
+      patientId: existing.patientId ?? "",
+      eventType: "CONTROLLED_SUBSTANCE_LOGGED",
+      actorType: "PMS_USER",
+      actorId:
+        params.correctedBy ??
+        params.administeredBy ??
+        existing.administeredBy ??
+        null,
+      entityType: "COMPANION",
+      entityId: correction.id,
+      metadata: {
+        action: "CORRECTION",
+        correctedEntryId: existing.id,
+        reversalEntryId: reversal.id,
+        drug: existing.drug,
+        deaSchedule: existing.deaSchedule,
+        amountAdministered,
+        unit: existing.unit,
+        ...(params.correctionReason ? { reason: params.correctionReason } : {}),
+      },
+    });
+
+    return correction;
   },
 
-  async delete(id: string, organisationId: string) {
-    await assertRecord(id, organisationId);
-    await prisma.controlledSubstanceLog.delete({ where: { id } });
+  // Voids an entry by appending its reversal. Nothing is removed from the
+  // ledger; the returned entry is the reversal that cancels the original out.
+  async delete(
+    id: string,
+    organisationId: string,
+    params: VoidCsLogParams = {},
+  ) {
+    const existing = await assertRecord(id, organisationId);
+
+    const reversal = await prisma.$transaction(async (tx) => {
+      await assertNotReversed(tx, existing);
+      return tx.controlledSubstanceLog.create({
+        data: buildReversalData(
+          existing,
+          buildLedgerNote(reversalMarker(existing.id), params.reason),
+        ),
+        select: csLogSelect,
+      });
+    });
+
+    await AuditTrailService.recordSafely({
+      organisationId,
+      patientId: existing.patientId ?? "",
+      eventType: "CONTROLLED_SUBSTANCE_LOGGED",
+      actorType: "PMS_USER",
+      actorId: params.voidedBy ?? existing.administeredBy ?? null,
+      entityType: "COMPANION",
+      entityId: reversal.id,
+      metadata: {
+        action: "VOID",
+        voidedEntryId: existing.id,
+        drug: existing.drug,
+        deaSchedule: existing.deaSchedule,
+        amountAdministered: existing.amountAdministered,
+        unit: existing.unit,
+        ...(params.reason ? { reason: params.reason } : {}),
+      },
+    });
+
+    return reversal;
   },
 };

@@ -426,6 +426,30 @@ describe("clinicalArtifactFhirMapper", () => {
     expect(resource.encounter).toBeUndefined();
   });
 
+  it.each(["DRAFT", "IN_PROGRESS"] as const)(
+    "maps an unattested %s immunization to not-done instead of completed",
+    (status) => {
+      const resource = clinicalArtifactFhirMapper.immunizationToImmunization({
+        ...immunizationFull,
+        artifact: artifact("IMMUNIZATION", { status }),
+      });
+      expect(resource.status).toBe("not-done");
+      expect(
+        resource.extension?.find((e) =>
+          e.url.includes("clinical-artifact-status"),
+        )?.valueString,
+      ).toBe(status);
+    },
+  );
+
+  it("maps a completed immunization to completed", () => {
+    const resource = clinicalArtifactFhirMapper.immunizationToImmunization({
+      ...immunizationFull,
+      artifact: artifact("IMMUNIZATION", { status: "COMPLETED" }),
+    });
+    expect(resource.status).toBe("completed");
+  });
+
   it("maps a rabies titration to an Observation, flagging adequacy", () => {
     const adequate = clinicalArtifactFhirMapper.rabiesTitrationToObservation({
       artifact: artifact("RABIES_TITRATION"),

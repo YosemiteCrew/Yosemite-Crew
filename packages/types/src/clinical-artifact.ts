@@ -403,8 +403,19 @@ const toTaskStatus = (status: string): string => {
   }
 };
 
-const toImmunizationStatus = (status: string): string =>
-  status === 'VOID' ? 'entered-in-error' : 'completed';
+// Immunization.status is bound to a required value set (completed | entered-in-error |
+// not-done), so unfinished artifacts map to 'not-done' rather than claiming administration.
+const toImmunizationStatus = (status: string): string => {
+  switch (status) {
+    case 'SIGNED':
+    case 'COMPLETED':
+      return 'completed';
+    case 'VOID':
+      return 'entered-in-error';
+    default:
+      return 'not-done';
+  }
+};
 
 const toProcedureStatus = (status: string): string => {
   switch (status) {

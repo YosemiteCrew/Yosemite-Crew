@@ -249,7 +249,7 @@ export const BloodBankService = {
     const { donorId, organisationId, collectedBy, crossmatchResults, ...rest } =
       params;
 
-    await assertDonor(donorId, organisationId);
+    const donor = await assertDonor(donorId, organisationId);
 
     const donation = await prisma.bloodDonationCollection.create({
       data: {
@@ -279,7 +279,7 @@ export const BloodBankService = {
 
     await AuditTrailService.recordSafely({
       organisationId,
-      patientId: "",
+      patientId: donor.patientId,
       eventType: "BLOOD_DONATION_COLLECTED",
       actorType: "PMS_USER",
       actorId: collectedBy ?? null,

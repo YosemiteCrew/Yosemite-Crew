@@ -36,9 +36,11 @@ const UpdateEstimateSchema = z.object({
 });
 
 const ApproveDeclineSchema = z.object({
-  actorId: z.string(),
   reason: z.string().optional(),
 });
+
+const getSessionUserId = (req: Request): string | undefined =>
+  (req as unknown as { userId?: string }).userId;
 
 export const estimateController = {
   create: async (req: Request, res: Response) => {
@@ -130,6 +132,11 @@ export const estimateController = {
 
   approve: async (req: Request, res: Response) => {
     const { organisationId, estimateId } = req.params;
+    const approvedBy = getSessionUserId(req);
+    if (!approvedBy) {
+      res.status(401).json({ error: "Unauthorized: User ID missing" });
+      return;
+    }
     const parsed = ApproveDeclineSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.flatten() });
@@ -139,7 +146,7 @@ export const estimateController = {
       const estimate = await EstimateService.approve(
         estimateId,
         organisationId,
-        parsed.data.actorId,
+        approvedBy,
       );
       res.json(estimate);
     } catch (err: unknown) {
@@ -150,6 +157,11 @@ export const estimateController = {
 
   decline: async (req: Request, res: Response) => {
     const { organisationId, estimateId } = req.params;
+    const declinedBy = getSessionUserId(req);
+    if (!declinedBy) {
+      res.status(401).json({ error: "Unauthorized: User ID missing" });
+      return;
+    }
     const parsed = ApproveDeclineSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.flatten() });
@@ -159,7 +171,7 @@ export const estimateController = {
       const estimate = await EstimateService.decline(
         estimateId,
         organisationId,
-        parsed.data.actorId,
+        declinedBy,
         parsed.data.reason,
       );
       res.json(estimate);

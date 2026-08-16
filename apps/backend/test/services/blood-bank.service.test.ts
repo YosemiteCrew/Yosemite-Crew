@@ -23,7 +23,9 @@ jest.mock("../../src/services/audit-trail.service", () => ({
 }));
 
 import { prisma } from "src/config/prisma";
+import { AuditTrailService } from "../../src/services/audit-trail.service";
 
+const mockRecordSafely = AuditTrailService.recordSafely as jest.Mock;
 const mockDonorCreate = prisma.bloodBankDonor.create as jest.Mock;
 const mockDonorFindFirst = prisma.bloodBankDonor.findFirst as jest.Mock;
 const mockDonorFindUnique = prisma.bloodBankDonor.findUnique as jest.Mock;
@@ -165,6 +167,31 @@ describe("BloodBankService.recordDonation", () => {
       }),
     );
     expect(donation.status).toBe("AVAILABLE");
+  });
+
+  it("records the audit entry against the donor patient", async () => {
+    mockDonorFindFirst.mockResolvedValue({ ...baseDonor, patientId: "pat-9" });
+    mockDonationCreate.mockResolvedValue(baseDonation);
+    mockDonorUpdate.mockResolvedValue({ ...baseDonor, totalDonations: 1 });
+
+    await BloodBankService.recordDonation({
+      donorId: "donor-1",
+      organisationId: "org-1",
+      collectedAt: new Date("2026-06-30T10:00:00Z"),
+      collectedBy: "vet-1",
+      volumeMl: 450,
+      unitId: "UNIT-2026-001",
+    });
+
+    expect(mockRecordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organisationId: "org-1",
+        patientId: "pat-9",
+        eventType: "BLOOD_DONATION_COLLECTED",
+        entityId: "donation-1",
+        metadata: expect.objectContaining({ donorId: "donor-1" }),
+      }),
+    );
   });
 
   it("throws 404 when donor not found", async () => {

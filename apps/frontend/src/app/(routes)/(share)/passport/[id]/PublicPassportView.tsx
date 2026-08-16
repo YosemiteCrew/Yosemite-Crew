@@ -7,10 +7,11 @@ import {
   IoAirplaneOutline,
   IoMedkitOutline,
   IoCheckmarkCircle,
+  IoAlertCircle,
 } from 'react-icons/io5';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { formatDisplayDate } from '@/app/lib/date';
-import type { PetPassportDTO, VaccinationDTO } from '@yosemite-crew/types';
+import type { ClinicalExamDTO, PetPassportDTO, VaccinationDTO } from '@yosemite-crew/types';
 
 const SPECIES_LABEL: Record<string, string> = {
   dog: 'Dog',
@@ -42,6 +43,54 @@ const microchipSub = (microchip: PetPassportDTO['microchip']): string | undefine
     .join(' · ');
 };
 
+// A rabies entry counts as valid only while its expiry parses and still lies in
+// the future. A missing or unreadable expiry is reported as unknown rather than
+// assumed valid - this page is read as proof of cover by travel and boarding staff.
+type RabiesValidity = 'valid' | 'expired' | 'unknown';
+
+const rabiesValidity = (validUntil?: string): RabiesValidity => {
+  const expiry = validUntil ? new Date(validUntil) : null;
+  if (!expiry || Number.isNaN(expiry.getTime())) return 'unknown';
+  return expiry.getTime() > Date.now() ? 'valid' : 'expired';
+};
+
+const RABIES_STATUS: Record<
+  RabiesValidity,
+  { label: string; background: string; border: string; color: string }
+> = {
+  valid: {
+    label: 'VALID',
+    background: 'var(--status-completed-bg)',
+    border: 'var(--status-completed-border)',
+    color: 'var(--status-completed-text)',
+  },
+  expired: {
+    label: 'EXPIRED',
+    background: 'var(--status-danger-bg)',
+    border: 'var(--status-danger-border)',
+    color: 'var(--status-danger-text)',
+  },
+  unknown: {
+    label: 'NO EXPIRY',
+    background: 'var(--inset)',
+    border: 'var(--divider)',
+    color: 'var(--ink-soft)',
+  },
+};
+
+// Travel fitness must reflect the most recent examination. The API returns exams
+// newest-first, but the badge is too consequential to lean on ordering, so the
+// newest is resolved by examination date; undated exams cannot be ranked and are
+// left out rather than allowed to win.
+const latestExamination = (exams: ClinicalExamDTO[]): ClinicalExamDTO | undefined => {
+  let latest: { exam: ClinicalExamDTO; at: number } | undefined;
+  for (const exam of exams) {
+    const at = new Date(exam.examinedAt).getTime();
+    if (!Number.isNaN(at) && (!latest || at > latest.at)) latest = { exam, at };
+  }
+  return latest?.exam;
+};
+
 const BrandMark = ({ size = 20 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
     <path
@@ -51,6 +100,24 @@ const BrandMark = ({ size = 20 }: { size?: number }) => (
   </svg>
 );
 
+const CHIP_TONES = {
+  success: {
+    background: 'var(--status-completed-bg)',
+    color: 'var(--status-completed-text)',
+    border: '1px solid var(--status-completed-border)',
+  },
+  danger: {
+    background: 'var(--status-danger-bg)',
+    color: 'var(--status-danger-text)',
+    border: '1px solid var(--status-danger-border)',
+  },
+  neutral: {
+    background: 'var(--inset)',
+    color: 'var(--ink-soft)',
+    border: '1px solid var(--divider)',
+  },
+} as const;
+
 const StatusChip = ({
   icon,
   label,
@@ -58,20 +125,9 @@ const StatusChip = ({
 }: {
   icon: React.ReactNode;
   label: string;
-  tone: 'success' | 'neutral';
+  tone: 'success' | 'neutral' | 'danger';
 }) => {
-  const styles =
-    tone === 'success'
-      ? {
-          background: 'var(--status-completed-bg)',
-          color: 'var(--status-completed-text)',
-          border: '1px solid var(--status-completed-border)',
-        }
-      : {
-          background: 'var(--inset)',
-          color: 'var(--ink-soft)',
-          border: '1px solid var(--divider)',
-        };
+  const styles = CHIP_TONES[tone];
   return (
     <span
       className="inline-flex items-center gap-1 rounded-full px-[9px] py-1 text-[9.5px] font-bold"
@@ -106,13 +162,18 @@ const IdentityRow = ({ label, value, sub }: { label: string; value?: string; sub
   );
 };
 
+// `validity` is supplied for the rabies entry only - its presence marks the row
+// as the rabies one and drives the badge, so an expired shot can never be
+// painted in the green "valid" treatment.
 const VaccinationRow = ({
   vaccination,
-  isRabies,
+  validity,
 }: {
   vaccination: VaccinationDTO;
-  isRabies: boolean;
+  validity?: RabiesValidity;
 }) => {
+  const isRabies = validity !== undefined;
+  const status = validity ? RABIES_STATUS[validity] : undefined;
   const given = dateLabel(vaccination.dateAdministered);
   const meta = isRabies
     ? [
@@ -125,11 +186,11 @@ const VaccinationRow = ({
     : [given, vaccination.nextDueDate && `next due ${dateLabel(vaccination.nextDueDate)}`]
         .filter(Boolean)
         .join(' · ');
-  const iconWrap = isRabies
+  const iconWrap = status
     ? {
-        background: 'var(--status-completed-bg)',
-        border: '1px solid var(--status-completed-border)',
-        color: 'var(--status-completed-text)',
+        background: status.background,
+        border: `1px solid ${status.border}`,
+        color: status.color,
       }
     : {
         background: 'var(--blue-soft)',
@@ -142,7 +203,7 @@ const VaccinationRow = ({
         className="flex size-8 flex-none items-center justify-center rounded-full text-[14px]"
         style={iconWrap}
       >
-        {isRabies ? <IoShieldCheckmarkOutline /> : <IoMedkitOutline />}
+        {status ? <IoShieldCheckmarkOutline /> : <IoMedkitOutline />}
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-[12.5px] font-bold" style={{ color: 'var(--ink)' }}>
@@ -152,12 +213,12 @@ const VaccinationRow = ({
           {meta}
         </span>
       </span>
-      {isRabies && (
+      {status && (
         <span
-          className="text-[9px] font-bold tracking-[0.08em]"
-          style={{ color: 'var(--status-completed-text)' }}
+          className="flex-none whitespace-nowrap text-[9px] font-bold tracking-[0.08em]"
+          style={{ color: status.color }}
         >
-          VALID
+          {status.label}
         </span>
       )}
     </div>
@@ -166,7 +227,9 @@ const VaccinationRow = ({
 
 const PublicPassportView = ({ passport }: { passport: PetPassportDTO }) => {
   const { identity, microchip, rabies, vaccinations, issuance, clinicalExams } = passport;
-  const fitExam = clinicalExams.find((exam) => exam.fitForTravel);
+  const rabiesStatus = rabies ? rabiesValidity(rabies.validUntil) : undefined;
+  const newestExam = latestExamination(clinicalExams);
+  const fitExam = newestExam?.fitForTravel ? newestExam : undefined;
   const practiceInitial = (issuance?.issuingPractice ?? 'Y').charAt(0).toUpperCase();
 
   return (
@@ -218,13 +281,20 @@ const PublicPassportView = ({ passport }: { passport: PetPassportDTO }) => {
             </span>
           </span>
         </div>
-        {(rabies?.validUntil || fitExam) && (
+        {(rabiesStatus === 'valid' || rabiesStatus === 'expired' || fitExam) && (
           <div className="flex flex-wrap gap-[6px]">
-            {rabies?.validUntil && (
+            {rabiesStatus === 'valid' && (
               <StatusChip
                 tone="success"
                 icon={<IoShieldCheckmark className="text-[10px]" />}
-                label={`Rabies valid to ${dateLabel(rabies.validUntil)}`}
+                label={`Rabies valid to ${dateLabel(rabies?.validUntil)}`}
+              />
+            )}
+            {rabiesStatus === 'expired' && (
+              <StatusChip
+                tone="danger"
+                icon={<IoAlertCircle className="text-[10px]" />}
+                label={`Rabies expired ${dateLabel(rabies?.validUntil)}`}
               />
             )}
             {fitExam && (
@@ -261,11 +331,11 @@ const PublicPassportView = ({ passport }: { passport: PetPassportDTO }) => {
           >
             Vaccinations
           </span>
-          {rabies && <VaccinationRow vaccination={rabies} isRabies />}
+          {rabies && <VaccinationRow vaccination={rabies} validity={rabiesStatus} />}
           {vaccinations
             .filter((vaccination) => vaccination.id !== rabies?.id)
             .map((vaccination) => (
-              <VaccinationRow key={vaccination.id} vaccination={vaccination} isRabies={false} />
+              <VaccinationRow key={vaccination.id} vaccination={vaccination} />
             ))}
         </div>
       )}
