@@ -1770,13 +1770,19 @@ html[data-theme='dark'] [data-yc-app] ::selection {
 
    Scoped rather than global: the public marketing pages put this same token on
    always-dark --spot panels, where the lighter value is the correct one.
+
+   The hook is `body:has([data-yc-app])`, not the shell element itself: modals,
+   dropdowns and row-action menus mount through createPortal into document.body,
+   so they are siblings of the shell rather than descendants and would have kept
+   the unreadable values. Marketing pages never render the shell, so body does
+   not match there and they are untouched.
    --ink-faint2 collapses onto --ink-faint here because between the 4.56 ceiling
    and --ink-muted there is no room for two passing steps below muted. */
-[data-yc-app] {
+body:has([data-yc-app]) {
   --ink-faint: #66635f;
   --ink-faint2: #66635f;
 }
-html[data-theme='dark'] [data-yc-app] {
+html[data-theme='dark'] body:has([data-yc-app]) {
   --ink-faint: #9d9285;
   --ink-faint2: #998f82;
 }
