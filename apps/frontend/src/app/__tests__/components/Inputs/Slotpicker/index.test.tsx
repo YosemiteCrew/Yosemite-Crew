@@ -158,8 +158,11 @@ describe('Slotpicker Component', () => {
     );
     // The fill token, not the text token: --blue-text lightens to #8fb6f5 in
     // dark, which left this white label at 2.06:1.
-    expect(screen.getByText('Formatted 10:00')).toHaveClass('bg-[var(--blue)]', 'text-white');
-    expect(screen.getByText('Formatted 11:00')).not.toHaveClass('bg-[var(--blue)]');
+    expect(screen.getByText('Formatted 10:00')).toHaveClass(
+      'bg-[var(--blue-strong)]',
+      'text-white'
+    );
+    expect(screen.getByText('Formatted 11:00')).not.toHaveClass('bg-[var(--blue-strong)]');
   });
 
   it('calls setSelectedSlot when a slot is clicked', () => {

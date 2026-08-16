@@ -354,7 +354,10 @@ textarea:focus-visible {
   --color-grey-noti: var(--color-neutral-700);
   /* The design's blue (#257bed), not the brighter brand-ramp primary-500
      (#007cf5) — links, active states and badges read as --blue in every frame. */
-  --color-blue-text: var(--blue);
+  /* The utility form of the text blue. This pointed at --blue (the FILL), so
+     `text-blue-text` stayed at 3.12-3.70:1 on the bone surfaces even after
+     --blue-text was fixed. Both spellings must resolve to the same value. */
+  --color-blue-text: var(--color-accent-deep);
   --color-blue-light: var(--color-primary-100);
   --color-blue-sky: #428bec;
   --color-white-text: var(--color-neutral-100);
@@ -604,6 +607,10 @@ textarea:focus-visible {
      requirement of their own. */
   --blue-text: #1657c9;
   --blue-soft: #e6f2ff;
+  /* For fills that carry white text (count badges, selected slots). White on
+     --blue is 4.09:1; on this it is 6.48:1. Deliberately identical in dark -
+     the fill and its white label travel together. */
+  --blue-strong: var(--color-accent-deep);
   --pink: #ff90d4;
   --cyan: #5ce1e6;
   --cyan-text: #38ccd8;

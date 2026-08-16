@@ -49,7 +49,7 @@ const HOUR_MS = 60 * 60 * 1000;
  */
 function UnreadBadge({ count }: Readonly<{ count: number }>) {
   return (
-    <span className="inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[var(--blue)] px-1.5 py-0.5 text-[10px] font-extrabold leading-none text-white">
+    <span className="inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[var(--blue-strong)] px-1.5 py-0.5 text-[10px] font-extrabold leading-none text-white">
       {count}
     </span>
   );

@@ -64,7 +64,7 @@ const kpiCaptionClass = 'text-[11px] text-[var(--ink-faint)]';
 const insetBoxClass = 'bg-[var(--inset)] border border-[var(--divider)]';
 
 const abcTileClass: Record<AbcClass, string> = {
-  'Class A': 'bg-[var(--blue)] text-white',
+  'Class A': 'bg-[var(--blue-strong)] text-white',
   'Class B': 'bg-[var(--blue-soft)] text-[var(--blue-text)]',
   'Class C': 'bg-[var(--inset)] text-[var(--ink-muted)] border border-[var(--divider)]',
 };

@@ -62,13 +62,13 @@ describe('ConversationRow', () => {
   it('renders the blue unread pill on a network row', () => {
     render(<ConversationRow {...base} network unread={4} />);
     const badge = screen.getByText('4');
-    expect(badge).toHaveClass('bg-[var(--blue)]');
+    expect(badge).toHaveClass('bg-[var(--blue-strong)]');
   });
 
   it('renders the same blue unread pill on a non-network row', () => {
     render(<ConversationRow {...base} unread={4} />);
     const badge = screen.getByText('4');
-    expect(badge).toHaveClass('bg-[var(--blue)]');
+    expect(badge).toHaveClass('bg-[var(--blue-strong)]');
     expect(badge).toHaveClass('font-extrabold');
     expect(badge).toHaveClass('h-[17px]');
   });

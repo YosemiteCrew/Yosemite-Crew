@@ -57,7 +57,7 @@ const SpecialityNameEditor = ({
           type="button"
           aria-label="Save name"
           onClick={onSaveName}
-          className="flex items-center justify-center size-8 rounded-full bg-[var(--blue)] text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand shrink-0"
+          className="flex items-center justify-center size-8 rounded-full bg-[var(--blue-strong)] text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand shrink-0"
         >
           <FiCheck size={14} aria-hidden="true" />
         </button>

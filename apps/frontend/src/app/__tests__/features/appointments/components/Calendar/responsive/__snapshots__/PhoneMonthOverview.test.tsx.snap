@@ -262,7 +262,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
         type="button"
       >
         <span
-          class="flex size-[26px] items-center justify-center rounded-full bg-[var(--blue)] text-[12.5px] font-bold text-white shadow-[0_4px_12px_var(--glow-b26)]"
+          class="flex size-[26px] items-center justify-center rounded-full bg-[var(--blue-strong)] text-[12.5px] font-bold text-white shadow-[0_4px_12px_var(--glow-b26)]"
         >
           7
         </span>
