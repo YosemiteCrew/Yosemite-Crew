@@ -1035,15 +1035,14 @@ html[data-theme='dark'] {
 html[data-theme='dark'] [data-yc-theme] {
   color-scheme: dark;
 }
-html[data-theme-ready] [data-yc-theme] * {
-  transition:
-    background-color 300ms ease,
-    border-color 300ms ease,
-    color 300ms ease,
-    box-shadow 300ms ease;
+/* Same shape as the app shell below, and for the same reason: a `*` transition
+   here started one animation per element on every theme flip, and a transition
+   that stalls at currentTime 0 strands the element in the outgoing theme. */
+html[data-theme-ready] [data-yc-theme] {
+  transition: background-color 300ms ease;
 }
 @media (prefers-reduced-motion: reduce) {
-  html[data-theme-ready] [data-yc-theme] * {
+  html[data-theme-ready] [data-yc-theme] {
     transition: none !important;
   }
 }
@@ -1666,15 +1665,24 @@ input[type='number'] {
 html[data-theme='dark'] [data-yc-app] {
   color-scheme: dark;
 }
-html[data-theme-ready] [data-yc-app] * {
-  transition:
-    background-color 300ms ease,
-    border-color 300ms ease,
-    color 300ms ease,
-    box-shadow 300ms ease;
+/* The transition lives on the SHELL, not on `*`.
+   It used to be `[data-yc-app] *`, which put a 300ms transition on every element
+   in the app - roughly 700 of them on a real page. A theme flip then started ~700
+   simultaneous transitions, and some never advanced: caught in the browser with
+   playState "running" and currentTime stuck at 0, which leaves the element painted
+   in the OUTGOING theme's colour indefinitely. The Patients page heading ended up
+   at #f4efe6 on #efe8dc - 1.06:1, invisible - while a freshly created element with
+   the same class rendered correctly, proving the CSS was fine and the transition
+   was the fault.
+   Backgrounds still cross-fade at the surface level, which is the part anyone
+   perceives; text and borders swap instantly, which is both correct and cheaper.
+   `color` is deliberately NOT transitioned - it is the property whose failure mode
+   is unreadable text. */
+html[data-theme-ready] [data-yc-app] {
+  transition: background-color 300ms ease;
 }
 @media (prefers-reduced-motion: reduce) {
-  html[data-theme-ready] [data-yc-app] * {
+  html[data-theme-ready] [data-yc-app] {
     transition: none !important;
   }
 }

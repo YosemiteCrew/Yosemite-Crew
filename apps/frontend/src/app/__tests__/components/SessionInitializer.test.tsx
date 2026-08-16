@@ -15,16 +15,58 @@ jest.mock('@/app/hooks/useProfiles', () => ({
 }));
 jest.mock('@/app/hooks/useAvailabiities', () => ({ useLoadAvailabilities: jest.fn() }));
 jest.mock('@/app/hooks/useFullscreenLoader', () => ({ useFullscreenLoader: jest.fn() }));
+const ORG_STATE = {
+  primaryOrgId: null,
+  orgsById: {
+    'org-1': { type: 'HOSPITAL' },
+  },
+};
+
 jest.mock('@/app/stores/orgStore', () => ({
-  useOrgStore: jest.fn((selector: any) =>
-    selector({
-      primaryOrgId: null,
-      orgsById: {
-        'org-1': { type: 'HOSPITAL' },
-      },
-    })
+  // `getState` as well as the selector form: the terminology rewriter reads the
+  // store imperatively (it runs outside React, from a MutationObserver), and a
+  // mock with only the hook form made it throw the moment the title rewrite
+  // started running on mount.
+  useOrgStore: Object.assign(
+    jest.fn((selector: any) => selector(ORG_STATE)),
+    { getState: () => ORG_STATE }
   ),
 }));
+
+// The org-scoped refresh effect fires thirteen loaders the moment primaryOrgId
+// is truthy, and one test sets it. Unmocked, those reach axios and leave real
+// XMLHttpRequests open after the run ("Jest did not exit"). Stub them all.
+jest.mock('@/app/features/organization/services/orgService', () => ({ loadOrgs: jest.fn() }));
+jest.mock('@/app/features/organization/services/profileService', () => ({
+  loadProfiles: jest.fn(),
+}));
+jest.mock('@/app/features/organization/services/availabilityService', () => ({
+  loadAvailability: jest.fn(),
+}));
+jest.mock('@/app/features/organization/services/teamService', () => ({ loadTeam: jest.fn() }));
+jest.mock('@/app/features/organization/services/specialityService', () => ({
+  loadSpecialitiesForOrg: jest.fn(),
+}));
+jest.mock('@/app/features/organization/services/roomService', () => ({
+  loadRoomsForOrgPrimaryOrg: jest.fn(),
+}));
+jest.mock('@/app/features/appointments/services/appointmentService', () => ({
+  loadAppointmentsForPrimaryOrg: jest.fn(),
+}));
+jest.mock('@/app/features/companions/services/companionService', () => ({
+  loadCompanionsForPrimaryOrg: jest.fn(),
+}));
+jest.mock('@/app/features/billing/services/invoiceService', () => ({
+  loadInvoicesForOrgPrimaryOrg: jest.fn(),
+}));
+jest.mock('@/app/features/tasks/services/taskService', () => ({
+  loadTasksForPrimaryOrg: jest.fn(),
+}));
+jest.mock('@/app/features/documents/services/documentService', () => ({
+  loadDocumentsForOrgPrimaryOrg: jest.fn(),
+}));
+jest.mock('@/app/features/forms/services/formService', () => ({ loadForms: jest.fn() }));
+jest.mock('@/app/hooks/useIntegrations', () => ({ loadIntegrationsForPrimaryOrg: jest.fn() }));
 
 jest.mock('@/app/lib/companionTerminology', () => ({
   getCompanionTerminologyForOrg: jest.fn(() => 'COMPANION'),

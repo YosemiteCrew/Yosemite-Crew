@@ -326,6 +326,22 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
     expect(offenders).toEqual([]);
   });
 
+  it('never puts a theme transition on every element', () => {
+    // `[data-yc-app] *` and `[data-yc-theme] *` each transitioned four properties
+    // on EVERY element. A theme flip started ~700 simultaneous transitions, and
+    // some never advanced - observed in the browser with playState "running" and
+    // currentTime stuck at 0, which strands the element in the OUTGOING theme.
+    // The Patients heading ended up at 1.06:1 that way.
+    //
+    // `color` is the property that must never be transitioned wholesale: its
+    // failure mode is unreadable text, not a missed fade.
+    const universal = [...CSS.matchAll(/^(html\[data-theme-ready\][^{]*\*)\s*\{([^}]*)\}/gm)]
+      .filter(([, , body]) => /transition/.test(body))
+      .map(([, selector]) => selector.trim());
+
+    expect(universal).toEqual([]);
+  });
+
   it('has nothing painting text with a raw neutral ramp step', () => {
     // `text-neutral-500` in the chat panes is what exposed the whole bug, and
     // the first version of this guard only looked for that one shape - Tailwind
