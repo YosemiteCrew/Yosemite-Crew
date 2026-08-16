@@ -188,6 +188,39 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
       .filter((f) => f.endsWith('.css') && !f.includes('/marketing/'));
 
     const offenders: string[] = [];
+
+    // Tailwind can dim from the markup too, which a stylesheet-only scan cannot
+    // see: `text-[var(--ink-faint)] ... opacity-70` on the calendar minute
+    // labels composited to 2.94:1 across five calendar views while this test
+    // passed. State-prefixed utilities are exempt - `hover:` raises contrast
+    // back on release, and `disabled:` is an inactive control.
+    const tsx = fs
+      .readdirSync(root, { recursive: true, encoding: 'utf8' })
+      .filter((f) => f.endsWith('.tsx') && !f.includes('__tests__') && !f.includes('.stories.'))
+      .filter((f) => !f.includes('/marketing/'));
+
+    // Narrowed to the actual defect: an opacity utility on the SAME element as a
+    // faint text token. A dimmed icon or a dimmed container is a different
+    // question; what breaks here is faint text dimmed further, which is what
+    // the calendar minute labels were doing.
+    const FAINT_TEXT =
+      /--ink-faint2?\)|--color-text-tertiary\)|--color-text-extra\)|\btext-text-tertiary\b|--status-[a-z]+-text\)/;
+
+    for (const file of tsx) {
+      const lines = fs.readFileSync(path.join(root, file), 'utf8').split('\n');
+      lines.forEach((line, i) => {
+        if (!FAINT_TEXT.test(line)) return;
+        // `cursor-not-allowed` marks the disabled branch of a clsx ternary,
+        // where the element also carries a real `disabled` attribute a few
+        // lines up - an inactive control, exempt under WCAG 1.4.3.
+        if (/cursor-not-allowed/.test(line)) return;
+        for (const m of line.matchAll(/(^|[\s"'`:])opacity-(\d{1,3})\b/g)) {
+          if (m[1].endsWith(':')) continue; // hover: / disabled: / group-hover:
+          if (Number(m[2]) >= 100 || Number(m[2]) === 0) continue; // 0 = hidden
+          offenders.push(`${file}:${i + 1}  faint text + opacity-${m[2]}`);
+        }
+      });
+    }
     for (const file of files) {
       const lines = fs.readFileSync(path.join(root, file), 'utf8').split('\n');
       lines.forEach((line, i) => {

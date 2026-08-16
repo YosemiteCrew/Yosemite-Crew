@@ -757,7 +757,11 @@ html[data-theme='dark'] {
   --ink-muted: #a89e90;
   --ink-soft: #cabfb0;
   --ink-faint: #9d9285;
-  --ink-faint2: #8b8173;
+  /* #8b8173 passed only on --spot: it was 3.78:1 on --inset (the marketing
+     footer), 3.84 on --screen and 4.10 on --band. #998f82 clears 4.5 on every
+     dark surface (4.56-5.78) and is the value the app scope already used, so
+     the two agree now instead of the app being the only readable one. */
+  --ink-faint2: #998f82;
   --ink-6b: #a1968a;
   --cta: #f2ece1;
   --cta-hover: #fbf8f1;
@@ -875,7 +879,11 @@ html[data-theme='dark'] {
   --ink-muted: #a89e90;
   --ink-soft: #cabfb0;
   --ink-faint: #9d9285;
-  --ink-faint2: #8b8173;
+  /* #8b8173 passed only on --spot: it was 3.78:1 on --inset (the marketing
+     footer), 3.84 on --screen and 4.10 on --band. #998f82 clears 4.5 on every
+     dark surface (4.56-5.78) and is the value the app scope already used, so
+     the two agree now instead of the app being the only readable one. */
+  --ink-faint2: #998f82;
   --ink-6b: #a1968a;
   --cta: #f2ece1;
   --cta-hover: #fbf8f1;

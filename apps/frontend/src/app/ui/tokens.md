@@ -35,7 +35,7 @@ Rules:
 | scope                                               | token          | light     | dark      |
 | --------------------------------------------------- | -------------- | --------- | --------- |
 | `:root` (public marketing pages)                    | `--ink-faint`  | `#8f8984` | `#9d9285` |
-| `:root` (public marketing pages)                    | `--ink-faint2` | `#a9a39e` | `#8b8173` |
+| `:root` (public marketing pages)                    | `--ink-faint2` | `#a9a39e` | `#998f82` |
 | `body:has([data-yc-app])` (PIMS, auth form, embeds) | `--ink-faint`  | `#66635f` | `#9d9285` |
 | `body:has([data-yc-app])` (PIMS, auth form, embeds) | `--ink-faint2` | `#66635f` | `#998f82` |
 
