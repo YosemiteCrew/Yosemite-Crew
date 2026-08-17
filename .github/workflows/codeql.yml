@@ -93,12 +93,10 @@ jobs:
           config-file: ./.github/codeql/codeql-config.yml
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
-          # If you wish to specify custom queries, you can do so here or in a config file.
-          # By default, queries listed here will override any specified in a config file.
-          # Prefix the list here with "+" to use these queries and those in the config file.
-
-          # For more details on CodeQL's query packs, refer to: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
-          # queries: security-extended,security-and-quality
+          # Query suites live in the config file above, NOT here. A `queries:`
+          # list on this step replaces the config file's queries unless it is
+          # prefixed with `+`, so declaring them in one place avoids silently
+          # dropping the other. See .github/codeql/codeql-config.yml.
 
       # If the analyze step fails for one of the languages you are analyzing with
       # "We were unable to automatically build your code", modify the matrix above
