@@ -305,6 +305,14 @@ const Tasks = () => {
   return (
     <div className="flex flex-col relative">
       <div className="yc-page-content">
+        {/* No CTA in this header. Appointments seats its primary action inside
+            whichever toolbar the active view owns, and Tasks now does the same:
+            the calendar's Header, TaskFilterBar for the list, TaskBoard's own
+            toolbar for the board. Keeping one up here as well put "New task"
+            outside the calendar card, which is the difference you notice when
+            switching between the two planners, and it needed an `order-1` flex
+            hack to sit after the view toggle at all. On phone the create action
+            is the shell FAB either way. */}
         <TitleCalendar
           title="Tasks"
           description="Track to-dos, assign the team or pet parents, follow through"
@@ -317,18 +325,6 @@ const Tasks = () => {
           setActiveView={setActiveView}
           showAdd={false}
           viewOptions={['calendar', 'board', 'list']}
-          actionBeforeAdd={
-            // On phone the create action is the shell FAB, so the header CTA
-            // would be a duplicate - the design's "primary action -> FAB" rule.
-            // No CTA here. Appointments seats its primary action inside whichever
-            // toolbar the active view owns, and Tasks now does the same: the
-            // calendar's Header, TaskFilterBar for the list, TaskBoard's own
-            // toolbar for the board. Keeping one up here as well put "New task"
-            // outside the calendar card, which is the difference you notice when
-            // switching between the two planners - and it needed an `order-1`
-            // flex hack to sit after the view toggle at all.
-            undefined
-          }
         />
         <MobileSearchBar placeholder="Search tasks" />
 
