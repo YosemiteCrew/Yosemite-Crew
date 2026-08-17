@@ -16,16 +16,16 @@ name: Desktop E2E
 # Electron's own binary arrives through its postinstall during the shared setup
 # step.
 
+# Triggered on EVERY pull request, with the path decision made inside the jobs
+# rather than here. A path filter at this level looks equivalent and is not: once
+# `Desktop E2E Required` is marked required on the branch ruleset, a PR touching
+# no desktop path skips the whole workflow, the required check is never created,
+# and the PR waits for it forever. Filtering inside means the aggregate always
+# reports, and reports success when desktop testing was legitimately unnecessary.
 on:
-  pull_request:
-    paths:
-      - 'apps/desktop/**'
-      - '.github/workflows/desktop-e2e.yml'
+  pull_request: {}
   push:
     branches: [main, dev]
-    paths:
-      - 'apps/desktop/**'
-      - '.github/workflows/desktop-e2e.yml'
   workflow_dispatch: {}
 
 concurrency:
@@ -36,8 +36,44 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    name: Detect desktop changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      desktop: ${{ steps.filter.outputs.desktop }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Decide whether the desktop suite needs to run
+        id: filter
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # Anything other than a pull request runs the suite: a push to dev or
+          # main, or a manual dispatch, is never the case this filter exists to
+          # skip, and failing open costs a run rather than hiding a regression.
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "desktop=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          CHANGED=$(git diff --name-only "${BASE_SHA}...${HEAD_SHA}" \
+            -- 'apps/desktop/**' '.github/workflows/desktop-e2e.yml' | wc -l)
+          if [ "$CHANGED" -gt 0 ]; then
+            echo "desktop=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "desktop=false" >> "$GITHUB_OUTPUT"
+          fi
+
   e2e:
     name: Desktop E2E (${{ matrix.os }})
+    needs: [changes]
+    if: needs.changes.outputs.desktop == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     # Gated on a RATCHET, not on a clean suite. 26 of 44 specs pass today; the
@@ -158,15 +194,23 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [e2e]
+    needs: [changes, e2e]
     steps:
       - name: Fail on any failed or cancelled leg
         env:
           RESULTS: ${{ toJSON(needs) }}
+          NEEDED: ${{ needs.changes.outputs.desktop }}
         run: |
           set -euo pipefail
           echo "$RESULTS"
-          if echo "$RESULTS" | grep -qE '"result": *"(failure|cancelled)"'; then
-            echo "Desktop E2E Required: at least one platform regressed below the passing floor"
+          # A skipped e2e job is only acceptable when the filter said the desktop
+          # app was untouched. Skipped for any other reason is a stage that
+          # silently did not run, which is what this aggregate exists to catch.
+          if [ "$NEEDED" != "true" ]; then
+            echo "Desktop E2E Required: no desktop changes in this pull request, nothing to run"
+            exit 0
+          fi
+          if echo "$RESULTS" | grep -qE '"result": *"(failure|cancelled|skipped)"'; then
+            echo "Desktop E2E Required: at least one platform regressed below the passing floor, was cancelled, or did not run"
             exit 1
           fi

@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
-import { openPimsTab } from './welcome';
+import { MOD, openPimsTab } from './welcome';
 
 type TestServer = {
   origin: string;
@@ -112,7 +112,7 @@ test.describe('command-palette E2E', () => {
 
   test('Cmd+K opens palette window', async () => {
     await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
-    await page.keyboard.press('Meta+K');
+    await page.keyboard.press(`${MOD}+K`);
     await waitForPaletteReady(page);
     const paletteResult = await evaluateYcDesktop<unknown>(page, 'getPaletteActions');
     expect(paletteResult).not.toBeNull();
@@ -120,7 +120,7 @@ test.describe('command-palette E2E', () => {
 
   test('search "patient" returns "Patients" result', async () => {
     await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
-    await page.keyboard.press('Meta+K');
+    await page.keyboard.press(`${MOD}+K`);
     await waitForPaletteReady(page);
     const actions = await evaluateYcDesktop<{
       ok: boolean;
@@ -169,7 +169,7 @@ test.describe('command-palette E2E', () => {
 
   test('Escape closes palette', async () => {
     await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
-    await page.keyboard.press('Meta+K');
+    await page.keyboard.press(`${MOD}+K`);
     await waitForPaletteReady(page);
     const closeResult = await evaluateYcDesktop<{ ok: boolean }>(page, 'closePalette');
     expect(closeResult).not.toBeNull();

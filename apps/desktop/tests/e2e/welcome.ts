@@ -93,3 +93,9 @@ export const openPimsTab = async (
   await pimsTab.waitForLoadState('domcontentloaded');
   return { shell, tab: pimsTab };
 };
+
+// The app registers its shortcuts with Electron's CmdOrCtrl, which resolves to
+// Command on macOS and Control everywhere else. Playwright has no equivalent
+// token, so a spec hardcoding 'Meta+T' silently tests nothing on Windows: the
+// accelerator never fires and the assertion times out.
+export const MOD = process.platform === 'darwin' ? 'Meta' : 'Control';

@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
-import { openPimsTab } from './welcome';
+import { MOD, openPimsTab } from './welcome';
 
 type TestServer = {
   origin: string;
@@ -240,7 +240,7 @@ test.describe('tab E2E', () => {
 
   test('Cmd+T opens a new tab', async () => {
     await waitForTabCount(page, 1);
-    await page.keyboard.press('Meta+T');
+    await page.keyboard.press(`${MOD}+T`);
     await waitForTabCount(page, 2);
     const state = await evaluateYcDesktop<TabResult>(page, 'getTabs');
     expect(state.tabs!).toHaveLength(2);
@@ -249,7 +249,7 @@ test.describe('tab E2E', () => {
   test('Cmd+W closes the active tab', async () => {
     await evaluateYcDesktop(page, 'newTab');
     await waitForTabCount(page, 2);
-    await page.keyboard.press('Meta+W');
+    await page.keyboard.press(`${MOD}+W`);
     await waitForTabCount(page, 1);
     const state = await evaluateYcDesktop<TabResult>(page, 'getTabs');
     expect(state.tabs!).toHaveLength(1);
@@ -260,7 +260,7 @@ test.describe('tab E2E', () => {
     const tabId = state0.tabs![0].id;
     await evaluateYcDesktop(page, 'closeTab', tabId);
     await waitForTabCount(page, 0);
-    await page.keyboard.press('Meta+Shift+T');
+    await page.keyboard.press(`${MOD}+Shift+T`);
     await waitForTabCount(page, 1);
     const state1 = await evaluateYcDesktop<TabResult>(page, 'getTabs');
     expect(state1.tabs!).toHaveLength(1);
