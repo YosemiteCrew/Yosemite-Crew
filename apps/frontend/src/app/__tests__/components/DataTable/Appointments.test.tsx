@@ -219,7 +219,11 @@ describe('Appointments table', () => {
       />
     );
 
-    fireEvent.click(screen.getByTitle('Open appointment overview'));
+    // The name button used to carry title="Open appointment overview" - the same
+    // string on every row, which also overrode each button's accessible name. The
+    // title now holds the row's own name so a clipped cell can be read on hover,
+    // so select it the way a user would instead.
+    fireEvent.click(screen.getAllByRole('button', { name: /Buddy/ })[0]);
     openRowMenu('Buddy');
     fireEvent.click(screen.getByTestId('IoEyeOutline').closest('button')!);
     openRowMenu('Buddy');

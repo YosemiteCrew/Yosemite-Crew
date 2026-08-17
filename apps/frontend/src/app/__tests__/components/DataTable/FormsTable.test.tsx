@@ -306,8 +306,14 @@ describe('FormsTable Component', () => {
       expect(screen.getByText('Mass removal')).toBeInTheDocument();
     });
 
-    it('falls back to the raw id when a linked service is not in the options', () => {
-      const forms = [{ ...mockForms[0], services: ['svc-unknown'] }];
+    it('never prints the raw id when a linked service is not in the options', () => {
+      // This used to assert the opposite, with a friendly fixture id
+      // ('svc-unknown') that made the fallback look harmless. Real ids are
+      // 24-character ObjectIDs, so the live Templates page showed rows of hex
+      // where a service name belongs. The id is an internal identifier and
+      // means nothing to the reader.
+      const danglingId = '6970cb292a9f903dd2935813';
+      const forms = [{ ...mockForms[0], services: [danglingId] }];
       render(
         <FormsTable
           {...defaultProps}
@@ -317,7 +323,23 @@ describe('FormsTable Component', () => {
         />
       );
 
-      expect(screen.getByText('svc-unknown')).toBeInTheDocument();
+      expect(screen.queryByText(danglingId)).not.toBeInTheDocument();
+      expect(screen.getByText('Unavailable service')).toBeInTheDocument();
+    });
+
+    it('still resolves the services it can when one id dangles', () => {
+      const forms = [{ ...mockForms[0], services: ['svc-1', '6970cb292a9f903dd2935813'] }];
+      render(
+        <FormsTable
+          {...defaultProps}
+          filteredList={forms as any}
+          showLinkedServices
+          serviceOptions={serviceOptions}
+        />
+      );
+
+      expect(screen.getByText('Dental scale & polish')).toBeInTheDocument();
+      expect(screen.getByText('Unavailable service')).toBeInTheDocument();
     });
 
     it('renders a dash when a template has no linked services', () => {

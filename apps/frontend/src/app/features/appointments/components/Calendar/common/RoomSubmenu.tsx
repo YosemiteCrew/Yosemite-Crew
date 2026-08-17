@@ -31,7 +31,7 @@ const RoomSubmenu = ({ submenuRef, submenuStyle, roomOptions, savingKey }: RoomS
           return (
             <React.Fragment key={room.key}>
               {index > 0 ? (
-                <div className="mx-1 border-t border-white/30" aria-hidden="true" />
+                <div className="mx-1 border-t border-[var(--hairline)]" aria-hidden="true" />
               ) : null}
               <button
                 type="button"

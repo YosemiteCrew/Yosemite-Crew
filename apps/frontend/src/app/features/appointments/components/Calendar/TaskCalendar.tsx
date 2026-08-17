@@ -162,10 +162,31 @@ const TaskCalendar = ({
 
   return (
     <>
-      <div className="border border-card-border rounded-2xl size-full min-h-0 flex flex-col overflow-hidden">
+      {/* The same lifted card as AppointmentCalendar.tsx:245-251. This painted no
+          surface at all, so --page showed through the 64px time gutter and the
+          side padding while the slots painted --neutral-0 on top: the Tasks grid
+          read as a two-tone unpainted region while Appointments read as a card.
+          The phone branch above is left alone - it already matches the phone
+          branch on the Appointments side, which is also bordered with no fill. */}
+      <div
+        className="size-full min-h-0 flex flex-col overflow-hidden rounded-[18px] border"
+        style={{
+          borderColor: 'var(--hairline)',
+          backgroundColor: 'var(--screen)',
+          boxShadow: '0 1px 2px var(--sh03), 0 8px 22px var(--sh05)',
+        }}
+      >
         <Header
           currentDate={currentDate}
           setCurrentDate={setCurrentDate}
+          // Header derives `navigatesByWeek` from `activeCalendar === 'week' &&
+          // !!setWeekStart`. Without this prop it stayed false on the Tasks WEEK
+          // view, so the toolbar chevrons ran day navigation: the grid rolled
+          // forward one day at a time (Mon 17 - Sun 23 became Tue 18 - Mon 24)
+          // instead of moving a calendar week, and the buttons were labelled
+          // "Previous day" / "Next day" on a week view. Appointments passes it
+          // (AppointmentCalendar.tsx:256) and pages Mon 17 -> Mon 24 correctly.
+          setWeekStart={setWeekStart}
           zoomMode={zoomMode}
           setZoomMode={setZoomMode}
           activeCalendar={activeCalendar}

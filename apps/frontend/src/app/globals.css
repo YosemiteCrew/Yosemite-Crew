@@ -343,7 +343,11 @@ textarea:focus-visible {
   --color-state-selected: var(--color-neutral-950);
 
   --color-input-text-placeholder: var(--color-neutral-700);
-  --color-input-text-placeholder-active: var(--color-brand-950);
+  /* An ink, so it takes the ink-tuned blue. --color-brand-950 is the brand FILL
+     (#007cf5) with no dark value, which left the active field's placeholder at
+     3.16:1 on the dark field. The border below stays the fill: it is a non-text
+     boundary and clears its 3:1 in both themes. */
+  --color-input-text-placeholder-active: var(--blue-text);
   --color-input-border-default: var(--color-neutral-200);
   --color-input-border-error: var(--color-danger-600);
   --color-input-border-active: var(--color-brand-950);
@@ -1381,7 +1385,7 @@ input[type='number'] {
   }
 
   .text-yc-14-b-primary {
-    color: var(--color-primary-600);
+    color: var(--blue-text);
     font-family: var(--font-satoshi);
     font-size: 14px;
     font-style: normal;
@@ -1411,7 +1415,7 @@ input[type='number'] {
   }
 
   .text-yc-16-b-primary {
-    color: var(--color-primary-600);
+    color: var(--blue-text);
     font-family: var(--font-satoshi);
     font-size: 16px;
     font-style: normal;
@@ -1421,7 +1425,7 @@ input[type='number'] {
   }
 
   .text-yc-20-b-primary {
-    color: var(--color-primary-600);
+    color: var(--blue-text);
     font-family: var(--font-satoshi);
     font-size: 20px;
     font-style: normal;
@@ -1615,8 +1619,12 @@ input[type='number'] {
   border-radius: 8px !important;
 }
 
+/* --ink-faint, not the 200 ramp step. neutral-200 is the HAIRLINE value: as text
+   it measured 1.11:1 in light and 1.44 in dark, so the twelve adjacent-month days
+   filling the grid were invisible - and they are clickable, so WCAG 1.4.3 does
+   not exempt them the way it does the disabled rule below. */
 .yc-datepicker-calendar .react-datepicker__day--outside-month {
-  color: var(--color-neutral-200);
+  color: var(--ink-faint);
 }
 
 .yc-datepicker-calendar
@@ -1633,16 +1641,21 @@ input[type='number'] {
   color: var(--color-text-primary);
 }
 
+/* --blue-text over a tint mixed into the SURFACE, not into literal white.
+   --color-brand-950 is the brand fill (#007cf5) and has no dark value, and the
+   8%-of-white tint stayed near-white in dark, so "today" in the appointment
+   date picker was a fixed blue on a fixed white chip inside a dark modal. */
 .yc-datepicker-calendar .react-datepicker__day--today:not(.react-datepicker__day--selected) {
   font-weight: 600;
-  color: var(--color-brand-950);
-  background-color: color-mix(in srgb, var(--color-brand-950) 8%, white);
+  color: var(--blue-text);
+  background-color: color-mix(in srgb, var(--blue-text) 12%, var(--neutral-0, var(--screen)));
   border-radius: 8px !important;
 }
 
 .yc-datepicker-calendar .react-datepicker__day--selected {
-  background-color: var(--color-brand-950) !important;
-  color: #ffffff !important;
+  /* --blue-strong, not the brand fill: white on #007cf5 is 4.04:1. */
+  background-color: var(--blue-strong) !important;
+  color: var(--white-text) !important;
   font-weight: 600;
   border-radius: 8px !important;
 }
@@ -1682,8 +1695,9 @@ input[type='number'] {
 }
 
 .yc-datepicker-calendar .react-datepicker__time-list-item--selected {
-  background-color: var(--color-brand-950) !important;
-  color: #ffffff !important;
+  /* --blue-strong, not the brand fill: white on #007cf5 is 4.04:1. */
+  background-color: var(--blue-strong) !important;
+  color: var(--white-text) !important;
   font-weight: 600;
 }
 

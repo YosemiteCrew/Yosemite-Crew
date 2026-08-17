@@ -1,5 +1,8 @@
 import React from 'react';
-import { isOnPreferredTimeZoneCalendarDay } from '@/app/lib/timezone';
+import {
+  formatDateInPreferredTimeZone,
+  isOnPreferredTimeZoneCalendarDay,
+} from '@/app/lib/timezone';
 
 type DayLabels = {
   days: Date[];
@@ -17,9 +20,11 @@ const DayLabels = ({ days, currentDate, columnsStyle }: DayLabels) => {
       suppressHydrationWarning
     >
       {days.map((day, idx) => {
-        const weekday = day.toLocaleDateString('en-US', {
-          weekday: 'short',
-        });
+        // The preferred zone, not the browser's. isToday below already uses it,
+        // and the Appointments week header does too (common/WeekCalendar.tsx:195),
+        // so a user whose browser zone differs from the org's could see the same
+        // column labelled Tue on one calendar and Mon on the other.
+        const weekday = formatDateInPreferredTimeZone(day, { weekday: 'short' });
         const dateNumber = day.getDate();
         const isToday = isOnPreferredTimeZoneCalendarDay(new Date(), day);
         const dateNumberClass = isToday
@@ -28,7 +33,7 @@ const DayLabels = ({ days, currentDate, columnsStyle }: DayLabels) => {
         return (
           <div key={idx + day.getDate()} className="flex items-center justify-center gap-2">
             <div
-              className={`text-body-4 ${isToday ? 'text-(--color-primary-700)' : 'text-text-primary'}`}
+              className={`text-body-4 ${isToday ? 'text-[var(--blue-text)]' : 'text-text-primary'}`}
             >
               {weekday}
             </div>

@@ -106,16 +106,26 @@ export const buildAppointmentColumns = ({
     render: (item: Appointment) => (
       <div className="appointment-profile">
         <div className="appointment-profile-two">
-          <div className="flex items-center gap-1.5">
+          {/* min-w-0 + cell-truncate: the row is 140px and the Emergency chip takes
+              half of it, so on an emergency the name had nothing left and
+              `.appointment-profile-title`'s `overflow-wrap: anywhere` broke it
+              mid-word - "Lily · Mathers" rendered as "Mather" / "s" over three
+              lines. The chip keeps its size and the name ellipses instead. */}
+          <div className="flex min-w-0 items-center gap-1.5">
             <button
               type="button"
               onClick={() => onViewAppointmentHistory(item)}
-              className="appointment-profile-title cell-name cursor-pointer hover:underline underline-offset-2 text-left"
-              title="Open appointment overview"
+              className="appointment-profile-title cell-name cell-truncate min-w-0 cursor-pointer hover:underline underline-offset-2 text-left"
+              title={formatCompanionNameWithOwnerLastName(
+                item?.companion?.name,
+                item?.companion?.parent
+              )}
             >
               {formatCompanionNameWithOwnerLastName(item?.companion?.name, item?.companion?.parent)}
             </button>
-            {item.isEmergency && <div className="appointment-emergency-label">Emergency</div>}
+            {item.isEmergency && (
+              <div className="appointment-emergency-label shrink-0">Emergency</div>
+            )}
           </div>
           <div className="appointment-profile-sub">
             {getOwnerFirstName(item?.companion?.parent) || ''}
