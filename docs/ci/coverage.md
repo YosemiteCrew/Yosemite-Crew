@@ -55,6 +55,14 @@ executed**, including function bodies nothing calls.
 `sourceMap: false` from the production tsconfig. Fixed in issue #2238 by setting
 `sourceMap: true` for the test config.
 
+The trigger is an **explicit** `sourceMap: false`, not a missing setting. ts-jest
+turns source maps on by default, so a tsconfig that says nothing is safe; a
+tsconfig that says `false` overrides that default and breaks attribution. This is
+why only desktop was affected: `apps/backend` uses the same v8 provider and the
+same ts-jest transform but omits the option entirely, and its canary reports
+correctly (verified). `apps/frontend` transforms through next/jest and is also
+correct.
+
 The failure is worth recognising because of its shape rather than its size. The
 aggregate barely moved when it was fixed:
 
@@ -72,7 +80,7 @@ aggregate that looks right is not evidence that the underlying data is right.
 
 If you add an app or change a transform, verify with a canary: append an
 exported function nothing calls, run coverage, and confirm its body reports zero
-hits. `apps/backend` also uses the v8 provider and has not been checked this way.
+hits. All four apps pass that check as of this change.
 
 ### Ratcheting the floors
 
