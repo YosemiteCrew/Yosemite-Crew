@@ -6,16 +6,20 @@ type Outcome = 'paid' | 'unpaid' | 'no_payment_required';
 
 /**
  * The component fetches its own status, so each story stubs `fetch` for the
- * duration of its render. `unpaid` never resolves on purpose - that branch and
- * the loading branch share the pulsing dots, which is the surface this file
- * exists to guard.
+ * duration of its render. `pending` is the one that never settles, which is how
+ * the loading state is held open; `unpaid` resolves normally and reaches the
+ * same pulsing dots by a different route, so both are worth a story.
  */
 const withStubbedStatus = (outcome: Outcome | 'pending') => {
   const Decorator = (Story: React.ComponentType) => {
     const original = globalThis.fetch;
+    const neverSettles = new Promise<never>(() => {
+      // Deliberately empty: the loading state only exists while the request is
+      // in flight, so the story has to keep it in flight.
+    });
     globalThis.fetch = (() =>
       outcome === 'pending'
-        ? new Promise(() => undefined)
+        ? neverSettles
         : Promise.resolve({
             json: () => Promise.resolve({ status: outcome, total: 4250 }),
           })) as typeof globalThis.fetch;
