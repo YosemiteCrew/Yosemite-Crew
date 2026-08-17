@@ -44,6 +44,30 @@ Push runs skip this gate. Once several pull requests have landed together there
 is no meaningful "lines this change adds", and the aggregate floor already
 guards the branch.
 
+### Known limitation: desktop coverage is not trustworthy
+
+`apps/desktop` sets `coverageProvider: 'v8'` alongside its ts-jest `transform`,
+and the resulting report marks **every line of a loaded module as executed**,
+including function bodies nothing calls. Verified by adding an uncalled exported
+function to `src/utils/printing.ts`: all of its lines came back with a hit count
+of 1, both in CI and locally.
+
+This is not a property of the v8 provider as such. `apps/frontend` also uses
+`coverageProvider: 'v8'` and reports uncalled function bodies correctly as zero,
+so the defect is specific to how desktop's transform and the v8-to-istanbul
+conversion interact.
+
+Consequences while it stands:
+
+- The added-line floor for desktop cannot fail, because no added line can
+  measure as uncovered.
+- Desktop's aggregate floor (`statements=95`) and the matching thresholds in its
+  own jest config are measuring the same inflated numbers, so its reported
+  ~98% is not a coverage figure.
+
+The floor is left configured so it starts working the moment the underlying
+report is fixed. Nothing here should be read as desktop being gated today.
+
 ### Ratcheting the floors
 
 `frontend` and `desktop` are set at the standard their suites already meet.
