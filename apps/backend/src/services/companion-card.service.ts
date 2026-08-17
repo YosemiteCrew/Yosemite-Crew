@@ -1,6 +1,7 @@
 import { randomBytes, createHash } from "node:crypto";
 import { prisma } from "src/config/prisma";
 import logger from "src/utils/logger";
+import { stripTrailingSlash } from "src/utils/strip-trailing-slash";
 import { AuditTrailService } from "./audit-trail.service";
 import { NotificationService } from "./notification.service";
 import { AppointmentService } from "./appointment.service";
@@ -110,12 +111,6 @@ const hashToken = (raw: string): string =>
   createHash("sha256").update(raw).digest("hex");
 
 const generateRawToken = (): string => randomBytes(32).toString("base64url");
-
-const stripTrailingSlash = (value: string): string => {
-  let end = value.length;
-  while (end > 0 && value.charAt(end - 1) === "/") end -= 1;
-  return value.slice(0, end);
-};
 
 // The QR/share payload is scanned outside the web app, so it has to be an
 // absolute URL: a relative "/card/<token>" path is unnavigable on a phone. A

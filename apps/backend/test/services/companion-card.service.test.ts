@@ -563,4 +563,89 @@ describe("CompanionCardService resilience and edge cases", () => {
     const card = await resolveAs("STAFF");
     expect(card.insurance).toEqual({ isInsured: true });
   });
+
+  // REFERRAL_CLINIC gets nameAndPhone: the surname and phone are optional on the
+  // parent record, and a blank column must be dropped from the card rather than
+  // serialised as null (the DTO's optional fields are `undefined`, not null).
+  it("REFERRAL_CLINIC card carries the owner's first name alone when surname and phone are blank", async () => {
+    prismaMock.parent.findUnique.mockResolvedValue({
+      ...PARENT,
+      lastName: null,
+      phoneNumber: null,
+    });
+
+    const card = await resolveAs("REFERRAL_CLINIC");
+
+    expect(card.ownerContact).toEqual({ firstName: "Jane" });
+    expect(card.ownerContact).not.toHaveProperty("email");
+  });
+
+  it("omits the latest visit when the most recent appointment has no status or time", async () => {
+    apptMock.mockResolvedValue([{ status: null, start: null }]);
+
+    const card = await resolveAs("STAFF");
+
+    expect(card.latestVisit).toBeUndefined();
+  });
+});
+
+describe("CompanionCardService unattributed (system) actors", () => {
+  const SYSTEM_ACTOR = { type: "SYSTEM" as const };
+
+  it("issues a PUBLIC token with null issuer/revoker ids and a null audit actor", async () => {
+    await CompanionCardService.issueShareToken({
+      patientId: "pat-1",
+      organisationId: "org-1",
+      audience: "PUBLIC",
+      actor: SYSTEM_ACTOR,
+    });
+
+    // The superseded PUBLIC token is revoked by "nobody", not left unattributed.
+    expect(prismaMock.companionShareToken.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ revokedById: null }),
+      }),
+    );
+    const created = prismaMock.companionShareToken.create.mock.calls[0][0].data;
+    expect(created).toMatchObject({ issuedByType: "SYSTEM", issuedById: null });
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "COMPANION_CARD_SHARE_ISSUED",
+        actorType: "SYSTEM",
+        actorId: null,
+      }),
+    );
+  });
+
+  it("revokes a token with a null revoker id and a null audit actor", async () => {
+    await CompanionCardService.revokeToken("tok-1", "org-1", SYSTEM_ACTOR);
+
+    expect(prismaMock.companionShareToken.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "tok-1" },
+        data: expect.objectContaining({ revokedById: null }),
+      }),
+    );
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "COMPANION_CARD_SHARE_REVOKED",
+        actorType: "SYSTEM",
+        actorId: null,
+      }),
+    );
+  });
+
+  it("serialises a viewed token's lastViewedAt as an ISO string", async () => {
+    prismaMock.companionShareToken.findMany.mockResolvedValue([
+      tokenRow({
+        lastViewedAt: new Date("2026-06-26T09:30:00.000Z"),
+        viewCount: 4,
+      }),
+    ]);
+
+    const [share] = await CompanionCardService.listTokens("pat-1", "org-1");
+
+    expect(share.lastViewedAt).toBe("2026-06-26T09:30:00.000Z");
+    expect(share.viewCount).toBe(4);
+  });
 });

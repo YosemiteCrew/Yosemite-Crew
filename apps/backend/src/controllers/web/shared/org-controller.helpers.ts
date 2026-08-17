@@ -1,10 +1,23 @@
 import type { Response } from "express";
+import { z } from "zod";
 import type { OrgRequest } from "src/middlewares/rbac";
 import logger from "src/utils/logger";
 import type {
   ServiceErrorClass,
   ServiceErrorLike,
 } from "src/controllers/web/shared/clinical-controller.helpers";
+
+/**
+ * Ids on the passport-family routes may be Mongo ObjectIds or Postgres UUIDs
+ * (dual-write), so validate leniently and let the data lookup decide existence.
+ */
+export const looseId = z.string().min(1).max(64);
+
+/** Route params of an org-scoped patient endpoint. */
+export const orgPatientParams = z.object({
+  organisationId: looseId,
+  patientId: looseId,
+});
 
 /**
  * Guards handlers that read `req.userPermissions` directly. Returns false and

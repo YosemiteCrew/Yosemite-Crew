@@ -3,6 +3,7 @@ import { deflateSync } from "node:zlib";
 import AdmZip from "adm-zip";
 import forge from "node-forge";
 import jwt from "jsonwebtoken";
+import { stripTrailingSlash } from "src/utils/strip-trailing-slash";
 import type { PetPassportDTO } from "@yosemite-crew/types";
 
 // Thrown when the Apple Wallet signing material is not present in the
@@ -64,12 +65,6 @@ const fetchImage = async (url?: string): Promise<Buffer | null> => {
 type PassField = { key: string; label: string; value: string };
 
 type AppleIds = { passTypeId: string; teamId: string };
-
-const stripTrailingSlash = (value: string): string => {
-  let end = value.length;
-  while (end > 0 && value.charAt(end - 1) === "/") end -= 1;
-  return value.slice(0, end);
-};
 
 // The QR on the pass points at the public, verifiable passport view so a
 // border officer or boarding facility can confirm the pass against the issuer.

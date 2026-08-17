@@ -6,6 +6,7 @@ import {
 import {
   createClinicalHandlers,
   orgParams,
+  patientScopeBody,
   uuid,
 } from "src/controllers/web/shared/clinical-controller.helpers";
 
@@ -17,10 +18,12 @@ const IcuStatusEnum = z.enum([
 ]);
 const DischargeStatusEnum = z.enum(["TRANSFERRED", "DISCHARGED", "DECEASED"]);
 
-const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
-  encounterId: z.string().uuid().optional(),
-  admittedAt: z.string().datetime(),
+/**
+ * The mutable care fields of an ICU stay. They are optional everywhere, so the
+ * update body is exactly this schema and the create body merges it onto the
+ * patient scope plus the mandatory admission time.
+ */
+const CareFieldsSchema = z.object({
   onVentilator: z.boolean().optional(),
   onOxygenSupport: z.boolean().optional(),
   hasUrinaryCatheter: z.boolean().optional(),
@@ -36,21 +39,9 @@ const CreateBodySchema = z.object({
   notes: z.string().max(2000).optional(),
 });
 
-const UpdateBodySchema = z.object({
-  onVentilator: z.boolean().optional(),
-  onOxygenSupport: z.boolean().optional(),
-  hasUrinaryCatheter: z.boolean().optional(),
-  hasCentralLine: z.boolean().optional(),
-  hasDrain: z.boolean().optional(),
-  devices: z.string().max(1000).optional(),
-  dailyGoals: z.string().max(3000).optional(),
-  nursingFrequency: z.string().max(1000).optional(),
-  alertThresholds: z.string().max(2000).optional(),
-  primaryVet: z.string().max(300).optional(),
-  nursePrimary: z.string().max(300).optional(),
-  anticipatedDischarge: z.string().datetime().optional(),
-  notes: z.string().max(2000).optional(),
-});
+const CreateBodySchema = patientScopeBody
+  .extend({ admittedAt: z.string().datetime() })
+  .merge(CareFieldsSchema);
 
 const DischargeBodySchema = z.object({
   status: DischargeStatusEnum,
@@ -106,7 +97,7 @@ export const IcuCarePlanController = {
 
   update: handler({
     params: PlanParamsSchema,
-    body: UpdateBodySchema,
+    body: CareFieldsSchema,
     fallback: "Failed to update ICU care plan",
     run: ({ params, input }) => {
       const { anticipatedDischarge, ...rest } = input;

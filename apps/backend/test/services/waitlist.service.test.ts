@@ -160,6 +160,25 @@ describe("WaitlistService.list", () => {
       }),
     );
   });
+
+  it("narrows the query to a single appointment type when one is supplied", async () => {
+    await WaitlistService.list({
+      organisationId: "org-1",
+      appointmentType: "DENTAL",
+    });
+    expect(pm.waitlistEntry.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { organisationId: "org-1", appointmentType: "DENTAL" },
+      }),
+    );
+  });
+
+  it("omits the appointment-type filter entirely when none is supplied", async () => {
+    await WaitlistService.list({ organisationId: "org-1" });
+    const { where } = pm.waitlistEntry.findMany.mock.calls[0][0];
+    expect(where).toEqual({ organisationId: "org-1" });
+    expect(where).not.toHaveProperty("appointmentType");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -286,6 +305,24 @@ describe("WaitlistService.cancel", () => {
     ).rejects.toMatchObject({
       statusCode: 409,
     });
+  });
+
+  // An unattributed cancellation (a scheduled sweep, a public flow) must still
+  // produce an audit row - with an explicit null actor rather than a missing
+  // key, so the trail records "nobody" instead of losing the column.
+  it("audits an unattributed cancellation with a null actor id", async () => {
+    const updated = await WaitlistService.cancel("entry-1", "org-1");
+
+    expect(updated.status).toBe("CANCELLED");
+    expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "WAITLIST_ENTRY_CANCELLED",
+        actorType: "PMS_USER",
+        actorId: null,
+        entityId: "entry-1",
+        patientId: "pat-1",
+      }),
+    );
   });
 });
 

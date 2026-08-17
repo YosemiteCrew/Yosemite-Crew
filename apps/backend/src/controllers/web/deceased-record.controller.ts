@@ -24,8 +24,11 @@ const BodyDispositionEnum = z.enum([
   "DONATED_TO_SCIENCE",
 ]);
 
-const CreateDeceasedRecordSchema = z.object({
-  patientId: z.string(),
+/**
+ * The record's own fields: the death and its cause are mandatory when the
+ * record is first written, and every field is optional on update.
+ */
+const DeceasedRecordFieldsSchema = z.object({
   deceasedAt: z.string().datetime(),
   causeOfDeathType: CauseOfDeathEnum,
   causeOfDeathDetail: z.string().optional(),
@@ -39,19 +42,11 @@ const CreateDeceasedRecordSchema = z.object({
   notes: z.string().optional(),
 });
 
-const UpdateDeceasedRecordSchema = z.object({
-  deceasedAt: z.string().datetime().optional(),
-  causeOfDeathType: CauseOfDeathEnum.optional(),
-  causeOfDeathDetail: z.string().optional(),
-  bodyWeightKg: z.number().positive().optional(),
-  bodyConditionScore: z.number().int().min(1).max(9).optional(),
-  necropsyRequested: z.boolean().optional(),
-  necropsyFacility: z.string().optional(),
-  bodyDisposition: BodyDispositionEnum.optional(),
-  ownerNotifiedAt: z.string().datetime().optional(),
-  certifiedBy: z.string().optional(),
-  notes: z.string().optional(),
-});
+const CreateDeceasedRecordSchema = z
+  .object({ patientId: z.string() })
+  .merge(DeceasedRecordFieldsSchema);
+
+const UpdateDeceasedRecordSchema = DeceasedRecordFieldsSchema.partial();
 
 export const deceasedRecordController = {
   create: async (req: Request, res: Response) => {

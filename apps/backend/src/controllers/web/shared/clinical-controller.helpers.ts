@@ -22,6 +22,16 @@ export const patientScopeQuery = z.object({
 });
 
 /**
+ * The patient/encounter link every clinical create body carries: the patient is
+ * mandatory, the encounter optional. Merge the record's own fields onto it so
+ * the two keys keep leading the shape.
+ */
+export const patientScopeBody = z.object({
+  patientId: uuid(),
+  encounterId: uuid().optional(),
+});
+
+/**
  * Turns the optional `from`/`to` ISO strings of a list query into the Date
  * filters the services expect, omitting whichever bound was not supplied.
  */

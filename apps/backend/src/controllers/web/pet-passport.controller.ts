@@ -1,9 +1,11 @@
 import { Request, Response } from "express";
 import { z } from "zod";
+import type { PetPassportDTO } from "@yosemite-crew/types";
 import logger from "src/utils/logger";
 import {
   PetPassportService,
   PetPassportServiceError,
+  type PassportActor,
 } from "src/services/pet-passport.service";
 import {
   WalletPassService,
@@ -12,21 +14,15 @@ import {
 import {
   PetClinicalRecordService,
   PetClinicalRecordError,
+  type CaptureContext,
 } from "src/services/pet-clinical-records.service";
 import { OrgRequest } from "src/middlewares/rbac";
 import {
   createOrgErrorHandler,
+  looseId,
+  orgPatientParams,
   permissionsLoaded,
 } from "src/controllers/web/shared/org-controller.helpers";
-
-// Ids may be Mongo ObjectIds or Postgres UUIDs (dual-write), so validate
-// leniently and let the data lookup decide existence.
-const IdSchema = z.string().min(1).max(64);
-
-const ParamsSchema = z.object({
-  organisationId: IdSchema,
-  patientId: IdSchema,
-});
 
 const IssuanceBodySchema = z.object({
   passportNumber: z.string().min(1).max(100),
@@ -58,7 +54,7 @@ const ClinicalDateSchema = z
 // Clinical-record capture: each record is hung off the appointment's encounter,
 // so encounterId is required in the body.
 const ImmunizationBodySchema = z.object({
-  encounterId: IdSchema,
+  encounterId: looseId,
   vaccineType: z.enum(["RABIES", "CORE", "NON_CORE", "OTHER"]),
   vaccineName: z.string().min(1).max(200),
   manufacturer: z.string().max(200).optional(),
@@ -76,7 +72,7 @@ const ImmunizationBodySchema = z.object({
 });
 
 const TreatmentBodySchema = z.object({
-  encounterId: IdSchema,
+  encounterId: looseId,
   treatmentType: z.enum(["ECHINOCOCCUS", "TICK", "FLEA", "OTHER"]),
   productName: z.string().min(1).max(200),
   manufacturer: z.string().max(200).optional(),
@@ -86,7 +82,7 @@ const TreatmentBodySchema = z.object({
 });
 
 const TitrationBodySchema = z.object({
-  encounterId: IdSchema,
+  encounterId: looseId,
   approvedLab: z.string().min(1).max(200),
   sampleDate: ClinicalDateSchema,
   resultIuMl: z.number(),
@@ -94,7 +90,7 @@ const TitrationBodySchema = z.object({
 });
 
 const ExamBodySchema = z.object({
-  encounterId: IdSchema,
+  encounterId: looseId,
   examinedAt: ClinicalDateSchema,
   fitForTravel: z.boolean(),
   findings: z.string().max(2000).optional(),
@@ -104,12 +100,9 @@ const ExamBodySchema = z.object({
 
 // The mobile app has no org context: the pet parent is authenticated and the
 // organisation is derived from the pet's own membership.
-const ParentParamsSchema = z.object({ patientId: IdSchema });
+const ParentParamsSchema = z.object({ patientId: looseId });
 
-const passFileName = (name: string): string =>
-  name.replaceAll(/[^a-z0-9]+/gi, "-") || "passport";
-
-const RecordParamsSchema = ParamsSchema.extend({ recordId: IdSchema });
+const RecordParamsSchema = orgPatientParams.extend({ recordId: looseId });
 
 const AttestBodySchema = z.object({
   signatoryName: z.string().max(200).optional(),
@@ -120,312 +113,281 @@ const RevokeBodySchema = z.object({
   reason: z.string().max(500).optional(),
 });
 
+const passFileName = (name: string): string =>
+  name.replaceAll(/[^a-z0-9]+/gi, "-") || "passport";
+
 const handleError = createOrgErrorHandler(
   PetPassportServiceError,
   PetClinicalRecordError,
   WalletNotConfiguredError,
 );
+
+type PassportHandler = (req: Request, res: Response) => Promise<Response>;
+
+type HandlerConfig<P extends z.ZodTypeAny, B extends z.ZodTypeAny> = {
+  params: P;
+  /** Body schema. Handlers without one never look at `req.body`. */
+  body?: B;
+  /** Set when an absent body is equivalent to an empty one. */
+  bodyDefaultsToEmpty?: boolean;
+  /**
+   * Pet-parent routes carry no organisation in the path, so they are not
+   * mounted behind `withOrgPermissions` and skip that guard.
+   */
+  parentScope?: boolean;
+  fallback: string;
+  run: (ctx: {
+    params: z.output<P>;
+    body: z.output<B>;
+    req: OrgRequest;
+    res: Response;
+  }) => Promise<Response>;
+};
+
+/**
+ * The shell every passport handler shares: the permissions guard, route-param
+ * validation (400 "Invalid route parameters"), optional body validation
+ * (400 "Invalid request body") and the service-error mapping.
+ */
+const passportHandler =
+  <P extends z.ZodTypeAny, B extends z.ZodTypeAny = z.ZodUndefined>(
+    config: HandlerConfig<P, B>,
+  ): PassportHandler =>
+  async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const typedReq = req as OrgRequest;
+      if (!config.parentScope && !permissionsLoaded(typedReq, res)) return res;
+      const params = config.params.safeParse(req.params);
+      if (!params.success) {
+        return res.status(400).json({ message: "Invalid route parameters" });
+      }
+      let body: unknown;
+      if (config.body) {
+        const source: unknown = config.bodyDefaultsToEmpty
+          ? (req.body ?? {})
+          : req.body;
+        const parsed = config.body.safeParse(source);
+        if (!parsed.success) {
+          return res.status(400).json({ message: "Invalid request body" });
+        }
+        body = parsed.data;
+      }
+      return await config.run({
+        params: params.data as z.output<P>,
+        body,
+        req: typedReq,
+        res,
+      });
+    } catch (err) {
+      return handleError(err, res, config.fallback);
+    }
+  };
+
+const pmsActor = (req: OrgRequest): PassportActor => ({
+  type: "PMS_USER",
+  id: req.userId ?? null,
+});
+
+/** Capture context shared by the four clinical-record recording handlers. */
+const captureContext = (
+  params: z.output<typeof orgPatientParams>,
+  encounterId: string,
+  req: OrgRequest,
+): CaptureContext => ({
+  patientId: params.patientId,
+  organisationId: params.organisationId,
+  encounterId,
+  actor: pmsActor(req),
+});
+
+/** Arguments shared by the signature-request and attestation handlers. */
+const attestationParams = (
+  params: z.output<typeof RecordParamsSchema>,
+  body: z.output<typeof AttestBodySchema>,
+  req: OrgRequest,
+) => ({
+  artifactId: params.recordId,
+  patientId: params.patientId,
+  organisationId: params.organisationId,
+  actor: pmsActor(req),
+  signatoryName: body.signatoryName,
+  signatoryLicence: body.signatoryLicence,
+});
+
+const orgPassport = (
+  params: z.output<typeof orgPatientParams>,
+): Promise<PetPassportDTO> =>
+  PetPassportService.getPassport(params.patientId, params.organisationId);
+
+const parentPassport = (
+  params: z.output<typeof ParentParamsSchema>,
+  req: OrgRequest,
+): Promise<PetPassportDTO> =>
+  PetPassportService.getPassportForParent(params.patientId, req.userId ?? null);
+
+/** Streams a signed .pkpass for an already-assembled passport. */
+const applePassResponse = async (
+  passport: PetPassportDTO,
+  patientId: string,
+  res: Response,
+): Promise<Response> => {
+  const shareToken = await PetPassportService.ensurePublicToken(patientId);
+  const pkpass = await WalletPassService.buildApplePass(passport, shareToken);
+  res.setHeader("Content-Type", "application/vnd.apple.pkpass");
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${passFileName(passport.identity.name)}.pkpass"`,
+  );
+  return res.status(200).send(pkpass);
+};
+
+/** Answers with the Google Wallet save link for an assembled passport. */
+const googlePassResponse = async (
+  passport: PetPassportDTO,
+  patientId: string,
+  res: Response,
+): Promise<Response> => {
+  const shareToken = await PetPassportService.ensurePublicToken(patientId);
+  const saveUrl = WalletPassService.buildGoogleSaveUrl(passport, shareToken);
+  return res.status(200).json({ saveUrl });
+};
+
 export const PetPassportController = {
-  recordImmunization: async (
-    req: Request,
-    res: Response,
-  ): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      if (!permissionsLoaded(typedReq, res)) return res;
-      const params = ParamsSchema.safeParse(req.params);
-      if (!params.success) {
-        return res.status(400).json({ message: "Invalid route parameters" });
-      }
-      const body = ImmunizationBodySchema.safeParse(req.body);
-      if (!body.success) {
-        return res.status(400).json({ message: "Invalid request body" });
-      }
-      const { encounterId, ...input } = body.data;
+  recordImmunization: passportHandler({
+    params: orgPatientParams,
+    body: ImmunizationBodySchema,
+    fallback: "Immunization recording failed",
+    run: async ({ params, body, req, res }) => {
+      const { encounterId, ...input } = body;
       const record = await PetClinicalRecordService.recordImmunization(
-        {
-          patientId: params.data.patientId,
-          organisationId: params.data.organisationId,
-          encounterId,
-          actor: { type: "PMS_USER", id: typedReq.userId ?? null },
-        },
+        captureContext(params, encounterId, req),
         input,
       );
       return res.status(201).json(record);
-    } catch (err) {
-      return handleError(err, res, "Immunization recording failed");
-    }
-  },
+    },
+  }),
 
-  recordParasiteTreatment: async (
-    req: Request,
-    res: Response,
-  ): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      if (!permissionsLoaded(typedReq, res)) return res;
-      const params = ParamsSchema.safeParse(req.params);
-      if (!params.success) {
-        return res.status(400).json({ message: "Invalid route parameters" });
-      }
-      const body = TreatmentBodySchema.safeParse(req.body);
-      if (!body.success) {
-        return res.status(400).json({ message: "Invalid request body" });
-      }
-      const { encounterId, ...input } = body.data;
+  recordParasiteTreatment: passportHandler({
+    params: orgPatientParams,
+    body: TreatmentBodySchema,
+    fallback: "Parasite treatment recording failed",
+    run: async ({ params, body, req, res }) => {
+      const { encounterId, ...input } = body;
       const record = await PetClinicalRecordService.recordParasiteTreatment(
-        {
-          patientId: params.data.patientId,
-          organisationId: params.data.organisationId,
-          encounterId,
-          actor: { type: "PMS_USER", id: typedReq.userId ?? null },
-        },
+        captureContext(params, encounterId, req),
         input,
       );
       return res.status(201).json(record);
-    } catch (err) {
-      return handleError(err, res, "Parasite treatment recording failed");
-    }
-  },
+    },
+  }),
 
-  recordRabiesTitration: async (
-    req: Request,
-    res: Response,
-  ): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      if (!permissionsLoaded(typedReq, res)) return res;
-      const params = ParamsSchema.safeParse(req.params);
-      if (!params.success) {
-        return res.status(400).json({ message: "Invalid route parameters" });
-      }
-      const body = TitrationBodySchema.safeParse(req.body);
-      if (!body.success) {
-        return res.status(400).json({ message: "Invalid request body" });
-      }
-      const { encounterId, ...input } = body.data;
+  recordRabiesTitration: passportHandler({
+    params: orgPatientParams,
+    body: TitrationBodySchema,
+    fallback: "Rabies titration recording failed",
+    run: async ({ params, body, req, res }) => {
+      const { encounterId, ...input } = body;
       const record = await PetClinicalRecordService.recordRabiesTitration(
-        {
-          patientId: params.data.patientId,
-          organisationId: params.data.organisationId,
-          encounterId,
-          actor: { type: "PMS_USER", id: typedReq.userId ?? null },
-        },
+        captureContext(params, encounterId, req),
         input,
       );
       return res.status(201).json(record);
-    } catch (err) {
-      return handleError(err, res, "Rabies titration recording failed");
-    }
-  },
+    },
+  }),
 
-  recordClinicalExam: async (
-    req: Request,
-    res: Response,
-  ): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      if (!permissionsLoaded(typedReq, res)) return res;
-      const params = ParamsSchema.safeParse(req.params);
-      if (!params.success) {
-        return res.status(400).json({ message: "Invalid route parameters" });
-      }
-      const body = ExamBodySchema.safeParse(req.body);
-      if (!body.success) {
-        return res.status(400).json({ message: "Invalid request body" });
-      }
-      const { encounterId, ...input } = body.data;
+  recordClinicalExam: passportHandler({
+    params: orgPatientParams,
+    body: ExamBodySchema,
+    fallback: "Clinical exam recording failed",
+    run: async ({ params, body, req, res }) => {
+      const { encounterId, ...input } = body;
       const record = await PetClinicalRecordService.recordClinicalExam(
-        {
-          patientId: params.data.patientId,
-          organisationId: params.data.organisationId,
-          encounterId,
-          actor: { type: "PMS_USER", id: typedReq.userId ?? null },
-        },
+        captureContext(params, encounterId, req),
         input,
       );
       return res.status(201).json(record);
-    } catch (err) {
-      return handleError(err, res, "Clinical exam recording failed");
-    }
-  },
+    },
+  }),
 
-  signRecord: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      if (!permissionsLoaded(typedReq, res)) return res;
-      const params = RecordParamsSchema.safeParse(req.params);
-      if (!params.success) {
-        return res.status(400).json({ message: "Invalid route parameters" });
-      }
-      const body = AttestBodySchema.safeParse(req.body ?? {});
-      if (!body.success) {
-        return res.status(400).json({ message: "Invalid request body" });
-      }
-      const result = await PetClinicalRecordService.requestRecordSignature({
-        artifactId: params.data.recordId,
-        patientId: params.data.patientId,
-        organisationId: params.data.organisationId,
-        actor: { type: "PMS_USER", id: typedReq.userId ?? null },
-        signatoryName: body.data.signatoryName,
-        signatoryLicence: body.data.signatoryLicence,
-      });
+  signRecord: passportHandler({
+    params: RecordParamsSchema,
+    body: AttestBodySchema,
+    bodyDefaultsToEmpty: true,
+    fallback: "Clinical record signature request failed",
+    run: async ({ params, body, req, res }) => {
+      const result = await PetClinicalRecordService.requestRecordSignature(
+        attestationParams(params, body, req),
+      );
       return res.status(202).json(result);
-    } catch (err) {
-      return handleError(err, res, "Clinical record signature request failed");
-    }
-  },
+    },
+  }),
 
-  attestRecord: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      if (!permissionsLoaded(typedReq, res)) return res;
-      const params = RecordParamsSchema.safeParse(req.params);
-      if (!params.success) {
-        return res.status(400).json({ message: "Invalid route parameters" });
-      }
-      const body = AttestBodySchema.safeParse(req.body ?? {});
-      if (!body.success) {
-        return res.status(400).json({ message: "Invalid request body" });
-      }
-      const result = await PetClinicalRecordService.attestRecord({
-        artifactId: params.data.recordId,
-        patientId: params.data.patientId,
-        organisationId: params.data.organisationId,
-        actor: { type: "PMS_USER", id: typedReq.userId ?? null },
-        signatoryName: body.data.signatoryName,
-        signatoryLicence: body.data.signatoryLicence,
-      });
+  attestRecord: passportHandler({
+    params: RecordParamsSchema,
+    body: AttestBodySchema,
+    bodyDefaultsToEmpty: true,
+    fallback: "Clinical record attestation failed",
+    run: async ({ params, body, req, res }) => {
+      const result = await PetClinicalRecordService.attestRecord(
+        attestationParams(params, body, req),
+      );
       return res.status(200).json(result);
-    } catch (err) {
-      return handleError(err, res, "Clinical record attestation failed");
-    }
-  },
+    },
+  }),
 
-  revokeRecord: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      if (!permissionsLoaded(typedReq, res)) return res;
-      const params = RecordParamsSchema.safeParse(req.params);
-      if (!params.success) {
-        return res.status(400).json({ message: "Invalid route parameters" });
-      }
-      const body = RevokeBodySchema.safeParse(req.body ?? {});
-      if (!body.success) {
-        return res.status(400).json({ message: "Invalid request body" });
-      }
+  revokeRecord: passportHandler({
+    params: RecordParamsSchema,
+    body: RevokeBodySchema,
+    bodyDefaultsToEmpty: true,
+    fallback: "Clinical record revocation failed",
+    run: async ({ params, body, res }) => {
       const result = await PetClinicalRecordService.revokeRecord({
-        artifactId: params.data.recordId,
-        organisationId: params.data.organisationId,
-        reason: body.data.reason,
+        artifactId: params.recordId,
+        organisationId: params.organisationId,
+        reason: body.reason,
       });
       return res.status(200).json(result);
-    } catch (err) {
-      return handleError(err, res, "Clinical record revocation failed");
-    }
-  },
+    },
+  }),
 
-  issuePassport: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      if (!permissionsLoaded(typedReq, res)) return res;
-      const params = ParamsSchema.safeParse(req.params);
-      if (!params.success) {
-        return res.status(400).json({ message: "Invalid route parameters" });
-      }
-      const body = IssuanceBodySchema.safeParse(req.body);
-      if (!body.success) {
-        return res.status(400).json({ message: "Invalid request body" });
-      }
+  issuePassport: passportHandler({
+    params: orgPatientParams,
+    body: IssuanceBodySchema,
+    fallback: "Pet passport issuance failed",
+    run: async ({ params, body, req, res }) => {
       const issuance = await PetPassportService.issuePassport({
-        patientId: params.data.patientId,
-        organisationId: params.data.organisationId,
-        actor: { type: "PMS_USER", id: typedReq.userId ?? null },
-        input: body.data,
+        patientId: params.patientId,
+        organisationId: params.organisationId,
+        actor: pmsActor(req),
+        input: body,
       });
       return res.status(201).json(issuance);
-    } catch (err) {
-      return handleError(err, res, "Pet passport issuance failed");
-    }
-  },
+    },
+  }),
 
-  getPassport: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      if (!permissionsLoaded(typedReq, res)) return res;
-      const params = ParamsSchema.safeParse(req.params);
-      if (!params.success) {
-        return res.status(400).json({ message: "Invalid route parameters" });
-      }
-      const passport = await PetPassportService.getPassport(
-        params.data.patientId,
-        params.data.organisationId,
-      );
+  getPassport: passportHandler({
+    params: orgPatientParams,
+    fallback: "Pet passport assembly failed",
+    run: async ({ params, res }) => {
+      const passport = await orgPassport(params);
       return res.status(200).json(passport);
-    } catch (err) {
-      return handleError(err, res, "Pet passport assembly failed");
-    }
-  },
+    },
+  }),
 
-  getApplePass: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      if (!permissionsLoaded(typedReq, res)) return res;
-      const params = ParamsSchema.safeParse(req.params);
-      if (!params.success) {
-        return res.status(400).json({ message: "Invalid route parameters" });
-      }
-      const passport = await PetPassportService.getPassport(
-        params.data.patientId,
-        params.data.organisationId,
-      );
-      const shareToken = await PetPassportService.ensurePublicToken(
-        params.data.patientId,
-      );
-      const pkpass = await WalletPassService.buildApplePass(
-        passport,
-        shareToken,
-      );
-      const safeName =
-        passport.identity.name.replaceAll(/[^a-z0-9]+/gi, "-") || "passport";
-      res.setHeader("Content-Type", "application/vnd.apple.pkpass");
-      res.setHeader(
-        "Content-Disposition",
-        `attachment; filename="${safeName}.pkpass"`,
-      );
-      return res.status(200).send(pkpass);
-    } catch (err) {
-      return handleError(err, res, "Apple Wallet pass generation failed");
-    }
-  },
+  getApplePass: passportHandler({
+    params: orgPatientParams,
+    fallback: "Apple Wallet pass generation failed",
+    run: async ({ params, res }) =>
+      applePassResponse(await orgPassport(params), params.patientId, res),
+  }),
 
-  getGooglePass: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      if (!permissionsLoaded(typedReq, res)) return res;
-      const params = ParamsSchema.safeParse(req.params);
-      if (!params.success) {
-        return res.status(400).json({ message: "Invalid route parameters" });
-      }
-      const passport = await PetPassportService.getPassport(
-        params.data.patientId,
-        params.data.organisationId,
-      );
-      const shareToken = await PetPassportService.ensurePublicToken(
-        params.data.patientId,
-      );
-      const saveUrl = WalletPassService.buildGoogleSaveUrl(
-        passport,
-        shareToken,
-      );
-      return res.status(200).json({ saveUrl });
-    } catch (err) {
-      return handleError(err, res, "Google Wallet pass generation failed");
-    }
-  },
+  getGooglePass: passportHandler({
+    params: orgPatientParams,
+    fallback: "Google Wallet pass generation failed",
+    run: async ({ params, res }) =>
+      googlePassResponse(await orgPassport(params), params.patientId, res),
+  }),
 
-  // Public, unauthenticated QR verification. No org scope on the request; a
-  // uniform 404 for anything unresolved keeps the surface unprobeable.
   /**
    * Pet-parent (mobile) surface: the passport plus its two wallet passes.
    *
@@ -433,103 +395,56 @@ export const PetPassportController = {
    * never has to store a bearer credential. No org in the path - the service
    * derives it from the pet's own membership after proving parentage.
    */
-  getPassportForParent: async (
-    req: Request,
-    res: Response,
-  ): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = ParentParamsSchema.safeParse(req.params);
-      if (!params.success) {
-        return res.status(400).json({ message: "Invalid route parameters" });
-      }
-      const passport = await PetPassportService.getPassportForParent(
-        params.data.patientId,
-        typedReq.userId ?? null,
-      );
+  getPassportForParent: passportHandler({
+    params: ParentParamsSchema,
+    parentScope: true,
+    fallback: "Pet passport read failed",
+    run: async ({ params, req, res }) => {
+      const passport = await parentPassport(params, req);
       return res.status(200).json(passport);
-    } catch (err) {
-      return handleError(err, res, "Pet passport read failed");
-    }
-  },
+    },
+  }),
 
-  getApplePassForParent: async (
-    req: Request,
-    res: Response,
-  ): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = ParentParamsSchema.safeParse(req.params);
-      if (!params.success) {
-        return res.status(400).json({ message: "Invalid route parameters" });
-      }
-      const passport = await PetPassportService.getPassportForParent(
-        params.data.patientId,
-        typedReq.userId ?? null,
-      );
-      const shareToken = await PetPassportService.ensurePublicToken(
-        params.data.patientId,
-      );
-      const pkpass = await WalletPassService.buildApplePass(
-        passport,
-        shareToken,
-      );
-      res.setHeader("Content-Type", "application/vnd.apple.pkpass");
-      res.setHeader(
-        "Content-Disposition",
-        `attachment; filename="${passFileName(passport.identity.name)}.pkpass"`,
-      );
-      return res.status(200).send(pkpass);
-    } catch (err) {
-      return handleError(err, res, "Apple Wallet pass generation failed");
-    }
-  },
+  getApplePassForParent: passportHandler({
+    params: ParentParamsSchema,
+    parentScope: true,
+    fallback: "Apple Wallet pass generation failed",
+    run: async ({ params, req, res }) =>
+      applePassResponse(
+        await parentPassport(params, req),
+        params.patientId,
+        res,
+      ),
+  }),
 
-  getGooglePassForParent: async (
-    req: Request,
-    res: Response,
-  ): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = ParentParamsSchema.safeParse(req.params);
-      if (!params.success) {
-        return res.status(400).json({ message: "Invalid route parameters" });
-      }
-      const passport = await PetPassportService.getPassportForParent(
-        params.data.patientId,
-        typedReq.userId ?? null,
-      );
-      const shareToken = await PetPassportService.ensurePublicToken(
-        params.data.patientId,
-      );
-      const saveUrl = WalletPassService.buildGoogleSaveUrl(
-        passport,
-        shareToken,
-      );
-      return res.status(200).json({ saveUrl });
-    } catch (err) {
-      return handleError(err, res, "Google Wallet pass generation failed");
-    }
-  },
+  getGooglePassForParent: passportHandler({
+    params: ParentParamsSchema,
+    parentScope: true,
+    fallback: "Google Wallet pass generation failed",
+    run: async ({ params, req, res }) =>
+      googlePassResponse(
+        await parentPassport(params, req),
+        params.patientId,
+        res,
+      ),
+  }),
 
   /** Owner-only: kills the circulating public link for the pet's passport. */
-  revokePublicToken: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = ParentParamsSchema.safeParse(req.params);
-      if (!params.success) {
-        return res.status(400).json({ message: "Invalid route parameters" });
-      }
+  revokePublicToken: passportHandler({
+    params: ParentParamsSchema,
+    parentScope: true,
+    fallback: "Passport share link revoke failed",
+    run: async ({ params, req, res }) => {
       const result = await PetPassportService.revokePublicToken({
-        patientId: params.data.patientId,
-        userId: typedReq.userId ?? null,
+        patientId: params.patientId,
+        userId: req.userId ?? null,
       });
       return res.status(200).json(result);
-    } catch (err) {
-      return handleError(err, res, "Passport share link revoke failed");
-    }
-  },
+    },
+  }),
 
+  // Public, unauthenticated QR verification. No org scope on the request; a
+  // uniform 404 for anything unresolved keeps the surface unprobeable.
   getPublicPassportByToken: async (
     req: Request,
     res: Response,

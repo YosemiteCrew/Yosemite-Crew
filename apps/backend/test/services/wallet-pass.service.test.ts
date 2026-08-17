@@ -75,6 +75,9 @@ const IDS = {
 // A throwaway self-signed identity so the full sign/package path can run with
 // no real Apple certificate present.
 let p12Base64 = "";
+// The same identity exported WITHOUT a password: the private key lands in a
+// plain keyBag instead of a pkcs8ShroudedKeyBag, and there is no MAC to verify.
+let unencryptedP12Base64 = "";
 let certDerBase64 = "";
 let certObj: forge.pki.Certificate;
 let saPrivateKeyPem = "";
@@ -95,6 +98,13 @@ beforeAll(() => {
     algorithm: "3des",
   });
   p12Base64 = forge.util.encode64(forge.asn1.toDer(p12).getBytes());
+  const plainP12 = forge.pkcs12.toPkcs12Asn1(keys.privateKey, [cert], null, {
+    algorithm: "3des",
+    useMac: false,
+  });
+  unencryptedP12Base64 = forge.util.encode64(
+    forge.asn1.toDer(plainP12).getBytes(),
+  );
   certDerBase64 = forge.util.encode64(
     forge.asn1.toDer(forge.pki.certificateToAsn1(cert)).getBytes(),
   );
@@ -302,6 +312,33 @@ describe("WalletPassService.buildApplePass", () => {
     expect(
       new AdmZip(buffer).getEntry("signature")!.getData().length,
     ).toBeGreaterThan(0);
+  });
+
+  // An unprotected .p12 is a legitimate provisioning choice when the file is
+  // held in a secret store: the key sits in a plain keyBag and no
+  // APPLE_PASS_P12_PASSWORD is set. The signer has to fall back to the
+  // unshrouded bag and to an empty password, not treat the deployment as
+  // unconfigured.
+  it("signs with an unencrypted .p12 when no passphrase is configured", async () => {
+    process.env.APPLE_PASS_TYPE_ID = IDS.passTypeId;
+    process.env.APPLE_TEAM_ID = IDS.teamId;
+    process.env.APPLE_PASS_P12_BASE64 = unencryptedP12Base64;
+    delete process.env.APPLE_PASS_P12_PASSWORD;
+
+    const buffer = await WalletPassService.buildApplePass(
+      PASSPORT,
+      SHARE_TOKEN,
+    );
+
+    const zip = new AdmZip(buffer);
+    const passJson = zip.getEntry("pass.json")!.getData();
+    const manifest = JSON.parse(
+      zip.getEntry("manifest.json")!.getData().toString(),
+    );
+    expect(manifest["pass.json"]).toBe(
+      createHash("sha1").update(passJson).digest("hex"),
+    );
+    expect(zip.getEntry("signature")!.getData().length).toBeGreaterThan(0);
   });
 
   it("rejects a certificate bundle that carries no private key", async () => {

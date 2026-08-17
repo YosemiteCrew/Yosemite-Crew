@@ -6,15 +6,18 @@ import {
 import {
   createClinicalHandlers,
   orgParams,
+  patientScopeBody,
   patientScopeQuery,
   uuid,
 } from "src/controllers/web/shared/clinical-controller.helpers";
 
 const StatusEnum = z.enum(["ACTIVE", "COMPLETED", "DISCONTINUED"]);
 
-const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
-  encounterId: z.string().uuid().optional(),
+/**
+ * The dietary fields of a plan. The diet name is mandatory when the plan is
+ * created and optional on update, which `.partial()` derives.
+ */
+const PlanFieldsSchema = z.object({
   dietName: z.string().min(1).max(300),
   calories: z.number().positive().optional(),
   calorieUnit: z.string().max(50).optional(),
@@ -30,20 +33,9 @@ const CreateBodySchema = z.object({
   notes: z.string().max(2000).optional(),
 });
 
-const UpdateBodySchema = z.object({
-  dietName: z.string().min(1).max(300).optional(),
-  calories: z.number().positive().optional(),
-  calorieUnit: z.string().max(50).optional(),
-  protein: z.number().min(0).optional(),
-  fat: z.number().min(0).optional(),
-  fibre: z.number().min(0).optional(),
-  feedingFrequency: z.string().max(200).optional(),
-  portionSize: z.string().max(200).optional(),
-  waterIntake: z.string().max(200).optional(),
-  restrictions: z.string().max(2000).optional(),
-  indication: z.string().max(1000).optional(),
-  reviewDate: z.string().datetime().optional(),
-  notes: z.string().max(2000).optional(),
+const CreateBodySchema = patientScopeBody.merge(PlanFieldsSchema);
+
+const UpdateBodySchema = PlanFieldsSchema.partial().extend({
   status: StatusEnum.optional(),
 });
 
