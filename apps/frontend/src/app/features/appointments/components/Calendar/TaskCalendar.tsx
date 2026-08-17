@@ -29,6 +29,8 @@ type TaskCalendarProps = {
   weekStart: Date;
   setWeekStart: React.Dispatch<React.SetStateAction<Date>>;
   canEditTasks?: boolean;
+  /** Seats the primary CTA in the calendar toolbar, where Appointments has it. */
+  onAddTask?: () => void;
   onCreateFromCalendarSlot?: (prefill: { dueAt: Date; assignedTo?: string }) => void;
   filterOptions?: Array<{ key: string; name: string; dotColor?: string }>;
   activeFilter?: string;
@@ -60,6 +62,7 @@ const TaskCalendar = ({
   weekStart,
   setWeekStart,
   canEditTasks = false,
+  onAddTask,
   onCreateFromCalendarSlot,
   filterOptions,
   activeFilter,
@@ -187,6 +190,13 @@ const TaskCalendar = ({
           // "Previous day" / "Next day" on a week view. Appointments passes it
           // (AppointmentCalendar.tsx:256) and pages Mon 17 -> Mon 24 correctly.
           setWeekStart={setWeekStart}
+          // Header already renders the primary CTA; Appointments passes these
+          // (AppointmentCalendar.tsx:261-262) and Tasks did not, which is why the
+          // Tasks CTA sat up in the page header instead and needed an `order-1`
+          // flex hack to land after the view toggle.
+          showAddButton={canEditTasks && !!onAddTask}
+          onAddButtonClick={onAddTask}
+          addButtonText="New task"
           zoomMode={zoomMode}
           setZoomMode={setZoomMode}
           activeCalendar={activeCalendar}

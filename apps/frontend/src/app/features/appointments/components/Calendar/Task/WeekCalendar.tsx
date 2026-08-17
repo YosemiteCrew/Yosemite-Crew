@@ -9,8 +9,6 @@ import { getNowTopPxForHourRange } from '@/app/features/appointments/components/
 import DayLabels from '@/app/features/appointments/components/Calendar/Task/DayLabels';
 import TaskSlot from '@/app/features/appointments/components/Calendar/Task/TaskSlot';
 import { Task } from '@/app/features/tasks/types/task';
-import Back from '@/app/ui/primitives/Icons/Back';
-import Next from '@/app/ui/primitives/Icons/Next';
 import {
   CalendarZoomMode,
   getCalendarColumnGridStyle,
@@ -27,7 +25,6 @@ import SlotGridLines from '@/app/features/appointments/components/Calendar/commo
 import {
   getTimedTaskProxyEvents,
   useCalendarAutoScroll,
-  useCalendarWeekNavigation,
   useSlotOffsetMinutes,
 } from '@/app/features/appointments/components/Calendar/useCalendarSlots';
 import type { TaskCalendarInteractionProps } from '@/app/features/appointments/components/Calendar/Task/taskCalendarInteractionProps';
@@ -54,8 +51,6 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   handleChangeStatusTask,
   handleRescheduleTask,
   weekStart,
-  setWeekStart,
-  setCurrentDate,
   canEditTasks = false,
   draggedTaskId,
   draggedTaskLabel,
@@ -136,10 +131,10 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     hourRowTopOffsetPx: HOUR_ROW_TOP_OFFSET_PX,
   });
 
-  const { handlePrevWeek, handleNextWeek } = useCalendarWeekNavigation(
-    setWeekStart,
-    setCurrentDate
-  );
+  // No week-navigation hook here any more. Paging lives in the toolbar - Header
+  // builds its own useCalendarWeekNavigation from the same setWeekStart and
+  // setCurrentDate this component receives, so stepping a week still drags the
+  // current date with it. This copy only ever fed the in-grid arrows.
 
   return (
     <div className="h-full flex flex-col">
@@ -150,19 +145,20 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
       >
         <div className="min-w-max h-full flex flex-col relative">
           <div className="z-30 bg-neutral-0">
-            <div className="grid border-b border-card-border py-2 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max bg-neutral-0">
-              <div className="sticky left-0 z-40 bg-neutral-0 flex items-center justify-center">
-                <Back onClick={handlePrevWeek} />
-              </div>
+            {/* No arrow columns. common/WeekCalendar.css says it outright: "The week
+                grid in the design has no arrow columns at all - prev/next live in
+                the header toolbar's date-nav pill." Those two 64px rails were the
+                other half of why this strip did not match Appointments, and the
+                right one pushed Sunday off the visible week: getWeekDays returns
+                seven days and only six fitted. The toolbar pages by week now. */}
+            <div className="grid border-b border-card-border py-2 grid-cols-[64px_minmax(0,1fr)] min-w-max bg-neutral-0">
+              <div className="sticky left-0 z-40 bg-neutral-0" />
               <div className="bg-neutral-0">
                 <DayLabels
                   days={days}
                   currentDate={_date ?? weekStart}
                   columnsStyle={dayColumnsStyle}
                 />
-              </div>
-              <div className="sticky right-0 z-40 bg-neutral-0 flex items-center justify-center">
-                <Next onClick={handleNextWeek} />
               </div>
             </div>
           </div>
@@ -182,7 +178,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
           >
             <div className="relative pb-4">
               {Array.from({ length: HOURS_IN_DAY }, (_, hour) => (
-                <div key={hour} className="grid grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
+                <div key={hour} className="grid grid-cols-[64px_minmax(0,1fr)] min-w-max">
                   <CalendarHourLabel
                     hour={hour}
                     height={height}
@@ -243,7 +239,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
               <div style={{ height: zoomMode === 'out' ? 30 : 40 }} />
               {nowPosition && (
                 <div className="pointer-events-none absolute inset-0" style={{ top: 0 }}>
-                  <div className="grid h-full grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
+                  <div className="grid h-full grid-cols-[64px_minmax(0,1fr)] min-w-max">
                     <div />
                     <div className="grid min-w-max" style={dayColumnsStyle}>
                       {days.map((day, idx) => (

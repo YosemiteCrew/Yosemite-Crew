@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import WeekCalendar from '@/app/features/appointments/components/Calendar/Task/WeekCalendar';
@@ -147,7 +147,14 @@ describe('WeekCalendar (Task)', () => {
     expect(screen.getByText('9:41 AM')).toBeInTheDocument();
   });
 
-  it('updates week start and current date on navigation', () => {
+  it('renders no pager of its own - paging belongs to the toolbar', () => {
+    // The grid used to carry its own prev/next arrows in two 64px rails either
+    // side of the day strip. common/WeekCalendar.css states the intent plainly:
+    // "The week grid in the design has no arrow columns at all - prev/next live
+    // in the header toolbar's date-nav pill." The right rail also pushed Sunday
+    // out of view, so a seven-day week showed six. Header owns paging now and
+    // builds its own useCalendarWeekNavigation from the same setters; that
+    // behaviour is covered in common/Header.test.tsx.
     render(
       <WeekCalendar
         events={events}
@@ -159,16 +166,8 @@ describe('WeekCalendar (Task)', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('PrevWeek'));
-    fireEvent.click(screen.getByText('NextWeek'));
-
-    const prevFn = setWeekStart.mock.calls[0][0];
-    const nextFn = setWeekStart.mock.calls[1][0];
-
-    prevFn(weekStart);
-    nextFn(weekStart);
-
-    expect(setCurrentDate).toHaveBeenCalledWith(new Date(2024, 11, 30, 12));
-    expect(setCurrentDate).toHaveBeenCalledWith(new Date(2025, 0, 13, 12));
+    expect(screen.queryByText('PrevWeek')).not.toBeInTheDocument();
+    expect(screen.queryByText('NextWeek')).not.toBeInTheDocument();
+    expect(setWeekStart).not.toHaveBeenCalled();
   });
 });

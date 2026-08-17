@@ -363,6 +363,8 @@ type Headerprops = {
   setActiveCalendar?: React.Dispatch<React.SetStateAction<string>>;
   showAddButton?: boolean;
   onAddButtonClick?: () => void;
+  /** The Tasks planner mounts this same header, so the CTA label is a prop. */
+  addButtonText?: string;
   activeFilter?: string;
   setActiveFilter?: (v: string) => void;
   activeStatus?: string;
@@ -382,6 +384,7 @@ const Header = ({
   setActiveCalendar,
   showAddButton = false,
   onAddButtonClick,
+  addButtonText = 'New appointment',
   activeFilter,
   setActiveFilter,
   activeStatus,
@@ -490,7 +493,8 @@ const Header = ({
                 aria-hidden="true"
               />
               <Primary
-                text="New appointment"
+                text={addButtonText}
+                ariaLabel={addButtonText}
                 onClick={onAddButtonClick}
                 icon={<IoAdd size={16} aria-hidden="true" />}
                 className="w-fit shrink-0 justify-center py-0 whitespace-nowrap hover:scale-100"

@@ -3,6 +3,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import TaskFilterBar from '@/app/features/tasks/components/TaskFilterBar';
+import { TASK_SCOPE_OPTIONS } from '@/app/features/tasks/pages/Tasks/taskScopeOptions';
 import { TaskFilters, TaskStatusFilters } from '@/app/features/tasks/types/task';
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
@@ -38,9 +39,11 @@ describe('TaskFilterBar', () => {
   it('renders the audience pills and inline status pills (no All-status pill, no dropdown)', () => {
     renderBar();
 
-    // Audience pills.
+    // Audience pills. "Staff", not "Team": the assignee SCOPE control beside these
+    // is "My tasks | Team", so an audience chip called "Team" put two adjacent
+    // buttons with the same label in one toolbar.
     expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Team' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Staff' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Pet parents' })).toBeInTheDocument();
 
     // Inline status pills — the "All" status is dropped from the row.
@@ -61,7 +64,7 @@ describe('TaskFilterBar', () => {
 
   it('toggles the audience filter and back to all', () => {
     const { rerender } = renderBar({ activeFilter: 'all' });
-    fireEvent.click(screen.getByRole('button', { name: 'Team' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Staff' }));
     expect(setActiveFilter).toHaveBeenCalledWith('employee_task');
 
     rerender(
@@ -74,7 +77,7 @@ describe('TaskFilterBar', () => {
         setActiveStatus={setActiveStatus}
       />
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Team' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Staff' }));
     expect(setActiveFilter).toHaveBeenLastCalledWith('all');
   });
 
@@ -100,12 +103,25 @@ describe('TaskFilterBar', () => {
 
   it('marks the active audience and status pills via aria-pressed', () => {
     renderBar({ activeFilter: 'employee_task', activeStatus: 'in_progress' });
-    expect(screen.getByRole('button', { name: 'Team' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Staff' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'In progress' })).toHaveAttribute(
       'aria-pressed',
       'true'
     );
     expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('never labels an audience chip the same as an assignee-scope option', () => {
+    // The toolbar renders both, side by side, and they mean different things:
+    // scope is WHOSE tasks, audience is who the task is FOR. They both said
+    // "Team", so the row read "My tasks - Team - All - Team - Pet parents".
+    // Separating them by shape alone was not enough.
+    const scopeNames = new Set(TASK_SCOPE_OPTIONS.map((o) => o.name.toLowerCase()));
+    const collisions = TaskFilters.filter((f) => scopeNames.has(f.name.toLowerCase())).map(
+      (f) => f.name
+    );
+
+    expect(collisions).toEqual([]);
   });
 
   it('gives the selected status pill a visible ring, not just aria-pressed', () => {
