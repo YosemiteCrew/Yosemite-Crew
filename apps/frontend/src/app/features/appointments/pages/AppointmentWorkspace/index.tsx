@@ -120,6 +120,10 @@ const TreatmentStep = dynamic(
   () => import('@/app/features/appointments/pages/AppointmentWorkspace/steps/TreatmentStep'),
   { loading: () => <WorkspaceStepSkeleton /> }
 );
+const PassportStep = dynamic(
+  () => import('@/app/features/appointments/pages/AppointmentWorkspace/steps/PassportStep'),
+  { loading: () => <WorkspaceStepSkeleton /> }
+);
 const InvoiceStep = dynamic(
   () => import('@/app/features/appointments/pages/AppointmentWorkspace/steps/InvoiceStep'),
   { loading: () => <WorkspaceStepSkeleton /> }
@@ -1577,6 +1581,15 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
           encounter={operationalEncounter}
           ensureEncounterId={ensureEncounterId}
           onOpenInvoice={() => handleStepChange('INVOICE')}
+        />
+      )}
+      {activeStep === 'PASSPORT' && (
+        <PassportStep
+          companionId={companion.id}
+          companionName={companion.name}
+          encounterId={resolvedEncounterId ?? appointment.encounterId}
+          ensureEncounterId={ensureEncounterId}
+          readOnly={effectiveEncounter.viewOnly}
         />
       )}
       {activeStep === 'INVOICE' && (

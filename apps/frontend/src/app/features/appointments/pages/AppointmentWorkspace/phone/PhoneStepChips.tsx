@@ -22,6 +22,7 @@ const SHORT_STEP_LABELS: Record<WorkspaceStep, string> = {
   SOAP: 'SOAP',
   DIAGNOSTICS: 'Diagn.',
   TREATMENT: 'Treat.',
+  PASSPORT: 'Passp.',
   INVOICE: 'Invoice',
   SUMMARY: 'Summary',
 };

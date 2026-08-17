@@ -166,6 +166,37 @@ jest.mock('@/app/features/appointments/pages/AppointmentWorkspace/steps/Treatmen
   ),
 }));
 
+jest.mock('@/app/features/appointments/pages/AppointmentWorkspace/steps/PassportStep', () => ({
+  __esModule: true,
+  default: ({
+    companionId,
+    companionName,
+    encounterId,
+    readOnly,
+    ensureEncounterId,
+  }: {
+    companionId: string;
+    companionName: string;
+    encounterId?: string;
+    readOnly?: boolean;
+    ensureEncounterId?: () => Promise<string | undefined>;
+  }) => (
+    <div>
+      <div>{`Passport companion: ${companionName} (${companionId})`}</div>
+      <div>{`Passport encounter: ${encounterId ?? 'none'}`}</div>
+      <div>{`Passport read only: ${String(readOnly)}`}</div>
+      <button
+        type="button"
+        onClick={() => {
+          void ensureEncounterId?.();
+        }}
+      >
+        Mock passport ensure encounter
+      </button>
+    </div>
+  ),
+}));
+
 jest.mock('@/app/features/appointments/pages/AppointmentWorkspace/steps/InvoiceStep', () => ({
   __esModule: true,
   default: ({ onOpenSummary }: { onOpenSummary: () => void }) => (
@@ -2404,6 +2435,23 @@ describe('AppointmentWorkspace container', () => {
     await settle();
     // No usable id came back, so the appointment's own (absent) encounter id stands.
     expect(screen.getByText('Summary encounter: none')).toBeInTheDocument();
+  });
+
+  it('renders the passport step with the companion and the resolved encounter', async () => {
+    mockStepParam = 'PASSPORT';
+    (getAppointmentWorkspaceBootstrap as jest.Mock).mockResolvedValue({
+      encounter: { id: 'enc-passport' },
+    });
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);
+
+    expect(await screen.findByText('Passport companion: Gigi (comp-1)')).toBeInTheDocument();
+    // Passport records are clinical, so the step follows the lock-aware encounter.
+    expect(screen.getByText('Passport read only: false')).toBeInTheDocument();
+    await settle();
+    expect(screen.getByText('Passport encounter: enc-passport')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mock passport ensure encounter' }));
+    await settle();
   });
 
   it('advances to the next step from the SOAP save-and-next control', async () => {

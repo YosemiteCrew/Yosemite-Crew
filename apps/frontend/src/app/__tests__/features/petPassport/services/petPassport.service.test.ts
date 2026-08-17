@@ -89,11 +89,13 @@ describe('getGoogleWalletUrl', () => {
 
 describe('getPublicPassport', () => {
   const originalFetch = global.fetch;
+  const originalBaseUrl = process.env.NEXT_PUBLIC_BASE_URL;
   beforeEach(() => {
     process.env.NEXT_PUBLIC_BASE_URL = 'https://api.example.com';
   });
   afterEach(() => {
     global.fetch = originalFetch;
+    process.env.NEXT_PUBLIC_BASE_URL = originalBaseUrl;
   });
 
   it('fetches the public passport by share token, not by companion id', async () => {
@@ -109,6 +111,22 @@ describe('getPublicPassport', () => {
       expect.objectContaining({ headers: { Accept: 'application/json' } })
     );
     expect(res).toEqual({ identity: { id: 'p1' } });
+  });
+
+  it('falls back to a relative path when no base url is configured', async () => {
+    delete process.env.NEXT_PUBLIC_BASE_URL;
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ identity: { id: 'p1' } }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await getPublicPassport('sh4re-t0ken');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/public/pet-passport/token/sh4re-t0ken',
+      expect.objectContaining({ headers: { Accept: 'application/json' } })
+    );
   });
 
   it('throws when the passport is not found', async () => {
