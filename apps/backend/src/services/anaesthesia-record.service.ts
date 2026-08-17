@@ -14,7 +14,7 @@ export class AnaesthesiaRecordError extends Error {
 
 type AnaesthesiaStatus = "PLANNED" | "IN_PROGRESS" | "COMPLETED" | "ABORTED";
 
-const TERMINAL_STATUSES: AnaesthesiaStatus[] = ["COMPLETED", "ABORTED"];
+const TERMINAL_STATUSES = new Set<AnaesthesiaStatus>(["COMPLETED", "ABORTED"]);
 
 export interface CreateAnaesthesiaParams {
   organisationId: string;
@@ -115,7 +115,7 @@ export const AnaesthesiaRecordService = {
 
   async start(id: string, organisationId: string) {
     const existing = await assertRecord(id, organisationId);
-    if (TERMINAL_STATUSES.includes(existing.status)) {
+    if (TERMINAL_STATUSES.has(existing.status)) {
       throw new AnaesthesiaRecordError(
         `Cannot start anaesthesia with status ${existing.status}.`,
         409,
@@ -173,7 +173,7 @@ export const AnaesthesiaRecordService = {
     },
   ) {
     const existing = await assertRecord(id, organisationId);
-    if (TERMINAL_STATUSES.includes(existing.status)) {
+    if (TERMINAL_STATUSES.has(existing.status)) {
       throw new AnaesthesiaRecordError(
         `Cannot complete anaesthesia with status ${existing.status}.`,
         409,
@@ -214,7 +214,7 @@ export const AnaesthesiaRecordService = {
 
   async abort(id: string, organisationId: string, complications?: string) {
     const existing = await assertRecord(id, organisationId);
-    if (TERMINAL_STATUSES.includes(existing.status)) {
+    if (TERMINAL_STATUSES.has(existing.status)) {
       throw new AnaesthesiaRecordError(
         `Cannot abort anaesthesia with status ${existing.status}.`,
         409,

@@ -176,7 +176,7 @@ export const TreatmentProtocolService = {
         organisationId,
         ...(species ? { species } : {}),
         ...(category ? { category } : {}),
-        isActive: isActive !== undefined ? isActive : true,
+        isActive: isActive ?? true,
       },
       select: protocolSelect,
       orderBy: [{ category: "asc" }, { name: "asc" }],

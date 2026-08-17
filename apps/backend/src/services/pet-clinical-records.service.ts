@@ -5,10 +5,11 @@ import {
   buildPassportRecordPdf,
   type RecordPdfField,
 } from "./passport-record-pdf";
-import { NotificationService } from "./notification.service";
 import { NotificationTemplates } from "../utils/notificationTemplates";
-import { sendEmail } from "../utils/email";
-import logger from "../utils/logger";
+import {
+  notifyPatientOwner,
+  passportLinkEmail,
+} from "src/services/shared/owner-notification";
 import type { AuditActorType } from "../models/audit-trail";
 import type {
   ClinicalExamDTO,
@@ -145,7 +146,7 @@ const assertArtifactBelongsToPatient = async (
 
   // Same uniform 404 as a missing record: a caller must not be able to probe
   // which record ids exist in the org by comparing error codes.
-  if (!encounter || encounter.patientId !== patientId) {
+  if (encounter?.patientId !== patientId) {
     throw new PetClinicalRecordError("Clinical record not found.", 404);
   }
 };
@@ -303,64 +304,16 @@ const recordPdfContent = (
 // they can view it or refresh their wallet pass (mirrors the post-visit
 // certificate email pattern). Best-effort: never blocks or fails the signing
 // flow, and silently no-ops when the pet has no linked/owner contact.
-export const notifyOwnerOfPassportUpdate = async (
-  patientId: string,
-): Promise<void> => {
-  try {
-    const link = await prisma.parentPatient.findFirst({
-      where: { patientId, role: "PRIMARY", status: "ACTIVE" },
-      select: { parentId: true },
-    });
-    if (!link) return;
-    const [parent, patient] = await Promise.all([
-      prisma.parent.findUnique({
-        where: { id: link.parentId },
-        select: { linkedUserId: true, email: true },
-      }),
-      prisma.patient.findUnique({
-        where: { id: patientId },
-        select: { name: true },
-      }),
-    ]);
-    if (!parent || !patient) return;
-
-    const payload = NotificationTemplates.Care.PASSPORT_UPDATED(patient.name);
-
-    if (parent.linkedUserId) {
-      await NotificationService.sendToUser(parent.linkedUserId, payload).catch(
-        (error) =>
-          logger.error(
-            `Passport-update push failed for patient ${patientId}`,
-            error,
-          ),
-      );
-    }
-
-    if (parent.email) {
-      const base = (
-        process.env.PUBLIC_PASSPORT_BASE_URL ??
-        process.env.PUBLIC_CARD_BASE_URL ??
-        ""
-      ).replace(/\/+$/, "");
-      const passportUrl = `${base}/passport/${patientId}`;
-      await sendEmail({
-        to: parent.email,
-        subject: `${patient.name}'s pet passport was updated`,
-        htmlBody: `<p>${payload.body}</p><p><a href="${passportUrl}">View ${patient.name}'s passport</a></p>`,
-      }).catch((error) =>
-        logger.error(
-          `Passport-update email failed for patient ${patientId}`,
-          error,
-        ),
-      );
-    }
-  } catch (error) {
-    logger.error(
-      `Failed to notify owner of passport update for patient ${patientId}`,
-      error,
-    );
-  }
-};
+export const notifyOwnerOfPassportUpdate = (patientId: string): Promise<void> =>
+  notifyPatientOwner({
+    patientId,
+    label: "Passport-update",
+    buildPayload: (patientName) =>
+      NotificationTemplates.Care.PASSPORT_UPDATED(patientName),
+    buildEmail: passportLinkEmail(
+      (patientName) => `${patientName}'s pet passport was updated`,
+    ),
+  });
 
 export const PetClinicalRecordService = {
   async recordImmunization(

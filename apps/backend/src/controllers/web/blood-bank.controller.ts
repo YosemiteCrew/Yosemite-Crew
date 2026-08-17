@@ -8,6 +8,7 @@ import {
   orgParams,
   uuid,
 } from "src/controllers/web/shared/clinical-controller.helpers";
+import { parseOptionalBooleanFlag } from "src/utils/query-flags";
 
 const BloodTypeEnum = z.enum([
   "DEA_1_POSITIVE",
@@ -53,12 +54,7 @@ const UpdateDonorSchema = z.object({
 
 const ListDonorsQuerySchema = z.object({
   bloodType: BloodTypeEnum.optional(),
-  isActive: z
-    .string()
-    .optional()
-    .transform((v) =>
-      v === "true" ? true : v === "false" ? false : undefined,
-    ),
+  isActive: z.string().optional().transform(parseOptionalBooleanFlag),
 });
 
 const RecordDonationSchema = z.object({

@@ -36,6 +36,17 @@ const UpdateSchema = z.object({
   resolved: z.boolean().optional(),
 });
 
+/**
+ * `undefined` leaves the stored follow-up date untouched, `null` clears it, and
+ * a datetime string replaces it.
+ */
+const resolveFollowUpDate = (
+  followUpDate: string | null | undefined,
+): Date | null | undefined => {
+  if (followUpDate === undefined) return undefined;
+  return followUpDate ? new Date(followUpDate) : null;
+};
+
 const handleError = (err: unknown, res: Response) => {
   if (err instanceof TreatmentOutcomeError) {
     return res.status(err.statusCode).json({ message: err.message });
@@ -103,12 +114,7 @@ export const TreatmentOutcomeController = {
         req.params.organisationId,
         {
           ...parsed.data,
-          followUpDate:
-            parsed.data.followUpDate !== undefined
-              ? parsed.data.followUpDate
-                ? new Date(parsed.data.followUpDate)
-                : null
-              : undefined,
+          followUpDate: resolveFollowUpDate(parsed.data.followUpDate),
         },
       );
       return res.json(outcome);

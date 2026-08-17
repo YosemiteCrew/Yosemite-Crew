@@ -1,4 +1,5 @@
 import { prisma } from "src/config/prisma";
+import { pickDefined } from "src/utils/pick-defined";
 import { AuditTrailService } from "./audit-trail.service";
 import type { Prisma } from "@prisma/client";
 
@@ -173,28 +174,22 @@ export const SurgicalProcedureService = {
   ) {
     const record = await assertSurgery(id, organisationId);
 
-    const data: Prisma.SurgicalProcedureUpdateInput = {};
-    if (params.procedureName !== undefined)
-      data.procedureName = params.procedureName;
-    if (params.surgeon !== undefined) data.surgeon = params.surgeon;
-    if (params.assistants !== undefined) data.assistants = params.assistants;
-    if (params.anesthesiaType !== undefined)
-      data.anesthesiaType = params.anesthesiaType;
-    if (params.anesthesiaAgent !== undefined)
-      data.anesthesiaAgent = params.anesthesiaAgent;
-    if (params.anesthesiaDoseMs !== undefined)
-      data.anesthesiaDoseMs = params.anesthesiaDoseMs;
-    if (params.startedAt !== undefined) data.startedAt = params.startedAt;
-    if (params.endedAt !== undefined) data.endedAt = params.endedAt;
-    if (params.durationMinutes !== undefined)
-      data.durationMinutes = params.durationMinutes;
-    if (params.outcome !== undefined) data.outcome = params.outcome;
-    if (params.complications !== undefined)
-      data.complications = params.complications;
-    if (params.instruments !== undefined) data.instruments = params.instruments;
-    if (params.specimensSent !== undefined)
-      data.specimensSent = params.specimensSent;
-    if (params.postOpNotes !== undefined) data.postOpNotes = params.postOpNotes;
+    const data: Prisma.SurgicalProcedureUpdateInput = pickDefined(params, [
+      "procedureName",
+      "surgeon",
+      "assistants",
+      "anesthesiaType",
+      "anesthesiaAgent",
+      "anesthesiaDoseMs",
+      "startedAt",
+      "endedAt",
+      "durationMinutes",
+      "outcome",
+      "complications",
+      "instruments",
+      "specimensSent",
+      "postOpNotes",
+    ]);
 
     const updated = await prisma.surgicalProcedure.update({
       where: { id },

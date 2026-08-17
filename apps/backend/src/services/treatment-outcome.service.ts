@@ -138,12 +138,11 @@ export const TreatmentOutcomeService = {
   ) {
     await assertOutcome(id, organisationId);
 
-    const resolvedFlag =
-      params.resolved !== undefined
-        ? params.resolved
-        : params.outcomeType === "RECOVERED"
-          ? true
-          : undefined;
+    // Recording a RECOVERED outcome implies the problem is resolved, unless the
+    // caller stated otherwise explicitly.
+    const impliedResolved =
+      params.outcomeType === "RECOVERED" ? true : undefined;
+    const resolvedFlag = params.resolved ?? impliedResolved;
 
     return prisma.treatmentOutcome.update({
       where: { id },

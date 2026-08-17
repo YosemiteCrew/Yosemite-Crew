@@ -25,11 +25,7 @@ type IsolationReason =
   | "OTHER";
 
 type IsolationLevel =
-  | "STANDARD"
-  | "CONTACT"
-  | "DROPLET"
-  | "AIRBORNE"
-  | "STRICT";
+  "STANDARD" | "CONTACT" | "DROPLET" | "AIRBORNE" | "STRICT";
 
 export interface CreateIsolationParams {
   organisationId: string;
@@ -151,7 +147,7 @@ export const IsolationProtocolService = {
       data: {
         endedAt: params.endedAt,
         endedBy: params.endedBy ?? null,
-        notes: params.notes !== undefined ? params.notes : existing.notes,
+        notes: params.notes ?? existing.notes,
       },
       select: isolationSelect,
     });

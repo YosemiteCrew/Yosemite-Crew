@@ -8,6 +8,7 @@ import {
   orgParams,
   uuid,
 } from "src/controllers/web/shared/clinical-controller.helpers";
+import { parseOptionalBooleanFlag } from "src/utils/query-flags";
 
 const SpeciesEnum = z.enum(["CANINE", "FELINE", "AVIAN", "EXOTIC", "ALL"]);
 const CategoryEnum = z.enum([
@@ -65,12 +66,7 @@ const ApplyBodySchema = z.object({
 const ListQuerySchema = z.object({
   species: SpeciesEnum.optional(),
   category: CategoryEnum.optional(),
-  isActive: z
-    .string()
-    .optional()
-    .transform((v) =>
-      v === "false" ? false : v === "true" ? true : undefined,
-    ),
+  isActive: z.string().optional().transform(parseOptionalBooleanFlag),
 });
 
 const ProtocolParamsSchema = orgParams.extend({ protocolId: uuid() });

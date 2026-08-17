@@ -4,6 +4,7 @@ import {
   ClinicNoteService,
   ClinicNoteError,
 } from "src/services/clinic-note.service";
+import { parseOptionalBooleanFlag } from "src/utils/query-flags";
 
 const SubjectTypeEnum = z.enum(["PATIENT", "CLIENT", "APPOINTMENT"]);
 const NoteTypeEnum = z.enum([
@@ -68,13 +69,7 @@ export const ClinicNoteController = {
     const subjectType = req.query.subjectType as string | undefined;
     const subjectId = req.query.subjectId as string | undefined;
     const noteType = req.query.noteType as string | undefined;
-    const isPinnedRaw = req.query.isPinned as string | undefined;
-    const isPinned =
-      isPinnedRaw === "true"
-        ? true
-        : isPinnedRaw === "false"
-          ? false
-          : undefined;
+    const isPinned = parseOptionalBooleanFlag(req.query.isPinned);
 
     try {
       const notes = await ClinicNoteService.list({

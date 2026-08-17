@@ -1,4 +1,5 @@
 import { prisma } from "src/config/prisma";
+import { pickDefined } from "src/utils/pick-defined";
 import { AuditTrailService } from "./audit-trail.service";
 import type { Prisma } from "@prisma/client";
 
@@ -196,38 +197,29 @@ export const PhysiotherapyPlanService = {
       );
     }
 
-    const data: Prisma.PhysiotherapyPlanUpdateInput = {};
-    if (params.diagnosis !== undefined) data.diagnosis = params.diagnosis;
-    if (params.goals !== undefined) data.goals = params.goals;
-    if (params.frequency !== undefined) data.frequency = params.frequency;
-    if (params.durationMinutes !== undefined)
-      data.durationMinutes = params.durationMinutes;
-    if (params.totalSessions !== undefined)
-      data.totalSessions = params.totalSessions;
-    if (params.exercisePrescription !== undefined)
-      data.exercisePrescription = params.exercisePrescription;
-    if (params.hydrotherapy !== undefined)
-      data.hydrotherapy = params.hydrotherapy;
-    if (params.laserTherapy !== undefined)
-      data.laserTherapy = params.laserTherapy;
-    if (params.therapeuticUltrasound !== undefined)
-      data.therapeuticUltrasound = params.therapeuticUltrasound;
-    if (params.massage !== undefined) data.massage = params.massage;
-    if (params.acupuncture !== undefined) data.acupuncture = params.acupuncture;
-    if (params.tapeApplication !== undefined)
-      data.tapeApplication = params.tapeApplication;
-    if (params.precautions !== undefined) data.precautions = params.precautions;
-    if (params.homeExercises !== undefined)
-      data.homeExercises = params.homeExercises;
-    if (params.startDate !== undefined) data.startDate = params.startDate;
-    if (params.endDate !== undefined) data.endDate = params.endDate;
-    if (params.lastSessionAt !== undefined)
-      data.lastSessionAt = params.lastSessionAt;
-    if (params.nextSessionAt !== undefined)
-      data.nextSessionAt = params.nextSessionAt;
-    if (params.therapist !== undefined) data.therapist = params.therapist;
-    if (params.status !== undefined) data.status = params.status;
-    if (params.notes !== undefined) data.notes = params.notes;
+    const data: Prisma.PhysiotherapyPlanUpdateInput = pickDefined(params, [
+      "diagnosis",
+      "goals",
+      "frequency",
+      "durationMinutes",
+      "totalSessions",
+      "exercisePrescription",
+      "hydrotherapy",
+      "laserTherapy",
+      "therapeuticUltrasound",
+      "massage",
+      "acupuncture",
+      "tapeApplication",
+      "precautions",
+      "homeExercises",
+      "startDate",
+      "endDate",
+      "lastSessionAt",
+      "nextSessionAt",
+      "therapist",
+      "status",
+      "notes",
+    ]);
 
     const eventType =
       params.status === "DISCONTINUED"

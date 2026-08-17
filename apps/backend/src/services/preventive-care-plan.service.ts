@@ -13,12 +13,7 @@ export class PreventiveCarePlanError extends Error {
 }
 
 type PreventiveCareFrequency =
-  | "WEEKLY"
-  | "MONTHLY"
-  | "QUARTERLY"
-  | "BIANNUAL"
-  | "ANNUAL"
-  | "CUSTOM";
+  "WEEKLY" | "MONTHLY" | "QUARTERLY" | "BIANNUAL" | "ANNUAL" | "CUSTOM";
 
 type PreventiveCareStatus = "ACTIVE" | "PAUSED" | "COMPLETED" | "CANCELLED";
 
@@ -244,7 +239,7 @@ export const PreventiveCarePlanService = {
       data: {
         lastDoneAt: completedAt,
         nextDueAt: params.nextDueAt ?? null,
-        notes: params.notes !== undefined ? params.notes : item.notes,
+        notes: params.notes ?? item.notes,
       },
       select: itemSelect,
     });

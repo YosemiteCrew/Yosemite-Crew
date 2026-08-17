@@ -84,11 +84,16 @@ const buildEmailBody = (
   patientName: string,
   referringVetName: string | null,
 ) => {
+  const clinicSuffix = letter.specialistClinic
+    ? `, ${letter.specialistClinic}`
+    : "";
+  const specialistLine = letter.specialistName
+    ? `<p><strong>To:</strong> ${letter.specialistName}${clinicSuffix}</p>`
+    : "";
+
   const sections: string[] = [
     `<h2>Referral Letter for ${patientName}</h2>`,
-    letter.specialistName
-      ? `<p><strong>To:</strong> ${letter.specialistName}${letter.specialistClinic ? `, ${letter.specialistClinic}` : ""}</p>`
-      : "",
+    specialistLine,
     referringVetName ? `<p><strong>From:</strong> ${referringVetName}</p>` : "",
     `<h3>Reason for Referral</h3><p>${letter.reasonForReferral}</p>`,
     letter.historySummary
@@ -263,9 +268,13 @@ export const ReferralLetterService = {
     const patientName = patient?.name ?? "the patient";
     const htmlBody = buildEmailBody(letter, patientName, null);
 
+    const subjectClinicSuffix = letter.specialistClinic
+      ? ` - ${letter.specialistClinic}`
+      : "";
+
     await sendEmail({
       to: letter.specialistEmail,
-      subject: `Referral: ${patientName}${letter.specialistClinic ? ` - ${letter.specialistClinic}` : ""}`,
+      subject: `Referral: ${patientName}${subjectClinicSuffix}`,
       htmlBody,
     }).catch((sendErr: unknown) => {
       logger.error("Referral email send failed", {

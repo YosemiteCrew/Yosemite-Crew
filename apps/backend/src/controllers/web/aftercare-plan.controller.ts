@@ -8,6 +8,7 @@ import {
   orgParams,
   uuid,
 } from "src/controllers/web/shared/clinical-controller.helpers";
+import { parseOptionalBooleanFlag } from "src/utils/query-flags";
 
 const AftercareTypeEnum = z.enum([
   "EUTHANASIA_SERVICE",
@@ -42,12 +43,7 @@ const UpdateBodySchema = CreateBodySchema.omit({
 const ListQuerySchema = z.object({
   patientId: z.string().uuid().optional(),
   type: AftercareTypeEnum.optional(),
-  completed: z
-    .string()
-    .optional()
-    .transform((v) =>
-      v === "true" ? true : v === "false" ? false : undefined,
-    ),
+  completed: z.string().optional().transform(parseOptionalBooleanFlag),
 });
 
 const PlanParamsSchema = orgParams.extend({ planId: uuid() });

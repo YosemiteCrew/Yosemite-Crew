@@ -48,8 +48,6 @@ const assertOrgMembership = async (
 // artifact's attestation. The records are written through the clinical-artifact
 // workflow (appointment capture or pet-parent upload + vet verification), so this
 // service only READS and assembles them onto the passport.
-// TODO(passport): surface only attested (signed) artifacts and aggregate across
-// practices by microchip once the attestation + cross-org read land.
 type AttestationRef = {
   artifact: {
     attestation: {

@@ -23,7 +23,10 @@ type MedicalCertificateType =
 
 type MedicalCertificateStatus = "DRAFT" | "ISSUED" | "EXPIRED" | "REVOKED";
 
-const TERMINAL_STATUSES: MedicalCertificateStatus[] = ["REVOKED", "EXPIRED"];
+const TERMINAL_STATUSES = new Set<MedicalCertificateStatus>([
+  "REVOKED",
+  "EXPIRED",
+]);
 
 export interface CreateCertificateParams {
   organisationId: string;
@@ -140,7 +143,7 @@ export const MedicalCertificateService = {
     },
   ) {
     const existing = await assertCertificate(id, organisationId);
-    if (TERMINAL_STATUSES.includes(existing.status)) {
+    if (TERMINAL_STATUSES.has(existing.status)) {
       throw new MedicalCertificateError(
         `Cannot issue a certificate with status ${existing.status}.`,
         409,
@@ -224,7 +227,7 @@ export const MedicalCertificateService = {
 
   async expire(id: string, organisationId: string) {
     const existing = await assertCertificate(id, organisationId);
-    if (TERMINAL_STATUSES.includes(existing.status)) {
+    if (TERMINAL_STATUSES.has(existing.status)) {
       throw new MedicalCertificateError(
         `Cannot expire a certificate with status ${existing.status}.`,
         409,

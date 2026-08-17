@@ -1,9 +1,10 @@
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
-import { NotificationService } from "./notification.service";
 import { NotificationTemplates } from "../utils/notificationTemplates";
-import { sendEmail } from "../utils/email";
-import logger from "../utils/logger";
+import {
+  notifyPatientOwner,
+  passportLinkEmail,
+} from "src/services/shared/owner-notification";
 import type { AuditActorType } from "../models/audit-trail";
 import type {
   PassportConsentDTO,
@@ -121,64 +122,16 @@ const resolveConsentingParentId = async (
   return parent.id;
 };
 
-const notifyOwnerOfConsentRequest = async (
-  patientId: string,
-): Promise<void> => {
-  try {
-    const link = await prisma.parentPatient.findFirst({
-      where: { patientId, role: "PRIMARY", status: "ACTIVE" },
-      select: { parentId: true },
-    });
-    if (!link) return;
-    const [parent, patient] = await Promise.all([
-      prisma.parent.findUnique({
-        where: { id: link.parentId },
-        select: { linkedUserId: true, email: true },
-      }),
-      prisma.patient.findUnique({
-        where: { id: patientId },
-        select: { name: true },
-      }),
-    ]);
-    if (!parent || !patient) return;
-
-    const payload = NotificationTemplates.Care.CONSENT_REQUESTED(patient.name);
-
-    if (parent.linkedUserId) {
-      await NotificationService.sendToUser(parent.linkedUserId, payload).catch(
-        (error) =>
-          logger.error(
-            `Consent-request push failed for patient ${patientId}`,
-            error,
-          ),
-      );
-    }
-
-    if (parent.email) {
-      const base = (
-        process.env.PUBLIC_PASSPORT_BASE_URL ??
-        process.env.PUBLIC_CARD_BASE_URL ??
-        ""
-      ).replace(/\/+$/, "");
-      const passportUrl = `${base}/passport/${patientId}`;
-      await sendEmail({
-        to: parent.email,
-        subject: `Passport sharing request for ${patient.name}`,
-        htmlBody: `<p>${payload.body}</p><p><a href="${passportUrl}">View ${patient.name}'s passport</a></p>`,
-      }).catch((error) =>
-        logger.error(
-          `Consent-request email failed for patient ${patientId}`,
-          error,
-        ),
-      );
-    }
-  } catch (error) {
-    logger.error(
-      `Failed to notify owner of consent request for patient ${patientId}`,
-      error,
-    );
-  }
-};
+const notifyOwnerOfConsentRequest = (patientId: string): Promise<void> =>
+  notifyPatientOwner({
+    patientId,
+    label: "Consent-request",
+    buildPayload: (patientName) =>
+      NotificationTemplates.Care.CONSENT_REQUESTED(patientName),
+    buildEmail: passportLinkEmail(
+      (patientName) => `Passport sharing request for ${patientName}`,
+    ),
+  });
 
 export const PassportConsentService = {
   // The owning practice requests to share a pet's records with a recipient

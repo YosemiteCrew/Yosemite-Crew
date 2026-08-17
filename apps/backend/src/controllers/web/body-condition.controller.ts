@@ -35,7 +35,7 @@ const TrendQuerySchema = z.object({
   patientId: z.string().uuid(),
   limit: z
     .string()
-    .transform((v) => parseInt(v, 10))
+    .transform((v) => Number.parseInt(v, 10))
     .optional(),
 });
 

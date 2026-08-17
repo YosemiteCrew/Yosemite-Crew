@@ -4,6 +4,7 @@ import {
   PatientFlagService,
   PatientFlagError,
 } from "src/services/patient-flag.service";
+import { parseOptionalBooleanFlag } from "src/utils/query-flags";
 
 const FlagTypeEnum = z.enum([
   "AGGRESSION",
@@ -75,13 +76,7 @@ export const PatientFlagController = {
     const patientId = req.query.patientId as string | undefined;
     const flagType = req.query.flagType as string | undefined;
     const severity = req.query.severity as string | undefined;
-    const isActiveRaw = req.query.isActive as string | undefined;
-    const isActive =
-      isActiveRaw === "true"
-        ? true
-        : isActiveRaw === "false"
-          ? false
-          : undefined;
+    const isActive = parseOptionalBooleanFlag(req.query.isActive);
 
     try {
       const flags = await PatientFlagService.list({

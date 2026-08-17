@@ -4,6 +4,7 @@ import {
   InventoryCountService,
   InventoryCountError,
 } from "src/services/inventory-count.service";
+import { parseOptionalBooleanFlag } from "src/utils/query-flags";
 
 const RecordCountSchema = z.object({
   inventoryItemId: z.string().min(1),
@@ -62,13 +63,7 @@ export const InventoryCountController = {
 
   list: async (req: Request, res: Response) => {
     const inventoryItemId = req.query.inventoryItemId as string | undefined;
-    const reconciledRaw = req.query.reconciled as string | undefined;
-    const reconciled =
-      reconciledRaw === "true"
-        ? true
-        : reconciledRaw === "false"
-          ? false
-          : undefined;
+    const reconciled = parseOptionalBooleanFlag(req.query.reconciled);
     const fromDate = req.query.fromDate
       ? new Date(req.query.fromDate as string)
       : undefined;

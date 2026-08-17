@@ -1,4 +1,5 @@
 import { prisma } from "src/config/prisma";
+import { pickDefined } from "src/utils/pick-defined";
 import { AuditTrailService } from "./audit-trail.service";
 import type { Prisma } from "@prisma/client";
 
@@ -19,17 +20,10 @@ export interface EyeFinding {
   discharge?: "ABSENT" | "SEROUS" | "MUCOID" | "PURULENT" | "HAEMORRHAGIC";
   cornealClarity?: "CLEAR" | "HAZE" | "OEDEMA" | "ULCER" | "OPACITY";
   lensClarity?:
-    | "CLEAR"
-    | "EARLY_CATARACT"
-    | "MATURE_CATARACT"
-    | "HYPERMATURE_CATARACT";
+    "CLEAR" | "EARLY_CATARACT" | "MATURE_CATARACT" | "HYPERMATURE_CATARACT";
   vitreousClarity?: "CLEAR" | "HAZE" | "HAEMORRHAGE" | "FLOATERS";
   retina?:
-    | "NORMAL"
-    | "DETACHED"
-    | "DEGENERATIVE"
-    | "HAEMORRHAGE"
-    | "PAPILLOEDEMA";
+    "NORMAL" | "DETACHED" | "DEGENERATIVE" | "HAEMORRHAGE" | "PAPILLOEDEMA";
   conjunctiva?: "NORMAL" | "HYPERAEMIC" | "CHEMOSIS" | "FOLLICLES";
   notes?: string;
 }
@@ -212,35 +206,40 @@ export const OphthalmologyExaminationService = {
   ) {
     await assertExam(id, organisationId);
 
-    const data: Prisma.OphthalmologyExaminationUpdateInput = {};
-    if (params.visionLeft !== undefined) data.visionLeft = params.visionLeft;
-    if (params.visionRight !== undefined) data.visionRight = params.visionRight;
-    if (params.menaceLeft !== undefined) data.menaceLeft = params.menaceLeft;
-    if (params.menaceRight !== undefined) data.menaceRight = params.menaceRight;
-    if (params.plrDirectLeft !== undefined)
-      data.plrDirectLeft = params.plrDirectLeft;
-    if (params.plrDirectRight !== undefined)
-      data.plrDirectRight = params.plrDirectRight;
-    if (params.plrConsensualLeft !== undefined)
-      data.plrConsensualLeft = params.plrConsensualLeft;
-    if (params.plrConsensualRight !== undefined)
-      data.plrConsensualRight = params.plrConsensualRight;
-    if (params.sttLeft !== undefined) data.sttLeft = params.sttLeft;
-    if (params.sttRight !== undefined) data.sttRight = params.sttRight;
-    if (params.iopLeft !== undefined) data.iopLeft = params.iopLeft;
-    if (params.iopRight !== undefined) data.iopRight = params.iopRight;
-    if (params.fluoresceinLeft !== undefined)
-      data.fluoresceinLeft = params.fluoresceinLeft;
-    if (params.fluoresceinRight !== undefined)
-      data.fluoresceinRight = params.fluoresceinRight;
-    if (params.findingsLeft !== undefined)
-      data.findingsLeft =
-        params.findingsLeft as unknown as Prisma.InputJsonValue;
-    if (params.findingsRight !== undefined)
-      data.findingsRight =
-        params.findingsRight as unknown as Prisma.InputJsonValue;
-    if (params.diagnoses !== undefined) data.diagnoses = params.diagnoses;
-    if (params.notes !== undefined) data.notes = params.notes;
+    // The two findings columns are Json, so they need the InputJsonValue cast
+    // the typed columns do not.
+    const data: Prisma.OphthalmologyExaminationUpdateInput = {
+      ...pickDefined(params, [
+        "visionLeft",
+        "visionRight",
+        "menaceLeft",
+        "menaceRight",
+        "plrDirectLeft",
+        "plrDirectRight",
+        "plrConsensualLeft",
+        "plrConsensualRight",
+        "sttLeft",
+        "sttRight",
+        "iopLeft",
+        "iopRight",
+        "fluoresceinLeft",
+        "fluoresceinRight",
+        "diagnoses",
+        "notes",
+      ]),
+      ...(params.findingsLeft !== undefined
+        ? {
+            findingsLeft:
+              params.findingsLeft as unknown as Prisma.InputJsonValue,
+          }
+        : {}),
+      ...(params.findingsRight !== undefined
+        ? {
+            findingsRight:
+              params.findingsRight as unknown as Prisma.InputJsonValue,
+          }
+        : {}),
+    };
 
     return prisma.ophthalmologyExamination.update({
       where: { id },

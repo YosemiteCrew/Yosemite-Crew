@@ -1,4 +1,5 @@
 import { prisma } from "src/config/prisma";
+import { pickDefined } from "src/utils/pick-defined";
 import { AuditTrailService } from "./audit-trail.service";
 import type { Prisma } from "@prisma/client";
 
@@ -148,32 +149,24 @@ export const PreOpAssessmentService = {
   async update(id: string, organisationId: string, params: UpdatePreOpParams) {
     await assertAssessment(id, organisationId);
 
-    const data: Prisma.PreOpAssessmentUpdateInput = {};
-    if (params.asaClass !== undefined) data.asaClass = params.asaClass;
-    if (params.fastingStartedAt !== undefined)
-      data.fastingStartedAt = params.fastingStartedAt;
-    if (params.labsReviewed !== undefined)
-      data.labsReviewed = params.labsReviewed;
-    if (params.ecgReviewed !== undefined) data.ecgReviewed = params.ecgReviewed;
-    if (params.ownerConsentSigned !== undefined)
-      data.ownerConsentSigned = params.ownerConsentSigned;
-    if (params.anesthetistId !== undefined)
-      data.anesthetistId = params.anesthetistId;
-    if (params.surgeonId !== undefined) data.surgeonId = params.surgeonId;
-    if (params.plannedProcedure !== undefined)
-      data.plannedProcedure = params.plannedProcedure;
-    if (params.anesthesiaType !== undefined)
-      data.anesthesiaType = params.anesthesiaType;
-    if (params.knownAllergies !== undefined)
-      data.knownAllergies = params.knownAllergies;
-    if (params.currentMedications !== undefined)
-      data.currentMedications = params.currentMedications;
-    if (params.airwayNotes !== undefined) data.airwayNotes = params.airwayNotes;
-    if (params.cardiovascularNotes !== undefined)
-      data.cardiovascularNotes = params.cardiovascularNotes;
-    if (params.notes !== undefined) data.notes = params.notes;
-    if (params.assessedBy !== undefined) data.assessedBy = params.assessedBy;
-    if (params.assessedAt !== undefined) data.assessedAt = params.assessedAt;
+    const data: Prisma.PreOpAssessmentUpdateInput = pickDefined(params, [
+      "asaClass",
+      "fastingStartedAt",
+      "labsReviewed",
+      "ecgReviewed",
+      "ownerConsentSigned",
+      "anesthetistId",
+      "surgeonId",
+      "plannedProcedure",
+      "anesthesiaType",
+      "knownAllergies",
+      "currentMedications",
+      "airwayNotes",
+      "cardiovascularNotes",
+      "notes",
+      "assessedBy",
+      "assessedAt",
+    ]);
 
     return prisma.preOpAssessment.update({
       where: { id },

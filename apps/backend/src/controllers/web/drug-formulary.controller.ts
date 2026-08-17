@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { Request, Response } from "express";
 import { DrugFormularyService } from "src/services/drug-formulary.service";
+import { parseOptionalBooleanFlag } from "src/utils/query-flags";
 
 const CategoryEnum = z.enum([
   "ANALGESIC",
@@ -91,13 +92,7 @@ export const drugFormularyController = {
   list: async (req: Request, res: Response) => {
     const { organisationId } = req.params;
     const categoryResult = CategoryEnum.safeParse(req.query.category);
-    const activeParam = req.query.isActive;
-    const isActive =
-      activeParam === "true"
-        ? true
-        : activeParam === "false"
-          ? false
-          : undefined;
+    const isActive = parseOptionalBooleanFlag(req.query.isActive);
     try {
       const entries = await DrugFormularyService.list({
         organisationId,

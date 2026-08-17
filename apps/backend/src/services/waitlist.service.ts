@@ -1,10 +1,8 @@
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
 import type { Prisma } from "@prisma/client";
-import { NotificationService } from "./notification.service";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
-import { sendEmail } from "src/utils/email";
-import logger from "src/utils/logger";
+import { notifyPatientOwner } from "src/services/shared/owner-notification";
 
 export class WaitlistError extends Error {
   constructor(
@@ -64,47 +62,13 @@ const assertEntry = async (id: string, organisationId: string) => {
   return entry;
 };
 
-const notifyOwnerOfSlot = async (patientId: string): Promise<void> => {
-  try {
-    const link = await prisma.parentPatient.findFirst({
-      where: { patientId, role: "PRIMARY", status: "ACTIVE" },
-      select: { parentId: true },
-    });
-    if (!link) return;
-
-    const [parent, patient] = await Promise.all([
-      prisma.parent.findUnique({
-        where: { id: link.parentId },
-        select: { linkedUserId: true, email: true },
-      }),
-      prisma.patient.findUnique({
-        where: { id: patientId },
-        select: { name: true },
-      }),
-    ]);
-
-    if (!parent || !patient) return;
-
-    const payload = NotificationTemplates.Care.WAITLIST_SLOT_AVAILABLE(
-      patient.name,
-    );
-
-    if (parent.linkedUserId) {
-      await NotificationService.sendToUser(parent.linkedUserId, payload).catch(
-        () => undefined,
-      );
-    }
-    if (parent.email) {
-      await sendEmail({
-        to: parent.email,
-        subject: payload.title,
-        htmlBody: `<p>${payload.body}</p>`,
-      }).catch(() => undefined);
-    }
-  } catch (err) {
-    logger.error("notifyOwnerOfSlot failed", { patientId, err });
-  }
-};
+const notifyOwnerOfSlot = (patientId: string): Promise<void> =>
+  notifyPatientOwner({
+    patientId,
+    label: "Waitlist-slot",
+    buildPayload: (patientName) =>
+      NotificationTemplates.Care.WAITLIST_SLOT_AVAILABLE(patientName),
+  });
 
 export const WaitlistService = {
   async add(params: AddToWaitlistParams) {
@@ -277,7 +241,7 @@ export const WaitlistService = {
         status: true,
       },
     });
-    if (!appointment || appointment.status !== "CANCELLED") return;
+    if (appointment?.status !== "CANCELLED") return;
 
     const apptDate = appointment.appointmentDate;
     const dayStart = new Date(apptDate);

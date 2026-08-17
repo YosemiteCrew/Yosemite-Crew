@@ -10,6 +10,7 @@ import {
   patientScopeQuery,
   uuid,
 } from "src/controllers/web/shared/clinical-controller.helpers";
+import { parseOptionalBooleanFlag } from "src/utils/query-flags";
 
 const HhScore = z.number().int().min(1).max(10);
 
@@ -33,12 +34,7 @@ const CreateBodySchema = z.object({
 
 const UpdateBodySchema = CreateBodySchema.omit({ patientId: true }).partial();
 const ListQuerySchema = patientScopeQuery.extend({
-  ownerAssessed: z
-    .string()
-    .optional()
-    .transform((v) =>
-      v === "true" ? true : v === "false" ? false : undefined,
-    ),
+  ownerAssessed: z.string().optional().transform(parseOptionalBooleanFlag),
 });
 const AssessmentParamsSchema = orgParams.extend({ assessmentId: uuid() });
 
@@ -105,7 +101,7 @@ export const QolAssessmentController = {
       if (!patientId)
         return res.status(400).json({ message: "patientId is required" });
       const limit = req.query.limit
-        ? parseInt(req.query.limit as string, 10)
+        ? Number.parseInt(req.query.limit as string, 10)
         : undefined;
       const records = await QolAssessmentService.trend(
         patientId,

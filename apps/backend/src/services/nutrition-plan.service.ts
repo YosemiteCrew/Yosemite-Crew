@@ -1,4 +1,5 @@
 import { prisma } from "src/config/prisma";
+import { pickDefined } from "src/utils/pick-defined";
 import { AuditTrailService } from "./audit-trail.service";
 import type { Prisma } from "@prisma/client";
 
@@ -167,23 +168,22 @@ export const NutritionPlanService = {
       );
     }
 
-    const data: Prisma.NutritionPlanUpdateInput = {};
-    if (params.dietName !== undefined) data.dietName = params.dietName;
-    if (params.calories !== undefined) data.calories = params.calories;
-    if (params.calorieUnit !== undefined) data.calorieUnit = params.calorieUnit;
-    if (params.protein !== undefined) data.protein = params.protein;
-    if (params.fat !== undefined) data.fat = params.fat;
-    if (params.fibre !== undefined) data.fibre = params.fibre;
-    if (params.feedingFrequency !== undefined)
-      data.feedingFrequency = params.feedingFrequency;
-    if (params.portionSize !== undefined) data.portionSize = params.portionSize;
-    if (params.waterIntake !== undefined) data.waterIntake = params.waterIntake;
-    if (params.restrictions !== undefined)
-      data.restrictions = params.restrictions;
-    if (params.indication !== undefined) data.indication = params.indication;
-    if (params.reviewDate !== undefined) data.reviewDate = params.reviewDate;
-    if (params.notes !== undefined) data.notes = params.notes;
-    if (params.status !== undefined) data.status = params.status;
+    const data: Prisma.NutritionPlanUpdateInput = pickDefined(params, [
+      "dietName",
+      "calories",
+      "calorieUnit",
+      "protein",
+      "fat",
+      "fibre",
+      "feedingFrequency",
+      "portionSize",
+      "waterIntake",
+      "restrictions",
+      "indication",
+      "reviewDate",
+      "notes",
+      "status",
+    ]);
 
     const eventType =
       params.status === "DISCONTINUED"
