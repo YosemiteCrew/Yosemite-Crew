@@ -163,7 +163,9 @@ const FieldComponents: Record<string, React.FC<EditableFieldProps>> = {
           />
           <span>{field.label}</span>
         </label>
-        {error ? <div className="px-4 text-caption-1 text-red-600">{error}</div> : null}
+        {error ? (
+          <div className="px-4 text-caption-1 text-[var(--danger-text)]">{error}</div>
+        ) : null}
       </div>
     );
   },
@@ -605,7 +607,7 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
               : 'flex justify-end items-end gap-3 w-full flex-col'
           }
         >
-          {error && <div className="text-red-600 text-sm text-center">{error}</div>}
+          {error && <div className="text-[var(--danger-text)] text-sm text-center">{error}</div>}
           <div
             className={
               compactInlineActions

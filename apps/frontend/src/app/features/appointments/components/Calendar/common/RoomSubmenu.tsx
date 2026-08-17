@@ -31,7 +31,7 @@ const RoomSubmenu = ({ submenuRef, submenuStyle, roomOptions, savingKey }: RoomS
           return (
             <React.Fragment key={room.key}>
               {index > 0 ? (
-                <div className="mx-1 border-t border-white/30" aria-hidden="true" />
+                <div className="mx-1 border-t border-[var(--hairline)]" aria-hidden="true" />
               ) : null}
               <button
                 type="button"
@@ -45,7 +45,9 @@ const RoomSubmenu = ({ submenuRef, submenuStyle, roomOptions, savingKey }: RoomS
               >
                 <span className="truncate">{room.label}</span>
                 {roomStatusLabel ? (
-                  <span className="shrink-0 text-[8px] opacity-60">{roomStatusLabel}</span>
+                  <span className="shrink-0 text-[8px] text-[var(--ink-body)]">
+                    {roomStatusLabel}
+                  </span>
                 ) : null}
               </button>
             </React.Fragment>

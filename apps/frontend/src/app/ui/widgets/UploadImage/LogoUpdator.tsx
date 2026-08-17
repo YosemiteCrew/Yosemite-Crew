@@ -192,7 +192,9 @@ const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorP
                 </label>
               </div>
               {uploadError && (
-                <div className="text-sm text-red-600 text-center max-w-55">{uploadError}</div>
+                <div className="text-sm text-[var(--danger-text)] text-center max-w-55">
+                  {uploadError}
+                </div>
               )}
             </div>
           </div>

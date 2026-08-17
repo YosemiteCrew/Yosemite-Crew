@@ -231,7 +231,9 @@ const getMeterMeta = (test: LabResultTest) => {
   const rawPercent = ((value - range.min) / (range.max - range.min)) * 100;
   const percent = Math.min(100, Math.max(0, rawPercent));
   const markerClass =
-    test.outOfRange || rawPercent < 0 || rawPercent > 100 ? 'bg-red-500' : 'bg-text-primary';
+    test.outOfRange || rawPercent < 0 || rawPercent > 100
+      ? 'bg-[var(--danger)]'
+      : 'bg-text-primary';
   return { canRender: true, percent, markerClass };
 };
 

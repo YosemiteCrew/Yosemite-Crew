@@ -21,7 +21,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: var(--color-neutral-0);
+  color: var(--color-text-primary);
   transition:
     flex-grow 0.2s ease,
     background-color 0.2s ease;
@@ -37,7 +37,12 @@
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
+/* The only part of the tab painted with the fixed light blue from
+   growtab.color, so its text is pinned dark in both themes. The content panel
+   beside it sits on --color-surface-card and stays themed - pinning the whole
+   .LaunchTabDiv put fixed dark text on the dark card at 1.16:1. */
 .BuildText {
+  color: var(--ink-fixed);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -52,7 +57,10 @@
 .LaunchTabDiv:first-child .BuildText h3,
 .LaunchTabDiv.active:first-child .BuildText h6,
 .LaunchTabDiv.active:first-child .BuildText h3 {
-  color: var(--color-neutral-0);
+  /* The first tab is the only one filled with a strong blue rather than a light
+     tint, so its text stays LIGHT - but FIXED, not the --color-neutral-0 surface
+     token it used to take, which followed the theme and went near-black in dark. */
+  color: var(--white-text);
 }
 
 .BuildText h6 {
@@ -60,7 +68,7 @@
   font-size: 24px;
   font-weight: 500;
   line-height: 120%;
-  color: var(--color-text-primary);
+  color: var(--ink-fixed);
   margin: 0;
 }
 
@@ -70,7 +78,7 @@
   font-weight: 500;
   line-height: 120%;
   writing-mode: sideways-lr;
-  color: var(--color-text-primary);
+  color: var(--ink-fixed);
   margin: 0;
 }
 
@@ -230,14 +238,20 @@
     transition: all 0.3s ease;
     border: none;
     background: transparent;
-    color: var(--color-text-primary);
+    /* Transparent over the same fixed light-blue tab strip, so the label is
+       pinned dark like the desktop one rather than following the theme. */
+    color: var(--ink-fixed);
     white-space: nowrap;
     flex-shrink: 0;
   }
 
   .mobile-tab-button.active {
-    background: var(--color-brand-950);
-    color: var(--color-neutral-0);
+    /* --blue-strong, matching the desktop tab. --color-brand-950 resolves to the
+       brand FILL #007cf5, which is only 4.04:1 under white at 13px; blue-strong
+       is 6.48 light and 4.54 dark. This is the mobile twin of the same rule and
+       was missed when the desktop one moved. */
+    background: var(--blue-strong);
+    color: var(--white-text);
     box-shadow: 0px 2px 8px rgba(36, 122, 237, 0.3);
     flex-grow: 1;
     flex-shrink: 1;

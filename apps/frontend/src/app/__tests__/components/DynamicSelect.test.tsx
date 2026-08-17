@@ -104,7 +104,7 @@ describe('DynamicSelect Component', () => {
 
     const errorText = screen.getByText(errorMessage);
     expect(errorText).toBeInTheDocument();
-    expect(errorText).toHaveClass('text-xs', 'text-red-600', 'mt-1');
+    expect(errorText).toHaveClass('text-xs', 'text-[var(--danger-text)]', 'mt-1');
   });
 
   it('should display a "No matches found" message when the search query matches nothing', async () => {

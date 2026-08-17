@@ -162,6 +162,8 @@
   font-size: 12px;
   line-height: 120%;
   font-family: var(--satoshi-font);
-  color: var(--delete);
+  /* --danger-text, not --delete: --delete is the button FILL, and as 12px
+     error text it read 4.00 on the form background. */
+  color: var(--danger-text);
   margin-top: 6px;
 }

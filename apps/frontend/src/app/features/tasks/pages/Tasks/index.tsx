@@ -338,7 +338,7 @@ const Tasks = () => {
                 icon={<IoAdd size={16} aria-hidden="true" />}
                 // The design seats the CTA after the view toggle; this slot
                 // renders before it, so flex order restores that sequence.
-                className="order-1 gap-[7px] px-[18px] whitespace-nowrap hover:scale-100"
+                className="order-1 whitespace-nowrap hover:scale-100"
               />
             ) : undefined
           }

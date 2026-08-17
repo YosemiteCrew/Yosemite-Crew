@@ -156,7 +156,7 @@ const AppointmentStatusPill = ({
             data-popover-panel="true"
             role="menu"
             onPointerDown={(e) => e.stopPropagation()}
-            className="rounded-2xl! bg-neutral-0 shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden whitespace-nowrap"
+            className="rounded-2xl! bg-neutral-0 shadow-[0_8px_24px_var(--sh12)] overflow-hidden whitespace-nowrap"
             style={{
               ...menuStyle,
               minWidth: 120,

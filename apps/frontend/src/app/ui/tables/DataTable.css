@@ -166,7 +166,7 @@ span.cell-overflow-count {
    badge-only ramp. Declared unlayered so they beat Tailwind's utility layer and
    stay theme-live in both light and dark. */
 .cell-ink-success {
-  color: var(--success);
+  color: var(--success-text);
 }
 .cell-ink-warn {
   color: var(--warn-text);
@@ -190,8 +190,11 @@ span.cell-overflow-count {
   gap: 10px;
   width: fit-content;
   border-radius: 16px;
-  background: var(--pendingbg, #fef3e9);
-  color: var(--pendingtext, #f68523);
+  background: var(--pendingbg);
+  /* No literal fallback: it still held #f68523, the pre-fix orange that reads
+     2.29:1 on this tint. Both tokens are declared, so the fallback was dead -
+     but a dead fallback to a failing colour is a landmine. */
+  color: var(--pendingtext);
   font-size: 16px;
   font-style: normal;
   font-weight: 400;

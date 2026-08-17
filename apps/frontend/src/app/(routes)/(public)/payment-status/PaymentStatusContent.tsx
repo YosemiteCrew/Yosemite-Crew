@@ -167,7 +167,12 @@ export function PaymentStatusContent() {
       data-yc-surface="light"
       className="min-h-[max(720px,100vh)] flex items-center justify-center px-4 pt-22 pb-10 bg-[radial-gradient(circle_at_10%_10%,rgba(250,238,210,0.6),transparent_45%),radial-gradient(circle_at_90%_20%,rgba(210,235,248,0.6),transparent_45%),radial-gradient(circle_at_50%_90%,rgba(215,245,230,0.7),transparent_50%)]"
     >
-      <div className="w-full max-w-xl bg-white/80 border border-card-border rounded-2xl px-6 py-10">
+      {/* Opaque, not bg-white/80. The card pins its inks light because it is a
+          receipt, but at 80% the themed page beneath it bled through: in dark the
+          surface composited to #d2d2d1 instead of white, which dropped the
+          "Yosemite Crew" kicker to 3.94:1. A pinned surface has to be opaque or
+          the pin only half-holds. */}
+      <div className="w-full max-w-xl bg-white border border-card-border rounded-2xl px-6 py-10">
         <div className="flex flex-col items-center text-center gap-4">
           <div className="relative flex items-center justify-center size-24 rounded-full">
             {(requestState === 'missing_session' || requestState === 'error') && (
@@ -204,9 +209,9 @@ export function PaymentStatusContent() {
             )}
             {(requestState === 'loading' || data?.status === 'unpaid') && (
               <div className="flex gap-2" aria-hidden>
-                <span className="size-3.5 rounded-full bg-slate-900 animate-[pulse-dot_1s_cubic-bezier(0.16,1,0.3,1)_infinite]" />
-                <span className="size-3.5 rounded-full bg-slate-900 animate-[pulse-dot_1s_cubic-bezier(0.16,1,0.3,1)_infinite_150ms]" />
-                <span className="size-3.5 rounded-full bg-slate-900 animate-[pulse-dot_1s_cubic-bezier(0.16,1,0.3,1)_infinite_300ms]" />
+                <span className="size-3.5 rounded-full bg-[var(--ink-fixed)] animate-[pulse-dot_1s_cubic-bezier(0.16,1,0.3,1)_infinite]" />
+                <span className="size-3.5 rounded-full bg-[var(--ink-fixed)] animate-[pulse-dot_1s_cubic-bezier(0.16,1,0.3,1)_infinite_150ms]" />
+                <span className="size-3.5 rounded-full bg-[var(--ink-fixed)] animate-[pulse-dot_1s_cubic-bezier(0.16,1,0.3,1)_infinite_300ms]" />
               </div>
             )}
             {data?.status === 'no_payment_required' && (

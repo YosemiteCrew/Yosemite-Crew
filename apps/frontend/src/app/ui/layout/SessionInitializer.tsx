@@ -67,6 +67,22 @@ const createTerminologyRewriter = (primaryOrgId?: string | null) => {
     });
   };
 
+  /**
+   * The browser tab.
+   *
+   * The rewriter below is rooted at `document.body`, so it never reached the
+   * `<title>` in `<head>` - an org set to "Patients" still had a tab reading
+   * "Companions", contradicting every heading on the page. Route metadata is
+   * static (`export const metadata`) and rendered on the server, which has no
+   * access to the org's choice, so the term is applied here instead.
+   */
+  const rewriteDocumentTitle = () => {
+    const next = rewriteCompanionTerminologyText(document.title, getActiveTerminology());
+    if (next !== document.title) {
+      document.title = next;
+    }
+  };
+
   const rewriteNode = (node: Node) => {
     if (node.nodeType === Node.TEXT_NODE) {
       rewriteTextNode(node as Text);
@@ -79,15 +95,31 @@ const createTerminologyRewriter = (primaryOrgId?: string | null) => {
     if (isInsideTerminologyLock(element)) return;
     rewriteElementAttributes(element);
 
-    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    // DESCENDANT elements too, not just this one. Previously only the added
+    // element's own attributes were rewritten while the walker covered text
+    // nodes at any depth, so a nested `aria-label` never got the org's term -
+    // "Upload companion photo" stayed raw inside the Add patient modal in an
+    // org set to Patients. Text and attributes are walked in one pass.
+    const walker = document.createTreeWalker(
+      element,
+      NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT
+    );
     let current = walker.nextNode();
     while (current) {
-      rewriteTextNode(current as Text);
+      if (current.nodeType === Node.TEXT_NODE) {
+        rewriteTextNode(current as Text);
+      } else {
+        rewriteElementAttributes(current as Element);
+      }
       current = walker.nextNode();
     }
   };
 
   const handleMutations = (mutations: MutationRecord[]) => {
+    // Next swaps <title> on navigation, and a navigation always mutates the body
+    // too - so the tab is re-applied from here rather than from a second
+    // MutationObserver on <title>, which was an extra live handle for nothing.
+    rewriteDocumentTitle();
     mutations.forEach((mutation) => {
       if (mutation.type === 'characterData' && mutation.target.nodeType === Node.TEXT_NODE) {
         rewriteTextNode(mutation.target as Text);
@@ -97,7 +129,7 @@ const createTerminologyRewriter = (primaryOrgId?: string | null) => {
     });
   };
 
-  return { rewriteNode, handleMutations };
+  return { rewriteNode, handleMutations, rewriteDocumentTitle };
 };
 
 const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
@@ -153,9 +185,11 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
     if (typeof document === 'undefined') return;
     const root = document.body;
     if (!root) return;
-    const { rewriteNode, handleMutations } = createTerminologyRewriter(primaryOrgId);
+    const { rewriteNode, handleMutations, rewriteDocumentTitle } =
+      createTerminologyRewriter(primaryOrgId);
 
     rewriteNode(root);
+    rewriteDocumentTitle();
 
     const observer = new MutationObserver(handleMutations);
 
@@ -169,6 +203,7 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
 
     const handleTerminologyChange = () => {
       rewriteNode(root);
+      rewriteDocumentTitle();
     };
     globalThis.window.addEventListener('yc:companion-terminology-changed', handleTerminologyChange);
 

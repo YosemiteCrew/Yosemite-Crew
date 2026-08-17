@@ -202,9 +202,14 @@ describe('Header Component', () => {
     // in both themes) so selected/unselected are unmistakable. The old translucent
     // danger-bg tint + `text-danger-500!` label failed WCAG AA in dark mode (#1885).
     const activePill = screen.getByRole('button', { name: 'Emergencies' });
-    expect(activePill.getAttribute('style')).toContain('background-color: var(--color-danger-800)');
-    expect(activePill.getAttribute('style')).toContain('border-color: var(--color-danger-800)');
-    expect(activePill.getAttribute('style')).toContain('color: var(--color-white)');
+    // --danger-strong with its PAIRED ink, not --color-danger-800 under a literal
+    // white. The 800 step is an ink and was given a light dark-mode value, which
+    // as a fill put this pill at 1.98:1. --danger-strong inverts as a pair in
+    // dark so the fill also keeps a 3:1 boundary against the surface; pinning
+    // the label to white here would break that half again.
+    expect(activePill.getAttribute('style')).toContain('background-color: var(--danger-strong)');
+    expect(activePill.getAttribute('style')).toContain('border-color: var(--danger-strong)');
+    expect(activePill.getAttribute('style')).toContain('color: var(--danger-strong-ink)');
     // The `!important` danger-500 label class must be gone so the inline white wins.
     expect(activePill).not.toHaveClass('text-danger-500!');
   });
@@ -301,7 +306,7 @@ describe('Header Component', () => {
     // danger-800), so it no longer carries the AA-failing `text-danger-500!` class.
     const activeEmergencyPill = screen.getByRole('button', { name: 'Emergencies' });
     expect(activeEmergencyPill).not.toHaveClass('text-danger-500!');
-    expect(activeEmergencyPill.getAttribute('style')).toContain('color: var(--color-white)');
+    expect(activeEmergencyPill.getAttribute('style')).toContain('color: var(--danger-strong-ink)');
   });
 
   it('ignores filter toggles when no setter is provided', () => {

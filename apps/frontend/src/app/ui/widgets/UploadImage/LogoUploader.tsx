@@ -96,11 +96,7 @@ const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
               onClick={handleRemoveImage}
               aria-label="Remove uploaded logo"
             >
-              <IoRemoveCircleOutline
-                color="var(--color-primary-500)"
-                size={16}
-                aria-hidden="true"
-              />
+              <IoRemoveCircleOutline color="var(--blue-text)" size={16} aria-hidden="true" />
             </button>
           </>
         ) : (
@@ -125,7 +121,7 @@ const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
           {isUploading ? 'Uploading...' : title}
         </div>
         {error && (
-          <div className="text-red-600 text-sm" role="alert">
+          <div className="text-[var(--danger-text)] text-sm" role="alert">
             {error}
           </div>
         )}

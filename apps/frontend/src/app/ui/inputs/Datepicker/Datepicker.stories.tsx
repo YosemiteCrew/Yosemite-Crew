@@ -1,5 +1,6 @@
 import { useState, type ComponentProps } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
+import { expect, userEvent } from 'storybook/test';
 import Datepicker from './index';
 
 const StatefulDatepicker = (args: ComponentProps<typeof Datepicker>) => {
@@ -58,4 +59,29 @@ export const IconOnly: Story = {
 
 export const WithError: Story = {
   args: { error: 'Select a valid date.' },
+};
+
+export const OpenCalendar: Story = {
+  name: 'Calendar open',
+  args: { currentDate: new Date(2024, 5, 12) },
+  parameters: {
+    docs: {
+      story:
+        'The popper itself, which nothing else in this file renders. Every rule that styles ' +
+        'the calendar lives behind a click, so the panel was invisible to Storybook and to ' +
+        'Chromatic - four of its colours were wrong and no story could have caught it. The ' +
+        'selected day and the selected time were `--color-brand-950`, the brand FILL, under ' +
+        'white at 4.04:1, and "today" was that same blue on a chip mixed into literal white, ' +
+        'so it stayed a white chip inside a dark modal. They now use `--blue-strong` with ' +
+        '`--white-text`, and `--blue-text` over a tint mixed into the surface.',
+    },
+  },
+  play: async ({ canvasElement }) => {
+    // The trigger is react-datepicker's customInput, which is a BUTTON here -
+    // there is no textbox to query.
+    const trigger = canvasElement.querySelector('button');
+    await userEvent.click(trigger as HTMLElement);
+    // The popper portals out of the canvas, so assert against the document.
+    await expect(document.querySelector('.yc-datepicker-calendar')).toBeInTheDocument();
+  },
 };

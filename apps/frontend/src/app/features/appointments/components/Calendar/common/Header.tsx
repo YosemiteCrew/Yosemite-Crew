@@ -50,7 +50,7 @@ const getFilterClassName = (filterKey: string, activeFilter: string): string => 
   if (filterKey !== activeFilter)
     return 'font-semibold text-[var(--ink-muted)] hover:bg-card-hover!';
   // The active emergency pill draws its fill/label from getEmergencyPillStyle's
-  // inline style (AA-safe white on --color-danger-800); return no colour class so
+  // inline style (--danger-strong with its paired ink); return no colour class so
   // an `!important` text colour can't override it (the old `text-danger-500!`
   // failed WCAG AA in dark mode).
   if (filterKey === 'emergencies') return 'font-bold';
@@ -493,7 +493,7 @@ const Header = ({
                 text="New appointment"
                 onClick={onAddButtonClick}
                 icon={<IoAdd size={16} aria-hidden="true" />}
-                className="h-10 w-fit shrink-0 justify-center gap-[7px] px-[18px] py-0 text-[13.5px] font-semibold whitespace-nowrap hover:scale-100"
+                className="w-fit shrink-0 justify-center py-0 whitespace-nowrap hover:scale-100"
               />
             </>
           )}

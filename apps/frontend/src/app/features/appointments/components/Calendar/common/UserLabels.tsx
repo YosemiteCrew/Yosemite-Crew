@@ -66,7 +66,12 @@ const UserLabels = ({ team, columnsStyle }: UserLabels) => {
             )}
             <div className="min-w-0">
               <div
-                className={`truncate text-[13px] font-bold leading-[1.2] ${isCurrentUser ? 'text-(--color-primary-700)' : 'text-[var(--ink)]'}`}
+                // --blue-text, not --color-primary-700. The 700 step is a brand FILL
+                // declared once at :root with no dark value, so the label marking
+                // "this column is you" stayed #0057c2 on the dark #221d17 header:
+                // 2.50:1. --blue-text is the ink-tuned member of the family and
+                // inverts to #8fb6f5 in dark (8.10:1).
+                className={`truncate text-[13px] font-bold leading-[1.2] ${isCurrentUser ? 'text-[var(--blue-text)]' : 'text-[var(--ink)]'}`}
               >
                 {name}
               </div>

@@ -149,11 +149,15 @@
   ):not(.yc-status-pill span):not(.cell-overflow-count) {
   margin: 0px;
   font-family: var(--satoshi-font);
-  color: var(--black-text);
+  /* --ink-muted rather than --black-text at 60% opacity. This rule reaches
+     EVERY span in EVERY table cell across PIMS, so the dim was a blanket 3.48:1
+     on secondary cell text - and being written as a percentage it slipped past
+     the opacity guard, which only read decimals. The de-emphasis is the point,
+     so it is kept; it just comes from ink now (5.41:1 on the row band). */
+  color: var(--ink-muted);
   font-weight: 700;
   font-size: 13px;
   line-height: 120%;
-  opacity: 60%;
 }
 .TableDiv tbody tr td span.yc-status-pill,
 .TableDiv tbody tr td .yc-status-pill span {

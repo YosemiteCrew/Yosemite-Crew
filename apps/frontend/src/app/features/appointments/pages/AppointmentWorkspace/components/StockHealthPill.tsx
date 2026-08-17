@@ -14,8 +14,15 @@ export const StockHealthPill = ({ qty, low }: { qty: number; low: boolean }) => 
   >
     {low ? 'Low stock' : 'In stock'}
     <span
-      className={`flex size-6 items-center justify-center rounded-2xl text-[11px] leading-none font-bold text-neutral-0 ${
-        low ? 'bg-warning-700' : 'bg-pill-success-text'
+      // The two fills behave differently, so their inks do too.
+      //   warning-700 is FIXED (a mid orange in both themes) -> pin the ink dark,
+      //     5.61. It used to take text-neutral-0, which inverted to near-white.
+      //   the success fill THEMES (deep green in light, light green in dark) ->
+      //     keep text-neutral-0, whose inversion is exactly right here: light on
+      //     the deep fill, dark on the light one. Pinning it white gave 1.86 in
+      //     dark, so this branch was right all along.
+      className={`flex size-6 items-center justify-center rounded-2xl text-[11px] leading-none font-bold ${
+        low ? 'bg-warning-700 text-[var(--ink-fixed)]' : 'bg-pill-success-text text-neutral-0'
       }`}
     >
       {qty}

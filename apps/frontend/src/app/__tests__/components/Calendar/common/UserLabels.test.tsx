@@ -88,7 +88,9 @@ describe('UserLabels', () => {
 
     render(<UserLabels team={team} />);
 
-    expect(screen.getByText('Sam')).toHaveClass('text-(--color-primary-700)');
+    // --blue-text, not the 700 brand FILL step. 700 has no dark value, so the
+    // "this column is you" label sat at 2.50:1 on the dark header.
+    expect(screen.getByText('Sam')).toHaveClass('text-[var(--blue-text)]');
     // Other members take the frame's 13px/700 --ink column-header type (was 16px
     // /500 --ink-muted body type).
     expect(screen.getByText('Alex')).toHaveClass('text-[var(--ink)]', 'text-[13px]', 'font-bold');

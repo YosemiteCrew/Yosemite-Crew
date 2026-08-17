@@ -334,7 +334,7 @@ const DischargeDateTimeModal = ({
             </label>
           </div>
         )}
-        <div className={`${isSaving ? 'pointer-events-none opacity-60' : ''} flex flex-col gap-3`}>
+        <div className={`${isSaving ? 'pointer-events-none' : ''} flex flex-col gap-3`}>
           <Datepicker
             type="input"
             currentDate={dischargeDate}

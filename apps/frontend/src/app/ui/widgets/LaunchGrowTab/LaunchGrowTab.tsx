@@ -10,7 +10,10 @@ const Launchtabs = [
   {
     id: 1,
     title: 'APIs',
-    color: 'var(--color-badge-blue-bg)',
+    // --blue-strong, not --color-badge-blue-bg (#007cf5): this is the one tab
+    // filled with a STRONG blue rather than a light tint, and white on
+    // #007cf5 is only 4.04:1. --blue-strong takes it to 6.48.
+    color: 'var(--blue-strong)',
     icon: MEDIA_SOURCES.launchGrow.tab1,
     heading: 'Application programming interface',
     details: [
@@ -110,7 +113,7 @@ const LaunchGrowTab = () => {
                               icon="solar:verified-check-bold"
                               width="24"
                               height="24"
-                              style={{ color: 'var(--color-badge-blue-bg)', flexShrink: 0 }}
+                              style={{ color: 'var(--blue-text)', flexShrink: 0 }}
                             />
                             <span className="text-body-3">{detail}</span>
                           </li>
@@ -148,7 +151,7 @@ const LaunchGrowTab = () => {
                         width="20"
                         height="20"
                         style={{
-                          color: 'var(--color-badge-blue-bg)',
+                          color: 'var(--blue-text)',
                           flexShrink: 0,
                           marginTop: '2px',
                         }}
