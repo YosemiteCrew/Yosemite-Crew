@@ -493,7 +493,7 @@ const Header = ({
                 text="New appointment"
                 onClick={onAddButtonClick}
                 icon={<IoAdd size={16} aria-hidden="true" />}
-                className="h-10 w-fit shrink-0 justify-center gap-[7px] px-[18px] py-0 text-[13.5px] font-semibold whitespace-nowrap hover:scale-100"
+                className="w-fit shrink-0 justify-center py-0 whitespace-nowrap hover:scale-100"
               />
             </>
           )}

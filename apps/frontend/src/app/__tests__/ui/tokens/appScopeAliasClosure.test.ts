@@ -438,6 +438,35 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
     expect(offenders).toEqual([]);
   });
 
+  it('lets the button primitive own its height, padding and gap', () => {
+    // The four list/board/calendar toolbars each restated the Primary button's
+    // geometry in their own className, and had drifted into three different
+    // buttons: h-12 in Filters (48px) against h-10 everywhere else, with px-4/
+    // gap-2 in two of them against the design's px-[18px]/gap-[7px]. The one
+    // that ended up 8px taller than every other CTA in the product was the
+    // Appointments list "New appointment" button. Height, horizontal padding and
+    // label size travel together per size in Primary's sizeClasses, so a caller
+    // overriding one of them is overriding a set.
+    const GEOMETRY = /\bh-1[0-2]!?\b|\bpx-\[?\d/;
+
+    const root = path.join(process.cwd(), 'src/app');
+    const offenders: string[] = [];
+    for (const file of fs
+      .readdirSync(root, { recursive: true, encoding: 'utf8' })
+      .filter((f) => /\.tsx$/.test(f))
+      .filter((f) => !f.includes('__tests__') && !f.includes('.stories.'))) {
+      const src = fs.readFileSync(path.join(root, file), 'utf8');
+      // Only the toolbar add buttons: a <Primary> carrying the shared nowrap marker.
+      src.split('\n').forEach((line, i) => {
+        if (!line.includes('whitespace-nowrap hover:scale-100')) return;
+        const m = GEOMETRY.exec(line);
+        if (m) offenders.push(`${file}:${i + 1}  ${m[0]}`);
+      });
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
   it('never puts a theme transition on every element', () => {
     // `[data-yc-app] *` and `[data-yc-theme] *` each transitioned four properties
     // on EVERY element. A theme flip started ~700 simultaneous transitions, and

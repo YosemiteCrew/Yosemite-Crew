@@ -155,7 +155,7 @@ const TaskFilterBar = ({
           text={addButtonText}
           onClick={onAddButtonClick}
           icon={<IoAdd size={18} aria-hidden="true" />}
-          className="h-10 w-fit justify-center gap-2 px-4 py-0 whitespace-nowrap hover:scale-100"
+          className="w-fit shrink-0 justify-center py-0 whitespace-nowrap hover:scale-100"
         />
       )}
     </div>

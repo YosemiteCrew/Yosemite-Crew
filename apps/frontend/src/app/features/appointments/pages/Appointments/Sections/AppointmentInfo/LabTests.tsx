@@ -1281,7 +1281,7 @@ const IdexxOrderIframeOverlay = ({ url, title, onClose }: IdexxOrderIframeOverla
       style={{ pointerEvents: 'auto' }}
     >
       <div className="relative bg-neutral-0 rounded-2xl shadow-2xl size-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-2 border-b border-black/10">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-card-border">
           <div className="flex flex-col">
             <div className="text-body-2 text-text-primary">{title}</div>
             {isFollowUp ? (
@@ -1294,7 +1294,7 @@ const IdexxOrderIframeOverlay = ({ url, title, onClose }: IdexxOrderIframeOverla
           <button
             type="button"
             onClick={onClose}
-            className="p-2 hover:bg-black/5 rounded-full transition-colors cursor-pointer"
+            className="p-2 hover:bg-card-hover rounded-full transition-colors cursor-pointer"
             aria-label="Close IDEXX order frame"
             style={{ pointerEvents: 'auto' }}
           >

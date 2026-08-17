@@ -29,7 +29,9 @@ const StatusSubmenu = ({
     <div className="flex flex-col gap-0.5">
       {statusOptions.map((status, index) => (
         <React.Fragment key={status}>
-          {index > 0 ? <div className="mx-1 border-t border-white/30" aria-hidden="true" /> : null}
+          {index > 0 ? (
+            <div className="mx-1 border-t border-[var(--hairline)]" aria-hidden="true" />
+          ) : null}
           <button
             type="button"
             role="menuitem"

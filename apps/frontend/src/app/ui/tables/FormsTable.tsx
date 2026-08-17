@@ -176,7 +176,7 @@ const FormsTable = ({
     {
       label: 'Actions',
       key: 'actions',
-      width: '64px',
+      width: '88px',
       render: (item: FormsProps) => (
         <div className="flex justify-center">
           <button
@@ -207,14 +207,24 @@ const FormsTable = ({
         }
         return (
           <div className="flex flex-wrap gap-1.5">
-            {serviceIds.map((id) => (
-              <span
-                key={id}
-                className="inline-flex items-center rounded-full! bg-[var(--inset)] px-2.5 py-[3px] text-[11px] font-semibold text-[var(--ink-body)]"
-              >
-                {serviceNameById.get(id) ?? id}
-              </span>
-            ))}
+            {serviceIds.map((id) => {
+              // A linked service that is no longer in serviceOptions - deleted, or
+              // owned by another organisation - used to fall back to the raw id, so
+              // the Templates list showed rows of 24-character ObjectIDs where a
+              // service name belongs. The id means nothing to the reader and is an
+              // internal identifier, so it is not shown at all.
+              const name = serviceNameById.get(id);
+              return (
+                <span
+                  key={id}
+                  className={`inline-flex items-center rounded-full! bg-[var(--inset)] px-2.5 py-[3px] text-[11px] font-semibold ${
+                    name ? 'text-[var(--ink-body)]' : 'italic text-[var(--ink-faint)]'
+                  }`}
+                >
+                  {name ?? 'Unavailable service'}
+                </span>
+              );
+            })}
           </div>
         );
       },
