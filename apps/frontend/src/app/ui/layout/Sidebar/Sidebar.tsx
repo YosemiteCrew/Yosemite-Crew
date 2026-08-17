@@ -214,6 +214,7 @@ const Sidebar = () => {
                       <Link
                         className={routeClassName}
                         href={route.href}
+                        prefetch={false}
                         onClick={onClick}
                         aria-current={isActive ? 'page' : undefined}
                         aria-disabled={isDisabled || undefined}
@@ -231,6 +232,16 @@ const Sidebar = () => {
                     key={route.name}
                     className={routeClassName}
                     href={route.href}
+                    // Every sidebar route is permanently in the viewport, so the
+                    // App Router's default viewport prefetch fired an RSC request
+                    // for ALL of them on mount. Measured on dev: five of those
+                    // (/appointments, /chat, /tasks, /dashboard, /companions) took
+                    // 3.0-3.8s EACH and ran concurrently with the page's own data,
+                    // against a ~6-connection-per-origin cap - so the page you had
+                    // actually opened queued behind prefetches for pages you had
+                    // not. prefetch={false} drops the viewport prefetch; Next still
+                    // prefetches on hover, which is the point of intent anyway.
+                    prefetch={false}
                     onClick={onClick}
                     aria-current={isActive ? 'page' : undefined}
                     // A disabled route was disabled to the EYE only - greyed, with

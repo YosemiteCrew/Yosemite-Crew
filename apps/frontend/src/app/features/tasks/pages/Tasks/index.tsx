@@ -3,8 +3,6 @@ import React, { Suspense, useCallback, useMemo, useState } from 'react';
 import type { SetStateAction } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
-import { IoAdd } from 'react-icons/io5';
-import { Primary } from '@/app/ui/primitives/Buttons';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 import TitleCalendar from '@/app/ui/widgets/TitleCalendar';
@@ -25,6 +23,7 @@ import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
 import { usePhonePrimaryAction } from '@/app/ui/layout/PhoneShell/usePhonePrimaryAction';
+import { TASK_SCOPE_OPTIONS } from '@/app/features/tasks/pages/Tasks/taskScopeOptions';
 
 const TASKS_PAGE_SKELETON = <PageSkeleton variant="planner" />;
 
@@ -46,16 +45,6 @@ const PARENT_AUDIENCE_KEY = 'parent_task';
 const TASK_CALENDAR_FILTERS = TaskFilters.flatMap((option) =>
   option.key === PARENT_AUDIENCE_KEY ? [{ ...option, dotColor: 'var(--pink)' }] : []
 );
-
-/**
- * Assignee scope, kept as a segmented control (not an audience chip) so its
- * "Team" label never reads as the "Team" audience pill sitting next to it.
- * "My tasks" narrows every view to the tasks assigned to the signed-in member.
- */
-const TASK_SCOPE_OPTIONS = [
-  { key: 'mine', name: 'My tasks' },
-  { key: 'team', name: 'Team' },
-];
 
 const TaskPlannerSkeleton = () => (
   <div className="h-full min-h-125 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />
@@ -277,6 +266,7 @@ const Tasks = () => {
         weekStart={weekStart}
         setWeekStart={setWeekStart}
         canEditTasks={canEditTasks}
+        onAddTask={openAddTask}
         onCreateFromCalendarSlot={handleCreateFromCalendarSlot}
         filterOptions={TASK_CALENDAR_FILTERS}
         activeFilter={appliedFilter}
@@ -315,6 +305,14 @@ const Tasks = () => {
   return (
     <div className="flex flex-col relative">
       <div className="yc-page-content">
+        {/* No CTA in this header. Appointments seats its primary action inside
+            whichever toolbar the active view owns, and Tasks now does the same:
+            the calendar's Header, TaskFilterBar for the list, TaskBoard's own
+            toolbar for the board. Keeping one up here as well put "New task"
+            outside the calendar card, which is the difference you notice when
+            switching between the two planners, and it needed an `order-1` flex
+            hack to sit after the view toggle at all. On phone the create action
+            is the shell FAB either way. */}
         <TitleCalendar
           title="Tasks"
           description="Track to-dos, assign the team or pet parents, follow through"
@@ -327,21 +325,6 @@ const Tasks = () => {
           setActiveView={setActiveView}
           showAdd={false}
           viewOptions={['calendar', 'board', 'list']}
-          actionBeforeAdd={
-            // On phone the create action is the shell FAB, so the header CTA
-            // would be a duplicate - the design's "primary action -> FAB" rule.
-            canEditTasks && !isPhone ? (
-              <Primary
-                text="New task"
-                ariaLabel="New task"
-                onClick={openAddTask}
-                icon={<IoAdd size={16} aria-hidden="true" />}
-                // The design seats the CTA after the view toggle; this slot
-                // renders before it, so flex order restores that sequence.
-                className="order-1 whitespace-nowrap hover:scale-100"
-              />
-            ) : undefined
-          }
         />
         <MobileSearchBar placeholder="Search tasks" />
 
@@ -356,6 +339,8 @@ const Tasks = () => {
                 filterOptions={TaskFilters}
                 statusOptions={TASK_STATUS_PILLS}
                 scopeOptions={TASK_SCOPE_OPTIONS}
+                showAddButton={canEditTasks && !isPhone}
+                onAddButtonClick={openAddTask}
                 activeFilter={activeFilter}
                 activeStatus={activeStatus}
                 activeScope={activeScope}

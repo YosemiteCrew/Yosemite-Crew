@@ -29,7 +29,6 @@ type TaskCalendarBodyProps = {
   getDropAvailabilityIntervals: (date: Date, assigneeId?: string) => DropAvailabilityInterval[];
   resolveDisplayName: (memberId?: string) => string;
   weekStart: Date;
-  setWeekStart: Dispatch<SetStateAction<Date>>;
 };
 
 type CommonCalendarPropsInput = Pick<
@@ -91,7 +90,6 @@ export const TaskCalendarBody = ({
   getDropAvailabilityIntervals,
   resolveDisplayName,
   weekStart,
-  setWeekStart,
 }: TaskCalendarBodyProps) => {
   const handleDrop = createTaskDropHandler(moveTask, handleTaskDragEnd);
 
@@ -130,8 +128,6 @@ export const TaskCalendarBody = ({
         {...commonCalendarProps}
         events={filteredList}
         weekStart={weekStart}
-        setWeekStart={setWeekStart}
-        setCurrentDate={setCurrentDate}
         onTaskDropAt={(dropDate, minute) => handleDrop(dropDate, minute)}
       />
     );

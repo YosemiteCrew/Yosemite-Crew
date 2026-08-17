@@ -12,7 +12,12 @@ type VisitTimerProps = {
    */
   startAt?: string | Date;
   /** Booked slot end (`appointment.endTime`); when the elapsed time passes it, the
-   *  pill turns amber ("Over booked slot"). It never blocks actions. */
+   *  pill turns amber ("Over booked slot"). It never blocks actions.
+   *
+   *  The label takes the 900 ink step, not 700. The 700 step is a mid-ramp FILL
+   *  and measured 2.77:1 on its own warning-100 tint - this pill sits on every
+   *  workspace step, so it was the least readable thing on the busiest screen.
+   *  900 clears at 6.42 and already carries a dark-mode value. */
   bookedEndAt?: string | Date;
   className?: string;
   /**
@@ -85,7 +90,7 @@ const VisitTimerInner = ({ startMs, bookedEndAt, className, isPhone }: VisitTime
         <span
           data-testid="visit-timer"
           data-state="over"
-          className={`inline-flex shrink-0 items-center gap-1 rounded-full border border-warning-300 bg-warning-100 px-[9px] py-[5px] text-[10px] font-bold tabular-nums text-warning-700 ${className}`}
+          className={`inline-flex shrink-0 items-center gap-1 rounded-full border border-warning-300 bg-warning-100 px-[9px] py-[5px] text-[10px] font-bold tabular-nums text-warning-900 ${className}`}
         >
           <IoTimeOutline size={11} aria-hidden="true" />
           {toCompactElapsed(elapsed)}
@@ -96,7 +101,7 @@ const VisitTimerInner = ({ startMs, bookedEndAt, className, isPhone }: VisitTime
       <span
         data-testid="visit-timer"
         data-state="over"
-        className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border border-warning-300 bg-warning-100 px-3 py-1.5 text-caption-1 font-semibold tabular-nums text-warning-700 ${className}`}
+        className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border border-warning-300 bg-warning-100 px-3 py-1.5 text-caption-1 font-semibold tabular-nums text-warning-900 ${className}`}
       >
         <IoTimeOutline size={13} aria-hidden="true" />
         Over booked slot · {elapsed}
