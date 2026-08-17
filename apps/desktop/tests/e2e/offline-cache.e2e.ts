@@ -128,7 +128,6 @@ test.describe('offline-cache E2E', () => {
   });
 
   test('navigating to a page creates a cache file on disk', async () => {
-    await tab.getByRole('button', { name: /sign in/i }).click();
     await tab.getByRole('button', { name: /appt 1/i }).click();
     await expect(tab.getByRole('heading', { name: 'Appointment 1' })).toBeVisible();
 
@@ -137,7 +136,6 @@ test.describe('offline-cache E2E', () => {
   });
 
   test('cached page loads from cache when server is down', async () => {
-    await tab.getByRole('button', { name: /sign in/i }).click();
     await tab.getByRole('button', { name: /appt 1/i }).click();
     await expect(tab.getByRole('heading', { name: 'Appointment 1' })).toBeVisible();
 
@@ -149,7 +147,6 @@ test.describe('offline-cache E2E', () => {
   });
 
   test('uncached URL shows offline page when server is down', async () => {
-    await tab.getByRole('button', { name: /sign in/i }).click();
     await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
 
     await pimsServer.close();
@@ -159,7 +156,6 @@ test.describe('offline-cache E2E', () => {
   });
 
   test('clearing cache empties the cache file', async () => {
-    await tab.getByRole('button', { name: /sign in/i }).click();
     await tab.getByRole('button', { name: /appt 1/i }).click();
     await expect(tab.getByRole('heading', { name: 'Appointment 1' })).toBeVisible();
 
@@ -187,8 +183,6 @@ test.describe('offline-cache E2E', () => {
   });
 
   test('multiple cached pages are listed via IPC', async () => {
-    await tab.getByRole('button', { name: /sign in/i }).click();
-
     for (const p of PAGES) {
       await tab.goto(`${pimsServer.origin}${p.path}`);
       await expect(tab.getByRole('heading', { name: p.title })).toBeVisible();
@@ -217,7 +211,6 @@ test.describe('offline-cache E2E', () => {
   });
 
   test('cached content is accessible via IPC', async () => {
-    await tab.getByRole('button', { name: /sign in/i }).click();
     await tab.getByRole('button', { name: /appt 1/i }).click();
     await expect(tab.getByRole('heading', { name: 'Appointment 1' })).toBeVisible();
     const cachedUrl = `${pimsServer.origin}/appointments/1`;

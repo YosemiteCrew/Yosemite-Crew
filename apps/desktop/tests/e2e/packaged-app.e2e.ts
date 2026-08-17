@@ -129,11 +129,12 @@ test.describe('packaged Yosemite Crew PIMS desktop app', () => {
     userDataDir = undefined;
   });
 
-  test('renders the welcome screen and Sign in loads /signin', async () => {
-    await expect(page.getByRole('heading', { name: /yosemite crew pims/i })).toBeVisible();
-    await page.getByRole('button', { name: /sign in/i }).click();
-    await expect(page).toHaveURL(`${pimsServer.origin}/signin`);
-    await expect(page).toHaveTitle(/Sign In/);
+  // The welcome screen's Sign in button is what openPimsTab clicks during
+  // launch, so this asserts the end state of that transition rather than
+  // performing it a second time against a screen the app has already left.
+  test('Sign in from the welcome screen loads /signin in a tab', async () => {
+    await expect(tab).toHaveURL(`${pimsServer.origin}/signin`);
+    await expect(tab).toHaveTitle(/Sign In/);
     await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
   });
 
