@@ -395,7 +395,13 @@ export const PetPassportController = {
         params.data.patientId,
         params.data.organisationId,
       );
-      const pkpass = await WalletPassService.buildApplePass(passport);
+      const shareToken = await PetPassportService.ensurePublicToken(
+        params.data.patientId,
+      );
+      const pkpass = await WalletPassService.buildApplePass(
+        passport,
+        shareToken,
+      );
       const safeName =
         passport.identity.name.replaceAll(/[^a-z0-9]+/gi, "-") || "passport";
       res.setHeader("Content-Type", "application/vnd.apple.pkpass");
@@ -421,7 +427,13 @@ export const PetPassportController = {
         params.data.patientId,
         params.data.organisationId,
       );
-      const saveUrl = WalletPassService.buildGoogleSaveUrl(passport);
+      const shareToken = await PetPassportService.ensurePublicToken(
+        params.data.patientId,
+      );
+      const saveUrl = WalletPassService.buildGoogleSaveUrl(
+        passport,
+        shareToken,
+      );
       return res.status(200).json({ saveUrl });
     } catch (err) {
       return handleError(err, res, "Google Wallet pass generation failed");
@@ -471,7 +483,13 @@ export const PetPassportController = {
         params.data.patientId,
         typedReq.userId ?? null,
       );
-      const pkpass = await WalletPassService.buildApplePass(passport);
+      const shareToken = await PetPassportService.ensurePublicToken(
+        params.data.patientId,
+      );
+      const pkpass = await WalletPassService.buildApplePass(
+        passport,
+        shareToken,
+      );
       res.setHeader("Content-Type", "application/vnd.apple.pkpass");
       res.setHeader(
         "Content-Disposition",
@@ -497,10 +515,34 @@ export const PetPassportController = {
         params.data.patientId,
         typedReq.userId ?? null,
       );
-      const saveUrl = WalletPassService.buildGoogleSaveUrl(passport);
+      const shareToken = await PetPassportService.ensurePublicToken(
+        params.data.patientId,
+      );
+      const saveUrl = WalletPassService.buildGoogleSaveUrl(
+        passport,
+        shareToken,
+      );
       return res.status(200).json({ saveUrl });
     } catch (err) {
       return handleError(err, res, "Google Wallet pass generation failed");
+    }
+  },
+
+  /** Owner-only: kills the circulating public link for the pet's passport. */
+  revokePublicToken: async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const typedReq = req as OrgRequest;
+      const params = ParentParamsSchema.safeParse(req.params);
+      if (!params.success) {
+        return res.status(400).json({ message: "Invalid route parameters" });
+      }
+      const result = await PetPassportService.revokePublicToken({
+        patientId: params.data.patientId,
+        userId: typedReq.userId ?? null,
+      });
+      return res.status(200).json(result);
+    } catch (err) {
+      return handleError(err, res, "Passport share link revoke failed");
     }
   },
 
@@ -519,42 +561,6 @@ export const PetPassportController = {
       }
       logger.error("Public pet passport resolve failed", err);
       return res.status(404).json({ message: "Passport not found." });
-    }
-  },
-
-  issuePublicToken: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      if (!permissionsLoaded(typedReq, res)) return res;
-      const params = ParamsSchema.safeParse(req.params);
-      if (!params.success) {
-        return res.status(400).json({ message: "Invalid route parameters" });
-      }
-      const result = await PetPassportService.issuePublicToken({
-        patientId: params.data.patientId,
-        organisationId: params.data.organisationId,
-      });
-      return res.status(201).json(result);
-    } catch (err) {
-      return handleError(err, res, "Passport share link issue failed");
-    }
-  },
-
-  revokePublicToken: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      if (!permissionsLoaded(typedReq, res)) return res;
-      const params = ParamsSchema.safeParse(req.params);
-      if (!params.success) {
-        return res.status(400).json({ message: "Invalid route parameters" });
-      }
-      const result = await PetPassportService.revokePublicToken({
-        patientId: params.data.patientId,
-        organisationId: params.data.organisationId,
-      });
-      return res.status(200).json(result);
-    } catch (err) {
-      return handleError(err, res, "Passport share link revoke failed");
     }
   },
 };

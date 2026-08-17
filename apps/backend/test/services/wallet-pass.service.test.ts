@@ -3,6 +3,9 @@ import AdmZip from "adm-zip";
 import forge from "node-forge";
 import jwt from "jsonwebtoken";
 import type { PetPassportDTO } from "@yosemite-crew/types";
+
+// The wallet QR carries a revocable share token, never the patient id.
+const SHARE_TOKEN = "share-token-abc";
 import {
   buildApplePassJson,
   buildGooglePayload,
@@ -138,7 +141,10 @@ const configure = (extra: Record<string, string> = {}): void => {
 describe("buildApplePassJson", () => {
   it("maps identity, ids, barcode and back fields", () => {
     process.env.PUBLIC_PASSPORT_BASE_URL = "https://app.example.com/";
-    const pass = buildApplePassJson(PASSPORT, IDS) as Record<string, unknown>;
+    const pass = buildApplePassJson(PASSPORT, IDS, SHARE_TOKEN) as Record<
+      string,
+      unknown
+    >;
 
     expect(pass.formatVersion).toBe(1);
     expect(pass.passTypeIdentifier).toBe(IDS.passTypeId);
@@ -188,11 +194,16 @@ describe("buildApplePassJson", () => {
     );
 
     const barcode = (pass.barcodes as Array<{ message: string }>)[0];
-    expect(barcode.message).toBe("https://app.example.com/passport/p1");
+    expect(barcode.message).toBe(
+      `https://app.example.com/passport/${SHARE_TOKEN}`,
+    );
   });
 
   it("falls back to Animal species, omits absent fields, keeps the disclaimer", () => {
-    const pass = buildApplePassJson(MINIMAL, IDS) as Record<string, unknown>;
+    const pass = buildApplePassJson(MINIMAL, IDS, SHARE_TOKEN) as Record<
+      string,
+      unknown
+    >;
     const generic = pass.generic as Record<string, Array<{ key: string }>>;
     expect(generic.secondaryFields).toEqual([
       expect.objectContaining({ key: "species", value: "Animal" }),
@@ -209,9 +220,14 @@ describe("buildApplePassJson", () => {
 
   it("uses the card base url as a fallback for the verify link", () => {
     process.env.PUBLIC_CARD_BASE_URL = "https://card.example.com";
-    const pass = buildApplePassJson(PASSPORT, IDS) as Record<string, unknown>;
+    const pass = buildApplePassJson(PASSPORT, IDS, SHARE_TOKEN) as Record<
+      string,
+      unknown
+    >;
     const barcode = (pass.barcodes as Array<{ message: string }>)[0];
-    expect(barcode.message).toBe("https://card.example.com/passport/p1");
+    expect(barcode.message).toBe(
+      `https://card.example.com/passport/${SHARE_TOKEN}`,
+    );
   });
 });
 
@@ -232,19 +248,22 @@ describe("WalletPassService.buildApplePass", () => {
 
   it("throws WalletNotConfiguredError (501) when no certificate is set", async () => {
     await expect(
-      WalletPassService.buildApplePass(PASSPORT),
+      WalletPassService.buildApplePass(PASSPORT, SHARE_TOKEN),
     ).rejects.toMatchObject({
       name: "WalletNotConfiguredError",
       statusCode: 501,
     });
     await expect(
-      WalletPassService.buildApplePass(PASSPORT),
+      WalletPassService.buildApplePass(PASSPORT, SHARE_TOKEN),
     ).rejects.toBeInstanceOf(WalletNotConfiguredError);
   });
 
   it("produces a signed .pkpass bundle with a matching manifest", async () => {
     configure();
-    const buffer = await WalletPassService.buildApplePass(PASSPORT);
+    const buffer = await WalletPassService.buildApplePass(
+      PASSPORT,
+      SHARE_TOKEN,
+    );
 
     const zip = new AdmZip(buffer);
     const names = zip.getEntries().map((e) => e.entryName);
@@ -276,7 +295,10 @@ describe("WalletPassService.buildApplePass", () => {
 
   it("embeds the WWDR intermediate certificate when provided", async () => {
     configure({ APPLE_WWDR_BASE64: certDerBase64 });
-    const buffer = await WalletPassService.buildApplePass(PASSPORT);
+    const buffer = await WalletPassService.buildApplePass(
+      PASSPORT,
+      SHARE_TOKEN,
+    );
     expect(
       new AdmZip(buffer).getEntry("signature")!.getData().length,
     ).toBeGreaterThan(0);
@@ -294,7 +316,7 @@ describe("WalletPassService.buildApplePass", () => {
       ),
     });
     await expect(
-      WalletPassService.buildApplePass(PASSPORT),
+      WalletPassService.buildApplePass(PASSPORT, SHARE_TOKEN),
     ).rejects.toMatchObject({
       statusCode: 500,
     });
@@ -302,7 +324,10 @@ describe("WalletPassService.buildApplePass", () => {
 
   it("bundles a hosted brand logo as logo.png when configured", async () => {
     configure({ PUBLIC_WALLET_LOGO_URL: "https://cdn.example.com/logo.png" });
-    const buffer = await WalletPassService.buildApplePass(PASSPORT);
+    const buffer = await WalletPassService.buildApplePass(
+      PASSPORT,
+      SHARE_TOKEN,
+    );
     const names = new AdmZip(buffer).getEntries().map((e) => e.entryName);
     expect(names).toEqual(expect.arrayContaining(["logo.png", "logo@2x.png"]));
     expect(fetchSpy).toHaveBeenCalledWith("https://cdn.example.com/logo.png");
@@ -310,7 +335,10 @@ describe("WalletPassService.buildApplePass", () => {
 
   it("bundles the default brand logo when no logo url is configured", async () => {
     configure();
-    const buffer = await WalletPassService.buildApplePass(PASSPORT);
+    const buffer = await WalletPassService.buildApplePass(
+      PASSPORT,
+      SHARE_TOKEN,
+    );
     const names = new AdmZip(buffer).getEntries().map((e) => e.entryName);
     expect(names).toEqual(expect.arrayContaining(["logo.png", "logo@2x.png"]));
     expect(fetchSpy).toHaveBeenCalledWith(
@@ -321,7 +349,10 @@ describe("WalletPassService.buildApplePass", () => {
   it("falls back to the generated icon when the logo response is not ok", async () => {
     configure({ PUBLIC_WALLET_LOGO_URL: "https://cdn.example.com/logo.png" });
     fetchSpy.mockResolvedValue({ ok: false } as Response);
-    const buffer = await WalletPassService.buildApplePass(PASSPORT);
+    const buffer = await WalletPassService.buildApplePass(
+      PASSPORT,
+      SHARE_TOKEN,
+    );
     const names = new AdmZip(buffer).getEntries().map((e) => e.entryName);
     expect(names).not.toContain("logo.png");
   });
@@ -329,7 +360,10 @@ describe("WalletPassService.buildApplePass", () => {
   it("falls back to the generated icon when the logo fetch throws", async () => {
     configure({ PUBLIC_WALLET_LOGO_URL: "https://cdn.example.com/logo.png" });
     fetchSpy.mockRejectedValue(new Error("network"));
-    const buffer = await WalletPassService.buildApplePass(PASSPORT);
+    const buffer = await WalletPassService.buildApplePass(
+      PASSPORT,
+      SHARE_TOKEN,
+    );
     const names = new AdmZip(buffer).getEntries().map((e) => e.entryName);
     expect(names).not.toContain("logo.png");
   });
@@ -359,6 +393,7 @@ describe("buildGooglePayload", () => {
     const payload = buildGooglePayload(
       PASSPORT,
       ISSUER,
+      SHARE_TOKEN,
     ) as unknown as GooglePayloadShape;
 
     expect(payload.genericClasses[0].id).toBe(`${ISSUER}.petpassport`);
@@ -370,7 +405,7 @@ describe("buildGooglePayload", () => {
     expect(obj.hexBackgroundColor).toBe("#007CF5");
     expect(obj.barcode).toEqual({
       type: "QR_CODE",
-      value: "https://app.example.com/passport/p1",
+      value: `https://app.example.com/passport/${SHARE_TOKEN}`,
       alternateText: "GB-YC-1",
     });
     const moduleIds = obj.textModulesData.map((m) => m.id);
@@ -391,6 +426,7 @@ describe("buildGooglePayload", () => {
     const payload = buildGooglePayload(
       { ...MINIMAL, identity: { ...MINIMAL.identity, id: "abc/12 3" } },
       ISSUER,
+      SHARE_TOKEN,
     ) as unknown as GooglePayloadShape;
     expect(payload.genericObjects[0].id).toBe(`${ISSUER}.abc-12-3`);
     // MINIMAL has no passport number, so the QR carries the "Verify" fallback.
@@ -403,6 +439,7 @@ describe("buildGooglePayload", () => {
     const payload = buildGooglePayload(
       PASSPORT,
       ISSUER,
+      SHARE_TOKEN,
     ) as unknown as GooglePayloadShape;
     const obj = payload.genericObjects[0];
     expect(obj.logo?.sourceUri.uri).toBe("https://cdn.example.com/logo.png");
@@ -425,14 +462,14 @@ describe("WalletPassService.buildGoogleSaveUrl", () => {
   };
 
   it("throws WalletNotConfiguredError (501) when unset", () => {
-    expect(() => WalletPassService.buildGoogleSaveUrl(PASSPORT)).toThrow(
-      WalletNotConfiguredError,
-    );
+    expect(() =>
+      WalletPassService.buildGoogleSaveUrl(PASSPORT, SHARE_TOKEN),
+    ).toThrow(WalletNotConfiguredError);
   });
 
   it("signs a save JWT verifiable against the service-account key", () => {
     configureGoogle();
-    const url = WalletPassService.buildGoogleSaveUrl(PASSPORT);
+    const url = WalletPassService.buildGoogleSaveUrl(PASSPORT, SHARE_TOKEN);
     expect(url.startsWith(SAVE_PREFIX)).toBe(true);
 
     const token = url.slice(SAVE_PREFIX.length);
@@ -485,7 +522,10 @@ describe("wallet next-vaccination-due surfacing", () => {
   };
 
   it("adds relevantDate + a next-due back field for the soonest upcoming due", () => {
-    const pass = buildApplePassJson(withDue, IDS) as Record<string, unknown>;
+    const pass = buildApplePassJson(withDue, IDS, SHARE_TOKEN) as Record<
+      string,
+      unknown
+    >;
     expect(pass.relevantDate).toBe(future);
     const generic = pass.generic as {
       backFields: Array<{ key: string; value: string }>;
@@ -495,7 +535,11 @@ describe("wallet next-vaccination-due surfacing", () => {
   });
 
   it("surfaces the next-due text module in the Google payload", () => {
-    const payload = buildGooglePayload(withDue, "issuer-1") as unknown as {
+    const payload = buildGooglePayload(
+      withDue,
+      "issuer-1",
+      SHARE_TOKEN,
+    ) as unknown as {
       genericObjects: Array<{ textModulesData: Array<{ id: string }> }>;
     };
     const ids = payload.genericObjects[0].textModulesData.map((m) => m.id);
@@ -503,7 +547,10 @@ describe("wallet next-vaccination-due surfacing", () => {
   });
 
   it("omits relevantDate + next-due when there is no upcoming due date", () => {
-    const pass = buildApplePassJson(PASSPORT, IDS) as Record<string, unknown>;
+    const pass = buildApplePassJson(PASSPORT, IDS, SHARE_TOKEN) as Record<
+      string,
+      unknown
+    >;
     expect(pass.relevantDate).toBeUndefined();
     const generic = pass.generic as { backFields: Array<{ key: string }> };
     expect(generic.backFields.some((f) => f.key === "nextDue")).toBe(false);
@@ -518,7 +565,10 @@ describe("wallet next-vaccination-due surfacing", () => {
   };
 
   it("uses the rabies due date when it is the only upcoming one", () => {
-    const pass = buildApplePassJson(rabiesOnly, IDS) as Record<string, unknown>;
+    const pass = buildApplePassJson(rabiesOnly, IDS, SHARE_TOKEN) as Record<
+      string,
+      unknown
+    >;
     expect(pass.relevantDate).toBe(future);
     const generic = pass.generic as {
       backFields: Array<{ key: string; value: string }>;
@@ -528,7 +578,11 @@ describe("wallet next-vaccination-due surfacing", () => {
   });
 
   it("surfaces the rabies-only due date in the Google payload", () => {
-    const payload = buildGooglePayload(rabiesOnly, "issuer-1") as unknown as {
+    const payload = buildGooglePayload(
+      rabiesOnly,
+      "issuer-1",
+      SHARE_TOKEN,
+    ) as unknown as {
       genericObjects: Array<{
         textModulesData: Array<{ id: string; body: string }>;
       }>;
@@ -544,7 +598,30 @@ describe("wallet next-vaccination-due surfacing", () => {
     const pass = buildApplePassJson(
       { ...withDue, rabies: { ...PASSPORT.rabies!, nextDueDate: sooner } },
       IDS,
+      SHARE_TOKEN,
     ) as Record<string, unknown>;
     expect(pass.relevantDate).toBe(sooner);
+  });
+});
+
+describe("wallet QR target", () => {
+  it("points the Apple barcode at the share token, not the patient id", () => {
+    const pass = buildApplePassJson(PASSPORT, IDS, SHARE_TOKEN) as {
+      barcodes: Array<{ message: string }>;
+    };
+    expect(pass.barcodes[0].message).toContain(`/passport/${SHARE_TOKEN}`);
+    expect(pass.barcodes[0].message).not.toContain(PASSPORT.identity.id);
+  });
+
+  it("points the Google barcode at the share token, not the patient id", () => {
+    const payload = buildGooglePayload(PASSPORT, "issuer-1", SHARE_TOKEN) as {
+      genericObjects: Array<{ barcode: { value: string } }>;
+    };
+    expect(payload.genericObjects[0].barcode.value).toContain(
+      `/passport/${SHARE_TOKEN}`,
+    );
+    expect(payload.genericObjects[0].barcode.value).not.toContain(
+      PASSPORT.identity.id,
+    );
   });
 });

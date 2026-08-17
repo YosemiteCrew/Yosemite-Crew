@@ -67,24 +67,6 @@ router.post(
   PetPassportController.revokeRecord,
 );
 
-// Public share link for the QR / wallet pass. Issuing rotates the token, which
-// is also how a circulating link is revoked.
-router.post(
-  "/pms/organisation/:organisationId/companion/:patientId/share-link",
-  requireWebAuth,
-  withOrgPermissions(),
-  requirePermission("passport:edit:any"),
-  PetPassportController.issuePublicToken,
-);
-
-router.delete(
-  "/pms/organisation/:organisationId/companion/:patientId/share-link",
-  requireWebAuth,
-  withOrgPermissions(),
-  requirePermission("passport:edit:any"),
-  PetPassportController.revokePublicToken,
-);
-
 // Cross-practice sharing consent (per recipient practice; pet-parent consent
 // recorded). The owning practice requests; the parent grants via mobile/email.
 router.post(
@@ -124,6 +106,14 @@ router.get(
   "/mobile/companion/:patientId/wallet/google",
   requireMobileAuth,
   PetPassportController.getGooglePassForParent,
+);
+
+// Revoking the public link is the owner's call, not a practice's: a staff
+// session must not be able to mint or kill a pet's public share on its own.
+router.delete(
+  "/mobile/companion/:patientId/share-link",
+  requireMobileAuth,
+  PetPassportController.revokePublicToken,
 );
 
 // Granting is the PET PARENT's action, so this is a mobile-authenticated route

@@ -1,4 +1,4 @@
-import { randomBytes, createHash } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
 import { PassportConsentService } from "./passport-consent.service";
@@ -386,13 +386,6 @@ const assemblePassport = async (
   };
 };
 
-/**
- * Only the SHA-256 hash of a public token is persisted (same scheme as
- * CompanionShareToken), so a database read cannot mint a working link.
- */
-const hashPublicToken = (raw: string): string =>
-  createHash("sha256").update(raw).digest("hex");
-
 /** 256 bits of entropy - a public QR credential must not be guessable. */
 /**
  * Proves the caller is the pet's primary parent and returns the organisation to
@@ -500,49 +493,51 @@ export const PetPassportService = {
   // exposed: the issuing organisation is resolved from the latest passport row,
   // and the assembled DTO carries no owner/contact data.
   /**
-   * Mints (or rotates) the public verification token for a pet's passport and
-   * returns the RAW token exactly once - only its hash is persisted, so it can
-   * never be recovered afterwards. Rotating supersedes any link already in
-   * circulation, which is the revocation path for a shared QR.
+   * Returns the pet's public verification token, minting one only if the
+   * passport does not already have a live one.
+   *
+   * Reuse is the point: the token is baked into the QR of wallet passes that
+   * are already on owners' phones, so regenerating a pass must not invalidate
+   * the copies already issued. Rotation is therefore an explicit revoke, not a
+   * side effect of building a pass.
    */
-  async issuePublicToken(params: {
-    patientId: string;
-    organisationId: string;
-  }): Promise<{ token: string; issuedAt: string }> {
+  async ensurePublicToken(patientId: string): Promise<string> {
     const row = await prisma.petPassport.findFirst({
-      where: {
-        patientId: params.patientId,
-        organisationId: params.organisationId,
-      },
+      where: { patientId },
       orderBy: { issueDate: "desc" },
-      select: { id: true },
+      select: { id: true, publicToken: true, publicTokenRevokedAt: true },
     });
+    // A pet with no issued passport has nothing to verify against.
     if (!row) {
       throw new PetPassportServiceError("Passport not found.", 404);
     }
+    if (row.publicToken && !row.publicTokenRevokedAt) {
+      return row.publicToken;
+    }
     const token = generatePublicToken();
-    const issuedAt = new Date();
     await prisma.petPassport.update({
       where: { id: row.id },
       data: {
-        publicTokenHash: hashPublicToken(token),
-        publicTokenIssuedAt: issuedAt,
+        publicToken: token,
+        publicTokenIssuedAt: new Date(),
         publicTokenRevokedAt: null,
       },
     });
-    return { token, issuedAt: issuedAt.toISOString() };
+    return token;
   },
 
-  /** Kills the circulating public link without issuing a replacement. */
+  /**
+   * Kills the circulating public link. Any wallet pass already carrying it
+   * stops verifying, which is the intended effect of a revoke.
+   */
   async revokePublicToken(params: {
     patientId: string;
-    organisationId: string;
+    userId: string | null;
   }): Promise<{ revokedAt: string }> {
+    // Revoking a share is the owner's call, not a practice's.
+    await assertParentOfPatient(params.patientId, params.userId);
     const row = await prisma.petPassport.findFirst({
-      where: {
-        patientId: params.patientId,
-        organisationId: params.organisationId,
-      },
+      where: { patientId: params.patientId },
       orderBy: { issueDate: "desc" },
       select: { id: true },
     });
@@ -552,7 +547,7 @@ export const PetPassportService = {
     const revokedAt = new Date();
     await prisma.petPassport.update({
       where: { id: row.id },
-      data: { publicTokenHash: null, publicTokenRevokedAt: revokedAt },
+      data: { publicToken: null, publicTokenRevokedAt: revokedAt },
     });
     return { revokedAt: revokedAt.toISOString() };
   },
@@ -570,13 +565,13 @@ export const PetPassportService = {
       throw new PetPassportServiceError("Passport not found.", 404);
     }
     const row = await prisma.petPassport.findFirst({
-      where: {
-        publicTokenHash: hashPublicToken(rawToken),
-        publicTokenRevokedAt: null,
-      },
-      select: { patientId: true, organisationId: true },
+      where: { publicToken: rawToken, publicTokenRevokedAt: null },
+      orderBy: { issueDate: "desc" },
+      select: { patientId: true, organisationId: true, passportNumber: true },
     });
-    if (!row) {
+    // Only a formally issued passport resolves: passportNumber is what issuance
+    // sets, so a row without one is not a document anyone should verify.
+    if (!row?.passportNumber) {
       throw new PetPassportServiceError("Passport not found.", 404);
     }
     // The public QR is owner-initiated, so it shows the pet's full record across

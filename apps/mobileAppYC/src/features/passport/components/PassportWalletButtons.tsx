@@ -3,6 +3,7 @@ import {View, Platform, Linking, Alert} from 'react-native';
 import {useTranslation} from 'react-i18next';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {passportApi} from '@/features/passport/services/passportService';
+import {ensurePassportAccessToken} from '@/features/passport/passportSlice';
 
 type WalletTarget = 'apple' | 'google' | null;
 
@@ -25,17 +26,21 @@ export const PassportWalletButtons: React.FC<{
   const {t} = useTranslation();
   const [walletBusy, setWalletBusy] = useState<WalletTarget>(null);
 
+  // Both endpoints are authenticated, so the pass is fetched with the caller's
+  // token rather than by handing a protected URL to the OS.
   const handleAddToAppleWallet = () => {
     setWalletBusy('apple');
-    Linking.openURL(passportApi.getApplePassUrl(companionId))
+    ensurePassportAccessToken()
+      .then(token => passportApi.downloadApplePass(companionId, token))
+      .then(fileUrl => Linking.openURL(fileUrl))
       .catch(() => showWalletError(t, 'Apple'))
       .finally(() => setWalletBusy(null));
   };
 
   const handleAddToGoogleWallet = () => {
     setWalletBusy('google');
-    passportApi
-      .getGoogleWalletUrl(companionId)
+    ensurePassportAccessToken()
+      .then(token => passportApi.getGoogleWalletUrl(companionId, token))
       .then(url => Linking.openURL(url))
       .catch(() => showWalletError(t, 'Google'))
       .finally(() => setWalletBusy(null));

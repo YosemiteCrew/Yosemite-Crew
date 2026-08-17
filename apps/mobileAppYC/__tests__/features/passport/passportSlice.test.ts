@@ -1,8 +1,13 @@
 import reducer, {
   fetchPassport,
   clearPassportError,
+  ensurePassportAccessToken,
 } from '@/features/passport/passportSlice';
 import {passportApi} from '@/features/passport/services/passportService';
+import {
+  getFreshStoredTokens,
+  isTokenExpired,
+} from '@/features/auth/sessionManager';
 
 jest.mock('@/features/passport/services/passportService', () => ({
   passportApi: {
@@ -10,12 +15,23 @@ jest.mock('@/features/passport/services/passportService', () => ({
   },
 }));
 
+jest.mock('@/features/auth/sessionManager', () => ({
+  getFreshStoredTokens: jest.fn(),
+  isTokenExpired: jest.fn(),
+}));
+
+const mockGetFreshStoredTokens = getFreshStoredTokens as jest.Mock;
+const mockIsTokenExpired = isTokenExpired as jest.Mock;
+
 describe('passportSlice', () => {
   const initialState = {
     byCompanionId: {},
     loading: false,
     error: null,
   };
+
+  const mockAccessToken = 'mock-access-token';
+  const mockExpiresAt = 1893456000000;
 
   const mockPassport = {
     identity: {
@@ -33,6 +49,11 @@ describe('passportSlice', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetFreshStoredTokens.mockResolvedValue({
+      accessToken: mockAccessToken,
+      expiresAt: mockExpiresAt,
+    });
+    mockIsTokenExpired.mockReturnValue(false);
   });
 
   it('returns the initial state', () => {
@@ -44,6 +65,54 @@ describe('passportSlice', () => {
     expect(reducer(state, clearPassportError())).toEqual({
       ...initialState,
       error: null,
+    });
+  });
+
+  // The passport routes are authenticated and apiClient attaches nothing on its
+  // own, so a missing/expired credential has to surface as an error instead of
+  // letting an unauthenticated request through.
+  describe('ensurePassportAccessToken', () => {
+    it('returns the stored access token when the session is still valid', async () => {
+      await expect(ensurePassportAccessToken()).resolves.toBe(mockAccessToken);
+      expect(mockIsTokenExpired).toHaveBeenCalledWith(mockExpiresAt);
+    });
+
+    it('throws when there is no stored session at all', async () => {
+      mockGetFreshStoredTokens.mockResolvedValue(null);
+
+      await expect(ensurePassportAccessToken()).rejects.toThrow(
+        'Missing access token. Please sign in again.',
+      );
+      expect(mockIsTokenExpired).not.toHaveBeenCalled();
+    });
+
+    it('throws when the stored session carries no access token', async () => {
+      mockGetFreshStoredTokens.mockResolvedValue({
+        accessToken: '',
+        expiresAt: mockExpiresAt,
+      });
+
+      await expect(ensurePassportAccessToken()).rejects.toThrow(
+        'Missing access token. Please sign in again.',
+      );
+    });
+
+    it('throws when the stored access token has expired', async () => {
+      mockIsTokenExpired.mockReturnValue(true);
+
+      await expect(ensurePassportAccessToken()).rejects.toThrow(
+        'Your session expired. Please sign in again.',
+      );
+    });
+
+    it('checks expiry with undefined when the session has no expiry timestamp', async () => {
+      mockGetFreshStoredTokens.mockResolvedValue({
+        accessToken: mockAccessToken,
+        expiresAt: null,
+      });
+
+      await expect(ensurePassportAccessToken()).resolves.toBe(mockAccessToken);
+      expect(mockIsTokenExpired).toHaveBeenCalledWith(undefined);
     });
   });
 
@@ -114,19 +183,49 @@ describe('passportSlice', () => {
 
       expect(result.payload).toBe('Please select a pet to view the passport.');
       expect(passportApi.fetchPassport).not.toHaveBeenCalled();
+      expect(mockGetFreshStoredTokens).not.toHaveBeenCalled();
     });
 
-    it('calls passportApi.fetchPassport and dispatches fulfilled on success', async () => {
+    it('calls passportApi.fetchPassport with the resolved access token and dispatches fulfilled on success', async () => {
       (passportApi.fetchPassport as jest.Mock).mockResolvedValue(mockPassport);
       const dispatch = jest.fn();
       const thunk = fetchPassport({companionId: 'companion-123'});
       const result = await thunk(dispatch, () => ({}), undefined);
 
-      expect(passportApi.fetchPassport).toHaveBeenCalledWith('companion-123');
+      expect(passportApi.fetchPassport).toHaveBeenCalledWith(
+        'companion-123',
+        mockAccessToken,
+      );
       expect(result.payload).toEqual({
         companionId: 'companion-123',
         passport: mockPassport,
       });
+    });
+
+    it('rejects without calling the API when no access token is stored', async () => {
+      mockGetFreshStoredTokens.mockResolvedValue(null);
+      const dispatch = jest.fn();
+      const thunk = fetchPassport({companionId: 'companion-123'});
+      const result = await thunk(dispatch, () => ({}), undefined);
+
+      expect(result.type).toBe(fetchPassport.rejected.type);
+      expect(result.payload).toBe(
+        'Missing access token. Please sign in again.',
+      );
+      expect(passportApi.fetchPassport).not.toHaveBeenCalled();
+    });
+
+    it('rejects without calling the API when the stored session has expired', async () => {
+      mockIsTokenExpired.mockReturnValue(true);
+      const dispatch = jest.fn();
+      const thunk = fetchPassport({companionId: 'companion-123'});
+      const result = await thunk(dispatch, () => ({}), undefined);
+
+      expect(result.type).toBe(fetchPassport.rejected.type);
+      expect(result.payload).toBe(
+        'Your session expired. Please sign in again.',
+      );
+      expect(passportApi.fetchPassport).not.toHaveBeenCalled();
     });
 
     it('dispatches rejected with the error message on API failure', async () => {

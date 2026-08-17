@@ -33,6 +33,7 @@ jest.mock("../../../src/services/pet-passport.service", () => {
       issuePassport: jest.fn(),
       getPassport: jest.fn(),
       getPublicPassportByToken: jest.fn(),
+      ensurePublicToken: jest.fn(),
       issuePublicToken: jest.fn(),
       revokePublicToken: jest.fn(),
     },
@@ -95,6 +96,7 @@ describe("PetPassportController", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    service.ensurePublicToken.mockResolvedValue("share-token-abc" as never);
     jsonMock = jest.fn();
     sendMock = jest.fn();
     setHeaderMock = jest.fn();

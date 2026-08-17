@@ -1,6 +1,10 @@
 import {createAsyncThunk, createSlice} from '@reduxjs/toolkit';
 import {isAxiosError} from 'axios';
 import type {PetPassportDTO} from '@yosemite-crew/types';
+import {
+  getFreshStoredTokens,
+  isTokenExpired,
+} from '@/features/auth/sessionManager';
 import {passportApi} from '@/features/passport/services/passportService';
 
 interface PassportState {
@@ -21,6 +25,23 @@ const initialState: PassportState = {
 const isPassportNotIssued = (error: unknown): boolean =>
   isAxiosError(error) && error.response?.status === 404;
 
+// The passport routes are owner-scoped and authenticated; apiClient does not
+// attach credentials on its own, so the token is resolved per call.
+export const ensurePassportAccessToken = async (): Promise<string> => {
+  const tokens = await getFreshStoredTokens();
+  const accessToken = tokens?.accessToken;
+
+  if (!accessToken) {
+    throw new Error('Missing access token. Please sign in again.');
+  }
+
+  if (isTokenExpired(tokens?.expiresAt ?? undefined)) {
+    throw new Error('Your session expired. Please sign in again.');
+  }
+
+  return accessToken;
+};
+
 export const fetchPassport = createAsyncThunk<
   {companionId: string; passport: PetPassportDTO | null},
   {companionId: string},
@@ -31,7 +52,8 @@ export const fetchPassport = createAsyncThunk<
       throw new Error('Please select a pet to view the passport.');
     }
 
-    const passport = await passportApi.fetchPassport(companionId);
+    const accessToken = await ensurePassportAccessToken();
+    const passport = await passportApi.fetchPassport(companionId, accessToken);
     return {companionId, passport};
   } catch (error) {
     if (isPassportNotIssued(error)) {

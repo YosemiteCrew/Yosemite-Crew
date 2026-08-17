@@ -11,17 +11,30 @@ import documentReducer, {
   fetchDocuments,
 } from '@/features/documents/documentSlice';
 import {passportApi} from '@/features/passport/services/passportService';
+import {
+  getFreshStoredTokens,
+  isTokenExpired,
+} from '@/features/auth/sessionManager';
 import {setSelectedCompanion} from '@/features/companion';
 
 jest.mock('@/features/passport/services/passportService', () => ({
   passportApi: {
-    getApplePassUrl: jest.fn(
-      (patientId: string) =>
-        `https://test-api.example.com/public/pet-passport/${patientId}/wallet/apple`,
-    ),
+    downloadApplePass: jest.fn(),
     getGoogleWalletUrl: jest.fn(),
   },
 }));
+
+// The wallet endpoints are authenticated, so the buttons resolve the caller's
+// token through the real `ensurePassportAccessToken` (kept via requireActual
+// below) before touching the API - only the session store itself is stubbed.
+jest.mock('@/features/auth/sessionManager', () => ({
+  getFreshStoredTokens: jest.fn(),
+  isTokenExpired: jest.fn(),
+}));
+
+const mockGetFreshStoredTokens = getFreshStoredTokens as jest.Mock;
+const mockIsTokenExpired = isTokenExpired as jest.Mock;
+const mockAccessToken = 'mock-access-token';
 
 // Mirrors src/localization/resources/en/common.json so the assertions below
 // read as the copy a user actually sees, while still proving every string
@@ -261,6 +274,11 @@ const mockPassport = {
 describe('PassportScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetFreshStoredTokens.mockResolvedValue({
+      accessToken: mockAccessToken,
+      expiresAt: 1893456000000,
+    });
+    mockIsTokenExpired.mockReturnValue(false);
   });
 
   it('shows a loading state while the passport is being fetched', () => {
@@ -733,8 +751,12 @@ describe('PassportScreen', () => {
       expect(getByText('Add to Google Wallet')).toBeTruthy();
     });
 
-    it('opens the Apple Wallet URL when pressed', async () => {
+    it('downloads the Apple pass with the caller token and opens the local file', async () => {
       Platform.OS = 'ios';
+      const localPassPath = `file:///tmp/pet-passport-${mockCompanionId}.pkpass`;
+      (passportApi.downloadApplePass as jest.Mock).mockResolvedValue(
+        localPassPath,
+      );
       const openURLSpy = jest
         .spyOn(Linking, 'openURL')
         .mockResolvedValue(true as never);
@@ -749,14 +771,73 @@ describe('PassportScreen', () => {
         fireEvent.press(getByText('Add to Apple Wallet'));
       });
 
-      expect(passportApi.getApplePassUrl).toHaveBeenCalledWith(mockCompanionId);
-      expect(openURLSpy).toHaveBeenCalledWith(
-        `https://test-api.example.com/public/pet-passport/${mockCompanionId}/wallet/apple`,
+      // The pass is fetched with the bearer token first, because openURL
+      // cannot attach an Authorization header to a protected URL.
+      expect(passportApi.downloadApplePass).toHaveBeenCalledWith(
+        mockCompanionId,
+        mockAccessToken,
       );
+      expect(openURLSpy).toHaveBeenCalledWith(localPassPath);
     });
 
-    it('shows an alert when the Apple Wallet URL fails to open', async () => {
+    it('alerts without requesting the Apple pass when no access token is stored', async () => {
       Platform.OS = 'ios';
+      mockGetFreshStoredTokens.mockResolvedValue(null);
+      const openURLSpy = jest
+        .spyOn(Linking, 'openURL')
+        .mockResolvedValue(true as never);
+      const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+
+      const {getByText} = render(
+        <Provider store={buildPopulatedStore()}>
+          <PassportScreen />
+        </Provider>,
+      );
+
+      await act(async () => {
+        fireEvent.press(getByText('Add to Apple Wallet'));
+      });
+
+      await waitFor(() => {
+        expect(alertSpy).toHaveBeenCalledWith(
+          'Wallet pass unavailable',
+          'This pet passport could not be added to Apple Wallet yet.',
+        );
+      });
+      expect(passportApi.downloadApplePass).not.toHaveBeenCalled();
+      expect(openURLSpy).not.toHaveBeenCalled();
+    });
+
+    it('shows an alert when the Apple pass download fails', async () => {
+      Platform.OS = 'ios';
+      (passportApi.downloadApplePass as jest.Mock).mockRejectedValue(
+        new Error('nope'),
+      );
+      const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+
+      const {getByText} = render(
+        <Provider store={buildPopulatedStore()}>
+          <PassportScreen />
+        </Provider>,
+      );
+
+      await act(async () => {
+        fireEvent.press(getByText('Add to Apple Wallet'));
+      });
+
+      await waitFor(() => {
+        expect(alertSpy).toHaveBeenCalledWith(
+          'Wallet pass unavailable',
+          'This pet passport could not be added to Apple Wallet yet.',
+        );
+      });
+    });
+
+    it('shows an alert when the downloaded Apple pass fails to open', async () => {
+      Platform.OS = 'ios';
+      (passportApi.downloadApplePass as jest.Mock).mockResolvedValue(
+        `file:///tmp/pet-passport-${mockCompanionId}.pkpass`,
+      );
       jest.spyOn(Linking, 'openURL').mockRejectedValue(new Error('nope'));
       const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
 
@@ -778,7 +859,7 @@ describe('PassportScreen', () => {
       });
     });
 
-    it('fetches and opens the Google Wallet save URL when pressed', async () => {
+    it('fetches and opens the Google Wallet save URL with the caller token when pressed', async () => {
       (passportApi.getGoogleWalletUrl as jest.Mock).mockResolvedValue(
         'https://pay.google.com/gp/v/save/mock-jwt',
       );
@@ -799,11 +880,39 @@ describe('PassportScreen', () => {
       await waitFor(() => {
         expect(passportApi.getGoogleWalletUrl).toHaveBeenCalledWith(
           mockCompanionId,
+          mockAccessToken,
         );
         expect(openURLSpy).toHaveBeenCalledWith(
           'https://pay.google.com/gp/v/save/mock-jwt',
         );
       });
+    });
+
+    it('alerts without requesting the Google pass when the session has expired', async () => {
+      mockIsTokenExpired.mockReturnValue(true);
+      const openURLSpy = jest
+        .spyOn(Linking, 'openURL')
+        .mockResolvedValue(true as never);
+      const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+
+      const {getByText} = render(
+        <Provider store={buildPopulatedStore()}>
+          <PassportScreen />
+        </Provider>,
+      );
+
+      await act(async () => {
+        fireEvent.press(getByText('Add to Google Wallet'));
+      });
+
+      await waitFor(() => {
+        expect(alertSpy).toHaveBeenCalledWith(
+          'Wallet pass unavailable',
+          'This pet passport could not be added to Google Wallet yet.',
+        );
+      });
+      expect(passportApi.getGoogleWalletUrl).not.toHaveBeenCalled();
+      expect(openURLSpy).not.toHaveBeenCalled();
     });
 
     it('shows an alert when the Google Wallet fetch fails', async () => {

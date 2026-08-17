@@ -73,13 +73,15 @@ const stripTrailingSlash = (value: string): string => {
 
 // The QR on the pass points at the public, verifiable passport view so a
 // border officer or boarding facility can confirm the pass against the issuer.
-const verifyUrl = (passport: PetPassportDTO): string => {
+const verifyUrl = (passport: PetPassportDTO, shareToken: string): string => {
   const base = stripTrailingSlash(
     process.env.PUBLIC_PASSPORT_BASE_URL ??
       process.env.PUBLIC_CARD_BASE_URL ??
       "",
   );
-  return `${base}/passport/${passport.identity.id}`;
+  // The public page resolves a revocable share token. The patient id would not
+  // resolve there at all, and could be neither rotated nor revoked if it did.
+  return `${base}/passport/${shareToken}`;
 };
 
 const dateOnly = (iso?: string): string | undefined => iso?.slice(0, 10);
@@ -192,6 +194,7 @@ const buildBackFields = (passport: PetPassportDTO): PassField[] => {
 export const buildApplePassJson = (
   passport: PetPassportDTO,
   ids: AppleIds,
+  shareToken: string,
 ): Record<string, unknown> => {
   const { identity } = passport;
   const species = SPECIES_LABEL[identity.species] ?? "Animal";
@@ -224,7 +227,7 @@ export const buildApplePassJson = (
     barcodes: [
       {
         format: "PKBarcodeFormatQR",
-        message: verifyUrl(passport),
+        message: verifyUrl(passport, shareToken),
         messageEncoding: "iso-8859-1",
       },
     ],
@@ -373,12 +376,15 @@ const signManifest = (manifest: Buffer, config: AppleSigningConfig): Buffer => {
   return Buffer.from(der, "binary");
 };
 
-const packageApplePass = async (passport: PetPassportDTO): Promise<Buffer> => {
+const packageApplePass = async (
+  passport: PetPassportDTO,
+  shareToken: string,
+): Promise<Buffer> => {
   const config = readAppleConfig();
   const logo = await fetchImage(walletImageUrl("PUBLIC_WALLET_LOGO_URL"));
   const files: Record<string, Buffer> = {
     "pass.json": Buffer.from(
-      JSON.stringify(buildApplePassJson(passport, config)),
+      JSON.stringify(buildApplePassJson(passport, config, shareToken)),
     ),
     "icon.png": logo ?? solidPng(29, BRAND_R, BRAND_G, BRAND_B),
     "icon@2x.png": logo ?? solidPng(58, BRAND_R, BRAND_G, BRAND_B),
@@ -427,6 +433,7 @@ const buildGoogleTextModules = (
 export const buildGooglePayload = (
   passport: PetPassportDTO,
   issuerId: string,
+  shareToken: string,
 ): Record<string, unknown> => {
   const classId = `${issuerId}.petpassport`;
   const objectId = `${issuerId}.${sanitizeId(passport.identity.id)}`;
@@ -447,7 +454,7 @@ export const buildGooglePayload = (
     textModulesData: buildGoogleTextModules(passport),
     barcode: {
       type: "QR_CODE",
-      value: verifyUrl(passport),
+      value: verifyUrl(passport, shareToken),
       alternateText: passport.passportNumber ?? "Verify",
     },
   };
@@ -482,21 +489,24 @@ export const WalletPassService = {
   // Produces a signed .pkpass for the passport. Rejects with
   // WalletNotConfiguredError (501) when no Pass Type ID certificate is
   // provisioned.
-  buildApplePass(passport: PetPassportDTO): Promise<Buffer> {
-    return packageApplePass(passport);
+  buildApplePass(
+    passport: PetPassportDTO,
+    shareToken: string,
+  ): Promise<Buffer> {
+    return packageApplePass(passport, shareToken);
   },
 
   // Returns an "Add to Google Wallet" save URL: a JWT (RS256, signed with the
   // service-account key) carrying the pass payload. Throws
   // WalletNotConfiguredError (501) when the issuer/service account is unset.
-  buildGoogleSaveUrl(passport: PetPassportDTO): string {
+  buildGoogleSaveUrl(passport: PetPassportDTO, shareToken: string): string {
     const { issuerId, saEmail, privateKey } = readGoogleConfig();
     const claims = {
       iss: saEmail,
       aud: "google",
       typ: "savetowallet",
       origins: [] as string[],
-      payload: buildGooglePayload(passport, issuerId),
+      payload: buildGooglePayload(passport, issuerId, shareToken),
     };
     const token = jwt.sign(claims, privateKey, { algorithm: "RS256" });
     return `https://pay.google.com/gp/v/save/${token}`;
