@@ -1,2 +1,18 @@
 paths-ignore:
   - apps/frontend/public/dev-docs/assets/**
+
+# The default query suite is tuned for very low false positives, which means it
+# stays quiet about whole classes of finding this codebase cares about. Aikido
+# has been the only thing looking for them, and it is an external SaaS with no
+# coupling to this repo, so the coverage disappears the day it lapses.
+#
+# security-extended adds the lower-precision security queries. It does not add
+# the maintainability and code-smell queries: that is security-and-quality, and
+# those overlap with the SonarCloud gate this repo already enforces at 95/0/0,
+# so pulling them in would add noise without adding safety.
+#
+# Declared here rather than as `queries:` on the init step, because a list there
+# REPLACES the config file's queries unless it is prefixed with `+`. Keeping the
+# suite in one place removes that footgun.
+queries:
+  - uses: security-extended
