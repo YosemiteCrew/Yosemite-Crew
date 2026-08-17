@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
+import { openPimsTab } from './welcome';
 
 type TestServer = {
   origin: string;
@@ -97,7 +98,7 @@ const launchPackagedApp = async (pimsOrigin: string, docOrigin: string, userData
     };
   });
 
-  return { app, page: await app.firstWindow(), userDataDir: profileDir };
+  return { app, page: await openPimsTab(app, pimsOrigin), userDataDir: profileDir };
 };
 
 test.describe('packaged Yosemite Crew PIMS desktop app', () => {

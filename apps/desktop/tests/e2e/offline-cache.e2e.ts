@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
+import { openPimsTab } from './welcome';
 
 type TestServer = {
   origin: string;
@@ -92,7 +93,7 @@ const launchApp = async (pimsOrigin: string, userDataDir?: string) => {
       YC_DESKTOP_USER_DATA_DIR: profileDir,
     },
   });
-  return { app, page: await app.firstWindow(), userDataDir: profileDir };
+  return { app, page: await openPimsTab(app, pimsOrigin), userDataDir: profileDir };
 };
 
 const navigateViaMain = async (app: ElectronApplication, url: string): Promise<void> => {
