@@ -222,6 +222,14 @@ const Slotpicker = ({
                 type="button"
                 key={day.toISOString()}
                 ref={isCurrent ? selectedDateRef : null}
+                // Past days were painted at opacity-40 and given
+                // `cursor-not-allowed`, and handleClickDate returns early for
+                // them - but the button was never actually disabled. So they
+                // stayed in the tab order announcing themselves as pressable,
+                // and the dim was not an inactive state that WCAG 1.4.3 exempts,
+                // it was just 2.23:1 text. Marking them disabled makes the
+                // existing visuals honest.
+                disabled={isPast}
                 onClick={() => handleClickDate(day)}
                 className={[
                   'relative flex flex-col gap-1 items-center justify-center px-3 py-2 border rounded-xl! shrink-0 min-w-14',

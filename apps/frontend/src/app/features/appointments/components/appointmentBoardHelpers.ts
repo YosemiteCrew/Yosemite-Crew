@@ -31,12 +31,15 @@ export const isMutedBoardStatus = (status: BoardStatus | null): boolean =>
 
 // Emergency filter pill. Selected and unselected must be unmistakable and AA-safe
 // in both themes, so the selected state is a solid danger fill with a white label
-// (--color-danger-800 is #a6271d in light and dark, so white clears ~7:1), while
+// (--danger-strong is #a6271d in both themes, so white clears ~7:1), while
 // the unselected state stays an outline-only pill (--danger-border hairline,
 // --danger-text ink).
 export const getEmergencyPillStyle = (isActive: boolean): React.CSSProperties => ({
-  backgroundColor: isActive ? 'var(--color-danger-800)' : 'transparent',
-  borderColor: isActive ? 'var(--color-danger-800)' : 'var(--danger-border)',
+  // --danger-strong, which is FIXED in both themes. --color-danger-800 is a text
+  // step and now has a light dark-mode value, so using it as the fill under
+  // white put the selected Emergency label at 1.98:1 in dark.
+  backgroundColor: isActive ? 'var(--danger-strong)' : 'transparent',
+  borderColor: isActive ? 'var(--danger-strong)' : 'var(--danger-border)',
   borderWidth: '1px',
   borderStyle: 'solid',
   borderRadius: '9999px',

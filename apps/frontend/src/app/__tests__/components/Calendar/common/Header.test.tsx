@@ -202,8 +202,12 @@ describe('Header Component', () => {
     // in both themes) so selected/unselected are unmistakable. The old translucent
     // danger-bg tint + `text-danger-500!` label failed WCAG AA in dark mode (#1885).
     const activePill = screen.getByRole('button', { name: 'Emergencies' });
-    expect(activePill.getAttribute('style')).toContain('background-color: var(--color-danger-800)');
-    expect(activePill.getAttribute('style')).toContain('border-color: var(--color-danger-800)');
+    // --danger-strong, not --color-danger-800. The 800 step is an INK step and
+    // was given a light dark-mode value (#f5a39d) so it could be read on dark
+    // surfaces; using it as the fill under white text dropped this pill to
+    // 1.98:1 in dark. --danger-strong is #a6271d in both themes.
+    expect(activePill.getAttribute('style')).toContain('background-color: var(--danger-strong)');
+    expect(activePill.getAttribute('style')).toContain('border-color: var(--danger-strong)');
     expect(activePill.getAttribute('style')).toContain('color: var(--color-white)');
     // The `!important` danger-500 label class must be gone so the inline white wins.
     expect(activePill).not.toHaveClass('text-danger-500!');

@@ -182,7 +182,7 @@ const Github = () => {
           aria-label="Close"
           type="button"
         >
-          <IoCloseSharp color="var(--color-neutral-0)" size={18} />
+          <IoCloseSharp color="var(--white-text)" size={18} />
         </button>
       </div>
     </aside>

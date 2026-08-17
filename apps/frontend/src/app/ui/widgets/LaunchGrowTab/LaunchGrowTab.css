@@ -246,8 +246,11 @@
   }
 
   .mobile-tab-button.active {
-    background: var(--color-brand-950);
-    /* Dark fill, so the label stays light in both themes. */
+    /* --blue-strong, matching the desktop tab. --color-brand-950 resolves to the
+       brand FILL #007cf5, which is only 4.04:1 under white at 13px; blue-strong
+       is 6.48 light and 4.54 dark. This is the mobile twin of the same rule and
+       was missed when the desktop one moved. */
+    background: var(--blue-strong);
     color: var(--white-text);
     box-shadow: 0px 2px 8px rgba(36, 122, 237, 0.3);
     flex-grow: 1;

@@ -216,7 +216,11 @@ const Footer = () => {
               >
                 {footerLinks.map((section) => (
                   <m.div className="FtDiv" key={section.title} variants={ftDivVariants}>
-                    <h3 className="text-heading-3 text-text-tertiary">{section.title}</h3>
+                    {/* secondary, not tertiary: the footer tint composites to #32353b in dark,
+                        where the tertiary ink (#9d9285) measures 4.03:1. The secondary ink
+                        (#a89e90) clears at 4.66, and a section heading outranking the links
+                        under it is the right hierarchy anyway. */}
+                    <h3 className="text-heading-3 text-text-secondary">{section.title}</h3>
                     <ul className="FtLinks">
                       {section.links.map((link) => (
                         <li key={link.label}>

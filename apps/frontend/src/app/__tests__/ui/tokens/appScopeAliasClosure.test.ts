@@ -239,8 +239,6 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
       'features/companions/pages/Companions/InClinicTodayBand.tsx::14':
         'decorative 72px background glyph behind the band',
       'features/appointments/components/Calendar/common/MenuActionsList.tsx::55': 'menu separator',
-      'features/appointments/components/Calendar/common/RoomSubmenu.tsx::60':
-        'disabled room option',
       'features/appointments/pages/AppointmentWorkspace/steps/SummaryStep.tsx::60':
         'disabled action while the summary saves',
       // Inline-style form, each read individually.
@@ -373,6 +371,35 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
           const trimmed = line.trimStart();
           if (trimmed.startsWith('//') || trimmed.startsWith('*')) return;
           const m = STOCK.exec(line);
+          if (m) offenders.push(`${file}:${i + 1}  ${m[0]}`);
+        });
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('never pairs a themed fill with a literal white ink', () => {
+    // `bg-text-primary text-white` looks safe because the fill is a dark ink -
+    // in LIGHT. text-primary follows the theme and text-white does not, so in
+    // dark the pill turns bone and the label stays white: the Rooms add/remove
+    // buttons and both modal story triggers measured 1.34:1. A fill and the ink
+    // on it have to move together, so a themed fill takes a themed ink.
+    // Stories are included: they are the surface this repo audits against.
+    const THEMED_FILL_LITERAL_INK =
+      /\bbg-(?:text-primary|ink|screen|text-secondary)\b[^"'`]*?\btext-(?:white|black)\b|\btext-(?:white|black)\b[^"'`]*?\bbg-(?:text-primary|ink|screen|text-secondary)\b/;
+
+    const root = path.join(process.cwd(), 'src/app');
+    const offenders: string[] = [];
+    for (const file of fs
+      .readdirSync(root, { recursive: true, encoding: 'utf8' })
+      .filter((f) => /\.tsx$/.test(f))
+      .filter((f) => !f.includes('__tests__'))) {
+      fs.readFileSync(path.join(root, file), 'utf8')
+        .split('\n')
+        .forEach((line, i) => {
+          const trimmed = line.trimStart();
+          if (trimmed.startsWith('//') || trimmed.startsWith('*')) return;
+          const m = THEMED_FILL_LITERAL_INK.exec(line);
           if (m) offenders.push(`${file}:${i + 1}  ${m[0]}`);
         });
     }

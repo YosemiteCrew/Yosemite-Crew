@@ -124,8 +124,13 @@
   gap: 10px;
 }
 
-.verifyInputDiv p {
-  color: var(--delete);
+/* Scoped to the alert. As `.verifyInputDiv p` this painted EVERY paragraph in
+   the block red, including the neutral "Enter the 6-digit code from your email."
+   hint, which is not an error and was overriding its own text-text-secondary.
+   --danger-text rather than --delete: --delete is #d53225, which measures 4.00
+   on the modal's bone surface and 4.40 on the card - under AA either way. */
+.verifyInputDiv p[role='alert'] {
+  color: var(--danger-text);
   font-weight: 600;
   font-size: 13px;
   line-height: 120%;

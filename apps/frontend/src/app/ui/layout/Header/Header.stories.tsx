@@ -55,6 +55,13 @@ export const SignedIn: Story = {
     </>
   ),
   parameters: {
+    // The meta marks this file `marketing` for the GUEST header, which really
+    // does render on the public pages. The signed-in header does not - it is
+    // the PIMS top bar, and previewing it with the marketing tokens gave the
+    // "Organization" kicker #8f8984 (2.84:1) instead of the scoped #66635f the
+    // product actually paints. Storybook has to render it in the app scope or
+    // it is measuring a page that does not exist.
+    surface: 'app',
     docs: {
       description: {
         story:
