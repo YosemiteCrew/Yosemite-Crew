@@ -28,7 +28,7 @@ const DayLabels = ({ days, currentDate, columnsStyle }: DayLabels) => {
         return (
           <div key={idx + day.getDate()} className="flex items-center justify-center gap-2">
             <div
-              className={`text-body-4 ${isToday ? 'text-(--color-primary-700)' : 'text-text-primary'}`}
+              className={`text-body-4 ${isToday ? 'text-[var(--blue-text)]' : 'text-text-primary'}`}
             >
               {weekday}
             </div>

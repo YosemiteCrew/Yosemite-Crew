@@ -407,6 +407,37 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
     expect(offenders).toEqual([]);
   });
 
+  it('never paints text with a brand ramp step that has no dark value', () => {
+    // --color-primary-* and --color-brand-* are FILL steps. Only the 100 tint has
+    // a dark value; the rest are declared once at :root, so as an ink they keep
+    // their light-mode blue on a dark surface. That is how the calendar label
+    // marking "this column is you" reached 2.50:1, the appointment avatar's
+    // initials 1.60, and the date picker's selected day 4.04 under white.
+    // --blue-text is the ink-tuned member of the family and inverts properly;
+    // --blue-strong is the fill to use when a label sits ON the blue.
+    const AS_INK =
+      /\btext-\(--color-(?:primary|brand)-\d+\)|\btext-(?:primary|brand)-\d{3}\b|(?<![-\w])color:\s*'?var\(--color-(?:primary|brand)-\d+\)/;
+
+    const root = path.join(process.cwd(), 'src/app');
+    const offenders: string[] = [];
+    for (const file of fs
+      .readdirSync(root, { recursive: true, encoding: 'utf8' })
+      .filter((f) => /\.(tsx|css)$/.test(f))
+      .filter((f) => !f.includes('__tests__'))) {
+      fs.readFileSync(path.join(root, file), 'utf8')
+        .split('\n')
+        .forEach((line, i) => {
+          const trimmed = line.trimStart();
+          if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*'))
+            return;
+          const m = AS_INK.exec(line);
+          if (m) offenders.push(`${file}:${i + 1}  ${m[0]}`);
+        });
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
   it('never puts a theme transition on every element', () => {
     // `[data-yc-app] *` and `[data-yc-theme] *` each transitioned four properties
     // on EVERY element. A theme flip started ~700 simultaneous transitions, and
