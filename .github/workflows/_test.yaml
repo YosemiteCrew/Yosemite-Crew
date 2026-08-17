@@ -200,10 +200,18 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          # The added-line gate below diffs against the merge base, so a PR run
-          # needs both endpoints and their common ancestor in the checkout. Push
-          # runs do not run that gate and stay shallow.
-          fetch-depth: ${{ github.event_name == 'pull_request' && 0 || 1 }}
+          # Full history: the added-line gate below diffs against the merge base,
+          # which a shallow checkout does not contain.
+          #
+          # Deliberately unconditional. The obvious optimisation - deepening only
+          # on pull_request - is
+          #   fetch-depth: ${{ github.event_name == 'pull_request' && 0 || 1 }}
+          # and it silently does the opposite of what it reads like: 0 is FALSY in
+          # an Actions expression, so `true && 0` yields 0, `0 || 1` collapses to
+          # 1, and every PR gets the shallow checkout the gate cannot work with.
+          # A quoted '0' would survive, but the saving is a few seconds on push
+          # runs and is not worth reintroducing the trap.
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Setup
@@ -250,6 +258,15 @@ jobs:
             echo "No added-line coverage floor configured for '$APP'. Add one to DIFF_COVERAGE_FLOORS."
             exit 1
           fi
+          # A shallow checkout reports a missing base only as
+          # "fatal: Invalid symmetric difference expression", which reads like a
+          # malformed argument rather than a truncated clone. Say so plainly.
+          for SHA in "$BASE_SHA" "$HEAD_SHA"; do
+            if ! git cat-file -e "${SHA}^{commit}" 2>/dev/null; then
+              echo "commit ${SHA} is not in this checkout - the added-line gate needs full history (fetch-depth: 0)" >&2
+              exit 1
+            fi
+          done
           # Three-dot: changes the branch introduced, excluding whatever landed on
           # the base since it forked. --unified=0 emits no context lines, so every
           # '+' line in the output is genuinely an added line.
