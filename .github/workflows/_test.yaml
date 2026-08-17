@@ -44,6 +44,26 @@ env:
       "backend": "lines=1",
       "mobile": "lines=1"
     }
+  # Per-app floors for the added-line gate: the share of executable lines a pull
+  # request ADDS that must be covered. This is the number that actually holds the
+  # line, because the aggregate floors above cannot move meaningfully within a
+  # single PR - frontend measures ~98 against a floor of 80, and backend and
+  # mobile are tripwires rather than thresholds.
+  #
+  # frontend and desktop are set at their current standard: both already run
+  # well-covered suites, so new code is expected to arrive tested.
+  #
+  # backend and mobile start lower deliberately. They have never been held to a
+  # coverage number, and a gate calibrated to where they should be rather than
+  # where they are would be switched off within a week. These are ratchet values:
+  # raise them as the measured figure in each run's log climbs past them.
+  DIFF_COVERAGE_FLOORS: >-
+    {
+      "frontend": "80",
+      "desktop": "90",
+      "backend": "60",
+      "mobile": "60"
+    }
 
 jobs:
   plan:
@@ -180,6 +200,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          # The added-line gate below diffs against the merge base, so a PR run
+          # needs both endpoints and their common ancestor in the checkout. Push
+          # runs do not run that gate and stay shallow.
+          fetch-depth: ${{ github.event_name == 'pull_request' && 0 || 1 }}
           persist-credentials: false
 
       - name: Setup
@@ -202,6 +226,39 @@ jobs:
             exit 1
           fi
           node scripts/ci/merge-coverage.mjs --shards shards --out merged --floor "$FLOOR"
+
+      # The aggregate floor above is a whole-app number, so newly added uncovered
+      # code is invisible against it until enough of it accumulates to move the
+      # total. This gate asks the narrower question instead: are the lines THIS
+      # pull request adds covered. Only added lines count, so touching a legacy
+      # file never makes covering that whole file the PR's problem.
+      #
+      # PR-only by design. A push to dev has no meaningful "lines this change
+      # adds" once several PRs have landed together, and the aggregate floor
+      # already guards the branch.
+      - name: Enforce added-line coverage
+        if: github.event_name == 'pull_request'
+        env:
+          APP: ${{ matrix.app_key }}
+          APP_DIR: ${{ matrix.dir }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          FLOOR=$(printf '%s' "$DIFF_COVERAGE_FLOORS" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(JSON.parse(s)[process.env.APP]??""))')
+          if [ -z "$FLOOR" ]; then
+            echo "No added-line coverage floor configured for '$APP'. Add one to DIFF_COVERAGE_FLOORS."
+            exit 1
+          fi
+          # Three-dot: changes the branch introduced, excluding whatever landed on
+          # the base since it forked. --unified=0 emits no context lines, so every
+          # '+' line in the output is genuinely an added line.
+          git diff --unified=0 "${BASE_SHA}...${HEAD_SHA}" -- "$APP_DIR" > changed.diff
+          node scripts/ci/diff-coverage.mjs \
+            --coverage merged/coverage-final.json \
+            --diff changed.diff \
+            --floor "$FLOOR" \
+            --app-dir "$APP_DIR"
 
       # istanbul writes SF: paths relative to the repo root. Sonar is given
       # projectBaseDir=<app dir>, so the app prefix has to come off or every path
