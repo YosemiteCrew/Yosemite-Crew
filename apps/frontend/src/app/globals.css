@@ -1619,8 +1619,12 @@ input[type='number'] {
   border-radius: 8px !important;
 }
 
+/* --ink-faint, not the 200 ramp step. neutral-200 is the HAIRLINE value: as text
+   it measured 1.11:1 in light and 1.44 in dark, so the twelve adjacent-month days
+   filling the grid were invisible - and they are clickable, so WCAG 1.4.3 does
+   not exempt them the way it does the disabled rule below. */
 .yc-datepicker-calendar .react-datepicker__day--outside-month {
-  color: var(--color-neutral-200);
+  color: var(--ink-faint);
 }
 
 .yc-datepicker-calendar

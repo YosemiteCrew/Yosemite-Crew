@@ -1,5 +1,6 @@
 import { useState, type ComponentProps } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
+import { expect, userEvent } from 'storybook/test';
 import Timepicker from './index';
 
 const StatefulTimepicker = (args: ComponentProps<typeof Timepicker>) => {
@@ -52,4 +53,24 @@ export const WithValue: Story = {
 
 export const WithError: Story = {
   args: { error: 'Select a time.' },
+};
+
+export const OpenList: Story = {
+  name: 'Time list open',
+  args: { value: '09:30' },
+  parameters: {
+    docs: {
+      story:
+        'The time list, which only exists after a click and so was never rendered in ' +
+        'Storybook. Its selected row carried white on the brand fill `--color-brand-950` at ' +
+        '4.04:1; it uses `--blue-strong` with `--white-text` now.',
+    },
+  },
+  play: async ({ canvasElement }) => {
+    // The trigger is react-datepicker's customInput, which is a BUTTON here -
+    // there is no textbox to query.
+    const trigger = canvasElement.querySelector('button');
+    await userEvent.click(trigger as HTMLElement);
+    await expect(document.querySelector('.yc-datepicker-calendar')).toBeInTheDocument();
+  },
 };
