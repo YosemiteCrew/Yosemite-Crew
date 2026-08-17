@@ -6,7 +6,7 @@
 //
 //   --shards  directory containing the downloaded shard artifacts; every
 //             coverage-final.json beneath it is merged
-//   --out     directory to write lcov.info into
+//   --out     directory to write lcov.info and the merged coverage-final.json into
 //   --floor   e.g. statements=80,branches=70,functions=78,lines=80
 //
 // Shards are merged as istanbul JSON rather than as lcov text. lcov merging
@@ -19,7 +19,7 @@
 // because a sharded run gives each shard only a slice of the files; a global
 // threshold would fail on every shard regardless of the real total.
 
-import { readdirSync, mkdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { resolveWithin } from './safe-path.mjs';
 import libCoverage from 'istanbul-lib-coverage';
@@ -105,6 +105,11 @@ mkdirSync(args.out, { recursive: true });
 reports
   .create('lcovonly', { file: 'lcov.info' })
   .execute(libReport.createContext({ dir: args.out, coverageMap: map }));
+
+// The merged istanbul map is written alongside lcov because the added-line gate
+// (diff-coverage.mjs) needs per-line hit counts against a statementMap, and lcov
+// carries neither in a form that survives the SF: path rewriting done next.
+writeFileSync(path.join(args.out, 'coverage-final.json'), JSON.stringify(map.toJSON()));
 
 const summary = map.getCoverageSummary();
 console.log(`merge-coverage: merged ${files.length} shard report(s), ${covered} files`);

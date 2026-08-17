@@ -13,6 +13,27 @@ updates:
       timezone: 'UTC'
     target-branch: dev
     open-pull-requests-limit: 10
+    # Wait this long after a release before proposing it. This is the only
+    # defence in the repo against a compromised maintainer publishing a
+    # malicious version: the attacks that matter are caught and yanked within
+    # hours to days, so the whole value is in not being first to install.
+    #
+    # Dependabot already applies a 3 day cooldown when this block is absent, so
+    # what is bought here is the extra margin, and majors get the longest wait
+    # because they are the least reversible.
+    #
+    # Cooldown does NOT apply to security updates - GitHub exempts them - so an
+    # advisory-driven bump still arrives immediately. Nothing here delays a
+    # patch for a known vulnerability.
+    #
+    # Patches get the same 7 days as minors deliberately. The instinct is to let
+    # patches through faster, but a hijacked package is typically published AS a
+    # patch, so that is the release line the wait most needs to cover.
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 7
     # Only labels that exist in the repo. Dependabot cannot create labels, so an
     # unknown name makes it post a config error on every PR it opens instead of
     # applying the label.
@@ -181,6 +202,11 @@ updates:
       timezone: 'UTC'
     target-branch: dev
     open-pull-requests-limit: 5
+    # Same rationale as the npm entry above. Bundler supports cooldown; only
+    # `default-days` is used because the CocoaPods toolchain gems are few and
+    # do not need per-semver tuning.
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: 'chore(mobile)'
     labels:
@@ -202,6 +228,12 @@ updates:
       timezone: 'UTC'
     target-branch: dev
     open-pull-requests-limit: 10
+    # No `cooldown` here, and that is not an oversight: GitHub does not support
+    # cooldown for the github-actions ecosystem, and it is listed as "not
+    # currently supported" in the options reference. Adding it would be an
+    # unrecognised key rather than a longer wait. Actions are pinned by commit
+    # SHA throughout .github/workflows, which is the mitigation that applies to
+    # this ecosystem instead.
     commit-message:
       prefix: 'ci(repo)'
     labels:
