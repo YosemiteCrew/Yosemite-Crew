@@ -61,7 +61,8 @@
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: var(--blue);
+  /* --blue-strong: this fill carries white text, and --blue is 4.09 under it. */
+  background: var(--blue-strong);
   color: #fff;
   font-family: var(--font-satoshi);
   font-size: 10.5px;
@@ -212,7 +213,8 @@
 }
 
 .yc-noti-dot--blue {
-  background: var(--blue);
+  /* --blue-strong: this fill carries white text, and --blue is 4.09 under it. */
+  background: var(--blue-strong);
 }
 
 .yc-noti-dot--pink {

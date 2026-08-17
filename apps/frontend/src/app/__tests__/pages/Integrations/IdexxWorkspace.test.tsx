@@ -1107,7 +1107,9 @@ describe('IdexxWorkspace pure helpers', () => {
     expect(getMeterMeta({ result: '15', referenceRange: '10 - 20' } as any).canRender).toBe(true);
     expect(
       getMeterMeta({ result: '25', referenceRange: '10 - 20', outOfRange: true } as any).markerClass
-    ).toContain('red');
+      // The marker is on the design system's --danger now rather than Tailwind's
+      // stock red, which never followed the theme.
+    ).toContain('--danger');
   });
 
   it('getOrderUiUrl and getOrderPdfUrl resolve direct, nested and null orders', () => {

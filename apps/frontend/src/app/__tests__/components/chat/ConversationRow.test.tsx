@@ -47,10 +47,10 @@ describe('ConversationRow', () => {
     expect(screen.getByLabelText('Muted')).toBeInTheDocument();
   });
 
-  it('dims the row when muted (and not active)', () => {
+  it('does not dim a muted row - the bell-with-slash icon is the signal', () => {
     render(<ConversationRow {...base} muted onUnmute={jest.fn()} />);
     const row = screen.getByRole('button', { name: /Bella Rose/ }).parentElement;
-    expect(row).toHaveClass('opacity-[0.62]');
+    expect(row!.className).not.toMatch(/\bopacity-/);
   });
 
   it('does not dim a muted row that is also active', () => {

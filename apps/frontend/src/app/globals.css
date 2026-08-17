@@ -321,8 +321,17 @@ textarea:focus-visible {
 
   --color-text-primary: var(--color-neutral-900);
   --color-text-cta: var(--color-neutral-900);
-  --color-text-error: var(--color-danger-700);
-  --color-text-brand: var(--color-brand-950);
+  /* --danger-text, not the 700 fill step: as text on --screen the fill read
+     4.40 (the account menu's Sign out row). Both already agree in dark. */
+  --color-text-error: var(--danger-text);
+  /* The brand blue #007cf5 is a FILL. As an ink on the bone screen it measures
+     3.56-3.86:1 - the footer's support address, "View all organizations" in the
+     org switcher and the Upgrade card's yearly-saving line all sat under AA.
+     --color-accent-deep is the same hue family tuned for text (#1657c9, ~6.6:1)
+     and is what --blue-text already resolves to; the dark side was already an
+     ink (#8fb6f5). Every use of this token in the codebase is a `color`, so
+     nothing is being restyled as a fill by this change. */
+  --color-text-brand: var(--color-accent-deep);
   --color-text-secondary: var(--color-neutral-700);
   --color-text-tertiary: var(--color-neutral-600);
   --color-text-extra: var(--color-neutral-500);
@@ -378,7 +387,10 @@ textarea:focus-visible {
   --color-error-500: #ef4444;
   --color-error-700: #b91c1c;
   --color-delete: var(--color-danger-700);
-  --color-pending-text: #f68523;
+  /* Painted as text by .OrgStatus, where #f68523 was 1.93:1 on --band and
+     2.29:1 on --screen. Darkened to clear AA; the pill's own --pendingbg
+     (#fef3e9) is unchanged, so only the label moves. */
+  --color-pending-text: #9d4c06;
   --color-danger-soft: #fee7e7;
   --color-calendar-line-strong: #c3cedc;
   --color-calendar-line-soft: #e9edf3;
@@ -400,18 +412,23 @@ textarea:focus-visible {
   --color-shadow-xs: rgba(17, 24, 39, 0.04);
   --color-shadow-sm: rgba(0, 0, 0, 0.16);
   --color-shadow-md: rgba(0, 0, 0, 0.2);
-  --color-muted-999: #999999;
+  --color-muted-999: var(--ink-muted);
   --color-muted-400: #c2c2c1;
   --color-text-hidden: #2b2b2a;
   --color-toast-error-bg: #f8c1bd;
   --color-toast-warning-bg: #fcd9bb;
   --color-toast-success-bg: #b0dccd;
-  --color-select-ink: #312943;
-  --color-select-ink-muted: #31294399;
+  /* Themed inks, not fixed literals. These had no dark value, so in dark mode
+     the select's own text stayed near-black on a near-black surface - 1.07:1
+     for the placeholder. Aliasing to the warm-bone scale gives them a dark
+     value for free, and --color-muted-999 (#999999) was failing in LIGHT too
+     at 2.58:1. */
+  --color-select-ink: var(--ink);
+  --color-select-ink-muted: var(--ink-muted);
   --color-surface-disabled: #ece5d9;
   --color-text-subtle: #555555;
   --color-text-strong: #333333;
-  --color-text-body-dark: #222222;
+  --color-text-body-dark: var(--ink-body);
   --color-linkedin-blue: #0a66c2;
   --color-chat-empty-bg: #faf7f0;
   --color-onboarding-accent-border: #b7c8ff;
@@ -424,7 +441,7 @@ textarea:focus-visible {
   --color-upload-error-soft: #e53e3e;
   --color-upload-info: #2563eb;
   --color-upload-success: #10b981;
-  --color-upload-text: #222222;
+  --color-upload-text: var(--ink-body);
 
   --color-badge-blue-bg: var(--color-primary-500);
   --color-badge-blue-text: #eaf3ff;
@@ -482,7 +499,9 @@ textarea:focus-visible {
   --status-no-show-border: #f97316;
 
   --status-danger-bg: rgba(234, 55, 41, 0.09);
-  --status-danger-text: #c2261a;
+  /* On its own --status-danger-bg tint this composites to #efd8cc, where
+     #c2261a is 4.28. The 800 step clears it at 5.24. */
+  --status-danger-text: #a6271d;
   --status-danger-border: rgba(234, 55, 41, 0.32);
 
   /* Alert / document-category palette (workspace revamp — Figma "documents cat" sheet) */
@@ -525,6 +544,12 @@ textarea:focus-visible {
   --blue-text: var(--color-blue-text);
   --light-blue: var(--color-primary-100);
   --white-text: #ffffff;
+  /* Its counterpart. Some surfaces are a FIXED colour in both themes -
+     brand illustration fills, a LinkedIn-blue avatar - so their text must
+     be fixed too. A themed ink on a fixed surface inverts in dark: the
+     LaunchGrowTab tabs are permanently light blue, and their heading went
+     from 15:1 to 1.11:1 the moment the theme flipped. */
+  --ink-fixed: #1d1c1b;
   --whitebg: var(--color-white-bg);
   --greyborder: var(--color-grey-border);
   --lightgrey: var(--color-grey-light);
@@ -637,10 +662,30 @@ textarea:focus-visible {
      for both themes satisfied the first and broke the second - #1657c9 is only
      2.23:1 on the dark page. Light: 6.48 white / 5.04-5.86 surface. */
   --blue-strong: var(--color-accent-deep);
+  /* A destructive button is a FILL carrying a label, so it owes 4.5:1 to that
+     label AND 3:1 to the surface it sits on (1.4.11). A single fixed value
+     cannot do both in dark: clearing white text caps the fill at L 0.183 while
+     clearing the dark screen needs at least L 0.165, and that sliver fails
+     against --band anyway. So the PAIR inverts instead - dark fill with a light
+     label in light mode, light fill with a dark label in dark. --danger-strong-ink
+     moves with it; never pair this fill with a literal white. */
+  --danger-strong: #a6271d;
+  --danger-strong-ink: var(--white-text);
+  /* And the success equivalent, fixed for the same reason. --color-success-600
+     is #008f5d in light and #2bbd86 in dark, so the Dispense confirm carried
+     white on 4.13:1 light and 2.41:1 dark - the affirmative half of a
+     dispense-or-cancel pair, unreadable on both sides. #006642 is 7.05 under
+     white and does not move with the theme. */
+  --success-strong: #006642;
+  --success-strong-ink: var(--white-text);
   --pink: #ff90d4;
   --cyan: #5ce1e6;
   --cyan-text: #38ccd8;
   --success: #008f5d;
+  /* --success is a FILL (status dots, bars) and carries no contrast duty; it is
+     3.15:1 on --band, so it must not paint text. This is its text twin, the
+     same pairing as --danger/--danger-text and --blue/--blue-text. */
+  --success-text: #006642;
   --warn: #f59e0b;
   /* always-dark spotlight blocks (manifesto / code / phone bezel) */
   --spot: #1d1c1b;
@@ -653,7 +698,7 @@ textarea:focus-visible {
   --avatar-green-bg: #e6f4ef;
   --avatar-green-ink: #006642;
   --avatar-amber-bg: #fef3e9;
-  --avatar-amber-ink: #af5e19;
+  --avatar-amber-ink: #965115;
   /* glassy nav bits */
   --nav-hover: rgba(255, 255, 255, 0.5);
   --glass-btn: linear-gradient(180deg, rgba(255, 253, 250, 0.9), rgba(250, 246, 239, 0.8));
@@ -718,11 +763,18 @@ textarea:focus-visible {
   --danger-bg: rgba(234, 55, 41, 0.09);
   /* Faintest danger tint (emergency / overdue row wash). */
   --danger-bg-faint: rgba(234, 55, 41, 0.04);
-  --danger-text: #c2261a;
+  /* #a6271d, not #c2261a. On its own --danger-bg tint (which composites to
+     #efd8cc) the lighter value measured 4.28:1 at 12px - the selected
+     Emergencies chip, the month-overview emergency chip and the inventory
+     turnover pill all read on that tint. #a6271d takes them to 5.24 and only
+     raises contrast everywhere else this ink is used. */
+  --danger-text: #a6271d;
   --danger: #ea3729;
   --danger-border: rgba(234, 55, 41, 0.32);
   --warn-bg: rgba(245, 158, 11, 0.12);
-  --warn-text: #b45309;
+  /* 3.84 on its own --warn-bg tint (the dashboard's "Verification in
+     progress" pill). One step darker clears it at 5.42. */
+  --warn-text: #92400e;
   --warn-border: rgba(245, 158, 11, 0.3);
   --pink-soft: #ffe8f6;
   --pink-text: #b3307f;
@@ -775,12 +827,21 @@ html[data-theme='dark'] {
      light. #2f74d9 is the value that clears both - 4.54:1 white, 3.19-3.72:1
      against every dark surface. */
   --blue-strong: #2f74d9;
+  /* Inverted here: see the light declaration. A dark fill on a dark surface has
+     no visible boundary (#a6271d is 2.05:1 on --screen), so dark mode uses the
+     light tone as the fill and a near-black as its label. 6.5-7.5 against every
+     dark surface, 7.5 for the label on top. */
+  --danger-strong: #f2938a;
+  --danger-strong-ink: var(--ink-fixed);
+  --success-strong: #2bbd86;
+  --success-strong-ink: var(--ink-fixed);
   --blue-text: var(--color-blue-text);
   --blue-soft: rgba(143, 182, 245, 0.16);
   --pink: #ff90d4;
   --cyan: #5ce1e6;
   --cyan-text: #5ce1e6;
   --success: #2bbd86;
+  --success-text: #2bbd86;
   --warn: #f5a83c;
   --spot: #17140f;
   --spot-ink: #f4efe6;
@@ -893,12 +954,21 @@ html[data-theme='dark'] {
      light. #2f74d9 is the value that clears both - 4.54:1 white, 3.19-3.72:1
      against every dark surface. */
   --blue-strong: #2f74d9;
+  /* Inverted here: see the light declaration. A dark fill on a dark surface has
+     no visible boundary (#a6271d is 2.05:1 on --screen), so dark mode uses the
+     light tone as the fill and a near-black as its label. 6.5-7.5 against every
+     dark surface, 7.5 for the label on top. */
+  --danger-strong: #f2938a;
+  --danger-strong-ink: var(--ink-fixed);
+  --success-strong: #2bbd86;
+  --success-strong-ink: var(--ink-fixed);
   --blue-text: var(--color-blue-text);
   --blue-soft: rgba(143, 182, 245, 0.16);
   --pink: #ff90d4;
   --cyan: #5ce1e6;
   --cyan-text: #5ce1e6;
   --success: #2bbd86;
+  --success-text: #2bbd86;
   --avatar-violet-bg: rgba(167, 139, 250, 0.2);
   --avatar-violet-ink: #cbb2f4;
   --avatar-green-bg: rgba(74, 205, 155, 0.17);
@@ -1010,6 +1080,11 @@ html[data-theme='dark'] {
   --status-completed-border: rgba(74, 205, 155, 0.55);
   --status-cancelled-bg: rgba(249, 115, 22, 0.15);
   --status-cancelled-text: #f0a36c;
+  /* The alert pill's inks. The 100 tints already had dark values but these did
+     not, so darkening them for light mode left them dark-on-dark in the other
+     theme - 1.75 and 1.98 on the composited tints. Existing ramp steps. */
+  --color-warning-900: #f9ad6c;
+  --color-danger-800: #f5a39d;
   --status-cancelled-border: rgba(249, 115, 22, 0.5);
   --status-no-show-bg: rgba(249, 115, 22, 0.15);
   --status-no-show-text: #f0a36c;
@@ -1026,15 +1101,14 @@ html[data-theme='dark'] {
 html[data-theme='dark'] [data-yc-theme] {
   color-scheme: dark;
 }
-html[data-theme-ready] [data-yc-theme] * {
-  transition:
-    background-color 300ms ease,
-    border-color 300ms ease,
-    color 300ms ease,
-    box-shadow 300ms ease;
+/* Same shape as the app shell below, and for the same reason: a `*` transition
+   here started one animation per element on every theme flip, and a transition
+   that stalls at currentTime 0 strands the element in the outgoing theme. */
+html[data-theme-ready] [data-yc-theme] {
+  transition: background-color 300ms ease;
 }
 @media (prefers-reduced-motion: reduce) {
-  html[data-theme-ready] [data-yc-theme] * {
+  html[data-theme-ready] [data-yc-theme] {
     transition: none !important;
   }
 }
@@ -1657,15 +1731,24 @@ input[type='number'] {
 html[data-theme='dark'] [data-yc-app] {
   color-scheme: dark;
 }
-html[data-theme-ready] [data-yc-app] * {
-  transition:
-    background-color 300ms ease,
-    border-color 300ms ease,
-    color 300ms ease,
-    box-shadow 300ms ease;
+/* The transition lives on the SHELL, not on `*`.
+   It used to be `[data-yc-app] *`, which put a 300ms transition on every element
+   in the app - roughly 700 of them on a real page. A theme flip then started ~700
+   simultaneous transitions, and some never advanced: caught in the browser with
+   playState "running" and currentTime stuck at 0, which leaves the element painted
+   in the OUTGOING theme's colour indefinitely. The Patients page heading ended up
+   at #f4efe6 on #efe8dc - 1.06:1, invisible - while a freshly created element with
+   the same class rendered correctly, proving the CSS was fine and the transition
+   was the fault.
+   Backgrounds still cross-fade at the surface level, which is the part anyone
+   perceives; text and borders swap instantly, which is both correct and cheaper.
+   `color` is deliberately NOT transitioned - it is the property whose failure mode
+   is unreadable text. */
+html[data-theme-ready] [data-yc-app] {
+  transition: background-color 300ms ease;
 }
 @media (prefers-reduced-motion: reduce) {
-  html[data-theme-ready] [data-yc-app] * {
+  html[data-theme-ready] [data-yc-app] {
     transition: none !important;
   }
 }
@@ -1823,6 +1906,20 @@ body:has([data-yc-app]) {
    These pin the light inks in BOTH themes. Declared on the surface element
    rather than on body, so it wins for that subtree by proximity. */
 [data-yc-surface='light'] {
+  /* The BODY inks have to be pinned here too, not just the faint ones. The card
+     is a literal `bg-white/80` in both themes, so a themed --ink-body (#e6ddd0 in
+     dark) put the "Payment complete" heading, the session id and the Return home
+     label at 1.34:1 - a white card with white text on it. Each alias is
+     re-declared rather than only its base token: an alias declared at :root
+     computes there and descendants inherit the already-substituted value, so
+     overriding --ink-body alone would not have reached --color-text-primary. */
+  --ink: #1d1c1b;
+  --ink-body: #302f2e;
+  --ink-muted: #5c5956;
+  --color-neutral-900: var(--ink-body);
+  --color-neutral-700: var(--ink-muted);
+  --color-text-primary: var(--color-neutral-900);
+  --color-text-secondary: var(--color-neutral-700);
   --ink-faint: #66635f;
   --ink-faint2: #66635f;
   --color-text-tertiary: var(--ink-faint);

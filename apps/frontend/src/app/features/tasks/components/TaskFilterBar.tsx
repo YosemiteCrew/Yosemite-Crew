@@ -134,7 +134,14 @@ const TaskFilterBar = ({
               onClick={() => toggleStatus(option.key)}
               className={clsx(
                 'inline-flex min-h-[38px] items-center justify-center rounded-full px-1 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand',
-                !isActive && 'opacity-65 transition-opacity hover:opacity-100'
+                // The selected filter needs a visible state of its own. It used
+                // to be the ABSENCE of an opacity-65 dim on the others, which
+                // meant the only way to see which filter was active was that the
+                // rest were faded - and that dim composited their labels below
+                // AA. A ring marks the selected one instead, so nothing has to
+                // be made unreadable to show it.
+                isActive &&
+                  'ring-2 ring-[var(--blue-strong)] ring-offset-1 ring-offset-[var(--screen)]'
               )}
             >
               <StatusPill tokens={getStatusPillTokens(option)} label={option.name} />

@@ -232,6 +232,29 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
         'aria-hidden spinner geometry',
       'features/forms/pages/Forms/Sections/AddForm/components/BuildWrapper.tsx::50':
         'drag-handle icon glyph, no text',
+      // Verified individually in the state-dim audit.
+      'ui/primitives/Buttons/BaseButton.tsx::60': 'the disabled branch of the shared button',
+      'features/companions/components/AddCompanionCentralModal/AddCompanionViewMode.tsx::40':
+        'pointer-events-none while a save is in flight - transient',
+      'features/companions/pages/Companions/InClinicTodayBand.tsx::14':
+        'decorative 72px background glyph behind the band',
+      'features/appointments/components/Calendar/common/MenuActionsList.tsx::55': 'menu separator',
+      'features/appointments/pages/AppointmentWorkspace/steps/SummaryStep.tsx::60':
+        'disabled action while the summary saves',
+      // Inline-style form, each read individually.
+      'ui/layout/PageSkeleton.tsx::80': 'skeleton row, no text',
+      'ui/layout/PageSkeleton.tsx::60': 'skeleton row, no text',
+      'features/integrations/pages/IdexxWorkspace/index.tsx::75': 'SKELETON_ROWS, no text',
+      'features/integrations/pages/IdexxWorkspace/index.tsx::50': 'SKELETON_ROWS, no text',
+      'features/integrations/pages/IdexxWorkspace/index.tsx::28': 'SKELETON_ROWS, no text',
+      'features/appointments/components/Calendar/common/WeekCalendar.tsx::75':
+        'the now-line border, decoration with no text',
+      'features/organization/pages/Specialities/PackageBreakdownTable.tsx::50':
+        'dark glass tooltip',
+      'features/organization/pages/Specialities/PackageBreakdownTable.tsx::70':
+        'dark glass tooltip',
+      'features/organization/pages/Specialities/PackageBreakdownTable.tsx::80':
+        'dark glass tooltip',
     };
 
     for (const file of tsx) {
@@ -241,9 +264,16 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
       // its meta line used text-text-tertiary three hundred lines away, so the
       // guard passed over 3.16:1 text. If a component paints faint text
       // anywhere, every dim inside it is suspect until named otherwise.
-      if (!FAINT_TEXT.test(source)) continue;
+      // A dim at or below 65% sinks even --ink (15:1 -> under 4.5), so heavy
+      // dims are checked everywhere; lighter ones only where the component
+      // paints faint text, which is where they actually bite.
+      const heavyOnly = !FAINT_TEXT.test(source);
       const lines = source.split('\n');
       lines.forEach((line, i) => {
+        // Comments describe these utilities as often as they use them - this
+        // very guard is documented in a comment mentioning opacity-65.
+        const trimmed = line.trimStart();
+        if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) return;
         // `cursor-not-allowed` marks the disabled branch of a clsx ternary,
         // where the element also carries a real `disabled` attribute a few
         // lines up - an inactive control, exempt under WCAG 1.4.3.
@@ -251,11 +281,27 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
         // Transient interaction feedback while the pointer moves an element,
         // like a keyframe step rather than a state anyone reads.
         if (/isDragging|is-dragging|dragging/i.test(line)) return;
-        for (const m of line.matchAll(/(^|[\s"'`:])opacity-(\d{1,3})\b/g)) {
+        // Two forms: the scale (opacity-70) and the arbitrary value
+        // (opacity-[0.55], opacity-[.66]). Missing the second let a whole
+        // family through - including a card whose 0.55 nested inside a
+        // disabled link's 0.6 and composited --ink itself down to 1.90:1.
+        const utilities = [
+          ...line.matchAll(/(^|[\s"'`:])opacity-(\d{1,3})\b/g),
+          ...line.matchAll(/(^|[\s"'`:])opacity-\[(0?\.\d+)\]/g),
+          // Inline style objects: style={{ opacity: 0.8 }}. A third spelling,
+          // and the one behind the calendar's "Due:" line at 3.98:1.
+          ...line.matchAll(/()opacity:\s*(0?\.\d+)/g),
+        ];
+        for (const m of utilities) {
           if (m[1].endsWith(':')) continue; // hover: / disabled: / group-hover:
-          if (Number(m[2]) >= 100 || Number(m[2]) === 0) continue; // 0 = hidden
-          if (`${file}::${m[2]}` in CLEARED) continue;
-          offenders.push(`${file}:${i + 1}  faint text + opacity-${m[2]}`);
+          const pct =
+            m[2].startsWith('.') || m[2].startsWith('0.')
+              ? Math.round(Number(m[2]) * 100)
+              : Number(m[2]);
+          if (pct >= 100 || pct === 0) continue; // 0 = hidden, nothing to read
+          if (heavyOnly && pct > 65) continue;
+          if (`${file}::${pct}` in CLEARED) continue;
+          offenders.push(`${file}:${i + 1}  opacity ${pct}%`);
         }
       });
     }
@@ -267,8 +313,13 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
         // where --ink-faint labels still land at 3.23:1 on --screen. There is no
         // safe cutoff: the faint inks pass by so little that any compositing at
         // all can drop them under 4.5.
-        const m = /^\s*opacity:\s*(0?\.\d+|0)\s*;/.exec(line);
+        // Decimal AND percentage: `opacity: 60%` is the same thing written the
+        // other way, and it was the spelling on the rule that dimmed every span
+        // in every table cell across PIMS.
+        const m = /^\s*opacity:\s*(0?\.\d+|0|\d{1,3}%)\s*;/.exec(line);
         if (!m) return;
+        const pct = m[1].endsWith('%') ? Number(m[1].slice(0, -1)) : Number(m[1]) * 100;
+        if (pct >= 100 || pct === 0) return;
 
         // Walk back to the selector this declaration belongs to.
         let selector = '';
@@ -297,6 +348,79 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
     // Empty, and it should stay that way. Anything new either recedes through
     // ink instead, or names itself as decoration / a disabled control.
     expect(offenders).toEqual([]);
+  });
+
+  it("uses the design system palette, not Tailwind's stock one", () => {
+    // Tailwind ships its own red/green/slate/amber scales. They are fixed
+    // colours that know nothing about the warm-bone themes, so a `text-red-600`
+    // is a semantic-looking class that never changes between light and dark -
+    // and it sidesteps every contrast decision the token set has made.
+    // Fifteen had crept in, including the DynamicSelect and uploader error text.
+    const STOCK =
+      /\b(?:text|bg|border)-(?:red|green|blue|yellow|orange|purple|pink|gray|slate|zinc|stone|amber|emerald|teal|cyan|indigo|violet|rose)-(?:50|[1-9]00)\b/;
+
+    const root = path.join(process.cwd(), 'src/app');
+    const offenders: string[] = [];
+    for (const file of fs
+      .readdirSync(root, { recursive: true, encoding: 'utf8' })
+      .filter((f) => /\.(tsx|css)$/.test(f))
+      .filter((f) => !f.includes('__tests__') && !f.includes('.stories.'))) {
+      fs.readFileSync(path.join(root, file), 'utf8')
+        .split('\n')
+        .forEach((line, i) => {
+          const trimmed = line.trimStart();
+          if (trimmed.startsWith('//') || trimmed.startsWith('*')) return;
+          const m = STOCK.exec(line);
+          if (m) offenders.push(`${file}:${i + 1}  ${m[0]}`);
+        });
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('never pairs a themed fill with a literal white ink', () => {
+    // `bg-text-primary text-white` looks safe because the fill is a dark ink -
+    // in LIGHT. text-primary follows the theme and text-white does not, so in
+    // dark the pill turns bone and the label stays white: the Rooms add/remove
+    // buttons and both modal story triggers measured 1.34:1. A fill and the ink
+    // on it have to move together, so a themed fill takes a themed ink.
+    // Stories are included: they are the surface this repo audits against.
+    const THEMED_FILL_LITERAL_INK =
+      /\bbg-(?:text-primary|ink|screen|text-secondary)\b[^"'`]*?\btext-(?:white|black)\b|\btext-(?:white|black)\b[^"'`]*?\bbg-(?:text-primary|ink|screen|text-secondary)\b/;
+
+    const root = path.join(process.cwd(), 'src/app');
+    const offenders: string[] = [];
+    for (const file of fs
+      .readdirSync(root, { recursive: true, encoding: 'utf8' })
+      .filter((f) => /\.tsx$/.test(f))
+      .filter((f) => !f.includes('__tests__'))) {
+      fs.readFileSync(path.join(root, file), 'utf8')
+        .split('\n')
+        .forEach((line, i) => {
+          const trimmed = line.trimStart();
+          if (trimmed.startsWith('//') || trimmed.startsWith('*')) return;
+          const m = THEMED_FILL_LITERAL_INK.exec(line);
+          if (m) offenders.push(`${file}:${i + 1}  ${m[0]}`);
+        });
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('never puts a theme transition on every element', () => {
+    // `[data-yc-app] *` and `[data-yc-theme] *` each transitioned four properties
+    // on EVERY element. A theme flip started ~700 simultaneous transitions, and
+    // some never advanced - observed in the browser with playState "running" and
+    // currentTime stuck at 0, which strands the element in the OUTGOING theme.
+    // The Patients heading ended up at 1.06:1 that way.
+    //
+    // `color` is the property that must never be transitioned wholesale: its
+    // failure mode is unreadable text, not a missed fade.
+    const universal = [...CSS.matchAll(/^(html\[data-theme-ready\][^{]*\*)\s*\{([^}]*)\}/gm)]
+      .filter(([, , body]) => /transition/.test(body))
+      .map(([, selector]) => selector.trim());
+
+    expect(universal).toEqual([]);
   });
 
   it('has nothing painting text with a raw neutral ramp step', () => {

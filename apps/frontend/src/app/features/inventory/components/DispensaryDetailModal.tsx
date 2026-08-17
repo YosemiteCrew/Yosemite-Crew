@@ -370,7 +370,7 @@ const DispensaryDetailModal = ({
           isCloseDisabled={actions.actioning}
           actions={
             isDispensed && (
-              <IoCheckmarkCircle size={20} className="text-[var(--success)] shrink-0" />
+              <IoCheckmarkCircle size={20} className="text-[var(--success-text)] shrink-0" />
             )
           }
         />

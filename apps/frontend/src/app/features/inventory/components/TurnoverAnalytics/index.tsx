@@ -162,7 +162,7 @@ const KpiCards = ({
             'flex items-center gap-1 text-[11px] font-semibold',
             // The arrow already flips on this exact comparison; the colour
             // did not, so a fall in turnover was reported in success green.
-            annualDelta >= 0 ? 'text-[var(--success)]' : 'text-[var(--danger-text)]'
+            annualDelta >= 0 ? 'text-[var(--success-text)]' : 'text-[var(--danger-text)]'
           )}
         >
           {annualDelta >= 0 ? (

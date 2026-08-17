@@ -331,7 +331,7 @@
 }
 
 .dev-req-status.ok {
-  color: var(--success);
+  color: var(--success-text);
 }
 
 .dev-req-status.err {

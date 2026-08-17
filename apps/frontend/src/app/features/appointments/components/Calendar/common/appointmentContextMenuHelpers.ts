@@ -30,8 +30,15 @@ export const SUBMENU_ROW_OFFSET = 4;
 export const getMenuItemClassName = (destructive = false, active = false) =>
   [
     'flex w-full items-center justify-between gap-2 rounded-[12px] px-2.5 py-1.5 text-left font-satoshi text-[13px] font-normal leading-5 tracking-[-0.32px] transition-colors',
-    destructive ? 'text-text-error hover:bg-danger-100/72' : 'text-text-primary hover:bg-white/50',
-    active ? 'bg-white/58' : 'bg-transparent',
+    // The glass overlay's background is `var(--screen)`, so it FOLLOWS the theme -
+    // but the hover and selected fills were literal white. In dark that painted a
+    // near-#a1a1a0 row under `text-text-primary`, which is a light ink there:
+    // the hovered and the currently-assigned room both dropped to ~2.1:1. The
+    // themed hairline tints track the surface instead, so ink and fill move together.
+    destructive
+      ? 'text-text-error hover:bg-danger-100/72'
+      : 'text-text-primary hover:bg-[var(--hairline-soft)]',
+    active ? 'bg-[var(--hairline)]' : 'bg-transparent',
   ].join(' ');
 
 export const resolveMenuError = (error: unknown, fallback: string) => {

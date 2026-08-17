@@ -163,7 +163,7 @@ const StripeOnboarding = () => {
           onClick={() => router.back()}
         />
         <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--divider)] bg-[var(--screen)] px-3 py-1.5 text-caption-2 text-text-secondary">
-          <IoLockClosed aria-hidden="true" className="text-[var(--success)]" />
+          <IoLockClosed aria-hidden="true" className="text-[var(--success-text)]" />
           Secure · Powered by Stripe
         </span>
       </div>

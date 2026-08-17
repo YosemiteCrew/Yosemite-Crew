@@ -28,7 +28,7 @@ const CenterModalDemo = ({ title = 'Confirm action' }: { title?: string }) => {
     <div>
       <button
         type="button"
-        className="px-6 py-3 bg-text-primary text-white rounded-2xl text-body-3-emphasis"
+        className="px-6 py-3 bg-text-primary text-[var(--screen)] rounded-2xl text-body-3-emphasis"
         onClick={() => setOpen(true)}
       >
         Open modal
@@ -49,7 +49,7 @@ const CenterModalDemo = ({ title = 'Confirm action' }: { title?: string }) => {
             </button>
             <button
               type="button"
-              className="px-6 py-3 bg-text-primary text-white rounded-2xl text-body-3-emphasis"
+              className="px-6 py-3 bg-text-primary text-[var(--screen)] rounded-2xl text-body-3-emphasis"
               onClick={() => setOpen(false)}
             >
               Confirm
@@ -71,7 +71,7 @@ export const DestructiveConfirm: Story = {
     <div>
       <button
         type="button"
-        className="px-6 py-3 bg-text-error text-white rounded-2xl text-body-3-emphasis"
+        className="px-6 py-3 bg-[var(--danger-strong)] text-[var(--danger-strong-ink)] rounded-2xl text-body-3-emphasis"
         onClick={() => {
           const el = document.getElementById('delete-demo-trigger') as HTMLButtonElement;
           el?.click();
@@ -105,7 +105,7 @@ export const DestructiveConfirm: Story = {
                   </button>
                   <button
                     type="button"
-                    className="px-6 py-3 bg-text-error text-white rounded-2xl text-body-3-emphasis"
+                    className="px-6 py-3 bg-[var(--danger-strong)] text-[var(--danger-strong-ink)] rounded-2xl text-body-3-emphasis"
                     onClick={() => setOpen(false)}
                   >
                     Delete

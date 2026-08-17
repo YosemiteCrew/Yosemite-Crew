@@ -194,7 +194,7 @@ export const UnitsSection = ({
             type="button"
             aria-label="Add unit type"
             onClick={onAddUnit}
-            className="flex size-8 items-center justify-center rounded-full bg-text-primary text-white"
+            className="flex size-8 items-center justify-center rounded-full bg-text-primary text-[var(--screen)]"
           >
             <FiPlus size={16} aria-hidden="true" />
           </button>
@@ -265,7 +265,7 @@ export const EquipmentSection = ({
               type="button"
               aria-label="Add custom equipment"
               onClick={onAddCustomEquipment}
-              className="flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-2xl bg-text-primary text-white"
+              className="flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-2xl bg-text-primary text-[var(--screen)]"
             >
               <FiPlus size={18} aria-hidden="true" />
             </button>

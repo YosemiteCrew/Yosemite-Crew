@@ -196,11 +196,29 @@ describe('Sidebar', () => {
     const finance = screen.getByRole('link', { name: 'Finance' });
     expect(finance).toHaveClass('route-disabled');
 
+    // Disabled to assistive tech too, not only to the eye. Without these it is
+    // a greyed link that a screen reader still announces as a destination and a
+    // keyboard user can still tab to - an unverified org's Patients entry read
+    // as reachable when nothing behind it is.
+    expect(finance).toHaveAttribute('aria-disabled', 'true');
+    expect(finance).toHaveAttribute('tabindex', '-1');
+
     fireEvent.click(finance);
 
     expect(mockStartRouteLoader).not.toHaveBeenCalled();
     expect(mockStopRouteLoader).not.toHaveBeenCalled();
     expect(mockRouter.push).not.toHaveBeenCalled();
+  });
+
+  it('leaves enabled routes focusable and unmarked', () => {
+    setup({ pathname: '/dashboard', collapsed: false });
+
+    render(<Sidebar />);
+    const dashboard = screen.getByRole('link', { name: 'Dashboard' });
+
+    expect(dashboard).not.toHaveClass('route-disabled');
+    expect(dashboard).not.toHaveAttribute('aria-disabled');
+    expect(dashboard).not.toHaveAttribute('tabindex');
   });
 
   it('toggles the sidebar collapsed state and persists the preference', () => {

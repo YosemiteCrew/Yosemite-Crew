@@ -259,7 +259,7 @@
 }
 
 .dev-ph-log-status.ok {
-  color: var(--success);
+  color: var(--success-text);
 }
 
 .dev-ph-log-status.err {

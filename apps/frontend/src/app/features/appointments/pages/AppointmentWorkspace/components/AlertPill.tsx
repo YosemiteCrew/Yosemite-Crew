@@ -16,14 +16,19 @@ const SEVERITY_STYLE: Record<AlertSeverity, { background: string; color: string;
       color: 'var(--color-neutral-700)',
       border: 'var(--color-neutral-300)',
     },
+    // The 700 steps are mid-ramp fills, not text: on their own 100 tint they read
+    // 2.77 (warning) and 4.23 (danger). Every patient alert pill - "Needs muzzle",
+    // "Barking" - was below AA on every tab of the patient page. The darker steps
+    // already exist in the ramp and clear it at 6.42 and 6.23, with the tint and
+    // border unchanged so the pills look the same weight.
     medium: {
       background: 'var(--color-warning-100)',
-      color: 'var(--color-warning-700)',
+      color: 'var(--color-warning-900)',
       border: 'var(--color-warning-300)',
     },
     high: {
       background: 'var(--color-danger-100)',
-      color: 'var(--color-danger-700)',
+      color: 'var(--color-danger-800)',
       border: 'var(--color-danger-300)',
     },
     critical: {

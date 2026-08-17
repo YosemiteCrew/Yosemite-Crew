@@ -104,7 +104,7 @@ const DynamicSelect: React.FC<DynamicSelectProps> = ({
         </div>
       )}
 
-      {error && <span className="text-xs text-red-600 mt-1">{error}</span>}
+      {error && <span className="text-xs text-[var(--danger-text)] mt-1">{error}</span>}
     </div>
   );
 };

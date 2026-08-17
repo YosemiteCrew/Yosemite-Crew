@@ -111,13 +111,13 @@
   bottom: -2px;
   width: 0%;
   height: 1px;
-  background: var(--color-brand-950);
+  background: var(--color-text-brand);
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .FtLinks a:hover,
 .FtLinks a:focus {
-  color: var(--color-brand-950);
+  color: var(--color-text-brand);
 }
 
 .FtLinks a:focus-visible {
@@ -170,7 +170,7 @@
 }
 .platform-status-link:hover,
 .platform-status-link:focus {
-  color: var(--color-brand-950);
+  color: var(--color-text-brand);
 }
 
 .platform-status-link:focus-visible {

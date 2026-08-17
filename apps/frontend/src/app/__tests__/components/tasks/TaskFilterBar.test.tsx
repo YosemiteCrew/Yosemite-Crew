@@ -108,6 +108,24 @@ describe('TaskFilterBar', () => {
     expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'false');
   });
 
+  it('gives the selected status pill a visible ring, not just aria-pressed', () => {
+    // The selected state used to be the ABSENCE of an opacity-65 dim on the
+    // other pills, which composited their labels below AA. aria-pressed alone
+    // is invisible to a sighted user, so the ring is the actual affordance and
+    // has to be asserted - otherwise deleting it leaves this file green.
+    renderBar({ activeStatus: 'in_progress' });
+
+    const active = screen.getByRole('button', { name: 'In progress' });
+    expect(active.className).toContain('ring-2');
+    expect(active.className).toContain('ring-[var(--blue-strong)]');
+    expect(active.className).toContain('ring-offset-[var(--screen)]');
+
+    const inactive = screen.getByRole('button', { name: 'Completed' });
+    expect(inactive.className).not.toContain('ring-2 ring-[var(--blue-strong)]');
+    // ...and no pill is dimmed to make the selection legible.
+    expect(inactive.className).not.toMatch(/opacity-/);
+  });
+
   it('shows the add button only when permitted', () => {
     const { unmount } = renderBar();
     fireEvent.click(screen.getByRole('button', { name: 'New task' }));

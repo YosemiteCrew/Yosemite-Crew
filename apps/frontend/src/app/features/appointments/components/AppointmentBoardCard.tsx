@@ -391,8 +391,10 @@ const AppointmentBoardCard = ({
   );
   const isDragging = draggedAppointmentId === (appointment.id ?? null);
   const isEmergency = !!appointment.isEmergency;
-  // Completed / cancelled / no-show cards recede — design drops them to 72% and
-  // removes the lift shadow so live work stays dominant in the column.
+  // Completed / cancelled / no-show cards recede by losing the lift shadow, so
+  // live work stays dominant in the column. The design's 72% opacity is
+  // deliberately not applied: it composited the card's own text-text-tertiary
+  // meta line below AA, and the flattened shadow already carries the state.
   const isMuted = isMutedBoardStatus(normalizeStatus(appointment.status));
   const isRequested = isRequestedLikeStatus(appointment.status);
   // Checked-in patients are the ones actually waiting in the clinic, so the design
@@ -422,7 +424,7 @@ const AppointmentBoardCard = ({
       className={clsx(
         'relative w-full shrink-0 overflow-hidden rounded-[13px]! bg-neutral-0 px-[14px] py-[12px] text-left transition-colors flex flex-col items-stretch justify-start gap-2 border',
         emphasisClass,
-        isMuted ? 'opacity-[0.72] shadow-none' : emphasisShadowClass,
+        isMuted ? 'shadow-none' : emphasisShadowClass,
         isDragging
           ? 'opacity-60 shadow-none'
           : 'hover:border-input-border-active! hover:bg-card-hover!',
@@ -467,7 +469,7 @@ const AppointmentBoardCard = ({
               openAppointmentWorkspace(appointment);
             }}
             className="ml-auto rounded-full px-2.5 py-1 text-[10.5px] font-bold text-white"
-            style={{ background: 'var(--blue)' }}
+            style={{ background: 'var(--blue-strong)' }}
           >
             Start visit
           </button>

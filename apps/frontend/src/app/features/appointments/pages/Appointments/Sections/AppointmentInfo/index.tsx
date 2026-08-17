@@ -187,7 +187,10 @@ type CustomFormsSectionProps = {
 };
 
 const FormBadge: React.FC<{ label: string; badgeClass: string }> = ({ label, badgeClass }) => (
-  <StatusPill label={label} tone={badgeClass.startsWith('bg-green-50') ? 'success' : 'warning'} />
+  <StatusPill
+    label={label}
+    tone={badgeClass.startsWith('bg-[var(--status-completed-bg)]') ? 'success' : 'warning'}
+  />
 );
 
 const CustomFormsSection: React.FC<CustomFormsSectionProps> = ({
@@ -232,7 +235,9 @@ const getFormBadge = (
     label = 'Signature Pending';
   }
   const badgeClass =
-    isSigned || isCompleted ? 'bg-green-50 text-green-800' : 'bg-amber-50 text-amber-700';
+    isSigned || isCompleted
+      ? 'bg-[var(--status-completed-bg)] text-[var(--status-completed-text)]'
+      : 'bg-[var(--status-requested-bg)] text-[var(--color-warning-900)]';
   return { label, badgeClass };
 };
 

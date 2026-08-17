@@ -259,7 +259,10 @@ const TaskMarker = ({
             </div>
             <div
               className={`text-[10px] truncate ${isCompact ? 'text-center' : ''}`}
-              style={{ color: markerStyle.color, opacity: 0.8 }}
+              // No alpha: markerStyle.color is a status token measured against
+              // its own fill, and 0.8 took this 10px line to 3.98:1. The line is
+              // already quieter than the task name by size alone.
+              style={{ color: markerStyle.color }}
             >
               Due: {dueTimeLabel}
             </div>

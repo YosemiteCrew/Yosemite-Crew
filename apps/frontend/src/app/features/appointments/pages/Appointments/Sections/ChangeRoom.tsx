@@ -154,7 +154,7 @@ const ChangeRoom = ({ showModal, setShowModal, activeAppointment }: ChangeRoomPr
     <CenterModal showModal={showModal} setShowModal={setShowModal} onClose={handleCancel}>
       <div className="flex flex-col gap-4 w-full">
         <ModalHeader title="Assign room" onClose={handleCancel} />
-        <div className={`${saving ? 'pointer-events-none opacity-60' : ''}`}>
+        <div className={`${saving ? 'pointer-events-none' : ''}`}>
           <LabelDropdown
             placeholder="Select room"
             options={roomOptions}
@@ -164,7 +164,7 @@ const ChangeRoom = ({ showModal, setShowModal, activeAppointment }: ChangeRoomPr
           />
         </div>
         {isInpatient ? (
-          <div className={`${saving ? 'pointer-events-none opacity-60' : ''}`}>
+          <div className={`${saving ? 'pointer-events-none' : ''}`}>
             <LabelDropdown
               placeholder="Select unit"
               options={unitOptions}

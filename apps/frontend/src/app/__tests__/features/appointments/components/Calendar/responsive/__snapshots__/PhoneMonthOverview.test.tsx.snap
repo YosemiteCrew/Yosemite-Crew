@@ -129,7 +129,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-06-29 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.35]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
@@ -145,7 +145,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-06-30 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.35]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
@@ -161,11 +161,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-01 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           1
         </span>
@@ -177,11 +177,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-02 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           2
         </span>
@@ -193,11 +193,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-03 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           3
         </span>
@@ -209,11 +209,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-04 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           4
         </span>
@@ -225,11 +225,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-05 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           5
         </span>
@@ -241,11 +241,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-06 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           6
         </span>
@@ -279,11 +279,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-08 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           8
         </span>
@@ -295,11 +295,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-09 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           9
         </span>
@@ -311,11 +311,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-10 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           10
         </span>
@@ -327,11 +327,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-11 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           11
         </span>
@@ -343,11 +343,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-12 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           12
         </span>
@@ -359,11 +359,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-13 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           13
         </span>
@@ -375,11 +375,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-14 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           14
         </span>
@@ -391,11 +391,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-15 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           15
         </span>
@@ -407,11 +407,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-16 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           16
         </span>
@@ -423,11 +423,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-17 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           17
         </span>
@@ -439,11 +439,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-18 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           18
         </span>
@@ -455,11 +455,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-19 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           19
         </span>
@@ -471,11 +471,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-20 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           20
         </span>
@@ -487,11 +487,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-21 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           21
         </span>
@@ -503,11 +503,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-22 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           22
         </span>
@@ -519,11 +519,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-23 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           23
         </span>
@@ -535,11 +535,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-24 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           24
         </span>
@@ -551,11 +551,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-25 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           25
         </span>
@@ -567,11 +567,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-26 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           26
         </span>
@@ -583,11 +583,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-27 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           27
         </span>
@@ -599,11 +599,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-28 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           28
         </span>
@@ -615,11 +615,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-29 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           29
         </span>
@@ -631,11 +631,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-30 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           30
         </span>
@@ -647,11 +647,11 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-07-31 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.45]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
-          class="text-[12.5px] font-semibold text-[var(--ink-faint)]"
+          class="text-[12.5px] font-semibold text-[var(--ink-muted)]"
         >
           31
         </span>
@@ -663,7 +663,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-08-01 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.35]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span
@@ -679,7 +679,7 @@ exports[`PhoneMonthOverview — misc matches the month overview layout 1`] = `
       <button
         aria-label="2026-08-02 · 0 appointments"
         aria-pressed="false"
-        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5 opacity-[0.35]"
+        class="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
         type="button"
       >
         <span

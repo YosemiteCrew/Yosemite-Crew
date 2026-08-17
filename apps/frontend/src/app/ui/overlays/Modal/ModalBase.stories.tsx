@@ -50,7 +50,7 @@ const ModalDemo = ({ label, canClose }: { label?: string; canClose?: () => boole
     <div>
       <button
         type="button"
-        className="px-6 py-3 bg-text-primary text-white rounded-2xl text-body-3-emphasis"
+        className="px-6 py-3 bg-text-primary text-[var(--screen)] rounded-2xl text-body-3-emphasis"
         onClick={() => setOpen(true)}
       >
         Open modal
@@ -92,7 +92,7 @@ const ModalDemo = ({ label, canClose }: { label?: string; canClose?: () => boole
           </button>
           <button
             type="button"
-            className="px-6 py-3 bg-text-primary text-white rounded-2xl text-body-3-emphasis"
+            className="px-6 py-3 bg-text-primary text-[var(--screen)] rounded-2xl text-body-3-emphasis"
             onClick={() => setOpen(false)}
           >
             Confirm

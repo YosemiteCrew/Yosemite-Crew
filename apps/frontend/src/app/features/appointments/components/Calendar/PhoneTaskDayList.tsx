@@ -118,8 +118,7 @@ const TaskCard = ({
       'flex min-h-14 items-center gap-2.5 rounded-xl border bg-[var(--screen)] px-[11px] py-2.5',
       entry.isOverdue
         ? 'border-[var(--danger-border)] border-l-[3px] border-l-[var(--danger)]'
-        : 'border-[var(--hairline)]',
-      entry.isDone && 'opacity-[.66]'
+        : 'border-[var(--hairline)]'
     )}
   >
     <TaskCheckbox entry={entry} disabled={!canEditTasks} onToggle={onToggleTask} />
