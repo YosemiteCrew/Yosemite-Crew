@@ -44,29 +44,35 @@ Push runs skip this gate. Once several pull requests have landed together there
 is no meaningful "lines this change adds", and the aggregate floor already
 guards the branch.
 
-### Known limitation: desktop coverage is not trustworthy
+### Coverage needs source maps under the v8 provider
 
-`apps/desktop` sets `coverageProvider: 'v8'` alongside its ts-jest `transform`,
-and the resulting report marks **every line of a loaded module as executed**,
-including function bodies nothing calls. Verified by adding an uncalled exported
-function to `src/utils/printing.ts`: all of its lines came back with a hit count
-of 1, both in CI and locally.
+Three of the four apps set `coverageProvider: 'v8'`, which maps compiled output
+back to source through source maps. Where those maps are missing, v8-to-istanbul
+cannot attribute ranges and reports **every line of a loaded module as
+executed**, including function bodies nothing calls.
 
-This is not a property of the v8 provider as such. `apps/frontend` also uses
-`coverageProvider: 'v8'` and reports uncalled function bodies correctly as zero,
-so the defect is specific to how desktop's transform and the v8-to-istanbul
-conversion interact.
+`apps/desktop` hit exactly this: its `tsconfig.test.json` inherited
+`sourceMap: false` from the production tsconfig. Fixed in issue #2238 by setting
+`sourceMap: true` for the test config.
 
-Consequences while it stands:
+The failure is worth recognising because of its shape rather than its size. The
+aggregate barely moved when it was fixed:
 
-- The added-line floor for desktop cannot fail, because no added line can
-  measure as uncovered.
-- Desktop's aggregate floor (`statements=95`) and the matching thresholds in its
-  own jest config are measuring the same inflated numbers, so its reported
-  ~98% is not a coverage figure.
+| metric     | before             | after              |
+| ---------- | ------------------ | ------------------ |
+| statements | 98.12% (9505/9687) | 98.01% (9495/9687) |
+| branches   | 89.02% (2238/2514) | 89.5% (2174/2429)  |
+| functions  | 99.32% (592/596)   | 99.3% (575/579)    |
 
-The floor is left configured so it starts working the moment the underlying
-report is fixed. Nothing here should be read as desktop being gated today.
+Desktop's suite really does execute nearly everything, so almost no existing
+line was being credited falsely. What broke was the marginal case: **newly added
+dead code measured as fully covered**, so the added-line gate could not fail on
+this app and the aggregate floor could not notice new uncovered code either. An
+aggregate that looks right is not evidence that the underlying data is right.
+
+If you add an app or change a transform, verify with a canary: append an
+exported function nothing calls, run coverage, and confirm its body reports zero
+hits. `apps/backend` also uses the v8 provider and has not been checked this way.
 
 ### Ratcheting the floors
 
