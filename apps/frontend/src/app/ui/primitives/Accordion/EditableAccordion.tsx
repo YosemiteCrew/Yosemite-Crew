@@ -239,8 +239,26 @@ const normalizeOptions = (options?: Array<string | { label: string; value: strin
     typeof option === 'string' ? { label: option, value: option } : option
   ) ?? [];
 
+const formatDisplayValue = (value: unknown): string => {
+  if (Array.isArray(value)) {
+    return value.length > 0 ? value.join(', ') : '-';
+  }
+  if (value === undefined || value === null || value === '') {
+    return '-';
+  }
+  if (typeof value === 'object') return '-';
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  return '-';
+};
+
+// A value with no matching option falls back to the value itself, but an UNSET
+// one has to become the dash every other row uses - otherwise the row renders
+// with a label and nothing beside it, which reads as a rendering fault rather
+// than "not set". The task drawer's Priority row showed exactly that.
 const resolveLabel = (options: Array<{ label: string; value: string }>, value: string) =>
-  options.find((o) => o.value === value)?.label ?? value;
+  options.find((o) => o.value === value)?.label ?? formatDisplayValue(value);
 
 const EditableField = ({ field, value, error, onChange, onMultiChange }: EditableFieldProps) => {
   const type = field.type || 'text';
@@ -258,20 +276,6 @@ const EditableField = ({ field, value, error, onChange, onMultiChange }: Editabl
 
 const isCurrencyField = (fieldKey: string) => {
   return fieldKey === 'purchaseCost' || fieldKey === 'selling';
-};
-
-const formatDisplayValue = (value: unknown): string => {
-  if (Array.isArray(value)) {
-    return value.length > 0 ? value.join(', ') : '-';
-  }
-  if (value === undefined || value === null || value === '') {
-    return '-';
-  }
-  if (typeof value === 'object') return '-';
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-    return String(value);
-  }
-  return '-';
 };
 
 const FieldValueRow = ({ label, children }: { label: string; children: React.ReactNode }) => (
@@ -345,7 +349,7 @@ const FieldValueComponents: Record<string, React.FC<FieldValueProps>> = {
   },
   time: ({ field, formValues }) => {
     const value = formValues[field.key];
-    return <FieldValueRow label={field.label}>{formatTimeLabel(value)}</FieldValueRow>;
+    return <FieldValueRow label={field.label}>{formatTimeLabel(value) || '-'}</FieldValueRow>;
   },
   timeInput: ({ field, formValues }) => {
     const value = formValues[field.key];

@@ -39,8 +39,9 @@ type WeekCalendarProps = {
   handleChangeStatusTask?: (task: Task) => void;
   handleRescheduleTask?: (task: Task) => void;
   weekStart: Date;
-  setWeekStart: React.Dispatch<React.SetStateAction<Date>>;
-  setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
+  /* No setWeekStart/setCurrentDate: paging moved to the toolbar, so this grid
+     neither reads nor dispatches them. Header builds its own
+     useCalendarWeekNavigation from the same setters. */
 } & TaskCalendarInteractionProps;
 
 const WeekCalendar: React.FC<WeekCalendarProps> = ({

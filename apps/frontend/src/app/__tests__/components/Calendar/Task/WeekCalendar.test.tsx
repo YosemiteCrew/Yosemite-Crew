@@ -73,8 +73,6 @@ jest.mock('@/app/ui/primitives/Icons/Next', () => ({
 
 describe('WeekCalendar (Task)', () => {
   const handleViewTask = jest.fn();
-  const setWeekStart = jest.fn();
-  const setCurrentDate = jest.fn();
 
   const weekStart = new Date(2025, 0, 6, 12);
   const days = [new Date(2025, 0, 6, 12), new Date(2025, 0, 7, 12)];
@@ -106,8 +104,6 @@ describe('WeekCalendar (Task)', () => {
         date={weekStart}
         handleViewTask={handleViewTask}
         weekStart={weekStart}
-        setWeekStart={setWeekStart}
-        setCurrentDate={setCurrentDate}
       />
     );
 
@@ -134,14 +130,7 @@ describe('WeekCalendar (Task)', () => {
     mockGetWeekDays.mockReturnValue([today]);
 
     render(
-      <WeekCalendar
-        events={[]}
-        date={today}
-        handleViewTask={handleViewTask}
-        weekStart={today}
-        setWeekStart={setWeekStart}
-        setCurrentDate={setCurrentDate}
-      />
+      <WeekCalendar events={[]} date={today} handleViewTask={handleViewTask} weekStart={today} />
     );
 
     expect(screen.getByText('9:41 AM')).toBeInTheDocument();
@@ -161,13 +150,15 @@ describe('WeekCalendar (Task)', () => {
         date={weekStart}
         handleViewTask={handleViewTask}
         weekStart={weekStart}
-        setWeekStart={setWeekStart}
-        setCurrentDate={setCurrentDate}
       />
     );
 
     expect(screen.queryByText('PrevWeek')).not.toBeInTheDocument();
     expect(screen.queryByText('NextWeek')).not.toBeInTheDocument();
-    expect(setWeekStart).not.toHaveBeenCalled();
+    // Every day getWeekDays returns reaches the strip. The right-hand arrow rail
+    // used to eat the last column, so a seven-day week showed six; asserting the
+    // pass-through is harness-independent, since getWeekDays is mocked here.
+    const rendered = dayLabelsSpy.mock.calls.at(-1)[0].days;
+    expect(rendered).toEqual(mockGetWeekDays.mock.results.at(-1)?.value);
   });
 });

@@ -34,11 +34,16 @@ export const useTaskInfoFields = ({
   const companions = useCompanionsForPrimaryOrg();
   const { resolveMemberName } = useMemberMap();
 
+  // An unresolvable member - one who left the practice, or belongs to another
+  // organisation - used to fall back to the raw id, so the task drawer's From and
+  // To rows read "c3b4a812-4051-701e-08ce-cb5c2a489951" where a name belongs. A
+  // UUID means nothing to the reader and is an internal identifier; it is not
+  // shown at all. Same fallback the Templates linked-services column had.
   const resolveMemberDisplay = useMemo(() => {
     return (id?: string) => {
       if (!id) return '-';
       const resolved = resolveMemberName(id);
-      return resolved === '-' ? id : resolved;
+      return resolved === '-' ? 'Unavailable member' : resolved;
     };
   }, [resolveMemberName]);
 
@@ -65,7 +70,7 @@ export const useTaskInfoFields = ({
         const parentId = companion.parentId;
         if (!parentId) return items;
         items.push({
-          label: resolveMemberDisplay(parentId) || parentId || companion.id,
+          label: resolveMemberDisplay(parentId),
           value: parentId,
         });
         return items;

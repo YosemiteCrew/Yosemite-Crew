@@ -235,7 +235,6 @@ const TaskCalendar = ({
           getDropAvailabilityIntervals={getDropAvailabilityIntervals}
           resolveDisplayName={resolveDisplayName}
           weekStart={weekStart}
-          setWeekStart={setWeekStart}
         />
       </div>
       {pendingSeriesMove && (
