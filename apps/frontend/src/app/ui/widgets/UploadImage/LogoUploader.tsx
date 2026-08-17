@@ -96,11 +96,7 @@ const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
               onClick={handleRemoveImage}
               aria-label="Remove uploaded logo"
             >
-              <IoRemoveCircleOutline
-                color="var(--color-primary-500)"
-                size={16}
-                aria-hidden="true"
-              />
+              <IoRemoveCircleOutline color="var(--blue-text)" size={16} aria-hidden="true" />
             </button>
           </>
         ) : (

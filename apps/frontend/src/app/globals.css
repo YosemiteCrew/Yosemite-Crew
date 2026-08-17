@@ -321,7 +321,9 @@ textarea:focus-visible {
 
   --color-text-primary: var(--color-neutral-900);
   --color-text-cta: var(--color-neutral-900);
-  --color-text-error: var(--color-danger-700);
+  /* --danger-text, not the 700 fill step: as text on --screen the fill read
+     4.40 (the account menu's Sign out row). Both already agree in dark. */
+  --color-text-error: var(--danger-text);
   --color-text-brand: var(--color-brand-950);
   --color-text-secondary: var(--color-neutral-700);
   --color-text-tertiary: var(--color-neutral-600);
@@ -490,7 +492,9 @@ textarea:focus-visible {
   --status-no-show-border: #f97316;
 
   --status-danger-bg: rgba(234, 55, 41, 0.09);
-  --status-danger-text: #c2261a;
+  /* On its own --status-danger-bg tint this composites to #efd8cc, where
+     #c2261a is 4.28. The 800 step clears it at 5.24. */
+  --status-danger-text: #a6271d;
   --status-danger-border: rgba(234, 55, 41, 0.32);
 
   /* Alert / document-category palette (workspace revamp — Figma "documents cat" sheet) */
@@ -745,7 +749,9 @@ textarea:focus-visible {
   --danger: #ea3729;
   --danger-border: rgba(234, 55, 41, 0.32);
   --warn-bg: rgba(245, 158, 11, 0.12);
-  --warn-text: #b45309;
+  /* 3.84 on its own --warn-bg tint (the dashboard's "Verification in
+     progress" pill). One step darker clears it at 5.42. */
+  --warn-text: #92400e;
   --warn-border: rgba(245, 158, 11, 0.3);
   --pink-soft: #ffe8f6;
   --pink-text: #b3307f;

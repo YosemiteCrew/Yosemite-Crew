@@ -57,9 +57,10 @@
 .LaunchTabDiv:first-child .BuildText h3,
 .LaunchTabDiv.active:first-child .BuildText h6,
 .LaunchTabDiv.active:first-child .BuildText h3 {
-  /* Was --color-neutral-0, which is the SURFACE token: near-white on the first
-     tab's #E9F2FD in light, and near-black on it in dark. Both unreadable. */
-  color: var(--ink-fixed);
+  /* The first tab is the only one filled with a strong blue rather than a light
+     tint, so its text stays LIGHT - but FIXED, not the --color-neutral-0 surface
+     token it used to take, which followed the theme and went near-black in dark. */
+  color: var(--white-text);
 }
 
 .BuildText h6 {

@@ -14,12 +14,15 @@ export const StockHealthPill = ({ qty, low }: { qty: number; low: boolean }) => 
   >
     {low ? 'Low stock' : 'In stock'}
     <span
-      // --ink-fixed, not text-neutral-0: neutral-0 is the SURFACE token, so the
-      // count was --screen-on-warning-700 at 2.74:1 in light and inverted in
-      // dark. Both pill fills are fixed mid-tones, so the count is pinned dark
-      // against them - 5.61:1 on the warning fill.
-      className={`flex size-6 items-center justify-center rounded-2xl text-[11px] leading-none font-bold text-[var(--ink-fixed)] ${
-        low ? 'bg-warning-700' : 'bg-pill-success-text'
+      // The two fills behave differently, so their inks do too.
+      //   warning-700 is FIXED (a mid orange in both themes) -> pin the ink dark,
+      //     5.61. It used to take text-neutral-0, which inverted to near-white.
+      //   the success fill THEMES (deep green in light, light green in dark) ->
+      //     keep text-neutral-0, whose inversion is exactly right here: light on
+      //     the deep fill, dark on the light one. Pinning it white gave 1.86 in
+      //     dark, so this branch was right all along.
+      className={`flex size-6 items-center justify-center rounded-2xl text-[11px] leading-none font-bold ${
+        low ? 'bg-warning-700 text-[var(--ink-fixed)]' : 'bg-pill-success-text text-neutral-0'
       }`}
     >
       {qty}
