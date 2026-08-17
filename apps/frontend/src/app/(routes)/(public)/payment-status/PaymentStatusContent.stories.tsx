@@ -4,36 +4,53 @@ import { PaymentStatusContent } from './PaymentStatusContent';
 type Outcome = 'paid' | 'unpaid' | 'no_payment_required';
 
 /**
- * The component fetches its own status, so each story stubs `fetch` around its
- * render. `pending` is the one that never settles, which is how the loading
- * state is held open; `unpaid` resolves normally and reaches the same pulsing
- * dots by a different route, so both are worth a story.
+ * Every story routes through ONE stub keyed by session id, rather than each
+ * installing a stub that answers with its own outcome.
  *
- * This is a `beforeEach` rather than a decorator. As a decorator the assignment
- * happened during RENDER and the restore in an effect cleanup, so re-rendering
- * a story - flipping the theme toolbar, which the docs above tell the reader to
- * do - installed the new stub and then let the previous cleanup put the real
- * `fetch` back underneath it. The mounted story would then poll the real
- * backend. Autodocs makes it worse by mounting several variants against the one
- * global. Storybook's lifecycle runs setup before the story mounts and the
- * returned teardown after it unmounts, which is the ordering this needs.
+ * There is a single `globalThis.fetch`, and Autodocs mounts all five variants
+ * against it at once. With per-story stubs, whichever mounted last won: the
+ * unpaid story re-polls after two seconds, by which point NoPaymentRequired had
+ * installed its stub, so a story titled "Unpaid" rendered "Payment cancelled".
+ * Teardowns chained the same way and could restore another story's stub instead
+ * of the real `fetch`. Keying on the session id makes every installed stub
+ * behave identically, so which one is live stops mattering.
+ *
+ * `pending` never settles, which is how the loading state is held open. `unpaid`
+ * resolves normally and reaches the same pulsing dots by a different route, so
+ * both are worth a story.
  */
-const stubStatus = (outcome: Outcome | 'pending') => () => {
+const SESSION = {
+  loading: 'cs_test_loading',
+  paid: 'cs_test_paid',
+  unpaid: 'cs_test_unpaid',
+  noPayment: 'cs_test_no_payment',
+} as const;
+
+const OUTCOME_BY_SESSION: Record<string, Outcome | 'pending'> = {
+  [SESSION.loading]: 'pending',
+  [SESSION.paid]: 'paid',
+  [SESSION.unpaid]: 'unpaid',
+  [SESSION.noPayment]: 'no_payment_required',
+};
+
+const NEVER_SETTLES = new Promise<never>(() => {
+  // Deliberately empty: the loading state only exists while the request is in
+  // flight, so the story has to keep it in flight.
+});
+
+const stubStatus = () => {
   const original = globalThis.fetch;
-  const neverSettles = new Promise<never>(() => {
-    // Deliberately empty: the loading state only exists while the request is in
-    // flight, so the story has to keep it in flight.
-  });
 
   globalThis.fetch = ((input: RequestInfo | URL) => {
-    // Scoped to the status lookup. Anything else this page or Storybook itself
-    // requests still goes to the real implementation rather than hanging.
     const url = typeof input === 'string' ? input : String((input as Request).url ?? input);
-    if (!url.includes('payment-status') && !url.includes('session')) {
-      return original(input as RequestInfo);
-    }
+    const session = Object.keys(OUTCOME_BY_SESSION).find((id) => url.includes(id));
+    // Anything that is not one of this file's sessions - another page's request,
+    // or Storybook's own - reaches the real implementation instead of hanging.
+    if (!session) return original(input as RequestInfo);
+
+    const outcome = OUTCOME_BY_SESSION[session];
     return outcome === 'pending'
-      ? neverSettles
+      ? NEVER_SETTLES
       : Promise.resolve({
           json: () => Promise.resolve({ status: outcome, total: 4250 }),
         });
@@ -44,15 +61,18 @@ const stubStatus = (outcome: Outcome | 'pending') => () => {
   };
 };
 
+const withSession = (sessionId: string) => ({
+  nextjs: {
+    appDirectory: true,
+    navigation: { pathname: '/payment-status', query: { session_id: sessionId } },
+  },
+});
+
 const meta = {
   title: 'Public/PaymentStatus',
   component: PaymentStatusContent,
   parameters: {
     layout: 'fullscreen',
-    nextjs: {
-      appDirectory: true,
-      navigation: { pathname: '/payment-status', query: { session_id: 'cs_test_a1b2c3d4e5f6' } },
-    },
     docs: {
       description: {
         component:
@@ -75,20 +95,24 @@ type Story = StoryObj<typeof meta>;
 
 export const Loading: Story = {
   name: 'Loading (pulsing dots)',
-  beforeEach: stubStatus('pending'),
+  parameters: withSession(SESSION.loading),
+  beforeEach: stubStatus,
 };
 
 export const Paid: Story = {
-  beforeEach: stubStatus('paid'),
+  parameters: withSession(SESSION.paid),
+  beforeEach: stubStatus,
 };
 
 export const Unpaid: Story = {
-  beforeEach: stubStatus('unpaid'),
+  parameters: withSession(SESSION.unpaid),
+  beforeEach: stubStatus,
 };
 
 export const NoPaymentRequired: Story = {
   name: 'No payment required',
-  beforeEach: stubStatus('no_payment_required'),
+  parameters: withSession(SESSION.noPayment),
+  beforeEach: stubStatus,
 };
 
 export const MissingSession: Story = {

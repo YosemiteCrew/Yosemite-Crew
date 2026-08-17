@@ -250,7 +250,7 @@
    dialog was the least legible one. */
 .dev-confirm-btn.confirm {
   background: var(--danger-strong);
-  color: var(--white-text);
+  color: var(--danger-strong-ink);
 }
 
 .dev-confirm-btn.cancel {

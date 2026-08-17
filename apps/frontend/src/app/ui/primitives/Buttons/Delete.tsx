@@ -11,7 +11,7 @@ const sizeClasses: Record<ButtonSize, string> = {
 };
 
 const baseClasses =
-  'gap-[7px] flex items-center justify-center rounded-full! transition-[background-color,opacity] duration-200 ease-out font-semibold text-white bg-[var(--danger-strong)] hover:opacity-90 active:opacity-100';
+  'gap-[7px] flex items-center justify-center rounded-full! transition-[background-color,opacity] duration-200 ease-out font-semibold text-[var(--danger-strong-ink)] bg-[var(--danger-strong)] hover:opacity-90 active:opacity-100';
 
 const Delete = ({ className, ...rest }: Readonly<DeleteProps>) => (
   <BaseButton {...rest} className={className} sizeClasses={sizeClasses} baseClasses={baseClasses} />

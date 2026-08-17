@@ -662,17 +662,22 @@ textarea:focus-visible {
      for both themes satisfied the first and broke the second - #1657c9 is only
      2.23:1 on the dark page. Light: 6.48 white / 5.04-5.86 surface. */
   --blue-strong: var(--color-accent-deep);
-  /* The danger equivalent, and fixed in both themes for the same reason:
-     a destructive button is a FILL carrying white text, so it owes 4.5:1 to
-     the label. --danger is 4.14 under white and --danger-text inverts to a
-     light pink in dark, which is how a Delete confirm reached 2.25:1. */
+  /* A destructive button is a FILL carrying a label, so it owes 4.5:1 to that
+     label AND 3:1 to the surface it sits on (1.4.11). A single fixed value
+     cannot do both in dark: clearing white text caps the fill at L 0.183 while
+     clearing the dark screen needs at least L 0.165, and that sliver fails
+     against --band anyway. So the PAIR inverts instead - dark fill with a light
+     label in light mode, light fill with a dark label in dark. --danger-strong-ink
+     moves with it; never pair this fill with a literal white. */
   --danger-strong: #a6271d;
+  --danger-strong-ink: var(--white-text);
   /* And the success equivalent, fixed for the same reason. --color-success-600
      is #008f5d in light and #2bbd86 in dark, so the Dispense confirm carried
      white on 4.13:1 light and 2.41:1 dark - the affirmative half of a
      dispense-or-cancel pair, unreadable on both sides. #006642 is 7.05 under
      white and does not move with the theme. */
   --success-strong: #006642;
+  --success-strong-ink: var(--white-text);
   --pink: #ff90d4;
   --cyan: #5ce1e6;
   --cyan-text: #38ccd8;
@@ -822,6 +827,14 @@ html[data-theme='dark'] {
      light. #2f74d9 is the value that clears both - 4.54:1 white, 3.19-3.72:1
      against every dark surface. */
   --blue-strong: #2f74d9;
+  /* Inverted here: see the light declaration. A dark fill on a dark surface has
+     no visible boundary (#a6271d is 2.05:1 on --screen), so dark mode uses the
+     light tone as the fill and a near-black as its label. 6.5-7.5 against every
+     dark surface, 7.5 for the label on top. */
+  --danger-strong: #f2938a;
+  --danger-strong-ink: var(--ink-fixed);
+  --success-strong: #2bbd86;
+  --success-strong-ink: var(--ink-fixed);
   --blue-text: var(--color-blue-text);
   --blue-soft: rgba(143, 182, 245, 0.16);
   --pink: #ff90d4;
@@ -941,6 +954,14 @@ html[data-theme='dark'] {
      light. #2f74d9 is the value that clears both - 4.54:1 white, 3.19-3.72:1
      against every dark surface. */
   --blue-strong: #2f74d9;
+  /* Inverted here: see the light declaration. A dark fill on a dark surface has
+     no visible boundary (#a6271d is 2.05:1 on --screen), so dark mode uses the
+     light tone as the fill and a near-black as its label. 6.5-7.5 against every
+     dark surface, 7.5 for the label on top. */
+  --danger-strong: #f2938a;
+  --danger-strong-ink: var(--ink-fixed);
+  --success-strong: #2bbd86;
+  --success-strong-ink: var(--ink-fixed);
   --blue-text: var(--color-blue-text);
   --blue-soft: rgba(143, 182, 245, 0.16);
   --pink: #ff90d4;

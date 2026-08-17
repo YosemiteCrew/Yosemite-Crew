@@ -237,7 +237,7 @@ const DispensaryCard = ({
         <button
           type="button"
           onClick={() => onDispense(record)}
-          className="flex-1 h-9 rounded-2xl bg-[var(--success-strong)] text-[var(--white-text)] text-caption-1 font-semibold hover:opacity-90 transition-opacity"
+          className="flex-1 h-9 rounded-2xl bg-[var(--success-strong)] text-[var(--success-strong-ink)] text-caption-1 font-semibold hover:opacity-90 transition-opacity"
         >
           Dispense
         </button>
