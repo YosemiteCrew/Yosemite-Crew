@@ -59,16 +59,32 @@ export const openPimsTab = async (
 
   // Tabs are WebContentsView instances rather than BrowserWindows, so poll the
   // window list rather than waiting on a 'window' event a view may never emit.
+  //
+  // Waiting for a STABLE tab, not merely the first match. Entering tab mode
+  // tears down and recreates the view, so the first page to appear at the test
+  // server is often replaced moments later. Returning that one produced
+  //
+  //   Error: locator.click: Target page, context or browser has been closed
+  //
+  // in every spec that then interacted with it. Requiring the same page to
+  // still be open on a subsequent poll skips the transient one.
   let tab: Page | undefined;
   await expect
     .poll(
       () => {
-        tab = findTab();
-        return Boolean(tab);
+        const candidate = findTab();
+        if (!candidate) {
+          tab = undefined;
+          return false;
+        }
+        // Stable means: seen before, and still open now.
+        const settled = tab === candidate && !candidate.isClosed();
+        tab = candidate.isClosed() ? undefined : candidate;
+        return settled;
       },
       {
         timeout,
-        message: `no window reached ${pimsOrigin} after startSignin; the app may still be on the welcome screen`,
+        message: `no stable window reached ${pimsOrigin} after startSignin; the app may still be on the welcome screen`,
       }
     )
     .toBe(true);

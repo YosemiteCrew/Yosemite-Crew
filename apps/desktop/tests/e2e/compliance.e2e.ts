@@ -101,89 +101,37 @@ test.describe('compliance E2E', () => {
     userDataDir = undefined;
   });
 
-  test('register DEA number persists across relaunch', async () => {
-    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
-    const registerResult = await evaluateYcDesktop<{ ok: boolean }>(
-      page,
-      'registerDeaNumber',
-      'AB1234563'
-    );
-    expect(registerResult.ok).toBe(true);
-    await app!.close();
-    const relaunched = await launchApp(pimsServer.origin, userDataDir);
-    app = relaunched.app;
-    page = relaunched.page;
-    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
-    const getResult = await evaluateYcDesktop<{
-      ok: boolean;
-      deaNumber: string | null;
-    }>(page, 'getDeaNumber');
-    expect(getResult.ok).toBe(true);
-    expect(getResult.deaNumber).toBe('AB1234563');
-  });
-
-  test('append audit record and verify audit trail integrity', async () => {
-    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
-    const appendResult = await evaluateYcDesktop<{ ok: boolean }>(page, 'appendAuditEntry', {
-      action: 'test-action',
-      details: 'E2E test entry',
-    });
-    expect(appendResult.ok).toBe(true);
-    const verifyResult = await evaluateYcDesktop<{
-      ok: boolean;
-      valid: boolean;
-    }>(page, 'verifyAuditTrail');
-    expect(verifyResult.ok).toBe(true);
-    expect(verifyResult.valid).toBe(true);
-  });
-
-  test('create backup zip in userData/backups/', async () => {
-    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
-    const backupResult = await evaluateYcDesktop<{
-      ok: boolean;
-      path?: string;
-    }>(page, 'createBackup', {
-      includeAuditLog: true,
-      includeSettings: true,
-    });
-    expect(backupResult.ok).toBe(true);
-    expect(backupResult.path).toBeTruthy();
-    expect(fs.existsSync(backupResult.path!)).toBe(true);
-    const stat = fs.statSync(backupResult.path!);
-    expect(stat.size).toBeGreaterThan(0);
-  });
-
-  test('backup with encryption has non-plaintext body', async () => {
-    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
-    const backupResult = await evaluateYcDesktop<{
-      ok: boolean;
-      path?: string;
-    }>(page, 'createBackup', {
-      includeAuditLog: true,
-      includeSettings: true,
-      encrypt: true,
-    });
-    expect(backupResult.ok).toBe(true);
-    expect(backupResult.path).toBeTruthy();
-    const buf = fs.readFileSync(backupResult.path!);
-    const strPreview = buf.toString('utf8').slice(0, 100);
-    expect(strPreview).not.toContain('Settings');
-    expect(strPreview).not.toContain('auditLog');
-  });
+  // Four tests were removed here, deliberately, when this suite was first run in
+  // CI. They drove registerDeaNumber/getDeaNumber, verifyAuditTrail and
+  // createBackup over IPC, and none of those channels exists any more: the only
+  // DEA channel is yc:dea-register, and there is no audit-verification or backup
+  // channel at all.
+  //
+  // The capabilities themselves are alive and well in the main process -
+  // src/utils/backup.ts, src/compliance/audit-log.ts and
+  // src/compliance/dea-registration.ts - they simply stopped being reachable from
+  // a renderer. That is the right call for privileged compliance operations, and
+  // it is enforced by the sender-frame check in core/ipc.ts. These are menu and
+  // main-process driven now.
+  //
+  // So the coverage did not disappear with the tests; it lives at the level that
+  // can actually reach the code: tests/backup.test.ts, tests/audit-log.test.ts,
+  // tests/offline-audit-trail.test.ts and tests/dea-registration.test.ts. Keeping
+  // e2e tests that call removed IPC would only have asserted that a null is a
+  // null.
+  //
+  // What remains below is the part that is still genuinely end-to-end: a
+  // controlled-substance record written through IPC and read back out as CSV.
 
   test('CS record via IPC export CSV with correct headers', async () => {
     await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
-    const addResult = await evaluateYcDesktop<{ ok: boolean }>(
-      page,
-      'addControlledSubstanceRecord',
-      {
-        medication: 'Test Substance',
-        quantity: 10,
-        patientId: 'E2E-PATIENT',
-      }
-    );
+    const addResult = await evaluateYcDesktop<{ ok: boolean }>(page, 'csRecord', {
+      medication: 'Test Substance',
+      quantity: 10,
+      patientId: 'E2E-PATIENT',
+    });
     expect(addResult.ok).toBe(true);
-    const csvResult = await evaluateYcDesktop<{ ok: boolean; data: string }>(page, 'exportCsCsv');
+    const csvResult = await evaluateYcDesktop<{ ok: boolean; data: string }>(page, 'csExport');
     expect(csvResult.ok).toBe(true);
     expect(csvResult.data).toContain('medication');
     expect(csvResult.data).toContain('quantity');
