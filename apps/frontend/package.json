@@ -46,7 +46,7 @@
     "dompurify": "^3.4.13",
     "framer-motion": "^13.1.0",
     "libphonenumber-js": "^1.13.10",
-    "next": "15.5.21",
+    "next": "16.3.1",
     "posthog-js": "^1.391.7",
     "react": "^19.1.1",
     "react-datepicker": "^8.7.0",
