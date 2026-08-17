@@ -183,13 +183,31 @@ const DayCalendar = ({
                       top: nowPosition.topPx,
                     }}
                   >
+                    {/* Matches common/HorizontalLines.tsx:102-125, which this page's own
+                        Team tab already renders. The now-line was red here, red-but-a
+                        different-red on the Week tab, and blue on Team, so the same page
+                        changed the colour of the same line between its own tabs. */}
                     {nowTimeLabel && (
-                      <div className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold text-danger-700 whitespace-nowrap">
+                      <div
+                        className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold whitespace-nowrap"
+                        style={{ color: 'var(--blue-text)' }}
+                      >
                         {nowTimeLabel}
                       </div>
                     )}
-                    <div className="absolute left-[-5px] size-3 rounded-full bg-danger-700 translate-y-[-50%]" />
-                    <div className="border-t-2 border-t-danger-700 translate-y-[-50%]" />
+                    <div
+                      className="absolute left-[-5px] size-[7px] rounded-full translate-y-[-50%]"
+                      style={{ backgroundColor: 'var(--blue)' }}
+                    />
+                    <div
+                      className="translate-y-[-50%]"
+                      style={{
+                        borderTopWidth: '2px',
+                        borderTopStyle: 'solid',
+                        borderTopColor: 'var(--blue)',
+                        opacity: 0.75,
+                      }}
+                    />
                   </div>
                 </div>
               </div>
