@@ -15,11 +15,15 @@
 // evaluates against nothing. Merging the istanbul coverage maps keeps all four
 // metrics intact, and lcov is generated once from the merged map for Sonar.
 //
+// The merged istanbul map is also written back out as coverage-final.json, so
+// the PR-only diff-coverage gate can read per-line hit counts (lcov keeps them
+// too, but the map is the shape diff-coverage.mjs already consumes).
+//
 // A floor is enforced here rather than through jest's own coverageThreshold
 // because a sharded run gives each shard only a slice of the files; a global
 // threshold would fail on every shard regardless of the real total.
 
-import { readdirSync, mkdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { resolveWithin } from './safe-path.mjs';
 import libCoverage from 'istanbul-lib-coverage';
@@ -102,6 +106,7 @@ const covered = map.files().length;
 if (covered === 0) fail('merged coverage map contains no files');
 
 mkdirSync(args.out, { recursive: true });
+writeFileSync(path.join(args.out, 'coverage-final.json'), JSON.stringify(map.toJSON()));
 reports
   .create('lcovonly', { file: 'lcov.info' })
   .execute(libReport.createContext({ dir: args.out, coverageMap: map }));

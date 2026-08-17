@@ -44,6 +44,20 @@ env:
       "backend": "lines=1",
       "mobile": "lines=1"
     }
+  # Per-app floors for the PR-only diff-coverage gate: the minimum share of the
+  # executable lines a pull request ADDS that must be covered.
+  #
+  # Only frontend and desktop are listed. Both enforce a real merged-coverage
+  # floor above and both collect coverage from uncovered files, so a new untested
+  # line shows up in the map at zero hits for the gate to catch. backend and
+  # mobile carry only a lines=1 tripwire, not a coverage bar, so they get no diff
+  # floor either - an app the aggregate gate does not hold to a number is not one
+  # this gate second-guesses. An app absent here is skipped, not failed.
+  DIFF_COVERAGE_FLOORS: >-
+    {
+      "frontend": "90",
+      "desktop": "90"
+    }
 
 jobs:
   plan:
@@ -180,6 +194,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          # Full history so the diff-coverage step can diff HEAD against the pull
+          # request's base; a shallow checkout has no merge base to diff from.
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Setup
@@ -202,6 +219,31 @@ jobs:
             exit 1
           fi
           node scripts/ci/merge-coverage.mjs --shards shards --out merged --floor "$FLOOR"
+
+      # Diff-coverage runs on pull requests only. It needs a base to diff HEAD
+      # against, and it answers a question - "does this change cover the lines it
+      # adds" - that only a pull request poses; the aggregate floor above runs on
+      # every event and cannot catch untested lines a single PR introduces while
+      # the app total stays above the bar. An app with no floor configured is
+      # skipped with a log line, not failed.
+      - name: Enforce diff coverage on added lines (PR only)
+        if: github.event_name == 'pull_request'
+        env:
+          APP: ${{ matrix.app_key }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          FLOOR=$(printf '%s' "$DIFF_COVERAGE_FLOORS" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(JSON.parse(s)[process.env.APP]??""))')
+          if [ -z "$FLOOR" ]; then
+            echo "No diff-coverage floor configured for '$APP'; skipping the added-line gate."
+            exit 0
+          fi
+          git diff "$BASE_SHA...HEAD" > diff.patch
+          node scripts/ci/diff-coverage.mjs \
+            --diff diff.patch \
+            --map merged/coverage-final.json \
+            --root "$GITHUB_WORKSPACE" \
+            --floor "$FLOOR"
 
       # istanbul writes SF: paths relative to the repo root. Sonar is given
       # projectBaseDir=<app dir>, so the app prefix has to come off or every path
