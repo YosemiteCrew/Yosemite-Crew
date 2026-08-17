@@ -54,8 +54,14 @@ jobs:
     # count and fails the job; the known failures do not. Same shape as the
     # coverage floors in _test.yaml, and it ratchets the same way: when the count
     # rises, raise the floor.
+    #
+    # 25, with observed counts of 26 and 27 on macOS and Windows. One spec of
+    # headroom, deliberately, because command-palette has flaked by one between
+    # runs (#2245). A floor set exactly at the observed count would go red on
+    # flake alone, which is the same "ignore the red X" failure this design
+    # exists to avoid. Raise it to the true count once the flake is fixed.
     env:
-      PASSING_FLOOR: '26'
+      PASSING_FLOOR: '25'
     strategy:
       # Report both platforms on every run. A Windows-only failure is exactly
       # the kind of thing this suite exists to catch, and fail-fast would hide
@@ -84,12 +90,16 @@ jobs:
       # the signal - the passing COUNT is.
       - name: Run the Playwright Electron suite
         working-directory: apps/desktop
+        # bash explicitly: windows-latest defaults to PowerShell, where the
+        # `|| true` below and the bash script in the next step do not run.
+        shell: bash
         env:
           PLAYWRIGHT_JSON_OUTPUT_NAME: playwright-results.json
         run: npx playwright test --reporter=list,json || true
 
       - name: Enforce the passing-count ratchet
         working-directory: apps/desktop
+        shell: bash
         run: |
           set -euo pipefail
           node -e '
