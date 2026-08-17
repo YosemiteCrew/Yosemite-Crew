@@ -61,7 +61,8 @@ const launchApp = async (pimsOrigin: string, userDataDir?: string) => {
       YC_DESKTOP_USER_DATA_DIR: profileDir,
     },
   });
-  return { app, page: await openPimsTab(app, pimsOrigin), userDataDir: profileDir };
+  const pages = await openPimsTab(app, pimsOrigin);
+  return { app, page: pages.shell, tab: pages.tab, userDataDir: profileDir };
 };
 
 const evaluateYcDesktop = <T>(page: Page, method: string, ...args: unknown[]): Promise<T> =>
@@ -88,6 +89,7 @@ const waitForPaletteReady = async (page: Page, timeout = 5000): Promise<void> =>
 test.describe('command-palette E2E', () => {
   let app: ElectronApplication | undefined;
   let page: Page;
+  let tab: Page;
   let pimsServer: TestServer;
   let userDataDir: string | undefined;
 
@@ -96,6 +98,7 @@ test.describe('command-palette E2E', () => {
     const launched = await launchApp(pimsServer.origin);
     app = launched.app;
     page = launched.page;
+    tab = launched.tab;
     userDataDir = launched.userDataDir;
   });
 
@@ -108,7 +111,7 @@ test.describe('command-palette E2E', () => {
   });
 
   test('Cmd+K opens palette window', async () => {
-    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
     await page.keyboard.press('Meta+K');
     await waitForPaletteReady(page);
     const paletteResult = await evaluateYcDesktop<unknown>(page, 'getPaletteActions');
@@ -116,7 +119,7 @@ test.describe('command-palette E2E', () => {
   });
 
   test('search "patient" returns "Patients" result', async () => {
-    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
     await page.keyboard.press('Meta+K');
     await waitForPaletteReady(page);
     const actions = await evaluateYcDesktop<{
@@ -129,7 +132,7 @@ test.describe('command-palette E2E', () => {
   });
 
   test('select result navigates to deep link', async () => {
-    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
     const actions = await evaluateYcDesktop<{
       ok: boolean;
       actions: { id: string }[];
@@ -145,7 +148,7 @@ test.describe('command-palette E2E', () => {
   });
 
   test('search "xyzzy" returns no results text', async () => {
-    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
     const actions = await evaluateYcDesktop<{
       ok: boolean;
       actions: unknown[];
@@ -155,7 +158,7 @@ test.describe('command-palette E2E', () => {
   });
 
   test('execute via IPC fires navigation', async () => {
-    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
     const result = await evaluateYcDesktop<{ ok: boolean }>(
       page,
       'executeCommand',
@@ -165,7 +168,7 @@ test.describe('command-palette E2E', () => {
   });
 
   test('Escape closes palette', async () => {
-    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
     await page.keyboard.press('Meta+K');
     await waitForPaletteReady(page);
     const closeResult = await evaluateYcDesktop<{ ok: boolean }>(page, 'closePalette');
@@ -173,7 +176,7 @@ test.describe('command-palette E2E', () => {
   });
 
   test('recents persist across palette open/close', async () => {
-    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
     const actions = await evaluateYcDesktop<{
       ok: boolean;
       actions: { id: string }[];
@@ -197,7 +200,7 @@ test.describe('command-palette E2E', () => {
   });
 
   test('stale recents IDs gracefully skipped', async () => {
-    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
     const recents = await evaluateYcDesktop<{ ok: boolean; recents: string[] }>(
       page,
       'getPaletteRecents'
@@ -207,7 +210,7 @@ test.describe('command-palette E2E', () => {
   });
 
   test('fallback action set when ycDesktop partially unavailable', async () => {
-    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
     const actions = await evaluateYcDesktop<{
       ok: boolean;
       actions: { id: string; label: string }[];

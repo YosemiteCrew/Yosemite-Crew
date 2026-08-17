@@ -61,7 +61,8 @@ const launchApp = async (pimsOrigin: string, userDataDir?: string) => {
       YC_DESKTOP_USER_DATA_DIR: profileDir,
     },
   });
-  return { app, page: await openPimsTab(app, pimsOrigin), userDataDir: profileDir };
+  const pages = await openPimsTab(app, pimsOrigin);
+  return { app, page: pages.shell, tab: pages.tab, userDataDir: profileDir };
 };
 
 type TabResult = {

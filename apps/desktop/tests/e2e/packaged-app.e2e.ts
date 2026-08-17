@@ -98,12 +98,14 @@ const launchPackagedApp = async (pimsOrigin: string, docOrigin: string, userData
     };
   });
 
-  return { app, page: await openPimsTab(app, pimsOrigin), userDataDir: profileDir };
+  const pages = await openPimsTab(app, pimsOrigin);
+  return { app, page: pages.shell, tab: pages.tab, userDataDir: profileDir };
 };
 
 test.describe('packaged Yosemite Crew PIMS desktop app', () => {
   let app: ElectronApplication | undefined;
   let page: Page;
+  let tab: Page;
   let pimsServer: TestServer;
   let docServer: TestServer;
   let userDataDir: string | undefined;
@@ -114,6 +116,7 @@ test.describe('packaged Yosemite Crew PIMS desktop app', () => {
     const launched = await launchPackagedApp(pimsServer.origin, docServer.origin);
     app = launched.app;
     page = launched.page;
+    tab = launched.tab;
     userDataDir = launched.userDataDir;
   });
 
@@ -131,7 +134,7 @@ test.describe('packaged Yosemite Crew PIMS desktop app', () => {
     await page.getByRole('button', { name: /sign in/i }).click();
     await expect(page).toHaveURL(`${pimsServer.origin}/signin`);
     await expect(page).toHaveTitle(/Sign In/);
-    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
   });
 
   test('renders offline page when the sign-in page cannot load', async () => {

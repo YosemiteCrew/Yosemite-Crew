@@ -61,7 +61,8 @@ const launchApp = async (pimsOrigin: string, userDataDir?: string) => {
       YC_DESKTOP_USER_DATA_DIR: profileDir,
     },
   });
-  return { app, page: await openPimsTab(app, pimsOrigin), userDataDir: profileDir };
+  const pages = await openPimsTab(app, pimsOrigin);
+  return { app, page: pages.shell, tab: pages.tab, userDataDir: profileDir };
 };
 
 const evaluateYcDesktop = <T>(page: Page, method: string, ...args: unknown[]): Promise<T> =>
@@ -79,6 +80,7 @@ const evaluateYcDesktop = <T>(page: Page, method: string, ...args: unknown[]): P
 test.describe('compliance E2E', () => {
   let app: ElectronApplication | undefined;
   let page: Page;
+  let tab: Page;
   let pimsServer: TestServer;
   let userDataDir: string | undefined;
 
@@ -87,6 +89,7 @@ test.describe('compliance E2E', () => {
     const launched = await launchApp(pimsServer.origin);
     app = launched.app;
     page = launched.page;
+    tab = launched.tab;
     userDataDir = launched.userDataDir;
   });
 
@@ -99,7 +102,7 @@ test.describe('compliance E2E', () => {
   });
 
   test('register DEA number persists across relaunch', async () => {
-    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
     const registerResult = await evaluateYcDesktop<{ ok: boolean }>(
       page,
       'registerDeaNumber',
@@ -110,7 +113,7 @@ test.describe('compliance E2E', () => {
     const relaunched = await launchApp(pimsServer.origin, userDataDir);
     app = relaunched.app;
     page = relaunched.page;
-    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
     const getResult = await evaluateYcDesktop<{
       ok: boolean;
       deaNumber: string | null;
@@ -120,7 +123,7 @@ test.describe('compliance E2E', () => {
   });
 
   test('append audit record and verify audit trail integrity', async () => {
-    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
     const appendResult = await evaluateYcDesktop<{ ok: boolean }>(page, 'appendAuditEntry', {
       action: 'test-action',
       details: 'E2E test entry',
@@ -135,7 +138,7 @@ test.describe('compliance E2E', () => {
   });
 
   test('create backup zip in userData/backups/', async () => {
-    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
     const backupResult = await evaluateYcDesktop<{
       ok: boolean;
       path?: string;
@@ -151,7 +154,7 @@ test.describe('compliance E2E', () => {
   });
 
   test('backup with encryption has non-plaintext body', async () => {
-    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
     const backupResult = await evaluateYcDesktop<{
       ok: boolean;
       path?: string;
@@ -169,7 +172,7 @@ test.describe('compliance E2E', () => {
   });
 
   test('CS record via IPC export CSV with correct headers', async () => {
-    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
     const addResult = await evaluateYcDesktop<{ ok: boolean }>(
       page,
       'addControlledSubstanceRecord',

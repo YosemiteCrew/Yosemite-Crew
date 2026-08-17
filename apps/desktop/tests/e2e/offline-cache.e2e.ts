@@ -93,7 +93,8 @@ const launchApp = async (pimsOrigin: string, userDataDir?: string) => {
       YC_DESKTOP_USER_DATA_DIR: profileDir,
     },
   });
-  return { app, page: await openPimsTab(app, pimsOrigin), userDataDir: profileDir };
+  const pages = await openPimsTab(app, pimsOrigin);
+  return { app, page: pages.shell, tab: pages.tab, userDataDir: profileDir };
 };
 
 const navigateViaMain = async (app: ElectronApplication, url: string): Promise<void> => {
@@ -105,6 +106,7 @@ const navigateViaMain = async (app: ElectronApplication, url: string): Promise<v
 test.describe('offline-cache E2E', () => {
   let app: ElectronApplication | undefined;
   let page: Page;
+  let tab: Page;
   let pimsServer: TestServer;
   let userDataDir: string | undefined;
 
@@ -113,6 +115,7 @@ test.describe('offline-cache E2E', () => {
     const launched = await launchApp(pimsServer.origin);
     app = launched.app;
     page = launched.page;
+    tab = launched.tab;
     userDataDir = launched.userDataDir;
   });
 
@@ -125,40 +128,40 @@ test.describe('offline-cache E2E', () => {
   });
 
   test('navigating to a page creates a cache file on disk', async () => {
-    await page.getByRole('button', { name: /sign in/i }).click();
-    await page.getByRole('button', { name: /appt 1/i }).click();
-    await expect(page.getByRole('heading', { name: 'Appointment 1' })).toBeVisible();
+    await tab.getByRole('button', { name: /sign in/i }).click();
+    await tab.getByRole('button', { name: /appt 1/i }).click();
+    await expect(tab.getByRole('heading', { name: 'Appointment 1' })).toBeVisible();
 
     const cacheFile = path.join(userDataDir as string, 'offline-cache-v1.json');
     expect(fs.existsSync(cacheFile)).toBe(true);
   });
 
   test('cached page loads from cache when server is down', async () => {
-    await page.getByRole('button', { name: /sign in/i }).click();
-    await page.getByRole('button', { name: /appt 1/i }).click();
-    await expect(page.getByRole('heading', { name: 'Appointment 1' })).toBeVisible();
+    await tab.getByRole('button', { name: /sign in/i }).click();
+    await tab.getByRole('button', { name: /appt 1/i }).click();
+    await expect(tab.getByRole('heading', { name: 'Appointment 1' })).toBeVisible();
 
     await pimsServer.close();
     await navigateViaMain(app!, `${pimsServer.origin}/appointments/1`);
 
-    await expect(page.getByText('Appointment 1')).toBeVisible();
-    await expect(page.getByText('Fluffy')).toBeVisible();
+    await expect(tab.getByText('Appointment 1')).toBeVisible();
+    await expect(tab.getByText('Fluffy')).toBeVisible();
   });
 
   test('uncached URL shows offline page when server is down', async () => {
-    await page.getByRole('button', { name: /sign in/i }).click();
-    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+    await tab.getByRole('button', { name: /sign in/i }).click();
+    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
 
     await pimsServer.close();
     await navigateViaMain(app!, `${pimsServer.origin}/patients/999`);
 
-    await expect(page.getByRole('heading', { name: /offline/i })).toBeVisible();
+    await expect(tab.getByRole('heading', { name: /offline/i })).toBeVisible();
   });
 
   test('clearing cache empties the cache file', async () => {
-    await page.getByRole('button', { name: /sign in/i }).click();
-    await page.getByRole('button', { name: /appt 1/i }).click();
-    await expect(page.getByRole('heading', { name: 'Appointment 1' })).toBeVisible();
+    await tab.getByRole('button', { name: /sign in/i }).click();
+    await tab.getByRole('button', { name: /appt 1/i }).click();
+    await expect(tab.getByRole('heading', { name: 'Appointment 1' })).toBeVisible();
 
     await app?.evaluate(({ BrowserWindow }) => {
       BrowserWindow.getAllWindows()[0]?.webContents.executeJavaScript(
@@ -184,11 +187,11 @@ test.describe('offline-cache E2E', () => {
   });
 
   test('multiple cached pages are listed via IPC', async () => {
-    await page.getByRole('button', { name: /sign in/i }).click();
+    await tab.getByRole('button', { name: /sign in/i }).click();
 
     for (const p of PAGES) {
-      await page.goto(`${pimsServer.origin}${p.path}`);
-      await expect(page.getByRole('heading', { name: p.title })).toBeVisible();
+      await tab.goto(`${pimsServer.origin}${p.path}`);
+      await expect(tab.getByRole('heading', { name: p.title })).toBeVisible();
     }
 
     const response: unknown = await page.evaluate(() =>
@@ -214,9 +217,9 @@ test.describe('offline-cache E2E', () => {
   });
 
   test('cached content is accessible via IPC', async () => {
-    await page.getByRole('button', { name: /sign in/i }).click();
-    await page.getByRole('button', { name: /appt 1/i }).click();
-    await expect(page.getByRole('heading', { name: 'Appointment 1' })).toBeVisible();
+    await tab.getByRole('button', { name: /sign in/i }).click();
+    await tab.getByRole('button', { name: /appt 1/i }).click();
+    await expect(tab.getByRole('heading', { name: 'Appointment 1' })).toBeVisible();
     const cachedUrl = `${pimsServer.origin}/appointments/1`;
     const readCachedContent = (): Promise<unknown> =>
       page.evaluate(
