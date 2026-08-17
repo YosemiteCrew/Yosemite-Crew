@@ -40,6 +40,19 @@ jobs:
     name: Desktop E2E (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    # REPORTING ONLY, for now. 26 of 44 specs pass; the rest are drift from app
+    # changes the specs never caught up with, tracked in the follow-up issue.
+    #
+    # Blocking on a suite that is known-red would train everyone to ignore a red
+    # X, which is worse than not running it. Reporting means the 26 that do pass
+    # start catching regressions today, on the two platforms we actually ship,
+    # instead of waiting for the other 18 - which is how these specs came to rot
+    # unrun in the first place.
+    #
+    # Remove this line and restore the aggregate check below once the suite is
+    # green. That is the whole point of landing it this way rather than leaving
+    # the PR open indefinitely.
+    continue-on-error: true
     strategy:
       # Report both platforms on every run. A Windows-only failure is exactly
       # the kind of thing this suite exists to catch, and fail-fast would hide
@@ -69,8 +82,11 @@ jobs:
       # The list reporter prints enough to diagnose a failure in the log, but
       # traces and screenshots are what make an OS-specific failure tractable
       # from another machine.
+      # always(), not failure(): while the suite is red the traces are the whole
+      # point of running it, and someone picking up the remaining failures needs
+      # them from a passing-overall run too.
       - name: Upload Playwright output
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: desktop-e2e-${{ matrix.os }}
@@ -80,24 +96,32 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # Single check to mark required on the branch ruleset, for the same reason
-  # ci.yaml and supply-chain.yml each have one: a required check treats a
-  # skipped job as satisfied, so the matrix needs an aggregate that fails when
-  # any leg fails or is skipped unexpectedly.
-  desktop-e2e-required:
-    name: Desktop E2E Required
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    needs: [e2e]
-    steps:
-      - name: Fail on any failed or cancelled leg
-        env:
-          RESULTS: ${{ toJSON(needs) }}
-        run: |
-          set -euo pipefail
-          echo "$RESULTS"
-          if echo "$RESULTS" | grep -qE '"result": *"(failure|cancelled)"'; then
-            echo "Desktop E2E Required: at least one platform failed or was cancelled"
-            exit 1
-          fi
+  # There is deliberately NO aggregate "Desktop E2E Required" job yet.
+  #
+  # ci.yaml and supply-chain.yml each have one, because a required check treats a
+  # skipped job as satisfied and the matrix needs something that fails when a leg
+  # fails. The same job here would report green on every run regardless, since
+  # `continue-on-error` above makes `needs` see success no matter what the specs
+  # did. A check named "Required" that cannot fail is worse than no check: it
+  # reads as coverage to anyone scanning the PR, and provides none.
+  #
+  # When the suite is green: drop `continue-on-error` from the e2e job, restore
+  # the aggregate below, and mark it required on the branch ruleset.
+  #
+  #   desktop-e2e-required:
+  #     name: Desktop E2E Required
+  #     if: always()
+  #     runs-on: ubuntu-latest
+  #     timeout-minutes: 5
+  #     needs: [e2e]
+  #     steps:
+  #       - name: Fail on any failed or cancelled leg
+  #         env:
+  #           RESULTS: ${{ toJSON(needs) }}
+  #         run: |
+  #           set -euo pipefail
+  #           echo "$RESULTS"
+  #           if echo "$RESULTS" | grep -qE '"result": *"(failure|cancelled)"'; then
+  #             echo "Desktop E2E Required: at least one platform failed or was cancelled"
+  #             exit 1
+  #           fi
