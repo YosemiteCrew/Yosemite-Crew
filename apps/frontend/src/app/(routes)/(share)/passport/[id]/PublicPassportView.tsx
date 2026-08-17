@@ -250,7 +250,7 @@ const PublicPassportView = ({ passport }: { passport: PetPassportDTO }) => {
           }}
         >
           <span className="size-[5px] rounded-full bg-current" />
-          Verified record
+          <span>Verified record</span>
         </span>
       </div>
 

@@ -18,19 +18,21 @@ import {HistoricalUploadsSection} from '@/features/passport/components/Historica
 import type {Document as DocumentRecord} from '@/features/documents/types';
 import type {PetPassportDTO} from '@yosemite-crew/types';
 
+interface RecordSectionProps<T> {
+  readonly title: string;
+  readonly emptyText: string;
+  readonly items: T[];
+  readonly renderItem: (item: T, isLast: boolean) => React.ReactNode;
+  readonly styles: any;
+}
+
 function RecordSection<T extends {id: string}>({
   title,
   emptyText,
   items,
   renderItem,
   styles,
-}: {
-  title: string;
-  emptyText: string;
-  items: T[];
-  renderItem: (item: T, isLast: boolean) => React.ReactNode;
-  styles: any;
-}) {
+}: Readonly<RecordSectionProps<T>>) {
   const {t} = useTranslation();
   return (
     <SubcategoryAccordion
