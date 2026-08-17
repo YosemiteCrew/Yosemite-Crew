@@ -71,7 +71,7 @@ export const DestructiveConfirm: Story = {
     <div>
       <button
         type="button"
-        className="px-6 py-3 bg-text-error text-white rounded-2xl text-body-3-emphasis"
+        className="px-6 py-3 bg-[var(--danger-strong)] text-white rounded-2xl text-body-3-emphasis"
         onClick={() => {
           const el = document.getElementById('delete-demo-trigger') as HTMLButtonElement;
           el?.click();
@@ -105,7 +105,7 @@ export const DestructiveConfirm: Story = {
                   </button>
                   <button
                     type="button"
-                    className="px-6 py-3 bg-text-error text-white rounded-2xl text-body-3-emphasis"
+                    className="px-6 py-3 bg-[var(--danger-strong)] text-white rounded-2xl text-body-3-emphasis"
                     onClick={() => setOpen(false)}
                   >
                     Delete

@@ -651,6 +651,11 @@ textarea:focus-visible {
      for both themes satisfied the first and broke the second - #1657c9 is only
      2.23:1 on the dark page. Light: 6.48 white / 5.04-5.86 surface. */
   --blue-strong: var(--color-accent-deep);
+  /* The danger equivalent, and fixed in both themes for the same reason:
+     a destructive button is a FILL carrying white text, so it owes 4.5:1 to
+     the label. --danger is 4.14 under white and --danger-text inverts to a
+     light pink in dark, which is how a Delete confirm reached 2.25:1. */
+  --danger-strong: #a6271d;
   --pink: #ff90d4;
   --cyan: #5ce1e6;
   --cyan-text: #38ccd8;

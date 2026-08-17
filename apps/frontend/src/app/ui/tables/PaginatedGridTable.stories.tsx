@@ -36,7 +36,9 @@ const STATUS_STYLE: Record<Row['status'], CSSProperties> = {
     borderColor: 'var(--color-pill-warning-border)',
   },
   Expired: {
-    color: 'var(--color-danger-600)',
+    // --danger-text, which has a dark value; --color-danger-600 is the FILL and
+    // read 3.43:1 on its own tint in dark.
+    color: 'var(--danger-text)',
     backgroundColor: 'var(--color-danger-100)',
     borderColor: 'var(--color-danger-400)',
   },
