@@ -4,7 +4,12 @@ import {
   QolAssessmentService,
   QolAssessmentError,
 } from "src/services/qol-assessment.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import {
+  createClinicalHandlers,
+  orgParams,
+  patientScopeQuery,
+  uuid,
+} from "src/controllers/web/shared/clinical-controller.helpers";
 
 const HhScore = z.number().int().min(1).max(10);
 
@@ -27,9 +32,7 @@ const CreateBodySchema = z.object({
 });
 
 const UpdateBodySchema = CreateBodySchema.omit({ patientId: true }).partial();
-const ListQuerySchema = z.object({
-  patientId: z.string().uuid().optional(),
-  encounterId: z.string().uuid().optional(),
+const ListQuerySchema = patientScopeQuery.extend({
   ownerAssessed: z
     .string()
     .optional()
@@ -37,106 +40,65 @@ const ListQuerySchema = z.object({
       v === "true" ? true : v === "false" ? false : undefined,
     ),
 });
-const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });
-const AssessmentParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  assessmentId: z.string().uuid(),
-});
+const AssessmentParamsSchema = orgParams.extend({ assessmentId: uuid() });
 
-const handleError = (
-  err: unknown,
-  res: Response,
-  fallback: string,
-): Response => {
-  if (err instanceof QolAssessmentError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  return res.status(500).json({ message: fallback });
-};
+const { handleError, handler } = createClinicalHandlers(QolAssessmentError);
 
 export const QolAssessmentController = {
-  list: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const query = ListQuerySchema.safeParse(req.query);
-      if (!query.success)
-        return res.status(400).json({ message: query.error.message });
-      const records = await QolAssessmentService.list({
-        organisationId: params.data.organisationId,
-        patientId: query.data.patientId,
-        encounterId: query.data.encounterId,
-        ownerAssessed: query.data.ownerAssessed,
-      });
-      return res.status(200).json(records);
-    } catch (err) {
-      return handleError(err, res, "Failed to list QoL assessments");
-    }
-  },
+  list: handler({
+    params: orgParams,
+    query: ListQuerySchema,
+    fallback: "Failed to list QoL assessments",
+    run: ({ params, input }) =>
+      QolAssessmentService.list({
+        organisationId: params.organisationId,
+        patientId: input.patientId,
+        encounterId: input.encounterId,
+        ownerAssessed: input.ownerAssessed,
+      }),
+  }),
 
-  create: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = CreateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const record = await QolAssessmentService.create({
-        organisationId: params.data.organisationId,
-        assessedBy: typedReq.userId ?? undefined,
-        ...body.data,
-        assessedAt: new Date(body.data.assessedAt),
-      });
-      return res.status(201).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to create QoL assessment");
-    }
-  },
+  create: handler({
+    params: orgParams,
+    body: CreateBodySchema,
+    status: 201,
+    fallback: "Failed to create QoL assessment",
+    run: ({ params, input, userId }) =>
+      QolAssessmentService.create({
+        organisationId: params.organisationId,
+        assessedBy: userId,
+        ...input,
+        assessedAt: new Date(input.assessedAt),
+      }),
+  }),
 
-  get: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = AssessmentParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const record = await QolAssessmentService.get(
-        params.data.assessmentId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to get QoL assessment");
-    }
-  },
+  get: handler({
+    params: AssessmentParamsSchema,
+    fallback: "Failed to get QoL assessment",
+    run: ({ params }) =>
+      QolAssessmentService.get(params.assessmentId, params.organisationId),
+  }),
 
-  update: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = AssessmentParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = UpdateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const { assessedAt, ...rest } = body.data;
-      const record = await QolAssessmentService.update(
-        params.data.assessmentId,
-        params.data.organisationId,
+  update: handler({
+    params: AssessmentParamsSchema,
+    body: UpdateBodySchema,
+    fallback: "Failed to update QoL assessment",
+    run: ({ params, input }) => {
+      const { assessedAt, ...rest } = input;
+      return QolAssessmentService.update(
+        params.assessmentId,
+        params.organisationId,
         {
           ...rest,
           ...(assessedAt ? { assessedAt: new Date(assessedAt) } : {}),
         },
       );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to update QoL assessment");
-    }
-  },
+    },
+  }),
 
   trend: async (req: Request, res: Response): Promise<Response> => {
     try {
-      const params = OrgParamsSchema.safeParse(req.params);
+      const params = orgParams.safeParse(req.params);
       if (!params.success)
         return res.status(400).json({ message: "Invalid route parameters" });
       const patientId = req.query.patientId as string | undefined;
@@ -156,18 +118,11 @@ export const QolAssessmentController = {
     }
   },
 
-  delete: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = AssessmentParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      await QolAssessmentService.delete(
-        params.data.assessmentId,
-        params.data.organisationId,
-      );
-      return res.status(204).send();
-    } catch (err) {
-      return handleError(err, res, "Failed to delete QoL assessment");
-    }
-  },
+  delete: handler({
+    params: AssessmentParamsSchema,
+    status: 204,
+    fallback: "Failed to delete QoL assessment",
+    run: ({ params }) =>
+      QolAssessmentService.delete(params.assessmentId, params.organisationId),
+  }),
 };

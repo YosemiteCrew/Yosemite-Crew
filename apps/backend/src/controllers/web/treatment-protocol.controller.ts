@@ -1,10 +1,13 @@
-import type { Request, Response } from "express";
 import { z } from "zod";
 import {
   TreatmentProtocolService,
   TreatmentProtocolError,
 } from "src/services/treatment-protocol.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import {
+  createClinicalHandlers,
+  orgParams,
+  uuid,
+} from "src/controllers/web/shared/clinical-controller.helpers";
 
 const SpeciesEnum = z.enum(["CANINE", "FELINE", "AVIAN", "EXOTIC", "ALL"]);
 const CategoryEnum = z.enum([
@@ -70,173 +73,110 @@ const ListQuerySchema = z.object({
     ),
 });
 
-const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });
-const ProtocolParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  protocolId: z.string().uuid(),
-});
-const StepParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  protocolId: z.string().uuid(),
-  stepId: z.string().uuid(),
+const ProtocolParamsSchema = orgParams.extend({ protocolId: uuid() });
+const StepParamsSchema = orgParams.extend({
+  protocolId: uuid(),
+  stepId: uuid(),
 });
 
-const handleError = (
-  err: unknown,
-  res: Response,
-  fallback: string,
-): Response => {
-  if (err instanceof TreatmentProtocolError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  return res.status(500).json({ message: fallback });
-};
+const { handler } = createClinicalHandlers(TreatmentProtocolError);
 
 export const TreatmentProtocolController = {
-  list: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const query = ListQuerySchema.safeParse(req.query);
-      if (!query.success)
-        return res.status(400).json({ message: "Invalid query parameters" });
-      const protocols = await TreatmentProtocolService.list({
-        organisationId: params.data.organisationId,
-        ...query.data,
-      });
-      return res.status(200).json(protocols);
-    } catch (err) {
-      return handleError(err, res, "Failed to list protocols");
-    }
-  },
+  list: handler({
+    params: orgParams,
+    query: ListQuerySchema,
+    invalidInputMessage: "Invalid query parameters",
+    fallback: "Failed to list protocols",
+    run: ({ params, input }) =>
+      TreatmentProtocolService.list({
+        organisationId: params.organisationId,
+        ...input,
+      }),
+  }),
 
-  create: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = CreateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const protocol = await TreatmentProtocolService.create({
-        organisationId: params.data.organisationId,
-        ...body.data,
-        createdById: typedReq.userId ?? undefined,
-      });
-      return res.status(201).json(protocol);
-    } catch (err) {
-      return handleError(err, res, "Failed to create protocol");
-    }
-  },
+  create: handler({
+    params: orgParams,
+    body: CreateBodySchema,
+    status: 201,
+    fallback: "Failed to create protocol",
+    run: ({ params, input, userId }) =>
+      TreatmentProtocolService.create({
+        organisationId: params.organisationId,
+        ...input,
+        createdById: userId,
+      }),
+  }),
 
-  get: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = ProtocolParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const protocol = await TreatmentProtocolService.get(
-        params.data.protocolId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(protocol);
-    } catch (err) {
-      return handleError(err, res, "Failed to get protocol");
-    }
-  },
+  get: handler({
+    params: ProtocolParamsSchema,
+    fallback: "Failed to get protocol",
+    run: ({ params }) =>
+      TreatmentProtocolService.get(params.protocolId, params.organisationId),
+  }),
 
-  update: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = ProtocolParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = UpdateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const protocol = await TreatmentProtocolService.update(
-        params.data.protocolId,
-        params.data.organisationId,
-        body.data,
-      );
-      return res.status(200).json(protocol);
-    } catch (err) {
-      return handleError(err, res, "Failed to update protocol");
-    }
-  },
+  update: handler({
+    params: ProtocolParamsSchema,
+    body: UpdateBodySchema,
+    fallback: "Failed to update protocol",
+    run: ({ params, input }) =>
+      TreatmentProtocolService.update(
+        params.protocolId,
+        params.organisationId,
+        input,
+      ),
+  }),
 
-  archive: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = ProtocolParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      await TreatmentProtocolService.archive(
-        params.data.protocolId,
-        params.data.organisationId,
-      );
-      return res.status(204).send();
-    } catch (err) {
-      return handleError(err, res, "Failed to archive protocol");
-    }
-  },
+  archive: handler({
+    params: ProtocolParamsSchema,
+    status: 204,
+    fallback: "Failed to archive protocol",
+    run: ({ params }) =>
+      TreatmentProtocolService.archive(
+        params.protocolId,
+        params.organisationId,
+      ),
+  }),
 
-  addStep: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = ProtocolParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = StepSchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const step = await TreatmentProtocolService.addStep(
-        params.data.protocolId,
-        params.data.organisationId,
-        body.data,
-      );
-      return res.status(201).json(step);
-    } catch (err) {
-      return handleError(err, res, "Failed to add step");
-    }
-  },
+  addStep: handler({
+    params: ProtocolParamsSchema,
+    body: StepSchema,
+    status: 201,
+    fallback: "Failed to add step",
+    run: ({ params, input }) =>
+      TreatmentProtocolService.addStep(
+        params.protocolId,
+        params.organisationId,
+        input,
+      ),
+  }),
 
-  removeStep: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = StepParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      await TreatmentProtocolService.removeStep(
-        params.data.stepId,
-        params.data.protocolId,
-        params.data.organisationId,
-      );
-      return res.status(204).send();
-    } catch (err) {
-      return handleError(err, res, "Failed to remove step");
-    }
-  },
+  removeStep: handler({
+    params: StepParamsSchema,
+    status: 204,
+    fallback: "Failed to remove step",
+    run: ({ params }) =>
+      TreatmentProtocolService.removeStep(
+        params.stepId,
+        params.protocolId,
+        params.organisationId,
+      ),
+  }),
 
-  apply: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = ProtocolParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = ApplyBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const result = await TreatmentProtocolService.apply({
-        protocolId: params.data.protocolId,
-        encounterId: body.data.encounterId,
-        patientId: body.data.patientId,
-        organisationId: params.data.organisationId,
-        appliedById: typedReq.userId ?? undefined,
-        appointmentDate: body.data.appointmentDate
-          ? new Date(body.data.appointmentDate)
+  apply: handler({
+    params: ProtocolParamsSchema,
+    body: ApplyBodySchema,
+    status: 201,
+    fallback: "Failed to apply protocol",
+    run: ({ params, input, userId }) =>
+      TreatmentProtocolService.apply({
+        protocolId: params.protocolId,
+        encounterId: input.encounterId,
+        patientId: input.patientId,
+        organisationId: params.organisationId,
+        appliedById: userId,
+        appointmentDate: input.appointmentDate
+          ? new Date(input.appointmentDate)
           : undefined,
-      });
-      return res.status(201).json(result);
-    } catch (err) {
-      return handleError(err, res, "Failed to apply protocol");
-    }
-  },
+      }),
+  }),
 };

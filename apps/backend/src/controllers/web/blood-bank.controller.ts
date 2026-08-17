@@ -1,10 +1,13 @@
-import type { Request, Response } from "express";
 import { z } from "zod";
 import {
   BloodBankService,
   BloodBankError,
 } from "src/services/blood-bank.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import {
+  createClinicalHandlers,
+  orgParams,
+  uuid,
+} from "src/controllers/web/shared/clinical-controller.helpers";
 
 const BloodTypeEnum = z.enum([
   "DEA_1_POSITIVE",
@@ -80,191 +83,111 @@ const ListDonationsQuerySchema = z.object({
   status: DonationStatusEnum.optional(),
 });
 
-const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });
-const DonorParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  donorId: z.string().uuid(),
-});
-const DonationParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  donationId: z.string().uuid(),
-});
+const DonorParamsSchema = orgParams.extend({ donorId: uuid() });
+const DonationParamsSchema = orgParams.extend({ donationId: uuid() });
 
-const handleError = (
-  err: unknown,
-  res: Response,
-  fallback: string,
-): Response => {
-  if (err instanceof BloodBankError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  return res.status(500).json({ message: fallback });
-};
+const { handler } = createClinicalHandlers(BloodBankError);
 
 export const BloodBankController = {
   // Donors
-  listDonors: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const query = ListDonorsQuerySchema.safeParse(req.query);
-      if (!query.success)
-        return res.status(400).json({ message: query.error.message });
-      const donors = await BloodBankService.listDonors({
-        organisationId: params.data.organisationId,
-        bloodType: query.data.bloodType,
-        isActive: query.data.isActive,
-      });
-      return res.status(200).json(donors);
-    } catch (err) {
-      return handleError(err, res, "Failed to list blood donors");
-    }
-  },
+  listDonors: handler({
+    params: orgParams,
+    query: ListDonorsQuerySchema,
+    fallback: "Failed to list blood donors",
+    run: ({ params, input }) =>
+      BloodBankService.listDonors({
+        organisationId: params.organisationId,
+        bloodType: input.bloodType,
+        isActive: input.isActive,
+      }),
+  }),
 
-  registerDonor: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = RegisterDonorSchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const donor = await BloodBankService.registerDonor({
-        organisationId: params.data.organisationId,
-        registeredBy: typedReq.userId ?? undefined,
-        ...body.data,
-        lastScreeningAt: body.data.lastScreeningAt
-          ? new Date(body.data.lastScreeningAt)
+  registerDonor: handler({
+    params: orgParams,
+    body: RegisterDonorSchema,
+    status: 201,
+    fallback: "Failed to register blood donor",
+    run: ({ params, input, userId }) =>
+      BloodBankService.registerDonor({
+        organisationId: params.organisationId,
+        registeredBy: userId,
+        ...input,
+        lastScreeningAt: input.lastScreeningAt
+          ? new Date(input.lastScreeningAt)
           : undefined,
-      });
-      return res.status(201).json(donor);
-    } catch (err) {
-      return handleError(err, res, "Failed to register blood donor");
-    }
-  },
+      }),
+  }),
 
-  getDonor: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = DonorParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const donor = await BloodBankService.getDonor(
-        params.data.donorId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(donor);
-    } catch (err) {
-      return handleError(err, res, "Failed to get blood donor");
-    }
-  },
+  getDonor: handler({
+    params: DonorParamsSchema,
+    fallback: "Failed to get blood donor",
+    run: ({ params }) =>
+      BloodBankService.getDonor(params.donorId, params.organisationId),
+  }),
 
-  updateDonor: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = DonorParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = UpdateDonorSchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const donor = await BloodBankService.updateDonor(
-        params.data.donorId,
-        params.data.organisationId,
-        {
-          ...body.data,
-          lastScreeningAt: body.data.lastScreeningAt
-            ? new Date(body.data.lastScreeningAt)
-            : undefined,
-          lastDonationAt: body.data.lastDonationAt
-            ? new Date(body.data.lastDonationAt)
-            : undefined,
-          nextEligibleAt: body.data.nextEligibleAt
-            ? new Date(body.data.nextEligibleAt)
-            : undefined,
-        },
-      );
-      return res.status(200).json(donor);
-    } catch (err) {
-      return handleError(err, res, "Failed to update blood donor");
-    }
-  },
+  updateDonor: handler({
+    params: DonorParamsSchema,
+    body: UpdateDonorSchema,
+    fallback: "Failed to update blood donor",
+    run: ({ params, input }) =>
+      BloodBankService.updateDonor(params.donorId, params.organisationId, {
+        ...input,
+        lastScreeningAt: input.lastScreeningAt
+          ? new Date(input.lastScreeningAt)
+          : undefined,
+        lastDonationAt: input.lastDonationAt
+          ? new Date(input.lastDonationAt)
+          : undefined,
+        nextEligibleAt: input.nextEligibleAt
+          ? new Date(input.nextEligibleAt)
+          : undefined,
+      }),
+  }),
 
   // Donations / collections
-  listDonations: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const query = ListDonationsQuerySchema.safeParse(req.query);
-      if (!query.success)
-        return res.status(400).json({ message: query.error.message });
-      const donations = await BloodBankService.listDonations({
-        organisationId: params.data.organisationId,
-        donorId: query.data.donorId,
-        status: query.data.status,
-      });
-      return res.status(200).json(donations);
-    } catch (err) {
-      return handleError(err, res, "Failed to list blood donations");
-    }
-  },
+  listDonations: handler({
+    params: orgParams,
+    query: ListDonationsQuerySchema,
+    fallback: "Failed to list blood donations",
+    run: ({ params, input }) =>
+      BloodBankService.listDonations({
+        organisationId: params.organisationId,
+        donorId: input.donorId,
+        status: input.status,
+      }),
+  }),
 
-  recordDonation: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = RecordDonationSchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const donation = await BloodBankService.recordDonation({
-        organisationId: params.data.organisationId,
-        collectedBy: typedReq.userId ?? undefined,
-        ...body.data,
-        collectedAt: new Date(body.data.collectedAt),
-        expiresAt: body.data.expiresAt
-          ? new Date(body.data.expiresAt)
-          : undefined,
-      });
-      return res.status(201).json(donation);
-    } catch (err) {
-      return handleError(err, res, "Failed to record blood donation");
-    }
-  },
+  recordDonation: handler({
+    params: orgParams,
+    body: RecordDonationSchema,
+    status: 201,
+    fallback: "Failed to record blood donation",
+    run: ({ params, input, userId }) =>
+      BloodBankService.recordDonation({
+        organisationId: params.organisationId,
+        collectedBy: userId,
+        ...input,
+        collectedAt: new Date(input.collectedAt),
+        expiresAt: input.expiresAt ? new Date(input.expiresAt) : undefined,
+      }),
+  }),
 
-  getDonation: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = DonationParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const donation = await BloodBankService.getDonation(
-        params.data.donationId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(donation);
-    } catch (err) {
-      return handleError(err, res, "Failed to get blood donation");
-    }
-  },
+  getDonation: handler({
+    params: DonationParamsSchema,
+    fallback: "Failed to get blood donation",
+    run: ({ params }) =>
+      BloodBankService.getDonation(params.donationId, params.organisationId),
+  }),
 
-  updateDonation: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = DonationParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = UpdateDonationSchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const donation = await BloodBankService.updateDonation(
-        params.data.donationId,
-        params.data.organisationId,
-        body.data,
-      );
-      return res.status(200).json(donation);
-    } catch (err) {
-      return handleError(err, res, "Failed to update blood donation");
-    }
-  },
+  updateDonation: handler({
+    params: DonationParamsSchema,
+    body: UpdateDonationSchema,
+    fallback: "Failed to update blood donation",
+    run: ({ params, input }) =>
+      BloodBankService.updateDonation(
+        params.donationId,
+        params.organisationId,
+        input,
+      ),
+  }),
 };

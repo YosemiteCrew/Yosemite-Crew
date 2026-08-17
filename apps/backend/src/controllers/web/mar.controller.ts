@@ -1,7 +1,12 @@
-import type { Request, Response } from "express";
 import { z } from "zod";
 import { MARService, MARError } from "src/services/mar.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import {
+  createClinicalHandlers,
+  dateRange,
+  orgParams,
+  patientScopeQuery,
+  uuid,
+} from "src/controllers/web/shared/clinical-controller.helpers";
 
 const MARStatusEnum = z.enum([
   "SCHEDULED",
@@ -30,155 +35,89 @@ const HoldBodySchema = z.object({
   notes: z.string().max(2000).optional(),
 });
 
-const ListQuerySchema = z.object({
-  patientId: z.string().uuid().optional(),
-  encounterId: z.string().uuid().optional(),
+const ListQuerySchema = patientScopeQuery.extend({
   status: MARStatusEnum.optional(),
   from: z.string().datetime().optional(),
   to: z.string().datetime().optional(),
 });
 
-const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });
-const EntryParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  marEntryId: z.string().uuid(),
-});
+const EntryParamsSchema = orgParams.extend({ marEntryId: uuid() });
 
-const handleError = (
-  err: unknown,
-  res: Response,
-  fallback: string,
-): Response => {
-  if (err instanceof MARError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  return res.status(500).json({ message: fallback });
-};
+const { handler } = createClinicalHandlers(MARError);
 
 export const MARController = {
-  list: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const query = ListQuerySchema.safeParse(req.query);
-      if (!query.success)
-        return res.status(400).json({ message: query.error.message });
-      const { from, to, ...rest } = query.data;
-      const entries = await MARService.list({
-        organisationId: params.data.organisationId,
-        ...(from ? { from: new Date(from) } : {}),
-        ...(to ? { to: new Date(to) } : {}),
+  list: handler({
+    params: orgParams,
+    query: ListQuerySchema,
+    fallback: "Failed to list MAR entries",
+    run: ({ params, input }) => {
+      const { from, to, ...rest } = input;
+      return MARService.list({
+        organisationId: params.organisationId,
+        ...dateRange(from, to),
         ...rest,
       });
-      return res.status(200).json(entries);
-    } catch (err) {
-      return handleError(err, res, "Failed to list MAR entries");
-    }
-  },
+    },
+  }),
 
-  create: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = CreateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const entry = await MARService.create({
-        organisationId: params.data.organisationId,
-        createdBy: typedReq.userId ?? undefined,
-        ...body.data,
-        scheduledAt: new Date(body.data.scheduledAt),
+  create: handler({
+    params: orgParams,
+    body: CreateBodySchema,
+    status: 201,
+    fallback: "Failed to create MAR entry",
+    run: ({ params, input, userId }) =>
+      MARService.create({
+        organisationId: params.organisationId,
+        createdBy: userId,
+        ...input,
+        scheduledAt: new Date(input.scheduledAt),
+      }),
+  }),
+
+  get: handler({
+    params: EntryParamsSchema,
+    fallback: "Failed to get MAR entry",
+    run: ({ params }) =>
+      MARService.get(params.marEntryId, params.organisationId),
+  }),
+
+  administer: handler({
+    params: EntryParamsSchema,
+    body: AdministerBodySchema,
+    fallback: "Failed to administer MAR entry",
+    run: ({ params, input, userId }) => {
+      const { administeredAt, ...rest } = input;
+      return MARService.administer(params.marEntryId, params.organisationId, {
+        ...rest,
+        administeredBy: userId,
+        ...(administeredAt ? { administeredAt: new Date(administeredAt) } : {}),
       });
-      return res.status(201).json(entry);
-    } catch (err) {
-      return handleError(err, res, "Failed to create MAR entry");
-    }
-  },
+    },
+  }),
 
-  get: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = EntryParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const entry = await MARService.get(
-        params.data.marEntryId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(entry);
-    } catch (err) {
-      return handleError(err, res, "Failed to get MAR entry");
-    }
-  },
+  hold: handler({
+    params: EntryParamsSchema,
+    body: HoldBodySchema,
+    fallback: "Failed to hold MAR entry",
+    run: ({ params, input, userId }) =>
+      MARService.hold(
+        params.marEntryId,
+        params.organisationId,
+        input.notes,
+        userId,
+      ),
+  }),
 
-  administer: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = EntryParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = AdministerBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const { administeredAt, ...rest } = body.data;
-      const entry = await MARService.administer(
-        params.data.marEntryId,
-        params.data.organisationId,
-        {
-          ...rest,
-          administeredBy: typedReq.userId ?? undefined,
-          ...(administeredAt
-            ? { administeredAt: new Date(administeredAt) }
-            : {}),
-        },
-      );
-      return res.status(200).json(entry);
-    } catch (err) {
-      return handleError(err, res, "Failed to administer MAR entry");
-    }
-  },
-
-  hold: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = EntryParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = HoldBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const entry = await MARService.hold(
-        params.data.marEntryId,
-        params.data.organisationId,
-        body.data.notes,
-        typedReq.userId ?? undefined,
-      );
-      return res.status(200).json(entry);
-    } catch (err) {
-      return handleError(err, res, "Failed to hold MAR entry");
-    }
-  },
-
-  markMissed: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = EntryParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = HoldBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const entry = await MARService.markMissed(
-        params.data.marEntryId,
-        params.data.organisationId,
-        body.data.notes,
-        typedReq.userId ?? undefined,
-      );
-      return res.status(200).json(entry);
-    } catch (err) {
-      return handleError(err, res, "Failed to mark MAR entry as missed");
-    }
-  },
+  markMissed: handler({
+    params: EntryParamsSchema,
+    body: HoldBodySchema,
+    fallback: "Failed to mark MAR entry as missed",
+    run: ({ params, input, userId }) =>
+      MARService.markMissed(
+        params.marEntryId,
+        params.organisationId,
+        input.notes,
+        userId,
+      ),
+  }),
 };

@@ -1,10 +1,13 @@
-import type { Request, Response } from "express";
 import { z } from "zod";
 import {
   PreventiveCarePlanService,
   PreventiveCarePlanError,
 } from "src/services/preventive-care-plan.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import {
+  createClinicalHandlers,
+  orgParams,
+  uuid,
+} from "src/controllers/web/shared/clinical-controller.helpers";
 
 const FrequencyEnum = z.enum([
   "WEEKLY",
@@ -48,151 +51,93 @@ const ListQuerySchema = z.object({
   status: StatusEnum.optional(),
 });
 
-const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });
-const PlanParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  planId: z.string().uuid(),
-});
-const ItemParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  planId: z.string().uuid(),
-  itemId: z.string().uuid(),
-});
+const PlanParamsSchema = orgParams.extend({ planId: uuid() });
+const ItemParamsSchema = orgParams.extend({ planId: uuid(), itemId: uuid() });
 
-const handleError = (
-  err: unknown,
-  res: Response,
-  fallback: string,
-): Response => {
-  if (err instanceof PreventiveCarePlanError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  return res.status(500).json({ message: fallback });
-};
+const { handler } = createClinicalHandlers(PreventiveCarePlanError);
 
 export const PreventiveCarePlanController = {
-  list: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const query = ListQuerySchema.safeParse(req.query);
-      if (!query.success)
-        return res.status(400).json({ message: query.error.message });
-      const plans = await PreventiveCarePlanService.list({
-        organisationId: params.data.organisationId,
-        ...query.data,
-      });
-      return res.status(200).json(plans);
-    } catch (err) {
-      return handleError(err, res, "Failed to list care plans");
-    }
-  },
+  list: handler({
+    params: orgParams,
+    query: ListQuerySchema,
+    fallback: "Failed to list care plans",
+    run: ({ params, input }) =>
+      PreventiveCarePlanService.list({
+        organisationId: params.organisationId,
+        ...input,
+      }),
+  }),
 
-  create: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = CreateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const { items, ...rest } = body.data;
-      const plan = await PreventiveCarePlanService.create({
-        organisationId: params.data.organisationId,
-        createdBy: typedReq.userId ?? undefined,
+  create: handler({
+    params: orgParams,
+    body: CreateBodySchema,
+    status: 201,
+    fallback: "Failed to create care plan",
+    run: ({ params, input, userId }) => {
+      const { items, ...rest } = input;
+      return PreventiveCarePlanService.create({
+        organisationId: params.organisationId,
+        createdBy: userId,
         ...rest,
         items: items?.map((i) => ({
           ...i,
           nextDueAt: i.nextDueAt ? new Date(i.nextDueAt) : undefined,
         })),
       });
-      return res.status(201).json(plan);
-    } catch (err) {
-      return handleError(err, res, "Failed to create care plan");
-    }
-  },
+    },
+  }),
 
-  get: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = PlanParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const plan = await PreventiveCarePlanService.get(
-        params.data.planId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(plan);
-    } catch (err) {
-      return handleError(err, res, "Failed to get care plan");
-    }
-  },
+  get: handler({
+    params: PlanParamsSchema,
+    fallback: "Failed to get care plan",
+    run: ({ params }) =>
+      PreventiveCarePlanService.get(params.planId, params.organisationId),
+  }),
 
-  update: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = PlanParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = UpdatePlanBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const plan = await PreventiveCarePlanService.update(
-        params.data.planId,
-        params.data.organisationId,
-        body.data,
-        typedReq.userId ?? undefined,
-      );
-      return res.status(200).json(plan);
-    } catch (err) {
-      return handleError(err, res, "Failed to update care plan");
-    }
-  },
+  update: handler({
+    params: PlanParamsSchema,
+    body: UpdatePlanBodySchema,
+    fallback: "Failed to update care plan",
+    run: ({ params, input, userId }) =>
+      PreventiveCarePlanService.update(
+        params.planId,
+        params.organisationId,
+        input,
+        userId,
+      ),
+  }),
 
-  addItem: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = PlanParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = ItemSchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const { nextDueAt, ...rest } = body.data;
-      const item = await PreventiveCarePlanService.addItem(
-        params.data.planId,
-        params.data.organisationId,
+  addItem: handler({
+    params: PlanParamsSchema,
+    body: ItemSchema,
+    status: 201,
+    fallback: "Failed to add care plan item",
+    run: ({ params, input }) => {
+      const { nextDueAt, ...rest } = input;
+      return PreventiveCarePlanService.addItem(
+        params.planId,
+        params.organisationId,
         { ...rest, nextDueAt: nextDueAt ? new Date(nextDueAt) : undefined },
       );
-      return res.status(201).json(item);
-    } catch (err) {
-      return handleError(err, res, "Failed to add care plan item");
-    }
-  },
+    },
+  }),
 
-  completeItem: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = ItemParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = CompleteItemBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const { completedAt, nextDueAt, ...rest } = body.data;
-      const item = await PreventiveCarePlanService.completeItem(
-        params.data.itemId,
-        params.data.organisationId,
+  completeItem: handler({
+    params: ItemParamsSchema,
+    body: CompleteItemBodySchema,
+    fallback: "Failed to complete care plan item",
+    run: ({ params, input, userId }) => {
+      const { completedAt, nextDueAt, ...rest } = input;
+      return PreventiveCarePlanService.completeItem(
+        params.itemId,
+        params.organisationId,
         {
           ...rest,
           completedAt: completedAt ? new Date(completedAt) : undefined,
           nextDueAt: nextDueAt ? new Date(nextDueAt) : undefined,
         },
-        typedReq.userId ?? undefined,
+        userId,
       );
-      return res.status(200).json(item);
-    } catch (err) {
-      return handleError(err, res, "Failed to complete care plan item");
-    }
-  },
+    },
+  }),
 };

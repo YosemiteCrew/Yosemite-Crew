@@ -1,10 +1,14 @@
-import type { Request, Response } from "express";
 import { z } from "zod";
 import {
   SurgicalProcedureService,
   SurgicalProcedureError,
 } from "src/services/surgical-procedure.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import {
+  createClinicalHandlers,
+  orgParams,
+  patientScopeQuery,
+  uuid,
+} from "src/controllers/web/shared/clinical-controller.helpers";
 
 const OutcomeEnum = z.enum(["SUCCESS", "COMPLICATION", "ABANDONED", "PENDING"]);
 const AnesthesiaEnum = z.enum([
@@ -39,28 +43,11 @@ const UpdateBodySchema = CreateBodySchema.omit({
   encounterId: true,
 });
 
-const ListQuerySchema = z.object({
-  patientId: z.string().uuid().optional(),
-  encounterId: z.string().uuid().optional(),
+const ListQuerySchema = patientScopeQuery.extend({
   outcome: OutcomeEnum.optional(),
 });
 
-const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });
-const ProcedureParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  procedureId: z.string().uuid(),
-});
-
-const handleError = (
-  err: unknown,
-  res: Response,
-  fallback: string,
-): Response => {
-  if (err instanceof SurgicalProcedureError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  return res.status(500).json({ message: fallback });
-};
+const ProcedureParamsSchema = orgParams.extend({ procedureId: uuid() });
 
 const parseDates = (data: Record<string, unknown>) => {
   const out = { ...data };
@@ -70,78 +57,50 @@ const parseDates = (data: Record<string, unknown>) => {
   return out;
 };
 
+const { handler } = createClinicalHandlers(SurgicalProcedureError);
+
 export const SurgicalProcedureController = {
-  list: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const query = ListQuerySchema.safeParse(req.query);
-      if (!query.success)
-        return res.status(400).json({ message: query.error.message });
-      const records = await SurgicalProcedureService.list({
-        organisationId: params.data.organisationId,
-        ...query.data,
-      });
-      return res.status(200).json(records);
-    } catch (err) {
-      return handleError(err, res, "Failed to list surgical procedures");
-    }
-  },
+  list: handler({
+    params: orgParams,
+    query: ListQuerySchema,
+    fallback: "Failed to list surgical procedures",
+    run: ({ params, input }) =>
+      SurgicalProcedureService.list({
+        organisationId: params.organisationId,
+        ...input,
+      }),
+  }),
 
-  create: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = CreateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const record = await SurgicalProcedureService.create({
-        organisationId: params.data.organisationId,
-        performedBy: typedReq.userId ?? undefined,
-        ...parseDates(body.data),
-      } as Parameters<typeof SurgicalProcedureService.create>[0]);
-      return res.status(201).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to record surgical procedure");
-    }
-  },
+  create: handler({
+    params: orgParams,
+    body: CreateBodySchema,
+    status: 201,
+    fallback: "Failed to record surgical procedure",
+    run: ({ params, input, userId }) =>
+      SurgicalProcedureService.create({
+        organisationId: params.organisationId,
+        performedBy: userId,
+        ...parseDates(input),
+      } as Parameters<typeof SurgicalProcedureService.create>[0]),
+  }),
 
-  get: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = ProcedureParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const record = await SurgicalProcedureService.get(
-        params.data.procedureId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to get surgical procedure");
-    }
-  },
+  get: handler({
+    params: ProcedureParamsSchema,
+    fallback: "Failed to get surgical procedure",
+    run: ({ params }) =>
+      SurgicalProcedureService.get(params.procedureId, params.organisationId),
+  }),
 
-  update: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = ProcedureParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = UpdateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const record = await SurgicalProcedureService.update(
-        params.data.procedureId,
-        params.data.organisationId,
-        parseDates(body.data),
-        typedReq.userId ?? undefined,
-      );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to update surgical procedure");
-    }
-  },
+  update: handler({
+    params: ProcedureParamsSchema,
+    body: UpdateBodySchema,
+    fallback: "Failed to update surgical procedure",
+    run: ({ params, input, userId }) =>
+      SurgicalProcedureService.update(
+        params.procedureId,
+        params.organisationId,
+        parseDates(input),
+        userId,
+      ),
+  }),
 };

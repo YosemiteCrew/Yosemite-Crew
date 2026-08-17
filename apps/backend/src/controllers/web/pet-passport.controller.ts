@@ -14,6 +14,10 @@ import {
   PetClinicalRecordError,
 } from "src/services/pet-clinical-records.service";
 import { OrgRequest } from "src/middlewares/rbac";
+import {
+  createOrgErrorHandler,
+  permissionsLoaded,
+} from "src/controllers/web/shared/org-controller.helpers";
 
 // Ids may be Mongo ObjectIds or Postgres UUIDs (dual-write), so validate
 // leniently and let the data lookup decide existence.
@@ -116,31 +120,11 @@ const RevokeBodySchema = z.object({
   reason: z.string().max(500).optional(),
 });
 
-const permissionsLoaded = (req: OrgRequest, res: Response): boolean => {
-  if (req.userPermissions) return true;
-  res.status(500).json({
-    message:
-      "Permissions not loaded. Include withOrgPermissions before handler.",
-  });
-  return false;
-};
-
-const handleError = (
-  err: unknown,
-  res: Response,
-  context: string,
-): Response => {
-  if (
-    err instanceof PetPassportServiceError ||
-    err instanceof PetClinicalRecordError ||
-    err instanceof WalletNotConfiguredError
-  ) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  logger.error(context, err);
-  return res.status(500).json({ message: "Internal Server Error" });
-};
-
+const handleError = createOrgErrorHandler(
+  PetPassportServiceError,
+  PetClinicalRecordError,
+  WalletNotConfiguredError,
+);
 export const PetPassportController = {
   recordImmunization: async (
     req: Request,

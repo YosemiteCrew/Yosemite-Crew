@@ -1,10 +1,14 @@
-import type { Request, Response } from "express";
 import { z } from "zod";
 import {
   PathologySubmissionService,
   PathologySubmissionError,
 } from "src/services/pathology-submission.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import {
+  createClinicalHandlers,
+  orgParams,
+  patientScopeQuery,
+  uuid,
+} from "src/controllers/web/shared/clinical-controller.helpers";
 
 const PathologyTypeEnum = z.enum([
   "HISTOPATHOLOGY",
@@ -64,149 +68,94 @@ const UpdateBodySchema = z.object({
   notes: z.string().max(2000).optional(),
 });
 
-const ListQuerySchema = z.object({
-  patientId: z.string().uuid().optional(),
-  encounterId: z.string().uuid().optional(),
+const ListQuerySchema = patientScopeQuery.extend({
   status: PathologyStatusEnum.optional(),
   pathologyType: PathologyTypeEnum.optional(),
 });
 
-const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });
-const SubmissionParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  submissionId: z.string().uuid(),
-});
+const SubmissionParamsSchema = orgParams.extend({ submissionId: uuid() });
 
-const handleError = (
-  err: unknown,
-  res: Response,
-  fallback: string,
-): Response => {
-  if (err instanceof PathologySubmissionError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  return res.status(500).json({ message: fallback });
-};
+const { handler } = createClinicalHandlers(PathologySubmissionError);
 
 export const PathologySubmissionController = {
-  list: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const query = ListQuerySchema.safeParse(req.query);
-      if (!query.success)
-        return res.status(400).json({ message: query.error.message });
-      const submissions = await PathologySubmissionService.list({
-        organisationId: params.data.organisationId,
-        ...query.data,
-      });
-      return res.status(200).json(submissions);
-    } catch (err) {
-      return handleError(err, res, "Failed to list pathology submissions");
-    }
-  },
+  list: handler({
+    params: orgParams,
+    query: ListQuerySchema,
+    fallback: "Failed to list pathology submissions",
+    run: ({ params, input }) =>
+      PathologySubmissionService.list({
+        organisationId: params.organisationId,
+        ...input,
+      }),
+  }),
 
-  create: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = CreateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const { collectedAt, submittedAt, ...rest } = body.data;
-      const submission = await PathologySubmissionService.create({
-        organisationId: params.data.organisationId,
-        collectedBy: typedReq.userId ?? undefined,
+  create: handler({
+    params: orgParams,
+    body: CreateBodySchema,
+    status: 201,
+    fallback: "Failed to create pathology submission",
+    run: ({ params, input, userId }) => {
+      const { collectedAt, submittedAt, ...rest } = input;
+      return PathologySubmissionService.create({
+        organisationId: params.organisationId,
+        collectedBy: userId,
         ...rest,
         collectedAt: new Date(collectedAt),
         ...(submittedAt ? { submittedAt: new Date(submittedAt) } : {}),
       });
-      return res.status(201).json(submission);
-    } catch (err) {
-      return handleError(err, res, "Failed to create pathology submission");
-    }
-  },
+    },
+  }),
 
-  get: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = SubmissionParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const submission = await PathologySubmissionService.get(
-        params.data.submissionId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(submission);
-    } catch (err) {
-      return handleError(err, res, "Failed to get pathology submission");
-    }
-  },
+  get: handler({
+    params: SubmissionParamsSchema,
+    fallback: "Failed to get pathology submission",
+    run: ({ params }) =>
+      PathologySubmissionService.get(
+        params.submissionId,
+        params.organisationId,
+      ),
+  }),
 
-  recordResults: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = SubmissionParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = RecordResultsBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const submission = await PathologySubmissionService.recordResults(
-        params.data.submissionId,
-        params.data.organisationId,
-        body.data,
-        typedReq.userId ?? undefined,
-      );
-      return res.status(200).json(submission);
-    } catch (err) {
-      return handleError(err, res, "Failed to record pathology results");
-    }
-  },
+  recordResults: handler({
+    params: SubmissionParamsSchema,
+    body: RecordResultsBodySchema,
+    fallback: "Failed to record pathology results",
+    run: ({ params, input, userId }) =>
+      PathologySubmissionService.recordResults(
+        params.submissionId,
+        params.organisationId,
+        input,
+        userId,
+      ),
+  }),
 
-  review: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = SubmissionParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = ReviewBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const submission = await PathologySubmissionService.review(
-        params.data.submissionId,
-        params.data.organisationId,
-        body.data,
-        typedReq.userId ?? "unknown",
-      );
-      return res.status(200).json(submission);
-    } catch (err) {
-      return handleError(err, res, "Failed to review pathology submission");
-    }
-  },
+  review: handler({
+    params: SubmissionParamsSchema,
+    body: ReviewBodySchema,
+    fallback: "Failed to review pathology submission",
+    run: ({ params, input, userId }) =>
+      PathologySubmissionService.review(
+        params.submissionId,
+        params.organisationId,
+        input,
+        userId ?? "unknown",
+      ),
+  }),
 
-  update: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = SubmissionParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = UpdateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const { submittedAt, ...rest } = body.data;
-      const submission = await PathologySubmissionService.update(
-        params.data.submissionId,
-        params.data.organisationId,
+  update: handler({
+    params: SubmissionParamsSchema,
+    body: UpdateBodySchema,
+    fallback: "Failed to update pathology submission",
+    run: ({ params, input }) => {
+      const { submittedAt, ...rest } = input;
+      return PathologySubmissionService.update(
+        params.submissionId,
+        params.organisationId,
         {
           ...rest,
           ...(submittedAt ? { submittedAt: new Date(submittedAt) } : {}),
         },
       );
-      return res.status(200).json(submission);
-    } catch (err) {
-      return handleError(err, res, "Failed to update pathology submission");
-    }
-  },
+    },
+  }),
 };

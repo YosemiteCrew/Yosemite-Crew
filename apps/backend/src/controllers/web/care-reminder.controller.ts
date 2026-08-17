@@ -1,10 +1,13 @@
-import type { Request, Response } from "express";
 import { z } from "zod";
 import {
   CareReminderService,
   CareReminderError,
 } from "src/services/care-reminder.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import {
+  createClinicalHandlers,
+  orgParams,
+  uuid,
+} from "src/controllers/web/shared/clinical-controller.helpers";
 
 const ReminderTypeEnum = z.enum([
   "VACCINATION_BOOSTER",
@@ -52,158 +55,99 @@ const MarkRespondedBodySchema = z.object({
   appointmentId: z.string().uuid().optional(),
 });
 
-const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });
-const ReminderParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  reminderId: z.string().uuid(),
-});
+const ReminderParamsSchema = orgParams.extend({ reminderId: uuid() });
 
-const handleError = (
-  err: unknown,
-  res: Response,
-  fallback: string,
-): Response => {
-  if (err instanceof CareReminderError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  return res.status(500).json({ message: fallback });
-};
+const { handler } = createClinicalHandlers(CareReminderError);
 
 export const CareReminderController = {
-  list: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const query = ListQuerySchema.safeParse(req.query);
-      if (!query.success)
-        return res.status(400).json({ message: query.error.message });
-      const { dueBefore, dueAfter, ...rest } = query.data;
-      const reminders = await CareReminderService.list({
-        organisationId: params.data.organisationId,
+  list: handler({
+    params: orgParams,
+    query: ListQuerySchema,
+    fallback: "Failed to list care reminders",
+    run: ({ params, input }) => {
+      const { dueBefore, dueAfter, ...rest } = input;
+      return CareReminderService.list({
+        organisationId: params.organisationId,
         ...rest,
         ...(dueBefore ? { dueBefore: new Date(dueBefore) } : {}),
         ...(dueAfter ? { dueAfter: new Date(dueAfter) } : {}),
       });
-      return res.status(200).json(reminders);
-    } catch (err) {
-      return handleError(err, res, "Failed to list care reminders");
-    }
-  },
+    },
+  }),
 
-  create: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = CreateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const { dueDate, sendAt, ...rest } = body.data;
-      const reminder = await CareReminderService.create({
-        organisationId: params.data.organisationId,
-        createdBy: typedReq.userId ?? undefined,
+  create: handler({
+    params: orgParams,
+    body: CreateBodySchema,
+    status: 201,
+    fallback: "Failed to create care reminder",
+    run: ({ params, input, userId }) => {
+      const { dueDate, sendAt, ...rest } = input;
+      return CareReminderService.create({
+        organisationId: params.organisationId,
+        createdBy: userId,
         dueDate: new Date(dueDate),
         ...(sendAt ? { sendAt: new Date(sendAt) } : {}),
         ...rest,
       });
-      return res.status(201).json(reminder);
-    } catch (err) {
-      return handleError(err, res, "Failed to create care reminder");
-    }
-  },
+    },
+  }),
 
-  bulkCreate: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = BulkCreateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const { dueDate, sendAt, ...rest } = body.data;
-      const result = await CareReminderService.bulkCreate({
-        organisationId: params.data.organisationId,
-        createdBy: typedReq.userId ?? undefined,
+  bulkCreate: handler({
+    params: orgParams,
+    body: BulkCreateBodySchema,
+    status: 201,
+    fallback: "Failed to bulk create care reminders",
+    run: ({ params, input, userId }) => {
+      const { dueDate, sendAt, ...rest } = input;
+      return CareReminderService.bulkCreate({
+        organisationId: params.organisationId,
+        createdBy: userId,
         dueDate: new Date(dueDate),
         ...(sendAt ? { sendAt: new Date(sendAt) } : {}),
         ...rest,
       });
-      return res.status(201).json(result);
-    } catch (err) {
-      return handleError(err, res, "Failed to bulk create care reminders");
-    }
-  },
+    },
+  }),
 
-  get: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = ReminderParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const reminder = await CareReminderService.get(
-        params.data.reminderId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(reminder);
-    } catch (err) {
-      return handleError(err, res, "Failed to get care reminder");
-    }
-  },
+  get: handler({
+    params: ReminderParamsSchema,
+    fallback: "Failed to get care reminder",
+    run: ({ params }) =>
+      CareReminderService.get(params.reminderId, params.organisationId),
+  }),
 
-  send: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = ReminderParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const reminder = await CareReminderService.send(
-        params.data.reminderId,
-        params.data.organisationId,
-        typedReq.userId ?? undefined,
-      );
-      return res.status(200).json(reminder);
-    } catch (err) {
-      return handleError(err, res, "Failed to send care reminder");
-    }
-  },
+  send: handler({
+    params: ReminderParamsSchema,
+    fallback: "Failed to send care reminder",
+    run: ({ params, userId }) =>
+      CareReminderService.send(
+        params.reminderId,
+        params.organisationId,
+        userId,
+      ),
+  }),
 
-  markResponded: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = ReminderParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = MarkRespondedBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const reminder = await CareReminderService.markResponded(
-        params.data.reminderId,
-        params.data.organisationId,
-        body.data.appointmentId,
-        typedReq.userId ?? undefined,
-      );
-      return res.status(200).json(reminder);
-    } catch (err) {
-      return handleError(err, res, "Failed to mark reminder as responded");
-    }
-  },
+  markResponded: handler({
+    params: ReminderParamsSchema,
+    body: MarkRespondedBodySchema,
+    fallback: "Failed to mark reminder as responded",
+    run: ({ params, input, userId }) =>
+      CareReminderService.markResponded(
+        params.reminderId,
+        params.organisationId,
+        input.appointmentId,
+        userId,
+      ),
+  }),
 
-  cancel: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = ReminderParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const reminder = await CareReminderService.cancel(
-        params.data.reminderId,
-        params.data.organisationId,
-        typedReq.userId ?? undefined,
-      );
-      return res.status(200).json(reminder);
-    } catch (err) {
-      return handleError(err, res, "Failed to cancel care reminder");
-    }
-  },
+  cancel: handler({
+    params: ReminderParamsSchema,
+    fallback: "Failed to cancel care reminder",
+    run: ({ params, userId }) =>
+      CareReminderService.cancel(
+        params.reminderId,
+        params.organisationId,
+        userId,
+      ),
+  }),
 };

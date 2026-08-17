@@ -18,11 +18,24 @@ const googlePassPath = (patientId: string): string =>
   `${PARENT_PASSPORT_ENDPOINT}/${patientId}/wallet/google`;
 
 // RNFS downloads bypass the axios instance, so the path has to be resolved
-// against the same base URL by hand.
+// against the same base URL by hand. The slashes are trimmed with a loop rather
+// than /\/+$/ and /^\/+/, whose unbounded repetition backtracks super-linearly
+// on a pathological input (Sonar S8786).
+const trimSlashes = (value: string, leading: boolean): string => {
+  let start = 0;
+  let end = value.length;
+  if (leading) {
+    while (start < end && value.charAt(start) === '/') start += 1;
+  } else {
+    while (end > start && value.charAt(end - 1) === '/') end -= 1;
+  }
+  return value.slice(start, end);
+};
+
 const absoluteUrl = (path: string): string =>
-  `${String(apiClient.defaults.baseURL ?? '').replace(/\/+$/, '')}/${path.replace(
-    /^\/+/,
-    '',
+  `${trimSlashes(String(apiClient.defaults.baseURL ?? ''), false)}/${trimSlashes(
+    path,
+    true,
   )}`;
 
 export const passportApi = {

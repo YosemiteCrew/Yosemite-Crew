@@ -1,10 +1,13 @@
-import type { Request, Response } from "express";
 import { z } from "zod";
 import {
   InsuranceClaimService,
   InsuranceClaimError,
 } from "src/services/insurance-claim.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import {
+  createClinicalHandlers,
+  orgParams,
+  uuid,
+} from "src/controllers/web/shared/clinical-controller.helpers";
 
 const ClaimStatusEnum = z.enum([
   "DRAFT",
@@ -52,147 +55,85 @@ const ListQuerySchema = z.object({
   invoiceId: z.string().optional(),
 });
 
-const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });
-const ClaimParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  claimId: z.string().uuid(),
-});
+const ClaimParamsSchema = orgParams.extend({ claimId: uuid() });
 
-const handleError = (
-  err: unknown,
-  res: Response,
-  fallback: string,
-): Response => {
-  if (err instanceof InsuranceClaimError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  return res.status(500).json({ message: fallback });
-};
+const { handler } = createClinicalHandlers(InsuranceClaimError);
 
 export const InsuranceClaimController = {
-  list: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const query = ListQuerySchema.safeParse(req.query);
-      if (!query.success)
-        return res.status(400).json({ message: query.error.message });
-      const claims = await InsuranceClaimService.list({
-        organisationId: params.data.organisationId,
-        ...query.data,
-      });
-      return res.status(200).json(claims);
-    } catch (err) {
-      return handleError(err, res, "Failed to list insurance claims");
-    }
-  },
+  list: handler({
+    params: orgParams,
+    query: ListQuerySchema,
+    fallback: "Failed to list insurance claims",
+    run: ({ params, input }) =>
+      InsuranceClaimService.list({
+        organisationId: params.organisationId,
+        ...input,
+      }),
+  }),
 
-  create: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = CreateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const claim = await InsuranceClaimService.create({
-        organisationId: params.data.organisationId,
-        createdBy: typedReq.userId ?? undefined,
-        ...body.data,
-      });
-      return res.status(201).json(claim);
-    } catch (err) {
-      return handleError(err, res, "Failed to create insurance claim");
-    }
-  },
+  create: handler({
+    params: orgParams,
+    body: CreateBodySchema,
+    status: 201,
+    fallback: "Failed to create insurance claim",
+    run: ({ params, input, userId }) =>
+      InsuranceClaimService.create({
+        organisationId: params.organisationId,
+        createdBy: userId,
+        ...input,
+      }),
+  }),
 
-  get: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = ClaimParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const claim = await InsuranceClaimService.get(
-        params.data.claimId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(claim);
-    } catch (err) {
-      return handleError(err, res, "Failed to get insurance claim");
-    }
-  },
+  get: handler({
+    params: ClaimParamsSchema,
+    fallback: "Failed to get insurance claim",
+    run: ({ params }) =>
+      InsuranceClaimService.get(params.claimId, params.organisationId),
+  }),
 
-  update: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = ClaimParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = UpdateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const claim = await InsuranceClaimService.update(
-        params.data.claimId,
-        params.data.organisationId,
-        body.data,
-      );
-      return res.status(200).json(claim);
-    } catch (err) {
-      return handleError(err, res, "Failed to update insurance claim");
-    }
-  },
+  update: handler({
+    params: ClaimParamsSchema,
+    body: UpdateBodySchema,
+    fallback: "Failed to update insurance claim",
+    run: ({ params, input }) =>
+      InsuranceClaimService.update(
+        params.claimId,
+        params.organisationId,
+        input,
+      ),
+  }),
 
-  submit: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = ClaimParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const claim = await InsuranceClaimService.submit(
-        params.data.claimId,
-        params.data.organisationId,
-        typedReq.userId ?? undefined,
-      );
-      return res.status(200).json(claim);
-    } catch (err) {
-      return handleError(err, res, "Failed to submit insurance claim");
-    }
-  },
+  submit: handler({
+    params: ClaimParamsSchema,
+    fallback: "Failed to submit insurance claim",
+    run: ({ params, userId }) =>
+      InsuranceClaimService.submit(
+        params.claimId,
+        params.organisationId,
+        userId,
+      ),
+  }),
 
-  updateStatus: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = ClaimParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = UpdateStatusBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const claim = await InsuranceClaimService.updateStatus(
-        params.data.claimId,
-        params.data.organisationId,
-        { ...body.data, updatedBy: typedReq.userId ?? undefined },
-      );
-      return res.status(200).json(claim);
-    } catch (err) {
-      return handleError(err, res, "Failed to update claim status");
-    }
-  },
+  updateStatus: handler({
+    params: ClaimParamsSchema,
+    body: UpdateStatusBodySchema,
+    fallback: "Failed to update claim status",
+    run: ({ params, input, userId }) =>
+      InsuranceClaimService.updateStatus(
+        params.claimId,
+        params.organisationId,
+        { ...input, updatedBy: userId },
+      ),
+  }),
 
-  cancel: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = ClaimParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const claim = await InsuranceClaimService.cancel(
-        params.data.claimId,
-        params.data.organisationId,
-        typedReq.userId ?? undefined,
-      );
-      return res.status(200).json(claim);
-    } catch (err) {
-      return handleError(err, res, "Failed to cancel insurance claim");
-    }
-  },
+  cancel: handler({
+    params: ClaimParamsSchema,
+    fallback: "Failed to cancel insurance claim",
+    run: ({ params, userId }) =>
+      InsuranceClaimService.cancel(
+        params.claimId,
+        params.organisationId,
+        userId,
+      ),
+  }),
 };

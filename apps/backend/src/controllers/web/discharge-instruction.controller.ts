@@ -1,10 +1,14 @@
-import type { Request, Response } from "express";
 import { z } from "zod";
 import {
   DischargeInstructionService,
   DischargeInstructionError,
 } from "src/services/discharge-instruction.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import {
+  createClinicalHandlers,
+  orgParams,
+  patientScopeQuery,
+  uuid,
+} from "src/controllers/web/shared/clinical-controller.helpers";
 
 const DischargeStatusEnum = z.enum(["DRAFT", "SENT", "ACKNOWLEDGED"]);
 
@@ -27,141 +31,87 @@ const UpdateBodySchema = CreateBodySchema.omit({
   encounterId: true,
 });
 
-const ListQuerySchema = z.object({
-  patientId: z.string().uuid().optional(),
-  encounterId: z.string().uuid().optional(),
+const ListQuerySchema = patientScopeQuery.extend({
   status: DischargeStatusEnum.optional(),
 });
 
-const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });
-const DischargeParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  dischargeId: z.string().uuid(),
-});
+const DischargeParamsSchema = orgParams.extend({ dischargeId: uuid() });
 
-const handleError = (
-  err: unknown,
-  res: Response,
-  fallback: string,
-): Response => {
-  if (err instanceof DischargeInstructionError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  return res.status(500).json({ message: fallback });
-};
+const { handler } = createClinicalHandlers(DischargeInstructionError);
 
 export const DischargeInstructionController = {
-  list: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const query = ListQuerySchema.safeParse(req.query);
-      if (!query.success)
-        return res.status(400).json({ message: query.error.message });
-      const records = await DischargeInstructionService.list({
-        organisationId: params.data.organisationId,
-        ...query.data,
-      });
-      return res.status(200).json(records);
-    } catch (err) {
-      return handleError(err, res, "Failed to list discharge instructions");
-    }
-  },
+  list: handler({
+    params: orgParams,
+    query: ListQuerySchema,
+    fallback: "Failed to list discharge instructions",
+    run: ({ params, input }) =>
+      DischargeInstructionService.list({
+        organisationId: params.organisationId,
+        ...input,
+      }),
+  }),
 
-  create: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = CreateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const { followUpDate, ...rest } = body.data;
-      const record = await DischargeInstructionService.create({
-        organisationId: params.data.organisationId,
-        preparedBy: typedReq.userId ?? undefined,
+  create: handler({
+    params: orgParams,
+    body: CreateBodySchema,
+    status: 201,
+    fallback: "Failed to create discharge instructions",
+    run: ({ params, input, userId }) => {
+      const { followUpDate, ...rest } = input;
+      return DischargeInstructionService.create({
+        organisationId: params.organisationId,
+        preparedBy: userId,
         ...rest,
         ...(followUpDate ? { followUpDate: new Date(followUpDate) } : {}),
       });
-      return res.status(201).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to create discharge instructions");
-    }
-  },
+    },
+  }),
 
-  get: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = DischargeParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const record = await DischargeInstructionService.get(
-        params.data.dischargeId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to get discharge instructions");
-    }
-  },
+  get: handler({
+    params: DischargeParamsSchema,
+    fallback: "Failed to get discharge instructions",
+    run: ({ params }) =>
+      DischargeInstructionService.get(
+        params.dischargeId,
+        params.organisationId,
+      ),
+  }),
 
-  update: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = DischargeParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = UpdateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const { followUpDate, ...rest } = body.data;
-      const record = await DischargeInstructionService.update(
-        params.data.dischargeId,
-        params.data.organisationId,
+  update: handler({
+    params: DischargeParamsSchema,
+    body: UpdateBodySchema,
+    fallback: "Failed to update discharge instructions",
+    run: ({ params, input }) => {
+      const { followUpDate, ...rest } = input;
+      return DischargeInstructionService.update(
+        params.dischargeId,
+        params.organisationId,
         {
           ...rest,
           ...(followUpDate ? { followUpDate: new Date(followUpDate) } : {}),
         },
       );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to update discharge instructions");
-    }
-  },
+    },
+  }),
 
-  send: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = DischargeParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const record = await DischargeInstructionService.send(
-        params.data.dischargeId,
-        params.data.organisationId,
-        typedReq.userId ?? undefined,
-      );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to send discharge instructions");
-    }
-  },
+  send: handler({
+    params: DischargeParamsSchema,
+    fallback: "Failed to send discharge instructions",
+    run: ({ params, userId }) =>
+      DischargeInstructionService.send(
+        params.dischargeId,
+        params.organisationId,
+        userId,
+      ),
+  }),
 
-  acknowledge: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = DischargeParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const record = await DischargeInstructionService.acknowledge(
-        params.data.dischargeId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(
-        err,
-        res,
-        "Failed to acknowledge discharge instructions",
-      );
-    }
-  },
+  acknowledge: handler({
+    params: DischargeParamsSchema,
+    fallback: "Failed to acknowledge discharge instructions",
+    run: ({ params }) =>
+      DischargeInstructionService.acknowledge(
+        params.dischargeId,
+        params.organisationId,
+      ),
+  }),
 };

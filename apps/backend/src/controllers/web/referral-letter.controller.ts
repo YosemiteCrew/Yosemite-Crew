@@ -1,10 +1,13 @@
-import type { Request, Response } from "express";
 import { z } from "zod";
 import {
   ReferralLetterService,
   ReferralLetterError,
 } from "src/services/referral-letter.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import {
+  createClinicalHandlers,
+  orgParams,
+  uuid,
+} from "src/controllers/web/shared/clinical-controller.helpers";
 
 const ReferralStatusEnum = z.enum([
   "DRAFT",
@@ -43,144 +46,84 @@ const ListQuerySchema = z.object({
   status: ReferralStatusEnum.optional(),
 });
 
-const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });
-const LetterParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  letterId: z.string().uuid(),
-});
+const LetterParamsSchema = orgParams.extend({ letterId: uuid() });
 
-const handleError = (
-  err: unknown,
-  res: Response,
-  fallback: string,
-): Response => {
-  if (err instanceof ReferralLetterError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  return res.status(500).json({ message: fallback });
-};
+const { handler } = createClinicalHandlers(ReferralLetterError);
 
 export const ReferralLetterController = {
-  list: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const query = ListQuerySchema.safeParse(req.query);
-      if (!query.success)
-        return res.status(400).json({ message: query.error.message });
-      const letters = await ReferralLetterService.list({
-        organisationId: params.data.organisationId,
-        ...query.data,
-      });
-      return res.status(200).json(letters);
-    } catch (err) {
-      return handleError(err, res, "Failed to list referral letters");
-    }
-  },
+  list: handler({
+    params: orgParams,
+    query: ListQuerySchema,
+    fallback: "Failed to list referral letters",
+    run: ({ params, input }) =>
+      ReferralLetterService.list({
+        organisationId: params.organisationId,
+        ...input,
+      }),
+  }),
 
-  create: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = CreateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const letter = await ReferralLetterService.create({
-        organisationId: params.data.organisationId,
-        referringVetId: typedReq.userId ?? undefined,
-        ...body.data,
-      });
-      return res.status(201).json(letter);
-    } catch (err) {
-      return handleError(err, res, "Failed to create referral letter");
-    }
-  },
+  create: handler({
+    params: orgParams,
+    body: CreateBodySchema,
+    status: 201,
+    fallback: "Failed to create referral letter",
+    run: ({ params, input, userId }) =>
+      ReferralLetterService.create({
+        organisationId: params.organisationId,
+        referringVetId: userId,
+        ...input,
+      }),
+  }),
 
-  get: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = LetterParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const letter = await ReferralLetterService.get(
-        params.data.letterId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(letter);
-    } catch (err) {
-      return handleError(err, res, "Failed to get referral letter");
-    }
-  },
+  get: handler({
+    params: LetterParamsSchema,
+    fallback: "Failed to get referral letter",
+    run: ({ params }) =>
+      ReferralLetterService.get(params.letterId, params.organisationId),
+  }),
 
-  update: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = LetterParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = UpdateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const letter = await ReferralLetterService.update(
-        params.data.letterId,
-        params.data.organisationId,
-        body.data,
-      );
-      return res.status(200).json(letter);
-    } catch (err) {
-      return handleError(err, res, "Failed to update referral letter");
-    }
-  },
+  update: handler({
+    params: LetterParamsSchema,
+    body: UpdateBodySchema,
+    fallback: "Failed to update referral letter",
+    run: ({ params, input }) =>
+      ReferralLetterService.update(
+        params.letterId,
+        params.organisationId,
+        input,
+      ),
+  }),
 
-  sign: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = LetterParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const letter = await ReferralLetterService.sign(
-        params.data.letterId,
-        params.data.organisationId,
-        typedReq.userId ?? undefined,
-      );
-      return res.status(200).json(letter);
-    } catch (err) {
-      return handleError(err, res, "Failed to sign referral letter");
-    }
-  },
+  sign: handler({
+    params: LetterParamsSchema,
+    fallback: "Failed to sign referral letter",
+    run: ({ params, userId }) =>
+      ReferralLetterService.sign(
+        params.letterId,
+        params.organisationId,
+        userId,
+      ),
+  }),
 
-  send: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = LetterParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const letter = await ReferralLetterService.send(
-        params.data.letterId,
-        params.data.organisationId,
-        typedReq.userId ?? undefined,
-      );
-      return res.status(200).json(letter);
-    } catch (err) {
-      return handleError(err, res, "Failed to send referral letter");
-    }
-  },
+  send: handler({
+    params: LetterParamsSchema,
+    fallback: "Failed to send referral letter",
+    run: ({ params, userId }) =>
+      ReferralLetterService.send(
+        params.letterId,
+        params.organisationId,
+        userId,
+      ),
+  }),
 
-  cancel: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = LetterParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const letter = await ReferralLetterService.cancel(
-        params.data.letterId,
-        params.data.organisationId,
-        typedReq.userId ?? undefined,
-      );
-      return res.status(200).json(letter);
-    } catch (err) {
-      return handleError(err, res, "Failed to cancel referral letter");
-    }
-  },
+  cancel: handler({
+    params: LetterParamsSchema,
+    fallback: "Failed to cancel referral letter",
+    run: ({ params, userId }) =>
+      ReferralLetterService.cancel(
+        params.letterId,
+        params.organisationId,
+        userId,
+      ),
+  }),
 };

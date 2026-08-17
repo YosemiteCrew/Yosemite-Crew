@@ -1,10 +1,14 @@
-import type { Request, Response } from "express";
 import { z } from "zod";
 import {
   NutritionPlanService,
   NutritionPlanError,
 } from "src/services/nutrition-plan.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import {
+  createClinicalHandlers,
+  orgParams,
+  patientScopeQuery,
+  uuid,
+} from "src/controllers/web/shared/clinical-controller.helpers";
 
 const StatusEnum = z.enum(["ACTIVE", "COMPLETED", "DISCONTINUED"]);
 
@@ -43,107 +47,64 @@ const UpdateBodySchema = z.object({
   status: StatusEnum.optional(),
 });
 
-const ListQuerySchema = z.object({
-  patientId: z.string().uuid().optional(),
-  encounterId: z.string().uuid().optional(),
+const ListQuerySchema = patientScopeQuery.extend({
   status: StatusEnum.optional(),
 });
 
-const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });
-const PlanParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  planId: z.string().uuid(),
-});
+const PlanParamsSchema = orgParams.extend({ planId: uuid() });
 
-const handleError = (
-  err: unknown,
-  res: Response,
-  fallback: string,
-): Response => {
-  if (err instanceof NutritionPlanError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  return res.status(500).json({ message: fallback });
-};
+const { handler } = createClinicalHandlers(NutritionPlanError);
 
 export const NutritionPlanController = {
-  list: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const query = ListQuerySchema.safeParse(req.query);
-      if (!query.success)
-        return res.status(400).json({ message: query.error.message });
-      const records = await NutritionPlanService.list({
-        organisationId: params.data.organisationId,
-        ...query.data,
-      });
-      return res.status(200).json(records);
-    } catch (err) {
-      return handleError(err, res, "Failed to list nutrition plans");
-    }
-  },
+  list: handler({
+    params: orgParams,
+    query: ListQuerySchema,
+    fallback: "Failed to list nutrition plans",
+    run: ({ params, input }) =>
+      NutritionPlanService.list({
+        organisationId: params.organisationId,
+        ...input,
+      }),
+  }),
 
-  create: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = CreateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const { reviewDate, ...rest } = body.data;
-      const record = await NutritionPlanService.create({
-        organisationId: params.data.organisationId,
-        prescribedBy: typedReq.userId ?? undefined,
+  create: handler({
+    params: orgParams,
+    body: CreateBodySchema,
+    status: 201,
+    fallback: "Failed to create nutrition plan",
+    run: ({ params, input, userId }) => {
+      const { reviewDate, ...rest } = input;
+      return NutritionPlanService.create({
+        organisationId: params.organisationId,
+        prescribedBy: userId,
         ...rest,
         ...(reviewDate ? { reviewDate: new Date(reviewDate) } : {}),
       });
-      return res.status(201).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to create nutrition plan");
-    }
-  },
+    },
+  }),
 
-  get: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = PlanParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const record = await NutritionPlanService.get(
-        params.data.planId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to get nutrition plan");
-    }
-  },
+  get: handler({
+    params: PlanParamsSchema,
+    fallback: "Failed to get nutrition plan",
+    run: ({ params }) =>
+      NutritionPlanService.get(params.planId, params.organisationId),
+  }),
 
-  update: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = PlanParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = UpdateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const { reviewDate, ...rest } = body.data;
-      const record = await NutritionPlanService.update(
-        params.data.planId,
-        params.data.organisationId,
+  update: handler({
+    params: PlanParamsSchema,
+    body: UpdateBodySchema,
+    fallback: "Failed to update nutrition plan",
+    run: ({ params, input, userId }) => {
+      const { reviewDate, ...rest } = input;
+      return NutritionPlanService.update(
+        params.planId,
+        params.organisationId,
         {
           ...rest,
           ...(reviewDate ? { reviewDate: new Date(reviewDate) } : {}),
         },
-        typedReq.userId ?? undefined,
+        userId,
       );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to update nutrition plan");
-    }
-  },
+    },
+  }),
 };

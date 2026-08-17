@@ -1,10 +1,15 @@
-import type { Request, Response } from "express";
 import { z } from "zod";
 import {
   PostOpCarePlanService,
   PostOpCarePlanError,
 } from "src/services/post-op-care-plan.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import {
+  coerceDateFields,
+  createClinicalHandlers,
+  orgParams,
+  patientScopeQuery,
+  uuid,
+} from "src/controllers/web/shared/clinical-controller.helpers";
 
 const StatusEnum = z.enum(["ACTIVE", "COMPLETED", "CANCELLED"]);
 
@@ -44,133 +49,75 @@ const UpdateBodySchema = z.object({
   status: StatusEnum.optional(),
 });
 
-const ListQuerySchema = z.object({
-  patientId: z.string().uuid().optional(),
-  encounterId: z.string().uuid().optional(),
+const ListQuerySchema = patientScopeQuery.extend({
   status: StatusEnum.optional(),
 });
 
-const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });
-const PlanParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  planId: z.string().uuid(),
-});
+const PlanParamsSchema = orgParams.extend({ planId: uuid() });
 
-const handleError = (
-  err: unknown,
-  res: Response,
-  fallback: string,
-): Response => {
-  if (err instanceof PostOpCarePlanError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  return res.status(500).json({ message: fallback });
-};
+const DATE_KEYS = ["firstReviewAt", "nextReviewAt"];
 
-const parseDates = (data: Record<string, unknown>) => {
-  const out = { ...data };
-  if (typeof out.firstReviewAt === "string")
-    out.firstReviewAt = new Date(out.firstReviewAt);
-  if (typeof out.nextReviewAt === "string")
-    out.nextReviewAt = new Date(out.nextReviewAt);
-  return out;
-};
+const { handler } = createClinicalHandlers(PostOpCarePlanError);
 
 export const PostOpCarePlanController = {
-  list: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const query = ListQuerySchema.safeParse(req.query);
-      if (!query.success)
-        return res.status(400).json({ message: query.error.message });
-      const records = await PostOpCarePlanService.list({
-        organisationId: params.data.organisationId,
-        ...query.data,
-      });
-      return res.status(200).json(records);
-    } catch (err) {
-      return handleError(err, res, "Failed to list post-op care plans");
-    }
-  },
+  list: handler({
+    params: orgParams,
+    query: ListQuerySchema,
+    fallback: "Failed to list post-op care plans",
+    run: ({ params, input }) =>
+      PostOpCarePlanService.list({
+        organisationId: params.organisationId,
+        ...input,
+      }),
+  }),
 
-  create: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = CreateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const record = await PostOpCarePlanService.create({
-        organisationId: params.data.organisationId,
-        prescribedBy: typedReq.userId ?? undefined,
-        ...parseDates(body.data),
-      } as Parameters<typeof PostOpCarePlanService.create>[0]);
-      return res.status(201).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to create post-op care plan");
-    }
-  },
+  create: handler({
+    params: orgParams,
+    body: CreateBodySchema,
+    status: 201,
+    fallback: "Failed to create post-op care plan",
+    run: ({ params, input, userId }) =>
+      PostOpCarePlanService.create({
+        organisationId: params.organisationId,
+        prescribedBy: userId,
+        ...coerceDateFields(input, DATE_KEYS),
+      } as Parameters<typeof PostOpCarePlanService.create>[0]),
+  }),
 
-  get: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = PlanParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const record = await PostOpCarePlanService.get(
-        params.data.planId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to get post-op care plan");
-    }
-  },
+  get: handler({
+    params: PlanParamsSchema,
+    fallback: "Failed to get post-op care plan",
+    run: ({ params }) =>
+      PostOpCarePlanService.get(params.planId, params.organisationId),
+  }),
 
-  review: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = PlanParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = ReviewBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const { nextReviewAt, ...rest } = body.data;
-      const record = await PostOpCarePlanService.review(
-        params.data.planId,
-        params.data.organisationId,
+  review: handler({
+    params: PlanParamsSchema,
+    body: ReviewBodySchema,
+    fallback: "Failed to review post-op care plan",
+    run: ({ params, input, userId }) => {
+      const { nextReviewAt, ...rest } = input;
+      return PostOpCarePlanService.review(
+        params.planId,
+        params.organisationId,
         {
           ...rest,
           ...(nextReviewAt ? { nextReviewAt: new Date(nextReviewAt) } : {}),
         },
-        typedReq.userId ?? undefined,
+        userId,
       );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to review post-op care plan");
-    }
-  },
+    },
+  }),
 
-  update: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = PlanParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = UpdateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const record = await PostOpCarePlanService.update(
-        params.data.planId,
-        params.data.organisationId,
-        parseDates(body.data),
-      );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to update post-op care plan");
-    }
-  },
+  update: handler({
+    params: PlanParamsSchema,
+    body: UpdateBodySchema,
+    fallback: "Failed to update post-op care plan",
+    run: ({ params, input }) =>
+      PostOpCarePlanService.update(
+        params.planId,
+        params.organisationId,
+        coerceDateFields(input, DATE_KEYS),
+      ),
+  }),
 };

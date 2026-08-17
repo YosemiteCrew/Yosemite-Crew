@@ -1,10 +1,13 @@
-import type { Request, Response } from "express";
 import { z } from "zod";
 import {
   ReproductiveRecordService,
   ReproductiveRecordError,
 } from "src/services/reproductive-record.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import {
+  createClinicalHandlers,
+  orgParams,
+  uuid,
+} from "src/controllers/web/shared/clinical-controller.helpers";
 
 const ReproductiveStatusEnum = z.enum([
   "INTACT",
@@ -48,54 +51,31 @@ const ListQuerySchema = z.object({
   reproductiveStatus: ReproductiveStatusEnum.optional(),
 });
 
-const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });
-const RepParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  recordId: z.string().uuid(),
-});
+const RepParamsSchema = orgParams.extend({ recordId: uuid() });
 
 const parseOptionalDate = (val?: string): Date | undefined =>
   val ? new Date(val) : undefined;
 
-const handleError = (
-  err: unknown,
-  res: Response,
-  fallback: string,
-): Response => {
-  if (err instanceof ReproductiveRecordError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  return res.status(500).json({ message: fallback });
-};
+const { handler } = createClinicalHandlers(ReproductiveRecordError);
 
 export const ReproductiveRecordController = {
-  list: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const query = ListQuerySchema.safeParse(req.query);
-      if (!query.success)
-        return res.status(400).json({ message: query.error.message });
-      const records = await ReproductiveRecordService.list({
-        organisationId: params.data.organisationId,
-        ...query.data,
-      });
-      return res.status(200).json(records);
-    } catch (err) {
-      return handleError(err, res, "Failed to list reproductive records");
-    }
-  },
+  list: handler({
+    params: orgParams,
+    query: ListQuerySchema,
+    fallback: "Failed to list reproductive records",
+    run: ({ params, input }) =>
+      ReproductiveRecordService.list({
+        organisationId: params.organisationId,
+        ...input,
+      }),
+  }),
 
-  create: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = CreateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
+  create: handler({
+    params: orgParams,
+    body: CreateBodySchema,
+    status: 201,
+    fallback: "Failed to create reproductive record",
+    run: ({ params, input, userId }) => {
       const {
         lastHeatDate,
         nextHeatExpected,
@@ -104,10 +84,10 @@ export const ReproductiveRecordController = {
         expectedWhelp,
         actualWhelp,
         ...rest
-      } = body.data;
-      const record = await ReproductiveRecordService.create({
-        organisationId: params.data.organisationId,
-        recordedBy: typedReq.userId ?? undefined,
+      } = input;
+      return ReproductiveRecordService.create({
+        organisationId: params.organisationId,
+        recordedBy: userId,
         ...rest,
         lastHeatDate: parseOptionalDate(lastHeatDate),
         nextHeatExpected: parseOptionalDate(nextHeatExpected),
@@ -116,36 +96,21 @@ export const ReproductiveRecordController = {
         expectedWhelp: parseOptionalDate(expectedWhelp),
         actualWhelp: parseOptionalDate(actualWhelp),
       });
-      return res.status(201).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to create reproductive record");
-    }
-  },
+    },
+  }),
 
-  get: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = RepParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const record = await ReproductiveRecordService.get(
-        params.data.recordId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to get reproductive record");
-    }
-  },
+  get: handler({
+    params: RepParamsSchema,
+    fallback: "Failed to get reproductive record",
+    run: ({ params }) =>
+      ReproductiveRecordService.get(params.recordId, params.organisationId),
+  }),
 
-  update: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = RepParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = UpdateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
+  update: handler({
+    params: RepParamsSchema,
+    body: UpdateBodySchema,
+    fallback: "Failed to update reproductive record",
+    run: ({ params, input, userId }) => {
       const {
         lastHeatDate,
         nextHeatExpected,
@@ -154,10 +119,10 @@ export const ReproductiveRecordController = {
         expectedWhelp,
         actualWhelp,
         ...rest
-      } = body.data;
-      const record = await ReproductiveRecordService.update(
-        params.data.recordId,
-        params.data.organisationId,
+      } = input;
+      return ReproductiveRecordService.update(
+        params.recordId,
+        params.organisationId,
         {
           ...rest,
           lastHeatDate: parseOptionalDate(lastHeatDate),
@@ -167,11 +132,8 @@ export const ReproductiveRecordController = {
           expectedWhelp: parseOptionalDate(expectedWhelp),
           actualWhelp: parseOptionalDate(actualWhelp),
         },
-        typedReq.userId ?? undefined,
+        userId,
       );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to update reproductive record");
-    }
-  },
+    },
+  }),
 };

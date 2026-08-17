@@ -1,10 +1,14 @@
-import type { Request, Response } from "express";
 import { z } from "zod";
 import {
   BehaviorAssessmentService,
   BehaviorAssessmentError,
 } from "src/services/behavior-assessment.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import {
+  createClinicalHandlers,
+  orgParams,
+  patientScopeQuery,
+  uuid,
+} from "src/controllers/web/shared/clinical-controller.helpers";
 
 const FasScoreEnum = z.enum([
   "FAS_0",
@@ -41,114 +45,66 @@ const UpdateBodySchema = CreateBodySchema.omit({
   patientId: true,
   assessedAt: true,
 }).partial();
-const ListQuerySchema = z.object({
-  patientId: z.string().uuid().optional(),
-  encounterId: z.string().uuid().optional(),
+const ListQuerySchema = patientScopeQuery.extend({
   fasScore: FasScoreEnum.optional(),
 });
-const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });
-const AssessmentParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  assessmentId: z.string().uuid(),
-});
+const AssessmentParamsSchema = orgParams.extend({ assessmentId: uuid() });
 
-const handleError = (
-  err: unknown,
-  res: Response,
-  fallback: string,
-): Response => {
-  if (err instanceof BehaviorAssessmentError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  return res.status(500).json({ message: fallback });
-};
+const { handler } = createClinicalHandlers(BehaviorAssessmentError);
 
 export const BehaviorAssessmentController = {
-  list: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const query = ListQuerySchema.safeParse(req.query);
-      if (!query.success)
-        return res.status(400).json({ message: query.error.message });
-      const assessments = await BehaviorAssessmentService.list({
-        organisationId: params.data.organisationId,
-        ...query.data,
-      });
-      return res.status(200).json(assessments);
-    } catch (err) {
-      return handleError(err, res, "Failed to list behavior assessments");
-    }
-  },
+  list: handler({
+    params: orgParams,
+    query: ListQuerySchema,
+    fallback: "Failed to list behavior assessments",
+    run: ({ params, input }) =>
+      BehaviorAssessmentService.list({
+        organisationId: params.organisationId,
+        ...input,
+      }),
+  }),
 
-  create: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = CreateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const assessment = await BehaviorAssessmentService.create({
-        organisationId: params.data.organisationId,
-        assessedBy: typedReq.userId ?? undefined,
-        ...body.data,
-        assessedAt: new Date(body.data.assessedAt),
-      });
-      return res.status(201).json(assessment);
-    } catch (err) {
-      return handleError(err, res, "Failed to create behavior assessment");
-    }
-  },
+  create: handler({
+    params: orgParams,
+    body: CreateBodySchema,
+    status: 201,
+    fallback: "Failed to create behavior assessment",
+    run: ({ params, input, userId }) =>
+      BehaviorAssessmentService.create({
+        organisationId: params.organisationId,
+        assessedBy: userId,
+        ...input,
+        assessedAt: new Date(input.assessedAt),
+      }),
+  }),
 
-  get: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = AssessmentParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const assessment = await BehaviorAssessmentService.get(
-        params.data.assessmentId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(assessment);
-    } catch (err) {
-      return handleError(err, res, "Failed to get behavior assessment");
-    }
-  },
+  get: handler({
+    params: AssessmentParamsSchema,
+    fallback: "Failed to get behavior assessment",
+    run: ({ params }) =>
+      BehaviorAssessmentService.get(params.assessmentId, params.organisationId),
+  }),
 
-  update: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = AssessmentParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = UpdateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const assessment = await BehaviorAssessmentService.update(
-        params.data.assessmentId,
-        params.data.organisationId,
-        body.data,
-      );
-      return res.status(200).json(assessment);
-    } catch (err) {
-      return handleError(err, res, "Failed to update behavior assessment");
-    }
-  },
+  update: handler({
+    params: AssessmentParamsSchema,
+    body: UpdateBodySchema,
+    fallback: "Failed to update behavior assessment",
+    run: ({ params, input }) =>
+      BehaviorAssessmentService.update(
+        params.assessmentId,
+        params.organisationId,
+        input,
+      ),
+  }),
 
-  delete: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = AssessmentParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      await BehaviorAssessmentService.delete(
-        params.data.assessmentId,
-        params.data.organisationId,
-      );
-      return res.status(204).send();
-    } catch (err) {
-      return handleError(err, res, "Failed to delete behavior assessment");
-    }
-  },
+  delete: handler({
+    params: AssessmentParamsSchema,
+    status: 204,
+    fallback: "Failed to delete behavior assessment",
+    run: ({ params }) =>
+      BehaviorAssessmentService.delete(
+        params.assessmentId,
+        params.organisationId,
+      ),
+  }),
 };

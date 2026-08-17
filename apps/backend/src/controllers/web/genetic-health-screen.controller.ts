@@ -1,10 +1,14 @@
-import type { Request, Response } from "express";
 import { z } from "zod";
 import {
   GeneticHealthScreenService,
   GeneticHealthScreenError,
 } from "src/services/genetic-health-screen.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import {
+  createClinicalHandlers,
+  orgParams,
+  patientScopeQuery,
+  uuid,
+} from "src/controllers/web/shared/clinical-controller.helpers";
 
 const GeneticResultEnum = z.enum([
   "CLEAR",
@@ -51,121 +55,69 @@ const UpdateBodySchema = CreateBodySchema.omit({
   patientId: true,
   screenedAt: true,
 }).partial();
-const ListQuerySchema = z.object({
-  patientId: z.string().uuid().optional(),
-  encounterId: z.string().uuid().optional(),
-});
-const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });
-const RecordParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  screenId: z.string().uuid(),
-});
+const ListQuerySchema = patientScopeQuery;
+const RecordParamsSchema = orgParams.extend({ screenId: uuid() });
 
-const handleError = (
-  err: unknown,
-  res: Response,
-  fallback: string,
-): Response => {
-  if (err instanceof GeneticHealthScreenError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  return res.status(500).json({ message: fallback });
-};
+const { handler } = createClinicalHandlers(GeneticHealthScreenError);
 
 export const GeneticHealthScreenController = {
-  list: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const query = ListQuerySchema.safeParse(req.query);
-      if (!query.success)
-        return res.status(400).json({ message: query.error.message });
-      const records = await GeneticHealthScreenService.list({
-        organisationId: params.data.organisationId,
-        ...query.data,
-      });
-      return res.status(200).json(records);
-    } catch (err) {
-      return handleError(err, res, "Failed to list genetic health screens");
-    }
-  },
+  list: handler({
+    params: orgParams,
+    query: ListQuerySchema,
+    fallback: "Failed to list genetic health screens",
+    run: ({ params, input }) =>
+      GeneticHealthScreenService.list({
+        organisationId: params.organisationId,
+        ...input,
+      }),
+  }),
 
-  create: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = CreateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const record = await GeneticHealthScreenService.create({
-        organisationId: params.data.organisationId,
-        screenedBy: typedReq.userId ?? undefined,
-        ...body.data,
-        screenedAt: new Date(body.data.screenedAt),
-        certificationExpiry: body.data.certificationExpiry
-          ? new Date(body.data.certificationExpiry)
+  create: handler({
+    params: orgParams,
+    body: CreateBodySchema,
+    status: 201,
+    fallback: "Failed to create genetic health screen",
+    run: ({ params, input, userId }) =>
+      GeneticHealthScreenService.create({
+        organisationId: params.organisationId,
+        screenedBy: userId,
+        ...input,
+        screenedAt: new Date(input.screenedAt),
+        certificationExpiry: input.certificationExpiry
+          ? new Date(input.certificationExpiry)
           : undefined,
-      });
-      return res.status(201).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to create genetic health screen");
-    }
-  },
+      }),
+  }),
 
-  get: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = RecordParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const record = await GeneticHealthScreenService.get(
-        params.data.screenId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to get genetic health screen");
-    }
-  },
+  get: handler({
+    params: RecordParamsSchema,
+    fallback: "Failed to get genetic health screen",
+    run: ({ params }) =>
+      GeneticHealthScreenService.get(params.screenId, params.organisationId),
+  }),
 
-  update: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = RecordParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = UpdateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const record = await GeneticHealthScreenService.update(
-        params.data.screenId,
-        params.data.organisationId,
+  update: handler({
+    params: RecordParamsSchema,
+    body: UpdateBodySchema,
+    fallback: "Failed to update genetic health screen",
+    run: ({ params, input }) =>
+      GeneticHealthScreenService.update(
+        params.screenId,
+        params.organisationId,
         {
-          ...body.data,
-          certificationExpiry: body.data.certificationExpiry
-            ? new Date(body.data.certificationExpiry)
+          ...input,
+          certificationExpiry: input.certificationExpiry
+            ? new Date(input.certificationExpiry)
             : undefined,
         },
-      );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to update genetic health screen");
-    }
-  },
+      ),
+  }),
 
-  delete: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = RecordParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      await GeneticHealthScreenService.delete(
-        params.data.screenId,
-        params.data.organisationId,
-      );
-      return res.status(204).send();
-    } catch (err) {
-      return handleError(err, res, "Failed to delete genetic health screen");
-    }
-  },
+  delete: handler({
+    params: RecordParamsSchema,
+    status: 204,
+    fallback: "Failed to delete genetic health screen",
+    run: ({ params }) =>
+      GeneticHealthScreenService.delete(params.screenId, params.organisationId),
+  }),
 };

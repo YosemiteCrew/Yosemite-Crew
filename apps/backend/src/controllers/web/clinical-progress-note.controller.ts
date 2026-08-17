@@ -1,10 +1,14 @@
-import type { Request, Response } from "express";
 import { z } from "zod";
 import {
   ClinicalProgressNoteService,
   ClinicalProgressNoteError,
 } from "src/services/clinical-progress-note.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import {
+  createClinicalHandlers,
+  orgParams,
+  patientScopeQuery,
+  uuid,
+} from "src/controllers/web/shared/clinical-controller.helpers";
 
 const NoteTypeEnum = z.enum([
   "SHIFT_NOTE",
@@ -35,116 +39,66 @@ const UpdateBodySchema = z.object({
   freeText: z.string().max(20000).optional(),
 });
 
-const ListQuerySchema = z.object({
-  patientId: z.string().uuid().optional(),
-  encounterId: z.string().uuid().optional(),
+const ListQuerySchema = patientScopeQuery.extend({
   noteType: NoteTypeEnum.optional(),
 });
 
-const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });
-const NoteParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  noteId: z.string().uuid(),
-});
+const NoteParamsSchema = orgParams.extend({ noteId: uuid() });
 
-const handleError = (
-  err: unknown,
-  res: Response,
-  fallback: string,
-): Response => {
-  if (err instanceof ClinicalProgressNoteError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  return res.status(500).json({ message: fallback });
-};
+const { handler } = createClinicalHandlers(ClinicalProgressNoteError);
 
 export const ClinicalProgressNoteController = {
-  list: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const query = ListQuerySchema.safeParse(req.query);
-      if (!query.success)
-        return res.status(400).json({ message: query.error.message });
-      const notes = await ClinicalProgressNoteService.list({
-        organisationId: params.data.organisationId,
-        ...query.data,
-      });
-      return res.status(200).json(notes);
-    } catch (err) {
-      return handleError(err, res, "Failed to list clinical notes");
-    }
-  },
+  list: handler({
+    params: orgParams,
+    query: ListQuerySchema,
+    fallback: "Failed to list clinical notes",
+    run: ({ params, input }) =>
+      ClinicalProgressNoteService.list({
+        organisationId: params.organisationId,
+        ...input,
+      }),
+  }),
 
-  create: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = CreateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const note = await ClinicalProgressNoteService.create({
-        organisationId: params.data.organisationId,
-        authorId: typedReq.userId ?? undefined,
-        ...body.data,
-      });
-      return res.status(201).json(note);
-    } catch (err) {
-      return handleError(err, res, "Failed to create clinical note");
-    }
-  },
+  create: handler({
+    params: orgParams,
+    body: CreateBodySchema,
+    status: 201,
+    fallback: "Failed to create clinical note",
+    run: ({ params, input, userId }) =>
+      ClinicalProgressNoteService.create({
+        organisationId: params.organisationId,
+        authorId: userId,
+        ...input,
+      }),
+  }),
 
-  get: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = NoteParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const note = await ClinicalProgressNoteService.get(
-        params.data.noteId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(note);
-    } catch (err) {
-      return handleError(err, res, "Failed to get clinical note");
-    }
-  },
+  get: handler({
+    params: NoteParamsSchema,
+    fallback: "Failed to get clinical note",
+    run: ({ params }) =>
+      ClinicalProgressNoteService.get(params.noteId, params.organisationId),
+  }),
 
-  update: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = NoteParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = UpdateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const note = await ClinicalProgressNoteService.update(
-        params.data.noteId,
-        params.data.organisationId,
-        body.data,
-      );
-      return res.status(200).json(note);
-    } catch (err) {
-      return handleError(err, res, "Failed to update clinical note");
-    }
-  },
+  update: handler({
+    params: NoteParamsSchema,
+    body: UpdateBodySchema,
+    fallback: "Failed to update clinical note",
+    run: ({ params, input }) =>
+      ClinicalProgressNoteService.update(
+        params.noteId,
+        params.organisationId,
+        input,
+      ),
+  }),
 
-  sign: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = NoteParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const note = await ClinicalProgressNoteService.sign(
-        params.data.noteId,
-        params.data.organisationId,
-        typedReq.userId ?? "unknown",
-      );
-      return res.status(200).json(note);
-    } catch (err) {
-      return handleError(err, res, "Failed to sign clinical note");
-    }
-  },
+  sign: handler({
+    params: NoteParamsSchema,
+    fallback: "Failed to sign clinical note",
+    run: ({ params, userId }) =>
+      ClinicalProgressNoteService.sign(
+        params.noteId,
+        params.organisationId,
+        userId ?? "unknown",
+      ),
+  }),
 };

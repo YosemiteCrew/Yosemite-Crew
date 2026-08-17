@@ -1,10 +1,14 @@
-import type { Request, Response } from "express";
 import { z } from "zod";
 import {
   DiagnosticImageService,
   DiagnosticImageError,
 } from "src/services/diagnostic-image.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import {
+  createClinicalHandlers,
+  orgParams,
+  patientScopeQuery,
+  uuid,
+} from "src/controllers/web/shared/clinical-controller.helpers";
 
 const ImagingTypeEnum = z.enum([
   "RADIOGRAPH",
@@ -57,124 +61,73 @@ const UpdateBodySchema = z.object({
   status: ImagingStatusEnum.optional(),
 });
 
-const ListQuerySchema = z.object({
-  patientId: z.string().uuid().optional(),
-  encounterId: z.string().uuid().optional(),
+const ListQuerySchema = patientScopeQuery.extend({
   imagingType: ImagingTypeEnum.optional(),
   status: ImagingStatusEnum.optional(),
 });
 
-const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });
-const ImageParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  imageId: z.string().uuid(),
-});
+const ImageParamsSchema = orgParams.extend({ imageId: uuid() });
 
-const handleError = (
-  err: unknown,
-  res: Response,
-  fallback: string,
-): Response => {
-  if (err instanceof DiagnosticImageError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  return res.status(500).json({ message: fallback });
-};
+const { handler } = createClinicalHandlers(DiagnosticImageError);
 
 export const DiagnosticImageController = {
-  list: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const query = ListQuerySchema.safeParse(req.query);
-      if (!query.success)
-        return res.status(400).json({ message: query.error.message });
-      const records = await DiagnosticImageService.list({
-        organisationId: params.data.organisationId,
-        ...query.data,
-      });
-      return res.status(200).json(records);
-    } catch (err) {
-      return handleError(err, res, "Failed to list diagnostic images");
-    }
-  },
+  list: handler({
+    params: orgParams,
+    query: ListQuerySchema,
+    fallback: "Failed to list diagnostic images",
+    run: ({ params, input }) =>
+      DiagnosticImageService.list({
+        organisationId: params.organisationId,
+        ...input,
+      }),
+  }),
 
-  record: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = RecordBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const { takenAt, interpretedAt, ...rest } = body.data;
-      const record = await DiagnosticImageService.record({
-        organisationId: params.data.organisationId,
-        takenBy: typedReq.userId ?? undefined,
+  record: handler({
+    params: orgParams,
+    body: RecordBodySchema,
+    status: 201,
+    fallback: "Failed to record diagnostic image",
+    run: ({ params, input, userId }) => {
+      const { takenAt, interpretedAt, ...rest } = input;
+      return DiagnosticImageService.record({
+        organisationId: params.organisationId,
+        takenBy: userId,
         ...rest,
         takenAt: new Date(takenAt),
         ...(interpretedAt ? { interpretedAt: new Date(interpretedAt) } : {}),
       });
-      return res.status(201).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to record diagnostic image");
-    }
-  },
+    },
+  }),
 
-  get: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = ImageParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const record = await DiagnosticImageService.get(
-        params.data.imageId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to get diagnostic image");
-    }
-  },
+  get: handler({
+    params: ImageParamsSchema,
+    fallback: "Failed to get diagnostic image",
+    run: ({ params }) =>
+      DiagnosticImageService.get(params.imageId, params.organisationId),
+  }),
 
-  review: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = ImageParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = ReviewBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const record = await DiagnosticImageService.review(
-        params.data.imageId,
-        params.data.organisationId,
-        body.data,
-        typedReq.userId ?? undefined,
-      );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to review diagnostic image");
-    }
-  },
+  review: handler({
+    params: ImageParamsSchema,
+    body: ReviewBodySchema,
+    fallback: "Failed to review diagnostic image",
+    run: ({ params, input, userId }) =>
+      DiagnosticImageService.review(
+        params.imageId,
+        params.organisationId,
+        input,
+        userId,
+      ),
+  }),
 
-  update: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = ImageParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = UpdateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const record = await DiagnosticImageService.update(
-        params.data.imageId,
-        params.data.organisationId,
-        body.data,
-      );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to update diagnostic image");
-    }
-  },
+  update: handler({
+    params: ImageParamsSchema,
+    body: UpdateBodySchema,
+    fallback: "Failed to update diagnostic image",
+    run: ({ params, input }) =>
+      DiagnosticImageService.update(
+        params.imageId,
+        params.organisationId,
+        input,
+      ),
+  }),
 };

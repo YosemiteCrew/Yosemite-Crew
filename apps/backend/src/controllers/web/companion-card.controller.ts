@@ -6,6 +6,10 @@ import {
   CompanionCardServiceError,
 } from "src/services/companion-card.service";
 import { OrgRequest } from "src/middlewares/rbac";
+import {
+  createOrgErrorHandler,
+  permissionsLoaded,
+} from "src/controllers/web/shared/org-controller.helpers";
 
 // Ids in this codebase may be Mongo ObjectIds or Postgres UUIDs (dual-write), so
 // validate leniently and let the data lookup decide existence.
@@ -29,27 +33,7 @@ const IssueBodySchema = z.object({
   showOwnerPhone: z.boolean().optional(),
 });
 
-const permissionsLoaded = (req: OrgRequest, res: Response): boolean => {
-  if (req.userPermissions) return true;
-  res.status(500).json({
-    message:
-      "Permissions not loaded. Include withOrgPermissions before handler.",
-  });
-  return false;
-};
-
-const handleError = (
-  err: unknown,
-  res: Response,
-  context: string,
-): Response => {
-  if (err instanceof CompanionCardServiceError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  logger.error(context, err);
-  return res.status(500).json({ message: "Internal Server Error" });
-};
-
+const handleError = createOrgErrorHandler(CompanionCardServiceError);
 export const CompanionCardController = {
   issueShareToken: async (req: Request, res: Response): Promise<Response> => {
     try {

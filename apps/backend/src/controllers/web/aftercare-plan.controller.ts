@@ -1,10 +1,13 @@
-import type { Request, Response } from "express";
 import { z } from "zod";
 import {
   AftercarePlanService,
   AftercarePlanError,
 } from "src/services/aftercare-plan.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import {
+  createClinicalHandlers,
+  orgParams,
+  uuid,
+} from "src/controllers/web/shared/clinical-controller.helpers";
 
 const AftercareTypeEnum = z.enum([
   "EUTHANASIA_SERVICE",
@@ -47,118 +50,65 @@ const ListQuerySchema = z.object({
     ),
 });
 
-const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });
-const PlanParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  planId: z.string().uuid(),
-});
+const PlanParamsSchema = orgParams.extend({ planId: uuid() });
 
-const handleError = (
-  err: unknown,
-  res: Response,
-  fallback: string,
-): Response => {
-  if (err instanceof AftercarePlanError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  return res.status(500).json({ message: fallback });
-};
+const { handler } = createClinicalHandlers(AftercarePlanError);
 
 export const AftercarePlanController = {
-  list: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const query = ListQuerySchema.safeParse(req.query);
-      if (!query.success)
-        return res.status(400).json({ message: query.error.message });
-      const records = await AftercarePlanService.list({
-        organisationId: params.data.organisationId,
-        patientId: query.data.patientId,
-        type: query.data.type,
-        completed: query.data.completed,
-      });
-      return res.status(200).json(records);
-    } catch (err) {
-      return handleError(err, res, "Failed to list aftercare plans");
-    }
-  },
+  list: handler({
+    params: orgParams,
+    query: ListQuerySchema,
+    fallback: "Failed to list aftercare plans",
+    run: ({ params, input }) =>
+      AftercarePlanService.list({
+        organisationId: params.organisationId,
+        patientId: input.patientId,
+        type: input.type,
+        completed: input.completed,
+      }),
+  }),
 
-  create: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = CreateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const record = await AftercarePlanService.create({
-        organisationId: params.data.organisationId,
-        recordedBy: typedReq.userId ?? undefined,
-        ...body.data,
-        completedAt: body.data.completedAt
-          ? new Date(body.data.completedAt)
+  create: handler({
+    params: orgParams,
+    body: CreateBodySchema,
+    status: 201,
+    fallback: "Failed to create aftercare plan",
+    run: ({ params, input, userId }) =>
+      AftercarePlanService.create({
+        organisationId: params.organisationId,
+        recordedBy: userId,
+        ...input,
+        completedAt: input.completedAt
+          ? new Date(input.completedAt)
           : undefined,
-      });
-      return res.status(201).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to create aftercare plan");
-    }
-  },
+      }),
+  }),
 
-  get: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = PlanParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const record = await AftercarePlanService.get(
-        params.data.planId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to get aftercare plan");
-    }
-  },
+  get: handler({
+    params: PlanParamsSchema,
+    fallback: "Failed to get aftercare plan",
+    run: ({ params }) =>
+      AftercarePlanService.get(params.planId, params.organisationId),
+  }),
 
-  update: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = PlanParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = UpdateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const record = await AftercarePlanService.update(
-        params.data.planId,
-        params.data.organisationId,
-        {
-          ...body.data,
-          completedAt: body.data.completedAt
-            ? new Date(body.data.completedAt)
-            : undefined,
-        },
-      );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to update aftercare plan");
-    }
-  },
+  update: handler({
+    params: PlanParamsSchema,
+    body: UpdateBodySchema,
+    fallback: "Failed to update aftercare plan",
+    run: ({ params, input }) =>
+      AftercarePlanService.update(params.planId, params.organisationId, {
+        ...input,
+        completedAt: input.completedAt
+          ? new Date(input.completedAt)
+          : undefined,
+      }),
+  }),
 
-  delete: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = PlanParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      await AftercarePlanService.delete(
-        params.data.planId,
-        params.data.organisationId,
-      );
-      return res.status(204).send();
-    } catch (err) {
-      return handleError(err, res, "Failed to delete aftercare plan");
-    }
-  },
+  delete: handler({
+    params: PlanParamsSchema,
+    status: 204,
+    fallback: "Failed to delete aftercare plan",
+    run: ({ params }) =>
+      AftercarePlanService.delete(params.planId, params.organisationId),
+  }),
 };

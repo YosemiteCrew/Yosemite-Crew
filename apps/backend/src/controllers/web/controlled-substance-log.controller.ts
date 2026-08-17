@@ -1,10 +1,13 @@
-import type { Request, Response } from "express";
 import { z } from "zod";
 import {
   ControlledSubstanceLogService,
   ControlledSubstanceLogError,
 } from "src/services/controlled-substance-log.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import {
+  createClinicalHandlers,
+  orgParams,
+  uuid,
+} from "src/controllers/web/shared/clinical-controller.helpers";
 
 const DeaScheduleEnum = z.enum(["II", "III", "IV", "V"]);
 const DrugUnitEnum = z.enum([
@@ -56,135 +59,64 @@ const ListQuerySchema = z.object({
   toDate: z.string().datetime().optional(),
 });
 
-const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });
-const LogParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  logId: z.string().uuid(),
-});
+const LogParamsSchema = orgParams.extend({ logId: uuid() });
 
-const handleError = (
-  err: unknown,
-  res: Response,
-  fallback: string,
-): Response => {
-  if (err instanceof ControlledSubstanceLogError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  return res.status(500).json({ message: fallback });
-};
+const { handler } = createClinicalHandlers(ControlledSubstanceLogError);
 
 export const ControlledSubstanceLogController = {
-  list: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const query = ListQuerySchema.safeParse(req.query);
-      if (!query.success)
-        return res.status(400).json({ message: query.error.message });
-      const records = await ControlledSubstanceLogService.list({
-        organisationId: params.data.organisationId,
-        patientId: query.data.patientId,
-        drug: query.data.drug,
-        deaSchedule: query.data.deaSchedule,
-        fromDate: query.data.fromDate
-          ? new Date(query.data.fromDate)
-          : undefined,
-        toDate: query.data.toDate ? new Date(query.data.toDate) : undefined,
-      });
-      return res.status(200).json(records);
-    } catch (err) {
-      return handleError(
-        err,
-        res,
-        "Failed to list controlled substance log entries",
-      );
-    }
-  },
+  list: handler({
+    params: orgParams,
+    query: ListQuerySchema,
+    fallback: "Failed to list controlled substance log entries",
+    run: ({ params, input }) =>
+      ControlledSubstanceLogService.list({
+        organisationId: params.organisationId,
+        patientId: input.patientId,
+        drug: input.drug,
+        deaSchedule: input.deaSchedule,
+        fromDate: input.fromDate ? new Date(input.fromDate) : undefined,
+        toDate: input.toDate ? new Date(input.toDate) : undefined,
+      }),
+  }),
 
-  create: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = CreateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const record = await ControlledSubstanceLogService.create({
-        organisationId: params.data.organisationId,
-        administeredBy: typedReq.userId ?? undefined,
-        ...body.data,
-        loggedAt: new Date(body.data.loggedAt),
-      });
-      return res.status(201).json(record);
-    } catch (err) {
-      return handleError(
-        err,
-        res,
-        "Failed to create controlled substance log entry",
-      );
-    }
-  },
+  create: handler({
+    params: orgParams,
+    body: CreateBodySchema,
+    status: 201,
+    fallback: "Failed to create controlled substance log entry",
+    run: ({ params, input, userId }) =>
+      ControlledSubstanceLogService.create({
+        organisationId: params.organisationId,
+        administeredBy: userId,
+        ...input,
+        loggedAt: new Date(input.loggedAt),
+      }),
+  }),
 
-  get: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = LogParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const record = await ControlledSubstanceLogService.get(
-        params.data.logId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(
-        err,
-        res,
-        "Failed to get controlled substance log entry",
-      );
-    }
-  },
+  get: handler({
+    params: LogParamsSchema,
+    fallback: "Failed to get controlled substance log entry",
+    run: ({ params }) =>
+      ControlledSubstanceLogService.get(params.logId, params.organisationId),
+  }),
 
-  update: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = LogParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = UpdateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const record = await ControlledSubstanceLogService.update(
-        params.data.logId,
-        params.data.organisationId,
-        body.data,
-      );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(
-        err,
-        res,
-        "Failed to update controlled substance log entry",
-      );
-    }
-  },
+  update: handler({
+    params: LogParamsSchema,
+    body: UpdateBodySchema,
+    fallback: "Failed to update controlled substance log entry",
+    run: ({ params, input }) =>
+      ControlledSubstanceLogService.update(
+        params.logId,
+        params.organisationId,
+        input,
+      ),
+  }),
 
-  delete: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = LogParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      await ControlledSubstanceLogService.delete(
-        params.data.logId,
-        params.data.organisationId,
-      );
-      return res.status(204).send();
-    } catch (err) {
-      return handleError(
-        err,
-        res,
-        "Failed to delete controlled substance log entry",
-      );
-    }
-  },
+  delete: handler({
+    params: LogParamsSchema,
+    status: 204,
+    fallback: "Failed to delete controlled substance log entry",
+    run: ({ params }) =>
+      ControlledSubstanceLogService.delete(params.logId, params.organisationId),
+  }),
 };

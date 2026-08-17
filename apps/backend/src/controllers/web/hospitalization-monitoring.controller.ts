@@ -1,10 +1,14 @@
-import type { Request, Response } from "express";
 import { z } from "zod";
 import {
   HospitalizationMonitoringService,
   HospitalizationMonitoringError,
 } from "src/services/hospitalization-monitoring.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import {
+  createClinicalHandlers,
+  dateRange,
+  orgParams,
+  uuid,
+} from "src/controllers/web/shared/clinical-controller.helpers";
 
 const RecordBodySchema = z.object({
   patientId: z.string().uuid(),
@@ -39,94 +43,56 @@ const ListQuerySchema = z.object({
   to: z.string().datetime().optional(),
 });
 
-const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });
-const ObsParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  obsId: z.string().uuid(),
-});
+const ObsParamsSchema = orgParams.extend({ obsId: uuid() });
 
-const handleError = (
-  err: unknown,
-  res: Response,
-  fallback: string,
-): Response => {
-  if (err instanceof HospitalizationMonitoringError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  return res.status(500).json({ message: fallback });
-};
+const { handler } = createClinicalHandlers(HospitalizationMonitoringError);
 
 export const HospitalizationMonitoringController = {
-  list: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const query = ListQuerySchema.safeParse(req.query);
-      if (!query.success)
-        return res.status(400).json({ message: query.error.message });
-      const { from, to, ...rest } = query.data;
-      const records = await HospitalizationMonitoringService.list({
-        organisationId: params.data.organisationId,
+  list: handler({
+    params: orgParams,
+    query: ListQuerySchema,
+    fallback: "Failed to list monitoring observations",
+    run: ({ params, input }) => {
+      const { from, to, ...rest } = input;
+      return HospitalizationMonitoringService.list({
+        organisationId: params.organisationId,
         ...rest,
-        ...(from ? { from: new Date(from) } : {}),
-        ...(to ? { to: new Date(to) } : {}),
+        ...dateRange(from, to),
       });
-      return res.status(200).json(records);
-    } catch (err) {
-      return handleError(err, res, "Failed to list monitoring observations");
-    }
-  },
+    },
+  }),
 
-  record: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = RecordBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const { observedAt, ...rest } = body.data;
-      const obs = await HospitalizationMonitoringService.record({
-        organisationId: params.data.organisationId,
-        observedBy: typedReq.userId ?? undefined,
+  record: handler({
+    params: orgParams,
+    body: RecordBodySchema,
+    status: 201,
+    fallback: "Failed to record monitoring observation",
+    run: ({ params, input, userId }) => {
+      const { observedAt, ...rest } = input;
+      return HospitalizationMonitoringService.record({
+        organisationId: params.organisationId,
+        observedBy: userId,
         ...rest,
         observedAt: new Date(observedAt),
       });
-      return res.status(201).json(obs);
-    } catch (err) {
-      return handleError(err, res, "Failed to record monitoring observation");
-    }
-  },
+    },
+  }),
 
-  get: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = ObsParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const obs = await HospitalizationMonitoringService.get(
-        params.data.obsId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(obs);
-    } catch (err) {
-      return handleError(err, res, "Failed to get monitoring observation");
-    }
-  },
+  get: handler({
+    params: ObsParamsSchema,
+    fallback: "Failed to get monitoring observation",
+    run: ({ params }) =>
+      HospitalizationMonitoringService.get(params.obsId, params.organisationId),
+  }),
 
-  delete: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = ObsParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      await HospitalizationMonitoringService.delete(
-        params.data.obsId,
-        params.data.organisationId,
-      );
-      return res.status(204).send();
-    } catch (err) {
-      return handleError(err, res, "Failed to delete monitoring observation");
-    }
-  },
+  delete: handler({
+    params: ObsParamsSchema,
+    status: 204,
+    fallback: "Failed to delete monitoring observation",
+    run: ({ params }) =>
+      HospitalizationMonitoringService.delete(
+        params.obsId,
+        params.organisationId,
+      ),
+  }),
 };

@@ -1,10 +1,15 @@
-import type { Request, Response } from "express";
 import { z } from "zod";
 import {
   PhysiotherapyPlanService,
   PhysiotherapyPlanError,
 } from "src/services/physiotherapy-plan.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import {
+  coerceDateFields,
+  createClinicalHandlers,
+  orgParams,
+  patientScopeQuery,
+  uuid,
+} from "src/controllers/web/shared/clinical-controller.helpers";
 
 const StatusEnum = z.enum(["ACTIVE", "ON_HOLD", "COMPLETED", "DISCONTINUED"]);
 
@@ -57,71 +62,38 @@ const UpdateBodySchema = z.object({
   notes: z.string().max(2000).optional(),
 });
 
-const ListQuerySchema = z.object({
-  patientId: z.string().uuid().optional(),
-  encounterId: z.string().uuid().optional(),
+const ListQuerySchema = patientScopeQuery.extend({
   status: StatusEnum.optional(),
 });
 
-const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });
-const PlanParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  planId: z.string().uuid(),
-});
-
-const handleError = (
-  err: unknown,
-  res: Response,
-  fallback: string,
-): Response => {
-  if (err instanceof PhysiotherapyPlanError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  return res.status(500).json({ message: fallback });
-};
-
-const parseDateFields = (obj: Record<string, unknown>, keys: string[]) => {
-  const out = { ...obj };
-  for (const k of keys) {
-    if (typeof out[k] === "string") out[k] = new Date(out[k] as string);
-  }
-  return out;
-};
+const PlanParamsSchema = orgParams.extend({ planId: uuid() });
 
 const DATE_KEYS = ["startDate", "endDate", "nextSessionAt", "lastSessionAt"];
 
-export const PhysiotherapyPlanController = {
-  list: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const query = ListQuerySchema.safeParse(req.query);
-      if (!query.success)
-        return res.status(400).json({ message: query.error.message });
-      const records = await PhysiotherapyPlanService.list({
-        organisationId: params.data.organisationId,
-        ...query.data,
-      });
-      return res.status(200).json(records);
-    } catch (err) {
-      return handleError(err, res, "Failed to list physiotherapy plans");
-    }
-  },
+const { handler } = createClinicalHandlers(PhysiotherapyPlanError);
 
-  create: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = CreateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const d = body.data;
-      const record = await PhysiotherapyPlanService.create({
-        organisationId: params.data.organisationId,
-        prescribedBy: typedReq.userId ?? undefined,
+export const PhysiotherapyPlanController = {
+  list: handler({
+    params: orgParams,
+    query: ListQuerySchema,
+    fallback: "Failed to list physiotherapy plans",
+    run: ({ params, input }) =>
+      PhysiotherapyPlanService.list({
+        organisationId: params.organisationId,
+        ...input,
+      }),
+  }),
+
+  create: handler({
+    params: orgParams,
+    body: CreateBodySchema,
+    status: 201,
+    fallback: "Failed to create physiotherapy plan",
+    run: ({ params, input, userId }) => {
+      const d = input;
+      return PhysiotherapyPlanService.create({
+        organisationId: params.organisationId,
+        prescribedBy: userId,
         patientId: d.patientId,
         encounterId: d.encounterId,
         surgicalProcedureId: d.surgicalProcedureId,
@@ -145,46 +117,28 @@ export const PhysiotherapyPlanController = {
         therapist: d.therapist,
         notes: d.notes,
       });
-      return res.status(201).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to create physiotherapy plan");
-    }
-  },
+    },
+  }),
 
-  get: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = PlanParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const record = await PhysiotherapyPlanService.get(
-        params.data.planId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to get physiotherapy plan");
-    }
-  },
+  get: handler({
+    params: PlanParamsSchema,
+    fallback: "Failed to get physiotherapy plan",
+    run: ({ params }) =>
+      PhysiotherapyPlanService.get(params.planId, params.organisationId),
+  }),
 
-  update: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = PlanParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = UpdateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const parsed = parseDateFields(body.data, DATE_KEYS);
-      const record = await PhysiotherapyPlanService.update(
-        params.data.planId,
-        params.data.organisationId,
+  update: handler({
+    params: PlanParamsSchema,
+    body: UpdateBodySchema,
+    fallback: "Failed to update physiotherapy plan",
+    run: ({ params, input, userId }) => {
+      const parsed = coerceDateFields(input, DATE_KEYS);
+      return PhysiotherapyPlanService.update(
+        params.planId,
+        params.organisationId,
         parsed,
-        typedReq.userId ?? undefined,
+        userId,
       );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to update physiotherapy plan");
-    }
-  },
+    },
+  }),
 };

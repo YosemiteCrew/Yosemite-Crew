@@ -1,10 +1,13 @@
-import type { Request, Response } from "express";
 import { z } from "zod";
 import {
   IcuCarePlanService,
   IcuCarePlanError,
 } from "src/services/icu-care-plan.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import {
+  createClinicalHandlers,
+  orgParams,
+  uuid,
+} from "src/controllers/web/shared/clinical-controller.helpers";
 
 const IcuStatusEnum = z.enum([
   "ACTIVE",
@@ -59,125 +62,73 @@ const ListQuerySchema = z.object({
   status: IcuStatusEnum.optional(),
 });
 
-const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });
-const PlanParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  planId: z.string().uuid(),
-});
+const PlanParamsSchema = orgParams.extend({ planId: uuid() });
 
-const handleError = (
-  err: unknown,
-  res: Response,
-  fallback: string,
-): Response => {
-  if (err instanceof IcuCarePlanError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  return res.status(500).json({ message: fallback });
-};
+const { handler } = createClinicalHandlers(IcuCarePlanError);
 
 export const IcuCarePlanController = {
-  list: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const query = ListQuerySchema.safeParse(req.query);
-      if (!query.success)
-        return res.status(400).json({ message: query.error.message });
-      const plans = await IcuCarePlanService.list({
-        organisationId: params.data.organisationId,
-        ...query.data,
-      });
-      return res.status(200).json(plans);
-    } catch (err) {
-      return handleError(err, res, "Failed to list ICU care plans");
-    }
-  },
+  list: handler({
+    params: orgParams,
+    query: ListQuerySchema,
+    fallback: "Failed to list ICU care plans",
+    run: ({ params, input }) =>
+      IcuCarePlanService.list({
+        organisationId: params.organisationId,
+        ...input,
+      }),
+  }),
 
-  create: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = CreateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const { admittedAt, anticipatedDischarge, ...rest } = body.data;
-      const plan = await IcuCarePlanService.create({
-        organisationId: params.data.organisationId,
-        primaryVet: rest.primaryVet ?? typedReq.userId ?? undefined,
+  create: handler({
+    params: orgParams,
+    body: CreateBodySchema,
+    status: 201,
+    fallback: "Failed to create ICU care plan",
+    run: ({ params, input, userId }) => {
+      const { admittedAt, anticipatedDischarge, ...rest } = input;
+      return IcuCarePlanService.create({
+        organisationId: params.organisationId,
+        primaryVet: rest.primaryVet ?? userId,
         ...rest,
         admittedAt: new Date(admittedAt),
         ...(anticipatedDischarge
           ? { anticipatedDischarge: new Date(anticipatedDischarge) }
           : {}),
       });
-      return res.status(201).json(plan);
-    } catch (err) {
-      return handleError(err, res, "Failed to create ICU care plan");
-    }
-  },
+    },
+  }),
 
-  get: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = PlanParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const plan = await IcuCarePlanService.get(
-        params.data.planId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(plan);
-    } catch (err) {
-      return handleError(err, res, "Failed to get ICU care plan");
-    }
-  },
+  get: handler({
+    params: PlanParamsSchema,
+    fallback: "Failed to get ICU care plan",
+    run: ({ params }) =>
+      IcuCarePlanService.get(params.planId, params.organisationId),
+  }),
 
-  update: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = PlanParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = UpdateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const { anticipatedDischarge, ...rest } = body.data;
-      const plan = await IcuCarePlanService.update(
-        params.data.planId,
-        params.data.organisationId,
-        {
-          ...rest,
-          ...(anticipatedDischarge
-            ? { anticipatedDischarge: new Date(anticipatedDischarge) }
-            : {}),
-        },
-      );
-      return res.status(200).json(plan);
-    } catch (err) {
-      return handleError(err, res, "Failed to update ICU care plan");
-    }
-  },
+  update: handler({
+    params: PlanParamsSchema,
+    body: UpdateBodySchema,
+    fallback: "Failed to update ICU care plan",
+    run: ({ params, input }) => {
+      const { anticipatedDischarge, ...rest } = input;
+      return IcuCarePlanService.update(params.planId, params.organisationId, {
+        ...rest,
+        ...(anticipatedDischarge
+          ? { anticipatedDischarge: new Date(anticipatedDischarge) }
+          : {}),
+      });
+    },
+  }),
 
-  discharge: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = PlanParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = DischargeBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const plan = await IcuCarePlanService.discharge(
-        params.data.planId,
-        params.data.organisationId,
-        body.data,
-        typedReq.userId ?? undefined,
-      );
-      return res.status(200).json(plan);
-    } catch (err) {
-      return handleError(err, res, "Failed to discharge ICU care plan");
-    }
-  },
+  discharge: handler({
+    params: PlanParamsSchema,
+    body: DischargeBodySchema,
+    fallback: "Failed to discharge ICU care plan",
+    run: ({ params, input, userId }) =>
+      IcuCarePlanService.discharge(
+        params.planId,
+        params.organisationId,
+        input,
+        userId,
+      ),
+  }),
 };

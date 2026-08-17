@@ -1,10 +1,14 @@
-import type { Request, Response } from "express";
 import { z } from "zod";
 import {
   OphthalmologyExaminationService,
   OphthalmologyExaminationError,
 } from "src/services/ophthalmology-examination.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import {
+  createClinicalHandlers,
+  orgParams,
+  patientScopeQuery,
+  uuid,
+} from "src/controllers/web/shared/clinical-controller.helpers";
 
 const VisionStatusEnum = z.enum(["NORMAL", "REDUCED", "ABSENT", "UNKNOWN"]);
 const PLRResponseEnum = z.enum(["NORMAL", "SLUGGISH", "ABSENT"]);
@@ -64,125 +68,64 @@ const UpdateBodySchema = CreateBodySchema.omit({
   patientId: true,
   examinedAt: true,
 }).partial();
-const ListQuerySchema = z.object({
-  patientId: z.string().uuid().optional(),
-  encounterId: z.string().uuid().optional(),
-});
-const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });
-const ExamParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  examId: z.string().uuid(),
-});
+const ListQuerySchema = patientScopeQuery;
+const ExamParamsSchema = orgParams.extend({ examId: uuid() });
 
-const handleError = (
-  err: unknown,
-  res: Response,
-  fallback: string,
-): Response => {
-  if (err instanceof OphthalmologyExaminationError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  return res.status(500).json({ message: fallback });
-};
+const { handler } = createClinicalHandlers(OphthalmologyExaminationError);
 
 export const OphthalmologyExaminationController = {
-  list: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const query = ListQuerySchema.safeParse(req.query);
-      if (!query.success)
-        return res.status(400).json({ message: query.error.message });
-      const exams = await OphthalmologyExaminationService.list({
-        organisationId: params.data.organisationId,
-        ...query.data,
-      });
-      return res.status(200).json(exams);
-    } catch (err) {
-      return handleError(err, res, "Failed to list ophthalmology examinations");
-    }
-  },
+  list: handler({
+    params: orgParams,
+    query: ListQuerySchema,
+    fallback: "Failed to list ophthalmology examinations",
+    run: ({ params, input }) =>
+      OphthalmologyExaminationService.list({
+        organisationId: params.organisationId,
+        ...input,
+      }),
+  }),
 
-  create: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = CreateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const exam = await OphthalmologyExaminationService.create({
-        organisationId: params.data.organisationId,
-        examinedBy: typedReq.userId ?? undefined,
-        ...body.data,
-        examinedAt: new Date(body.data.examinedAt),
-      });
-      return res.status(201).json(exam);
-    } catch (err) {
-      return handleError(
-        err,
-        res,
-        "Failed to create ophthalmology examination",
-      );
-    }
-  },
+  create: handler({
+    params: orgParams,
+    body: CreateBodySchema,
+    status: 201,
+    fallback: "Failed to create ophthalmology examination",
+    run: ({ params, input, userId }) =>
+      OphthalmologyExaminationService.create({
+        organisationId: params.organisationId,
+        examinedBy: userId,
+        ...input,
+        examinedAt: new Date(input.examinedAt),
+      }),
+  }),
 
-  get: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = ExamParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const exam = await OphthalmologyExaminationService.get(
-        params.data.examId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(exam);
-    } catch (err) {
-      return handleError(err, res, "Failed to get ophthalmology examination");
-    }
-  },
+  get: handler({
+    params: ExamParamsSchema,
+    fallback: "Failed to get ophthalmology examination",
+    run: ({ params }) =>
+      OphthalmologyExaminationService.get(params.examId, params.organisationId),
+  }),
 
-  update: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = ExamParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = UpdateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const exam = await OphthalmologyExaminationService.update(
-        params.data.examId,
-        params.data.organisationId,
-        body.data,
-      );
-      return res.status(200).json(exam);
-    } catch (err) {
-      return handleError(
-        err,
-        res,
-        "Failed to update ophthalmology examination",
-      );
-    }
-  },
+  update: handler({
+    params: ExamParamsSchema,
+    body: UpdateBodySchema,
+    fallback: "Failed to update ophthalmology examination",
+    run: ({ params, input }) =>
+      OphthalmologyExaminationService.update(
+        params.examId,
+        params.organisationId,
+        input,
+      ),
+  }),
 
-  delete: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = ExamParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      await OphthalmologyExaminationService.delete(
-        params.data.examId,
-        params.data.organisationId,
-      );
-      return res.status(204).send();
-    } catch (err) {
-      return handleError(
-        err,
-        res,
-        "Failed to delete ophthalmology examination",
-      );
-    }
-  },
+  delete: handler({
+    params: ExamParamsSchema,
+    status: 204,
+    fallback: "Failed to delete ophthalmology examination",
+    run: ({ params }) =>
+      OphthalmologyExaminationService.delete(
+        params.examId,
+        params.organisationId,
+      ),
+  }),
 };

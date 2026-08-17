@@ -1,10 +1,14 @@
-import type { Request, Response } from "express";
 import { z } from "zod";
 import {
   MedicationReconciliationService,
   MedicationReconciliationError,
 } from "src/services/medication-reconciliation.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import {
+  createClinicalHandlers,
+  orgParams,
+  patientScopeQuery,
+  uuid,
+} from "src/controllers/web/shared/clinical-controller.helpers";
 
 const ReconciliationStatusEnum = z.enum([
   "IN_PROGRESS",
@@ -65,157 +69,84 @@ const ReviewBodySchema = z.object({
   reviewNotes: z.string().max(3000).optional(),
 });
 
-const ListQuerySchema = z.object({
-  patientId: z.string().uuid().optional(),
-  encounterId: z.string().uuid().optional(),
+const ListQuerySchema = patientScopeQuery.extend({
   status: ReconciliationStatusEnum.optional(),
 });
 
-const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });
-const MedRecParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  medRecId: z.string().uuid(),
-});
+const MedRecParamsSchema = orgParams.extend({ medRecId: uuid() });
 
-const handleError = (
-  err: unknown,
-  res: Response,
-  fallback: string,
-): Response => {
-  if (err instanceof MedicationReconciliationError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  return res.status(500).json({ message: fallback });
-};
+const { handler } = createClinicalHandlers(MedicationReconciliationError);
 
 export const MedicationReconciliationController = {
-  list: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const query = ListQuerySchema.safeParse(req.query);
-      if (!query.success)
-        return res.status(400).json({ message: query.error.message });
-      const records = await MedicationReconciliationService.list({
-        organisationId: params.data.organisationId,
-        ...query.data,
-      });
-      return res.status(200).json(records);
-    } catch (err) {
-      return handleError(err, res, "Failed to list medication reconciliations");
-    }
-  },
+  list: handler({
+    params: orgParams,
+    query: ListQuerySchema,
+    fallback: "Failed to list medication reconciliations",
+    run: ({ params, input }) =>
+      MedicationReconciliationService.list({
+        organisationId: params.organisationId,
+        ...input,
+      }),
+  }),
 
-  create: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = CreateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const record = await MedicationReconciliationService.create({
-        organisationId: params.data.organisationId,
-        reconciledBy: typedReq.userId ?? undefined,
-        ...body.data,
-      });
-      return res.status(201).json(record);
-    } catch (err) {
-      return handleError(
-        err,
-        res,
-        "Failed to create medication reconciliation",
-      );
-    }
-  },
+  create: handler({
+    params: orgParams,
+    body: CreateBodySchema,
+    status: 201,
+    fallback: "Failed to create medication reconciliation",
+    run: ({ params, input, userId }) =>
+      MedicationReconciliationService.create({
+        organisationId: params.organisationId,
+        reconciledBy: userId,
+        ...input,
+      }),
+  }),
 
-  get: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = MedRecParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const record = await MedicationReconciliationService.get(
-        params.data.medRecId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to get medication reconciliation");
-    }
-  },
+  get: handler({
+    params: MedRecParamsSchema,
+    fallback: "Failed to get medication reconciliation",
+    run: ({ params }) =>
+      MedicationReconciliationService.get(
+        params.medRecId,
+        params.organisationId,
+      ),
+  }),
 
-  update: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = MedRecParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = UpdateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const record = await MedicationReconciliationService.update(
-        params.data.medRecId,
-        params.data.organisationId,
-        body.data,
-      );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(
-        err,
-        res,
-        "Failed to update medication reconciliation",
-      );
-    }
-  },
+  update: handler({
+    params: MedRecParamsSchema,
+    body: UpdateBodySchema,
+    fallback: "Failed to update medication reconciliation",
+    run: ({ params, input }) =>
+      MedicationReconciliationService.update(
+        params.medRecId,
+        params.organisationId,
+        input,
+      ),
+  }),
 
-  complete: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = MedRecParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = CompleteBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const record = await MedicationReconciliationService.complete(
-        params.data.medRecId,
-        params.data.organisationId,
-        body.data,
-        typedReq.userId ?? undefined,
-      );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(
-        err,
-        res,
-        "Failed to complete medication reconciliation",
-      );
-    }
-  },
+  complete: handler({
+    params: MedRecParamsSchema,
+    body: CompleteBodySchema,
+    fallback: "Failed to complete medication reconciliation",
+    run: ({ params, input, userId }) =>
+      MedicationReconciliationService.complete(
+        params.medRecId,
+        params.organisationId,
+        input,
+        userId,
+      ),
+  }),
 
-  review: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = MedRecParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = ReviewBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const record = await MedicationReconciliationService.review(
-        params.data.medRecId,
-        params.data.organisationId,
-        body.data,
-        typedReq.userId ?? "unknown",
-      );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(
-        err,
-        res,
-        "Failed to review medication reconciliation",
-      );
-    }
-  },
+  review: handler({
+    params: MedRecParamsSchema,
+    body: ReviewBodySchema,
+    fallback: "Failed to review medication reconciliation",
+    run: ({ params, input, userId }) =>
+      MedicationReconciliationService.review(
+        params.medRecId,
+        params.organisationId,
+        input,
+        userId ?? "unknown",
+      ),
+  }),
 };

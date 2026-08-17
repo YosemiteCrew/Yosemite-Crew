@@ -1,11 +1,14 @@
 import { Request, Response } from "express";
 import { z } from "zod";
-import logger from "src/utils/logger";
 import {
   PassportConsentService,
   PassportConsentError,
 } from "src/services/passport-consent.service";
 import { OrgRequest } from "src/middlewares/rbac";
+import {
+  createOrgErrorHandler,
+  permissionsLoaded,
+} from "src/controllers/web/shared/org-controller.helpers";
 
 const IdSchema = z.string().min(1).max(64);
 
@@ -31,27 +34,7 @@ const GrantBodySchema = z.object({
 });
 const RevokeBodySchema = z.object({ reason: z.string().max(500).optional() });
 
-const permissionsLoaded = (req: OrgRequest, res: Response): boolean => {
-  if (req.userPermissions) return true;
-  res.status(500).json({
-    message:
-      "Permissions not loaded. Include withOrgPermissions before handler.",
-  });
-  return false;
-};
-
-const handleError = (
-  err: unknown,
-  res: Response,
-  context: string,
-): Response => {
-  if (err instanceof PassportConsentError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  logger.error(context, err);
-  return res.status(500).json({ message: "Internal Server Error" });
-};
-
+const handleError = createOrgErrorHandler(PassportConsentError);
 export const PassportConsentController = {
   requestConsent: async (req: Request, res: Response): Promise<Response> => {
     try {

@@ -1,10 +1,13 @@
-import type { Request, Response } from "express";
 import { z } from "zod";
 import {
   PatientConsentService,
   PatientConsentError,
 } from "src/services/patient-consent.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import {
+  createClinicalHandlers,
+  orgParams,
+  uuid,
+} from "src/controllers/web/shared/clinical-controller.helpers";
 
 const ConsentTypeEnum = z.enum([
   "SURGICAL",
@@ -40,98 +43,56 @@ const ListQuerySchema = z.object({
   consentType: ConsentTypeEnum.optional(),
 });
 
-const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });
-const ConsentParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  consentId: z.string().uuid(),
-});
+const ConsentParamsSchema = orgParams.extend({ consentId: uuid() });
 
-const handleError = (
-  err: unknown,
-  res: Response,
-  fallback: string,
-): Response => {
-  if (err instanceof PatientConsentError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  return res.status(500).json({ message: fallback });
-};
+const { handler } = createClinicalHandlers(PatientConsentError);
 
 export const PatientConsentController = {
-  list: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const query = ListQuerySchema.safeParse(req.query);
-      if (!query.success)
-        return res.status(400).json({ message: query.error.message });
-      const records = await PatientConsentService.list({
-        organisationId: params.data.organisationId,
-        ...query.data,
-      });
-      return res.status(200).json(records);
-    } catch (err) {
-      return handleError(err, res, "Failed to list consents");
-    }
-  },
+  list: handler({
+    params: orgParams,
+    query: ListQuerySchema,
+    fallback: "Failed to list consents",
+    run: ({ params, input }) =>
+      PatientConsentService.list({
+        organisationId: params.organisationId,
+        ...input,
+      }),
+  }),
 
-  grant: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = GrantBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const { consentedAt, expiresAt, ...rest } = body.data;
-      const record = await PatientConsentService.grant({
-        organisationId: params.data.organisationId,
-        ...(typedReq.userId ? { consentedBy: typedReq.userId } : {}),
+  grant: handler({
+    params: orgParams,
+    body: GrantBodySchema,
+    status: 201,
+    fallback: "Failed to grant consent",
+    run: ({ params, input, userId }) => {
+      const { consentedAt, expiresAt, ...rest } = input;
+      return PatientConsentService.grant({
+        organisationId: params.organisationId,
+        ...(userId ? { consentedBy: userId } : {}),
         ...rest,
         ...(consentedAt ? { consentedAt: new Date(consentedAt) } : {}),
         ...(expiresAt ? { expiresAt: new Date(expiresAt) } : {}),
       });
-      return res.status(201).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to grant consent");
-    }
-  },
+    },
+  }),
 
-  get: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = ConsentParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const record = await PatientConsentService.get(
-        params.data.consentId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to get consent");
-    }
-  },
+  get: handler({
+    params: ConsentParamsSchema,
+    fallback: "Failed to get consent",
+    run: ({ params }) =>
+      PatientConsentService.get(params.consentId, params.organisationId),
+  }),
 
-  revoke: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = ConsentParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = RevokeBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const record = await PatientConsentService.revoke(
-        params.data.consentId,
-        params.data.organisationId,
-        body.data.revokedReason,
-        typedReq.userId ?? undefined,
-      );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to revoke consent");
-    }
-  },
+  revoke: handler({
+    params: ConsentParamsSchema,
+    body: RevokeBodySchema,
+    fallback: "Failed to revoke consent",
+    run: ({ params, input, userId }) =>
+      PatientConsentService.revoke(
+        params.consentId,
+        params.organisationId,
+        input.revokedReason,
+        userId,
+      ),
+  }),
 };

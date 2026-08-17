@@ -1,10 +1,14 @@
-import type { Request, Response } from "express";
 import { z } from "zod";
 import {
   BloodTransfusionService,
   BloodTransfusionError,
 } from "src/services/blood-transfusion.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import {
+  createClinicalHandlers,
+  orgParams,
+  patientScopeQuery,
+  uuid,
+} from "src/controllers/web/shared/clinical-controller.helpers";
 
 const BloodTypeEnum = z.enum([
   "DEA_1_POSITIVE",
@@ -56,27 +60,9 @@ const UpdateBodySchema = z.object({
   postTransfusionPCV: z.number().min(0).max(100).optional(),
 });
 
-const ListQuerySchema = z.object({
-  patientId: z.string().uuid().optional(),
-  encounterId: z.string().uuid().optional(),
-});
+const ListQuerySchema = patientScopeQuery;
 
-const OrgParamsSchema = z.object({ organisationId: z.string().uuid() });
-const TransfusionParamsSchema = z.object({
-  organisationId: z.string().uuid(),
-  transfusionId: z.string().uuid(),
-});
-
-const handleError = (
-  err: unknown,
-  res: Response,
-  fallback: string,
-): Response => {
-  if (err instanceof BloodTransfusionError) {
-    return res.status(err.statusCode).json({ message: err.message });
-  }
-  return res.status(500).json({ message: fallback });
-};
+const TransfusionParamsSchema = orgParams.extend({ transfusionId: uuid() });
 
 const parseDates = (data: {
   startedAt?: string;
@@ -88,101 +74,67 @@ const parseDates = (data: {
   ...(data.endedAt ? { endedAt: new Date(data.endedAt) } : {}),
 });
 
+const { handler } = createClinicalHandlers(BloodTransfusionError);
+
 export const BloodTransfusionController = {
-  list: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const query = ListQuerySchema.safeParse(req.query);
-      if (!query.success)
-        return res.status(400).json({ message: query.error.message });
-      const records = await BloodTransfusionService.list({
-        organisationId: params.data.organisationId,
-        ...query.data,
-      });
-      return res.status(200).json(records);
-    } catch (err) {
-      return handleError(err, res, "Failed to list transfusions");
-    }
-  },
+  list: handler({
+    params: orgParams,
+    query: ListQuerySchema,
+    fallback: "Failed to list transfusions",
+    run: ({ params, input }) =>
+      BloodTransfusionService.list({
+        organisationId: params.organisationId,
+        ...input,
+      }),
+  }),
 
-  record: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = OrgParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = RecordBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const record = await BloodTransfusionService.record({
-        organisationId: params.data.organisationId,
-        administeredBy: typedReq.userId ?? undefined,
-        ...parseDates(body.data),
-      } as Parameters<typeof BloodTransfusionService.record>[0]);
-      return res.status(201).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to record transfusion");
-    }
-  },
+  record: handler({
+    params: orgParams,
+    body: RecordBodySchema,
+    status: 201,
+    fallback: "Failed to record transfusion",
+    run: ({ params, input, userId }) =>
+      BloodTransfusionService.record({
+        organisationId: params.organisationId,
+        administeredBy: userId,
+        ...parseDates(input),
+      } as Parameters<typeof BloodTransfusionService.record>[0]),
+  }),
 
-  get: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = TransfusionParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const record = await BloodTransfusionService.get(
-        params.data.transfusionId,
-        params.data.organisationId,
-      );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to get transfusion");
-    }
-  },
+  get: handler({
+    params: TransfusionParamsSchema,
+    fallback: "Failed to get transfusion",
+    run: ({ params }) =>
+      BloodTransfusionService.get(params.transfusionId, params.organisationId),
+  }),
 
-  reportReaction: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const typedReq = req as OrgRequest;
-      const params = TransfusionParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = ReactionBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const record = await BloodTransfusionService.reportReaction(
-        params.data.transfusionId,
-        params.data.organisationId,
-        body.data,
-        typedReq.userId ?? undefined,
-      );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to report reaction");
-    }
-  },
+  reportReaction: handler({
+    params: TransfusionParamsSchema,
+    body: ReactionBodySchema,
+    fallback: "Failed to report reaction",
+    run: ({ params, input, userId }) =>
+      BloodTransfusionService.reportReaction(
+        params.transfusionId,
+        params.organisationId,
+        input,
+        userId,
+      ),
+  }),
 
-  update: async (req: Request, res: Response): Promise<Response> => {
-    try {
-      const params = TransfusionParamsSchema.safeParse(req.params);
-      if (!params.success)
-        return res.status(400).json({ message: "Invalid route parameters" });
-      const body = UpdateBodySchema.safeParse(req.body);
-      if (!body.success)
-        return res.status(400).json({ message: body.error.message });
-      const { endedAt, ...rest } = body.data;
-      const record = await BloodTransfusionService.update(
-        params.data.transfusionId,
-        params.data.organisationId,
+  update: handler({
+    params: TransfusionParamsSchema,
+    body: UpdateBodySchema,
+    fallback: "Failed to update transfusion",
+    run: ({ params, input }) => {
+      const { endedAt, ...rest } = input;
+      return BloodTransfusionService.update(
+        params.transfusionId,
+        params.organisationId,
         {
           ...rest,
           ...(endedAt ? { endedAt: new Date(endedAt) } : {}),
         },
       );
-      return res.status(200).json(record);
-    } catch (err) {
-      return handleError(err, res, "Failed to update transfusion");
-    }
-  },
+    },
+  }),
 };
