@@ -165,7 +165,12 @@ const TaskDropOverlays = ({
 type TaskMarkerLayout = { top: number; laneIndex: number; laneCount: number };
 
 /** One task block in the hour column, with its hover-revealed view shortcut. */
-const TaskMarker = ({
+/**
+ * Exported for its story. The task chip is the calendar's most-repeated object
+ * and had drifted a long way from the appointment block it sits beside, so it is
+ * worth being able to see it on its own in both themes.
+ */
+export const TaskMarker = ({
   task,
   layout,
   height,
@@ -202,9 +207,15 @@ const TaskMarker = ({
     : Math.max(44, (TASK_BLOCK_DURATION_MINUTES / 60) * height - 2);
   const isCompact = !isZoomOutMode && laneCount > 1;
   const compactPaddingClass = isCompact ? 'px-1.5 py-1' : 'px-2 py-1.5';
+  // 12px, matching common/ZoomInMarker.tsx:111. The radius is set in TWO places -
+  // this `!` utility and the inline style on the button below - so changing one
+  // alone does nothing. The zoomed-out lozenge keeps its pill shape.
+  // cursor-grab: these cards are draggable and showed a plain arrow, so they did
+  // not read as movable at all; the appointment blocks already do this.
+  const cursorClass = canDrag ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer';
   const markerClassName = isZoomOutMode
-    ? 'size-full text-left rounded-full! overflow-hidden p-0 border border-transparent'
-    : `size-full text-left rounded-2xl! overflow-hidden ${compactPaddingClass} flex flex-col justify-between`;
+    ? `size-full text-left rounded-full! overflow-hidden p-0 border border-transparent ${cursorClass}`
+    : `size-full text-left rounded-xl! overflow-hidden ${compactPaddingClass} flex flex-col justify-between ${cursorClass}`;
   const dueTimeLabel = formatDateInPreferredTimeZone(new Date(task.dueAt), {
     hour: 'numeric',
     minute: '2-digit',
@@ -234,8 +245,14 @@ const TaskMarker = ({
           backgroundColor: markerStyle.backgroundColor,
           border: `1px solid ${markerStyle.borderColor}`,
           color: markerStyle.color,
-          borderRadius: isZoomOutMode ? 9999 : 16,
-          boxShadow: isParentTask ? '0 4px 12px var(--glow-p12)' : '0 1px 2px var(--sh05)',
+          borderRadius: isZoomOutMode ? 9999 : 12,
+          // The appointment block is FLAT over a 1px status outline thickened to a
+          // 3px spine on the leading edge; this carried a drop shadow and a plain
+          // 1px border all round, which is most of why the two calendars' events
+          // read as different objects. The parent-task glow stays: that is a
+          // semantic signal (pet-parent task), not chrome.
+          borderLeftWidth: isZoomOutMode ? undefined : '3px',
+          boxShadow: isParentTask ? '0 4px 12px var(--glow-p12)' : undefined,
         }}
         title={markerTitle}
         onClick={onView}
@@ -251,9 +268,9 @@ const TaskMarker = ({
         {isZoomOutMode ? null : (
           <>
             <div
-              className={`text-caption-1 truncate ${isCompact ? 'text-center' : ''} ${
-                isCompletedTask ? 'line-through' : ''
-              }`}
+              className={`truncate text-[12.5px] font-bold leading-[1.2] tracking-[-0.25px] ${
+                isCompact ? 'text-center' : ''
+              } ${isCompletedTask ? 'line-through' : ''}`}
               style={{ color: markerStyle.color }}
             >
               {isParentTask && (
@@ -266,7 +283,12 @@ const TaskMarker = ({
               {task.name || '-'}
             </div>
             <div
-              className={`text-[10px] truncate ${isCompact ? 'text-center' : ''}`}
+              // 11px, matching the appointment block's subtitle recipe
+              // (common/ZoomInMarker.tsx:63). font-normal against the title's new
+              // 700 is what separates them now, rather than a size drop to 10px.
+              className={`truncate font-satoshi text-[11px] font-normal leading-[1.2] tracking-[-0.22px] ${
+                isCompact ? 'text-center' : ''
+              }`}
               // No alpha: markerStyle.color is a status token measured against
               // its own fill, and 0.8 took this 10px line to 3.98:1. The line is
               // already quieter than the task name by size alone.
