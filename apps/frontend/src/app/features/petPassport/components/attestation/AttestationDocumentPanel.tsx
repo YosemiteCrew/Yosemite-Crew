@@ -59,7 +59,10 @@ const FilePreview = ({
   title: string;
   onOpen: (url: string) => void;
 }) => {
-  const label = `Open ${title}${index > 0 ? ` (file ${index + 1})` : ''}`;
+  // Built in two steps rather than nesting a template inside a template, which
+  // is hard to read and is flagged by Sonar S4624.
+  const fileSuffix = index > 0 ? ` (file ${index + 1})` : '';
+  const label = `Open ${title}${fileSuffix}`;
   return (
     <div className="flex flex-col gap-2">
       {isImageFile(file) ? (

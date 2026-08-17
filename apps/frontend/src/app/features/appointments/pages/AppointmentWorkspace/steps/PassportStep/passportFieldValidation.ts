@@ -3,8 +3,7 @@ import { isValidClinicalDate } from '@/app/features/petPassport/services/passpor
 /** Per-field messages keyed by draft field name; an absent key means "valid". */
 export type FieldErrors = Record<string, string | undefined>;
 
-export const hasFieldErrors = (errors: FieldErrors): boolean =>
-  Object.values(errors).some((message) => Boolean(message));
+export const hasFieldErrors = (errors: FieldErrors): boolean => Object.values(errors).some(Boolean);
 
 export const requiredTextError = (label: string, value: string): string | undefined =>
   value.trim() ? undefined : `${label} is required.`;
