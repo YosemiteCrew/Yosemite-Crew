@@ -358,8 +358,8 @@ const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
       />
       <PendingTestConfirmation s={s} />
       <p className="max-w-2xl text-body-4 text-text-secondary">
-        IDEXX test reference data does not explicitly flag tests as in-house vs device-specific in
-        this contract. Use reference lab for external IDEXX ordering.
+        Reference lab tests are submitted to IDEXX for processing. Add the tests you need and place
+        the order; results attach to this appointment when IDEXX returns them.
       </p>
       <div className="flex min-h-24 flex-1 [&>div]:h-full [&>div>div]:h-full [&_textarea]:h-full [&_textarea]:resize-none">
         <FormDesc
@@ -406,7 +406,7 @@ const InhouseOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => {
       <div className="flex flex-col gap-4">
         <p className="max-w-2xl text-body-4 text-text-secondary">
           {terminologyText(
-            'In-house IDEXX workflow requires selecting an IVLS device, then adding the patient to census here. Complete ordering on the IDEXX machine after census is confirmed.'
+            'In-house tests run on your IVLS device. Select the device and add the patient to census here, then complete the order on the IDEXX machine.'
           )}
         </p>
         <output

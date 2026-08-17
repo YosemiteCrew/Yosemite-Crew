@@ -976,9 +976,12 @@ const InhouseCensusStatus = ({ s }: { s: UseLabTestsReturn }) => {
 
 const ReferenceLabForm = ({ s }: { s: UseLabTestsReturn }) => (
   <>
-    <div className="text-caption-1 text-text-secondary">
-      IDEXX test reference data does not explicitly flag tests as in-house vs device-specific in
-      this contract. Use reference lab for external IDEXX ordering.
+    {/* text-body-4, matching the In-house note in the sibling form below and the
+        same paragraph on the workspace step. These two notes are a pair and were
+        rendering at different type scales. */}
+    <div className="text-body-4 text-text-secondary">
+      Reference lab tests are submitted to IDEXX for processing. Add the tests you need and place
+      the order; results attach to this appointment when IDEXX returns them.
     </div>
     <SearchDropdown
       placeholder="Search IDEXX tests"
@@ -1073,8 +1076,8 @@ const ReferenceLabForm = ({ s }: { s: UseLabTestsReturn }) => (
 const InhouseLabForm = ({ s }: { s: UseLabTestsReturn }) => (
   <>
     <div className="text-body-4 text-text-secondary">
-      In-house IDEXX workflow requires selecting an IVLS device, then adding the companion to census
-      here. Complete ordering on the IDEXX machine after census is confirmed.
+      In-house tests run on your IVLS device. Select the device and add the companion to census
+      here, then complete the order on the IDEXX machine.
     </div>
     <LabelDropdown
       placeholder="Select IVLS device"
