@@ -139,9 +139,17 @@ const WorkspaceHeader = ({
           )}
         </div>
         {hasAlerts && (
+          /* The strip scrolls with its scrollbar hidden, so when the alerts do
+             not fit there was NO cue that any were missing - measured on a real
+             patient at 1512px: 666px of pills in a 276px box, with the third one
+             cut mid-word. These are standing clinical alerts ("bite risk",
+             "needs muzzle"), so silently hiding two thirds of them is the wrong
+             failure. A right-edge fade marks the strip as scrollable, and the
+             fade costs nothing when the pills fit, because the faded band is
+             empty background in that case. */
           <div
             data-testid="workspace-alert-strip"
-            className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto pb-1 scrollbar-hidden"
+            className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto pb-1 scrollbar-hidden [mask-image:linear-gradient(to_right,#000_calc(100%-2rem),transparent)]"
           >
             {alerts.map((alert) => (
               <div key={alert.id} className="shrink-0">
