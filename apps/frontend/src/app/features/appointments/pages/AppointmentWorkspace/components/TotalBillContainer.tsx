@@ -28,7 +28,7 @@ const KIND_LABELS: Record<BillableKind, string> = {
 const KIND_PILL_CLASSES: Record<BillableKind, string> = {
   EXISTING_TREATMENT: 'border-pill-info-border bg-pill-info-bg text-pill-info-text',
   IN_HOUSE_PRESCRIPTION: 'border-pill-warning-border bg-pill-warning-bg text-pill-warning-text',
-  PACKAGE_COMPONENT: 'border-pill-success-border bg-pill-success-bg text-pill-success-text',
+  PACKAGE_COMPONENT: 'border-pill-success-border bg-pill-success-bg text-[var(--success-text)]',
   BILLING_ONLY: 'border-card-border bg-neutral-100 text-text-secondary',
   INVENTORY: 'border-card-border bg-neutral-100 text-text-secondary',
 };
@@ -239,7 +239,7 @@ const DiscountInput = ({
       <span className="relative inline-flex w-22 items-center">
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-body-4 text-pill-success-text"
+          className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-body-4 text-[var(--success-text)]"
         >
           %
         </span>
@@ -255,7 +255,7 @@ const DiscountInput = ({
             const capped = maxPercent == null ? percent : Math.min(percent, maxPercent);
             onUpdateItem(item.id, { discountCents: Math.round((item.grossCents * capped) / 100) });
           }}
-          className={`${EDITABLE_BOX} pr-7 pl-3 text-right text-pill-success-text`}
+          className={`${EDITABLE_BOX} pr-7 pl-3 text-right text-[var(--success-text)]`}
         />
       </span>
       {maxPercent != null && maxPercent > 0 ? (
@@ -273,7 +273,7 @@ const GrossAmountCell = ({ item, currency }: { item: InvoiceLineItem; currency: 
     <TextCell className="flex-col! items-start! justify-center font-medium">
       <span>{formatCents(item.grossCents, currency)}</span>
       {item.discountCents > 0 ? (
-        <span className="truncate text-caption-2 text-pill-success-text">
+        <span className="truncate text-caption-2 text-[var(--success-text)]">
           − {formatCents(item.discountCents, currency)}
         </span>
       ) : null}
@@ -342,7 +342,11 @@ const FOOTER_BREAKDOWN_ROW =
 const FOOTER_FONT = '"Satoshi Variable", var(--font-satoshi), sans-serif';
 const NEUTRAL_TEXT = 'var(--color-neutral-900)';
 const PRIMARY_TEXT = 'var(--color-text-brand)';
-const DISCOUNT_TEXT = 'var(--color-success-700)';
+// --success-text, not the 700 step. The footer moved from a mint tint to the
+// warm --inset surface, and 700 (#008255) only measured 3.78:1 there - the
+// lighter mint had been carrying it. --success-text is the ink step (#006642,
+// 5.48) and it already inverts for dark.
+const DISCOUNT_TEXT = 'var(--success-text)';
 
 const FOOTER_HELPER_TEXT_STYLE: React.CSSProperties = {
   color: NEUTRAL_TEXT,
