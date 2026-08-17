@@ -40,6 +40,7 @@ import {
 } from '@/app/features/appointments/components/Calendar/useCalendarSlots';
 import type { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 import type { AppointmentCalendarInteractionProps } from '@/app/features/appointments/components/Calendar/common/calendarInteractionProps';
+import CalendarWeekDayCell from '@/app/features/appointments/components/Calendar/common/CalendarWeekDayCell';
 import './WeekCalendar.css';
 import '@/app/ui/tables/GenericTable/Generictable.css';
 
@@ -191,42 +192,9 @@ const WeekDayHeaderRow = ({
   <div className="yc-table-head yc-table-head--static yc-table-head--flush yc-week-grid__shell yc-week-grid__track">
     <div className="sticky left-0 z-40" style={{ backgroundColor: 'var(--screen-2)' }} />
     <div className="grid" style={dayColumnsStyle}>
-      {days.map((day) => {
-        const weekday = formatDateInPreferredTimeZone(day, {
-          weekday: 'short',
-        });
-        const dateNumber = day.getDate();
-        const isToday = isOnPreferredTimeZoneCalendarDay(now, day);
-        return (
-          <div
-            key={day.toISOString()}
-            className="flex flex-col items-center gap-px border-l px-1 py-2"
-            style={{
-              borderColor: 'var(--hairline)',
-              backgroundColor: isToday ? 'var(--nav-active-bg)' : undefined,
-            }}
-          >
-            <div style={{ color: isToday ? 'var(--nav-active)' : 'var(--ink-faint)' }}>
-              {weekday}
-            </div>
-            {isToday ? (
-              <div
-                className="flex size-6 items-center justify-center rounded-full text-[13px] font-bold normal-case tracking-normal text-white"
-                style={{ backgroundColor: 'var(--blue-strong)' }}
-              >
-                {dateNumber}
-              </div>
-            ) : (
-              <div
-                className="text-[14px] font-bold normal-case tracking-normal"
-                style={{ color: 'var(--ink)' }}
-              >
-                {dateNumber}
-              </div>
-            )}
-          </div>
-        );
-      })}
+      {days.map((day) => (
+        <CalendarWeekDayCell key={day.toISOString()} day={day} now={now} />
+      ))}
     </div>
   </div>
 );
