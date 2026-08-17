@@ -1,8 +1,9 @@
-# Default ownership
-* @YosemiteCrew
+# Default ownership. A bare org account is not resolvable as a code owner, so
+# ownership is held by users with write access.
+* @ankit-yc @aupyay
 
 # Repository governance
-/.github/ @YosemiteCrew
-/AGENTS.md @YosemiteCrew
-/CONTRIBUTING.md @YosemiteCrew
-/SECURITY.md @YosemiteCrew
+/.github/ @ankit-yc @aupyay
+/AGENTS.md @ankit-yc @aupyay
+/CONTRIBUTING.md @ankit-yc @aupyay
+/SECURITY.md @ankit-yc @aupyay
