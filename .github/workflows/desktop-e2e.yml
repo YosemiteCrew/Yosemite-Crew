@@ -1,0 +1,216 @@
+name: Desktop E2E
+
+# Runs the Playwright-Electron suite in apps/desktop/tests/e2e. Those specs have
+# existed for a while - tabs, command palette, compliance, document vault,
+# offline cache, packaged app - but nothing ran them, so the desktop shell was
+# the one shipped surface with no automated end-to-end coverage at all.
+#
+# Windows and macOS only, and only when the desktop app changes. Those are the
+# two platforms desktop-release.yml signs and ships, and macOS runners bill at
+# ten times the Linux rate, so a path filter is what makes running the real
+# thing on the real platforms affordable. Linux is built by electron-builder but
+# is not signed or published, so it is not covered here.
+#
+# The suite drives Electron directly rather than a browser, so no
+# `playwright install` step is needed: there are no browser binaries to fetch.
+# Electron's own binary arrives through its postinstall during the shared setup
+# step.
+
+# Triggered on EVERY pull request, with the path decision made inside the jobs
+# rather than here. A path filter at this level looks equivalent and is not: once
+# `Desktop E2E Required` is marked required on the branch ruleset, a PR touching
+# no desktop path skips the whole workflow, the required check is never created,
+# and the PR waits for it forever. Filtering inside means the aggregate always
+# reports, and reports success when desktop testing was legitimately unnecessary.
+on:
+  pull_request: {}
+  push:
+    branches: [main, dev]
+  workflow_dispatch: {}
+
+concurrency:
+  group: desktop-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Detect desktop changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      desktop: ${{ steps.filter.outputs.desktop }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Decide whether the desktop suite needs to run
+        id: filter
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # Anything other than a pull request runs the suite: a push to dev or
+          # main, or a manual dispatch, is never the case this filter exists to
+          # skip, and failing open costs a run rather than hiding a regression.
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "desktop=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          CHANGED=$(git diff --name-only "${BASE_SHA}...${HEAD_SHA}" \
+            -- 'apps/desktop/**' '.github/workflows/desktop-e2e.yml' | wc -l)
+          if [ "$CHANGED" -gt 0 ]; then
+            echo "desktop=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "desktop=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  e2e:
+    name: Desktop E2E (${{ matrix.os }})
+    needs: [changes]
+    if: needs.changes.outputs.desktop == 'true'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    # Gated on a RATCHET, not on a clean suite. 26 of 44 specs pass today; the
+    # rest are drift from app changes the specs never caught up with, tracked in
+    # #2245.
+    #
+    # Failing the job outright on a known-red suite would put a permanent red X
+    # on every desktop PR and train everyone to ignore it. But simply reporting
+    # is no better: with the job red either way, a genuine regression in the 26
+    # that pass is indistinguishable from the 18 that do not, so the suite would
+    # catch nothing at all while appearing to.
+    #
+    # So the gate is "at least PASSING_FLOOR specs pass". A regression drops the
+    # count and fails the job; the known failures do not. Same shape as the
+    # coverage floors in _test.yaml, and it ratchets the same way: when the count
+    # rises, raise the floor.
+    #
+    # 25, with observed counts of 26 and 27 on macOS and Windows. One spec of
+    # headroom, deliberately, because command-palette has flaked by one between
+    # runs (#2245). A floor set exactly at the observed count would go red on
+    # flake alone, which is the same "ignore the red X" failure this design
+    # exists to avoid. Raise it to the true count once the flake is fixed.
+    env:
+      PASSING_FLOOR: '25'
+    strategy:
+      # Report both platforms on every run. A Windows-only failure is exactly
+      # the kind of thing this suite exists to catch, and fail-fast would hide
+      # it behind an unrelated macOS failure.
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      # The specs launch Electron with the app root as its argument, and the
+      # package's `main` points at build/main.js, so an unbuilt tree starts an
+      # app with no entry point rather than failing informatively.
+      - name: Build the desktop app
+        run: pnpm --filter @yosemite-crew/desktop run build
+
+      # `|| true` because a non-zero exit is expected while #2245 is open. The
+      # ratchet below is what decides pass or fail, so the raw exit code is not
+      # the signal - the passing COUNT is.
+      - name: Run the Playwright Electron suite
+        working-directory: apps/desktop
+        # bash explicitly: windows-latest defaults to PowerShell, where the
+        # `|| true` below and the bash script in the next step do not run.
+        shell: bash
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: playwright-results.json
+        run: npx playwright test --reporter=list,json || true
+
+      - name: Enforce the passing-count ratchet
+        working-directory: apps/desktop
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e '
+            const fs = require("node:fs");
+            const file = "playwright-results.json";
+            if (!fs.existsSync(file)) {
+              // No report means the suite never ran - a crashed runner, a failed
+              // build. That must fail loudly rather than pass for lack of
+              // evidence, the same way the coverage gate fails closed.
+              console.error("desktop-e2e: no playwright-results.json; the suite did not run");
+              process.exit(1);
+            }
+            const stats = JSON.parse(fs.readFileSync(file, "utf8")).stats || {};
+            const passed = stats.expected ?? 0;
+            const failed = stats.unexpected ?? 0;
+            const floor = Number(process.env.PASSING_FLOOR);
+            console.log(`desktop-e2e: ${passed} passed, ${failed} failed, floor ${floor}`);
+            if (passed < floor) {
+              console.error(
+                `desktop-e2e: ${passed} passing is below the floor of ${floor}. ` +
+                  "A spec that used to pass has regressed - this is not one of the " +
+                  "known failures in #2245."
+              );
+              process.exit(1);
+            }
+          '
+
+      # The list reporter prints enough to diagnose a failure in the log, but
+      # traces and screenshots are what make an OS-specific failure tractable
+      # from another machine.
+      # always(), not failure(): while the suite is red the traces are the whole
+      # point of running it, and someone picking up the remaining failures needs
+      # them from a passing-overall run too.
+      - name: Upload Playwright output
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: desktop-e2e-${{ matrix.os }}
+          path: |
+            apps/desktop/test-results/
+            apps/desktop/playwright-report/
+            apps/desktop/playwright-results.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # Single check to mark required on the branch ruleset, for the same reason
+  # ci.yaml and supply-chain.yml each have one: a required check treats a skipped
+  # job as satisfied, so the matrix needs an aggregate that fails when any leg
+  # fails or is skipped unexpectedly.
+  #
+  # This is meaningful even while #2245 is open, because the legs are gated on
+  # the passing-count ratchet rather than on a clean suite: a leg goes red only
+  # when a spec that used to pass has regressed.
+  desktop-e2e-required:
+    name: Desktop E2E Required
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [changes, e2e]
+    steps:
+      - name: Fail on any failed or cancelled leg
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+          NEEDED: ${{ needs.changes.outputs.desktop }}
+        run: |
+          set -euo pipefail
+          echo "$RESULTS"
+          # A skipped e2e job is only acceptable when the filter said the desktop
+          # app was untouched. Skipped for any other reason is a stage that
+          # silently did not run, which is what this aggregate exists to catch.
+          if [ "$NEEDED" != "true" ]; then
+            echo "Desktop E2E Required: no desktop changes in this pull request, nothing to run"
+            exit 0
+          fi
+          if echo "$RESULTS" | grep -qE '"result": *"(failure|cancelled|skipped)"'; then
+            echo "Desktop E2E Required: at least one platform regressed below the passing floor, was cancelled, or did not run"
+            exit 1
+          fi

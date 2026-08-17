@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
+import { openPimsTab } from './welcome';
 
 type TestServer = {
   origin: string;
@@ -76,7 +77,8 @@ const launchApp = async (pimsOrigin: string, userDataDir?: string) => {
       YC_DESKTOP_USER_DATA_DIR: profileDir,
     },
   });
-  return { app, page: await app.firstWindow(), userDataDir: profileDir };
+  const pages = await openPimsTab(app, pimsOrigin);
+  return { app, page: pages.shell, tab: pages.tab, userDataDir: profileDir };
 };
 
 const evaluateYcDesktop = <T>(page: Page, method: string, ...args: unknown[]): Promise<T> =>
@@ -123,6 +125,7 @@ const waitForVaultCount = async (page: Page, count: number, timeout = 5000): Pro
 test.describe('document-vault E2E', () => {
   let app: ElectronApplication | undefined;
   let page: Page;
+  let tab: Page;
   let pimsServer: TestServer;
   let userDataDir: string | undefined;
 
@@ -131,6 +134,7 @@ test.describe('document-vault E2E', () => {
     const launched = await launchApp(pimsServer.origin);
     app = launched.app;
     page = launched.page;
+    tab = launched.tab;
     userDataDir = launched.userDataDir;
   });
 
@@ -143,9 +147,9 @@ test.describe('document-vault E2E', () => {
   });
 
   test('text download updates vault manifest', async () => {
-    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
 
-    await triggerDownload(page, pimsServer.origin, 'text');
+    await triggerDownload(tab, pimsServer.origin, 'text');
     await waitForVaultCount(page, 1);
 
     const response = await evaluateYcDesktop<{
@@ -157,9 +161,9 @@ test.describe('document-vault E2E', () => {
   });
 
   test('binary download stores content as Buffer in vault', async () => {
-    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
 
-    await triggerDownload(page, pimsServer.origin, 'binary');
+    await triggerDownload(tab, pimsServer.origin, 'binary');
     await waitForVaultCount(page, 1);
 
     const listRes = await evaluateYcDesktop<{
@@ -185,10 +189,10 @@ test.describe('document-vault E2E', () => {
   });
 
   test('download 3, list 3, delete 1, list 2', async () => {
-    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
 
     for (let i = 0; i < 3; i++) {
-      await triggerDownload(page, pimsServer.origin, 'text');
+      await triggerDownload(tab, pimsServer.origin, 'text');
       await waitForVaultCount(page, i + 1);
     }
 
@@ -215,9 +219,9 @@ test.describe('document-vault E2E', () => {
   });
 
   test('vault persists across app relaunch', async () => {
-    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
 
-    await triggerDownload(page, pimsServer.origin, 'text');
+    await triggerDownload(tab, pimsServer.origin, 'text');
     await waitForVaultCount(page, 1);
 
     const listRes1 = await evaluateYcDesktop<{
@@ -234,7 +238,7 @@ test.describe('document-vault E2E', () => {
     app = relaunched.app;
     page = relaunched.page;
 
-    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
     await waitForVaultCount(page, 1);
 
     const listRes2 = await evaluateYcDesktop<{
@@ -246,7 +250,7 @@ test.describe('document-vault E2E', () => {
   });
 
   test('vaultSave from renderer then vaultGet returns content', async () => {
-    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
 
     const content = Buffer.from('hello from renderer').toString('base64');
     const saveRes = await evaluateYcDesktop<{

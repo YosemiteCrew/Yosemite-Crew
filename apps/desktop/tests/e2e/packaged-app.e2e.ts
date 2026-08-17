@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
+import { openPimsTab } from './welcome';
 
 type TestServer = {
   origin: string;
@@ -97,12 +98,14 @@ const launchPackagedApp = async (pimsOrigin: string, docOrigin: string, userData
     };
   });
 
-  return { app, page: await app.firstWindow(), userDataDir: profileDir };
+  const pages = await openPimsTab(app, pimsOrigin);
+  return { app, page: pages.shell, tab: pages.tab, userDataDir: profileDir };
 };
 
 test.describe('packaged Yosemite Crew PIMS desktop app', () => {
   let app: ElectronApplication | undefined;
   let page: Page;
+  let tab: Page;
   let pimsServer: TestServer;
   let docServer: TestServer;
   let userDataDir: string | undefined;
@@ -113,6 +116,7 @@ test.describe('packaged Yosemite Crew PIMS desktop app', () => {
     const launched = await launchPackagedApp(pimsServer.origin, docServer.origin);
     app = launched.app;
     page = launched.page;
+    tab = launched.tab;
     userDataDir = launched.userDataDir;
   });
 
@@ -125,12 +129,13 @@ test.describe('packaged Yosemite Crew PIMS desktop app', () => {
     userDataDir = undefined;
   });
 
-  test('renders the welcome screen and Sign in loads /signin', async () => {
-    await expect(page.getByRole('heading', { name: /yosemite crew pims/i })).toBeVisible();
-    await page.getByRole('button', { name: /sign in/i }).click();
-    await expect(page).toHaveURL(`${pimsServer.origin}/signin`);
-    await expect(page).toHaveTitle(/Sign In/);
-    await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
+  // The welcome screen's Sign in button is what openPimsTab clicks during
+  // launch, so this asserts the end state of that transition rather than
+  // performing it a second time against a screen the app has already left.
+  test('Sign in from the welcome screen loads /signin in a tab', async () => {
+    await expect(tab).toHaveURL(`${pimsServer.origin}/signin`);
+    await expect(tab).toHaveTitle(/Sign In/);
+    await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
   });
 
   test('renders offline page when the sign-in page cannot load', async () => {
