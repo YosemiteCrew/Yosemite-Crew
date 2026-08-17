@@ -393,7 +393,7 @@ importers:
         specifier: ^9.21.0
         version: 9.39.2
       '@playwright/test':
-        specifier: ^1.61.1
+        specifier: 1.61.1
         version: 1.61.1
       '@types/archiver':
         specifier: ^6
