@@ -1,9 +1,41 @@
+import type { SetStateAction } from 'react';
+import { act, renderHook } from '@testing-library/react';
 import {
   getTimedTaskProxyEvents,
   getUnavailableSegmentsForHourRange,
   getVisibleHourRange,
   getVisibleHours,
+  useCalendarWeekNavigation,
 } from '@/app/features/appointments/components/Calendar/useCalendarSlots';
+import { startOfDay } from '@/app/features/appointments/components/Calendar/weekHelpers';
+import { setPreferredTimeZone } from '@/app/lib/timezone';
+
+/** Monday 6 July 2026 at browser-local midnight. */
+const WEEK_START = new Date(2026, 6, 6);
+
+/** Minutes `timeZone` sits ahead of UTC at `instant`. */
+const zoneOffsetMinutes = (timeZone: string, instant: Date): number => {
+  const utc = new Date(instant.toLocaleString('en-US', { timeZone: 'UTC' }));
+  const zoned = new Date(instant.toLocaleString('en-US', { timeZone }));
+  return Math.round((zoned.getTime() - utc.getTime()) / 60_000);
+};
+
+const CANDIDATE_ZONES = [
+  'Pacific/Pago_Pago',
+  'America/Los_Angeles',
+  'America/Sao_Paulo',
+  'Europe/London',
+];
+
+/** A zone at least six hours west of the test host. */
+const pickZoneWestOfHost = (reference: Date): string => {
+  const hostOffset = -reference.getTimezoneOffset();
+  const zone = CANDIDATE_ZONES.find(
+    (candidate) => zoneOffsetMinutes(candidate, reference) <= hostOffset - 360
+  );
+  if (!zone) throw new Error('No candidate timezone is far enough west of the test host.');
+  return zone;
+};
 
 describe('useCalendarSlots helpers', () => {
   it('builds a bounded visible hour range from event and availability minutes', () => {
@@ -116,5 +148,48 @@ describe('useCalendarSlots helpers', () => {
       // endHour should be clamped to 23
       expect(result.endHour).toBe(23);
     });
+  });
+});
+
+describe('useCalendarWeekNavigation', () => {
+  afterEach(() => {
+    window.localStorage.clear();
+  });
+
+  // The page re-derives weekStart from currentDate with browser-local
+  // startOfDay (Appointments/index.tsx). So whatever currentDate the handler
+  // writes must round-trip through startOfDay back to the weekStart it set,
+  // even when the preferred zone sits a full calendar day west of the browser.
+  // A noon-in-org-tz currentDate would drift a day here and shift the columns.
+  const expectCurrentDateRoundTripsToWeekStart = (
+    navigate: (nav: ReturnType<typeof useCalendarWeekNavigation>) => void,
+    expectedWeekStart: Date
+  ) => {
+    const zone = pickZoneWestOfHost(WEEK_START);
+    expect(setPreferredTimeZone(zone)).toBe(true);
+
+    let committedWeekStart: Date | null = null;
+    const setWeekStart = jest.fn((value: SetStateAction<Date>) => {
+      committedWeekStart = typeof value === 'function' ? value(WEEK_START) : value;
+    });
+    const setCurrentDate = jest.fn();
+
+    const { result } = renderHook(() => useCalendarWeekNavigation(setWeekStart, setCurrentDate));
+    act(() => {
+      navigate(result.current);
+    });
+
+    expect(committedWeekStart).not.toBeNull();
+    expect((committedWeekStart as unknown as Date).getTime()).toBe(expectedWeekStart.getTime());
+    const passed = setCurrentDate.mock.calls[0][0] as Date;
+    expect(startOfDay(passed).getTime()).toBe(expectedWeekStart.getTime());
+  };
+
+  it('keeps the derived week aligned when paging forward', () => {
+    expectCurrentDateRoundTripsToWeekStart((nav) => nav.handleNextWeek(), new Date(2026, 6, 13));
+  });
+
+  it('keeps the derived week aligned when paging backward', () => {
+    expectCurrentDateRoundTripsToWeekStart((nav) => nav.handlePrevWeek(), new Date(2026, 5, 29));
   });
 });

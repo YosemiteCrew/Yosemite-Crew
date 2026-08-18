@@ -25,6 +25,7 @@ import {
 import CalendarHourLabel from '@/app/features/appointments/components/Calendar/common/CalendarHourLabel';
 import {
   formatDateInPreferredTimeZone,
+  getDatePartsInPreferredTimeZone,
   getMinutesSinceStartOfDayInPreferredTimeZone,
   isOnPreferredTimeZoneCalendarDay,
 } from '@/app/lib/timezone';
@@ -195,7 +196,7 @@ const WeekDayHeaderRow = ({
         const weekday = formatDateInPreferredTimeZone(day, {
           weekday: 'short',
         });
-        const dateNumber = day.getDate();
+        const dateNumber = getDatePartsInPreferredTimeZone(day).day;
         const isToday = isOnPreferredTimeZoneCalendarDay(now, day);
         return (
           <div

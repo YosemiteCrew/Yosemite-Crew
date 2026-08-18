@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   formatDateInPreferredTimeZone,
+  getDatePartsInPreferredTimeZone,
   isOnPreferredTimeZoneCalendarDay,
 } from '@/app/lib/timezone';
 
@@ -25,7 +26,7 @@ const DayLabels = ({ days, currentDate, columnsStyle }: DayLabels) => {
         // so a user whose browser zone differs from the org's could see the same
         // column labelled Tue on one calendar and Mon on the other.
         const weekday = formatDateInPreferredTimeZone(day, { weekday: 'short' });
-        const dateNumber = day.getDate();
+        const dateNumber = getDatePartsInPreferredTimeZone(day).day;
         const isToday = isOnPreferredTimeZoneCalendarDay(new Date(), day);
         const dateNumberClass = isToday
           ? 'bg-[var(--blue-strong)] text-white border-transparent'

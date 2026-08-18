@@ -100,6 +100,17 @@ jest.mock('@/app/lib/timezone', () => ({
     next.setUTCHours(0, minuteOfDay, 0, 0);
     return next;
   }),
+  buildPreferredTimeZoneDayInstant: jest.fn(
+    (year: number, month: number, day: number) =>
+      new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0))
+  ),
+  getDatePartsInPreferredTimeZone: jest.fn((value: Date) => ({
+    year: value.getUTCFullYear(),
+    month: value.getUTCMonth() + 1,
+    day: value.getUTCDate(),
+    hour: value.getUTCHours(),
+    minute: value.getUTCMinutes(),
+  })),
   formatDateInPreferredTimeZone: jest.fn((date: Date, options: Intl.DateTimeFormatOptions) => {
     if (options.weekday) {
       return 'MONDAY';

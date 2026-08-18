@@ -1,6 +1,10 @@
 import { Appointment } from '@yosemite-crew/types';
 import { formatDisplayDate } from '@/app/lib/date';
-import { getHourInPreferredTimeZone, isOnPreferredTimeZoneCalendarDay } from '@/app/lib/timezone';
+import {
+  buildPreferredTimeZoneDayInstant,
+  getHourInPreferredTimeZone,
+  isOnPreferredTimeZoneCalendarDay,
+} from '@/app/lib/timezone';
 
 export const HOURS_IN_DAY = 24;
 
@@ -11,12 +15,15 @@ export function startOfDay(date: Date): Date {
 }
 
 export function getWeekDays(weekStart: Date): Date[] {
-  const base = startOfDay(weekStart);
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(base);
-    d.setDate(base.getDate() + i);
-    return d;
-  });
+  const year = weekStart.getFullYear();
+  const month = weekStart.getMonth() + 1;
+  const date = weekStart.getDate();
+  // Anchor each column on a preferred-timezone instant instead of browser-local
+  // midnight so the day number and event bucketing follow the org's calendar day.
+  // JS Date normalizes month/year rollover when date + i overflows the month.
+  return Array.from({ length: 7 }, (_, i) =>
+    buildPreferredTimeZoneDayInstant(year, month, date + i)
+  );
 }
 
 export function eventsForDayHour(events: Appointment[], day: Date, hour: number): Appointment[] {

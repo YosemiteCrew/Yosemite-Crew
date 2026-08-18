@@ -17,6 +17,15 @@ jest.mock('@/app/features/appointments/components/Calendar/weekHelpers', () => (
 }));
 
 jest.mock('@/app/lib/timezone', () => ({
+  buildPreferredTimeZoneDayInstant: (year: number, month: number, day: number) =>
+    new Date(year, month - 1, day, 12, 0, 0, 0),
+  getDatePartsInPreferredTimeZone: (value: Date) => ({
+    year: value.getFullYear(),
+    month: value.getMonth() + 1,
+    day: value.getDate(),
+    hour: value.getHours(),
+    minute: value.getMinutes(),
+  }),
   getHourInPreferredTimeZone: (value: Date) => value.getHours(),
   getMinutesSinceStartOfDayInPreferredTimeZone: (value: Date) =>
     value.getHours() * 60 + value.getMinutes(),
