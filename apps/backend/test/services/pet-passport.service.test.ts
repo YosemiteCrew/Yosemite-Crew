@@ -724,3 +724,57 @@ describe("PetPassportService.getPassportForParent", () => {
     expect(passport.identity.name).toBe("Doggy");
   });
 });
+
+describe("PetPassportService token scope split", () => {
+  const issued = {
+    patientId: "pat-1",
+    organisationId: "org-1",
+    passportNumber: "GB-YC-1",
+  };
+
+  it("resolves the owner's public token across every practice", async () => {
+    prismaMock.petPassport.findFirst.mockResolvedValueOnce(issued);
+
+    await PetPassportService.getPublicPassportByToken("owner-token");
+
+    const where = prismaMock.encounter.findMany.mock.calls[0][0].where;
+    expect(where.organisationId).toBeUndefined();
+  });
+
+  it("confines a practice wallet token to its own consent boundary", async () => {
+    // This is the whole point of the second token. If a practice token ever
+    // resolved with owner scope, a practice could read the cross-practice
+    // history its own passport view withholds - through a pass it minted.
+    prismaMock.petPassport.findFirst
+      .mockResolvedValueOnce(null) // not the owner's public token
+      .mockResolvedValueOnce(issued); // matched on practiceWalletToken
+
+    await PetPassportService.getPublicPassportByToken("practice-token");
+
+    const where = prismaMock.encounter.findMany.mock.calls[0][0].where;
+    expect(where.organisationId).toBeDefined();
+    expect(where.organisationId.in).toContain("org-1");
+  });
+
+  it("looks the practice token up only after the public one misses, and excludes revoked", async () => {
+    prismaMock.petPassport.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(issued);
+
+    await PetPassportService.getPublicPassportByToken("practice-token");
+
+    const second = prismaMock.petPassport.findFirst.mock.calls[1][0].where;
+    expect(second.practiceWalletToken).toBe("practice-token");
+    expect(second.practiceWalletTokenRevokedAt).toBeNull();
+  });
+
+  it("404s when neither token matches", async () => {
+    prismaMock.petPassport.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+
+    await expect(
+      PetPassportService.getPublicPassportByToken("nothing"),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+});

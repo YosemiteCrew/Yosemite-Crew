@@ -238,16 +238,25 @@ const parentPassport = (
  * member the cross-practice records the consent filter withholds from their own
  * passport view. The owner creates the link from the mobile app first.
  */
-const staffShareToken = async (patientId: string): Promise<string> => {
-  const token = await PetPassportService.getExistingPublicToken(patientId);
-  if (!token) {
-    throw new PetPassportServiceError(
-      "This passport has no active public share link. The pet's owner must create one from the app before a wallet pass can be issued.",
-      409,
-    );
-  }
-  return token;
-};
+/**
+ * The credential a staff wallet pass carries.
+ *
+ * Deliberately NOT the owner's public token. That one resolves with "owner"
+ * scope - every practice's records, no consent gate - so embedding it here
+ * would let a practice read, through a pass it generated itself, the
+ * cross-practice history the consent filter withholds from its passport view.
+ * The practice token is bound to this organisation and resolves with
+ * "practice" scope, so the pass shows exactly what the issuing staff member
+ * can already see.
+ *
+ * It also removes the old 409: staff no longer need the owner to have created
+ * a public link before a pass can be issued.
+ */
+const staffWalletToken = async (
+  patientId: string,
+  organisationId: string,
+): Promise<string> =>
+  PetPassportService.getOrCreatePracticeWalletToken(patientId, organisationId);
 
 /** Streams a signed .pkpass for an already-assembled passport. */
 const applePassResponse = async (
@@ -404,7 +413,7 @@ export const PetPassportController = {
     run: async ({ params, res }) =>
       applePassResponse(
         await orgPassport(params),
-        await staffShareToken(params.patientId),
+        await staffWalletToken(params.patientId, params.organisationId),
         res,
       ),
   }),
@@ -415,7 +424,7 @@ export const PetPassportController = {
     run: async ({ params, res }) =>
       googlePassResponse(
         await orgPassport(params),
-        await staffShareToken(params.patientId),
+        await staffWalletToken(params.patientId, params.organisationId),
         res,
       ),
   }),
