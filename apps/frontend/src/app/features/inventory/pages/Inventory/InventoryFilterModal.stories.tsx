@@ -49,6 +49,73 @@ type HarnessProps = {
  * derivation so the chip row, the section counts and the checkboxes stay in
  * agreement the way they do in the app.
  */
+/**
+ * Chip derivation, lifted out of the harness. It is a pure function of the filter state
+ * plus the two removal callbacks, so it can be read - and reasoned about - without the
+ * surrounding useState soup. Review flagged the harness for doing state management,
+ * filter mutation, chip derivation and rendering all at once; this is the third of those.
+ */
+const deriveChips = (
+  filters: InventoryFiltersState,
+  {
+    setFilters,
+    toggleCategoryFilter,
+    toggleListFilter,
+  }: {
+    setFilters: React.Dispatch<React.SetStateAction<InventoryFiltersState>>;
+    toggleCategoryFilter: (category: string) => void;
+    toggleListFilter: (
+      key: 'subCategories' | 'locations' | 'abcClasses' | 'suppliers',
+      value: string
+    ) => void;
+  }
+): FilterChip[] => {
+  const chips: FilterChip[] = [];
+  if (filters.status !== 'ALL') {
+    chips.push({
+      id: `status-${filters.status}`,
+      label: filters.status.replaceAll('_', ' ').toLowerCase(),
+      onRemove: () => setFilters((prev) => ({ ...prev, status: 'ALL' })),
+    });
+  }
+  filters.categories.forEach((category) =>
+    chips.push({
+      id: `category-${category}`,
+      label: category,
+      onRemove: () => toggleCategoryFilter(category),
+    })
+  );
+  filters.subCategories.forEach((sub) =>
+    chips.push({
+      id: `subCategory-${sub}`,
+      label: sub,
+      onRemove: () => toggleListFilter('subCategories', sub),
+    })
+  );
+  filters.locations.forEach((location) =>
+    chips.push({
+      id: `location-${location}`,
+      label: location,
+      onRemove: () => toggleListFilter('locations', location),
+    })
+  );
+  filters.abcClasses.forEach((abc) =>
+    chips.push({
+      id: `abc-${abc}`,
+      label: `Class ${abc}`,
+      onRemove: () => toggleListFilter('abcClasses', abc),
+    })
+  );
+  filters.suppliers.forEach((supplier) =>
+    chips.push({
+      id: `supplier-${supplier}`,
+      label: supplier,
+      onRemove: () => toggleListFilter('suppliers', supplier),
+    })
+  );
+  return chips;
+};
+
 const InventoryFilterHarness = ({
   filterOpen: initialOpen,
   openSections,
@@ -94,49 +161,7 @@ const InventoryFilterHarness = ({
       };
     });
 
-  const chips: FilterChip[] = [];
-  if (filters.status !== 'ALL') {
-    chips.push({
-      id: `status-${filters.status}`,
-      label: filters.status.replaceAll('_', ' ').toLowerCase(),
-      onRemove: () => setFilters((prev) => ({ ...prev, status: 'ALL' })),
-    });
-  }
-  filters.categories.forEach((category) =>
-    chips.push({
-      id: `category-${category}`,
-      label: category,
-      onRemove: () => toggleCategoryFilter(category),
-    })
-  );
-  filters.subCategories.forEach((sub) =>
-    chips.push({
-      id: `subCategory-${sub}`,
-      label: sub,
-      onRemove: () => toggleListFilter('subCategories', sub),
-    })
-  );
-  filters.locations.forEach((location) =>
-    chips.push({
-      id: `location-${location}`,
-      label: location,
-      onRemove: () => toggleListFilter('locations', location),
-    })
-  );
-  filters.abcClasses.forEach((abcClass) =>
-    chips.push({
-      id: `abcClass-${abcClass}`,
-      label: abcClass,
-      onRemove: () => toggleListFilter('abcClasses', abcClass),
-    })
-  );
-  filters.suppliers.forEach((supplier) =>
-    chips.push({
-      id: `supplier-${supplier}`,
-      label: supplier,
-      onRemove: () => toggleListFilter('suppliers', supplier),
-    })
-  );
+  const chips = deriveChips(filters, { setFilters, toggleCategoryFilter, toggleListFilter });
 
   return (
     <div className="min-h-[560px]">
@@ -248,9 +273,11 @@ export const Closed: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The transition the app actually performs: a trigger flips `filterOpen`, the portalled ' +
-        '`<dialog>` gains `open`, and the drawer slides in from `translate-x-[120%]`.',
+      description: {
+        story:
+          'The transition the app actually performs: a trigger flips `filterOpen`, the portalled ' +
+          '`<dialog>` gains `open`, and the drawer slides in from `translate-x-[120%]`.',
+      },
     },
   },
 };
@@ -278,9 +305,11 @@ export const Open: Story = {
   },
   parameters: {
     docs: {
-      story:
-        "The page's own default: only `stock-status` is open, so four radios show and every other " +
-        'section is a bare header. No chips, so the header carries no "Clear all" pill.',
+      description: {
+        story:
+          "The page's own default: only `stock-status` is open, so four radios show and every other " +
+          'section is a bare header. No chips, so the header carries no "Clear all" pill.',
+      },
     },
   },
 };
@@ -305,10 +334,12 @@ export const AllSectionsOpen: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Everything open at once - the tallest the panel gets, and the only drawing that shows the ' +
-        '`divide-y divide-card-border` rules between sections doing their job inside the scroll ' +
-        'body while the header and footer stay pinned.',
+      description: {
+        story:
+          'Everything open at once - the tallest the panel gets, and the only drawing that shows the ' +
+          '`divide-y divide-card-border` rules between sections doing their job inside the scroll ' +
+          'body while the header and footer stay pinned.',
+      },
     },
   },
 };
@@ -331,10 +362,12 @@ export const SubcategoriesExpanded: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The deepest surface in the panel: three `Medicine` subcategories in an `ml-6` column, ' +
-        'reachable only with the drawer open, the Category section expanded and that one category ' +
-        'expanded. Nothing had ever rendered it.',
+      description: {
+        story:
+          'The deepest surface in the panel: three `Medicine` subcategories in an `ml-6` column, ' +
+          'reachable only with the drawer open, the Category section expanded and that one category ' +
+          'expanded. Nothing had ever rendered it.',
+      },
     },
   },
 };
@@ -369,12 +402,14 @@ export const WithSelections: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Five filters set. This is the only state where the header carries "Clear all", where the ' +
-        'chip row exists between the header and the scroll body, and where the count badges are ' +
-        'rendered - the badge is a `size-5` circle inside the header row, so its presence changes ' +
-        'that row rather than overlaying it. Note the collapsed Location section still counts 1 ' +
-        'even with nothing on screen to explain it: that badge is the only trace of the filter.',
+      description: {
+        story:
+          'Five filters set. This is the only state where the header carries "Clear all", where the ' +
+          'chip row exists between the header and the scroll body, and where the count badges are ' +
+          'rendered - the badge is a `size-5` circle inside the header row, so its presence changes ' +
+          'that row rather than overlaying it. Note the collapsed Location section still counts 1 ' +
+          'even with nothing on screen to explain it: that badge is the only trace of the filter.',
+      },
     },
   },
 };
@@ -399,10 +434,12 @@ export const RemoveChip: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The chip `×` and the section checkbox are two views of one value. Removing the chip has ' +
-        'to unset the checkbox below it, and the drawer has to keep the remaining chip - the two ' +
-        'drifting apart is invisible until both are on screen at once.',
+      description: {
+        story:
+          'The chip `×` and the section checkbox are two views of one value. Removing the chip has ' +
+          'to unset the checkbox below it, and the drawer has to keep the remaining chip - the two ' +
+          'drifting apart is invisible until both are on screen at once.',
+      },
     },
   },
 };

@@ -101,9 +101,11 @@ export const Default: Story = {
   name: 'Resting',
   parameters: {
     docs: {
-      story:
-        'Two alerts and the "+" button, with the visit timer in its "not started" rest state ' +
-        'because no `visitStartAt` is supplied.',
+      description: {
+        story:
+          'Two alerts and the "+" button, with the visit timer in its "not started" rest state ' +
+          'because no `visitStartAt` is supplied.',
+      },
     },
   },
 };
@@ -121,10 +123,12 @@ export const AddAlertTooltip: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The bubble, portalled to `document.body` and positioned `side="bottom"` from the ' +
-        'trigger rect with a 10px gap and an 8px viewport clamp. Nothing renders it without a ' +
-        'hover or a focus, so it had never appeared in a snapshot.',
+      description: {
+        story:
+          'The bubble, portalled to `document.body` and positioned `side="bottom"` from the ' +
+          'trigger rect with a 10px gap and an 8px viewport clamp. Nothing renders it without a ' +
+          'hover or a focus, so it had never appeared in a snapshot.',
+      },
     },
   },
 };
@@ -140,10 +144,12 @@ export const HospitalizeTooltip: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The 44px black circular action on the right. Its accessible name is produced by ' +
-        '`useCompanionTerminologyText`, so it reads "Hospitalize companion" by default and ' +
-        '"Hospitalize patient" for a hospital org - a string no static story can hard-code.',
+      description: {
+        story:
+          'The 44px black circular action on the right. Its accessible name is produced by ' +
+          '`useCompanionTerminologyText`, so it reads "Hospitalize companion" by default and ' +
+          '"Hospitalize patient" for a hospital org - a string no static story can hard-code.',
+      },
     },
   },
 };
@@ -168,10 +174,12 @@ export const OverflowingAlerts: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Five standing clinical alerts in a constrained row. The scrollbar is hidden, so the ' +
-        'right-edge mask is the only signal that there is more - compare it against the resting ' +
-        'story, where the same fade falls on empty background.',
+      description: {
+        story:
+          'Five standing clinical alerts in a constrained row. The scrollbar is hidden, so the ' +
+          'right-edge mask is the only signal that there is more - compare it against the resting ' +
+          'story, where the same fade falls on empty background.',
+      },
     },
   },
 };
@@ -197,10 +205,12 @@ export const ClientAlerts: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Parent-level alerts sit in the same strip, prefixed "Client:" and rendered without an ' +
-        '`onRemove`, so they have no X. The two pill kinds are otherwise identical, which is ' +
-        'precisely why they need to be seen side by side.',
+      description: {
+        story:
+          'Parent-level alerts sit in the same strip, prefixed "Client:" and rendered without an ' +
+          '`onRemove`, so they have no X. The two pill kinds are otherwise identical, which is ' +
+          'precisely why they need to be seen side by side.',
+      },
     },
   },
 };
@@ -217,10 +227,12 @@ export const NoAlertStrip: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'A companion with no standing alerts, in a role that cannot add one. The strip is ' +
-        'removed rather than left as an empty flex child, so the name block sits directly ' +
-        'beside the right-hand actions.',
+      description: {
+        story:
+          'A companion with no standing alerts, in a role that cannot add one. The strip is ' +
+          'removed rather than left as an empty flex child, so the name block sits directly ' +
+          'beside the right-hand actions.',
+      },
     },
   },
 };
@@ -239,10 +251,12 @@ export const EmergencyReadyToAdmit: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The busiest version of the row: emergency badge beside the status pill, plus the Admit ' +
-        'primary ahead of the hospitalize circle and Quick Actions. Four controls compete for ' +
-        'the right edge here, which only shows up when all of them render at once.',
+      description: {
+        story:
+          'The busiest version of the row: emergency badge beside the status pill, plus the Admit ' +
+          'primary ahead of the hospitalize circle and Quick Actions. Four controls compete for ' +
+          'the right edge here, which only shows up when all of them render at once.',
+      },
     },
   },
 };
@@ -262,9 +276,11 @@ export const Admitting: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The Admit button relabels and disables while the admission request is in flight. It is ' +
-        'a prop here, but in the app it exists only for the length of a network call.',
+      description: {
+        story:
+          'The Admit button relabels and disables while the admission request is in flight. It is ' +
+          'a prop here, but in the app it exists only for the length of a network call.',
+      },
     },
   },
 };

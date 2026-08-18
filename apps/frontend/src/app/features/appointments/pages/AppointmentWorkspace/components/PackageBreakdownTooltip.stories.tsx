@@ -107,9 +107,11 @@ export const Trigger: Story = {
   name: 'Trigger only (resting)',
   parameters: {
     docs: {
-      story:
-        'What the bill row shows until someone hovers: a `size-4` icon button nudged down by ' +
-        '`translate-y-px` so it sits on the text baseline beside the package name.',
+      description: {
+        story:
+          'What the bill row shows until someone hovers: a `size-4` icon button nudged down by ' +
+          '`translate-y-px` so it sits on the text baseline beside the package name.',
+      },
     },
   },
 };
@@ -130,11 +132,13 @@ export const Open: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Four component lines with mixed per-line discounts, so the "Default disc." column shows both ' +
-        'its `n% / -$x` form and its `-` fallback in the same table. The row `#` column is fixed at ' +
-        '`w-8` and the item name is capped at `max-w-44` with a `truncate` span; every other column ' +
-        'is content-sized, which is what makes the seven-column measurement worth a snapshot.',
+      description: {
+        story:
+          'Four component lines with mixed per-line discounts, so the "Default disc." column shows both ' +
+          'its `n% / -$x` form and its `-` fallback in the same table. The row `#` column is fixed at ' +
+          '`w-8` and the item name is capped at `max-w-44` with a `truncate` span; every other column ' +
+          'is content-sized, which is what makes the seven-column measurement worth a snapshot.',
+      },
     },
   },
 };
@@ -154,10 +158,12 @@ export const NoPackageDiscount: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'With `discountCents: 0` the "Package discount" row is not rendered, so "Component total" and ' +
-        '"Total" become adjacent and both `border-t border-neutral-0/25` rules land back to back. ' +
-        'That doubled rule is only visible in this branch.',
+      description: {
+        story:
+          'With `discountCents: 0` the "Package discount" row is not rendered, so "Component total" and ' +
+          '"Total" become adjacent and both `border-t border-neutral-0/25` rules land back to back. ' +
+          'That doubled rule is only visible in this branch.',
+      },
     },
   },
 };
@@ -183,9 +189,11 @@ export const SingleComponent: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'One component, three footer rows. The `last:border-b-0` on the body row means the only rule ' +
-        "under it is the footer's own top border, so this is where a missing or doubled divider shows.",
+      description: {
+        story:
+          'One component, three footer rows. The `last:border-b-0` on the body row means the only rule ' +
+          "under it is the footer's own top border, so this is where a missing or doubled divider shows.",
+      },
     },
   },
 };
@@ -210,10 +218,12 @@ export const LongComponentNames: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The overflow guard. The Item cell is `max-w-44` around a `block truncate` span, so a long ' +
-        'component name must ellipsise rather than push the bubble past `maxWidth: 560` and into the ' +
-        'viewport clamp - which would move the whole bubble sideways off its trigger.',
+      description: {
+        story:
+          'The overflow guard. The Item cell is `max-w-44` around a `block truncate` span, so a long ' +
+          'component name must ellipsise rather than push the bubble past `maxWidth: 560` and into the ' +
+          'viewport clamp - which would move the whole bubble sideways off its trigger.',
+      },
     },
   },
 };
@@ -230,10 +240,12 @@ export const KeyboardFocus: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The trigger carries `aria-label="View <name> package breakdown"` and a `focus-visible` ring, ' +
-        'and `GlassTooltip` listens for `focusin` as well as `mouseenter`, so the same table is ' +
-        'reachable without a pointer.',
+      description: {
+        story:
+          'The trigger carries `aria-label="View <name> package breakdown"` and a `focus-visible` ring, ' +
+          'and `GlassTooltip` listens for `focusin` as well as `mouseenter`, so the same table is ' +
+          'reachable without a pointer.',
+      },
     },
   },
 };
@@ -249,10 +261,12 @@ export const NoBreakdown: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'An ordinary bill line. The component returns `null` before rendering a `GlassTooltip` at ' +
-        'all, so there is no (i) to hover - the bill must not offer an affordance that opens an ' +
-        'empty bubble.',
+      description: {
+        story:
+          'An ordinary bill line. The component returns `null` before rendering a `GlassTooltip` at ' +
+          'all, so there is no (i) to hover - the bill must not offer an affordance that opens an ' +
+          'empty bubble.',
+      },
     },
   },
 };

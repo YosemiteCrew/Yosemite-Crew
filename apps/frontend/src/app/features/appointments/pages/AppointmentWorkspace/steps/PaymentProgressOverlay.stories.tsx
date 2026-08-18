@@ -74,10 +74,12 @@ export const Checking: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The state the user lands in the moment checkout opens. One action only, so the dialog is ' +
-        'at its shortest - and the loader occupies the slot the success circle takes in the other ' +
-        'two branches.',
+      description: {
+        story:
+          'The state the user lands in the moment checkout opens. One action only, so the dialog is ' +
+          'at its shortest - and the loader occupies the slot the success circle takes in the other ' +
+          'two branches.',
+      },
     },
   },
 };
@@ -96,10 +98,12 @@ export const Confirmed: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Settled. The loader is replaced by a `size-14` `bg-success-100 / text-success-600` circle ' +
-        'and every escape hatch collapses to a single Done. Offering Abort here would read as ' +
-        '"undo the payment", which is why the branch is exclusive rather than additive.',
+      description: {
+        story:
+          'Settled. The loader is replaced by a `size-14` `bg-success-100 / text-success-600` circle ' +
+          'and every escape hatch collapses to a single Done. Offering Abort here would read as ' +
+          '"undo the payment", which is why the branch is exclusive rather than additive.',
+      },
     },
   },
 };
@@ -118,10 +122,12 @@ export const Delayed: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Confirmation has not arrived. This is the widest action row in the component and the only ' +
-        'one that can wrap inside the `max-w-115` shell - the layout most likely to break, and the ' +
-        'one nothing rendered before.',
+      description: {
+        story:
+          'Confirmation has not arrived. This is the widest action row in the component and the only ' +
+          'one that can wrap inside the `max-w-115` shell - the layout most likely to break, and the ' +
+          'one nothing rendered before.',
+      },
     },
   },
 };
@@ -138,10 +144,12 @@ export const DelayedWithoutCheckoutUrl: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'A poll that resumed after a reload has no `checkoutUrl`, so the reopen link is dropped ' +
-        'entirely and the gap between the description and the button row closes by one `gap-4` ' +
-        'step. Same status, visibly different dialog.',
+      description: {
+        story:
+          'A poll that resumed after a reload has no `checkoutUrl`, so the reopen link is dropped ' +
+          'entirely and the gap between the description and the button row closes by one `gap-4` ' +
+          'step. Same status, visibly different dialog.',
+      },
     },
   },
 };
@@ -157,10 +165,12 @@ export const Dismissed: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The `if (!state) return null` gate. Documented explicitly because the overlay is `fixed ' +
-        'inset-0 z-[1100]` - if it ever rendered an empty shell instead of nothing, it would ' +
-        'silently swallow every click on the page behind it.',
+      description: {
+        story:
+          'The `if (!state) return null` gate. Documented explicitly because the overlay is `fixed ' +
+          'inset-0 z-[1100]` - if it ever rendered an empty shell instead of nothing, it would ' +
+          'silently swallow every click on the page behind it.',
+      },
     },
   },
 };

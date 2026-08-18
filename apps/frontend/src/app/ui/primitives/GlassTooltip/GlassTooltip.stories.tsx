@@ -129,10 +129,12 @@ export const LongContent: Story = {
   play: async ({ canvasElement }) => openOnHover(canvasElement, 'deduct the full quantity'),
   parameters: {
     docs: {
-      story:
-        'A bubble wide enough to need `maxWidth` and to be pushed back inside the viewport by the ' +
-        '8px clamp. This is the case `updatePosition` exists for, and the case a closed trigger ' +
-        'can never show.',
+      description: {
+        story:
+          'A bubble wide enough to need `maxWidth` and to be pushed back inside the viewport by the ' +
+          '8px clamp. This is the case `updatePosition` exists for, and the case a closed trigger ' +
+          'can never show.',
+      },
     },
   },
 };

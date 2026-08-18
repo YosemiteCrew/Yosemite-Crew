@@ -151,9 +151,11 @@ export const Default: Story = {
   name: 'Three rows, three stock states',
   parameters: {
     docs: {
-      story:
-        'In stock, low stock and expired together, so the row tint, the bold expiry cell and ' +
-        'the accented restock button can be compared against their neutral versions.',
+      description: {
+        story:
+          'In stock, low stock and expired together, so the row tint, the bold expiry cell and ' +
+          'the accented restock button can be compared against their neutral versions.',
+      },
     },
   },
 };
@@ -172,10 +174,12 @@ export const RestockTooltip: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The bubble for the low-stock row, portalled to `document.body` and positioned ' +
-        '`side="top"` from the trigger rect with a 10px gap and an 8px viewport clamp. It only ' +
-        'exists after a hover or focus, so nothing had rendered it.',
+      description: {
+        story:
+          'The bubble for the low-stock row, portalled to `document.body` and positioned ' +
+          '`side="top"` from the trigger rect with a 10px gap and an 8px viewport clamp. It only ' +
+          'exists after a hover or focus, so nothing had rendered it.',
+      },
     },
   },
 };
@@ -190,10 +194,12 @@ export const ViewDetailsTooltip: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The second bubble on the same rail. Both buttons carry a per-row `aria-label` ' +
-        '("View Carprofen 50 mg") while the tooltip says only "View details", so the visible ' +
-        'copy and the announced name deliberately differ.',
+      description: {
+        story:
+          'The second bubble on the same rail. Both buttons carry a per-row `aria-label` ' +
+          '("View Carprofen 50 mg") while the tooltip says only "View details", so the visible ' +
+          'copy and the announced name deliberately differ.',
+      },
     },
   },
 };
@@ -213,10 +219,12 @@ export const WithoutRestock: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'What a role without restock permission sees. The 96px actions column now holds a ' +
-        'single centred button instead of a pair, which shifts it relative to every other row ' +
-        'in the design.',
+      description: {
+        story:
+          'What a role without restock permission sees. The 96px actions column now holds a ' +
+          'single centred button instead of a pair, which shifts it relative to every other row ' +
+          'in the design.',
+      },
     },
   },
 };
@@ -233,10 +241,12 @@ export const OpensDetails: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The table supports two ways of opening a row: a single `onView` callback, or the older ' +
-        '`setActiveInventory` + `setViewInventory` pair it falls back to. Which branch runs is ' +
-        'invisible until the button is actually pressed.',
+      description: {
+        story:
+          'The table supports two ways of opening a row: a single `onView` callback, or the older ' +
+          '`setActiveInventory` + `setViewInventory` pair it falls back to. Which branch runs is ' +
+          'invisible until the button is actually pressed.',
+      },
     },
   },
 };
@@ -251,9 +261,11 @@ export const EmptyState: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'No rows: the header track stays, the body is replaced by a single centred line, and ' +
-        'the footer summary reads "No items" rather than a range.',
+      description: {
+        story:
+          'No rows: the header track stays, the body is replaced by a single centred line, and ' +
+          'the footer summary reads "No items" rather than a range.',
+      },
     },
   },
 };

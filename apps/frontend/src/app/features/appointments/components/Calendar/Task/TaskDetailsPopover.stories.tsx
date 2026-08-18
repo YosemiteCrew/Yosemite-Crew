@@ -118,7 +118,9 @@ export const Default: Story = {
   },
   parameters: {
     docs: {
-      story: 'Three label/value pairs in two columns, values right-aligned against their labels.',
+      description: {
+        story: 'Three label/value pairs in two columns, values right-aligned against their labels.',
+      },
     },
   },
 };
@@ -138,10 +140,12 @@ export const LongValues: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The value column is `minmax(0,1fr)` with `truncate`, so long values ellipsise instead of ' +
-        'widening the popover. Without the `minmax(0,...)` the track would refuse to shrink below ' +
-        'its content and push the panel past its 304px.',
+      description: {
+        story:
+          'The value column is `minmax(0,1fr)` with `truncate`, so long values ellipsise instead of ' +
+          'widening the popover. Without the `minmax(0,...)` the track would refuse to shrink below ' +
+          'its content and push the panel past its 304px.',
+      },
     },
   },
 };
@@ -154,7 +158,11 @@ export const ParentTask: Story = {
 export const Completed: Story = {
   args: { task: task({ status: 'COMPLETED', name: 'Bandage change' }) },
   parameters: {
-    docs: { story: 'A completed task: the status chip changes tone and the actions narrow.' },
+    docs: {
+      description: {
+        story: 'A completed task: the status chip changes tone and the actions narrow.',
+      },
+    },
   },
 };
 
@@ -163,9 +171,11 @@ export const ReadOnly: Story = {
   args: { canEditTasks: false },
   parameters: {
     docs: {
-      story:
-        'Without edit permission the change-status and reschedule actions are gone rather than ' +
-        'dimmed, so the footer must not collapse or leave a stray divider.',
+      description: {
+        story:
+          'Without edit permission the change-status and reschedule actions are gone rather than ' +
+          'dimmed, so the footer must not collapse or leave a stray divider.',
+      },
     },
   },
 };
@@ -175,9 +185,11 @@ export const UnassignedTask: Story = {
   args: { task: task({ assignedBy: undefined, assignedTo: undefined, category: undefined }) },
   parameters: {
     docs: {
-      story:
-        'Every value falls back to a dash. This is the case where a one-column collapse is hardest ' +
-        'to spot by eye, because the values are short enough to look deliberate.',
+      description: {
+        story:
+          'Every value falls back to a dash. This is the case where a one-column collapse is hardest ' +
+          'to spot by eye, because the values are short enough to look deliberate.',
+      },
     },
   },
 };

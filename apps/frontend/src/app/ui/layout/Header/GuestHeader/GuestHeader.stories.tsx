@@ -185,7 +185,6 @@ export const MobileMenuOpen: Story = {
   name: 'Mobile (menu open)',
   globals: { viewport: { value: 'phone', isRotated: false } },
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
     const drawer = await openDrawer(canvasElement);
     // Count the drawer's contents: seven routes plus the auth CTA, all buttons.
     await expect(within(drawer).getAllByRole('button', { hidden: true })).toHaveLength(8);

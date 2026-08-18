@@ -110,9 +110,11 @@ export const Open: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The dialog as the Specialities page shows it: title row with the X, the warning ' +
-        'paragraph naming the package, then the two half-width actions.',
+      description: {
+        story:
+          'The dialog as the Specialities page shows it: title row with the X, the warning ' +
+          'paragraph naming the package, then the two half-width actions.',
+      },
     },
   },
 };
@@ -128,9 +130,11 @@ export const Confirmed: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The destructive path. The dialog does not close itself - `onConfirm` is all it does, ' +
-        'and the page decides what happens next.',
+      description: {
+        story:
+          'The destructive path. The dialog does not close itself - `onConfirm` is all it does, ' +
+          'and the page decides what happens next.',
+      },
     },
   },
 };
@@ -145,9 +149,11 @@ export const Cancelled: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Cancel is wired to the same handler as the header X and the backdrop, so all three ' +
-        'dismissals land in one place.',
+      description: {
+        story:
+          'Cancel is wired to the same handler as the header X and the backdrop, so all three ' +
+          'dismissals land in one place.',
+      },
     },
   },
 };
@@ -171,10 +177,12 @@ export const LongPackageName: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Package names are user-entered and can be long. The `<strong>` sits inline in the ' +
-        'sentence, so the paragraph grows and pushes the action grid down inside the 500px ' +
-        'dialog.',
+      description: {
+        story:
+          'Package names are user-entered and can be long. The `<strong>` sits inline in the ' +
+          'sentence, so the paragraph grows and pushes the action grid down inside the 500px ' +
+          'dialog.',
+      },
     },
   },
 };

@@ -82,63 +82,60 @@ const CenterModalDemo = ({ title = 'Confirm action' }: { title?: string }) => {
   );
 };
 
+/**
+ * The destructive variant, as one component rather than repeated inline in two stories.
+ *
+ * Both stories previously inlined the same ~50 lines AND called `useState` from inside an
+ * IIFE during render - a hooks violation that happened to work - then reached the state
+ * through a hidden proxy button clicked by `getElementById`. A component holds the state
+ * the way a real caller does, so the stories exercise the same path the app takes.
+ */
+const DestructiveModalDemo = () => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <button
+        type="button"
+        className="px-6 py-3 bg-[var(--danger-strong)] text-[var(--danger-strong-ink)] rounded-2xl text-body-3-emphasis"
+        onClick={() => setOpen(true)}
+      >
+        Delete item
+      </button>
+      <CenterModal showModal={open} setShowModal={setOpen}>
+        <ModalHeader title="Delete item?" onClose={() => setOpen(false)} />
+        <div className="px-3 pb-3 flex flex-col gap-4">
+          <p className="text-body-4 text-text-secondary">
+            This action cannot be undone. The item will be permanently removed.
+          </p>
+          <div className="flex gap-3 justify-end">
+            <button
+              type="button"
+              className="px-6 py-3 border border-text-primary rounded-2xl text-body-3-emphasis"
+              onClick={() => setOpen(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="px-6 py-3 bg-[var(--danger-strong)] text-[var(--danger-strong-ink)] rounded-2xl text-body-3-emphasis"
+              onClick={() => setOpen(false)}
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </CenterModal>
+    </div>
+  );
+};
+
 export const Default: Story = {
   render: () => <CenterModalDemo />,
 };
 
 export const DestructiveConfirm: Story = {
   name: 'Destructive confirm',
-  render: () => (
-    <div>
-      <button
-        type="button"
-        className="px-6 py-3 bg-[var(--danger-strong)] text-[var(--danger-strong-ink)] rounded-2xl text-body-3-emphasis"
-        onClick={() => {
-          const el = document.getElementById('delete-demo-trigger') as HTMLButtonElement;
-          el?.click();
-        }}
-      >
-        Delete item
-      </button>
-      {(() => {
-        const [open, setOpen] = useState(false);
-        return (
-          <>
-            <button
-              id="delete-demo-trigger"
-              type="button"
-              className="hidden"
-              onClick={() => setOpen(true)}
-            />
-            <CenterModal showModal={open} setShowModal={setOpen}>
-              <ModalHeader title="Delete item?" onClose={() => setOpen(false)} />
-              <div className="px-3 pb-3 flex flex-col gap-4">
-                <p className="text-body-4 text-text-secondary">
-                  This action cannot be undone. The item will be permanently removed.
-                </p>
-                <div className="flex gap-3 justify-end">
-                  <button
-                    type="button"
-                    className="px-6 py-3 border border-text-primary rounded-2xl text-body-3-emphasis"
-                    onClick={() => setOpen(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="px-6 py-3 bg-[var(--danger-strong)] text-[var(--danger-strong-ink)] rounded-2xl text-body-3-emphasis"
-                    onClick={() => setOpen(false)}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </CenterModal>
-          </>
-        );
-      })()}
-    </div>
-  ),
+  render: () => <DestructiveModalDemo />,
   parameters: {
     docs: {
       description: {
@@ -183,9 +180,11 @@ export const Opened: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The surface this file was missing: the centred panel over its blurred `--sh55` backdrop, ' +
-        'with a caller-supplied `ModalHeader` and a right-aligned action pair.',
+      description: {
+        story:
+          'The surface this file was missing: the centred panel over its blurred `--sh55` backdrop, ' +
+          'with a caller-supplied `ModalHeader` and a right-aligned action pair.',
+      },
     },
   },
 };
@@ -204,67 +203,19 @@ export const OpenedThenDismissed: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The round trip. `ModalBase` restores focus to the trigger and drops the body scroll lock ' +
-        'on close, so a dialog that is dismissed has to leave the page exactly as it found it - ' +
-        'the leak only shows up after an open/close cycle, never in a resting render.',
+      description: {
+        story:
+          'The round trip. `ModalBase` restores focus to the trigger and drops the body scroll lock ' +
+          'on close, so a dialog that is dismissed has to leave the page exactly as it found it - ' +
+          'the leak only shows up after an open/close cycle, never in a resting render.',
+      },
     },
   },
 };
 
 export const DestructiveOpened: Story = {
   name: 'Destructive confirm (opened)',
-  render: () => (
-    <div>
-      <button
-        type="button"
-        className="px-6 py-3 bg-[var(--danger-strong)] text-[var(--danger-strong-ink)] rounded-2xl text-body-3-emphasis"
-        onClick={() => {
-          const el = document.getElementById('delete-opened-trigger') as HTMLButtonElement;
-          el?.click();
-        }}
-      >
-        Delete item
-      </button>
-      {(() => {
-        const [open, setOpen] = useState(false);
-        return (
-          <>
-            <button
-              id="delete-opened-trigger"
-              type="button"
-              className="hidden"
-              onClick={() => setOpen(true)}
-            />
-            <CenterModal showModal={open} setShowModal={setOpen}>
-              <ModalHeader title="Delete item?" onClose={() => setOpen(false)} />
-              <div className="px-3 pb-3 flex flex-col gap-4">
-                <p className="text-body-4 text-text-secondary">
-                  This action cannot be undone. The item will be permanently removed.
-                </p>
-                <div className="flex gap-3 justify-end">
-                  <button
-                    type="button"
-                    className="px-6 py-3 border border-text-primary rounded-2xl text-body-3-emphasis"
-                    onClick={() => setOpen(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="px-6 py-3 bg-[var(--danger-strong)] text-[var(--danger-strong-ink)] rounded-2xl text-body-3-emphasis"
-                    onClick={() => setOpen(false)}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </CenterModal>
-          </>
-        );
-      })()}
-    </div>
-  ),
+  render: () => <DestructiveModalDemo />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('button', { name: 'Delete item' }));

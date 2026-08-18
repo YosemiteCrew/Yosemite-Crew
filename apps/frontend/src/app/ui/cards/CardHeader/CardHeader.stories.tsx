@@ -53,10 +53,12 @@ export const Open: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The panel every stat card shares. The current period carries `aria-pressed`, which is the ' +
-        'only thing distinguishing it - there is no check mark, so the selected row has to read as ' +
-        'selected on colour alone.',
+      description: {
+        story:
+          'The panel every stat card shares. The current period carries `aria-pressed`, which is the ' +
+          'only thing distinguishing it - there is no check mark, so the selected row has to read as ' +
+          'selected on colour alone.',
+      },
     },
   },
 };
@@ -75,10 +77,12 @@ export const OpenWithLongOptions: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Four options, the longest wider than the pill that opened it. `min-w-full` sets the floor ' +
-        'and `whitespace-nowrap` stops the rows wrapping, so the panel grows leftwards from its ' +
-        'right-aligned edge instead of overflowing the card.',
+      description: {
+        story:
+          'Four options, the longest wider than the pill that opened it. `min-w-full` sets the floor ' +
+          'and `whitespace-nowrap` stops the rows wrapping, so the panel grows leftwards from its ' +
+          'right-aligned edge instead of overflowing the card.',
+      },
     },
   },
 };
@@ -102,10 +106,12 @@ export const SectionVariant: Story = {
   },
   parameters: {
     docs: {
-      story:
-        "The larger Explore heading: 16px title and a 12px pill against the card variant's 15px " +
-        'and 11.5px. The panel itself does not change size with the variant, which is worth seeing ' +
-        'against both.',
+      description: {
+        story:
+          "The larger Explore heading: 16px title and a 12px pill against the card variant's 15px " +
+          'and 11.5px. The panel itself does not change size with the variant, which is worth seeing ' +
+          'against both.',
+      },
     },
   },
 };

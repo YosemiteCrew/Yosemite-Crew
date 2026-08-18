@@ -199,10 +199,12 @@ export const PendingRequest: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Two lines, one of them controlled. The blue figure beside each name is what leaves the ' +
-        'shelf; the card under it shows the prescription as written and then the working that got ' +
-        'there, with the pack maths on the right.',
+      description: {
+        story:
+          'Two lines, one of them controlled. The blue figure beside each name is what leaves the ' +
+          'shelf; the card under it shows the prescription as written and then the working that got ' +
+          'there, with the pack maths on the right.',
+      },
     },
   },
 };
@@ -221,10 +223,12 @@ export const WeeklyDosing: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'A once-weekly course over four weeks. `parseFrequencyPerDay` returns 1/7, so the ' +
-        'component takes its second branch and rounds the total up rather than printing a ' +
-        'fraction of a tablet.',
+      description: {
+        story:
+          'A once-weekly course over four weeks. `parseFrequencyPerDay` returns 1/7, so the ' +
+          'component takes its second branch and rounds the total up rather than printing a ' +
+          'fraction of a tablet.',
+      },
     },
   },
 };
@@ -243,10 +247,12 @@ export const LegacyPrescription: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'An older prescription with none of the enriched fields. This is the fallback shape - ' +
-        'freq/duration/refill as plain strings, no working shown - and it is the only frame where ' +
-        'the summary reads in bare "units" because no stock unit is known.',
+      description: {
+        story:
+          'An older prescription with none of the enriched fields. This is the fallback shape - ' +
+          'freq/duration/refill as plain strings, no working shown - and it is the only frame where ' +
+          'the summary reads in bare "units" because no stock unit is known.',
+      },
     },
   },
 };
@@ -267,9 +273,11 @@ export const DispensedRecord: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'After the fact. The eyebrow changes tense, a green check joins the header beside the ' +
-        'close button, and the only remaining action reprints the label.',
+      description: {
+        story:
+          'After the fact. The eyebrow changes tense, a green check joins the header beside the ' +
+          'close button, and the only remaining action reprints the label.',
+      },
     },
   },
 };
@@ -288,10 +296,12 @@ export const NotDispensedRecord: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'A refused request. The footer disappears entirely and the eyebrow still reads "Dispense ' +
-        'request", so the panel looks live and simply has no actions - the state this frame exists ' +
-        'to make visible.',
+      description: {
+        story:
+          'A refused request. The footer disappears entirely and the eyebrow still reads "Dispense ' +
+          'request", so the panel looks live and simply has no actions - the state this frame exists ' +
+          'to make visible.',
+      },
     },
   },
 };
@@ -307,10 +317,12 @@ export const NoItems: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'A request whose lines never loaded. The body shows the empty notice while the footer ' +
-        'still offers "Dispense all (0)" - two halves of the panel disagreeing, which only a ' +
-        'rendered frame shows.',
+      description: {
+        story:
+          'A request whose lines never loaded. The body shows the empty notice while the footer ' +
+          'still offers "Dispense all (0)" - two halves of the panel disagreeing, which only a ' +
+          'rendered frame shows.',
+      },
     },
   },
 };
@@ -327,9 +339,11 @@ export const NoOwnerName: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'In-house requests carry no pet parent. The title falls back to the patient name alone, ' +
-        'which changes the height of the header row and everything below it.',
+      description: {
+        story:
+          'In-house requests carry no pet parent. The title falls back to the patient name alone, ' +
+          'which changes the height of the header row and everything below it.',
+      },
     },
   },
 };

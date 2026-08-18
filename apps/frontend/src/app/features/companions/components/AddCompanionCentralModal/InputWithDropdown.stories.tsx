@@ -91,7 +91,7 @@ type Story = StoryObj<typeof meta>;
 export const Closed: Story = {
   name: 'Empty field',
   parameters: {
-    docs: { story: 'The resting state: rounded on all four corners, no panel.' },
+    docs: { description: { story: 'The resting state: rounded on all four corners, no panel.' } },
   },
 };
 
@@ -107,9 +107,11 @@ export const Open: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Typing "ma" narrows five parents to Maya Whitfield and Marcus Alvarez. The input has ' +
-        'squared its bottom corners and dropped its bottom border so it joins the panel.',
+      description: {
+        story:
+          'Typing "ma" narrows five parents to Maya Whitfield and Marcus Alvarez. The input has ' +
+          'squared its bottom corners and dropped its bottom border so it joins the panel.',
+      },
     },
   },
 };
@@ -125,9 +127,11 @@ export const SingleMatch: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'A single result. The panel has a 72px minimum height, so it keeps its shape rather than ' +
-        'collapsing to one row of text.',
+      description: {
+        story:
+          'A single result. The panel has a 72px minimum height, so it keeps its shape rather than ' +
+          'collapsing to one row of text.',
+      },
     },
   },
 };
@@ -142,9 +146,11 @@ export const NoMatches: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Typing something that matches nothing closes the panel outright. An empty open panel ' +
-        'would be the failure here, and it is the exact shape that a trigger-only assertion misses.',
+      description: {
+        story:
+          'Typing something that matches nothing closes the panel outright. An empty open panel ' +
+          'would be the failure here, and it is the exact shape that a trigger-only assertion misses.',
+      },
     },
   },
 };
@@ -154,7 +160,9 @@ export const WithError: Story = {
   args: { error: 'Select an existing parent or add a new one.' },
   parameters: {
     docs: {
-      story: 'The error border and message, which the open state must not paint over.',
+      description: {
+        story: 'The error border and message, which the open state must not paint over.',
+      },
     },
   },
 };

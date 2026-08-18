@@ -71,9 +71,11 @@ export const Blank: Story = {
   name: 'Before calculating',
   parameters: {
     docs: {
-      story:
-        'The resting form. Three inputs, the Canine/Feline pills, the warning-toned disclaimer and ' +
-        'the citation - and no result block at all between the button and the disclaimer.',
+      description: {
+        story:
+          'The resting form. Three inputs, the Canine/Feline pills, the warning-toned disclaimer and ' +
+          'the citation - and no result block at all between the button and the disclaimer.',
+      },
     },
   },
 };
@@ -102,10 +104,12 @@ export const MultiRowResult: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Five rows in an `--inset` card with a `--divider` hairline and a 14px radius. Every value is ' +
-        '`tabular-nums`, so the numerals stay in a column down the right edge however wide they get - ' +
-        'the reason this list can be read as a table without being one.',
+      description: {
+        story:
+          'Five rows in an `--inset` card with a `--divider` hairline and a 14px radius. Every value is ' +
+          '`tabular-nums`, so the numerals stay in a column down the right edge however wide they get - ' +
+          'the reason this list can be read as a table without being one.',
+      },
     },
   },
 };
@@ -130,11 +134,13 @@ export const SingleValueResult: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The other branch of the same component, reached by a `compute` that happens to return one ' +
-        'row. 34px Newsreader at `leading-[1.1]` and `-0.02em`, over the label as an uppercase ' +
-        'eyebrow. Leave the optional mg/m² dose blank and you get this; fill it in and the identical ' +
-        'card becomes the 13px list above.',
+      description: {
+        story:
+          'The other branch of the same component, reached by a `compute` that happens to return one ' +
+          'row. 34px Newsreader at `leading-[1.1]` and `-0.02em`, over the label as an uppercase ' +
+          'eyebrow. Leave the optional mg/m² dose blank and you get this; fill it in and the identical ' +
+          'card becomes the 13px list above.',
+      },
     },
   },
 };
@@ -157,10 +163,12 @@ export const SingleBecomesList: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Directly comparable with the story above: identical calculator and identical weight, one ' +
-        'extra optional input. `optionalRow` appends "Total dose" only when the engine returns a ' +
-        'number, and the second row is what demotes the serif hero to a list row.',
+      description: {
+        story:
+          'Directly comparable with the story above: identical calculator and identical weight, one ' +
+          'extra optional input. `optionalRow` appends "Total dose" only when the engine returns a ' +
+          'number, and the second row is what demotes the serif hero to a list row.',
+      },
     },
   },
 };
@@ -184,10 +192,12 @@ export const RequiredFieldError: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Calculate on an empty form. `parseRequiredNumber("")` is `NaN`, the engine throws on the ' +
-        'first assertion it reaches, and only that input is marked - the two fields below it stay ' +
-        'clean, which is the whole point of `CalculatorInputError` carrying a `field`.',
+      description: {
+        story:
+          'Calculate on an empty form. `parseRequiredNumber("")` is `NaN`, the engine throws on the ' +
+          'first assertion it reaches, and only that input is marked - the two fields below it stay ' +
+          'clean, which is the whole point of `CalculatorInputError` carrying a `field`.',
+      },
     },
   },
 };
@@ -211,11 +221,13 @@ export const RangeError: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'A plausible value that the engine still rejects (dehydration is capped at 15%). Worth ' +
-        'drawing separately from the blank-field case: the error lands on the **second** input, so ' +
-        'the alert line has a populated field above it and the 1.5px `--danger` border has to read ' +
-        'against a filled control rather than an empty one.',
+      description: {
+        story:
+          'A plausible value that the engine still rejects (dehydration is capped at 15%). Worth ' +
+          'drawing separately from the blank-field case: the error lands on the **second** input, so ' +
+          'the alert line has a populated field above it and the 1.5px `--danger` border has to read ' +
+          'against a filled control rather than an empty one.',
+      },
     },
   },
 };
@@ -239,10 +251,12 @@ export const FelineSpecies: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The species pills are not decoration: the selected value is passed straight into `compute`. ' +
-        'The active pill carries `--blue-text` on `--blue-light` with a matching border, and the ' +
-        'result below it is a different number from the canine story with identical inputs.',
+      description: {
+        story:
+          'The species pills are not decoration: the selected value is passed straight into `compute`. ' +
+          'The active pill carries `--blue-text` on `--blue-light` with a matching border, and the ' +
+          'result below it is a different number from the canine story with identical inputs.',
+      },
     },
   },
 };

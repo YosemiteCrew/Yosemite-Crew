@@ -127,9 +127,11 @@ export const Upcoming: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'All eight controls, wrapped inside `max-w-[184px]` so the rail runs onto a second row ' +
-        'rather than widening the card past its column.',
+      description: {
+        story:
+          'All eight controls, wrapped inside `max-w-[184px]` so the rail runs onto a second row ' +
+          'rather than widening the card past its column.',
+      },
     },
   },
 };
@@ -146,10 +148,12 @@ export const TooltipOnHover: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The gated surface itself. The bubble is the only label these icon buttons carry visually ' +
-        '- the glyphs are 13-14px `--ink-soft` with no text beside them - so a bubble that renders ' +
-        'empty, mispositioned or off-viewport leaves the whole rail unreadable.',
+      description: {
+        story:
+          'The gated surface itself. The bubble is the only label these icon buttons carry visually ' +
+          '- the glyphs are 13-14px `--ink-soft` with no text beside them - so a bubble that renders ' +
+          'empty, mispositioned or off-viewport leaves the whole rail unreadable.',
+      },
     },
   },
 };
@@ -166,10 +170,12 @@ export const TooltipOnKeyboardFocus: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The same bubble reached without a pointer. It opens on `focusin` and closes on `focusout` ' +
-        'unless focus stayed inside the wrapper, so a keyboard user tabbing along the rail sees ' +
-        'one label at a time rather than none.',
+      description: {
+        story:
+          'The same bubble reached without a pointer. It opens on `focusin` and closes on `focusout` ' +
+          'unless focus stayed inside the wrapper, so a keyboard user tabbing along the rail sees ' +
+          'one label at a time rather than none.',
+      },
     },
   },
 };
@@ -186,11 +192,13 @@ export const NonHospitalClinicalNotes: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The clinical-notes button is one control with two identities: a hospital sends the reader ' +
-        'to `prescription / subjective` labelled Medical Records, every other org type to ' +
-        '`care / forms` labelled Care. The label lives in the tooltip, so the wrong one is only ' +
-        'visible with the tooltip open.',
+      description: {
+        story:
+          'The clinical-notes button is one control with two identities: a hospital sends the reader ' +
+          'to `prescription / subjective` labelled Medical Records, every other org type to ' +
+          '`care / forms` labelled Care. The label lives in the tooltip, so the wrong one is only ' +
+          'visible with the tooltip open.',
+      },
     },
   },
 };
@@ -214,12 +222,14 @@ export const CheckedIn: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The emphasised card: a 1.5px `--status-checked-in-border` outline, the deeper ' +
-        '`0_4px_14px_var(--sh08)` shadow, the wait so far, and a `--blue-strong` "Start visit" ' +
-        'button. The wait row only renders when `checkedInAt` is present - it is deliberately not ' +
-        'derived from `startTime`, which would measure lateness rather than waiting - so the whole ' +
-        'row is absent on live data until the backend stamps it.',
+      description: {
+        story:
+          'The emphasised card: a 1.5px `--status-checked-in-border` outline, the deeper ' +
+          '`0_4px_14px_var(--sh08)` shadow, the wait so far, and a `--blue-strong` "Start visit" ' +
+          'button. The wait row only renders when `checkedInAt` is present - it is deliberately not ' +
+          'derived from `startTime`, which would measure lateness rather than waiting - so the whole ' +
+          'row is absent on live data until the backend stamps it.',
+      },
     },
   },
 };
@@ -229,11 +239,13 @@ export const Emergency: Story = {
   args: { appointment: { ...APPOINTMENT, isEmergency: true } },
   parameters: {
     docs: {
-      story:
-        'Emergency wins over every other emphasis: a `--danger-border` outline with a 3px ' +
-        '`--danger` left edge, plus the 8.5px uppercase pill in the header row. It also outranks ' +
-        'the checked-in outline, which is why the two are separate branches rather than combined ' +
-        'classes.',
+      description: {
+        story:
+          'Emergency wins over every other emphasis: a `--danger-border` outline with a 3px ' +
+          '`--danger` left edge, plus the 8.5px uppercase pill in the header row. It also outranks ' +
+          'the checked-in outline, which is why the two are separate branches rather than combined ' +
+          'classes.',
+      },
     },
   },
 };
@@ -250,10 +262,12 @@ export const Requested: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'A request has no rail at all - the eight icons are replaced by a `--cta` Accept and an ' +
-        'outlined Decline. Decline calls the reject service straight from the card, so it is the ' +
-        'one control here that reaches the network without a confirmation step.',
+      description: {
+        story:
+          'A request has no rail at all - the eight icons are replaced by a `--cta` Accept and an ' +
+          'outlined Decline. Decline calls the reject service straight from the card, so it is the ' +
+          'one control here that reaches the network without a confirmation step.',
+      },
     },
   },
 };
@@ -272,10 +286,12 @@ export const ReadOnly: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Without edit permission the three mutating controls are removed rather than dimmed, and ' +
-        'the card stops being draggable - which also means the full-bleed `inset-0` overlay button ' +
-        'appears, so a plain click anywhere opens the appointment.',
+      description: {
+        story:
+          'Without edit permission the three mutating controls are removed rather than dimmed, and ' +
+          'the card stops being draggable - which also means the full-bleed `inset-0` overlay button ' +
+          'appears, so a plain click anywhere opens the appointment.',
+      },
     },
   },
 };
@@ -285,10 +301,12 @@ export const Completed: Story = {
   args: { appointment: withStatus('COMPLETED') },
   parameters: {
     docs: {
-      story:
-        'Closed-out work recedes by losing its lift shadow entirely (`shadow-none`). The design ' +
-        'asked for 72% opacity as well; it is deliberately not applied because it dropped the ' +
-        'meta line, which is `text-text-tertiary` on this card, below AA.',
+      description: {
+        story:
+          'Closed-out work recedes by losing its lift shadow entirely (`shadow-none`). The design ' +
+          'asked for 72% opacity as well; it is deliberately not applied because it dropped the ' +
+          'meta line, which is `text-text-tertiary` on this card, below AA.',
+      },
     },
   },
 };
@@ -298,9 +316,11 @@ export const Dragging: Story = {
   args: { draggedAppointmentId: 'appt-board-1' },
   parameters: {
     docs: {
-      story:
-        'The state while the card is held over another column: `opacity-60`, no shadow, and no ' +
-        'hover border - reachable in the app only mid-drag, which no static story could show.',
+      description: {
+        story:
+          'The state while the card is held over another column: `opacity-60`, no shadow, and no ' +
+          'hover border - reachable in the app only mid-drag, which no static story could show.',
+      },
     },
   },
 };
@@ -310,9 +330,11 @@ export const UpdatingStatus: Story = {
   args: { updatingStatusId: 'appt-board-1' },
   parameters: {
     docs: {
-      story:
-        'The 10px "Updating…" line appended under the rail while a transition is being written. It ' +
-        'is keyed on the id of the card being changed, so no sibling in the column shows it.',
+      description: {
+        story:
+          'The 10px "Updating…" line appended under the rail while a transition is being written. It ' +
+          'is keyed on the id of the card being changed, so no sibling in the column shows it.',
+      },
     },
   },
 };

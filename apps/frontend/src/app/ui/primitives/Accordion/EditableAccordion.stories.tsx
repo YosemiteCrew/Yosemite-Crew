@@ -67,7 +67,7 @@ type Story = StoryObj<typeof meta>;
 export const ReadView: Story = {
   name: 'Read view',
   parameters: {
-    docs: { story: 'The resting state: label/value rows and a pencil.' },
+    docs: { description: { story: 'The resting state: label/value rows and a pencil.' } },
   },
 };
 
@@ -91,9 +91,11 @@ export const Editing: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Every row becomes an editor, and the Cancel/Save pair sits below in its two-column grid. ' +
-        'This is the tree that had never been drawn.',
+      description: {
+        story:
+          'Every row becomes an editor, and the Cancel/Save pair sits below in its two-column grid. ' +
+          'This is the tree that had never been drawn.',
+      },
     },
   },
 };
@@ -107,10 +109,12 @@ export const CompactActions: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The same two buttons under the other branch: centred and content-width rather than a ' +
-        'full-width two-column grid. Worth seeing beside the default, since the two layouts share ' +
-        'no classes at all.',
+      description: {
+        story:
+          'The same two buttons under the other branch: centred and content-width rather than a ' +
+          'full-width two-column grid. Worth seeing beside the default, since the two layouts share ' +
+          'no classes at all.',
+      },
     },
   },
 };
@@ -128,9 +132,11 @@ export const Saving: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Both buttons disable and Save relabels while the promise is in flight. Reachable only by ' +
-        'holding a promise open - there is no prop for it.',
+      description: {
+        story:
+          'Both buttons disable and Save relabels while the promise is in flight. Reachable only by ' +
+          'holding a promise open - there is no prop for it.',
+      },
     },
   },
 };
@@ -149,10 +155,12 @@ export const SaveFailed: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The failure line appears above the buttons, inside the same flex column, and pushes the ' +
-        'grid down. It exists only after a rejected promise, so it had never been composited with ' +
-        'the action row before.',
+      description: {
+        story:
+          'The failure line appears above the buttons, inside the same flex column, and pushes the ' +
+          'grid down. It exists only after a rejected promise, so it had never been composited with ' +
+          'the action row before.',
+      },
     },
   },
 };
@@ -162,9 +170,11 @@ export const ReadOnly: Story = {
   args: { readOnly: true },
   parameters: {
     docs: {
-      story:
-        'With `readOnly` the pencil is not rendered at all rather than disabled, so there is no ' +
-        'affordance suggesting an edit that cannot happen.',
+      description: {
+        story:
+          'With `readOnly` the pencil is not rendered at all rather than disabled, so there is no ' +
+          'affordance suggesting an edit that cannot happen.',
+      },
     },
   },
 };

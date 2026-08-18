@@ -79,9 +79,11 @@ export const SingleOption: Story = {
   args: { statusOptions: ['IN_PROGRESS'] },
   parameters: {
     docs: {
-      story:
-        'What a checked-in appointment offers. With one row the divider rule must not render at ' +
-        'all, and the panel keeps its 22px radius against a single item.',
+      description: {
+        story:
+          'What a checked-in appointment offers. With one row the divider rule must not render at ' +
+          'all, and the panel keeps its 22px radius against a single item.',
+      },
     },
   },
 };
@@ -91,10 +93,12 @@ export const Saving: Story = {
   args: { savingKey: 'status-CANCELLED' },
   parameters: {
     docs: {
-      story:
-        'The row being written disables and gains an 8px "Saving" tag on its right. The tag is ' +
-        '`shrink-0` against a `truncate` label, so the label gives up width rather than pushing ' +
-        'the tag out of the panel.',
+      description: {
+        story:
+          'The row being written disables and gains an 8px "Saving" tag on its right. The tag is ' +
+          '`shrink-0` against a `truncate` label, so the label gives up width rather than pushing ' +
+          'the tag out of the panel.',
+      },
     },
   },
 };
@@ -104,9 +108,11 @@ export const LongLabels: Story = {
   args: { statusOptions: ['CHECKED_IN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] },
   parameters: {
     docs: {
-      story:
-        'Every allowed status at once, which is more than any real transition set, to show how the ' +
-        'panel sizes itself and where the labels start to truncate.',
+      description: {
+        story:
+          'Every allowed status at once, which is more than any real transition set, to show how the ' +
+          'panel sizes itself and where the labels start to truncate.',
+      },
     },
   },
 };

@@ -85,9 +85,11 @@ export const Collapsed: Story = {
   args: { defaultOpen: false },
   parameters: {
     docs: {
-      story:
-        'The resting state. With the body unmounted the header carries the all-round `border ' +
-        'rounded-2xl`; the split-border pair below only exists once it is open.',
+      description: {
+        story:
+          'The resting state. With the body unmounted the header carries the all-round `border ' +
+          'rounded-2xl`; the split-border pair below only exists once it is open.',
+      },
     },
   },
 };
@@ -106,10 +108,12 @@ export const Expanded: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Opened the way a user opens it. The body is a `flex flex-col gap-3` column and the Next ' +
-        'button sits in its own centred `pt-3 pb-1` row, so the gap above it is 12px + 12px rather ' +
-        'than the 12px the stack implies.',
+      description: {
+        story:
+          'Opened the way a user opens it. The body is a `flex flex-col gap-3` column and the Next ' +
+          'button sits in its own centred `pt-3 pb-1` row, so the gap above it is 12px + 12px rather ' +
+          'than the 12px the stack implies.',
+      },
     },
   },
 };
@@ -125,10 +129,12 @@ export const SpecialityPanelOpen: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The first of the two portalled listboxes. It is positioned absolutely from the measured ' +
-        'trigger rect (4px below it, matching its width), so it is one of the few surfaces whose ' +
-        'geometry cannot be reviewed from the closed state at all.',
+      description: {
+        story:
+          'The first of the two portalled listboxes. It is positioned absolutely from the measured ' +
+          'trigger rect (4px below it, matching its width), so it is one of the few surfaces whose ' +
+          'geometry cannot be reviewed from the closed state at all.',
+      },
     },
   },
 };
@@ -146,11 +152,13 @@ export const ServicesPanelOpen: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The taller of the two panels, with a value already selected. The selected row is marked ' +
-        'only by the `--nav-active-bg` wash and `--nav-active` ink - there is no check mark, so ' +
-        'the selected state has to survive on colour alone. `max-h-[200px]` with a hidden ' +
-        'scrollbar caps the list, which only shows up once enough rows are drawn.',
+      description: {
+        story:
+          'The taller of the two panels, with a value already selected. The selected row is marked ' +
+          'only by the `--nav-active-bg` wash and `--nav-active` ink - there is no check mark, so ' +
+          'the selected state has to survive on colour alone. `max-h-[200px]` with a hidden ' +
+          'scrollbar caps the list, which only shows up once enough rows are drawn.',
+      },
     },
   },
 };
@@ -165,10 +173,12 @@ export const WithErrors: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'All three fields failing at once. Each error line is its own `min-h-6 mt-1.5` row inside ' +
-        'the field, so the 12px column gap compounds and the block grows by roughly 30px per ' +
-        'failing field - worth seeing composited rather than one field at a time.',
+      description: {
+        story:
+          'All three fields failing at once. Each error line is its own `min-h-6 mt-1.5` row inside ' +
+          'the field, so the 12px column gap compounds and the block grows by roughly 30px per ' +
+          'failing field - worth seeing composited rather than one field at a time.',
+      },
     },
   },
 };
@@ -178,9 +188,11 @@ export const NoNextAction: Story = {
   args: { onNext: undefined },
   parameters: {
     docs: {
-      story:
-        'Reused inside the workspace, where the step is advanced from the meta bar instead. The ' +
-        'Next row is not disabled but absent, so the body ends on the textarea.',
+      description: {
+        story:
+          'Reused inside the workspace, where the step is advanced from the meta bar instead. The ' +
+          'Next row is not disabled but absent, so the body ends on the textarea.',
+      },
     },
   },
 };

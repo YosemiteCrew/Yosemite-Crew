@@ -113,9 +113,11 @@ export const Idle: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Both stores idle. The assertion is the point: the overlay must render *nothing*, not an ' +
-        'empty transparent `inset-0` element, or it would silently eat every click on the page.',
+      description: {
+        story:
+          'Both stores idle. The assertion is the point: the overlay must render *nothing*, not an ' +
+          'empty transparent `inset-0` element, or it would silently eat every click on the page.',
+      },
     },
   },
 };
@@ -126,15 +128,16 @@ export const RouteLoading: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const loader = await canvas.findByTestId(LOADER_TEST_ID);
-    await expect(loader).toBeInTheDocument();
     await expect(loader).toHaveAccessibleName('Loading');
   },
   parameters: {
     docs: {
-      story:
-        'The half driven by navigation. The full-viewport translucent wash over real page content ' +
-        'is the whole surface - and the only place to judge whether `--glass-93` plus an 8px blur ' +
-        'reads as "busy" rather than as "broken", in either theme.',
+      description: {
+        story:
+          'The half driven by navigation. The full-viewport translucent wash over real page content ' +
+          'is the whole surface - and the only place to judge whether `--glass-93` plus an 8px blur ' +
+          'reads as "busy" rather than as "broken", in either theme.',
+      },
     },
   },
 };
@@ -148,10 +151,12 @@ export const BlockingAction: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The other half of the gate, driven by a named source rather than by routing. Visually ' +
-        'identical to route loading on purpose - the user should not be told which subsystem is ' +
-        'busy.',
+      description: {
+        story:
+          'The other half of the gate, driven by a named source rather than by routing. Visually ' +
+          'identical to route loading on purpose - the user should not be told which subsystem is ' +
+          'busy.',
+      },
     },
   },
 };
@@ -167,10 +172,12 @@ export const ShownByInteraction: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The gate opened the way the app opens it: `fullscreenLoaderStore.show(source)`. This is ' +
-        'the transition itself - resting page, then a full-viewport blocking wash - which no ' +
-        'static story can contain.',
+      description: {
+        story:
+          'The gate opened the way the app opens it: `fullscreenLoaderStore.show(source)`. This is ' +
+          'the transition itself - resting page, then a full-viewport blocking wash - which no ' +
+          'static story can contain.',
+      },
     },
   },
 };
@@ -187,11 +194,13 @@ export const RefCountedSources: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Two concurrent sources, one of them released mid-story. Because `activeSources` is keyed ' +
-        'rather than counted with a boolean, the overlay correctly stays up for the remaining ' +
-        'source - the failure mode being a shared flag that the first `hide()` clears, dropping ' +
-        'the block while work is still running.',
+      description: {
+        story:
+          'Two concurrent sources, one of them released mid-story. Because `activeSources` is keyed ' +
+          'rather than counted with a boolean, the overlay correctly stays up for the remaining ' +
+          'source - the failure mode being a shared flag that the first `hide()` clears, dropping ' +
+          'the block while work is still running.',
+      },
     },
   },
 };

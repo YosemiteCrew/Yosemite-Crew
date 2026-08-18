@@ -113,7 +113,7 @@ export const DrawerSmall: Story = {
   name: 'Drawer sm (360px)',
   args: { variant: 'drawer', size: 'sm', title: 'Record detail' },
   parameters: {
-    docs: { story: 'The detail-peek width, used by Records.' },
+    docs: { description: { story: 'The detail-peek width, used by Records.' } },
   },
 };
 
@@ -121,7 +121,7 @@ export const DrawerMedium: Story = {
   name: 'Drawer md (470px)',
   args: { variant: 'drawer', size: 'md', title: 'Restock item' },
   parameters: {
-    docs: { story: 'The form width, used by Inventory restock.' },
+    docs: { description: { story: 'The form width, used by Inventory restock.' } },
   },
 };
 
@@ -149,10 +149,12 @@ export const PhoneSheet: Story = {
     // demonstrates nothing.
     viewport: { defaultViewport: 'mobile' },
     docs: {
-      story:
-        'Under 768px the centered panel becomes a bottom sheet with a grabber. `useIsPhone` is ' +
-        'false during SSR and the first client render, so this is a post-mount swap - which is ' +
-        'exactly the kind of state a static snapshot of the desktop markup never shows.',
+      description: {
+        story:
+          'Under 768px the centered panel becomes a bottom sheet with a grabber. `useIsPhone` is ' +
+          'false during SSR and the first client render, so this is a post-mount swap - which is ' +
+          'exactly the kind of state a static snapshot of the desktop markup never shows.',
+      },
     },
   },
 };
@@ -174,10 +176,12 @@ export const OpensFromTrigger: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The other stories render the panel already open, because `showModal` is a prop. This one ' +
-        'goes through the real transition, so the fade and the panel mount are under review rather ' +
-        'than only the resting state.',
+      description: {
+        story:
+          'The other stories render the panel already open, because `showModal` is a prop. This one ' +
+          'goes through the real transition, so the fade and the panel mount are under review rather ' +
+          'than only the resting state.',
+      },
     },
   },
 };

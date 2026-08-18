@@ -91,6 +91,16 @@ const meta = {
   parameters: {
     layout: 'padded',
     docs: {
+      /**
+       * The docs page mounts all ten stories into one document and runs their
+       * play functions at the same time. These interactions are document-scoped
+       * - the status pill closes on `onBlur`, and `userEvent.type` delivers keys
+       * to whatever is focused - so concurrent stories blur each other's menus
+       * shut and interleave each other's search queries. The interactions run in
+       * story view instead, one story per document, which is also what Chromatic
+       * captures per story.
+       */
+      story: { autoplay: false },
       description: {
         component:
           'The inpatient day schedule: a timeline gutter, one flat row per task, and three ' +
@@ -156,9 +166,11 @@ export const Default: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Four tasks across one day. The completed row is the only one whose status pill is static; ' +
-        'the cancelled row drops its timeline marker to the neutral ring.',
+      description: {
+        story:
+          'Four tasks across one day. The completed row is the only one whose status pill is static; ' +
+          'the cancelled row drops its timeline marker to the neutral ring.',
+      },
     },
   },
 };
@@ -178,10 +190,12 @@ export const StatusMenuOpen: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The four transitions, each with the 8px dot in its own status colour and the label in the ' +
-        'matching ink. The panel is `w-full` against the pill, so it is as narrow as the trigger ' +
-        'rather than as wide as "Cancelled" - worth seeing at every viewport.',
+      description: {
+        story:
+          'The four transitions, each with the 8px dot in its own status colour and the label in the ' +
+          'matching ink. The panel is `w-full` against the pill, so it is as narrow as the trigger ' +
+          'rather than as wide as "Cancelled" - worth seeing at every viewport.',
+      },
     },
   },
 };
@@ -197,10 +211,12 @@ export const StatusChanged: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Picking commits and closes. This is the story that guards the `onMouseDown` + ' +
-        '`preventDefault` ordering: on `onClick` the trigger would blur first, the menu would ' +
-        'unmount, and the option would never fire.',
+      description: {
+        story:
+          'Picking commits and closes. This is the story that guards the `onMouseDown` + ' +
+          '`preventDefault` ordering: on `onClick` the trigger would blur first, the menu would ' +
+          'unmount, and the option would never fire.',
+      },
     },
   },
 };
@@ -224,10 +240,12 @@ export const TemplateSuggestions: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The same query filters the rows and searches published templates, so this frame shows ' +
-        'both at once: one matching task left in the list, and the suggestion panel over it. The ' +
-        'panel is capped at five entries.',
+      description: {
+        story:
+          'The same query filters the rows and searches published templates, so this frame shows ' +
+          'both at once: one matching task left in the list, and the suggestion panel over it. The ' +
+          'panel is capped at five entries.',
+      },
     },
   },
 };
@@ -246,9 +264,11 @@ export const TemplateAppended: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Appending resets the search, so the schedule returns to the whole day in the same tick ' +
-        'the panel disappears.',
+      description: {
+        story:
+          'Appending resets the search, so the schedule returns to the whole day in the same tick ' +
+          'the panel disappears.',
+      },
     },
   },
 };
@@ -268,10 +288,12 @@ export const AssigneeDropdownOpen: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Reassigning a task inline. The panel is `searchable={false}` here, so it is a plain list ' +
-        'with the current owner marked on the `--nav-active-bg` wash - and being portalled, it ' +
-        'escapes the row it belongs to and can overlap the row below.',
+      description: {
+        story:
+          'Reassigning a task inline. The panel is `searchable={false}` here, so it is a plain list ' +
+          'with the current owner marked on the `--nav-active-bg` wash - and being portalled, it ' +
+          'escapes the row it belongs to and can overlap the row below.',
+      },
     },
   },
 };
@@ -297,10 +319,12 @@ export const LongAssigneeNames: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The assignee column is sized from the longest option, so a 30-character name would ' +
-        'otherwise eat the task column. `clamp(len + 2, 14, 20)` pins it at 20ch and the trigger ' +
-        'truncates - the only frame where the header/row track strings are anything but 16ch.',
+      description: {
+        story:
+          'The assignee column is sized from the longest option, so a 30-character name would ' +
+          'otherwise eat the task column. `clamp(len + 2, 14, 20)` pins it at 20ch and the trigger ' +
+          'truncates - the only frame where the header/row track strings are anything but 16ch.',
+      },
     },
   },
 };
@@ -317,9 +341,11 @@ export const ReadOnly: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'What a discharged or cancelled visit shows. Only the add affordance is disabled; the ' +
-        'inline controls are not, which is a discrepancy this frame makes visible.',
+      description: {
+        story:
+          'What a discharged or cancelled visit shows. Only the add affordance is disabled; the ' +
+          'inline controls are not, which is a discrepancy this frame makes visible.',
+      },
     },
   },
 };
@@ -335,9 +361,11 @@ export const NoTasks: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'With nothing scheduled the column header is dropped as well as the rows, so the empty ' +
-        'notice sits directly under the toolbar rather than under a set of orphaned labels.',
+      description: {
+        story:
+          'With nothing scheduled the column header is dropped as well as the rows, so the empty ' +
+          'notice sits directly under the toolbar rather than under a set of orphaned labels.',
+      },
     },
   },
 };
@@ -355,10 +383,12 @@ export const NoSearchMatch: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'A query that matches neither a task nor a template. The empty copy changes wording ' +
-        'between "for this day" and "match this search" - two strings only one of which any ' +
-        'snapshot had.',
+      description: {
+        story:
+          'A query that matches neither a task nor a template. The empty copy changes wording ' +
+          'between "for this day" and "match this search" - two strings only one of which any ' +
+          'snapshot had.',
+      },
     },
   },
 };

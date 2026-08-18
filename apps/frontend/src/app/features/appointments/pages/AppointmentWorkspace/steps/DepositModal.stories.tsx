@@ -6,11 +6,7 @@ import { DepositModal } from './InvoiceStep';
 const PAYMENT_LINK = 'https://checkout.stripe.com/c/pay/cs_test_deposit_9f2c41ab8d7e';
 
 /** The modal portals to `document.body`, so every assertion queries the document. */
-const findDialog = async () => {
-  const dialog = await within(document.body).findByRole('dialog');
-  await expect(dialog).toBeInTheDocument();
-  return dialog;
-};
+const findDialog = async () => within(document.body).findByRole('dialog');
 
 const meta = {
   title: 'Appointments/DepositModal',
@@ -68,10 +64,12 @@ export const CashDeposit: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The default entry state: Cash selected, amount seeded at 100. The label wraps its input ' +
-        'rather than using `htmlFor`, so the field names come from the wrapper - worth confirming ' +
-        'they resolve at all, since a nested-label mistake reads fine visually.',
+      description: {
+        story:
+          'The default entry state: Cash selected, amount seeded at 100. The label wraps its input ' +
+          'rather than using `htmlFor`, so the field names come from the wrapper - worth confirming ' +
+          'they resolve at all, since a nested-label mistake reads fine visually.',
+      },
     },
   },
 };
@@ -88,11 +86,13 @@ export const OnlineDeposit: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Picking Online swaps the selected card to `border-primary-500 bg-primary-100 ' +
-        'text-blue-text` and rewrites the primary action to "Generate link". Nothing else on the ' +
-        'form changes, so the label is the only signal that the submit now does something ' +
-        'different.',
+      description: {
+        story:
+          'Picking Online swaps the selected card to `border-primary-500 bg-primary-100 ' +
+          'text-blue-text` and rewrites the primary action to "Generate link". Nothing else on the ' +
+          'form changes, so the label is the only signal that the submit now does something ' +
+          'different.',
+      },
     },
   },
 };
@@ -110,10 +110,12 @@ export const LinkGenerated: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The state this file exists for. A long unbroken checkout URL inside the `<output>` block, ' +
-        'sitting between Notes and the action row - the only composition where `break-all` is ' +
-        'load-bearing and where the dialog is at its tallest.',
+      description: {
+        story:
+          'The state this file exists for. A long unbroken checkout URL inside the `<output>` block, ' +
+          'sitting between Notes and the action row - the only composition where `break-all` is ' +
+          'load-bearing and where the dialog is at its tallest.',
+      },
     },
   },
 };
@@ -129,9 +131,11 @@ export const Saving: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The pending label overrides both method labels and the button disables, but Cancel stays ' +
-        'live - so a stuck request can still be dismissed rather than trapping the dialog.',
+      description: {
+        story:
+          'The pending label overrides both method labels and the button disables, but Cancel stays ' +
+          'live - so a stuck request can still be dismissed rather than trapping the dialog.',
+      },
     },
   },
 };
@@ -147,10 +151,12 @@ export const ZeroAmount: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'A zero (or unparseable) amount disables the primary via `amountNumber <= 0`. There is no ' +
-        'inline error line, so the disabled button is the entire feedback - which is only visible ' +
-        'once the field has actually been emptied.',
+      description: {
+        story:
+          'A zero (or unparseable) amount disables the primary via `amountNumber <= 0`. There is no ' +
+          'inline error line, so the disabled button is the entire feedback - which is only visible ' +
+          'once the field has actually been emptied.',
+      },
     },
   },
 };

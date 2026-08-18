@@ -68,7 +68,9 @@ export const Open: Story = {
   },
   parameters: {
     docs: {
-      story: 'The state no story had drawn: the body under the header row, and the chevron down.',
+      description: {
+        story: 'The state no story had drawn: the body under the header row, and the chevron down.',
+      },
     },
   },
 };
@@ -78,9 +80,11 @@ export const DefaultOpen: Story = {
   args: { defaultOpen: true },
   parameters: {
     docs: {
-      story:
-        '`defaultOpen` seeds the state, so this is the same expanded card without the click - the ' +
-        'form callers use when the section should start open.',
+      description: {
+        story:
+          '`defaultOpen` seeds the state, so this is the same expanded card without the click - the ' +
+          'form callers use when the section should start open.',
+      },
     },
   },
 };
@@ -90,9 +94,11 @@ export const NoActionButton: Story = {
   args: { showButton: false, defaultOpen: true },
   parameters: {
     docs: {
-      story:
-        'With `showButton` false the header is title-only. The row is `justify-between`, so this is ' +
-        'where the title has to hold the left edge on its own.',
+      description: {
+        story:
+          'With `showButton` false the header is title-only. The row is `justify-between`, so this is ' +
+          'where the title has to hold the left edge on its own.',
+      },
     },
   },
 };
@@ -105,10 +111,12 @@ export const LongTitle: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The header row has no `min-w-0` or gap between the title button and the action, so a long ' +
-        'title runs right up against the Edit button. Drawn here so that is a decision someone can ' +
-        'see rather than a surprise at a particular width.',
+      description: {
+        story:
+          'The header row has no `min-w-0` or gap between the title button and the action, so a long ' +
+          'title runs right up against the Edit button. Drawn here so that is a decision someone can ' +
+          'see rather than a surprise at a particular width.',
+      },
     },
   },
 };

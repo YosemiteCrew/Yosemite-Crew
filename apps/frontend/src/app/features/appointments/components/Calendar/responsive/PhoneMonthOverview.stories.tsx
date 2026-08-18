@@ -220,10 +220,12 @@ export const DotGridOnly: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The resting state, and everything a story used to show. Each cell carries 1-3 dots by ' +
-        'load band (<=6, <=10, heavier), the last dot turning `--danger` when the day holds an ' +
-        'emergency; past days read `--status-completed-border` green, live days `--blue`.',
+      description: {
+        story:
+          'The resting state, and everything a story used to show. Each cell carries 1-3 dots by ' +
+          'load band (<=6, <=10, heavier), the last dot turning `--danger` when the day holds an ' +
+          'emergency; past days read `--status-completed-border` green, live days `--blue`.',
+      },
     },
   },
 };
@@ -248,11 +250,13 @@ export const TapRevealsPeek: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The interaction itself, through a controlled wrapper because the component owns no ' +
-        'selection state. Twelve appointments collapse to three rows plus `+9 more · swipe up`, ' +
-        'and the tapped cell swaps its plain number for a 26px `--blue-strong` disc with a glow ' +
-        'shadow - a shape that only exists in the selected branch.',
+      description: {
+        story:
+          'The interaction itself, through a controlled wrapper because the component owns no ' +
+          'selection state. Twelve appointments collapse to three rows plus `+9 more · swipe up`, ' +
+          'and the tapped cell swaps its plain number for a 26px `--blue-strong` disc with a glow ' +
+          'shadow - a shape that only exists in the selected branch.',
+      },
     },
   },
 };
@@ -272,10 +276,12 @@ export const BusyDayPeek: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The overflow case, driven straight from `selectedDate`. Rows are cut at three regardless ' +
-        'of how heavy the day is, so the peek can never push the dot grid off screen - the count ' +
-        'lives in the header line and the remainder in the `+N more` footer.',
+      description: {
+        story:
+          'The overflow case, driven straight from `selectedDate`. Rows are cut at three regardless ' +
+          'of how heavy the day is, so the peek can never push the dot grid off screen - the count ' +
+          'lives in the header line and the remainder in the `+N more` footer.',
+      },
     },
   },
 };
@@ -291,10 +297,12 @@ export const EmergencyPeek: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Today, selected. One row is an emergency, which replaces its status badge with the ' +
-        'danger-toned EMERGENCY chip, tints the time column `--danger-text` and adds the 3px left ' +
-        'edge - three changes on one row that only compose correctly beside ordinary rows.',
+      description: {
+        story:
+          'Today, selected. One row is an emergency, which replaces its status badge with the ' +
+          'danger-toned EMERGENCY chip, tints the time column `--danger-text` and adds the 3px left ' +
+          'edge - three changes on one row that only compose correctly beside ordinary rows.',
+      },
     },
   },
 };
@@ -310,10 +318,12 @@ export const EmptyDayPeek: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'A free day still opens the peek: the header and the Open day link render with no rows ' +
-        'between them. There is no illustrated empty state, so this is the branch where the ' +
-        'section can look broken if the gap collapses - worth having on screen.',
+      description: {
+        story:
+          'A free day still opens the peek: the header and the Open day link render with no rows ' +
+          'between them. There is no illustrated empty state, so this is the branch where the ' +
+          'section can look broken if the gap collapses - worth having on screen.',
+      },
     },
   },
 };
@@ -330,11 +340,13 @@ export const PaddingDayPeek: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The trailing cell borrowed from August. Its date genuinely has appointments in this ' +
-        'fixture and the peek still reports none, because a padding day is drawn as scaffolding ' +
-        'for the week row rather than as a day you can load. Selecting one is reachable - the ' +
-        'cell is a button like any other - so the zero is a state a reader can actually hit.',
+      description: {
+        story:
+          'The trailing cell borrowed from August. Its date genuinely has appointments in this ' +
+          'fixture and the peek still reports none, because a padding day is drawn as scaffolding ' +
+          'for the week row rather than as a day you can load. Selecting one is reachable - the ' +
+          'cell is a button like any other - so the zero is a state a reader can actually hit.',
+      },
     },
   },
 };
@@ -344,10 +356,12 @@ export const DayView: Story = {
   args: { view: 'day', selectedDate: new Date('2026-07-14T12:00:00.000Z') },
   parameters: {
     docs: {
-      story:
-        'The view switch is presentational here - the component always draws the month - so this ' +
-        'story exists to show the pill honouring a value it does not itself act on. The parent ' +
-        'swaps the whole component out on change.',
+      description: {
+        story:
+          'The view switch is presentational here - the component always draws the month - so this ' +
+          'story exists to show the pill honouring a value it does not itself act on. The parent ' +
+          'swaps the whole component out on change.',
+      },
     },
   },
 };

@@ -163,10 +163,12 @@ export const FullPanel: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Everything on at once: three members with the creator labelled Owner, a six-tile media ' +
-        'grid capped from seven attachments, three files with humanised sizes, and two surviving ' +
-        'pins out of three.',
+      description: {
+        story:
+          'Everything on at once: three members with the creator labelled Owner, a six-tile media ' +
+          'grid capped from seven attachments, three files with humanised sizes, and two surviving ' +
+          'pins out of three.',
+      },
     },
   },
 };
@@ -184,10 +186,12 @@ export const Muted: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The on state of the 36x22 switch: `--cta` track and the knob at `left-[17px]`. Clicking ' +
-        'it fires `onToggleMute` - the panel is presentational, so the checked state stays where ' +
-        'the prop put it rather than moving on its own.',
+      description: {
+        story:
+          'The on state of the 36x22 switch: `--cta` track and the knob at `left-[17px]`. Clicking ' +
+          'it fires `onToggleMute` - the panel is presentational, so the checked state stays where ' +
+          'the prop put it rather than moving on its own.',
+      },
     },
   },
 };
@@ -214,10 +218,12 @@ export const NoAttachments: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'A conversation with nothing shared yet. Each empty section drops out entirely, so the ' +
-        'panel collapses to the header, the mute row, the member list and the archive footer ' +
-        'rather than showing three headings over nothing.',
+      description: {
+        story:
+          'A conversation with nothing shared yet. Each empty section drops out entirely, so the ' +
+          'panel collapses to the header, the mute row, the member list and the archive footer ' +
+          'rather than showing three headings over nothing.',
+      },
     },
   },
 };
@@ -237,10 +243,12 @@ export const NoChannel: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The panel opened before the Stream channel resolves. Every helper is defensive about a ' +
-        'null channel, so this must be the bare chrome - header, mute row, footer - and never a ' +
-        'crash or a run of empty sections.',
+      description: {
+        story:
+          'The panel opened before the Stream channel resolves. Every helper is defensive about a ' +
+          'null channel, so this must be the bare chrome - header, mute row, footer - and never a ' +
+          'crash or a run of empty sections.',
+      },
     },
   },
 };
@@ -280,10 +288,12 @@ export const LongName: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Every text run in this panel is `truncate` or single-line: the header name, member names, ' +
-        'file names and the pinned line. At 390px that is the difference between a clipped row and ' +
-        'a drawer that grows sideways out of the thread column.',
+      description: {
+        story:
+          'Every text run in this panel is `truncate` or single-line: the header name, member names, ' +
+          'file names and the pinned line. At 390px that is the difference between a clipped row and ' +
+          'a drawer that grows sideways out of the thread column.',
+      },
     },
   },
 };

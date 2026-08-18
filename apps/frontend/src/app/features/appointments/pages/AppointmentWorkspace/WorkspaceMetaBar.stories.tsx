@@ -147,10 +147,12 @@ export const Inpatient: Story = {
   name: 'Inpatient (closed)',
   parameters: {
     docs: {
-      story:
-        'All five fields at rest. The two editable dropdowns must read as the same box as the ' +
-        'three read-only fields beside them - same 14px radius, same `--field-bg` fill, same ' +
-        'notched 10.5px label - even though only the latter three are built from `MetaFieldShell`.',
+      description: {
+        story:
+          'All five fields at rest. The two editable dropdowns must read as the same box as the ' +
+          'three read-only fields beside them - same 14px radius, same `--field-bg` fill, same ' +
+          'notched 10.5px label - even though only the latter three are built from `MetaFieldShell`.',
+      },
     },
   },
 };
@@ -166,10 +168,12 @@ export const RoomListboxOpen: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The Room panel, measured off the trigger rect and dropped 4px below it. The trigger is ' +
-        'only 160px wide here (`w-40`), so the panel inherits that width and the longer room names ' +
-        'are the first thing that would truncate.',
+      description: {
+        story:
+          'The Room panel, measured off the trigger rect and dropped 4px below it. The trigger is ' +
+          'only 160px wide here (`w-40`), so the panel inherits that width and the longer room names ' +
+          'are the first thing that would truncate.',
+      },
     },
   },
 };
@@ -184,9 +188,11 @@ export const UnitListboxOpen: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The same panel on the 128px (`w-32`) Unit field - the narrowest trigger in the bar, and ' +
-        "where `LabelDropdown`'s own `min-w-30` floor starts to fight the column width.",
+      description: {
+        story:
+          'The same panel on the 128px (`w-32`) Unit field - the narrowest trigger in the bar, and ' +
+          "where `LabelDropdown`'s own `min-w-30` floor starts to fight the column width.",
+      },
     },
   },
 };
@@ -203,11 +209,13 @@ export const RoomAssignmentLocked: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The locked branch resolves the selected ids to labels through ' +
-        '`getSelectedDropdownLabel` and renders plain `MetaFieldShell` boxes. It drops the ' +
-        'affordance entirely instead of disabling it, which is the correct choice but also means ' +
-        'the two branches share no markup - they can drift apart without any test noticing.',
+      description: {
+        story:
+          'The locked branch resolves the selected ids to labels through ' +
+          '`getSelectedDropdownLabel` and renders plain `MetaFieldShell` boxes. It drops the ' +
+          'affordance entirely instead of disabling it, which is the correct choice but also means ' +
+          'the two branches share no markup - they can drift apart without any test noticing.',
+      },
     },
   },
 };
@@ -223,10 +231,12 @@ export const OutpatientWithRoom: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Outpatient keeps Room (the encounter has one) but drops Unit, and the consultation-type ' +
-        'glyph swaps from the bed to the footprints. One fewer field changes how the left column ' +
-        'wraps, so it is worth seeing beside the inpatient bar rather than inferred from it.',
+      description: {
+        story:
+          'Outpatient keeps Room (the encounter has one) but drops Unit, and the consultation-type ' +
+          'glyph swaps from the bed to the footprints. One fewer field changes how the left column ' +
+          'wraps, so it is worth seeing beside the inpatient bar rather than inferred from it.',
+      },
     },
   },
 };
@@ -245,10 +255,12 @@ export const ReadyAndLocked: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'A checked Ready toggle grows: it appends " · <name> <stamp>" inline, so the right column ' +
-        'gets materially wider exactly when the encounter is furthest along. Paired here with a ' +
-        'view-only encounter, which disables the step CTA while the discharge checkbox stays live.',
+      description: {
+        story:
+          'A checked Ready toggle grows: it appends " · <name> <stamp>" inline, so the right column ' +
+          'gets materially wider exactly when the encounter is furthest along. Paired here with a ' +
+          'view-only encounter, which disables the step CTA while the discharge checkbox stays live.',
+      },
     },
   },
 };

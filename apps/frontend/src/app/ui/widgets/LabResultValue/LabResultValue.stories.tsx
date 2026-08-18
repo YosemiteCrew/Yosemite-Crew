@@ -161,9 +161,11 @@ export const InterpretationNotesOpen: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The key sits directly under the table, in the same 12px secondary ink, with its line ' +
-        'breaks coming from `whitespace-pre-wrap` on the raw text rather than from list markup.',
+      description: {
+        story:
+          'The key sits directly under the table, in the same 12px secondary ink, with its line ' +
+          'breaks coming from `whitespace-pre-wrap` on the raw text rather than from list markup.',
+      },
     },
   },
 };
@@ -188,10 +190,12 @@ export const LongCultureNotesOpen: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Two isolates, ten antibiotics and a fourth legend line. With the notes open the content ' +
-        'is well past the 208px cap, so this is the frame that shows the disclosure competing with ' +
-        'the scroller rather than expanding the row.',
+      description: {
+        story:
+          'Two isolates, ten antibiotics and a fourth legend line. With the notes open the content ' +
+          'is well past the 208px cap, so this is the frame that shows the disclosure competing with ' +
+          'the scroller rather than expanding the row.',
+      },
     },
   },
 };

@@ -98,9 +98,11 @@ export const Collapsed: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The resting list: title, date and time columns in `--pill-success-text`, and an eye ' +
-        'button only on the rows that actually have something to show.',
+      description: {
+        story:
+          'The resting list: title, date and time columns in `--pill-success-text`, and an eye ' +
+          'button only on the rows that actually have something to show.',
+      },
     },
   },
 };
@@ -121,9 +123,11 @@ export const Expanded: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The surface this file exists for. A four-paragraph SOAP body opens inside the first ' +
-        "row's `<li>`, above its bottom hairline, with the collapsed rows beneath it unchanged.",
+      description: {
+        story:
+          'The surface this file exists for. A four-paragraph SOAP body opens inside the first ' +
+          "row's `<li>`, above its bottom hairline, with the collapsed rows beneath it unchanged.",
+      },
     },
   },
 };
@@ -143,10 +147,12 @@ export const TwoExpanded: Story = {
   },
   parameters: {
     docs: {
-      story:
-        '`open` is per-row state, so the rows are independent - opening a second does not close ' +
-        'the first. This is the composite the accordion-style single-open assumption would break, ' +
-        'and the only drawing where a multi-paragraph detail sits directly above a one-line one.',
+      description: {
+        story:
+          '`open` is per-row state, so the rows are independent - opening a second does not close ' +
+          'the first. This is the composite the accordion-style single-open assumption would break, ' +
+          'and the only drawing where a multi-paragraph detail sits directly above a one-line one.',
+      },
     },
   },
 };
@@ -156,9 +162,11 @@ export const Empty: Story = {
   args: { items: [], emptyLabel: 'No SOAP notes recorded yet.' },
   parameters: {
     docs: {
-      story:
-        'With no items the bordered `rounded-2xl` list is not rendered at all - the empty line ' +
-        'stands alone rather than sitting inside an empty box.',
+      description: {
+        story:
+          'With no items the bordered `rounded-2xl` list is not rendered at all - the empty line ' +
+          'stands alone rather than sitting inside an empty box.',
+      },
     },
   },
 };

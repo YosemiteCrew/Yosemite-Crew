@@ -173,10 +173,12 @@ export const FirstRowExpanded: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The state the section opens in - `expandedId` is seeded to the first invoice - showing ' +
-        'the full settled composition at once: the breakdown grid, the 26px tabular total, the ' +
-        'green settled badge, and the Payments ledger with a receipt link.',
+      description: {
+        story:
+          'The state the section opens in - `expandedId` is seeded to the first invoice - showing ' +
+          'the full settled composition at once: the breakdown grid, the 26px tabular total, the ' +
+          'green settled badge, and the Payments ledger with a receipt link.',
+      },
     },
   },
 };
@@ -196,10 +198,12 @@ export const ExpandOutstandingInvoice: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The unsettled invoice open. Its panel has no settled badge and no Payments block, so the ' +
-        'breakdown ends on the total row - a materially shorter panel from the same grid, and the ' +
-        'combination the seeded story can never show.',
+      description: {
+        story:
+          'The unsettled invoice open. Its panel has no settled badge and no Payments block, so the ' +
+          'breakdown ends on the total row - a materially shorter panel from the same grid, and the ' +
+          'combination the seeded story can never show.',
+      },
     },
   },
 };
@@ -214,10 +218,12 @@ export const AllRowsCollapsed: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Toggling the open row shut sets `expandedId` back to null. Worth its own story because ' +
-        'the eye/eye-off icon and the button label are the only difference between the two ' +
-        'states - the row itself does not change otherwise.',
+      description: {
+        story:
+          'Toggling the open row shut sets `expandedId` back to null. Worth its own story because ' +
+          'the eye/eye-off icon and the button label are the only difference between the two ' +
+          'states - the row itself does not change otherwise.',
+      },
     },
   },
 };
@@ -237,10 +243,12 @@ export const ReadOnly: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'A locked encounter keeps Download but drops Share, so the settled row falls from three ' +
-        'action buttons to two inside the same fixed 132px track - the column does not reflow, ' +
-        'the cluster just sits differently against its right edge.',
+      description: {
+        story:
+          'A locked encounter keeps Download but drops Share, so the settled row falls from three ' +
+          'action buttons to two inside the same fixed 132px track - the column does not reflow, ' +
+          'the cluster just sits differently against its right edge.',
+      },
     },
   },
 };
@@ -256,9 +264,11 @@ export const Empty: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The empty branch swaps the whole list - column headings included - for a single ' +
-        '`bg-neutral-100` note, so there is no orphaned header row left hanging above nothing.',
+      description: {
+        story:
+          'The empty branch swaps the whole list - column headings included - for a single ' +
+          '`bg-neutral-100` note, so there is no orphaned header row left hanging above nothing.',
+      },
     },
   },
 };

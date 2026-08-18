@@ -84,9 +84,11 @@ export const OnTheHour: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'A half-hour appointment dropped exactly on 09:00: `top` resolves to 0 and the band takes ' +
-        'half the 180px row.',
+      description: {
+        story:
+          'A half-hour appointment dropped exactly on 09:00: `top` resolves to 0 and the band takes ' +
+          'half the 180px row.',
+      },
     },
   },
 };
@@ -104,11 +106,13 @@ export const MidHour: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The clamp branch. A 45-minute appointment dropped at :45 has only 15 minutes of its own ' +
-        'hour left, so `Math.min(duration, 60 - minute % 60)` truncates the ghost at the cell ' +
-        'boundary instead of letting it bleed into the hour below - the overflow bug this drawing ' +
-        'exists to catch.',
+      description: {
+        story:
+          'The clamp branch. A 45-minute appointment dropped at :45 has only 15 minutes of its own ' +
+          'hour left, so `Math.min(duration, 60 - minute % 60)` truncates the ghost at the cell ' +
+          'boundary instead of letting it bleed into the hour below - the overflow bug this drawing ' +
+          'exists to catch.',
+      },
     },
   },
 };
@@ -124,10 +128,12 @@ export const ZoomedOut: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The same drag in the zoomed-out calendar, where an hour is 34px. The proportional height ' +
-        'would be 8.5px, so `Math.max(14, ...)` floors it - the ghost is deliberately taller than ' +
-        'its true duration here, and it is the only state where the two disagree.',
+      description: {
+        story:
+          'The same drag in the zoomed-out calendar, where an hour is 34px. The proportional height ' +
+          'would be 8.5px, so `Math.max(14, ...)` floors it - the ghost is deliberately taller than ' +
+          'its true duration here, and it is the only state where the two disagree.',
+      },
     },
   },
 };
@@ -140,9 +146,11 @@ export const NoLabel: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'A drag that carries no label falls back to the literal word "Appointment" rather than ' +
-        'rendering an empty dashed box the reader cannot identify.',
+      description: {
+        story:
+          'A drag that carries no label falls back to the literal word "Appointment" rather than ' +
+          'rendering an empty dashed box the reader cannot identify.',
+      },
     },
   },
 };
@@ -154,9 +162,11 @@ export const LongLabel: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The label row is `truncate` inside `px-2`, so a long name clips at the ghost edge. The ' +
-        'ghost is sized by the drag, never by its text.',
+      description: {
+        story:
+          'The label row is `truncate` inside `px-2`, so a long name clips at the ghost edge. The ' +
+          'ghost is sized by the drag, never by its text.',
+      },
     },
   },
 };

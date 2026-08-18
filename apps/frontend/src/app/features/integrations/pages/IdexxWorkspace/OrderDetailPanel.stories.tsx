@@ -165,10 +165,12 @@ export const Loaded: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Two categories, six rows, two of them out of range. The out-of-range value text turns ' +
-        '`text-text-error` while its meter marker turns `--danger` - two independent colour ' +
-        'decisions that must agree, and only agree visibly.',
+      description: {
+        story:
+          'Two categories, six rows, two of them out of range. The out-of-range value text turns ' +
+          '`text-text-error` while its meter marker turns `--danger` - two independent colour ' +
+          'decisions that must agree, and only agree visibly.',
+      },
     },
   },
 };
@@ -189,10 +191,12 @@ export const OpenedFromResultsRow: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The gate itself, opened the way a user opens it: the real 470px `md` drawer, labelled by ' +
-        "the panel's own header id. This is the only story where the `min-w-[620px]` category " +
-        'tables meet the width they actually ship at.',
+      description: {
+        story:
+          'The gate itself, opened the way a user opens it: the real 470px `md` drawer, labelled by ' +
+          "the panel's own header id. This is the only story where the `min-w-[620px]` category " +
+          'tables meet the width they actually ship at.',
+      },
     },
   },
 };
@@ -208,10 +212,12 @@ export const LoadingDetail: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The drawer opens before the fetch resolves, so this is the first frame every user sees. ' +
-        'The header and footer are already laid out while the body is a single line of text - the ' +
-        'footer therefore sits high, not pinned to the drawer bottom.',
+      description: {
+        story:
+          'The drawer opens before the fetch resolves, so this is the first frame every user sees. ' +
+          'The header and footer are already laid out while the body is a single line of text - the ' +
+          'footer therefore sits high, not pinned to the drawer bottom.',
+      },
     },
   },
 };
@@ -230,11 +236,13 @@ export const NoResultSelected: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The empty branch: no patient card, no status pill in the header actions, and both footer ' +
-        'actions dead. Worth drawing because `Primary` silently changes element - `href="#"` ' +
-        'renders a `<button>`, a real href renders a `next/link` - so the disabled state is a ' +
-        'different DOM node, not a modifier.',
+      description: {
+        story:
+          'The empty branch: no patient card, no status pill in the header actions, and both footer ' +
+          'actions dead. Worth drawing because `Primary` silently changes element - `href="#"` ' +
+          'renders a `<button>`, a real href renders a `next/link` - so the disabled state is a ' +
+          'different DOM node, not a modifier.',
+      },
     },
   },
 };
@@ -248,10 +256,12 @@ export const PdfPreviewLoading: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The PDF action relabels and disables while its blob is fetched, matched on ' +
-        '`pdfPreviewLoadingId === resultId` - so a different row loading leaves this one live. ' +
-        'The label is 3 characters longer, which is the only thing that moves.',
+      description: {
+        story:
+          'The PDF action relabels and disables while its blob is fetched, matched on ' +
+          '`pdfPreviewLoadingId === resultId` - so a different row loading leaves this one live. ' +
+          'The label is 3 characters longer, which is the only thing that moves.',
+      },
     },
   },
 };

@@ -103,9 +103,11 @@ export const EditScope: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The edit path: "Save changes" as the confirm, and the prompt asking which tasks the ' +
-        '*change* applies to.',
+      description: {
+        story:
+          'The edit path: "Save changes" as the confirm, and the prompt asking which tasks the ' +
+          '*change* applies to.',
+      },
     },
   },
 };
@@ -126,10 +128,12 @@ export const DeleteScope: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The destructive path. Only three words differ from the edit dialog and the confirm is the ' +
-        'same `Primary` pill in the same place - there is no red, and no reordering, so the two ' +
-        'are worth seeing side by side.',
+      description: {
+        story:
+          'The destructive path. Only three words differ from the edit dialog and the confirm is the ' +
+          'same `Primary` pill in the same place - there is no red, and no reordering, so the two ' +
+          'are worth seeing side by side.',
+      },
     },
   },
 };
@@ -150,10 +154,12 @@ export const ScopeChanged: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The middle option, and the frame where the selected-row treatment is visible against two ' +
-        'unselected ones. Confirming does not close the dialog: `onConfirm` is all it does, and ' +
-        'the caller decides what happens next.',
+      description: {
+        story:
+          'The middle option, and the frame where the selected-row treatment is visible against two ' +
+          'unselected ones. Confirming does not close the dialog: `onConfirm` is all it does, and ' +
+          'the caller decides what happens next.',
+      },
     },
   },
 };
@@ -172,10 +178,12 @@ export const Busy: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'While the scoped operation runs, the confirm relabels to "Working…" and disables. The ' +
-        'label is driven by a prop rather than by the promise, so this state is only reachable ' +
-        'from the outside - and had never been rendered.',
+      description: {
+        story:
+          'While the scoped operation runs, the confirm relabels to "Working…" and disables. The ' +
+          'label is driven by a prop rather than by the promise, so this state is only reachable ' +
+          'from the outside - and had never been rendered.',
+      },
     },
   },
 };
@@ -190,10 +198,12 @@ export const NoTaskName: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The fallback sentence when the caller has no name to quote. It is a different first ' +
-        'clause, not a truncated one, so the paragraph is a line shorter and the options sit ' +
-        'higher in the dialog.',
+      description: {
+        story:
+          'The fallback sentence when the caller has no name to quote. It is a different first ' +
+          'clause, not a truncated one, so the paragraph is a line shorter and the options sit ' +
+          'higher in the dialog.',
+      },
     },
   },
 };
@@ -216,10 +226,12 @@ export const LongTaskName: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Task names are user-entered. The prompt wraps to three lines and pushes the option list ' +
-        'and the two-column action row down, which is the shape of layout defect this sweep ' +
-        'exists to make visible.',
+      description: {
+        story:
+          'Task names are user-entered. The prompt wraps to three lines and pushes the option list ' +
+          'and the two-column action row down, which is the shape of layout defect this sweep ' +
+          'exists to make visible.',
+      },
     },
   },
 };

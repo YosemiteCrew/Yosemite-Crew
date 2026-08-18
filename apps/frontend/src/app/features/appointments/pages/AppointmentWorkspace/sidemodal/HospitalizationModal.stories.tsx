@@ -131,9 +131,11 @@ export const Closed: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'While closed the component returns `null` outright - deliberately, so its Room ' +
-        'dropdown does not duplicate the workspace meta-bar Room control in the DOM.',
+      description: {
+        story:
+          'While closed the component returns `null` outright - deliberately, so its Room ' +
+          'dropdown does not duplicate the workspace meta-bar Room control in the DOM.',
+      },
     },
   },
 };
@@ -157,10 +159,12 @@ export const Open: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The full panel at rest: dates and room/unit on the left, staff, packages and the ' +
-        'estimate on the right, with the footer rule above a single primary. The estimate reads ' +
-        '`$ 00.00` in tertiary ink until a package is chosen, which is its own state.',
+      description: {
+        story:
+          'The full panel at rest: dates and room/unit on the left, staff, packages and the ' +
+          'estimate on the right, with the footer rule above a single primary. The estimate reads ' +
+          '`$ 00.00` in tertiary ink until a package is chosen, which is its own state.',
+      },
     },
   },
 };
@@ -179,11 +183,13 @@ export const RoomMenuOpen: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The room menu, portalled to `document.body` and positioned 4px below the trigger. ' +
-        'Because it escapes the modal, `AppointmentCentralModalShell` has to whitelist ' +
-        '`[data-portal-dropdown]` in `ignoreOutsideClick` - otherwise picking a room would read ' +
-        'as a click outside the dialog and close the whole panel.',
+      description: {
+        story:
+          'The room menu, portalled to `document.body` and positioned 4px below the trigger. ' +
+          'Because it escapes the modal, `AppointmentCentralModalShell` has to whitelist ' +
+          '`[data-portal-dropdown]` in `ignoreOutsideClick` - otherwise picking a room would read ' +
+          'as a click outside the dialog and close the whole panel.',
+      },
     },
   },
 };
@@ -202,10 +208,12 @@ export const UnitFollowsRoom: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The two dropdowns are coupled: choosing a room swaps the unit list through ' +
-        '`unitOptionsByRoomId` and re-picks the unit when the current one is not in it. Nothing ' +
-        'in a static render shows that the second field is downstream of the first.',
+      description: {
+        story:
+          'The two dropdowns are coupled: choosing a room swaps the unit list through ' +
+          '`unitOptionsByRoomId` and re-picks the unit when the current one is not in it. Nothing ' +
+          'in a static render shows that the second field is downstream of the first.',
+      },
     },
   },
 };
@@ -221,10 +229,12 @@ export const ValidationErrors: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Pressing Convert with no room or unit surfaces the error block under the room/unit ' +
-        'row. It is gated on `hasSubmitted`, so the fields show no error until the panel has ' +
-        'been submitted once - and the block pushes the left column down when it appears.',
+      description: {
+        story:
+          'Pressing Convert with no room or unit surfaces the error block under the room/unit ' +
+          'row. It is gated on `hasSubmitted`, so the fields show no error until the panel has ' +
+          'been submitted once - and the block pushes the left column down when it appears.',
+      },
     },
   },
 };
@@ -244,9 +254,11 @@ export const Converting: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'While `onConvert` is in flight the primary relabels to "Converting" and disables. ' +
-        'There is no prop for it - the only way to reach the state is to hold the promise open.',
+      description: {
+        story:
+          'While `onConvert` is in flight the primary relabels to "Converting" and disables. ' +
+          'There is no prop for it - the only way to reach the state is to hold the promise open.',
+      },
     },
   },
 };

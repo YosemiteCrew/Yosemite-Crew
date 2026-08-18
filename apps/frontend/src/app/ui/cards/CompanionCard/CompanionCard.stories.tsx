@@ -172,9 +172,11 @@ export const ViewTooltip: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The first of the four bubbles, and the only one whose copy is org-dependent - it shares ' +
-        "the trigger's rewritten label rather than a literal string.",
+      description: {
+        story:
+          'The first of the four bubbles, and the only one whose copy is org-dependent - it shares ' +
+          "the trigger's rewritten label rather than a literal string.",
+      },
     },
   },
 };
@@ -208,10 +210,12 @@ export const AllFourTooltips: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Every bubble on the card, one at a time. Each is asserted to carry its own copy, which is ' +
-        'the check that would have caught a tooltip wired to the wrong trigger or rendering empty - ' +
-        'the failure mode an `aria-expanded`-style assertion cannot see.',
+      description: {
+        story:
+          'Every bubble on the card, one at a time. Each is asserted to carry its own copy, which is ' +
+          'the check that would have caught a tooltip wired to the wrong trigger or rendering empty - ' +
+          'the failure mode an `aria-expanded`-style assertion cannot see.',
+      },
     },
   },
 };
@@ -228,11 +232,13 @@ export const TooltipOnFocus: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The same bubble reached by keyboard. `GlassTooltip` listens for `focusin`/`focusout` ' +
-        'alongside the mouse events, so a keyboard user gets the label too - worth drawing, ' +
-        'because a hover-only tooltip on an icon-only button leaves those buttons unlabelled ' +
-        'in practice.',
+      description: {
+        story:
+          'The same bubble reached by keyboard. `GlassTooltip` listens for `focusin`/`focusout` ' +
+          'alongside the mouse events, so a keyboard user gets the label too - worth drawing, ' +
+          'because a hover-only tooltip on an icon-only button leaves those buttons unlabelled ' +
+          'in practice.',
+      },
     },
   },
 };
@@ -252,11 +258,13 @@ export const ViewOnlyTooltip: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'A read-only member has one button, so the single bubble has the whole centred row to ' +
-        'itself. Worth its own drawing because the bubble is clamped to the viewport rather than ' +
-        'to the card, and a one-button row puts the trigger in a different place than a four- ' +
-        'button one does.',
+      description: {
+        story:
+          'A read-only member has one button, so the single bubble has the whole centred row to ' +
+          'itself. Worth its own drawing because the bubble is clamped to the viewport rather than ' +
+          'to the card, and a one-button row puts the trigger in a different place than a four- ' +
+          'button one does.',
+      },
     },
   },
 };

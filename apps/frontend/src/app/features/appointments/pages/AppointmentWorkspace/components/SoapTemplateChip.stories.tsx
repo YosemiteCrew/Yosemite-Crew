@@ -75,9 +75,11 @@ export const Closed: Story = {
   name: 'Closed chip',
   parameters: {
     docs: {
-      story:
-        'The resting chip. `activeName` is absent, so it falls back to "Template: None" rather ' +
-        'than rendering an empty slot after the colon.',
+      description: {
+        story:
+          'The resting chip. `activeName` is absent, so it falls back to "Template: None" rather ' +
+          'than rendering an empty slot after the colon.',
+      },
     },
   },
 };
@@ -95,11 +97,13 @@ export const Open: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The surface no snapshot contained: search field, five rows with their grey subtitles, and ' +
-        'the footer action. The last template name is deliberately long enough to prove the row ' +
-        'truncates - `min-w-0 flex-1` on the text column plus `truncate` - instead of pushing the ' +
-        '330px popover wider.',
+      description: {
+        story:
+          'The surface no snapshot contained: search field, five rows with their grey subtitles, and ' +
+          'the footer action. The last template name is deliberately long enough to prove the row ' +
+          'truncates - `min-w-0 flex-1` on the text column plus `truncate` - instead of pushing the ' +
+          '330px popover wider.',
+      },
     },
   },
 };
@@ -117,11 +121,13 @@ export const ActiveTemplate: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Three separate signals mark the applied template and all three only exist with the panel ' +
-        'open: the `bg-primary-100/40` tint, `font-bold` on the name, and the trailing tick. The ' +
-        'match is case-insensitive on the trimmed name, not on the id, so a renamed template ' +
-        'silently stops matching - worth seeing.',
+      description: {
+        story:
+          'Three separate signals mark the applied template and all three only exist with the panel ' +
+          'open: the `bg-primary-100/40` tint, `font-bold` on the name, and the trailing tick. The ' +
+          'match is case-insensitive on the trimmed name, not on the id, so a renamed template ' +
+          'silently stops matching - worth seeing.',
+      },
     },
   },
 };
@@ -137,10 +143,12 @@ export const FilteredBySearch: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Two interactions deep. The filter matches on `name` only - a subtitle mentioning the term ' +
-        'will not surface its row - and the list keeps its `first:border-t-0` rule, so the single ' +
-        'survivor renders without a stray top hairline.',
+      description: {
+        story:
+          'Two interactions deep. The filter matches on `name` only - a subtitle mentioning the term ' +
+          'will not surface its row - and the list keeps its `first:border-t-0` rule, so the single ' +
+          'survivor renders without a stray top hairline.',
+      },
     },
   },
 };
@@ -158,10 +166,12 @@ export const NoSearchMatch: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The empty branch is a single `<li>` of 12px `--text-secondary` copy, which collapses the ' +
-        'popover to roughly the height of the search field. Only reachable by typing, so nothing ' +
-        'had ever composited it with the footer button below.',
+      description: {
+        story:
+          'The empty branch is a single `<li>` of 12px `--text-secondary` copy, which collapses the ' +
+          'popover to roughly the height of the search field. Only reachable by typing, so nothing ' +
+          'had ever composited it with the footer button below.',
+      },
     },
   },
 };
@@ -177,9 +187,11 @@ export const WithoutManageAction: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Without `onManage` the footer is not rendered at all rather than rendered disabled, so ' +
-        'the panel ends on the list border with no dead affordance.',
+      description: {
+        story:
+          'Without `onManage` the footer is not rendered at all rather than rendered disabled, so ' +
+          'the panel ends on the list border with no dead affordance.',
+      },
     },
   },
 };
@@ -189,9 +201,11 @@ export const Disabled: Story = {
   args: { disabled: true, activeName: 'Wellness exam' },
   parameters: {
     docs: {
-      story:
-        'A locked encounter. The chip keeps its label and drops to `opacity-50`; the popover is ' +
-        'unreachable because the trigger is the only thing that sets `open`.',
+      description: {
+        story:
+          'A locked encounter. The chip keeps its label and drops to `opacity-50`; the popover is ' +
+          'unreachable because the trigger is the only thing that sets `open`.',
+      },
     },
   },
 };

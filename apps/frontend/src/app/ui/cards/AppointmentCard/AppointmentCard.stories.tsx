@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { expect, fn, userEvent, within } from 'storybook/test';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import type { Appointment, Organisation } from '@yosemite-crew/types';
 
 import AppointmentCard from './index';
@@ -196,20 +196,40 @@ export const LongValues: Story = {
   },
 };
 
-/** Hovers one action and returns the single portalled bubble it opened. */
-const hoverAction = async (canvasElement: HTMLElement, actionLabel: string) => {
+/**
+ * Hovers one action and returns the single portalled bubble it opened.
+ *
+ * The pointer session is passed in rather than using the bare `userEvent` helper:
+ * the direct API builds a fresh pointer state per call, so it never emits the
+ * `mouseleave` that closes the bubble you are moving away from, and a walk along
+ * the rail would leave a trail of bubbles behind for reasons that have nothing to
+ * do with the component. A `userEvent.setup()` session keeps the pointer's
+ * position between calls and produces the real leave/enter pair.
+ */
+const hoverAction = async (
+  user: ReturnType<typeof userEvent.setup>,
+  canvasElement: HTMLElement,
+  actionLabel: string
+) => {
   const canvas = within(canvasElement);
-  await userEvent.hover(canvas.getByRole('button', { name: actionLabel }));
-  // The bubble portals to document.body, so it is outside canvasElement.
-  const bubbles = await within(document.body).findAllByRole('tooltip');
-  await expect(bubbles).toHaveLength(1);
-  return bubbles[0];
+  await user.hover(canvas.getByRole('button', { name: actionLabel }));
+  // The bubble portals to document.body, so it is outside canvasElement. Settling
+  // on exactly one is the real assertion: the outgoing bubble is momentarily still
+  // mounted beside the incoming one, and a leak there would never settle.
+  await waitFor(() => {
+    expect(within(document.body).getAllByRole('tooltip')).toHaveLength(1);
+  });
+  return within(document.body).getByRole('tooltip');
 };
 
 export const ViewTooltip: Story = {
   name: 'Tooltip — view action',
   play: async ({ canvasElement }) => {
-    const bubble = await hoverAction(canvasElement, 'View appointment for Poppy');
+    const bubble = await hoverAction(
+      userEvent.setup(),
+      canvasElement,
+      'View appointment for Poppy'
+    );
     await expect(bubble).toHaveTextContent('View appointment');
   },
   parameters: {
@@ -227,7 +247,7 @@ export const ViewTooltip: Story = {
 export const ClinicalNotesTooltip: Story = {
   name: 'Tooltip — clinical notes label',
   play: async ({ canvasElement }) => {
-    const bubble = await hoverAction(canvasElement, 'Medical Records for Poppy');
+    const bubble = await hoverAction(userEvent.setup(), canvasElement, 'Medical Records for Poppy');
     // The org store says HOSPITAL, so the bubble must say Medical Records rather
     // than the Care fallback. This string is data, not a constant.
     await expect(bubble).toHaveTextContent('Medical Records');
@@ -257,10 +277,12 @@ export const RailTooltips: Story = {
       ['Lab tests for Poppy', 'Lab tests'],
     ];
 
-    // Walked one at a time on purpose: each hover must open its own bubble AND
-    // close the previous one. Seven stacked bubbles would be its own defect.
+    // One pointer session for the whole walk, so moving to the next icon really
+    // leaves the previous one: each hover must open its own bubble AND close the
+    // one before it. Seven stacked bubbles would be its own defect.
+    const user = userEvent.setup();
     for (const [trigger, label] of expectations) {
-      const bubble = await hoverAction(canvasElement, trigger);
+      const bubble = await hoverAction(user, canvasElement, trigger);
       await expect(bubble).toHaveTextContent(label);
     }
   },
@@ -289,7 +311,7 @@ export const RequestedTooltip: Story = {
   play: async ({ canvasElement }) => {
     // Hover only. The decline button fires `rejectAppointment` over the network
     // on click, so a story must never press it.
-    const bubble = await hoverAction(canvasElement, 'Accept request for Poppy');
+    const bubble = await hoverAction(userEvent.setup(), canvasElement, 'Accept request for Poppy');
     await expect(bubble).toHaveTextContent('Accept request');
   },
   parameters: {

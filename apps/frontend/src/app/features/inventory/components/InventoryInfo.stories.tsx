@@ -150,10 +150,12 @@ export const Drawer: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The drawer at rest on its first tab. The header meta line joins category and SKU with a ' +
-        'middot ("Medicine · MEL-15-100"), the six section tabs sit under it, and the footer is a ' +
-        'stretched Close/Delete pair.',
+      description: {
+        story:
+          'The drawer at rest on its first tab. The header meta line joins category and SKU with a ' +
+          'middot ("Medicine · MEL-15-100"), the six section tabs sit under it, and the footer is a ' +
+          'stretched Close/Delete pair.',
+      },
     },
   },
 };
@@ -181,10 +183,12 @@ export const DeleteConfirmation: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The second-level dialog, which no prop can reach. Its copy is deliberately honest about the ' +
-        'backend - the item is hidden rather than hard-deleted and can be restored - so the panel is ' +
-        'three lines of body text tall, not one, and the two-column action grid sits under it.',
+      description: {
+        story:
+          'The second-level dialog, which no prop can reach. Its copy is deliberately honest about the ' +
+          'backend - the item is hidden rather than hard-deleted and can be restored - so the panel is ' +
+          'three lines of body text tall, not one, and the two-column action grid sits under it.',
+      },
     },
   },
 };
@@ -211,10 +215,12 @@ export const ConfirmationDiscarded: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Dismissing the top dialog. Both dialogs listen on `document` for Escape and outside ' +
-        'mousedown, so without the stack the child taking itself down would take the parent with it. ' +
-        'The assertion here is that exactly one dialog remains, not zero.',
+      description: {
+        story:
+          'Dismissing the top dialog. Both dialogs listen on `document` for Escape and outside ' +
+          'mousedown, so without the stack the child taking itself down would take the parent with it. ' +
+          'The assertion here is that exactly one dialog remains, not zero.',
+      },
     },
   },
 };
@@ -231,10 +237,12 @@ export const HiddenItem: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'A hidden item flips the primary action to "Restore item", and that path calls `onUnhide` ' +
-        'directly - there is no confirmation on the way back in, only on the way out. The asymmetry ' +
-        'is intentional and is only visible with both stories side by side.',
+      description: {
+        story:
+          'A hidden item flips the primary action to "Restore item", and that path calls `onUnhide` ' +
+          'directly - there is no confirmation on the way back in, only on the way out. The asymmetry ' +
+          'is intentional and is only visible with both stories side by side.',
+      },
     },
   },
 };
@@ -256,9 +264,11 @@ export const ReadOnly: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'With `canEdit` false the footer keeps only Close, so the stretched two-button row becomes a ' +
-        'single full-width control - a layout the permissioned story never draws.',
+      description: {
+        story:
+          'With `canEdit` false the footer keeps only Close, so the stretched two-button row becomes a ' +
+          'single full-width control - a layout the permissioned story never draws.',
+      },
     },
   },
 };
@@ -275,11 +285,13 @@ export const PricingSection: Story = {
   },
   parameters: {
     docs: {
-      story:
-        '`initialSection` lands the drawer on a tab other than the first - the path Restock and the ' +
-        'stock alerts use. Pricing is the only section that renders an extra block below the ' +
-        'accordion: two badge-blue derived figures and a bordered total with a floating legend ' +
-        'label, none of which exists on the other five tabs.',
+      description: {
+        story:
+          '`initialSection` lands the drawer on a tab other than the first - the path Restock and the ' +
+          'stock alerts use. Pricing is the only section that renders an extra block below the ' +
+          'accordion: two badge-blue derived figures and a bordered total with a floating legend ' +
+          'label, none of which exists on the other five tabs.',
+      },
     },
   },
 };

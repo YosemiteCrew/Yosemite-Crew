@@ -144,9 +144,11 @@ export const Collapsed: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The resting state, and the one every snapshot has held. Six patient rows, the alert ' +
-        'chips, and a closed accordion whose contents do not exist yet.',
+      description: {
+        story:
+          'The resting state, and the one every snapshot has held. Six patient rows, the alert ' +
+          'chips, and a closed accordion whose contents do not exist yet.',
+      },
     },
   },
 };
@@ -172,10 +174,12 @@ export const AdditionalDetailsOpen: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Ten label/value rows the closed state never draws, each on its own hairline, inside ' +
-        'the `border-x border-b rounded-b-2xl` continuation of the header. This is the tree ' +
-        'that had never been rendered.',
+      description: {
+        story:
+          'Ten label/value rows the closed state never draws, each on its own hairline, inside ' +
+          'the `border-x border-b rounded-b-2xl` continuation of the header. This is the tree ' +
+          'that had never been rendered.',
+      },
     },
   },
 };
@@ -200,10 +204,12 @@ export const SparseAdditionalDetails: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'A newly created companion with only the required fields. The accordion opens onto a ' +
-        'single row, so the disclosure is nearly empty - worth seeing beside the populated ' +
-        'version, since the two share no rows but the last.',
+      description: {
+        story:
+          'A newly created companion with only the required fields. The accordion opens onto a ' +
+          'single row, so the disclosure is nearly empty - worth seeing beside the populated ' +
+          'version, since the two share no rows but the last.',
+      },
     },
   },
 };
@@ -221,10 +227,12 @@ export const StatusMenuOpen: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Active / Inactive / Archived, in a portalled 13px-radius panel 4px below the trigger. ' +
-        'Because it escapes the modal that hosts this view, the modal has to treat clicks ' +
-        'inside `[data-portal-dropdown]` as inside itself.',
+      description: {
+        story:
+          'Active / Inactive / Archived, in a portalled 13px-radius panel 4px below the trigger. ' +
+          'Because it escapes the modal that hosts this view, the modal has to treat clicks ' +
+          'inside `[data-portal-dropdown]` as inside itself.',
+      },
     },
   },
 };
@@ -243,10 +251,12 @@ export const SavingStatus: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'While a status change is persisting, the dropdown is faded to 40% and has pointer ' +
-        'events removed by its wrapper. The button underneath is not `disabled`, so this state ' +
-        'is invisible to anything that only inspects the control.',
+      description: {
+        story:
+          'While a status change is persisting, the dropdown is faded to 40% and has pointer ' +
+          'events removed by its wrapper. The button underneath is not `disabled`, so this state ' +
+          'is invisible to anything that only inspects the control.',
+      },
     },
   },
 };
@@ -262,9 +272,11 @@ export const ReadOnlyStatus: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'For a role that cannot change the record status, the header renders a plain pill. No ' +
-        'dimmed-but-clickable control, which is its own defect.',
+      description: {
+        story:
+          'For a role that cannot change the record status, the header renders a plain pill. No ' +
+          'dimmed-but-clickable control, which is its own defect.',
+      },
     },
   },
 };

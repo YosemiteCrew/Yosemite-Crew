@@ -61,9 +61,11 @@ export const Focused: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The state the component was described by and never drawn in: the docked B / I / U / list ' +
-        '/ indent bar, its hairline underline on the --screen band, and the focused field border.',
+      description: {
+        story:
+          'The state the component was described by and never drawn in: the docked B / I / U / list ' +
+          '/ indent bar, its hairline underline on the --screen band, and the focused field border.',
+      },
     },
   },
 };
@@ -78,9 +80,11 @@ export const FocusedWithContent: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Toolbar over real content, which is where the bar competes with the first line of text ' +
-        'for the top of the field.',
+      description: {
+        story:
+          'Toolbar over real content, which is where the bar competes with the first line of text ' +
+          'for the top of the field.',
+      },
     },
   },
 };

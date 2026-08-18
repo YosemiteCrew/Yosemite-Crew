@@ -120,9 +120,11 @@ export const Closed: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The state the timeline sits in for as long as no row is open. Worth pinning: the drawer ' +
-        'is unmounted rather than hidden, so nothing inside it holds focus or listens for Escape.',
+      description: {
+        story:
+          'The state the timeline sits in for as long as no row is open. Worth pinning: the drawer ' +
+          'is unmounted rather than hidden, so nothing inside it holds focus or listens for Escape.',
+      },
     },
   },
 };
@@ -156,12 +158,14 @@ export const LabResult: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The full panel: six analytes under a static table head, two of them out of range and so ' +
-        'tinted across all three columns with an arrow appended to the analyte name; the clinical ' +
-        'note in its `--inset` block; the linked appointment card; and the stacked footer. Not a ' +
-        'lab record in the document store, so the primary action is "Open result" rather than a ' +
-        'download.',
+      description: {
+        story:
+          'The full panel: six analytes under a static table head, two of them out of range and so ' +
+          'tinted across all three columns with an arrow appended to the analyte name; the clinical ' +
+          'note in its `--inset` block; the linked appointment card; and the stacked footer. Not a ' +
+          'lab record in the document store, so the primary action is "Open result" rather than a ' +
+          'download.',
+      },
     },
   },
 };
@@ -179,10 +183,12 @@ export const StoredDocument: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The download branch, reached because `payload.documentId` resolves. It is also the ' +
-        'sparsest layout the panel can take - no results grid, no linked card - which is where a ' +
-        'body that relies on its children for height shows up.',
+      description: {
+        story:
+          'The download branch, reached because `payload.documentId` resolves. It is also the ' +
+          'sparsest layout the panel can take - no results grid, no linked card - which is where a ' +
+          'body that relies on its children for height shows up.',
+      },
     },
   },
 };
@@ -199,10 +205,12 @@ export const InvoiceWithoutResults: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'A finance record: no analytes, no summary, so the only thing between the header and the ' +
-        'footer is the "Linked to" card. It falls back to `subtitle` for the note block, which is ' +
-        'why the amount appears there rather than being lost.',
+      description: {
+        story:
+          'A finance record: no analytes, no summary, so the only thing between the header and the ' +
+          'footer is the "Linked to" card. It falls back to `subtitle` for the note block, which is ' +
+          'why the amount appears there rather than being lost.',
+      },
     },
   },
 };
@@ -223,10 +231,12 @@ export const LongTitleAndNote: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The header title is a single `truncate` line at 17px, so a long record name is clipped ' +
-        'rather than wrapping the close button out of the row - while the note below it wraps ' +
-        'freely. The two behaviours sit three elements apart and only compose in a rendered panel.',
+      description: {
+        story:
+          'The header title is a single `truncate` line at 17px, so a long record name is clipped ' +
+          'rather than wrapping the close button out of the row - while the note below it wraps ' +
+          'freely. The two behaviours sit three elements apart and only compose in a rendered panel.',
+      },
     },
   },
 };

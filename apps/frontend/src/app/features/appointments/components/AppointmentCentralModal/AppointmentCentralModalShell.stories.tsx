@@ -118,11 +118,13 @@ export const Closed: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'What the page shows before anything is opened. The dialog is already on ' +
-        '`document.body`, carrying `inert` and `opacity-0 pointer-events-none` rather than ' +
-        'being removed - so its contents stay out of the tab order only for as long as that ' +
-        'attribute is right.',
+      description: {
+        story:
+          'What the page shows before anything is opened. The dialog is already on ' +
+          '`document.body`, carrying `inert` and `opacity-0 pointer-events-none` rather than ' +
+          'being removed - so its contents stay out of the tab order only for as long as that ' +
+          'attribute is right.',
+      },
     },
   },
 };
@@ -142,10 +144,12 @@ export const Open: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The 860px panel: a `--screen` header band with a hairline under it, then the ' +
-        'scrolling body on `bg-neutral-0`. This is the surface every appointment panel ' +
-        'inherits, and the one that had never been rendered.',
+      description: {
+        story:
+          'The 860px panel: a `--screen` header band with a hairline under it, then the ' +
+          'scrolling body on `bg-neutral-0`. This is the surface every appointment panel ' +
+          'inherits, and the one that had never been rendered.',
+      },
     },
   },
 };
@@ -165,11 +169,13 @@ export const Loading: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The in-flight state. The overlay is an opaque `absolute inset-0 z-50` layer on the ' +
-        'same 22px box, so it hides the header as well as the body - including the close ' +
-        'button, which is the point: the panel cannot be dismissed mid-booking. Reachable only ' +
-        'while a request is pending, so no snapshot had ever held it.',
+      description: {
+        story:
+          'The in-flight state. The overlay is an opaque `absolute inset-0 z-50` layer on the ' +
+          'same 22px box, so it hides the header as well as the body - including the close ' +
+          'button, which is the point: the panel cannot be dismissed mid-booking. Reachable only ' +
+          'while a request is pending, so no snapshot had ever held it.',
+      },
     },
   },
 };
@@ -186,10 +192,12 @@ export const CloseBlocked: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'A panel with unsaved work returns `false` from `canClose`, and the header X then does ' +
-        'nothing. The control is deliberately not disabled - the guard lives in the handler - ' +
-        'so the only way to see the behaviour is to press it.',
+      description: {
+        story:
+          'A panel with unsaved work returns `false` from `canClose`, and the header X then does ' +
+          'nothing. The control is deliberately not disabled - the guard lives in the handler - ' +
+          'so the only way to see the behaviour is to press it.',
+      },
     },
   },
 };
@@ -204,10 +212,12 @@ export const LongTitle: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The header title is a single truncating line, so a long panel name clips instead of ' +
-        'wrapping and pushing the body down. Only visible with a title long enough to hit the ' +
-        'edge of the 860px panel.',
+      description: {
+        story:
+          'The header title is a single truncating line, so a long panel name clips instead of ' +
+          'wrapping and pushing the body down. Only visible with a title long enough to hit the ' +
+          'edge of the 860px panel.',
+      },
     },
   },
 };

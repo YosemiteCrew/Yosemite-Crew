@@ -87,7 +87,11 @@ export const Empty: Story = {};
 export const WithQuery: Story = {
   args: { query: 'b' },
   parameters: {
-    docs: { story: 'Below the 2-character threshold — results stay hidden until the query grows.' },
+    docs: {
+      description: {
+        story: 'Below the 2-character threshold — results stay hidden until the query grows.',
+      },
+    },
   },
 };
 
@@ -111,10 +115,12 @@ export const ResultsOpen: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Two characters typed into an empty field. Three of the six companions match, and the ' +
-        'first row is pre-activated through `aria-activedescendant` without taking focus off ' +
-        'the input.',
+      description: {
+        story:
+          'Two characters typed into an empty field. Three of the six companions match, and the ' +
+          'first row is pre-activated through `aria-activedescendant` without taking focus off ' +
+          'the input.',
+      },
     },
   },
 };
@@ -133,9 +139,11 @@ export const NoMatches: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'There is no "no results" row: an unmatched query renders nothing below the field. ' +
-        'Worth seeing, because it is indistinguishable from a field that never opened.',
+      description: {
+        story:
+          'There is no "no results" row: an unmatched query renders nothing below the field. ' +
+          'Worth seeing, because it is indistinguishable from a field that never opened.',
+      },
     },
   },
 };
@@ -157,10 +165,12 @@ export const KeyboardNavigation: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Arrow keys, Home and End move a virtual cursor: the input keeps DOM focus and points ' +
-        'at the active row with `aria-activedescendant`, while the row itself only changes ' +
-        'colour. Nothing about that is visible in a static render.',
+      description: {
+        story:
+          'Arrow keys, Home and End move a virtual cursor: the input keeps DOM focus and points ' +
+          'at the active row with `aria-activedescendant`, while the row itself only changes ' +
+          'colour. Nothing about that is visible in a static render.',
+      },
     },
   },
 };
@@ -180,10 +190,12 @@ export const SelectingAnOption: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Picking a row closes the panel and re-joins the field’s bottom border. The query is ' +
-        'left as typed - the component does not write the chosen label back into the field, ' +
-        'which is only apparent after a selection.',
+      description: {
+        story:
+          'Picking a row closes the panel and re-joins the field’s bottom border. The query is ' +
+          'left as typed - the component does not write the chosen label back into the field, ' +
+          'which is only apparent after a selection.',
+      },
     },
   },
 };
@@ -204,10 +216,12 @@ export const LoadingMore: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The infinite-scroll tail. `onReachEnd` fires within 24px of the bottom of the panel, ' +
-        'and while the next page is in flight this `aria-live="polite"` row sits under the ' +
-        'existing options - a state that exists only mid-fetch.',
+      description: {
+        story:
+          'The infinite-scroll tail. `onReachEnd` fires within 24px of the bottom of the panel, ' +
+          'and while the next page is in flight this `aria-live="polite"` row sits under the ' +
+          'existing options - a state that exists only mid-fetch.',
+      },
     },
   },
 };
@@ -216,9 +230,11 @@ export const WithError: Story = {
   args: { error: 'Pick a companion from the list.' },
   parameters: {
     docs: {
-      story:
-        'The error line is gated on `!open && !hasSelected`, so it shows on an untouched field ' +
-        'and disappears the moment the field is focused rather than sitting under an open panel.',
+      description: {
+        story:
+          'The error line is gated on `!open && !hasSelected`, so it shows on an untouched field ' +
+          'and disappears the moment the field is focused rather than sitting under an open panel.',
+      },
     },
   },
 };

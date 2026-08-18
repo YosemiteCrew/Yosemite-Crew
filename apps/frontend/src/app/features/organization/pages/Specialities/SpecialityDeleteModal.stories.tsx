@@ -94,10 +94,12 @@ export const Default: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The resting confirm. Cancel and Delete are equal halves of a two-column grid, so the ' +
-        'destructive action carries no less visual weight than the safe one - the red fill is the ' +
-        'only thing distinguishing them.',
+      description: {
+        story:
+          'The resting confirm. Cancel and Delete are equal halves of a two-column grid, so the ' +
+          'destructive action carries no less visual weight than the safe one - the red fill is the ' +
+          'only thing distinguishing them.',
+      },
     },
   },
 };
@@ -116,10 +118,12 @@ export const MountedFromRow: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The real path: the dialog does not exist in the DOM until the row action mounts it. That ' +
-        'also exercises the mount-time behaviour of `ModalBase` - the body scroll lock and the ' +
-        'focus move onto the first focusable control inside the dialog.',
+      description: {
+        story:
+          'The real path: the dialog does not exist in the DOM until the row action mounts it. That ' +
+          'also exercises the mount-time behaviour of `ModalBase` - the body scroll lock and the ' +
+          'focus move onto the first focusable control inside the dialog.',
+      },
     },
   },
 };
@@ -136,10 +140,12 @@ export const Deleting: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'While the delete is out, only the label changes. The button keeps its full-strength red ' +
-        'fill and stays focusable and clickable - the repeat click is swallowed by an early return ' +
-        'rather than prevented - so this state is easy to mistake for the resting one.',
+      description: {
+        story:
+          'While the delete is out, only the label changes. The button keeps its full-strength red ' +
+          'fill and stays focusable and clickable - the repeat click is swallowed by an early return ' +
+          'rather than prevented - so this state is easy to mistake for the resting one.',
+      },
     },
   },
 };
@@ -157,10 +163,12 @@ export const LongSpecialityName: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The name is inlined into the sentence rather than given its own line, so a long one ' +
-        'rewraps the paragraph and grows the dialog downward. The action grid stays a fixed ' +
-        'two-column row underneath, which is what keeps this from turning into a scrolling panel.',
+      description: {
+        story:
+          'The name is inlined into the sentence rather than given its own line, so a long one ' +
+          'rewraps the paragraph and grows the dialog downward. The action grid stays a fixed ' +
+          'two-column row underneath, which is what keeps this from turning into a scrolling panel.',
+      },
     },
   },
 };

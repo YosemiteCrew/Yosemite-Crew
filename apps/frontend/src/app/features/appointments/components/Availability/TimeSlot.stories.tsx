@@ -111,9 +111,11 @@ export const Closed: Story = {
   name: 'Chip only',
   parameters: {
     docs: {
-      story:
-        'The resting control: 32px tall, 9px radius, 1.5px hairline over `--field-bg`, with the ' +
-        'label in 13px semibold tabular figures so 9:00 and 11:45 stay the same width.',
+      description: {
+        story:
+          'The resting control: 32px tall, 9px radius, 1.5px hairline over `--field-bg`, with the ' +
+          'label in 13px semibold tabular figures so 9:00 and 11:45 stay the same width.',
+      },
     },
   },
 };
@@ -138,9 +140,11 @@ export const OptionListOpen: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'All 97 quarter-hours, mounted at once. The box caps at 200px and scrolls, and it opens at ' +
-        'the top of the day rather than at the selected value.',
+      description: {
+        story:
+          'All 97 quarter-hours, mounted at once. The box caps at 200px and scrolls, and it opens at ' +
+          'the top of the day rather than at the selected value.',
+      },
     },
   },
 };
@@ -161,9 +165,11 @@ export const TimePicked: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Selecting writes through `setAvailability` and closes the list in the same handler. The ' +
-        'chip only relabels because the parent echoed the new state back into `interval`.',
+      description: {
+        story:
+          'Selecting writes through `setAvailability` and closes the list in the same handler. The ' +
+          'chip only relabels because the parent echoed the new state back into `interval`.',
+      },
     },
   },
 };
@@ -182,10 +188,12 @@ export const StartPastEndClearsEnd: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'A start later than the current end wipes the end, using `timeIndex` to compare the two ' +
-        'values. The neighbouring end chip then falls back to its "Select" label - a state that ' +
-        'exists only after this specific pick.',
+      description: {
+        story:
+          'A start later than the current end wipes the end, using `timeIndex` to compare the two ' +
+          'values. The neighbouring end chip then falls back to its "Select" label - a state that ' +
+          'exists only after this specific pick.',
+      },
     },
   },
 };
@@ -195,10 +203,12 @@ export const NoValue: Story = {
   args: { field: 'end', interval: { start: '09:00', end: '' } },
   parameters: {
     docs: {
-      story:
-        'An interval with no end yet. `getTimeLabelFromValue` returns an empty string, so the chip ' +
-        'falls back to "Select" - shown in the same 13px semibold as a real time rather than as ' +
-        'placeholder-toned text.',
+      description: {
+        story:
+          'An interval with no end yet. `getTimeLabelFromValue` returns an empty string, so the chip ' +
+          'falls back to "Select" - shown in the same 13px semibold as a real time rather than as ' +
+          'placeholder-toned text.',
+      },
     },
   },
 };
@@ -217,9 +227,11 @@ export const Disabled: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The day toggle turns its chips off. There is no dimmed styling for this - the chip looks ' +
-        'identical and simply stops responding, which is worth seeing beside the enabled one.',
+      description: {
+        story:
+          'The day toggle turns its chips off. There is no dimmed styling for this - the chip looks ' +
+          'identical and simply stops responding, which is worth seeing beside the enabled one.',
+      },
     },
   },
 };

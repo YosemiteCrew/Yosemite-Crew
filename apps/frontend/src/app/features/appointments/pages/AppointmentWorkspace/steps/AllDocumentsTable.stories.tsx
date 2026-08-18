@@ -153,10 +153,12 @@ export const Default: Story = {
   name: 'Document list',
   parameters: {
     docs: {
-      story:
-        'Three artefacts with their source pill, humanised status and signing pill. `SIGNED` reads ' +
-        'success, `IN_PROGRESS` reads progress and `NOT_REQUIRED` falls through to neutral, so the ' +
-        'three tones sit together in one frame.',
+      description: {
+        story:
+          'Three artefacts with their source pill, humanised status and signing pill. `SIGNED` reads ' +
+          'success, `IN_PROGRESS` reads progress and `NOT_REQUIRED` falls through to neutral, so the ' +
+          'three tones sit together in one frame.',
+      },
     },
   },
 };
@@ -180,10 +182,12 @@ export const PreviewOpen: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The document itself, in the full-screen preview. The header carries the row title verbatim ' +
-        '- so a long document name has to sit beside the Download and close chips - and a loader ' +
-        'covers the frame, keyed by URL, until it reports `load`.',
+      description: {
+        story:
+          'The document itself, in the full-screen preview. The header carries the row title verbatim ' +
+          '- so a long document name has to sit beside the Download and close chips - and a loader ' +
+          'covers the frame, keyed by URL, until it reports `load`.',
+      },
     },
   },
 };
@@ -204,9 +208,11 @@ export const PreviewClosed: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Closing clears `preview`, which drops the portal outright. Worth pinning: a `fixed ' +
-        'inset-0` layer left mounted would swallow every click on the workspace behind it.',
+      description: {
+        story:
+          'Closing clears `preview`, which drops the portal outright. Worth pinning: a `fixed ' +
+          'inset-0` layer left mounted would swallow every click on the workspace behind it.',
+      },
     },
   },
 };
@@ -226,10 +232,12 @@ export const DownloadRow: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The download chip is wired to the same handler as the eye, so it opens the preview rather ' +
-        "than saving the file - the actual download lives on the overlay's own button. Two " +
-        'differently-labelled controls with one behaviour is only visible by driving both.',
+      description: {
+        story:
+          'The download chip is wired to the same handler as the eye, so it opens the preview rather ' +
+          "than saving the file - the actual download lives on the overlay's own button. Two " +
+          'differently-labelled controls with one behaviour is only visible by driving both.',
+      },
     },
   },
 };
@@ -253,10 +261,12 @@ export const ResolveFailed: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The inline alert, which sits under the list rather than replacing it, so the rows stay ' +
-        'usable and the message reads as being about the row that was just pressed. It is the ' +
-        'only red on the card and it has no dismiss - the next successful open clears it.',
+      description: {
+        story:
+          'The inline alert, which sits under the list rather than replacing it, so the rows stay ' +
+          'usable and the message reads as being about the row that was just pressed. It is the ' +
+          'only red on the card and it has no dismiss - the next successful open clears it.',
+      },
     },
   },
 };
@@ -274,9 +284,11 @@ export const LoadFailed: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'A fetch-level failure. This alert is a different element from the per-row one above: it ' +
-        'takes the place of the whole list, so the card is red copy and nothing else.',
+      description: {
+        story:
+          'A fetch-level failure. This alert is a different element from the per-row one above: it ' +
+          'takes the place of the whole list, so the card is red copy and nothing else.',
+      },
     },
   },
 };
@@ -286,9 +298,11 @@ export const NoDocuments: Story = {
   args: { documents: [] },
   parameters: {
     docs: {
-      story:
-        'The neutral empty notice on `--neutral-100`, which is what the card shows for most of a ' +
-        'visit - nothing is written here until a document is generated or signed.',
+      description: {
+        story:
+          'The neutral empty notice on `--neutral-100`, which is what the card shows for most of a ' +
+          'visit - nothing is written here until a document is generated or signed.',
+      },
     },
   },
 };
@@ -307,10 +321,12 @@ export const ReadOnly: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Without the documents-view permission the rows keep their metadata and lose their ' +
-        'actions. Nothing is dimmed - there is no affordance suggesting a preview that cannot ' +
-        'happen.',
+      description: {
+        story:
+          'Without the documents-view permission the rows keep their metadata and lose their ' +
+          'actions. Nothing is dimmed - there is no affordance suggesting a preview that cannot ' +
+          'happen.',
+      },
     },
   },
 };

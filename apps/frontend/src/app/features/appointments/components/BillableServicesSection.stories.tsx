@@ -71,9 +71,11 @@ export const Collapsed: Story = {
   name: 'Collapsed (default)',
   parameters: {
     docs: {
-      story:
-        'How the section arrives in the drawer: one 12px-padded row with a rotated chevron and a ' +
-        'full `rounded-2xl` border. The body - and everything below - is unmounted.',
+      description: {
+        story:
+          'How the section arrives in the drawer: one 12px-padded row with a rotated chevron and a ' +
+          'full `rounded-2xl` border. The body - and everything below - is unmounted.',
+      },
     },
   },
 };
@@ -102,11 +104,13 @@ export const Expanded: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The surface this file exists for: five label/value rows inside a card inside a card. Each ' +
-        'row is a `justify-between` flex with a `border-t border-card-border`, so the first row draws ' +
-        "a divider directly under the nested header - the join between the two cards' borders is only " +
-        'visible here.',
+      description: {
+        story:
+          'The surface this file exists for: five label/value rows inside a card inside a card. Each ' +
+          'row is a `justify-between` flex with a `border-t border-card-border`, so the first row draws ' +
+          "a divider directly under the nested header - the join between the two cards' borders is only " +
+          'visible here.',
+      },
     },
   },
 };
@@ -125,10 +129,12 @@ export const NoServiceSelected: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'Without a `serviceId` the body is a single line of `text-body-4 text-text-secondary` with ' +
-        '`py-1`. Worth drawing beside the populated branch: the open accordion is far shorter here, ' +
-        'so a drawer laid out around the expanded height reflows when the service is cleared.',
+      description: {
+        story:
+          'Without a `serviceId` the body is a single line of `text-body-4 text-text-secondary` with ' +
+          '`py-1`. Worth drawing beside the populated branch: the open accordion is far shorter here, ' +
+          'so a drawer laid out around the expanded height reflows when the service is cleared.',
+      },
     },
   },
 };
@@ -145,11 +151,13 @@ export const FieldsButNoValues: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The branch most likely to be read as a bug. A service **is** selected and its fields **are** ' +
-        "configured, but `hasAnyValue` finds nothing that is neither `''` nor nullish, so the " +
-        'fallback line wins over a card of dashes. Compare with `EditableAccordion`, which renders an ' +
-        'unset row as "-" rather than hiding it.',
+      description: {
+        story:
+          'The branch most likely to be read as a bug. A service **is** selected and its fields **are** ' +
+          "configured, but `hasAnyValue` finds nothing that is neither `''` nor nullish, so the " +
+          'fallback line wins over a card of dashes. Compare with `EditableAccordion`, which renders an ' +
+          'unset row as "-" rather than hiding it.',
+      },
     },
   },
 };
@@ -165,11 +173,13 @@ export const ControlledOpen: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The controlled path the appointment drawer uses to expand one section and collapse the rest. ' +
-        'With `open` supplied, `Accordion` stops tracking its own state and only reports through ' +
-        "`onOpenChange`, so a caller that forgets to store that callback's value gets a section that " +
-        'can never be closed.',
+      description: {
+        story:
+          'The controlled path the appointment drawer uses to expand one section and collapse the rest. ' +
+          'With `open` supplied, `Accordion` stops tracking its own state and only reports through ' +
+          "`onOpenChange`, so a caller that forgets to store that callback's value gets a section that " +
+          'can never be closed.',
+      },
     },
   },
 };

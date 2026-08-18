@@ -72,7 +72,11 @@ type Story = StoryObj<typeof meta>;
 export const Closed: Story = {
   name: 'Trigger only',
   parameters: {
-    docs: { story: 'What the calendar and the workspace show until the reader asks for the menu.' },
+    docs: {
+      description: {
+        story: 'What the calendar and the workspace show until the reader asks for the menu.',
+      },
+    },
   },
 };
 
@@ -89,8 +93,10 @@ export const Open: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'The three transitions allowed out of `UPCOMING`, each with the status dot in its own tone.',
+      description: {
+        story:
+          'The three transitions allowed out of `UPCOMING`, each with the status dot in its own tone.',
+      },
     },
   },
 };
@@ -107,9 +113,11 @@ export const SingleTransition: Story = {
   },
   parameters: {
     docs: {
-      story:
-        'A checked-in appointment can only move to in-progress, so the panel is a single row. This ' +
-        'is where a menu sized from its trigger rather than its content shows up.',
+      description: {
+        story:
+          'A checked-in appointment can only move to in-progress, so the panel is a single row. This ' +
+          'is where a menu sized from its trigger rather than its content shows up.',
+      },
     },
   },
 };
@@ -119,9 +127,11 @@ export const Terminal: Story = {
   args: { appointment: withStatus('COMPLETED') },
   parameters: {
     docs: {
-      story:
-        'A completed appointment has no onward transition, so the component drops the trigger ' +
-        'entirely and renders a plain badge - no caret, not focusable.',
+      description: {
+        story:
+          'A completed appointment has no onward transition, so the component drops the trigger ' +
+          'entirely and renders a plain badge - no caret, not focusable.',
+      },
     },
   },
 };
@@ -131,10 +141,12 @@ export const ReadOnly: Story = {
   args: { canEdit: false },
   parameters: {
     docs: {
-      story:
-        'The same upcoming appointment for someone without edit permission. It must render as a ' +
-        'badge rather than a disabled-looking trigger: a dim that reads as inactive but stays ' +
-        'clickable is its own defect.',
+      description: {
+        story:
+          'The same upcoming appointment for someone without edit permission. It must render as a ' +
+          'badge rather than a disabled-looking trigger: a dim that reads as inactive but stays ' +
+          'clickable is its own defect.',
+      },
     },
   },
 };
