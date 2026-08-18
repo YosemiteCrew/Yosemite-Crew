@@ -54,9 +54,29 @@ else
 
 // --- untracked files the build requires ------------------------------------
 // Each is gitignored on purpose, so a clone will not have it.
-// These are gitignored, so they never arrive in a fresh worktree. They usually
-// DO exist in a sibling checkout though, which makes recovery a copy rather
-// than a console round-trip - so look there before sending anyone to Firebase.
+// These are gitignored, so they never arrive in a fresh worktree. Recovery is
+// usually a copy rather than a console round-trip, so look for a real copy
+// before sending anyone to Firebase.
+//
+// Presence is NOT enough. The repo ships placeholder templates with the same
+// filenames, and they propagate between worktrees exactly like real config.
+// An APK built against them compiles and installs: the Google Services plugin
+// validates shape and package name, not values. Push, auth and Maps are simply
+// dead at runtime. Checking only for existence reports OK on those, which is
+// worse than reporting nothing.
+const PLACEHOLDER = /YOUR_[A-Z_]+|CHANGE_?ME|REPLACE_?ME|<[A-Z_]+>/;
+
+// Returns true, false, or null for "could not read". Collapsing unreadable to
+// false would report OK for a file nobody can open, which is the failure shape
+// this check exists to remove.
+const isPlaceholder = (file) => {
+  try {
+    return PLACEHOLDER.test(readFileSync(file, 'utf8'));
+  } catch {
+    return null;
+  }
+};
+
 const siblingWorktrees = () => {
   const repoRoot = dirname(dirname(root));
   try {
@@ -69,13 +89,67 @@ const siblingWorktrees = () => {
 };
 const siblings = siblingWorktrees();
 
-const checkFile = (rel, fallbackHow, level) => {
-  if (existsSync(join(root, rel))) {
-    ok(rel);
-    return;
+// Opt-in via env var. This repository is public, so hardcoding the location of
+// anyone's secrets store would publish its name and layout to every reader, and
+// the path is machine-specific besides. Point this at a directory holding real
+// config to have the doctor suggest it:
+//   export YC_MOBILE_SECRETS_BACKUP="/path/to/backup/mobileAppYC"
+const BACKUP_ROOT = process.env.YC_MOBILE_SECRETS_BACKUP ?? '';
+const findInBackup = (rel) => {
+  if (!BACKUP_ROOT || !existsSync(BACKUP_ROOT)) return null;
+  const wanted = rel.split('/').pop();
+  // Collect every match and take the shallowest. Returning the first hit made
+  // the answer depend on readdir order, so a deeper file could beat a
+  // shallower one and two real configs would resolve arbitrarily.
+  const found = [];
+  const walk = (dir, depth = 0) => {
+    if (depth > 4) return;
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      const full = join(dir, e.name);
+      if (e.isFile() && e.name === wanted && isPlaceholder(full) === false) {
+        found.push({ full, depth });
+      } else if (e.isDirectory()) {
+        walk(full, depth + 1);
+      }
+    }
+  };
+  walk(BACKUP_ROOT);
+  if (found.length === 0) return null;
+  found.sort((a, b) => a.depth - b.depth);
+  if (found.length > 1) {
+    warn(rel, `${found.length} candidates in the backup; suggesting the shallowest`);
   }
-  const found = siblings.find((w) => existsSync(join(w, rel)));
-  level(rel, found ? `copy it from ${join(found, rel)}` : fallbackHow);
+  return found[0].full;
+};
+
+/** exists -> not a placeholder -> sibling worktree -> secrets backup -> console. */
+const checkFile = (rel, fallbackHow, level) => {
+  const here = join(root, rel);
+  if (existsSync(here)) {
+    const placeholder = isPlaceholder(here);
+    if (placeholder === false) {
+      ok(rel);
+      return;
+    }
+    if (placeholder === null) {
+      level(rel, 'exists but could not be read; check permissions');
+      return;
+    }
+  }
+  const source =
+    siblings.map((w) => join(w, rel)).find((f) => existsSync(f) && isPlaceholder(f) === false) ??
+    findInBackup(rel);
+  const problem = existsSync(here) ? 'is a PLACEHOLDER template' : 'missing';
+  level(
+    rel,
+    source ? `${problem}; copy the real one from ${source}` : `${problem}; ${fallbackHow}`
+  );
 };
 
 for (const [rel, how] of [
@@ -83,22 +157,34 @@ for (const [rel, how] of [
     'android/gradle.properties',
     'cp android/gradle.properties.example android/gradle.properties, then put signing in ~/.gradle/gradle.properties',
   ],
-  [
-    'android/app/google-services.json',
-    'not in any sibling worktree; re-download from the Firebase console',
-  ],
-  ['android/app/src/main/res/values/strings.xml', 'not in any sibling worktree; ask a maintainer'],
+  ['android/app/google-services.json', 're-download from the Firebase console'],
+  ['android/app/src/main/res/values/strings.xml', 'ask a maintainer'],
 ]) {
   checkFile(rel, how, bad);
 }
 for (const [rel, how] of [
-  [
-    'ios/GoogleService-Info.plist',
-    'not in any sibling worktree; re-download from the Firebase console',
-  ],
-  ['ios/mobileAppYC/Secrets.xcconfig', 'not in any sibling worktree; ask a maintainer'],
+  ['ios/GoogleService-Info.plist', 're-download from the Firebase console'],
+  ['ios/mobileAppYC/Secrets.xcconfig', 'ask a maintainer'],
 ]) {
   checkFile(rel, how, warn);
+}
+// Its absence makes an iOS build impossible, so it blocks rather than warns.
+checkFile('ios/mobileAppYC/Info.plist', 'ask a maintainer', bad);
+
+// Android Maps silently renders a blank map with no key, and this one is empty
+// even on machines that have every other file.
+const localProps = join(root, 'android/local.properties');
+if (!existsSync(localProps)) {
+  // Saying nothing reads as "fine".
+  warn('MAPS_API_KEY', 'android/local.properties is missing; Android maps will render blank');
+} else {
+  const maps = /^MAPS_API_KEY=(.*)$/m.exec(readFileSync(localProps, 'utf8'))?.[1]?.trim();
+  // Presence is not enough here either: local.properties.example ships
+  // MAPS_API_KEY=YOUR_ANDROID_GOOGLE_MAPS_API_KEY, which is truthy.
+  if (maps && !PLACEHOLDER.test(maps)) ok('MAPS_API_KEY', 'set');
+  else if (maps)
+    warn('MAPS_API_KEY', 'is still the placeholder value; Android maps will render blank');
+  else warn('MAPS_API_KEY', 'empty in android/local.properties; Android maps will render blank');
 }
 
 // --- release signing -------------------------------------------------------
@@ -205,6 +291,54 @@ try {
 }
 
 // --- report ----------------------------------------------------------------
+// `--self-test` pins the placeholder vocabulary against the shipped templates
+// for the files this tool actually inspects, so an edit that makes the regex
+// too narrow (missing a real placeholder) or too broad (condemning real
+// config) fails loudly rather than silently reporting OK.
+//
+// Only these six are asserted. Other templates in config-templates/ are
+// instructional or carry no secret values, so they legitimately contain no
+// placeholder markers and flagging them would be wrong.
+if (process.argv.includes('--self-test')) {
+  const templates = join(root, 'config-templates');
+  const mustFlag = [
+    'android/google-services.example.json',
+    'android/strings.example.xml',
+    'android/local.properties.example',
+    'ios/GoogleService-Info.example.plist',
+    'ios/Info.plist.example',
+    'ios/Secrets.xcconfig.example',
+  ];
+  let failures = 0;
+  for (const rel of mustFlag) {
+    const full = join(templates, rel);
+    const flagged = isPlaceholder(full);
+    if (flagged === null) {
+      console.log(`ABSENT   ${rel}`);
+      failures += 1;
+    } else if (flagged) {
+      console.log(`FLAGGED  ${rel}`);
+    } else {
+      console.log(`MISSED   ${rel}  <- regex no longer catches this template`);
+      failures += 1;
+    }
+  }
+  // Real config must not be condemned: that is the opposite failure and would
+  // tell someone their working setup is broken.
+  const filled = [
+    '{"project_info":{"project_id":"yosemite-crew"},"api_key":"AIzaSyReal"}',
+    '<resources><string name="app_name">Yosemite Crew</string></resources>',
+    'MAPS_API_KEY=AIzaSyRealLookingKey123',
+  ];
+  const falsePositives = filled.filter((c) => PLACEHOLDER.test(c));
+  if (falsePositives.length > 0) {
+    console.log(`FALSE POSITIVE on ${falsePositives.length} realistic config sample(s)`);
+    failures += falsePositives.length;
+  }
+  console.log(`\nself-test: ${failures === 0 ? 'passed' : failures + ' failure(s)'}`);
+  process.exit(failures === 0 ? 0 : 1);
+}
+
 const width = Math.max(...rows.map((r) => r.what.length));
 for (const { level, what, detail } of rows) {
   console.log(`${level.padEnd(8)} ${what.padEnd(width)}  ${detail}`);
