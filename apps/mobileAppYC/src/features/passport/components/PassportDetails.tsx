@@ -152,11 +152,17 @@ export const PassportDetails: React.FC<{
         )}
       />
 
-      <PassportWalletButtons
-        companionId={companionId}
-        styles={styles}
-        theme={theme}
-      />
+      {/* Wallet passes are built from an ISSUED passport: the pass QR carries
+          the public token, and a pet without one has nothing to verify against,
+          so the wallet endpoints 404. Hide the actions until a vet issues it
+          rather than offering a download that cannot succeed. */}
+      {passport.issuance && (
+        <PassportWalletButtons
+          companionId={companionId}
+          styles={styles}
+          theme={theme}
+        />
+      )}
 
       <HistoricalUploadsSection
         records={historicalRecords}

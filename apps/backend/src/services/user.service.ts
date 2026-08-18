@@ -1,4 +1,4 @@
-import isEmail from "validator/lib/isEmail";
+import isEmail from "validator/lib/isEmail.js";
 import { User } from "@yosemite-crew/types";
 import { getAuthService } from "@yosemite-crew/auth";
 import { OrganizationService } from "./organization.service";

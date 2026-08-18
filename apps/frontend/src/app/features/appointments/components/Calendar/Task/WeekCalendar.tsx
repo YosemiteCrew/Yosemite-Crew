@@ -231,10 +231,6 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                       );
                     })}
                   </div>
-                  <div
-                    className="sticky right-0 z-20 bg-neutral-0"
-                    style={{ height: `${height}px` }}
-                  />
                 </div>
               ))}
               <div style={{ height: zoomMode === 'out' ? 30 : 40 }} />
