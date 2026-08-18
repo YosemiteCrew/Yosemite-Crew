@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
-import { expect, fn, userEvent, within } from 'storybook/test';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
 import Modal from './index';
 
@@ -143,11 +143,12 @@ export const CenteredLarge: Story = {
 export const PhoneSheet: Story = {
   name: 'Phone: centered re-forms to a sheet',
   args: { variant: 'centered', title: 'Confirm changes' },
+  // Pinned as a GLOBAL, not a parameter. `parameters.viewport.defaultViewport` was
+  // removed in Storybook 10: it still type-checks, still renders, still plays, and
+  // silently does nothing - this story drew the 1200px desktop markup under a name
+  // that promised a phone. `mobile` is the 375px preset in .storybook/preview.ts.
+  globals: { viewport: { value: 'mobile', isRotated: false } },
   parameters: {
-    // `mobile` is the 375px preset declared in .storybook/preview.ts; the project
-    // default is `laptop`, so without this the story renders the desktop markup and
-    // demonstrates nothing.
-    viewport: { defaultViewport: 'mobile' },
     docs: {
       description: {
         story:
@@ -162,7 +163,7 @@ export const PhoneSheet: Story = {
 export const PhoneFullScreen: Story = {
   name: 'Phone: drawer goes full-screen',
   args: { variant: 'drawer', title: 'Record detail' },
-  parameters: { viewport: { defaultViewport: 'mobile' } },
+  globals: { viewport: { value: 'mobile', isRotated: false } },
 };
 
 export const OpensFromTrigger: Story = {
@@ -170,9 +171,23 @@ export const OpensFromTrigger: Story = {
   render: () => <Triggered variant="centered" />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.queryByText('Opened from a trigger')).not.toBeInTheDocument();
+    /* `ModalBase` portals to `document.body`, so nothing the panel renders is ever
+       inside `canvasElement`. Querying the canvas here found nothing after the click -
+       and, worse, the "closed at rest" assertion above it passed for the same reason
+       rather than because the panel was closed.
+
+       Closed does not mean unmounted either: the dialog stays in the DOM without its
+       `open` attribute, so absence has to be asserted against `dialog[open]`. */
+    const dialog = () => document.querySelector('dialog[open]');
+    await expect(dialog()).toBeNull();
+    await expect(document.body.textContent).toContain('Opened from a trigger');
+
     await userEvent.click(canvas.getByRole('button', { name: 'Open panel' }));
-    await expect(await canvas.findByText('Opened from a trigger')).toBeInTheDocument();
+
+    await waitFor(() => expect(dialog()).not.toBeNull());
+    await expect(
+      within(dialog() as HTMLElement).getByText('Opened from a trigger')
+    ).toBeInTheDocument();
   },
   parameters: {
     docs: {

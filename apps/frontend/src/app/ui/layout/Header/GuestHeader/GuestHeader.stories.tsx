@@ -41,14 +41,6 @@ const withAuth = (user: AuthUser | null, role: string | null) => () => {
  * collapses the route list into the drawer is a `lg:` media query, so a merely narrow
  * container still renders the desktop bar.
  */
-const MOBILE_VIEWPORT = {
-  phone: {
-    name: 'Mobile (375)',
-    styles: { width: '375px', height: '812px' },
-    type: 'mobile',
-  },
-};
-
 /** Reproduces the sticky glass shell `Header` wraps the guest bar in. */
 const HeaderShell = ({ children }: { children: ReactNode }) => (
   <div style={{ background: 'var(--page)', minHeight: 220 }}>
@@ -143,9 +135,8 @@ export const SignedIn: Story = {
 
 export const Mobile: Story = {
   name: 'Mobile (menu closed)',
-  globals: { viewport: { value: 'phone', isRotated: false } },
+  globals: { viewport: { value: 'mobile', isRotated: false } },
   parameters: {
-    viewport: { options: MOBILE_VIEWPORT },
     chromatic: { viewports: [375] },
     docs: {
       description: {
@@ -183,7 +174,7 @@ const openDrawer = async (canvasElement: HTMLElement) => {
 
 export const MobileMenuOpen: Story = {
   name: 'Mobile (menu open)',
-  globals: { viewport: { value: 'phone', isRotated: false } },
+  globals: { viewport: { value: 'mobile', isRotated: false } },
   play: async ({ canvasElement }) => {
     const drawer = await openDrawer(canvasElement);
     // Count the drawer's contents: seven routes plus the auth CTA, all buttons.
@@ -196,10 +187,9 @@ export const MobileMenuOpen: Story = {
     const cta = within(drawer).getByText('Sign up');
     await expect(cta.closest('button')).toBeInTheDocument();
     // The trigger relabels rather than keeping one name for both states.
-    await expect(canvas.getByLabelText('Close menu')).toBeInTheDocument();
+    await expect(within(canvasElement).getByLabelText('Close menu')).toBeInTheDocument();
   },
   parameters: {
-    viewport: { options: MOBILE_VIEWPORT },
     chromatic: { viewports: [375] },
     docs: {
       description: {
@@ -215,7 +205,7 @@ export const MobileMenuOpen: Story = {
 
 export const MobileMenuOpenSignedIn: Story = {
   name: 'Mobile (menu open, signed in)',
-  globals: { viewport: { value: 'phone', isRotated: false } },
+  globals: { viewport: { value: 'mobile', isRotated: false } },
   beforeEach: withAuth(SIGNED_IN_USER, 'vet'),
   play: async ({ canvasElement }) => {
     const drawer = await openDrawer(canvasElement);
@@ -225,7 +215,6 @@ export const MobileMenuOpenSignedIn: Story = {
     await expect(within(drawer).queryByText('Sign up')).not.toBeInTheDocument();
   },
   parameters: {
-    viewport: { options: MOBILE_VIEWPORT },
     chromatic: { viewports: [375] },
     docs: {
       description: {

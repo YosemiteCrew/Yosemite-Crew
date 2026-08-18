@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fn, userEvent, within } from 'storybook/test';
+
+import { openGlassTooltip } from '@/app/ui/primitives/GlassTooltip/storyInteractions';
 import TotalBillContainer, { type BillableSearchItem } from './TotalBillContainer';
 import type { InvoiceLineItem } from '@/app/features/appointments/types/workspace';
 
@@ -112,13 +114,14 @@ const BILLABLE_ITEMS: BillableSearchItem[] = [
   },
 ];
 
-/** Hovers a 16px (i) button and returns the portalled GlassTooltip bubble. */
-const hoverInfoIcon = async (canvasElement: HTMLElement, accessibleName: string) => {
-  const button = within(canvasElement).getByRole('button', { name: accessibleName });
-  // GlassTooltip binds mouseenter/focusin to its own wrapper span, not the button.
-  await userEvent.hover(button.closest('.glass-tooltip') as HTMLElement);
-  return within(document.body).findByRole('tooltip');
-};
+/**
+ * Opens a 16px (i) button's bubble and returns it.
+ *
+ * GlassTooltip binds mouseenter/focusin to its own wrapper span, not the button, and
+ * binds them in an effect a play function can outrun - so the dispatch is retried.
+ */
+const hoverInfoIcon = async (canvasElement: HTMLElement, accessibleName: string) =>
+  openGlassTooltip(within(canvasElement).getByRole('button', { name: accessibleName }));
 
 const meta = {
   title: 'Workspace/TotalBillContainer',

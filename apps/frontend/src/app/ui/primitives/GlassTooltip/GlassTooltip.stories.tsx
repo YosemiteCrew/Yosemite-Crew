@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { expect, userEvent, within } from 'storybook/test';
+import { expect, within } from 'storybook/test';
+
+import { openGlassTooltip } from './storyInteractions';
 import GlassTooltip from './GlassTooltip';
 
 const meta = {
@@ -48,11 +50,18 @@ const TriggerButton = ({ children }: { children: React.ReactNode }) => (
   </button>
 );
 
-/** Hovers the trigger and asserts the portalled bubble actually rendered its content. */
+/**
+ * Opens the bubble and asserts it actually rendered its content.
+ *
+ * `openGlassTooltip` rather than `userEvent.hover`: the listeners are bound in an effect
+ * that has not always flushed when a play function starts, so a single hover can be
+ * delivered to an element that is not listening yet and is then lost for good.
+ */
 const openOnHover = async (canvasElement: HTMLElement, expected: string) => {
   const canvas = within(canvasElement);
-  await userEvent.hover(canvas.getByRole('button', { name: /hover me|top|right|bottom|left/i }));
-  const bubble = await within(document.body).findByRole('tooltip');
+  const bubble = await openGlassTooltip(
+    canvas.getByRole('button', { name: /hover me|top|right|bottom|left/i })
+  );
   await expect(bubble).toHaveTextContent(expected);
 };
 
@@ -107,9 +116,10 @@ export const KeyboardFocus: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     // focusin, not hover - the path a keyboard user takes, and the one most likely to
-    // rot unnoticed because every manual check is done with a mouse.
-    canvas.getByRole('button').focus();
-    const bubble = await within(document.body).findByRole('tooltip');
+    // rot unnoticed because every manual check is done with a mouse. `.focus()` is not
+    // used to reach it: focus events only fire when the page itself has focus, which no
+    // automated run can guarantee, so the event is dispatched at the wrapper directly.
+    const bubble = await openGlassTooltip(canvas.getByRole('button'), { via: 'focus' });
     await expect(bubble).toHaveTextContent('Reachable without a mouse');
   },
 };

@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fn, userEvent, within } from 'storybook/test';
+
+import { openGlassTooltip } from '@/app/ui/primitives/GlassTooltip/storyInteractions';
 import type { Appointment } from '@yosemite-crew/types';
 
 import RequestActionButtons from './RequestActionButtons';
@@ -35,14 +37,23 @@ const Room = (Story: React.ComponentType) => (
 );
 
 /**
- * Hovers one of the two circles and returns the bubble it opened, matched by its own
- * text so a stale bubble from a neighbouring story can never satisfy the assertion.
- * The bubble is `createPortal`ed to `document.body`, so it is outside `canvasElement`.
+ * `GlassTooltip` binds `mouseenter` / `focusin` natively to its own wrapper span, and it
+ * binds them inside an effect. Storybook starts a play function before that effect has
+ * necessarily flushed, so a single dispatch at the top of a play can land on an element
+ * that is not listening yet. Measured in a probe story: the events were delivered, the
+ * bubble never opened, and it was still shut 350ms later; a redispatch loop needed three
+ * attempts. `findByRole` retries the query, never the event, so the loss is permanent.
+ *
+ * The bubble is matched by its own text so a stale one from a neighbouring story - it is
+ * `createPortal`ed to `document.body`, outside `canvasElement` - can never satisfy the
+ * assertion.
  */
+const wrapperFor = (canvasElement: HTMLElement, label: string) =>
+  within(canvasElement).getByRole('button', { name: label });
+
 const hoverFor = async (canvasElement: HTMLElement, label: string) => {
-  const canvas = within(canvasElement);
-  await userEvent.hover(canvas.getByRole('button', { name: label }));
-  return within(document.body).findByRole('tooltip', { name: label });
+  await openGlassTooltip(wrapperFor(canvasElement, label));
+  return within(document.body).getByRole('tooltip', { name: label });
 };
 
 const meta = {
@@ -138,12 +149,12 @@ export const DeclineTooltip: Story = {
 export const FocusedTooltip: Story = {
   name: 'Tooltip via keyboard focus',
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    // `focusin` is a separate listener from `mouseenter` and a separate code path;
-    // focusing directly (rather than tabbing) keeps the story independent of whatever
-    // else happens to be focusable on the page around it.
-    canvas.getByRole('button', { name: 'Accept request' }).focus();
-    const bubble = await within(document.body).findByRole('tooltip', { name: 'Accept request' });
+    // `focusin` is a separate listener from `mouseenter` and a separate code path.
+    // `.focus()` is not used: it dispatches no focus events at all unless the page
+    // itself has focus, which no automated run can guarantee, so the event is
+    // dispatched directly at the wrapper the component bound it to.
+    await openGlassTooltip(wrapperFor(canvasElement, 'Accept request'), { via: 'focus' });
+    const bubble = within(document.body).getByRole('tooltip', { name: 'Accept request' });
     await expect(bubble).toHaveTextContent('Accept request');
   },
   parameters: {

@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fn, userEvent, within } from 'storybook/test';
 
+import { openGlassTooltip } from '@/app/ui/primitives/GlassTooltip/storyInteractions';
+
 import type { StoredParent } from '@/app/features/companions/pages/Companions/types';
 import {
   CountryDialCodeOptions,
@@ -294,13 +296,11 @@ export const DateOfBirthTooltip: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const info = canvas.getByRole('button', { name: 'Date of birth information' });
-    await userEvent.hover(info);
-    // GlassTooltip listens for focusin as well as mouseenter, and focusin
-    // bubbles from the button to the wrapper span that holds the listener.
-    info.focus();
-    // The bubble portals to document.body, outside the story canvas - and assert
-    // it has the copy, not merely that a tooltip node appeared.
-    const tooltip = await within(document.body).findByRole('tooltip');
+    /* The bubble portals to document.body, outside the story canvas - and it is asserted
+       to carry the copy, not merely that a tooltip node appeared. The dispatch is
+       retried because the wrapper binds its listeners in an effect a play function can
+       start ahead of. */
+    const tooltip = await openGlassTooltip(info);
     await expect(tooltip).toHaveTextContent(/age verification and legal consent/i);
   },
   parameters: {
@@ -370,17 +370,8 @@ export const CreateStepTwo: Story = {
 export const PhoneSheet: Story = {
   name: 'Create wizard - phone sheet variant',
   args: { mode: 'create', formStep: 1, variant: 'sheet' },
-  globals: { viewport: { value: 'phone', isRotated: false } },
+  globals: { viewport: { value: 'mobile', isRotated: false } },
   parameters: {
-    viewport: {
-      options: {
-        phone: {
-          name: 'Mobile (375)',
-          styles: { width: '375px', height: '812px' },
-          type: 'mobile',
-        },
-      },
-    },
     chromatic: { viewports: [375] },
     docs: {
       description: {

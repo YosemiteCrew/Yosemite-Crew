@@ -1,5 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
+import { expect, fn, within } from 'storybook/test';
+
+import {
+  closeGlassTooltip,
+  openGlassTooltip,
+} from '@/app/ui/primitives/GlassTooltip/storyInteractions';
 import type { Appointment } from '@yosemite-crew/types';
 
 import WorkspaceQuickActions from './WorkspaceQuickActions';
@@ -44,7 +49,12 @@ const Popover = (Story: React.ComponentType) => (
   </div>
 );
 
-/** GlassTooltip binds mouseenter/focusin to its own wrapper span, not the button. */
+/**
+ * GlassTooltip binds mouseenter/focusin to its own wrapper span, not the button - and
+ * binds them in an effect, which has not necessarily flushed when a play function
+ * starts. `openGlassTooltip` redispatches until the listener is there to receive one;
+ * a single hover is silently dropped and no query-level retry can recover it.
+ */
 const wrapperFor = (canvasElement: HTMLElement, accessibleName: string) =>
   within(canvasElement)
     .getByRole('button', { name: accessibleName })
@@ -52,8 +62,7 @@ const wrapperFor = (canvasElement: HTMLElement, accessibleName: string) =>
 
 /** Hovers a rail button's tooltip wrapper and returns the portalled bubble. */
 const hoverAction = async (canvasElement: HTMLElement, accessibleName: string) => {
-  await userEvent.hover(wrapperFor(canvasElement, accessibleName));
-  return within(document.body).findByRole('tooltip');
+  return openGlassTooltip(wrapperFor(canvasElement, accessibleName));
 };
 
 const meta = {
@@ -165,18 +174,17 @@ export const EveryTooltip: Story = {
 
     for (const [accessibleName, label] of expectations) {
       const wrapper = wrapperFor(canvasElement, accessibleName);
-      await userEvent.hover(wrapper);
-      const bubble = await within(document.body).findByRole('tooltip');
+      const bubble = await openGlassTooltip(wrapper);
       await expect(bubble).toHaveTextContent(label);
       // Exactly one live portal at a time - two would stack on top of each other
       // on document.body, since both are absolutely positioned there.
       await expect(within(document.body).getAllByRole('tooltip')).toHaveLength(1);
 
-      /* Unhover explicitly. `userEvent.hover` from the direct API starts with a
-         fresh pointer position each call, so it never emits the `mouseleave`
-         that closes the previous bubble - without this the portals accumulate. */
-      await userEvent.unhover(wrapper);
-      await waitFor(() => expect(within(document.body).queryByRole('tooltip')).toBeNull());
+      /* Close it explicitly. Opening the next chip does not close this one: each
+         wrapper owns its own portal and only its own `mouseleave` tears it down, so
+         without this the bubbles accumulate on `document.body` and the count above
+         starts passing for the wrong reason. */
+      await closeGlassTooltip(wrapper);
     }
   },
   parameters: {

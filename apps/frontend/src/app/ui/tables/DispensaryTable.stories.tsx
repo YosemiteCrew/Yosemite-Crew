@@ -1,5 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
+
+import {
+  closeGlassTooltip,
+  openGlassTooltip,
+} from '@/app/ui/primitives/GlassTooltip/storyInteractions';
 import DispensaryTable from './DispensaryTable';
 import type { DispensaryRecord } from '@/app/features/inventory/pages/Inventory/types';
 
@@ -105,9 +110,7 @@ export const RowActionTooltip: Story = {
     const trigger = viewButton(canvasElement, 'Poppy');
     await expect(tooltips()).toHaveLength(0);
 
-    await userEvent.hover(trigger);
-
-    const bubble = await within(document.body).findByRole('tooltip');
+    const bubble = await openGlassTooltip(trigger);
     // Assert the bubble has its label, not merely that something mounted.
     await expect(bubble).toHaveTextContent('View details');
     await expect(canvasElement.contains(bubble)).toBe(false);
@@ -143,18 +146,13 @@ export const TooltipDoesNotAccumulate: Story = {
     const first = viewButton(canvasElement, 'Poppy');
     const second = viewButton(canvasElement, 'Biscuit');
 
-    await userEvent.hover(first);
-    await expect(await within(document.body).findByRole('tooltip')).toHaveTextContent(
-      'View details'
-    );
+    await expect(await openGlassTooltip(first)).toHaveTextContent('View details');
 
     // Each row owns its own portal, so leaving one must tear its bubble down.
-    await userEvent.unhover(first);
-    await waitFor(() => {
-      expect(tooltips()).toHaveLength(0);
-    });
+    await closeGlassTooltip(first);
+    await expect(tooltips()).toHaveLength(0);
 
-    await userEvent.hover(second);
+    await openGlassTooltip(second);
     await waitFor(() => {
       expect(tooltips()).toHaveLength(1);
     });
@@ -176,16 +174,19 @@ export const TooltipOnKeyboardFocus: Story = {
   name: 'Row action tooltip (keyboard focus)',
   play: async ({ canvasElement }) => {
     const trigger = viewButton(canvasElement, 'Bruno');
-    trigger.focus();
 
-    // `focusin` bubbles to the wrapper span, so the tooltip is not hover-only.
-    const bubble = await within(document.body).findByRole('tooltip');
+    /* The focus path is a separate listener from hover, and the one that matters most
+       for an unlabelled icon button. It is driven by dispatching at the wrapper rather
+       than by `.focus()`: focus events only fire when the page itself has focus, which
+       an automated run cannot guarantee. */
+    const bubble = await openGlassTooltip(trigger, { via: 'focus' });
     await expect(bubble).toHaveTextContent('View details');
 
-    trigger.blur();
-    await waitFor(() => {
-      expect(tooltips()).toHaveLength(0);
-    });
+    /* `blur()` cannot close this one: the bubble was opened by dispatching `focusin` at
+       the wrapper, and the element never actually held focus, so blurring it fires
+       nothing. The matching `focusout` has to be dispatched the same way. */
+    await closeGlassTooltip(trigger);
+    await expect(tooltips()).toHaveLength(0);
   },
   parameters: {
     docs: {
@@ -210,9 +211,9 @@ export const RowActionsFire: Story = {
     await userEvent.click(dispense[0]);
     await expect(args.onDispense).toHaveBeenCalledWith(ROWS[0]);
 
-    // The tooltip is pointer-events:none, so hovering first cannot swallow the click.
+    // The tooltip is pointer-events:none, so opening it first cannot swallow the click.
     const view = viewButton(canvasElement, 'Poppy');
-    await userEvent.hover(view);
+    await openGlassTooltip(view);
     await userEvent.click(view);
     await expect(args.onView).toHaveBeenCalledWith(ROWS[0]);
   },

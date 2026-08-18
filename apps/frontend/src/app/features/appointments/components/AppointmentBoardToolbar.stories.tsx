@@ -2,6 +2,8 @@ import { useState, type ComponentProps } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fn, userEvent, within } from 'storybook/test';
 
+import { openGlassTooltip } from '@/app/ui/primitives/GlassTooltip/storyInteractions';
+
 import AppointmentBoardToolbar from './AppointmentBoardToolbar';
 
 /**
@@ -147,12 +149,12 @@ export const CalendarOpen: Story = {
 export const DateTooltip: Story = {
   name: 'Select date tooltip',
   play: async ({ canvasElement }) => {
-    // GlassTooltip listens on its own wrapper span, not on the Datepicker inside it.
+    /* GlassTooltip listens on its own wrapper span, not on the Datepicker inside it,
+       and binds those listeners in an effect that has not necessarily flushed when this
+       play function starts - so the dispatch is retried rather than sent once. */
     const trigger = canvasElement.querySelector('.glass-tooltip') as HTMLElement;
     await expect(trigger).toBeTruthy();
-    await userEvent.hover(trigger);
-
-    const bubble = await within(document.body).findByRole('tooltip');
+    const bubble = await openGlassTooltip(trigger);
     await expect(bubble).toHaveTextContent('Select date');
     /* side="bottom" positions the bubble under the field, and the transform is
        the only thing distinguishing it from the default "top" placement. Read

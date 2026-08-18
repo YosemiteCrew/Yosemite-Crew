@@ -8,17 +8,6 @@ import SoapNotesList, { type SoapNoteListItem } from './SoapNotesList';
  * The expanded card is the only responsive thing here - `grid-cols-1 lg:grid-cols-2` -
  * so a story that asserts a track count has to own the width it asserts at.
  */
-const DESKTOP_VIEWPORT = {
-  desktop: {
-    name: 'Desktop (1440)',
-    styles: { width: '1440px', height: '900px' },
-    type: 'desktop',
-  },
-};
-const MOBILE_VIEWPORT = {
-  mobile: { name: 'Mobile (375)', styles: { width: '375px', height: '812px' }, type: 'mobile' },
-};
-
 const FIELDS: SoapNoteListItem['fields'] = [
   { label: 'Chief complaint', text: 'Limping on the left hind leg since Sunday.' },
   { label: 'Subjective', html: '<p>Owner reports reluctance to jump onto the sofa.</p>' },
@@ -124,11 +113,6 @@ export const ExpandedDesktop: Story = {
   name: 'Expanded note (1440 - two columns)',
   globals: { viewport: { value: 'desktop', isRotated: false } },
   parameters: {
-    viewport: {
-      options: DESKTOP_VIEWPORT,
-      viewports: DESKTOP_VIEWPORT,
-      defaultViewport: 'desktop',
-    },
     chromatic: { viewports: [1440] },
     docs: {
       description: {
@@ -163,7 +147,6 @@ export const ExpandedMobile: Story = {
   name: 'Expanded note (375 - one column)',
   globals: { viewport: { value: 'mobile', isRotated: false } },
   parameters: {
-    viewport: { options: MOBILE_VIEWPORT, viewports: MOBILE_VIEWPORT, defaultViewport: 'mobile' },
     chromatic: { viewports: [375] },
     docs: {
       description: {

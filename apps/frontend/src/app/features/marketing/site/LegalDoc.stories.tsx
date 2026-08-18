@@ -60,21 +60,12 @@ const BODY = (
 );
 
 /**
- * Both widths are pinned per story rather than inherited: the fold is decided by a
- * `max-width: 900px` media query, so a story that asserts what is displayed has to own
- * the viewport it asserts at.
+ * Each story pins its own width, because the fold is decided by a `max-width: 900px`
+ * media query - a story that asserts what is displayed has to own the viewport it
+ * asserts at. Pinning is `globals.viewport.value`, naming a preset from
+ * `.storybook/preview.ts`; the `parameters.viewport.defaultViewport` spelling was
+ * removed in Storybook 10 and silently renders at the full panel width instead.
  */
-const MOBILE_VIEWPORT = {
-  mobile: { name: 'Mobile (375)', styles: { width: '375px', height: '812px' }, type: 'mobile' },
-};
-const DESKTOP_VIEWPORT = {
-  desktop: {
-    name: 'Desktop (1440)',
-    styles: { width: '1440px', height: '900px' },
-    type: 'desktop',
-  },
-};
-
 const meta = {
   title: 'Marketing/LegalDoc',
   component: LegalDoc,
@@ -134,11 +125,6 @@ export const Desktop: Story = {
     await expect(getComputedStyle(nav).display).toBe('flex');
   },
   parameters: {
-    viewport: {
-      options: DESKTOP_VIEWPORT,
-      viewports: DESKTOP_VIEWPORT,
-      defaultViewport: 'desktop',
-    },
     chromatic: { viewports: [1440] },
     docs: {
       description: {
@@ -155,7 +141,6 @@ export const MobileCollapsed: Story = {
   name: 'Phone (contents collapsed)',
   globals: { viewport: { value: 'mobile', isRotated: false } },
   parameters: {
-    viewport: { options: MOBILE_VIEWPORT, viewports: MOBILE_VIEWPORT, defaultViewport: 'mobile' },
     chromatic: { viewports: [375] },
     docs: {
       description: {
@@ -170,7 +155,14 @@ export const MobileCollapsed: Story = {
     const canvas = within(canvasElement);
     const toggle = canvas.getByRole('button', { name: 'On this page' });
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    await expect(canvas.getByRole('navigation')).toHaveAttribute('data-open', 'false');
+    /* Queried by id rather than by role on purpose: at this width the list really is
+       `display: none`, so a role query cannot see it - it is excluded from the
+       accessibility tree. That exclusion IS the assertion. The entries are present in
+       the markup the whole time; only the CSS hides them. */
+    const nav = canvasElement.querySelector('#yc-toc-list') as HTMLElement;
+    await expect(nav).toHaveAttribute('data-open', 'false');
+    await expect(getComputedStyle(nav).display).toBe('none');
+    await expect(nav.querySelectorAll('a')).toHaveLength(TOC.length);
   },
 };
 
@@ -178,7 +170,6 @@ export const MobileOpen: Story = {
   name: 'Phone (contents open)',
   globals: { viewport: { value: 'mobile', isRotated: false } },
   parameters: {
-    viewport: { options: MOBILE_VIEWPORT, viewports: MOBILE_VIEWPORT, defaultViewport: 'mobile' },
     chromatic: { viewports: [375] },
     docs: {
       description: {
@@ -223,7 +214,6 @@ export const LongContents: Story = {
   },
   globals: { viewport: { value: 'mobile', isRotated: false } },
   parameters: {
-    viewport: { options: MOBILE_VIEWPORT, viewports: MOBILE_VIEWPORT, defaultViewport: 'mobile' },
     chromatic: { viewports: [375] },
     docs: {
       description: {

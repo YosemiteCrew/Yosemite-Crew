@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fn, userEvent, within } from 'storybook/test';
 
+import { openGlassTooltip } from '@/app/ui/primitives/GlassTooltip/storyInteractions';
+
 import type { InventoryItem } from '@/app/features/inventory/pages/Inventory/types';
 import InventoryTable from './InventoryTable';
 
@@ -89,12 +91,20 @@ const ROWS: InventoryItem[] = [
   }),
 ];
 
-/** Hovers the tooltip's wrapper span, which is the element carrying the listeners. */
+/**
+ * Opens the bubble for a row control.
+ *
+ * The wrapper span carries the listeners, and they are bound in an effect that has not
+ * necessarily flushed when a play function starts - so the dispatch has to be retried
+ * rather than sent once. `findByRole` retries the query, never the event, so a dispatch
+ * that lands before the listener exists is lost for good. All three tooltip stories in
+ * this file threw for exactly that reason, unnoticed, because no CI job runs play
+ * functions - see #2281.
+ */
 const hoverTooltipTrigger = async (control: HTMLElement) => {
   const trigger = control.closest('.glass-tooltip');
   await expect(trigger).toBeInTheDocument();
-  await userEvent.hover(trigger as HTMLElement);
-  return within(document.body).findByRole('tooltip');
+  return openGlassTooltip(trigger as HTMLElement);
 };
 
 const meta = {

@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { expect, fn, userEvent, within } from 'storybook/test';
+import { expect, fn, within } from 'storybook/test';
+
+import { openGlassTooltip } from '@/app/ui/primitives/GlassTooltip/storyInteractions';
 import type { Appointment } from '@yosemite-crew/types';
 
 import type { CompanionAlert } from '@/app/features/appointments/types/workspace';
@@ -35,12 +37,19 @@ const MANY_ALERTS: CompanionAlert[] = [
   { id: 'alert-5', label: 'Fear of clippers', severity: 'low' },
 ];
 
-/** Hovers the tooltip's wrapper span, which is the element carrying the listeners. */
+/**
+ * Opens the bubble for a control.
+ *
+ * The wrapper span carries the listeners and binds them in an effect, which has not
+ * necessarily flushed when a play function starts - so the dispatch is retried rather
+ * than sent once. `findByRole` retries the query but never re-sends the event, so a
+ * dispatch that arrives too early is lost for good and the story fails with "unable to
+ * find role=tooltip" for a component that works perfectly in a browser.
+ */
 const hoverTooltipTrigger = async (control: HTMLElement) => {
   const trigger = control.closest('.glass-tooltip');
   await expect(trigger).toBeInTheDocument();
-  await userEvent.hover(trigger as HTMLElement);
-  return within(document.body).findByRole('tooltip');
+  return openGlassTooltip(trigger as HTMLElement);
 };
 
 const meta = {
@@ -247,7 +256,12 @@ export const EmergencyReadyToAdmit: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole('button', { name: 'Admit' })).toBeInTheDocument();
-    await expect(canvas.getByText(/emergency/i)).toBeInTheDocument();
+    /* Exact, not /emergency/i. The preview decorator injects an sr-only <h1> reading
+       "<title> - <story name>" into the canvas, and this story is named "Emergency,
+       ready to admit" - so the loose regex matched the banner as well as the badge and
+       the query was ambiguous. A looser assertion elsewhere could just as easily match
+       ONLY the banner and pass with the component missing. */
+    await expect(canvas.getByText('Emergency')).toBeInTheDocument();
   },
   parameters: {
     docs: {

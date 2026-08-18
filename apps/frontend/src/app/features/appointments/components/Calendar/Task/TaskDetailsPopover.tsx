@@ -113,8 +113,12 @@ export const TaskDetailsPopover = ({
           </div>
         </div>
         <div className="flex flex-col gap-1">
+          {/* Category is already the third row of the grid above, and `getTaskQuickDetails`
+              leads with it - so taking the first two entries printed it twice inside one
+              304px popover. Filtered rather than re-sliced, because the helper is shared
+              with TaskCard, where the grid does not exist and Category belongs. */}
           {getTaskQuickDetails(task)
-            .slice(0, 2)
+            .filter((detail) => detail.label !== 'Category')
             .map((detail) => (
               <div key={detail.label} className="flex min-w-0 items-start gap-2">
                 <div className="w-16 shrink-0 text-[11px] leading-4 text-text-secondary">

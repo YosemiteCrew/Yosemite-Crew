@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { expect, fn, userEvent, within } from 'storybook/test';
+import { expect, fn, within } from 'storybook/test';
+
+import { openGlassTooltip } from '@/app/ui/primitives/GlassTooltip/storyInteractions';
 import type { Appointment } from '@yosemite-crew/types';
 
 import AppointmentBoardCard from './AppointmentBoardCard';
@@ -140,10 +142,10 @@ export const TooltipOnHover: Story = {
   name: 'Action tooltip (hover)',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.hover(canvas.getByRole('button', { name: 'Assign room' }));
-    // The bubble portals to document.body, so it is outside canvasElement - and
-    // it is asserted to carry its copy, not merely to exist.
-    const tooltip = await within(document.body).findByRole('tooltip');
+    /* The bubble portals to document.body, so it is outside canvasElement - and it is
+       asserted to carry its copy, not merely to exist. `openGlassTooltip` because the
+       wrapper binds its listeners in an effect that a play function can outrun. */
+    const tooltip = await openGlassTooltip(canvas.getByRole('button', { name: 'Assign room' }));
     await expect(tooltip).toHaveTextContent('Assign room');
   },
   parameters: {
@@ -162,10 +164,13 @@ export const TooltipOnKeyboardFocus: Story = {
   name: 'Action tooltip (keyboard focus)',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    // `focusin` bubbles to the GlassTooltip wrapper, which is the whole reason a
-    // keyboard user gets the label at all. This path is separate code from hover.
-    canvas.getByRole('button', { name: 'Lab tests' }).focus();
-    const tooltip = await within(document.body).findByRole('tooltip');
+    /* `focusin` reaches the GlassTooltip wrapper, which is the whole reason a keyboard
+       user gets the label at all - separate code from the hover path. Dispatched at the
+       wrapper rather than via `.focus()`, which fires nothing unless the page itself has
+       focus, and no automated run can guarantee that. */
+    const tooltip = await openGlassTooltip(canvas.getByRole('button', { name: 'Lab tests' }), {
+      via: 'focus',
+    });
     await expect(tooltip).toHaveTextContent('Lab tests');
   },
   parameters: {
@@ -186,8 +191,7 @@ export const NonHospitalClinicalNotes: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.queryByRole('button', { name: 'Medical Records' })).toBeNull();
-    await userEvent.hover(canvas.getByRole('button', { name: 'Care' }));
-    const tooltip = await within(document.body).findByRole('tooltip');
+    const tooltip = await openGlassTooltip(canvas.getByRole('button', { name: 'Care' }));
     await expect(tooltip).toHaveTextContent('Care');
   },
   parameters: {
