@@ -117,6 +117,58 @@ describe('useDashboardAnalytics', () => {
     expect(fetchDashboardRevenueTrend).toHaveBeenCalledWith('org-day', 'last_week', 'day');
   });
 
+  it('treats an all-zero day series as empty, not as a chart', async () => {
+    /* The trend endpoints return one point per day in the range, so a quiet week comes
+       back as several points of zeros rather than an empty array. Both day charts are
+       drawn with hideYAxis and no axis line, so a length-only empty check rendered
+       zero-height bars on a blank card - no chart and no "No data available", which is
+       exactly what the dashboard showed for a week with no completed appointments and
+       no revenue. */
+    currentOrgId = 'org-quiet';
+    (fetchDashboardAppointmentTrend as jest.Mock).mockResolvedValue([
+      { label: 'Mon', completed: 0, cancelled: 0 },
+      { label: 'Tue', completed: 0, cancelled: 0 },
+    ]);
+    (fetchDashboardRevenueTrend as jest.Mock).mockResolvedValue([
+      { label: 'Mon', revenue: 0 },
+      { label: 'Tue', revenue: 0 },
+    ]);
+
+    const { result } = renderHook(() => useDashboardAnalytics('last_week'));
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    // The points are still mapped through - only the empty flag changes.
+    expect(result.current.charts.appointments).toHaveLength(2);
+    expect(result.current.charts.revenue).toHaveLength(2);
+    expect(result.current.emptyState.appointmentsChart).toBe(true);
+    expect(result.current.emptyState.revenueChart).toBe(true);
+  });
+
+  it('keeps a series with any non-zero point as a real chart', async () => {
+    currentOrgId = 'org-mixed';
+    (fetchDashboardAppointmentTrend as jest.Mock).mockResolvedValue([
+      { label: 'Mon', completed: 0, cancelled: 0 },
+      { label: 'Tue', completed: 0, cancelled: 2 },
+    ]);
+    (fetchDashboardRevenueTrend as jest.Mock).mockResolvedValue([
+      { label: 'Mon', revenue: 0 },
+      { label: 'Tue', revenue: 40 },
+    ]);
+
+    const { result } = renderHook(() => useDashboardAnalytics('last_week'));
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    // A single cancelled appointment, or one day of revenue, is still worth drawing.
+    expect(result.current.emptyState.appointmentsChart).toBe(false);
+    expect(result.current.emptyState.revenueChart).toBe(false);
+  });
+
   it('uses month bucket for long durations', async () => {
     currentOrgId = 'org-month';
 
