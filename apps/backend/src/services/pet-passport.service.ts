@@ -615,7 +615,7 @@ export const PetPassportService = {
       return row.practiceWalletToken;
     }
     // Reissued after a revoke rather than reused, so a revoked pass stays dead.
-    const token = randomBytes(32).toString("base64url");
+    const token = generatePublicToken();
     await prisma.petPassport.update({
       where: { id: row.id },
       data: {
