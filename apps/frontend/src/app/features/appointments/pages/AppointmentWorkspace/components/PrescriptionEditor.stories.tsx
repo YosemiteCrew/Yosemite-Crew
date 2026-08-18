@@ -100,17 +100,19 @@ const TEMPLATES: PrescriptionTemplateOption[] = [
   },
 ];
 
-/** Types a query into the search field and hands back the portalled results list. */
-const openResults = async (canvasElement: HTMLElement, query: string) => {
+/**
+ * Types a query into the search field and hands back the portalled results `<ul>`.
+ * The panel carries no role or label of its own, so it is reached through one of its
+ * rows - `findAllBy` rather than `findBy`, since a query is expected to hit several.
+ */
+const openResults = async (canvasElement: HTMLElement, query: string, firstRowName: RegExp) => {
   const canvas = within(canvasElement);
   const field = canvas.getByRole('searchbox', {
     name: 'Search medicines or prescription templates',
   });
   await userEvent.clear(field);
   await userEvent.type(field, query);
-  const firstRow = await within(document.body).findByRole('button', {
-    name: new RegExp(query, 'i'),
-  });
+  const [firstRow] = await within(document.body).findAllByRole('button', { name: firstRowName });
   const list = firstRow.closest('ul');
   await expect(list).not.toBeNull();
   return list as HTMLElement;
@@ -172,7 +174,7 @@ export const Empty: Story = {
 export const SearchResultsOpen: Story = {
   name: 'Search dropdown (templates + medications)',
   play: async ({ canvasElement }) => {
-    const list = await openResults(canvasElement, 'amox');
+    const list = await openResults(canvasElement, 'amox', /^Amoxicillin course - canine/);
 
     // The panel escapes the canvas entirely - that escape is the component's job.
     await expect(canvasElement.contains(list)).toBe(false);
@@ -208,7 +210,7 @@ export const SearchResultsOpen: Story = {
 export const SingleTemplateResult: Story = {
   name: 'Search dropdown (one template, singular count)',
   play: async ({ canvasElement }) => {
-    const list = await openResults(canvasElement, 'post-operative');
+    const list = await openResults(canvasElement, 'post-operative', /^Post-operative pain relief/);
     await expect(within(list).getAllByRole('button')).toHaveLength(1);
     // Singular branch: `1 medication`, not `1 medications`.
     await expect(within(list).getByText('1 medication')).toBeInTheDocument();
@@ -229,7 +231,7 @@ export const SingleTemplateResult: Story = {
 export const SelectMedicationFromSearch: Story = {
   name: 'Selecting a medication closes the panel',
   play: async ({ args, canvasElement }) => {
-    const list = await openResults(canvasElement, 'meloxicam');
+    const list = await openResults(canvasElement, 'meloxicam', /^Meloxicam 1\.5mg\/ml \(Metacam\)/);
     const row = within(list).getByRole('button', { name: /Meloxicam 1\.5mg\/ml \(Metacam\)/ });
     await userEvent.click(row);
 
@@ -252,7 +254,11 @@ export const SelectMedicationFromSearch: Story = {
 export const ApplyTemplateFromSearch: Story = {
   name: 'Applying a template',
   play: async ({ args, canvasElement }) => {
-    const list = await openResults(canvasElement, 'amoxicillin course');
+    const list = await openResults(
+      canvasElement,
+      'amoxicillin course',
+      /^Amoxicillin course - canine/
+    );
     await userEvent.click(
       within(list).getByRole('button', { name: /Amoxicillin course - canine/ })
     );
