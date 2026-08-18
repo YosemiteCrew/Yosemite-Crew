@@ -139,8 +139,8 @@ export const SortPanelOpen: Story = {
     /* The measured position is the part no snapshot could hold. A dropped style
        object leaves the panel static at the end of <body>, which still renders
        three healthy-looking rows. */
-    await waitFor(async () => {
-      await expect(getComputedStyle(panel).position).toBe('fixed');
+    await waitFor(() => {
+      expect(getComputedStyle(panel).position).toBe('fixed');
     });
     const triggerRect = sortTrigger(canvasElement, 'Name').getBoundingClientRect();
     const panelRect = panel.getBoundingClientRect();
@@ -166,8 +166,8 @@ export const SortSelection: Story = {
     await userEvent.click(within(panel).getByRole('button', { name: 'Expiry date' }));
 
     // The trigger relabels from the chosen option and the panel goes away.
-    await waitFor(async () => {
-      await expect(
+    await waitFor(() => {
+      expect(
         within(canvasElement).getByRole('button', { name: 'Sort: Expiry date' })
       ).toBeInTheDocument();
     });
@@ -193,8 +193,8 @@ export const SortPanelClosesOnOutsideClick: Story = {
     // The listener is on `mousedown` and ignores the trigger and the panel itself.
     await userEvent.click(canvasElement);
 
-    await waitFor(async () => {
-      await expect(within(document.body).queryByRole('button', { name: 'Expiry date' })).toBeNull();
+    await waitFor(() => {
+      expect(within(document.body).queryByRole('button', { name: 'Expiry date' })).toBeNull();
     });
   },
   parameters: {
@@ -245,12 +245,15 @@ export const HiddenVisibility: Story = {
 
     await userEvent.click(hidden);
 
-    await waitFor(async () => {
-      await expect(getComputedStyle(hidden).fontWeight).toBe('700');
+    /* The chip is `transition-colors`, so both the weight and the settled fill are
+       polled - a single read lands mid-transition and compares two interpolated
+       colours rather than the two end states. */
+    await waitFor(() => {
+      expect(getComputedStyle(hidden).fontWeight).toBe('700');
+      expect(getComputedStyle(hidden).backgroundColor).not.toBe(
+        getComputedStyle(active).backgroundColor
+      );
     });
-    await expect(getComputedStyle(hidden).backgroundColor).not.toBe(
-      getComputedStyle(active).backgroundColor
-    );
   },
   parameters: {
     docs: {

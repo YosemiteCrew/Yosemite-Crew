@@ -43,6 +43,21 @@ const Demo = ({
   );
 };
 
+/**
+ * Resolves a design token to the colour the browser actually paints, so a story can
+ * say "this button is the danger fill" rather than only "it is filled with
+ * something". `Delete` and `Primary` are both filled pills; only the token tells
+ * them apart, and the token is the whole point of the tone branch.
+ */
+const resolveToken = (host: HTMLElement, token: string) => {
+  const probe = document.createElement('span');
+  probe.style.backgroundColor = `var(${token})`;
+  host.append(probe);
+  const value = getComputedStyle(probe).backgroundColor;
+  probe.remove();
+  return value;
+};
+
 /** The dialog portals to document.body, so it is never inside `canvasElement`. */
 const openDialog = async (canvasElement: HTMLElement, title: string) => {
   await userEvent.click(within(canvasElement).getByRole('button', { name: title }));
@@ -114,12 +129,13 @@ export const DangerousAction: Story = {
     const confirm = panel.getByRole('button', { name: 'Disconnect' });
     const cancel = panel.getByRole('button', { name: 'Cancel' });
     /* `Delete` fills with --danger-strong while `Secondary` is a bordered
-       transparent pill. If the tone branch were dropped the confirm would render
-       as an ordinary Primary and still look deliberate, so compare the fills. */
-    await expect(getComputedStyle(confirm).backgroundColor).not.toBe(
-      getComputedStyle(cancel).backgroundColor
+       transparent pill. Asserting only that the two differ would still pass if the
+       tone branch were dropped and a --cta Primary took its place, so pin the
+       confirm to the danger token itself. */
+    await expect(getComputedStyle(confirm).backgroundColor).toBe(
+      resolveToken(dialog, '--danger-strong')
     );
-    await expect(getComputedStyle(confirm).backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
+    await expect(getComputedStyle(cancel).backgroundColor).toBe('rgba(0, 0, 0, 0)');
   },
   parameters: {
     docs: {
@@ -147,8 +163,8 @@ export const DangerConfirmed: Story = {
 
     // The promise resolves true and the dialog unmounts with it.
     const canvas = within(canvasElement);
-    await waitFor(async () => {
-      await expect(canvas.getByTestId('confirm-result')).toHaveTextContent('Result: confirmed');
+    await waitFor(() => {
+      expect(canvas.getByTestId('confirm-result')).toHaveTextContent('Result: confirmed');
     });
     await expect(within(document.body).queryByRole('dialog')).toBeNull();
   },
@@ -176,8 +192,8 @@ export const CancelDeclines: Story = {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
 
     const canvas = within(canvasElement);
-    await waitFor(async () => {
-      await expect(canvas.getByTestId('confirm-result')).toHaveTextContent('Result: declined');
+    await waitFor(() => {
+      expect(canvas.getByTestId('confirm-result')).toHaveTextContent('Result: declined');
     });
   },
   parameters: {
@@ -206,8 +222,8 @@ export const EscapeDeclines: Story = {
 
     // Dismissal is a decline, matching what the native confirm() did.
     const canvas = within(canvasElement);
-    await waitFor(async () => {
-      await expect(canvas.getByTestId('confirm-result')).toHaveTextContent('Result: declined');
+    await waitFor(() => {
+      expect(canvas.getByTestId('confirm-result')).toHaveTextContent('Result: declined');
     });
   },
   parameters: {
@@ -231,8 +247,13 @@ export const NeutralAction: Story = {
     await expect(
       panel.getByText('The client will no longer be able to send messages in this conversation.')
     ).toBeInTheDocument();
-    // Same footer shape, `Primary` in place of `Delete`.
-    await expect(panel.getByRole('button', { name: 'Close session' })).toBeInTheDocument();
+    // Same footer shape, `Primary` in place of `Delete` - so the fill is --cta,
+    // and confusing the two tones is exactly the failure worth catching here.
+    const confirm = panel.getByRole('button', { name: 'Close session' });
+    await expect(getComputedStyle(confirm).backgroundColor).toBe(resolveToken(dialog, '--cta'));
+    await expect(getComputedStyle(confirm).backgroundColor).not.toBe(
+      resolveToken(dialog, '--danger-strong')
+    );
     await expect(panel.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
   },
   parameters: {

@@ -118,10 +118,10 @@ export const RowActionTooltip: Story = {
     /* The 10px gap above the trigger is computed in an effect, so the first
        paint sits at 0,0. Waiting for the measured position is what distinguishes
        a positioned tooltip from one stranded in the corner of the viewport. */
-    await waitFor(async () => {
+    await waitFor(() => {
       const gap = trigger.getBoundingClientRect().top - bubble.getBoundingClientRect().bottom;
-      await expect(gap).toBeGreaterThan(0);
-      await expect(gap).toBeLessThanOrEqual(12);
+      expect(gap).toBeGreaterThan(0);
+      expect(gap).toBeLessThanOrEqual(12);
     });
   },
   parameters: {
@@ -150,13 +150,13 @@ export const TooltipDoesNotAccumulate: Story = {
 
     // Each row owns its own portal, so leaving one must tear its bubble down.
     await userEvent.unhover(first);
-    await waitFor(async () => {
-      await expect(tooltips()).toHaveLength(0);
+    await waitFor(() => {
+      expect(tooltips()).toHaveLength(0);
     });
 
     await userEvent.hover(second);
-    await waitFor(async () => {
-      await expect(tooltips()).toHaveLength(1);
+    await waitFor(() => {
+      expect(tooltips()).toHaveLength(1);
     });
   },
   parameters: {
@@ -183,8 +183,8 @@ export const TooltipOnKeyboardFocus: Story = {
     await expect(bubble).toHaveTextContent('View details');
 
     trigger.blur();
-    await waitFor(async () => {
-      await expect(tooltips()).toHaveLength(0);
+    await waitFor(() => {
+      expect(tooltips()).toHaveLength(0);
     });
   },
   parameters: {

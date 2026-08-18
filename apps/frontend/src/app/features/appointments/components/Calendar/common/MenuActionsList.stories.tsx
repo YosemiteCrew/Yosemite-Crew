@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
-import { expect, fn, userEvent, within } from 'storybook/test';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
 import MenuActionsList from './MenuActionsList';
 import type { MenuAction, MenuSubmenu } from './appointmentContextMenuHelpers';
@@ -132,12 +132,16 @@ export const SubmenuRowActive: Story = {
     /* The attribute alone is the weak check - it flips whether or not the fill
        survived. Compare the painted background against a plain sibling instead:
        an active row that resolves to the same colour as an inactive one, or to a
-       fully transparent one, means the `bg-[var(--hairline)]` branch was dropped. */
-    const activeFill = getComputedStyle(status).backgroundColor;
-    const plainFill = getComputedStyle(plain).backgroundColor;
-    await expect(activeFill).not.toBe(plainFill);
-    await expect(activeFill).not.toBe('rgba(0, 0, 0, 0)');
-    await expect(activeFill).not.toBe('transparent');
+       fully transparent one, means the `bg-[var(--hairline)]` branch was dropped.
+       The row carries `transition-colors`, so for the first frame after the class
+       swaps the computed value is still the colour it is leaving - the read has to
+       be polled rather than taken once. */
+    await waitFor(() => {
+      const activeFill = getComputedStyle(status).backgroundColor;
+      expect(activeFill).not.toBe(getComputedStyle(plain).backgroundColor);
+      expect(activeFill).not.toBe('rgba(0, 0, 0, 0)');
+      expect(activeFill).not.toBe('transparent');
+    });
   },
   parameters: {
     docs: {
