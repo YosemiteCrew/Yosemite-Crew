@@ -47,13 +47,16 @@ const rabiesLine = (passport: PetPassportDTO): string | undefined => {
 
 const nextDueLine = (passport: PetPassportDTO): string | undefined => {
   const now = Date.now();
-  const upcoming = passport.vaccinations
-    .map((vaccination) => vaccination.nextDueDate)
-    .filter((value): value is string => Boolean(value))
-    .map((value) => ({ value, time: new Date(value).getTime() }))
-    .filter((entry) => !Number.isNaN(entry.time) && entry.time >= now)
-    .sort((a, b) => a.time - b.time);
-  const soonest = upcoming[0]?.value;
+  // Single pass: only the earliest future due date is ever used, so tracking a
+  // running minimum avoids building and sorting an intermediate array.
+  let earliest: { value: string; time: number } | undefined;
+  for (const { nextDueDate } of passport.vaccinations) {
+    if (!nextDueDate) continue;
+    const time = new Date(nextDueDate).getTime();
+    if (Number.isNaN(time) || time < now) continue;
+    if (!earliest || time < earliest.time) earliest = { value: nextDueDate, time };
+  }
+  const soonest = earliest?.value;
   if (!soonest) return undefined;
   const vaccine = passport.vaccinations.find((v) => v.nextDueDate === soonest)?.vaccineName;
   return joinParts([dateLabel(soonest), vaccine]);

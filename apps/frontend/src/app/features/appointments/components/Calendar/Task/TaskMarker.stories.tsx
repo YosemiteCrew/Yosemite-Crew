@@ -2,7 +2,7 @@ import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { fn } from 'storybook/test';
 import type { Task } from '@/app/features/tasks/types/task';
-import { TaskMarker } from './TaskSlot';
+import { TaskMarker } from './TaskMarker';
 
 const task = (over: Partial<Task> = {}): Task =>
   ({

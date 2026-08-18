@@ -333,11 +333,11 @@ const PublicPassportView = ({ passport }: { passport: PetPassportDTO }) => {
             Vaccinations
           </span>
           {rabies && <VaccinationRow vaccination={rabies} validity={rabiesStatus} />}
-          {vaccinations
-            .filter((vaccination) => vaccination.id !== rabies?.id)
-            .map((vaccination) => (
-              <VaccinationRow key={vaccination.id} vaccination={vaccination} />
-            ))}
+          {vaccinations.flatMap((vaccination) =>
+            vaccination.id === rabies?.id
+              ? []
+              : [<VaccinationRow key={vaccination.id} vaccination={vaccination} />]
+          )}
         </div>
       )}
 

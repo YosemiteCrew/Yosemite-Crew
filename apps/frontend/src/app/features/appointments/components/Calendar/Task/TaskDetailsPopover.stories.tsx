@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { expect, fn, within } from 'storybook/test';
 import type { Task } from '@/app/features/tasks/types/task';
 
-import { TaskDetailsPopover } from './TaskSlot';
+import { TaskDetailsPopover } from './TaskDetailsPopover';
 
 const TEAM: Record<string, string> = {
   'member-1': 'Dr. Elena Marsh',
