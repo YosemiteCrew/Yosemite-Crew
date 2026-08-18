@@ -2,6 +2,7 @@ import { BloodBankService } from "../../src/services/blood-bank.service";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    patientOrganisation: { findFirst: jest.fn(), findMany: jest.fn() },
     bloodBankDonor: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -71,7 +72,19 @@ const baseDonation = {
   updatedAt: new Date(),
 };
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  // Default: the companion belongs to the caller's organisation, so every
+  // pre-existing case keeps its original meaning. Cross-tenant is asserted
+  // explicitly in its own test below.
+  (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue({
+    id: "patient-org-1",
+  });
+  (prisma.patientOrganisation.findMany as jest.Mock).mockImplementation(
+    ({ where }: { where: { patientId: { in: string[] } } }) =>
+      Promise.resolve(where.patientId.in.map((patientId) => ({ patientId }))),
+  );
+});
 
 describe("BloodBankService.registerDonor", () => {
   it("registers a new DEA 1.1 positive donor", async () => {

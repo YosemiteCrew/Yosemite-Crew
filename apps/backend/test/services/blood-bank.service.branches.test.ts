@@ -9,6 +9,7 @@ import {
 // updateDonation - plus the optional-filter and optional-field branches on both sides.
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    patientOrganisation: { findFirst: jest.fn(), findMany: jest.fn() },
     bloodBankDonor: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -82,7 +83,12 @@ const baseDonation = {
   updatedAt: collectedAt,
 };
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue({
+    id: "patient-org-1",
+  });
+});
 
 describe("BloodBankService.registerDonor optional fields", () => {
   it("persists every supplied optional field and stamps the registering user on the audit event", async () => {
@@ -148,12 +154,38 @@ describe("BloodBankService.registerDonor optional fields", () => {
     );
   });
 
-  it("checks the duplicate donor globally by patient, not per organisation, and skips the write", async () => {
+  it("rejects a foreign organisation before the duplicate check can confirm the donor exists", async () => {
+    // This used to answer 409 "already registered", which told org-2 that
+    // pat-1 is a donor somewhere - a probe against a companion it has no
+    // relationship with. Membership is now settled first, so the caller learns
+    // only that the companion is not theirs.
+    (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue(null);
     mockDonorFindUnique.mockResolvedValue({ id: "donor-9" });
 
     await expect(
       BloodBankService.registerDonor({
         organisationId: "org-2",
+        patientId: "pat-1",
+        bloodType: "TYPE_B",
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 404,
+      message: "Companion not found.",
+    });
+
+    expect(mockDonorFindUnique).not.toHaveBeenCalled();
+    expect(mockDonorCreate).not.toHaveBeenCalled();
+    expect(mockRecordSafely).not.toHaveBeenCalled();
+  });
+
+  it("still rejects a duplicate donor for a companion the organisation does own", async () => {
+    // The global uniqueness rule itself is unchanged: one donor record per
+    // companion, across every practice.
+    mockDonorFindUnique.mockResolvedValue({ id: "donor-9" });
+
+    await expect(
+      BloodBankService.registerDonor({
+        organisationId: "org-1",
         patientId: "pat-1",
         bloodType: "TYPE_B",
       }),

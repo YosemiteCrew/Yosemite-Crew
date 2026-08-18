@@ -9,6 +9,7 @@ import { sendEmail } from "src/utils/email";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    patientOrganisation: { findFirst: jest.fn(), findMany: jest.fn() },
     careReminder: {
       create: jest.fn(),
       createMany: jest.fn(),
@@ -73,6 +74,16 @@ const makeReminder = (over: Record<string, unknown> = {}) => ({
 });
 
 beforeEach(() => {
+  // Default: the companion belongs to the caller's organisation, so every
+  // pre-existing case keeps its original meaning. Cross-tenant is asserted
+  // explicitly in its own test below.
+  (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue({
+    id: "patient-org-1",
+  });
+  (prisma.patientOrganisation.findMany as jest.Mock).mockImplementation(
+    ({ where }: { where: { patientId: { in: string[] } } }) =>
+      Promise.resolve(where.patientId.in.map((patientId) => ({ patientId }))),
+  );
   jest.clearAllMocks();
   (AuditTrailService.recordSafely as jest.Mock).mockResolvedValue(undefined);
   (NotificationService.sendToUser as jest.Mock).mockResolvedValue(undefined);
@@ -381,5 +392,41 @@ describe("CareReminderService.cancel", () => {
     await expect(
       CareReminderService.cancel("reminder-1", "org-1"),
     ).rejects.toMatchObject({ statusCode: 409 });
+  });
+});
+
+describe("CareReminderService cross-tenant protection", () => {
+  it("refuses to create a reminder for a companion in another organisation", async () => {
+    (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue(null);
+
+    await expect(
+      CareReminderService.create({
+        organisationId: "org-1",
+        patientId: "pat-1",
+        reminderType: "VACCINATION_BOOSTER",
+        dueDate: new Date("2026-09-01T09:00:00Z"),
+      }),
+    ).rejects.toThrow("Companion not found.");
+
+    expect(prisma.careReminder.create as jest.Mock).not.toHaveBeenCalled();
+  });
+
+  it("refuses the whole batch when a single id belongs to another organisation", async () => {
+    // The send path resolves each reminder's owner and emails them, so one
+    // foreign companion in a batch of 200 is one stranger contacted.
+    (prisma.patientOrganisation.findMany as jest.Mock).mockResolvedValue([
+      { patientId: "pat-mine" },
+    ]);
+
+    await expect(
+      CareReminderService.bulkCreate({
+        organisationId: "org-1",
+        patientIds: ["pat-mine", "pat-theirs"],
+        reminderType: "VACCINATION_BOOSTER",
+        dueDate: new Date("2026-09-01T09:00:00Z"),
+      }),
+    ).rejects.toThrow("Companion not found.");
+
+    expect(prisma.careReminder.createMany as jest.Mock).not.toHaveBeenCalled();
   });
 });
