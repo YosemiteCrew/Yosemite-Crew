@@ -57,7 +57,7 @@ runClinicalControllerSuite({
         },
       ],
       fallback: "Failed to list genetic health screens",
-      invalidPayload: { patientId: "not-a-uuid" },
+      invalidPayload: { patientId: "x".repeat(65) },
     },
     {
       handler: "create",

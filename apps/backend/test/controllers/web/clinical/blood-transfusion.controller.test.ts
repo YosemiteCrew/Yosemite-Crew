@@ -48,7 +48,7 @@ runClinicalControllerSuite({
         },
       ],
       fallback: "Failed to list transfusions",
-      invalidPayload: { encounterId: "not-a-uuid" },
+      invalidPayload: { encounterId: "x".repeat(65) },
     },
     {
       handler: "record",

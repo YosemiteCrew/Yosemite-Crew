@@ -2,6 +2,7 @@ import type {
   Bundle,
   CodeableConcept,
   Composition,
+  CompositionAttester,
   Extension,
   Immunization,
   MedicationRequest,
@@ -345,6 +346,23 @@ const toIso = (value: Date | string | null | undefined) => {
 const toReference = (reference?: string | null): Reference | undefined =>
   reference ? { reference } : undefined;
 
+// The clinician who attests a signed artifact is often not the person who captured it
+// (a nurse records the exam, a veterinarian signs it off). FHIR keeps the capture author
+// in `author` and the signatory in `attester`, so both identities survive an export.
+const compositionAttester = (artifact: {
+  signedBy: string | null;
+  signedAt: Date | null;
+}): CompositionAttester[] | undefined =>
+  artifact.signedBy
+    ? [
+        {
+          mode: 'legal',
+          time: toIso(artifact.signedAt),
+          party: { reference: `Practitioner/${artifact.signedBy}` },
+        },
+      ]
+    : undefined;
+
 const clinicalContextReference = (artifact: {
   encounterId: string | null;
   appointmentId: string | null;
@@ -594,6 +612,7 @@ const soapNoteToComposition = (record: SoapNoteRecord): Composition => ({
       ? { reference: `Practitioner/${record.artifact.authorId}` }
       : { display: 'System' },
   ],
+  attester: compositionAttester(record.artifact),
   encounter: toReference(clinicalContextReference(record.artifact)),
   extension: buildCompositionExtensions(record, {
     [SOAP_SUBJECTIVE_EXTENSION_URL]: record.soapNote.subjective,
@@ -713,6 +732,7 @@ const dischargeSummaryToComposition = (record: DischargeSummaryRecord): Composit
       ? { reference: `Practitioner/${record.artifact.authorId}` }
       : { display: 'System' },
   ],
+  attester: compositionAttester(record.artifact),
   encounter: toReference(clinicalContextReference(record.artifact)),
   extension: buildCompositionExtensions(record, {
     [DISCHARGE_SUMMARY_CONTENT_EXTENSION_URL]: record.dischargeSummary.summary,
@@ -972,6 +992,7 @@ const clinicalExamToComposition = (record: ClinicalExaminationRecord): Compositi
       ? { reference: `Practitioner/${record.artifact.authorId}` }
       : { display: 'System' },
   ],
+  attester: compositionAttester(record.artifact),
   encounter: toReference(clinicalContextReference(record.artifact)),
   extension: buildKindExtensions(
     record.artifact,

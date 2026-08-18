@@ -56,7 +56,7 @@ runClinicalControllerSuite({
         },
       ],
       fallback: "Failed to list dermatology assessments",
-      invalidPayload: { encounterId: "not-a-uuid" },
+      invalidPayload: { encounterId: "x".repeat(65) },
     },
     {
       handler: "create",

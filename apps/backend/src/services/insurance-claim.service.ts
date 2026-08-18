@@ -113,6 +113,70 @@ const assertClaim = async (id: string, organisationId: string) => {
   return claim;
 };
 
+/**
+ * Cross-field invariants for a claim's money.
+ *
+ * The columns are independent nullable floats with no CHECK constraint and the
+ * request schema validates each in isolation, so without this a claim can be
+ * approved above the amount submitted, marked PAID for ten times the approved
+ * sum, or reach PAID with `paidAmount` still NULL - a paid claim that reporting
+ * reads as having no payment figure.
+ */
+const assertClaimAmountsCoherent = (
+  claim: {
+    submittedAmount: number;
+    approvedAmount: number | null;
+    paidAmount: number | null;
+  },
+  params: UpdateClaimStatusParams,
+): void => {
+  const approved = params.approvedAmount ?? claim.approvedAmount;
+
+  if (
+    params.approvedAmount !== undefined &&
+    params.approvedAmount > claim.submittedAmount
+  ) {
+    throw new InsuranceClaimError(
+      "Approved amount cannot exceed the submitted amount.",
+      400,
+    );
+  }
+
+  if (params.status === "APPROVED" || params.status === "PARTIALLY_APPROVED") {
+    if (approved == null) {
+      throw new InsuranceClaimError(
+        `An approved amount is required to move a claim to ${params.status}.`,
+        400,
+      );
+    }
+    if (
+      params.status === "PARTIALLY_APPROVED" &&
+      approved >= claim.submittedAmount
+    ) {
+      throw new InsuranceClaimError(
+        "A partially approved claim must be approved for less than the submitted amount.",
+        400,
+      );
+    }
+  }
+
+  if (params.status === "PAID") {
+    const paid = params.paidAmount ?? claim.paidAmount;
+    if (paid == null) {
+      throw new InsuranceClaimError(
+        "A paid amount is required to move a claim to PAID.",
+        400,
+      );
+    }
+    if (paid > (approved ?? claim.submittedAmount)) {
+      throw new InsuranceClaimError(
+        "Paid amount cannot exceed the approved amount.",
+        400,
+      );
+    }
+  }
+};
+
 export const InsuranceClaimService = {
   async create(params: CreateInsuranceClaimParams) {
     const {
@@ -250,6 +314,8 @@ export const InsuranceClaimService = {
         409,
       );
     }
+
+    assertClaimAmountsCoherent(claim, params);
 
     const now = new Date();
     const data: Prisma.InsuranceClaimUpdateInput = { status: params.status };

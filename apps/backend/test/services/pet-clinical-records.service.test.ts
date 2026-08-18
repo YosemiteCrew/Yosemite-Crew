@@ -331,6 +331,38 @@ describe("PetClinicalRecordService.recordClinicalExam", () => {
     findings: "healthy",
   };
 
+  // Vitals are attested into the passport and printed onto the signed PDF, so
+  // the service guards them for non-HTTP callers too, mirroring the titration
+  // path rather than relying on the request schema alone.
+  it.each([
+    ["a negative weight", { weightKg: -5 }],
+    ["a zero weight", { weightKg: 0 }],
+    ["an absurd weight", { weightKg: 900 }],
+    ["a frozen temperature", { temperatureC: -3 }],
+    ["a boiling temperature", { temperatureC: 80 }],
+  ])("400s %s", async (_label, override) => {
+    await expect(
+      PetClinicalRecordService.recordClinicalExam(CTX, {
+        ...input,
+        ...override,
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(prismaMock.clinicalArtifact.create).not.toHaveBeenCalled();
+  });
+
+  it("accepts the range bounds and an omitted vital", async () => {
+    await PetClinicalRecordService.recordClinicalExam(CTX, {
+      ...input,
+      weightKg: 200,
+      temperatureC: 15,
+    });
+    await PetClinicalRecordService.recordClinicalExam(CTX, {
+      examinedAt: input.examinedAt,
+      fitForTravel: true,
+    });
+    expect(prismaMock.clinicalArtifact.create).toHaveBeenCalledTimes(2);
+  });
+
   it("creates an artifact + clinical exam", async () => {
     const dto = await PetClinicalRecordService.recordClinicalExam(CTX, input);
     expect(prismaMock.clinicalArtifact.create).toHaveBeenCalledWith(
@@ -481,12 +513,48 @@ describe("PetClinicalRecordService.attestRecord", () => {
     });
     expect(prismaMock.clinicalArtifact.update).toHaveBeenCalled();
   });
+
+  it("409s re-attesting a revoked record and leaves the row untouched", async () => {
+    // VOID is terminal: re-attesting would flip it back to SIGNED and wipe the
+    // revocation columns, republishing a record pulled for error or fraud.
+    prismaMock.clinicalArtifact.findFirst.mockResolvedValue({
+      id: "art-1",
+      status: "VOID",
+      encounterId: "enc-1",
+      kind: "IMMUNIZATION",
+    });
+    await expect(
+      PetClinicalRecordService.attestRecord({
+        artifactId: "art-1",
+        patientId: "pat-1",
+        organisationId: "org-1",
+        actor: CTX.actor,
+      }),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    expect(prismaMock.clinicalArtifact.update).not.toHaveBeenCalled();
+  });
+
+  it("does not clear the revocation columns when attesting", async () => {
+    await PetClinicalRecordService.attestRecord({
+      artifactId: "art-1",
+      patientId: "pat-1",
+      organisationId: "org-1",
+      actor: CTX.actor,
+    });
+    const attestationData =
+      prismaMock.clinicalArtifact.update.mock.calls[0][0].data.attestation
+        .upsert.update;
+    expect(attestationData).not.toHaveProperty("revokedAt");
+    expect(attestationData).not.toHaveProperty("revokedReason");
+  });
 });
 
 describe("PetClinicalRecordService.revokeRecord", () => {
   const base = {
     artifactId: "art-1",
+    patientId: "pat-1",
     organisationId: "org-1",
+    actor: CTX.actor,
   };
 
   it("voids a record with and without a reason", async () => {
@@ -509,6 +577,27 @@ describe("PetClinicalRecordService.revokeRecord", () => {
     await expect(
       PetClinicalRecordService.revokeRecord(base),
     ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("404s a record whose encounter belongs to another pet", async () => {
+    // Pet B's URL paired with pet A's record id must not void A's record.
+    prismaMock.encounter.findUnique.mockResolvedValue({ patientId: "pat-2" });
+    await expect(
+      PetClinicalRecordService.revokeRecord(base),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(prismaMock.clinicalArtifact.update).not.toHaveBeenCalled();
+  });
+
+  it("writes a patient-scoped audit row for the revocation", async () => {
+    await PetClinicalRecordService.revokeRecord({ ...base, reason: "fraud" });
+    expect(auditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        patientId: "pat-1",
+        organisationId: "org-1",
+        entityId: "art-1",
+        metadata: expect.objectContaining({ revoked: true, reason: "fraud" }),
+      }),
+    );
   });
 });
 
@@ -589,6 +678,54 @@ describe("PetClinicalRecordService.requestRecordSignature", () => {
     );
     await PetClinicalRecordService.requestRecordSignature(args);
     expect(documensoMock.createDocument).toHaveBeenCalledTimes(3);
+  });
+
+  it("409s sending a revoked record for signature", async () => {
+    prismaMock.clinicalArtifact.findFirst.mockResolvedValueOnce(
+      artifactWith({ status: "VOID" }),
+    );
+    await expect(
+      PetClinicalRecordService.requestRecordSignature(args),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    expect(documensoMock.createDocument).not.toHaveBeenCalled();
+  });
+
+  it("is idempotent when a signing request is already in flight", async () => {
+    // A retry must not mint and distribute a second Documenso document, which
+    // would mail the vet twice and orphan the first document id.
+    prismaMock.clinicalArtifact.findFirst.mockResolvedValueOnce(
+      artifactWith({
+        status: "IN_PROGRESS",
+        attestation: {
+          signingStatus: "IN_PROGRESS",
+          documensoDocumentId: "42",
+        },
+      }),
+    );
+    const result = await PetClinicalRecordService.requestRecordSignature(args);
+    expect(result).toEqual({
+      artifactId: "art-1",
+      status: "IN_PROGRESS",
+      documensoDocumentId: "42",
+    });
+    expect(documensoMock.createDocument).not.toHaveBeenCalled();
+    expect(documensoMock.distributeDocument).not.toHaveBeenCalled();
+  });
+
+  it("persists the document id before distributing it", async () => {
+    // Distributing first and failing to write would mail a live signing request
+    // whose DOCUMENT_COMPLETED webhook can never be matched back to a record.
+    const order: string[] = [];
+    prismaMock.clinicalArtifact.update.mockImplementation(() => {
+      order.push("persist");
+      return Promise.resolve({ id: "art-1" });
+    });
+    documensoMock.distributeDocument.mockImplementation(() => {
+      order.push("distribute");
+      return Promise.resolve({});
+    });
+    await PetClinicalRecordService.requestRecordSignature(args);
+    expect(order).toEqual(["persist", "distribute"]);
   });
 
   it("404s unknown, 409s already-signed", async () => {

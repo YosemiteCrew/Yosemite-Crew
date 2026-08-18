@@ -112,15 +112,62 @@ describe("SurgicalChecklistService.list", () => {
 });
 
 describe("SurgicalChecklistService.update", () => {
+  const allChecked = {
+    ...baseChecklist,
+    items: [{ ...baseItem, isChecked: true }],
+  };
+
   it("advances checklist to COMPLETED and emits audit event", async () => {
-    const completed = { ...baseChecklist, status: "COMPLETED" };
-    mockFindFirst.mockResolvedValue(baseChecklist);
+    const completed = { ...allChecked, status: "COMPLETED" };
+    mockFindFirst.mockResolvedValue(allChecked);
     mockUpdate.mockResolvedValue(completed);
     const result = await SurgicalChecklistService.update("sc-1", "org-1", {
       status: "COMPLETED",
       completedAt: new Date(),
     });
     expect(result.status).toBe("COMPLETED");
+  });
+
+  it("refuses completion while any item is unchecked", async () => {
+    // A completed checklist is audited and undeletable, so it must not be
+    // reachable with 0 of N safety items actually checked.
+    mockFindFirst.mockResolvedValue(baseChecklist);
+    await expect(
+      SurgicalChecklistService.update("sc-1", "org-1", { status: "COMPLETED" }),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message: "All checklist items must be checked before completion.",
+    });
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("derives completedAt when none is supplied", async () => {
+    mockFindFirst.mockResolvedValue(allChecked);
+    mockUpdate.mockResolvedValue({ ...allChecked, status: "COMPLETED" });
+    await SurgicalChecklistService.update("sc-1", "org-1", {
+      status: "COMPLETED",
+    });
+    expect(mockUpdate.mock.calls[0][0].data.completedAt).toBeInstanceOf(Date);
+  });
+
+  it("clears completedAt when moving back out of COMPLETED", async () => {
+    mockFindFirst.mockResolvedValue({
+      ...allChecked,
+      status: "COMPLETED",
+      completedAt: new Date(),
+    });
+    mockUpdate.mockResolvedValue({ ...allChecked, status: "IN_PROGRESS" });
+    await SurgicalChecklistService.update("sc-1", "org-1", {
+      status: "IN_PROGRESS",
+    });
+    expect(mockUpdate.mock.calls[0][0].data.completedAt).toBeNull();
+  });
+
+  it("leaves completedAt alone on a non-status edit", async () => {
+    mockFindFirst.mockResolvedValue(baseChecklist);
+    mockUpdate.mockResolvedValue({ ...baseChecklist, notes: "n" });
+    await SurgicalChecklistService.update("sc-1", "org-1", { notes: "n" });
+    expect(mockUpdate.mock.calls[0][0].data).not.toHaveProperty("completedAt");
   });
 
   it("throws 404 when not found", async () => {

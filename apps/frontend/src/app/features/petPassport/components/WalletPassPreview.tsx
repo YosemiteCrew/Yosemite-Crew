@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { QRCodeSVG } from 'qrcode.react';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { formatDisplayDate } from '@/app/lib/date';
+import { passportSexLabel } from '@yosemite-crew/types';
 import type { PetPassportDTO } from '@yosemite-crew/types';
 
 // Warm-bone wallet-pass preview (matches the PR #1675 wallet-pass service:
@@ -198,7 +199,9 @@ const WalletPassPreview = ({ passport, variant }: WalletPassPreviewProps) => {
                   {identity.name}
                 </span>
                 <span className="text-[12px]" style={{ color: 'var(--pml)' }}>
-                  {[species, identity.breed, identity.sex].filter(Boolean).join(' · ')}
+                  {[species, identity.breed, passportSexLabel(identity.sex)]
+                    .filter(Boolean)
+                    .join(' · ')}
                 </span>
               </span>
               <Image
@@ -285,7 +288,11 @@ const WalletPassPreview = ({ passport, variant }: WalletPassPreviewProps) => {
         </div>
         <div className="flex justify-between gap-3">
           <AppleField label="Breed" value={identity.breed} />
-          <AppleField label="Sex" value={identity.sex} align="right" />
+          <AppleField
+            label="Sex"
+            value={passportSexLabel(identity.sex) ?? 'Unknown'}
+            align="right"
+          />
         </div>
         <div className="mt-[2px] self-center">
           <Qr value={passNo} size={104} />

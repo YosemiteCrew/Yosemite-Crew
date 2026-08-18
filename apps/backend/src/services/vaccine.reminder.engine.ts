@@ -78,20 +78,32 @@ export const VaccineReminderEngine = {
 
         const patient = await prisma.patient.findUnique({
           where: { id: encounter.patientId },
-          select: { name: true },
+          select: { name: true, status: true },
         });
         if (!patient) continue;
+        // Never chase a vaccination for a pet that has been recorded deceased
+        // or otherwise deactivated.
+        if (patient.status !== "active") continue;
 
         const ownerUserId = await resolveOwnerUserId(encounter.patientId);
         if (!ownerUserId) continue;
 
-        await NotificationService.sendToUser(
-          ownerUserId,
-          NotificationTemplates.Care.VACCINE_REMINDER(patient.name),
-        );
-
-        await prisma.immunization.update({
-          where: { id: immunization.id },
+        // Claim the reminder BEFORE delivering it. Sending first and recording
+        // after is at-least-once: the catch below swallows a failed write, and
+        // because run() re-selects everything due inside the 14-day window, a
+        // persistent write failure would re-notify the owner once a day until
+        // the due date passes. The conditional updateMany also makes a
+        // concurrent run a no-op rather than a second push.
+        const claimed = await prisma.immunization.updateMany({
+          where: {
+            id: immunization.id,
+            NOT: {
+              metadata: {
+                path: ["vaccineReminder", "sentForDueDate"],
+                equals: dueIso,
+              },
+            },
+          },
           data: {
             metadata: {
               ...metadata,
@@ -99,6 +111,12 @@ export const VaccineReminderEngine = {
             },
           },
         });
+        if (claimed.count === 0) continue;
+
+        await NotificationService.sendToUser(
+          ownerUserId,
+          NotificationTemplates.Care.VACCINE_REMINDER(patient.name),
+        );
       } catch (error) {
         logger.error(
           `Failed vaccine reminder for immunization ${immunization.id}`,

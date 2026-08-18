@@ -101,24 +101,33 @@ export const DeceasedRecordService = {
       );
     }
 
-    const record = await prisma.deceasedRecord.create({
-      data: {
-        organisationId,
-        patientId,
-        deceasedAt: rest.deceasedAt,
-        causeOfDeathType: rest.causeOfDeathType,
-        causeOfDeathDetail: rest.causeOfDeathDetail ?? null,
-        bodyWeightKg: rest.bodyWeightKg ?? null,
-        bodyConditionScore: rest.bodyConditionScore ?? null,
-        necropsyRequested: rest.necropsyRequested ?? false,
-        necropsyFacility: rest.necropsyFacility ?? null,
-        bodyDisposition: rest.bodyDisposition ?? null,
-        ownerNotifiedAt: rest.ownerNotifiedAt ?? null,
-        certifiedBy: rest.certifiedBy ?? null,
-        notes: rest.notes ?? null,
-      },
-      select: deceasedRecordSelect,
-    });
+    // Deactivate the companion in the same transaction. Recording a death and
+    // leaving the patient active is what lets automated outreach - the daily
+    // vaccine reminder in particular - keep messaging a bereaved owner.
+    const [record] = await prisma.$transaction([
+      prisma.deceasedRecord.create({
+        data: {
+          organisationId,
+          patientId,
+          deceasedAt: rest.deceasedAt,
+          causeOfDeathType: rest.causeOfDeathType,
+          causeOfDeathDetail: rest.causeOfDeathDetail ?? null,
+          bodyWeightKg: rest.bodyWeightKg ?? null,
+          bodyConditionScore: rest.bodyConditionScore ?? null,
+          necropsyRequested: rest.necropsyRequested ?? false,
+          necropsyFacility: rest.necropsyFacility ?? null,
+          bodyDisposition: rest.bodyDisposition ?? null,
+          ownerNotifiedAt: rest.ownerNotifiedAt ?? null,
+          certifiedBy: rest.certifiedBy ?? null,
+          notes: rest.notes ?? null,
+        },
+        select: deceasedRecordSelect,
+      }),
+      prisma.patient.update({
+        where: { id: patientId },
+        data: { status: "inactive" },
+      }),
+    ]);
 
     await AuditTrailService.recordSafely({
       organisationId,

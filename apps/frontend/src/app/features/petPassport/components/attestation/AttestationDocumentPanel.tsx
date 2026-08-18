@@ -104,6 +104,17 @@ const PanelMessage = ({ children }: { children: React.ReactNode }) => (
 );
 
 /**
+ * A failed load is an error, not an empty state: it is announced and carries the
+ * danger ink every other failure in this flow uses, so it cannot be mistaken for
+ * "there is simply no file here".
+ */
+const PanelError = ({ children }: { children: React.ReactNode }) => (
+  <p role="alert" className="text-[12px] text-[var(--danger-text)]">
+    {children}
+  </p>
+);
+
+/**
  * The uploaded file itself, beside the parsed fields, so the vet attests what
  * they can actually see. Images render inline; every other type (a scanned PDF
  * certificate, most often) opens in a new tab, because the app's CSP allows
@@ -151,9 +162,9 @@ const AttestationDocumentPanel = ({
         <div className="h-32 animate-pulse rounded-[10px] bg-card-hover" aria-hidden="true" />
       )}
       {state === 'error' && (
-        <PanelMessage>
+        <PanelError>
           This file could not be loaded. Do not attest a record you cannot read.
-        </PanelMessage>
+        </PanelError>
       )}
       {state === 'unavailable' && (
         <PanelMessage>

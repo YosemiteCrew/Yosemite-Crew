@@ -365,9 +365,25 @@ describe("createClinicalHandlers", () => {
 });
 
 describe("orgParams and uuid", () => {
-  it("accepts a uuid organisation id and rejects anything else", () => {
+  // Ids are validated leniently: Mongo ObjectIds and Postgres UUIDs both
+  // circulate during the dual-write, and the passport-family controllers
+  // document the same rule as `looseId`. A strict `.uuid()` here 400'd a 24-hex
+  // organisation before the lookup ran, so the identical :organisationId
+  // segment that worked on /v1/pet-passport failed on every clinical route.
+  const OBJECT_ID = "665f1b2c3d4e5f6a7b8c9d0e";
+
+  it("accepts uuid and ObjectId organisation ids", () => {
     expect(orgParams.safeParse({ organisationId: ORG_ID }).success).toBe(true);
-    expect(orgParams.safeParse({ organisationId: "nope" }).success).toBe(false);
+    expect(orgParams.safeParse({ organisationId: OBJECT_ID }).success).toBe(
+      true,
+    );
+  });
+
+  it("still rejects empty and unbounded ids", () => {
+    expect(orgParams.safeParse({ organisationId: "" }).success).toBe(false);
+    expect(
+      orgParams.safeParse({ organisationId: "x".repeat(65) }).success,
+    ).toBe(false);
   });
 
   it("extends into a per-entity params schema", () => {
@@ -377,7 +393,10 @@ describe("orgParams and uuid", () => {
       schema.safeParse({ organisationId: ORG_ID, recordId: RECORD_ID }).success,
     ).toBe(true);
     expect(
-      schema.safeParse({ organisationId: ORG_ID, recordId: "nope" }).success,
+      schema.safeParse({ organisationId: ORG_ID, recordId: OBJECT_ID }).success,
+    ).toBe(true);
+    expect(
+      schema.safeParse({ organisationId: ORG_ID, recordId: "" }).success,
     ).toBe(false);
   });
 });
@@ -393,10 +412,14 @@ describe("patientScopeQuery", () => {
     ).toBe(true);
   });
 
-  it("rejects a non-uuid patient id", () => {
-    expect(patientScopeQuery.safeParse({ patientId: "nope" }).success).toBe(
-      false,
-    );
+  it("accepts an ObjectId patient id and rejects an unbounded one", () => {
+    expect(
+      patientScopeQuery.safeParse({ patientId: "665f1b2c3d4e5f6a7b8c9d0e" })
+        .success,
+    ).toBe(true);
+    expect(
+      patientScopeQuery.safeParse({ patientId: "x".repeat(65) }).success,
+    ).toBe(false);
   });
 });
 

@@ -138,10 +138,17 @@ runClinicalControllerSuite({
       params: { organisationId: ORG_ID, logId: RECORD_ID },
       body: { amountWasted: 1.5, wastedWitness: "Dr Reid" },
       serviceMethod: "update",
+      // correctedBy is stamped from the session and applied after the body
+      // spread, so the DEA audit actor for a correction can never be
+      // caller-controlled via `administeredBy`.
       expectArgs: [
         RECORD_ID,
         ORG_ID,
-        { amountWasted: 1.5, wastedWitness: "Dr Reid" },
+        {
+          amountWasted: 1.5,
+          wastedWitness: "Dr Reid",
+          correctedBy: "user_clinical_1",
+        },
       ],
       fallback: "Failed to update controlled substance log entry",
       invalidPayload: { amountWasted: -1 },
@@ -150,7 +157,9 @@ runClinicalControllerSuite({
       handler: "delete",
       params: { organisationId: ORG_ID, logId: RECORD_ID },
       serviceMethod: "delete",
-      expectArgs: [RECORD_ID, ORG_ID],
+      // Without voidedBy the service fell back to `existing.administeredBy`, so
+      // the VOID audit named the original administrator as the reverser.
+      expectArgs: [RECORD_ID, ORG_ID, { voidedBy: "user_clinical_1" }],
       status: 204,
       fallback: "Failed to delete controlled substance log entry",
     },

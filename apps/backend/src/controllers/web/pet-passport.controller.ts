@@ -94,8 +94,12 @@ const ExamBodySchema = z.object({
   examinedAt: ClinicalDateSchema,
   fitForTravel: z.boolean(),
   findings: z.string().max(2000).optional(),
-  weightKg: z.number().optional(),
-  temperatureC: z.number().optional(),
+  // Bounded so an impossible vital can never be attested into a passport:
+  // 200 kg covers equine/large-animal patients, 15-45 °C brackets survivable
+  // hypothermia through severe hyperthermia. Mirrored defensively in
+  // PetClinicalRecordService.recordClinicalExam for non-HTTP callers.
+  weightKg: z.number().positive().max(200).optional(),
+  temperatureC: z.number().min(15).max(45).optional(),
 });
 
 // The mobile app has no org context: the pet parent is authenticated and the
@@ -225,13 +229,32 @@ const parentPassport = (
 ): Promise<PetPassportDTO> =>
   PetPassportService.getPassportForParent(params.patientId, req.userId ?? null);
 
+/**
+ * Resolves the share token a staff-built pass may embed.
+ *
+ * Staff never mint: the token is an owner credential that resolves the public
+ * passport with `"owner"` scope, so a practice session minting one would both
+ * create a durable public share the owner never authorised and hand that staff
+ * member the cross-practice records the consent filter withholds from their own
+ * passport view. The owner creates the link from the mobile app first.
+ */
+const staffShareToken = async (patientId: string): Promise<string> => {
+  const token = await PetPassportService.getExistingPublicToken(patientId);
+  if (!token) {
+    throw new PetPassportServiceError(
+      "This passport has no active public share link. The pet's owner must create one from the app before a wallet pass can be issued.",
+      409,
+    );
+  }
+  return token;
+};
+
 /** Streams a signed .pkpass for an already-assembled passport. */
 const applePassResponse = async (
   passport: PetPassportDTO,
-  patientId: string,
+  shareToken: string,
   res: Response,
 ): Promise<Response> => {
-  const shareToken = await PetPassportService.ensurePublicToken(patientId);
   const pkpass = await WalletPassService.buildApplePass(passport, shareToken);
   res.setHeader("Content-Type", "application/vnd.apple.pkpass");
   res.setHeader(
@@ -242,12 +265,11 @@ const applePassResponse = async (
 };
 
 /** Answers with the Google Wallet save link for an assembled passport. */
-const googlePassResponse = async (
+const googlePassResponse = (
   passport: PetPassportDTO,
-  patientId: string,
+  shareToken: string,
   res: Response,
-): Promise<Response> => {
-  const shareToken = await PetPassportService.ensurePublicToken(patientId);
+): Response => {
   const saveUrl = WalletPassService.buildGoogleSaveUrl(passport, shareToken);
   return res.status(200).json({ saveUrl });
 };
@@ -340,10 +362,12 @@ export const PetPassportController = {
     body: RevokeBodySchema,
     bodyDefaultsToEmpty: true,
     fallback: "Clinical record revocation failed",
-    run: async ({ params, body, res }) => {
+    run: async ({ params, body, req, res }) => {
       const result = await PetClinicalRecordService.revokeRecord({
         artifactId: params.recordId,
+        patientId: params.patientId,
         organisationId: params.organisationId,
+        actor: pmsActor(req),
         reason: body.reason,
       });
       return res.status(200).json(result);
@@ -378,14 +402,22 @@ export const PetPassportController = {
     params: orgPatientParams,
     fallback: "Apple Wallet pass generation failed",
     run: async ({ params, res }) =>
-      applePassResponse(await orgPassport(params), params.patientId, res),
+      applePassResponse(
+        await orgPassport(params),
+        await staffShareToken(params.patientId),
+        res,
+      ),
   }),
 
   getGooglePass: passportHandler({
     params: orgPatientParams,
     fallback: "Google Wallet pass generation failed",
     run: async ({ params, res }) =>
-      googlePassResponse(await orgPassport(params), params.patientId, res),
+      googlePassResponse(
+        await orgPassport(params),
+        await staffShareToken(params.patientId),
+        res,
+      ),
   }),
 
   /**
@@ -412,7 +444,7 @@ export const PetPassportController = {
     run: async ({ params, req, res }) =>
       applePassResponse(
         await parentPassport(params, req),
-        params.patientId,
+        await PetPassportService.ensurePublicToken(params.patientId),
         res,
       ),
   }),
@@ -424,7 +456,7 @@ export const PetPassportController = {
     run: async ({ params, req, res }) =>
       googlePassResponse(
         await parentPassport(params, req),
-        params.patientId,
+        await PetPassportService.ensurePublicToken(params.patientId),
         res,
       ),
   }),

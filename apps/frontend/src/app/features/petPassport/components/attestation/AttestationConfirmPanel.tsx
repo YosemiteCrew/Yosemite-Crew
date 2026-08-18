@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useId } from 'react';
-import { Input } from '@/app/ui';
+import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 
 export type SignatoryDetails = {
   signatoryName: string;
@@ -16,39 +16,34 @@ type AttestationConfirmPanelProps = {
   disabled: boolean;
 };
 
-const LABEL_CLASS = 'text-[12px] font-semibold text-[var(--ink-soft)]';
-
+/**
+ * The app's labelled text field, so these two read exactly like the capture
+ * forms in the passport step rather than as a third field geometry. `readonly`
+ * is how FormInput expresses "not editable right now" - it has no `disabled`
+ * prop - and it is enough here, because every action is disabled while a
+ * request is in flight.
+ */
 const SignatoryField = ({
   label,
   value,
-  placeholder,
   disabled,
   onChange,
 }: {
   label: string;
   value: string;
-  placeholder: string;
   disabled: boolean;
   onChange: (value: string) => void;
-}) => {
-  const id = useId();
-  return (
-    <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-      <label htmlFor={id} className={LABEL_CLASS}>
-        {label}
-      </label>
-      <Input
-        id={id}
-        type="text"
-        value={value}
-        placeholder={placeholder}
-        disabled={disabled}
-        className="min-h-10! px-3.5! text-[12.5px]!"
-        onChange={(event) => onChange(event.target.value)}
-      />
-    </div>
-  );
-};
+}) => (
+  <div className="min-w-0 flex-1">
+    <FormInput
+      intype="text"
+      inlabel={label}
+      value={value}
+      readonly={disabled}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  </div>
+);
 
 /**
  * The legal half of the panel. Attesting a clinical record is a veterinary act
@@ -80,14 +75,12 @@ const AttestationConfirmPanel = ({
         <SignatoryField
           label="Signing veterinarian (optional)"
           value={signatory.signatoryName}
-          placeholder="Name as it should appear"
           disabled={disabled}
           onChange={(signatoryName) => onSignatoryChange({ ...signatory, signatoryName })}
         />
         <SignatoryField
           label="Licence number (optional)"
           value={signatory.signatoryLicence}
-          placeholder="Veterinary licence"
           disabled={disabled}
           onChange={(signatoryLicence) => onSignatoryChange({ ...signatory, signatoryLicence })}
         />
@@ -98,7 +91,7 @@ const AttestationConfirmPanel = ({
           type="checkbox"
           checked={confirmed}
           disabled={disabled}
-          className="mt-0.5 size-4 shrink-0 accent-[var(--cta)]"
+          className="mt-0.5 size-4 shrink-0 accent-text-primary"
           onChange={(event) => onConfirmedChange(event.target.checked)}
         />
         <label htmlFor={checkboxId} className="text-[12px] leading-relaxed text-[var(--ink-body)]">

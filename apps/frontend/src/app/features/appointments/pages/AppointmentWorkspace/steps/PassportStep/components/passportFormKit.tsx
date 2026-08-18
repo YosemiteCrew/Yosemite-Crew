@@ -1,5 +1,6 @@
 'use client';
 import React, { useCallback, useState } from 'react';
+import FormDesc from '@/app/ui/inputs/FormDesc/FormDesc';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
 import { Primary } from '@/app/ui/primitives/Buttons';
@@ -76,7 +77,7 @@ export const PassportFormFooter = ({
 }: PassportFormFooterProps) => (
   <>
     {submitError && (
-      <p role="alert" className="text-caption-1 text-danger-600">
+      <p role="alert" className="text-caption-1 text-text-error">
         {submitError}
       </p>
     )}
@@ -163,15 +164,18 @@ export type NotesFieldProps = {
   onChange: (value: string) => void;
 };
 
+/**
+ * The free-text half of a capture form. It is the shared `FormDesc` textarea
+ * rather than a local one so the notes field keeps the same 12px radius, 1.5px
+ * hairline, `--field-bg` fill and blue focus ring as every other field on the
+ * form - the hand-rolled copy this replaced had drifted off the focus
+ * affordance and carried no error slot at all.
+ */
 export const NotesField = ({ label, value, onChange }: NotesFieldProps) => (
-  <label className="flex flex-col gap-1.5">
-    <span className="text-[12.5px] font-semibold text-(--ink-soft)">{label}</span>
-    <textarea
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      aria-label={label}
-      rows={3}
-      className="rounded-[12px] border-[1.5px] border-(--hairline) bg-(--field-bg) px-[14px] py-2.5 text-[14px] text-(--ink-body) outline-none focus:border-(--blue)"
-    />
-  </label>
+  <FormDesc
+    intype="text"
+    inlabel={label}
+    value={value}
+    onChange={(event) => onChange(event.target.value)}
+  />
 );

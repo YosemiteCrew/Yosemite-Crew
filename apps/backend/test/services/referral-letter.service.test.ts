@@ -14,6 +14,7 @@ jest.mock("src/config/prisma", () => ({
       findFirst: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
     },
     patient: { findUnique: jest.fn() },
   },
@@ -34,6 +35,7 @@ const pm = prisma as unknown as {
     findFirst: jest.Mock;
     findMany: jest.Mock;
     update: jest.Mock;
+    updateMany: jest.Mock;
   };
   patient: { findUnique: jest.Mock };
 };
@@ -72,6 +74,7 @@ beforeEach(() => {
       Promise.resolve(makeLetter({ ...args.data })),
   );
   pm.referralLetter.findMany.mockResolvedValue([makeLetter()]);
+  pm.referralLetter.updateMany.mockResolvedValue({ count: 1 });
   pm.patient.findUnique.mockResolvedValue({ name: "Buddy" });
 });
 
@@ -225,27 +228,40 @@ describe("ReferralLetterService.sign", () => {
 // ---------------------------------------------------------------------------
 
 describe("ReferralLetterService.send", () => {
-  it("sends email and transitions to SENT", async () => {
-    pm.referralLetter.findFirst.mockResolvedValue(
-      makeLetter({ status: "SIGNED" }),
-    );
+  it("claims the send before mailing, then transitions to SENT", async () => {
+    pm.referralLetter.findFirst
+      .mockResolvedValueOnce(makeLetter({ status: "SIGNED" }))
+      .mockResolvedValue(makeLetter({ status: "SENT" }));
     const result = await ReferralLetterService.send(
       "letter-1",
       "org-1",
       "vet-1",
     );
-    expect(sendEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ to: "smith@cardiovet.com" }),
-    );
-    expect(pm.referralLetter.update).toHaveBeenCalledWith(
+    // The claim is a conditional updateMany, not an unguarded update.
+    expect(pm.referralLetter.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
+        where: { id: "letter-1", status: { in: ["DRAFT", "SIGNED"] } },
         data: expect.objectContaining({ status: "SENT" }),
       }),
+    );
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "smith@cardiovet.com" }),
     );
     expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: "REFERRAL_LETTER_SENT" }),
     );
     expect(result.status).toBe("SENT");
+  });
+
+  it("is an idempotent no-op when the letter was already sent", async () => {
+    pm.referralLetter.findFirst.mockResolvedValue(
+      makeLetter({ status: "SIGNED" }),
+    );
+    // Nothing matched the DRAFT/SIGNED claim: a concurrent request won it.
+    pm.referralLetter.updateMany.mockResolvedValue({ count: 0 });
+    const result = await ReferralLetterService.send("letter-1", "org-1");
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(result).toBeDefined();
   });
 
   it("also sends from DRAFT status", async () => {
@@ -264,7 +280,7 @@ describe("ReferralLetterService.send", () => {
     });
   });
 
-  it("502s when sendEmail throws", async () => {
+  it("502s and reverts the claim when sendEmail throws", async () => {
     pm.referralLetter.findFirst.mockResolvedValue(
       makeLetter({ status: "SIGNED" }),
     );
@@ -274,6 +290,14 @@ describe("ReferralLetterService.send", () => {
     ).rejects.toMatchObject({
       statusCode: 502,
     });
+    // The optimistic SENT claim is rolled back so the letter stays re-sendable
+    // exactly once rather than being stranded as SENT with no email delivered.
+    expect(pm.referralLetter.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "letter-1" },
+        data: { status: "SIGNED", sentAt: null },
+      }),
+    );
   });
 
   it("rejects CANCELLED letters", async () => {

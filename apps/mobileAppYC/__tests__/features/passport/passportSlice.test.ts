@@ -1,6 +1,7 @@
 import reducer, {
   fetchPassport,
   clearPassportError,
+  resetPassportState,
   ensurePassportAccessToken,
 } from '@/features/passport/passportSlice';
 import {passportApi} from '@/features/passport/services/passportService';
@@ -26,9 +27,17 @@ const mockIsTokenExpired = isTokenExpired as jest.Mock;
 describe('passportSlice', () => {
   const initialState = {
     byCompanionId: {},
-    loading: false,
-    error: null,
+    loadingByCompanionId: {},
+    errorByCompanionId: {},
   };
+
+  // The lifecycle reducers key off action.meta.arg, so raw dispatches in these
+  // tests have to carry the same meta the real thunk attaches.
+  const lifecycle = (
+    type: string,
+    companionId: string,
+    rest: Record<string, unknown> = {},
+  ) => ({type, meta: {arg: {companionId}}, ...rest});
 
   const mockAccessToken = 'mock-access-token';
   const mockExpiresAt = 1893456000000;
@@ -60,12 +69,26 @@ describe('passportSlice', () => {
     expect(reducer(undefined, {type: 'unknown'})).toEqual(initialState);
   });
 
-  it('clearPassportError clears the error field', () => {
-    const state = {...initialState, error: 'boom'};
-    expect(reducer(state, clearPassportError())).toEqual({
+  it('clearPassportError clears only the addressed companion error', () => {
+    const state = {
       ...initialState,
-      error: null,
+      errorByCompanionId: {'companion-123': 'boom', 'companion-456': 'bang'},
+    };
+    expect(reducer(state, clearPassportError('companion-123'))).toEqual({
+      ...initialState,
+      errorByCompanionId: {'companion-456': 'bang'},
     });
+  });
+
+  // Passport payloads carry the owner's name, email and phone, so an in-session
+  // account switch must not leave the previous account's cache behind.
+  it('resetPassportState wipes every cached passport and request flag', () => {
+    const state = {
+      byCompanionId: {'companion-123': mockPassport},
+      loadingByCompanionId: {'companion-123': true},
+      errorByCompanionId: {'companion-456': 'boom'},
+    };
+    expect(reducer(state, resetPassportState())).toEqual(initialState);
   });
 
   // The passport routes are authenticated and apiClient attaches nothing on its
@@ -117,18 +140,31 @@ describe('passportSlice', () => {
   });
 
   describe('fetchPassport thunk', () => {
-    it('sets loading true on pending', () => {
-      const state = reducer(initialState, {type: fetchPassport.pending.type});
-      expect(state.loading).toBe(true);
-      expect(state.error).toBeNull();
+    it('flags only the requested companion as loading on pending', () => {
+      const state = reducer(
+        {
+          ...initialState,
+          errorByCompanionId: {
+            'companion-123': 'stale',
+            'companion-456': 'keep',
+          },
+        },
+        lifecycle(fetchPassport.pending.type, 'companion-123'),
+      );
+      expect(state.loadingByCompanionId['companion-123']).toBe(true);
+      expect(state.loadingByCompanionId['companion-456']).toBeUndefined();
+      expect(state.errorByCompanionId['companion-123']).toBeUndefined();
+      expect(state.errorByCompanionId['companion-456']).toBe('keep');
     });
 
     it('stores the passport keyed by companionId on fulfilled', () => {
-      const state = reducer(initialState, {
-        type: fetchPassport.fulfilled.type,
-        payload: {companionId: 'companion-123', passport: mockPassport},
-      });
-      expect(state.loading).toBe(false);
+      const state = reducer(
+        initialState,
+        lifecycle(fetchPassport.fulfilled.type, 'companion-123', {
+          payload: {companionId: 'companion-123', passport: mockPassport},
+        }),
+      );
+      expect(state.loadingByCompanionId['companion-123']).toBe(false);
       expect(state.byCompanionId['companion-123']).toEqual(mockPassport);
     });
 
@@ -138,42 +174,96 @@ describe('passportSlice', () => {
           ...initialState,
           byCompanionId: {'companion-123': mockPassport},
         },
-        {
-          type: fetchPassport.fulfilled.type,
+        lifecycle(fetchPassport.fulfilled.type, 'companion-123', {
           payload: {companionId: 'companion-123', passport: null},
-        },
+        }),
       );
-      expect(state.loading).toBe(false);
+      expect(state.loadingByCompanionId['companion-123']).toBe(false);
       expect(state.byCompanionId['companion-123']).toBeUndefined();
-      expect(state.error).toBeNull();
+      expect(state.errorByCompanionId['companion-123']).toBeUndefined();
     });
 
     it('sets the error message on rejected', () => {
-      const state = reducer(initialState, {
-        type: fetchPassport.rejected.type,
-        payload: 'Failed to load passport',
-        error: {message: 'Failed to load passport'},
-      });
-      expect(state.loading).toBe(false);
-      expect(state.error).toBe('Failed to load passport');
+      const state = reducer(
+        initialState,
+        lifecycle(fetchPassport.rejected.type, 'companion-123', {
+          payload: 'Failed to load passport',
+          error: {message: 'Failed to load passport'},
+        }),
+      );
+      expect(state.loadingByCompanionId['companion-123']).toBe(false);
+      expect(state.errorByCompanionId['companion-123']).toBe(
+        'Failed to load passport',
+      );
+    });
+
+    // Backing out of pet A into pet B leaves A's request in flight; when it
+    // later fails it must not paint an error over B's screen.
+    it('confines a late rejection to the companion it was requested for', () => {
+      const afterBPending = reducer(
+        initialState,
+        lifecycle(fetchPassport.pending.type, 'companion-b'),
+      );
+      const afterALateRejection = reducer(
+        afterBPending,
+        lifecycle(fetchPassport.rejected.type, 'companion-a', {
+          payload: 'Your session expired. Please sign in again.',
+          error: {message: 'Your session expired. Please sign in again.'},
+        }),
+      );
+
+      expect(afterALateRejection.errorByCompanionId['companion-a']).toBe(
+        'Your session expired. Please sign in again.',
+      );
+      expect(
+        afterALateRejection.errorByCompanionId['companion-b'],
+      ).toBeUndefined();
+      expect(afterALateRejection.loadingByCompanionId['companion-b']).toBe(
+        true,
+      );
+    });
+
+    it('confines a late fulfilment to the companion it was requested for', () => {
+      const afterBPending = reducer(
+        initialState,
+        lifecycle(fetchPassport.pending.type, 'companion-b'),
+      );
+      const afterALateFulfilment = reducer(
+        afterBPending,
+        lifecycle(fetchPassport.fulfilled.type, 'companion-a', {
+          payload: {companionId: 'companion-a', passport: mockPassport},
+        }),
+      );
+
+      expect(afterALateFulfilment.byCompanionId['companion-a']).toEqual(
+        mockPassport,
+      );
+      expect(afterALateFulfilment.byCompanionId['companion-b']).toBeUndefined();
+      expect(afterALateFulfilment.loadingByCompanionId['companion-b']).toBe(
+        true,
+      );
     });
 
     it('falls back to action.error.message when no rejectValue payload is present', () => {
-      const state = reducer(initialState, {
-        type: fetchPassport.rejected.type,
-        payload: undefined,
-        error: {message: 'Network error'},
-      });
-      expect(state.error).toBe('Network error');
+      const state = reducer(
+        initialState,
+        lifecycle(fetchPassport.rejected.type, 'companion-123', {
+          payload: undefined,
+          error: {message: 'Network error'},
+        }),
+      );
+      expect(state.errorByCompanionId['companion-123']).toBe('Network error');
     });
 
     it('falls back to null when neither payload nor error.message is present', () => {
-      const state = reducer(initialState, {
-        type: fetchPassport.rejected.type,
-        payload: undefined,
-        error: {},
-      });
-      expect(state.error).toBeNull();
+      const state = reducer(
+        initialState,
+        lifecycle(fetchPassport.rejected.type, 'companion-123', {
+          payload: undefined,
+          error: {},
+        }),
+      );
+      expect(state.errorByCompanionId['companion-123']).toBeNull();
     });
 
     it('rejects with a message when companionId is missing', async () => {

@@ -4,7 +4,11 @@ import { NotificationService } from "src/services/notification.service";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
-    immunization: { findMany: jest.fn(), update: jest.fn() },
+    immunization: {
+      findMany: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+    },
     encounter: { findUnique: jest.fn() },
     patient: { findUnique: jest.fn() },
     parentPatient: { findFirst: jest.fn() },
@@ -22,7 +26,11 @@ jest.mock("src/utils/logger", () => ({
 }));
 
 const mocked = prisma as unknown as {
-  immunization: { findMany: jest.Mock; update: jest.Mock };
+  immunization: {
+    findMany: jest.Mock;
+    update: jest.Mock;
+    updateMany: jest.Mock;
+  };
   encounter: { findUnique: jest.Mock };
   patient: { findUnique: jest.Mock };
   parentPatient: { findFirst: jest.Mock };
@@ -42,7 +50,10 @@ const immunizationRow = (overrides: Record<string, unknown> = {}) => ({
 
 const wireOwner = () => {
   mocked.encounter.findUnique.mockResolvedValue({ patientId: "pat-1" });
-  mocked.patient.findUnique.mockResolvedValue({ name: "Biscuit" });
+  mocked.patient.findUnique.mockResolvedValue({
+    name: "Biscuit",
+    status: "active",
+  });
   mocked.parentPatient.findFirst.mockResolvedValue({ parentId: "par-1" });
   mocked.parent.findUnique.mockResolvedValue({ linkedUserId: "user-1" });
 };
@@ -52,6 +63,8 @@ describe("VaccineReminderEngine", () => {
     jest.clearAllMocks();
     mockedSend.mockResolvedValue([]);
     mocked.immunization.update.mockResolvedValue({});
+    // The reminder is claimed with a conditional updateMany before delivery.
+    mocked.immunization.updateMany.mockResolvedValue({ count: 1 });
   });
 
   it("reminds the owner of a due vaccination and records the send", async () => {
@@ -75,8 +88,16 @@ describe("VaccineReminderEngine", () => {
       "user-1",
       expect.objectContaining({ title: "Vaccination Due 🩺" }),
     );
-    expect(mocked.immunization.update).toHaveBeenCalledWith({
-      where: { id: "imm-1" },
+    expect(mocked.immunization.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "imm-1",
+        NOT: {
+          metadata: {
+            path: ["vaccineReminder", "sentForDueDate"],
+            equals: dueDate.toISOString(),
+          },
+        },
+      },
       data: {
         metadata: {
           vaccineReminder: { sentForDueDate: dueDate.toISOString() },
@@ -93,15 +114,16 @@ describe("VaccineReminderEngine", () => {
 
     await VaccineReminderEngine.run();
 
-    expect(mocked.immunization.update).toHaveBeenCalledWith({
-      where: { id: "imm-1" },
-      data: {
-        metadata: {
-          source: "encounter",
-          vaccineReminder: { sentForDueDate: dueDate.toISOString() },
+    expect(mocked.immunization.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          metadata: {
+            source: "encounter",
+            vaccineReminder: { sentForDueDate: dueDate.toISOString() },
+          },
         },
-      },
-    });
+      }),
+    );
   });
 
   it("skips a record already reminded for the same due date", async () => {
@@ -116,7 +138,7 @@ describe("VaccineReminderEngine", () => {
     await VaccineReminderEngine.run();
 
     expect(mockedSend).not.toHaveBeenCalled();
-    expect(mocked.immunization.update).not.toHaveBeenCalled();
+    expect(mocked.immunization.updateMany).not.toHaveBeenCalled();
   });
 
   it("skips records with no due date or no encounter", async () => {
@@ -141,7 +163,10 @@ describe("VaccineReminderEngine", () => {
     mocked.patient.findUnique.mockResolvedValueOnce(null);
     await VaccineReminderEngine.run();
 
-    mocked.patient.findUnique.mockResolvedValue({ name: "Biscuit" });
+    mocked.patient.findUnique.mockResolvedValue({
+      name: "Biscuit",
+      status: "active",
+    });
     mocked.parentPatient.findFirst.mockResolvedValueOnce(null);
     await VaccineReminderEngine.run();
 
@@ -150,7 +175,7 @@ describe("VaccineReminderEngine", () => {
     await VaccineReminderEngine.run();
 
     expect(mockedSend).not.toHaveBeenCalled();
-    expect(mocked.immunization.update).not.toHaveBeenCalled();
+    expect(mocked.immunization.updateMany).not.toHaveBeenCalled();
   });
 
   it("logs and continues when a reminder fails to send", async () => {
@@ -163,8 +188,34 @@ describe("VaccineReminderEngine", () => {
 
     await expect(VaccineReminderEngine.run()).resolves.toBeUndefined();
 
-    // First record threw; second still sent + recorded.
+    // First record threw after being claimed; second still claimed + sent.
     expect(mockedSend).toHaveBeenCalledTimes(2);
-    expect(mocked.immunization.update).toHaveBeenCalledTimes(1);
+    expect(mocked.immunization.updateMany).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not send when the claim was already taken", async () => {
+    // Send-then-record was at-least-once: a swallowed write failure re-notified
+    // the owner once a day until the due date passed. The claim comes first now.
+    mocked.immunization.findMany.mockResolvedValue([immunizationRow()]);
+    wireOwner();
+    mocked.immunization.updateMany.mockResolvedValue({ count: 0 });
+
+    await VaccineReminderEngine.run();
+
+    expect(mockedSend).not.toHaveBeenCalled();
+  });
+
+  it("does not chase a vaccination for a deceased pet", async () => {
+    mocked.immunization.findMany.mockResolvedValue([immunizationRow()]);
+    wireOwner();
+    mocked.patient.findUnique.mockResolvedValue({
+      name: "Biscuit",
+      status: "inactive",
+    });
+
+    await VaccineReminderEngine.run();
+
+    expect(mockedSend).not.toHaveBeenCalled();
+    expect(mocked.immunization.updateMany).not.toHaveBeenCalled();
   });
 });

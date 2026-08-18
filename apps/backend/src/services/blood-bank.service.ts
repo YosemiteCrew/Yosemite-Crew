@@ -120,6 +120,20 @@ const donationSelect = {
   updatedAt: true,
 } satisfies Prisma.BloodDonationCollectionSelect;
 
+/**
+ * A collected unit only ever moves forward. TRANSFUSED, EXPIRED and DISCARDED
+ * are terminal: without this a used or condemned unit could be flipped back to
+ * AVAILABLE and re-listed for issue to a second patient.
+ */
+const ALLOWED_DONATION_TRANSITIONS: Record<DonationStatus, DonationStatus[]> = {
+  COLLECTED: ["PROCESSED", "DISCARDED", "EXPIRED"],
+  PROCESSED: ["AVAILABLE", "DISCARDED", "EXPIRED"],
+  AVAILABLE: ["TRANSFUSED", "EXPIRED", "DISCARDED"],
+  TRANSFUSED: [],
+  EXPIRED: [],
+  DISCARDED: [],
+};
+
 const assertDonor = async (id: string, organisationId: string) => {
   const record = await prisma.bloodBankDonor.findFirst({
     where: { id, organisationId },
@@ -317,7 +331,18 @@ export const BloodBankService = {
     organisationId: string,
     params: UpdateDonationParams,
   ) {
-    await assertDonation(id, organisationId);
+    const current = await assertDonation(id, organisationId);
+
+    if (params.status !== undefined && params.status !== current.status) {
+      if (
+        !ALLOWED_DONATION_TRANSITIONS[current.status].includes(params.status)
+      ) {
+        throw new BloodBankError(
+          `Blood unit cannot move from ${current.status} to ${params.status}.`,
+          409,
+        );
+      }
+    }
 
     const data: Prisma.BloodDonationCollectionUpdateInput = {};
     if (params.status !== undefined) data.status = params.status;

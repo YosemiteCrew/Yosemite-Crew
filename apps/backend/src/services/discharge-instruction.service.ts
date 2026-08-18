@@ -217,11 +217,24 @@ export const DischargeInstructionService = {
     return updated;
   },
 
-  async acknowledge(id: string, organisationId: string) {
+  async acknowledge(
+    id: string,
+    organisationId: string,
+    acknowledgedBy?: string,
+  ) {
     const record = await assertDischarge(id, organisationId);
     if (record.status === "ACKNOWLEDGED") {
       throw new DischargeInstructionError(
         "Discharge instructions already acknowledged.",
+        409,
+      );
+    }
+    // Acknowledgement is evidence the owner received the instructions, so it
+    // only follows a send. Without this a DRAFT could be flipped straight to
+    // ACKNOWLEDGED for instructions that were never delivered.
+    if (record.status !== "SENT") {
+      throw new DischargeInstructionError(
+        "Only SENT discharge instructions can be acknowledged.",
         409,
       );
     }
@@ -236,8 +249,12 @@ export const DischargeInstructionService = {
       organisationId,
       patientId: record.patientId,
       eventType: "DISCHARGE_INSTRUCTIONS_ACKNOWLEDGED",
-      actorType: "PARENT",
-      actorId: null,
+      // This route is staff-only, so the actor is the staff member recording
+      // the acknowledgement on the owner's behalf. `PARENT` is reserved for a
+      // genuinely owner-authenticated route; claiming it here would fabricate
+      // owner-consent evidence.
+      actorType: "PMS_USER",
+      actorId: acknowledgedBy ?? null,
       entityType: "COMPANION",
       entityId: id,
       metadata: {},

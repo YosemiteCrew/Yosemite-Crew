@@ -104,11 +104,16 @@ export const ControlledSubstanceLogController = {
     params: LogParamsSchema,
     body: UpdateBodySchema,
     fallback: "Failed to update controlled substance log entry",
-    run: ({ params, input }) =>
+    run: ({ params, input, userId }) =>
       ControlledSubstanceLogService.update(
         params.logId,
         params.organisationId,
-        input,
+        {
+          ...input,
+          // Applied after the spread so the DEA audit actor is always the
+          // authenticated corrector, never a caller-supplied `administeredBy`.
+          correctedBy: userId,
+        },
       ),
   }),
 
@@ -116,7 +121,13 @@ export const ControlledSubstanceLogController = {
     params: LogParamsSchema,
     status: 204,
     fallback: "Failed to delete controlled substance log entry",
-    run: ({ params }) =>
-      ControlledSubstanceLogService.delete(params.logId, params.organisationId),
+    run: ({ params, userId }) =>
+      ControlledSubstanceLogService.delete(
+        params.logId,
+        params.organisationId,
+        {
+          voidedBy: userId,
+        },
+      ),
   }),
 };

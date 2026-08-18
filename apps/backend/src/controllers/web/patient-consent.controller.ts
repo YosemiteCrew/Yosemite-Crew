@@ -24,7 +24,9 @@ const GrantBodySchema = z.object({
   patientId: z.string().uuid(),
   consentType: ConsentTypeEnum,
   procedureDesc: z.string().max(2000).optional(),
-  consentedBy: z.string().max(200).optional(),
+  // `consentedBy` is deliberately NOT accepted from the body: the service uses
+  // it as the CONSENT_GRANTED audit actor, so it may only ever come from the
+  // authenticated session. `consentedByName` is the free-text human field.
   consentedByName: z.string().max(200).optional(),
   consentedAt: z.string().datetime().optional(),
   expiresAt: z.string().datetime().optional(),
@@ -68,8 +70,8 @@ export const PatientConsentController = {
       const { consentedAt, expiresAt, ...rest } = input;
       return PatientConsentService.grant({
         organisationId: params.organisationId,
-        ...(userId ? { consentedBy: userId } : {}),
         ...rest,
+        ...(userId ? { consentedBy: userId } : {}),
         ...(consentedAt ? { consentedAt: new Date(consentedAt) } : {}),
         ...(expiresAt ? { expiresAt: new Date(expiresAt) } : {}),
       });

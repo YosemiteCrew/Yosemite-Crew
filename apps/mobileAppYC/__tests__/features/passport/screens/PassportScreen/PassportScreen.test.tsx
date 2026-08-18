@@ -189,6 +189,21 @@ const buildStore = (preloadedState?: any) =>
     preloadedState,
   });
 
+// The slice keys its request flags by companionId, so the preloaded fixtures
+// spell the maps out rather than a single global loading/error pair.
+const passportState = (
+  byCompanionId: Record<string, any> = {},
+  overrides: {
+    loadingByCompanionId?: Record<string, boolean>;
+    errorByCompanionId?: Record<string, string | null>;
+  } = {},
+) => ({
+  byCompanionId,
+  loadingByCompanionId: {},
+  errorByCompanionId: {},
+  ...overrides,
+});
+
 const emptyDocumentsState = {
   documents: [],
   loading: false,
@@ -283,7 +298,10 @@ describe('PassportScreen', () => {
 
   it('shows a loading state while the passport is being fetched', () => {
     const store = buildStore({
-      passport: {byCompanionId: {}, loading: true, error: null},
+      passport: passportState(
+        {},
+        {loadingByCompanionId: {[mockCompanionId]: true}},
+      ),
     });
 
     const {getByTestId} = render(
@@ -297,11 +315,10 @@ describe('PassportScreen', () => {
 
   it('shows an error state when the fetch fails and no passport is cached', () => {
     const store = buildStore({
-      passport: {
-        byCompanionId: {},
-        loading: false,
-        error: 'Passport not found.',
-      },
+      passport: passportState(
+        {},
+        {errorByCompanionId: {[mockCompanionId]: 'Passport not found.'}},
+      ),
     });
 
     const {getByText} = render(
@@ -315,7 +332,7 @@ describe('PassportScreen', () => {
 
   it('shows an empty state when there is no passport and no error', () => {
     const store = buildStore({
-      passport: {byCompanionId: {}, loading: false, error: null},
+      passport: passportState(),
     });
 
     const {getByText} = render(
@@ -329,13 +346,57 @@ describe('PassportScreen', () => {
     ).toBeTruthy();
   });
 
+  // Backing out of one pet into another leaves the first fetch in flight; its
+  // flags are keyed by companionId so they cannot drive this pet's screen.
+  it('ignores a loading flag belonging to a different companion', () => {
+    const store = buildStore({
+      passport: passportState(
+        {},
+        {loadingByCompanionId: {'other-companion': true}},
+      ),
+    });
+
+    const {queryByTestId, getByText} = render(
+      <Provider store={store}>
+        <PassportScreen />
+      </Provider>,
+    );
+
+    expect(queryByTestId('gif-loader')).toBeNull();
+    expect(
+      getByText('No passport has been issued for this pet yet.'),
+    ).toBeTruthy();
+  });
+
+  it('ignores an error belonging to a different companion', () => {
+    const store = buildStore({
+      passport: passportState(
+        {},
+        {
+          errorByCompanionId: {
+            'other-companion': 'Your session expired. Please sign in again.',
+          },
+        },
+      ),
+    });
+
+    const {queryByText, getByText} = render(
+      <Provider store={store}>
+        <PassportScreen />
+      </Provider>,
+    );
+
+    expect(
+      queryByText('Your session expired. Please sign in again.'),
+    ).toBeNull();
+    expect(
+      getByText('No passport has been issued for this pet yet.'),
+    ).toBeTruthy();
+  });
+
   it('renders the passport identity, issuance, and record sections when data is present', () => {
     const store = buildStore({
-      passport: {
-        byCompanionId: {[mockCompanionId]: mockPassport},
-        loading: false,
-        error: null,
-      },
+      passport: passportState({[mockCompanionId]: mockPassport}),
     });
 
     const {getByText, getAllByText} = render(
@@ -358,7 +419,7 @@ describe('PassportScreen', () => {
 
   it('renders the localised screen title', () => {
     const store = buildStore({
-      passport: {byCompanionId: {}, loading: false, error: null},
+      passport: passportState(),
     });
 
     const {getByText} = render(
@@ -372,11 +433,7 @@ describe('PassportScreen', () => {
 
   it('pluralises the record count on each section', () => {
     const store = buildStore({
-      passport: {
-        byCompanionId: {[mockCompanionId]: mockPassport},
-        loading: false,
-        error: null,
-      },
+      passport: passportState({[mockCompanionId]: mockPassport}),
     });
 
     const {getAllByText} = render(
@@ -391,16 +448,12 @@ describe('PassportScreen', () => {
 
   it('falls back to the on-record subtitle when the rabies shot has no next due date', () => {
     const store = buildStore({
-      passport: {
-        byCompanionId: {
-          [mockCompanionId]: {
-            ...mockPassport,
-            rabies: {...mockPassport.rabies, nextDueDate: undefined},
-          },
+      passport: passportState({
+        [mockCompanionId]: {
+          ...mockPassport,
+          rabies: {...mockPassport.rabies, nextDueDate: undefined},
         },
-        loading: false,
-        error: null,
-      },
+      }),
     });
 
     const {getByText} = render(
@@ -436,11 +489,7 @@ describe('PassportScreen', () => {
       ],
     } as any;
     const store = buildStore({
-      passport: {
-        byCompanionId: {[mockCompanionId]: minimalPassport},
-        loading: false,
-        error: null,
-      },
+      passport: passportState({[mockCompanionId]: minimalPassport}),
     });
 
     const {getByText, queryByText} = render(
@@ -460,7 +509,7 @@ describe('PassportScreen', () => {
   it('does not dispatch fetchPassport when companionId is missing from route params', () => {
     mockUseRoute.mockReturnValueOnce({params: {companionId: ''}});
     const store = buildStore({
-      passport: {byCompanionId: {}, loading: false, error: null},
+      passport: passportState(),
     });
 
     render(
@@ -474,7 +523,7 @@ describe('PassportScreen', () => {
 
   it('navigates back when the header back button is pressed', () => {
     const store = buildStore({
-      passport: {byCompanionId: {}, loading: false, error: null},
+      passport: passportState(),
     });
 
     const {getByTestId} = render(
@@ -489,7 +538,7 @@ describe('PassportScreen', () => {
 
   it('dispatches fetchPassport for the routed companionId on mount', () => {
     const store = buildStore({
-      passport: {byCompanionId: {}, loading: false, error: null},
+      passport: passportState(),
     });
     const dispatchSpy = jest.spyOn(store, 'dispatch');
 
@@ -507,7 +556,7 @@ describe('PassportScreen', () => {
 
   it('dispatches fetchDocuments for the routed companionId on mount', () => {
     const store = buildStore({
-      passport: {byCompanionId: {}, loading: false, error: null},
+      passport: passportState(),
     });
     const dispatchSpy = jest.spyOn(store, 'dispatch');
 
@@ -544,7 +593,7 @@ describe('PassportScreen', () => {
 
     it('shows an empty prompt when no historical records have been uploaded', () => {
       const store = buildStore({
-        passport: {byCompanionId: {}, loading: false, error: null},
+        passport: passportState(),
         documents: emptyDocumentsState,
       });
 
@@ -559,7 +608,7 @@ describe('PassportScreen', () => {
 
     it('lists uploaded historical records as pending review', () => {
       const store = buildStore({
-        passport: {byCompanionId: {}, loading: false, error: null},
+        passport: passportState(),
         documents: {...emptyDocumentsState, documents: [mockHistoricalDoc]},
       });
 
@@ -576,7 +625,7 @@ describe('PassportScreen', () => {
 
     it('omits the date row for a historical record with no issue date', () => {
       const store = buildStore({
-        passport: {byCompanionId: {}, loading: false, error: null},
+        passport: passportState(),
         documents: {
           ...emptyDocumentsState,
           documents: [{...mockHistoricalDoc, issueDate: undefined}],
@@ -595,7 +644,7 @@ describe('PassportScreen', () => {
 
     it('excludes documents for a different companion, category, or subcategory', () => {
       const store = buildStore({
-        passport: {byCompanionId: {}, loading: false, error: null},
+        passport: passportState(),
         documents: {
           ...emptyDocumentsState,
           documents: [
@@ -618,11 +667,7 @@ describe('PassportScreen', () => {
 
     it('shows the uploads section on the populated passport view too', () => {
       const store = buildStore({
-        passport: {
-          byCompanionId: {[mockCompanionId]: mockPassport},
-          loading: false,
-          error: null,
-        },
+        passport: passportState({[mockCompanionId]: mockPassport}),
         documents: {...emptyDocumentsState, documents: [mockHistoricalDoc]},
       });
 
@@ -657,11 +702,7 @@ describe('PassportScreen', () => {
         title: 'Second historical record',
       };
       const store = buildStore({
-        passport: {
-          byCompanionId: {[mockCompanionId]: multiRecordPassport},
-          loading: false,
-          error: null,
-        },
+        passport: passportState({[mockCompanionId]: multiRecordPassport}),
         documents: {
           ...emptyDocumentsState,
           documents: [mockHistoricalDoc, secondHistoricalDoc],
@@ -682,7 +723,7 @@ describe('PassportScreen', () => {
 
     it('selects the companion and navigates to a pre-filled AddDocument screen on upload', () => {
       const store = buildStore({
-        passport: {byCompanionId: {}, loading: false, error: null},
+        passport: passportState(),
         documents: emptyDocumentsState,
       });
       const dispatchSpy = jest.spyOn(store, 'dispatch');
@@ -711,11 +752,7 @@ describe('PassportScreen', () => {
   describe('wallet buttons', () => {
     const buildPopulatedStore = () =>
       buildStore({
-        passport: {
-          byCompanionId: {[mockCompanionId]: mockPassport},
-          loading: false,
-          error: null,
-        },
+        passport: passportState({[mockCompanionId]: mockPassport}),
       });
 
     afterEach(() => {

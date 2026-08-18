@@ -21,6 +21,7 @@ jest.mock("src/config/prisma", () => ({
       update: jest.fn(),
       updateMany: jest.fn(),
     },
+    $transaction: jest.fn(),
   },
 }));
 
@@ -44,6 +45,7 @@ const prismaMock = prisma as unknown as {
   parentPatient: { findFirst: jest.Mock };
   patientOrganisation: { findFirst: jest.Mock };
   companionShareToken: Record<string, jest.Mock>;
+  $transaction: jest.Mock;
 };
 const auditMock = AuditTrailService.recordSafely as jest.Mock;
 const notifyMock = NotificationService.sendToUser as jest.Mock;
@@ -100,6 +102,11 @@ const savedCardBaseUrl = process.env.PUBLIC_CARD_BASE_URL;
 beforeEach(() => {
   jest.clearAllMocks();
   process.env.PUBLIC_CARD_BASE_URL = CARD_BASE_URL;
+  // PUBLIC token rotation + re-issue run in one interactive transaction, so the
+  // callback is handed the same mocked client the service would get.
+  prismaMock.$transaction.mockImplementation((fn: (tx: unknown) => unknown) =>
+    fn(prismaMock),
+  );
   prismaMock.patient.findUnique.mockResolvedValue(PATIENT);
   prismaMock.parent.findUnique.mockResolvedValue(PARENT);
   prismaMock.parentPatient.findFirst.mockResolvedValue({
@@ -233,6 +240,22 @@ describe("CompanionCardService token lifecycle", () => {
         where: { patientId: "pat-1", audience: "PUBLIC", revokedAt: null },
       }),
     );
+  });
+
+  it("rotates and re-issues a PUBLIC token inside one transaction", async () => {
+    // Unserialised, two requests could both revoke before either inserts,
+    // leaving two live PUBLIC tokens; a failed insert would leave the collar QR
+    // revoked with no replacement.
+    await CompanionCardService.issueShareToken({
+      patientId: "pat-1",
+      organisationId: "org-1",
+      audience: "PUBLIC",
+      actor: { type: "PMS_USER", id: "user-1" },
+    });
+    expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
+    const txFn = prismaMock.$transaction.mock.calls[0][0];
+    expect(typeof txFn).toBe("function");
+    expect(prismaMock.companionShareToken.create).toHaveBeenCalled();
   });
 
   it("caps a REFERRAL ttl above the 30-day maximum", async () => {

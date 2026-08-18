@@ -1,5 +1,6 @@
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
+import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 import type { Prisma } from "@prisma/client";
 
 export class PatientAllergyError extends Error {
@@ -89,6 +90,12 @@ export const PatientAllergyService = {
       notes,
       recordedBy,
     } = params;
+
+    // PatientAllergy carries a bare patientId with no relation to Patient, so
+    // nothing downstream would reject a nonexistent or foreign-tenant id.
+    await assertPatientOrgMembership(patientId, organisationId, () => {
+      throw new PatientAllergyError("Companion not found.", 404);
+    });
 
     const allergy = await prisma.patientAllergy.create({
       data: {

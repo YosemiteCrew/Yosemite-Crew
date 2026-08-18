@@ -20,15 +20,18 @@ type PetPassportModalProps = {
   onClose: () => void;
 };
 
+type PetPassportModalContentProps = Omit<PetPassportModalProps, 'open'>;
+
 type LoadState = 'loading' | 'ready' | 'error';
 type WalletTarget = 'apple' | 'google' | null;
 
-const PetPassportModal = ({ open, companionId, companionName, onClose }: PetPassportModalProps) => {
+const PetPassportModalContent = ({
+  companionId,
+  companionName,
+  onClose,
+}: PetPassportModalContentProps) => {
   const [passport, setPassport] = useState<PetPassportDTO | null>(null);
-  // Which companion the current passport / failure belongs to, so the load
-  // state can be derived rather than reset synchronously inside the effect.
-  const [loadedFor, setLoadedFor] = useState<string | null>(null);
-  const [failedFor, setFailedFor] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState<WalletTarget>(null);
   const { notify } = useNotify();
   // useNotify returns a fresh `notify` each render; hold it in a ref so the
@@ -39,17 +42,15 @@ const PetPassportModal = ({ open, companionId, companionName, onClose }: PetPass
   }, [notify]);
 
   useEffect(() => {
-    if (!open) return;
     let active = true;
     getPetPassport(companionId)
       .then((data) => {
         if (!active) return;
         setPassport(data);
-        setLoadedFor(companionId);
       })
       .catch(() => {
         if (!active) return;
-        setFailedFor(companionId);
+        setFailed(true);
         notifyRef.current('error', {
           title: 'Passport unavailable',
           text: 'The pet passport could not be loaded.',
@@ -58,13 +59,11 @@ const PetPassportModal = ({ open, companionId, companionName, onClose }: PetPass
     return () => {
       active = false;
     };
-  }, [open, companionId]);
+  }, [companionId]);
 
   let state: LoadState = 'loading';
-  if (failedFor === companionId) state = 'error';
-  else if (loadedFor === companionId) state = 'ready';
-
-  if (!open) return null;
+  if (failed) state = 'error';
+  else if (passport) state = 'ready';
 
   const petName = companionName.split(' ')[0] || companionName;
 
@@ -96,7 +95,7 @@ const PetPassportModal = ({ open, companionId, companionName, onClose }: PetPass
   };
 
   return (
-    <CenterModal showModal={open} setShowModal={() => onClose()} onClose={onClose}>
+    <CenterModal showModal setShowModal={() => onClose()} onClose={onClose}>
       <ModalHeader title={`${petName}'s passport`} onClose={onClose} />
       <div className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto p-1">
         {state === 'loading' && (
@@ -131,6 +130,15 @@ const PetPassportModal = ({ open, companionId, companionName, onClose }: PetPass
       </div>
     </CenterModal>
   );
+};
+
+// The load state lives in the content component so it cannot outlive a single
+// viewing: closing unmounts it, and the companion key remounts it when the user
+// switches pets. Keeping the state here instead would latch a failed load - a
+// passport that 500s once would keep showing the error on every later open.
+const PetPassportModal = ({ open, companionId, ...rest }: PetPassportModalProps) => {
+  if (!open) return null;
+  return <PetPassportModalContent key={companionId} companionId={companionId} {...rest} />;
 };
 
 export default PetPassportModal;

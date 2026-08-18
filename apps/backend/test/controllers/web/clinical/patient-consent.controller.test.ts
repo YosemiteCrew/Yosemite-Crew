@@ -57,13 +57,15 @@ runClinicalControllerSuite({
     {
       handler: "grant",
       params: { organisationId: ORG_ID },
-      // An explicit `consentedBy` in the body must win: the session stamp is
-      // applied first and then overwritten by the parsed payload.
+      // `consentedBy` is the CONSENT_GRANTED audit actor, so it may only come
+      // from the session. A body-supplied value is dropped by the schema and
+      // must never reach the service - otherwise any authorised staff member
+      // could attribute a SURGICAL/DNR consent to a colleague.
       body: {
         patientId: PATIENT_ID,
         consentType: "ANESTHESIA",
         procedureDesc: "General anaesthesia for dental",
-        consentedBy: "owner-1",
+        consentedBy: "someone-else",
         consentedByName: "Alex Turner",
         consentedAt: "2026-03-14T08:00:00.000Z",
         expiresAt: "2026-03-21T08:00:00.000Z",
@@ -76,7 +78,7 @@ runClinicalControllerSuite({
           patientId: PATIENT_ID,
           consentType: "ANESTHESIA",
           procedureDesc: "General anaesthesia for dental",
-          consentedBy: "owner-1",
+          consentedBy: "user_clinical_1",
           consentedByName: "Alex Turner",
           documentId: SECOND_ID,
           consentedAt: new Date("2026-03-14T08:00:00.000Z"),

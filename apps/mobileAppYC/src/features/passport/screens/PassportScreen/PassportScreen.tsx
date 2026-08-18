@@ -41,8 +41,14 @@ export const PassportScreen: React.FC = () => {
   const passport = useSelector(
     (state: RootState) => state.passport.byCompanionId[companionId],
   );
-  const loading = useSelector((state: RootState) => state.passport.loading);
-  const error = useSelector((state: RootState) => state.passport.error);
+  const loading = useSelector(
+    (state: RootState) =>
+      state.passport.loadingByCompanionId[companionId] ?? false,
+  );
+  const error = useSelector(
+    (state: RootState) =>
+      state.passport.errorByCompanionId[companionId] ?? null,
+  );
 
   const allDocuments = useSelector(
     (state: RootState) => state.documents.documents,

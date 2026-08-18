@@ -233,4 +233,35 @@ describe("DischargeInstructionService.acknowledge", () => {
       DischargeInstructionService.acknowledge("dis-1", "org-1"),
     ).rejects.toMatchObject({ statusCode: 409 });
   });
+
+  it("refuses to acknowledge a DRAFT that was never sent", async () => {
+    // Acknowledgement is evidence the owner received the instructions, so a
+    // DRAFT must not be flippable straight to ACKNOWLEDGED.
+    pm.dischargeInstruction.findFirst.mockResolvedValue(
+      makeDischarge({ status: "DRAFT" }),
+    );
+    await expect(
+      DischargeInstructionService.acknowledge("dis-1", "org-1"),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message: "Only SENT discharge instructions can be acknowledged.",
+    });
+    expect(pm.dischargeInstruction.update).not.toHaveBeenCalled();
+  });
+
+  it("audits the staff member, never a fabricated PARENT actor", async () => {
+    // The route is staff-only, so claiming actorType PARENT with a null id
+    // manufactured owner-consent evidence.
+    pm.dischargeInstruction.findFirst.mockResolvedValue(
+      makeDischarge({ status: "SENT" }),
+    );
+    await DischargeInstructionService.acknowledge("dis-1", "org-1", "vet-7");
+    expect(AuditTrailService.recordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "DISCHARGE_INSTRUCTIONS_ACKNOWLEDGED",
+        actorType: "PMS_USER",
+        actorId: "vet-7",
+      }),
+    );
+  });
 });

@@ -49,7 +49,9 @@ router.post(
   "/pms/organisation/:organisationId/discharge-instructions/:dischargeId/acknowledge",
   requireWebAuth,
   withOrgPermissions(),
-  requirePermission("appointments:view:any"),
+  // Acknowledgement mutates state, so it needs the edit scope rather than the
+  // read one it was gated on.
+  requirePermission("appointments:edit:any"),
   DischargeInstructionController.acknowledge,
 );
 

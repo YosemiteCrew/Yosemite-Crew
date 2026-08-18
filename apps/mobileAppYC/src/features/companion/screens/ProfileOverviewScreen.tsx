@@ -19,6 +19,7 @@ import {
   useFocusEffect,
   CommonActions,
 } from '@react-navigation/native';
+import {useTranslation} from 'react-i18next';
 import {useTheme} from '@/hooks';
 import type {Theme} from '@/theme';
 import {Header} from '@/shared/components/common/Header/Header';
@@ -58,6 +59,10 @@ import type {ProfileImagePickerRef} from '@/shared/components/common/ProfileImag
 type ProfileSection = {
   id: string;
   title: string;
+  // Localisation key for the tile label. The remaining tiles still carry raw
+  // English copy from an earlier iteration of this screen; each one gains a
+  // `titleKey` as its translations land.
+  titleKey?: string;
 };
 
 // Per-tile visual language taken from the "Companion profile hub" handoff:
@@ -117,7 +122,7 @@ const SECTION_VISUALS: Record<string, SectionVisual> = {
 const SECTION_TEMPLATES: ProfileSection[] = [
   {id: 'overview', title: 'Overview'},
   {id: 'parent', title: 'Parent'},
-  {id: 'passport', title: 'Pet Passport'},
+  {id: 'passport', title: 'Pet Passport', titleKey: 'passport.title'},
   {id: 'documents', title: 'Documents'},
   {id: 'hospital', title: 'Hospital'},
   {id: 'boarder', title: 'Boarder'},
@@ -135,6 +140,7 @@ type Props = NativeStackScreenProps<HomeStackParamList, 'ProfileOverview'>;
 
 export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   const {companionId} = route.params;
+  const {t} = useTranslation();
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const deleteSheetRef = React.useRef<DeleteProfileBottomSheetRef>(null);
@@ -190,8 +196,14 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   // The profile hub is a flat grid of tinted icon tiles (Overview, Parent,
   // Documents, …, Co-parents). The warm-bone design intentionally carries no
   // per-tile completion affordance, so the tiles render straight from the
-  // static template list.
-  const sections = SECTION_TEMPLATES;
+  // static template list, with any localised label resolved through t().
+  const sections = React.useMemo(
+    () =>
+      SECTION_TEMPLATES.map(section =>
+        section.titleKey ? {...section, title: t(section.titleKey)} : section,
+      ),
+    [t],
+  );
 
   const showPermissionToast = React.useCallback((label: string) => {
     const message = `You don't have access to ${label}. Ask the primary parent to enable it.`;

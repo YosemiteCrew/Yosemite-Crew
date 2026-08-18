@@ -462,26 +462,30 @@ export const CompanionCardService = {
     // leaving an issued-but-unscannable token behind.
     const baseUrl = resolveCardBaseUrl();
 
-    // One live PUBLIC token per companion: regenerating revokes the old QR.
-    if (audience === "PUBLIC") {
-      await prisma.companionShareToken.updateMany({
-        where: { patientId, audience: "PUBLIC", revokedAt: null },
-        data: { revokedAt: new Date(), revokedById: actor.id ?? null },
-      });
-    }
-
     const rawToken = generateRawToken();
-    const row = await prisma.companionShareToken.create({
-      data: {
-        patientId,
-        organisationId,
-        tokenHash: hashToken(rawToken),
-        audience,
-        issuedByType: actor.type,
-        issuedById: actor.id ?? null,
-        showOwnerPhone,
-        expiresAt: resolveExpiry(audience, ttlSeconds),
-      },
+    // One live PUBLIC token per companion: regenerating revokes the old QR.
+    // Rotation and re-issue run in one transaction - unserialised, two requests
+    // could both revoke before either inserts (leaving two live PUBLIC tokens),
+    // and a failed insert would leave the collar QR revoked with no replacement.
+    const row = await prisma.$transaction(async (tx) => {
+      if (audience === "PUBLIC") {
+        await tx.companionShareToken.updateMany({
+          where: { patientId, audience: "PUBLIC", revokedAt: null },
+          data: { revokedAt: new Date(), revokedById: actor.id ?? null },
+        });
+      }
+      return tx.companionShareToken.create({
+        data: {
+          patientId,
+          organisationId,
+          tokenHash: hashToken(rawToken),
+          audience,
+          issuedByType: actor.type,
+          issuedById: actor.id ?? null,
+          showOwnerPhone,
+          expiresAt: resolveExpiry(audience, ttlSeconds),
+        },
+      });
     });
 
     await AuditTrailService.recordSafely({

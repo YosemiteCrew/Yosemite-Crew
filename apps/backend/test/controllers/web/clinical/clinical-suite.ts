@@ -100,10 +100,15 @@ const statusOf = (res: MockResponse): unknown => res.status.mock.calls[0]?.[0];
 /**
  * Breaks one route param so the shared params guard rejects the request before
  * any controller-specific parsing runs.
+ *
+ * Ids are validated leniently (Mongo ObjectIds and Postgres UUIDs both circulate
+ * during the dual-write), so a merely non-UUID id is legitimate and must reach
+ * the service to 404. What the guard still enforces is the length bound that
+ * keeps an unbounded string out of the ORM, so that is what this breaks.
  */
 const withBrokenParams = (testCase: ClinicalCase): ClinicalCase => ({
   ...testCase,
-  params: { ...testCase.params, organisationId: "not-a-uuid" },
+  params: { ...testCase.params, organisationId: "x".repeat(65) },
 });
 
 export const runClinicalControllerSuite = (spec: ClinicalSuiteSpec): void => {

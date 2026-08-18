@@ -58,7 +58,7 @@ runClinicalControllerSuite({
         },
       ],
       fallback: "Failed to list dental examinations",
-      invalidPayload: { patientId: "not-a-uuid" },
+      invalidPayload: { patientId: "x".repeat(65) },
     },
     {
       handler: "create",

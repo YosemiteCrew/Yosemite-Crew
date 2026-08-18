@@ -68,7 +68,7 @@ const CapturedRecordsList = ({ rows, isLoading, loadError }: CapturedRecordsList
         joins the passport once a veterinarian signs it.
       </p>
       {loadError && (
-        <p role="alert" className="text-caption-1 text-danger-600">
+        <p role="alert" className="text-caption-1 text-text-error">
           {loadError}
         </p>
       )}

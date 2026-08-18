@@ -30,7 +30,7 @@ const AttestationRevokePanel = ({
         passport will no longer see it, and the record cannot be attested again from here.
       </p>
       <div className="flex flex-col gap-1.5">
-        <label htmlFor={reasonId} className="text-[12px] font-semibold text-[var(--ink-soft)]">
+        <label htmlFor={reasonId} className="text-[12.5px] font-semibold text-[var(--ink-soft)]">
           Reason (optional, stored with the record)
         </label>
         <textarea
@@ -39,7 +39,7 @@ const AttestationRevokePanel = ({
           disabled={disabled}
           rows={3}
           placeholder="For example: issued in error, or the certificate was superseded."
-          className="min-h-18 w-full rounded-[12px] border-[1.5px] border-[var(--hairline)] bg-[var(--field-bg)] px-3.5 py-3 text-[12.5px] leading-[1.5] text-[var(--ink-body)] outline-none transition-colors placeholder:text-[var(--ink-faint)] focus:border-[var(--danger)] disabled:cursor-not-allowed disabled:opacity-60"
+          className="min-h-18 w-full rounded-[12px] border-[1.5px] border-[var(--hairline)] bg-[var(--field-bg)] px-3.5 py-3 text-[12.5px] leading-[1.5] text-[var(--ink-body)] outline-none transition-colors placeholder:text-[var(--ink-faint)] focus:border-[var(--blue)] focus:shadow-[0_0_0_3px_var(--glow-b10)] disabled:cursor-not-allowed disabled:opacity-60"
           onChange={(event) => onReasonChange(event.target.value)}
         />
       </div>

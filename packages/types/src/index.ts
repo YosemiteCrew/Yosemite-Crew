@@ -106,6 +106,7 @@ export type {
   PetPassportOwner,
   PetPassportDTO,
 } from './pet-passport';
+export { PASSPORT_SEX_LABEL, passportSexLabel } from './pet-passport';
 export type {
   RecordVaccinationRequestDTO,
   RecordParasiteTreatmentRequestDTO,

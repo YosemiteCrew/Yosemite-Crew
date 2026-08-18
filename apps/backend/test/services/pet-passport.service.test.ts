@@ -8,7 +8,12 @@ import { AuditTrailService } from "src/services/audit-trail.service";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
-    patient: { findUnique: jest.fn(), findMany: jest.fn() },
+    patient: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+    },
+    $transaction: jest.fn(),
     patientOrganisation: { findFirst: jest.fn() },
     passportShareConsent: { findMany: jest.fn() },
     encounter: { findMany: jest.fn() },
@@ -19,7 +24,7 @@ jest.mock("src/config/prisma", () => ({
     petPassport: { create: jest.fn(), findFirst: jest.fn(), update: jest.fn() },
     organization: { findUnique: jest.fn() },
     parentPatient: { findFirst: jest.fn() },
-    parent: { findUnique: jest.fn() },
+    parent: { findUnique: jest.fn(), findFirst: jest.fn() },
   },
 }));
 jest.mock("src/services/audit-trail.service", () => ({
@@ -27,7 +32,8 @@ jest.mock("src/services/audit-trail.service", () => ({
 }));
 
 const prismaMock = prisma as unknown as {
-  patient: { findUnique: jest.Mock; findMany: jest.Mock };
+  patient: { findUnique: jest.Mock; findMany: jest.Mock; update: jest.Mock };
+  $transaction: jest.Mock;
   patientOrganisation: { findFirst: jest.Mock };
   passportShareConsent: { findMany: jest.Mock };
   encounter: { findMany: jest.Mock };
@@ -38,7 +44,7 @@ const prismaMock = prisma as unknown as {
   petPassport: { create: jest.Mock; findFirst: jest.Mock; update: jest.Mock };
   organization: { findUnique: jest.Mock };
   parentPatient: { findFirst: jest.Mock };
-  parent: { findUnique: jest.Mock };
+  parent: { findUnique: jest.Mock; findFirst: jest.Mock };
 };
 const auditMock = AuditTrailService.recordSafely as jest.Mock;
 
@@ -80,6 +86,13 @@ beforeEach(() => {
     name: "Yosemite Vet Clinic",
   });
   prismaMock.parentPatient.findFirst.mockResolvedValue(null);
+  prismaMock.parent.findFirst.mockResolvedValue(null);
+  prismaMock.patient.update.mockResolvedValue(PATIENT);
+  // issuePassport writes the PetPassport row and mirrors the number onto the
+  // canonical Patient column in one transaction.
+  prismaMock.$transaction.mockImplementation((ops: Promise<unknown>[]) =>
+    Promise.all(ops),
+  );
   prismaMock.encounter.findMany.mockResolvedValue([{ id: "enc-1" }]);
   prismaMock.immunization.findMany.mockResolvedValue([]);
   prismaMock.parasiteTreatment.findMany.mockResolvedValue([]);
@@ -505,8 +518,8 @@ describe("PetPassportService.ensurePublicToken", () => {
 
 describe("PetPassportService.revokePublicToken", () => {
   it("refuses a caller who is not the pet's parent", async () => {
-    prismaMock.parentPatient.findFirst.mockResolvedValue({ parentId: "par-1" });
-    prismaMock.parent.findUnique.mockResolvedValue({ linkedUserId: "someone" });
+    prismaMock.parent.findFirst.mockResolvedValue(null);
+    prismaMock.parentPatient.findFirst.mockResolvedValue(null);
     await expect(
       PetPassportService.revokePublicToken({
         patientId: "pat-1",
@@ -517,8 +530,8 @@ describe("PetPassportService.revokePublicToken", () => {
   });
 
   it("clears the token for the pet's parent", async () => {
-    prismaMock.parentPatient.findFirst.mockResolvedValue({ parentId: "par-1" });
-    prismaMock.parent.findUnique.mockResolvedValue({ linkedUserId: "user-1" });
+    prismaMock.parent.findFirst.mockResolvedValue({ id: "par-1" });
+    prismaMock.parentPatient.findFirst.mockResolvedValue({ id: "pp-link-1" });
     prismaMock.patientOrganisation.findFirst.mockResolvedValue({
       organisationId: "org-1",
     });
@@ -534,10 +547,115 @@ describe("PetPassportService.revokePublicToken", () => {
   });
 });
 
+describe("PetPassportService.issuePassport canonical number", () => {
+  it("mirrors the issued number onto Patient.passportNumber", async () => {
+    // Cards and the companion detail view read Patient.passportNumber, so
+    // writing only the PetPassport row left a freshly issued number invisible
+    // everywhere but the passport itself.
+    await PetPassportService.issuePassport({
+      patientId: "pat-1",
+      organisationId: "org-1",
+      actor: ACTOR,
+      input: { passportNumber: "GB12345" },
+    });
+    expect(prismaMock.patient.update).toHaveBeenCalledWith({
+      where: { id: "pat-1" },
+      data: { passportNumber: "GB12345" },
+    });
+    // Both writes go through one transaction so they cannot half-apply.
+    expect(prismaMock.$transaction).toHaveBeenCalled();
+  });
+});
+
+describe("PetPassportService co-parent access", () => {
+  it("lets an active CO_PARENT read the passport", async () => {
+    // Resolving the link by PRIMARY role 404'd every co-parent, which the
+    // mobile app renders as the misleading "no passport issued" empty state.
+    prismaMock.parent.findFirst.mockResolvedValue({ id: "par-2" });
+    prismaMock.parentPatient.findFirst.mockResolvedValue({ id: "pp-link-2" });
+    prismaMock.patientOrganisation.findFirst.mockResolvedValue({
+      organisationId: "org-1",
+    });
+    const passport = await PetPassportService.getPassportForParent(
+      "pat-1",
+      "co-parent-user",
+    );
+    expect(passport.identity.name).toBe("Doggy");
+    expect(prismaMock.parentPatient.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          role: { in: ["PRIMARY", "CO_PARENT"] },
+        }),
+      }),
+    );
+  });
+
+  it("restricts share-link revocation to the primary parent", async () => {
+    prismaMock.parent.findFirst.mockResolvedValue({ id: "par-2" });
+    prismaMock.parentPatient.findFirst.mockResolvedValue({ id: "pp-link-2" });
+    prismaMock.patientOrganisation.findFirst.mockResolvedValue({
+      organisationId: "org-1",
+    });
+    prismaMock.petPassport.findFirst.mockResolvedValue({ id: "pp-1" });
+    prismaMock.petPassport.update.mockResolvedValue({});
+    await PetPassportService.revokePublicToken({
+      patientId: "pat-1",
+      userId: "co-parent-user",
+    });
+    expect(prismaMock.parentPatient.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ role: { in: ["PRIMARY"] } }),
+      }),
+    );
+  });
+});
+
+describe("PetPassportService.getExistingPublicToken", () => {
+  it("returns a live token without minting", async () => {
+    prismaMock.petPassport.findFirst.mockResolvedValue({
+      publicToken: "tok-1",
+      publicTokenRevokedAt: null,
+    });
+    await expect(
+      PetPassportService.getExistingPublicToken("pat-1"),
+    ).resolves.toBe("tok-1");
+    expect(prismaMock.petPassport.update).not.toHaveBeenCalled();
+  });
+
+  it("returns null rather than minting when there is no live token", async () => {
+    // Staff-facing pass builders must never create a public owner credential.
+    prismaMock.petPassport.findFirst.mockResolvedValue({
+      publicToken: null,
+      publicTokenRevokedAt: null,
+    });
+    await expect(
+      PetPassportService.getExistingPublicToken("pat-1"),
+    ).resolves.toBeNull();
+    expect(prismaMock.petPassport.update).not.toHaveBeenCalled();
+  });
+
+  it("returns null for a revoked token", async () => {
+    prismaMock.petPassport.findFirst.mockResolvedValue({
+      publicToken: "tok-1",
+      publicTokenRevokedAt: new Date(),
+    });
+    await expect(
+      PetPassportService.getExistingPublicToken("pat-1"),
+    ).resolves.toBeNull();
+  });
+
+  it("404s a pet with no issued passport", async () => {
+    prismaMock.petPassport.findFirst.mockResolvedValue(null);
+    await expect(
+      PetPassportService.getExistingPublicToken("pat-1"),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
 describe("PetPassportService.getPassportForParent", () => {
-  const asParent = (linkedUserId: string | null = "user-1") => {
-    prismaMock.parentPatient.findFirst.mockResolvedValue({ parentId: "par-1" });
-    prismaMock.parent.findUnique.mockResolvedValue({ linkedUserId });
+  const asParent = () => {
+    prismaMock.parent.findFirst.mockResolvedValue({ id: "par-1" });
+    prismaMock.parentPatient.findFirst.mockResolvedValue({ id: "pp-link-1" });
   };
 
   it("404s an unauthenticated caller", async () => {
@@ -547,13 +665,15 @@ describe("PetPassportService.getPassportForParent", () => {
   });
 
   it("404s a caller who is not the pet's parent", async () => {
-    asParent("someone-else");
+    prismaMock.parent.findFirst.mockResolvedValue({ id: "par-1" });
+    prismaMock.parentPatient.findFirst.mockResolvedValue(null);
     await expect(
       PetPassportService.getPassportForParent("pat-1", "user-1"),
     ).rejects.toMatchObject({ statusCode: 404 });
   });
 
   it("404s when the pet has no linked parent account", async () => {
+    prismaMock.parent.findFirst.mockResolvedValue(null);
     prismaMock.parentPatient.findFirst.mockResolvedValue(null);
     await expect(
       PetPassportService.getPassportForParent("pat-1", "user-1"),

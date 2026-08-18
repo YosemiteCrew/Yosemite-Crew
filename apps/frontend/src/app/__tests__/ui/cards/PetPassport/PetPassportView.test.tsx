@@ -4,10 +4,7 @@ import type { PetPassportDTO } from '@yosemite-crew/types';
 
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: (props: { alt: string; src: string }) => (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img alt={props.alt} src={props.src} />
-  ),
+  default: (props: { alt: string; src: string }) => <img alt={props.alt} src={props.src} />,
 }));
 jest.mock('@/app/lib/urls', () => ({
   getSafeImageUrl: () => 'https://img/x.png',
@@ -111,7 +108,8 @@ describe('PetPassportView', () => {
     render(<PetPassportView passport={full} />);
     expect(screen.getByText('Doggy')).toBeInTheDocument();
     expect(screen.getByText('Rottweiler / Canine')).toBeInTheDocument();
-    expect(screen.getByText('male')).toBeInTheDocument();
+    // The DTO carries the raw lowercase Prisma value; the view formats it.
+    expect(screen.getByText('Male')).toBeInTheDocument();
     expect(screen.getByText('985141000123456')).toBeInTheDocument();
     expect(screen.getByText('left neck')).toBeInTheDocument();
     expect(screen.getByText('GB-YC-1')).toBeInTheDocument();
@@ -169,5 +167,20 @@ describe('PetPassportView', () => {
     };
     render(<PetPassportView passport={card} />);
     expect(screen.getByText('Y / Other')).toBeInTheDocument();
+    // An "unknown" sex is omitted rather than printed verbatim.
+    expect(screen.queryByText('unknown')).not.toBeInTheDocument();
+    expect(screen.queryByText('Sex')).not.toBeInTheDocument();
+  });
+
+  it('formats a female companion sex', () => {
+    const card: PetPassportDTO = {
+      identity: { id: 'p', name: 'X', species: 'cat', breed: 'DSH', sex: 'female' },
+      vaccinations: [],
+      parasiteTreatments: [],
+      rabiesTitrations: [],
+      clinicalExams: [],
+    };
+    render(<PetPassportView passport={card} />);
+    expect(screen.getByText('Female')).toBeInTheDocument();
   });
 });

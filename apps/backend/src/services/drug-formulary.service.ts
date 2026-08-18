@@ -244,7 +244,14 @@ export const DrugFormularyService = {
 
   async removeDosage(id: string, dosageId: string, organisationId: string) {
     await assertFormulary(id, organisationId);
-    await prisma.drugFormularyDosage.delete({ where: { id: dosageId } });
+    // Scope the delete to the formulary we just authorised: deleting by primary
+    // key alone would let any inventory editor remove another tenant's dosage.
+    const result = await prisma.drugFormularyDosage.deleteMany({
+      where: { id: dosageId, formularyId: id },
+    });
+    if (result.count === 0) {
+      throw new DrugFormularyError("Dosage entry not found.", 404);
+    }
   },
 
   async delete(id: string, organisationId: string) {

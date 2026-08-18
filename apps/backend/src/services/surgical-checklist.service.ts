@@ -144,7 +144,21 @@ export const SurgicalChecklistService = {
     organisationId: string,
     params: UpdateChecklistParams,
   ) {
-    await assertChecklist(id, organisationId);
+    const checklist = await assertChecklist(id, organisationId);
+
+    // A completed safety checklist is audited as SURGICAL_CHECKLIST_COMPLETED
+    // and can no longer be deleted, so completion must mean every sign-in /
+    // time-out / sign-out item was actually checked - not just that someone
+    // PATCHed the status.
+    if (
+      params.status === "COMPLETED" &&
+      checklist.items.some((item) => !item.isChecked)
+    ) {
+      throw new SurgicalChecklistError(
+        "All checklist items must be checked before completion.",
+        409,
+      );
+    }
 
     const data: Prisma.SurgicalChecklistUpdateInput = {};
     if (params.phase !== undefined) data.phase = params.phase;
@@ -152,6 +166,15 @@ export const SurgicalChecklistService = {
     if (params.conductedBy !== undefined) data.conductedBy = params.conductedBy;
     if (params.notes !== undefined) data.notes = params.notes;
     if (params.completedAt !== undefined) data.completedAt = params.completedAt;
+
+    // completedAt is derived from the transition rather than trusted from the
+    // caller, so a checklist can never read COMPLETED with a null timestamp -
+    // or keep a completion time after being moved back out of COMPLETED.
+    if (params.status === "COMPLETED") {
+      data.completedAt = params.completedAt ?? new Date();
+    } else if (params.status !== undefined) {
+      data.completedAt = null;
+    }
 
     const updated = await prisma.surgicalChecklist.update({
       where: { id },

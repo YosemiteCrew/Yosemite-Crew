@@ -132,6 +132,9 @@ beforeEach(() => {
     saved[k] = process.env[k];
     delete process.env[k];
   }
+  // A pass QR must resolve to an absolute URL, so pass building now refuses to
+  // run without a configured base. Individual tests override this.
+  process.env.PUBLIC_PASSPORT_BASE_URL = "https://app.example.com";
 });
 afterEach(() => {
   for (const k of ENV_KEYS) {
@@ -179,7 +182,7 @@ describe("buildApplePassJson", () => {
     expect(generic.auxiliaryFields).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ key: "breed", value: "Rottweiler" }),
-        expect.objectContaining({ key: "sex", value: "male" }),
+        expect.objectContaining({ key: "sex", value: "Male" }),
       ]),
     );
 
@@ -229,6 +232,9 @@ describe("buildApplePassJson", () => {
   });
 
   it("uses the card base url as a fallback for the verify link", () => {
+    // "" is what .env.example ships, and a `??` chain would treat it as set and
+    // shadow the configured card base, emitting a relative, unscannable QR.
+    process.env.PUBLIC_PASSPORT_BASE_URL = "";
     process.env.PUBLIC_CARD_BASE_URL = "https://card.example.com";
     const pass = buildApplePassJson(PASSPORT, IDS, SHARE_TOKEN) as Record<
       string,
@@ -237,6 +243,21 @@ describe("buildApplePassJson", () => {
     const barcode = (pass.barcodes as Array<{ message: string }>)[0];
     expect(barcode.message).toBe(
       `https://card.example.com/passport/${SHARE_TOKEN}`,
+    );
+  });
+
+  it("refuses to build a pass when no base url resolves", () => {
+    delete process.env.PUBLIC_PASSPORT_BASE_URL;
+    delete process.env.PUBLIC_CARD_BASE_URL;
+    expect(() => buildApplePassJson(PASSPORT, IDS, SHARE_TOKEN)).toThrow(
+      /not configured/,
+    );
+  });
+
+  it("refuses a relative or non-http base url", () => {
+    process.env.PUBLIC_PASSPORT_BASE_URL = "app.example.com";
+    expect(() => buildApplePassJson(PASSPORT, IDS, SHARE_TOKEN)).toThrow(
+      /not configured/,
     );
   });
 });
@@ -438,7 +459,7 @@ describe("buildGooglePayload", () => {
     expect(obj.id).toBe(`${ISSUER}.p1`);
     expect(obj.classId).toBe(`${ISSUER}.petpassport`);
     expect(obj.header.defaultValue.value).toBe("Doggy");
-    expect(obj.subheader.defaultValue.value).toBe("Dog · Rottweiler · male");
+    expect(obj.subheader.defaultValue.value).toBe("Dog · Rottweiler · Male");
     expect(obj.hexBackgroundColor).toBe("#007CF5");
     expect(obj.barcode).toEqual({
       type: "QR_CODE",

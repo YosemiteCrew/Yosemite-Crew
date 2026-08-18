@@ -17,7 +17,7 @@ controlledSubstanceLogRouter.post(
   BASE,
   requireWebAuth,
   withOrgPermissions(),
-  requirePermission("appointments:edit:any"),
+  requirePermission(["prescription:edit:any", "prescription:edit:own"]),
   ControlledSubstanceLogController.create,
 );
 controlledSubstanceLogRouter.get(
@@ -31,14 +31,14 @@ controlledSubstanceLogRouter.put(
   `${BASE}/:logId`,
   requireWebAuth,
   withOrgPermissions(),
-  requirePermission("appointments:edit:any"),
+  requirePermission(["prescription:edit:any", "prescription:edit:own"]),
   ControlledSubstanceLogController.update,
 );
 controlledSubstanceLogRouter.delete(
   `${BASE}/:logId`,
   requireWebAuth,
   withOrgPermissions(),
-  requirePermission("appointments:edit:any"),
+  requirePermission(["prescription:edit:any", "prescription:edit:own"]),
   ControlledSubstanceLogController.delete,
 );
 

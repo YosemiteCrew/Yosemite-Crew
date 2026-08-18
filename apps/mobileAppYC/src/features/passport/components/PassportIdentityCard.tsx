@@ -5,6 +5,12 @@ import {formatDateDisplay} from '@/shared/utils/commonHelpers';
 import {InfoRow} from '@/features/passport/components/PassportRecordRows';
 import type {PetPassportDTO} from '@yosemite-crew/types';
 
+const SEX_LABEL_KEY: Record<string, string> = {
+  male: 'passport.sexMale',
+  female: 'passport.sexFemale',
+  unknown: 'passport.sexUnknown',
+};
+
 export const PassportIdentityCard: React.FC<{
   passport: PetPassportDTO;
   styles: any;
@@ -26,7 +32,9 @@ export const PassportIdentityCard: React.FC<{
       </Text>
       <InfoRow
         label={t('passport.sexLabel')}
-        value={passport.identity.sex}
+        // The DTO carries the raw lowercase Prisma value, so it is resolved
+        // through i18n rather than printed as "female" / "unknown".
+        value={t(SEX_LABEL_KEY[passport.identity.sex] ?? 'passport.sexUnknown')}
         styles={styles}
       />
       <InfoRow

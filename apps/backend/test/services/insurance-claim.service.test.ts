@@ -225,6 +225,102 @@ describe("InsuranceClaimService.submit", () => {
 // ---------------------------------------------------------------------------
 
 describe("InsuranceClaimService.updateStatus", () => {
+  it("rejects approving above the submitted amount", async () => {
+    pm.insuranceClaim.findFirst.mockResolvedValue(
+      makeClaim({ status: "SUBMITTED" }),
+    );
+    await expect(
+      InsuranceClaimService.updateStatus("claim-1", "org-1", {
+        status: "APPROVED",
+        approvedAmount: 900,
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(pm.insuranceClaim.update).not.toHaveBeenCalled();
+  });
+
+  it("requires an approved amount to reach APPROVED", async () => {
+    pm.insuranceClaim.findFirst.mockResolvedValue(
+      makeClaim({ status: "SUBMITTED" }),
+    );
+    await expect(
+      InsuranceClaimService.updateStatus("claim-1", "org-1", {
+        status: "APPROVED",
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("requires a partial approval to be below the submitted amount", async () => {
+    pm.insuranceClaim.findFirst.mockResolvedValue(
+      makeClaim({ status: "SUBMITTED" }),
+    );
+    await expect(
+      InsuranceClaimService.updateStatus("claim-1", "org-1", {
+        status: "PARTIALLY_APPROVED",
+        approvedAmount: 500,
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("accepts a genuine partial approval", async () => {
+    pm.insuranceClaim.findFirst.mockResolvedValue(
+      makeClaim({ status: "SUBMITTED" }),
+    );
+    await InsuranceClaimService.updateStatus("claim-1", "org-1", {
+      status: "PARTIALLY_APPROVED",
+      approvedAmount: 300,
+    });
+    expect(pm.insuranceClaim.update).toHaveBeenCalled();
+  });
+
+  it("rejects paying more than was approved", async () => {
+    pm.insuranceClaim.findFirst.mockResolvedValue(
+      makeClaim({ status: "APPROVED", approvedAmount: 450 }),
+    );
+    await expect(
+      InsuranceClaimService.updateStatus("claim-1", "org-1", {
+        status: "PAID",
+        paidAmount: 5000,
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("rejects reaching PAID with no payment figure at all", async () => {
+    // Otherwise reporting reads a paid claim whose paidAmount is NULL.
+    pm.insuranceClaim.findFirst.mockResolvedValue(
+      makeClaim({ status: "APPROVED", approvedAmount: 450 }),
+    );
+    await expect(
+      InsuranceClaimService.updateStatus("claim-1", "org-1", {
+        status: "PAID",
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("accepts a payment up to the approved amount", async () => {
+    pm.insuranceClaim.findFirst.mockResolvedValue(
+      makeClaim({ status: "APPROVED", approvedAmount: 450 }),
+    );
+    await InsuranceClaimService.updateStatus("claim-1", "org-1", {
+      status: "PAID",
+      paidAmount: 450,
+    });
+    expect(pm.insuranceClaim.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "PAID", paidAmount: 450 }),
+      }),
+    );
+  });
+
+  it("accepts a persisted paidAmount carried from an earlier write", async () => {
+    pm.insuranceClaim.findFirst.mockResolvedValue(
+      makeClaim({ status: "APPROVED", approvedAmount: 450, paidAmount: 450 }),
+    );
+    await InsuranceClaimService.updateStatus("claim-1", "org-1", {
+      status: "PAID",
+    });
+    expect(pm.insuranceClaim.update).toHaveBeenCalled();
+  });
+
   it("transitions SUBMITTED to APPROVED and sets approvedAt", async () => {
     pm.insuranceClaim.findFirst.mockResolvedValue(
       makeClaim({ status: "SUBMITTED" }),

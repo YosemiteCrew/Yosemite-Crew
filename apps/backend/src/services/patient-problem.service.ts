@@ -1,5 +1,6 @@
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
+import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 import type { Prisma } from "@prisma/client";
 
 export class PatientProblemError extends Error {
@@ -89,6 +90,12 @@ export const PatientProblemService = {
       recordedBy,
     } = params;
 
+    // PatientProblem carries a bare patientId with no relation to Patient, so
+    // nothing downstream would reject a nonexistent or foreign-tenant id.
+    await assertPatientOrgMembership(patientId, organisationId, () => {
+      throw new PatientProblemError("Companion not found.", 404);
+    });
+
     const problem = await prisma.patientProblem.create({
       data: {
         organisationId,
@@ -149,13 +156,6 @@ export const PatientProblemService = {
     updatedBy?: string,
   ) {
     const problem = await assertProblem(id, organisationId);
-    if (
-      problem.status === "RESOLVED" &&
-      params.status !== "ACTIVE" &&
-      params.status !== "INACTIVE"
-    ) {
-      // Allow reactivating a resolved problem
-    }
 
     const data: Prisma.PatientProblemUpdateInput = {};
     if (params.name !== undefined) data.name = params.name;
@@ -168,6 +168,17 @@ export const PatientProblemService = {
       data.resolvedDate = params.resolvedDate;
     if (params.notes !== undefined) data.notes = params.notes;
 
+    // resolvedDate is derived from the status transition. Left independent, a
+    // PATCH to RESOLVED persists a resolved problem with no resolution date -
+    // and resolve() then 409s, so the date could never be filled afterwards -
+    // while a PATCH back to ACTIVE leaves a live problem carrying a stale one.
+    const resolving = params.status === "RESOLVED";
+    if (resolving) {
+      data.resolvedDate = params.resolvedDate ?? new Date();
+    } else if (params.status === "ACTIVE" || params.status === "INACTIVE") {
+      data.resolvedDate = null;
+    }
+
     const updated = await prisma.patientProblem.update({
       where: { id },
       data,
@@ -177,7 +188,13 @@ export const PatientProblemService = {
     await AuditTrailService.recordSafely({
       organisationId,
       patientId: problem.patientId,
-      eventType: "PROBLEM_UPDATED",
+      // A status-driven resolution is a PROBLEM_RESOLVED event, the same as
+      // going through resolve(), so the clinical timeline stays consistent
+      // regardless of which endpoint the client used.
+      eventType:
+        resolving && problem.status !== "RESOLVED"
+          ? "PROBLEM_RESOLVED"
+          : "PROBLEM_UPDATED",
       actorType: "PMS_USER",
       actorId: updatedBy ?? null,
       entityType: "COMPANION",

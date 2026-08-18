@@ -11,7 +11,20 @@ export type ClinicalHandler = (
   res: Response,
 ) => Promise<Response>;
 
-export const uuid = (): z.ZodString => z.string().uuid();
+/**
+ * Bounded, lenient id validation for route params and scope ids.
+ *
+ * Ids in this system may be Mongo ObjectIds or Postgres UUIDs (dual-write), the
+ * same rule the passport-family controllers document via `looseId` in
+ * org-controller.helpers.ts. A strict `.uuid()` here 400s a 24-hex organisation
+ * or companion id before the lookup runs, so the identical `:organisationId`
+ * segment that works on /v1/pet-passport fails on every clinical route.
+ * `.max(64)` keeps the bound that protects the ORM.
+ *
+ * Named `uuid` for historical reasons - it is the shared id validator, not a
+ * UUID assertion. Existence is the data lookup's job (404), not the schema's.
+ */
+export const uuid = (): z.ZodString => z.string().min(1).max(64);
 
 export const orgParams = z.object({ organisationId: uuid() });
 

@@ -11,7 +11,7 @@ jest.mock("src/config/prisma", () => ({
     },
     drugFormularyDosage: {
       create: jest.fn(),
-      delete: jest.fn(),
+      deleteMany: jest.fn(),
     },
   },
 }));
@@ -28,7 +28,7 @@ const mockFindMany = prisma.drugFormulary.findMany as jest.Mock;
 const mockUpdate = prisma.drugFormulary.update as jest.Mock;
 const mockDelete = prisma.drugFormulary.delete as jest.Mock;
 const mockDosageCreate = prisma.drugFormularyDosage.create as jest.Mock;
-const mockDosageDelete = prisma.drugFormularyDosage.delete as jest.Mock;
+const mockDosageDeleteMany = prisma.drugFormularyDosage.deleteMany as jest.Mock;
 
 const baseDosage = {
   id: "dose-1",
@@ -170,11 +170,30 @@ describe("DrugFormularyService.addDosage", () => {
 });
 
 describe("DrugFormularyService.removeDosage", () => {
-  it("removes a dosage entry", async () => {
+  it("removes a dosage entry scoped to its own formulary", async () => {
     mockFindFirst.mockResolvedValue(baseEntry);
-    mockDosageDelete.mockResolvedValue(undefined);
+    mockDosageDeleteMany.mockResolvedValue({ count: 1 });
     await DrugFormularyService.removeDosage("df-1", "dose-1", "org-1");
-    expect(mockDosageDelete).toHaveBeenCalledWith({ where: { id: "dose-1" } });
+    // Scoped by formularyId, never by dosage primary key alone.
+    expect(mockDosageDeleteMany).toHaveBeenCalledWith({
+      where: { id: "dose-1", formularyId: "df-1" },
+    });
+  });
+
+  it("404s a dosage id belonging to another tenant's formulary", async () => {
+    mockFindFirst.mockResolvedValue(baseEntry);
+    mockDosageDeleteMany.mockResolvedValue({ count: 0 });
+    await expect(
+      DrugFormularyService.removeDosage("df-1", "other-tenant-dose", "org-1"),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("404s when the formulary is not in the caller's org", async () => {
+    mockFindFirst.mockResolvedValue(null);
+    await expect(
+      DrugFormularyService.removeDosage("df-1", "dose-1", "org-x"),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(mockDosageDeleteMany).not.toHaveBeenCalled();
   });
 });
 

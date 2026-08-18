@@ -2,6 +2,8 @@ import { DeceasedRecordService } from "../../src/services/deceased-record.servic
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    patient: { update: jest.fn() },
+    $transaction: jest.fn(),
     deceasedRecord: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -19,6 +21,9 @@ jest.mock("../../src/services/audit-trail.service", () => ({
 import { prisma } from "src/config/prisma";
 
 const mockCreate = prisma.deceasedRecord.create as jest.Mock;
+const mockPatientUpdate = prisma.patient.update as jest.Mock;
+const mockTransaction = (prisma as unknown as { $transaction: jest.Mock })
+  .$transaction;
 const mockFindFirst = prisma.deceasedRecord.findFirst as jest.Mock;
 const mockFindUnique = prisma.deceasedRecord.findUnique as jest.Mock;
 const mockFindMany = prisma.deceasedRecord.findMany as jest.Mock;
@@ -43,9 +48,34 @@ const baseRecord = {
   updatedAt: new Date(),
 };
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  // create() deactivates the patient alongside the record in one transaction.
+  mockPatientUpdate.mockResolvedValue({ id: "pat-1", status: "inactive" });
+  mockTransaction.mockImplementation((ops: Promise<unknown>[]) =>
+    Promise.all(ops),
+  );
+});
 
 describe("DeceasedRecordService.create", () => {
+  it("deactivates the companion in the same transaction", async () => {
+    // Leaving the patient active is what let the daily vaccine reminder keep
+    // messaging a bereaved owner.
+    mockFindUnique.mockResolvedValue(null);
+    mockCreate.mockResolvedValue(baseRecord);
+    await DeceasedRecordService.create({
+      organisationId: "org-1",
+      patientId: "pat-1",
+      deceasedAt: new Date("2026-08-01T10:00:00Z"),
+      causeOfDeathType: "EUTHANASIA",
+    });
+    expect(mockPatientUpdate).toHaveBeenCalledWith({
+      where: { id: "pat-1" },
+      data: { status: "inactive" },
+    });
+    expect(mockTransaction).toHaveBeenCalled();
+  });
+
   it("creates a deceased record for euthanasia", async () => {
     mockFindUnique.mockResolvedValue(null);
     mockCreate.mockResolvedValue(baseRecord);

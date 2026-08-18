@@ -272,23 +272,34 @@ export const ReferralLetterService = {
       ? ` - ${letter.specialistClinic}`
       : "";
 
+    // Claim the send before performing it. Mailing first and persisting after
+    // leaves a window where a failed write keeps the letter re-sendable, so a
+    // retry mails the specialist a duplicate referral.
+    const claimed = await prisma.referralLetter.updateMany({
+      where: { id, status: { in: ["DRAFT", "SIGNED"] } },
+      data: { status: "SENT", sentAt: new Date() },
+    });
+    if (claimed.count === 0) {
+      return assertLetter(id, organisationId);
+    }
+
     await sendEmail({
       to: letter.specialistEmail,
       subject: `Referral: ${patientName}${subjectClinicSuffix}`,
       htmlBody,
-    }).catch((sendErr: unknown) => {
+    }).catch(async (sendErr: unknown) => {
       logger.error("Referral email send failed", {
         letterId: id,
         err: sendErr,
       });
+      await prisma.referralLetter.update({
+        where: { id },
+        data: { status: letter.status, sentAt: null },
+      });
       throw new ReferralLetterError("Failed to send referral email.", 502);
     });
 
-    const updated = await prisma.referralLetter.update({
-      where: { id },
-      data: { status: "SENT", sentAt: new Date() },
-      select: letterSelect,
-    });
+    const updated = await assertLetter(id, organisationId);
 
     await AuditTrailService.recordSafely({
       organisationId,

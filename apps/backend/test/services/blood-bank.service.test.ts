@@ -223,6 +223,84 @@ describe("BloodBankService.updateDonation", () => {
     );
     expect(result.status).toBe("TRANSFUSED");
   });
+
+  it("allows COLLECTED -> PROCESSED", async () => {
+    mockDonationFindFirst.mockResolvedValue({
+      ...baseDonation,
+      status: "COLLECTED",
+    });
+    mockDonationUpdate.mockResolvedValue({
+      ...baseDonation,
+      status: "PROCESSED",
+    });
+    const result = await BloodBankService.updateDonation(
+      "donation-1",
+      "org-1",
+      { status: "PROCESSED" },
+    );
+    expect(result.status).toBe("PROCESSED");
+  });
+
+  it("rejects re-opening a transfused unit back to AVAILABLE", async () => {
+    mockDonationFindFirst.mockResolvedValue({
+      ...baseDonation,
+      status: "TRANSFUSED",
+    });
+    await expect(
+      BloodBankService.updateDonation("donation-1", "org-1", {
+        status: "AVAILABLE",
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message: "Blood unit cannot move from TRANSFUSED to AVAILABLE.",
+    });
+    expect(mockDonationUpdate).not.toHaveBeenCalled();
+  });
+
+  it.each(["EXPIRED", "DISCARDED"] as const)(
+    "keeps %s terminal",
+    async (status) => {
+      mockDonationFindFirst.mockResolvedValue({ ...baseDonation, status });
+      await expect(
+        BloodBankService.updateDonation("donation-1", "org-1", {
+          status: "AVAILABLE",
+        }),
+      ).rejects.toMatchObject({ statusCode: 409 });
+      expect(mockDonationUpdate).not.toHaveBeenCalled();
+    },
+  );
+
+  it("allows a no-op write of the current status", async () => {
+    mockDonationFindFirst.mockResolvedValue({
+      ...baseDonation,
+      status: "TRANSFUSED",
+    });
+    mockDonationUpdate.mockResolvedValue({
+      ...baseDonation,
+      status: "TRANSFUSED",
+      notes: "checked",
+    });
+    const result = await BloodBankService.updateDonation(
+      "donation-1",
+      "org-1",
+      { status: "TRANSFUSED", notes: "checked" },
+    );
+    expect(result.notes).toBe("checked");
+  });
+
+  it("updates notes without a status change", async () => {
+    mockDonationFindFirst.mockResolvedValue(baseDonation);
+    mockDonationUpdate.mockResolvedValue({
+      ...baseDonation,
+      notes: "shelf B",
+    });
+    const result = await BloodBankService.updateDonation(
+      "donation-1",
+      "org-1",
+      { notes: "shelf B" },
+    );
+    expect(result.notes).toBe("shelf B");
+  });
 });
 
 describe("BloodBankService.listDonations", () => {

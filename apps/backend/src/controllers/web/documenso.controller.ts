@@ -251,13 +251,29 @@ async function handlePassportRecordEvent(
   });
   if (!attestation) return false;
   const signedAt = new Date();
+  // Claim the completion atomically instead of reading then writing. The read
+  // above and the write below are not serialised, so a revocation committing in
+  // between would be overwritten back to SIGNED, and a retried DOCUMENT_COMPLETED
+  // would re-stamp signedAt and push the owner a second time. Re-asserting the
+  // IN_PROGRESS preconditions inside the write makes both a no-op.
+  const claimed = await prisma.clinicalArtifact.updateMany({
+    where: {
+      id: attestation.artifactId,
+      status: "IN_PROGRESS",
+      attestation: {
+        revokedAt: null,
+        supersededById: null,
+        signingStatus: "IN_PROGRESS",
+      },
+    },
+    data: { status: "SIGNED", signedAt },
+  });
+  // Already handled, or revoked in flight: ack the webhook, notify nobody.
+  if (claimed.count === 0) return true;
+
   const artifact = await prisma.clinicalArtifact.update({
     where: { id: attestation.artifactId },
-    data: {
-      status: "SIGNED",
-      signedAt,
-      attestation: { update: { signingStatus: "SIGNED", signedAt } },
-    },
+    data: { attestation: { update: { signingStatus: "SIGNED", signedAt } } },
     select: { encounterId: true },
   });
   // Tell the owner their passport gained a verified record (best-effort).

@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
 import { PassportConsentService } from "./passport-consent.service";
+import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 import type { AuditActorType } from "../models/audit-trail";
 import type {
   ClinicalExamDTO,
@@ -30,18 +31,13 @@ export type PassportActor = { type: AuditActorType; id?: string | null };
 
 // Patient reads are not org-scoped, so a write must confirm the companion belongs
 // to the caller's org or it leaks across tenants.
-const assertOrgMembership = async (
+const assertOrgMembership = (
   patientId: string,
   organisationId: string,
-): Promise<void> => {
-  const membership = await prisma.patientOrganisation.findFirst({
-    where: { patientId, organisationId, status: { in: ["ACTIVE", "PENDING"] } },
-    select: { id: true },
-  });
-  if (!membership) {
+): Promise<void> =>
+  assertPatientOrgMembership(patientId, organisationId, () => {
     throw new PetPassportServiceError("Companion not found.", 404);
-  }
-};
+  });
 
 // Clinical records now live as signed ClinicalArtifact children (Immunization /
 // RabiesTitration / ParasiteTreatment); the attesting vet + licence come from the
@@ -386,29 +382,40 @@ const assemblePassport = async (
 
 /** 256 bits of entropy - a public QR credential must not be guessable. */
 /**
- * Proves the caller is the pet's primary parent and returns the organisation to
- * assemble against. The mobile app has no org context, so the org is derived
- * from the pet's own membership rather than trusted from the request.
+ * Proves the caller parents the pet and returns the organisation to assemble
+ * against. The mobile app has no org context, so the org is derived from the
+ * pet's own membership rather than trusted from the request.
+ *
+ * The link is resolved from the authenticated user, not from the PRIMARY row:
+ * looking up the primary and comparing its `linkedUserId` to the caller 404s
+ * every co-parent, which the mobile app renders as "no passport issued".
+ * `roles` narrows this for the operations that stay the primary parent's call.
  */
 const assertParentOfPatient = async (
   patientId: string,
   userId: string | null,
+  roles: ("PRIMARY" | "CO_PARENT")[] = ["PRIMARY", "CO_PARENT"],
 ): Promise<string> => {
   if (!userId) {
     throw new PetPassportServiceError("Companion not found.", 404);
   }
-  const link = await prisma.parentPatient.findFirst({
-    where: { patientId, role: "PRIMARY", status: "ACTIVE" },
-    select: { parentId: true },
+  const parent = await prisma.parent.findFirst({
+    where: { linkedUserId: userId },
+    select: { id: true },
   });
-  const parent = link
-    ? await prisma.parent.findUnique({
-        where: { id: link.parentId },
-        select: { linkedUserId: true },
+  const link = parent
+    ? await prisma.parentPatient.findFirst({
+        where: {
+          patientId,
+          parentId: parent.id,
+          role: { in: roles },
+          status: "ACTIVE",
+        },
+        select: { id: true },
       })
     : null;
   // Uniform 404 so this cannot be used to probe which patient ids exist.
-  if (!parent?.linkedUserId || parent.linkedUserId !== userId) {
+  if (!link) {
     throw new PetPassportServiceError("Companion not found.", 404);
   }
   const membership = await prisma.patientOrganisation.findFirst({
@@ -433,18 +440,29 @@ export const PetPassportService = {
     const { patientId, organisationId, actor, input } = params;
     await assertOrgMembership(patientId, organisationId);
 
-    const row = await prisma.petPassport.create({
-      data: {
-        patientId,
-        organisationId,
-        passportNumber: input.passportNumber,
-        issuingCountry: input.issuingCountry ?? null,
-        issuingAuthority: input.issuingAuthority ?? null,
-        issuingVetId: actor.id ?? null,
-        issuingVetName: input.issuingVetName ?? null,
-        issuingVetLicense: input.issuingVetLicense ?? null,
-      },
-    });
+    // Mirror the number onto the canonical Patient column in the same
+    // transaction. Passport assembly falls back to the PetPassport row, but
+    // every other reader - the companion cards, the companion detail view -
+    // reads Patient.passportNumber, so writing only the issuance row would
+    // leave a freshly issued number invisible everywhere but the passport.
+    const [row] = await prisma.$transaction([
+      prisma.petPassport.create({
+        data: {
+          patientId,
+          organisationId,
+          passportNumber: input.passportNumber,
+          issuingCountry: input.issuingCountry ?? null,
+          issuingAuthority: input.issuingAuthority ?? null,
+          issuingVetId: actor.id ?? null,
+          issuingVetName: input.issuingVetName ?? null,
+          issuingVetLicense: input.issuingVetLicense ?? null,
+        },
+      }),
+      prisma.patient.update({
+        where: { id: patientId },
+        data: { passportNumber: input.passportNumber },
+      }),
+    ]);
 
     await AuditTrailService.recordSafely({
       organisationId,
@@ -525,6 +543,28 @@ export const PetPassportService = {
   },
 
   /**
+   * Returns the pet's live public verification token, or null when none exists.
+   *
+   * Never mints. Staff-facing pass builders use this so a practice session
+   * cannot create a durable public credential the owner never authorised - the
+   * public route resolves that token with `"owner"` scope, which would also
+   * hand staff the cross-practice records the consent filter withholds from
+   * their own passport view.
+   */
+  async getExistingPublicToken(patientId: string): Promise<string | null> {
+    const row = await prisma.petPassport.findFirst({
+      where: { patientId },
+      orderBy: { issueDate: "desc" },
+      select: { publicToken: true, publicTokenRevokedAt: true },
+    });
+    if (!row) {
+      throw new PetPassportServiceError("Passport not found.", 404);
+    }
+    if (!row.publicToken || row.publicTokenRevokedAt) return null;
+    return row.publicToken;
+  },
+
+  /**
    * Kills the circulating public link. Any wallet pass already carrying it
    * stops verifying, which is the intended effect of a revoke.
    */
@@ -532,8 +572,9 @@ export const PetPassportService = {
     patientId: string;
     userId: string | null;
   }): Promise<{ revokedAt: string }> {
-    // Revoking a share is the owner's call, not a practice's.
-    await assertParentOfPatient(params.patientId, params.userId);
+    // Revoking a share is the owner's call, not a practice's - and killing the
+    // circulating QR stays with the primary parent rather than any co-parent.
+    await assertParentOfPatient(params.patientId, params.userId, ["PRIMARY"]);
     const row = await prisma.petPassport.findFirst({
       where: { patientId: params.patientId },
       orderBy: { issueDate: "desc" },

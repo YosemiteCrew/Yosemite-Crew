@@ -4,6 +4,7 @@ import {AppDispatch, type RootState} from '@/app/store';
 import {resetCompanionState} from '@/features/companion';
 import {resetExpensesState} from '@/features/expenses';
 import {resetDocumentState} from '@/features/documents/documentSlice';
+import {resetPassportState} from '@/features/passport/passportSlice';
 import {resetTasksState} from '@/features/tasks';
 import {resetAppointmentsState} from '@/features/appointments/appointmentsSlice';
 import {resetBusinessesState} from '@/features/appointments/businessesSlice';
@@ -271,6 +272,7 @@ export const logout = createAsyncThunk<
   dispatch(resetAppointmentsState());
   dispatch(resetTasksState());
   dispatch(resetDocumentState());
+  dispatch(resetPassportState());
   dispatch(resetBusinessesState());
   dispatch(resetLinkedBusinesses());
   dispatch(resetCoParentState());

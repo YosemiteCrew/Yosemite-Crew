@@ -139,7 +139,9 @@ runClinicalControllerSuite({
       handler: "acknowledge",
       params: { organisationId: ORG_ID, dischargeId: RECORD_ID },
       serviceMethod: "acknowledge",
-      expectArgs: [RECORD_ID, ORG_ID],
+      // The staff member recording the acknowledgement is forwarded so the
+      // audit names them instead of a fabricated PARENT actor.
+      expectArgs: [RECORD_ID, ORG_ID, "user_clinical_1"],
       fallback: "Failed to acknowledge discharge instructions",
     },
   ],

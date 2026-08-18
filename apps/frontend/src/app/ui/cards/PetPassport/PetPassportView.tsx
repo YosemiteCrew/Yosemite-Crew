@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { formatDisplayDate } from '@/app/lib/date';
+import { passportSexLabel } from '@yosemite-crew/types';
 import type { ClinicalExamDTO, PetPassportDTO, VaccinationDTO } from '@yosemite-crew/types';
 
 const SPECIES_LABEL: Record<string, string> = {
@@ -112,7 +113,7 @@ const PetPassportView = ({ passport }: PetPassportViewProps) => {
       )}
 
       <Section title="Description">
-        <Row label="Sex" value={identity.sex} />
+        <Row label="Sex" value={passportSexLabel(identity.sex)} />
         <Row label="Date of birth" value={dateLabel(identity.dateOfBirth)} />
         <Row label="Colour" value={identity.colour} />
         <Row label="Distinguishing marks" value={identity.distinguishingMarks} />

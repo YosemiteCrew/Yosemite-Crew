@@ -108,10 +108,11 @@ export const DischargeInstructionController = {
   acknowledge: handler({
     params: DischargeParamsSchema,
     fallback: "Failed to acknowledge discharge instructions",
-    run: ({ params }) =>
+    run: ({ params, userId }) =>
       DischargeInstructionService.acknowledge(
         params.dischargeId,
         params.organisationId,
+        userId,
       ),
   }),
 };

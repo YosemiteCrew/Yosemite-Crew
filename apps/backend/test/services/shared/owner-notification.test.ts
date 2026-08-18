@@ -248,8 +248,34 @@ describe("publicPassportUrl", () => {
     expect(publicPassportUrl("pat-1")).toBe("https://card.test/passport/pat-1");
   });
 
-  it("yields a relative link when neither base is configured", () => {
-    expect(publicPassportUrl("pat-1")).toBe("/passport/pat-1");
+  it("returns null when neither base is configured", () => {
+    // Previously emitted a relative "/passport/pat-1" - an unresolvable link in
+    // an email and an unscannable QR payload on a wallet pass.
+    expect(publicPassportUrl("pat-1")).toBeNull();
+  });
+
+  it("ignores an empty-string base and falls through to the card base", () => {
+    // .env.example ships both keys pre-declared as "", which `??` treated as a
+    // configured value and so shadowed a correctly set fallback.
+    process.env.PUBLIC_PASSPORT_BASE_URL = "";
+    process.env.PUBLIC_CARD_BASE_URL = "https://card.test";
+
+    expect(publicPassportUrl("pat-1")).toBe("https://card.test/passport/pat-1");
+  });
+
+  it("ignores a whitespace-only base", () => {
+    process.env.PUBLIC_PASSPORT_BASE_URL = "   ";
+    process.env.PUBLIC_CARD_BASE_URL = "https://card.test";
+
+    expect(publicPassportUrl("pat-1")).toBe("https://card.test/passport/pat-1");
+  });
+
+  it("rejects a non-absolute or non-http base", () => {
+    process.env.PUBLIC_PASSPORT_BASE_URL = "app.test";
+    expect(publicPassportUrl("pat-1")).toBeNull();
+
+    process.env.PUBLIC_PASSPORT_BASE_URL = "ftp://app.test";
+    expect(publicPassportUrl("pat-1")).toBeNull();
   });
 });
 

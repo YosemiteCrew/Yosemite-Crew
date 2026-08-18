@@ -34,6 +34,7 @@ jest.mock("../../../src/services/pet-passport.service", () => {
       getPassport: jest.fn(),
       getPublicPassportByToken: jest.fn(),
       ensurePublicToken: jest.fn(),
+      getExistingPublicToken: jest.fn(),
       issuePublicToken: jest.fn(),
       revokePublicToken: jest.fn(),
     },
@@ -97,6 +98,10 @@ describe("PetPassportController", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     service.ensurePublicToken.mockResolvedValue("share-token-abc" as never);
+    // Staff pass builders read an already-live token and never mint one.
+    service.getExistingPublicToken.mockResolvedValue(
+      "share-token-abc" as never,
+    );
     jsonMock = jest.fn();
     sendMock = jest.fn();
     setHeaderMock = jest.fn();
@@ -682,6 +687,27 @@ describe("PetPassportController", () => {
       );
       await PetPassportController.getApplePass(authed(), res as Response);
       expect(statusMock).toHaveBeenCalledWith(501);
+    });
+
+    it("never mints a public share token from a staff session", async () => {
+      // The token resolves the public passport with "owner" scope, bypassing
+      // the cross-practice consent filter that constrains the same staff
+      // member's own passport view - and creates a durable public credential
+      // the owner never authorised. Staff must reuse a live one or get a 409.
+      service.getPassport.mockResolvedValue(passportDto as never);
+      service.getExistingPublicToken.mockResolvedValue(null as never);
+      await PetPassportController.getApplePass(authed(), res as Response);
+      expect(statusMock).toHaveBeenCalledWith(409);
+      expect(service.ensurePublicToken).not.toHaveBeenCalled();
+      expect(wallet.buildApplePass).not.toHaveBeenCalled();
+    });
+
+    it("builds the staff pass from an already-live token", async () => {
+      service.getPassport.mockResolvedValue(passportDto as never);
+      wallet.buildApplePass.mockResolvedValue(Buffer.from("pk") as never);
+      await PetPassportController.getApplePass(authed(), res as Response);
+      expect(service.getExistingPublicToken).toHaveBeenCalledWith("pat-1");
+      expect(service.ensurePublicToken).not.toHaveBeenCalled();
     });
 
     it("falls back to a default filename for a nameless companion", async () => {

@@ -2,7 +2,7 @@ import { prisma } from "src/config/prisma";
 import { NotificationService } from "src/services/notification.service";
 import type { NotificationPayload } from "src/utils/notificationTemplates";
 import { sendEmail } from "src/utils/email";
-import { stripTrailingSlash } from "src/utils/strip-trailing-slash";
+import { resolvePublicPassportBaseUrl } from "src/utils/public-base-url";
 import logger from "src/utils/logger";
 
 // Everything the owner-facing channels need about a pet and the person
@@ -100,20 +100,40 @@ export const notifyPatientOwner = async ({
 
 // Public passport deep link for a pet. The base is configurable so the same
 // email works from local, dev and production hosts.
-export const publicPassportUrl = (patientId: string): string => {
-  const base = stripTrailingSlash(
-    process.env.PUBLIC_PASSPORT_BASE_URL ??
-      process.env.PUBLIC_CARD_BASE_URL ??
-      "",
-  );
+/**
+ * Public passport deep link for a pet, or null when no absolute base URL is
+ * configured.
+ *
+ * Returning null rather than a relative "/passport/<id>" is the point: the old
+ * `??` chain treated the empty string shipped in `.env.example` as a configured
+ * value and emitted a dead link into owner emails.
+ */
+export const publicPassportUrl = (patientId: string): string | null => {
+  const base = resolvePublicPassportBaseUrl();
+  if (!base) return null;
   return `${base}/passport/${patientId}`;
 };
 
 // Email shape shared by the passport flows: the push copy followed by a link
 // into the pet's passport. Only the subject line differs between flows.
+// A misconfigured deployment still gets the notification, just without the
+// link - a dead anchor would be worse, and dropping the email entirely would
+// cost the owner the news that their passport changed.
 export const passportLinkEmail =
   (buildSubject: (patientName: string) => string) =>
-  ({ patientId, patientName, payload }: OwnerEmailContext): OwnerEmail => ({
-    subject: buildSubject(patientName),
-    htmlBody: `<p>${payload.body}</p><p><a href="${publicPassportUrl(patientId)}">View ${patientName}'s passport</a></p>`,
-  });
+  ({ patientId, patientName, payload }: OwnerEmailContext): OwnerEmail => {
+    const url = publicPassportUrl(patientId);
+    if (!url) {
+      logger.error(
+        "Passport link omitted from owner email: PUBLIC_PASSPORT_BASE_URL / PUBLIC_CARD_BASE_URL must be an absolute http(s) URL.",
+        { patientId },
+      );
+    }
+    const link = url
+      ? `<p><a href="${url}">View ${patientName}'s passport</a></p>`
+      : "";
+    return {
+      subject: buildSubject(patientName),
+      htmlBody: `<p>${payload.body}</p>${link}`,
+    };
+  };

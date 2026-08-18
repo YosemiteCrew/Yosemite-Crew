@@ -82,6 +82,69 @@ describe('PetPassportModal', () => {
     );
   });
 
+  it('recovers from a failure when the same passport is reopened', async () => {
+    mockedFetch.mockRejectedValueOnce(new Error('500'));
+    const onClose = jest.fn();
+    const { rerender } = render(
+      <PetPassportModal open companionId="p1" companionName="Doggy" onClose={onClose} />
+    );
+    expect(await screen.findByText('This passport could not be loaded.')).toBeInTheDocument();
+
+    rerender(
+      <PetPassportModal open={false} companionId="p1" companionName="Doggy" onClose={onClose} />
+    );
+    mockedFetch.mockResolvedValueOnce({ identity: { name: 'Doggy' } });
+    rerender(<PetPassportModal open companionId="p1" companionName="Doggy" onClose={onClose} />);
+
+    // The stale failure must be gone the moment the retry starts.
+    expect(screen.getByText('Loading passport...')).toBeInTheDocument();
+    expect(screen.queryByText('This passport could not be loaded.')).not.toBeInTheDocument();
+    expect(await screen.findByTestId('passport')).toHaveTextContent('Doggy');
+    expect(screen.queryByText('This passport could not be loaded.')).not.toBeInTheDocument();
+    expect(mockedFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not inherit another companion failure while the next one loads', async () => {
+    mockedFetch.mockRejectedValueOnce(new Error('500'));
+    const onClose = jest.fn();
+    const { rerender } = render(
+      <PetPassportModal open companionId="p1" companionName="Doggy" onClose={onClose} />
+    );
+    expect(await screen.findByText('This passport could not be loaded.')).toBeInTheDocument();
+
+    let resolve: (v: unknown) => void = () => {};
+    mockedFetch.mockReturnValueOnce(
+      new Promise((r) => {
+        resolve = r;
+      })
+    );
+    rerender(<PetPassportModal open companionId="p2" companionName="Kitty" onClose={onClose} />);
+    expect(screen.getByText('Loading passport...')).toBeInTheDocument();
+    expect(screen.queryByText('This passport could not be loaded.')).not.toBeInTheDocument();
+
+    resolve({ identity: { name: 'Kitty' } });
+    expect(await screen.findByTestId('passport')).toHaveTextContent('Kitty');
+  });
+
+  it('shows the error again when a reopened passport fails a second time', async () => {
+    mockedFetch.mockRejectedValueOnce(new Error('500'));
+    const onClose = jest.fn();
+    const { rerender } = render(
+      <PetPassportModal open companionId="p1" companionName="Doggy" onClose={onClose} />
+    );
+    expect(await screen.findByText('This passport could not be loaded.')).toBeInTheDocument();
+
+    rerender(
+      <PetPassportModal open={false} companionId="p1" companionName="Doggy" onClose={onClose} />
+    );
+    mockedFetch.mockRejectedValueOnce(new Error('500'));
+    rerender(<PetPassportModal open companionId="p1" companionName="Doggy" onClose={onClose} />);
+
+    expect(screen.getByText('Loading passport...')).toBeInTheDocument();
+    expect(await screen.findByText('This passport could not be loaded.')).toBeInTheDocument();
+    expect(screen.queryByTestId('passport')).not.toBeInTheDocument();
+  });
+
   it('closes via the modal dismiss control', async () => {
     const onClose = jest.fn();
     mockedFetch.mockResolvedValue({ identity: { name: 'Doggy' } });

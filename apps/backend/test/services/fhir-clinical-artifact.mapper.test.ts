@@ -327,6 +327,8 @@ describe("clinicalArtifactFhirMapper", () => {
       appointmentId: string | null;
       patientId: string | null;
       authorId: string | null;
+      signedBy: string | null;
+      signedAt: Date | null;
       summary: string | null;
     }> = {},
   ) => ({
@@ -621,6 +623,92 @@ describe("clinicalArtifactFhirMapper", () => {
     expect(
       bare.extension?.some((e) => e.url.includes("clinical-exam-weight-kg")),
     ).toBe(false);
+  });
+
+  const examBody = {
+    id: "exam-attest",
+    artifactId: "artifact-CLINICAL_EXAM",
+    examinedAt: now,
+    fitForTravel: true,
+    findings: "BAR",
+    weightKg: null,
+    temperatureC: null,
+    metadata: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  it("attests signed compositions with the signatory, not the capture author", () => {
+    const signedAt = new Date("2026-02-02T10:30:00.000Z");
+
+    // A nurse captured the exam; a different veterinarian attested it.
+    const exam = clinicalArtifactFhirMapper.clinicalExamToComposition({
+      artifact: artifact("CLINICAL_EXAM", {
+        authorId: "nurse-1",
+        signedBy: "vet-2",
+        signedAt,
+      }),
+      clinicalExamination: examBody,
+    });
+    expect(exam.author?.[0]).toEqual({ reference: "Practitioner/nurse-1" });
+    expect(exam.attester).toEqual([
+      {
+        mode: "legal",
+        time: signedAt.toISOString(),
+        party: { reference: "Practitioner/vet-2" },
+      },
+    ]);
+
+    const soap = clinicalArtifactFhirMapper.soapNoteToComposition({
+      ...soapRecord,
+      artifact: { ...soapRecord.artifact, signedBy: "vet-2", signedAt },
+    });
+    expect(soap.author?.[0]).toEqual({ reference: "Practitioner/author-1" });
+    expect(soap.attester?.[0]?.party?.reference).toBe("Practitioner/vet-2");
+
+    const discharge = clinicalArtifactFhirMapper.dischargeSummaryToComposition({
+      ...dischargeRecord,
+      artifact: { ...dischargeRecord.artifact, signedBy: "vet-2", signedAt },
+    });
+    expect(discharge.author?.[0]).toEqual({
+      reference: "Practitioner/author-1",
+    });
+    expect(discharge.attester?.[0]?.party?.reference).toBe(
+      "Practitioner/vet-2",
+    );
+  });
+
+  it("attests without a time when the signature timestamp is missing", () => {
+    const exam = clinicalArtifactFhirMapper.clinicalExamToComposition({
+      artifact: artifact("CLINICAL_EXAM", {
+        signedBy: "vet-2",
+        signedAt: null,
+      }),
+      clinicalExamination: examBody,
+    });
+    expect(exam.attester).toHaveLength(1);
+    expect(exam.attester?.[0]?.mode).toBe("legal");
+    expect(exam.attester?.[0]?.time).toBeUndefined();
+    expect(exam.attester?.[0]?.party?.reference).toBe("Practitioner/vet-2");
+  });
+
+  it("omits attester while an artifact is unsigned", () => {
+    expect(
+      clinicalArtifactFhirMapper.soapNoteToComposition(soapRecord).attester,
+    ).toBeUndefined();
+    expect(
+      clinicalArtifactFhirMapper.dischargeSummaryToComposition(dischargeRecord)
+        .attester,
+    ).toBeUndefined();
+    expect(
+      clinicalArtifactFhirMapper.clinicalExamToComposition({
+        artifact: artifact("CLINICAL_EXAM", {
+          signedBy: null,
+          signedAt: null,
+        }),
+        clinicalExamination: examBody,
+      }).attester,
+    ).toBeUndefined();
   });
 
   it("builds list bundles for each new passport record kind", () => {

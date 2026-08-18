@@ -10,42 +10,42 @@ pathologySubmissionRouter.get(
   BASE,
   requireWebAuth,
   withOrgPermissions(),
-  requirePermission("appointments:view:any"),
+  requirePermission("labs:view:any"),
   PathologySubmissionController.list,
 );
 pathologySubmissionRouter.post(
   BASE,
   requireWebAuth,
   withOrgPermissions(),
-  requirePermission("appointments:edit:any"),
+  requirePermission("labs:edit:any"),
   PathologySubmissionController.create,
 );
 pathologySubmissionRouter.get(
   `${BASE}/:submissionId`,
   requireWebAuth,
   withOrgPermissions(),
-  requirePermission("appointments:view:any"),
+  requirePermission("labs:view:any"),
   PathologySubmissionController.get,
 );
 pathologySubmissionRouter.post(
   `${BASE}/:submissionId/results`,
   requireWebAuth,
   withOrgPermissions(),
-  requirePermission("appointments:edit:any"),
+  requirePermission("labs:edit:any"),
   PathologySubmissionController.recordResults,
 );
 pathologySubmissionRouter.post(
   `${BASE}/:submissionId/review`,
   requireWebAuth,
   withOrgPermissions(),
-  requirePermission("appointments:edit:any"),
+  requirePermission("labs:edit:any"),
   PathologySubmissionController.review,
 );
 pathologySubmissionRouter.put(
   `${BASE}/:submissionId`,
   requireWebAuth,
   withOrgPermissions(),
-  requirePermission("appointments:edit:any"),
+  requirePermission("labs:edit:any"),
   PathologySubmissionController.update,
 );
 

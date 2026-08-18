@@ -11,6 +11,7 @@ import {
 } from 'react-icons/io5';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { formatDisplayDate } from '@/app/lib/date';
+import { passportSexLabel } from '@yosemite-crew/types';
 import type { ClinicalExamDTO, PetPassportDTO, VaccinationDTO } from '@yosemite-crew/types';
 
 const SPECIES_LABEL: Record<string, string> = {
@@ -29,7 +30,7 @@ const descriptionLine = (identity: PetPassportDTO['identity']): string =>
   [
     speciesLabel(identity.species),
     identity.breed,
-    identity.sex,
+    passportSexLabel(identity.sex),
     dateLabel(identity.dateOfBirth) ? `born ${dateLabel(identity.dateOfBirth)}` : undefined,
   ]
     .filter((part): part is string => Boolean(part))

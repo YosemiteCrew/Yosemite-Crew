@@ -101,6 +101,32 @@ export interface PetPassportIssuanceDTO {
   status?: string;
 }
 
+/**
+ * Display labels for the raw lowercase Prisma `Gender` value carried on
+ * `PetPassportIdentity.sex`.
+ *
+ * The DTO ships the database value verbatim, so every passport surface that
+ * printed it unmapped rendered "Dog · Beagle · female" - and literally
+ * "unknown" - next to a species that *was* mapped. Shared here so the public
+ * share page, the passport card, the wallet pass preview and the wallet passes
+ * themselves cannot drift apart.
+ */
+export const PASSPORT_SEX_LABEL: Record<string, string> = {
+  male: 'Male',
+  female: 'Female',
+  unknown: 'Unknown',
+};
+
+/**
+ * Formats a passport sex for display, returning undefined for an unset or
+ * `unknown` value so callers building `.filter(Boolean)` description lines drop
+ * the segment entirely rather than printing "Unknown".
+ */
+export const passportSexLabel = (sex?: string): string | undefined => {
+  if (!sex || sex === 'unknown') return undefined;
+  return PASSPORT_SEX_LABEL[sex] ?? sex;
+};
+
 export interface PetPassportIdentity {
   id: string;
   name: string;

@@ -180,6 +180,21 @@ const loadPassportArtifactForPatient = async <T extends object>(params: {
   return artifact;
 };
 
+/**
+ * VOID is terminal. A revoked record was pulled for error or fraud, so neither a
+ * fresh attestation nor a new e-signature run may resurrect it - both write
+ * `status: "SIGNED"` and would republish it to the owner, the wallet pass and
+ * the public QR page with its revocation history erased.
+ */
+const assertArtifactNotRevoked = (status: unknown, action: string): void => {
+  if (status === "VOID") {
+    throw new PetClinicalRecordError(
+      `A revoked clinical record cannot be ${action}.`,
+      409,
+    );
+  }
+};
+
 const audit = async (
   ctx: CaptureContext,
   eventType: PassportAuditEvent,
@@ -291,13 +306,52 @@ const recordPdfContent = (
     fields: [
       { label: "Fit to travel", value: e?.fitForTravel ? "Yes" : "No" },
       ...field("Examined", dateOnly(e?.examinedAt)),
-      ...field("Weight", e?.weightKg ? `${e.weightKg} kg` : undefined),
+      ...field("Weight", e?.weightKg != null ? `${e.weightKg} kg` : undefined),
       ...field(
         "Temperature",
-        e?.temperatureC ? `${e.temperatureC}°C` : undefined,
+        e?.temperatureC != null ? `${e.temperatureC}°C` : undefined,
       ),
     ],
   };
+};
+
+// Vitals are attested into the passport and printed onto the signed PDF, so a
+// negative or physiologically impossible value must not be persistable. The
+// bounds bracket the largest patients a practice records (equine) and the
+// survivable temperature range, hypothermia through severe hyperthermia.
+const MAX_WEIGHT_KG = 200;
+const MIN_TEMPERATURE_C = 15;
+const MAX_TEMPERATURE_C = 45;
+
+const assertExamVitalsInRange = (input: {
+  weightKg?: number;
+  temperatureC?: number;
+}): void => {
+  if (input.weightKg !== undefined) {
+    if (input.weightKg <= 0) {
+      throw new PetClinicalRecordError(
+        "Weight must be greater than zero.",
+        400,
+      );
+    }
+    if (input.weightKg > MAX_WEIGHT_KG) {
+      throw new PetClinicalRecordError(
+        `Weight must not exceed ${MAX_WEIGHT_KG} kg.`,
+        400,
+      );
+    }
+  }
+  if (input.temperatureC !== undefined) {
+    if (
+      input.temperatureC < MIN_TEMPERATURE_C ||
+      input.temperatureC > MAX_TEMPERATURE_C
+    ) {
+      throw new PetClinicalRecordError(
+        `Temperature must be between ${MIN_TEMPERATURE_C} and ${MAX_TEMPERATURE_C} °C.`,
+        400,
+      );
+    }
+  }
 };
 
 // Notifies the pet's owner that their passport gained a new verified record so
@@ -483,6 +537,7 @@ export const PetClinicalRecordService = {
     input: RecordClinicalExamRequestDTO,
   ): Promise<ClinicalExamDTO> {
     await assertEncounter(ctx);
+    assertExamVitalsInRange(input);
     const artifact = await prisma.clinicalArtifact.create({
       data: {
         organisationId: ctx.organisationId,
@@ -543,6 +598,7 @@ export const PetClinicalRecordService = {
       organisationId,
       select: { id: true, status: true },
     });
+    assertArtifactNotRevoked(artifact.status, "re-attested");
     if (artifact.status === "SIGNED") {
       throw new PetClinicalRecordError(
         "Clinical record is already attested.",
@@ -550,6 +606,8 @@ export const PetClinicalRecordService = {
       );
     }
     const signedAt = new Date();
+    // `revokedAt`/`revokedReason` are deliberately not cleared here: VOID is
+    // terminal (guarded above), so an attestation can never wipe a revocation.
     const attestationData = {
       primarySource: true,
       signatoryUserId: actor.id ?? null,
@@ -557,8 +615,6 @@ export const PetClinicalRecordService = {
       signatoryLicence: params.signatoryLicence ?? null,
       signingStatus: "SIGNED",
       signedAt,
-      revokedAt: null,
-      revokedReason: null,
     };
     await prisma.clinicalArtifact.update({
       where: { id: artifactId },
@@ -585,21 +641,20 @@ export const PetClinicalRecordService = {
   // passport and the wallet / public page reflect it on next read.
   async revokeRecord(params: {
     artifactId: string;
+    patientId: string;
     organisationId: string;
+    actor: Actor;
     reason?: string;
   }): Promise<{ artifactId: string; status: "VOID" }> {
-    const { artifactId, organisationId } = params;
-    const artifact = await prisma.clinicalArtifact.findFirst({
-      where: {
-        id: artifactId,
-        organisationId,
-        kind: { in: [...PASSPORT_RECORD_KINDS] },
-      },
-      select: { id: true },
+    const { artifactId, patientId, organisationId, actor } = params;
+    // Same patient scoping as attestRecord: without it, pairing pet B's URL
+    // with pet A's record id voids A's signed passport record.
+    const artifact = await loadPassportArtifactForPatient({
+      artifactId,
+      patientId,
+      organisationId,
+      select: { id: true, status: true },
     });
-    if (!artifact) {
-      throw new PetClinicalRecordError("Clinical record not found.", 404);
-    }
     await prisma.clinicalArtifact.update({
       where: { id: artifactId },
       data: {
@@ -613,6 +668,14 @@ export const PetClinicalRecordService = {
         },
       },
     });
+    // Revocations are as clinically significant as attestations, so they get the
+    // same PATIENT-scoped audit row rather than vanishing silently.
+    await audit(
+      { patientId, organisationId, encounterId: "", actor },
+      AUDIT_EVENT_BY_KIND[artifact.kind],
+      artifactId,
+      { revoked: true, ...(params.reason ? { reason: params.reason } : {}) },
+    );
     return { artifactId, status: "VOID" };
   },
 
@@ -644,17 +707,33 @@ export const PetClinicalRecordService = {
         rabiesTitration: true,
         parasiteTreatment: true,
         clinicalExamination: true,
+        attestation: true,
       },
     });
     if (!artifact) {
       throw new PetClinicalRecordError("Clinical record not found.", 404);
     }
     await assertArtifactBelongsToPatient(artifact.encounterId, patientId);
+    assertArtifactNotRevoked(artifact.status, "sent for signature");
     if (artifact.status === "SIGNED") {
       throw new PetClinicalRecordError(
         "Clinical record is already attested.",
         409,
       );
+    }
+    // Idempotent: a signing request already in flight is returned as-is rather
+    // than minting a second Documenso document, which would mail the vet a
+    // duplicate request and orphan the first document id.
+    const inFlight = artifact.attestation;
+    if (
+      inFlight?.signingStatus === "IN_PROGRESS" &&
+      inFlight.documensoDocumentId
+    ) {
+      return {
+        artifactId,
+        status: "IN_PROGRESS",
+        documensoDocumentId: inFlight.documensoDocumentId,
+      };
     }
     const apiKey =
       await DocumensoService.resolveOrganisationApiKey(organisationId);
@@ -688,10 +767,6 @@ export const PetClinicalRecordService = {
         502,
       );
     }
-    await DocumensoService.distributeDocument({
-      documentId: Number(document.id),
-      apiKey,
-    });
     const documensoDocumentId = String(document.id);
     const attestationData = {
       primarySource: true,
@@ -703,6 +778,11 @@ export const PetClinicalRecordService = {
       revokedAt: null,
       revokedReason: null,
     };
+    // Persist BEFORE distributing. The webhook can only match a completion on
+    // the stored documensoDocumentId, so distributing first and failing to write
+    // would mail the vet a live request whose DOCUMENT_COMPLETED is dropped,
+    // stranding the record in DRAFT forever. This order leaves a recoverable
+    // IN_PROGRESS record whose id is known and safe to re-distribute.
     await prisma.clinicalArtifact.update({
       where: { id: artifactId },
       data: {
@@ -711,6 +791,10 @@ export const PetClinicalRecordService = {
           upsert: { create: attestationData, update: attestationData },
         },
       },
+    });
+    await DocumensoService.distributeDocument({
+      documentId: Number(document.id),
+      apiKey,
     });
     return { artifactId, status: "IN_PROGRESS", documensoDocumentId };
   },

@@ -56,6 +56,7 @@ jest.mock("../../../src/config/prisma", () => ({
     },
     clinicalArtifact: {
       update: jest.fn(),
+      updateMany: jest.fn(),
     },
     encounter: {
       findUnique: jest.fn(),
@@ -182,6 +183,9 @@ describe("DocumensoWebhookController", () => {
       id: "att-1",
       artifactId: "art-1",
     });
+    mockedPrisma.clinicalArtifact.updateMany.mockResolvedValueOnce({
+      count: 1,
+    });
     mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce({
       encounterId: "enc-1",
     });
@@ -191,9 +195,19 @@ describe("DocumensoWebhookController", () => {
 
     await DocumensoWebhookController.handle(req as Request, res as Response);
 
-    expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith(
+    // The completion is an atomic claim that re-asserts the IN_PROGRESS
+    // preconditions, not an unguarded update after a separate read.
+    expect(mockedPrisma.clinicalArtifact.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: "art-1" },
+        where: expect.objectContaining({
+          id: "art-1",
+          status: "IN_PROGRESS",
+          attestation: {
+            revokedAt: null,
+            supersededById: null,
+            signingStatus: "IN_PROGRESS",
+          },
+        }),
         data: expect.objectContaining({ status: "SIGNED" }),
       }),
     );
@@ -228,6 +242,52 @@ describe("DocumensoWebhookController", () => {
         }),
       }),
     );
+    expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
+    expect(notifyOwnerOfPassportUpdate).not.toHaveBeenCalled();
+  });
+
+  it("acks a retried completion without re-stamping or re-notifying", async () => {
+    // Documenso retries the same DOCUMENT_COMPLETED. The row still matches the
+    // attestation lookup (status SIGNED is `not: VOID`, revokedAt still null),
+    // so only the guarded claim stops a second signedAt and a duplicate push.
+    req = signedPassportRequest({
+      event: "DOCUMENT_COMPLETED",
+      payload: { id: "doc-pass-1" },
+    });
+    const mockedPrisma = prisma as any;
+    mockedPrisma.clinicalArtifactAttestation.findFirst.mockResolvedValueOnce({
+      id: "att-1",
+      artifactId: "art-1",
+    });
+    mockedPrisma.clinicalArtifact.updateMany.mockResolvedValueOnce({
+      count: 0,
+    });
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
+    expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
+    expect(notifyOwnerOfPassportUpdate).not.toHaveBeenCalled();
+    expect(statusMock).toHaveBeenCalledWith(200);
+  });
+
+  it("does not resurrect a record revoked between the read and the write", async () => {
+    // The revocation commits after findFirst matched, so the claim's
+    // preconditions no longer hold and nothing is written back to SIGNED.
+    req = signedPassportRequest({
+      event: "DOCUMENT_COMPLETED",
+      payload: { id: "doc-pass-1" },
+    });
+    const mockedPrisma = prisma as any;
+    mockedPrisma.clinicalArtifactAttestation.findFirst.mockResolvedValueOnce({
+      id: "att-1",
+      artifactId: "art-1",
+    });
+    mockedPrisma.clinicalArtifact.updateMany.mockResolvedValueOnce({
+      count: 0,
+    });
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
     expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
     expect(notifyOwnerOfPassportUpdate).not.toHaveBeenCalled();
   });
@@ -288,6 +348,9 @@ describe("DocumensoWebhookController", () => {
     mockedPrisma.clinicalArtifactAttestation.findFirst.mockResolvedValueOnce({
       id: "att-2",
       artifactId: "art-2",
+    });
+    mockedPrisma.clinicalArtifact.updateMany.mockResolvedValueOnce({
+      count: 1,
     });
     mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce({
       encounterId: null,

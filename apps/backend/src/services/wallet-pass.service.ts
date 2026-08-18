@@ -3,7 +3,8 @@ import { deflateSync } from "node:zlib";
 import AdmZip from "adm-zip";
 import forge from "node-forge";
 import jwt from "jsonwebtoken";
-import { stripTrailingSlash } from "src/utils/strip-trailing-slash";
+import { resolvePublicPassportBaseUrl } from "src/utils/public-base-url";
+import { passportSexLabel } from "@yosemite-crew/types";
 import type { PetPassportDTO } from "@yosemite-crew/types";
 
 // Thrown when the Apple Wallet signing material is not present in the
@@ -69,11 +70,12 @@ type AppleIds = { passTypeId: string; teamId: string };
 // The QR on the pass points at the public, verifiable passport view so a
 // border officer or boarding facility can confirm the pass against the issuer.
 const verifyUrl = (passport: PetPassportDTO, shareToken: string): string => {
-  const base = stripTrailingSlash(
-    process.env.PUBLIC_PASSPORT_BASE_URL ??
-      process.env.PUBLIC_CARD_BASE_URL ??
-      "",
-  );
+  const base = resolvePublicPassportBaseUrl();
+  if (!base) {
+    throw new WalletNotConfiguredError(
+      "Wallet passes are not configured: PUBLIC_PASSPORT_BASE_URL or PUBLIC_CARD_BASE_URL must be an absolute http(s) URL.",
+    );
+  }
   // The public page resolves a revocable share token. The patient id would not
   // resolve there at all, and could be neither rotated nor revoked if it did.
   return `${base}/passport/${shareToken}`;
@@ -153,7 +155,11 @@ const issuerLine = (passport: PetPassportDTO): string | undefined => {
 
 const descriptionLine = (passport: PetPassportDTO): string => {
   const species = SPECIES_LABEL[passport.identity.species] ?? "Animal";
-  return [species, passport.identity.breed, passport.identity.sex]
+  return [
+    species,
+    passport.identity.breed,
+    passportSexLabel(passport.identity.sex),
+  ]
     .filter(isNonEmpty)
     .join(" · ");
 };
@@ -205,7 +211,7 @@ export const buildApplePassJson = (
 
   const auxiliaryFields: PassField[] = [];
   pushField(auxiliaryFields, "breed", "Breed", identity.breed);
-  pushField(auxiliaryFields, "sex", "Sex", identity.sex);
+  pushField(auxiliaryFields, "sex", "Sex", passportSexLabel(identity.sex));
 
   return {
     formatVersion: 1,

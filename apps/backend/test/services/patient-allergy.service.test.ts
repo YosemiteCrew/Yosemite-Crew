@@ -7,6 +7,7 @@ import { AuditTrailService } from "src/services/audit-trail.service";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    patientOrganisation: { findFirst: jest.fn() },
     patientAllergy: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -21,6 +22,7 @@ jest.mock("src/services/audit-trail.service", () => ({
 }));
 
 const pm = prisma as unknown as {
+  patientOrganisation: { findFirst: jest.Mock };
   patientAllergy: {
     create: jest.Mock;
     findFirst: jest.Mock;
@@ -50,6 +52,8 @@ const makeAllergy = (over: Record<string, unknown> = {}) => ({
 beforeEach(() => {
   jest.clearAllMocks();
   (AuditTrailService.recordSafely as jest.Mock).mockResolvedValue(undefined);
+  // Creating a clinical row now proves the companion belongs to the caller's org.
+  pm.patientOrganisation.findFirst.mockResolvedValue({ id: "link-1" });
   pm.patientAllergy.findFirst.mockResolvedValue(makeAllergy());
   pm.patientAllergy.create.mockResolvedValue(makeAllergy());
   pm.patientAllergy.update.mockImplementation(
@@ -64,6 +68,22 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("PatientAllergyService.create", () => {
+  it("404s a companion that is not in the caller's organisation", async () => {
+    // PatientAllergy has no FK to Patient, so a random or foreign-tenant UUID
+    // would otherwise persist a LIFE_THREATENING allergy no view ever surfaces.
+    pm.patientOrganisation.findFirst.mockResolvedValue(null);
+    await expect(
+      PatientAllergyService.create({
+        organisationId: "org-1",
+        patientId: "other-tenant-pat",
+        allergen: "Penicillin",
+        allergyType: "DRUG",
+        severity: "LIFE_THREATENING",
+      }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(pm.patientAllergy.create).not.toHaveBeenCalled();
+  });
+
   it("creates an ACTIVE allergy record and emits audit", async () => {
     const result = await PatientAllergyService.create({
       organisationId: "org-1",
