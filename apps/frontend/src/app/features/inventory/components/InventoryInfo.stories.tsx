@@ -232,7 +232,7 @@ export const HiddenItem: Story = {
   },
   play: async () => {
     const body = within(document.body);
-    await expect(await body.findByRole('button', { name: 'Restore item' })).toBeInTheDocument();
+    expect(await body.findByRole('button', { name: 'Restore item' })).toBeInTheDocument();
     await expect(body.queryByRole('button', { name: 'Delete item' })).not.toBeInTheDocument();
   },
   parameters: {
@@ -278,7 +278,7 @@ export const PricingSection: Story = {
   args: { initialSection: 'pricing' },
   play: async () => {
     const body = within(document.body);
-    await expect(await body.findByText('Gross profit per unit :')).toBeInTheDocument();
+    expect(await body.findByText('Gross profit per unit :')).toBeInTheDocument();
     await expect(body.getByText('Margin :')).toBeInTheDocument();
     await expect(body.getByText('Total stock value')).toBeInTheDocument();
     await expect(body.getByText('on-hand stock x unit cost')).toBeInTheDocument();

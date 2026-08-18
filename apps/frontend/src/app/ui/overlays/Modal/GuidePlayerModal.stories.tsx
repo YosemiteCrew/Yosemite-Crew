@@ -164,7 +164,7 @@ export const CopiedLink: Story = {
 
     try {
       await userEvent.click(within(dialog).getByRole('button', { name: 'Copy link' }));
-      await expect(await within(dialog).findByText('Copied')).toBeInTheDocument();
+      expect(await within(dialog).findByText('Copied')).toBeInTheDocument();
       // The deep link is built from the guide id, not from the title or the route.
       await expect(writeText).toHaveBeenCalledWith(
         `${globalThis.window.location.origin}/guides?guide=guide-checkin-flow`

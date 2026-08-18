@@ -60,10 +60,9 @@ const wrapperFor = (canvasElement: HTMLElement, accessibleName: string) =>
     .getByRole('button', { name: accessibleName })
     .closest('.glass-tooltip') as HTMLElement;
 
-/** Hovers a rail button's tooltip wrapper and returns the portalled bubble. */
-const hoverAction = async (canvasElement: HTMLElement, accessibleName: string) => {
-  return openGlassTooltip(wrapperFor(canvasElement, accessibleName));
-};
+/** Opens a rail button's bubble and returns it. */
+const hoverAction = (canvasElement: HTMLElement, accessibleName: string) =>
+  openGlassTooltip(wrapperFor(canvasElement, accessibleName));
 
 const meta = {
   title: 'Appointments/WorkspaceQuickActions',

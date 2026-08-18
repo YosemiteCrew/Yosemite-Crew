@@ -67,13 +67,11 @@ const PACKAGE_ITEM: InvoiceLineItem = {
  * `findByRole` retries the query but never re-sends the event, so a dispatch that lands
  * before the listener exists is lost for good.
  */
-const openBubble = async (canvasElement: HTMLElement, itemName: string) => {
-  const canvas = within(canvasElement);
+const openBubble = (canvasElement: HTMLElement, itemName: string) =>
   // GlassTooltip portals to document.body, so the bubble is outside canvasElement.
-  return openGlassTooltip(
-    canvas.getByRole('button', { name: `View ${itemName} package breakdown` })
+  openGlassTooltip(
+    within(canvasElement).getByRole('button', { name: `View ${itemName} package breakdown` })
   );
-};
 
 const meta = {
   title: 'Workspace/PackageBreakdownTooltip',

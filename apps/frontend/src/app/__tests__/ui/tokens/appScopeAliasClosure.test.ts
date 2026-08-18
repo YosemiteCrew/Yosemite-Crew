@@ -188,6 +188,12 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
       .filter((f) => f.endsWith('.css') && !f.includes('/marketing/'));
 
     const offenders: string[] = [];
+    /* Which clearances an actual dim matched. An entry that matches nothing is not
+       harmless: the justification beside it rots, and the next opacity added to that
+       file inherits it silently. Three entries here read "dark glass tooltip" for a
+       bubble that commit 2ca7017e4 made opaque cream, and the file they name has had
+       no opacity at all since. */
+    const usedClearances = new Set<string>();
 
     // Tailwind can dim from the markup too, which a stylesheet-only scan cannot
     // see: `text-[var(--ink-faint)] ... opacity-70` on the calendar minute
@@ -249,12 +255,6 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
       'features/integrations/pages/IdexxWorkspace/index.tsx::28': 'SKELETON_ROWS, no text',
       'features/appointments/components/Calendar/common/WeekCalendar.tsx::75':
         'the now-line border, decoration with no text',
-      'features/organization/pages/Specialities/PackageBreakdownTable.tsx::50':
-        'dark glass tooltip',
-      'features/organization/pages/Specialities/PackageBreakdownTable.tsx::70':
-        'dark glass tooltip',
-      'features/organization/pages/Specialities/PackageBreakdownTable.tsx::80':
-        'dark glass tooltip',
     };
 
     for (const file of tsx) {
@@ -300,7 +300,11 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
               : Number(m[2]);
           if (pct >= 100 || pct === 0) continue; // 0 = hidden, nothing to read
           if (heavyOnly && pct > 65) continue;
-          if (`${file}::${pct}` in CLEARED) continue;
+          const key = `${file}::${pct}`;
+          if (key in CLEARED) {
+            usedClearances.add(key);
+            continue;
+          }
           offenders.push(`${file}:${i + 1}  opacity ${pct}%`);
         }
       });
@@ -348,6 +352,13 @@ describe('faint-ink alias closure is mirrored into the app scope', () => {
     // Empty, and it should stay that way. Anything new either recedes through
     // ink instead, or names itself as decoration / a disabled control.
     expect(offenders).toEqual([]);
+
+    /* And no clearance may sit here matching nothing. A dead entry is a defect
+       waiting to be excused: it survives whatever removed the dim it was written
+       for, keeps a justification that has stopped being true, and then silently
+       clears the next opacity someone adds to that file. */
+    const dead = Object.keys(CLEARED).filter((key) => !usedClearances.has(key));
+    expect(dead).toEqual([]);
   });
 
   it("uses the design system palette, not Tailwind's stock one", () => {

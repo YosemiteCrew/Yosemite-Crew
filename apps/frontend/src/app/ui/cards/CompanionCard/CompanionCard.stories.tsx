@@ -237,9 +237,7 @@ export const TooltipOnFocus: Story = {
     const button = within(canvasElement).getByRole('button', {
       name: /^Change status for Kiko$/,
     });
-    await expect(await openGlassTooltip(button, { via: 'focus' })).toHaveTextContent(
-      /^Change status$/
-    );
+    expect(await openGlassTooltip(button, { via: 'focus' })).toHaveTextContent(/^Change status$/);
   },
   parameters: {
     docs: {

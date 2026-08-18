@@ -204,7 +204,7 @@ export const AdditionalDetailsOpen: Story = {
 
     // Assert the body actually mounted its controls. Checking aria-expanded on
     // its own would pass on an empty panel, which is how this stayed invisible.
-    await expect(await canvas.findByLabelText('Color (optional)')).toBeInTheDocument();
+    expect(await canvas.findByLabelText('Color (optional)')).toBeInTheDocument();
     await expect(canvas.getByLabelText('Microchip no.')).toBeInTheDocument();
     await expect(canvas.getByLabelText('Passport no.')).toBeInTheDocument();
     await expect(canvas.getByLabelText('Allergies')).toBeInTheDocument();
@@ -243,7 +243,7 @@ export const AdditionalDetailsInsured: Story = {
     await userEvent.click(canvas.getByRole('button', { name: 'Additional Details' }));
     // Two interactions deep: this row only exists inside an opened accordion,
     // for a companion whose isInsured is true.
-    await expect(await canvas.findByLabelText('Company name')).toBeInTheDocument();
+    expect(await canvas.findByLabelText('Company name')).toBeInTheDocument();
     await expect(canvas.getByLabelText('Policy number')).toBeInTheDocument();
     await expect(canvas.getByDisplayValue('PP-4471-22')).toBeInTheDocument();
     await expect(canvas.getByRole('button', { name: 'Insurance: Insured' })).toBeInTheDocument();
@@ -275,7 +275,7 @@ export const AdditionalDetailsErrors: Story = {
     await userEvent.click(canvas.getByRole('button', { name: 'Additional Details' }));
     // Validation messages that live behind a closed accordion: the form can be
     // rejected for two fields the user cannot see until they disclose them.
-    await expect(await canvas.findByText('Company name is required')).toBeInTheDocument();
+    expect(await canvas.findByText('Company name is required')).toBeInTheDocument();
     await expect(canvas.getByText('Policy number is required')).toBeInTheDocument();
   },
   parameters: {

@@ -81,7 +81,7 @@ export const OnlineDeposit: Story = {
     const panel = within(dialog);
     await userEvent.click(panel.getByRole('button', { name: 'Online link' }));
     // The primary action is relabelled by the method choice, not by a separate prop.
-    await expect(await panel.findByRole('button', { name: 'Generate link' })).toBeInTheDocument();
+    expect(await panel.findByRole('button', { name: 'Generate link' })).toBeInTheDocument();
     await expect(panel.queryByRole('button', { name: 'Collect deposit' })).not.toBeInTheDocument();
   },
   parameters: {

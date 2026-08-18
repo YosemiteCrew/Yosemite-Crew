@@ -234,7 +234,7 @@ export const TapRevealsPeek: Story = {
 
     // Assert the peek has real content, not just that a day flipped aria-pressed:
     // a header, three rows, the overflow line and the Open day affordance.
-    await expect(await canvas.findByText('Wed 8 · 12 appointments')).toBeInTheDocument();
+    expect(await canvas.findByText('Wed 8 · 12 appointments')).toBeInTheDocument();
     await expect(canvas.getByRole('button', { name: /open day/i })).toBeInTheDocument();
     await expect(canvas.getByText('+9 more · swipe up')).toBeInTheDocument();
     await expect(canvas.getByText('EMERGENCY')).toBeInTheDocument();

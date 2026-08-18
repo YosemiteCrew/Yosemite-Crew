@@ -198,21 +198,21 @@ export const OpenedByClicking: Story = {
     await userEvent.click(canvas.getByRole('button', { name: 'Details' }));
     // Assert the body mounted its rows, not just that aria-expanded flipped -
     // the weak check passes on an empty section.
-    await expect(await canvas.findByText('Room Code')).toBeInTheDocument();
+    expect(await canvas.findByText('Room Code')).toBeInTheDocument();
     await expect(canvas.getByText('ICU-A')).toBeInTheDocument();
 
     await userEvent.click(canvas.getByRole('button', { name: 'Availability' }));
-    await expect(await canvas.findByText('Assigned staff')).toBeInTheDocument();
+    expect(await canvas.findByText('Assigned staff')).toBeInTheDocument();
     await expect(canvas.getByText('Mon - Sat')).toBeInTheDocument();
 
     await userEvent.click(canvas.getByRole('button', { name: 'Unit type (2)' }));
     // Each unit name renders twice - once as the fieldset legend, once as the
     // "Name" row inside it - which is only apparent with the section open.
-    await expect(await canvas.findAllByText('Small kennel')).toHaveLength(2);
+    expect(await canvas.findAllByText('Small kennel')).toHaveLength(2);
     await expect(canvas.getAllByText('Oxygen cage')).toHaveLength(2);
 
     await userEvent.click(canvas.getByRole('button', { name: 'Equipments / Capabilities' }));
-    await expect(await canvas.findByText('Oxygen Tank, Heating Support')).toBeInTheDocument();
+    expect(await canvas.findByText('Oxygen Tank, Heating Support')).toBeInTheDocument();
   },
   parameters: {
     docs: {

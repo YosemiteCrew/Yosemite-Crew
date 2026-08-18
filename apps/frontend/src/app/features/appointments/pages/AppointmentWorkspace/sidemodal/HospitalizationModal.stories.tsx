@@ -224,7 +224,7 @@ export const ValidationErrors: Story = {
   play: async ({ canvasElement }) => {
     const panel = within(await openModal(canvasElement));
     await userEvent.click(panel.getByRole('button', { name: 'Convert to Inpatient' }));
-    await expect(await panel.findByText('Room is required.')).toBeInTheDocument();
+    expect(await panel.findByText('Room is required.')).toBeInTheDocument();
     await expect(panel.getByText('Unit is required.')).toBeInTheDocument();
   },
   parameters: {

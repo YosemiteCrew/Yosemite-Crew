@@ -354,7 +354,7 @@ export const SubcategoriesExpanded: Story = {
     await userEvent.click(panel.getByRole('button', { name: 'Expand Medicine' }));
     // Assert the nested list actually has its options, which is the whole point:
     // a chevron that flips while the panel below stays empty is the regression.
-    await expect(await panel.findByRole('checkbox', { name: 'Antibiotic' })).toBeInTheDocument();
+    expect(await panel.findByRole('checkbox', { name: 'Antibiotic' })).toBeInTheDocument();
     await expect(panel.getByRole('checkbox', { name: 'Analgesic' })).toBeInTheDocument();
     await expect(panel.getByRole('checkbox', { name: 'Antiparasitic' })).toBeInTheDocument();
     await expect(panel.getAllByRole('checkbox')).toHaveLength(6);

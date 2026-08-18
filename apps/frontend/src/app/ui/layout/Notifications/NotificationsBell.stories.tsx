@@ -122,7 +122,7 @@ export const DesktopEscapeCloses: Story = {
     const canvas = within(canvasElement);
     const bell = canvas.getByRole('button', { name: 'Notifications' });
     await userEvent.click(bell);
-    await expect(await canvas.findByRole('dialog', { name: 'Notifications' })).toBeInTheDocument();
+    expect(await canvas.findByRole('dialog', { name: 'Notifications' })).toBeInTheDocument();
 
     await userEvent.keyboard('{Escape}');
     await expect(canvas.queryByRole('dialog')).toBeNull();

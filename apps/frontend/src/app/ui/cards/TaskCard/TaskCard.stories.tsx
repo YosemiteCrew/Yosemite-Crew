@@ -33,10 +33,9 @@ const wrapperFor = (canvasElement: HTMLElement, accessibleName: string) =>
     .getByRole('button', { name: accessibleName })
     .closest('.glass-tooltip') as HTMLElement;
 
-/** Hovers an action chip's tooltip wrapper and returns the portalled bubble. */
-const hoverChip = async (canvasElement: HTMLElement, accessibleName: string) => {
-  return openGlassTooltip(wrapperFor(canvasElement, accessibleName));
-};
+/** Opens an action chip's bubble and returns it. */
+const hoverChip = (canvasElement: HTMLElement, accessibleName: string) =>
+  openGlassTooltip(wrapperFor(canvasElement, accessibleName));
 
 const meta = {
   title: 'Cards/TaskCard',

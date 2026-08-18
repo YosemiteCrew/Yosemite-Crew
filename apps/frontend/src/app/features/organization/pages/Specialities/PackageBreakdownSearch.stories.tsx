@@ -277,7 +277,7 @@ export const TypingFindsNothing: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.type(canvas.getByLabelText('Search catalog items'), 'ultrasound');
-    await expect(await canvas.findByText('No items found.')).toBeInTheDocument();
+    expect(await canvas.findByText('No items found.')).toBeInTheDocument();
   },
   parameters: {
     docs: {

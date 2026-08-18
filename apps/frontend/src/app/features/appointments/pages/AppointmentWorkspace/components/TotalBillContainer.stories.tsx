@@ -120,7 +120,7 @@ const BILLABLE_ITEMS: BillableSearchItem[] = [
  * GlassTooltip binds mouseenter/focusin to its own wrapper span, not the button, and
  * binds them in an effect a play function can outrun - so the dispatch is retried.
  */
-const hoverInfoIcon = async (canvasElement: HTMLElement, accessibleName: string) =>
+const hoverInfoIcon = (canvasElement: HTMLElement, accessibleName: string) =>
   openGlassTooltip(within(canvasElement).getByRole('button', { name: accessibleName }));
 
 const meta = {

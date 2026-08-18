@@ -76,7 +76,7 @@ export const FocusedWithContent: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(await canvas.findByRole('textbox'));
-    await expect(await canvas.findByRole('toolbar')).toBeVisible();
+    expect(await canvas.findByRole('toolbar')).toBeVisible();
   },
   parameters: {
     docs: {

@@ -146,7 +146,7 @@ export const TooltipDoesNotAccumulate: Story = {
     const first = viewButton(canvasElement, 'Poppy');
     const second = viewButton(canvasElement, 'Biscuit');
 
-    await expect(await openGlassTooltip(first)).toHaveTextContent('View details');
+    expect(await openGlassTooltip(first)).toHaveTextContent('View details');
 
     // Each row owns its own portal, so leaving one must tear its bubble down.
     await closeGlassTooltip(first);

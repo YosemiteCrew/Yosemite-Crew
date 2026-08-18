@@ -176,7 +176,7 @@ export const EmailRequired: Story = {
     await userEvent.click(scope.getByRole('button', { name: 'Delete' }));
     // Reachable only because consent and the email are separate gates: a combined
     // gate would leave Delete disabled and this message unreachable.
-    await expect(await scope.findByRole('alert')).toHaveTextContent('Email is required');
+    expect(await scope.findByRole('alert')).toHaveTextContent('Email is required');
     await expect(args.onDelete).not.toHaveBeenCalled();
     await expect(scope.getByLabelText('Enter email address')).toHaveAttribute(
       'aria-invalid',
@@ -201,7 +201,7 @@ export const EmailInvalid: Story = {
     const dialog = await openDialog(canvasElement);
     const scope = await fillGate(dialog, 'ops@yosemite');
     await userEvent.click(scope.getByRole('button', { name: 'Delete' }));
-    await expect(await scope.findByRole('alert')).toHaveTextContent('Enter a valid email');
+    expect(await scope.findByRole('alert')).toHaveTextContent('Enter a valid email');
     await expect(args.onDelete).not.toHaveBeenCalled();
   },
   parameters: {
@@ -222,7 +222,7 @@ export const ErrorClearsOnTyping: Story = {
     const dialog = await openDialog(canvasElement);
     const scope = await fillGate(dialog, 'ops@yosemite');
     await userEvent.click(scope.getByRole('button', { name: 'Delete' }));
-    await expect(await scope.findByRole('alert')).toBeInTheDocument();
+    expect(await scope.findByRole('alert')).toBeInTheDocument();
     await userEvent.type(scope.getByLabelText('Enter email address'), 'crew.com');
     await expect(scope.queryByRole('alert')).not.toBeInTheDocument();
     await expect(scope.getByLabelText('Enter email address')).toHaveValue('ops@yosemitecrew.com');

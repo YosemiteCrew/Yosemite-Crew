@@ -109,7 +109,7 @@ const BREAKDOWN_HEADINGS = ['Item Name', 'Unit Price', 'Qnt.', 'Gross Amt.', 'Di
 
 const expectBreakdownDrawn = async (canvas: ReturnType<typeof within>) => {
   // Assert the expanded panel actually has its grid, not merely that a row is flagged open.
-  await expect(await canvas.findByText('Breakdown')).toBeInTheDocument();
+  expect(await canvas.findByText('Breakdown')).toBeInTheDocument();
   for (const heading of BREAKDOWN_HEADINGS) {
     await expect(canvas.getByText(heading)).toBeInTheDocument();
   }

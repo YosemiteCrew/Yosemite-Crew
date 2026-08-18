@@ -193,7 +193,7 @@ export const NoMatches: Story = {
     const canvas = within(canvasElement);
     const panel = await openPanel(canvasElement, 'Services');
     await userEvent.type(canvas.getByLabelText('Search Services'), 'zzz');
-    await expect(await within(panel).findByText('No matches found')).toBeInTheDocument();
+    expect(await within(panel).findByText('No matches found')).toBeInTheDocument();
     await expect(within(panel).queryAllByRole('button')).toHaveLength(0);
   },
   parameters: {

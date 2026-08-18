@@ -135,7 +135,7 @@ export const Searching: Story = {
     const canvas = await search(canvasElement, 'lind');
     // Held open by a request that never settles, so the state stays on screen for
     // review instead of flickering past inside the 300ms debounce.
-    await expect(await canvas.findByText('Searching…')).toBeInTheDocument();
+    expect(await canvas.findByText('Searching…')).toBeInTheDocument();
     await expect(canvas.queryByText('No colleagues found')).not.toBeInTheDocument();
   },
   parameters: {
@@ -184,7 +184,7 @@ export const NoResults: Story = {
   beforeEach: stubApi(async () => ({ colleagues: [] })),
   play: async ({ canvasElement }) => {
     const canvas = await search(canvasElement, 'zzz');
-    await expect(await canvas.findByText('No colleagues found')).toBeInTheDocument();
+    expect(await canvas.findByText('No colleagues found')).toBeInTheDocument();
   },
   parameters: {
     docs: {
@@ -259,7 +259,7 @@ export const Cleared: Story = {
   name: 'Query cleared',
   play: async ({ canvasElement }) => {
     const canvas = await search(canvasElement, 'pri');
-    await expect(await canvas.findByRole('button', { name: /Priya Raghavan/ })).toBeInTheDocument();
+    expect(await canvas.findByRole('button', { name: /Priya Raghavan/ })).toBeInTheDocument();
     await userEvent.click(canvas.getByRole('button', { name: 'Clear search' }));
     // Clearing empties the results synchronously rather than waiting on a request,
     // so the prompt line comes back rather than "No colleagues found".
