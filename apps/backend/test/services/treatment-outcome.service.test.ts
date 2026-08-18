@@ -1,5 +1,6 @@
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    patientOrganisation: { findFirst: jest.fn() },
     treatmentOutcome: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -39,7 +40,15 @@ const baseOutcome = {
 };
 
 describe("TreatmentOutcomeService", () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Default: the companion belongs to the caller's organisation, so every
+    // pre-existing case keeps its original meaning. Cross-tenant is asserted
+    // explicitly in its own test below.
+    (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue({
+      id: "patient-org-1",
+    });
+  });
 
   describe("record", () => {
     it("creates an outcome record", async () => {
@@ -207,5 +216,26 @@ describe("TreatmentOutcomeService", () => {
       );
       expect(result.resolved).toBe(true);
     });
+  });
+});
+
+describe("TreatmentOutcomeService cross-tenant protection", () => {
+  it("refuses to write against a companion in another organisation", async () => {
+    // The caller is a legitimate member of org-1; the companion is not.
+    (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue(null);
+
+    await expect(
+      TreatmentOutcomeService.record({
+        organisationId: "org-1",
+        patientId: "patient-1",
+        recordedAt: new Date("2026-08-01T10:00:00Z"),
+        recordedBy: "vet-1",
+        outcomeType: "IMPROVED",
+        clinicalNotes: "Patient showing improvement",
+      }),
+    ).rejects.toThrow("Companion not found.");
+
+    // Rejecting is not enough - nothing may be persisted on the way out.
+    expect(prisma.treatmentOutcome.create as jest.Mock).not.toHaveBeenCalled();
   });
 });

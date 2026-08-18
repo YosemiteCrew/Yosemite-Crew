@@ -1,6 +1,7 @@
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
 import type { Prisma } from "@prisma/client";
+import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 
 export class QolAssessmentError extends Error {
   constructor(
@@ -80,6 +81,13 @@ const assertRecord = async (id: string, organisationId: string) => {
 export const QolAssessmentService = {
   async create(params: CreateQolParams) {
     const { organisationId, patientId, assessedBy, ...rest } = params;
+
+    // The caller is authenticated against this organisation, but the patient id
+    // arrives from the request. Without this the row would be written against
+    // another tenant's companion, invisible to every view that scopes by org.
+    await assertPatientOrgMembership(patientId, organisationId, () => {
+      throw new QolAssessmentError("Companion not found.", 404);
+    });
 
     const record = await prisma.qualityOfLifeAssessment.create({
       data: {

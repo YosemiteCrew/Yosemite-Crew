@@ -1,6 +1,7 @@
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
 import type { Prisma } from "@prisma/client";
+import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 
 export class SurgicalChecklistError extends Error {
   constructor(
@@ -91,6 +92,13 @@ export const SurgicalChecklistService = {
       conductedBy,
       ...rest
     } = params;
+
+    // The caller is authenticated against this organisation, but the patient id
+    // arrives from the request. Without this the row would be written against
+    // another tenant's companion, invisible to every view that scopes by org.
+    await assertPatientOrgMembership(patientId, organisationId, () => {
+      throw new SurgicalChecklistError("Companion not found.", 404);
+    });
 
     const checklist = await prisma.surgicalChecklist.create({
       data: {

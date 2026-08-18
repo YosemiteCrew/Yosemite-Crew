@@ -1,6 +1,7 @@
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
 import type { Prisma } from "@prisma/client";
+import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 
 export class DeceasedRecordError extends Error {
   constructor(
@@ -89,6 +90,13 @@ const assertDeceasedRecord = async (id: string, organisationId: string) => {
 export const DeceasedRecordService = {
   async create(params: CreateDeceasedRecordParams) {
     const { organisationId, patientId, recordedBy, ...rest } = params;
+
+    // The caller is authenticated against this organisation, but the patient id
+    // arrives from the request. Without this the row would be written against
+    // another tenant's companion, invisible to every view that scopes by org.
+    await assertPatientOrgMembership(patientId, organisationId, () => {
+      throw new DeceasedRecordError("Companion not found.", 404);
+    });
 
     const existing = await prisma.deceasedRecord.findUnique({
       where: { patientId },

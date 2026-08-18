@@ -2,6 +2,7 @@ import { SurgicalChecklistService } from "../../src/services/surgical-checklist.
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    patientOrganisation: { findFirst: jest.fn() },
     surgicalChecklist: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -55,7 +56,19 @@ const baseChecklist = {
   items: [baseItem],
 };
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+
+  // Default: the companion belongs to the caller's organisation, so every
+
+  // pre-existing case keeps its original meaning. Cross-tenant is asserted
+
+  // explicitly in its own test below.
+
+  (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue({
+    id: "patient-org-1",
+  });
+});
 
 describe("SurgicalChecklistService.create", () => {
   it("creates a SIGN_IN checklist with items", async () => {
@@ -238,5 +251,25 @@ describe("SurgicalChecklistService.delete", () => {
     await expect(
       SurgicalChecklistService.delete("sc-1", "org-1"),
     ).rejects.toMatchObject({ statusCode: 409 });
+  });
+});
+
+describe("SurgicalChecklistService cross-tenant protection", () => {
+  it("refuses to write against a companion in another organisation", async () => {
+    // The caller is a legitimate member of org-1; the companion is not.
+    (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue(null);
+
+    await expect(
+      SurgicalChecklistService.create({
+        organisationId: "org-1",
+        patientId: "pat-1",
+        encounterId: "enc-1",
+        phase: "SIGN_IN",
+        items: [{ label: "Patient identity confirmed" }],
+      }),
+    ).rejects.toThrow("Companion not found.");
+
+    // Rejecting is not enough - nothing may be persisted on the way out.
+    expect(prisma.surgicalChecklist.create as jest.Mock).not.toHaveBeenCalled();
   });
 });

@@ -2,6 +2,7 @@ import { QolAssessmentService } from "../../src/services/qol-assessment.service"
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    patientOrganisation: { findFirst: jest.fn() },
     qualityOfLifeAssessment: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -47,7 +48,19 @@ const baseAssessment = {
   updatedAt: new Date(),
 };
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+
+  // Default: the companion belongs to the caller's organisation, so every
+
+  // pre-existing case keeps its original meaning. Cross-tenant is asserted
+
+  // explicitly in its own test below.
+
+  (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue({
+    id: "patient-org-1",
+  });
+});
 
 describe("QolAssessmentService.create", () => {
   it("creates a QoL assessment with HHHHHMM score", async () => {
@@ -142,5 +155,28 @@ describe("QolAssessmentService.delete", () => {
     ).rejects.toMatchObject({
       statusCode: 404,
     });
+  });
+});
+
+describe("QolAssessmentService cross-tenant protection", () => {
+  it("refuses to write against a companion in another organisation", async () => {
+    // The caller is a legitimate member of org-1; the companion is not.
+    (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue(null);
+
+    await expect(
+      QolAssessmentService.create({
+        organisationId: "org-1",
+        patientId: "pat-1",
+        assessedAt: new Date("2026-06-30T10:00:00Z"),
+        hhhhhmmScore: 42,
+        overallScore: 45,
+        euthanasiaDiscussed: true,
+      }),
+    ).rejects.toThrow("Companion not found.");
+
+    // Rejecting is not enough - nothing may be persisted on the way out.
+    expect(
+      prisma.qualityOfLifeAssessment.create as jest.Mock,
+    ).not.toHaveBeenCalled();
   });
 });
