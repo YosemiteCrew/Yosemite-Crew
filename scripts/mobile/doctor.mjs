@@ -11,7 +11,7 @@
  *
  * Never prints a secret value: only whether something is present.
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 
@@ -54,25 +54,51 @@ else
 
 // --- untracked files the build requires ------------------------------------
 // Each is gitignored on purpose, so a clone will not have it.
-const required = [
+// These are gitignored, so they never arrive in a fresh worktree. They usually
+// DO exist in a sibling checkout though, which makes recovery a copy rather
+// than a console round-trip - so look there before sending anyone to Firebase.
+const siblingWorktrees = () => {
+  const repoRoot = root.replace(/\/apps\/mobileAppYC$/, '');
+  try {
+    return readdirSync(dirname(repoRoot))
+      .map((d) => join(dirname(repoRoot), d, 'apps/mobileAppYC'))
+      .filter((d) => d !== root && existsSync(d));
+  } catch {
+    return [];
+  }
+};
+const siblings = siblingWorktrees();
+
+const checkFile = (rel, fallbackHow, level) => {
+  if (existsSync(join(root, rel))) {
+    ok(rel);
+    return;
+  }
+  const found = siblings.find((w) => existsSync(join(w, rel)));
+  level(rel, found ? `copy it from ${join(found, rel)}` : fallbackHow);
+};
+
+for (const [rel, how] of [
   [
     'android/gradle.properties',
-    'copy from android/gradle.properties.example, then add signing to ~/.gradle/gradle.properties',
+    'cp android/gradle.properties.example android/gradle.properties, then put signing in ~/.gradle/gradle.properties',
   ],
-  ['android/app/google-services.json', 'download from the Firebase console for the Android app'],
-  ['android/app/src/main/res/values/strings.xml', 'holds app name and API keys; ask a maintainer'],
-];
-const iosRequired = [
-  ['ios/GoogleService-Info.plist', 'download from the Firebase console for the iOS app'],
-  ['ios/mobileAppYC/Secrets.xcconfig', 'ask a maintainer; required for a device or archive build'],
-];
-for (const [rel, how] of required) {
-  if (existsSync(join(root, rel))) ok(rel);
-  else bad(rel, how);
+  [
+    'android/app/google-services.json',
+    'not in any sibling worktree; re-download from the Firebase console',
+  ],
+  ['android/app/src/main/res/values/strings.xml', 'not in any sibling worktree; ask a maintainer'],
+]) {
+  checkFile(rel, how, bad);
 }
-for (const [rel, how] of iosRequired) {
-  if (existsSync(join(root, rel))) ok(rel);
-  else warn(rel, how);
+for (const [rel, how] of [
+  [
+    'ios/GoogleService-Info.plist',
+    'not in any sibling worktree; re-download from the Firebase console',
+  ],
+  ['ios/mobileAppYC/Secrets.xcconfig', 'not in any sibling worktree; ask a maintainer'],
+]) {
+  checkFile(rel, how, warn);
 }
 
 // --- release signing -------------------------------------------------------
