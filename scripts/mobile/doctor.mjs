@@ -290,6 +290,60 @@ try {
   warn('react-native-screens', 'could not evaluate; is package.json readable?');
 }
 
+// --- release gate ------------------------------------------------------------
+// `--require-app-config` guards src/config/variables.local.ts, which supplies
+// appleServiceId, appleRedirectUri, googleWebClientId and facebookAppId. The
+// file is gitignored, and variables.ts swallows its absence SILENTLY when
+// CI=true, so a release build without it produces binaries that install and run
+// but whose social sign-in cannot succeed. Nothing else in the build says so.
+//
+// The templates in variables.ts read `com.yourAppName.mobile.auth` and
+// `https://yourDomain.firebaseapp.com/...`. PLACEHOLDER targets SHOUTING
+// markers and deliberately does not match those, so they are matched here.
+const APP_CONFIG_TEMPLATE = /yourAppName|yourDomain/;
+const REQUIRED_APP_CONFIG = [
+  'appleServiceId',
+  'appleRedirectUri',
+  'googleWebClientId',
+  'facebookAppId',
+];
+
+const appConfigProblems = () => {
+  const rel = 'src/config/variables.local.ts';
+  const file = join(root, rel);
+
+  if (!existsSync(file)) {
+    return [`${rel} missing; the MOBILE_VARIABLES_LOCAL_TS secret did not restore`];
+  }
+
+  const body = readFileSync(file, 'utf8');
+  const problems = [];
+
+  if (APP_CONFIG_TEMPLATE.test(body)) {
+    problems.push(`${rel} still carries variables.ts template values`);
+  }
+  for (const key of REQUIRED_APP_CONFIG) {
+    const match = new RegExp(`${key}\\s*:\\s*'([^']*)'`).exec(body);
+    if (!match) {
+      problems.push(`${key} is absent from ${rel}`);
+    } else if (match[1].trim() === '') {
+      problems.push(`${key} is empty in ${rel}`);
+    }
+  }
+  return problems;
+};
+
+if (process.argv.includes('--require-app-config')) {
+  const problems = appConfigProblems();
+  for (const problem of problems) {
+    console.log(`MISSING  ${problem}`);
+  }
+  if (problems.length === 0) {
+    console.log('OK       src/config/variables.local.ts present, social sign-in values set');
+  }
+  process.exit(problems.length === 0 ? 0 : 1);
+}
+
 // --- report ----------------------------------------------------------------
 // `--self-test` pins the placeholder vocabulary against the shipped templates
 // for the files this tool actually inspects, so an edit that makes the regex
@@ -330,6 +384,30 @@ if (process.argv.includes('--self-test')) {
     '<resources><string name="app_name">Yosemite Crew</string></resources>',
     'MAPS_API_KEY=AIzaSyRealLookingKey123',
   ];
+  // The app-config vocabulary is pinned the same way: it must catch the
+  // variables.ts templates and must not condemn the real values.
+  const appTemplates = [
+    "appleServiceId: 'com.yourAppName.mobile.auth',",
+    "appleRedirectUri: 'https://yourDomain.firebaseapp.com/__/auth/handler',",
+  ];
+  const appReal = [
+    "appleServiceId: 'com.yosemitecrew.mobile.auth',",
+    "appleRedirectUri: 'https://yosemite-crew.firebaseapp.com/__/auth/handler',",
+  ];
+  for (const sample of appTemplates) {
+    if (APP_CONFIG_TEMPLATE.test(sample)) {
+      console.log(`FLAGGED  ${sample.slice(0, 40)}`);
+    } else {
+      console.log(`MISSED   ${sample.slice(0, 40)}  <- app-config regex too narrow`);
+      failures += 1;
+    }
+  }
+  const appFalse = appReal.filter((c) => APP_CONFIG_TEMPLATE.test(c));
+  if (appFalse.length > 0) {
+    console.log(`FALSE POSITIVE on ${appFalse.length} real app-config sample(s)`);
+    failures += appFalse.length;
+  }
+
   const falsePositives = filled.filter((c) => PLACEHOLDER.test(c));
   if (falsePositives.length > 0) {
     console.log(`FALSE POSITIVE on ${falsePositives.length} realistic config sample(s)`);

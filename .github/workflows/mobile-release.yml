@@ -28,6 +28,14 @@
 #     IOS_GOOGLE_SERVICE_INFO_PLIST  base64 of ios/GoogleService-Info.plist
 #     IOS_SECRETS_XCCONFIG           base64 of ios/mobileAppYC/Secrets.xcconfig
 #     APP_STORE_CONNECT_KEY_ID / _ISSUER_ID / _KEY_BASE64   (.p8 API key)
+#   Both platforms
+#     MOBILE_VARIABLES_LOCAL_TS      base64 of src/config/variables.local.ts,
+#                                    which carries appleServiceId, appleRedirectUri,
+#                                    googleWebClientId and facebookAppId. It is
+#                                    gitignored, and variables.ts falls back to
+#                                    templates SILENTLY when CI=true, so a build
+#                                    without it uploads working-looking binaries
+#                                    whose social sign-in cannot succeed.
 #
 # An App Store Connect API key is used rather than an Apple ID plus
 # app-specific password: it is scopable, revocable, and does not carry a human
@@ -106,12 +114,21 @@ jobs:
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON }}
           STRINGS_XML: ${{ secrets.ANDROID_STRINGS_XML }}
+          VARIABLES_LOCAL_TS: ${{ secrets.MOBILE_VARIABLES_LOCAL_TS }}
         run: |
           cd apps/mobileAppYC
           cp android/gradle.properties.example android/gradle.properties
           echo "$GOOGLE_SERVICES_JSON" | base64 -d > android/app/google-services.json
           mkdir -p android/app/src/main/res/values
           echo "$STRINGS_XML" | base64 -d > android/app/src/main/res/values/strings.xml
+          echo "$VARIABLES_LOCAL_TS" | base64 -d > src/config/variables.local.ts
+
+      # variables.local.ts supplies appleServiceId, appleRedirectUri,
+      # googleWebClientId and facebookAppId. Without it the app silently falls
+      # back to the templates in variables.ts and ships a build whose social
+      # sign-in cannot work, so this must fail the release rather than warn.
+      - name: Verify the app config restored
+        run: node scripts/mobile/doctor.mjs --require-app-config
 
       - name: Restore keystore
         env:
@@ -145,7 +162,8 @@ jobs:
         if: always()
         run: rm -f "${RUNNER_TEMP}/release.keystore" \
           apps/mobileAppYC/android/app/google-services.json \
-          apps/mobileAppYC/android/app/src/main/res/values/strings.xml
+          apps/mobileAppYC/android/app/src/main/res/values/strings.xml \
+          apps/mobileAppYC/src/config/variables.local.ts
 
   ios:
     name: iOS (TestFlight)
@@ -174,6 +192,7 @@ jobs:
           GOOGLE_SERVICE_INFO: ${{ secrets.IOS_GOOGLE_SERVICE_INFO_PLIST }}
           SECRETS_XCCONFIG: ${{ secrets.IOS_SECRETS_XCCONFIG }}
           INFO_PLIST: ${{ secrets.IOS_INFO_PLIST }}
+          VARIABLES_LOCAL_TS: ${{ secrets.MOBILE_VARIABLES_LOCAL_TS }}
         run: |
           cd apps/mobileAppYC
           echo "$GOOGLE_SERVICE_INFO" | base64 -d > ios/GoogleService-Info.plist
@@ -182,6 +201,12 @@ jobs:
           # proceed without it, which is easy to miss because the failure comes
           # from xcodebuild rather than from a missing-file check.
           echo "$INFO_PLIST" | base64 -d > ios/mobileAppYC/Info.plist
+          echo "$VARIABLES_LOCAL_TS" | base64 -d > src/config/variables.local.ts
+
+      # See the android job: without this the app ships template social sign-in
+      # config, and nothing in the build itself would say so.
+      - name: Verify the app config restored
+        run: node scripts/mobile/doctor.mjs --require-app-config
 
       # A dedicated keychain, deleted in cleanup, so the signing identity never
       # persists on the runner beyond this job.
@@ -240,3 +265,4 @@ jobs:
           rm -rf ~/.appstoreconnect/private_keys
           rm -f ~/Library/MobileDevice/Provisioning\ Profiles/release.mobileprovision
           rm -f apps/mobileAppYC/ios/GoogleService-Info.plist apps/mobileAppYC/ios/mobileAppYC/Secrets.xcconfig apps/mobileAppYC/ios/mobileAppYC/Info.plist
+          rm -f apps/mobileAppYC/src/config/variables.local.ts
