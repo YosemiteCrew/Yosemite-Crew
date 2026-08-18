@@ -105,11 +105,17 @@ const autoAcceptDownloads = async (app: ElectronApplication, dir: string): Promi
   await app.evaluate(async ({ BrowserWindow }, saveDir) => {
     const ses = BrowserWindow.getAllWindows()[0]?.webContents.session;
     if (!ses) throw new Error('no window session to attach the download listener to');
+    let seq = 0;
     ses.on('will-download', (_event, item) => {
+      // A counter because these tests download the same filename repeatedly, and
+      // reusing one path let concurrent downloads collide - on Windows that lost
+      // one of them and the vault count came up short.
+      //
       // Joined by hand rather than with node:path: this callback is serialised
       // into the main process, where `require` is not available. Node accepts
       // forward slashes on Windows too.
-      item.setSavePath(`${saveDir}/${item.getFilename()}`);
+      seq += 1;
+      item.setSavePath(`${saveDir}/${seq}-${item.getFilename()}`);
     });
   }, dir);
 };

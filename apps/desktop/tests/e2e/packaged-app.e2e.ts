@@ -165,10 +165,24 @@ test.describe('packaged Yosemite Crew PIMS desktop app', () => {
   test('persists window state across relaunches', async () => {
     const profileDir = userDataDir as string;
 
-    await app?.evaluate(({ BrowserWindow }) => {
+    // setBounds is applied by the window server asynchronously, so emitting
+    // 'close' in the same tick made the app's handler read - and persist - the
+    // OLD bounds. CI then restored 1024 and the assertion blamed persistence for
+    // what was really a race in the test. Wait for the resize to land first.
+    await app?.evaluate(async ({ BrowserWindow }) => {
       const win = BrowserWindow.getAllWindows()[0];
-      win?.setBounds({ x: 42, y: 48, width: 1180, height: 820 });
-      win?.emit('close');
+      if (!win) throw new Error('no window to resize');
+      win.setBounds({ x: 42, y: 48, width: 1180, height: 820 });
+
+      const deadline = Date.now() + 5000;
+      while (win.getBounds().width !== 1180 && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      if (win.getBounds().width !== 1180) {
+        throw new Error(`window never resized: width is ${win.getBounds().width}`);
+      }
+
+      win.emit('close');
     });
     await app?.close();
     app = undefined;
