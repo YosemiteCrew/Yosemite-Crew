@@ -61,9 +61,14 @@ updates:
       # fix (#2052); stripe-react-native and the nitro modules are 0.x native
       # code; react-test-renderer must exactly match the react version RN pins
       # (its 19.2.8 ride-along failed all 457 suites); react-native-screens is
-      # pinned to 4.24.0 because 4.25+ emit React.ComponentRef<> in their
-      # src/fabric/ codegen specs, which RN 0.81.6's parser rejects, breaking
-      # both the Android codegen task and iOS pod install (#2271, #2272).
+      # pinned to 4.24.0 for two separate reasons. 4.26.0+ emit
+      # React.ComponentRef<> in their src/fabric/ codegen specs and RN 0.81.6's
+      # parser accepts only React.ElementRef<>, which was observed failing on
+      # 4.27.0 and 4.26.2 - both iOS pod install and the Android codegen task,
+      # each on a different command (showColumn, setToolbarMenuElementOptions).
+      # 4.25.0's specs are clean and it does build, but it declares
+      # react-native >=0.82.0, so it is unsupported here. 4.24.0 is the last
+      # version that both builds and claims to support 0.81.6 (#2271, #2272).
       # RN upgrades are deliberate migrations with device builds, never weekly PRs.
       - dependency-name: 'react-native'
         update-types: ['version-update:semver-minor', 'version-update:semver-major']
