@@ -182,7 +182,12 @@ test.describe('packaged Yosemite Crew PIMS desktop app', () => {
         throw new Error(`window never resized: width is ${win.getBounds().width}`);
       }
 
-      win.emit('close');
+      // Let the resize handler's own debounced persist run (400ms in
+      // window-state.ts) rather than emitting a synthetic 'close'. The synthetic
+      // event fired the save, but on CI the state still came back as defaults,
+      // and driving the real code path removes the guesswork about what else
+      // that emit set in motion during shutdown.
+      await new Promise((resolve) => setTimeout(resolve, 1200));
     });
     await app?.close();
     app = undefined;
