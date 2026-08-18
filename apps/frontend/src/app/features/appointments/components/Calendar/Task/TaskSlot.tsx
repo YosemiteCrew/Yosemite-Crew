@@ -166,6 +166,41 @@ type TaskMarkerLayout = { top: number; laneIndex: number; laneCount: number };
 
 /** One task block in the hour column, with its hover-revealed view shortcut. */
 /**
+ * Geometry and classes for one task chip. Pure, and driven only by the two mode
+ * flags, so it lives outside TaskMarker rather than adding four more branches
+ * to a component that is mostly wiring.
+ *
+ * The radius is deliberately set in BOTH the `!` utility here and the inline
+ * style on the button: they compete, so changing one alone does nothing.
+ * cursor-grab because these chips are draggable and used to show a plain arrow,
+ * so they did not read as movable; the appointment blocks already do this.
+ */
+const getTaskMarkerLayout = ({
+  isZoomOutMode,
+  laneCount,
+  canDrag,
+  height,
+}: {
+  isZoomOutMode: boolean;
+  laneCount: number;
+  canDrag: boolean;
+  height: number;
+}) => {
+  const markerHeight = isZoomOutMode
+    ? Math.max(8, Math.min(12, (TASK_BLOCK_DURATION_MINUTES / 60) * height))
+    : Math.max(44, (TASK_BLOCK_DURATION_MINUTES / 60) * height - 2);
+  const isCompact = !isZoomOutMode && laneCount > 1;
+  const cursorClass = canDrag ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer';
+  const markerClassName = isZoomOutMode
+    ? `size-full text-left rounded-full! overflow-hidden p-0 border border-transparent ${cursorClass}`
+    : `size-full text-left rounded-xl! overflow-hidden ${
+        isCompact ? 'px-1.5 py-1' : 'px-2 py-1.5'
+      } flex flex-col justify-between ${cursorClass}`;
+
+  return { markerHeight, isCompact, markerClassName };
+};
+
+/**
  * Exported for its story. The task chip is the calendar's most-repeated object
  * and had drifted a long way from the appointment block it sits beside, so it is
  * worth being able to see it on its own in both themes.
@@ -202,20 +237,12 @@ export const TaskMarker = ({
   const { top, laneIndex, laneCount } = layout;
   const widthPercent = 100 / laneCount;
   const leftPercent = laneIndex * widthPercent;
-  const markerHeight = isZoomOutMode
-    ? Math.max(8, Math.min(12, (TASK_BLOCK_DURATION_MINUTES / 60) * height))
-    : Math.max(44, (TASK_BLOCK_DURATION_MINUTES / 60) * height - 2);
-  const isCompact = !isZoomOutMode && laneCount > 1;
-  const compactPaddingClass = isCompact ? 'px-1.5 py-1' : 'px-2 py-1.5';
-  // 12px, matching common/ZoomInMarker.tsx:111. The radius is set in TWO places -
-  // this `!` utility and the inline style on the button below - so changing one
-  // alone does nothing. The zoomed-out lozenge keeps its pill shape.
-  // cursor-grab: these cards are draggable and showed a plain arrow, so they did
-  // not read as movable at all; the appointment blocks already do this.
-  const cursorClass = canDrag ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer';
-  const markerClassName = isZoomOutMode
-    ? `size-full text-left rounded-full! overflow-hidden p-0 border border-transparent ${cursorClass}`
-    : `size-full text-left rounded-xl! overflow-hidden ${compactPaddingClass} flex flex-col justify-between ${cursorClass}`;
+  const { markerHeight, isCompact, markerClassName } = getTaskMarkerLayout({
+    isZoomOutMode,
+    laneCount,
+    canDrag,
+    height,
+  });
   const dueTimeLabel = formatDateInPreferredTimeZone(new Date(task.dueAt), {
     hour: 'numeric',
     minute: '2-digit',
