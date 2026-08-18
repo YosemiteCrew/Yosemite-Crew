@@ -129,36 +129,75 @@ if (missingSigning.length === 0) {
   );
 }
 
-// --- known-incompatible dependency ----------------------------------------
-// react-native-screens >= 4.26 ships codegen specs using React.ComponentRef,
-// which the RN 0.81 codegen rejects. The peer range does not catch it: 4.26.1
-// and 4.27.0 both declare "*".
+// --- codegen-incompatible native specs ------------------------------------
+// RN 0.81's codegen cannot parse React.ComponentRef in a Fabric spec. Assert
+// that condition directly rather than pinning a version number: a version is
+// only a proxy, and it goes stale the moment upstream fixes it in a later
+// release or backports the fix to a patch. Checking the invariant also catches
+// the same breakage arriving from a different library.
+// Occurrences outside src/fabric/ are harmless - they are not codegen specs.
+const componentRefSpecs = (pkgDir) => {
+  const fabric = join(pkgDir, 'src/fabric');
+  if (!existsSync(fabric)) return [];
+  const hits = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.isFile() && /\.tsx?$/.test(entry.name)) {
+        try {
+          if (readFileSync(full, 'utf8').includes('React.ComponentRef')) {
+            hits.push(full.slice(fabric.length + 1));
+          }
+        } catch {
+          /* unreadable file is not a finding */
+        }
+      }
+    }
+  };
+  try {
+    walk(fabric);
+  } catch {
+    return [];
+  }
+  return hits;
+};
+
 try {
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
   const rn = pkg.dependencies?.['react-native'] ?? '';
-  const screens = pkg.dependencies?.['react-native-screens'] ?? '';
-  const screensMajorMinor = /(\d+)\.(\d+)/.exec(screens);
-  const rnMinor = /0\.(\d+)/.exec(rn);
-  const risky =
-    screensMajorMinor &&
-    rnMinor &&
-    Number(rnMinor[1]) < 82 &&
-    (Number(screensMajorMinor[1]) > 4 || Number(screensMajorMinor[2]) >= 26);
-  if (risky) {
-    bad(
-      'react-native-screens',
-      `${screens} ships codegen specs that RN ${rn} cannot parse. Pin 4.24.0 until React Native is upgraded.`
-    );
-  } else if (screens.startsWith('^') || screens.startsWith('~')) {
-    warn(
-      'react-native-screens',
-      `${screens} is a floating range; it drifted into an incompatible version once already. Prefer an exact pin.`
-    );
+  const rnMinor = Number(/0\.(\d+)/.exec(rn)?.[1] ?? 99);
+  const screensDir = join(root, '../../node_modules/react-native-screens');
+  const resolved = existsSync(screensDir) ? screensDir : null;
+  if (!resolved) {
+    warn('react-native-screens', 'not installed; run pnpm install before building');
   } else {
-    ok('react-native-screens', screens);
+    const hits = componentRefSpecs(resolved);
+    if (hits.length > 0 && rnMinor < 82) {
+      bad(
+        'react-native-screens',
+        `${hits.length} Fabric spec(s) use React.ComponentRef, which the RN ${rn} codegen cannot parse (${hits.slice(0, 2).join(', ')}${hits.length > 2 ? ', ...' : ''}). Pin a version whose src/fabric/ is free of it.`
+      );
+    } else if (hits.length > 0) {
+      ok(
+        'react-native-screens',
+        `${hits.length} Fabric spec(s) use React.ComponentRef, supported by RN ${rn}`
+      );
+    } else {
+      ok('react-native-screens', 'no Fabric spec uses React.ComponentRef');
+    }
+    // Installed state can be fine while the declared range still drifts on the
+    // next install, which is exactly how this broke the first time.
+    const declared = pkg.dependencies?.['react-native-screens'] ?? '';
+    if (/^[\^~]/.test(declared)) {
+      warn(
+        'react-native-screens range',
+        `${declared} floats; it drifted into a codegen-incompatible version once already. Prefer an exact pin.`
+      );
+    }
   }
 } catch {
-  warn('react-native-screens', 'could not read package.json');
+  warn('react-native-screens', 'could not evaluate; is package.json readable?');
 }
 
 // --- report ----------------------------------------------------------------
