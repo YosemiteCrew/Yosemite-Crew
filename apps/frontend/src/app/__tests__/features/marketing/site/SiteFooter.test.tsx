@@ -22,6 +22,8 @@ describe('SiteFooter', () => {
     starsValue = '2,431';
   });
 
+  // The status pill now reflects the live feed. jsdom has no fetch, so it
+  // degrades to `unknown` rather than claiming health.
   it('renders the link columns, compliance chips, status pill and store badges', () => {
     render(<SiteFooter />);
     // column headings
@@ -37,7 +39,7 @@ describe('SiteFooter', () => {
     );
     // compliance chips + status pill + live star count
     expect(screen.getByText('GDPR')).toBeInTheDocument();
-    expect(screen.getByText('All systems operational')).toBeInTheDocument();
+    expect(screen.getByText('Status unavailable')).toBeInTheDocument();
     expect(screen.getByText('2,431')).toBeInTheDocument();
     // Discord appears as both a social icon and a Community column link
     expect(screen.getAllByRole('link', { name: 'Discord' }).length).toBeGreaterThan(1);

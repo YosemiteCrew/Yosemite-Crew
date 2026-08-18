@@ -289,6 +289,18 @@
   background: var(--success);
 }
 
+.sidebar-status-warning .sidebar-status-dot {
+  background: var(--amber);
+}
+
+.sidebar-status-danger .sidebar-status-dot {
+  background: var(--danger);
+}
+
+.sidebar-status-neutral .sidebar-status-dot {
+  background: var(--ink-faint);
+}
+
 .sidebar-collapse-btn {
   display: flex;
   width: 34px;

@@ -32,7 +32,9 @@ describe('PhoneDevHome', () => {
   test('renders the platform-status metrics card', () => {
     renderPhone();
     expect(screen.getByText('Platform status')).toBeInTheDocument();
-    expect(screen.getByText('All systems live')).toBeInTheDocument();
+    // The label now reflects the real status feed. jsdom has no fetch, so
+    // the hook degrades to `unknown` rather than asserting health.
+    expect(screen.getByText('Status unavailable')).toBeInTheDocument();
     expect(screen.getByText('Requests · 24h')).toBeInTheDocument();
     expect(screen.getByText('4,182')).toBeInTheDocument();
     expect(screen.getByText('P95')).toBeInTheDocument();

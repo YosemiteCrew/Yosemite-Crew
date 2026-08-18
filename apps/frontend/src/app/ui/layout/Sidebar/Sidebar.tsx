@@ -38,6 +38,7 @@ import { resolveDefaultOpenScreenRouteForProfile } from '@/app/lib/defaultOpenSc
 import { useIsTabletRail } from './useIsTabletRail';
 
 import './Sidebar.css';
+import { usePlatformStatus } from '@/app/hooks/usePlatformStatus';
 
 const ROUTE_ICONS: Record<string, IconType> = {
   Dashboard: IoGridOutline,
@@ -91,6 +92,7 @@ const Sidebar = () => {
   // Tablet is always the icon rail, so it overrides a stored desktop preference
   // (which would otherwise render the 224px sidebar after a desktop -> tablet resize).
   const isTabletRail = useIsTabletRail();
+  const platformStatus = usePlatformStatus();
   const isCollapsed = isTabletRail || prefersCollapsed;
 
   const isDevPortal = pathname?.startsWith('/developers') || false;
@@ -263,9 +265,9 @@ const Sidebar = () => {
       </div>
       <div className="sidebar-footer">
         {!isCollapsed && (
-          <span className="sidebar-status">
+          <span className={`sidebar-status sidebar-status-${platformStatus.tone}`}>
             <span className="sidebar-status-dot" aria-hidden />
-            {'All systems live'}
+            {platformStatus.label}
           </span>
         )}
         {/* Tablet is locked to the rail by the breakpoint contract, so there is
