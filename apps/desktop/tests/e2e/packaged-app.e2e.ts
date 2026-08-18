@@ -104,7 +104,6 @@ const launchPackagedApp = async (pimsOrigin: string, docOrigin: string, userData
 
 test.describe('packaged Yosemite Crew PIMS desktop app', () => {
   let app: ElectronApplication | undefined;
-  let page: Page;
   let tab: Page;
   let pimsServer: TestServer;
   let docServer: TestServer;
@@ -115,7 +114,6 @@ test.describe('packaged Yosemite Crew PIMS desktop app', () => {
     pimsServer = await startPimsServer(docServer.origin);
     const launched = await launchPackagedApp(pimsServer.origin, docServer.origin);
     app = launched.app;
-    page = launched.page;
     tab = launched.tab;
     userDataDir = launched.userDataDir;
   });
@@ -140,22 +138,28 @@ test.describe('packaged Yosemite Crew PIMS desktop app', () => {
 
   test('renders offline page when the sign-in page cannot load', async () => {
     await pimsServer.close();
-    await app?.evaluate(async ({ BrowserWindow }, signinUrl) => {
-      await BrowserWindow.getAllWindows()[0]?.loadURL(signinUrl);
-    }, `${pimsServer.origin}/signin`);
+    // Navigating the TAB, not the shell window. The app is in tab mode by now,
+    // so PIMS content - and the offline page that replaces it - lives in the
+    // tab; loading into the shell would replace the tab chrome instead. The
+    // rejection is expected: the server was just closed, which is the condition
+    // under test.
+    await tab.goto(`${pimsServer.origin}/signin`).catch(() => undefined);
 
-    await expect(page.getByRole('heading', { name: "You're offline" })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
+    await expect(tab.getByRole('heading', { name: "You're offline" })).toBeVisible();
+    await expect(tab.getByRole('button', { name: 'Try again' })).toBeVisible();
   });
 
   test('routes yosemitecrew deep links to the matching PIMS page', async () => {
-    await page.getByRole('button', { name: /sign in/i }).click();
+    // No sign-in click: openPimsTab already left the welcome screen during
+    // launch. The deep link resolves into the TAB, so both assertions belong
+    // there - `page` is the shell and stays on welcome.html, which is what the
+    // URL assertion was actually reporting.
     await app?.evaluate(({ app: electronApp }, deepLink) => {
       electronApp.emit('open-url', { preventDefault() {} }, deepLink);
     }, 'yosemitecrew://appointments/123');
 
-    await expect(page).toHaveURL(`${pimsServer.origin}/appointments/123`);
-    await expect(page.getByRole('heading', { name: 'Appointment 123' })).toBeVisible();
+    await expect(tab).toHaveURL(`${pimsServer.origin}/appointments/123`);
+    await expect(tab.getByRole('heading', { name: 'Appointment 123' })).toBeVisible();
   });
 
   test('persists window state across relaunches', async () => {
@@ -171,7 +175,6 @@ test.describe('packaged Yosemite Crew PIMS desktop app', () => {
 
     const relaunched = await launchPackagedApp(pimsServer.origin, docServer.origin, profileDir);
     app = relaunched.app;
-    page = relaunched.page;
     userDataDir = relaunched.userDataDir;
 
     const bounds = await app.evaluate(({ BrowserWindow }) =>

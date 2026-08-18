@@ -137,9 +137,13 @@ export const createTabManager = (initial?: TabSummary[]): TabManager => {
 
       if (tab.pinned !== destTab.pinned) return false;
 
+      // clampedIndex is the destination in the FINAL array, so the insert goes
+      // there directly. Subtracting one when moving right (to compensate for the
+      // removal above) landed the tab one slot short every time, which meant
+      // dragging a tab to the last position appeared to do nothing at all while
+      // still reporting success.
       tabs.splice(fromIdx, 1);
-      const adjust = fromIdx < clampedIndex ? 1 : 0;
-      tabs.splice(clampedIndex - adjust, 0, tab);
+      tabs.splice(clampedIndex, 0, tab);
       return true;
     },
 
