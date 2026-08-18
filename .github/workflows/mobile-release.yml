@@ -1,0 +1,217 @@
+# Mobile release: build signed artifacts and ship them to the TESTING tracks.
+#
+# Deliberately stops short of production. A tag uploads to TestFlight and the
+# Play internal track; promoting to the App Store or Play production remains a
+# manual action in App Store Connect / Play Console.
+#
+# The reason is not caution for its own sake. Nothing in CI builds the mobile
+# app today, and a single afternoon of trying to produce a release build turned
+# up five separate breakages that had accumulated unnoticed: a gitignored
+# gradle.properties, a floating react-native-screens range whose codegen specs
+# RN 0.81 cannot parse, an unsatisfiable nitro-modules peer range, and two
+# untracked Firebase config files. A testing track is reversible in seconds. A
+# production submission is not.
+#
+# REQUIRED SECRETS (all on the protected `release` environment):
+#   Android
+#     ANDROID_KEYSTORE_BASE64        base64 of the release keystore
+#     ANDROID_KEYSTORE_PASSWORD      YC_RELEASE_STORE_PASSWORD
+#     ANDROID_KEY_ALIAS              YC_RELEASE_KEY_ALIAS
+#     ANDROID_KEY_PASSWORD           YC_RELEASE_KEY_PASSWORD
+#     ANDROID_GOOGLE_SERVICES_JSON   base64 of android/app/google-services.json
+#     ANDROID_STRINGS_XML            base64 of android/app/src/main/res/values/strings.xml
+#     PLAY_SERVICE_ACCOUNT_JSON      Play Developer API service account key
+#   iOS
+#     IOS_CERTIFICATE_BASE64         base64 of the distribution .p12
+#     IOS_CERTIFICATE_PASSWORD       its export password
+#     IOS_PROVISIONING_PROFILE_BASE64
+#     IOS_GOOGLE_SERVICE_INFO_PLIST  base64 of ios/GoogleService-Info.plist
+#     IOS_SECRETS_XCCONFIG           base64 of ios/mobileAppYC/Secrets.xcconfig
+#     APP_STORE_CONNECT_KEY_ID / _ISSUER_ID / _KEY_BASE64   (.p8 API key)
+#
+# An App Store Connect API key is used rather than an Apple ID plus
+# app-specific password: it is scopable, revocable, and does not carry a human
+# account's full privileges.
+
+name: Mobile release
+
+on:
+  push:
+    tags:
+      - 'mobile-v*'
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Which platform to release
+        type: choice
+        options: [both, android, ios]
+        default: both
+
+concurrency:
+  group: mobile-release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # Cheap gate. Both stores reject a version that is not higher than the live
+  # one, and that failure otherwise surfaces after a full signed build.
+  preflight:
+    name: Preflight
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Versions agree across platforms
+        run: node scripts/mobile/version.mjs --check
+      - name: Report the version being released
+        run: |
+          VERSION=$(grep -oE 'versionName "[^"]+"' apps/mobileAppYC/android/app/build.gradle | grep -oE '[0-9.]+')
+          echo "Releasing mobile version ${VERSION}" >> "$GITHUB_STEP_SUMMARY"
+
+  android:
+    name: Android (Play internal)
+    if: github.event_name == 'push' || inputs.platform == 'both' || inputs.platform == 'android'
+    needs: preflight
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Install pnpm
+        run: corepack enable
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # These are gitignored by design: they carry Firebase config and signing
+      # material. Restore them from secrets for the build only.
+      - name: Restore untracked config
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON }}
+          STRINGS_XML: ${{ secrets.ANDROID_STRINGS_XML }}
+        run: |
+          cd apps/mobileAppYC
+          cp android/gradle.properties.example android/gradle.properties
+          echo "$GOOGLE_SERVICES_JSON" | base64 -d > android/app/google-services.json
+          mkdir -p android/app/src/main/res/values
+          echo "$STRINGS_XML" | base64 -d > android/app/src/main/res/values/strings.xml
+
+      - name: Restore keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > "${RUNNER_TEMP}/release.keystore"
+
+      - name: Verify the build can proceed
+        run: node scripts/mobile/doctor.mjs
+        continue-on-error: true
+
+      - name: Build signed AAB
+        working-directory: apps/mobileAppYC/android
+        env:
+          YC_RELEASE_STORE_FILE: ${{ runner.temp }}/release.keystore
+          YC_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          YC_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          YC_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew bundleRelease --no-daemon
+
+      - name: Upload to Play internal track
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.mobileappyc
+          releaseFiles: apps/mobileAppYC/android/app/build/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed
+
+      - name: Remove restored secrets
+        if: always()
+        run: rm -f "${RUNNER_TEMP}/release.keystore" apps/mobileAppYC/android/app/google-services.json
+
+  ios:
+    name: iOS (TestFlight)
+    if: github.event_name == 'push' || inputs.platform == 'both' || inputs.platform == 'ios'
+    needs: preflight
+    runs-on: macos-14
+    environment: release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Install pnpm
+        run: corepack enable
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Restore untracked config
+        env:
+          GOOGLE_SERVICE_INFO: ${{ secrets.IOS_GOOGLE_SERVICE_INFO_PLIST }}
+          SECRETS_XCCONFIG: ${{ secrets.IOS_SECRETS_XCCONFIG }}
+        run: |
+          cd apps/mobileAppYC
+          echo "$GOOGLE_SERVICE_INFO" | base64 -d > ios/GoogleService-Info.plist
+          echo "$SECRETS_XCCONFIG" | base64 -d > ios/mobileAppYC/Secrets.xcconfig
+
+      # A dedicated keychain, deleted in cleanup, so the signing identity never
+      # persists on the runner beyond this job.
+      - name: Import signing certificate
+        env:
+          CERT_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          KEYCHAIN="${RUNNER_TEMP}/signing.keychain-db"
+          KEYCHAIN_PASSWORD=$(uuidgen)
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          echo "$CERT_BASE64" | base64 -d > "${RUNNER_TEMP}/cert.p12"
+          security import "${RUNNER_TEMP}/cert.p12" -k "$KEYCHAIN" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychain -d user -s "$KEYCHAIN" login.keychain-db
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$PROFILE_BASE64" | base64 -d > ~/Library/MobileDevice/Provisioning\ Profiles/release.mobileprovision
+          rm -f "${RUNNER_TEMP}/cert.p12"
+
+      - name: Install pods
+        working-directory: apps/mobileAppYC/ios
+        run: pod install
+
+      - name: Archive and export IPA
+        working-directory: apps/mobileAppYC/ios
+        run: |
+          xcodebuild -workspace mobileAppYC.xcworkspace \
+            -scheme mobileAppYC \
+            -configuration Release \
+            -archivePath "${RUNNER_TEMP}/mobileAppYC.xcarchive" \
+            -allowProvisioningUpdates \
+            archive
+          xcodebuild -exportArchive \
+            -archivePath "${RUNNER_TEMP}/mobileAppYC.xcarchive" \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath "${RUNNER_TEMP}/export"
+
+      - name: Upload to TestFlight
+        env:
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_KEY_BASE64 }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$KEY_BASE64" | base64 -d > ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
+          xcrun altool --upload-app -f "${RUNNER_TEMP}/export/mobileAppYC.ipa" \
+            -t ios --apiKey "$KEY_ID" --apiIssuer "$ISSUER_ID"
+
+      - name: Remove restored secrets
+        if: always()
+        run: |
+          security delete-keychain "${RUNNER_TEMP}/signing.keychain-db" || true
+          rm -rf ~/.appstoreconnect/private_keys
+          rm -f ~/Library/MobileDevice/Provisioning\ Profiles/release.mobileprovision
+          rm -f apps/mobileAppYC/ios/GoogleService-Info.plist apps/mobileAppYC/ios/mobileAppYC/Secrets.xcconfig
