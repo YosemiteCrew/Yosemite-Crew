@@ -291,10 +291,6 @@ try {
 }
 
 // --- report ----------------------------------------------------------------
-// `--self-test` pins the placeholder vocabulary against the templates the repo
-// already ships, so an edit that makes the regex too narrow (missing a real
-// placeholder) or too broad (condemning real config) fails loudly rather than
-// silently reporting OK.
 // `--self-test` pins the placeholder vocabulary against the shipped templates
 // for the files this tool actually inspects, so an edit that makes the regex
 // too narrow (missing a real placeholder) or too broad (condemning real
