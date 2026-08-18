@@ -1279,7 +1279,11 @@ const IdexxOrderIframeOverlay = ({ url, title, onClose }: IdexxOrderIframeOverla
   const isFollowUp = title.toLowerCase().includes('follow-up');
   return (
     <div
-      className="fixed inset-0 z-5000 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+      // --sh55, matching the two other copies of this overlay (DiagnosticsStep:753
+      // and IdexxWorkspace:731). bg-black/60 is a hardcoded scrim: the token is
+      // a warm rgba(29,28,27,.55) in light and a heavier rgba(0,0,0,.8) in dark,
+      // so this copy was both the wrong hue in light and too weak in dark.
+      className="fixed inset-0 z-[5000] flex items-center justify-center bg-[var(--sh55)] p-4 backdrop-blur-sm"
       data-signing-overlay="true"
       style={{ pointerEvents: 'auto' }}
     >
