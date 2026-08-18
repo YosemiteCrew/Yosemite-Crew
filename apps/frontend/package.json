@@ -82,7 +82,7 @@
     "@yosemite-crew/design-tokens": "workspace:^",
     "@yosemite-crew/fhir": "workspace:^",
     "@yosemite-crew/types": "workspace:^",
-    "chromatic": "^16.0.0",
+    "chromatic": "^18.2.0",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
     "eslint-plugin-react-hooks": "^7.1.1",
