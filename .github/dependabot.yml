@@ -130,10 +130,11 @@ updates:
         update-types: ['version-update:semver-major']
       # @babel/runtime 8 is blocked by the same Babel-8-too-early constraint,
       # but fails differently and later: 8.0.0 drops the "./regenerator"
-      # export subpath, keeping only "./helpers/regenerator*". Three packages
-      # still import the old path - posthog-react-native (including its
-      # current 4.63.2), react-native-vector-icons and toastify-react-native -
-      # so Metro cannot resolve it and :app:createBundleReleaseJsAndAssets
+      # export subpath, keeping only "./helpers/regenerator*". Two packages
+      # still import the old path - posthog-react-native (4 files, including
+      # in its current 4.63.2, so there is nothing to upgrade to) and
+      # react-native-vector-icons (1 file) - so Metro cannot resolve it and
+      # :app:createBundleReleaseJsAndAssets
       # dies. That task only runs for RELEASE builds, so assembleDebug and
       # every jest suite stay green while release is broken (#2109 shipped it
       # unnoticed on 2026-08-09). Unfreeze alongside @babel/core.
