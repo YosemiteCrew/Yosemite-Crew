@@ -269,7 +269,6 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                         </div>
                       ))}
                     </div>
-                    <div />
                   </div>
                 </div>
               )}
