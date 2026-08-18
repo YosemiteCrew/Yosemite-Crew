@@ -5,6 +5,10 @@ import { NotificationTemplates } from "src/utils/notificationTemplates";
 import { sendEmail } from "src/utils/email";
 import logger from "src/utils/logger";
 import type { Prisma } from "@prisma/client";
+import {
+  assertPatientOrgMembership,
+  assertPatientsOrgMembership,
+} from "./shared/patient-org-membership";
 
 export class CareReminderError extends Error {
   constructor(
@@ -148,6 +152,13 @@ export const CareReminderService = {
       createdBy,
     } = params;
 
+    // The caller is authenticated against this organisation, but the patient id
+    // arrives from the request. Without this the row would be written against
+    // another tenant's companion, invisible to every view that scopes by org.
+    await assertPatientOrgMembership(patientId, organisationId, () => {
+      throw new CareReminderError("Companion not found.", 404);
+    });
+
     const reminder = await prisma.careReminder.create({
       data: {
         organisationId,
@@ -186,6 +197,12 @@ export const CareReminderService = {
         400,
       );
     }
+
+    // Every id, not just the first: a single foreign companion in the batch
+    // is enough to reach another tenant's owner through the send path.
+    await assertPatientsOrgMembership(patientIds, organisationId, () => {
+      throw new CareReminderError("Companion not found.", 404);
+    });
 
     const data = patientIds.map((patientId) => ({
       organisationId,
