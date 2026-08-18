@@ -17,12 +17,26 @@ import { join } from 'node:path';
  *
  * Commas *inside* a function - minmax(0,1fr), repeat(2,1fr) - are correct and must
  * not trip this, so parentheses are stripped before the check.
+ *
+ * Two exclusions, both learned the hard way when this test failed on its own subject
+ * matter:
+ *
+ * - Comments are stripped first. The fix commit put the broken form in a comment above
+ *   the component to explain what had gone wrong, and the guard flagged the explanation.
+ * - `.stories.tsx` is skipped. A story's docs prose legitimately quotes the broken class
+ *   when describing the bug, and a guard that punishes documenting itself gets deleted
+ *   rather than fixed. Story files are not shipped UI; the cost is that a broken template
+ *   inside a story harness would go unflagged, which is worth it to keep the rule honest
+ *   about shipped source.
  */
 const SRC = join(__dirname, '../..');
 const EXTENSIONS = ['.ts', '.tsx', '.css'];
 // __tests__ is skipped so this file's own worked example above does not match itself.
-// Stories live beside their components and are still scanned.
 const SKIP_DIRS = new Set(['node_modules', '.next', 'dist', '__tests__']);
+
+/** Block and line comments, so an explanation of the bug is not read as the bug. */
+const stripComments = (source: string): string =>
+  source.replaceAll(/\/\*[\s\S]*?\*\//g, ' ').replaceAll(/(^|[^:])\/\/[^\n]*/g, '$1 ');
 
 const collectFiles = (dir: string): string[] =>
   readdirSync(dir).flatMap((entry) => {
@@ -30,6 +44,7 @@ const collectFiles = (dir: string): string[] =>
     if (statSync(full).isDirectory()) {
       return SKIP_DIRS.has(entry) ? [] : collectFiles(full);
     }
+    if (entry.endsWith('.stories.tsx')) return [];
     return EXTENSIONS.some((ext) => entry.endsWith(ext)) ? [full] : [];
   });
 
@@ -49,7 +64,7 @@ describe('arbitrary grid templates', () => {
     const offenders: string[] = [];
 
     for (const file of collectFiles(SRC)) {
-      const lines = readFileSync(file, 'utf8').split('\n');
+      const lines = stripComments(readFileSync(file, 'utf8')).split('\n');
       lines.forEach((line, index) => {
         for (const match of line.matchAll(pattern)) {
           if (stripBalancedParens(match[1]).includes(',')) {
