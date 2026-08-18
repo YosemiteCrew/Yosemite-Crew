@@ -101,6 +101,15 @@ const ModalBase = ({
     closeModalRef.current = closeModal;
   });
 
+  // Read through a ref for the same reason as closeModal above: the document
+  // listeners below should attach once per open, never re-subscribe because an
+  // identity changed. isTopmostModal is stable today, but keeping it out of the
+  // dependency arrays means that stays true if it ever gains dependencies.
+  const isTopmostModalRef = useRef(isTopmostModal);
+  useEffect(() => {
+    isTopmostModalRef.current = isTopmostModal;
+  });
+
   const ignoreOutsideClickRef = useRef(ignoreOutsideClick);
   useEffect(() => {
     ignoreOutsideClickRef.current = ignoreOutsideClick;
@@ -152,7 +161,7 @@ const ModalBase = ({
       // Only the topmost dialog dismisses: the child's backdrop sits outside
       // `.yc-modal-dialog`, so without this a backdrop click closed the parent
       // underneath it too.
-      if (!isTopmostModal()) return;
+      if (!isTopmostModalRef.current()) return;
       const target = e.target as HTMLElement | null;
       if (ignoreOutsideClickRef.current?.(target)) return;
       // Every modal portals to document.body, so a modal opened from inside
@@ -168,7 +177,7 @@ const ModalBase = ({
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showModal, isTopmostModal]);
+  }, [showModal]);
 
   // Escape key handler.
   useEffect(() => {
@@ -177,13 +186,13 @@ const ModalBase = ({
       if (e.key !== 'Escape') return;
       // Both modals' listeners live on `document`, so stopPropagation cannot
       // shield the parent. The stack decides who responds.
-      if (!isTopmostModal()) return;
+      if (!isTopmostModalRef.current()) return;
       e.stopPropagation();
       closeModalRef.current();
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [showModal, isTopmostModal]);
+  }, [showModal]);
 
   // Focus trap: keep focus inside the modal while it is open.
   useEffect(() => {
