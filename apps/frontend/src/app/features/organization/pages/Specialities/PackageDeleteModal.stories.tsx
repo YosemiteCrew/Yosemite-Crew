@@ -99,6 +99,14 @@ export const Open: Story = {
     await expect(dialog.getByText(/archiving instead/i)).toBeInTheDocument();
     await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
     await expect(dialog.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
+    /* Both actions live in a `grid grid-cols-2` that only mounts with the dialog.
+       Assert the computed template resolves to two tracks holding both buttons: a
+       dropped template stacks them into one column and still looks intentional. */
+    const actionRow = dialog.getByRole('button', { name: 'Delete' }).parentElement as HTMLElement;
+    await expect(getComputedStyle(actionRow).gridTemplateColumns.trim().split(/\s+/)).toHaveLength(
+      2
+    );
+    await expect(actionRow.children).toHaveLength(2);
   },
   parameters: {
     docs: {

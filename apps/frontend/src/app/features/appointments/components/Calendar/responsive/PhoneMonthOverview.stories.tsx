@@ -203,9 +203,18 @@ export const DotGridOnly: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     // The grid is always 35 cells here (2 leading + 31 + 2 trailing).
-    await expect(
-      canvas.getByRole('button', { name: '2026-07-08 · 12 appointments' })
-    ).toBeVisible();
+    const day = canvas.getByRole('button', { name: '2026-07-08 · 12 appointments' });
+    await expect(day).toBeVisible();
+
+    /* The month is a `grid-cols-7`, and the comment above is only true if the template
+       actually resolves. Assert seven tracks and a whole number of weeks: a dropped
+       template reflows 35 cells into one column, which still renders every day and
+       still passes a by-name query. */
+    const monthGrid = day.parentElement as HTMLElement;
+    await expect(getComputedStyle(monthGrid).gridTemplateColumns.trim().split(/\s+/)).toHaveLength(
+      7
+    );
+    await expect(monthGrid.children).toHaveLength(35);
     // Nothing below the grid until a day is chosen.
     await expect(canvas.queryByRole('button', { name: /open day/i })).toBeNull();
   },

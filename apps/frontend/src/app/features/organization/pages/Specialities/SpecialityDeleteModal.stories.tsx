@@ -82,6 +82,14 @@ export const Default: Story = {
     await expect(panel.getByText('Dermatology')).toBeInTheDocument();
     await expect(panel.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
     await expect(panel.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
+    /* Both actions live in a `grid grid-cols-2` that only mounts with the dialog.
+       Assert the computed template resolves to two tracks holding both buttons: a
+       dropped template stacks them into one column and still looks intentional. */
+    const actionRow = panel.getByRole('button', { name: 'Delete' }).parentElement as HTMLElement;
+    await expect(getComputedStyle(actionRow).gridTemplateColumns.trim().split(/\s+/)).toHaveLength(
+      2
+    );
+    await expect(actionRow.children).toHaveLength(2);
     await expect(panel.getByText(/This action cannot be undone\./)).toBeInTheDocument();
   },
   parameters: {

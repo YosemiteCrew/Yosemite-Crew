@@ -76,9 +76,18 @@ export const Editing: Story = {
   play: async ({ canvasElement }) => {
     const canvas = await startEditing(canvasElement);
     // Assert the form actually replaced the read rows, not just that a flag flipped.
-    await expect(await canvas.findByRole('button', { name: 'Save' })).toBeInTheDocument();
+    const save = await canvas.findByRole('button', { name: 'Save' });
+    await expect(save).toBeInTheDocument();
     await expect(canvas.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
     await expect(canvas.getByDisplayValue('Poppy')).toBeInTheDocument();
+
+    /* The action row is the reason this story exists: a `grid grid-cols-2` that only
+       mounts after a click. Assert the computed template really resolves to two
+       tracks holding both buttons - a dropped or malformed template collapses them
+       into one column and still looks deliberate. */
+    const actions = save.parentElement as HTMLElement;
+    await expect(getComputedStyle(actions).gridTemplateColumns.trim().split(/\s+/)).toHaveLength(2);
+    await expect(actions.children).toHaveLength(2);
   },
   parameters: {
     docs: {

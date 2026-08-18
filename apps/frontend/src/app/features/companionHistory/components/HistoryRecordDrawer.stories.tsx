@@ -133,9 +133,19 @@ export const LabResult: Story = {
     const panel = within(await within(document.body).findByRole('dialog'));
     await expect(panel.getByText('Record detail')).toBeInTheDocument();
     // Assert the panel has a real table, not just that a dialog opened.
-    await expect(panel.getByText('Analyte')).toBeInTheDocument();
+    const analyte = panel.getByText('Analyte');
+    await expect(analyte).toBeInTheDocument();
     await expect(panel.getByText('Result')).toBeInTheDocument();
     await expect(panel.getByText('Range')).toBeInTheDocument();
+
+    /* The head row and every body row share one RESULT_GRID_CLASS
+       (`grid-cols-[1fr_72px_90px]`), so a dropped or malformed template misaligns the
+       columns from their headings while still rendering every value. Assert the
+       computed template resolves to three tracks holding three cells, rather than
+       trusting that the words are present. */
+    const headRow = analyte.parentElement as HTMLElement;
+    await expect(getComputedStyle(headRow).gridTemplateColumns.trim().split(/\s+/)).toHaveLength(3);
+    await expect(headRow.children).toHaveLength(3);
     await expect(panel.getByText('Haematocrit ↓')).toBeInTheDocument();
     await expect(panel.getByText('37 - 55')).toBeInTheDocument();
     await expect(panel.getByText('Reticulocytes')).toBeInTheDocument();
