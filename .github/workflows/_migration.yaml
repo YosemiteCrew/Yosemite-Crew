@@ -132,6 +132,42 @@ jobs:
       - name: Apply migrations
         run: pnpm --filter @yosemite-crew/database run prisma:deploy
 
+      # The Supabase advisor caught public."OrganizationDocumentAcknowledgements"
+      # shipping with RLS off. The cause was structural: RLS was only ever enabled
+      # by hand in the dashboard, so every new table was unprotected until someone
+      # remembered. This asserts it against the freshly migrated database, so a
+      # table added without RLS fails here rather than in a security advisor.
+      - name: Check row level security is enabled on every public table
+        shell: bash
+        env:
+          PGPASSWORD: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          # DATABASE_URL carries Prisma's ?schema= parameter, which psql rejects,
+          # so connect with explicit flags like the shadow-database step above.
+          missing=$(psql -h localhost -U postgres -d yosemite_ci -tAc "
+            SELECT c.relname
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = 'public'
+              AND c.relkind = 'r'
+              AND c.relname <> '_prisma_migrations'
+              AND NOT c.relrowsecurity
+            ORDER BY c.relname;")
+
+          if [ -n "$missing" ]; then
+            echo "::error::Tables in the public schema have row level security disabled."
+            echo "Supabase exposes public tables over PostgREST to the anon and"
+            echo "authenticated keys; without RLS those keys can read them directly."
+            echo "Add the table to the RLS migration rather than enabling it in the dashboard."
+            echo "--- tables without RLS ---"
+            echo "$missing"
+            exit 1
+          fi
+
+          echo "Row level security is enabled on every public table."
+
       - name: Check schema and migrations have not drifted
         shell: bash
         run: |
