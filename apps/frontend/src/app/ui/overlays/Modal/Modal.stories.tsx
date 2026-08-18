@@ -143,8 +143,11 @@ export const CenteredLarge: Story = {
 export const PhoneSheet: Story = {
   name: 'Phone: centered re-forms to a sheet',
   args: { variant: 'centered', title: 'Confirm changes' },
-  globals: { viewport: { value: 'mobile1' } },
   parameters: {
+    // `mobile` is the 375px preset declared in .storybook/preview.ts; the project
+    // default is `laptop`, so without this the story renders the desktop markup and
+    // demonstrates nothing.
+    viewport: { defaultViewport: 'mobile' },
     docs: {
       story:
         'Under 768px the centered panel becomes a bottom sheet with a grabber. `useIsPhone` is ' +
@@ -157,7 +160,7 @@ export const PhoneSheet: Story = {
 export const PhoneFullScreen: Story = {
   name: 'Phone: drawer goes full-screen',
   args: { variant: 'drawer', title: 'Record detail' },
-  globals: { viewport: { value: 'mobile1' } },
+  parameters: { viewport: { defaultViewport: 'mobile' } },
 };
 
 export const OpensFromTrigger: Story = {
