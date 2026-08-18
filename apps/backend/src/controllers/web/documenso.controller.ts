@@ -6,6 +6,7 @@ import {
 } from "src/services/documenso.service";
 import { FormAssignmentService } from "src/services/form-assignment.service";
 import { completePersistedRenderedDocumentSigning } from "src/services/rendered-document.service";
+import { notifyOwnerOfPassportUpdate } from "src/services/pet-clinical-records.service";
 import { OrganizationService } from "src/services/organization.service";
 import { WorkspaceDocumentPacketService } from "src/services/workspace-document-packet.service";
 import type { AuthenticatedRequest } from "src/middlewares/auth";
@@ -30,7 +31,15 @@ function verifySignature(
     .update(payload)
     .digest("hex");
 
-  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+  const expectedBuf = Buffer.from(expected);
+  const providedBuf = Buffer.from(signature);
+  // timingSafeEqual throws on a length mismatch, which would surface a
+  // malformed signature as a 500 instead of the 401 it is.
+  if (expectedBuf.length !== providedBuf.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(expectedBuf, providedBuf);
 }
 
 function parseWebhookBody(rawBody: Buffer) {
@@ -162,23 +171,29 @@ async function persistDocumensoApiKey(
   return { stored: true, notFound: false };
 }
 
-const isDocumensoWebhookSignatureValid = (
+type WebhookSignatureState = "verified" | "unverified" | "invalid";
+
+/**
+ * Three-way result rather than a boolean, because "we could not check" and "we
+ * checked and it passed" are not the same trust level. Deployments without
+ * DOCUMENSO_WEBHOOK_SECRET stay accepted for form/packet signing (long-standing
+ * behaviour), but "unverified" is not good enough to record a veterinarian's
+ * clinical attestation - see handlePassportRecordEvent.
+ */
+const documensoWebhookSignatureState = (
   rawBody: Buffer,
   signature?: string,
-) => {
-  if (!process.env.DOCUMENSO_WEBHOOK_SECRET) {
-    return true;
+): WebhookSignatureState => {
+  const secret = process.env.DOCUMENSO_WEBHOOK_SECRET;
+  if (!secret) {
+    return "unverified";
   }
 
   if (!signature) {
-    return false;
+    return "invalid";
   }
 
-  return verifySignature(
-    rawBody,
-    signature,
-    process.env.DOCUMENSO_WEBHOOK_SECRET,
-  );
+  return verifySignature(rawBody, signature, secret) ? "verified" : "invalid";
 };
 
 const resolveDocumensoRedirectUser = async (userId: string) => {
@@ -204,6 +219,74 @@ const resolveDocumensoRedirectMapping = async (
   });
 };
 
+// Passport clinical records store the Documenso document id on their attestation.
+// A completed signing flips the artifact to SIGNED (the state the passport reads).
+async function handlePassportRecordEvent(
+  eventType: string,
+  documentId: string,
+  signatureState: WebhookSignatureState,
+): Promise<boolean> {
+  if (eventType !== "DOCUMENT_COMPLETED") return false;
+  // A clinical attestation is the legal record that a vet signed this document,
+  // so it may only be created from a cryptographically verified callback. With
+  // no webhook secret configured the document id is the only credential, and it
+  // is an external identifier - anyone holding it could forge a signature.
+  // Practices in that state keep the manual `attest` endpoint as the path.
+  if (signatureState !== "verified") {
+    logger.warn(
+      "[DocumensoWebhook] Ignoring passport completion: webhook signature not verified. Set DOCUMENSO_WEBHOOK_SECRET to enable e-signed attestation.",
+    );
+    return false;
+  }
+  const attestation = await prisma.clinicalArtifactAttestation.findFirst({
+    where: {
+      documensoDocumentId: documentId,
+      // A record revoked while its signing request was still outstanding must
+      // stay revoked: the signer completing later must not resurrect it.
+      revokedAt: null,
+      supersededById: null,
+      artifact: { status: { not: "VOID" } },
+    },
+    select: { id: true, artifactId: true },
+  });
+  if (!attestation) return false;
+  const signedAt = new Date();
+  // Claim the completion atomically instead of reading then writing. The read
+  // above and the write below are not serialised, so a revocation committing in
+  // between would be overwritten back to SIGNED, and a retried DOCUMENT_COMPLETED
+  // would re-stamp signedAt and push the owner a second time. Re-asserting the
+  // IN_PROGRESS preconditions inside the write makes both a no-op.
+  const claimed = await prisma.clinicalArtifact.updateMany({
+    where: {
+      id: attestation.artifactId,
+      status: "IN_PROGRESS",
+      attestation: {
+        revokedAt: null,
+        supersededById: null,
+        signingStatus: "IN_PROGRESS",
+      },
+    },
+    data: { status: "SIGNED", signedAt },
+  });
+  // Already handled, or revoked in flight: ack the webhook, notify nobody.
+  if (claimed.count === 0) return true;
+
+  const artifact = await prisma.clinicalArtifact.update({
+    where: { id: attestation.artifactId },
+    data: { attestation: { update: { signingStatus: "SIGNED", signedAt } } },
+    select: { encounterId: true },
+  });
+  // Tell the owner their passport gained a verified record (best-effort).
+  if (artifact.encounterId) {
+    const encounter = await prisma.encounter.findUnique({
+      where: { id: artifact.encounterId },
+      select: { patientId: true },
+    });
+    if (encounter) await notifyOwnerOfPassportUpdate(encounter.patientId);
+  }
+  return true;
+}
+
 export const DocumensoWebhookController = {
   async handle(req: Request, res: Response) {
     try {
@@ -211,7 +294,8 @@ export const DocumensoWebhookController = {
 
       const signature = req.headers["x-documenso-signature"] as
         string | undefined;
-      if (!isDocumensoWebhookSignatureValid(rawBody, signature)) {
+      const signatureState = documensoWebhookSignatureState(rawBody, signature);
+      if (signatureState === "invalid") {
         return res.status(401).end();
       }
 
@@ -220,6 +304,16 @@ export const DocumensoWebhookController = {
       if (!event) {
         logger.error("[DocumensoWebhook] Invalid payload");
         return res.status(400).json({ message: "Invalid payload" });
+      }
+
+      if (
+        await handlePassportRecordEvent(
+          event.eventType,
+          event.documentId,
+          signatureState,
+        )
+      ) {
+        return res.status(200).json({ received: true });
       }
 
       const submission = await findWebhookSubmission(event.documentId);

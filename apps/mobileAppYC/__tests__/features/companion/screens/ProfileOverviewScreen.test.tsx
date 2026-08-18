@@ -49,6 +49,18 @@ jest.mock('@/hooks', () => ({
   useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
+// Deliberately non-English so a tile label that still carries hardcoded copy
+// cannot masquerade as a translated one.
+const SECTION_TRANSLATIONS: Record<string, string> = {
+  'passport.title': 'Pasaporte de mascota',
+};
+
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => SECTION_TRANSLATIONS[key] ?? key,
+  }),
+}));
+
 jest.mock('@/features/auth/context/AuthContext', () => ({
   useAuth: jest.fn(() => ({user: {parentId: 'parent-123'}})),
 }));
@@ -331,6 +343,30 @@ describe('ProfileOverviewScreen', () => {
     expect(mockNavigate).toHaveBeenCalledWith('EditCompanionOverview', {
       companionId: 'comp-123',
     });
+  });
+
+  // The tile label must come from t('passport.title'), not the English literal
+  // the template still carries as a fallback for the untranslated tiles.
+  it('localises the Pet Passport tile label and navigates to the Passport screen', () => {
+    const {getByText, queryByText, getByLabelText} = setup();
+
+    expect(getByText('Pasaporte de mascota')).toBeTruthy();
+    expect(queryByText('Pet Passport')).toBeNull();
+    expect(getByLabelText('Pasaporte de mascota')).toBeTruthy();
+
+    fireEvent.press(getByText('Pasaporte de mascota'));
+    expect(mockNavigate).toHaveBeenCalledWith('Passport', {
+      companionId: 'comp-123',
+    });
+  });
+
+  // Failure branch of the same mapping: templates without a `titleKey` are
+  // passed through untouched rather than being run through t().
+  it('leaves tiles that carry no titleKey on their raw template copy', () => {
+    const {getByText} = setup();
+
+    expect(getByText('Overview')).toBeTruthy();
+    expect(getByText('Documents')).toBeTruthy();
   });
 
   it('navigates to EditParentOverview', () => {

@@ -1,6 +1,6 @@
 /* istanbul ignore file -- document upload UI relies on native modules not mocked in Jest */
 import React, {useState} from 'react';
-import {CommonActions} from '@react-navigation/native';
+import {CommonActions, useRoute, RouteProp} from '@react-navigation/native';
 import {useSelector} from 'react-redux';
 import {Header} from '@/shared/components/common/Header/Header';
 import {
@@ -21,6 +21,9 @@ import {
   useFormFileOperations,
 } from '@/shared/hooks/useFormScreen';
 import {formatDateToISODate} from '@/shared/utils/dateHelpers';
+import type {DocumentStackParamList} from '@/navigation/types';
+
+type AddDocumentRouteProp = RouteProp<DocumentStackParamList, 'AddDocument'>;
 
 export const AddDocumentScreen: React.FC = () => {
   const {
@@ -34,12 +37,13 @@ export const AddDocumentScreen: React.FC = () => {
     companions,
     selectedCompanionId,
   } = useCompanionFormScreen();
+  const route = useRoute<AddDocumentRouteProp>();
 
   const loading = useSelector((state: any) => state.documents.loading);
 
   const [formData, setFormData] = useState<DocumentFormData>({
-    category: null,
-    subcategory: null,
+    category: route.params?.initialCategory ?? null,
+    subcategory: route.params?.initialSubcategory ?? null,
     visitType: null,
     title: '',
     businessName: '',
@@ -47,6 +51,7 @@ export const AddDocumentScreen: React.FC = () => {
     issueDate: new Date(),
     files: [],
   });
+  const isCategoryLocked = Boolean(route.params?.initialCategory);
 
   const {errors, clearError, validateForm, setFormError} =
     useDocumentFormValidation();
@@ -171,6 +176,7 @@ export const AddDocumentScreen: React.FC = () => {
             closeSheet={formSheets.closeSheet}
             fileOperations={fileOps}
             renderBottomSheets={false}
+            lockCategory={isCategoryLocked}
           />
         )}
       </LiquidGlassHeaderScreen>

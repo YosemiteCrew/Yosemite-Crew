@@ -44,6 +44,7 @@ export type HomeStackParamList = {
   AddCompanion: undefined;
   Notifications: undefined;
   ProfileOverview: {companionId: string};
+  Passport: {companionId: string};
   EditCompanionOverview: {companionId: string};
   EditParentOverview: {companionId: string};
   ExpensesStack: NavigatorScreenParams<ExpenseStackParamList>;
@@ -100,7 +101,8 @@ export type CoParentStackParamList = {
 
 export type DocumentStackParamList = {
   DocumentsMain: undefined;
-  AddDocument: undefined;
+  AddDocument:
+    {initialCategory?: string; initialSubcategory?: string} | undefined;
   EditDocument: {documentId: string};
   DocumentPreview: {
     documentId: string;

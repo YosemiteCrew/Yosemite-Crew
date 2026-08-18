@@ -74,6 +74,10 @@ export interface DocumentFormProps {
   closeSheet?: () => void;
   fileOperations?: DocumentFormFileOperations;
   renderBottomSheets?: boolean;
+  /** Prevents changing category/subcategory - used when the caller (e.g. the
+   * Pet Passport screen) pre-fills them and the upload must stay filed under
+   * that exact bucket to show back up where it was requested from. */
+  lockCategory?: boolean;
 }
 
 export type DocumentFormFileOperations = {
@@ -104,6 +108,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
   closeSheet,
   fileOperations,
   renderBottomSheets = true,
+  lockCategory = false,
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -207,8 +212,10 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
               resolvedOpenSheet('category');
               categorySheetRef.current?.open();
             }}
+            disabled={lockCategory}
             accessibilityRole="button"
-            accessibilityLabel={`Category, ${getCategoryLabel()}`}>
+            accessibilityLabel={`Category, ${getCategoryLabel()}`}
+            accessibilityState={{disabled: lockCategory}}>
             <Input
               label="Category"
               value={getCategoryLabel()}
@@ -216,10 +223,12 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
               pointerEvents="none"
               containerStyle={styles.input}
               icon={
-                <Image
-                  source={Images.dropdownIcon}
-                  style={common.dropdownIcon}
-                />
+                lockCategory ? undefined : (
+                  <Image
+                    source={Images.dropdownIcon}
+                    style={common.dropdownIcon}
+                  />
+                )
               }
             />
           </PressableOpacity>
@@ -236,10 +245,10 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                 subcategorySheetRef.current?.open();
               }
             }}
-            disabled={!formData.category}
+            disabled={lockCategory || !formData.category}
             accessibilityRole="button"
             accessibilityLabel={`Sub category, ${getSubcategoryLabel()}`}
-            accessibilityState={{disabled: !formData.category}}>
+            accessibilityState={{disabled: lockCategory || !formData.category}}>
             <Input
               label="Sub category"
               value={getSubcategoryLabel()}
@@ -247,10 +256,12 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
               pointerEvents="none"
               containerStyle={styles.input}
               icon={
-                <Image
-                  source={Images.dropdownIcon}
-                  style={common.dropdownIcon}
-                />
+                lockCategory ? undefined : (
+                  <Image
+                    source={Images.dropdownIcon}
+                    style={common.dropdownIcon}
+                  />
+                )
               }
             />
           </PressableOpacity>

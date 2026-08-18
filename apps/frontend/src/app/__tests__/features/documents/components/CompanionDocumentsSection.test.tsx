@@ -78,7 +78,16 @@ jest.mock('@/app/lib/forms', () => ({
   formatDateLabel: () => 'Jan 01, 2026',
 }));
 
-let mockOrgState: { primaryOrgId: string | null; orgsById: Record<string, { name?: string }> } = {
+type MockOrgState = {
+  primaryOrgId: string | null;
+  orgsById: Record<string, { name?: string }>;
+  // usePermissions derives the viewer's rights from the membership role, so the
+  // passport action's gate can be exercised through the real permission table.
+  membershipsByOrgId?: Record<string, { roleCode: string; active: boolean }>;
+  status?: string;
+};
+
+let mockOrgState: MockOrgState = {
   primaryOrgId: null,
   orgsById: {},
 };
@@ -135,7 +144,11 @@ describe('CompanionDocumentsSection', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Open vaccination card' }));
     await waitFor(() => expect(loadDocumentDownloadURLMock).toHaveBeenCalledWith('doc-1'));
-    expect(globalThis.open).toHaveBeenCalledWith('https://example.com/file.pdf', '_blank');
+    expect(globalThis.open).toHaveBeenCalledWith(
+      'https://example.com/file.pdf',
+      '_blank',
+      'noopener'
+    );
   });
 
   it('validates required fields before saving from the upload sheet', async () => {
@@ -453,6 +466,14 @@ describe('CompanionDocumentsSection', () => {
     expect(screen.getByRole('button', { name: /Oldest first/ })).toBeInTheDocument();
     const rowsAsc = screen.getAllByRole('button', { name: /^Open / });
     expect(rowsAsc[0]).toHaveAttribute('aria-label', 'Open January Report');
+
+    // ... and back again, so both arms of the toggle are exercised.
+    fireEvent.click(screen.getByRole('button', { name: /Oldest first/ }));
+    expect(screen.getByRole('button', { name: /Newest first/ })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /^Open / })[0]).toHaveAttribute(
+      'aria-label',
+      'Open March Report'
+    );
   });
 
   it('swallows errors when the download URL request fails', async () => {
@@ -492,6 +513,67 @@ describe('CompanionDocumentsSection', () => {
     mockOrgState = { primaryOrgId: 'org-missing', orgsById: {} };
     render(<CompanionDocumentsSection companionId="comp-1" />);
     await waitFor(() => expect(screen.getByText('No records yet')).toBeInTheDocument());
+  });
+
+  it('offers the passport review action to a veterinarian on a linked record', async () => {
+    mockOrgState = {
+      primaryOrgId: 'org-1',
+      orgsById: {},
+      membershipsByOrgId: { 'org-1': { roleCode: 'VETERINARIAN', active: true } },
+      status: 'loaded',
+    };
+    loadCompanionDocumentMock.mockResolvedValue([
+      {
+        id: 'doc-1',
+        title: 'rabies certificate',
+        category: 'HEALTH',
+        subcategory: 'VACCINATION',
+        issueDate: '2026-01-01T10:00:00Z',
+        attachments: [{ key: 'k1', mimeType: 'application/pdf' }],
+        uploadedByParentId: 'parent-1',
+        passportRecordId: 'artifact-1',
+        passportRecordStatus: 'DRAFT',
+      },
+    ]);
+
+    render(<CompanionDocumentsSection companionId="comp-1" />);
+
+    expect(await screen.findByRole('button', { name: 'Review and attest' })).toBeInTheDocument();
+    // The row itself keeps its own open action - the two do not nest.
+    expect(screen.getByRole('button', { name: 'Open rabies certificate' })).toBeInTheDocument();
+  });
+
+  it('hides the passport review action from a role that cannot attest', async () => {
+    mockOrgState = {
+      primaryOrgId: 'org-1',
+      orgsById: {},
+      membershipsByOrgId: { 'org-1': { roleCode: 'RECEPTIONIST', active: true } },
+      status: 'loaded',
+    };
+    loadCompanionDocumentMock.mockResolvedValue([
+      {
+        id: 'doc-1',
+        title: 'rabies certificate',
+        category: 'HEALTH',
+        subcategory: 'VACCINATION',
+        attachments: [{ key: 'k1', mimeType: 'application/pdf' }],
+        passportRecordId: 'artifact-1',
+        passportRecordStatus: 'DRAFT',
+      },
+      // A row the API returned without an id still renders and keeps its place.
+      {
+        title: 'boarding note',
+        category: 'HEALTH',
+        subcategory: 'OTHER',
+        attachments: [{ key: 'k2', mimeType: 'application/pdf' }],
+      },
+    ]);
+
+    render(<CompanionDocumentsSection companionId="comp-1" />);
+
+    await screen.findByRole('button', { name: 'Open rabies certificate' });
+    expect(screen.getByRole('button', { name: 'Open boarding note' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Review and attest' })).not.toBeInTheDocument();
   });
 
   it('resets records without fetching when companionId is empty', async () => {

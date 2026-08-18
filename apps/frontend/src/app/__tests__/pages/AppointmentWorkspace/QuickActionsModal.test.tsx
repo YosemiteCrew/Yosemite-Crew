@@ -32,6 +32,45 @@ import { useTaskStore } from '@/app/stores/taskStore';
 import type { Task } from '@/app/features/tasks/types/task';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 
+const PANELS_ROOT = '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/panels';
+
+/** Panels stubbed below - every other panel is exercised for real. */
+const STUBBED_PANELS = ['ActivityPanel', 'CalculatorsPanel'];
+
+/**
+ * The modal code-splits its panels with `next/dynamic`. Resolve each loader
+ * synchronously so a selected panel renders in place of its loading skeleton.
+ * The compiled loader carries a specifier relative to the modal (`./panels/*`),
+ * so it is re-anchored on the panels directory before it is required here.
+ */
+function mockResolveDynamicPanel(source: string): React.FC<Record<string, unknown>> {
+  const name = /['"][^'"]*\/([^'"/]+)['"]/.exec(source)?.[1] ?? '';
+  const specifier = `${PANELS_ROOT}/${name}`;
+  const loaded = STUBBED_PANELS.includes(name)
+    ? jest.requireMock(specifier)
+    : jest.requireActual(specifier);
+  return (loaded as { default: React.FC<Record<string, unknown>> }).default;
+}
+
+/** Renders the panels' loading skeletons instead of the panels themselves. */
+let mockDynamicLoading = false;
+
+jest.mock('next/dynamic', () => ({
+  __esModule: true,
+  default: (loader: () => Promise<unknown>, options?: { loading?: () => React.ReactElement }) => {
+    const source = loader.toString();
+    // Pull the chunk in the way the browser does when it is first needed.
+    void loader();
+    const LoadableComponent = (props: Record<string, unknown>) => {
+      if (mockDynamicLoading) return options?.loading?.() ?? null;
+      const Loaded = mockResolveDynamicPanel(source);
+      return <Loaded {...props} />;
+    };
+    LoadableComponent.displayName = 'MockDynamicComponent';
+    return LoadableComponent;
+  },
+}));
+
 // Heavy leaf components are exercised by their own suites; here we stub them so
 // the wrapper panels (Chat / Activity / MSD / Records) stay fast and focused.
 jest.mock(
@@ -248,6 +287,17 @@ describe('QuickActionsModal shell', () => {
     (fetchAppointmentForms as jest.Mock).mockReturnValue(new Promise(() => undefined));
     (listVitalsTemplates as jest.Mock).mockReturnValue(new Promise(() => undefined));
     (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([]);
+  });
+  afterEach(() => {
+    mockDynamicLoading = false;
+  });
+
+  it('shows the panel skeleton while the selected panel chunk is still loading', () => {
+    mockDynamicLoading = true;
+    renderModal('CHAT');
+
+    expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
+    expect(screen.queryByText('ChatStub')).not.toBeInTheDocument();
   });
 
   it('renders all seven nav items and routes between panels', () => {

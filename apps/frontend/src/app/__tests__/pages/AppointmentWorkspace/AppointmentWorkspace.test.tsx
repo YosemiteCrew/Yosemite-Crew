@@ -49,6 +49,50 @@ let mockRevampCatalogState = {
   loadSpecialityCatalog: mockLoadSpecialityCatalog,
 };
 
+const WORKSPACE_MODULE_ROOT = '@/app/features/appointments/pages/AppointmentWorkspace';
+
+/**
+ * The workspace code-splits its step bodies (and, through QuickActionsModal, its
+ * quick-action panels) with `next/dynamic`. Resolve each loader synchronously so
+ * the split components render in place of their loading skeletons: the five
+ * steps are stubbed below and come from the mock registry, while the panels are
+ * exercised for real, exactly as they were before the split.
+ *
+ * The compiled loader carries a specifier relative to the module that declared
+ * it - `./steps/*` from the workspace root, `./panels/*` from the side modal -
+ * so each is re-anchored on its own directory before it is required here.
+ */
+function mockResolveDynamicComponent(source: string): React.FC<Record<string, unknown>> {
+  const raw = /['"]([^'"]+)['"]/.exec(source)?.[1] ?? '';
+  const relative = raw.replace(/^\.\//, '');
+  const specifier = relative.startsWith('panels/')
+    ? `${WORKSPACE_MODULE_ROOT}/sidemodal/${relative}`
+    : `${WORKSPACE_MODULE_ROOT}/${relative}`;
+  const loaded = specifier.includes('/steps/')
+    ? jest.requireMock(specifier)
+    : jest.requireActual(specifier);
+  return (loaded as { default: React.FC<Record<string, unknown>> }).default;
+}
+
+/** Renders the split components' loading skeletons instead of the components. */
+let mockDynamicLoading = false;
+
+jest.mock('next/dynamic', () => ({
+  __esModule: true,
+  default: (loader: () => Promise<unknown>, options?: { loading?: () => React.ReactElement }) => {
+    const source = loader.toString();
+    // Pull the chunk in the way the browser does when it is first needed.
+    void loader();
+    const LoadableComponent = (props: Record<string, unknown>) => {
+      if (mockDynamicLoading) return options?.loading?.() ?? null;
+      const Loaded = mockResolveDynamicComponent(source);
+      return <Loaded {...props} />;
+    };
+    LoadableComponent.displayName = 'MockDynamicComponent';
+    return LoadableComponent;
+  },
+}));
+
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mockReplace, push: mockPush }),
   useSearchParams: () => ({ get: () => mockStepParam }),
@@ -117,6 +161,37 @@ jest.mock('@/app/features/appointments/pages/AppointmentWorkspace/steps/Treatmen
         }}
       >
         Mock ensure encounter
+      </button>
+    </div>
+  ),
+}));
+
+jest.mock('@/app/features/appointments/pages/AppointmentWorkspace/steps/PassportStep', () => ({
+  __esModule: true,
+  default: ({
+    companionId,
+    companionName,
+    encounterId,
+    readOnly,
+    ensureEncounterId,
+  }: {
+    companionId: string;
+    companionName: string;
+    encounterId?: string;
+    readOnly?: boolean;
+    ensureEncounterId?: () => Promise<string | undefined>;
+  }) => (
+    <div>
+      <div>{`Passport companion: ${companionName} (${companionId})`}</div>
+      <div>{`Passport encounter: ${encounterId ?? 'none'}`}</div>
+      <div>{`Passport read only: ${String(readOnly)}`}</div>
+      <button
+        type="button"
+        onClick={() => {
+          void ensureEncounterId?.();
+        }}
+      >
+        Mock passport ensure encounter
       </button>
     </div>
   ),
@@ -354,6 +429,23 @@ const seedEncounter = (patch: Partial<AppointmentEncounter> = {}) => {
 
 describe('AppointmentWorkspace container', () => {
   beforeEach(resetStore);
+  afterEach(() => {
+    mockDynamicLoading = false;
+  });
+
+  it('shows the step skeleton while the active step chunk is still loading', async () => {
+    mockDynamicLoading = true;
+    const { container } = render(
+      <AppointmentWorkspace appointment={makeAppointment(new Date())} />
+    );
+
+    expect(
+      container.querySelector('[aria-label="Workspace step content"] .animate-pulse')
+    ).toBeInTheDocument();
+    expect(screen.queryByText('SOAP read only: false')).not.toBeInTheDocument();
+    // Let hydration settle inside this test rather than after its mocks reset.
+    await waitFor(() => expect(getAppointmentWorkspaceBootstrap).toHaveBeenCalled());
+  });
 
   it('renders the SOAP landing step and opens the quick actions side modal from the header', async () => {
     render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);
@@ -2343,6 +2435,23 @@ describe('AppointmentWorkspace container', () => {
     await settle();
     // No usable id came back, so the appointment's own (absent) encounter id stands.
     expect(screen.getByText('Summary encounter: none')).toBeInTheDocument();
+  });
+
+  it('renders the passport step with the companion and the resolved encounter', async () => {
+    mockStepParam = 'PASSPORT';
+    (getAppointmentWorkspaceBootstrap as jest.Mock).mockResolvedValue({
+      encounter: { id: 'enc-passport' },
+    });
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);
+
+    expect(await screen.findByText('Passport companion: Gigi (comp-1)')).toBeInTheDocument();
+    // Passport records are clinical, so the step follows the lock-aware encounter.
+    expect(screen.getByText('Passport read only: false')).toBeInTheDocument();
+    await settle();
+    expect(screen.getByText('Passport encounter: enc-passport')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mock passport ensure encounter' }));
+    await settle();
   });
 
   it('advances to the next step from the SOAP save-and-next control', async () => {

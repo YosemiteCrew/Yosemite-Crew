@@ -9,6 +9,7 @@ const EMPTY_STEP_STATUS: Record<WorkspaceStep, 'EMPTY'> = {
   SOAP: 'EMPTY',
   DIAGNOSTICS: 'EMPTY',
   TREATMENT: 'EMPTY',
+  PASSPORT: 'EMPTY',
   INVOICE: 'EMPTY',
   SUMMARY: 'EMPTY',
 };

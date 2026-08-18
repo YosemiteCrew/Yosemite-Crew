@@ -3,6 +3,7 @@ import {authReducer} from '@/features/auth';
 import {themeReducer} from '@/features/theme';
 import {companionReducer} from '@/features/companion';
 import formsReducer from '@/features/forms/formsSlice';
+import passportReducer from '@/features/passport/passportSlice';
 import {
   initializeAuth,
   refreshSession,
@@ -31,6 +32,7 @@ const createTestStore = () => {
       theme: themeReducer,
       companion: companionReducer,
       forms: formsReducer,
+      passport: passportReducer,
     },
   });
 };
@@ -658,6 +660,62 @@ describe('auth thunks', () => {
       expect(state.status).toBe('unauthenticated');
       expect(state.user).toBeNull();
       expect(store.getState().forms.byAppointmentId).toEqual({});
+    });
+
+    // Passport payloads carry the owner's name, email and phone, so they must
+    // not survive into the next account signed in on the same device.
+    it('clears every cached passport and request flag on logout', async () => {
+      jest.spyOn(passwordlessAuth, 'signOutEverywhere').mockResolvedValue();
+      (sessionManager.clearSessionData as jest.Mock).mockResolvedValue(
+        undefined,
+      );
+      (sessionManager.resetAuthLifecycle as jest.Mock).mockImplementation(
+        () => {},
+      );
+
+      store.dispatch({
+        type: 'passport/fetchPassport/fulfilled',
+        meta: {arg: {companionId: 'companion-123'}},
+        payload: {
+          companionId: 'companion-123',
+          passport: {
+            identity: {id: 'companion-123', name: 'Rex', species: 'DOG'},
+            owner: {
+              name: 'Prior Owner',
+              email: 'prior@example.com',
+              phone: '+15550001111',
+            },
+            vaccinations: [],
+            parasiteTreatments: [],
+            rabiesTitrations: [],
+            clinicalExams: [],
+          },
+        },
+      });
+      store.dispatch({
+        type: 'passport/fetchPassport/rejected',
+        meta: {arg: {companionId: 'companion-456'}},
+        payload: 'Failed to load passport',
+        error: {message: 'Failed to load passport'},
+      });
+
+      // Guard: the cache really is populated before logout runs, so the
+      // assertions below cannot pass vacuously.
+      expect(store.getState().passport.byCompanionId).toHaveProperty(
+        'companion-123',
+      );
+      expect(store.getState().passport.errorByCompanionId).toHaveProperty(
+        'companion-456',
+      );
+
+      const dispatch = store.dispatch as any;
+      await dispatch(logout());
+
+      expect(store.getState().passport).toEqual({
+        byCompanionId: {},
+        loadingByCompanionId: {},
+        errorByCompanionId: {},
+      });
     });
 
     it('re-initializes SuperTokens against the default API domain', async () => {

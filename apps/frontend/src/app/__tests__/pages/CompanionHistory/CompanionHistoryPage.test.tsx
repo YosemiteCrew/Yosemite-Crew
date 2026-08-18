@@ -222,6 +222,23 @@ jest.mock('@/app/ui/layout/PageSkeleton', () => ({
   default: () => <div className="animate-pulse" data-testid="page-skeleton" />,
 }));
 
+jest.mock('@/app/features/companionCard/components/ShareCompanionCardModal', () => ({
+  __esModule: true,
+  default: ({ open, onClose }: { open: boolean; onClose: () => void }) =>
+    open ? (
+      <div data-testid="share-modal">
+        <button type="button" onClick={onClose}>
+          Close share
+        </button>
+      </div>
+    ) : null,
+}));
+
+jest.mock('@/app/features/petPassport/components/PetPassportModal', () => ({
+  __esModule: true,
+  default: ({ open }: { open: boolean }) => (open ? <div data-testid="passport-modal" /> : null),
+}));
+
 describe('CompanionHistoryPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -314,6 +331,79 @@ describe('CompanionHistoryPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Go back' }));
     expect(startRouteLoaderMock).toHaveBeenCalledTimes(1);
     expect(pushMock).toHaveBeenCalledWith('/appointments');
+  });
+
+  it('opens the share companion card modal from the overview header', () => {
+    searchGetMock.mockImplementation((key: string) => (key === 'companionId' ? 'c-1' : null));
+    useCompanionsParentsForPrimaryOrgMock.mockReturnValue([
+      {
+        companion: {
+          id: 'c-1',
+          name: 'Buddy',
+          breed: 'Labrador',
+          type: 'dog',
+          gender: 'male',
+          isneutered: true,
+          isInsured: false,
+          dateOfBirth: new Date('2021-01-01'),
+          parentId: 'p-1',
+          organisationId: 'org-1',
+        },
+        parent: {
+          id: 'p-1',
+          firstName: 'Sam',
+          lastName: 'Owner',
+          email: 'sam@example.com',
+          phoneNumber: '+15555555555',
+          address: {},
+          createdFrom: 'pms',
+        },
+      },
+    ]);
+
+    render(<CompanionHistoryPage />);
+
+    expect(screen.queryByTestId('share-modal')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Share companion card' }));
+    expect(screen.getByTestId('share-modal')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close share' }));
+    expect(screen.queryByTestId('share-modal')).not.toBeInTheDocument();
+  });
+
+  it('opens the pet passport modal from the overview header', () => {
+    searchGetMock.mockImplementation((key: string) => (key === 'companionId' ? 'c-1' : null));
+    useCompanionsParentsForPrimaryOrgMock.mockReturnValue([
+      {
+        companion: {
+          id: 'c-1',
+          name: 'Buddy',
+          breed: 'Labrador',
+          type: 'dog',
+          gender: 'male',
+          isneutered: true,
+          isInsured: false,
+          dateOfBirth: new Date('2021-01-01'),
+          parentId: 'p-1',
+          organisationId: 'org-1',
+        },
+        parent: {
+          id: 'p-1',
+          firstName: 'Sam',
+          lastName: 'Owner',
+          email: 'sam@example.com',
+          phoneNumber: '+15555555555',
+          address: {},
+          createdFrom: 'pms',
+        },
+      },
+    ]);
+
+    render(<CompanionHistoryPage />);
+
+    expect(screen.queryByTestId('passport-modal')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Open pet passport' }));
+    expect(screen.getByTestId('passport-modal')).toBeInTheDocument();
   });
 
   it('renders the bespoke phone record below the phone breakpoint', () => {

@@ -117,6 +117,29 @@ export const NotificationTemplates = {
       title: "Medication Reminder 💊",
       body: `Time for ${companionName}'s meds. Healthy companions = happy parents!`,
     }),
+
+    PASSPORT_UPDATED: (companionName: string): NotificationPayload => ({
+      title: "Passport updated 🪪",
+      body: `${companionName}'s digital pet passport has a new verified record. Open it to view or add it to your wallet.`,
+    }),
+
+    CONSENT_REQUESTED: (companionName: string): NotificationPayload => ({
+      title: "Passport sharing request",
+      body: `A veterinary clinic has requested to share ${companionName}'s digital passport records. Open the app to accept or decline.`,
+    }),
+
+    WAITLIST_SLOT_AVAILABLE: (companionName: string): NotificationPayload => ({
+      title: "Appointment slot available",
+      body: `Good news! A slot has opened up for ${companionName}. Open the app to book before it fills.`,
+    }),
+
+    CARE_REMINDER: (
+      companionName: string,
+      careType: string,
+    ): NotificationPayload => ({
+      title: `Care reminder for ${companionName}`,
+      body: `${companionName} is due for ${careType}. Book an appointment to keep them healthy.`,
+    }),
   },
 
   //
