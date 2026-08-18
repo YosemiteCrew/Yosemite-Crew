@@ -50,6 +50,7 @@ jest.mock('@/app/hooks/useNotify', () => ({ useNotify: () => ({ notify: notifyMo
 const ISSUED = {
   identity: { name: 'Doggy' },
   issuance: { passportNumber: 'PN-1', issueDate: '2026-01-01' },
+  publicShareActive: true,
 };
 
 const mockedFetch = getPetPassport as jest.Mock;
@@ -270,6 +271,21 @@ describe('PetPassportModal', () => {
       )
     );
   });
+  it('explains that the owner must create a share link before a pass can be built', async () => {
+    // Issued, but no live share link: staff cannot mint one, so the wallet
+    // endpoints return 409. Saying so beats a button that always fails.
+    mockedFetch.mockResolvedValue({ ...ISSUED, publicShareActive: false });
+    render(<PetPassportModal open companionId="p1" companionName="Doggy" onClose={jest.fn()} />);
+    await screen.findByTestId('passport');
+    expect(
+      screen.getByText(
+        'The owner needs to create a share link in the Yosemite Crew app before this passport can be added to a wallet.'
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add to Apple Wallet' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add to Google Wallet' })).not.toBeInTheDocument();
+  });
+
   it('hides the wallet actions until the passport is issued', async () => {
     mockedFetch.mockResolvedValue({ identity: { name: 'Doggy' } });
     render(<PetPassportModal open companionId="p1" companionName="Doggy" onClose={jest.fn()} />);

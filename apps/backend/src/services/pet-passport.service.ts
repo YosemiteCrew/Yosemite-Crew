@@ -339,6 +339,10 @@ const assemblePassport = async (
   const issuance = passportRow
     ? { ...toIssuanceDTO(passportRow), issuingPractice: organisation?.name }
     : undefined;
+  // Derived from the row already loaded above, so this costs no extra query.
+  const publicShareActive = Boolean(
+    passportRow?.publicToken && !passportRow.publicTokenRevokedAt,
+  );
   const vaccinations = immunizationRows.map((row) =>
     toVaccinationDTO(patientId, row),
   );
@@ -376,6 +380,7 @@ const assemblePassport = async (
     ),
     clinicalExams: examRows.map((row) => toExamDTO(patientId, row)),
     issuance,
+    publicShareActive,
     owner,
   };
 };
