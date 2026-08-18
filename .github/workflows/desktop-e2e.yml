@@ -76,28 +76,6 @@ jobs:
     if: needs.changes.outputs.desktop == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
-    # Gated on a RATCHET, not on a clean suite. 26 of 44 specs pass today; the
-    # rest are drift from app changes the specs never caught up with, tracked in
-    # #2245.
-    #
-    # Failing the job outright on a known-red suite would put a permanent red X
-    # on every desktop PR and train everyone to ignore it. But simply reporting
-    # is no better: with the job red either way, a genuine regression in the 26
-    # that pass is indistinguishable from the 18 that do not, so the suite would
-    # catch nothing at all while appearing to.
-    #
-    # So the gate is "at least PASSING_FLOOR specs pass". A regression drops the
-    # count and fails the job; the known failures do not. Same shape as the
-    # coverage floors in _test.yaml, and it ratchets the same way: when the count
-    # rises, raise the floor.
-    #
-    # 25, with observed counts of 26 and 27 on macOS and Windows. One spec of
-    # headroom, deliberately, because command-palette has flaked by one between
-    # runs (#2245). A floor set exactly at the observed count would go red on
-    # flake alone, which is the same "ignore the red X" failure this design
-    # exists to avoid. Raise it to the true count once the flake is fixed.
-    env:
-      PASSING_FLOOR: '25'
     strategy:
       # Report both platforms on every run. A Windows-only failure is exactly
       # the kind of thing this suite exists to catch, and fail-fast would hide
@@ -121,47 +99,12 @@ jobs:
       - name: Build the desktop app
         run: pnpm --filter @yosemite-crew/desktop run build
 
-      # `|| true` because a non-zero exit is expected while #2245 is open. The
-      # ratchet below is what decides pass or fail, so the raw exit code is not
-      # the signal - the passing COUNT is.
+      # All 44 specs pass, so the suite's own exit code is the gate. It briefly
+      # ran behind a passing-count ratchet while #2245 was open; that is no
+      # longer needed and a plain non-zero exit is both stricter and simpler.
       - name: Run the Playwright Electron suite
         working-directory: apps/desktop
-        # bash explicitly: windows-latest defaults to PowerShell, where the
-        # `|| true` below and the bash script in the next step do not run.
-        shell: bash
-        env:
-          PLAYWRIGHT_JSON_OUTPUT_NAME: playwright-results.json
-        run: npx playwright test --reporter=list,json || true
-
-      - name: Enforce the passing-count ratchet
-        working-directory: apps/desktop
-        shell: bash
-        run: |
-          set -euo pipefail
-          node -e '
-            const fs = require("node:fs");
-            const file = "playwright-results.json";
-            if (!fs.existsSync(file)) {
-              // No report means the suite never ran - a crashed runner, a failed
-              // build. That must fail loudly rather than pass for lack of
-              // evidence, the same way the coverage gate fails closed.
-              console.error("desktop-e2e: no playwright-results.json; the suite did not run");
-              process.exit(1);
-            }
-            const stats = JSON.parse(fs.readFileSync(file, "utf8")).stats || {};
-            const passed = stats.expected ?? 0;
-            const failed = stats.unexpected ?? 0;
-            const floor = Number(process.env.PASSING_FLOOR);
-            console.log(`desktop-e2e: ${passed} passed, ${failed} failed, floor ${floor}`);
-            if (passed < floor) {
-              console.error(
-                `desktop-e2e: ${passed} passing is below the floor of ${floor}. ` +
-                  "A spec that used to pass has regressed - this is not one of the " +
-                  "known failures in #2245."
-              );
-              process.exit(1);
-            }
-          '
+        run: pnpm --filter @yosemite-crew/desktop run e2e
 
       # The list reporter prints enough to diagnose a failure in the log, but
       # traces and screenshots are what make an OS-specific failure tractable
@@ -177,7 +120,6 @@ jobs:
           path: |
             apps/desktop/test-results/
             apps/desktop/playwright-report/
-            apps/desktop/playwright-results.json
           if-no-files-found: ignore
           retention-days: 7
 
@@ -186,9 +128,6 @@ jobs:
   # job as satisfied, so the matrix needs an aggregate that fails when any leg
   # fails or is skipped unexpectedly.
   #
-  # This is meaningful even while #2245 is open, because the legs are gated on
-  # the passing-count ratchet rather than on a clean suite: a leg goes red only
-  # when a spec that used to pass has regressed.
   desktop-e2e-required:
     name: Desktop E2E Required
     if: always()
@@ -211,6 +150,6 @@ jobs:
             exit 0
           fi
           if echo "$RESULTS" | grep -qE '"result": *"(failure|cancelled|skipped)"'; then
-            echo "Desktop E2E Required: at least one platform regressed below the passing floor, was cancelled, or did not run"
+            echo "Desktop E2E Required: at least one platform failed, was cancelled, or did not run"
             exit 1
           fi
