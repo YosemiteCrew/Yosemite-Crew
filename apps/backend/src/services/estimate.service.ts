@@ -1,6 +1,7 @@
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
 import type { Prisma } from "@prisma/client";
+import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 
 export class EstimateError extends Error {
   constructor(
@@ -13,12 +14,7 @@ export class EstimateError extends Error {
 }
 
 type EstimateStatus =
-  | "DRAFT"
-  | "SENT"
-  | "APPROVED"
-  | "DECLINED"
-  | "EXPIRED"
-  | "CONVERTED";
+  "DRAFT" | "SENT" | "APPROVED" | "DECLINED" | "EXPIRED" | "CONVERTED";
 
 export interface EstimateItemInput {
   description: string;
@@ -111,6 +107,13 @@ const assertEstimate = async (id: string, organisationId: string) => {
 export const EstimateService = {
   async create(params: CreateEstimateParams) {
     const { organisationId, patientId, createdBy, items, ...rest } = params;
+
+    // The caller is authenticated against this organisation, but the patient id
+    // arrives from the request. Without this the row would be written against
+    // another tenant's companion, invisible to every view that scopes by org.
+    await assertPatientOrgMembership(patientId, organisationId, () => {
+      throw new EstimateError("Companion not found.", 404);
+    });
     const { subtotal, taxAmount, total } = computeTotals(items);
 
     const estimate = await prisma.estimate.create({

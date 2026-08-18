@@ -5,6 +5,7 @@ import {
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    patientOrganisation: { findFirst: jest.fn() },
     patientFlag: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -50,7 +51,19 @@ const resolvedFlag = {
   resolvedBy: "user-2",
 };
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+
+  // Default: the companion belongs to the caller's organisation, so every
+
+  // pre-existing case keeps its original meaning. Cross-tenant is asserted
+
+  // explicitly in its own test below.
+
+  (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue({
+    id: "patient-org-1",
+  });
+});
 
 describe("PatientFlagService.create", () => {
   it("defaults severity to MEDIUM, activates the flag and records an audit event", async () => {
@@ -324,5 +337,24 @@ describe("PatientFlagService.resolve", () => {
       PatientFlagService.resolve("flag-1", "org-2"),
     ).rejects.toMatchObject({ statusCode: 404 });
     expect(mockUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe("PatientFlagService cross-tenant protection", () => {
+  it("refuses to write against a companion in another organisation", async () => {
+    // The caller is a legitimate member of org-1; the companion is not.
+    (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue(null);
+
+    await expect(
+      PatientFlagService.create({
+        organisationId: "org-1",
+        patientId: "pat-1",
+        flagType: "ESCAPE_RISK",
+        title: "Slips the lead",
+      }),
+    ).rejects.toThrow("Companion not found.");
+
+    // Rejecting is not enough - nothing may be persisted on the way out.
+    expect(prisma.patientFlag.create as jest.Mock).not.toHaveBeenCalled();
   });
 });

@@ -2,6 +2,7 @@ import { DeceasedRecordService } from "../../src/services/deceased-record.servic
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    patientOrganisation: { findFirst: jest.fn() },
     patient: { update: jest.fn() },
     $transaction: jest.fn(),
     deceasedRecord: {
@@ -49,6 +50,9 @@ const baseRecord = {
 };
 
 beforeEach(() => {
+  (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue({
+    id: "patient-org-1",
+  });
   jest.clearAllMocks();
   // create() deactivates the patient alongside the record in one transaction.
   mockPatientUpdate.mockResolvedValue({ id: "pat-1", status: "inactive" });
@@ -182,5 +186,25 @@ describe("DeceasedRecordService.update", () => {
     await expect(
       DeceasedRecordService.update("dr-x", "org-1", { notes: "x" }),
     ).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
+describe("DeceasedRecordService cross-tenant protection", () => {
+  it("refuses to write against a companion in another organisation", async () => {
+    // The caller is a legitimate member of org-1; the companion is not.
+    (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue(null);
+
+    await expect(
+      DeceasedRecordService.create({
+        organisationId: "org-1",
+        patientId: "pat-1",
+        deceasedAt: new Date("2026-08-01T10:00:00Z"),
+        causeOfDeathType: "EUTHANASIA",
+      }),
+    ).rejects.toThrow("Companion not found.");
+
+    // Rejecting is not enough - nothing may be persisted on the way out.
+    expect(prisma.$transaction as jest.Mock).not.toHaveBeenCalled();
+    expect(prisma.patient.update as jest.Mock).not.toHaveBeenCalled();
   });
 });

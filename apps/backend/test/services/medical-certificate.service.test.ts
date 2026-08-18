@@ -1,5 +1,6 @@
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    patientOrganisation: { findFirst: jest.fn() },
     medicalCertificate: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -45,7 +46,15 @@ const baseCert = {
 };
 
 describe("MedicalCertificateService", () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Default: the companion belongs to the caller's organisation, so every
+    // pre-existing case keeps its original meaning. Cross-tenant is asserted
+    // explicitly in its own test below.
+    (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue({
+      id: "patient-org-1",
+    });
+  });
 
   describe("create", () => {
     it("creates a certificate in DRAFT status", async () => {
@@ -227,5 +236,26 @@ describe("MedicalCertificateService", () => {
         MedicalCertificateService.expire("cert-1", "org-1"),
       ).rejects.toThrow(MedicalCertificateError);
     });
+  });
+});
+
+describe("MedicalCertificateService cross-tenant protection", () => {
+  it("refuses to write against a companion in another organisation", async () => {
+    // The caller is a legitimate member of org-1; the companion is not.
+    (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue(null);
+
+    await expect(
+      MedicalCertificateService.create({
+        organisationId: "org-1",
+        patientId: "patient-1",
+        clientId: "client-1",
+        certificateType: "HEALTH_CERTIFICATE",
+      }),
+    ).rejects.toThrow("Companion not found.");
+
+    // Rejecting is not enough - nothing may be persisted on the way out.
+    expect(
+      prisma.medicalCertificate.create as jest.Mock,
+    ).not.toHaveBeenCalled();
   });
 });
