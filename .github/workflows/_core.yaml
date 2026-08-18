@@ -266,3 +266,24 @@ jobs:
       - name: Build
         if: matrix.has_build && matrix.workspace != 'frontend' && startsWith(matrix.dir, 'apps/')
         run: pnpm --filter "${{ matrix.workspace }}" run build
+
+      # A backend that cannot start still passes every other gate: tsc, eslint
+      # and jest each resolve imports differently from Node's ESM loader at
+      # runtime. An extensionless deep import shipped to dev exactly this way
+      # and crash-looped the API behind a 502, green all the way. Boot the built
+      # artifact and fail only on module-resolution errors. Missing env is
+      # expected here and is not a failure, because config is read after the
+      # module graph is linked. A timeout (124) means it booted and kept
+      # running, which is the healthy outcome.
+      - name: Boot check
+        if: matrix.has_build && matrix.workspace == 'backend'
+        run: |
+          set +e
+          BOOT_OUTPUT=$(timeout 45 node apps/backend/dist/index.js 2>&1)
+          set -e
+          if printf '%s' "$BOOT_OUTPUT" | grep -qE 'ERR_MODULE_NOT_FOUND|ERR_UNSUPPORTED_DIR_IMPORT|Cannot find module|Cannot find package'; then
+            echo "::error::The built backend cannot resolve its module graph, so it would crash on boot."
+            printf '%s\n' "$BOOT_OUTPUT" | grep -vE '^[[:space:]]+at ' | head -30
+            exit 1
+          fi
+          echo "Module graph resolves."
