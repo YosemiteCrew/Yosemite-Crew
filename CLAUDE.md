@@ -75,6 +75,7 @@ pnpm --filter frontend run test -- --testPathPattern="Availability"
 - When you modify behaviour, update existing tests for the changed path AND add new cases for new branches.
 - For every file you touch, check `src/app/__tests__/` (mirroring source path) for an existing test file. If one exists: run it, fix any failures your change introduced.
 - Report actual test + coverage output at each COMMIT CHECKPOINT. Never skip or fabricate results.
+- Separate from this local bar, CI enforces an added-line diff-coverage gate on pull requests (`scripts/ci/diff-coverage.mjs`, `DIFF_COVERAGE_FLOORS`) that requires a share of the executable lines your branch adds to be covered - see [docs/ci/coverage.md](docs/ci/coverage.md), which also covers the desktop source-map caveat where missing maps let dead code count as covered.
 
 For backend/mobile/shared-package only changes, run the workspace-appropriate checks instead of frontend checks.
 
