@@ -1930,7 +1930,7 @@ const useChatContainerView = ({
           minHeight: '360px',
         }}
       >
-        <p style={{ color: 'var(--color-danger-700)' }}>{errorMessage}</p>
+        <p style={{ color: 'var(--color-text-error)' }}>{errorMessage}</p>
       </div>
     );
   }

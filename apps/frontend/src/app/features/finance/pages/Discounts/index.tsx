@@ -132,7 +132,7 @@ const DiscountsContent = () => {
 
           {!loading && error && (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-danger-100 p-3">
-              <p role="alert" className="text-body-4 text-danger-700">
+              <p role="alert" className="text-body-4 text-text-error">
                 {error}
               </p>
               <Secondary text="Retry" onClick={reload} ariaLabel="Retry loading the discount cap" />
@@ -173,7 +173,7 @@ const DiscountsContent = () => {
               {formError && (
                 <p
                   role="alert"
-                  className="rounded-2xl bg-danger-100 p-3 text-body-4 text-danger-700"
+                  className="rounded-2xl bg-danger-100 p-3 text-body-4 text-text-error"
                 >
                   {formError}
                 </p>

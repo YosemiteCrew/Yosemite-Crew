@@ -50,7 +50,7 @@ span.cell-overflow-count {
 }
 .tasks-table-fixed {
   table-layout: fixed;
-  min-width: 1110px; /* 160+200+110+120+120+110+130+160 */
+  min-width: 1126px; /* 160+200+110+120+120+110+130+176 */
 }
 .forms-table-fixed {
   table-layout: fixed;

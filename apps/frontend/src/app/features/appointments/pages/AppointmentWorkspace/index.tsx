@@ -323,7 +323,7 @@ const DischargeDateTimeModal = ({
         <ModalHeader title="Discharge date & time" onClose={handleCancel} />
         {gateBlocked && (
           <div className="flex flex-col gap-2 rounded-2xl bg-danger-100 p-3">
-            <p className="text-body-4 text-danger-700">
+            <p className="text-body-4 text-text-error">
               {gate?.disabledReason ?? 'This encounter is not ready for discharge.'}
             </p>
             <label className="flex flex-col gap-1 text-caption-2 text-text-secondary">

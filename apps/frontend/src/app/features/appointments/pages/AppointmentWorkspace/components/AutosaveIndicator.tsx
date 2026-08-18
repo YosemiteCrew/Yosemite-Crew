@@ -41,7 +41,7 @@ const AutosaveIndicator = ({ status, savedAt, className = '' }: AutosaveIndicato
       <output
         data-testid="autosave-indicator"
         data-state="offline"
-        className={`${base} text-danger-700`}
+        className={`${base} text-text-error`}
       >
         <IoCloudOfflineOutline size={13} aria-hidden="true" />
         Offline · retrying, edits kept locally

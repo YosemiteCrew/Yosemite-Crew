@@ -72,12 +72,12 @@ type SubmittedForm = {
 const AUTH_META: Record<FormAuthState, { label: string; tone: string; icon: React.ReactNode }> = {
   AUTHORIZED_CLIENT: {
     label: 'Authorized by Client',
-    tone: 'text-success-600',
+    tone: 'text-[var(--success-text)]',
     icon: <IoCheckmarkCircleOutline size={14} aria-hidden="true" />,
   },
   AUTHORIZED_PROVIDER: {
     label: 'Authorized by Service Provider',
-    tone: 'text-success-600',
+    tone: 'text-[var(--success-text)]',
     icon: <IoCheckmarkCircleOutline size={14} aria-hidden="true" />,
   },
   PENDING: {

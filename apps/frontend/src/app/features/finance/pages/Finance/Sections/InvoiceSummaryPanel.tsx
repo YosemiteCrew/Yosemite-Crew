@@ -46,7 +46,7 @@ const InvoiceSummaryPanel = ({ invoice, currency }: InvoiceSummaryPanelProps) =>
           <span
             className="tabular-nums text-[13px] font-bold"
             style={{
-              color: outstanding > 0 ? 'var(--warn-text)' : 'var(--success)',
+              color: outstanding > 0 ? 'var(--warn-text)' : 'var(--success-text)',
             }}
           >
             {formatMoney(outstanding, currency)}

@@ -349,9 +349,9 @@ export const getTaskStatusTone = (status: string): StatusTone => {
 export const getOrganizationStatusStyle = (status: string) => {
   switch (status?.toLowerCase()) {
     case 'active':
-      return { color: 'var(--color-success-400)', backgroundColor: 'var(--color-success-100)' };
+      return { color: 'var(--success-text)', backgroundColor: 'var(--color-success-100)' };
     case 'pending':
-      return { color: 'var(--color-warning-600)', backgroundColor: 'var(--color-warning-100)' };
+      return { color: 'var(--color-warning-900)', backgroundColor: 'var(--color-warning-100)' };
     default:
       return { color: 'var(--color-neutral-0)', backgroundColor: 'var(--color-badge-blue-bg)' };
   }
