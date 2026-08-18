@@ -113,4 +113,88 @@ describe('GlassTooltip story interactions', () => {
       /still open 2000ms after leaving the trigger/
     );
   }, 10000);
+
+  it('never accepts a stale bubble from a different trigger as its own', async () => {
+    render(
+      <>
+        <GlassTooltip content="First bubble">
+          <button type="button">First</button>
+        </GlassTooltip>
+        <GlassTooltip content="Second bubble">
+          <button type="button">Second</button>
+        </GlassTooltip>
+      </>
+    );
+
+    /* Leave the first one open. A presence check ("is a tooltip on screen?") would now
+       return instantly for ANY trigger, reporting success without opening anything -
+       the exact silent pass this helper exists to remove. */
+    const first = await outsideAct(() =>
+      openGlassTooltip(screen.getByRole('button', { name: 'First' }))
+    );
+    expect(first).toHaveTextContent('First bubble');
+
+    const second = await outsideAct(() =>
+      openGlassTooltip(screen.getByRole('button', { name: 'Second' }))
+    );
+    expect(second).toHaveTextContent('Second bubble');
+    expect(second).not.toBe(first);
+    // Both are open at once, which is why identity rather than presence is the test.
+    expect(screen.getAllByRole('tooltip')).toHaveLength(2);
+  });
+
+  it('closes the bubble it opened, not merely some bubble', async () => {
+    render(
+      <>
+        <GlassTooltip content="First bubble">
+          <button type="button">First</button>
+        </GlassTooltip>
+        <GlassTooltip content="Second bubble">
+          <button type="button">Second</button>
+        </GlassTooltip>
+      </>
+    );
+    const firstTrigger = screen.getByRole('button', { name: 'First' });
+    await outsideAct(() => openGlassTooltip(firstTrigger));
+    await outsideAct(() => openGlassTooltip(screen.getByRole('button', { name: 'Second' })));
+
+    /* Waiting for "no bubbles remain" would hang here forever, because the second one
+       is still up and this wrapper's leave events cannot close it. */
+    await outsideAct(() => closeGlassTooltip(firstTrigger));
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Second bubble');
+  });
+
+  it('says so when a leftover bubble is the reason nothing opened', async () => {
+    render(
+      <>
+        <GlassTooltip content="First bubble">
+          <button type="button">First</button>
+        </GlassTooltip>
+        <span className="glass-tooltip">
+          <button type="button">Inert</button>
+        </span>
+      </>
+    );
+    await outsideAct(() => openGlassTooltip(screen.getByRole('button', { name: 'First' })));
+    await expect(
+      outsideAct(() => openGlassTooltip(screen.getByRole('button', { name: 'Inert' })))
+    ).rejects.toThrow(/1 unrelated bubble\(s\) were already open/);
+  }, 10000);
+
+  it('falls back to waiting for an empty screen when it never opened one itself', async () => {
+    render(<Trigger />);
+    const button = trigger();
+    // Opened WITHOUT the helper, so nothing was recorded for this wrapper.
+    const wrapper = glassTooltipWrapper(button);
+    await outsideAct(async () => {
+      wrapper.dispatchEvent(new MouseEvent('mouseenter', { bubbles: false }));
+      await new Promise((resolve) => {
+        setTimeout(resolve, 60);
+      });
+    });
+    expect(screen.getByRole('tooltip')).toBeInTheDocument();
+
+    await outsideAct(() => closeGlassTooltip(button));
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  });
 });

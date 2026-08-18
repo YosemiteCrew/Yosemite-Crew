@@ -18,9 +18,20 @@
  * pointer-enter path across ancestors, which the probe confirmed - but a raw
  * `dispatchEvent` does not, because `mouseenter` never bubbles. Hence the wrapper, not
  * the control inside it, is the target here.
+ *
+ * Bubbles are matched by IDENTITY, not by presence. Every bubble portals to
+ * `document.body` with nothing tying it to its trigger, so "is a tooltip open?" cannot
+ * answer "did THIS one open?" - and a stale bubble left by an earlier interaction would
+ * satisfy a presence check instantly, returning success without ever opening the
+ * trigger under test. That is the same class of silent pass this helper exists to
+ * remove, so `open` waits for a node that was NOT there when it started, and `close`
+ * waits for the node it actually opened to leave the document.
  */
 const TIMEOUT_MS = 2000;
 const STEP_MS = 25;
+
+/** Wrapper -> the bubble `openGlassTooltip` saw it open, so `close` can wait for that one. */
+const openedBubbles = new WeakMap<HTMLElement, HTMLElement>();
 
 const wait = (ms: number) =>
   new Promise((resolve) => {
@@ -55,40 +66,54 @@ export const openGlassTooltip = async (
       ? new MouseEvent('mouseenter', { bubbles: false })
       : new FocusEvent('focusin', { bubbles: true });
 
+  // Anything already open belongs to someone else and can never count as success.
+  const stale = new Set(bubbles());
   const deadline = Date.now() + TIMEOUT_MS;
   let attempts = 0;
   for (;;) {
     wrapper.dispatchEvent(event());
     attempts += 1;
     await wait(STEP_MS);
-    // The last one: a neighbouring story can leave a stale bubble on document.body,
-    // and the one this dispatch opened is the most recent.
-    const opened = bubbles().at(-1);
-    if (opened) return opened;
+    const opened = bubbles().find((bubble) => !stale.has(bubble));
+    if (opened) {
+      openedBubbles.set(wrapper, opened);
+      return opened;
+    }
     if (Date.now() > deadline) {
       throw new Error(
-        `No tooltip opened after ${attempts} ${via} dispatch(es) over ${TIMEOUT_MS}ms. ` +
-          'The trigger has a .glass-tooltip wrapper but nothing listened to it.'
+        `No tooltip opened after ${attempts} ${via} dispatch(es) over ${TIMEOUT_MS}ms` +
+          (stale.size > 0
+            ? `. ${stale.size} unrelated bubble(s) were already open - close them first, ` +
+              'since a leftover bubble cannot stand in for this trigger.'
+            : '. The trigger has a .glass-tooltip wrapper but nothing listened to it.')
       );
     }
   }
 };
 
 /**
- * Closes it again and resolves once no bubble remains.
+ * Closes the bubble this trigger opened, and resolves once it has left the document.
  *
- * Worth doing explicitly in any story that opens more than one: the bubble is portalled
- * to `document.body`, so a stale one is outside `canvasElement` and a later
- * `getAllByRole('tooltip')` count silently includes it.
+ * Worth doing explicitly in any story that opens more than one: a dispatched
+ * `mouseenter` on the next control emits no `mouseleave` on the last, so bubbles
+ * accumulate on `document.body` - outside `canvasElement`, where a later
+ * `getAllByRole('tooltip')` count silently includes them.
  */
 export const closeGlassTooltip = async (trigger: HTMLElement): Promise<void> => {
   const wrapper = glassTooltipWrapper(trigger);
+  // Waiting on "no bubbles at all" would hang on someone else's; wait on ours.
+  const target = openedBubbles.get(wrapper);
+  const gone = () => (target ? !document.contains(target) : bubbles().length === 0);
+
   const deadline = Date.now() + TIMEOUT_MS;
   for (;;) {
     wrapper.dispatchEvent(new MouseEvent('mouseleave', { bubbles: false }));
     wrapper.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
     await wait(STEP_MS);
-    if (bubbles().length === 0) return;
+    if (gone()) {
+      openedBubbles.delete(wrapper);
+      return;
+    }
     if (Date.now() > deadline) {
       throw new Error(`A tooltip was still open ${TIMEOUT_MS}ms after leaving the trigger.`);
     }
