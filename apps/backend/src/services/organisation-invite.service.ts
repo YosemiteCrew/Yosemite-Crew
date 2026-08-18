@@ -1,4 +1,4 @@
-import isEmail from "validator/lib/isEmail";
+import isEmail from "validator/lib/isEmail.js";
 
 import { type CreateOrganisationInviteInput } from "../models/organisationInvite";
 import { type OrganizationMongo } from "../models/organization";

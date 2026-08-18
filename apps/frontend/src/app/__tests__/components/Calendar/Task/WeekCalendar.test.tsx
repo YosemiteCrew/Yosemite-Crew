@@ -136,6 +136,30 @@ describe('WeekCalendar (Task)', () => {
     expect(screen.getByText('9:41 AM')).toBeInTheDocument();
   });
 
+  it('gives every grid row exactly as many children as its template has columns', () => {
+    // The rows are `grid-cols-[64px_minmax(0,1fr)]` - TWO columns. When the arrow
+    // rails were removed the template dropped from three columns to two, but the
+    // hour row kept a third child: the right rail's spacer. A third child in a
+    // two-column grid wraps onto an implicit SECOND row, so every hour rendered
+    // at 360px instead of 180 with an empty 180px band under it. On the deployed
+    // planner that read as large blank areas down the calendar.
+    const { container } = render(
+      <WeekCalendar
+        events={events}
+        date={weekStart}
+        handleViewTask={handleViewTask}
+        weekStart={weekStart}
+      />
+    );
+
+    const twoColumnRows = [...container.querySelectorAll('div')].filter((d) =>
+      d.className.includes('grid-cols-[64px_minmax(0,1fr)]')
+    );
+
+    expect(twoColumnRows.length).toBeGreaterThan(0);
+    twoColumnRows.forEach((row) => expect(row.children).toHaveLength(2));
+  });
+
   it('renders no pager of its own - paging belongs to the toolbar', () => {
     // The grid used to carry its own prev/next arrows in two 64px rails either
     // side of the day strip. common/WeekCalendar.css states the intent plainly:

@@ -111,20 +111,30 @@ const PetPassportModalContent = ({
         {state === 'ready' && passport && (
           <>
             <PetPassportView passport={passport} />
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Button
-                variant="primary"
-                text={busy === 'apple' ? 'Adding to Apple Wallet...' : 'Add to Apple Wallet'}
-                onClick={handleAddToApple}
-                isDisabled={busy !== null}
-              />
-              <Button
-                variant="secondary"
-                text={busy === 'google' ? 'Adding to Google Wallet...' : 'Add to Google Wallet'}
-                onClick={handleAddToGoogle}
-                isDisabled={busy !== null}
-              />
-            </div>
+            {/* A wallet pass is built from an ISSUED passport: its QR carries the
+                public token, and a pet without one has nothing to verify against,
+                so the wallet endpoints 404. Offering the buttons regardless would
+                guarantee a failed download, so gate them on issuance. */}
+            {passport.issuance ? (
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button
+                  variant="primary"
+                  text={busy === 'apple' ? 'Adding to Apple Wallet...' : 'Add to Apple Wallet'}
+                  onClick={handleAddToApple}
+                  isDisabled={busy !== null}
+                />
+                <Button
+                  variant="secondary"
+                  text={busy === 'google' ? 'Adding to Google Wallet...' : 'Add to Google Wallet'}
+                  onClick={handleAddToGoogle}
+                  isDisabled={busy !== null}
+                />
+              </div>
+            ) : (
+              <Text variant="caption-1" className="text-text-secondary">
+                Wallet passes become available once a vet issues this passport.
+              </Text>
+            )}
           </>
         )}
       </div>

@@ -45,6 +45,13 @@ jest.mock('@/app/ui/overlays/Modal/ModalHeader', () => ({
 const notifyMock = jest.fn();
 jest.mock('@/app/hooks/useNotify', () => ({ useNotify: () => ({ notify: notifyMock }) }));
 
+// Wallet passes only exist for an ISSUED passport, so every wallet test needs
+// an issuance block. A passport without one renders the explainer instead.
+const ISSUED = {
+  identity: { name: 'Doggy' },
+  issuance: { passportNumber: 'PN-1', issueDate: '2026-01-01' },
+};
+
 const mockedFetch = getPetPassport as jest.Mock;
 const mockedDownload = downloadApplePass as jest.Mock;
 const mockedGoogle = getGoogleWalletUrl as jest.Mock;
@@ -194,7 +201,7 @@ describe('PetPassportModal', () => {
   });
 
   it('adds the passport to Apple Wallet, passing the pet name', async () => {
-    mockedFetch.mockResolvedValue({ identity: { name: 'Doggy' } });
+    mockedFetch.mockResolvedValue(ISSUED);
     mockedDownload.mockResolvedValue(undefined);
     render(
       <PetPassportModal open companionId="p1" companionName="Doggy Wandhare" onClose={jest.fn()} />
@@ -205,7 +212,7 @@ describe('PetPassportModal', () => {
   });
 
   it('shows a busy label while the pass is generated', async () => {
-    mockedFetch.mockResolvedValue({ identity: { name: 'Doggy' } });
+    mockedFetch.mockResolvedValue(ISSUED);
     let resolve: () => void = () => {};
     mockedDownload.mockReturnValue(
       new Promise<void>((r) => {
@@ -224,7 +231,7 @@ describe('PetPassportModal', () => {
   });
 
   it('notifies when the wallet download fails', async () => {
-    mockedFetch.mockResolvedValue({ identity: { name: 'Doggy' } });
+    mockedFetch.mockResolvedValue(ISSUED);
     mockedDownload.mockRejectedValue(new Error('501'));
     render(<PetPassportModal open companionId="p1" companionName="Doggy" onClose={jest.fn()} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Add to Apple Wallet' }));
@@ -237,7 +244,7 @@ describe('PetPassportModal', () => {
   });
 
   it('opens the Google Wallet save url on button click', async () => {
-    mockedFetch.mockResolvedValue({ identity: { name: 'Doggy' } });
+    mockedFetch.mockResolvedValue(ISSUED);
     mockedGoogle.mockResolvedValue('https://pay.google.com/gp/v/save/tok');
     const openSpy = jest.spyOn(globalThis.window, 'open').mockImplementation(() => null);
     render(<PetPassportModal open companionId="p1" companionName="Doggy" onClose={jest.fn()} />);
@@ -252,7 +259,7 @@ describe('PetPassportModal', () => {
   });
 
   it('notifies when the Google Wallet url cannot be built', async () => {
-    mockedFetch.mockResolvedValue({ identity: { name: 'Doggy' } });
+    mockedFetch.mockResolvedValue(ISSUED);
     mockedGoogle.mockRejectedValue(new Error('501'));
     render(<PetPassportModal open companionId="p1" companionName="Doggy" onClose={jest.fn()} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Add to Google Wallet' }));
@@ -262,5 +269,17 @@ describe('PetPassportModal', () => {
         expect.objectContaining({ title: 'Wallet pass unavailable' })
       )
     );
+  });
+  it('hides the wallet actions until the passport is issued', async () => {
+    mockedFetch.mockResolvedValue({ identity: { name: 'Doggy' } });
+    render(<PetPassportModal open companionId="p1" companionName="Doggy" onClose={jest.fn()} />);
+    await screen.findByTestId('passport');
+    expect(
+      screen.getByText('Wallet passes become available once a vet issues this passport.')
+    ).toBeInTheDocument();
+    // The wallet endpoints 404 without an issued passport, so offering these
+    // would guarantee a failed download.
+    expect(screen.queryByRole('button', { name: 'Add to Apple Wallet' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add to Google Wallet' })).not.toBeInTheDocument();
   });
 });

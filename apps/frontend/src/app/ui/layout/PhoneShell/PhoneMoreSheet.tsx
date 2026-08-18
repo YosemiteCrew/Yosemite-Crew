@@ -5,6 +5,7 @@ import type { IconType } from 'react-icons';
 import { IoChevronForwardOutline, IoLogOutOutline } from 'react-icons/io5';
 
 import BottomSheet from './BottomSheet';
+import { usePlatformStatus } from '@/app/hooks/usePlatformStatus';
 
 export type PhoneMoreSection = {
   key: string;
@@ -46,6 +47,7 @@ const PhoneMoreSheet = ({
   onNavigate,
   onSignOut,
 }: PhoneMoreSheetProps) => {
+  const platformStatus = usePlatformStatus();
   const go = (href: string) => {
     onNavigate(href);
     onClose();
@@ -116,9 +118,11 @@ const PhoneMoreSheet = ({
           </button>
         </li>
         <li>
-          <div className="yc-phone-more-row yc-phone-more-status-row">
+          <div
+            className={`yc-phone-more-row yc-phone-more-status-row yc-phone-more-status-${platformStatus.tone}`}
+          >
             <span className="yc-phone-more-status-dot" aria-hidden />
-            <span className="yc-phone-more-row-label">All systems live</span>
+            <span className="yc-phone-more-row-label">{platformStatus.label}</span>
             <span className="yc-phone-more-status-url">status.yosemitecrew.com</span>
           </div>
         </li>

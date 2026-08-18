@@ -80,7 +80,9 @@ describe('PhoneMoreSheet', () => {
     expect(screen.getByText('Team to-dos and follow-ups')).toBeInTheDocument();
     expect(screen.getByText('Settings')).toBeInTheDocument();
     expect(screen.getByText('Developer portal')).toBeInTheDocument();
-    expect(screen.getByText('All systems live')).toBeInTheDocument();
+    // The label now reflects the real status feed. jsdom has no fetch, so
+    // the hook degrades to `unknown` rather than asserting health.
+    expect(screen.getByText('Status unavailable')).toBeInTheDocument();
   });
 
   it('navigates and closes when an enabled area is tapped', () => {

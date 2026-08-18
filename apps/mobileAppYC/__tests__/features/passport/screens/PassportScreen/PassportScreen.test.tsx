@@ -759,6 +759,22 @@ describe('PassportScreen', () => {
       Platform.OS = 'ios';
     });
 
+    it('hides both wallet actions until the passport is issued', () => {
+      // Wallet passes are built from an issued passport, so the endpoints 404
+      // without one. Offering the buttons would guarantee a failed download.
+      const unissued = {...mockPassport, issuance: undefined};
+      const {queryByText} = render(
+        <Provider
+          store={buildStore({
+            passport: passportState({[mockCompanionId]: unissued}),
+          })}>
+          <PassportScreen />
+        </Provider>,
+      );
+      expect(queryByText('Add to Apple Wallet')).toBeNull();
+      expect(queryByText('Add to Google Wallet')).toBeNull();
+    });
+
     it('shows the Apple Wallet button on iOS and hides it on Android', () => {
       Platform.OS = 'ios';
       const iosRender = render(

@@ -1,43 +1,12 @@
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import { LazyMotion, domAnimation, m, Variants, useInView } from 'framer-motion';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+import { PLATFORM_STATUS_URL, usePlatformStatus } from '@/app/hooks/usePlatformStatus';
 
 import './Footer.css';
-
-const PLATFORM_STATUS_URL = 'https://yosemite-crew.openstatus.dev/';
-const PLATFORM_STATUS_API_URL = 'https://api.openstatus.dev/public/status/yosemite-crew';
-
-type PlatformStatus =
-  | 'operational'
-  | 'degraded_performance'
-  | 'partial_outage'
-  | 'major_outage'
-  | 'under_maintenance'
-  | 'unknown'
-  | 'incident';
-
-type PlatformStatusState = {
-  label: string;
-  tone: 'success' | 'warning' | 'danger' | 'neutral';
-};
-
-const platformStatusByValue: Record<PlatformStatus, PlatformStatusState> = {
-  operational: { label: 'All systems operational', tone: 'success' },
-  degraded_performance: { label: 'Degraded performance', tone: 'warning' },
-  partial_outage: { label: 'Partial outage', tone: 'danger' },
-  major_outage: { label: 'Major outage', tone: 'danger' },
-  under_maintenance: { label: 'Under maintenance', tone: 'warning' },
-  unknown: { label: 'Status unavailable', tone: 'neutral' },
-  incident: { label: 'Active incident', tone: 'danger' },
-};
-
-const getPlatformStatusState = (status: unknown): PlatformStatusState => {
-  if (typeof status !== 'string') return platformStatusByValue.unknown;
-  return platformStatusByValue[status as PlatformStatus] ?? platformStatusByValue.unknown;
-};
 
 const footerLinks = [
   {
@@ -95,30 +64,7 @@ const ftDivVariants: Variants = {
 const Footer = () => {
   const footerRef = useRef(null);
   const inView = useInView(footerRef, { once: true, margin: '-100px' });
-  const [platformStatus, setPlatformStatus] = useState<PlatformStatusState>(
-    platformStatusByValue.unknown
-  );
-
-  useEffect(() => {
-    let isMounted = true;
-
-    globalThis
-      .fetch(PLATFORM_STATUS_API_URL)
-      .then((response) => {
-        if (!response.ok) return { status: 'unknown' };
-        return response.json() as Promise<{ status?: string }>;
-      })
-      .then((data) => {
-        if (isMounted) setPlatformStatus(getPlatformStatusState(data.status));
-      })
-      .catch(() => {
-        if (isMounted) setPlatformStatus(platformStatusByValue.unknown);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const platformStatus = usePlatformStatus();
 
   return (
     <LazyMotion features={domAnimation}>

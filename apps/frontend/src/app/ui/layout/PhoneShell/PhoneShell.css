@@ -413,6 +413,18 @@
     animation: ycPhonePulseDot 3.4s ease-out infinite;
   }
 
+  .yc-phone-more-status-warning .yc-phone-more-status-dot {
+    background: var(--amber);
+  }
+
+  .yc-phone-more-status-danger .yc-phone-more-status-dot {
+    background: var(--danger);
+  }
+
+  .yc-phone-more-status-neutral .yc-phone-more-status-dot {
+    background: var(--ink-faint);
+  }
+
   .yc-phone-more-status-url {
     flex: none;
     color: var(--ink-faint);
