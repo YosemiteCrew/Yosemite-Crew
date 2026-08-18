@@ -43,7 +43,7 @@
     "@react-navigation/native": "^7.3.16",
     "@react-navigation/native-stack": "^7.18.8",
     "@reduxjs/toolkit": "^2.12.0",
-    "@stripe/stripe-react-native": "^0.57.0",
+    "@stripe/stripe-react-native": "^0.61.0",
     "@yosemite-crew/fhir": "workspace:*",
     "@yosemite-crew/types": "workspace:*",
     "axios": "^1.19.0",

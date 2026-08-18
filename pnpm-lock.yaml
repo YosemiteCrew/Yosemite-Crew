@@ -734,8 +734,8 @@ importers:
         specifier: ^2.12.0
         version: 2.12.0(react-redux@9.3.0)(react@19.1.0)
       '@stripe/stripe-react-native':
-        specifier: ^0.57.0
-        version: 0.57.3(react-native@0.81.6)(react@19.1.0)
+        specifier: ^0.61.0
+        version: 0.61.0(react-native@0.81.6)(react@19.1.0)
       '@yosemite-crew/fhir':
         specifier: workspace:*
         version: link:../../packages/fhir
@@ -12427,8 +12427,8 @@ packages:
       react-dom: 19.2.4(react@19.2.4)
     dev: false
 
-  /@stripe/stripe-react-native@0.57.3(react-native@0.81.6)(react@19.1.0):
-    resolution: {integrity: sha512-aV85B/9e8o5O2Eo3O/K3jaS1z5uOtaEcLg9hvLjsdKw0276DoT+072Lhv1DxMDaPAunoTm7KF9SwQhiEJSi1aw==}
+  /@stripe/stripe-react-native@0.61.0(react-native@0.81.6)(react@19.1.0):
+    resolution: {integrity: sha512-2UdFpxOZXccg8yHPl4DtCD5fZtKRZ6JwBDd8rNKoMdzpArEnpHG0qUFMWJY7hxa0Nort0+xb1iooFIYDyv50hA==}
     peerDependencies:
       expo: '>=46.0.9'
       react: '*'
