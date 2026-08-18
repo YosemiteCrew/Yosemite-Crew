@@ -32,6 +32,7 @@ import {
   X_URL,
 } from './assets';
 import { useGithubStats } from './useGithubStats';
+import { usePlatformStatus } from '@/app/hooks/usePlatformStatus';
 
 const colHead: CSSProperties = {
   fontSize: 12,
@@ -449,22 +450,53 @@ function FooterApps({ stars }: Readonly<{ stars: string | null }>) {
   );
 }
 
+// The pill previously hardcoded a green "all systems operational" with no
+// status feed behind it, so it claimed health on the public site even during
+// an outage. These map the resolved tone onto the pill's colours.
+const STATUS_TONE_DOT: Record<string, string> = {
+  success: 'var(--success)',
+  warning: 'var(--amber)',
+  danger: 'var(--danger)',
+  neutral: 'var(--ink-faint)',
+};
+
+const STATUS_TONE_TEXT: Record<string, string> = {
+  success: '#1d6b4f',
+  warning: 'var(--amber)',
+  danger: 'var(--danger)',
+  neutral: 'var(--ink-faint)',
+};
+
 function FooterCompliance() {
+  const platformStatus = usePlatformStatus();
+  const isOperational = platformStatus.tone === 'success';
+
   return (
     <div data-footer-mid="true" data-stack-m="true" style={FOOTER_MID_STYLE}>
-      <Link href="/trust-center" className="yc-pill-green" style={STATUS_LINK_STYLE}>
+      <Link
+        href="/trust-center"
+        className={isOperational ? 'yc-pill-green' : undefined}
+        style={STATUS_LINK_STYLE}
+      >
         <span
           style={{
             width: 9,
             height: 9,
             borderRadius: 9999,
-            background: 'var(--success)',
-            animation: 'ycStatusPulse 2.6s ease-out infinite',
+            background: STATUS_TONE_DOT[platformStatus.tone],
+            animation: isOperational ? 'ycStatusPulse 2.6s ease-out infinite' : undefined,
           }}
           aria-hidden="true"
         />
-        <span style={{ fontSize: 13, fontWeight: 600, letterSpacing: '-0.01em', color: '#1d6b4f' }}>
-          All systems operational
+        <span
+          style={{
+            fontSize: 13,
+            fontWeight: 600,
+            letterSpacing: '-0.01em',
+            color: STATUS_TONE_TEXT[platformStatus.tone],
+          }}
+        >
+          {platformStatus.label}
         </span>
         <span
           data-live-tag="true"

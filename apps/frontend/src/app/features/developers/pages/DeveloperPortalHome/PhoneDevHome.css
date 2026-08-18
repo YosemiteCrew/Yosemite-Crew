@@ -72,8 +72,20 @@
   width: 6px;
   height: 6px;
   border-radius: 9999px;
-  background: #2bbd86;
+  background: var(--success);
   flex-shrink: 0;
+}
+
+.dev-ph-status-live-warning .dev-ph-status-live-dot {
+  background: var(--amber);
+}
+
+.dev-ph-status-live-danger .dev-ph-status-live-dot {
+  background: var(--danger);
+}
+
+.dev-ph-status-live-neutral .dev-ph-status-live-dot {
+  background: var(--ink-faint);
 }
 
 .dev-ph-metrics {

@@ -6,6 +6,7 @@ import { Icon } from '@/app/ui/icons/Icon';
 import type { ActivityEntry } from '@/app/features/developers/pages/DeveloperPortalHome/DeveloperPortalHome';
 
 import './PhoneDevHome.css';
+import { usePlatformStatus } from '@/app/hooks/usePlatformStatus';
 
 type PlatformMetric = {
   label: string;
@@ -53,6 +54,7 @@ type PhoneDevHomeProps = {
  * truth for the request log.
  */
 const PhoneDevHome = ({ displayName, recentActivity }: PhoneDevHomeProps) => {
+  const platformStatus = usePlatformStatus();
   return (
     <div className="dev-ph">
       <h1 className="dev-ph-greet">
@@ -63,9 +65,9 @@ const PhoneDevHome = ({ displayName, recentActivity }: PhoneDevHomeProps) => {
       <section className="dev-ph-status" aria-label="Platform status">
         <div className="dev-ph-status-head">
           <h2 className="dev-ph-status-title">Platform status</h2>
-          <span className="dev-ph-status-live">
+          <span className={`dev-ph-status-live dev-ph-status-live-${platformStatus.tone}`}>
             <span className="dev-ph-status-live-dot" aria-hidden="true" />
-            {'All systems live'}
+            {platformStatus.label}
           </span>
         </div>
         <dl className="dev-ph-metrics">
