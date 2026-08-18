@@ -189,7 +189,7 @@ export default function AccessibilityReportClient() {
             id={errorSummaryId}
             role="alert"
             aria-labelledby={`${errorSummaryId}-title`}
-            className="mb-6 rounded-xl border border-error-border bg-danger-50 px-4 py-3"
+            className="mb-6 rounded-xl border border-[var(--error-color)] bg-danger-100 px-4 py-3"
           >
             <h2
               id={`${errorSummaryId}-title`}

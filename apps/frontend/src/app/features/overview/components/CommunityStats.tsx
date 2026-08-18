@@ -347,7 +347,7 @@ const CommunityStats = ({ trafficChart, starsChart, isLoading }: CommunityStatsP
           {chartKeys.map((key) => (
             <span key={key.name} className="ChartLegendItem">
               <span className="ChartLegendDot" style={{ backgroundColor: key.color }} />
-              <span className="text-capton-1 text-text-primary">{key.name}</span>
+              <span className="text-caption-1 text-text-primary">{key.name}</span>
             </span>
           ))}
         </div>

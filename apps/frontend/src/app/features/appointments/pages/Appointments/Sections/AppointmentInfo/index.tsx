@@ -457,7 +457,7 @@ const CustomFormsView = ({
     return <div className="text-body-3 text-text-primary">Loading forms…</div>;
   }
   if (error) {
-    return <div className="text-body-3 text-error-main">{error}</div>;
+    return <div className="text-body-3 text-text-error">{error}</div>;
   }
 
   return (
@@ -657,7 +657,7 @@ const CustomFormsView = ({
             <div className="text-body-3 text-text-secondary">No past form submissions.</div>
           </Accordion>
         ) : null}
-        {submitError ? <div className="text-error-main text-body-4">{submitError}</div> : null}
+        {submitError ? <div className="text-text-error text-body-4">{submitError}</div> : null}
       </div>
     </Accordion>
   );

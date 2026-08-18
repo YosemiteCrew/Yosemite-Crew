@@ -624,7 +624,7 @@ const MerckReaderPortal = ({
       <div className="relative flex size-full max-h-[95vh] max-w-7xl flex-col overflow-hidden rounded-2xl border border-hairline bg-[var(--screen)] shadow-2xl">
         <div className="flex items-center justify-between gap-3 border-b border-hairline px-6 py-3.5">
           <div className="flex min-w-0 items-center gap-2.5">
-            <span className="flex size-8 flex-none items-center justify-center rounded-[9px] bg-blue-soft text-blue-text">
+            <span className="flex size-8 flex-none items-center justify-center rounded-[9px] bg-[var(--blue-soft)] text-blue-text">
               <IoBookOutline size={15} aria-hidden="true" />
             </span>
             <div

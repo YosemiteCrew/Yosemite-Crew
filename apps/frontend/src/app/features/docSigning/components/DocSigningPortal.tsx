@@ -49,7 +49,7 @@ const DocSigningPortal = ({ embedded = false }: DocSigningPortalProps) => {
 
   if (error) {
     return (
-      <div role="alert" className="text-body-3 text-error-main">
+      <div role="alert" className="text-body-3 text-text-error">
         {error}
       </div>
     );

@@ -21,7 +21,7 @@ const RichTextBuilder: React.FC<{
   const structureLocked = use(StructureLockContext);
   const label = field.label || 'Rich text';
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-input-border bg-surface-1 p-3">
+    <div className="flex flex-col gap-3 rounded-xl border border-input-border-default bg-[var(--surface-soft)] p-3">
       {structureLocked ? (
         <p className="text-body-2 font-medium text-text-primary">{label}</p>
       ) : (
