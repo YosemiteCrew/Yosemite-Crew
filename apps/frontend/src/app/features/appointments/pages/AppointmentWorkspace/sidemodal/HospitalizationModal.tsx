@@ -240,7 +240,7 @@ const HospitalizationModal = ({
               />
             </div>
             {hasSubmitted && hasValidationErrors && (
-              <div className="flex flex-col gap-1 text-caption-2 text-danger-700">
+              <div className="flex flex-col gap-1 text-caption-2 text-text-error">
                 {Object.values(validationErrors).map((error) => (
                   <span key={error}>{error}</span>
                 ))}

@@ -26,6 +26,16 @@ const getAverageInventory = (item: InventoryTurnoverItem) =>
 const getTotalPurchased = (item: InventoryTurnoverItem) =>
   item.totalPurchases ?? item.totalPurchased ?? 0;
 
+/* Every metric column is sized by its HEADER, not its figures: the values are
+   short integers but the labels are long, and the th is 10.5px/700 uppercase with
+   1.05em tracking and nowrap+ellipsis. At the width where the colgroup actually
+   binds (viewport 1300, table at its 1040px min-width) five of the nine headers
+   were ellipsised on deployed dev - "Beginning inventory" by 34.5px, "Ending
+   inventory" by 23.1, "Avg inventory" by 20.0, "Total purchases" by 15.7 and
+   "Days on shelf" by 15.9, with "Turns/Year" left on 1px of slack. Widths below
+   are the measured text width plus 22px of th padding plus ~8px of margin, the
+   same allowance STATUS_COLUMN_WIDTH in InvoiceTable settles on after real-world
+   font hinting and DPI variance ate a 4px one. */
 const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) => {
   const columns: Column<InventoryTurnoverItem>[] = [
     {
@@ -47,7 +57,7 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
     {
       label: 'Beginning inventory',
       key: 'Beginning inventory',
-      width: '130px',
+      width: '172px',
       render: (item: InventoryTurnoverItem) => (
         <div className="appointment-profile-title cell-figure">{item.beginningInventory}</div>
       ),
@@ -55,7 +65,7 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
     {
       label: 'Ending inventory',
       key: 'Ending inventory',
-      width: '120px',
+      width: '152px',
       render: (item: InventoryTurnoverItem) => (
         <div className="appointment-profile-title cell-figure">{item.endingInventory}</div>
       ),
@@ -63,7 +73,7 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
     {
       label: 'Avg inventory',
       key: 'Avg inventory',
-      width: '100px',
+      width: '128px',
       render: (item: InventoryTurnoverItem) => (
         <div className="appointment-profile-title cell-figure">{getAverageInventory(item)}</div>
       ),
@@ -71,7 +81,7 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
     {
       label: 'Total purchases',
       key: 'Total purchases',
-      width: '120px',
+      width: '144px',
       render: (item: InventoryTurnoverItem) => (
         <div className="appointment-profile-title cell-figure">{getTotalPurchased(item)}</div>
       ),
@@ -79,7 +89,7 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
     {
       label: 'Turns/Year',
       key: 'Turns/Year',
-      width: '100px',
+      width: '108px',
       render: (item: InventoryTurnoverItem) => (
         <div className="appointment-profile-title cell-figure">{item.turnsPerYear}</div>
       ),
@@ -87,15 +97,22 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
     {
       label: 'Days on shelf',
       key: 'Days on shelf',
-      width: '100px',
+      width: '124px',
       render: (item: InventoryTurnoverItem) => (
         <div className="appointment-profile-title cell-figure">{item.daysOnShelf}</div>
       ),
     },
     {
+      /* The one column sized by its BODY rather than its header: the label is 44px
+         but the StatusPill inside is 10px/600 uppercase with 0.8px tracking and 20px
+         of its own padding, so "Out of stock" needs 102.4px against the 69px content
+         box a 100px column left it. Measured in the real pill font: Out of stock
+         102.4, Excellent 82.5, Moderate 80.5, Healthy 69.4 - four of the five values
+         overflowed, and StatusPill is nowrap + overflow-hidden, so it clipped the
+         word rather than wrapping it. */
       label: 'Status',
       key: 'status',
-      width: '100px',
+      width: '140px',
       render: (item: InventoryTurnoverItem) => (
         <StatusPill
           style={getInventoryTurnoverStatusStyle(item.status)}

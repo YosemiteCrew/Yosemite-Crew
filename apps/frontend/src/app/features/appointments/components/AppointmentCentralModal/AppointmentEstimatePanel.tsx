@@ -80,7 +80,7 @@ const AppointmentEstimatePanel = ({
             fontWeight: 700,
             lineHeight: '120%',
             letterSpacing: '-0.48px',
-            color: estimateIsReal ? 'var(--color-primary-600)' : 'var(--color-text-tertiary)',
+            color: estimateIsReal ? 'var(--blue-text)' : 'var(--color-text-tertiary)',
             textAlign: 'right',
           }}
         >

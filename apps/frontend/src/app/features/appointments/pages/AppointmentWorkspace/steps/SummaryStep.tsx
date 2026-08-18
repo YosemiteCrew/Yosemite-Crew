@@ -262,7 +262,7 @@ export const AllDocumentsTable = ({
   return (
     <SectionContainer title="All Documents" className="flex flex-col gap-4">
       {error && (
-        <p role="alert" className="rounded-2xl bg-danger-100 p-4 text-body-4 text-danger-700">
+        <p role="alert" className="rounded-2xl bg-danger-100 p-4 text-body-4 text-text-error">
           {error}
         </p>
       )}
@@ -317,7 +317,7 @@ export const AllDocumentsTable = ({
             ))}
           </ul>
           {documentError && (
-            <p role="alert" className="rounded-2xl bg-danger-100 p-3 text-body-4 text-danger-700">
+            <p role="alert" className="rounded-2xl bg-danger-100 p-3 text-body-4 text-text-error">
               {documentError}
             </p>
           )}
@@ -799,7 +799,7 @@ const useSummaryStepContent = ({
                 )}
               </SearchResultsDropdown>
               {templateState.error && (
-                <p className="mt-2 text-caption-1 text-danger-600">{templateState.error}</p>
+                <p className="mt-2 text-caption-1 text-text-error">{templateState.error}</p>
               )}
             </div>
           </div>
@@ -885,7 +885,7 @@ const useSummaryStepContent = ({
 
           <div className="flex flex-col items-end gap-2">
             {signError && (
-              <p role="alert" className="text-body-4 text-danger-700">
+              <p role="alert" className="text-body-4 text-text-error">
                 {signError}
               </p>
             )}

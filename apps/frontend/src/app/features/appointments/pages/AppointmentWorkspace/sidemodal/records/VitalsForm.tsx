@@ -265,7 +265,7 @@ const SegmentedPicker = ({
         })}
       </fieldset>
     </div>
-    {error ? <p className="text-caption-1 text-danger-600">{error}</p> : null}
+    {error ? <p className="text-caption-1 text-text-error">{error}</p> : null}
   </div>
 );
 
@@ -575,7 +575,7 @@ const VitalsForm = ({
           </p>
         )}
         {templateState.error && (
-          <p className="mt-2 text-caption-1 text-danger-600">{templateState.error}</p>
+          <p className="mt-2 text-caption-1 text-text-error">{templateState.error}</p>
         )}
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -590,7 +590,7 @@ const VitalsForm = ({
                     onChange={(value) => updateField(field.key, value)}
                   />
                   {fieldErrors[field.key] ? (
-                    <p className="text-caption-1 text-danger-600">{fieldErrors[field.key]}</p>
+                    <p className="text-caption-1 text-text-error">{fieldErrors[field.key]}</p>
                   ) : null}
                 </div>,
               ]

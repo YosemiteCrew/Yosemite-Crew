@@ -237,10 +237,15 @@ describe('DispensaryTable', () => {
     timeSpy.mockRestore();
   });
 
-  it('applies the success color class when timeDispensed is present', () => {
+  it('applies the success INK, not the success fill, when timeDispensed is present', () => {
+    /* --color-success-600 is a fill step: at this 12px size it measured 3.73:1 on
+       the bone screen. --success-text is the ink member of the same ramp and clears
+       6.37:1. globals.css records this exact token and number as the reason
+       --success-strong exists; the text call sites were simply never migrated. */
     const record = { ...baseRecord, timeDispensed: '2026-06-30T15:29:25.223Z' };
     const { container } = render(<DispensaryTable filteredList={[record]} />);
-    expect(container.querySelector('.text-\\[var\\(--color-success-600\\)\\]')).toBeInTheDocument();
+    expect(container.querySelector('.text-\\[var\\(--success-text\\)\\]')).toBeInTheDocument();
+    expect(container.querySelector('.text-\\[var\\(--color-success-600\\)\\]')).toBeNull();
   });
 
   it('left-aligns the status pill in its own row instead of leaving default grid stretch/centering', () => {

@@ -56,7 +56,7 @@ const CalculatorsPanel = ({ appointment }: CalculatorsPanelProps) => {
       )}
       {unsupportedNote && (
         <div className="rounded-2xl bg-warning-100 px-4 py-3">
-          <Text variant="caption-1" className="text-warning-700">
+          <Text variant="caption-1" className="text-warning-900">
             {unsupportedNote}
           </Text>
         </div>

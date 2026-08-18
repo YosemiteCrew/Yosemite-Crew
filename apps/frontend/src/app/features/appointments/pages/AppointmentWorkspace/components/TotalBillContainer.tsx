@@ -579,7 +579,7 @@ const TotalsFooter = ({
           <p
             id={OVERALL_DISCOUNT_ERROR_ID}
             role="alert"
-            className="text-right text-caption-2 text-danger-700"
+            className="text-right text-caption-2 text-text-error"
           >
             {capError}
           </p>

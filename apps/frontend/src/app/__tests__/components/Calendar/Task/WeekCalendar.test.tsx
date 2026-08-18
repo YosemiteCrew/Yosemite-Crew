@@ -137,6 +137,12 @@ describe('WeekCalendar (Task)', () => {
   });
 
   it('gives every grid row exactly as many children as its template has columns', () => {
+    // Includes TODAY in the week so the now-line overlay mounts: it carries the
+    // same two-column template, and it had its own copy of the three-child bug
+    // that went unnoticed because the fixture week is January 2025 and the
+    // overlay only renders when one of the days is today.
+    const today = new Date();
+    mockGetWeekDays.mockReturnValue([today, new Date(today.getTime() + 86400000)]);
     // The rows are `grid-cols-[64px_minmax(0,1fr)]` - TWO columns. When the arrow
     // rails were removed the template dropped from three columns to two, but the
     // hour row kept a third child: the right rail's spacer. A third child in a

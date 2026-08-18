@@ -14,7 +14,7 @@ const Disclaimer = ({ text }: DisclaimerProps) => {
       <Badge tone="warning" className="w-fit">
         Clinical decision support
       </Badge>
-      <Text variant="caption-1" className="text-warning-700">
+      <Text variant="caption-1" className="text-warning-900">
         {text}
       </Text>
     </div>

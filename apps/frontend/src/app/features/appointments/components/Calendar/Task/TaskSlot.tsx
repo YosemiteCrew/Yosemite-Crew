@@ -453,7 +453,7 @@ const TaskDetailsPopover = ({
           {getTaskStatusLabel(task.status)}
         </span>
       </div>
-      <div className="grid min-w-0 grid-cols-[auto,minmax(0,1fr)] gap-x-2 gap-y-1 rounded-xl border border-card-border bg-card-hover px-2.5 py-2">
+      <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-1 rounded-xl border border-card-border bg-card-hover px-2.5 py-2">
         <div className="text-[11px] leading-4 text-text-secondary">From</div>
         <div className="min-w-0 text-[11px] leading-4 text-right text-text-primary truncate">
           {getDisplayName(task.assignedBy)}

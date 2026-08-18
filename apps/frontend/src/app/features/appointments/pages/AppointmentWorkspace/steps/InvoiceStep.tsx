@@ -451,7 +451,7 @@ export const PaymentProgressOverlay = ({
 export const SettledBadge = ({ invoice }: { invoice: PastInvoice }) => {
   const label = invoice.paidFromDeposit ? 'Withdrawn from Deposit' : 'Invoice Paid';
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-3xl bg-success-600 px-3 py-1 text-caption-1 font-medium text-white">
+    <span className="inline-flex items-center gap-1.5 rounded-3xl bg-[var(--success-strong)] px-3 py-1 text-caption-1 font-medium text-[var(--success-strong-ink)]">
       {label}
       <IoCheckmarkOutline aria-hidden="true" />
     </span>
@@ -651,7 +651,7 @@ export const InvoiceRow = ({
             )}
           </span>
           {invoice.paymentMethod && (
-            <span className="inline-flex items-center gap-2 rounded-3xl bg-success-600 px-4 py-2 text-body-4 font-medium text-white">
+            <span className="inline-flex items-center gap-2 rounded-3xl bg-[var(--success-strong)] px-4 py-2 text-body-4 font-medium text-[var(--success-strong-ink)]">
               {PAYMENT_LABELS[invoice.paymentMethod]}
               <IoCheckmarkOutline aria-hidden="true" />
             </span>
@@ -1480,7 +1480,7 @@ const useInvoiceStepContent = ({
             />
 
             {errorMessage && (
-              <p role="alert" className="rounded-2xl bg-danger-100 p-3 text-body-4 text-danger-700">
+              <p role="alert" className="rounded-2xl bg-danger-100 p-3 text-body-4 text-text-error">
                 {errorMessage}
               </p>
             )}

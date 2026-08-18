@@ -134,7 +134,9 @@ describe('paymentStatus', () => {
       {}
     );
     expect(display.state).toBe('UNPAID');
-    expect(display.textColor).toBe('var(--color-warning-600)');
+    // The 900 INK step, not the 600 fill: as the 11px Paid/Unpaid line the fill
+    // measured 2.29:1 on the bone screen and on its own badge tint.
+    expect(display.textColor).toBe('var(--color-warning-900)');
   });
 
   it('returns PAID when stripePaymentLinkId present', () => {

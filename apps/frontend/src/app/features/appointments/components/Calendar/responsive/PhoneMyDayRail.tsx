@@ -103,7 +103,7 @@ const CompletedAppointmentCard = ({
         {buildAppointmentSubtitle(entry)}
       </span>
     </span>
-    <span className="flex size-[18px] flex-none items-center justify-center rounded-full bg-[var(--success)] text-white">
+    <span className="flex size-[18px] flex-none items-center justify-center rounded-full bg-[var(--success-strong)] text-[var(--success-strong-ink)]">
       <IoCheckmark size={11} aria-hidden="true" />
     </span>
   </button>
@@ -231,7 +231,8 @@ const TaskRow = ({
       onClick={() => onToggleTask?.(entry.task)}
       className={clsx(
         'flex size-5 flex-none items-center justify-center rounded-md border-[1.5px] border-[var(--divider)]',
-        entry.isDone && 'border-[var(--success)] bg-[var(--success)] text-white'
+        entry.isDone &&
+          'border-[var(--success-strong)] bg-[var(--success-strong)] text-[var(--success-strong-ink)]'
       )}
     >
       {entry.isDone && <IoCheckmark size={12} aria-hidden="true" />}
@@ -375,7 +376,8 @@ const AnytimePill = ({
         <span
           className={clsx(
             'flex size-3.5 items-center justify-center rounded-[5px] border-[1.5px] border-[var(--divider)]',
-            entry.isDone && 'border-[var(--success)] bg-[var(--success)] text-white'
+            entry.isDone &&
+              'border-[var(--success-strong)] bg-[var(--success-strong)] text-[var(--success-strong-ink)]'
           )}
         >
           {entry.isDone && <IoCheckmark size={9} aria-hidden="true" />}

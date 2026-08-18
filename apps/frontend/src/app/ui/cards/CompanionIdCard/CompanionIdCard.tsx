@@ -11,8 +11,8 @@ const SPECIES_LABEL: Record<string, string> = {
 };
 
 const SEVERITY_STYLE: Record<CompanionAlertSummary['severity'], string> = {
-  critical: 'bg-warning-100 text-warning-700',
-  high: 'bg-warning-100 text-warning-700',
+  critical: 'bg-warning-100 text-warning-900',
+  high: 'bg-warning-100 text-warning-900',
   medium: 'bg-card-bg text-text-secondary',
   low: 'bg-card-bg text-text-secondary',
 };
