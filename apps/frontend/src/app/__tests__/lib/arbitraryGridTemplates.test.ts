@@ -34,9 +34,68 @@ const EXTENSIONS = ['.ts', '.tsx', '.css'];
 // __tests__ is skipped so this file's own worked example above does not match itself.
 const SKIP_DIRS = new Set(['node_modules', '.next', 'dist', '__tests__']);
 
-/** Block and line comments, so an explanation of the bug is not read as the bug. */
-const stripComments = (source: string): string =>
-  source.replaceAll(/\/\*[\s\S]*?\*\//g, ' ').replaceAll(/(^|[^:])\/\/[^\n]*/g, '$1 ');
+/**
+ * Blanks out comments so an explanation of the bug is not read as the bug.
+ *
+ * Deliberately a character scan rather than a regex. A regex stripper blinds the
+ * scanner on real source: `const glob = "/*"` opens a block comment that swallows
+ * everything up to the next `*&#47;`, and `const p = "a//b"` eats the rest of its own
+ * line - both verified to drop a real `grid-cols-[1fr,2fr]` before this was rewritten.
+ * A URL survives only by the accident of the colon before `//`, which is not a
+ * property worth relying on.
+ *
+ * String and template literals are tracked so a comment marker inside one is inert.
+ * Newlines are preserved so reported line numbers stay true.
+ */
+const stripComments = (source: string): string => {
+  let out = '';
+  let index = 0;
+  let quote: string | null = null;
+
+  while (index < source.length) {
+    const char = source[index];
+    const next = source[index + 1];
+
+    if (quote) {
+      if (char === '\\') {
+        out += char + (next ?? '');
+        index += 2;
+        continue;
+      }
+      if (char === quote) quote = null;
+      out += char;
+      index += 1;
+      continue;
+    }
+
+    if (char === "'" || char === '"' || char === '`') {
+      quote = char;
+      out += char;
+      index += 1;
+      continue;
+    }
+
+    if (char === '/' && next === '/') {
+      while (index < source.length && source[index] !== '\n') index += 1;
+      continue;
+    }
+
+    if (char === '/' && next === '*') {
+      index += 2;
+      while (index < source.length && !(source[index] === '*' && source[index + 1] === '/')) {
+        if (source[index] === '\n') out += '\n';
+        index += 1;
+      }
+      index += 2;
+      continue;
+    }
+
+    out += char;
+    index += 1;
+  }
+
+  return out;
+};
 
 const collectFiles = (dir: string): string[] =>
   readdirSync(dir).flatMap((entry) => {
