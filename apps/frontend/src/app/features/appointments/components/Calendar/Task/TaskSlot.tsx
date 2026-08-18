@@ -191,11 +191,10 @@ const getTaskMarkerLayout = ({
     : Math.max(44, (TASK_BLOCK_DURATION_MINUTES / 60) * height - 2);
   const isCompact = !isZoomOutMode && laneCount > 1;
   const cursorClass = canDrag ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer';
+  const paddingClass = isCompact ? 'px-1.5 py-1' : 'px-2 py-1.5';
   const markerClassName = isZoomOutMode
     ? `size-full text-left rounded-full! overflow-hidden p-0 border border-transparent ${cursorClass}`
-    : `size-full text-left rounded-xl! overflow-hidden ${
-        isCompact ? 'px-1.5 py-1' : 'px-2 py-1.5'
-      } flex flex-col justify-between ${cursorClass}`;
+    : `size-full text-left rounded-xl! overflow-hidden ${paddingClass} flex flex-col justify-between ${cursorClass}`;
 
   return { markerHeight, isCompact, markerClassName };
 };
