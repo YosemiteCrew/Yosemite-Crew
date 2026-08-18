@@ -21,7 +21,11 @@ useDefault = true
 # whitespace. Line pinned fingerprints in .gitleaksignore were rejected as the
 # alternative: a pod bump changes the hashes, so the set of lines that trips the
 # entropy check changes too, and the entries would go stale on every upgrade.
-[[allowlists]]
+# Singular [allowlist], not [[allowlists]]. CI pins gitleaks 8.24.2, which
+# ignores the plural array-of-tables form entirely and reported all 6 findings
+# despite the config being present. The singular table is honoured by both
+# 8.24.2 and current releases.
+[allowlist]
 description = "CocoaPods podspec content hashes (name: 40-hex digest)"
 regexTarget = "match"
 regexes = [
