@@ -153,10 +153,15 @@ jobs:
         env:
           GOOGLE_SERVICE_INFO: ${{ secrets.IOS_GOOGLE_SERVICE_INFO_PLIST }}
           SECRETS_XCCONFIG: ${{ secrets.IOS_SECRETS_XCCONFIG }}
+          INFO_PLIST: ${{ secrets.IOS_INFO_PLIST }}
         run: |
           cd apps/mobileAppYC
           echo "$GOOGLE_SERVICE_INFO" | base64 -d > ios/GoogleService-Info.plist
           echo "$SECRETS_XCCONFIG" | base64 -d > ios/mobileAppYC/Secrets.xcconfig
+          # Gitignored and absent from every worktree; an iOS build cannot
+          # proceed without it, which is easy to miss because the failure comes
+          # from xcodebuild rather than from a missing-file check.
+          echo "$INFO_PLIST" | base64 -d > ios/mobileAppYC/Info.plist
 
       # A dedicated keychain, deleted in cleanup, so the signing identity never
       # persists on the runner beyond this job.
@@ -214,4 +219,4 @@ jobs:
           security delete-keychain "${RUNNER_TEMP}/signing.keychain-db" || true
           rm -rf ~/.appstoreconnect/private_keys
           rm -f ~/Library/MobileDevice/Provisioning\ Profiles/release.mobileprovision
-          rm -f apps/mobileAppYC/ios/GoogleService-Info.plist apps/mobileAppYC/ios/mobileAppYC/Secrets.xcconfig
+          rm -f apps/mobileAppYC/ios/GoogleService-Info.plist apps/mobileAppYC/ios/mobileAppYC/Secrets.xcconfig apps/mobileAppYC/ios/mobileAppYC/Info.plist
