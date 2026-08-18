@@ -54,14 +54,14 @@ span.cell-overflow-count {
 }
 .forms-table-fixed {
   table-layout: fixed;
-  /* 200+130+190+90+150+110+64 — includes the conditional "Linked services"
+  /* 200+130+190+90+150+110+88 — includes the conditional "Linked services"
      column (190px). It must cover the widest colgroup, or with that column
      rendered the trailing Actions column sits past the reachable scroll extent. */
-  min-width: 934px;
+  min-width: 958px;
 }
 .invoice-table-fixed {
   table-layout: fixed;
-  min-width: 1220px; /* 96+200+180+150+90+70+80+180+110+64 */
+  min-width: 1244px; /* 96+200+180+150+90+70+80+180+110+88 */
 }
 .companions-table-fixed {
   table-layout: fixed;
