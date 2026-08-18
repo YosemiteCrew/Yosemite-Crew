@@ -60,8 +60,11 @@ updates:
       # test suite; reanimated and worklets are pinned since the Android build
       # fix (#2052); stripe-react-native and the nitro modules are 0.x native
       # code; react-test-renderer must exactly match the react version RN pins
-      # (its 19.2.8 ride-along failed all 457 suites). RN upgrades are
-      # deliberate migrations with device builds, never weekly PRs.
+      # (its 19.2.8 ride-along failed all 457 suites); react-native-screens is
+      # pinned to 4.24.0 because 4.25+ emit React.ComponentRef<> in their
+      # src/fabric/ codegen specs, which RN 0.81.6's parser rejects, breaking
+      # both the Android codegen task and iOS pod install (#2271, #2272).
+      # RN upgrades are deliberate migrations with device builds, never weekly PRs.
       - dependency-name: 'react-native'
         update-types: ['version-update:semver-minor', 'version-update:semver-major']
       - dependency-name: '@react-native/*'
@@ -75,6 +78,8 @@ updates:
       - dependency-name: 'react-native-nitro-*'
         update-types: ['version-update:semver-minor', 'version-update:semver-major']
       - dependency-name: '@stripe/stripe-react-native'
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']
+      - dependency-name: 'react-native-screens'
         update-types: ['version-update:semver-minor', 'version-update:semver-major']
       # react-test-renderer is fully frozen: @testing-library/react-native
       # requires it to EXACTLY equal the react version RN pins, so even the
