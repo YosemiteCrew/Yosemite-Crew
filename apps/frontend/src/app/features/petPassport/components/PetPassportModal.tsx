@@ -67,6 +67,11 @@ const PetPassportModalContent = ({
 
   const petName = companionName.split(' ')[0] || companionName;
 
+  let walletState: 'not-issued' | 'no-share-link' | 'ready' = 'not-issued';
+  if (passport?.issuance) {
+    walletState = passport.publicShareActive ? 'ready' : 'no-share-link';
+  }
+
   const handleAddToApple = () => {
     setBusy('apple');
     downloadApplePass(companionId, petName)
@@ -111,11 +116,14 @@ const PetPassportModalContent = ({
         {state === 'ready' && passport && (
           <>
             <PetPassportView passport={passport} />
-            {/* A wallet pass is built from an ISSUED passport: its QR carries the
-                public token, and a pet without one has nothing to verify against,
-                so the wallet endpoints 404. Offering the buttons regardless would
-                guarantee a failed download, so gate them on issuance. */}
-            {passport.issuance ? (
+            {/* A staff-built wallet pass needs BOTH an issued passport and a live
+                public share link, because its QR embeds that link. Staff cannot
+                mint the link: it is an owner credential the pet's owner creates
+                from the mobile app, so this route only ever reads an existing
+                one and returns 409 when there is none. Offering the buttons in
+                either gap guarantees a failure the user cannot act on, so each
+                gap says what is actually missing. */}
+            {walletState === 'ready' ? (
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Button
                   variant="primary"
@@ -132,7 +140,9 @@ const PetPassportModalContent = ({
               </div>
             ) : (
               <Text variant="caption-1" className="text-text-secondary">
-                Wallet passes become available once a vet issues this passport.
+                {walletState === 'not-issued'
+                  ? 'Wallet passes become available once a vet issues this passport.'
+                  : 'The owner needs to create a share link in the Yosemite Crew app before this passport can be added to a wallet.'}
               </Text>
             )}
           </>

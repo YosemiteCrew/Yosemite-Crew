@@ -174,6 +174,38 @@ describe("PetPassportService.getPassport", () => {
     ).rejects.toMatchObject({ statusCode: 404 });
   });
 
+  // A wallet pass embeds the public share link in its QR, so PIMS needs to know
+  // whether one is live before offering the action. Derived from the passport
+  // row already loaded, so it costs no extra query.
+  it("reports publicShareActive when the share link is live", async () => {
+    prismaMock.petPassport.findFirst.mockResolvedValue({
+      passportNumber: "GB-YC-1",
+      issueDate: new Date("2024-06-24T00:00:00.000Z"),
+      publicToken: "tok-live",
+      publicTokenRevokedAt: null,
+    });
+    const passport = await PetPassportService.getPassport("pat-1", "org-1");
+    expect(passport.publicShareActive).toBe(true);
+  });
+
+  it("reports publicShareActive false once the share link is revoked", async () => {
+    prismaMock.petPassport.findFirst.mockResolvedValue({
+      passportNumber: "GB-YC-1",
+      issueDate: new Date("2024-06-24T00:00:00.000Z"),
+      publicToken: "tok-dead",
+      publicTokenRevokedAt: new Date("2024-07-01T00:00:00.000Z"),
+    });
+    const passport = await PetPassportService.getPassport("pat-1", "org-1");
+    expect(passport.publicShareActive).toBe(false);
+  });
+
+  it("reports publicShareActive false when no passport has been issued", async () => {
+    prismaMock.petPassport.findFirst.mockResolvedValue(null);
+    const passport = await PetPassportService.getPassport("pat-1", "org-1");
+    expect(passport.issuance).toBeUndefined();
+    expect(passport.publicShareActive).toBe(false);
+  });
+
   it("assembles identity, microchip, marks, issuance, owner and records", async () => {
     prismaMock.petPassport.findFirst.mockResolvedValue({
       passportNumber: "GB-YC-1",

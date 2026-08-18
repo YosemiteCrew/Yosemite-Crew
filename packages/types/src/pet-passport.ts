@@ -167,4 +167,13 @@ export interface PetPassportDTO {
   rabiesTitrations: RabiesTitrationDTO[];
   clinicalExams: ClinicalExamDTO[];
   issuance?: PetPassportIssuanceDTO;
+  /**
+   * True when the passport has a live public share link.
+   *
+   * A wallet pass embeds that link in its QR, so a pass can only be built when
+   * this is true. Staff cannot mint the link - it is an owner credential the
+   * pet's owner creates from the mobile app - so PIMS uses this to avoid
+   * offering a wallet action that cannot succeed.
+   */
+  publicShareActive?: boolean;
 }
