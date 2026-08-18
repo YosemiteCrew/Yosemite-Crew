@@ -154,6 +154,45 @@ describe('InventoryTurnoverTable Component', () => {
     expect(within(row3).getByText('—')).toBeInTheDocument(); // Status fallback
   });
 
+  /* Every column here is sized by its HEADER, not its figures: the values are short
+     integers and the labels are long. Measured on deployed dev at the width where the
+     colgroup actually binds (viewport 1300, table at its min-width), five of the nine
+     headers were ellipsised - "Beginning inventory" by 34.5px, "Ending inventory" by
+     23.1, "Avg inventory" by 20.0, "Total purchases" by 15.7 and "Days on shelf" by
+     15.9, with "Turns/Year" on 1px of slack. jsdom has no font metrics, so this pins
+     the widths measured in a real browser: the th carries 22px of padding, so the
+     column must be the label's rendered text width + 22, and these floors carry ~8px
+     of margin on top of that. */
+  it('gives every column enough width for its own header label', () => {
+    // Rendered width of each label at 10.5px/700 with 1.05px tracking, from the browser.
+    const TEXT_PX: Record<string, number> = {
+      'Item name': 68,
+      Category: 65,
+      'Beginning inventory': 142,
+      'Ending inventory': 121,
+      'Avg inventory': 98,
+      'Total purchases': 114,
+      'Turns/Year': 77,
+      'Days on shelf': 94,
+      Status: 44,
+    };
+    const TH_PADDING = 22;
+
+    const { container } = render(<InventoryTurnoverTable filteredList={mockInventoryItems} />);
+    const desktopView = container.querySelector(String.raw`.hidden.xl\:flex`) as HTMLElement;
+    const cols = [...desktopView.querySelectorAll('colgroup col')];
+    const labels = [...desktopView.querySelectorAll('th')].map(
+      (th) => th.textContent?.trim() ?? ''
+    );
+
+    expect(cols).toHaveLength(labels.length);
+
+    labels.forEach((label, index) => {
+      const declared = Number.parseInt((cols[index] as HTMLElement).style.width, 10);
+      expect(declared).toBeGreaterThanOrEqual(TEXT_PX[label] + TH_PADDING);
+    });
+  });
+
   // --- 3. Mobile View (Cards) ---
 
   it('renders InventoryTurnoverCard components (Mobile View)', () => {
