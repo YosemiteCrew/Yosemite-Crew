@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import StatCardShell from './StatCardShell';
 
 const DURATIONS = ['Last week', 'Last month', 'Last 6 months', 'Last 1 year'] as const;
@@ -56,7 +56,20 @@ const meta = {
         component:
           'The card every dashboard stat is drawn inside: a `CardHeader` with the duration pill ' +
           'above an 18px-radius `--screen` surface. It owns the shared "no data" state, so an ' +
-          'empty inventory card and an empty revenue card cannot drift apart.',
+          'empty inventory card and an empty revenue card cannot drift apart.\n\n' +
+          'The duration pill is a trigger, and its panel had never been drawn **in this context**. ' +
+          '`CardHeader` renders the listbox behind an internal `open` flag that no `StatCardShell` ' +
+          'prop reaches, so every stat-card story showed a closed pill. That is not the same gap as ' +
+          "`Cards/CardHeader`'s own stories: what is unique here is where the panel lands. It is " +
+          '`absolute top-[120%] right-0` inside the header row, and the header row sits **above** ' +
+          'the card surface rather than inside it - so the panel opens over the top edge of an ' +
+          '18px-radius `--screen` box carrying two shadows, at `z-10`, with no stacking context of ' +
+          'its own to hold it there. Every dashboard stat inherits that overlap, and none of them ' +
+          'had a snapshot of it.\n\n' +
+          'The panel takes its width from its longest option (`min-w-full` plus `whitespace-nowrap`) ' +
+          'rather than from the pill, so it grows leftwards from the right-aligned edge and crosses ' +
+          'the card beneath. The stories open it and assert the options are there, since an empty ' +
+          'panel would satisfy `aria-expanded` on its own.',
       },
     },
   },
@@ -132,6 +145,105 @@ export const CustomHeight: Story = {
           '`cardClassName` replaces the default `min-h-75 gap-2.5` surface classes, for the cards ' +
           'that hold a list rather than a fixed-height chart. Everything else — header, radius, ' +
           'hairline, shadow, empty state — stays shared.',
+      },
+    },
+  },
+};
+
+/** The pill's accessible name carries the current selection, so match loosely. */
+const openDurationPanel = async (canvasElement: HTMLElement, title: string) => {
+  const canvas = within(canvasElement);
+  await userEvent.click(
+    canvas.getByRole('button', { name: new RegExp(`Filter ${title} by time period`, 'i') })
+  );
+  return canvas.getByLabelText(`Filter ${title} by time period`);
+};
+
+export const DurationPanelOpen: Story = {
+  name: 'Duration panel open',
+  play: async ({ canvasElement }) => {
+    const panel = await openDurationPanel(canvasElement, 'Annual inventory turnover');
+    // Assert the panel has its four options, not merely that the pill toggled.
+    await expect(within(panel).getAllByRole('button')).toHaveLength(4);
+    await expect(within(panel).getByRole('button', { name: 'Last 1 year' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    await expect(within(panel).getByRole('button', { name: 'Last week' })).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    );
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The panel hanging over the card. It is a `bg-neutral-0` sheet with a `--card-border` ' +
+          'hairline and a two-layer shadow, dropped at `top-[120%] right-0` from the pill — so it ' +
+          'covers the top-right corner of the chart body underneath, including its rounded edge. ' +
+          'The selected period is marked only by `aria-pressed`; there is no check mark, so the ' +
+          'current row has to read as current on colour alone.',
+      },
+    },
+  },
+};
+
+export const DurationPanelOverEmptyCard: Story = {
+  name: 'Duration panel over the empty state',
+  args: { isEmpty: true },
+  play: async ({ canvasElement }) => {
+    const panel = await openDurationPanel(canvasElement, 'Annual inventory turnover');
+    await expect(within(panel).getAllByRole('button')).toHaveLength(4);
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The same panel over the shared placeholder rather than a chart. Worth drawing separately: ' +
+          'the empty state is centred `--ink-faint` on the bare `--screen` surface, so the panel has ' +
+          'nothing but a flat background behind it and its hairline is the only thing separating the ' +
+          'two — the case where a too-faint border disappears.',
+      },
+    },
+  },
+};
+
+export const DurationPanelOnCustomBody: Story = {
+  name: 'Duration panel over a list body',
+  args: {
+    title: 'Revenue leaders',
+    selected: 'Last month',
+    cardClassName: 'gap-3',
+    children: (
+      <div className="flex flex-col gap-3">
+        {[
+          { label: 'Dr. Amelie Roth', value: '€12,480' },
+          { label: 'Dr. Tomas Lindqvist', value: '€9,120' },
+          { label: 'Dr. Priya Nair', value: '€7,640' },
+        ].map((row) => (
+          <div key={row.label} className="flex items-center justify-between">
+            <span className="text-[13px] text-[var(--ink-body)]">{row.label}</span>
+            <span className="text-[13px] font-bold text-[var(--ink)]">{row.value}</span>
+          </div>
+        ))}
+      </div>
+    ),
+  },
+  play: async ({ canvasElement }) => {
+    const panel = await openDurationPanel(canvasElement, 'Revenue leaders');
+    await expect(within(panel).getAllByRole('button')).toHaveLength(4);
+    await expect(within(panel).getByRole('button', { name: 'Last month' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'A shorter title and a list body. The panel is sized by its longest option rather than by ' +
+          'the pill, so shrinking the title does not shrink the panel — it just moves the pill left ' +
+          'and leaves the sheet hanging over the first leaderboard row.',
       },
     },
   },

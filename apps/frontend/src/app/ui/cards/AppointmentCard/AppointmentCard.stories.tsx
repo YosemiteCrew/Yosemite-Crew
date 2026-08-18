@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import type { Appointment, Organisation } from '@yosemite-crew/types';
 
 import AppointmentCard from './index';
@@ -60,7 +60,23 @@ const meta = {
           'actions appear depends on the status and on `canEditAppointments` — a requested booking ' +
           'shows only accept/decline, a locked-down role only shows the read actions. The clinical ' +
           'notes action is labelled from the organisation type ("Medical Records" for a hospital, ' +
-          '"Care" elsewhere), which the stories seed into the org store.',
+          '"Care" elsewhere), which the stories seed into the org store.\n\n' +
+          '**Every action on that rail is wrapped in a `GlassTooltip`, and none of those bubbles had ' +
+          'ever been drawn.** There are nine in the source - seven on the normal rail (view, change ' +
+          'status, reschedule, assign room, clinical notes, finance, labs) and two on the requested ' +
+          'rail (accept, decline) - and each one is portalled to `document.body` only while its ' +
+          'trigger is hovered or focused. No prop opens them: `GlassTooltip` attaches `mouseenter` ' +
+          'and `focusin` listeners imperatively in a `useEffect`, so rendering the card exercises ' +
+          'none of the bubble, none of `updatePosition`, and none of the viewport clamp.\n\n' +
+          'That matters here more than on a lone tooltip. The rail is a `flex-wrap` row inside a card ' +
+          'that is itself `sm:w-[calc(50%-12px)]`, the bubbles are `side="bottom"`, and ' +
+          '`updatePosition` measures the trigger AND the bubble before clamping to the viewport with ' +
+          '8px of padding - so the last icon in a wrapped row is exactly where a bubble gets pushed ' +
+          'back over its own neighbours. The stories below open them and assert the bubble carries ' +
+          'its label, since an empty bubble would satisfy "a tooltip appeared".\n\n' +
+          'The clinical-notes bubble is the one with a real failure mode: its text is not a constant ' +
+          'but `getClinicalNotesLabel(orgType)` read from the org store, so a card whose organisation ' +
+          'has not resolved falls back to `HOSPITAL` and says "Medical Records" to a groomer.',
       },
     },
   },
@@ -175,6 +191,158 @@ export const LongValues: Story = {
       description: {
         story:
           'Overflow guard: long companion, breed, service and room values must not push the card wider or break the action row.',
+      },
+    },
+  },
+};
+
+/**
+ * Hovers one action and returns the single portalled bubble it opened.
+ *
+ * The pointer session is passed in rather than using the bare `userEvent` helper:
+ * the direct API builds a fresh pointer state per call, so it never emits the
+ * `mouseleave` that closes the bubble you are moving away from, and a walk along
+ * the rail would leave a trail of bubbles behind for reasons that have nothing to
+ * do with the component. A `userEvent.setup()` session keeps the pointer's
+ * position between calls and produces the real leave/enter pair.
+ */
+const hoverAction = async (
+  user: ReturnType<typeof userEvent.setup>,
+  canvasElement: HTMLElement,
+  actionLabel: string
+) => {
+  const canvas = within(canvasElement);
+  await user.hover(canvas.getByRole('button', { name: actionLabel }));
+  // The bubble portals to document.body, so it is outside canvasElement. Settling
+  // on exactly one is the real assertion: the outgoing bubble is momentarily still
+  // mounted beside the incoming one, and a leak there would never settle.
+  await waitFor(() => {
+    expect(within(document.body).getAllByRole('tooltip')).toHaveLength(1);
+  });
+  return within(document.body).getByRole('tooltip');
+};
+
+export const ViewTooltip: Story = {
+  name: 'Tooltip — view action',
+  play: async ({ canvasElement }) => {
+    const bubble = await hoverAction(
+      userEvent.setup(),
+      canvasElement,
+      'View appointment for Poppy'
+    );
+    await expect(bubble).toHaveTextContent('View appointment');
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The first bubble on the rail. It hangs below its 40px circular trigger with a 10px gap, ' +
+          'and because the card sits at the left edge of the grid this is the placement that has to ' +
+          'survive the 8px left clamp in `updatePosition`.',
+      },
+    },
+  },
+};
+
+export const ClinicalNotesTooltip: Story = {
+  name: 'Tooltip — clinical notes label',
+  play: async ({ canvasElement }) => {
+    const bubble = await hoverAction(userEvent.setup(), canvasElement, 'Medical Records for Poppy');
+    // The org store says HOSPITAL, so the bubble must say Medical Records rather
+    // than the Care fallback. This string is data, not a constant.
+    await expect(bubble).toHaveTextContent('Medical Records');
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The only bubble whose text comes from state. `getClinicalNotesLabel(orgType)` resolves ' +
+          '"Medical Records" for a hospital and "Care" for every other business type, so this bubble ' +
+          'is where an unresolved organisation shows up as the wrong word.',
+      },
+    },
+  },
+};
+
+export const RailTooltips: Story = {
+  name: 'Tooltips — the whole rail',
+  play: async ({ canvasElement }) => {
+    const expectations: Array<[string, string]> = [
+      ['View appointment for Poppy', 'View appointment'],
+      ['Change status for Poppy', 'Change status'],
+      ['Reschedule appointment for Poppy', 'Reschedule'],
+      ['Assign room for Poppy', 'Assign room'],
+      ['Medical Records for Poppy', 'Medical Records'],
+      ['Finance summary for Poppy', 'Finance summary'],
+      ['Lab tests for Poppy', 'Lab tests'],
+    ];
+
+    // One pointer session for the whole walk, so moving to the next icon really
+    // leaves the previous one: each hover must open its own bubble AND close the
+    // one before it. Seven stacked bubbles would be its own defect.
+    const user = userEvent.setup();
+    for (const [trigger, label] of expectations) {
+      const bubble = await hoverAction(user, canvasElement, trigger);
+      await expect(bubble).toHaveTextContent(label);
+    }
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'All seven actions of an editable upcoming appointment, opened in turn. The assertion after ' +
+          'each hover is that exactly **one** bubble exists — `GlassTooltip` closes on `mouseleave`, ' +
+          'and a leak there would leave the rail trailing bubbles as the pointer crosses it.',
+      },
+    },
+  },
+};
+
+export const RequestedTooltip: Story = {
+  name: 'Tooltip — requested rail',
+  args: {
+    appointment: {
+      ...BASE_APPOINTMENT,
+      status: 'REQUESTED',
+      room: undefined,
+      concern: 'Limping on the back right leg since yesterday',
+    },
+  },
+  play: async ({ canvasElement }) => {
+    // Hover only. The decline button fires `rejectAppointment` over the network
+    // on click, so a story must never press it.
+    const bubble = await hoverAction(userEvent.setup(), canvasElement, 'Accept request for Poppy');
+    await expect(bubble).toHaveTextContent('Accept request');
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The other rail entirely. A requested booking replaces all seven actions with two tinted ' +
+          'discs, so these two bubbles can never appear in the same render as the seven above — which ' +
+          'is why the rail needs both stories rather than one.',
+      },
+    },
+  },
+};
+
+export const TooltipByKeyboard: Story = {
+  name: 'Tooltip — opened by keyboard focus',
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // focusin, not hover: the path a keyboard user gets, and the one that rots
+    // unnoticed because every manual check is done with a mouse.
+    canvas.getByRole('button', { name: 'Lab tests for Poppy' }).focus();
+    const bubble = await within(document.body).findByRole('tooltip');
+    await expect(bubble).toHaveTextContent('Lab tests');
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The last icon on the rail, reached without a pointer. `GlassTooltip` listens for `focusin` ' +
+          'as well as `mouseenter`, so tabbing through the card surfaces the same labels — worth its ' +
+          'own story because the icons carry no visible text at all.',
       },
     },
   },
