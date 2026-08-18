@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent } from 'storybook/test';
 import Dropdown from './Dropdown';
 
 const SPECIALTY_OPTIONS = [
@@ -76,5 +76,22 @@ export const CountryPicker: Story = {
   args: { type: 'country', placeholder: 'Country', value: '', search: true },
   parameters: {
     docs: { description: { story: 'Built-in country list with flag emoji labels.' } },
+  },
+};
+
+export const Open: Story = {
+  name: 'Panel open',
+  play: async ({ canvasElement }) => {
+    // The panel is the point. It only exists after a click, so nothing in this
+    // file rendered it before - and a defect in a surface no story draws stays
+    // invisible to Chromatic and to the contrast sweep indefinitely.
+    const trigger = canvasElement.querySelector('button');
+    await userEvent.click(trigger as HTMLElement);
+    // Assert the panel has CONTENT, not just that the trigger flipped
+    // aria-expanded - an empty panel would satisfy that and leave this story
+    // silently guarding nothing. The panel portals to document.body.
+    const panel = document.querySelector('[data-portal-dropdown]');
+    await expect(panel).toBeInTheDocument();
+    await expect(panel?.querySelectorAll('button').length).toBeGreaterThan(0);
   },
 };
