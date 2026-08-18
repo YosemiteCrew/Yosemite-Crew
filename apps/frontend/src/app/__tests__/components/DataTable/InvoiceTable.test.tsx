@@ -43,10 +43,14 @@ const capturedColumnWidths = () => {
   const columnsFor = (desktop: boolean) =>
     mockGenericTableCalls.find((c) => isDesktopVariant(c.tableClassName) === desktop)!.columns;
   return {
-    desktop: { status: widthOf(columnsFor(true), 'status') },
+    desktop: {
+      status: widthOf(columnsFor(true), 'status'),
+      actions: widthOf(columnsFor(true), 'actions'),
+    },
     tablet: {
       status: widthOf(columnsFor(false), 'status'),
       parent: widthOf(columnsFor(false), 'appointment-id'),
+      actions: widthOf(columnsFor(false), 'actions'),
     },
   };
 };
@@ -337,6 +341,18 @@ describe('InvoiceTable', () => {
       const widths = capturedColumnWidths();
       expect(Number.parseInt(widths.desktop.status, 10)).toBeGreaterThanOrEqual(176);
       expect(Number.parseInt(widths.tablet.status, 10)).toBeGreaterThanOrEqual(176);
+    });
+
+    it('gives Actions a column wide enough for its own header', () => {
+      render(<InvoiceTable filteredList={[invoice]} />);
+
+      // This is the only PIMS table with `table-layout: fixed`, so a narrow
+      // column cannot grow to fit its label - it ellipsises the header instead.
+      // "Actions" measures 53.3px + 31px th padding = 84.3px, and the shipped
+      // 64px desktop / 56px tablet values both rendered "Action...".
+      const widths = capturedColumnWidths();
+      expect(Number.parseInt(widths.desktop.actions, 10)).toBeGreaterThanOrEqual(85);
+      expect(Number.parseInt(widths.tablet.actions, 10)).toBeGreaterThanOrEqual(85);
     });
 
     it('leaves the Parent / patient column fluid so it absorbs the slack', () => {
