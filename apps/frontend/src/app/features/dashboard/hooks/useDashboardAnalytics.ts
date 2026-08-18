@@ -277,8 +277,17 @@ const fetchDashboardAnalyticsData = async (
         clampNumber(summary?.appointments) === 0 &&
         clampNumber(summary?.tasks) === 0 &&
         clampNumber(summary?.staffOnDuty) === 0,
-      appointmentsChart: appointmentsChart.length === 0,
-      revenueChart: revenueChart.length === 0,
+      /* All-zero counts as empty, not just a zero-length series. The trend endpoints
+         return one point per day in the range, so a quiet week comes back as seven
+         points of zeros - a non-empty array. Both day charts are drawn with hideYAxis
+         and no axis line, so that rendered as bars of zero height on a blank card:
+         no chart, no "No data available", just an empty box. appointmentLeaders two
+         lines below already used the all-zero test; these two were left on length.
+         `.every` on an empty array is true, so this still covers the no-points case. */
+      appointmentsChart: appointmentsChart.every(
+        (point) => point.Completed === 0 && point.Cancelled === 0
+      ),
+      revenueChart: revenueChart.every((point) => point.Revenue === 0),
       appointmentLeaders: appointmentLeaderChart.every(
         (leader) => leader.Completed === 0 && leader.Cancelled === 0
       ),
