@@ -217,6 +217,19 @@ const withAttestation = {
 // are read from the ClinicalArtifact children linked to the patient's encounters;
 // owner data is included only for authenticated callers (the public record is
 // owner-free).
+/**
+ * A share link counts only while it exists and has not been revoked.
+ *
+ * Kept out of `assemblePassport` deliberately: inlining the optional chain and
+ * the negation tips that function over the cognitive-complexity ceiling.
+ */
+const hasActivePublicShare = (
+  row: {
+    publicToken: string | null;
+    publicTokenRevokedAt: Date | null;
+  } | null,
+): boolean => Boolean(row?.publicToken && !row.publicTokenRevokedAt);
+
 const assemblePassport = async (
   patientId: string,
   organisationId: string,
@@ -339,10 +352,7 @@ const assemblePassport = async (
   const issuance = passportRow
     ? { ...toIssuanceDTO(passportRow), issuingPractice: organisation?.name }
     : undefined;
-  // Derived from the row already loaded above, so this costs no extra query.
-  const publicShareActive = Boolean(
-    passportRow?.publicToken && !passportRow.publicTokenRevokedAt,
-  );
+  const publicShareActive = hasActivePublicShare(passportRow);
   const vaccinations = immunizationRows.map((row) =>
     toVaccinationDTO(patientId, row),
   );
