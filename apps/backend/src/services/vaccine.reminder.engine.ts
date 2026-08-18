@@ -39,6 +39,75 @@ const resolveOwnerUserId = async (
   return parent?.linkedUserId ?? null;
 };
 
+/**
+ * Handles one due immunization. Extracted from the loop in run() so each guard
+ * reads as a single early return rather than stacking cognitive complexity in
+ * the iteration body (Sonar S3776).
+ *
+ * Returns nothing: every reason to skip is a normal outcome, not an error.
+ */
+const remindForImmunization = async (immunization: {
+  id: string;
+  nextDueDate: Date | null;
+  metadata: unknown;
+  artifact: { encounterId: string | null };
+}): Promise<void> => {
+  const dueDate = immunization.nextDueDate;
+  if (!dueDate) return;
+  const dueIso = dueDate.toISOString();
+
+  const metadata = readMetadata(immunization.metadata);
+  if ((metadata as ReminderMetadata).vaccineReminder?.sentForDueDate === dueIso)
+    return;
+
+  const encounterId = immunization.artifact.encounterId;
+  if (!encounterId) return;
+
+  const encounter = await prisma.encounter.findUnique({
+    where: { id: encounterId },
+    select: { patientId: true },
+  });
+  if (!encounter) return;
+
+  const patient = await prisma.patient.findUnique({
+    where: { id: encounter.patientId },
+    select: { name: true, status: true },
+  });
+  // Never chase a vaccination for a pet that has been recorded deceased or
+  // otherwise deactivated.
+  if (patient?.status !== "active") return;
+
+  const ownerUserId = await resolveOwnerUserId(encounter.patientId);
+  if (!ownerUserId) return;
+
+  // Claim the reminder BEFORE delivering it. Sending first and recording after
+  // is at-least-once: the caller swallows a failed write, and because run()
+  // re-selects everything due inside the window, a persistent write failure
+  // would re-notify the owner once a day until the due date passes. The
+  // conditional updateMany also makes a concurrent run a no-op rather than a
+  // second push.
+  const claimed = await prisma.immunization.updateMany({
+    where: {
+      id: immunization.id,
+      NOT: {
+        metadata: {
+          path: ["vaccineReminder", "sentForDueDate"],
+          equals: dueIso,
+        },
+      },
+    },
+    data: {
+      metadata: { ...metadata, vaccineReminder: { sentForDueDate: dueIso } },
+    },
+  });
+  if (claimed.count === 0) return;
+
+  await NotificationService.sendToUser(
+    ownerUserId,
+    NotificationTemplates.Care.VACCINE_REMINDER(patient.name),
+  );
+};
+
 export const VaccineReminderEngine = {
   /**
    * Notifies pet owners about vaccinations whose next-due date falls within the
@@ -60,63 +129,7 @@ export const VaccineReminderEngine = {
 
     for (const immunization of due) {
       try {
-        const dueDate = immunization.nextDueDate;
-        if (!dueDate) continue;
-        const dueIso = dueDate.toISOString();
-
-        const metadata = readMetadata(immunization.metadata);
-        const reminder = (metadata as ReminderMetadata).vaccineReminder;
-        if (reminder?.sentForDueDate === dueIso) continue;
-
-        const encounterId = immunization.artifact.encounterId;
-        if (!encounterId) continue;
-        const encounter = await prisma.encounter.findUnique({
-          where: { id: encounterId },
-          select: { patientId: true },
-        });
-        if (!encounter) continue;
-
-        const patient = await prisma.patient.findUnique({
-          where: { id: encounter.patientId },
-          select: { name: true, status: true },
-        });
-        if (!patient) continue;
-        // Never chase a vaccination for a pet that has been recorded deceased
-        // or otherwise deactivated.
-        if (patient.status !== "active") continue;
-
-        const ownerUserId = await resolveOwnerUserId(encounter.patientId);
-        if (!ownerUserId) continue;
-
-        // Claim the reminder BEFORE delivering it. Sending first and recording
-        // after is at-least-once: the catch below swallows a failed write, and
-        // because run() re-selects everything due inside the 14-day window, a
-        // persistent write failure would re-notify the owner once a day until
-        // the due date passes. The conditional updateMany also makes a
-        // concurrent run a no-op rather than a second push.
-        const claimed = await prisma.immunization.updateMany({
-          where: {
-            id: immunization.id,
-            NOT: {
-              metadata: {
-                path: ["vaccineReminder", "sentForDueDate"],
-                equals: dueIso,
-              },
-            },
-          },
-          data: {
-            metadata: {
-              ...metadata,
-              vaccineReminder: { sentForDueDate: dueIso },
-            },
-          },
-        });
-        if (claimed.count === 0) continue;
-
-        await NotificationService.sendToUser(
-          ownerUserId,
-          NotificationTemplates.Care.VACCINE_REMINDER(patient.name),
-        );
+        await remindForImmunization(immunization);
       } catch (error) {
         logger.error(
           `Failed vaccine reminder for immunization ${immunization.id}`,
