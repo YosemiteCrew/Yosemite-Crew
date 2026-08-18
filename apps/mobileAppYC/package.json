@@ -14,7 +14,9 @@
     "e2e:ios": "detox test -c ios.sim.debug",
     "e2e:build:android": "detox build -c android.emu.debug",
     "e2e:android": "detox test -c android.emu.debug",
-    "doctor": "pnpm exec react-doctor"
+    "doctor": "node ../../scripts/mobile/doctor.mjs",
+    "version:check": "node ../../scripts/mobile/version.mjs --check",
+    "version:set": "node ../../scripts/mobile/version.mjs --set"
   },
   "dependencies": {
     "@callstack/liquid-glass": "^0.8.0",

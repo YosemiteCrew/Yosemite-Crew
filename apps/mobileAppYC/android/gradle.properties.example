@@ -1,0 +1,27 @@
+# Template for android/gradle.properties, which is deliberately NOT tracked:
+# on existing machines that file also holds the release signing credentials, so
+# the repo blocks staging it (scripts/check-staged-secrets.js). Copy this file
+# to gradle.properties on a new machine.
+#
+#   cp android/gradle.properties.example android/gradle.properties
+#
+# Everything below is build configuration, not secret. The project cannot even
+# configure without android.useAndroidX, which is why a fresh clone fails.
+#
+# Release signing does NOT belong in the copy you create. app/build.gradle
+# resolves YC_RELEASE_STORE_FILE, YC_RELEASE_STORE_PASSWORD, YC_RELEASE_KEY_ALIAS
+# and YC_RELEASE_KEY_PASSWORD from Gradle properties or the environment, so put
+# them in ~/.gradle/gradle.properties, which Gradle merges automatically and
+# which lives outside any repository.
+
+# The RN build runs out of headroom on Gradle's default heap.
+org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m
+
+# Required. Jetifier stays off because every dependency is AndroidX already.
+android.useAndroidX=true
+
+reactNativeArchitectures=armeabi-v7a,arm64-v8a,x86,x86_64
+
+newArchEnabled=true
+hermesEnabled=true
+edgeToEdgeEnabled=false
