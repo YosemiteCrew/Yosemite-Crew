@@ -375,7 +375,11 @@ const TaskPopoverActionButton = ({
 );
 
 /** Hover/focus detail card for one task: header, from/to/category grid, and actions. */
-const TaskDetailsPopover = ({
+/* Exported for Storybook. It is a `<dialog open>` positioned by absolute px and only
+   mounted while a chip is hovered or focused, so nothing had ever drawn it - which is
+   how its From/To/Category block shipped with `grid-cols-[auto,minmax(0,1fr)]`, a comma
+   where CSS grid needs a track separator, and stacked all six children in one column. */
+export const TaskDetailsPopover = ({
   task,
   popoverId,
   titleId,
