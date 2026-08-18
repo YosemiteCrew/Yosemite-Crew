@@ -78,7 +78,11 @@ export const TaskMarker = ({
   onDragEnd: () => void;
 }) => {
   const { top, laneIndex, laneCount } = layout;
-  const widthPercent = 100 / laneCount;
+  // Lane count comes in as a plain prop, so a standalone render (a story, a
+  // future caller) can supply 0 and turn the width into Infinity. One lane is
+  // the only sane floor: a marker always occupies at least the full column.
+  const laneSpan = Math.max(1, laneCount);
+  const widthPercent = 100 / laneSpan;
   const leftPercent = laneIndex * widthPercent;
   const { markerHeight, isCompact, markerClassName } = getTaskMarkerLayout({
     isZoomOutMode,
