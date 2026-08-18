@@ -54,9 +54,26 @@ else
 
 // --- untracked files the build requires ------------------------------------
 // Each is gitignored on purpose, so a clone will not have it.
-// These are gitignored, so they never arrive in a fresh worktree. They usually
-// DO exist in a sibling checkout though, which makes recovery a copy rather
-// than a console round-trip - so look there before sending anyone to Firebase.
+// These are gitignored, so they never arrive in a fresh worktree. Recovery is
+// usually a copy rather than a console round-trip, so look for a real copy
+// before sending anyone to Firebase.
+//
+// Presence is NOT enough. The repo ships placeholder templates with the same
+// filenames, and they propagate between worktrees exactly like real config.
+// An APK built against them compiles and installs: the Google Services plugin
+// validates shape and package name, not values. Push, auth and Maps are simply
+// dead at runtime. Checking only for existence reports OK on those, which is
+// worse than reporting nothing.
+const PLACEHOLDER = /YOUR_[A-Z_]+|CHANGE_?ME|REPLACE_?ME|<[A-Z_]+>/;
+
+const isPlaceholder = (file) => {
+  try {
+    return PLACEHOLDER.test(readFileSync(file, 'utf8'));
+  } catch {
+    return false;
+  }
+};
+
 const siblingWorktrees = () => {
   const repoRoot = dirname(dirname(root));
   try {
@@ -69,13 +86,50 @@ const siblingWorktrees = () => {
 };
 const siblings = siblingWorktrees();
 
+// The secrets backup stores real config in folders whose names encode the
+// destination path, so a filename search is the reliable way in.
+const BACKUP_ROOT = join(
+  process.env.HOME ?? '',
+  'Library/Mobile Documents/com~apple~CloudDocs/Yosemite Crew Important Secrets/June 2026 backup/mobileAppYC'
+);
+const findInBackup = (rel) => {
+  const wanted = rel.split('/').pop();
+  const walk = (dir, depth = 0) => {
+    if (depth > 4) return null;
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return null;
+    }
+    for (const e of entries) {
+      const full = join(dir, e.name);
+      if (e.isFile() && e.name === wanted && !isPlaceholder(full)) return full;
+      if (e.isDirectory()) {
+        const hit = walk(full, depth + 1);
+        if (hit) return hit;
+      }
+    }
+    return null;
+  };
+  return existsSync(BACKUP_ROOT) ? walk(BACKUP_ROOT) : null;
+};
+
+/** exists -> not a placeholder -> sibling worktree -> secrets backup -> console. */
 const checkFile = (rel, fallbackHow, level) => {
-  if (existsSync(join(root, rel))) {
+  const here = join(root, rel);
+  if (existsSync(here) && !isPlaceholder(here)) {
     ok(rel);
     return;
   }
-  const found = siblings.find((w) => existsSync(join(w, rel)));
-  level(rel, found ? `copy it from ${join(found, rel)}` : fallbackHow);
+  const source =
+    siblings.map((w) => join(w, rel)).find((f) => existsSync(f) && !isPlaceholder(f)) ??
+    findInBackup(rel);
+  const problem = existsSync(here) ? 'is a PLACEHOLDER template' : 'missing';
+  level(
+    rel,
+    source ? `${problem}; copy the real one from ${source}` : `${problem}; ${fallbackHow}`
+  );
 };
 
 for (const [rel, how] of [
@@ -83,22 +137,26 @@ for (const [rel, how] of [
     'android/gradle.properties',
     'cp android/gradle.properties.example android/gradle.properties, then put signing in ~/.gradle/gradle.properties',
   ],
-  [
-    'android/app/google-services.json',
-    'not in any sibling worktree; re-download from the Firebase console',
-  ],
-  ['android/app/src/main/res/values/strings.xml', 'not in any sibling worktree; ask a maintainer'],
+  ['android/app/google-services.json', 're-download from the Firebase console'],
+  ['android/app/src/main/res/values/strings.xml', 'ask a maintainer'],
 ]) {
   checkFile(rel, how, bad);
 }
 for (const [rel, how] of [
-  [
-    'ios/GoogleService-Info.plist',
-    'not in any sibling worktree; re-download from the Firebase console',
-  ],
-  ['ios/mobileAppYC/Secrets.xcconfig', 'not in any sibling worktree; ask a maintainer'],
+  ['ios/GoogleService-Info.plist', 're-download from the Firebase console'],
+  ['ios/mobileAppYC/Secrets.xcconfig', 'ask a maintainer'],
+  ['ios/mobileAppYC/Info.plist', 'ask a maintainer; an iOS build is impossible without it'],
 ]) {
   checkFile(rel, how, warn);
+}
+
+// Android Maps silently renders a blank map with no key, and this one is empty
+// even on machines that have every other file.
+const localProps = join(root, 'android/local.properties');
+if (existsSync(localProps)) {
+  const maps = /^MAPS_API_KEY=(.*)$/m.exec(readFileSync(localProps, 'utf8'))?.[1]?.trim();
+  if (maps) ok('MAPS_API_KEY', 'set');
+  else warn('MAPS_API_KEY', 'empty in android/local.properties; Android maps will render blank');
 }
 
 // --- release signing -------------------------------------------------------
