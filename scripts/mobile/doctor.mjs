@@ -58,7 +58,7 @@ else
 // DO exist in a sibling checkout though, which makes recovery a copy rather
 // than a console round-trip - so look there before sending anyone to Firebase.
 const siblingWorktrees = () => {
-  const repoRoot = root.replace(/\/apps\/mobileAppYC$/, '');
+  const repoRoot = dirname(dirname(root));
   try {
     return readdirSync(dirname(repoRoot))
       .map((d) => join(dirname(repoRoot), d, 'apps/mobileAppYC'))
@@ -140,10 +140,14 @@ const componentRefSpecs = (pkgDir) => {
   const fabric = join(pkgDir, 'src/fabric');
   if (!existsSync(fabric)) return [];
   const hits = [];
-  const walk = (dir) => {
+  // Fabric spec trees are shallow; the cap only guards against a pathological
+  // or symlinked tree taking the process down with a stack overflow.
+  const MAX_DEPTH = 12;
+  const walk = (dir, depth = 0) => {
+    if (depth > MAX_DEPTH) return;
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const full = join(dir, entry.name);
-      if (entry.isDirectory()) walk(full);
+      if (entry.isDirectory()) walk(full, depth + 1);
       else if (entry.isFile() && /\.tsx?$/.test(entry.name)) {
         try {
           if (readFileSync(full, 'utf8').includes('React.ComponentRef')) {
