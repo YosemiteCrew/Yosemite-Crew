@@ -115,11 +115,12 @@ export const TaskDetailsPopover = ({
         <div className="flex flex-col gap-1">
           {/* Category is already the third row of the grid above, and `getTaskQuickDetails`
               leads with it - so taking the first two entries printed it twice inside one
-              304px popover. Filtered rather than re-sliced, because the helper is shared
-              with TaskCard, where the grid does not exist and Category belongs. */}
-          {getTaskQuickDetails(task)
-            .filter((detail) => detail.label !== 'Category')
-            .map((detail) => (
+              304px popover. Skipped inside the map rather than filtered ahead of it, so
+              the list is walked once; and skipped by label rather than by index, because
+              the helper is shared with TaskCard, where the grid does not exist and
+              Category belongs. */}
+          {getTaskQuickDetails(task).map((detail) =>
+            detail.label === 'Category' ? null : (
               <div key={detail.label} className="flex min-w-0 items-start gap-2">
                 <div className="w-16 shrink-0 text-[11px] leading-4 text-text-secondary">
                   {detail.label}
@@ -128,7 +129,8 @@ export const TaskDetailsPopover = ({
                   {detail.value}
                 </div>
               </div>
-            ))}
+            )
+          )}
         </div>
         <div className="mt-1 flex min-w-0 flex-wrap items-center justify-end gap-1.5 border-t border-card-border pt-2">
           <TaskPopoverActionButton tooltip="View task" label="View task" onPress={onView}>

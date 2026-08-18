@@ -61,8 +61,10 @@ export const openGlassTooltip = async (
     wrapper.dispatchEvent(event());
     attempts += 1;
     await wait(STEP_MS);
-    const open = bubbles();
-    if (open.length > 0) return open[open.length - 1];
+    // The last one: a neighbouring story can leave a stale bubble on document.body,
+    // and the one this dispatch opened is the most recent.
+    const opened = bubbles().at(-1);
+    if (opened) return opened;
     if (Date.now() > deadline) {
       throw new Error(
         `No tooltip opened after ${attempts} ${via} dispatch(es) over ${TIMEOUT_MS}ms. ` +
