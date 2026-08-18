@@ -108,16 +108,20 @@ function resolvePasswordlessRecipientEmail(input: {
 }
 
 /**
- * Reads the `aud` claim without verifying the signature. The value is only used
- * to pick between client ids we configured ourselves; supertokens-node still
- * verifies the token against Apple's JWKS using the id chosen here, so a forged
- * audience cannot widen what the provider accepts.
+ * Reads the `aud` claim without verifying the signature. The values are only
+ * used to pick between client ids we configured ourselves; supertokens-node
+ * still verifies the token against Apple's JWKS using the id chosen here, so a
+ * forged audience cannot widen what the provider accepts.
+ *
+ * `aud` may be a single string or an array, so every entry is returned and
+ * matched on membership. Reading only the first entry would make acceptance
+ * depend on ordering and reject a token whose allowed audience is not first.
  */
-function readIdTokenAudience(idToken: string): string | undefined {
+function readIdTokenAudiences(idToken: string): string[] {
   const segments = idToken.split('.');
 
   if (segments.length !== 3) {
-    return undefined;
+    return [];
   }
 
   try {
@@ -125,12 +129,14 @@ function readIdTokenAudience(idToken: string): string | undefined {
     const audience = (payload as { aud?: unknown } | null)?.aud;
 
     if (typeof audience === 'string') {
-      return audience;
+      return [audience];
     }
 
-    return Array.isArray(audience) && typeof audience[0] === 'string' ? audience[0] : undefined;
+    return Array.isArray(audience)
+      ? audience.filter((entry): entry is string => typeof entry === 'string')
+      : [];
   } catch {
-    return undefined;
+    return [];
   }
 }
 
@@ -187,10 +193,10 @@ function buildThirdPartyProviders(): ProviderInput[] {
 
         originalImplementation.getUserInfo = async (input) => {
           const idToken: unknown = input.oAuthTokens.id_token;
-          const audience = typeof idToken === 'string' ? readIdTokenAudience(idToken) : undefined;
+          const audiences = typeof idToken === 'string' ? readIdTokenAudiences(idToken) : [];
 
           originalImplementation.config.clientId =
-            audience && appleAudiences.includes(audience) ? audience : appleClientId;
+            audiences.find((entry) => appleAudiences.includes(entry)) ?? appleClientId;
 
           try {
             return await originalGetUserInfo(input);

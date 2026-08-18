@@ -257,12 +257,39 @@ describe("@yosemite-crew/auth supertokens config", () => {
       expect(audiencesVerifiedAgainst).toEqual([SERVICE_ID]);
     });
 
+    it("matches an allowed audience that is not first in the array", async () => {
+      const provider = buildAppleProvider({ serviceId: SERVICE_ID });
+
+      const { audiencesVerifiedAgainst } = await runGetUserInfo(
+        provider,
+        makeIdToken(["https://appleid.apple.com", SERVICE_ID]),
+      );
+
+      expect(audiencesVerifiedAgainst).toEqual([SERVICE_ID]);
+    });
+
+    it("skips non-string entries when matching the audience array", async () => {
+      const provider = buildAppleProvider({ serviceId: SERVICE_ID });
+
+      const { audiencesVerifiedAgainst } = await runGetUserInfo(
+        provider,
+        makeIdToken([null, 7, SERVICE_ID]),
+      );
+
+      expect(audiencesVerifiedAgainst).toEqual([SERVICE_ID]);
+    });
+
     it.each([
       ["an audience that is not ours", makeIdToken("com.attacker.app")],
       ["a token that is not a jwt", "not-a-jwt"],
       ["a token with an unparseable payload", "header.%%%.signature"],
       ["a non-string token", 42],
       ["a missing audience claim", makeIdToken(undefined)],
+      [
+        "an audience array with no id of ours",
+        makeIdToken(["com.attacker.app"]),
+      ],
+      ["an empty audience array", makeIdToken([])],
     ])(
       "falls back to the configured client id for %s",
       async (_label, token) => {
