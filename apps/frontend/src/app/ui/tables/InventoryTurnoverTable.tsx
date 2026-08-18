@@ -103,9 +103,16 @@ const InventoryTurnoverTable = ({ filteredList }: InventoryTurnoverTableProps) =
       ),
     },
     {
+      /* The one column sized by its BODY rather than its header: the label is 44px
+         but the StatusPill inside is 10px/600 uppercase with 0.8px tracking and 20px
+         of its own padding, so "Out of stock" needs 102.4px against the 69px content
+         box a 100px column left it. Measured in the real pill font: Out of stock
+         102.4, Excellent 82.5, Moderate 80.5, Healthy 69.4 - four of the five values
+         overflowed, and StatusPill is nowrap + overflow-hidden, so it clipped the
+         word rather than wrapping it. */
       label: 'Status',
       key: 'status',
-      width: '100px',
+      width: '140px',
       render: (item: InventoryTurnoverItem) => (
         <StatusPill
           style={getInventoryTurnoverStatusStyle(item.status)}

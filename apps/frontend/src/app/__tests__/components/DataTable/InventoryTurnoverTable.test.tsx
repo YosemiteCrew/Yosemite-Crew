@@ -193,6 +193,30 @@ describe('InventoryTurnoverTable Component', () => {
     });
   });
 
+  /* The Status column is the one sized by its CELL, not its header: the header is
+     44px but the StatusPill is 10px/600 uppercase with 0.8px tracking plus 20px of
+     its own padding, and it is nowrap + overflow-hidden, so an undersized column
+     clips the word instead of wrapping it. Measured in the real pill font, four of
+     the five values overflowed the 69px content box a 100px column allowed. */
+  it('gives the Status column room for its widest pill, not just its header', () => {
+    // Rendered pill width (text + 20px pill padding) for each status value.
+    const WIDEST_PILL_PX = 102.4; // "Out of stock"; Excellent 82.5, Moderate 80.5, Healthy 69.4
+    const TD_PADDING = 31;
+
+    const { container } = render(<InventoryTurnoverTable filteredList={mockInventoryItems} />);
+    const desktopView = container.querySelector(String.raw`.hidden.xl\:flex`) as HTMLElement;
+    const labels = [...desktopView.querySelectorAll('th')].map(
+      (th) => th.textContent?.trim() ?? ''
+    );
+    const cols = [...desktopView.querySelectorAll('colgroup col')];
+    const statusWidth = Number.parseInt(
+      (cols[labels.indexOf('Status')] as HTMLElement).style.width,
+      10
+    );
+
+    expect(statusWidth).toBeGreaterThanOrEqual(WIDEST_PILL_PX + TD_PADDING);
+  });
+
   // --- 3. Mobile View (Cards) ---
 
   it('renders InventoryTurnoverCard components (Mobile View)', () => {

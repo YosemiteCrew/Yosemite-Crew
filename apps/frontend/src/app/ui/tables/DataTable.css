@@ -69,7 +69,7 @@ span.cell-overflow-count {
 }
 .inventory-turnover-table-fixed {
   table-layout: fixed;
-  min-width: 1198px; /* 160+110+172+152+128+144+108+124+100 */
+  min-width: 1238px; /* 160+110+172+152+128+144+108+124+140 */
 }
 .invoice-compact-fixed {
   table-layout: fixed;
