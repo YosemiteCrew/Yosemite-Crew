@@ -30,6 +30,7 @@ describe('buildEmptyEncounter', () => {
       SOAP: 'EMPTY',
       DIAGNOSTICS: 'EMPTY',
       TREATMENT: 'EMPTY',
+      PASSPORT: 'EMPTY',
       INVOICE: 'EMPTY',
       SUMMARY: 'EMPTY',
     });

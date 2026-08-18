@@ -8,18 +8,20 @@ const stepStatus: Record<WorkspaceStep, StepStatus> = {
   SOAP: 'COMPLETED',
   DIAGNOSTICS: 'COMPLETED',
   TREATMENT: 'IN_PROGRESS',
+  PASSPORT: 'EMPTY',
   INVOICE: 'EMPTY',
   SUMMARY: 'EMPTY',
 };
 
 describe('PhoneStepChips', () => {
-  it('renders all five steps and marks the active one with aria-current', () => {
+  it('renders every step and marks the active one with aria-current', () => {
     render(
       <PhoneStepChips activeStep="TREATMENT" stepStatus={stepStatus} onStepChange={jest.fn()} />
     );
     // Completed chips use the shortened label; active/upcoming use the full label.
     expect(screen.getByText('SOAP')).toBeInTheDocument();
     expect(screen.getByText('Diagn.')).toBeInTheDocument();
+    expect(screen.getByText('Passport')).toBeInTheDocument();
     expect(screen.getByText('Invoice')).toBeInTheDocument();
     expect(screen.getByText('Summary')).toBeInTheDocument();
 
@@ -37,6 +39,19 @@ describe('PhoneStepChips', () => {
       'step'
     );
     expect(screen.queryByText('Diagn.')).not.toBeInTheDocument();
+  });
+
+  it('shortens the completed passport chip and still navigates to it', () => {
+    const onStepChange = jest.fn();
+    render(
+      <PhoneStepChips
+        activeStep="SOAP"
+        stepStatus={{ ...stepStatus, PASSPORT: 'COMPLETED' }}
+        onStepChange={onStepChange}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Passp.' }));
+    expect(onStepChange).toHaveBeenCalledWith('PASSPORT');
   });
 
   it('navigates when a chip is clicked', () => {

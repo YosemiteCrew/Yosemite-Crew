@@ -1,5 +1,6 @@
 'use client';
 import React from 'react';
+import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import type { IconType } from 'react-icons';
 import {
@@ -13,15 +14,49 @@ import Modal from '@/app/ui/overlays/Modal';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import type { Appointment } from '@yosemite-crew/types';
 import type { SideAction } from '@/app/features/appointments/types/workspace';
-import RecordPanel from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/panels/RecordPanel';
-import TasksPanel from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/panels/TasksPanel';
-import DocumentsPanel from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/panels/DocumentsPanel';
-import ChatPanel from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/panels/ChatPanel';
-import ActivityPanel from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/panels/ActivityPanel';
-import MsdPanel from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/panels/MsdPanel';
-import CalculatorsPanel from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/panels/CalculatorsPanel';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { getAppointmentCompanion } from '@/app/lib/appointments';
+
+// Panels are heavy (vitals forms, document packets, the calculator registry) and
+// only one is ever mounted, so each ships as its own chunk and is fetched when
+// its tab is first opened rather than with the workspace route.
+const PanelSkeleton = () => (
+  <div className="h-full min-h-50 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />
+);
+
+const RecordPanel = dynamic(
+  () =>
+    import('@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/panels/RecordPanel'),
+  { loading: () => <PanelSkeleton /> }
+);
+const TasksPanel = dynamic(
+  () =>
+    import('@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/panels/TasksPanel'),
+  { loading: () => <PanelSkeleton /> }
+);
+const DocumentsPanel = dynamic(
+  () =>
+    import('@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/panels/DocumentsPanel'),
+  { loading: () => <PanelSkeleton /> }
+);
+const ChatPanel = dynamic(
+  () => import('@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/panels/ChatPanel'),
+  { loading: () => <PanelSkeleton /> }
+);
+const ActivityPanel = dynamic(
+  () =>
+    import('@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/panels/ActivityPanel'),
+  { loading: () => <PanelSkeleton /> }
+);
+const MsdPanel = dynamic(
+  () => import('@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/panels/MsdPanel'),
+  { loading: () => <PanelSkeleton /> }
+);
+const CalculatorsPanel = dynamic(
+  () =>
+    import('@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/panels/CalculatorsPanel'),
+  { loading: () => <PanelSkeleton /> }
+);
 
 type QuickActionsModalProps = {
   appointment: Appointment;

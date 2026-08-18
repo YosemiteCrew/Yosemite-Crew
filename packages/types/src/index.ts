@@ -76,6 +76,44 @@ export type {
   CompanionParentLink,
   ParenDetailsForLink,
 } from './parentCompanion';
+export type {
+  CompanionCardAudience,
+  CompanionCardDTO,
+  CompanionCardIdentity,
+  CompanionCardMedical,
+  CompanionCardOwnerContact,
+  CompanionCardLatestVisit,
+  RedactedInsuranceSummary,
+} from './companion-card';
+export type {
+  IssueShareTokenRequestDTO,
+  ShareTokenResponseDTO,
+  IssueShareTokenResultDTO,
+} from './dto/companion-card.dto';
+export type {
+  VaccineType,
+  ParasiteTreatmentType,
+  VaccinationDTO,
+  ParasiteTreatmentDTO,
+  RabiesTitrationDTO,
+  ClinicalExamDTO,
+  PassportConsentStatus,
+  PassportConsentMethod,
+  PassportConsentDTO,
+  PetPassportIssuanceDTO,
+  PetPassportIdentity,
+  PetPassportMicrochip,
+  PetPassportOwner,
+  PetPassportDTO,
+} from './pet-passport';
+export { PASSPORT_SEX_LABEL, passportSexLabel } from './pet-passport';
+export type {
+  RecordVaccinationRequestDTO,
+  RecordParasiteTreatmentRequestDTO,
+  RecordRabiesTitrationRequestDTO,
+  RecordClinicalExamRequestDTO,
+  IssuePassportRequestDTO,
+} from './dto/pet-passport.dto';
 
 export type { Organization, Organisation, ToFHIROrganizationOptions } from './organization';
 export type { OrganisationRoom, RoomReferenceMapping } from './organisationRoom';
@@ -387,6 +425,10 @@ export {
   type DischargeSummaryRecord,
   type VitalRecordInput,
   type VitalRecordRecord,
+  type ImmunizationRecord,
+  type RabiesTitrationRecord,
+  type ParasiteTreatmentRecord,
+  type ClinicalExaminationRecord,
   type ClinicalArtifactRecordLike,
   type ClinicalArtifactFhirInputDefaults,
 } from './clinical-artifact';

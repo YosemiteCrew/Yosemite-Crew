@@ -93,6 +93,33 @@ const evaluateYcDesktop = <T>(page: Page, method: string, ...args: unknown[]): P
     { m: method, a: args }
   );
 
+// Give downloads a save path up front.
+//
+// The app's will-download handler never calls setSavePath, so Electron falls
+// back to the native Save dialog. In production a person picks a folder; in a
+// headless test nothing clicks it, the item never reaches 'completed', its
+// 'done' handler never runs, and the vault stays empty - which is what these
+// four tests were timing out on. Registering a listener that sets the path
+// suppresses the dialog; the app's own handler still runs and still vaults.
+const autoAcceptDownloads = async (app: ElectronApplication, dir: string): Promise<void> => {
+  await app.evaluate(async ({ BrowserWindow }, saveDir) => {
+    const ses = BrowserWindow.getAllWindows()[0]?.webContents.session;
+    if (!ses) throw new Error('no window session to attach the download listener to');
+    let seq = 0;
+    ses.on('will-download', (_event, item) => {
+      // A counter because these tests download the same filename repeatedly, and
+      // reusing one path let concurrent downloads collide - on Windows that lost
+      // one of them and the vault count came up short.
+      //
+      // Joined by hand rather than with node:path: this callback is serialised
+      // into the main process, where `require` is not available. Node accepts
+      // forward slashes on Windows too.
+      seq += 1;
+      item.setSavePath(`${saveDir}/${seq}-${item.getFilename()}`);
+    });
+  }, dir);
+};
+
 const triggerDownload = async (page: Page, origin: string, format: string): Promise<void> => {
   await page.evaluate(
     ({ o, f }: { o: string; f: string }) => {
@@ -136,6 +163,7 @@ test.describe('document-vault E2E', () => {
     page = launched.page;
     tab = launched.tab;
     userDataDir = launched.userDataDir;
+    await autoAcceptDownloads(app, userDataDir);
   });
 
   test.afterEach(async () => {
@@ -237,6 +265,10 @@ test.describe('document-vault E2E', () => {
     const relaunched = await launchApp(pimsServer.origin, userDataDir);
     app = relaunched.app;
     page = relaunched.page;
+    // The old tab belonged to the closed app; asserting against it checks a
+    // dead handle and reports `undefined` rather than anything about the
+    // relaunched window.
+    tab = relaunched.tab;
 
     await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
     await waitForVaultCount(page, 1);

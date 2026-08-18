@@ -6,6 +6,10 @@ import {
 import {
   buildRenderedDocumentPdfSnapshot,
   type RenderedDocumentKind,
+  type ImmunizationRecord,
+  type RabiesTitrationRecord,
+  type ParasiteTreatmentRecord,
+  type ClinicalExaminationRecord,
 } from "@yosemite-crew/types";
 import { prisma } from "src/config/prisma";
 import { uploadBufferAsFile } from "src/middlewares/upload";
@@ -657,6 +661,12 @@ const hydrateVitalRecord = async (
   });
 };
 
+// The clinical kinds rendered to a signable document. Only these reach the
+// rendered-document pipeline; the passport kinds (Immunization / RabiesTitration /
+// ParasiteTreatment) are not document-backed yet, so they never flow here.
+type RenderableClinicalKind =
+  "SOAP_NOTE" | "PRESCRIPTION" | "DISCHARGE_SUMMARY" | "VITAL_RECORD";
+
 const DOCUMENT_BACKED_CLINICAL_KINDS = new Set<ClinicalArtifactKind>([
   "SOAP_NOTE",
   "PRESCRIPTION",
@@ -669,6 +679,10 @@ const clinicalArtifactTitleByKind: Record<ClinicalArtifactKind, string> = {
   PRESCRIPTION: "Prescription",
   DISCHARGE_SUMMARY: "Discharge summary",
   VITAL_RECORD: "Vital record",
+  IMMUNIZATION: "Vaccination record",
+  RABIES_TITRATION: "Rabies titration",
+  PARASITE_TREATMENT: "Parasite treatment",
+  CLINICAL_EXAM: "Clinical examination",
 };
 
 const buildClinicalArtifactRenderedDocumentInput = (artifact: {
@@ -709,7 +723,7 @@ const persistClinicalArtifactRenderedDocumentPdf = async (
       sourceKind: renderedDocument.sourceKind,
       sourceId: renderedDocument.sourceId,
       organisationId: renderedDocument.organisationId,
-      templateKind: renderedDocument.kind as ClinicalArtifactKind,
+      templateKind: renderedDocument.kind as RenderableClinicalKind,
       templateId: renderedDocument.templateId,
       templateVersion: renderedDocument.templateVersion,
       templateVersionId: renderedDocument.templateVersionId,
@@ -738,7 +752,7 @@ const persistClinicalArtifactRenderedDocumentPdf = async (
               sourceKind: renderedDocument.sourceKind,
               sourceId: renderedDocument.sourceId,
               organisationId: renderedDocument.organisationId,
-              templateKind: renderedDocument.kind as ClinicalArtifactKind,
+              templateKind: renderedDocument.kind as RenderableClinicalKind,
               templateId: renderedDocument.templateId,
               templateVersion: renderedDocument.templateVersion,
               templateVersionId: renderedDocument.templateVersionId,
@@ -2214,6 +2228,178 @@ export const ClinicalArtifactService = {
     });
 
     return Promise.all(records.map(toVitalRecordRecord));
+  },
+
+  // Passport clinical-record kinds (immunization, rabies titration, parasite
+  // treatment, pre-travel exam). Read-only over FHIR: these are captured through
+  // the dedicated passport flow and signed via Documenso, so there is no FHIR
+  // create/update path here.
+  async listImmunizationsForEncounter(
+    organisationId: string,
+    encounterId: string,
+  ): Promise<ImmunizationRecord[]> {
+    const records = await prisma.immunization.findMany({
+      where: {
+        artifact: {
+          organisationId: ensureId(organisationId, "organisationId"),
+          encounterId: ensureId(encounterId, "encounterId"),
+          kind: "IMMUNIZATION",
+        },
+      },
+      include: { artifact: true },
+      orderBy: { dateAdministered: "desc" },
+    });
+    return records.map((record) => ({
+      artifact: toClinicalArtifactKind(record.artifact, "IMMUNIZATION"),
+      immunization: record,
+    }));
+  },
+
+  async listImmunizationsForAppointment(
+    organisationId: string,
+    appointmentId: string,
+  ): Promise<ImmunizationRecord[]> {
+    const records = await prisma.immunization.findMany({
+      where: {
+        artifact: {
+          organisationId: ensureId(organisationId, "organisationId"),
+          appointmentId: ensureId(appointmentId, "appointmentId"),
+          kind: "IMMUNIZATION",
+        },
+      },
+      include: { artifact: true },
+      orderBy: { dateAdministered: "desc" },
+    });
+    return records.map((record) => ({
+      artifact: toClinicalArtifactKind(record.artifact, "IMMUNIZATION"),
+      immunization: record,
+    }));
+  },
+
+  async listRabiesTitrationsForEncounter(
+    organisationId: string,
+    encounterId: string,
+  ): Promise<RabiesTitrationRecord[]> {
+    const records = await prisma.rabiesTitration.findMany({
+      where: {
+        artifact: {
+          organisationId: ensureId(organisationId, "organisationId"),
+          encounterId: ensureId(encounterId, "encounterId"),
+          kind: "RABIES_TITRATION",
+        },
+      },
+      include: { artifact: true },
+      orderBy: { sampleDate: "desc" },
+    });
+    return records.map((record) => ({
+      artifact: toClinicalArtifactKind(record.artifact, "RABIES_TITRATION"),
+      rabiesTitration: record,
+    }));
+  },
+
+  async listRabiesTitrationsForAppointment(
+    organisationId: string,
+    appointmentId: string,
+  ): Promise<RabiesTitrationRecord[]> {
+    const records = await prisma.rabiesTitration.findMany({
+      where: {
+        artifact: {
+          organisationId: ensureId(organisationId, "organisationId"),
+          appointmentId: ensureId(appointmentId, "appointmentId"),
+          kind: "RABIES_TITRATION",
+        },
+      },
+      include: { artifact: true },
+      orderBy: { sampleDate: "desc" },
+    });
+    return records.map((record) => ({
+      artifact: toClinicalArtifactKind(record.artifact, "RABIES_TITRATION"),
+      rabiesTitration: record,
+    }));
+  },
+
+  async listParasiteTreatmentsForEncounter(
+    organisationId: string,
+    encounterId: string,
+  ): Promise<ParasiteTreatmentRecord[]> {
+    const records = await prisma.parasiteTreatment.findMany({
+      where: {
+        artifact: {
+          organisationId: ensureId(organisationId, "organisationId"),
+          encounterId: ensureId(encounterId, "encounterId"),
+          kind: "PARASITE_TREATMENT",
+        },
+      },
+      include: { artifact: true },
+      orderBy: { treatedAt: "desc" },
+    });
+    return records.map((record) => ({
+      artifact: toClinicalArtifactKind(record.artifact, "PARASITE_TREATMENT"),
+      parasiteTreatment: record,
+    }));
+  },
+
+  async listParasiteTreatmentsForAppointment(
+    organisationId: string,
+    appointmentId: string,
+  ): Promise<ParasiteTreatmentRecord[]> {
+    const records = await prisma.parasiteTreatment.findMany({
+      where: {
+        artifact: {
+          organisationId: ensureId(organisationId, "organisationId"),
+          appointmentId: ensureId(appointmentId, "appointmentId"),
+          kind: "PARASITE_TREATMENT",
+        },
+      },
+      include: { artifact: true },
+      orderBy: { treatedAt: "desc" },
+    });
+    return records.map((record) => ({
+      artifact: toClinicalArtifactKind(record.artifact, "PARASITE_TREATMENT"),
+      parasiteTreatment: record,
+    }));
+  },
+
+  async listClinicalExaminationsForEncounter(
+    organisationId: string,
+    encounterId: string,
+  ): Promise<ClinicalExaminationRecord[]> {
+    const records = await prisma.clinicalExamination.findMany({
+      where: {
+        artifact: {
+          organisationId: ensureId(organisationId, "organisationId"),
+          encounterId: ensureId(encounterId, "encounterId"),
+          kind: "CLINICAL_EXAM",
+        },
+      },
+      include: { artifact: true },
+      orderBy: { examinedAt: "desc" },
+    });
+    return records.map((record) => ({
+      artifact: toClinicalArtifactKind(record.artifact, "CLINICAL_EXAM"),
+      clinicalExamination: record,
+    }));
+  },
+
+  async listClinicalExaminationsForAppointment(
+    organisationId: string,
+    appointmentId: string,
+  ): Promise<ClinicalExaminationRecord[]> {
+    const records = await prisma.clinicalExamination.findMany({
+      where: {
+        artifact: {
+          organisationId: ensureId(organisationId, "organisationId"),
+          appointmentId: ensureId(appointmentId, "appointmentId"),
+          kind: "CLINICAL_EXAM",
+        },
+      },
+      include: { artifact: true },
+      orderBy: { examinedAt: "desc" },
+    });
+    return records.map((record) => ({
+      artifact: toClinicalArtifactKind(record.artifact, "CLINICAL_EXAM"),
+      clinicalExamination: record,
+    }));
   },
 
   async finalizeSoapNote(

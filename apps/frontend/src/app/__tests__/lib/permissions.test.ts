@@ -32,6 +32,20 @@ describe('permissions', () => {
     }
   });
 
+  it('keeps passport capture open to staff and attestation to veterinarians', () => {
+    // Mirrors apps/backend/src/models/role-permission.ts: every staff role may
+    // capture a passport record, only a veterinarian may sign one.
+    for (const role of Object.keys(ROLE_PERMISSIONS) as Array<keyof typeof ROLE_PERMISSIONS>) {
+      expect(ROLE_PERMISSIONS[role]).toContain(PERMISSIONS.VACCINATIONS_EDIT_ANY);
+      expect(ROLE_PERMISSIONS[role]).toContain(PERMISSIONS.PASSPORT_EDIT_ANY);
+    }
+
+    const attesters = (
+      Object.keys(ROLE_PERMISSIONS) as Array<keyof typeof ROLE_PERMISSIONS>
+    ).filter((role) => ROLE_PERMISSIONS[role].includes(PERMISSIONS.PASSPORT_ATTEST_ANY));
+    expect(attesters).toEqual(['VETERINARIAN']);
+  });
+
   it('has expected access boundaries between receptionist and owner', () => {
     expect(ROLE_PERMISSIONS.OWNER).toContain(PERMISSIONS.ORG_DELETE);
     expect(ROLE_PERMISSIONS.RECEPTIONIST).not.toContain(PERMISSIONS.ORG_DELETE);

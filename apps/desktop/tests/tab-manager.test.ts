@@ -125,6 +125,35 @@ describe('TabManager', () => {
       expect(result).toBe(true);
     });
 
+    // These two assert the resulting ORDER, not just the return value. The
+    // original suite checked only that a forward move returned true, so an
+    // off-by-one that left the tab one slot short - and left it exactly where it
+    // started when the target was the last index - passed unit tests for as long
+    // as it existed. It took the e2e suite to catch it.
+    it('moves a tab forward to the requested index', () => {
+      const id1 = tm.create('https://a.com');
+      const id2 = tm.create('https://b.com');
+      const id3 = tm.create('https://c.com');
+
+      expect(tm.move(id1, 2)).toBe(true);
+
+      const state = tm.getState();
+      expect(state.tabs[0].id).toBe(id2);
+      expect(state.tabs[1].id).toBe(id3);
+      expect(state.tabs[2].id).toBe(id1);
+    });
+
+    it('moves a tab to the end when toIndex is clamped', () => {
+      const id1 = tm.create('https://a.com');
+      const id2 = tm.create('https://b.com');
+
+      expect(tm.move(id1, 999)).toBe(true);
+
+      const state = tm.getState();
+      expect(state.tabs[0].id).toBe(id2);
+      expect(state.tabs[1].id).toBe(id1);
+    });
+
     it('returns false for unknown id', () => {
       expect(tm.move('x', 0)).toBe(false);
     });

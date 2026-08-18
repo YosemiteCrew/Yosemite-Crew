@@ -48,6 +48,7 @@ import {authReducer} from '@/features/auth';
 import {themeReducer} from '@/features/theme';
 import {companionReducer} from '@/features/companion';
 import documentReducer from '@/features/documents/documentSlice';
+import passportReducer from '@/features/passport/passportSlice';
 import {expensesReducer} from '@/features/expenses';
 import {tasksReducer} from '@/features/tasks';
 import appointmentsReducer from '@/features/appointments/appointmentsSlice';
@@ -174,6 +175,7 @@ const rootReducer = combineReducers({
   theme: themeReducer,
   companion: companionReducer,
   documents: documentReducer,
+  passport: passportReducer,
   expenses: expensesReducer,
   tasks: tasksReducer,
   appointments: appointmentsReducer,

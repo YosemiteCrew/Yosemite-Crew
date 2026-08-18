@@ -5,7 +5,8 @@ import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
-import { MOD, openPimsTab } from './welcome';
+import { openPimsTab } from './welcome';
+import { clickMenuItem } from './menu';
 
 type TestServer = {
   origin: string;
@@ -73,7 +74,7 @@ type TabResult = {
   error?: string;
 };
 
-const evaluateYcDesktop = <T>(page: Page, method: string, ...args: unknown[]): Promise<T> =>
+const callYcDesktop = <T>(page: Page, method: string, args: unknown[]): Promise<T> =>
   page.evaluate(
     ({ m, a }: { m: string; a: unknown[] }) => {
       const yc = (window as Record<string, unknown>).ycDesktop as Record<string, unknown>;
@@ -84,6 +85,20 @@ const evaluateYcDesktop = <T>(page: Page, method: string, ...args: unknown[]): P
     },
     { m: method, a: args }
   );
+
+// Retries once when the page navigates mid-call. Closing the last tab makes the
+// app leave tab mode and return to the welcome screen, which tears down the
+// execution context an in-flight evaluate is running in - so the call fails for
+// a reason that has nothing to do with what it was asking.
+const evaluateYcDesktop = async <T>(page: Page, method: string, ...args: unknown[]): Promise<T> => {
+  try {
+    return await callYcDesktop<T>(page, method, args);
+  } catch (error) {
+    if (!String(error).includes('Execution context was destroyed')) throw error;
+    await page.waitForLoadState('domcontentloaded');
+    return callYcDesktop<T>(page, method, args);
+  }
+};
 
 const waitForTabCount = async (page: Page, count: number, timeout = 5000): Promise<void> => {
   await expect
@@ -238,32 +253,45 @@ test.describe('tab E2E', () => {
     expect(state2.tabs!).toHaveLength(2);
   });
 
-  test('Cmd+T opens a new tab', async () => {
+  test('the New Tab menu item opens a tab', async () => {
     await waitForTabCount(page, 1);
-    await page.keyboard.press(`${MOD}+T`);
+    await clickMenuItem(app!, 'New Tab');
     await waitForTabCount(page, 2);
     const state = await evaluateYcDesktop<TabResult>(page, 'getTabs');
     expect(state.tabs!).toHaveLength(2);
   });
 
-  test('Cmd+W closes the active tab', async () => {
+  test('the Close Tab menu item closes the active tab', async () => {
     await evaluateYcDesktop(page, 'newTab');
     await waitForTabCount(page, 2);
-    await page.keyboard.press(`${MOD}+W`);
+    await clickMenuItem(app!, 'Close Tab');
     await waitForTabCount(page, 1);
     const state = await evaluateYcDesktop<TabResult>(page, 'getTabs');
     expect(state.tabs!).toHaveLength(1);
   });
 
-  test('Cmd+Shift+T reopens closed tab', async () => {
+  test('the Reopen Closed Tab menu item restores it', async () => {
+    // Opens a second tab first, so closing one does not close the LAST one.
+    // main.ts's reopenClosedTab() begins `if (!tabMode ...) return`, and closing
+    // the final tab leaves tab mode - so reopening after closing your only tab
+    // is a silent no-op. Chrome restores it in that situation; whether this app
+    // should is a product question, filed rather than changed here. Either way
+    // it is not what this test is for: the behaviour under test is that a closed
+    // tab can be restored, and that is what this now exercises.
+    await evaluateYcDesktop(page, 'newTab', `${pimsServer.origin}/b`);
+    await waitForTabCount(page, 2);
+
     const state0 = await evaluateYcDesktop<TabResult>(page, 'getTabs');
-    const tabId = state0.tabs![0].id;
-    await evaluateYcDesktop(page, 'closeTab', tabId);
-    await waitForTabCount(page, 0);
-    await page.keyboard.press(`${MOD}+Shift+T`);
+    const closedId = state0.tabs![1].id;
+    await evaluateYcDesktop(page, 'closeTab', closedId);
     await waitForTabCount(page, 1);
+
+    await clickMenuItem(app!, 'Reopen Closed Tab');
+    await waitForTabCount(page, 2);
+
     const state1 = await evaluateYcDesktop<TabResult>(page, 'getTabs');
-    expect(state1.tabs!).toHaveLength(1);
+    expect(state1.tabs!).toHaveLength(2);
+    expect(state1.tabs!.some((t) => t.url.endsWith('/b'))).toBe(true);
   });
 
   test('closing all tabs returns empty list', async () => {

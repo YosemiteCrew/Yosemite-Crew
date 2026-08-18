@@ -1,12 +1,14 @@
 import type { FormField } from '@/app/features/forms/types/forms';
 
-/** The five workspace steps, in order. */
-export type WorkspaceStep = 'SOAP' | 'DIAGNOSTICS' | 'TREATMENT' | 'INVOICE' | 'SUMMARY';
+/** The six workspace steps, in order. */
+export type WorkspaceStep =
+  'SOAP' | 'DIAGNOSTICS' | 'TREATMENT' | 'PASSPORT' | 'INVOICE' | 'SUMMARY';
 
 export const WORKSPACE_STEPS: WorkspaceStep[] = [
   'SOAP',
   'DIAGNOSTICS',
   'TREATMENT',
+  'PASSPORT',
   'INVOICE',
   'SUMMARY',
 ];
@@ -15,6 +17,7 @@ export const WORKSPACE_STEP_LABELS: Record<WorkspaceStep, string> = {
   SOAP: 'SOAP Notes',
   DIAGNOSTICS: 'Diagnostics',
   TREATMENT: 'Treatment',
+  PASSPORT: 'Passport',
   INVOICE: 'Invoice',
   SUMMARY: 'Summary',
 };

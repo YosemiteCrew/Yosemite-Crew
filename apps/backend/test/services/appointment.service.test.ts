@@ -17,6 +17,7 @@ import {
 } from "../../src/services/catalog.service";
 import { CompanionOrganisationService } from "../../src/services/companion-organisation.service";
 import { NotificationService } from "../../src/services/notification.service";
+import { WaitlistService } from "../../src/services/waitlist.service";
 import { TaskService } from "../../src/services/task.service";
 import { FormServiceError } from "../../src/services/form.service";
 import { fromAppointmentRequestDTO } from "@yosemite-crew/types";
@@ -106,6 +107,9 @@ jest.mock("../../src/services/catalog.service", () => ({
   },
 }));
 
+jest.mock("../../src/services/waitlist.service", () => ({
+  WaitlistService: { notifyOnCancellation: jest.fn() },
+}));
 jest.mock("../../src/services/companion-organisation.service", () => ({
   CompanionOrganisationService: {
     linkByParent: jest.fn(),
@@ -535,6 +539,48 @@ describe("AppointmentService", () => {
           409,
         ),
       );
+    });
+
+    it("offers the freed slot to the waitlist", async () => {
+      // WaitlistService.notifyOnCancellation was fully implemented and unit
+      // tested but never called, so cancelling never offered the slot on.
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue(
+        createPrismaAppointment({ id: "appt_1", status: "UPCOMING" }),
+      );
+      (
+        InvoiceService.handleAppointmentCancellation as jest.Mock
+      ).mockResolvedValue({ action: "NO_ACTION" });
+      (prisma.appointment.update as jest.Mock).mockResolvedValue(
+        createPrismaAppointment({ id: "appt_1", status: "CANCELLED" }),
+      );
+      (WaitlistService.notifyOnCancellation as jest.Mock).mockResolvedValue(
+        undefined,
+      );
+
+      await AppointmentService.cancelAppointment("appt_1", "reason");
+
+      expect(WaitlistService.notifyOnCancellation).toHaveBeenCalledWith(
+        "appt_1",
+      );
+    });
+
+    it("does not fail the cancellation when the waitlist offer throws", async () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue(
+        createPrismaAppointment({ id: "appt_1", status: "UPCOMING" }),
+      );
+      (
+        InvoiceService.handleAppointmentCancellation as jest.Mock
+      ).mockResolvedValue({ action: "NO_ACTION" });
+      (prisma.appointment.update as jest.Mock).mockResolvedValue(
+        createPrismaAppointment({ id: "appt_1", status: "CANCELLED" }),
+      );
+      (WaitlistService.notifyOnCancellation as jest.Mock).mockRejectedValue(
+        new Error("waitlist down"),
+      );
+
+      await expect(
+        AppointmentService.cancelAppointment("appt_1", "reason"),
+      ).resolves.toBeDefined();
     });
   });
 

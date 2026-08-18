@@ -12,6 +12,16 @@ export const PERMISSIONS = {
   COMPANIONS_VIEW_ANY: 'companions:view:any',
   COMPANIONS_EDIT_ANY: 'companions:edit:any',
 
+  // Digital Pet Passport. Capture (`vaccinations:edit:any` for immunizations,
+  // `passport:edit:any` for treatments/titrations/exams/issuance) is held by
+  // every staff role. Attesting is the veterinarian's clinical signature -- it
+  // is what makes a record count as a travel health document (EU 576/2013, UK
+  // AHC/OV, USDA APHIS) -- so it is a separate key held by VETERINARIAN alone,
+  // mirroring apps/backend/src/models/role-permission.ts.
+  VACCINATIONS_EDIT_ANY: 'vaccinations:edit:any',
+  PASSPORT_EDIT_ANY: 'passport:edit:any',
+  PASSPORT_ATTEST_ANY: 'passport:attest:any',
+
   TASKS_VIEW_ANY: 'tasks:view:any',
   TASKS_VIEW_OWN: 'tasks:view:own',
   TASKS_EDIT_ANY: 'tasks:edit:any',
@@ -95,6 +105,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     'companions:view:any',
     'companions:edit:any',
+    'vaccinations:edit:any',
+    'passport:edit:any',
 
     'tasks:view:any',
     'tasks:view:own',
@@ -160,6 +172,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     'companions:view:any',
     'companions:edit:any',
+    'vaccinations:edit:any',
+    'passport:edit:any',
 
     'tasks:view:any',
     'tasks:view:own',
@@ -222,6 +236,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     'companions:view:any',
     'companions:edit:any',
+    'vaccinations:edit:any',
+    'passport:edit:any',
 
     'tasks:view:any',
     'tasks:view:own',
@@ -275,6 +291,9 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     'companions:view:any',
     'companions:edit:any',
+    'vaccinations:edit:any',
+    'passport:edit:any',
+    'passport:attest:any',
 
     'tasks:view:any',
     'tasks:view:own',
@@ -324,6 +343,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     'companions:view:any',
     'companions:edit:any',
+    'vaccinations:edit:any',
+    'passport:edit:any',
 
     'tasks:view:any',
     'tasks:view:own',
@@ -370,6 +391,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     'companions:view:any',
     'companions:edit:any',
+    'vaccinations:edit:any',
+    'passport:edit:any',
 
     'tasks:view:any',
     'tasks:view:own',
@@ -412,6 +435,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, Permission[]> = {
 
     'companions:view:any',
     'companions:edit:any',
+    'vaccinations:edit:any',
+    'passport:edit:any',
 
     'tasks:view:any',
     'tasks:view:own',

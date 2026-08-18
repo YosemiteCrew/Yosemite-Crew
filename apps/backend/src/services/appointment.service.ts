@@ -26,6 +26,7 @@ import { assertEmail } from "src/utils/sanitize";
 import { CatalogService, CatalogServiceError } from "./catalog.service";
 import { CompanionOrganisationService } from "./companion-organisation.service";
 import { markFreeLimitReachedAt } from "./shared/org-usage-limit";
+import { WaitlistService } from "./waitlist.service";
 
 export class AppointmentServiceError extends Error {
   constructor(
@@ -355,6 +356,19 @@ const assertParentCanCancelAppointment = (params: {
   assertAppointmentStatusTransition(appointment.status, "CANCELLED", context);
 };
 
+/**
+ * Offers a freed slot to the owners waiting for one.
+ *
+ * Fire-and-forget with its own catch: a waitlist failure must never roll back
+ * or fail the cancellation that triggered it.
+ */
+const offerFreedSlotToWaitlist = (appointmentId: string): void => {
+  void WaitlistService.notifyOnCancellation(appointmentId).catch(
+    (error: unknown) =>
+      logger.error("Waitlist notification failed", { appointmentId, error }),
+  );
+};
+
 const cancelAppointmentFromParentPrisma = async (params: {
   appointment: ParentCancelableAppointment;
   parentId: string;
@@ -399,6 +413,8 @@ const cancelAppointmentFromParentPrisma = async (params: {
       },
     });
   }
+
+  offerFreedSlotToWaitlist(updated.id);
 
   return toAppointmentResponseDTOWithPaymentStatusFromPrisma(updated);
 };
@@ -2008,6 +2024,8 @@ export const AppointmentService = {
     );
     const parentId = appointmentDomain.patient.parent.id;
     await NotificationService.sendToUser(parentId, notificationPayload);
+
+    offerFreedSlotToWaitlist(updated.id);
 
     return toAppointmentResponseDTOWithPaymentStatusFromPrisma(updated);
   },

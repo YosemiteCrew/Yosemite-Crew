@@ -1718,6 +1718,92 @@ input[type='number'] {
   }
 }
 
+/* ============================================================
+   Warm-bone theme (scoped) — Pet Passport, wallet & share surfaces.
+   Self-contained token layer for the PR #1675 warm-bone redesign
+   (subset of the design-system site-theme). Applies only inside
+   `.yc-warmbone`; dark mode flips via `data-wb-theme="dark"`.
+   ============================================================ */
+.yc-warmbone {
+  --page: #efe8dc;
+  --band: #e8e0d2;
+  --inset: #eae2d5;
+  --screen: #f7f3ec;
+  --screen-2: #f1ebe1;
+  --hairline: #e5dccf;
+  --divider: #d6d1cd;
+  --hairline-soft: rgba(29, 28, 27, 0.09);
+  --ink: #1d1c1b;
+  --ink-body: #302f2e;
+  --ink-muted: #5c5956;
+  --ink-soft: #423f3c;
+  --ink-faint: #8f8984;
+  --ink-faint2: #a9a39e;
+  --blue-text: #257bed;
+  --blue-soft: #e6f2ff;
+  --success: #008f5d;
+  --danger-text: #c2261a;
+  --danger-bg: rgba(234, 55, 41, 0.09);
+  --danger-border: rgba(234, 55, 41, 0.32);
+  --avatar-amber-bg: #fef3e9;
+  --dl-btn: #1d1c1b;
+  --dl-btn-text: #ffffff;
+  --status-completed-bg: #f0fdf4;
+  --status-completed-text: #166534;
+  --status-completed-border: #64c487;
+  --status-upcoming-border: #007cf5;
+  --sh03: rgba(29, 28, 27, 0.03);
+  --sh05: rgba(29, 28, 27, 0.05);
+  --sh08: rgba(29, 28, 27, 0.08);
+  --sh10: rgba(29, 28, 27, 0.1);
+  --sh16: rgba(29, 28, 27, 0.16);
+  --glass-93: rgba(239, 232, 220, 0.93);
+  --pbg: #efe8dc;
+  --pfg: #1d1c1b;
+  --pml: #6b6763;
+  --phl: rgba(29, 28, 27, 0.12);
+  background: var(--page);
+  color: var(--ink-body);
+}
+.yc-warmbone[data-wb-theme='dark'] {
+  --page: #201c18;
+  --band: #2a2216;
+  --inset: #302820;
+  --screen: #2f271e;
+  --screen-2: #221d17;
+  --hairline: #40362b;
+  --divider: #3a3128;
+  --hairline-soft: rgba(255, 255, 255, 0.09);
+  --ink: #f4efe6;
+  --ink-body: #e6ddd0;
+  --ink-muted: #a89e90;
+  --ink-soft: #cabfb0;
+  --ink-faint: #9d9285;
+  --ink-faint2: #998f82;
+  --blue-text: var(--color-blue-text);
+  --blue-soft: rgba(143, 182, 245, 0.16);
+  --success: #2bbd86;
+  --danger-text: #f2938a;
+  --danger-bg: rgba(234, 55, 41, 0.18);
+  --danger-border: rgba(242, 147, 138, 0.42);
+  --avatar-amber-bg: rgba(233, 170, 120, 0.17);
+  --dl-btn: #f7f3ec;
+  --dl-btn-text: #201c18;
+  --status-completed-bg: rgba(74, 205, 155, 0.16);
+  --status-completed-text: #74d0a2;
+  --status-completed-border: rgba(74, 205, 155, 0.55);
+  --status-upcoming-border: rgba(103, 160, 239, 0.6);
+  --sh03: rgba(0, 0, 0, 0.14);
+  --sh05: rgba(0, 0, 0, 0.2);
+  --sh08: rgba(0, 0, 0, 0.3);
+  --sh10: rgba(0, 0, 0, 0.34);
+  --sh16: rgba(0, 0, 0, 0.44);
+  --glass-93: rgba(34, 29, 23, 0.92);
+}
+.yc-serif {
+  font-family: var(--font-newsreader), 'Newsreader', Georgia, serif;
+}
+
 /* Full-page loading skeleton shimmer — opacity oscillates 1 ↔ 0.45 over 1.6s.
    Reused by PageSkeleton's fills via the .yc-shimmer class. Respects the global
    prefers-reduced-motion rule, which flattens the animation duration. */

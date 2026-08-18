@@ -125,17 +125,45 @@ test.describe('compliance E2E', () => {
 
   test('CS record via IPC export CSV with correct headers', async () => {
     await expect(tab.getByRole('heading', { name: 'Sign In' })).toBeVisible();
-    const addResult = await evaluateYcDesktop<{ ok: boolean }>(page, 'csRecord', {
-      medication: 'Test Substance',
+    // The payload matches what yc:cs-record validates today: a controlled-drug
+    // action plus the DEA-relevant fields. The previous
+    // { medication, quantity, patientId } shape predates that contract and was
+    // rejected with `invalid-action` before it reached the logbook.
+    const addResult = await evaluateYcDesktop<{ ok: boolean; error?: string }>(page, 'csRecord', {
+      action: 'dispense',
+      drugName: 'Test Substance',
+      drugClass: 'II',
+      lotNumber: 'LOT-E2E-1',
+      unit: 'mg',
+      veterinarianId: 'VET-E2E',
+      veterinarianName: 'E2E Vet',
       quantity: 10,
       patientId: 'E2E-PATIENT',
     });
+    expect(addResult.error).toBeUndefined();
     expect(addResult.ok).toBe(true);
-    const csvResult = await evaluateYcDesktop<{ ok: boolean; data: string }>(page, 'csExport');
+
+    // csExport writes the day's log to disk and returns { filePath, rowCount }
+    // rather than the CSV text, so the headers this test is named for are only
+    // assertable by reading the file it produced.
+    const csvResult = await evaluateYcDesktop<{
+      ok: boolean;
+      result?: { filePath: string; rowCount: number };
+    }>(page, 'csExport');
     expect(csvResult.ok).toBe(true);
-    expect(csvResult.data).toContain('medication');
-    expect(csvResult.data).toContain('quantity');
-    expect(csvResult.data).toContain('Test Substance');
-    expect(csvResult.data).toContain('10');
+    expect(csvResult.result?.rowCount).toBe(1);
+
+    const csvPath = csvResult.result!.filePath;
+    expect(fs.existsSync(csvPath)).toBe(true);
+    const csv = fs.readFileSync(csvPath, 'utf8');
+
+    // The export is a human-facing DEA log, so the columns are titled rather
+    // than named after the payload fields.
+    const [header] = csv.split('\n');
+    expect(header).toContain('Drug Name');
+    expect(header).toContain('Quantity');
+    expect(header).toContain('Veterinarian');
+    expect(csv).toContain('Test Substance');
+    expect(csv).toContain('dispense');
   });
 });
