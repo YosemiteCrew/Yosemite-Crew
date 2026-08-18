@@ -720,16 +720,16 @@ importers:
         version: 0.81.6(@types/react@19.2.11)(react-native@0.81.6)(react@19.1.0)
       '@react-navigation/bottom-tabs':
         specifier: ^7.18.16
-        version: 7.18.16(@react-native-masked-view/masked-view@0.3.2)(@react-navigation/native@7.3.16)(react-native-safe-area-context@5.8.1)(react-native-screens@4.27.0)(react-native@0.81.6)(react@19.1.0)
+        version: 7.18.16(@react-native-masked-view/masked-view@0.3.2)(@react-navigation/native@7.3.16)(react-native-safe-area-context@5.8.1)(react-native-screens@4.24.0)(react-native@0.81.6)(react@19.1.0)
       '@react-navigation/drawer':
         specifier: ^7.13.8
-        version: 7.13.8(@react-native-masked-view/masked-view@0.3.2)(@react-navigation/native@7.3.16)(react-native-gesture-handler@2.32.0)(react-native-reanimated@4.2.3)(react-native-safe-area-context@5.8.1)(react-native-screens@4.27.0)(react-native@0.81.6)(react@19.1.0)
+        version: 7.13.8(@react-native-masked-view/masked-view@0.3.2)(@react-navigation/native@7.3.16)(react-native-gesture-handler@2.32.0)(react-native-reanimated@4.2.3)(react-native-safe-area-context@5.8.1)(react-native-screens@4.24.0)(react-native@0.81.6)(react@19.1.0)
       '@react-navigation/native':
         specifier: ^7.3.16
         version: 7.3.16(react-native@0.81.6)(react@19.1.0)
       '@react-navigation/native-stack':
         specifier: ^7.18.8
-        version: 7.18.8(@react-native-masked-view/masked-view@0.3.2)(@react-navigation/native@7.3.16)(react-native-safe-area-context@5.8.1)(react-native-screens@4.27.0)(react-native@0.81.6)(react@19.1.0)
+        version: 7.18.8(@react-native-masked-view/masked-view@0.3.2)(@react-navigation/native@7.3.16)(react-native-safe-area-context@5.8.1)(react-native-screens@4.24.0)(react-native@0.81.6)(react@19.1.0)
       '@reduxjs/toolkit':
         specifier: ^2.12.0
         version: 2.12.0(react-redux@9.3.0)(react@19.1.0)
@@ -818,11 +818,11 @@ importers:
         specifier: ^1.29.0
         version: 1.29.0(react-native@0.81.6)(react@19.1.0)
       react-native-nitro-modules:
-        specifier: ^0.31.5
-        version: 0.31.10(react-native@0.81.6)(react@19.1.0)
+        specifier: ^0.36.5
+        version: 0.36.5(react-native@0.81.6)(react@19.1.0)
       react-native-nitro-sound:
         specifier: 0.2.17
-        version: 0.2.17(react-native-nitro-modules@0.31.10)(react-native@0.81.6)(react@19.1.0)
+        version: 0.2.17(react-native-nitro-modules@0.36.5)(react-native@0.81.6)(react@19.1.0)
       react-native-pdf:
         specifier: ^7.0.4
         version: 7.0.4(react-native-blob-util@0.24.10)(react-native@0.81.6)(react@19.1.0)
@@ -836,8 +836,8 @@ importers:
         specifier: ^5.8.1
         version: 5.8.1(react-native@0.81.6)(react@19.1.0)
       react-native-screens:
-        specifier: ^4.27.0
-        version: 4.27.0(react-native@0.81.6)(react@19.1.0)
+        specifier: 4.24.0
+        version: 4.24.0(react-native@0.81.6)(react@19.1.0)
       react-native-share:
         specifier: ^12.3.1
         version: 12.3.1
@@ -11526,7 +11526,7 @@ packages:
       react: 19.1.0
       react-native: 0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.0.2)(@react-native/metro-config@0.81.6)(@types/react@19.2.11)(react@19.1.0)
 
-  /@react-navigation/bottom-tabs@7.18.16(@react-native-masked-view/masked-view@0.3.2)(@react-navigation/native@7.3.16)(react-native-safe-area-context@5.8.1)(react-native-screens@4.27.0)(react-native@0.81.6)(react@19.1.0):
+  /@react-navigation/bottom-tabs@7.18.16(@react-native-masked-view/masked-view@0.3.2)(@react-navigation/native@7.3.16)(react-native-safe-area-context@5.8.1)(react-native-screens@4.24.0)(react-native@0.81.6)(react@19.1.0):
     resolution: {integrity: sha512-5tBFuxvsCQBvYauDZK6u/uPdD86i/caWgBzABlZfTh8W2J7YZSHjT9SWOsquSMmR6dpcNj6idMd4utCNzuOnZg==}
     peerDependencies:
       '@react-navigation/native': ^7.3.16
@@ -11541,7 +11541,7 @@ packages:
       react: 19.1.0
       react-native: 0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.0.2)(@react-native/metro-config@0.81.6)(@types/react@19.2.11)(react@19.1.0)
       react-native-safe-area-context: 5.8.1(react-native@0.81.6)(react@19.1.0)
-      react-native-screens: 4.27.0(react-native@0.81.6)(react@19.1.0)
+      react-native-screens: 4.24.0(react-native@0.81.6)(react@19.1.0)
       sf-symbols-typescript: 2.2.0
     transitivePeerDependencies:
       - '@react-native-masked-view/masked-view'
@@ -11563,7 +11563,7 @@ packages:
       use-sync-external-store: 1.6.0(react@19.1.0)
     dev: false
 
-  /@react-navigation/drawer@7.13.8(@react-native-masked-view/masked-view@0.3.2)(@react-navigation/native@7.3.16)(react-native-gesture-handler@2.32.0)(react-native-reanimated@4.2.3)(react-native-safe-area-context@5.8.1)(react-native-screens@4.27.0)(react-native@0.81.6)(react@19.1.0):
+  /@react-navigation/drawer@7.13.8(@react-native-masked-view/masked-view@0.3.2)(@react-navigation/native@7.3.16)(react-native-gesture-handler@2.32.0)(react-native-reanimated@4.2.3)(react-native-safe-area-context@5.8.1)(react-native-screens@4.24.0)(react-native@0.81.6)(react@19.1.0):
     resolution: {integrity: sha512-QQYGcCKOipqP7Wq33K8JToHDQAn7IzWZKWIqg9yTLyxTljo0bdGYniKJs24ngCm1vs6IC800XzQoPSLUvNs1lw==}
     peerDependencies:
       '@react-navigation/native': ^7.3.16
@@ -11583,7 +11583,7 @@ packages:
       react-native-gesture-handler: 2.32.0(react-native@0.81.6)(react@19.1.0)
       react-native-reanimated: 4.2.3(react-native-worklets@0.7.4)(react-native@0.81.6)(react@19.1.0)
       react-native-safe-area-context: 5.8.1(react-native@0.81.6)(react@19.1.0)
-      react-native-screens: 4.27.0(react-native@0.81.6)(react@19.1.0)
+      react-native-screens: 4.24.0(react-native@0.81.6)(react@19.1.0)
       use-latest-callback: 0.2.6(react@19.1.0)
     transitivePeerDependencies:
       - '@react-native-masked-view/masked-view'
@@ -11611,7 +11611,7 @@ packages:
       use-sync-external-store: 1.6.0(react@19.1.0)
     dev: false
 
-  /@react-navigation/native-stack@7.18.8(@react-native-masked-view/masked-view@0.3.2)(@react-navigation/native@7.3.16)(react-native-safe-area-context@5.8.1)(react-native-screens@4.27.0)(react-native@0.81.6)(react@19.1.0):
+  /@react-navigation/native-stack@7.18.8(@react-native-masked-view/masked-view@0.3.2)(@react-navigation/native@7.3.16)(react-native-safe-area-context@5.8.1)(react-native-screens@4.24.0)(react-native@0.81.6)(react@19.1.0):
     resolution: {integrity: sha512-Abcdt2ndmbeNSzJCXggxduK7X9yvMIajPNPdHgxsAZaA+16aIhb7TXZ2kRXprStZX5TRg8x+8G07Ne3kFwIQDg==}
     peerDependencies:
       '@react-navigation/native': ^7.3.16
@@ -11626,7 +11626,7 @@ packages:
       react: 19.1.0
       react-native: 0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.0.2)(@react-native/metro-config@0.81.6)(@types/react@19.2.11)(react@19.1.0)
       react-native-safe-area-context: 5.8.1(react-native@0.81.6)(react@19.1.0)
-      react-native-screens: 4.27.0(react-native@0.81.6)(react@19.1.0)
+      react-native-screens: 4.24.0(react-native@0.81.6)(react@19.1.0)
       sf-symbols-typescript: 2.2.0
       warn-once: 0.1.1
     transitivePeerDependencies:
@@ -22138,7 +22138,7 @@ packages:
       pretty-format: 30.4.1
       slash: 3.0.0
       strip-json-comments: 3.1.1
-      ts-node: 10.9.2(@types/node@26.2.0)(typescript@5.9.3)
+      ts-node: 10.9.2(@types/node@26.2.0)(typescript@5.0.4)
     transitivePeerDependencies:
       - babel-plugin-macros
       - supports-color
@@ -27546,9 +27546,8 @@ packages:
       simple-markdown: 0.7.3
     dev: false
 
-  /react-native-nitro-modules@0.31.10(react-native@0.81.6)(react@19.1.0):
-    resolution: {integrity: sha512-hcvjTu9YJE9fMmnAUvhG8CxvYLpOuMQ/2eyi/S6GyrecezF6Rmk/uRQEL6v09BRFWA/xRVZNQVulQPS+2HS3mQ==}
-    requiresBuild: true
+  /react-native-nitro-modules@0.36.5(react-native@0.81.6)(react@19.1.0):
+    resolution: {integrity: sha512-SJby84+hovD70JmQ1fq+56tw3oapJeChehUqXA4Gqjm+ktJhMAcj8LGwoAjStSOUwRaK7czbzBPB0Widj+EDoQ==}
     peerDependencies:
       react: '*'
       react-native: '*'
@@ -27557,7 +27556,7 @@ packages:
       react-native: 0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.0.2)(@react-native/metro-config@0.81.6)(@types/react@19.2.11)(react@19.1.0)
     dev: false
 
-  /react-native-nitro-sound@0.2.17(react-native-nitro-modules@0.31.10)(react-native@0.81.6)(react@19.1.0):
+  /react-native-nitro-sound@0.2.17(react-native-nitro-modules@0.36.5)(react-native@0.81.6)(react@19.1.0):
     resolution: {integrity: sha512-I8XyqI9yiLba52WMok0/veIJm7uAJdvoQzqH1u5M4eTRUmBCDMOZ32FN6jLCADQGoH3/IXJ++WkWGZw0ZyR8DA==}
     peerDependencies:
       react: '*'
@@ -27567,7 +27566,7 @@ packages:
       '@react-native-community/slider': 5.2.0
       react: 19.1.0
       react-native: 0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.0.2)(@react-native/metro-config@0.81.6)(@types/react@19.2.11)(react@19.1.0)
-      react-native-nitro-modules: 0.31.10(react-native@0.81.6)(react@19.1.0)
+      react-native-nitro-modules: 0.36.5(react-native@0.81.6)(react@19.1.0)
     dev: false
 
   /react-native-pdf@7.0.4(react-native-blob-util@0.24.10)(react-native@0.81.6)(react@19.1.0):
@@ -27622,8 +27621,8 @@ packages:
       react-native: 0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.0.2)(@react-native/metro-config@0.81.6)(@types/react@19.2.11)(react@19.1.0)
     dev: false
 
-  /react-native-screens@4.27.0(react-native@0.81.6)(react@19.1.0):
-    resolution: {integrity: sha512-IUukKYilhKhdJqGh59BmxrAjgIO84CaOkdowEY20+RmapOAFpqS//xOIcq2iqDQ4xVoxuwCHGWhY/Tbz6lTblA==}
+  /react-native-screens@4.24.0(react-native@0.81.6)(react@19.1.0):
+    resolution: {integrity: sha512-SyoiGaDofiyGPFrUkn1oGsAzkRuX1JUvTD9YQQK3G1JGQ5VWkvHgYSsc1K9OrLsDQxN7NmV71O0sHCAh8cBetA==}
     peerDependencies:
       react: '*'
       react-native: '*'
@@ -29600,7 +29599,7 @@ packages:
       react-native-blob-util: 0.24.10(react-native@0.81.6)(react@19.1.0)
       react-native-haptic-feedback: 2.3.3(react-native@0.81.6)
       react-native-image-picker: 8.2.1(react-native@0.81.6)(react@19.1.0)
-      react-native-nitro-sound: 0.2.17(react-native-nitro-modules@0.31.10)(react-native@0.81.6)(react@19.1.0)
+      react-native-nitro-sound: 0.2.17(react-native-nitro-modules@0.36.5)(react-native@0.81.6)(react@19.1.0)
       react-native-share: 12.3.1
       react-native-video: 6.19.2(react-native@0.81.6)(react@19.1.0)
       stream-chat-react-native-core: 8.13.19(@react-native-community/netinfo@12.0.1)(@types/react@19.2.11)(react-native-gesture-handler@2.32.0)(react-native-reanimated@4.2.3)(react-native-safe-area-context@5.8.1)(react-native-svg@15.15.5)(react-native@0.81.6)(react@19.1.0)(typescript@5.9.3)
