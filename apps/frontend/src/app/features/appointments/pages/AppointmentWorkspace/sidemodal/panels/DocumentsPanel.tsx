@@ -82,7 +82,7 @@ const AUTH_META: Record<FormAuthState, { label: string; tone: string; icon: Reac
   },
   PENDING: {
     label: 'Acknowledgement pending',
-    tone: 'text-danger-600',
+    tone: 'text-text-error',
     icon: <IoAlertCircleOutline size={14} aria-hidden="true" />,
   },
 };
@@ -414,7 +414,7 @@ const ClinicalPacketSection = ({
         </p>
       )}
       {signError && (
-        <p role="alert" className="text-[12px] text-danger-600">
+        <p role="alert" className="text-[12px] text-text-error">
           {signError}
         </p>
       )}
@@ -468,7 +468,7 @@ const FormsPanelContent = ({
   }
   if (status === 'error') {
     return (
-      <p className="py-6 text-center text-body-4 text-danger-600">
+      <p className="py-6 text-center text-body-4 text-text-error">
         Unable to load forms. Try again later.
       </p>
     );
@@ -556,7 +556,7 @@ const FormRow = ({ form }: { form: SubmittedForm }) => {
         </div>
       </div>
       {error && (
-        <p role="alert" className="text-[12px] text-danger-600">
+        <p role="alert" className="text-[12px] text-text-error">
           {error}
         </p>
       )}
@@ -737,7 +737,7 @@ const AppointmentFormsPanel = ({
         </SearchResultsDropdown>
       </div>
       {assignError && (
-        <p role="alert" className="text-[12px] text-danger-600">
+        <p role="alert" className="text-[12px] text-text-error">
           {assignError}
         </p>
       )}

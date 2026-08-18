@@ -799,7 +799,7 @@ const useSummaryStepContent = ({
                 )}
               </SearchResultsDropdown>
               {templateState.error && (
-                <p className="mt-2 text-caption-1 text-danger-600">{templateState.error}</p>
+                <p className="mt-2 text-caption-1 text-text-error">{templateState.error}</p>
               )}
             </div>
           </div>

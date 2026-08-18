@@ -4,7 +4,7 @@ import { IoWarning } from 'react-icons/io5';
 const EMERGENCY_BADGE_STYLE: React.CSSProperties = {
   border: '1px solid var(--error-color)',
   background: 'var(--color-danger-100)',
-  color: 'var(--error-color)',
+  color: 'var(--danger-text)',
   fontFamily: 'var(--font-satoshi)',
   fontSize: '12px',
   fontWeight: 500,

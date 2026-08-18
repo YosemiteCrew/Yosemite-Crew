@@ -144,7 +144,7 @@ const DispensaryRow = ({
           </>
         )}
       </ul>
-      <div className="whitespace-pre-line text-[12px] tabular-nums text-[var(--color-success-600)]">
+      <div className="whitespace-pre-line text-[12px] tabular-nums text-[var(--success-text)]">
         {formatDateTime(record.prescriptionCreated)}
       </div>
       <div className="text-right font-semibold tabular-nums pr-4">
@@ -154,7 +154,7 @@ const DispensaryRow = ({
       <div className="truncate text-[12.5px] text-text-secondary">{record.location || '—'}</div>
       <div
         className={`whitespace-pre-line text-[12px] tabular-nums ${
-          record.timeDispensed ? 'text-[var(--color-success-600)]' : 'text-text-tertiary'
+          record.timeDispensed ? 'text-[var(--success-text)]' : 'text-text-tertiary'
         }`}
       >
         {formatDateTime(record.timeDispensed)}

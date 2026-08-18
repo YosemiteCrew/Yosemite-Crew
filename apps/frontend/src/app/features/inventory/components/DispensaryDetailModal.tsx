@@ -183,7 +183,7 @@ const DispensaryItemRow = ({ item, idx }: Readonly<DispensaryItemRowProps>) => {
                 )}
                 <div className="text-caption-1">
                   <span className="text-text-secondary">To dispense: </span>
-                  <span className="font-semibold text-[var(--color-success-600)]">
+                  <span className="font-semibold text-[var(--success-text)]">
                     {packs} {pluralizeUnit(stockUnit || 'unit', packs)}
                   </span>
                 </div>

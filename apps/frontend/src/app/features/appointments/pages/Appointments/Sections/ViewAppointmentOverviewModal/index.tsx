@@ -354,8 +354,7 @@ const OverviewRightColumn = ({
           <span
             className="font-satoshi text-2xl font-bold"
             style={{
-              color:
-                estimateDisplay === '-' ? 'var(--color-text-tertiary)' : 'var(--color-primary-600)',
+              color: estimateDisplay === '-' ? 'var(--color-text-tertiary)' : 'var(--blue-text)',
               letterSpacing: '-0.48px',
             }}
           >

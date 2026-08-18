@@ -117,7 +117,14 @@ export default function AccessibilityReportClient() {
     return (
       <div data-yc-app style={{ display: 'contents' }}>
         <main id="main-content" tabIndex={-1} className="mx-auto max-w-2xl px-6 pt-22 pb-16">
+          {/* Pins its inks light because the card is a literal `bg-white` in both
+              themes. Without this the themed --ink-body (#e6ddd0 in dark) put the
+              heading, the body copy and both links at 1.34:1 - white text on a white
+              card, so the whole confirmation read as blank. globals.css:2001 already
+              names /accessibility/report as one of the three fixed-light surfaces
+              that must carry this pin; only /payment-status had it. */}
           <output
+            data-yc-surface="light"
             aria-live="polite"
             className="rounded-2xl border border-card-border bg-white p-8 text-center"
           >
