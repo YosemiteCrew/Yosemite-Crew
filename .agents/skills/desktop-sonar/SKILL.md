@@ -48,6 +48,24 @@ complexity and smell check is still the SonarCloud analysis.
 
 ---
 
+## Coverage gate
+
+Desktop is gated by the same aggregate and PR added-line coverage floors defined in
+`.github/workflows/_test.yaml` as the rest of the repo; see
+[`docs/ci/coverage.md`](../../../docs/ci/coverage.md) for the full explanation.
+
+Durable caveat (fixed in #2238, kept here so it does not regress): `coverageProvider: 'v8'` needs
+source maps to attribute coverage back to your `.ts` sources. `apps/desktop/tsconfig.json` sets
+`sourceMap: false`, and only `tsconfig.test.json` overrides it to `true`. Dropping that override
+would make v8-to-istanbul report every loaded line as executed, so newly added dead code would
+measure as fully covered and neither the added-line nor the aggregate floor could catch it.
+
+Canary check if you suspect the source-map wiring broke: append an exported function nothing calls,
+run coverage, and confirm its body reports zero hits. If it shows as covered, the source maps are
+off. See the "Running it locally" recipe in that doc.
+
+---
+
 ## Accepted Deferral
 
 - **`Web:S6819`** (prefer native `<dialog>` over `role="dialog"`) is **deferred** in
