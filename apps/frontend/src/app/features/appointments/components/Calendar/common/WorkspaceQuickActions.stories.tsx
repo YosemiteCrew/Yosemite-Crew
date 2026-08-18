@@ -176,9 +176,7 @@ export const EveryTooltip: Story = {
          fresh pointer position each call, so it never emits the `mouseleave`
          that closes the previous bubble - without this the portals accumulate. */
       await userEvent.unhover(wrapper);
-      await waitFor(async () => {
-        await expect(within(document.body).queryByRole('tooltip')).toBeNull();
-      });
+      await waitFor(() => expect(within(document.body).queryByRole('tooltip')).toBeNull());
     }
   },
   parameters: {
