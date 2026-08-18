@@ -109,14 +109,6 @@ const MONTH = new Date('2026-07-14T12:00:00.000Z');
 /** Pinned so `isToday` / `isPast` never drift with the machine clock. */
 const TODAY = new Date('2026-07-14T12:00:00.000Z');
 
-const PHONE_VIEWPORT = {
-  phone: {
-    name: 'Mobile (375)',
-    styles: { width: '375px', height: '812px' },
-    type: 'mobile',
-  },
-};
-
 /** The overview is a phone surface; a desktop-width canvas stretches the dot grid. */
 const Phone = (Story: React.ComponentType) => (
   <div className="mx-auto w-[375px] bg-[var(--screen)] p-4">
@@ -153,10 +145,9 @@ const meta = {
   title: 'Appointments/Calendar/PhoneMonthOverview',
   component: PhoneMonthOverview,
   decorators: [Phone],
-  globals: { viewport: { value: 'phone', isRotated: false } },
+  globals: { viewport: { value: 'mobile', isRotated: false } },
   parameters: {
     layout: 'fullscreen',
-    viewport: { options: PHONE_VIEWPORT },
     chromatic: { viewports: [375] },
     docs: {
       description: {

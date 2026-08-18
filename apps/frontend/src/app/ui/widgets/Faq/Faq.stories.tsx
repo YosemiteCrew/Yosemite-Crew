@@ -133,8 +133,8 @@ export const CollapsesAgain: Story = {
 
 export const Phone: Story = {
   name: 'Phone width',
+  globals: { viewport: { value: 'mobile', isRotated: false } },
   parameters: {
-    viewport: { defaultViewport: 'mobile' },
     docs: {
       description: {
         story:

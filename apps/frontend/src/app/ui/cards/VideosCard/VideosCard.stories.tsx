@@ -6,14 +6,6 @@ import VideosCard from './VideosCard';
 /** Same key the card writes when it is dismissed. */
 const HIDDEN_STORAGE_KEY = 'yc_dashboard_videos_hidden';
 
-const PHONE_VIEWPORT = {
-  phone: {
-    name: 'Mobile (375)',
-    styles: { width: '375px', height: '812px' },
-    type: 'mobile',
-  },
-};
-
 const meta = {
   title: 'Cards/VideosCard',
   component: VideosCard,
@@ -145,9 +137,8 @@ export const PlayerClosesBack: Story = {
 
 export const Phone: Story = {
   name: 'Phone (single column)',
-  globals: { viewport: { value: 'phone', isRotated: false } },
+  globals: { viewport: { value: 'mobile', isRotated: false } },
   parameters: {
-    viewport: { options: PHONE_VIEWPORT },
     chromatic: { viewports: [375] },
     docs: {
       description: {

@@ -33,7 +33,7 @@ type Story = StoryObj<typeof meta>;
 
 /** Desktop/tablet dropdown: 420px card, `--screen` surface, hairline border. */
 export const Dropdown: Story = {
-  parameters: { viewport: { defaultViewport: 'tablet' } },
+  globals: { viewport: { value: 'tablet', isRotated: false } },
   args: { layout: 'dropdown' },
   render: (args) => (
     <div style={{ padding: 24 }}>
@@ -46,7 +46,7 @@ export const Dropdown: Story = {
 
 /** Phone bottom-sheet body: grabber, larger 38px icon discs, home indicator. */
 export const Sheet: Story = {
-  parameters: { viewport: { defaultViewport: 'mobile' } },
+  globals: { viewport: { value: 'mobile', isRotated: false } },
   args: { layout: 'sheet' },
   render: (args) => (
     <div style={{ padding: 0 }}>
@@ -64,7 +64,7 @@ export const Sheet: Story = {
 
 /** Empty feed — the live default until a durable source lands (outline bell). */
 export const Empty: Story = {
-  parameters: { viewport: { defaultViewport: 'tablet' } },
+  globals: { viewport: { value: 'tablet', isRotated: false } },
   args: { layout: 'dropdown', items: [], unreadCount: 0 },
   render: (args) => (
     <div style={{ padding: 24 }}>

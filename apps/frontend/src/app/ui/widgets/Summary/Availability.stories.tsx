@@ -134,8 +134,8 @@ export const Empty: Story = {
 
 export const Phone: Story = {
   name: 'Phone width',
+  globals: { viewport: { value: 'mobile', isRotated: false } },
   parameters: {
-    viewport: { defaultViewport: 'mobile' },
     docs: {
       description: {
         story:
@@ -174,8 +174,8 @@ const DRAWER_SECTIONS = [
 
 export const TeamDetail: Story = {
   name: 'Team member drawer (open)',
+  globals: { viewport: { value: 'desktop', isRotated: false } },
   parameters: {
-    viewport: { defaultViewport: 'desktop' },
     docs: {
       description: {
         story:
@@ -203,8 +203,8 @@ export const TeamDetail: Story = {
 
 export const TeamDetailPhone: Story = {
   name: 'Team member drawer (phone, full-screen)',
+  globals: { viewport: { value: 'mobile', isRotated: false } },
   parameters: {
-    viewport: { defaultViewport: 'mobile' },
     docs: {
       description: {
         story:
@@ -225,8 +225,8 @@ export const TeamDetailPhone: Story = {
 
 export const TeamDetailFiltered: Story = {
   name: 'Drawer opened from a filtered list',
+  globals: { viewport: { value: 'desktop', isRotated: false } },
   parameters: {
-    viewport: { defaultViewport: 'desktop' },
     docs: {
       description: {
         story:

@@ -9,6 +9,19 @@ import '../src/app/globals.css';
  */
 /**
  * Viewport presets matching the app's responsive breakpoints.
+ *
+ * These are registered under `parameters.viewport.options`, which is the only
+ * viewport parameter key Storybook 10 reads. The pre-10 spelling was
+ * `parameters.viewport.viewports` plus `parameters.viewport.defaultViewport`,
+ * and both were removed in 10 - `defaultViewport` now only logs a manager
+ * warning and is otherwise inert. That is a silent failure worth naming: a
+ * story pinned with the old keys still renders, still runs its play function
+ * and still passes, it just renders at the full panel width. Every "Phone"
+ * story here was drawing desktop markup at 1200px until this was corrected.
+ *
+ * Selection is a GLOBAL, not a parameter: `globals: { viewport: { value } }`
+ * on the story. The `value` must name a key below - an unknown key (`phone`,
+ * say) fails the same silent way.
  */
 const viewports = {
   mobile: {
@@ -78,6 +91,12 @@ const preview: Preview = {
           'aria-labelledby': 'storybook-story-title',
           ...(marketing ? {} : { 'data-yc-app': '' }),
         },
+        /* Names the story's landmark for the a11y addon. It is sr-only but it is REAL
+           TEXT inside `canvasElement`, so a loose text query in a play function can
+           match it: `getByText(/emergency/i)` in a story named "Emergency, ready to
+           admit" matched both the banner and the badge. Worse than the ambiguity is the
+           silent case - a query that matches only the banner passes with the component
+           absent. Prefer exact strings or role queries in play functions. */
         React.createElement(
           'h1',
           {
@@ -98,8 +117,7 @@ const preview: Preview = {
       },
     },
     viewport: {
-      viewports,
-      defaultViewport: 'laptop',
+      options: viewports,
     },
     /**
      * Disabled on purpose. `globals.css` paints `body` from `var(--page)`, which
@@ -122,6 +140,15 @@ const preview: Preview = {
     docs: {
       toc: true,
     },
+  },
+
+  /**
+   * The project default. `laptop` matches the widest PIMS breakpoint the app
+   * treats as desktop, so an unpinned story renders the desktop branch rather
+   * than whatever width the preview panel happens to be.
+   */
+  initialGlobals: {
+    viewport: { value: 'laptop', isRotated: false },
   },
 
   globalTypes: {

@@ -11,21 +11,12 @@ import { Primary, Secondary } from '../../primitives/Buttons';
  * plain flow content with no radius, grabber sizing or backdrop. Every story
  * pins the canvas — and the Chromatic snapshot — to 375px.
  */
-const PHONE_VIEWPORT = {
-  phone: {
-    name: 'Mobile (375)',
-    styles: { width: '375px', height: '812px' },
-    type: 'mobile',
-  },
-};
-
 const meta = {
   title: 'Layout/PhoneBottomSheet',
   component: BottomSheet,
-  globals: { viewport: { value: 'phone', isRotated: false } },
+  globals: { viewport: { value: 'mobile', isRotated: false } },
   parameters: {
     layout: 'fullscreen',
-    viewport: { options: PHONE_VIEWPORT },
     chromatic: { viewports: [375] },
     docs: {
       description: {

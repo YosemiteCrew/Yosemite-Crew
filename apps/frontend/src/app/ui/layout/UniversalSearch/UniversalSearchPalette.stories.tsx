@@ -144,6 +144,6 @@ export const NoMatches: Story = {
  * a Cancel button in place of ESC, and the home indicator.
  */
 export const Phone: Story = {
-  parameters: { viewport: { defaultViewport: 'mobile' } },
+  globals: { viewport: { value: 'mobile', isRotated: false } },
   beforeEach: () => seedRecents([{ title: 'Bella Fischer', href: '/companions?companionId=c-1' }]),
 };

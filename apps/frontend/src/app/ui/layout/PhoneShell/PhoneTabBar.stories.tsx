@@ -33,9 +33,9 @@ const buildItems = ({
 const meta = {
   title: 'Layout/PhoneTabBar',
   component: PhoneTabBar,
+  globals: { viewport: { value: 'mobile', isRotated: false } },
   parameters: {
     layout: 'fullscreen',
-    viewport: { defaultViewport: 'mobile' },
     docs: {
       description: {
         component:

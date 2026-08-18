@@ -18,11 +18,11 @@ const seedQuery = (query: string) => () => {
 const meta = {
   title: 'Layout/MobileSearchBar',
   component: MobileSearchBar,
+  // `lg:hidden` removes the bar from 1024px up — at the preview's default laptop
+  // viewport it renders nothing, so every story here is pinned to phone width.
+  globals: { viewport: { value: 'mobile', isRotated: false } },
   parameters: {
     layout: 'centered',
-    // `lg:hidden` removes the bar from 1024px up — at the preview's default laptop
-    // viewport it renders nothing, so every story here is pinned to phone width.
-    viewport: { defaultViewport: 'mobile' },
     docs: {
       description: {
         component:

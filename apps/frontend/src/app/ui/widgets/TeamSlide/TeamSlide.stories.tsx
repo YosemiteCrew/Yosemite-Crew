@@ -2,14 +2,6 @@ import type { Meta, StoryObj } from '@storybook/react';
 
 import TeamSlide from './TeamSlide';
 
-const PHONE_VIEWPORT = {
-  phone: {
-    name: 'Mobile (375)',
-    styles: { width: '375px', height: '812px' },
-    type: 'mobile',
-  },
-};
-
 const meta = {
   title: 'Widgets/TeamSlide',
   component: TeamSlide,
@@ -61,9 +53,8 @@ export const Wrapped: Story = {
 
 export const Mobile: Story = {
   name: 'Mobile (375)',
-  globals: { viewport: { value: 'phone', isRotated: false } },
+  globals: { viewport: { value: 'mobile', isRotated: false } },
   parameters: {
-    viewport: { options: PHONE_VIEWPORT },
     chromatic: { viewports: [375] },
     docs: {
       description: {

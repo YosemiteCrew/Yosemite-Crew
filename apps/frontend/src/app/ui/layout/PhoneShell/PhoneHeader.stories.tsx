@@ -37,24 +37,15 @@ const withOrg = (org: Organisation | null) => () => {
   };
 };
 
-const PHONE_VIEWPORT = {
-  phone: {
-    name: 'Mobile (375)',
-    styles: { width: '375px', height: '812px' },
-    type: 'mobile',
-  },
-};
-
 const meta = {
   title: 'Layout/PhoneHeader',
   component: PhoneHeader,
-  globals: { viewport: { value: 'phone', isRotated: false } },
+  globals: { viewport: { value: 'mobile', isRotated: false } },
   parameters: {
     layout: 'fullscreen',
     // Every rule in PhoneShell.css sits inside a `max-width: 767px` media
     // query, so both the canvas and the Chromatic snapshot have to be phone
     // width or the header renders as bare, unstyled elements.
-    viewport: { options: PHONE_VIEWPORT },
     chromatic: { viewports: [375] },
     // The org chip pushes a route on tap, so the App Router mock has to be on.
     nextjs: { appDirectory: true },
