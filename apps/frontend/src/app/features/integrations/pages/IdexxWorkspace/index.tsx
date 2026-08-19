@@ -1865,6 +1865,14 @@ export {
   normalizeModality,
   matchesResultQuery,
   OrderDetailPanel,
+  // Two whole-page branches that only the page itself can select: the
+  // not-connected card returns instead of the workspace when the org
+  // integration resolves disabled, and the syncing skeleton replaces the
+  // results table while a refresh is in flight. Both are pure, and the page
+  // that chooses between them sits behind ProtectedRoute + OrgGuard and
+  // fetches results over axios, so they are exported for the stories.
+  NotConnectedState,
+  SyncingSkeleton,
 };
 
 export default ProtectedIdexxWorkspace;

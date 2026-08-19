@@ -158,14 +158,16 @@ const BarChartContent = ({
   barSize,
   compactMonthAxis,
 }: BarChartContentProps) => (
-  <BarChart
-    data={data}
-    layout={layout}
-    style={{ height: '100%', maxHeight: '100%', width: '100%', maxWidth: '100%' }}
-    margin={chartMargin}
-    width={width}
-    height={height}
-  >
+  /* No `style` here, deliberately, and it must stay that way. `ResponsiveContainer`
+     gives its inner div `width: 0` on purpose (recharts' own shrink trick - the chart
+     is meant to overflow it at the pixel size recharts measured), and recharts spreads
+     a caller's `style` LAST over that measured size. So `width: '100%'` resolved to
+     100% of 0px: the wrapper and the SVG both laid out at 0x0 while 13 bar rectangles
+     sat inside them, and every bar chart in the product - the dashboard default, since
+     DynamicChartCard's `type` defaults to 'bar' - painted nothing at all. Nothing
+     warned, because recharts believed the chart was 620x240. LineChart never passed a
+     style and never had the problem. */
+  <BarChart data={data} layout={layout} margin={chartMargin} width={width} height={height}>
     {!hideYAxis && <CartesianGrid strokeDasharray="4 4" vertical={false} />}
     <XAxis
       dataKey={isVerticalLayout ? undefined : 'month'}

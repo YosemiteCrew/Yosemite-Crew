@@ -231,8 +231,14 @@ const PhoneParentContact = ({
   );
 };
 
-/** Collapsible secondary-details row (microchip, insurance, blood group …). */
-const PhoneRecordDetails = ({ rows }: { rows: Array<{ label: string; value: string }> }) => {
+/**
+ * Collapsible secondary-details row (microchip, insurance, blood group …).
+ *
+ * Exported for Storybook: the drawer is a local `useState(false)` inside a screen
+ * that only mounts under 768px behind the companion history timeline, so there is
+ * no other way to draw its open state without standing up the whole record page.
+ */
+export const PhoneRecordDetails = ({ rows }: { rows: Array<{ label: string; value: string }> }) => {
   const [open, setOpen] = useState(false);
   return (
     <div className="rounded-[14px] bg-(--inset)">

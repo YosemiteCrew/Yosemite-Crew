@@ -149,7 +149,7 @@ export const mockInvoices: Invoice[] = [
     invoiceNumber: 'BDY024474',
     invoiceDate: new Date().toISOString(),
     billedToName: 'Miss. Pika Martin, Mr. Sky B',
-    billedToEmail: 'monthompson@gmail.com',
+    billedToEmail: 'monthompson@example.com',
     image: Images.documentIcon,
   },
 ];

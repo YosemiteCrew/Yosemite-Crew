@@ -50,7 +50,7 @@ describe('InvoicePaymentLedger', () => {
         invoice={makeInvoice({ stripeReceiptUrl: 'https://stripe.test/r/1' })}
         currency="USD"
         payerName="Lena Hartmann"
-        payerEmail="lena@mail.de"
+        payerEmail="lena@example.com"
       />
     );
 
@@ -63,7 +63,7 @@ describe('InvoicePaymentLedger', () => {
       'href',
       'https://stripe.test/r/1'
     );
-    expect(screen.getByText('Receipt sent to lena@mail.de')).toBeInTheDocument();
+    expect(screen.getByText('Receipt sent to lena@example.com')).toBeInTheDocument();
   });
 
   it('treats a paidAt timestamp as settled even when status is not paid', () => {
@@ -131,7 +131,7 @@ describe('InvoicePaymentLedger', () => {
         invoice={makeInvoice({ stripeReceiptUrl: 'https://stripe.test/r/1' })}
         currency="USD"
         payerName="Lena Hartmann"
-        payerEmail="lena@mail.de"
+        payerEmail="lena@example.com"
       />
     );
     const results = await axe(container);

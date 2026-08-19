@@ -320,33 +320,32 @@ export const ActiveTabStyling: Story = {
     const activeLabel = active.querySelectorAll('span')[1] as HTMLElement;
     const idleLabel = idle.querySelectorAll('span')[1] as HTMLElement;
 
-    /* PINNED TO CURRENT BEHAVIOUR - the active label does not actually go bold.
-       The component asks for it: `QuickActionsModal.tsx` renders the active
-       label as `text-caption-2 font-bold`. But `.text-caption-2` is declared
-       OUTSIDE `@layer` in `globals.css` with `font-weight: 500 !important`, and
-       an unlayered `!important` declaration beats every Tailwind utility, so
-       `font-bold` never lands and both labels compute to 500. That is a
-       stylesheet defect the component is a victim of, not a component defect -
-       tracked as issue #2297.
+    /* The active label really does go bold now. It did not for a long time:
+       `globals.css` declared `.text-caption-2` a second time OUTSIDE `@layer`
+       with `font-weight: 500 !important`, which beat every Tailwind utility, so
+       the `font-bold` the component asks for never landed and both labels
+       computed to 500 - a three-part active treatment silently delivering two
+       parts. PR #2298 removed that override, and the block that was pinned to
+       500/500 here comes back off the pin with it.
 
-       The class assertions are here so the contradiction is in the failure
-       output rather than hidden behind a soft assertion: the markup says
-       `font-bold`, the computed weight says 500. When #2297 is fixed the two
-       weights will diverge, this block will fail loudly, and it should then be
-       restored to `expect(active).not.toBe(idle)`. */
+       Asserted as an explicit 700-against-500 pair rather than "the two
+       differ": `not.toBe` would go green again on any future override that
+       moved BOTH labels to the same wrong weight, which is exactly the bug
+       that was here. The classes are asserted too, so a failure says whether
+       the markup stopped asking or the cascade stopped delivering. */
     await expect(activeLabel).toHaveClass('text-caption-2');
     await expect(activeLabel).toHaveClass('font-bold');
     await expect(idleLabel).not.toHaveClass('font-bold');
     await waitFor(() => {
-      expect(getComputedStyle(activeLabel).fontWeight).toBe('500');
+      expect(getComputedStyle(activeLabel).fontWeight).toBe('700');
       expect(getComputedStyle(idleLabel).fontWeight).toBe('500');
     });
 
-    /* The distinction the active label does deliver is colour: `text-blue-text`
-       against the idle `text-neutral-700`. `.text-caption-2` sets no `color`, so
-       this is the one half of the active treatment that survives #2297, and it
-       is what the tab actually reads as today. Polled because the tile animates
-       with `transition-colors`. */
+    /* The third part of the active treatment: colour. `text-blue-text` against
+       the idle `text-neutral-700`, and `.text-caption-2` sets no `color` of its
+       own, so this half never depended on the cascade fight above - it was what
+       the tab read as even while the bold was being defeated. Polled because
+       the tile animates with `transition-colors`. */
     await waitFor(() => {
       expect(getComputedStyle(activeLabel).color).not.toBe(getComputedStyle(idleLabel).color);
     });
@@ -356,13 +355,14 @@ export const ActiveTabStyling: Story = {
       description: {
         story:
           'The active tab asks for three changes at once - `--text-brand` border, `--blue-text` ' +
-          'ink and a bold label - and none of them is a background fill. Only two of the three ' +
-          'arrive: the `font-bold` on the label is dead, because `.text-caption-2` is declared ' +
-          'outside `@layer` with `font-weight: 500 !important` and unlayered `!important` beats ' +
-          'any utility (issue #2297). The play function is pinned to that, and asserts the ' +
-          '`font-bold` class is present so the contradiction is visible rather than papered ' +
-          'over. The MSD tile breaks the no-fill pattern by filling with `bg-primary-100` when ' +
-          'active, which is visible by switching to it in the story below.',
+          'ink and a bold label - and none of them is a background fill. All three arrive now. ' +
+          'Two of them always did; the bold label did not, because `globals.css` declared ' +
+          '`.text-caption-2` outside `@layer` with `font-weight: 500 !important`, which beat the ' +
+          '`font-bold` utility and left the active and idle labels identically weighted. PR ' +
+          '#2298 removed that override, so the play function measures 700 against the idle 500 ' +
+          'instead of pinning both to 500. The MSD tile breaks the no-fill pattern by filling ' +
+          'with `bg-primary-100` when active, which is visible by switching to it in the story ' +
+          'below.',
       },
     },
   },

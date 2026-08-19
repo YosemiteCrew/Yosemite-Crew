@@ -1286,7 +1286,13 @@ const IntegrationCards = ({
   );
 };
 
-const IntegrationsPage = () => {
+/**
+ * Exported for `Integrations.stories.tsx`. The page itself reads only zustand
+ * (org + integration stores) and fetches nothing unless IDEXX resolves as
+ * enabled, so it mounts from seeded state alone; the default export wraps it in
+ * `ProtectedRoute` + `OrgGuard`, which a story cannot satisfy.
+ */
+export const IntegrationsPage = () => {
   const s = useIntegrationsPage();
   const { showNoConnected, showNoAvailable } = getIntegrationEmptyState(
     s.integrationStatus,

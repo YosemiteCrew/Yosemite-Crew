@@ -33,14 +33,13 @@ jest.mock('next/link', () => {
   };
 });
 
-jest.mock('@/app/ui/widgets/Footer/Footer', () => {
-  return {
-    __esModule: true,
-    default: function MockFooter() {
-      return <footer data-testid="footer" />;
-    },
-  };
-});
+// The page renders through MarketingShell, whose SiteNav and SiteFooter read
+// live GitHub stats. Without this the hook's async cache emit lands after the
+// test finishes and the console.error spy turns the act() warning into a
+// failure. Same mock the other marketing-surface suites use.
+jest.mock('@/app/features/marketing/site/useGithubStats', () => ({
+  useGithubStats: () => ({ stars: '2,431' }),
+}));
 
 import AccessibilityReportPage from '@/app/(routes)/(public)/accessibility/report/page';
 
@@ -64,8 +63,31 @@ describe('AccessibilityReportPage', () => {
     expect(screen.getByRole('button', { name: 'Submit report' })).toBeInTheDocument();
   });
 
+  it('renders the shared marketing footer, not the legacy app one', async () => {
+    // The page shipped with the legacy ui/widgets/Footer while the rest of the
+    // public site had moved to SiteFooter, so /accessibility/report showed a
+    // different footer from /accessibility. It also sat on the PIMS app surface
+    // (data-yc-app) rather than the marketing one.
+    let container!: HTMLElement;
+    await act(async () => {
+      ({ container } = render(<AccessibilityReportPage />));
+    });
+    expect(container.querySelector('[data-yc-footer]')).toBeInTheDocument();
+    expect(container.querySelector('footer.Footersec')).not.toBeInTheDocument();
+    expect(container.querySelector('[data-yc-app]')).not.toBeInTheDocument();
+    expect(container.querySelector('[data-yc-theme]')).toBeInTheDocument();
+    // MarketingShell owns the single main landmark.
+    expect(container.querySelectorAll('main#main-content')).toHaveLength(1);
+  });
+
   it('has no axe violations on initial render', async () => {
-    const { container } = render(<AccessibilityReportPage />);
+    // MarketingShell renders SiteNav, which updates state on mount. Rendering
+    // inside act() flushes that before axe runs, so the assertion covers the
+    // settled page rather than racing its first effect.
+    let container!: HTMLElement;
+    await act(async () => {
+      ({ container } = render(<AccessibilityReportPage />));
+    });
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });
