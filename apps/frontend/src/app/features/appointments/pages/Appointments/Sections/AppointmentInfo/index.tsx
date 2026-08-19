@@ -419,7 +419,12 @@ const SubmittedFormEntry = ({
   );
 };
 
-const CustomFormsView = ({
+/**
+ * The Templates/SOAP pane. Exported so its loading, error and empty branches can be
+ * rendered on their own: inside the modal they are owned by `useAppointmentCustomForms`,
+ * which only reaches them through a live `fetchAppointmentForms` call.
+ */
+export const CustomFormsView = ({
   forms,
   loading,
   error,

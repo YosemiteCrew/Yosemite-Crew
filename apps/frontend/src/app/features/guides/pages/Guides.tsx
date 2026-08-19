@@ -42,7 +42,13 @@ const GuideCardStatus = ({ guide }: { guide: GuideVideo }) => {
   return null;
 };
 
-const Guides = () => {
+/**
+ * Exported so Storybook can mount the page itself. The default export below is
+ * wrapped in `ProtectedRoute` + `OrgGuard`, which hold a skeleton until a real
+ * session and org membership resolve, so nothing on this page can be drawn
+ * through it. Named export only; the route still imports the protected default.
+ */
+export const Guides = () => {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState(ALL_CATEGORY);
   const [showModal, setShowModal] = useState(false);

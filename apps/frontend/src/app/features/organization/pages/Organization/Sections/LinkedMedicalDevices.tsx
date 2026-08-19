@@ -43,59 +43,30 @@ const buildHealthText = (total: number, onlineCount: number): string => {
   return `${total - onlineCount} need attention`;
 };
 
-const LinkedMedicalDevices = () => {
-  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
-  const integration = useIntegrationByProviderForPrimaryOrg('IDEXX');
-  const integrationsLastFetchedAt = useIntegrationStore((s) => s.lastFetchedAt);
-  const [devices, setDevices] = useState<IvlsDevice[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
+type LinkedMedicalDevicesCardProps = {
+  devices: IvlsDevice[];
+  error: string | null;
+  refreshing: boolean;
+  /** Already-formatted "last cloud poll" stamp, or `not yet` before the first fetch. */
+  lastPoll: string;
+  onRefresh: () => void;
+};
 
-  useEffect(() => {
-    const run = async () => {
-      if (!primaryOrgId) return;
-      try {
-        setError(null);
-        if ((integration?.status ?? '').toLowerCase() === 'enabled') {
-          const ivls = await listIdexxIvlsDevices(primaryOrgId);
-          setDevices(ivls.ivlsDeviceList ?? []);
-        } else {
-          setDevices([]);
-        }
-      } catch {
-        setError('Unable to refresh linked IVLS devices.');
-        setDevices([]);
-      }
-    };
-    void run();
-  }, [primaryOrgId, integration?.status]);
-
-  const handleManualRefresh = async () => {
-    if (!primaryOrgId) return;
-    setRefreshing(true);
-    setError(null);
-    try {
-      await loadIntegrationsForPrimaryOrg({ force: true, silent: true });
-      const nextIdexx =
-        useIntegrationStore.getState().getIntegrationByProvider(primaryOrgId, 'IDEXX') ?? null;
-      if ((nextIdexx?.status ?? '').toLowerCase() === 'enabled') {
-        const ivls = await listIdexxIvlsDevices(primaryOrgId);
-        setDevices(ivls.ivlsDeviceList ?? []);
-      } else {
-        setDevices([]);
-      }
-    } catch {
-      setError('Unable to refresh integration/device status.');
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
+/**
+ * The card body, split out from the container above it so the three states a
+ * reviewer needs to see - the error strip, the empty branch and populated rows -
+ * are reachable from props. In the container they are only reachable through the
+ * IDEXX integration and a live IVLS fetch, so none of them had ever been drawn.
+ */
+export const LinkedMedicalDevicesCard = ({
+  devices,
+  error,
+  refreshing,
+  lastPoll,
+  onRefresh,
+}: LinkedMedicalDevicesCardProps) => {
   const total = devices.length;
   const onlineCount = devices.filter(isDeviceOnline).length;
-  const lastPoll = integrationsLastFetchedAt
-    ? formatDateTimeLocal(integrationsLastFetchedAt)
-    : 'not yet';
 
   return (
     <SectionCard title="Linked medical devices" showButton={false}>
@@ -106,9 +77,7 @@ const LinkedMedicalDevices = () => {
           </div>
           <button
             type="button"
-            onClick={() => {
-              handleManualRefresh().catch(() => undefined);
-            }}
+            onClick={onRefresh}
             className="inline-flex items-center gap-1.5 rounded-full border border-[var(--hairline)] px-3 py-1.5 text-[11.5px] font-semibold text-[var(--ink-body)] hover:bg-[var(--inset)] disabled:opacity-50"
             aria-label="Refresh linked medical devices"
             title="Refresh linked medical devices"
@@ -183,6 +152,71 @@ const LinkedMedicalDevices = () => {
         </div>
       </div>
     </SectionCard>
+  );
+};
+
+const LinkedMedicalDevices = () => {
+  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
+  const integration = useIntegrationByProviderForPrimaryOrg('IDEXX');
+  const integrationsLastFetchedAt = useIntegrationStore((s) => s.lastFetchedAt);
+  const [devices, setDevices] = useState<IvlsDevice[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    const run = async () => {
+      if (!primaryOrgId) return;
+      try {
+        setError(null);
+        if ((integration?.status ?? '').toLowerCase() === 'enabled') {
+          const ivls = await listIdexxIvlsDevices(primaryOrgId);
+          setDevices(ivls.ivlsDeviceList ?? []);
+        } else {
+          setDevices([]);
+        }
+      } catch {
+        setError('Unable to refresh linked IVLS devices.');
+        setDevices([]);
+      }
+    };
+    void run();
+  }, [primaryOrgId, integration?.status]);
+
+  const handleManualRefresh = async () => {
+    if (!primaryOrgId) return;
+    setRefreshing(true);
+    setError(null);
+    try {
+      await loadIntegrationsForPrimaryOrg({ force: true, silent: true });
+      const nextIdexx =
+        useIntegrationStore.getState().getIntegrationByProvider(primaryOrgId, 'IDEXX') ?? null;
+      if ((nextIdexx?.status ?? '').toLowerCase() === 'enabled') {
+        const ivls = await listIdexxIvlsDevices(primaryOrgId);
+        setDevices(ivls.ivlsDeviceList ?? []);
+      } else {
+        setDevices([]);
+      }
+    } catch {
+      setError('Unable to refresh integration/device status.');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const lastPoll = integrationsLastFetchedAt
+    ? formatDateTimeLocal(integrationsLastFetchedAt)
+    : 'not yet';
+
+  return (
+    <LinkedMedicalDevicesCard
+      devices={devices}
+      error={error}
+      refreshing={refreshing}
+      lastPoll={lastPoll}
+      onRefresh={() => {
+        handleManualRefresh().catch(() => undefined);
+      }}
+    />
   );
 };
 

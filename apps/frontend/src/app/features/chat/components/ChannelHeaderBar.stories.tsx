@@ -57,11 +57,14 @@ const meta = {
           'the online bar has two pulsing dots, not one.\n\n' +
           'Three things a reviewer should look at rather than take on trust. First, the circular ' +
           'controls are three different diameters in one 44px row - back 34px, search 36px, info ' +
-          '30px - which the Phone story measures. Second, the offline subtitle asks for 11px and ' +
-          'renders at 12px: `globals.css` redefines `.text-caption-2` outside any `@layer` with ' +
-          '`font-size: 0.75rem !important`, so the `text-[11px]` utility on that element loses and ' +
-          'the "quiet" offline line ends up bigger than the 11.5px online one (**Client chat, ' +
-          'offline** measures it). Third, the embedded `MessageSearch` reads ' +
+          '30px - which the Phone story measures. Second, the name asks for 13.5px and renders at ' +
+          '16px on a phone: below 768px `globals.css` redefines `.text-body-3-emphasis` with ' +
+          '`font-size: 1rem !important`, which the `text-[13.5px]` utility on that element cannot ' +
+          'outrank, so the compact bar sets the name LARGER than the 14.5px desktop one (issue ' +
+          '#2297; **Phone: long name truncates** measures it). The offline subtitle carried the ' +
+          'same shape of bug - 12px where it asked for 11px - until PR #2298 removed the unlayered ' +
+          '`.text-caption-2` behind it; **Client chat, offline** still measures that line, because ' +
+          'a class alone would not notice it coming back. Third, the embedded `MessageSearch` reads ' +
           "Stream's channel contexts, and outside a `Channel` those hooks return `{}` after a " +
           'console warning. The trigger still renders, still opens, and - because its empty-state ' +
           'line is gated on the query rather than on the response - still answers "No messages ' +
@@ -137,16 +140,18 @@ export const ClientOffline: Story = {
     // `caption-2` Text, the online line a green flex row with a dot.
     await expect(subtitle.querySelector('.chat-presence-dot')).toBeNull();
 
-    /* And it renders at 12px, not the 11px the component asks for. `globals.css`
-       defines `.text-caption-2` a SECOND time outside any @layer, with
-       `font-size: 0.75rem !important`, and an unlayered important rule beats the
-       `text-[11px]` utility no matter the specificity. So the offline subtitle -
-       meant to be the quietest line in the bar - is actually LARGER than the
-       11.5px online one. Asserted as it really renders, because a story that
-       asserted the intent would be red on shipping code and tell a reviewer
-       nothing about what is on screen. */
-    await expect(getComputedStyle(subtitle).fontSize).toBe('12px');
+    /* 11px - the size the component asks for, now that it survives the cascade.
+       This line measured 12px until recently: `globals.css` carried a SECOND,
+       UNLAYERED `.text-caption-2` with `font-size: 0.75rem !important`, and an
+       unlayered important rule beats the `text-[11px]` utility at any
+       specificity, so the subtitle meant to be the quietest thing in the bar
+       rendered LARGER than the 11.5px online one. PR #2298 deleted that
+       duplicate. Both halves are asserted on purpose - the class proves the
+       component still asks for 11px, the computed value proves nothing is
+       defeating it. A class-only check would go green again on the day the
+       next unlayered `!important` lands on this class. */
     await expect(subtitle).toHaveClass('text-[11px]');
+    await expect(getComputedStyle(subtitle).fontSize).toBe('11px');
     // No presence anywhere: the avatar halo goes with the status dot, since both
     // read the same `showPresence` flag.
     await expect(canvasElement.querySelectorAll('.chat-presence-dot')).toHaveLength(0);
@@ -164,13 +169,16 @@ export const ClientOffline: Story = {
       description: {
         story:
           'The same thread with the counterpart offline. `statusText` carries a last-seen string ' +
-          'instead of "Online", and the line is meant to drop to 11px `--ink-faint`.\n\n' +
-          'It does not. The play function measures 12px, because `globals.css` redefines ' +
-          '`.text-caption-2` outside any `@layer` with `font-size: 0.75rem !important`, which the ' +
-          '`text-[11px]` utility on the same element cannot outrank. The offline subtitle is ' +
-          'therefore the LARGEST status line in this bar - bigger than the 11.5px online one it is ' +
-          'supposed to be quieter than. Nothing about the rendered bar reveals that; only the ' +
-          'measurement does.',
+          'instead of "Online", and the line drops to 11px `--ink-faint` - half a pixel under the ' +
+          '11.5px online line, which is the point of the pair: offline is the quieter of the ' +
+          'two.\n\n' +
+          'It did not, until recently. `globals.css` used to redefine `.text-caption-2` outside ' +
+          'any `@layer` with `font-size: 0.75rem !important`, which the `text-[11px]` utility on ' +
+          'the same element could not outrank, so the offline subtitle rendered at 12px - the ' +
+          'LARGEST status line in the bar, and nothing about the rendered bar revealed it. ' +
+          'PR #2298 removed the duplicate and the play function now measures the 11px the ' +
+          'component asks for. It still asserts the class beside the computed value, because ' +
+          'those are the two things that came apart.',
       },
     },
   },
@@ -498,18 +506,25 @@ export const PhoneLongTitle: Story = {
     );
     await expect(title.scrollWidth).toBeGreaterThan(title.clientWidth);
 
-    /* Pinned to CURRENT behaviour, not to intent (issue #2297). The name asks
-       for 13.5px/700 through `text-[13.5px] font-bold`; at <=768px `globals.css`
-       redefines `.text-body-3-emphasis` outside any `@layer` with
-       `font-size: 1rem !important; font-weight: 500 !important`, and an
-       unlayered important rule beats any utility. So the PHONE header draws the
-       name at 16px/500 - larger and lighter than the 14.5px bold desktop one it
-       is supposed to be a compact version of, and 3px of extra type in the row
-       that has the least width to give. The losing classes are asserted next to
-       the measured values so the contradiction is in the failure output. */
+    /* The WEIGHT arrives; the SIZE still does not. The name asks for 13.5px/700
+       through `text-[13.5px] font-bold`. PR #2298 removed the unlayered
+       `font-weight: 500 !important`, so `font-bold` lands and the name is
+       genuinely 700 - asserted as the real value, not as a pin.
+
+       `font-size: 1rem !important` was left in place: at <=768px `globals.css`
+       still redefines `.text-body-3-emphasis` with it, and an `!important`
+       declaration outranks the `text-[13.5px]` utility from any layer. So the
+       PHONE header draws the name 2.5px LARGER than it asks for - larger even
+       than the 14.5px desktop name it is meant to be the compact version of -
+       in the row with the least width to give, which is part of why it clips
+       this early. That is issue #2297, a stylesheet defect this component is a
+       victim of, so the SIZE stays pinned to what ships. The class is asserted
+       immediately before the measurement so the contradiction is in the failure
+       output itself: the element asks for 13.5px and computes 16px. When #2297
+       is fixed this line goes red and becomes '13.5px'. */
     await expect(title).toHaveClass('text-body-3-emphasis', 'text-[13.5px]', 'font-bold');
     await expect(style.fontSize).toBe('16px');
-    await expect(style.fontWeight).toBe('500');
+    await expect(style.fontWeight).toBe('700');
 
     // The controls kept their size instead of being squeezed by the long name.
     const search = canvas.getByRole('button', { name: 'Search messages' });
@@ -539,11 +554,15 @@ export const PhoneLongTitle: Story = {
           'held `#storybook-root` at 672px inside the 375px window, so the mobile viewport never ' +
           'reached the component and the "phone" bar was the desktop bar. The play function now ' +
           'asserts its own premise before measuring anything.\n\n' +
-          'Second, the name renders at 16px/500 here, not the 13.5px/700 it asks for: below 768px ' +
-          '`globals.css` redefines `.text-body-3-emphasis` outside any `@layer` with ' +
-          '`font-size: 1rem !important; font-weight: 500 !important` (issue #2297). The phone ' +
-          'header therefore sets the name LARGER and lighter than the desktop one, in the row with ' +
-          'the least width to spare - which is also why it clips this early.',
+          'Second, the name renders at 16px here, not the 13.5px it asks for: below 768px ' +
+          '`globals.css` still redefines `.text-body-3-emphasis` with ' +
+          '`font-size: 1rem !important` (issue #2297), which outranks the `text-[13.5px]` ' +
+          'utility on the same element. The phone header therefore sets the name LARGER than the ' +
+          '14.5px desktop one, in the row with the least width to spare - which is also why it ' +
+          'clips this early. The weight half of that bug is gone: PR #2298 removed the matching ' +
+          '`font-weight: 500 !important`, so `font-bold` lands and the name is 700 as designed. ' +
+          'The play function pins only the size, and asserts the losing `text-[13.5px]` class ' +
+          'beside it so the pin makes the defect visible rather than hiding it.',
       },
     },
   },

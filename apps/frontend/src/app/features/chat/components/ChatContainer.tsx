@@ -2102,6 +2102,9 @@ const ProtectedChatContainer = () => {
   );
 };
 
-export { ChannelPreviewWrapper, ChatClosedFooter };
+// ChatEmptyThread is exported for Storybook: it is wired in as the `Channel`
+// EmptyStateIndicator, so nothing can render it without a live Stream channel
+// that happens to hold zero messages.
+export { ChannelPreviewWrapper, ChatClosedFooter, ChatEmptyThread };
 
 export default ProtectedChatContainer;
