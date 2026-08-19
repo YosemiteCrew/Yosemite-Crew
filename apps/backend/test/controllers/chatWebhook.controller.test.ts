@@ -126,7 +126,7 @@ describe("scanMessageAttachments", () => {
   it("strips line terminators from the logged message id but deletes the raw id", async () => {
     mockScan.mockResolvedValue({ clean: false, threat: "bad" });
     const warnSpy = jest.spyOn(logger, "warn").mockReturnValue(logger as never);
-    const rawId = "m1\nFAKE injected log line";
+    const rawId = "m1\r\nFAKE\u2028injected\u2029log line";
     await scanMessageAttachments({
       type: "message.new",
       message: { id: rawId, attachments: [{ asset_url: "u" }] },
@@ -134,6 +134,8 @@ describe("scanMessageAttachments", () => {
     const logged = warnSpy.mock.calls[0][0] as string;
     expect(logged).not.toContain("\n");
     expect(logged).not.toContain("\r");
+    expect(logged).not.toContain("\u2028");
+    expect(logged).not.toContain("\u2029");
     expect(mockDeleteMessage).toHaveBeenCalledWith(rawId, true);
   });
 
