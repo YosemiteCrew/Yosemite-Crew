@@ -289,7 +289,7 @@ const chipClass = (active: boolean) =>
   clsx(
     'inline-flex items-center rounded-full! border px-[13px] py-1.5 text-[12px] transition-colors',
     active
-      ? 'border-[var(--divider)] bg-[var(--inset)] text-[var(--ink)] font-bold'
+      ? 'border-[var(--chip-selected-border)] bg-[var(--chip-selected-bg)] text-[var(--chip-selected-ink)] font-bold'
       : 'border-[var(--hairline)] text-[var(--ink-muted)] font-semibold hover:bg-card-hover'
   );
 

@@ -7,12 +7,14 @@ import {
   it,
   jest,
 } from "@jest/globals";
+import crypto from "crypto";
 import type { Request, Response } from "express";
 import { DocumensoWebhookController } from "../../../src/controllers/web/documenso.controller";
 import { prisma } from "../../../src/config/prisma";
 import { FormAssignmentService } from "../../../src/services/form-assignment.service";
 import { DocumensoService } from "../../../src/services/documenso.service";
 import { WorkspaceDocumentPacketService } from "../../../src/services/workspace-document-packet.service";
+import { notifyOwnerOfPassportUpdate } from "../../../src/services/pet-clinical-records.service";
 import logger from "../../../src/utils/logger";
 
 jest.mock("../../../src/utils/logger");
@@ -49,7 +51,20 @@ jest.mock("../../../src/config/prisma", () => ({
     workspaceDocumentPacket: {
       findFirst: jest.fn(),
     },
+    clinicalArtifactAttestation: {
+      findFirst: jest.fn(),
+    },
+    clinicalArtifact: {
+      update: jest.fn(),
+      updateMany: jest.fn(),
+    },
+    encounter: {
+      findUnique: jest.fn(),
+    },
   },
+}));
+jest.mock("../../../src/services/pet-clinical-records.service", () => ({
+  notifyOwnerOfPassportUpdate: jest.fn(),
 }));
 
 const mockedLogger = jest.mocked(logger);
@@ -136,6 +151,233 @@ describe("DocumensoWebhookController", () => {
     );
     expect(statusMock).toHaveBeenCalledWith(400);
     expect(jsonMock).toHaveBeenCalledWith({ message: "Invalid payload" });
+  });
+
+  /**
+   * A passport attestation is only honoured from a cryptographically verified
+   * callback, so these tests must configure the secret and sign the body the
+   * same way Documenso does (HMAC-SHA256 hex over the raw payload).
+   */
+  const PASSPORT_SECRET = "passport-webhook-secret";
+  const signedPassportRequest = (body: Record<string, unknown>) => {
+    process.env.DOCUMENSO_WEBHOOK_SECRET = PASSPORT_SECRET;
+    const raw = Buffer.from(JSON.stringify(body));
+    const signature = crypto
+      .createHmac("sha256", PASSPORT_SECRET)
+      .update(raw)
+      .digest("hex");
+    return {
+      ...req,
+      body: raw,
+      headers: { "x-documenso-signature": signature },
+    };
+  };
+
+  it("completes a passport clinical record when its document signs", async () => {
+    req = signedPassportRequest({
+      event: "DOCUMENT_COMPLETED",
+      payload: { id: "doc-pass-1" },
+    });
+    const mockedPrisma = prisma as any;
+    mockedPrisma.clinicalArtifactAttestation.findFirst.mockResolvedValueOnce({
+      id: "att-1",
+      artifactId: "art-1",
+    });
+    mockedPrisma.clinicalArtifact.updateMany.mockResolvedValueOnce({
+      count: 1,
+    });
+    mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce({
+      encounterId: "enc-1",
+    });
+    mockedPrisma.encounter.findUnique.mockResolvedValueOnce({
+      patientId: "pat-1",
+    });
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
+    // The completion is an atomic claim that re-asserts the IN_PROGRESS
+    // preconditions, not an unguarded update after a separate read.
+    expect(mockedPrisma.clinicalArtifact.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: "art-1",
+          status: "IN_PROGRESS",
+          attestation: {
+            revokedAt: null,
+            supersededById: null,
+            signingStatus: "IN_PROGRESS",
+          },
+        }),
+        data: expect.objectContaining({ status: "SIGNED" }),
+      }),
+    );
+    expect(notifyOwnerOfPassportUpdate).toHaveBeenCalledWith("pat-1");
+    expect(statusMock).toHaveBeenCalledWith(200);
+    expect(mockedPrisma.formSubmission.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("never resurrects a record revoked while its signature was outstanding", async () => {
+    req = signedPassportRequest({
+      event: "DOCUMENT_COMPLETED",
+      payload: { id: "doc-pass-revoked" },
+    });
+    const mockedPrisma = prisma as any;
+    // The revoked/superseded/VOID filter is applied in the query itself, so a
+    // revoked record simply does not match and nothing is updated.
+    mockedPrisma.clinicalArtifactAttestation.findFirst.mockResolvedValueOnce(
+      null,
+    );
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
+    expect(
+      mockedPrisma.clinicalArtifactAttestation.findFirst,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          documensoDocumentId: "doc-pass-revoked",
+          revokedAt: null,
+          supersededById: null,
+          artifact: { status: { not: "VOID" } },
+        }),
+      }),
+    );
+    expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
+    expect(notifyOwnerOfPassportUpdate).not.toHaveBeenCalled();
+  });
+
+  it("acks a retried completion without re-stamping or re-notifying", async () => {
+    // Documenso retries the same DOCUMENT_COMPLETED. The row still matches the
+    // attestation lookup (status SIGNED is `not: VOID`, revokedAt still null),
+    // so only the guarded claim stops a second signedAt and a duplicate push.
+    req = signedPassportRequest({
+      event: "DOCUMENT_COMPLETED",
+      payload: { id: "doc-pass-1" },
+    });
+    const mockedPrisma = prisma as any;
+    mockedPrisma.clinicalArtifactAttestation.findFirst.mockResolvedValueOnce({
+      id: "att-1",
+      artifactId: "art-1",
+    });
+    mockedPrisma.clinicalArtifact.updateMany.mockResolvedValueOnce({
+      count: 0,
+    });
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
+    expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
+    expect(notifyOwnerOfPassportUpdate).not.toHaveBeenCalled();
+    expect(statusMock).toHaveBeenCalledWith(200);
+  });
+
+  it("does not resurrect a record revoked between the read and the write", async () => {
+    // The revocation commits after findFirst matched, so the claim's
+    // preconditions no longer hold and nothing is written back to SIGNED.
+    req = signedPassportRequest({
+      event: "DOCUMENT_COMPLETED",
+      payload: { id: "doc-pass-1" },
+    });
+    const mockedPrisma = prisma as any;
+    mockedPrisma.clinicalArtifactAttestation.findFirst.mockResolvedValueOnce({
+      id: "att-1",
+      artifactId: "art-1",
+    });
+    mockedPrisma.clinicalArtifact.updateMany.mockResolvedValueOnce({
+      count: 0,
+    });
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
+    expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
+    expect(notifyOwnerOfPassportUpdate).not.toHaveBeenCalled();
+  });
+
+  it("refuses to attest a passport record when the webhook is unverified", async () => {
+    // No DOCUMENSO_WEBHOOK_SECRET: the document id is the only credential, and
+    // it is an external identifier, so it must not create a clinical signature.
+    delete process.env.DOCUMENSO_WEBHOOK_SECRET;
+    req = {
+      ...req,
+      body: Buffer.from(
+        JSON.stringify({
+          event: "DOCUMENT_COMPLETED",
+          payload: { id: "doc-pass-forged" },
+        }),
+      ),
+      headers: {},
+    };
+    const mockedPrisma = prisma as any;
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
+    expect(
+      mockedPrisma.clinicalArtifactAttestation.findFirst,
+    ).not.toHaveBeenCalled();
+    expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
+    expect(mockedLogger.warn).toHaveBeenCalledWith(
+      expect.stringContaining("webhook signature not verified"),
+    );
+  });
+
+  it("rejects a passport completion carrying a bad signature", async () => {
+    process.env.DOCUMENSO_WEBHOOK_SECRET = PASSPORT_SECRET;
+    req = {
+      ...req,
+      body: Buffer.from(
+        JSON.stringify({
+          event: "DOCUMENT_COMPLETED",
+          payload: { id: "doc-pass-1" },
+        }),
+      ),
+      // Deliberately the wrong length, which used to throw inside
+      // timingSafeEqual and surface as a 500 rather than a 401.
+      headers: { "x-documenso-signature": "deadbeef" },
+    };
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
+    expect(statusMock).toHaveBeenCalledWith(401);
+  });
+
+  it("completes a passport record with no encounter without notifying", async () => {
+    req = signedPassportRequest({
+      event: "DOCUMENT_COMPLETED",
+      payload: { id: "doc-pass-2" },
+    });
+    const mockedPrisma = prisma as any;
+    mockedPrisma.clinicalArtifactAttestation.findFirst.mockResolvedValueOnce({
+      id: "att-2",
+      artifactId: "art-2",
+    });
+    mockedPrisma.clinicalArtifact.updateMany.mockResolvedValueOnce({
+      count: 1,
+    });
+    mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce({
+      encounterId: null,
+    });
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
+    expect(mockedPrisma.encounter.findUnique).not.toHaveBeenCalled();
+    expect(notifyOwnerOfPassportUpdate).not.toHaveBeenCalled();
+    expect(statusMock).toHaveBeenCalledWith(200);
+  });
+
+  it("ignores non-completion events for passport records", async () => {
+    req = {
+      ...req,
+      body: Buffer.from(
+        JSON.stringify({
+          event: "DOCUMENT_DELETED",
+          payload: { id: "doc-x" },
+        }),
+      ),
+    };
+    const mockedPrisma = prisma as any;
+
+    await DocumensoWebhookController.handle(req as Request, res as Response);
+
+    expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
   });
 
   it("syncs signed form assignments when a document completes", async () => {

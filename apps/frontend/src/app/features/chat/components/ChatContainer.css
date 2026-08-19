@@ -53,7 +53,7 @@
   --str-chat__disabled-color: var(--hairline);
   --str-chat__on-disabled-color: var(--screen);
   --str-chat__danger-color: var(--danger-text);
-  --str-chat__info-color: var(--success);
+  --str-chat__info-color: var(--success-text);
   --str-chat__message-highlight-color: var(--blue-soft);
   --str-chat__unread-badge-color: var(--blue);
   --str-chat__on-unread-badge-color: #ffffff;
@@ -127,12 +127,6 @@
   flex-direction: column;
   gap: 2px;
 }
-
-/* NOTE: Stream's own channel-preview styling is intentionally absent. Its class
-   only ships on ChannelPreviewMessenger, which we replace with ConversationRow;
-   the design's conversation list is a stack of rounded rows separated by a 2px
-   gap, NOT a ruled list, so no divider or left-stripe rules belong here. Row
-   styling lives in ConversationRow.tsx. */
 
 .chat-preview-trigger {
   display: block;
@@ -533,5 +527,5 @@
 
 .chat-empty-state__subtitle {
   max-width: 360px;
-  color: var(--color-neutral-600);
+  color: var(--color-text-tertiary);
 }

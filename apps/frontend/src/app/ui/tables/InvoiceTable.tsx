@@ -62,6 +62,15 @@ const joinMeta = (...parts: (string | undefined)[]): string => {
    margin (~23px). */
 const STATUS_COLUMN_WIDTH = '180px';
 
+/* Same failure one column over, and the only other fixed-width table cell whose
+   own header does not fit: "Actions" needs 53.3px of Satoshi and the th carries
+   31px of padding, so the shipped 64px (45px of content box) ellipsised the
+   header itself to "Action..." on every desktop viewport, and the 56px tablet
+   value cut it in half. This is the one table with `table-layout: fixed`, so
+   unlike every other PIMS table it cannot grow a column to fit its label. 88px
+   leaves ~4px of slack. */
+const ACTIONS_COLUMN_WIDTH = '88px';
+
 const renderInvoiceNumber = (item: Invoice) => (
   <div
     className="appointment-profile-title tabular-nums cell-strong"
@@ -71,9 +80,16 @@ const renderInvoiceNumber = (item: Invoice) => (
   </div>
 );
 
-const renderServices = (item: Invoice) => (
-  <div className="appointment-profile-title cell-muted">{getInvoiceItemNames(item.items)}</div>
-);
+const renderServices = (item: Invoice) => {
+  // A comma-joined line-item list in a 180px column wrapped to as many lines as
+  // the invoice had items, so one busy row set the height of the whole page.
+  const names = getInvoiceItemNames(item.items);
+  return (
+    <div className="appointment-profile-title cell-muted cell-truncate" title={names || undefined}>
+      {names}
+    </div>
+  );
+};
 
 const renderStatus = (item: Invoice) => (
   <StatusPill tone={getInvoiceStatusTone(item?.status)} label={toTitle(item?.status)} />
@@ -189,7 +205,10 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
           />
         </div>
         <div className="appointment-profile-two min-w-0">
-          <div className="appointment-profile-title cell-name truncate" title={ownerAndCompanion}>
+          <div
+            className="appointment-profile-title cell-name cell-truncate"
+            title={ownerAndCompanion}
+          >
             {ownerAndCompanion}
           </div>
           {subtitle && (
@@ -298,7 +317,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     },
     { label: 'Status', key: 'status', width: STATUS_COLUMN_WIDTH, render: renderStatus },
     { label: 'Payment', key: 'payment', width: '110px', render: renderPayment },
-    { label: 'Actions', key: 'actions', width: '64px', render: renderActions },
+    { label: 'Actions', key: 'actions', width: ACTIONS_COLUMN_WIDTH, render: renderActions },
   ];
 
   /* Tablet (768–1279): 6 columns — the ones you need to chase money.
@@ -322,7 +341,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     },
     { label: 'Status', key: 'status', width: STATUS_COLUMN_WIDTH, render: renderStatus },
     { label: 'Payment', key: 'payment', width: '108px', render: renderPayment },
-    { label: 'Actions', key: 'actions', width: '56px', render: renderActions },
+    { label: 'Actions', key: 'actions', width: ACTIONS_COLUMN_WIDTH, render: renderActions },
   ];
 
   return (

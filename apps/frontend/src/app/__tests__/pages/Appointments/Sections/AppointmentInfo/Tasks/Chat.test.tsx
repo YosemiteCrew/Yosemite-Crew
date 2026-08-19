@@ -10,6 +10,24 @@ import {
 } from '@/app/features/chat/services/chatService';
 import { Appointment } from '@yosemite-crew/types';
 
+// The native confirm() these flows used has been replaced by the ConfirmModal
+// hook. Mock the hook so each test can decide the answer without driving the
+// dialog, keeping the assertions focused on the downstream action.
+let mockConfirmResult = true;
+const setConfirmResult = (value: boolean) => {
+  mockConfirmResult = value;
+};
+const mockConfirm = jest.fn(async () => mockConfirmResult);
+jest.mock('@/app/ui/overlays/Modal/ConfirmModal', () => ({
+  useConfirm: () => ({ confirm: mockConfirm, confirmDialog: null }),
+}));
+
+// Default to confirming, so a test that declines cannot leak into the next one.
+beforeEach(() => {
+  mockConfirmResult = true;
+  mockConfirm.mockClear();
+});
+
 // --- Mocks ---
 
 // Mock Next.js Router
@@ -86,7 +104,7 @@ describe('Chat Component', () => {
     });
 
     // Default Window Mocks
-    jest.spyOn(globalThis, 'confirm').mockReturnValue(true);
+    setConfirmResult(true);
     jest.spyOn(globalThis, 'alert').mockImplementation(() => {});
     jest.spyOn(console, 'error').mockImplementation(() => {});
   });
@@ -383,7 +401,7 @@ describe('Chat Component', () => {
 
   it('cancels closing chat if user denies confirmation', async () => {
     (getChatSession as jest.Mock).mockRejectedValue({ status: 404 });
-    (globalThis.confirm as jest.Mock).mockReturnValue(false); // User clicks Cancel
+    setConfirmResult(false); // User declines
 
     render(<Chat activeAppointment={mockActiveAppointment} />);
     await waitFor(() => expect(screen.getByText('Close Chat Session')).toBeInTheDocument());
@@ -395,8 +413,17 @@ describe('Chat Component', () => {
 
   it('closes chat successfully when confirmed', async () => {
     (getChatSession as jest.Mock).mockResolvedValue({ _id: 'session-1', status: 'OPEN' });
-    (globalThis.confirm as jest.Mock).mockReturnValue(true); // User clicks OK
-    (closeChatSession as jest.Mock).mockResolvedValue({});
+    setConfirmResult(true); // User confirms
+    // Hold the close open so the in-flight label is observable: the
+    // confirmation is now awaited, so an instantly resolving close would land
+    // before the first assertion polls.
+    let resolveClose: (value?: unknown) => void = () => {};
+    (closeChatSession as jest.Mock).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveClose = resolve;
+        })
+    );
 
     render(<Chat activeAppointment={mockActiveAppointment} />);
     await waitFor(() => expect(screen.getByText('Close Chat Session')).toBeInTheDocument());
@@ -404,11 +431,14 @@ describe('Chat Component', () => {
     const closeBtn = screen.getByText('Close Chat Session');
     fireEvent.click(closeBtn);
 
-    // Check loading state
-    expect(screen.getByText('Closing...')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Closing...')).toBeInTheDocument());
 
     await waitFor(() => {
       expect(closeChatSession).toHaveBeenCalledWith('session-1');
+    });
+
+    await act(async () => {
+      resolveClose({});
     });
 
     expect(globalThis.alert).toHaveBeenCalledWith('Chat session closed successfully');
@@ -483,7 +513,7 @@ describe('Chat Component', () => {
     await waitFor(() => expect(screen.getByText('Close Chat Session')).toBeInTheDocument());
 
     fireEvent.click(screen.getByText('Close Chat Session'));
-    expect(closeChatSession).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(closeChatSession).toHaveBeenCalledTimes(1));
 
     // The button is disabled while the close is in flight, so invoke the handler
     // directly to exercise the in-flight guard.
@@ -541,9 +571,9 @@ describe('Chat Component', () => {
 
     const closeBtn = screen.getByText('Close Chat Session');
 
-    // First Click
+    // First Click - the confirmation is awaited, so the call is not synchronous.
     fireEvent.click(closeBtn);
-    expect(closeChatSession).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(closeChatSession).toHaveBeenCalledTimes(1));
 
     // Second Click (while loading)
     fireEvent.click(closeBtn);

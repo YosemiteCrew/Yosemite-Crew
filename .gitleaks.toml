@@ -1,0 +1,33 @@
+# Gitleaks configuration.
+#
+# `useDefault` is load bearing: without it, supplying this file REPLACES the
+# entire upstream ruleset, and gitleaks would stop detecting real secrets while
+# still exiting 0. Everything below only adds an allowlist.
+[extend]
+useDefault = true
+
+# apps/mobileAppYC/ios/Podfile.lock carries 163 CocoaPods podspec content
+# hashes plus one PODFILE CHECKSUM, all 40 character hex. Their entropy trips
+# the generic-api-key rule, which blocked committing the lockfile at all.
+#
+# Deliberately NOT scoped with `paths`. An allowlist combines its conditions
+# with OR, so adding a path exempts the whole file: an AWS key injected into a
+# non-checksum line of the lockfile was verified to go completely undetected.
+# Matching on the value shape instead keeps every other rule live everywhere,
+# including inside this file.
+#
+# `regexTarget = "match"` because the default target is the bare secret, and the
+# match gitleaks reports here is "<PodName>: <40 hex>" with no leading
+# whitespace. Line pinned fingerprints in .gitleaksignore were rejected as the
+# alternative: a pod bump changes the hashes, so the set of lines that trips the
+# entropy check changes too, and the entries would go stale on every upgrade.
+# Singular [allowlist], not [[allowlists]]. CI pins gitleaks 8.24.2, which
+# ignores the plural array-of-tables form entirely and reported all 6 findings
+# despite the config being present. The singular table is honoured by both
+# 8.24.2 and current releases.
+[allowlist]
+description = "CocoaPods podspec content hashes (name: 40-hex digest)"
+regexTarget = "match"
+regexes = [
+  '''^[A-Za-z0-9_+.-]+: [a-f0-9]{40}$''',
+]

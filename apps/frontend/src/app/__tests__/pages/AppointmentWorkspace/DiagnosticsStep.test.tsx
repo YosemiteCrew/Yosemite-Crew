@@ -453,7 +453,7 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
   it('renders the in-house census variant and triggers add/refresh census', () => {
     const { hook } = renderStep({ modality: 'INHOUSE', selectedIvls: '1234567890' });
 
-    expect(screen.getByText(/In-house IDEXX workflow/i)).toBeInTheDocument();
+    expect(screen.getByText(/In-house tests run on your IVLS device/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /add to census/i }));
     expect(hook.handleAddToCensus).toHaveBeenCalled();
@@ -504,6 +504,23 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
     fireEvent.click(screen.getByRole('button', { name: /download results pdf for result r1/i }));
 
     expect(hook.openResultPdfPreview).toHaveBeenCalledWith('r1');
+  });
+
+  it('opens a result PDF preview from the share action', () => {
+    const { hook } = renderStep();
+
+    fireEvent.click(screen.getByRole('button', { name: /share results pdf for result r1/i }));
+
+    expect(hook.openResultPdfPreview).toHaveBeenCalledWith('r1');
+  });
+
+  it('labels an IVLS device without a display name with the generic IVLS label', () => {
+    renderStep({
+      modality: 'INHOUSE',
+      devices: [{ deviceSerialNumber: '99887', displayName: '' }],
+    } as unknown as Partial<UseLabTestsReturn>);
+
+    expect(screen.getByText(/In-house tests run on your IVLS device/i)).toBeInTheDocument();
   });
 
   it('toggles the result breakdown with the view action', () => {

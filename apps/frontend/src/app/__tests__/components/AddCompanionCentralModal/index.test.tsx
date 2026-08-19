@@ -138,9 +138,41 @@ jest.mock('@/app/ui/inputs/Datepicker', () => ({
 
 jest.mock('@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown', () => ({
   __esModule: true,
-  default: ({ inlabel, value, onChange, error }: any) => (
+  default: ({ inlabel, value, onChange, error, onAddressSelect }: any) => (
     <div>
       <input aria-label={inlabel} value={value ?? ''} onChange={onChange} />
+      {onAddressSelect && (
+        <>
+          <button
+            type="button"
+            onClick={() =>
+              onAddressSelect({
+                addressLine: '1 Bark Lane',
+                city: 'Dogtown',
+                state: 'CA',
+                postalCode: '90210',
+                country: '',
+              })
+            }
+          >
+            mock select address
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              onAddressSelect({
+                addressLine: '2 Purr Court',
+                city: 'Catville',
+                state: 'NY',
+                postalCode: '10001',
+                country: 'United States',
+              })
+            }
+          >
+            mock select address with country
+          </button>
+        </>
+      )}
       {error && <span role="alert">{error}</span>}
     </div>
   ),
@@ -1802,15 +1834,38 @@ describe('AddCompanionCentralModal', () => {
 
   describe('handleAddressSelect', () => {
     it('updates address fields from GoogleSearchDropDown onAddressSelect', async () => {
-      // jest.mock cannot be called inside test bodies (not hoisted), so verify via state indirectly
       await act(async () => {
         render(<AddCompanionCentralModal {...defaultProps} />);
       });
 
       await goToParentStep();
 
-      // Verify the parent step renders the address field without errors
-      expect(screen.getByLabelText('Address')).toBeInTheDocument();
+      // A selection without a country keeps the previous country value.
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'mock select address' }));
+      });
+      expect((screen.getByLabelText('Address') as HTMLInputElement).value).toBe('1 Bark Lane');
+
+      // A selection carrying a country overwrites it.
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'mock select address with country' }));
+      });
+      expect((screen.getByLabelText('Address') as HTMLInputElement).value).toBe('2 Purr Court');
+    });
+
+    it('clearing the phone number stores an empty phone value', async () => {
+      await act(async () => {
+        render(<AddCompanionCentralModal {...defaultProps} />);
+      });
+
+      await goToParentStep();
+
+      const phone = screen.getByLabelText('Phone number') as HTMLInputElement;
+      fireEvent.change(phone, { target: { value: '2025551234' } });
+      expect(phone.value).toBe('2025551234');
+
+      fireEvent.change(phone, { target: { value: '' } });
+      expect(phone.value).toBe('');
     });
   });
 

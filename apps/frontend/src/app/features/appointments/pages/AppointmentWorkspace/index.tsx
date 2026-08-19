@@ -1,5 +1,6 @@
 'use client';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { Appointment } from '@yosemite-crew/types';
 import { IoBedOutline, IoCheckmarkCircleOutline } from 'react-icons/io5';
@@ -49,11 +50,6 @@ import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import Datepicker from '@/app/ui/inputs/Datepicker';
 import Timepicker from '@/app/ui/inputs/Timepicker';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
-import SoapStep from '@/app/features/appointments/pages/AppointmentWorkspace/steps/SoapStep';
-import DiagnosticsStep from '@/app/features/appointments/pages/AppointmentWorkspace/steps/DiagnosticsStep';
-import TreatmentStep from '@/app/features/appointments/pages/AppointmentWorkspace/steps/TreatmentStep';
-import InvoiceStep from '@/app/features/appointments/pages/AppointmentWorkspace/steps/InvoiceStep';
-import SummaryStep from '@/app/features/appointments/pages/AppointmentWorkspace/steps/SummaryStep';
 import QuickActionsModal from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/QuickActionsModal';
 import WorkspaceActionRail from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceActionRail';
 import PhoneWorkspaceShell from '@/app/features/appointments/pages/AppointmentWorkspace/phone/PhoneWorkspaceShell';
@@ -103,6 +99,39 @@ type RequiredStaffMember = {
   id: string;
   name: string;
 };
+
+// Only one step body is mounted at a time, and each carries its own editors,
+// search dropdowns and billing tables. Loading them together put the whole
+// workspace route over its first-load JS budget, so every step ships as its own
+// chunk and the workspace pulls in just the one it is showing.
+const WorkspaceStepSkeleton = () => (
+  <div className="h-full min-h-50 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />
+);
+
+const SoapStep = dynamic(
+  () => import('@/app/features/appointments/pages/AppointmentWorkspace/steps/SoapStep'),
+  { loading: () => <WorkspaceStepSkeleton /> }
+);
+const DiagnosticsStep = dynamic(
+  () => import('@/app/features/appointments/pages/AppointmentWorkspace/steps/DiagnosticsStep'),
+  { loading: () => <WorkspaceStepSkeleton /> }
+);
+const TreatmentStep = dynamic(
+  () => import('@/app/features/appointments/pages/AppointmentWorkspace/steps/TreatmentStep'),
+  { loading: () => <WorkspaceStepSkeleton /> }
+);
+const PassportStep = dynamic(
+  () => import('@/app/features/appointments/pages/AppointmentWorkspace/steps/PassportStep'),
+  { loading: () => <WorkspaceStepSkeleton /> }
+);
+const InvoiceStep = dynamic(
+  () => import('@/app/features/appointments/pages/AppointmentWorkspace/steps/InvoiceStep'),
+  { loading: () => <WorkspaceStepSkeleton /> }
+);
+const SummaryStep = dynamic(
+  () => import('@/app/features/appointments/pages/AppointmentWorkspace/steps/SummaryStep'),
+  { loading: () => <WorkspaceStepSkeleton /> }
+);
 
 const ADMISSIBLE_APPOINTMENT_STATUSES = new Set(['CHECKED_IN', 'IN_PROGRESS']);
 
@@ -261,7 +290,14 @@ const hasMeaningfulSoapContent = (notes: SoapNoteEntry[]): boolean =>
       )
   );
 
-const DischargeDateTimeModal = ({
+/**
+ * Exported rather than kept private to this module so Storybook can draw it on
+ * its own. Reaching it through the workspace needs the whole bootstrap
+ * aggregate - an appointment, an inpatient encounter, a room unit and a
+ * backend-owned finalization gate - so the gate-blocked branch below had never
+ * been rendered anywhere outside the running app.
+ */
+export const DischargeDateTimeModal = ({
   showModal,
   setShowModal,
   dischargeDate,
@@ -294,7 +330,7 @@ const DischargeDateTimeModal = ({
         <ModalHeader title="Discharge date & time" onClose={handleCancel} />
         {gateBlocked && (
           <div className="flex flex-col gap-2 rounded-2xl bg-danger-100 p-3">
-            <p className="text-body-4 text-danger-700">
+            <p className="text-body-4 text-text-error">
               {gate?.disabledReason ?? 'This encounter is not ready for discharge.'}
             </p>
             <label className="flex flex-col gap-1 text-caption-2 text-text-secondary">
@@ -309,7 +345,7 @@ const DischargeDateTimeModal = ({
             </label>
           </div>
         )}
-        <div className={`${isSaving ? 'pointer-events-none opacity-60' : ''} flex flex-col gap-3`}>
+        <div className={`${isSaving ? 'pointer-events-none' : ''} flex flex-col gap-3`}>
           <Datepicker
             type="input"
             currentDate={dischargeDate}
@@ -1552,6 +1588,15 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
           encounter={operationalEncounter}
           ensureEncounterId={ensureEncounterId}
           onOpenInvoice={() => handleStepChange('INVOICE')}
+        />
+      )}
+      {activeStep === 'PASSPORT' && (
+        <PassportStep
+          companionId={companion.id}
+          companionName={companion.name}
+          encounterId={resolvedEncounterId ?? appointment.encounterId}
+          ensureEncounterId={ensureEncounterId}
+          readOnly={effectiveEncounter.viewOnly}
         />
       )}
       {activeStep === 'INVOICE' && (

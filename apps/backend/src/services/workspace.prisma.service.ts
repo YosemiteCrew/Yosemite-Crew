@@ -932,6 +932,15 @@ type ProductItemRow = {
   } | null;
 };
 
+const normalizeLockState = (
+  lockState: unknown,
+): string | Record<string, unknown> | null => {
+  if (typeof lockState === "string") {
+    return lockState;
+  }
+  return isRecord(lockState) ? lockState : null;
+};
+
 const mapTreatmentItemRow = (
   row: TreatmentItemRow,
 ): WorkspaceTreatmentItem => ({
@@ -964,14 +973,7 @@ const mapTreatmentItemRow = (
   settled: Boolean(row.settledInvoiceId),
   settledInvoiceId: row.settledInvoiceId,
   settledAt: row.settledAt,
-  lockState:
-    typeof row.lockState === "string"
-      ? row.lockState
-      : typeof row.lockState === "object" &&
-          row.lockState !== null &&
-          !Array.isArray(row.lockState)
-        ? (row.lockState as Record<string, unknown>)
-        : null,
+  lockState: normalizeLockState(row.lockState),
   prescriptionId: row.prescriptionId,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
@@ -1267,6 +1269,16 @@ const mapDocumentRow = (input: {
   updatedAt: Date;
 }): WorkspaceDocumentRow => input;
 
+const resolveRenderedSigningStatus = (
+  signing: unknown,
+  status: string,
+): string => {
+  if (isRecord(signing) && typeof signing.status === "string") {
+    return signing.status;
+  }
+  return status === "SIGNED" ? "SIGNED" : "NOT_STARTED";
+};
+
 const mapRenderedDocumentRow = (
   document: RenderedDocumentRow,
   scheduleContext?: Map<
@@ -1299,12 +1311,10 @@ const mapRenderedDocumentRow = (
     title: document.title,
     kind: document.kind,
     status: document.status,
-    signingStatus:
-      isRecord(document.signing) && typeof document.signing.status === "string"
-        ? String(document.signing.status)
-        : document.status === "SIGNED"
-          ? "SIGNED"
-          : "NOT_STARTED",
+    signingStatus: resolveRenderedSigningStatus(
+      document.signing,
+      document.status,
+    ),
     pdfUrl: document.pdfUrl,
     createdAt: document.createdAt,
     updatedAt: document.updatedAt,

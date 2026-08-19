@@ -1,15 +1,17 @@
 'use client';
-import React, { useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react';
+import React, { useRef, useState, useLayoutEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { FilterOption, StatusOption } from '@/app/features/companions/pages/Companions/types';
 import clsx from 'clsx';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import { IoAdd, IoChevronDown } from 'react-icons/io5';
+import StatusOptionButtons from '@/app/ui/filters/StatusOptionButtons';
+import { useFilterDropdownDismiss } from '@/app/ui/filters/useFilterDropdownDismiss';
 const getDropdownStatusTextColor = (status: StatusOption): string =>
   status.dropdownText ?? status.text ?? 'var(--color-text-primary)';
 
 // Design filter-chip recipe (list toolbars): pill, 6px 13px, 12px text.
-// Neutral: active = --inset fill + --divider border + --ink bold; rest = --hairline border + --ink-muted.
+// Neutral: active = --chip-selected-* ink fill; rest = --hairline border + --ink-muted.
 // Emergency: always danger-toned (--danger-border/--danger-text); active adds --danger-bg fill.
 const getFilterChipClassName = (filterKey: string, activeFilter: string): string => {
   const isActive = filterKey === activeFilter;
@@ -19,7 +21,7 @@ const getFilterChipClassName = (filterKey: string, activeFilter: string): string
       : 'border-[var(--danger-border)]! text-[var(--danger-text)]! font-semibold';
   }
   return isActive
-    ? 'bg-[var(--inset)] border-[var(--divider)]! text-[var(--ink)]! font-bold'
+    ? 'bg-[var(--chip-selected-bg)] border-[var(--chip-selected-border)]! text-[var(--chip-selected-ink)]! font-bold'
     : 'border-[var(--hairline)]! text-[var(--ink-muted)]! font-semibold hover:border-[var(--divider)]!';
 };
 
@@ -33,9 +35,9 @@ const getStatusPillStyle = (status: StatusOption, isActive: boolean): React.CSSP
   }
   if (status.key.toLowerCase() === 'all') {
     return {
-      backgroundColor: 'var(--inset)',
-      borderColor: 'var(--divider)',
-      color: 'var(--ink)',
+      backgroundColor: 'var(--chip-selected-bg)',
+      borderColor: 'var(--chip-selected-border)',
+      color: 'var(--chip-selected-ink)',
       fontWeight: 700,
     };
   }
@@ -110,24 +112,7 @@ const Filters = ({
     if (open) positionPanel();
   }, [open, positionPanel]);
 
-  useEffect(() => {
-    if (!open) return;
-    const handleClose = (e: MouseEvent) => {
-      if (
-        triggerRef.current?.contains(e.target as Node) ||
-        panelRef.current?.contains(e.target as Node)
-      )
-        return;
-      setOpen(false);
-    };
-    const handleScroll = () => setOpen(false);
-    document.addEventListener('mousedown', handleClose);
-    globalThis.window.addEventListener('scroll', handleScroll, { passive: true, capture: true });
-    return () => {
-      document.removeEventListener('mousedown', handleClose);
-      globalThis.window.removeEventListener('scroll', handleScroll, { capture: true });
-    };
-  }, [open]);
+  useFilterDropdownDismiss(open, setOpen, triggerRef, panelRef);
 
   return (
     <div
@@ -228,46 +213,16 @@ const Filters = ({
                   className="yc-glass-overlay rounded-2xl overflow-hidden"
                   style={dropdownStyle}
                 >
-                  {statusOptions.map((status) => {
-                    const isActive = status.key === activeStatus;
-                    return (
-                      <button
-                        key={status.key}
-                        type="button"
-                        onClick={() => {
-                          setActiveStatus?.(status.key);
-                          setOpen(false);
-                        }}
-                        className={clsx(
-                          'w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-left transition-colors',
-                          isActive && status.key !== 'all' ? 'font-medium' : 'hover:bg-card-hover'
-                        )}
-                      >
-                        {status.border && (
-                          <span
-                            className="inline-block size-2 rounded-full shrink-0"
-                            style={{
-                              backgroundColor: status.border,
-                              borderWidth: '1px',
-                              borderStyle: 'solid',
-                              borderColor: status.border,
-                            }}
-                          />
-                        )}
-                        <span style={{ color: getDropdownStatusTextColor(status) }}>
-                          {status.name}
-                        </span>
-                        {isActive && (
-                          <span
-                            className="ml-auto text-[12px] font-semibold"
-                            style={{ color: getDropdownStatusTextColor(status) }}
-                          >
-                            ✓
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
+                  <StatusOptionButtons
+                    options={statusOptions}
+                    activeKey={activeStatus}
+                    allKey="all"
+                    onSelect={(key) => {
+                      setActiveStatus?.(key);
+                      setOpen(false);
+                    }}
+                    getTextColor={getDropdownStatusTextColor}
+                  />
                 </div>,
                 document.body
               )}
@@ -278,7 +233,7 @@ const Filters = ({
             text={addButtonText}
             onClick={onAddButtonClick}
             icon={<IoAdd size={18} aria-hidden="true" />}
-            className="h-12 w-fit justify-center gap-2 px-4 py-0 whitespace-nowrap hover:scale-100"
+            className="w-fit shrink-0 justify-center py-0 whitespace-nowrap hover:scale-100"
           />
         )}
       </div>

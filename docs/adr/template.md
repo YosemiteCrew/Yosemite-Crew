@@ -13,11 +13,9 @@ What was decided, stated plainly in one or two sentences.
 
 ## Consequences
 
-**Good:**
--
+## **Good:**
 
-**Bad / accepted trade-offs:**
--
+## **Bad / accepted trade-offs:**
 
 ## Alternatives considered
 

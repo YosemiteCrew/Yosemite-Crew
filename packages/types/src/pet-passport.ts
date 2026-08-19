@@ -1,0 +1,179 @@
+import type { CompanionType } from './companion';
+
+// String-union mirrors of the Prisma VaccineType / ParasiteTreatmentType enums
+// (matching the codebase convention of string unions over TS enums). These back
+// the structured veterinary records a Digital Pet Passport is assembled from.
+export type VaccineType = 'RABIES' | 'CORE' | 'NON_CORE' | 'OTHER';
+export type ParasiteTreatmentType = 'ECHINOCOCCUS' | 'TICK' | 'FLEA' | 'OTHER';
+
+// A single administered vaccination dose. All DateTimes are ISO strings per the
+// DTO convention. Rabies doses carry the validity window the passport surfaces.
+export interface VaccinationDTO {
+  id: string;
+  patientId: string;
+  vaccineType: VaccineType;
+  vaccineName: string;
+  manufacturer?: string;
+  batchNumber?: string;
+  lotNumber?: string;
+  dateAdministered: string;
+  validFrom?: string;
+  validUntil?: string;
+  nextDueDate?: string;
+  administeringVetName?: string;
+  vetLicenseNumber?: string;
+  site?: string;
+  route?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+// An anti-parasite treatment - notably the echinococcus/tapeworm dose required
+// (with its date AND time) for entry to protected destinations.
+export interface ParasiteTreatmentDTO {
+  id: string;
+  patientId: string;
+  treatmentType: ParasiteTreatmentType;
+  productName: string;
+  manufacturer?: string;
+  treatedAt: string;
+  administeringVetName?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+// A rabies antibody titration result (required from certain non-listed
+// countries; must be at least 0.5 IU/ml from an approved laboratory).
+export interface RabiesTitrationDTO {
+  id: string;
+  patientId: string;
+  approvedLab: string;
+  sampleDate: string;
+  resultIuMl: number;
+  reportUrl?: string;
+  createdAt: string;
+}
+
+// Cross-practice sharing consent (per recipient practice). Keyed to the pet by
+// microchip; valid only when GRANTED with the pet parent's consent recorded.
+export type PassportConsentStatus = 'PENDING' | 'GRANTED' | 'REVOKED';
+export type PassportConsentMethod = 'MOBILE' | 'EMAIL';
+
+export interface PassportConsentDTO {
+  id: string;
+  microchipNumber: string;
+  patientId: string;
+  ownerOrganisationId: string;
+  recipientOrganisationId: string;
+  status: PassportConsentStatus;
+  purpose?: string;
+  parentId?: string;
+  consentMethod?: PassportConsentMethod;
+  consentedAt?: string;
+  createdAt: string;
+}
+
+// A pre-travel clinical examination ("fit to travel" attestation) by the vet.
+export interface ClinicalExamDTO {
+  id: string;
+  patientId: string;
+  examinedAt: string;
+  fitForTravel: boolean;
+  findings?: string;
+  weightKg?: number;
+  temperatureC?: number;
+  examiningVetName?: string;
+  vetLicenseNumber?: string;
+  createdAt: string;
+}
+
+// The passport-issuance record: which authorised vet/clinic issued the passport,
+// when, and under which authority. Surfaced in the passport's "Issuing" section.
+export interface PetPassportIssuanceDTO {
+  passportNumber: string;
+  issuingCountry?: string;
+  issuingAuthority?: string;
+  /** Issuing veterinary practice / clinic / hospital (the organisation name). */
+  issuingPractice?: string;
+  issuingVetName?: string;
+  issuingVetLicense?: string;
+  issueDate: string;
+  status?: string;
+}
+
+/**
+ * Display labels for the raw lowercase Prisma `Gender` value carried on
+ * `PetPassportIdentity.sex`.
+ *
+ * The DTO ships the database value verbatim, so every passport surface that
+ * printed it unmapped rendered "Dog · Beagle · female" - and literally
+ * "unknown" - next to a species that *was* mapped. Shared here so the public
+ * share page, the passport card, the wallet pass preview and the wallet passes
+ * themselves cannot drift apart.
+ */
+export const PASSPORT_SEX_LABEL: Record<string, string> = {
+  male: 'Male',
+  female: 'Female',
+  unknown: 'Unknown',
+};
+
+/**
+ * Formats a passport sex for display, returning undefined for an unset or
+ * `unknown` value so callers building `.filter(Boolean)` description lines drop
+ * the segment entirely rather than printing "Unknown".
+ */
+export const passportSexLabel = (sex?: string): string | undefined => {
+  if (!sex || sex === 'unknown') return undefined;
+  return PASSPORT_SEX_LABEL[sex] ?? sex;
+};
+
+export interface PetPassportIdentity {
+  id: string;
+  name: string;
+  species: CompanionType;
+  breed: string;
+  sex: string;
+  dateOfBirth?: string;
+  colour?: string;
+  /** Distinguishing marks (physicalAttribute.markings) for the description. */
+  distinguishingMarks?: string;
+  photoUrl?: string;
+}
+
+export interface PetPassportMicrochip {
+  number: string;
+  implantedAt?: string;
+  location?: string;
+}
+
+// The assembled, multi-section pet passport, built server-side from the
+// source-of-truth Patient and Vaccination rows. Rabies is surfaced separately
+// because it drives passport validity; other vaccinations are listed together.
+export interface PetPassportOwner {
+  name: string;
+  email?: string;
+  phone?: string;
+}
+
+export interface PetPassportDTO {
+  identity: PetPassportIdentity;
+  /** Registered owner/holder. Authenticated views only; omitted from public. */
+  owner?: PetPassportOwner;
+  microchip?: PetPassportMicrochip;
+  passportNumber?: string;
+  rabies?: VaccinationDTO;
+  vaccinations: VaccinationDTO[];
+  parasiteTreatments: ParasiteTreatmentDTO[];
+  rabiesTitrations: RabiesTitrationDTO[];
+  clinicalExams: ClinicalExamDTO[];
+  issuance?: PetPassportIssuanceDTO;
+  /**
+   * True when the passport has a live public share link.
+   *
+   * A wallet pass embeds that link in its QR, so a pass can only be built when
+   * this is true. Staff cannot mint the link - it is an owner credential the
+   * pet's owner creates from the mobile app - so PIMS uses this to avoid
+   * offering a wallet action that cannot succeed.
+   */
+  publicShareActive?: boolean;
+}

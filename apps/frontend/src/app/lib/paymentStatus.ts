@@ -12,20 +12,33 @@ type PaymentDisplay = {
   badgeTextColor: string;
 };
 
+/**
+ * Inks, not mid-ramp fills. --color-success-400 (#54b492) and --color-warning-600
+ * (#f68523) are FILL steps: as the 11px Paid/Unpaid line under a status pill they
+ * measured 2.28:1 and 2.29:1 on the bone screen of the deployed dashboard, and
+ * 2.29 on their own badge tints - the least readable text on that page and on the
+ * appointments list. --success-text and --color-warning-900 are the ink-tuned
+ * members of the same two ramps: they clear ~6.3 on each of those light surfaces.
+ *
+ * Both already carry dark values (#2bbd86 / #f9ad6c), and dark improves too rather
+ * than regressing - measured on the deployed dark dashboard, Paid goes 5.82 -> 6.10
+ * and Unpaid 5.80 -> 7.85 against the card, which is why this is a straight token
+ * swap and not a light-only override.
+ */
 const PAYMENT_DISPLAY: Record<AppointmentPaymentState, PaymentDisplay> = {
   PAID: {
     state: 'PAID',
     label: 'Paid',
-    textColor: 'var(--color-success-400)',
+    textColor: 'var(--success-text)',
     badgeBackgroundColor: 'var(--color-success-100)',
-    badgeTextColor: 'var(--color-success-400)',
+    badgeTextColor: 'var(--success-text)',
   },
   UNPAID: {
     state: 'UNPAID',
     label: 'Unpaid',
-    textColor: 'var(--color-warning-600)',
+    textColor: 'var(--color-warning-900)',
     badgeBackgroundColor: 'var(--color-card-warning)',
-    badgeTextColor: 'var(--color-warning-600)',
+    badgeTextColor: 'var(--color-warning-900)',
   },
   PAID_CASH: {
     state: 'PAID_CASH',
@@ -37,9 +50,9 @@ const PAYMENT_DISPLAY: Record<AppointmentPaymentState, PaymentDisplay> = {
   PAYMENT_AT_CLINIC: {
     state: 'PAYMENT_AT_CLINIC',
     label: 'Unpaid',
-    textColor: 'var(--color-warning-600)',
+    textColor: 'var(--color-warning-900)',
     badgeBackgroundColor: 'var(--color-card-warning)',
-    badgeTextColor: 'var(--color-warning-600)',
+    badgeTextColor: 'var(--color-warning-900)',
   },
 };
 

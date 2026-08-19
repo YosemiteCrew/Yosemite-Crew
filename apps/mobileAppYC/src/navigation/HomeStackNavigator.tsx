@@ -7,6 +7,7 @@ import {HomeScreen} from '@/features/home/screens';
 import {AddCompanionScreen} from '@/features/companion/screens/AddCompanionScreen';
 import {HomeStackParamList} from './types';
 import {ProfileOverviewScreen} from '@/features/companion/screens/ProfileOverviewScreen';
+import {PassportScreen} from '@/features/passport/screens/PassportScreen/PassportScreen';
 import {CompanionOverviewScreen} from '@/features/companion/screens/CompanionOverviewScreen';
 import {EditParentScreen} from '@/features/account/screens/EditParentScreen';
 import {ExpenseStackNavigator} from './ExpenseStackNavigator';
@@ -87,6 +88,12 @@ export const HomeStackNavigator: React.FC = () => {
       <Stack.Screen
         name="ProfileOverview"
         component={ProfileOverviewScreen}
+        options={{headerShown: false}}
+      />
+
+      <Stack.Screen
+        name="Passport"
+        component={PassportScreen}
         options={{headerShown: false}}
       />
 

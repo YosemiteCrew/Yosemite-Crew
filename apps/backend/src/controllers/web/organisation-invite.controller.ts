@@ -17,7 +17,7 @@ type CreateInviteBody = Omit<
   inviteeEmail?: string;
   inviteeName?: string;
   role?: string;
-  employmentType?: CreateInvitePayload["employmentType"];
+  employmentType: CreateInvitePayload["employmentType"];
 };
 
 const resolveUserEmailFromRequest = (req: Request): string | undefined => {

@@ -13,6 +13,7 @@ import {
   OVERALL_DISCOUNT_ERROR_ID,
   overallDiscountCapMessage,
 } from '@/app/features/appointments/pages/AppointmentWorkspace/components/totalBillMessages';
+import TableHead from '@/app/ui/tables/TableHead';
 
 export type BillableSearchItem = Omit<InvoiceLineItem, 'id'> & { kind?: BillableKind };
 
@@ -27,7 +28,7 @@ const KIND_LABELS: Record<BillableKind, string> = {
 const KIND_PILL_CLASSES: Record<BillableKind, string> = {
   EXISTING_TREATMENT: 'border-pill-info-border bg-pill-info-bg text-pill-info-text',
   IN_HOUSE_PRESCRIPTION: 'border-pill-warning-border bg-pill-warning-bg text-pill-warning-text',
-  PACKAGE_COMPONENT: 'border-pill-success-border bg-pill-success-bg text-pill-success-text',
+  PACKAGE_COMPONENT: 'border-pill-success-border bg-pill-success-bg text-[var(--success-text)]',
   BILLING_ONLY: 'border-card-border bg-neutral-100 text-text-secondary',
   INVENTORY: 'border-card-border bg-neutral-100 text-text-secondary',
 };
@@ -124,26 +125,42 @@ const buildTotals = (
  * column is the only fr track. Every other column is a fixed px width.
  */
 const ROW_GRID =
-  'grid gap-3 sm:grid-cols-[minmax(0,1.7fr)_110px_72px_130px_150px_120px_36px] sm:items-center';
+  // The name column needs a FLOOR. At minmax(0,1.7fr) it collapsed to nothing
+  // once the card fell below about 690px - the six fixed columns are 618px plus
+  // 72px of gaps - and "Item Name" ran straight into "Unit Price", rendering as
+  // "ITUNIT PRICE". The workspace puts a payment panel and an icon rail beside
+  // this card, so that width is reached on an ordinary laptop. Measured: the
+  // overlap starts at 720px and is gone with a 7rem floor.
+  'grid gap-3 sm:grid-cols-[minmax(7rem,1.7fr)_110px_72px_130px_150px_120px_36px] sm:items-center';
 
 /**
  * Each heading's text starts exactly where its value-box text starts: the value
  * boxes have an inner px-3, so the headings carry the same px-3 inset. The label
  * therefore sits at the start of its column, directly above the value below it.
  */
+const BILL_COLUMNS = [
+  { key: 'item', label: 'Item Name' },
+  { key: 'unit', label: 'Unit Price' },
+  { key: 'qty', label: 'Qnt.' },
+  { key: 'gross', label: 'Gross Amt.' },
+  { key: 'discount', label: 'Discount' },
+  { key: 'amount', label: 'Amount' },
+  { key: 'actions', label: '' },
+] as const;
+
+/* Not sticky: this sits inside the appointment side modal, where a sticky band
+   resolves against the drawer's transformed parent and strands itself. */
 const ColumnHeadings = () => (
-  <div
-    className={`${ROW_GRID} rounded-lg py-2 text-[10px] font-bold uppercase tracking-[0.1em] [&>span]:px-3`}
-    style={{ background: 'var(--screen-2)', color: 'var(--ink-faint)' }}
-  >
-    <span>Item Name</span>
-    <span>Unit Price</span>
-    <span>Qnt.</span>
-    <span>Gross Amt.</span>
-    <span>Discount</span>
-    <span>Amount</span>
-    <span aria-hidden="true" className="px-0!" />
-  </div>
+  <TableHead
+    columns={BILL_COLUMNS}
+    track="minmax(7rem,1.7fr) 110px 72px 130px 150px 120px 36px"
+    gap="12px"
+    sticky={false}
+    // Flush: the BillRows below carry no outer padding, so the recipe's 20px
+    // would start the headings 20px right of their values and resolve the
+    // flexible column against a width 40px narrower than the rows.
+    className="yc-table-head--flush rounded-lg [&>span]:px-3"
+  />
 );
 
 /** Plain (non-editable) text cell for line values that the user cannot change. */
@@ -222,7 +239,7 @@ const DiscountInput = ({
       <span className="relative inline-flex w-22 items-center">
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-body-4 text-pill-success-text"
+          className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-body-4 text-[var(--success-text)]"
         >
           %
         </span>
@@ -238,7 +255,7 @@ const DiscountInput = ({
             const capped = maxPercent == null ? percent : Math.min(percent, maxPercent);
             onUpdateItem(item.id, { discountCents: Math.round((item.grossCents * capped) / 100) });
           }}
-          className={`${EDITABLE_BOX} pr-7 pl-3 text-right text-pill-success-text`}
+          className={`${EDITABLE_BOX} pr-7 pl-3 text-right text-[var(--success-text)]`}
         />
       </span>
       {maxPercent != null && maxPercent > 0 ? (
@@ -256,7 +273,7 @@ const GrossAmountCell = ({ item, currency }: { item: InvoiceLineItem; currency: 
     <TextCell className="flex-col! items-start! justify-center font-medium">
       <span>{formatCents(item.grossCents, currency)}</span>
       {item.discountCents > 0 ? (
-        <span className="truncate text-caption-2 text-pill-success-text">
+        <span className="truncate text-caption-2 text-[var(--success-text)]">
           − {formatCents(item.discountCents, currency)}
         </span>
       ) : null}
@@ -325,7 +342,11 @@ const FOOTER_BREAKDOWN_ROW =
 const FOOTER_FONT = '"Satoshi Variable", var(--font-satoshi), sans-serif';
 const NEUTRAL_TEXT = 'var(--color-neutral-900)';
 const PRIMARY_TEXT = 'var(--color-text-brand)';
-const DISCOUNT_TEXT = 'var(--color-success-700)';
+// --success-text, not the 700 step. The footer moved from a mint tint to the
+// warm --inset surface, and 700 (#008255) only measured 3.78:1 there - the
+// lighter mint had been carrying it. --success-text is the ink step (#006642,
+// 5.48) and it already inverts for dark.
+const DISCOUNT_TEXT = 'var(--success-text)';
 
 const FOOTER_HELPER_TEXT_STYLE: React.CSSProperties = {
   color: NEUTRAL_TEXT,
@@ -484,7 +505,16 @@ const TotalsFooter = ({
     onChangeOverallDiscount,
   });
   return (
-    <div className="-mx-5 -mb-5 grid gap-5 rounded-b-2xl border-t border-neutral-300 bg-pill-success-bg px-5 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(13rem,0.8fr)_minmax(0,1fr)] lg:items-stretch">
+    /* A recessed NEUTRAL footer, not a green one. This used
+       `bg-pill-success-bg`, a status-PILL token, so the invoice totals read as a
+       success banner: a mint #f0fdf4 slab in a warm-bone card, for a panel that
+       carries no status at all. --inset is the system's recessed surface and
+       tracks the theme (#eae2d5 / #302820). The top rule was
+       `border-neutral-300`, which is not the divider token every other rule in
+       the card uses. The -mx-5/-mb-5 bleed is correct and stays: measured
+       against SectionContainer's px-5/pb-5 it lands exactly on the card's 1px
+       border. */
+    <div className="-mx-5 -mb-5 grid gap-5 rounded-b-2xl border-t border-[var(--hairline)] bg-[var(--inset)] px-5 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(13rem,0.8fr)_minmax(0,1fr)] lg:items-stretch">
       <div className="flex h-full flex-col justify-center gap-2">
         <label className="flex min-h-8 items-center gap-2">
           <input
@@ -549,7 +579,7 @@ const TotalsFooter = ({
           <p
             id={OVERALL_DISCOUNT_ERROR_ID}
             role="alert"
-            className="text-right text-caption-2 text-danger-700"
+            className="text-right text-caption-2 text-text-error"
           >
             {capError}
           </p>

@@ -19,9 +19,9 @@ import SheetChrome from './SheetChrome';
 const meta = {
   title: 'Overlays/SheetChrome',
   component: SheetChrome,
+  globals: { viewport: { value: 'mobile', isRotated: false } },
   parameters: {
     layout: 'fullscreen',
-    viewport: { defaultViewport: 'mobile' },
     docs: {
       description: {
         component:

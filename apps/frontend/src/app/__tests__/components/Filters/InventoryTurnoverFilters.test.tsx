@@ -45,6 +45,35 @@ describe('<InventoryTurnoverFilters />', () => {
     });
   });
 
+  test('tints the trigger with the selected non-ALL status tokens', () => {
+    render(
+      <InventoryTurnoverFilters
+        filters={{ status: 'EXCELLENT', category: 'all' }}
+        setFilters={jest.fn()}
+        categories={['Medicine']}
+      />
+    );
+
+    const trigger = screen.getByRole('button', { name: 'Excellent' });
+    expect(trigger).toHaveStyle({
+      backgroundColor: 'var(--color-pill-success-bg)',
+      color: 'var(--color-pill-success-text)',
+      borderColor: 'var(--color-pill-success-border)',
+    });
+  });
+
+  test('falls back to the ALL option when the status matches none and no categories are passed', () => {
+    render(
+      <InventoryTurnoverFilters
+        filters={{ status: 'MYSTERY', category: 'all' }}
+        setFilters={jest.fn()}
+      />
+    );
+
+    // selectedStatus falls back to STATUS_OPTIONS[0], so the pill shows the placeholder.
+    expect(screen.getByRole('button', { name: 'Status' })).toBeInTheDocument();
+  });
+
   test('resets an invalid category to all and closes the status menu on outside click and scroll', () => {
     const setFilters = jest.fn();
     const { rerender } = render(

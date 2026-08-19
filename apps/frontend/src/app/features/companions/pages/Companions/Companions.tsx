@@ -273,7 +273,7 @@ const Companions = () => {
                 className={clsx(
                   'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1 text-[12px] font-semibold transition-colors',
                   sortByRecentVisit
-                    ? 'border-[var(--divider)] bg-[var(--inset)] text-[var(--ink)]'
+                    ? 'border-[var(--chip-selected-border)] bg-[var(--chip-selected-bg)] text-[var(--chip-selected-ink)]'
                     : 'border-[var(--hairline)] text-[var(--ink-muted)] hover:text-[var(--ink)]'
                 )}
               >

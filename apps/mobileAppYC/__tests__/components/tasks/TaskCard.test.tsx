@@ -311,6 +311,49 @@ describe('TaskCard', () => {
       details: {taskType: 'give-medication'},
     };
 
+    // Two assertions here depend on whether a hardcoded HH:MM has already
+    // passed: the ones using 00:01 and 00:02 to exercise the "all dosages are
+    // in the past" fallback. Against the real clock they fail between midnight
+    // and 00:02, when 00:02 is still upcoming and the component correctly picks
+    // the nearest future dose instead. CI hit exactly that in run 31915744151,
+    // which executed at 00:01:44-00:02:02 UTC.
+    //
+    // The 23:59 cases are safe either way: with a single valid dosage the
+    // nearest-future path and the fallback path select the same entry. Pinning
+    // the whole block regardless keeps the next 23:59-style test from
+    // reintroducing the problem.
+    //
+    // The instant is built from local components so it is 14:30 in whatever
+    // zone the runner uses: mid-afternoon leaves 23:59 comfortably in the
+    // future and 00:01/00:02 comfortably in the past.
+    //
+    // Only Date is faked. Faking the timer APIs as well would stall React
+    // Native's rendering, and none of these tests need to advance time.
+    beforeEach(() => {
+      jest.useFakeTimers({
+        doNotFake: [
+          'cancelAnimationFrame',
+          'cancelIdleCallback',
+          'clearImmediate',
+          'clearInterval',
+          'clearTimeout',
+          'nextTick',
+          'performance',
+          'queueMicrotask',
+          'requestAnimationFrame',
+          'requestIdleCallback',
+          'setImmediate',
+          'setInterval',
+          'setTimeout',
+        ],
+      });
+      jest.setSystemTime(new Date(2026, 7, 16, 14, 30, 0, 0));
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
     it('shows the nearest future dosage time', () => {
       renderCard({
         ...medicationProps,

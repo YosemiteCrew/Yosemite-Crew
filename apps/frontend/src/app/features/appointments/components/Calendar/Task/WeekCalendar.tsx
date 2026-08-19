@@ -9,8 +9,6 @@ import { getNowTopPxForHourRange } from '@/app/features/appointments/components/
 import DayLabels from '@/app/features/appointments/components/Calendar/Task/DayLabels';
 import TaskSlot from '@/app/features/appointments/components/Calendar/Task/TaskSlot';
 import { Task } from '@/app/features/tasks/types/task';
-import Back from '@/app/ui/primitives/Icons/Back';
-import Next from '@/app/ui/primitives/Icons/Next';
 import {
   CalendarZoomMode,
   getCalendarColumnGridStyle,
@@ -27,10 +25,9 @@ import SlotGridLines from '@/app/features/appointments/components/Calendar/commo
 import {
   getTimedTaskProxyEvents,
   useCalendarAutoScroll,
-  useCalendarWeekNavigation,
   useSlotOffsetMinutes,
 } from '@/app/features/appointments/components/Calendar/useCalendarSlots';
-import { DropAvailabilityInterval } from '@/app/features/appointments/components/Calendar/availabilityIntervals';
+import type { TaskCalendarInteractionProps } from '@/app/features/appointments/components/Calendar/Task/taskCalendarInteractionProps';
 
 const HOUR_ROW_GAP_PX = 0;
 
@@ -42,25 +39,10 @@ type WeekCalendarProps = {
   handleChangeStatusTask?: (task: Task) => void;
   handleRescheduleTask?: (task: Task) => void;
   weekStart: Date;
-  setWeekStart: React.Dispatch<React.SetStateAction<Date>>;
-  setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
-  canEditTasks?: boolean;
-  draggedTaskId?: string | null;
-  draggedTaskLabel?: string | null;
-  canDragTask?: (task: Task) => boolean;
-  onTaskDragStart?: (task: Task) => void;
-  onTaskDragEnd?: () => void;
-  onTaskDropAt?: (date: Date, minuteOfDay: number, targetAssigneeId?: string) => void;
-  onCreateTaskAt?: (date: Date, minuteOfDay: number, targetAssigneeId?: string) => void;
-  onDragHoverTarget?: (date: Date, targetAssigneeId?: string) => void;
-  getDropAvailabilityIntervals?: (
-    date: Date,
-    targetAssigneeId?: string
-  ) => DropAvailabilityInterval[];
-  draggedTaskDurationMinutes?: number;
-  slotStepMinutes?: number;
-  resolveDisplayName?: (memberId?: string) => string;
-};
+  /* No setWeekStart/setCurrentDate: paging moved to the toolbar, so this grid
+     neither reads nor dispatches them. Header builds its own
+     useCalendarWeekNavigation from the same setters. */
+} & TaskCalendarInteractionProps;
 
 const WeekCalendar: React.FC<WeekCalendarProps> = ({
   events,
@@ -70,8 +52,6 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   handleChangeStatusTask,
   handleRescheduleTask,
   weekStart,
-  setWeekStart,
-  setCurrentDate,
   canEditTasks = false,
   draggedTaskId,
   draggedTaskLabel,
@@ -152,10 +132,10 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     hourRowTopOffsetPx: HOUR_ROW_TOP_OFFSET_PX,
   });
 
-  const { handlePrevWeek, handleNextWeek } = useCalendarWeekNavigation(
-    setWeekStart,
-    setCurrentDate
-  );
+  // No week-navigation hook here any more. Paging lives in the toolbar - Header
+  // builds its own useCalendarWeekNavigation from the same setWeekStart and
+  // setCurrentDate this component receives, so stepping a week still drags the
+  // current date with it. This copy only ever fed the in-grid arrows.
 
   return (
     <div className="h-full flex flex-col">
@@ -166,19 +146,20 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
       >
         <div className="min-w-max h-full flex flex-col relative">
           <div className="z-30 bg-neutral-0">
-            <div className="grid border-b border-card-border py-2 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max bg-neutral-0">
-              <div className="sticky left-0 z-40 bg-neutral-0 flex items-center justify-center">
-                <Back onClick={handlePrevWeek} />
-              </div>
+            {/* No arrow columns. common/WeekCalendar.css says it outright: "The week
+                grid in the design has no arrow columns at all - prev/next live in
+                the header toolbar's date-nav pill." Those two 64px rails were the
+                other half of why this strip did not match Appointments, and the
+                right one pushed Sunday off the visible week: getWeekDays returns
+                seven days and only six fitted. The toolbar pages by week now. */}
+            <div className="grid border-b border-card-border py-2 grid-cols-[64px_minmax(0,1fr)] min-w-max bg-neutral-0">
+              <div className="sticky left-0 z-40 bg-neutral-0" />
               <div className="bg-neutral-0">
                 <DayLabels
                   days={days}
                   currentDate={_date ?? weekStart}
                   columnsStyle={dayColumnsStyle}
                 />
-              </div>
-              <div className="sticky right-0 z-40 bg-neutral-0 flex items-center justify-center">
-                <Next onClick={handleNextWeek} />
               </div>
             </div>
           </div>
@@ -198,7 +179,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
           >
             <div className="relative pb-4">
               {Array.from({ length: HOURS_IN_DAY }, (_, hour) => (
-                <div key={hour} className="grid grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
+                <div key={hour} className="grid grid-cols-[64px_minmax(0,1fr)] min-w-max">
                   <CalendarHourLabel
                     hour={hour}
                     height={height}
@@ -250,16 +231,12 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                       );
                     })}
                   </div>
-                  <div
-                    className="sticky right-0 z-20 bg-neutral-0"
-                    style={{ height: `${height}px` }}
-                  />
                 </div>
               ))}
               <div style={{ height: zoomMode === 'out' ? 30 : 40 }} />
               {nowPosition && (
                 <div className="pointer-events-none absolute inset-0" style={{ top: 0 }}>
-                  <div className="grid h-full grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
+                  <div className="grid h-full grid-cols-[64px_minmax(0,1fr)] min-w-max">
                     <div />
                     <div className="grid min-w-max" style={dayColumnsStyle}>
                       {days.map((day, idx) => (
@@ -274,29 +251,24 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                               {nowTimeLabel && (
                                 <div
                                   className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold whitespace-nowrap"
-                                  style={{ color: 'var(--color-danger-700)' }}
+                                  style={{ color: 'var(--blue-text)' }}
                                 >
                                   {nowTimeLabel}
                                 </div>
                               )}
                               <div
-                                className="absolute -left-1.25 size-3 rounded-full translate-y-[-50%]"
-                                style={{ backgroundColor: 'var(--color-danger-700)' }}
+                                className="absolute -left-1.25 size-[7px] rounded-full translate-y-[-50%]"
+                                style={{ backgroundColor: 'var(--blue)' }}
                               />
                               <div
-                                className="translate-y-[-50%]"
-                                style={{
-                                  borderTopWidth: '2px',
-                                  borderTopStyle: 'solid',
-                                  borderTopColor: 'var(--color-danger-700)',
-                                }}
+                                className="translate-y-[-50%] border-t-2 border-solid"
+                                style={{ borderTopColor: 'var(--blue)', opacity: 0.75 }}
                               />
                             </div>
                           )}
                         </div>
                       ))}
                     </div>
-                    <div />
                   </div>
                 </div>
               )}

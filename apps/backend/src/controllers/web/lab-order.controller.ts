@@ -1,11 +1,8 @@
 import { Request, Response } from "express";
 import { z } from "zod";
 import { OrgRequest } from "src/middlewares/rbac";
-import logger from "src/utils/logger";
-import {
-  LabOrderService,
-  LabOrderServiceError,
-} from "src/services/lab-order.service";
+import { LabOrderService } from "src/services/lab-order.service";
+import { respondLabOrderServiceError } from "src/controllers/web/shared/lab-order-error";
 
 const ListOrdersSearchBodySchema = z.preprocess(
   (value) => {
@@ -66,29 +63,6 @@ const requireOrderParams = (req: Request, res: Response) => {
   return { ...base, idexxOrderId };
 };
 
-const handleLabOrderError = (
-  res: Response,
-  error: unknown,
-  logMessage: string,
-  responseMessage: string,
-) => {
-  if (error instanceof LabOrderServiceError) {
-    return res.status(error.statusCode).json({
-      message: error.message,
-      ...(error.code || error.details
-        ? {
-            error: {
-              ...(error.code ? { code: error.code } : {}),
-              ...(error.details ? { details: error.details } : {}),
-            },
-          }
-        : {}),
-    });
-  }
-  logger.error(logMessage, error);
-  return res.status(500).json({ message: responseMessage });
-};
-
 export const LabOrderController = {
   async listOrders(req: Request, res: Response) {
     try {
@@ -103,7 +77,7 @@ export const LabOrderController = {
 
       return res.status(200).json({ orders });
     } catch (error) {
-      return handleLabOrderError(
+      return respondLabOrderServiceError(
         res,
         error,
         "Failed to list lab orders",
@@ -136,7 +110,7 @@ export const LabOrderController = {
 
       return res.status(200).json({ orders });
     } catch (error) {
-      return handleLabOrderError(
+      return respondLabOrderServiceError(
         res,
         error,
         "Failed to search lab orders",
@@ -181,7 +155,7 @@ export const LabOrderController = {
 
       return res.status(200).json(tests);
     } catch (error) {
-      return handleLabOrderError(
+      return respondLabOrderServiceError(
         res,
         error,
         "Failed to list lab tests",
@@ -225,7 +199,7 @@ export const LabOrderController = {
 
       return res.status(201).json(created);
     } catch (error) {
-      return handleLabOrderError(
+      return respondLabOrderServiceError(
         res,
         error,
         "Failed to create IDEXX order",
@@ -248,7 +222,7 @@ export const LabOrderController = {
 
       return res.status(200).json(order);
     } catch (error) {
-      return handleLabOrderError(
+      return respondLabOrderServiceError(
         res,
         error,
         "Failed to fetch lab order",
@@ -290,7 +264,7 @@ export const LabOrderController = {
 
       return res.status(200).json(order);
     } catch (error) {
-      return handleLabOrderError(
+      return respondLabOrderServiceError(
         res,
         error,
         "Failed to update lab order",
@@ -313,7 +287,7 @@ export const LabOrderController = {
 
       return res.status(200).json(order);
     } catch (error) {
-      return handleLabOrderError(
+      return respondLabOrderServiceError(
         res,
         error,
         "Failed to cancel lab order",

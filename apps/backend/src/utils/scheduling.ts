@@ -353,6 +353,74 @@ export const buildBookableWindowsForVets = async <
   };
 };
 
+export type CalendarPrefillSlotMatch = {
+  matchId: string;
+  slot: {
+    startTime: string;
+    endTime: string;
+    vetIds: string[];
+  };
+  meta: {
+    localStartMinute: number;
+    localEndMinute: number;
+  };
+};
+
+const compareCalendarPrefillMatches = (
+  a: CalendarPrefillSlotMatch,
+  b: CalendarPrefillSlotMatch,
+) => {
+  if (a.meta.localStartMinute !== b.meta.localStartMinute) {
+    return a.meta.localStartMinute - b.meta.localStartMinute;
+  }
+  if (a.meta.localEndMinute !== b.meta.localEndMinute) {
+    return a.meta.localEndMinute - b.meta.localEndMinute;
+  }
+  return a.matchId.localeCompare(b.matchId);
+};
+
+const collectCalendarPrefillSlotMatches = (params: {
+  matchId: string;
+  windows: Array<TimeSlotLike & { vetIds?: string[] }>;
+  timezone: string;
+  utcDateShift: number;
+  minuteOfDay: number;
+  leadId?: string;
+}): CalendarPrefillSlotMatch[] => {
+  const matches: CalendarPrefillSlotMatch[] = [];
+
+  for (const slot of params.windows) {
+    if (params.leadId && !(slot.vetIds ?? []).includes(params.leadId)) {
+      continue;
+    }
+
+    const meta = normalizeSlotForSelectedDay({
+      timezone: params.timezone,
+      utcDateShift: params.utcDateShift,
+      slot,
+    });
+    if (!meta) {
+      continue;
+    }
+
+    if (Math.abs(meta.localStartMinute - params.minuteOfDay) > 5) {
+      continue;
+    }
+
+    matches.push({
+      matchId: params.matchId,
+      slot: {
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        vetIds: slot.vetIds ?? [],
+      },
+      meta,
+    });
+  }
+
+  return matches;
+};
+
 export const buildCalendarPrefillMatches = async <
   TSlot extends TimeSlotLike,
 >(params: {
@@ -368,33 +436,8 @@ export const buildCalendarPrefillMatches = async <
     referenceDate: Date,
     slotCache?: Map<string, Promise<BookableWindowResult<TSlot>>>,
   ) => Promise<BookableWindowSet<TSlot>>;
-}): Promise<
-  Array<{
-    matchId: string;
-    slot: {
-      startTime: string;
-      endTime: string;
-      vetIds: string[];
-    };
-    meta: {
-      localStartMinute: number;
-      localEndMinute: number;
-    };
-  }>
-> => {
-  const matches: Array<{
-    matchId: string;
-    slot: {
-      startTime: string;
-      endTime: string;
-      vetIds: string[];
-    };
-    meta: {
-      localStartMinute: number;
-      localEndMinute: number;
-    };
-  }> = [];
-
+}): Promise<CalendarPrefillSlotMatch[]> => {
+  const matches: CalendarPrefillSlotMatch[] = [];
   const leadId = params.leadId?.trim();
 
   for (const context of params.contexts) {
@@ -410,46 +453,18 @@ export const buildCalendarPrefillMatches = async <
         params.slotCache,
       );
 
-      for (const slot of result.windows) {
-        if (leadId && !(slot.vetIds ?? []).includes(leadId)) {
-          continue;
-        }
-
-        const meta = normalizeSlotForSelectedDay({
+      matches.push(
+        ...collectCalendarPrefillSlotMatches({
+          matchId: context.matchId,
+          windows: result.windows,
           timezone: params.timezone,
           utcDateShift,
-          slot,
-        });
-        if (!meta) {
-          continue;
-        }
-
-        if (Math.abs(meta.localStartMinute - params.minuteOfDay) > 5) {
-          continue;
-        }
-
-        matches.push({
-          matchId: context.matchId,
-          slot: {
-            startTime: slot.startTime,
-            endTime: slot.endTime,
-            vetIds: slot.vetIds ?? [],
-          },
-          meta,
-        });
-      }
+          minuteOfDay: params.minuteOfDay,
+          leadId,
+        }),
+      );
     }
   }
 
-  matches.sort((a, b) => {
-    if (a.meta.localStartMinute !== b.meta.localStartMinute) {
-      return a.meta.localStartMinute - b.meta.localStartMinute;
-    }
-    if (a.meta.localEndMinute !== b.meta.localEndMinute) {
-      return a.meta.localEndMinute - b.meta.localEndMinute;
-    }
-    return a.matchId.localeCompare(b.matchId);
-  });
-
-  return matches;
+  return matches.sort(compareCalendarPrefillMatches);
 };

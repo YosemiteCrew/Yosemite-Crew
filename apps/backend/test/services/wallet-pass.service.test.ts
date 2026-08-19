@@ -1,0 +1,685 @@
+import { createHash } from "node:crypto";
+import AdmZip from "adm-zip";
+import forge from "node-forge";
+import jwt from "jsonwebtoken";
+import type { PetPassportDTO } from "@yosemite-crew/types";
+
+// The wallet QR carries a revocable share token, never the patient id.
+const SHARE_TOKEN = "share-token-abc";
+import {
+  buildApplePassJson,
+  buildGooglePayload,
+  WalletPassService,
+  WalletNotConfiguredError,
+} from "../../src/services/wallet-pass.service";
+
+const PASSPORT: PetPassportDTO = {
+  identity: {
+    id: "p1",
+    name: "Doggy",
+    species: "dog",
+    breed: "Rottweiler",
+    sex: "male",
+    dateOfBirth: "2024-01-10T00:00:00.000Z",
+    colour: "black",
+    photoUrl: "x",
+  },
+  microchip: {
+    number: "985141000123456",
+    implantedAt: "2024-02-01T00:00:00.000Z",
+    location: "left neck",
+  },
+  passportNumber: "GB-YC-1",
+  rabies: {
+    id: "v1",
+    patientId: "p1",
+    vaccineType: "RABIES",
+    vaccineName: "Nobivac Rabies",
+    dateAdministered: "2024-04-01T00:00:00.000Z",
+    validUntil: "2027-03-14T00:00:00.000Z",
+    createdAt: "2024-04-02T00:00:00.000Z",
+  },
+  vaccinations: [],
+  parasiteTreatments: [],
+  rabiesTitrations: [],
+  clinicalExams: [],
+  issuance: {
+    passportNumber: "GB-YC-1",
+    issuingVetName: "Dr A",
+    issuingPractice: "Yosemite Vet Clinic",
+    issuingAuthority: "RCVS",
+    issuingCountry: "GB",
+    issueDate: "2024-06-24T00:00:00.000Z",
+  },
+};
+
+const MINIMAL: PetPassportDTO = {
+  identity: {
+    id: "p2",
+    name: "Solo",
+    species: "ferret" as never,
+    breed: "Standard",
+    sex: "female",
+  },
+  vaccinations: [],
+  parasiteTreatments: [],
+  rabiesTitrations: [],
+  clinicalExams: [],
+};
+
+const IDS = {
+  passTypeId: "pass.com.yosemitecrew.petpassport",
+  teamId: "9TZWPYQ45S",
+};
+
+// A throwaway self-signed identity so the full sign/package path can run with
+// no real Apple certificate present.
+let p12Base64 = "";
+// The same identity exported WITHOUT a password: the private key lands in a
+// plain keyBag instead of a pkcs8ShroudedKeyBag, and there is no MAC to verify.
+let unencryptedP12Base64 = "";
+let certDerBase64 = "";
+let certObj: forge.pki.Certificate;
+let saPrivateKeyPem = "";
+
+beforeAll(() => {
+  const keys = forge.pki.rsa.generateKeyPair(2048);
+  const cert = forge.pki.createCertificate();
+  certObj = cert;
+  cert.publicKey = keys.publicKey;
+  cert.serialNumber = "01";
+  cert.validity.notBefore = new Date(2020, 0, 1);
+  cert.validity.notAfter = new Date(2040, 0, 1);
+  const attrs = [{ name: "commonName", value: "Pass Type ID: pass.test" }];
+  cert.setSubject(attrs);
+  cert.setIssuer(attrs);
+  cert.sign(keys.privateKey, forge.md.sha256.create());
+  const p12 = forge.pkcs12.toPkcs12Asn1(keys.privateKey, [cert], "secret", {
+    algorithm: "3des",
+  });
+  p12Base64 = forge.util.encode64(forge.asn1.toDer(p12).getBytes());
+  const plainP12 = forge.pkcs12.toPkcs12Asn1(keys.privateKey, [cert], null, {
+    algorithm: "3des",
+    useMac: false,
+  });
+  unencryptedP12Base64 = forge.util.encode64(
+    forge.asn1.toDer(plainP12).getBytes(),
+  );
+  certDerBase64 = forge.util.encode64(
+    forge.asn1.toDer(forge.pki.certificateToAsn1(cert)).getBytes(),
+  );
+  saPrivateKeyPem = forge.pki.privateKeyToPem(keys.privateKey);
+}, 30000);
+
+const ENV_KEYS = [
+  "APPLE_PASS_TYPE_ID",
+  "APPLE_TEAM_ID",
+  "APPLE_PASS_P12_BASE64",
+  "APPLE_PASS_P12_PASSWORD",
+  "APPLE_WWDR_BASE64",
+  "PUBLIC_PASSPORT_BASE_URL",
+  "PUBLIC_CARD_BASE_URL",
+  "GOOGLE_WALLET_ISSUER_ID",
+  "GOOGLE_WALLET_SA_EMAIL",
+  "GOOGLE_WALLET_SA_PRIVATE_KEY",
+  "PUBLIC_WALLET_LOGO_URL",
+  "PUBLIC_WALLET_HERO_URL",
+] as const;
+
+const saved: Record<string, string | undefined> = {};
+beforeEach(() => {
+  for (const k of ENV_KEYS) {
+    saved[k] = process.env[k];
+    delete process.env[k];
+  }
+  // A pass QR must resolve to an absolute URL, so pass building now refuses to
+  // run without a configured base. Individual tests override this.
+  process.env.PUBLIC_PASSPORT_BASE_URL = "https://app.example.com";
+});
+afterEach(() => {
+  for (const k of ENV_KEYS) {
+    if (saved[k] === undefined) delete process.env[k];
+    else process.env[k] = saved[k];
+  }
+});
+
+const configure = (extra: Record<string, string> = {}): void => {
+  process.env.APPLE_PASS_TYPE_ID = IDS.passTypeId;
+  process.env.APPLE_TEAM_ID = IDS.teamId;
+  process.env.APPLE_PASS_P12_BASE64 = p12Base64;
+  process.env.APPLE_PASS_P12_PASSWORD = "secret";
+  Object.assign(process.env, extra);
+};
+
+describe("buildApplePassJson", () => {
+  it("maps identity, ids, barcode and back fields", () => {
+    process.env.PUBLIC_PASSPORT_BASE_URL = "https://app.example.com/";
+    const pass = buildApplePassJson(PASSPORT, IDS, SHARE_TOKEN) as Record<
+      string,
+      unknown
+    >;
+
+    expect(pass.formatVersion).toBe(1);
+    expect(pass.passTypeIdentifier).toBe(IDS.passTypeId);
+    expect(pass.teamIdentifier).toBe(IDS.teamId);
+    expect(pass.serialNumber).toBe("p1");
+
+    const generic = pass.generic as Record<
+      string,
+      Array<{ key: string; value: string }>
+    >;
+    expect(pass.backgroundColor).toBe("rgb(0, 124, 245)");
+    expect(generic.primaryFields[0]).toMatchObject({
+      key: "name",
+      value: "Doggy",
+    });
+    expect(generic.secondaryFields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: "passportNumber", value: "GB-YC-1" }),
+        expect.objectContaining({ key: "species", value: "Dog" }),
+      ]),
+    );
+    expect(generic.auxiliaryFields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: "breed", value: "Rottweiler" }),
+        expect.objectContaining({ key: "sex", value: "Male" }),
+      ]),
+    );
+
+    const back = generic.backFields;
+    expect(back).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: "microchip",
+          value: "985141000123456 · left neck · implanted 2024-02-01",
+        }),
+        expect.objectContaining({ key: "passportNumber", value: "GB-YC-1" }),
+        expect.objectContaining({
+          key: "rabies",
+          value: "Nobivac Rabies · given 2024-04-01 · valid to 2027-03-14",
+        }),
+        expect.objectContaining({
+          key: "issuer",
+          value: "Dr A · Yosemite Vet Clinic · RCVS · GB · 2024-06-24",
+        }),
+        expect.objectContaining({ key: "disclaimer" }),
+      ]),
+    );
+
+    const barcode = (pass.barcodes as Array<{ message: string }>)[0];
+    expect(barcode.message).toBe(
+      `https://app.example.com/passport/${SHARE_TOKEN}`,
+    );
+  });
+
+  it("falls back to Animal species, omits absent fields, keeps the disclaimer", () => {
+    const pass = buildApplePassJson(MINIMAL, IDS, SHARE_TOKEN) as Record<
+      string,
+      unknown
+    >;
+    const generic = pass.generic as Record<string, Array<{ key: string }>>;
+    expect(generic.secondaryFields).toEqual([
+      expect.objectContaining({ key: "species", value: "Animal" }),
+    ]);
+    expect(generic.auxiliaryFields).toEqual(
+      expect.arrayContaining([expect.objectContaining({ key: "breed" })]),
+    );
+    const keys = generic.backFields.map((f) => f.key);
+    expect(keys).not.toContain("microchip");
+    expect(keys).not.toContain("rabies");
+    expect(keys).not.toContain("passportNumber");
+    expect(keys).toContain("disclaimer");
+  });
+
+  it("uses the card base url as a fallback for the verify link", () => {
+    // "" is what .env.example ships, and a `??` chain would treat it as set and
+    // shadow the configured card base, emitting a relative, unscannable QR.
+    process.env.PUBLIC_PASSPORT_BASE_URL = "";
+    process.env.PUBLIC_CARD_BASE_URL = "https://card.example.com";
+    const pass = buildApplePassJson(PASSPORT, IDS, SHARE_TOKEN) as Record<
+      string,
+      unknown
+    >;
+    const barcode = (pass.barcodes as Array<{ message: string }>)[0];
+    expect(barcode.message).toBe(
+      `https://card.example.com/passport/${SHARE_TOKEN}`,
+    );
+  });
+
+  it("refuses to build a pass when no base url resolves", () => {
+    delete process.env.PUBLIC_PASSPORT_BASE_URL;
+    delete process.env.PUBLIC_CARD_BASE_URL;
+    expect(() => buildApplePassJson(PASSPORT, IDS, SHARE_TOKEN)).toThrow(
+      /not configured/,
+    );
+  });
+
+  it("refuses a relative or non-http base url", () => {
+    process.env.PUBLIC_PASSPORT_BASE_URL = "app.example.com";
+    expect(() => buildApplePassJson(PASSPORT, IDS, SHARE_TOKEN)).toThrow(
+      /not configured/,
+    );
+  });
+});
+
+describe("WalletPassService.buildApplePass", () => {
+  // The logo now defaults to the committed brand asset, so every build fetches
+  // it. Mock fetch so the suite stays offline + deterministic.
+  const validPng = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+  let fetchSpy: jest.SpyInstance;
+  beforeEach(() => {
+    fetchSpy = jest.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      arrayBuffer: async () => validPng.buffer,
+    } as Response);
+  });
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
+
+  it("throws WalletNotConfiguredError (501) when no certificate is set", async () => {
+    await expect(
+      WalletPassService.buildApplePass(PASSPORT, SHARE_TOKEN),
+    ).rejects.toMatchObject({
+      name: "WalletNotConfiguredError",
+      statusCode: 501,
+    });
+    await expect(
+      WalletPassService.buildApplePass(PASSPORT, SHARE_TOKEN),
+    ).rejects.toBeInstanceOf(WalletNotConfiguredError);
+  });
+
+  it("produces a signed .pkpass bundle with a matching manifest", async () => {
+    configure();
+    const buffer = await WalletPassService.buildApplePass(
+      PASSPORT,
+      SHARE_TOKEN,
+    );
+
+    const zip = new AdmZip(buffer);
+    const names = zip.getEntries().map((e) => e.entryName);
+    expect(names).toEqual(
+      expect.arrayContaining([
+        "pass.json",
+        "manifest.json",
+        "signature",
+        "icon.png",
+        "icon@2x.png",
+      ]),
+    );
+
+    const passJson = zip.getEntry("pass.json")!.getData();
+    expect(JSON.parse(passJson.toString()).serialNumber).toBe("p1");
+
+    const manifest = JSON.parse(
+      zip.getEntry("manifest.json")!.getData().toString(),
+    );
+    const expectedHash = createHash("sha1").update(passJson).digest("hex");
+    expect(manifest["pass.json"]).toBe(expectedHash);
+
+    expect(zip.getEntry("signature")!.getData().length).toBeGreaterThan(0);
+    // icon.png is a valid PNG (magic header)
+    expect(zip.getEntry("icon.png")!.getData().subarray(0, 4)).toEqual(
+      Buffer.from([137, 80, 78, 71]),
+    );
+  });
+
+  it("embeds the WWDR intermediate certificate when provided", async () => {
+    configure({ APPLE_WWDR_BASE64: certDerBase64 });
+    const buffer = await WalletPassService.buildApplePass(
+      PASSPORT,
+      SHARE_TOKEN,
+    );
+    expect(
+      new AdmZip(buffer).getEntry("signature")!.getData().length,
+    ).toBeGreaterThan(0);
+  });
+
+  // An unprotected .p12 is a legitimate provisioning choice when the file is
+  // held in a secret store: the key sits in a plain keyBag and no
+  // APPLE_PASS_P12_PASSWORD is set. The signer has to fall back to the
+  // unshrouded bag and to an empty password, not treat the deployment as
+  // unconfigured.
+  it("signs with an unencrypted .p12 when no passphrase is configured", async () => {
+    process.env.APPLE_PASS_TYPE_ID = IDS.passTypeId;
+    process.env.APPLE_TEAM_ID = IDS.teamId;
+    process.env.APPLE_PASS_P12_BASE64 = unencryptedP12Base64;
+    delete process.env.APPLE_PASS_P12_PASSWORD;
+
+    const buffer = await WalletPassService.buildApplePass(
+      PASSPORT,
+      SHARE_TOKEN,
+    );
+
+    const zip = new AdmZip(buffer);
+    const passJson = zip.getEntry("pass.json")!.getData();
+    const manifest = JSON.parse(
+      zip.getEntry("manifest.json")!.getData().toString(),
+    );
+    expect(manifest["pass.json"]).toBe(
+      createHash("sha1").update(passJson).digest("hex"),
+    );
+    expect(zip.getEntry("signature")!.getData().length).toBeGreaterThan(0);
+  });
+
+  it("rejects a certificate bundle that carries no private key", async () => {
+    const certOnly = forge.pkcs12.toPkcs12Asn1(
+      null as never,
+      [certObj],
+      "secret",
+    );
+    configure({
+      APPLE_PASS_P12_BASE64: forge.util.encode64(
+        forge.asn1.toDer(certOnly).getBytes(),
+      ),
+    });
+    await expect(
+      WalletPassService.buildApplePass(PASSPORT, SHARE_TOKEN),
+    ).rejects.toMatchObject({
+      statusCode: 500,
+    });
+  });
+
+  it("bundles a hosted brand logo as logo.png when configured", async () => {
+    configure({ PUBLIC_WALLET_LOGO_URL: "https://cdn.example.com/logo.png" });
+    const buffer = await WalletPassService.buildApplePass(
+      PASSPORT,
+      SHARE_TOKEN,
+    );
+    const names = new AdmZip(buffer).getEntries().map((e) => e.entryName);
+    expect(names).toEqual(expect.arrayContaining(["logo.png", "logo@2x.png"]));
+    expect(fetchSpy).toHaveBeenCalledWith("https://cdn.example.com/logo.png");
+  });
+
+  it("bundles the default brand logo when no logo url is configured", async () => {
+    configure();
+    const buffer = await WalletPassService.buildApplePass(
+      PASSPORT,
+      SHARE_TOKEN,
+    );
+    const names = new AdmZip(buffer).getEntries().map((e) => e.entryName);
+    expect(names).toEqual(expect.arrayContaining(["logo.png", "logo@2x.png"]));
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining("yosemite-logo-1024.png"),
+    );
+  });
+
+  it("falls back to the generated icon when the logo response is not ok", async () => {
+    configure({ PUBLIC_WALLET_LOGO_URL: "https://cdn.example.com/logo.png" });
+    fetchSpy.mockResolvedValue({ ok: false } as Response);
+    const buffer = await WalletPassService.buildApplePass(
+      PASSPORT,
+      SHARE_TOKEN,
+    );
+    const names = new AdmZip(buffer).getEntries().map((e) => e.entryName);
+    expect(names).not.toContain("logo.png");
+  });
+
+  it("falls back to the generated icon when the logo fetch throws", async () => {
+    configure({ PUBLIC_WALLET_LOGO_URL: "https://cdn.example.com/logo.png" });
+    fetchSpy.mockRejectedValue(new Error("network"));
+    const buffer = await WalletPassService.buildApplePass(
+      PASSPORT,
+      SHARE_TOKEN,
+    );
+    const names = new AdmZip(buffer).getEntries().map((e) => e.entryName);
+    expect(names).not.toContain("logo.png");
+  });
+});
+
+const ISSUER = "3388000000023162791";
+const SA_EMAIL = "sa@project.iam.gserviceaccount.com";
+
+type GooglePayloadShape = {
+  genericClasses: Array<{ id: string }>;
+  genericObjects: Array<{
+    id: string;
+    classId: string;
+    header: { defaultValue: { value: string } };
+    subheader: { defaultValue: { value: string } };
+    hexBackgroundColor: string;
+    barcode: { type: string; value: string; alternateText: string };
+    textModulesData: Array<{ id: string }>;
+    logo?: { sourceUri: { uri: string } };
+    heroImage?: { sourceUri: { uri: string } };
+  }>;
+};
+
+describe("buildGooglePayload", () => {
+  it("maps the pass into a generic class/object with a QR to the verify url", () => {
+    process.env.PUBLIC_PASSPORT_BASE_URL = "https://app.example.com";
+    const payload = buildGooglePayload(
+      PASSPORT,
+      ISSUER,
+      SHARE_TOKEN,
+    ) as unknown as GooglePayloadShape;
+
+    expect(payload.genericClasses[0].id).toBe(`${ISSUER}.petpassport`);
+    const obj = payload.genericObjects[0];
+    expect(obj.id).toBe(`${ISSUER}.p1`);
+    expect(obj.classId).toBe(`${ISSUER}.petpassport`);
+    expect(obj.header.defaultValue.value).toBe("Doggy");
+    expect(obj.subheader.defaultValue.value).toBe("Dog · Rottweiler · Male");
+    expect(obj.hexBackgroundColor).toBe("#007CF5");
+    expect(obj.barcode).toEqual({
+      type: "QR_CODE",
+      value: `https://app.example.com/passport/${SHARE_TOKEN}`,
+      alternateText: "GB-YC-1",
+    });
+    const moduleIds = obj.textModulesData.map((m) => m.id);
+    expect(moduleIds).toEqual(
+      expect.arrayContaining([
+        "passportNumber",
+        "microchip",
+        "rabies",
+        "issuer",
+      ]),
+    );
+    // Logo defaults to the committed brand asset; hero stays opt-in.
+    expect(obj.logo?.sourceUri.uri).toContain("yosemite-logo-1024.png");
+    expect(obj.heroImage).toBeUndefined();
+  });
+
+  it("sanitises a non-conforming companion id into the object id", () => {
+    const payload = buildGooglePayload(
+      { ...MINIMAL, identity: { ...MINIMAL.identity, id: "abc/12 3" } },
+      ISSUER,
+      SHARE_TOKEN,
+    ) as unknown as GooglePayloadShape;
+    expect(payload.genericObjects[0].id).toBe(`${ISSUER}.abc-12-3`);
+    // MINIMAL has no passport number, so the QR carries the "Verify" fallback.
+    expect(payload.genericObjects[0].barcode.alternateText).toBe("Verify");
+  });
+
+  it("includes brand logo and hero image when their URLs are configured", () => {
+    process.env.PUBLIC_WALLET_LOGO_URL = "https://cdn.example.com/logo.png";
+    process.env.PUBLIC_WALLET_HERO_URL = "https://cdn.example.com/hero.png";
+    const payload = buildGooglePayload(
+      PASSPORT,
+      ISSUER,
+      SHARE_TOKEN,
+    ) as unknown as GooglePayloadShape;
+    const obj = payload.genericObjects[0];
+    expect(obj.logo?.sourceUri.uri).toBe("https://cdn.example.com/logo.png");
+    expect(obj.heroImage?.sourceUri.uri).toBe(
+      "https://cdn.example.com/hero.png",
+    );
+  });
+});
+
+describe("WalletPassService.buildGoogleSaveUrl", () => {
+  const SAVE_PREFIX = "https://pay.google.com/gp/v/save/";
+  const configureGoogle = (): void => {
+    process.env.GOOGLE_WALLET_ISSUER_ID = ISSUER;
+    process.env.GOOGLE_WALLET_SA_EMAIL = SA_EMAIL;
+    // stored the way a JSON key lands in env: real newlines escaped to "\n"
+    process.env.GOOGLE_WALLET_SA_PRIVATE_KEY = saPrivateKeyPem.replaceAll(
+      "\n",
+      "\\n",
+    );
+  };
+
+  it("throws WalletNotConfiguredError (501) when unset", () => {
+    expect(() =>
+      WalletPassService.buildGoogleSaveUrl(PASSPORT, SHARE_TOKEN),
+    ).toThrow(WalletNotConfiguredError);
+  });
+
+  it("signs a save JWT verifiable against the service-account key", () => {
+    configureGoogle();
+    const url = WalletPassService.buildGoogleSaveUrl(PASSPORT, SHARE_TOKEN);
+    expect(url.startsWith(SAVE_PREFIX)).toBe(true);
+
+    const token = url.slice(SAVE_PREFIX.length);
+    const decoded = jwt.decode(token) as unknown as {
+      iss: string;
+      aud: string;
+      typ: string;
+      payload: { genericObjects: Array<{ id: string }> };
+    };
+    expect(decoded.iss).toBe(SA_EMAIL);
+    expect(decoded.aud).toBe("google");
+    expect(decoded.typ).toBe("savetowallet");
+    expect(decoded.payload.genericObjects[0].id).toBe(`${ISSUER}.p1`);
+
+    const publicKeyPem = forge.pki.publicKeyToPem(
+      certObj.publicKey as forge.pki.rsa.PublicKey,
+    );
+    expect(() =>
+      jwt.verify(token, publicKeyPem, { algorithms: ["RS256"] }),
+    ).not.toThrow();
+  });
+});
+
+describe("wallet next-vaccination-due surfacing", () => {
+  const future = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+  const past = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  const withDue: PetPassportDTO = {
+    ...PASSPORT,
+    vaccinations: [
+      {
+        id: "vd1",
+        patientId: "p1",
+        vaccineType: "CORE",
+        vaccineName: "DHPPi",
+        dateAdministered: "2025-01-01T00:00:00.000Z",
+        nextDueDate: future,
+        createdAt: "2025-01-02T00:00:00.000Z",
+      },
+      {
+        id: "vd2",
+        patientId: "p1",
+        vaccineType: "CORE",
+        vaccineName: "Lepto",
+        dateAdministered: "2024-01-01T00:00:00.000Z",
+        nextDueDate: past,
+        createdAt: "2024-01-02T00:00:00.000Z",
+      },
+    ],
+  };
+
+  it("adds relevantDate + a next-due back field for the soonest upcoming due", () => {
+    const pass = buildApplePassJson(withDue, IDS, SHARE_TOKEN) as Record<
+      string,
+      unknown
+    >;
+    expect(pass.relevantDate).toBe(future);
+    const generic = pass.generic as {
+      backFields: Array<{ key: string; value: string }>;
+    };
+    const nextDue = generic.backFields.find((f) => f.key === "nextDue");
+    expect(nextDue?.value).toBe(future.slice(0, 10));
+  });
+
+  it("surfaces the next-due text module in the Google payload", () => {
+    const payload = buildGooglePayload(
+      withDue,
+      "issuer-1",
+      SHARE_TOKEN,
+    ) as unknown as {
+      genericObjects: Array<{ textModulesData: Array<{ id: string }> }>;
+    };
+    const ids = payload.genericObjects[0].textModulesData.map((m) => m.id);
+    expect(ids).toContain("nextDue");
+  });
+
+  it("omits relevantDate + next-due when there is no upcoming due date", () => {
+    const pass = buildApplePassJson(PASSPORT, IDS, SHARE_TOKEN) as Record<
+      string,
+      unknown
+    >;
+    expect(pass.relevantDate).toBeUndefined();
+    const generic = pass.generic as { backFields: Array<{ key: string }> };
+    expect(generic.backFields.some((f) => f.key === "nextDue")).toBe(false);
+  });
+
+  // Passport assembly moves the latest rabies dose out of `vaccinations`, so a
+  // pet whose only upcoming dose is rabies still has to get a due date.
+  const rabiesOnly: PetPassportDTO = {
+    ...PASSPORT,
+    rabies: { ...PASSPORT.rabies!, nextDueDate: future },
+    vaccinations: [],
+  };
+
+  it("uses the rabies due date when it is the only upcoming one", () => {
+    const pass = buildApplePassJson(rabiesOnly, IDS, SHARE_TOKEN) as Record<
+      string,
+      unknown
+    >;
+    expect(pass.relevantDate).toBe(future);
+    const generic = pass.generic as {
+      backFields: Array<{ key: string; value: string }>;
+    };
+    const nextDue = generic.backFields.find((f) => f.key === "nextDue");
+    expect(nextDue?.value).toBe(future.slice(0, 10));
+  });
+
+  it("surfaces the rabies-only due date in the Google payload", () => {
+    const payload = buildGooglePayload(
+      rabiesOnly,
+      "issuer-1",
+      SHARE_TOKEN,
+    ) as unknown as {
+      genericObjects: Array<{
+        textModulesData: Array<{ id: string; body: string }>;
+      }>;
+    };
+    const nextDue = payload.genericObjects[0].textModulesData.find(
+      (m) => m.id === "nextDue",
+    );
+    expect(nextDue?.body).toBe(future.slice(0, 10));
+  });
+
+  it("prefers the rabies due date when it is sooner than the others", () => {
+    const sooner = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const pass = buildApplePassJson(
+      { ...withDue, rabies: { ...PASSPORT.rabies!, nextDueDate: sooner } },
+      IDS,
+      SHARE_TOKEN,
+    ) as Record<string, unknown>;
+    expect(pass.relevantDate).toBe(sooner);
+  });
+});
+
+describe("wallet QR target", () => {
+  it("points the Apple barcode at the share token, not the patient id", () => {
+    const pass = buildApplePassJson(PASSPORT, IDS, SHARE_TOKEN) as {
+      barcodes: Array<{ message: string }>;
+    };
+    expect(pass.barcodes[0].message).toContain(`/passport/${SHARE_TOKEN}`);
+    expect(pass.barcodes[0].message).not.toContain(PASSPORT.identity.id);
+  });
+
+  it("points the Google barcode at the share token, not the patient id", () => {
+    const payload = buildGooglePayload(PASSPORT, "issuer-1", SHARE_TOKEN) as {
+      genericObjects: Array<{ barcode: { value: string } }>;
+    };
+    expect(payload.genericObjects[0].barcode.value).toContain(
+      `/passport/${SHARE_TOKEN}`,
+    );
+    expect(payload.genericObjects[0].barcode.value).not.toContain(
+      PASSPORT.identity.id,
+    );
+  });
+});

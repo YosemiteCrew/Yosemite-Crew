@@ -39,7 +39,10 @@ import {
   useSlotOffsetMinutes,
 } from '@/app/features/appointments/components/Calendar/useCalendarSlots';
 import type { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
+import type { AppointmentCalendarInteractionProps } from '@/app/features/appointments/components/Calendar/common/calendarInteractionProps';
+import CalendarWeekDayCell from '@/app/features/appointments/components/Calendar/common/CalendarWeekDayCell';
 import './WeekCalendar.css';
+import '@/app/ui/tables/GenericTable/Generictable.css';
 
 const HOUR_ROW_TOP_OFFSET_PX = 0;
 
@@ -186,48 +189,12 @@ const WeekDayHeaderRow = ({
   now: Date;
   dayColumnsStyle: React.CSSProperties;
 }) => (
-  <div
-    className="yc-week-grid__shell yc-week-grid__track border-b"
-    style={{ borderColor: 'var(--hairline)', backgroundColor: 'var(--screen-2)' }}
-  >
+  <div className="yc-table-head yc-table-head--static yc-table-head--flush yc-week-grid__shell yc-week-grid__track">
     <div className="sticky left-0 z-40" style={{ backgroundColor: 'var(--screen-2)' }} />
     <div className="grid" style={dayColumnsStyle}>
-      {days.map((day) => {
-        const weekday = formatDateInPreferredTimeZone(day, {
-          weekday: 'short',
-        });
-        const dateNumber = day.getDate();
-        const isToday = isOnPreferredTimeZoneCalendarDay(now, day);
-        return (
-          <div
-            key={day.toISOString()}
-            className="flex flex-col items-center gap-px border-l px-1 py-2"
-            style={{
-              borderColor: 'var(--hairline)',
-              backgroundColor: isToday ? 'var(--nav-active-bg)' : undefined,
-            }}
-          >
-            <div
-              className="text-[9.5px] font-bold uppercase tracking-[0.08em]"
-              style={{ color: isToday ? 'var(--nav-active)' : 'var(--ink-faint)' }}
-            >
-              {weekday}
-            </div>
-            {isToday ? (
-              <div
-                className="flex size-6 items-center justify-center rounded-full text-[13px] font-bold text-white"
-                style={{ backgroundColor: 'var(--blue)' }}
-              >
-                {dateNumber}
-              </div>
-            ) : (
-              <div className="text-[14px] font-bold" style={{ color: 'var(--ink)' }}>
-                {dateNumber}
-              </div>
-            )}
-          </div>
-        );
-      })}
+      {days.map((day) => (
+        <CalendarWeekDayCell key={day.toISOString()} day={day} now={now} />
+      ))}
     </div>
   </div>
 );
@@ -359,28 +326,7 @@ type WeekCalendarProps = {
   handleRescheduleAppointment: any;
   handleChangeRoomAppointment?: any;
   handleAcceptAppointment?: (appt: Appointment) => void;
-  canEditAppointments: boolean;
-  draggedAppointmentId?: string | null;
-  draggedAppointmentLabel?: string | null;
-  canDragAppointment?: (appointment: Appointment) => boolean;
-  onAppointmentDragStart?: (appointment: Appointment) => void;
-  onAppointmentDragEnd?: () => void;
-  onAppointmentDropAt?: (date: Date, minuteOfDay: number, targetLeadId?: string) => void;
-  onDragHoverTarget?: (date: Date, targetLeadId?: string) => void;
-  onCreateAppointmentAt?: (date: Date, minuteOfDay: number, targetLeadId?: string) => void;
-  getDropAvailabilityIntervals?: (
-    date: Date,
-    targetLeadId?: string
-  ) => Array<{ startMinute: number; endMinute: number }>;
-  getVisibleAvailabilityIntervals?: (
-    date: Date,
-    targetLeadId?: string
-  ) => Array<{ startMinute: number; endMinute: number }>;
-  draggedAppointmentDurationMinutes?: number;
-  slotStepMinutes?: number;
-  availabilityLoaded?: boolean;
-  skipAutoScroll?: boolean;
-};
+} & AppointmentCalendarInteractionProps;
 
 const WeekCalendar: React.FC<WeekCalendarProps> = ({
   events,

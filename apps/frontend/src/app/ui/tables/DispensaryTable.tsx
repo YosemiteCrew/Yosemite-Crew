@@ -123,18 +123,28 @@ const DispensaryRow = ({
       <div className="flex justify-start">
         <DispensaryStatusPill status={record.status} />
       </div>
-      <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
+      {/* One <li> per prescription line grew the row without bound, so a
+          many-item script set the height of every row on the page. */}
+      <ul
+        className="m-0 flex list-none flex-col gap-0.5 p-0"
+        title={items.map((item) => item.name).join(', ') || undefined}
+      >
         {items.length === 0 ? (
           <li className="text-[12px] text-text-tertiary">—</li>
         ) : (
-          items.map((item) => (
-            <li key={item.name} className="truncate text-[12px] text-text-secondary">
-              • {item.name}
-            </li>
-          ))
+          <>
+            {items.slice(0, 2).map((item) => (
+              <li key={item.name} className="truncate text-[12px] text-text-secondary">
+                • {item.name}
+              </li>
+            ))}
+            {items.length > 2 && (
+              <li className="text-[12px] text-[var(--ink-faint)]">{`+${items.length - 2}`}</li>
+            )}
+          </>
         )}
       </ul>
-      <div className="whitespace-pre-line text-[12px] tabular-nums text-[var(--color-success-600)]">
+      <div className="whitespace-pre-line text-[12px] tabular-nums text-[var(--success-text)]">
         {formatDateTime(record.prescriptionCreated)}
       </div>
       <div className="text-right font-semibold tabular-nums pr-4">
@@ -144,7 +154,7 @@ const DispensaryRow = ({
       <div className="truncate text-[12.5px] text-text-secondary">{record.location || '—'}</div>
       <div
         className={`whitespace-pre-line text-[12px] tabular-nums ${
-          record.timeDispensed ? 'text-[var(--color-success-600)]' : 'text-text-tertiary'
+          record.timeDispensed ? 'text-[var(--success-text)]' : 'text-text-tertiary'
         }`}
       >
         {formatDateTime(record.timeDispensed)}
@@ -227,7 +237,7 @@ const DispensaryCard = ({
         <button
           type="button"
           onClick={() => onDispense(record)}
-          className="flex-1 h-9 rounded-2xl bg-[var(--color-success-600)] text-white text-caption-1 font-semibold hover:opacity-90 transition-opacity"
+          className="flex-1 h-9 rounded-2xl bg-[var(--success-strong)] text-[var(--success-strong-ink)] text-caption-1 font-semibold hover:opacity-90 transition-opacity"
         >
           Dispense
         </button>
@@ -250,6 +260,7 @@ const DispensaryTable = ({ filteredList, onView, onDispense }: DispensaryTablePr
     rows={filteredList}
     pageSize={PAGE_SIZE}
     gridColumns={GRID_COLUMNS}
+    minWidthPx={1280}
     headerCells={HEADER_CELLS}
     itemNoun="requests"
     renderRow={(record) => (

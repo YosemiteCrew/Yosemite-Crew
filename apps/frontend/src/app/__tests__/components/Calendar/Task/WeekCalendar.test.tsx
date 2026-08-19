@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import WeekCalendar from '@/app/features/appointments/components/Calendar/Task/WeekCalendar';
@@ -20,6 +20,7 @@ jest.mock('@/app/lib/timezone', () => ({
   getHourInPreferredTimeZone: (value: Date) => value.getHours(),
   getMinutesSinceStartOfDayInPreferredTimeZone: (value: Date) =>
     value.getHours() * 60 + value.getMinutes(),
+  formatDateInPreferredTimeZone: jest.fn(() => '9:41 AM'),
   isOnPreferredTimeZoneCalendarDay: (value: Date, day: Date) =>
     value.getFullYear() === day.getFullYear() &&
     value.getMonth() === day.getMonth() &&
@@ -72,8 +73,6 @@ jest.mock('@/app/ui/primitives/Icons/Next', () => ({
 
 describe('WeekCalendar (Task)', () => {
   const handleViewTask = jest.fn();
-  const setWeekStart = jest.fn();
-  const setCurrentDate = jest.fn();
 
   const weekStart = new Date(2025, 0, 6, 12);
   const days = [new Date(2025, 0, 6, 12), new Date(2025, 0, 7, 12)];
@@ -105,8 +104,6 @@ describe('WeekCalendar (Task)', () => {
         date={weekStart}
         handleViewTask={handleViewTask}
         weekStart={weekStart}
-        setWeekStart={setWeekStart}
-        setCurrentDate={setCurrentDate}
       />
     );
 
@@ -128,28 +125,70 @@ describe('WeekCalendar (Task)', () => {
     );
   });
 
-  it('updates week start and current date on navigation', () => {
+  it('shows the now indicator with a time label when today is within the week', () => {
+    const today = new Date();
+    mockGetWeekDays.mockReturnValue([today]);
+
+    render(
+      <WeekCalendar events={[]} date={today} handleViewTask={handleViewTask} weekStart={today} />
+    );
+
+    expect(screen.getByText('9:41 AM')).toBeInTheDocument();
+  });
+
+  it('gives every grid row exactly as many children as its template has columns', () => {
+    // Includes TODAY in the week so the now-line overlay mounts: it carries the
+    // same two-column template, and it had its own copy of the three-child bug
+    // that went unnoticed because the fixture week is January 2025 and the
+    // overlay only renders when one of the days is today.
+    const today = new Date();
+    mockGetWeekDays.mockReturnValue([today, new Date(today.getTime() + 86400000)]);
+    // The rows are `grid-cols-[64px_minmax(0,1fr)]` - TWO columns. When the arrow
+    // rails were removed the template dropped from three columns to two, but the
+    // hour row kept a third child: the right rail's spacer. A third child in a
+    // two-column grid wraps onto an implicit SECOND row, so every hour rendered
+    // at 360px instead of 180 with an empty 180px band under it. On the deployed
+    // planner that read as large blank areas down the calendar.
+    const { container } = render(
+      <WeekCalendar
+        events={events}
+        date={weekStart}
+        handleViewTask={handleViewTask}
+        weekStart={weekStart}
+      />
+    );
+
+    const twoColumnRows = [...container.querySelectorAll('div')].filter((d) =>
+      d.className.includes('grid-cols-[64px_minmax(0,1fr)]')
+    );
+
+    expect(twoColumnRows.length).toBeGreaterThan(0);
+    twoColumnRows.forEach((row) => expect(row.children).toHaveLength(2));
+  });
+
+  it('renders no pager of its own - paging belongs to the toolbar', () => {
+    // The grid used to carry its own prev/next arrows in two 64px rails either
+    // side of the day strip. common/WeekCalendar.css states the intent plainly:
+    // "The week grid in the design has no arrow columns at all - prev/next live
+    // in the header toolbar's date-nav pill." The right rail also pushed Sunday
+    // out of view, so a seven-day week showed six. Header owns paging now and
+    // builds its own useCalendarWeekNavigation from the same setters; that
+    // behaviour is covered in common/Header.test.tsx.
     render(
       <WeekCalendar
         events={events}
         date={weekStart}
         handleViewTask={handleViewTask}
         weekStart={weekStart}
-        setWeekStart={setWeekStart}
-        setCurrentDate={setCurrentDate}
       />
     );
 
-    fireEvent.click(screen.getByText('PrevWeek'));
-    fireEvent.click(screen.getByText('NextWeek'));
-
-    const prevFn = setWeekStart.mock.calls[0][0];
-    const nextFn = setWeekStart.mock.calls[1][0];
-
-    prevFn(weekStart);
-    nextFn(weekStart);
-
-    expect(setCurrentDate).toHaveBeenCalledWith(new Date(2024, 11, 30, 12));
-    expect(setCurrentDate).toHaveBeenCalledWith(new Date(2025, 0, 13, 12));
+    expect(screen.queryByText('PrevWeek')).not.toBeInTheDocument();
+    expect(screen.queryByText('NextWeek')).not.toBeInTheDocument();
+    // Every day getWeekDays returns reaches the strip. The right-hand arrow rail
+    // used to eat the last column, so a seven-day week showed six; asserting the
+    // pass-through is harness-independent, since getWeekDays is mocked here.
+    const rendered = dayLabelsSpy.mock.calls.at(-1)[0].days;
+    expect(rendered).toEqual(mockGetWeekDays.mock.results.at(-1)?.value);
   });
 });

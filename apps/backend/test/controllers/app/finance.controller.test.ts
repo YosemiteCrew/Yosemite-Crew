@@ -20,6 +20,10 @@ import {
   AppointmentPrismaService,
   AppointmentPrismaServiceError,
 } from "../../../src/services/appointment.prisma.service";
+import {
+  FinanceDiscountSettingsError,
+  FinanceDiscountSettingsService,
+} from "../../../src/services/finance/discount-settings";
 import { StripeController } from "../../../src/controllers/web/stripe.controller";
 import { resolveUserIdFromRequest } from "../../../src/utils/request";
 import logger from "../../../src/utils/logger";
@@ -3098,6 +3102,38 @@ describe("FinanceController", () => {
         req as Request,
         res as Response,
       );
+    });
+  });
+
+  describe("getDiscountSettings", () => {
+    it("rejects a request without an organisation id", async () => {
+      setReq({ params: {} });
+
+      await run(FinanceController.getDiscountSettings);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Organisation Id is required",
+      });
+    });
+
+    it("maps a FinanceDiscountSettingsError to its status code", async () => {
+      const getForOrganisationSpy = jest
+        .spyOn(FinanceDiscountSettingsService, "getForOrganisation")
+        .mockRejectedValueOnce(
+          new FinanceDiscountSettingsError("Settings unavailable", 404),
+        );
+      setReq({ params: { organisationId: "org-1" } });
+
+      await run(FinanceController.getDiscountSettings);
+
+      expect(statusMock).toHaveBeenCalledWith(404);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Settings unavailable",
+      });
+      expect(mockedLogger.error).toHaveBeenCalled();
+
+      getForOrganisationSpy.mockRestore();
     });
   });
 });

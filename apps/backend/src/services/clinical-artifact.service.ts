@@ -6,6 +6,10 @@ import {
 import {
   buildRenderedDocumentPdfSnapshot,
   type RenderedDocumentKind,
+  type ImmunizationRecord,
+  type RabiesTitrationRecord,
+  type ParasiteTreatmentRecord,
+  type ClinicalExaminationRecord,
 } from "@yosemite-crew/types";
 import { prisma } from "src/config/prisma";
 import { uploadBufferAsFile } from "src/middlewares/upload";
@@ -188,28 +192,31 @@ const readPrescriptionItemString = (
   return undefined;
 };
 
+const toPositivePrescriptionQuantity = (value: unknown): number | undefined => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const quantity = Math.trunc(value);
+    return quantity > 0 ? quantity : undefined;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      const quantity = Math.trunc(parsed);
+      return quantity > 0 ? quantity : undefined;
+    }
+  }
+
+  return undefined;
+};
+
 const readPrescriptionItemQuantity = (
   item: Record<string, unknown>,
   keys: string[],
 ): number | undefined => {
   for (const key of keys) {
-    const value = item[key];
-    if (typeof value === "number" && Number.isFinite(value)) {
-      const quantity = Math.trunc(value);
-      if (quantity > 0) {
-        return quantity;
-      }
-      continue;
-    }
-
-    if (typeof value === "string" && value.trim()) {
-      const parsed = Number(value);
-      if (Number.isFinite(parsed)) {
-        const quantity = Math.trunc(parsed);
-        if (quantity > 0) {
-          return quantity;
-        }
-      }
+    const quantity = toPositivePrescriptionQuantity(item[key]);
+    if (quantity !== undefined) {
+      return quantity;
     }
   }
 
@@ -654,6 +661,12 @@ const hydrateVitalRecord = async (
   });
 };
 
+// The clinical kinds rendered to a signable document. Only these reach the
+// rendered-document pipeline; the passport kinds (Immunization / RabiesTitration /
+// ParasiteTreatment) are not document-backed yet, so they never flow here.
+type RenderableClinicalKind =
+  "SOAP_NOTE" | "PRESCRIPTION" | "DISCHARGE_SUMMARY" | "VITAL_RECORD";
+
 const DOCUMENT_BACKED_CLINICAL_KINDS = new Set<ClinicalArtifactKind>([
   "SOAP_NOTE",
   "PRESCRIPTION",
@@ -666,6 +679,10 @@ const clinicalArtifactTitleByKind: Record<ClinicalArtifactKind, string> = {
   PRESCRIPTION: "Prescription",
   DISCHARGE_SUMMARY: "Discharge summary",
   VITAL_RECORD: "Vital record",
+  IMMUNIZATION: "Vaccination record",
+  RABIES_TITRATION: "Rabies titration",
+  PARASITE_TREATMENT: "Parasite treatment",
+  CLINICAL_EXAM: "Clinical examination",
 };
 
 const buildClinicalArtifactRenderedDocumentInput = (artifact: {
@@ -706,7 +723,7 @@ const persistClinicalArtifactRenderedDocumentPdf = async (
       sourceKind: renderedDocument.sourceKind,
       sourceId: renderedDocument.sourceId,
       organisationId: renderedDocument.organisationId,
-      templateKind: renderedDocument.kind as ClinicalArtifactKind,
+      templateKind: renderedDocument.kind as RenderableClinicalKind,
       templateId: renderedDocument.templateId,
       templateVersion: renderedDocument.templateVersion,
       templateVersionId: renderedDocument.templateVersionId,
@@ -735,7 +752,7 @@ const persistClinicalArtifactRenderedDocumentPdf = async (
               sourceKind: renderedDocument.sourceKind,
               sourceId: renderedDocument.sourceId,
               organisationId: renderedDocument.organisationId,
-              templateKind: renderedDocument.kind as ClinicalArtifactKind,
+              templateKind: renderedDocument.kind as RenderableClinicalKind,
               templateId: renderedDocument.templateId,
               templateVersion: renderedDocument.templateVersion,
               templateVersionId: renderedDocument.templateVersionId,
@@ -931,53 +948,73 @@ export const hydrateMedications = (
   });
 };
 
+const collectPrescriptionInventoryItemIds = (
+  record: PrescriptionWithArtifact,
+  inventoryItemIds: Set<string>,
+) => {
+  const items = Array.isArray(record.items) ? record.items : [];
+  let foundInItems = false;
+  for (const item of items) {
+    const id = firstNonEmptyString(item.inventoryItemId);
+    if (id) {
+      inventoryItemIds.add(id);
+      foundInItems = true;
+    }
+  }
+
+  // The medications fallback is per record: it applies when THIS prescription
+  // carries no item-level inventory reference. Testing the shared accumulator
+  // here would skip the fallback for every record after the first one that
+  // contributed an id.
+  if (foundInItems || !Array.isArray(record.medications)) {
+    return;
+  }
+  for (const med of record.medications) {
+    const id = isRecord(med)
+      ? firstNonEmptyString(med.inventoryItemId)
+      : undefined;
+    if (id) {
+      inventoryItemIds.add(id);
+    }
+  }
+};
+
+const loadInventoryMedicationFieldsById = async (
+  inventoryItemIds: Set<string>,
+): Promise<Map<string, InventoryMedicationFields>> => {
+  const inventoryById = new Map<string, InventoryMedicationFields>();
+  if (inventoryItemIds.size === 0) {
+    return inventoryById;
+  }
+
+  const items = await prisma.inventoryItem.findMany({
+    where: { id: { in: [...inventoryItemIds] } },
+    select: {
+      id: true,
+      name: true,
+      genericName: true,
+      strength: true,
+      dosageForm: true,
+      controlledItem: true,
+    },
+  });
+  for (const item of items) {
+    inventoryById.set(item.id, item);
+  }
+
+  return inventoryById;
+};
+
 const hydratePrescriptionRecords = async (
   records: PrescriptionWithArtifact[],
 ): Promise<PrescriptionRecord[]> => {
   const inventoryItemIds = new Set<string>();
   for (const record of records) {
-    const items = Array.isArray(record.items) ? record.items : [];
-    for (const item of items) {
-      const id = firstNonEmptyString(item.inventoryItemId);
-      if (id) {
-        inventoryItemIds.add(id);
-      }
-    }
-
-    if (inventoryItemIds.size > 0) {
-      continue;
-    }
-
-    if (!Array.isArray(record.medications)) {
-      continue;
-    }
-    for (const med of record.medications) {
-      const id = isRecord(med)
-        ? firstNonEmptyString(med.inventoryItemId)
-        : undefined;
-      if (id) {
-        inventoryItemIds.add(id);
-      }
-    }
+    collectPrescriptionInventoryItemIds(record, inventoryItemIds);
   }
 
-  const inventoryById = new Map<string, InventoryMedicationFields>();
-  if (inventoryItemIds.size > 0) {
-    const items = await prisma.inventoryItem.findMany({
-      where: { id: { in: [...inventoryItemIds] } },
-      select: {
-        id: true,
-        name: true,
-        genericName: true,
-        strength: true,
-        dosageForm: true,
-        controlledItem: true,
-      },
-    });
-    for (const item of items) {
-      inventoryById.set(item.id, item);
-    }
-  }
+  const inventoryById =
+    await loadInventoryMedicationFieldsById(inventoryItemIds);
 
   return records.map((record) =>
     toPrescriptionRecord({
@@ -1214,26 +1251,102 @@ const advanceCheckedInAppointment = async (
   });
 };
 
+const createArtifactForKindInTx = (
+  txPrisma: ClinicalPrisma,
+  organisationId: string,
+  kind: ClinicalArtifactKind,
+  input: ClinicalArtifactBaseInput,
+) =>
+  txPrisma.clinicalArtifact.create({
+    data: {
+      organisationId,
+      appointmentId: input.appointmentId ?? undefined,
+      caseId: input.caseId ?? undefined,
+      encounterId: input.encounterId ?? undefined,
+      kind,
+      status: input.status ?? "DRAFT",
+      templateId: input.templateId ?? undefined,
+      templateVersion: input.templateVersion ?? undefined,
+      templateVersionId: input.templateVersionId ?? undefined,
+      authorId: input.authorId ?? undefined,
+      summary: toNullableString(input.summary),
+    },
+  });
+
+const createRenderedDocumentForArtifactInTx = async (
+  createdArtifact: {
+    id: string;
+    organisationId: string;
+    kind: ClinicalArtifactKind;
+    templateId: string | null;
+    templateVersion: number | null;
+    templateVersionId: string | null;
+  },
+  tx: Parameters<typeof createRenderedDocumentRecord>[1],
+) => {
+  if (!DOCUMENT_BACKED_CLINICAL_KINDS.has(createdArtifact.kind)) {
+    return;
+  }
+
+  await createRenderedDocumentRecord(
+    buildClinicalArtifactRenderedDocumentInput({
+      id: createdArtifact.id,
+      organisationId: createdArtifact.organisationId,
+      kind: createdArtifact.kind,
+      templateId: createdArtifact.templateId,
+      templateVersion: createdArtifact.templateVersion,
+      templateVersionId: createdArtifact.templateVersionId,
+    }),
+    tx,
+  );
+};
+
+const assertArtifactEditable = (
+  artifact: { status: ClinicalArtifactStatus },
+  nextStatus: ClinicalArtifactStatus | undefined,
+) => {
+  if (
+    isFinalClinicalArtifactStatus(artifact.status) &&
+    (nextStatus === undefined || isFinalClinicalArtifactStatus(nextStatus))
+  ) {
+    throw new ClinicalArtifactServiceError(
+      "Artifact is final. Reopen or amend it before editing.",
+      409,
+    );
+  }
+};
+
+const updateArtifactStatusAndSummaryInTx = (
+  txPrisma: ClinicalPrisma,
+  artifact: {
+    id: string;
+    status: ClinicalArtifactStatus;
+    summary: string | null;
+  },
+  input: { status?: ClinicalArtifactStatus; summary?: string | null },
+) =>
+  txPrisma.clinicalArtifact.update({
+    where: { id: artifact.id },
+    data: {
+      status: input.status ?? artifact.status,
+      summary:
+        input.summary === undefined
+          ? artifact.summary
+          : toNullableString(input.summary),
+    },
+  });
+
 export const ClinicalArtifactService = {
   async createSoapNote(input: SoapNoteInput): Promise<SoapNoteRecord> {
     const organisationId = ensureId(input.organisationId, "organisationId");
     const artifact = await prisma.$transaction(async (tx) => {
       const txPrisma = tx as ClinicalPrisma;
-      const createdArtifact = await txPrisma.clinicalArtifact.create({
-        data: {
-          organisationId,
-          appointmentId: input.appointmentId ?? undefined,
-          caseId: input.caseId ?? undefined,
-          encounterId: input.encounterId ?? undefined,
-          kind: "SOAP_NOTE",
-          status: input.status ?? "DRAFT",
-          templateId: input.templateId ?? undefined,
-          templateVersion: input.templateVersion ?? undefined,
-          templateVersionId: input.templateVersionId ?? undefined,
-          authorId: input.authorId ?? undefined,
-          summary: toNullableString(input.summary),
-        },
-      });
+      const createdArtifact = await createArtifactForKindInTx(
+        txPrisma,
+        organisationId,
+        "SOAP_NOTE",
+        input,
+      );
 
       const createdSoapNote = await txPrisma.soapNote.create({
         data: {
@@ -1252,19 +1365,7 @@ export const ClinicalArtifactService = {
         appointmentId: input.appointmentId,
       });
 
-      if (DOCUMENT_BACKED_CLINICAL_KINDS.has(createdArtifact.kind)) {
-        await createRenderedDocumentRecord(
-          buildClinicalArtifactRenderedDocumentInput({
-            id: createdArtifact.id,
-            organisationId: createdArtifact.organisationId,
-            kind: createdArtifact.kind,
-            templateId: createdArtifact.templateId,
-            templateVersion: createdArtifact.templateVersion,
-            templateVersionId: createdArtifact.templateVersionId,
-          }),
-          tx,
-        );
-      }
+      await createRenderedDocumentForArtifactInTx(createdArtifact, tx);
 
       return {
         artifact: createdArtifact,
@@ -1287,28 +1388,14 @@ export const ClinicalArtifactService = {
     const note = await loadSoapNoteOrThrow(soapNoteId);
     assertSoapNoteArtifact(note.artifact, organisationId);
 
-    if (
-      isFinalClinicalArtifactStatus(note.artifact.status) &&
-      (input.status === undefined ||
-        isFinalClinicalArtifactStatus(input.status))
-    ) {
-      throw new ClinicalArtifactServiceError(
-        "Artifact is final. Reopen or amend it before editing.",
-        409,
-      );
-    }
+    assertArtifactEditable(note.artifact, input.status);
 
     const updated = await prisma.$transaction(async (tx) => {
-      const artifact = await tx.clinicalArtifact.update({
-        where: { id: note.artifact.id },
-        data: {
-          status: input.status ?? note.artifact.status,
-          summary:
-            input.summary === undefined
-              ? note.artifact.summary
-              : toNullableString(input.summary),
-        },
-      });
+      const artifact = await updateArtifactStatusAndSummaryInTx(
+        tx as ClinicalPrisma,
+        note.artifact,
+        input,
+      );
 
       const soapNote = await tx.soapNote.update({
         where: { id: note.id },
@@ -1416,21 +1503,12 @@ export const ClinicalArtifactService = {
     );
     const artifact = await prisma.$transaction(async (tx) => {
       const txPrisma = tx as ClinicalPrisma;
-      const createdArtifact = await txPrisma.clinicalArtifact.create({
-        data: {
-          organisationId,
-          appointmentId: input.appointmentId ?? undefined,
-          caseId: input.caseId ?? undefined,
-          encounterId: input.encounterId ?? undefined,
-          kind: "PRESCRIPTION",
-          status: input.status ?? "DRAFT",
-          templateId: input.templateId ?? undefined,
-          templateVersion: input.templateVersion ?? undefined,
-          templateVersionId: input.templateVersionId ?? undefined,
-          authorId: input.authorId ?? undefined,
-          summary: toNullableString(input.summary),
-        },
-      });
+      const createdArtifact = await createArtifactForKindInTx(
+        txPrisma,
+        organisationId,
+        "PRESCRIPTION",
+        input,
+      );
 
       const createdPrescription = await txPrisma.prescription.create({
         data: {
@@ -1450,19 +1528,7 @@ export const ClinicalArtifactService = {
         appointmentId: input.appointmentId,
       });
 
-      if (DOCUMENT_BACKED_CLINICAL_KINDS.has(createdArtifact.kind)) {
-        await createRenderedDocumentRecord(
-          buildClinicalArtifactRenderedDocumentInput({
-            id: createdArtifact.id,
-            organisationId: createdArtifact.organisationId,
-            kind: createdArtifact.kind,
-            templateId: createdArtifact.templateId,
-            templateVersion: createdArtifact.templateVersion,
-            templateVersionId: createdArtifact.templateVersionId,
-          }),
-          tx,
-        );
-      }
+      await createRenderedDocumentForArtifactInTx(createdArtifact, tx);
 
       return buildPrescriptionRecord(createdArtifact, createdPrescription);
     });
@@ -1528,16 +1594,11 @@ export const ClinicalArtifactService = {
       const prescriptionItems = hasPrescriptionItemUpdates
         ? normalizePrescriptionItemInputs(input.items ?? input.medications)
         : [];
-      const artifact = await txPrisma.clinicalArtifact.update({
-        where: { id: record.artifact.id },
-        data: {
-          status: input.status ?? record.artifact.status,
-          summary:
-            input.summary === undefined
-              ? record.artifact.summary
-              : toNullableString(input.summary),
-        },
-      });
+      const artifact = await updateArtifactStatusAndSummaryInTx(
+        txPrisma,
+        record.artifact,
+        input,
+      );
 
       const prescription = await txPrisma.prescription.update({
         where: { id: record.id },
@@ -1827,21 +1888,12 @@ export const ClinicalArtifactService = {
     const organisationId = ensureId(input.organisationId, "organisationId");
     const artifact = await prisma.$transaction(async (tx) => {
       const txPrisma = tx as ClinicalPrisma;
-      const createdArtifact = await txPrisma.clinicalArtifact.create({
-        data: {
-          organisationId,
-          appointmentId: input.appointmentId ?? undefined,
-          caseId: input.caseId ?? undefined,
-          encounterId: input.encounterId ?? undefined,
-          kind: "DISCHARGE_SUMMARY",
-          status: input.status ?? "DRAFT",
-          templateId: input.templateId ?? undefined,
-          templateVersion: input.templateVersion ?? undefined,
-          templateVersionId: input.templateVersionId ?? undefined,
-          authorId: input.authorId ?? undefined,
-          summary: toNullableString(input.summary),
-        },
-      });
+      const createdArtifact = await createArtifactForKindInTx(
+        txPrisma,
+        organisationId,
+        "DISCHARGE_SUMMARY",
+        input,
+      );
 
       const createdDischargeSummary = await txPrisma.dischargeSummary.create({
         data: {
@@ -1860,19 +1912,7 @@ export const ClinicalArtifactService = {
         appointmentId: input.appointmentId,
       });
 
-      if (DOCUMENT_BACKED_CLINICAL_KINDS.has(createdArtifact.kind)) {
-        await createRenderedDocumentRecord(
-          buildClinicalArtifactRenderedDocumentInput({
-            id: createdArtifact.id,
-            organisationId: createdArtifact.organisationId,
-            kind: createdArtifact.kind,
-            templateId: createdArtifact.templateId,
-            templateVersion: createdArtifact.templateVersion,
-            templateVersionId: createdArtifact.templateVersionId,
-          }),
-          tx,
-        );
-      }
+      await createRenderedDocumentForArtifactInTx(createdArtifact, tx);
 
       return buildDischargeSummaryRecord(
         createdArtifact,
@@ -1900,29 +1940,15 @@ export const ClinicalArtifactService = {
       organisationId,
     );
 
-    if (
-      isFinalClinicalArtifactStatus(record.artifact.status) &&
-      (input.status === undefined ||
-        isFinalClinicalArtifactStatus(input.status))
-    ) {
-      throw new ClinicalArtifactServiceError(
-        "Artifact is final. Reopen or amend it before editing.",
-        409,
-      );
-    }
+    assertArtifactEditable(record.artifact, input.status);
 
     const updated = await prisma.$transaction(async (tx) => {
       const txPrisma = tx as ClinicalPrisma;
-      const artifact = await txPrisma.clinicalArtifact.update({
-        where: { id: record.artifact.id },
-        data: {
-          status: input.status ?? record.artifact.status,
-          summary:
-            input.summary === undefined
-              ? record.artifact.summary
-              : toNullableString(input.summary),
-        },
-      });
+      const artifact = await updateArtifactStatusAndSummaryInTx(
+        txPrisma,
+        record.artifact,
+        input,
+      );
 
       const dischargeSummary = await txPrisma.dischargeSummary.update({
         where: { id: record.id },
@@ -2029,21 +2055,12 @@ export const ClinicalArtifactService = {
 
     const artifact = await prisma.$transaction(async (tx) => {
       const txPrisma = tx as ClinicalPrisma;
-      const createdArtifact = await txPrisma.clinicalArtifact.create({
-        data: {
-          organisationId,
-          appointmentId: input.appointmentId ?? undefined,
-          caseId: input.caseId ?? undefined,
-          encounterId: input.encounterId ?? undefined,
-          kind: "VITAL_RECORD",
-          status: input.status ?? "DRAFT",
-          templateId: input.templateId ?? undefined,
-          templateVersion: input.templateVersion ?? undefined,
-          templateVersionId: input.templateVersionId ?? undefined,
-          authorId: input.authorId ?? undefined,
-          summary: toNullableString(input.summary),
-        },
-      });
+      const createdArtifact = await createArtifactForKindInTx(
+        txPrisma,
+        organisationId,
+        "VITAL_RECORD",
+        input,
+      );
 
       const createdVitalRecord = await txPrisma.vitalRecord.create({
         data: {
@@ -2067,19 +2084,7 @@ export const ClinicalArtifactService = {
         appointmentId: input.appointmentId,
       });
 
-      if (DOCUMENT_BACKED_CLINICAL_KINDS.has(createdArtifact.kind)) {
-        await createRenderedDocumentRecord(
-          buildClinicalArtifactRenderedDocumentInput({
-            id: createdArtifact.id,
-            organisationId: createdArtifact.organisationId,
-            kind: createdArtifact.kind,
-            templateId: createdArtifact.templateId,
-            templateVersion: createdArtifact.templateVersion,
-            templateVersionId: createdArtifact.templateVersionId,
-          }),
-          tx,
-        );
-      }
+      await createRenderedDocumentForArtifactInTx(createdArtifact, tx);
 
       const resolvedRecordedByDisplay =
         requestedRecordedByDisplay === undefined
@@ -2115,29 +2120,15 @@ export const ClinicalArtifactService = {
       input.recordedByDisplay,
     );
 
-    if (
-      isFinalClinicalArtifactStatus(record.artifact.status) &&
-      (input.status === undefined ||
-        isFinalClinicalArtifactStatus(input.status))
-    ) {
-      throw new ClinicalArtifactServiceError(
-        "Artifact is final. Reopen or amend it before editing.",
-        409,
-      );
-    }
+    assertArtifactEditable(record.artifact, input.status);
 
     const updated = await prisma.$transaction(async (tx) => {
       const txPrisma = tx as ClinicalPrisma;
-      const artifact = await txPrisma.clinicalArtifact.update({
-        where: { id: record.artifact.id },
-        data: {
-          status: input.status ?? record.artifact.status,
-          summary:
-            input.summary === undefined
-              ? record.artifact.summary
-              : toNullableString(input.summary),
-        },
-      });
+      const artifact = await updateArtifactStatusAndSummaryInTx(
+        txPrisma,
+        record.artifact,
+        input,
+      );
 
       const vitalRecord = await txPrisma.vitalRecord.update({
         where: { id: record.id },
@@ -2237,6 +2228,178 @@ export const ClinicalArtifactService = {
     });
 
     return Promise.all(records.map(toVitalRecordRecord));
+  },
+
+  // Passport clinical-record kinds (immunization, rabies titration, parasite
+  // treatment, pre-travel exam). Read-only over FHIR: these are captured through
+  // the dedicated passport flow and signed via Documenso, so there is no FHIR
+  // create/update path here.
+  async listImmunizationsForEncounter(
+    organisationId: string,
+    encounterId: string,
+  ): Promise<ImmunizationRecord[]> {
+    const records = await prisma.immunization.findMany({
+      where: {
+        artifact: {
+          organisationId: ensureId(organisationId, "organisationId"),
+          encounterId: ensureId(encounterId, "encounterId"),
+          kind: "IMMUNIZATION",
+        },
+      },
+      include: { artifact: true },
+      orderBy: { dateAdministered: "desc" },
+    });
+    return records.map((record) => ({
+      artifact: toClinicalArtifactKind(record.artifact, "IMMUNIZATION"),
+      immunization: record,
+    }));
+  },
+
+  async listImmunizationsForAppointment(
+    organisationId: string,
+    appointmentId: string,
+  ): Promise<ImmunizationRecord[]> {
+    const records = await prisma.immunization.findMany({
+      where: {
+        artifact: {
+          organisationId: ensureId(organisationId, "organisationId"),
+          appointmentId: ensureId(appointmentId, "appointmentId"),
+          kind: "IMMUNIZATION",
+        },
+      },
+      include: { artifact: true },
+      orderBy: { dateAdministered: "desc" },
+    });
+    return records.map((record) => ({
+      artifact: toClinicalArtifactKind(record.artifact, "IMMUNIZATION"),
+      immunization: record,
+    }));
+  },
+
+  async listRabiesTitrationsForEncounter(
+    organisationId: string,
+    encounterId: string,
+  ): Promise<RabiesTitrationRecord[]> {
+    const records = await prisma.rabiesTitration.findMany({
+      where: {
+        artifact: {
+          organisationId: ensureId(organisationId, "organisationId"),
+          encounterId: ensureId(encounterId, "encounterId"),
+          kind: "RABIES_TITRATION",
+        },
+      },
+      include: { artifact: true },
+      orderBy: { sampleDate: "desc" },
+    });
+    return records.map((record) => ({
+      artifact: toClinicalArtifactKind(record.artifact, "RABIES_TITRATION"),
+      rabiesTitration: record,
+    }));
+  },
+
+  async listRabiesTitrationsForAppointment(
+    organisationId: string,
+    appointmentId: string,
+  ): Promise<RabiesTitrationRecord[]> {
+    const records = await prisma.rabiesTitration.findMany({
+      where: {
+        artifact: {
+          organisationId: ensureId(organisationId, "organisationId"),
+          appointmentId: ensureId(appointmentId, "appointmentId"),
+          kind: "RABIES_TITRATION",
+        },
+      },
+      include: { artifact: true },
+      orderBy: { sampleDate: "desc" },
+    });
+    return records.map((record) => ({
+      artifact: toClinicalArtifactKind(record.artifact, "RABIES_TITRATION"),
+      rabiesTitration: record,
+    }));
+  },
+
+  async listParasiteTreatmentsForEncounter(
+    organisationId: string,
+    encounterId: string,
+  ): Promise<ParasiteTreatmentRecord[]> {
+    const records = await prisma.parasiteTreatment.findMany({
+      where: {
+        artifact: {
+          organisationId: ensureId(organisationId, "organisationId"),
+          encounterId: ensureId(encounterId, "encounterId"),
+          kind: "PARASITE_TREATMENT",
+        },
+      },
+      include: { artifact: true },
+      orderBy: { treatedAt: "desc" },
+    });
+    return records.map((record) => ({
+      artifact: toClinicalArtifactKind(record.artifact, "PARASITE_TREATMENT"),
+      parasiteTreatment: record,
+    }));
+  },
+
+  async listParasiteTreatmentsForAppointment(
+    organisationId: string,
+    appointmentId: string,
+  ): Promise<ParasiteTreatmentRecord[]> {
+    const records = await prisma.parasiteTreatment.findMany({
+      where: {
+        artifact: {
+          organisationId: ensureId(organisationId, "organisationId"),
+          appointmentId: ensureId(appointmentId, "appointmentId"),
+          kind: "PARASITE_TREATMENT",
+        },
+      },
+      include: { artifact: true },
+      orderBy: { treatedAt: "desc" },
+    });
+    return records.map((record) => ({
+      artifact: toClinicalArtifactKind(record.artifact, "PARASITE_TREATMENT"),
+      parasiteTreatment: record,
+    }));
+  },
+
+  async listClinicalExaminationsForEncounter(
+    organisationId: string,
+    encounterId: string,
+  ): Promise<ClinicalExaminationRecord[]> {
+    const records = await prisma.clinicalExamination.findMany({
+      where: {
+        artifact: {
+          organisationId: ensureId(organisationId, "organisationId"),
+          encounterId: ensureId(encounterId, "encounterId"),
+          kind: "CLINICAL_EXAM",
+        },
+      },
+      include: { artifact: true },
+      orderBy: { examinedAt: "desc" },
+    });
+    return records.map((record) => ({
+      artifact: toClinicalArtifactKind(record.artifact, "CLINICAL_EXAM"),
+      clinicalExamination: record,
+    }));
+  },
+
+  async listClinicalExaminationsForAppointment(
+    organisationId: string,
+    appointmentId: string,
+  ): Promise<ClinicalExaminationRecord[]> {
+    const records = await prisma.clinicalExamination.findMany({
+      where: {
+        artifact: {
+          organisationId: ensureId(organisationId, "organisationId"),
+          appointmentId: ensureId(appointmentId, "appointmentId"),
+          kind: "CLINICAL_EXAM",
+        },
+      },
+      include: { artifact: true },
+      orderBy: { examinedAt: "desc" },
+    });
+    return records.map((record) => ({
+      artifact: toClinicalArtifactKind(record.artifact, "CLINICAL_EXAM"),
+      clinicalExamination: record,
+    }));
   },
 
   async finalizeSoapNote(

@@ -176,6 +176,37 @@ describe('rewriteCompanionTerminologyText', () => {
     );
   });
 
+  it('never rewrites the audience term "pet business"', () => {
+    expect(rewriteCompanionTerminologyText('Pet business', 'PATIENT')).toBe('Pet business');
+    expect(rewriteCompanionTerminologyText('Sign in as a pet business', 'ANIMAL')).toBe(
+      'Sign in as a pet business'
+    );
+  });
+
+  it('never rewrites the audience term "pet businesses"', () => {
+    expect(rewriteCompanionTerminologyText('Built for pet businesses', 'PATIENT')).toBe(
+      'Built for pet businesses'
+    );
+  });
+
+  it('never rewrites the brand tagline "animal health"', () => {
+    expect(
+      rewriteCompanionTerminologyText('OPEN-SOURCE OPERATING SYSTEM FOR ANIMAL HEALTH', 'PATIENT')
+    ).toBe('OPEN-SOURCE OPERATING SYSTEM FOR ANIMAL HEALTH');
+    expect(rewriteCompanionTerminologyText('the animal health platform', 'PET')).toBe(
+      'the animal health platform'
+    );
+  });
+
+  it('still rewrites the protected nouns when the guarded word does not follow', () => {
+    expect(rewriteCompanionTerminologyText('Pet business needs a pet record', 'PATIENT')).toBe(
+      'Pet business needs a patient record'
+    );
+    expect(rewriteCompanionTerminologyText('animal health, animal records', 'PET')).toBe(
+      'animal health, pet records'
+    );
+  });
+
   it('still rewrites the animal noun elsewhere in the same string', () => {
     expect(rewriteCompanionTerminologyText('Pet parent of a pet', 'PATIENT')).toBe(
       'Pet parent of a patient'

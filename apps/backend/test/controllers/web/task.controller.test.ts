@@ -1,8 +1,16 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  jest,
+} from "@jest/globals";
 import type { Request, Response } from "express";
 import { TaskController } from "../../../src/controllers/web/task.controller";
 import {
   TaskService,
+  TaskServiceError,
   type CompleteTaskInput,
 } from "../../../src/services/task.service";
 
@@ -243,6 +251,52 @@ describe("TaskController", () => {
       );
     });
 
+    it("parses shared list filters and drops junk values", async () => {
+      req.userId = "auth-user-id";
+      req.organisationId = "org-1";
+      req.userPermissions = ["tasks:view:any"];
+      req.query = {
+        appointmentId: ["appt-1", "appt-2"],
+        encounterId: "enc-1",
+        status: "PENDING,COMPLETED,NOT_A_STATUS",
+        kind: "MEDICATION",
+        subcategory: "dental",
+        fromDueAt: "2026-01-01T00:00:00.000Z",
+        dueTo: "2026-01-31T00:00:00.000Z",
+        includeCompleted: "junk",
+      } as any;
+
+      await TaskController.listEmployeeTasks(req as Request, res);
+
+      expect(mockedTaskService.listForEmployee).toHaveBeenCalledWith(
+        expect.objectContaining({
+          appointmentId: "appt-1",
+          encounterId: "enc-1",
+          status: ["PENDING", "COMPLETED"],
+          kind: "MEDICATION",
+          subcategory: "dental",
+          dueFrom: new Date("2026-01-01T00:00:00.000Z"),
+          dueTo: new Date("2026-01-31T00:00:00.000Z"),
+          includeCompleted: undefined,
+        }),
+      );
+    });
+
+    it("maps a TaskServiceError from the service to its status code", async () => {
+      req.userId = "auth-user-id";
+      req.organisationId = "org-1";
+      req.userPermissions = ["tasks:view:any"];
+      req.query = {} as any;
+      mockedTaskService.listForEmployee.mockRejectedValueOnce(
+        new TaskServiceError("Not allowed", 403) as never,
+      );
+
+      await TaskController.listEmployeeTasks(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(403);
+      expect(jsonMock).toHaveBeenCalledWith({ message: "Not allowed" });
+    });
+
     it("passes a valid priority filter through and drops an invalid one", async () => {
       req.userId = "auth-user-id";
       req.organisationId = "org-1";
@@ -295,6 +349,187 @@ describe("TaskController", () => {
         "auth-user-id",
         "THIS",
         undefined,
+      );
+    });
+  });
+
+  describe("PMS guards and error mapping", () => {
+    let consoleErrorSpy: jest.SpiedFunction<typeof console.error>;
+
+    beforeEach(() => {
+      consoleErrorSpy = jest
+        .spyOn(console, "error")
+        .mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+      consoleErrorSpy.mockRestore();
+    });
+
+    it("rejects an update with no authenticated actor", async () => {
+      req.userId = undefined;
+      req.body = { name: "new" } as never;
+
+      await TaskController.updateTaskPMS(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(403);
+      expect(jsonMock).toHaveBeenCalledWith({ message: "Account not found" });
+      expect(mockedTaskService.updateTask).not.toHaveBeenCalled();
+    });
+
+    it("maps an unexpected update failure to a 500", async () => {
+      req.userId = "auth-user-id";
+      req.query = {} as never;
+      mockedTaskService.updateTask.mockRejectedValueOnce(new Error("boom"));
+
+      await TaskController.updateTaskPMS(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(500);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Internal Server Error",
+      });
+      expect(consoleErrorSpy).toHaveBeenCalled();
+    });
+
+    it("rejects a delete with no authenticated actor", async () => {
+      req.userId = undefined;
+      req.query = {} as never;
+
+      await TaskController.deleteTaskPMS(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(403);
+      expect(mockedTaskService.deleteTask).not.toHaveBeenCalled();
+    });
+
+    it("defaults a delete to the THIS scope when the query omits it", async () => {
+      req.userId = "auth-user-id";
+      req.query = {} as never;
+      mockedTaskService.deleteTask.mockResolvedValue(undefined as never);
+
+      await TaskController.deleteTaskPMS(req as Request, res);
+
+      expect(mockedTaskService.deleteTask).toHaveBeenCalledWith(
+        "task-1",
+        "auth-user-id",
+        "THIS",
+        undefined,
+      );
+      expect(statusMock).toHaveBeenCalledWith(204);
+    });
+
+    it("maps a service error raised during delete to its status code", async () => {
+      req.userId = "auth-user-id";
+      req.query = {} as never;
+      mockedTaskService.deleteTask.mockRejectedValueOnce(
+        new TaskServiceError("Not allowed to update this task", 403) as never,
+      );
+
+      await TaskController.deleteTaskPMS(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(403);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Not allowed to update this task",
+      });
+    });
+
+    it("rejects a status change with no usable status in the body", async () => {
+      req.userId = "auth-user-id";
+      req.body = { completion: completionBody } as never;
+
+      await TaskController.changeStatusPMS(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({ message: "Invalid task status" });
+      expect(mockedTaskService.changeStatus).not.toHaveBeenCalled();
+    });
+
+    it("rejects a status change whose status is not a known value", async () => {
+      req.userId = "auth-user-id";
+      req.body = { status: "ALMOST_DONE" } as never;
+
+      await TaskController.changeStatusPMS(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(mockedTaskService.changeStatus).not.toHaveBeenCalled();
+    });
+
+    it("takes the first value of a repeated status field", async () => {
+      req.userId = "auth-user-id";
+      req.body = { status: ["IN_PROGRESS", "COMPLETED"] } as never;
+      mockedTaskService.changeStatus.mockResolvedValue({ ok: true } as never);
+
+      await TaskController.changeStatusPMS(req as Request, res);
+
+      expect(mockedTaskService.changeStatus).toHaveBeenCalledWith(
+        "task-1",
+        "IN_PROGRESS",
+        "auth-user-id",
+        undefined,
+        undefined,
+      );
+    });
+
+    it("maps an unexpected status-change failure to a 500", async () => {
+      req.userId = "auth-user-id";
+      mockedTaskService.changeStatus.mockRejectedValueOnce(new Error("boom"));
+
+      await TaskController.changeStatusPMS(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(500);
+      expect(consoleErrorSpy).toHaveBeenCalled();
+    });
+
+    it("rejects an employee list from an unidentified caller with no permissions", async () => {
+      // userPermissions is absent entirely, so hasPermission falls back to
+      // false and there is no actor to scope the list to.
+      req.userId = undefined;
+      req.userPermissions = undefined;
+      req.body = {};
+      req.query = {} as never;
+
+      await TaskController.listEmployeeTasks(req as Request, res);
+
+      expect(statusMock).toHaveBeenCalledWith(403);
+      expect(jsonMock).toHaveBeenCalledWith({ message: "Account not found" });
+      expect(mockedTaskService.listForEmployee).not.toHaveBeenCalled();
+    });
+
+    it("accepts boolean and array-valued list filters", async () => {
+      req.userId = "auth-user-id";
+      req.organisationId = "org-1";
+      req.userPermissions = ["tasks:view:any"];
+      req.body = {};
+      req.query = {
+        includeCompleted: true,
+        dueFrom: ["2026-04-01T00:00:00.000Z", "2026-05-01T00:00:00.000Z"],
+        category: "NOT_A_CATEGORY",
+      } as never;
+      mockedTaskService.listForEmployee.mockResolvedValue([] as never);
+
+      await TaskController.listEmployeeTasks(req as Request, res);
+
+      expect(mockedTaskService.listForEmployee).toHaveBeenCalledWith(
+        expect.objectContaining({
+          includeCompleted: true,
+          dueFrom: new Date("2026-04-01T00:00:00.000Z"),
+          category: undefined,
+        }),
+      );
+    });
+
+    it("falls back to the route organisationId when RBAC set none", async () => {
+      req.userId = "auth-user-id";
+      req.organisationId = undefined;
+      req.userPermissions = ["tasks:view:any"];
+      req.body = {};
+      req.query = {} as never;
+      req.params = { taskId: "task-1", organisationId: "org-from-route" };
+      mockedTaskService.listForEmployee.mockResolvedValue([] as never);
+
+      await TaskController.listEmployeeTasks(req as Request, res);
+
+      expect(mockedTaskService.listForEmployee).toHaveBeenCalledWith(
+        expect.objectContaining({ organisationId: "org-from-route" }),
       );
     });
   });

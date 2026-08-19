@@ -22,8 +22,11 @@ jest.mock('next/image', () => {
 });
 
 jest.mock('next/link', () => {
-  const MockLink = ({ children, href, onClick, ...rest }: any) => (
-    <a href={href} onClick={onClick} {...rest}>
+  // `prefetch` is consumed by the real next/link and never reaches the DOM.
+  // Forwarding it onto a bare <a> makes React warn about a non-boolean
+  // attribute, which the console.error spy below turns into a failure.
+  const MockLink = ({ children, href, onClick, prefetch, ...rest }: any) => (
+    <a href={href} onClick={onClick} data-prefetch={String(prefetch)} {...rest}>
       {children}
     </a>
   );
@@ -196,11 +199,48 @@ describe('Sidebar', () => {
     const finance = screen.getByRole('link', { name: 'Finance' });
     expect(finance).toHaveClass('route-disabled');
 
+    // Disabled to assistive tech too, not only to the eye. Without these it is
+    // a greyed link that a screen reader still announces as a destination and a
+    // keyboard user can still tab to - an unverified org's Patients entry read
+    // as reachable when nothing behind it is.
+    expect(finance).toHaveAttribute('aria-disabled', 'true');
+    expect(finance).toHaveAttribute('tabindex', '-1');
+
     fireEvent.click(finance);
 
     expect(mockStartRouteLoader).not.toHaveBeenCalled();
     expect(mockStopRouteLoader).not.toHaveBeenCalled();
     expect(mockRouter.push).not.toHaveBeenCalled();
+  });
+
+  it('leaves enabled routes focusable and unmarked', () => {
+    setup({ pathname: '/dashboard', collapsed: false });
+
+    render(<Sidebar />);
+    const dashboard = screen.getByRole('link', { name: 'Dashboard' });
+
+    expect(dashboard).not.toHaveClass('route-disabled');
+    expect(dashboard).not.toHaveAttribute('aria-disabled');
+    expect(dashboard).not.toHaveAttribute('tabindex');
+  });
+
+  it('does not viewport-prefetch the nav routes', () => {
+    // Every sidebar route is permanently in the viewport, so the App Router's
+    // default fired an RSC request for ALL of them on mount. Measured on dev,
+    // five of those (/appointments, /chat, /tasks, /dashboard, /companions) took
+    // 3.0-3.8s EACH and ran concurrently with the page's own data against a
+    // ~6-connection-per-origin cap: the page you had actually opened queued
+    // behind prefetches for pages you had not. Next still prefetches these on
+    // hover, which is the point of intent anyway.
+    setup({ pathname: '/dashboard', collapsed: false });
+
+    render(<Sidebar />);
+
+    const dashboard = screen.getByRole('link', { name: 'Dashboard' });
+    const appointments = screen.getByRole('link', { name: 'Appointments' });
+
+    expect(dashboard).toHaveAttribute('data-prefetch', 'false');
+    expect(appointments).toHaveAttribute('data-prefetch', 'false');
   });
 
   it('toggles the sidebar collapsed state and persists the preference', () => {

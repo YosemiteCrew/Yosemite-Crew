@@ -19,7 +19,7 @@ const RoomSubmenu = ({ submenuRef, submenuStyle, roomOptions, savingKey }: RoomS
     role="menu"
     aria-label="Assign appointment room"
     data-context-menu="true"
-    className="fixed z-[1002] overflow-hidden rounded-[22px] border border-white/45 bg-white/36 px-1.5 py-2 shadow-[0_20px_60px_rgba(16,24,40,0.18)] backdrop-blur-2xl"
+    className="yc-glass-overlay fixed z-[1002] overflow-hidden rounded-[22px] px-1.5 py-2"
     style={submenuStyle}
   >
     <div className="flex max-h-[260px] flex-col gap-0.5 overflow-y-auto">
@@ -31,7 +31,7 @@ const RoomSubmenu = ({ submenuRef, submenuStyle, roomOptions, savingKey }: RoomS
           return (
             <React.Fragment key={room.key}>
               {index > 0 ? (
-                <div className="mx-1 border-t border-white/30" aria-hidden="true" />
+                <div className="mx-1 border-t border-[var(--hairline)]" aria-hidden="true" />
               ) : null}
               <button
                 type="button"
@@ -45,7 +45,9 @@ const RoomSubmenu = ({ submenuRef, submenuStyle, roomOptions, savingKey }: RoomS
               >
                 <span className="truncate">{room.label}</span>
                 {roomStatusLabel ? (
-                  <span className="shrink-0 text-[8px] opacity-60">{roomStatusLabel}</span>
+                  <span className="shrink-0 text-[8px] text-[var(--ink-body)]">
+                    {roomStatusLabel}
+                  </span>
                 ) : null}
               </button>
             </React.Fragment>

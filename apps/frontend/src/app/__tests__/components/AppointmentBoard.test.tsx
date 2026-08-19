@@ -744,7 +744,7 @@ describe('AppointmentBoard', () => {
     );
   });
 
-  it('mutes a completed card and keeps a live card at full strength', () => {
+  it('mutes a completed card by dropping its shadow, not by dimming it', () => {
     const { rerender } = render(
       <AppointmentBoard
         appointments={[{ ...baseAppointment, id: 'appt-done', status: 'COMPLETED' } as any]}
@@ -754,7 +754,12 @@ describe('AppointmentBoard', () => {
       />
     );
 
-    expect(screen.getByLabelText('Appointment Buddy').className).toContain('opacity-[0.72]');
+    // The muted state recedes by losing the lift shadow. It must NOT dim: the
+    // card's own text-text-tertiary meta line composited below AA at 0.72, on a
+    // card that is still clickable.
+    const doneCard = screen.getByLabelText('Appointment Buddy');
+    expect(doneCard.className).not.toMatch(/\bopacity-/);
+    expect(doneCard.className).toContain('shadow-none');
 
     rerender(
       <AppointmentBoard

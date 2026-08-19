@@ -47,6 +47,7 @@ import {
 import clsx from 'clsx';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import SharedStatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
+import { useConfirm } from '@/app/ui/overlays/Modal/ConfirmModal';
 
 type StatusTokens = { bg: string; text: string; border: string };
 
@@ -180,7 +181,7 @@ const getValidateStateMeta = (
 ): { text: string; className: string } | null => {
   if (validateState === 'idle') return null;
   if (validateState === 'valid') {
-    return { text: 'Credentials validated successfully.', className: 'text-green-700' };
+    return { text: 'Credentials validated successfully.', className: 'text-pill-success-text' };
   }
   return { text: 'Credentials are invalid or not available.', className: 'text-text-error' };
 };
@@ -357,6 +358,7 @@ type IdexxActionsState = {
 };
 
 const useIdexxActions = (s: IdexxActionsState) => {
+  const { confirm, confirmDialog } = useConfirm();
   const handleManualRefresh = useCallback(async () => {
     if (!s.primaryOrgId || s.refreshing) return;
     s.setRefreshing(true);
@@ -445,9 +447,12 @@ const useIdexxActions = (s: IdexxActionsState) => {
     }
     const isDisconnecting = (s.idexxIntegration.status ?? '').toLowerCase() === 'enabled';
     if (isDisconnecting) {
-      const ok = globalThis.confirm(
-        'Disconnect IDEXX for this organization? Lab ordering and result syncing will be unavailable until re-enabled.'
-      );
+      const ok = await confirm({
+        title: 'Disconnect IDEXX?',
+        body: 'Lab ordering and result syncing stop for this organization until IDEXX is enabled again.',
+        confirmLabel: 'Disconnect',
+        tone: 'danger',
+      });
       if (!ok) return;
     }
     s.setSaving(true);
@@ -472,9 +477,15 @@ const useIdexxActions = (s: IdexxActionsState) => {
     } finally {
       s.setSaving(false);
     }
-  }, [s, validateBeforeEnable]);
+  }, [s, validateBeforeEnable, confirm]);
 
-  return { handleManualRefresh, handleStoreCredentials, handleValidate, handleEnableDisable };
+  return {
+    handleManualRefresh,
+    handleStoreCredentials,
+    handleValidate,
+    handleEnableDisable,
+    confirmDialog,
+  };
 };
 
 const useIntegrationsPage = () => {
@@ -565,21 +576,26 @@ const useIntegrationsPage = () => {
     setValidateState(resolveValidateState(idexxIntegration?.credentialsStatus));
   }
 
-  const { handleManualRefresh, handleStoreCredentials, handleValidate, handleEnableDisable } =
-    useIdexxActions({
-      primaryOrgId,
-      refreshing,
-      saving,
-      username,
-      password,
-      idexxIntegration,
-      setDevices,
-      setError,
-      setRefreshing,
-      setSaving,
-      setValidateState,
-      setShowSettings,
-    });
+  const {
+    handleManualRefresh,
+    handleStoreCredentials,
+    handleValidate,
+    handleEnableDisable,
+    confirmDialog,
+  } = useIdexxActions({
+    primaryOrgId,
+    refreshing,
+    saving,
+    username,
+    password,
+    idexxIntegration,
+    setDevices,
+    setError,
+    setRefreshing,
+    setSaving,
+    setValidateState,
+    setShowSettings,
+  });
 
   const linkedCount = useMemo(() => {
     const enabledProviders = integrations.reduce<Set<string>>((providers, integration) => {
@@ -630,6 +646,7 @@ const useIntegrationsPage = () => {
   }, [primaryOrgId, merckEnabled, merckSaving, refreshMerckIntegration]);
 
   return {
+    confirmDialog,
     primaryOrg,
     primaryOrgId,
     canEditIntegrations,
@@ -673,7 +690,14 @@ const useIntegrationsPage = () => {
 
 const INTEGRATION_SETTINGS_TITLE_ID = 'integration-settings-title';
 
-const IdexxSettingsModal = ({
+/**
+ * Exported for `IdexxSettingsModal.stories.tsx`. The panel is presentation only -
+ * every value and every handler arrives as a prop - but the page that owns those
+ * props is reachable only through `ProtectedRoute` + `OrgGuard`, and the hook
+ * behind it (`useIntegrationsPage`) fetches devices and orders over axios. So the
+ * only way to draw this surface without a network stub is to render it directly.
+ */
+export const IdexxSettingsModal = ({
   showSettings,
   setShowSettings,
   idexxIntegration,
@@ -905,7 +929,7 @@ const IntegrationFilterTabs = ({
           className={clsx(
             'rounded-full! border px-[13px] py-1.5 text-[12px] whitespace-nowrap transition-colors',
             isActive
-              ? 'bg-[var(--inset)] border-[var(--divider)] text-[var(--ink)] font-bold'
+              ? 'bg-[var(--chip-selected-bg)] border-[var(--chip-selected-border)] text-[var(--chip-selected-ink)] font-bold'
               : 'border-[var(--hairline)] text-[var(--ink-muted)] font-semibold hover:border-[var(--divider)]'
           )}
         >
@@ -1275,6 +1299,7 @@ const IntegrationsPage = () => {
 
   return (
     <div className="yc-page-content">
+      {s.confirmDialog}
       <div className="flex justify-between items-start gap-3 flex-wrap">
         <div className="flex flex-col gap-1">
           <h1 className="text-page-title flex items-center gap-2">

@@ -6,21 +6,21 @@ import { Home } from '@/app/features/marketing/pages/Home/Home';
 type StatsShape = {
   stars: string | null;
   starsFull: string | null;
-  selfHosters: string | null;
+  repositoryClones: string | null;
   contributors: string | null;
   discord: string | null;
 };
 const DEFAULT_STATS: StatsShape = {
   stars: '2.4k',
   starsFull: '2,400',
-  selfHosters: '67,134',
+  repositoryClones: '67,134',
   contributors: '128',
   discord: '3,210',
 };
 const EMPTY_STATS: StatsShape = {
   stars: null,
   starsFull: null,
-  selfHosters: null,
+  repositoryClones: null,
   contributors: null,
   discord: null,
 };
@@ -95,7 +95,7 @@ describe('Home marketing page', () => {
   });
 
   it('renders the live metrics grid labels', () => {
-    expect(screen.getByText('Self-hosters')).toBeInTheDocument();
+    expect(screen.getByText('Repository clones')).toBeInTheDocument();
     expect(screen.getByText('Contributors')).toBeInTheDocument();
     expect(screen.getByText('Discord members')).toBeInTheDocument();
     expect(screen.getByText('Repo stars')).toBeInTheDocument();
@@ -119,6 +119,6 @@ describe('Home marketing page with no live stats yet', () => {
     render(<Home />);
     // Hero social proof plus the four-metric grid all render the '·' placeholder.
     expect(screen.getAllByText('·').length).toBeGreaterThanOrEqual(4);
-    expect(screen.getByText(/Trusted by/)).toBeInTheDocument();
+    expect(screen.getAllByText(/repository clones/i).length).toBeGreaterThanOrEqual(1);
   });
 });

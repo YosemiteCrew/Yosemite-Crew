@@ -638,6 +638,35 @@ describe('LabTests', () => {
     }
   });
 
+  it('selects reference-order practitioners and falls back to the generic IVLS device label', async () => {
+    listIdexxIvlsDevicesMock.mockResolvedValue({
+      ivlsDeviceList: [{ deviceSerialNumber: 'ivls-3' }],
+    });
+    const staffedAppointment = {
+      ...appointment,
+      lead: { name: 'Dr Vet' },
+      supportStaff: [{ name: 'Tech Sam' }],
+    };
+    render(<LabTests activeAppointment={staffedAppointment} />);
+
+    await waitFor(() => {
+      expect(listIdexxTestsMock).toHaveBeenCalled();
+    });
+
+    // The mocked LabelDropdowns are selects — choosing options drives the
+    // veterinarian / technician onSelect handlers of the reference form.
+    fireEvent.change(screen.getByTestId('Veterinarian'), { target: { value: 'Dr Vet' } });
+    fireEvent.change(screen.getByTestId('Technician'), { target: { value: 'Tech Sam' } });
+    expect((screen.getByTestId('Veterinarian') as HTMLSelectElement).value).toBe('Dr Vet');
+    expect((screen.getByTestId('Technician') as HTMLSelectElement).value).toBe('Tech Sam');
+
+    // A device without a display name is labelled with the generic IVLS name.
+    fireEvent.change(screen.getByTestId('Modality'), { target: { value: 'INHOUSE' } });
+    await waitFor(() => {
+      expect(screen.getByText('IVLS (ivls-3)')).toBeInTheDocument();
+    });
+  });
+
   it('uses in-house flow for census only after selecting an IVLS device', async () => {
     render(<LabTests activeAppointment={appointment} />);
 

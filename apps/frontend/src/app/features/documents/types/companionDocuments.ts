@@ -1,116 +1,42 @@
 import { Option } from '@/app/features/companions/types/companion';
+import { makeOptions } from '@/app/lib/options';
 
-export const CategoryOptions: Option[] = [
-  {
-    label: 'Health',
-    value: 'HEALTH',
-  },
-  {
-    label: 'Hygiene maintenance',
-    value: 'HYGIENE_MAINTENANCE',
-  },
-];
+export const CategoryOptions: Option[] = makeOptions([
+  ['Health', 'HEALTH'],
+  ['Hygiene maintenance', 'HYGIENE_MAINTENANCE'],
+]);
 
-export const HealthCategoryOptions: Option[] = [
-  {
-    label: 'Surgery/ Procedure',
-    value: 'SURGERY_PROCEDURE',
-  },
-  {
-    label: 'Prescription',
-    value: 'PRESCRIPTION',
-  },
-  {
-    label: 'Vaccination',
-    value: 'VACCINATION',
-  },
-  {
-    label: 'Discharge summary',
-    value: 'DISCHARGE_SUMMARY',
-  },
-  {
-    label: 'Lab test',
-    value: 'LAB_TEST',
-  },
-  {
-    label: 'Imaging/ Diagnostic',
-    value: 'IMAGING_DIAGNOSTIC',
-  },
-  {
-    label: 'Parasite prevention',
-    value: 'PARASITE_PREVENTION',
-  },
-  {
-    label: 'Medical condition',
-    value: 'MEDICAL_CONDITION',
-  },
-  {
-    label: 'Other',
-    value: 'OTHER',
-  },
-];
+export const HealthCategoryOptions: Option[] = makeOptions([
+  ['Surgery/ Procedure', 'SURGERY_PROCEDURE'],
+  ['Prescription', 'PRESCRIPTION'],
+  ['Vaccination', 'VACCINATION'],
+  ['Discharge summary', 'DISCHARGE_SUMMARY'],
+  ['Lab test', 'LAB_TEST'],
+  ['Imaging/ Diagnostic', 'IMAGING_DIAGNOSTIC'],
+  ['Parasite prevention', 'PARASITE_PREVENTION'],
+  ['Medical condition', 'MEDICAL_CONDITION'],
+  ['Other', 'OTHER'],
+]);
 
-export const HygieneCategoryOptions: Option[] = [
-  {
-    label: 'Bathing',
-    value: 'BATHING',
-  },
-  {
-    label: 'Nail trim',
-    value: 'NAIL_TRIM',
-  },
-  {
-    label: 'Grooming',
-    value: 'GROOMING',
-  },
-  {
-    label: 'Ear cleaning',
-    value: 'EAR_CLEANING',
-  },
-  {
-    label: 'Dental cleaning',
-    value: 'DENTAL_CLEANING',
-  },
-  {
-    label: 'Skin care',
-    value: 'SKIN_CARE',
-  },
-  {
-    label: 'Anal gland expression',
-    value: 'ANAL_GLAND_EXPRESSION',
-  },
-  {
-    label: 'Other',
-    value: 'OTHER',
-  },
-];
+export const HygieneCategoryOptions: Option[] = makeOptions([
+  ['Bathing', 'BATHING'],
+  ['Nail trim', 'NAIL_TRIM'],
+  ['Grooming', 'GROOMING'],
+  ['Ear cleaning', 'EAR_CLEANING'],
+  ['Dental cleaning', 'DENTAL_CLEANING'],
+  ['Skin care', 'SKIN_CARE'],
+  ['Anal gland expression', 'ANAL_GLAND_EXPRESSION'],
+  ['Other', 'OTHER'],
+]);
 
-export const VisitTypeOptions: Option[] = [
-  {
-    label: 'Hospital',
-    value: 'HOSPITAL',
-  },
-  {
-    label: 'Groomer',
-    value: 'GROOMER',
-  },
-  {
-    label: 'Boarder',
-    value: 'BOARDER',
-  },
-  {
-    label: 'Breeder',
-    value: 'BREEDER',
-  },
-  {
-    label: 'Shop',
-    value: 'SHOP',
-  },
-  {
-    label: 'Other',
-    value: 'OTHER',
-  },
-];
+export const VisitTypeOptions: Option[] = makeOptions([
+  ['Hospital', 'HOSPITAL'],
+  ['Groomer', 'GROOMER'],
+  ['Boarder', 'BOARDER'],
+  ['Breeder', 'BREEDER'],
+  ['Shop', 'SHOP'],
+  ['Other', 'OTHER'],
+]);
 
 export type Attachment = {
   key: string;

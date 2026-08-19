@@ -1,8 +1,7 @@
 import { Request, Response } from "express";
 import { OrgRequest } from "src/middlewares/rbac";
-import logger from "src/utils/logger";
 import { LabCensusService } from "src/services/lab-census.service";
-import { LabOrderServiceError } from "src/services/lab-order.service";
+import { respondLabOrderServiceError } from "src/controllers/web/shared/lab-order-error";
 import { mapAxiosError } from "src/utils/external-error";
 
 const resolveOrganisationId = (req: Request): string | undefined => {
@@ -54,21 +53,7 @@ const handleIdexxError = (
       .status(axiosError.status)
       .json({ message: axiosError.message, details: axiosError.details });
   }
-  if (error instanceof LabOrderServiceError) {
-    return res.status(error.statusCode).json({
-      message: error.message,
-      ...(error.code || error.details
-        ? {
-            error: {
-              ...(error.code ? { code: error.code } : {}),
-              ...(error.details ? { details: error.details } : {}),
-            },
-          }
-        : {}),
-    });
-  }
-  logger.error(logMessage, error);
-  return res.status(500).json({ message: responseMessage });
+  return respondLabOrderServiceError(res, error, logMessage, responseMessage);
 };
 
 export const LabCensusController = {

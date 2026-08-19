@@ -82,7 +82,16 @@ const Tasks = ({
       label: 'Description',
       key: 'description',
       width: '200px',
-      render: (item: Task) => <div className="appointment-profile-title">{item.description}</div>,
+      // Free text in a 200px column: clamped to two lines so a long description
+      // cannot outgrow the rows beside it.
+      render: (item: Task) => (
+        <div
+          className="appointment-profile-title cell-clamp-2"
+          title={item.description || undefined}
+        >
+          {item.description}
+        </div>
+      ),
     },
     {
       label: 'Category',
@@ -125,9 +134,16 @@ const Tasks = ({
       ),
     },
     {
+      /* Sized by the control rail, not the label. `.action-btn-grid` is a
+         flex-wrap row of 40px buttons with an 8px gap, so a three-action row needs
+         3*40 + 2*8 = 136px. Measured on deployed dev, a 160px column left a 129px
+         content box: it does not clip, it WRAPS the third button to a second line
+         and grows that row taller than its neighbours - the same implicit-row
+         failure as the calendar overlays earlier in this branch, just in a table.
+         176px leaves 145px of content box, 9px clear of the rail. */
       label: 'Actions',
       key: 'actions',
-      width: '160px',
+      width: '176px',
       render: (item: Task) => (
         <div className="action-btn-col">
           <div className="action-btn-grid">

@@ -87,4 +87,39 @@ describe('Labels', () => {
       'justify-center'
     );
   });
+
+  it('distinguishes a valid section from a failed one by shape, not only hue', () => {
+    render(
+      <Labels
+        labels={labels}
+        activeLabel="details"
+        setActiveLabel={jest.fn()}
+        activeSubLabel="core"
+        setActiveSubLabel={jest.fn()}
+        statuses={{ details: 'valid', documents: 'error' }}
+      />
+    );
+
+    // --success and --danger differ by 0.0005 in relative luminance, so two
+    // coloured dots were indistinguishable in greyscale and to a red-green
+    // colourblind user. The states must carry accessible names too.
+    expect(screen.getByLabelText('Section complete')).toBeInTheDocument();
+    expect(screen.getByLabelText('Section has errors')).toBeInTheDocument();
+    expect(screen.queryByText('•')).not.toBeInTheDocument();
+  });
+
+  it('marks no section when no statuses are supplied', () => {
+    render(
+      <Labels
+        labels={labels}
+        activeLabel="details"
+        setActiveLabel={jest.fn()}
+        activeSubLabel="core"
+        setActiveSubLabel={jest.fn()}
+      />
+    );
+
+    expect(screen.queryByLabelText('Section complete')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Section has errors')).not.toBeInTheDocument();
+  });
 });

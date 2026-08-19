@@ -98,6 +98,8 @@ const openModal = () => {
   fireEvent.change(screen.getByLabelText('Enter email address'), {
     target: { value: 'me@example.com' },
   });
+  // Deleting a profile is irreversible, so the consent box gates the button.
+  fireEvent.click(screen.getByLabelText('Confirm deletion consent'));
   fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 };
 
@@ -123,6 +125,7 @@ describe('Settings DeleteProfile', () => {
     render(<DeleteProfile />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete…' }));
+    fireEvent.click(screen.getByLabelText('Confirm deletion consent'));
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 
     expect(screen.getByText('Email is required')).toBeInTheDocument();

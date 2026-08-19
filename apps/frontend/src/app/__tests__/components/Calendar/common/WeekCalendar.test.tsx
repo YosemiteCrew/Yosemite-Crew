@@ -17,12 +17,14 @@ jest.mock('@/app/features/appointments/components/Calendar/weekHelpers', () => (
   HOURS_IN_DAY: 2,
 }));
 
+const mockComputeUnavailableSegments = jest.fn<any, any[]>(() => []);
+
 jest.mock('@/app/features/appointments/components/Calendar/helpers', () => ({
   DEFAULT_CALENDAR_FOCUS_MINUTES: 540,
   EVENT_VERTICAL_GAP_PX: 2,
   MINUTES_PER_STEP: 60,
   PIXELS_PER_STEP: 60,
-  computeUnavailableSegments: jest.fn(() => []),
+  computeUnavailableSegments: (...args: any[]) => mockComputeUnavailableSegments(...args),
   getFirstRelevantTimedEventStart: jest.fn(() => null),
   getNowTopPxForHourRange: jest.fn((_: Date, __: number, ___: number, height: number) => height),
   getTopPxForMinutes: jest.fn((minutes: number, hourHeight: number, gap: number, offset = 0) => {
@@ -99,6 +101,32 @@ describe('WeekCalendar (Appointments)', () => {
     mockEventsForDayHour.mockReturnValue([events[1]]);
     mockGetPrevWeek.mockReturnValue(new Date('2024-12-30T00:00:00Z'));
     mockGetNextWeek.mockReturnValue(new Date('2025-01-13T00:00:00Z'));
+    mockComputeUnavailableSegments.mockReturnValue([]);
+  });
+
+  it('shades unavailable hour segments from the visible availability intervals', () => {
+    const getVisibleAvailabilityIntervals = jest.fn(() => [{ startMinute: 30, endMinute: 120 }]);
+    mockComputeUnavailableSegments.mockReturnValue([{ startMinute: 0, endMinute: 30 }]);
+
+    const { container } = render(
+      <WeekCalendar
+        events={events}
+        handleViewAppointment={handleViewAppointment}
+        weekStart={weekStart}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        canEditAppointments
+        getVisibleAvailabilityIntervals={getVisibleAvailabilityIntervals}
+        availabilityLoaded
+      />
+    );
+
+    // One dim overlay per day for hour 0 (the segment ends before hour 1 starts).
+    const overlays = container.querySelectorAll('[style*="calendar-dim-overlay"]');
+    expect(overlays).toHaveLength(days.length);
+    expect((overlays[0] as HTMLElement).style.top).toBe('0%');
+    expect((overlays[0] as HTMLElement).style.height).toBe('50%');
+    expect(getVisibleAvailabilityIntervals).toHaveBeenCalled();
+    expect(mockComputeUnavailableSegments).toHaveBeenCalled();
   });
 
   it('renders day headers and all-day events', () => {
@@ -158,16 +186,21 @@ describe('WeekCalendar (Appointments)', () => {
       />
     );
 
-    // Day label: all-caps 9.5px/700/0.08em (was 16px body type).
-    const dayLabel = container.querySelector('.text-\\[9\\.5px\\]');
-    expect(dayLabel).toHaveClass('font-bold', 'uppercase', 'tracking-[0.08em]');
+    // The day strip takes the shared header recipe instead of restating
+    // 9.5px/700/0.08em, which is what let it drift from the table header.
+    const band = container.querySelector('.yc-table-head');
+    expect(band).toBeInTheDocument();
+    expect(band).toHaveClass('yc-table-head--flush', 'yc-table-head--static');
+    // Scoped to the band: the "All-day" label below is a ROW-axis label, like
+    // the time gutter, and keeps its own denser type by design.
+    expect(band?.querySelector('.tracking-\\[0\\.08em\\]')).toBeNull();
 
     // Today's date drops into a 24px --blue disc, and its header cell takes
     // --nav-active-bg. Days mock to 6/7/8 Jan, so the 7th is today.
     const todayDisc = Array.from(container.querySelectorAll('div')).find(
       (el) =>
         el.className.includes('size-6') &&
-        el.getAttribute('style')?.includes('background-color: var(--blue)')
+        el.getAttribute('style')?.includes('background-color: var(--blue-strong)')
     );
     expect(todayDisc).toHaveTextContent('7');
     expect(todayDisc?.parentElement?.getAttribute('style')).toContain(

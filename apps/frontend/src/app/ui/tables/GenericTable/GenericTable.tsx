@@ -142,7 +142,7 @@ const GenericTable = <T extends object>({
             <thead>
               <tr>
                 {columns.map((col) => (
-                  <th key={String(col.key)} scope="col">
+                  <th key={String(col.key)} scope="col" title={col.label || undefined}>
                     {col.label}
                   </th>
                 ))}

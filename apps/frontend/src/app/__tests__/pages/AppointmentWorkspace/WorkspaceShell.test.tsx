@@ -24,6 +24,7 @@ const stepStatus: Record<WorkspaceStep, StepStatus> = {
   SOAP: 'COMPLETED',
   DIAGNOSTICS: 'IN_PROGRESS',
   TREATMENT: 'EMPTY',
+  PASSPORT: 'EMPTY',
   INVOICE: 'EMPTY',
   SUMMARY: 'EMPTY',
 };

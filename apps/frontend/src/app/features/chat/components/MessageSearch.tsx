@@ -141,7 +141,7 @@ export function MessageSearch() {
                     <Text
                       as="span"
                       variant="caption-1"
-                      className="truncate text-[12px] text-neutral-500"
+                      className="truncate text-[12px] text-text-tertiary"
                     >
                       {message.text || 'Attachment'}
                     </Text>

@@ -107,6 +107,39 @@ function resolvePasswordlessRecipientEmail(input: {
   return input.email ?? input.templateVars?.email;
 }
 
+/**
+ * Reads the `aud` claim without verifying the signature. The values are only
+ * used to pick between client ids we configured ourselves; supertokens-node
+ * still verifies the token against Apple's JWKS using the id chosen here, so a
+ * forged audience cannot widen what the provider accepts.
+ *
+ * `aud` may be a single string or an array, so every entry is returned and
+ * matched on membership. Reading only the first entry would make acceptance
+ * depend on ordering and reject a token whose allowed audience is not first.
+ */
+function readIdTokenAudiences(idToken: string): string[] {
+  const segments = idToken.split('.');
+
+  if (segments.length !== 3) {
+    return [];
+  }
+
+  try {
+    const payload: unknown = JSON.parse(Buffer.from(segments[1], 'base64url').toString('utf8'));
+    const audience = (payload as { aud?: unknown } | null)?.aud;
+
+    if (typeof audience === 'string') {
+      return [audience];
+    }
+
+    return Array.isArray(audience)
+      ? audience.filter((entry): entry is string => typeof entry === 'string')
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 function buildThirdPartyProviders(): ProviderInput[] {
   const providers: ProviderInput[] = [];
 
@@ -125,13 +158,20 @@ function buildThirdPartyProviders(): ProviderInput[] {
   }
 
   if (process.env.AUTH_APPLE_CLIENT_ID) {
+    // For native iOS sign-in this is the app bundle identifier.
+    const appleClientId = requireEnv('AUTH_APPLE_CLIENT_ID');
+    // Sign in with Apple on Android runs Apple's web flow, so the id_token is
+    // minted for the Service ID rather than the bundle identifier. Both are ours
+    // and both must be accepted.
+    const appleServiceId = process.env.AUTH_APPLE_SERVICE_ID;
+    const appleAudiences = appleServiceId ? [appleClientId, appleServiceId] : [appleClientId];
+
     providers.push({
       config: {
         thirdPartyId: 'apple',
         clients: [
           {
-            // For native iOS sign-in this is the app bundle identifier.
-            clientId: requireEnv('AUTH_APPLE_CLIENT_ID'),
+            clientId: appleClientId,
             additionalConfig: {
               keyId: requireEnv('AUTH_APPLE_KEY_ID'),
               privateKey: requireEnv('AUTH_APPLE_PRIVATE_KEY'),
@@ -139,6 +179,33 @@ function buildThirdPartyProviders(): ProviderInput[] {
             },
           },
         ],
+      },
+      // supertokens-node verifies the id_token against a single configured
+      // clientId, and refuses to hold more than one client unless the caller
+      // sends a clientType, which the mobile app does not. Select the audience
+      // the token was actually minted for before verification reads it.
+      override: (originalImplementation) => {
+        if (originalImplementation.type !== 'oauth2') {
+          return originalImplementation;
+        }
+
+        const originalGetUserInfo = originalImplementation.getUserInfo;
+
+        originalImplementation.getUserInfo = async (input) => {
+          const idToken: unknown = input.oAuthTokens.id_token;
+          const audiences = typeof idToken === 'string' ? readIdTokenAudiences(idToken) : [];
+
+          originalImplementation.config.clientId =
+            audiences.find((entry) => appleAudiences.includes(entry)) ?? appleClientId;
+
+          try {
+            return await originalGetUserInfo(input);
+          } finally {
+            originalImplementation.config.clientId = appleClientId;
+          }
+        };
+
+        return originalImplementation;
       },
     });
   }

@@ -42,7 +42,7 @@ const NestedBreakdownTooltip = ({
     <div style={{ minWidth: 360 }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
         <thead>
-          <tr style={{ opacity: 0.6 }}>
+          <tr style={{ color: 'var(--ink-muted)' }}>
             <th style={{ textAlign: 'left', padding: '2px 6px' }}>#</th>
             <th style={{ textAlign: 'left', padding: '2px 6px' }}>Type</th>
             <th style={{ textAlign: 'left', padding: '2px 6px' }}>Name</th>
@@ -56,9 +56,9 @@ const NestedBreakdownTooltip = ({
           {items.map((item, i) => {
             const { net } = computePackageBreakdownItem(item);
             return (
-              <tr key={item.id} style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                <td style={{ padding: '3px 6px', opacity: 0.5 }}>{i + 1}.</td>
-                <td style={{ padding: '3px 6px', opacity: 0.7 }}>
+              <tr key={item.id} style={{ borderTop: '1px solid var(--hairline)' }}>
+                <td style={{ padding: '3px 6px', color: 'var(--ink-muted)' }}>{i + 1}.</td>
+                <td style={{ padding: '3px 6px', color: 'var(--ink-muted)' }}>
                   {TYPE_LABELS[item.type] ?? item.type}
                 </td>
                 <td style={{ padding: '3px 6px' }}>{item.name}</td>
@@ -66,7 +66,7 @@ const NestedBreakdownTooltip = ({
                   {formatMoney(item.unitPrice, item.currency ?? orgCurrency)}
                 </td>
                 <td style={{ padding: '3px 6px', textAlign: 'center' }}>×{item.quantity}</td>
-                <td style={{ padding: '3px 6px', textAlign: 'right', opacity: 0.7 }}>
+                <td style={{ padding: '3px 6px', textAlign: 'right', color: 'var(--ink-muted)' }}>
                   {item.discount}%
                 </td>
                 <td style={{ padding: '3px 6px', textAlign: 'right' }}>
@@ -78,22 +78,32 @@ const NestedBreakdownTooltip = ({
         </tbody>
         <tfoot>
           {additionalDiscount > 0 && (
-            <tr style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
+            <tr style={{ borderTop: '1px solid var(--hairline-hover)' }}>
               <td
                 colSpan={6}
-                style={{ padding: '3px 6px', textAlign: 'right', opacity: 0.6, fontSize: 12 }}
+                style={{
+                  padding: '3px 6px',
+                  textAlign: 'right',
+                  color: 'var(--ink-muted)',
+                  fontSize: 12,
+                }}
               >
                 Additional discount ({additionalDiscount}%)
               </td>
-              <td style={{ padding: '3px 6px', textAlign: 'right', opacity: 0.8 }}>
+              <td style={{ padding: '3px 6px', textAlign: 'right', color: 'var(--ink-muted)' }}>
                 - {formatMoney((subtotal * additionalDiscount) / 100, orgCurrency)}
               </td>
             </tr>
           )}
-          <tr style={{ borderTop: '1px solid rgba(255,255,255,0.2)' }}>
+          <tr style={{ borderTop: '1px solid var(--hairline-hover)' }}>
             <td
               colSpan={6}
-              style={{ padding: '4px 6px', textAlign: 'right', opacity: 0.7, fontSize: 12 }}
+              style={{
+                padding: '4px 6px',
+                textAlign: 'right',
+                color: 'var(--ink-muted)',
+                fontSize: 12,
+              }}
             >
               Total
             </td>

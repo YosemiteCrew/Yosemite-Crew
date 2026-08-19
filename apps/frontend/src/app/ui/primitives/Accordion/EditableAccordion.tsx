@@ -12,7 +12,7 @@ import { formatDateLocal } from '@/app/lib/date';
 import { toTitleCase } from '@/app/lib/validators';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import { CountriesOptions } from '@/app/features/companions/components/AddCompanion/type';
-import GoogleSearchDropDown from '@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown';
+import GoogleAddressFieldRenderer from '@/app/ui/primitives/Accordion/googleAddressFieldRenderer';
 
 export type FieldConfig = {
   label: string;
@@ -163,7 +163,9 @@ const FieldComponents: Record<string, React.FC<EditableFieldProps>> = {
           />
           <span>{field.label}</span>
         </label>
-        {error ? <div className="px-4 text-caption-1 text-red-600">{error}</div> : null}
+        {error ? (
+          <div className="px-4 text-caption-1 text-[var(--danger-text)]">{error}</div>
+        ) : null}
       </div>
     );
   },
@@ -229,26 +231,7 @@ const FieldComponents: Record<string, React.FC<EditableFieldProps>> = {
       onChange={onChange}
     />
   ),
-  googleAddress: ({ field, value, onChange, onMultiChange, error }) => (
-    <GoogleSearchDropDown
-      intype="text"
-      inname={field.key}
-      value={value ?? ''}
-      inlabel={field.label}
-      error={error}
-      onChange={(e) => onChange(e.target.value)}
-      onlyAddress={true}
-      onAddressSelect={(address) => {
-        onChange(address.addressLine);
-        onMultiChange?.({
-          city: address.city,
-          state: address.state,
-          postalCode: address.postalCode,
-          ...(address.country ? { country: address.country } : {}),
-        });
-      }}
-    />
-  ),
+  googleAddress: GoogleAddressFieldRenderer,
 };
 
 const normalizeOptions = (options?: Array<string | { label: string; value: string }>) =>
@@ -256,8 +239,26 @@ const normalizeOptions = (options?: Array<string | { label: string; value: strin
     typeof option === 'string' ? { label: option, value: option } : option
   ) ?? [];
 
+const formatDisplayValue = (value: unknown): string => {
+  if (Array.isArray(value)) {
+    return value.length > 0 ? value.join(', ') : '-';
+  }
+  if (value === undefined || value === null || value === '') {
+    return '-';
+  }
+  if (typeof value === 'object') return '-';
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  return '-';
+};
+
+// A value with no matching option falls back to the value itself, but an UNSET
+// one has to become the dash every other row uses - otherwise the row renders
+// with a label and nothing beside it, which reads as a rendering fault rather
+// than "not set". The task drawer's Priority row showed exactly that.
 const resolveLabel = (options: Array<{ label: string; value: string }>, value: string) =>
-  options.find((o) => o.value === value)?.label ?? value;
+  options.find((o) => o.value === value)?.label ?? formatDisplayValue(value);
 
 const EditableField = ({ field, value, error, onChange, onMultiChange }: EditableFieldProps) => {
   const type = field.type || 'text';
@@ -275,20 +276,6 @@ const EditableField = ({ field, value, error, onChange, onMultiChange }: Editabl
 
 const isCurrencyField = (fieldKey: string) => {
   return fieldKey === 'purchaseCost' || fieldKey === 'selling';
-};
-
-const formatDisplayValue = (value: unknown): string => {
-  if (Array.isArray(value)) {
-    return value.length > 0 ? value.join(', ') : '-';
-  }
-  if (value === undefined || value === null || value === '') {
-    return '-';
-  }
-  if (typeof value === 'object') return '-';
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-    return String(value);
-  }
-  return '-';
 };
 
 const FieldValueRow = ({ label, children }: { label: string; children: React.ReactNode }) => (
@@ -362,7 +349,7 @@ const FieldValueComponents: Record<string, React.FC<FieldValueProps>> = {
   },
   time: ({ field, formValues }) => {
     const value = formValues[field.key];
-    return <FieldValueRow label={field.label}>{formatTimeLabel(value)}</FieldValueRow>;
+    return <FieldValueRow label={field.label}>{formatTimeLabel(value) || '-'}</FieldValueRow>;
   },
   timeInput: ({ field, formValues }) => {
     const value = formValues[field.key];
@@ -624,7 +611,7 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
               : 'flex justify-end items-end gap-3 w-full flex-col'
           }
         >
-          {error && <div className="text-red-600 text-sm text-center">{error}</div>}
+          {error && <div className="text-[var(--danger-text)] text-sm text-center">{error}</div>}
           <div
             className={
               compactInlineActions

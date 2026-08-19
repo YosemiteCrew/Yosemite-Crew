@@ -19,7 +19,7 @@ const HistoryEmptyState = ({ isError = false, message }: HistoryEmptyStateProps)
       className="rounded-2xl border border-card-border bg-neutral-0 px-4 py-6 text-center"
       role={isError ? 'alert' : undefined}
     >
-      <div className={isError ? 'text-body-3 text-error-main' : 'text-body-3 text-text-primary'}>
+      <div className={isError ? 'text-body-3 text-text-error' : 'text-body-3 text-text-primary'}>
         {message || 'Unable to load overview right now.'}
       </div>
     </div>

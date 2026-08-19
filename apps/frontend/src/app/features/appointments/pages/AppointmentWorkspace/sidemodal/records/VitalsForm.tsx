@@ -22,12 +22,9 @@ import {
   type DraftVitals,
 } from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/records/vitalsFormDraft';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
+import { getTemplateSchemaSnapshot } from '@/app/features/appointments/pages/AppointmentWorkspace/templateSchemaSnapshot';
 import type { FormField } from '@/app/features/forms/types/forms';
-import type {
-  TemplateFieldDefinition,
-  TemplateLike,
-  TemplateSchemaSnapshot,
-} from '@yosemite-crew/types';
+import type { TemplateFieldDefinition, TemplateLike } from '@yosemite-crew/types';
 
 type VitalsFormProps = {
   appointmentId: string;
@@ -118,20 +115,6 @@ const resolveDraftKey = (field: { key?: string; id?: string; label?: string }) =
   if (value.includes('pain')) return 'painScore';
   if (value.includes('bcs') || value.includes('bodyscore')) return 'bcs';
   return undefined;
-};
-
-const hasTemplateSchemaSnapshot = (value: unknown): value is TemplateSchemaSnapshot =>
-  Boolean(
-    value && typeof value === 'object' && Array.isArray((value as { sections?: unknown }).sections)
-  );
-
-const getTemplateSchemaSnapshot = (template: TemplateLike): TemplateSchemaSnapshot | undefined => {
-  const rootSnapshot = (template as TemplateLike & { schemaSnapshot?: unknown }).schemaSnapshot;
-  if (hasTemplateSchemaSnapshot(rootSnapshot)) return rootSnapshot;
-  const version = template.versions?.find(
-    (item) => item.version === template.publishedVersion || item.version === template.latestVersion
-  );
-  return hasTemplateSchemaSnapshot(version?.schemaSnapshot) ? version.schemaSnapshot : undefined;
 };
 
 const flattenFormFields = (fields: FormField[] = []): FormField[] =>
@@ -282,7 +265,7 @@ const SegmentedPicker = ({
         })}
       </fieldset>
     </div>
-    {error ? <p className="text-caption-1 text-danger-600">{error}</p> : null}
+    {error ? <p className="text-caption-1 text-text-error">{error}</p> : null}
   </div>
 );
 
@@ -592,7 +575,7 @@ const VitalsForm = ({
           </p>
         )}
         {templateState.error && (
-          <p className="mt-2 text-caption-1 text-danger-600">{templateState.error}</p>
+          <p className="mt-2 text-caption-1 text-text-error">{templateState.error}</p>
         )}
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -607,7 +590,7 @@ const VitalsForm = ({
                     onChange={(value) => updateField(field.key, value)}
                   />
                   {fieldErrors[field.key] ? (
-                    <p className="text-caption-1 text-danger-600">{fieldErrors[field.key]}</p>
+                    <p className="text-caption-1 text-text-error">{fieldErrors[field.key]}</p>
                   ) : null}
                 </div>,
               ]
@@ -674,7 +657,7 @@ const VitalsForm = ({
         />
       </label>
       <div className="flex items-center justify-center gap-3">
-        {saveError && <p className="text-caption-1 text-red-600">{saveError}</p>}
+        {saveError && <p className="text-caption-1 text-text-error">{saveError}</p>}
         <Primary
           text={isSaving ? 'Saving...' : 'Save vitals'}
           icon={<IoCheckmarkOutline aria-hidden="true" />}

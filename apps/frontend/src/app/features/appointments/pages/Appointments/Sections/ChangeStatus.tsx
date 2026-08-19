@@ -307,9 +307,7 @@ const ChangeStatus = ({
         const noLeadsAvailable = availableVetIds !== null && availableLeadOptions.length === 0;
         return (
           <div
-            className={
-              saving ? 'pointer-events-none opacity-60 flex flex-col gap-3' : 'flex flex-col gap-3'
-            }
+            className={saving ? 'pointer-events-none flex flex-col gap-3' : 'flex flex-col gap-3'}
           >
             <LabelDropdown
               placeholder={isLoadingAvailability ? 'Checking availability…' : 'Select lead'}

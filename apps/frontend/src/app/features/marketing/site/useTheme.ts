@@ -1,100 +1,25 @@
 'use client';
 
-import { useCallback, useEffect, useSyncExternalStore } from 'react';
+import { useSyncExternalStore } from 'react';
+import {
+  getServerTheme,
+  readTheme,
+  subscribeToThemeChange,
+  toggleTheme,
+  useThemeLifecycle,
+} from '@/app/ui/theme/themeCore';
 
-export type Theme = 'light' | 'dark';
-
-const STORAGE_KEY = 'yc-theme';
-const THEME_CHANGE_EVENT = 'yc-theme-change';
-
-/** The current theme, read from the source of truth: <html data-theme>. */
-const readTheme = (): Theme => {
-  const attr = globalThis.document?.documentElement.dataset.theme;
-  return attr === 'dark' ? 'dark' : 'light';
-};
-
-/** Keep the browser-chrome color (mobile address bar) in step with the page surface. */
-const syncMetaThemeColor = () => {
-  const doc = globalThis.document;
-  if (!doc) return;
-  let meta = doc.querySelector('meta[name="theme-color"]');
-  if (!meta) {
-    meta = doc.createElement('meta');
-    meta.setAttribute('name', 'theme-color');
-    doc.head.appendChild(meta);
-  }
-  const page = globalThis.getComputedStyle(doc.documentElement).getPropertyValue('--page').trim();
-  meta.setAttribute('content', page || (readTheme() === 'dark' ? '#201c18' : '#efe8dc'));
-};
-
-const applyTheme = (theme: Theme, persist: boolean) => {
-  const root = globalThis.document.documentElement;
-  root.dataset.theme = theme;
-  root.dataset.themeReady = '1';
-  if (persist) {
-    try {
-      globalThis.localStorage.setItem(STORAGE_KEY, theme);
-    } catch {
-      /* private mode: fall back to OS following */
-    }
-  }
-  syncMetaThemeColor();
-  globalThis.dispatchEvent(new CustomEvent(THEME_CHANGE_EVENT, { detail: { theme } }));
-};
-
-/** Re-read the theme whenever any toggle instance broadcasts a flip (for useSyncExternalStore). */
-const subscribeToThemeChange = (onStoreChange: () => void): (() => void) => {
-  globalThis.addEventListener(THEME_CHANGE_EVENT, onStoreChange);
-  return () => globalThis.removeEventListener(THEME_CHANGE_EVENT, onStoreChange);
-};
-
-/** SSR always renders light; the client re-reads <html data-theme> on hydration. */
-const getServerTheme = (): Theme => 'light';
+export type { Theme } from '@/app/ui/theme/themeCore';
 
 /**
  * Light/dark theme controller for the marketing surface. The source of truth is the
  * `data-theme` attribute on <html> (set pre-paint in the root layout). This hook reads
  * it for the toggle icon (every applyTheme dispatches the shared change event, keeping
  * all instances in sync), follows OS changes while no explicit choice is stored, and
- * enables the flip transition shortly after first paint.
+ * enables the flip transition shortly after first paint — all via the shared themeCore.
  */
 export function useTheme() {
   const theme = useSyncExternalStore(subscribeToThemeChange, readTheme, getServerTheme);
-
-  useEffect(() => {
-    syncMetaThemeColor();
-
-    // Enable the flip transition after first paint so the initial paint never animates.
-    const readyTimer = globalThis.setTimeout(() => {
-      globalThis.document.documentElement.dataset.themeReady = '1';
-    }, 60);
-
-    // Follow OS changes only while the visitor hasn't explicitly chosen a theme.
-    // applyTheme broadcasts the change event, so every subscribed instance re-reads.
-    const mq = globalThis.matchMedia?.('(prefers-color-scheme: dark)');
-    const onOSChange = (event: MediaQueryListEvent) => {
-      let saved: string | null = null;
-      try {
-        saved = globalThis.localStorage.getItem(STORAGE_KEY);
-      } catch {
-        /* ignore */
-      }
-      if (!saved) {
-        applyTheme(event.matches ? 'dark' : 'light', false);
-      }
-    };
-    mq?.addEventListener('change', onOSChange);
-
-    return () => {
-      globalThis.clearTimeout(readyTimer);
-      mq?.removeEventListener('change', onOSChange);
-    };
-  }, []);
-
-  const toggle = useCallback(() => {
-    const next: Theme = readTheme() === 'dark' ? 'light' : 'dark';
-    applyTheme(next, true);
-  }, []);
-
-  return { theme, toggle };
+  useThemeLifecycle();
+  return { theme, toggle: toggleTheme };
 }

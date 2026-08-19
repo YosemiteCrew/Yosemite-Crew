@@ -16,9 +16,9 @@ const sizeClasses: Record<ButtonSize, string> = {
 const commonClasses =
   'gap-[7px] flex items-center justify-center rounded-full! transition-all duration-200 ease-out font-semibold text-center font-satoshi border';
 
-const defaultClasses = `${commonClasses} border-[var(--divider)]! text-[var(--ink-body)]! hover:text-[var(--blue)]! hover:border-[var(--blue)]!`;
+const defaultClasses = `${commonClasses} border-[var(--divider)]! text-[var(--ink-body)]! hover:text-[var(--blue-text)]! hover:border-[var(--blue)]!`;
 
-const dangerClasses = `${commonClasses} border-[var(--danger-border)]! text-[var(--danger-text)]! hover:border-[var(--danger)]! hover:text-[var(--danger)]! hover:bg-[var(--danger-bg)]!`;
+const dangerClasses = `${commonClasses} border-[var(--danger-border)]! text-[var(--danger-text)]! hover:border-[var(--danger)]! hover:text-[var(--danger-text)]! hover:bg-[var(--danger-bg)]!`;
 
 const Secondary = ({ danger, ...props }: Readonly<SecondaryProps>) => (
   <BaseButton

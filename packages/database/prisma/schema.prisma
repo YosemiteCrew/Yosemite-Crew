@@ -401,6 +401,8 @@ model Patient {
   isNeutered       Boolean?
   ageWhenNeutered  String?
   microchipNumber  String?
+  microchipImplantedAt DateTime?
+  microchipLocation String?
   passportNumber   String?
   isInsured        Boolean       @default(false)
   insurance        Json?
@@ -419,6 +421,8 @@ model Patient {
   formAssignments   FormAssignment[]
   organisations     PatientOrganisation[]
   parentLinks       ParentPatient[]
+  companionShareTokens CompanionShareToken[]
+  petPassports         PetPassport[]
 
   @@index([type])
   @@index([status])
@@ -505,6 +509,151 @@ model ParentPatient {
   @@unique([parentId, patientId])
   @@index([parentId])
   @@index([patientId])
+}
+
+enum CompanionCardAudience {
+  PUBLIC
+  OWNER
+  REFERRAL_CLINIC
+  STAFF
+}
+
+// Tokenized, audience-scoped, revocable share grant for a Companion Card.
+// Persists only share/token state - a hash of the raw token, never the token
+// itself. Patient remains the single identity source of truth; no identity
+// field is duplicated here. The audience drives the field-redaction policy in
+// CompanionCardService.
+model CompanionShareToken {
+  id                      String                @id @default(uuid())
+  patientId               String
+  organisationId          String
+  tokenHash               String                @unique
+  audience                CompanionCardAudience
+  issuedByType            AuditActorType?
+  issuedById              String?
+  issuedForOrganisationId String?
+  showOwnerPhone          Boolean               @default(false)
+  expiresAt               DateTime?
+  revokedAt               DateTime?
+  revokedById             String?
+  lastViewedAt            DateTime?
+  viewCount               Int                   @default(0)
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+
+  patient                 Patient               @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([organisationId])
+  @@index([organisationId, patientId])
+  @@index([patientId, audience])
+  @@index([expiresAt])
+}
+
+// --- Digital Pet Passport: structured veterinary records (issue #1648) ---
+// Patient stays the source of truth for identity; these models add the
+// vaccination, parasite-treatment, rabies-titration, and passport-issuance
+// records a pet passport requires (none of which existed in the schema before).
+
+enum VaccineType {
+  RABIES
+  CORE
+  NON_CORE
+  OTHER
+}
+
+enum ParasiteTreatmentType {
+  ECHINOCOCCUS
+  TICK
+  FLEA
+  OTHER
+}
+
+model PetPassport {
+  id                String        @id @default(uuid())
+  patientId         String
+  organisationId    String
+  passportNumber    String        @unique
+  issuingCountry    String?
+  issuingAuthority  String?
+  issuingVetId      String?
+  issuingVetName    String?
+  issuingVetLicense String?
+  issueDate         DateTime      @default(now())
+  status            RecordStatus?
+  // Credential for the public QR / wallet verification page. The patient id must
+  // never be used for this: it is an internal identifier already handed to
+  // authenticated clients and embedded in app routes, so it can be neither
+  // rotated nor revoked.
+  //
+  // Unlike CompanionShareToken this stores the token rather than a hash. That
+  // link is copied once at issue time, so hashing costs nothing; this one is
+  // baked into the QR of Apple and Google Wallet passes that already live on
+  // owners' phones, and regenerating a pass must not invalidate the copies
+  // already issued - which requires reading the value back.
+  publicToken       String?       @unique
+  publicTokenIssuedAt DateTime?
+  publicTokenRevokedAt DateTime?
+  // Staff-facing wallet passes carry THIS token, never `publicToken`.
+  //
+  // The owner's public token resolves with "owner" scope, which shows every
+  // practice's records with no consent gate. Handing that value to a practice
+  // session would give staff, through their own wallet pass, the cross-practice
+  // history the consent filter deliberately withholds from their passport view.
+  //
+  // This one is bound to the passport row's own organisation and resolves with
+  // "practice" scope, so it grants strictly less than the staff member already
+  // has. Minting it from a staff session is therefore safe, unlike the public
+  // token, which only the owner may create.
+  practiceWalletToken       String?       @unique
+  practiceWalletTokenIssuedAt DateTime?
+  practiceWalletTokenRevokedAt DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  patient           Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([organisationId])
+}
+
+enum PassportConsentStatus {
+  PENDING
+  GRANTED
+  REVOKED
+}
+
+enum PassportConsentMethod {
+  MOBILE
+  EMAIL
+}
+
+// Cross-practice sharing consent for a pet's attested passport records. A record
+// is owned by the practice that signed it; another practice sees it only when a
+// GRANTED consent exists for that pet (by microchip) from the owning practice to
+// the recipient practice, AND the pet parent has consented (mobile/email). The
+// pet parent (owner) sees their pet's full record without a consent gate.
+model PassportShareConsent {
+  id                      String                 @id @default(uuid())
+  microchipNumber         String
+  patientId               String
+  ownerOrganisationId     String
+  recipientOrganisationId String
+  status                  PassportConsentStatus  @default(PENDING)
+  purpose                 String?
+  requestedBy             String?
+  parentId                String?
+  consentMethod           PassportConsentMethod?
+  consentedAt             DateTime?
+  revokedAt               DateTime?
+  revokedReason           String?
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
+
+  @@unique([microchipNumber, ownerOrganisationId, recipientOrganisationId])
+  @@index([microchipNumber, status])
+  @@index([recipientOrganisationId, status])
+  @@index([ownerOrganisationId])
 }
 
 model Appointment {
@@ -1518,6 +1667,10 @@ enum ClinicalArtifactKind {
   PRESCRIPTION
   DISCHARGE_SUMMARY
   VITAL_RECORD
+  IMMUNIZATION
+  RABIES_TITRATION
+  PARASITE_TREATMENT
+  CLINICAL_EXAM
 }
 
 enum ClinicalArtifactStatus {
@@ -1646,8 +1799,6 @@ enum AuditEventType {
   APPOINTMENT_CANCELLED
   APPOINTMENT_RESCHEDULED
   APPOINTMENT_CHECKED_IN
-  ENCOUNTER_DISCHARGE_OVERRIDDEN
-  ENCOUNTER_DISCHARGED
   INVOICE_CREATED
   INVOICE_UPDATED
   INVOICE_PAID
@@ -1662,12 +1813,285 @@ enum AuditEventType {
   TASK_CREATED
   TASK_REASSIGNED
   TASK_STATUS_CHANGED
+  ENCOUNTER_DISCHARGE_OVERRIDDEN
+  ENCOUNTER_DISCHARGED
   PARENT_ALERT_CREATED
   PARENT_ALERT_UPDATED
   PARENT_ALERT_DELETED
   COMPANION_ALERT_CREATED
   COMPANION_ALERT_UPDATED
   COMPANION_ALERT_DELETED
+  COMPANION_CARD_SHARE_ISSUED
+  COMPANION_CARD_VIEWED
+  COMPANION_CARD_SHARE_REVOKED
+  VACCINATION_RECORDED
+  TREATMENT_RECORDED
+  TITRATION_RECORDED
+  PASSPORT_ISSUED
+  EXAM_RECORDED
+  PASSPORT_CONSENT_REQUESTED
+  PASSPORT_CONSENT_GRANTED
+  PASSPORT_CONSENT_REVOKED
+  PROTOCOL_APPLIED
+  WAITLIST_ENTRY_ADDED
+  WAITLIST_ENTRY_OFFERED
+  WAITLIST_ENTRY_BOOKED
+  WAITLIST_ENTRY_CANCELLED
+  WAITLIST_ENTRY_EXPIRED
+  REFERRAL_LETTER_CREATED
+  REFERRAL_LETTER_SIGNED
+  REFERRAL_LETTER_SENT
+  REFERRAL_LETTER_CANCELLED
+  INSURANCE_CLAIM_CREATED
+  INSURANCE_CLAIM_SUBMITTED
+  INSURANCE_CLAIM_STATUS_CHANGED
+  INSURANCE_CLAIM_CANCELLED
+  CARE_REMINDER_SENT
+  CARE_REMINDER_RESPONDED
+  CARE_REMINDER_CANCELLED
+  PROBLEM_CREATED
+  PROBLEM_UPDATED
+  PROBLEM_RESOLVED
+  ALLERGY_RECORDED
+  ALLERGY_UPDATED
+  ALLERGY_RESOLVED
+  MAR_ENTRY_CREATED
+  MAR_ENTRY_ADMINISTERED
+  MAR_ENTRY_HELD
+  MAR_ENTRY_MISSED
+  CARE_PLAN_CREATED
+  CARE_PLAN_UPDATED
+  CARE_PLAN_CANCELLED
+  CARE_PLAN_ITEM_COMPLETED
+  SURGERY_RECORDED
+  SURGERY_OUTCOME_UPDATED
+  CONSENT_GRANTED
+  CONSENT_REVOKED
+  DISCHARGE_INSTRUCTIONS_CREATED
+  DISCHARGE_INSTRUCTIONS_SENT
+  DISCHARGE_INSTRUCTIONS_ACKNOWLEDGED
+  DIAGNOSTIC_IMAGE_RECORDED
+  DIAGNOSTIC_IMAGE_REVIEWED
+  TRANSFUSION_RECORDED
+  TRANSFUSION_REACTION_REPORTED
+  FLUID_PLAN_CREATED
+  FLUID_PLAN_UPDATED
+  FLUID_PLAN_DISCONTINUED
+  NUTRITION_PLAN_CREATED
+  NUTRITION_PLAN_UPDATED
+  NUTRITION_PLAN_DISCONTINUED
+  POST_OP_PLAN_CREATED
+  POST_OP_PLAN_REVIEWED
+  POST_OP_PLAN_COMPLETED
+  HOSPITALIZATION_OBS_RECORDED
+  PHYSIOTHERAPY_PLAN_CREATED
+  PHYSIOTHERAPY_PLAN_UPDATED
+  PHYSIOTHERAPY_PLAN_DISCONTINUED
+  WOUND_ASSESSMENT_RECORDED
+  PATHOLOGY_SUBMITTED
+  PATHOLOGY_RESULTS_RECORDED
+  PATHOLOGY_REVIEWED
+  EMERGENCY_TRIAGE_RECORDED
+  EMERGENCY_TRIAGE_ESCALATED
+  ICU_CARE_PLAN_CREATED
+  ICU_CARE_PLAN_UPDATED
+  ICU_CARE_PLAN_DISCHARGED
+  PAIN_ASSESSMENT_RECORDED
+  BODY_CONDITION_RECORDED
+  MEDICATION_RECONCILIATION_STARTED
+  MEDICATION_RECONCILIATION_COMPLETED
+  MEDICATION_RECONCILIATION_REVIEWED
+  CLINICAL_NOTE_CREATED
+  CLINICAL_NOTE_SIGNED
+  DENTAL_EXAMINATION_RECORDED
+  REPRODUCTIVE_RECORD_CREATED
+  REPRODUCTIVE_RECORD_UPDATED
+  OPHTHALMOLOGY_EXAMINATION_RECORDED
+  CARDIOLOGY_ASSESSMENT_RECORDED
+  BEHAVIOR_ASSESSMENT_RECORDED
+  DERMATOLOGY_ASSESSMENT_RECORDED
+  NEUROLOGY_ASSESSMENT_RECORDED
+  ONCOLOGY_ASSESSMENT_RECORDED
+  NUTRITION_ASSESSMENT_RECORDED
+  POC_LAB_RECORDED
+  GENETIC_SCREEN_RECORDED
+  QOL_ASSESSMENT_RECORDED
+  CONTROLLED_SUBSTANCE_LOGGED
+  AFTERCARE_PLAN_RECORDED
+  BLOOD_DONOR_REGISTERED
+  BLOOD_DONATION_COLLECTED
+  ESTIMATE_CREATED
+  ESTIMATE_APPROVED
+  ESTIMATE_DECLINED
+  DECEASED_RECORD_CREATED
+  ADMISSION_CREATED
+  ADMISSION_DISCHARGED
+  SURGICAL_CHECKLIST_COMPLETED
+  DRUG_FORMULARY_ENTRY_ADDED
+  CLIENT_COMPLAINT_OPENED
+  CLIENT_COMPLAINT_RESOLVED
+  PRE_OP_ASSESSMENT_RECORDED
+  ISOLATION_PROTOCOL_STARTED
+  ISOLATION_PROTOCOL_ENDED
+  PATIENT_TRANSFER_RECORDED
+  CONSENT_FORM_SIGNED
+  EQUIPMENT_MAINTENANCE_LOGGED
+  APPOINTMENT_REMINDER_SENT
+  ADVERSE_EVENT_REPORTED
+  CLINICAL_ALERT_TRIGGERED
+  CLINICAL_ALERT_ACKNOWLEDGED
+  TELEMEDICINE_SESSION_STARTED
+  TELEMEDICINE_SESSION_COMPLETED
+  PRESCRIPTION_CREATED
+  PRESCRIPTION_SIGNED
+  PRESCRIPTION_VOIDED
+  PRESCRIPTION_DISPENSE_REQUESTED
+  PRESCRIPTION_DISPENSED
+  PRESCRIPTION_DISPENSE_REJECTED
+  DISCHARGE_SUMMARY_CREATED
+  DISCHARGE_SUMMARY_UPDATED
+  PATIENT_CHECKED_IN
+  PATIENT_SEEN
+  ANAESTHESIA_STARTED
+  ANAESTHESIA_COMPLETED
+  ANAESTHESIA_ABORTED
+  STAFF_SHIFT_SCHEDULED
+  STAFF_SHIFT_UPDATED
+  STAFF_SHIFT_CANCELLED
+  TREATMENT_OUTCOME_RECORDED
+  MEDICAL_CERTIFICATE_ISSUED
+  MEDICAL_CERTIFICATE_REVOKED
+  PATIENT_FLAG_CREATED
+  PATIENT_FLAG_RESOLVED
+  INVENTORY_COUNT_RECORDED
+  INVENTORY_DISCREPANCY_RECONCILED
+  CLINIC_NOTE_CREATED
+  CLINIC_NOTE_PINNED
+}
+
+enum WaitlistStatus {
+  WAITING
+  OFFERED
+  BOOKED
+  CANCELLED
+  EXPIRED
+}
+
+model WaitlistEntry {
+  id              String         @id @default(uuid())
+  organisationId  String
+  patientId       String
+  requestedBy     String?
+  preferredLeadId String?
+  appointmentType String?
+  earliestDate    DateTime?
+  latestDate      DateTime?
+  notes           String?
+  status          WaitlistStatus @default(WAITING)
+  offeredAt       DateTime?
+  bookedAt        DateTime?
+  expiresAt       DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([organisationId, status])
+  @@index([organisationId, patientId])
+  @@index([organisationId, earliestDate, latestDate])
+  @@map("WaitlistEntry")
+}
+
+enum TreatmentProtocolSpecies {
+  CANINE
+  FELINE
+  AVIAN
+  EXOTIC
+  ALL
+}
+
+enum TreatmentProtocolCategory {
+  WELLNESS
+  SURGICAL
+  EMERGENCY
+  DENTAL
+  DERMATOLOGY
+  ORTHOPEDIC
+  NUTRITION
+  OTHER
+}
+
+enum TreatmentProtocolStepType {
+  TASK
+  MEDICATION
+  SERVICE
+  NOTE
+}
+
+enum AppliedProtocolStatus {
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model TreatmentProtocol {
+  id             String                     @id @default(uuid())
+  organisationId String
+  name           String
+  description    String?
+  species        TreatmentProtocolSpecies   @default(ALL)
+  category       TreatmentProtocolCategory  @default(OTHER)
+  isActive       Boolean                    @default(true)
+  createdById    String?
+  steps          TreatmentProtocolStep[]
+  applications   AppliedTreatmentProtocol[]
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+
+  @@index([organisationId, isActive])
+  @@index([organisationId, species, category])
+  @@map("TreatmentProtocol")
+}
+
+model TreatmentProtocolStep {
+  id               String                    @id @default(uuid())
+  protocolId       String
+  protocol         TreatmentProtocol         @relation(fields: [protocolId], references: [id], onDelete: Cascade)
+  stepOrder        Int
+  stepType         TreatmentProtocolStepType
+  title            String
+  description      String?
+  inventoryItemId  String?
+  doseValue        Float?
+  doseUnit         String?
+  routeOfAdmin     String?
+  frequency        String?
+  durationDays     Int?
+  assigneeRole     String?
+  dueDaysFromStart Int?
+  serviceCode      String?
+  unitPrice        Float?
+  quantity         Int?
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+
+  @@index([protocolId, stepOrder])
+  @@map("TreatmentProtocolStep")
+}
+
+model AppliedTreatmentProtocol {
+  id             String                @id @default(uuid())
+  protocolId     String
+  protocol       TreatmentProtocol     @relation(fields: [protocolId], references: [id])
+  encounterId    String
+  patientId      String
+  organisationId String
+  appliedById    String?
+  status         AppliedProtocolStatus @default(IN_PROGRESS)
+  appliedAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  @@index([organisationId, encounterId])
+  @@index([organisationId, patientId])
+  @@map("AppliedTreatmentProtocol")
 }
 
 enum WithdrawalStatus {
@@ -2105,6 +2529,11 @@ model ClinicalArtifact {
   prescription    Prescription?
   dischargeSummary DischargeSummary?
   vitalRecord     VitalRecord?
+  immunization    Immunization?
+  rabiesTitration RabiesTitration?
+  parasiteTreatment ParasiteTreatment?
+  clinicalExamination ClinicalExamination?
+  attestation     ClinicalArtifactAttestation?
   templateVersionRecord TemplateVersion?   @relation(fields: [templateVersionId], references: [id], onDelete: SetNull)
   renderedDocuments RenderedDocument[]
 
@@ -2231,6 +2660,117 @@ model VitalRecord {
 
   @@index([artifactId])
   @@index([measuredAt])
+}
+
+// Pet-passport clinical records, modelled as ClinicalArtifact children (FHIR
+// Immunization / Observation / Procedure). The administering/verifying vet and
+// the legally-binding signature live on ClinicalArtifactAttestation, not here.
+model Immunization {
+  id               String           @id @default(uuid())
+  artifactId       String           @unique
+  vaccineType      VaccineType      @default(OTHER)
+  vaccineName      String
+  manufacturer     String?
+  batchNumber      String?
+  lotNumber        String?
+  dateAdministered DateTime
+  validFrom        DateTime?
+  validUntil       DateTime?
+  nextDueDate      DateTime?
+  site             String?
+  route            String?
+  notes            String?
+  metadata         Json?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  artifact         ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+
+  @@index([artifactId])
+  @@index([validUntil])
+}
+
+model RabiesTitration {
+  id          String           @id @default(uuid())
+  artifactId  String           @unique
+  approvedLab String
+  sampleDate  DateTime
+  resultIuMl  Float
+  reportUrl   String?
+  metadata    Json?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  artifact    ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+
+  @@index([artifactId])
+}
+
+model ParasiteTreatment {
+  id            String                @id @default(uuid())
+  artifactId    String                @unique
+  treatmentType ParasiteTreatmentType @default(OTHER)
+  productName   String
+  manufacturer  String?
+  treatedAt     DateTime
+  notes         String?
+  metadata      Json?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  artifact      ClinicalArtifact      @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+
+  @@index([artifactId])
+}
+
+// Pre-travel clinical examination ("fit to travel" attestation): the EU passport
+// section a vet signs shortly before movement.
+model ClinicalExamination {
+  id           String           @id @default(uuid())
+  artifactId   String           @unique
+  examinedAt   DateTime
+  fitForTravel Boolean          @default(true)
+  findings     String?
+  weightKg     Float?
+  temperatureC Float?
+  metadata     Json?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  artifact     ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+
+  @@index([artifactId])
+  @@index([examinedAt])
+}
+
+// The attestation / provenance primitive: who signed (verified vet + licence),
+// the basis (primarySource = administered-in-system vs verified-from-upload),
+// the source document for uploads, and the Documenso-signed PDF that is the
+// legally-binding notary record. A SIGNED artifact is immutable; corrections
+// supersede and revocations propagate to the wallet pass + public page.
+model ClinicalArtifactAttestation {
+  id                  String           @id @default(uuid())
+  artifactId          String           @unique
+  primarySource       Boolean          @default(true)
+  signatoryUserId     String?
+  signatoryName       String?
+  signatoryLicence    String?
+  sourceDocumentId    String?
+  documensoDocumentId String?
+  signingStatus       String?
+  signedPdfUrl        String?
+  signedAt            DateTime?
+  revokedAt           DateTime?
+  revokedReason       String?
+  supersededById      String?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  artifact            ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+
+  @@index([artifactId])
+  @@index([signatoryUserId])
+  @@index([sourceDocumentId])
 }
 
 model Service {
@@ -3033,4 +3573,2626 @@ model CreditNote {
 
   @@index([invoiceId])
   @@index([status])
+}
+
+enum ReferralStatus {
+  DRAFT
+  SIGNED
+  SENT
+  ACKNOWLEDGED
+  CANCELLED
+}
+
+model ReferralLetter {
+  id                  String         @id @default(uuid())
+  organisationId      String
+  patientId           String
+  encounterId         String?
+  referringVetId      String?
+  specialistName      String?
+  specialistClinic    String?
+  specialistEmail     String?
+  reasonForReferral   String
+  historySummary      String?
+  examFindings        String?
+  currentMedications  String?
+  additionalNotes     String?
+  status              ReferralStatus @default(DRAFT)
+  signedAt            DateTime?
+  sentAt              DateTime?
+  documensoEnvelopeId String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, status])
+  @@map("ReferralLetter")
+}
+
+enum InsuranceClaimStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  PARTIALLY_APPROVED
+  REJECTED
+  PAID
+  CANCELLED
+}
+
+model InsuranceClaim {
+  id               String               @id @default(uuid())
+  organisationId   String
+  patientId        String
+  invoiceId        String?
+  encounterId      String?
+  insurerName      String
+  policyNumber     String
+  claimNumber      String?
+  submittedAmount  Float
+  approvedAmount   Float?
+  paidAmount       Float?
+  currency         String               @default("GBP")
+  status           InsuranceClaimStatus @default(DRAFT)
+  submittedAt      DateTime?
+  approvedAt       DateTime?
+  paidAt           DateTime?
+  rejectionReason  String?
+  notes            String?
+  externalClaimRef String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, status])
+  @@index([organisationId, invoiceId])
+  @@map("InsuranceClaim")
+}
+
+enum CareReminderType {
+  VACCINATION_BOOSTER
+  ANNUAL_CHECKUP
+  PARASITE_TREATMENT
+  DENTAL_CLEANING
+  FOLLOW_UP
+  CUSTOM
+}
+
+enum CareReminderStatus {
+  PENDING
+  SENT
+  RESPONDED
+  EXPIRED
+  CANCELLED
+}
+
+model CareReminder {
+  id             String             @id @default(uuid())
+  organisationId String
+  patientId      String
+  reminderType   CareReminderType
+  customMessage  String?
+  dueDate        DateTime
+  sendAt         DateTime?
+  status         CareReminderStatus @default(PENDING)
+  sentAt         DateTime?
+  respondedAt    DateTime?
+  appointmentId  String?
+  notes          String?
+  createdBy      String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, status])
+  @@index([organisationId, reminderType])
+  @@index([organisationId, dueDate])
+  @@map("CareReminder")
+}
+
+enum ProblemStatus {
+  ACTIVE
+  INACTIVE
+  RESOLVED
+}
+
+enum ProblemSeverity {
+  MILD
+  MODERATE
+  SEVERE
+}
+
+model PatientProblem {
+  id             String           @id @default(uuid())
+  organisationId String
+  patientId      String
+  encounterId    String?
+  name           String
+  codeSystem     String?
+  code           String?
+  status         ProblemStatus    @default(ACTIVE)
+  severity       ProblemSeverity?
+  onsetDate      DateTime?
+  resolvedDate   DateTime?
+  notes          String?
+  recordedBy     String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([organisationId, patientId, status])
+  @@index([organisationId, patientId])
+  @@map("PatientProblem")
+}
+
+enum AllergyType {
+  DRUG
+  FOOD
+  ENVIRONMENTAL
+  OTHER
+}
+
+enum AllergySeverity {
+  MILD
+  MODERATE
+  SEVERE
+  LIFE_THREATENING
+}
+
+enum AllergyStatus {
+  ACTIVE
+  RESOLVED
+  UNCONFIRMED
+}
+
+model PatientAllergy {
+  id             String          @id @default(uuid())
+  organisationId String
+  patientId      String
+  allergen       String
+  allergyType    AllergyType
+  severity       AllergySeverity
+  reaction       String?
+  status         AllergyStatus   @default(ACTIVE)
+  onsetDate      DateTime?
+  resolvedDate   DateTime?
+  notes          String?
+  recordedBy     String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([organisationId, patientId, status])
+  @@index([organisationId, patientId])
+  @@map("PatientAllergy")
+}
+
+
+// ---------------------------------------------------------------------------
+// Medication Administration Record (MAR)
+// ---------------------------------------------------------------------------
+
+enum MARStatus {
+  SCHEDULED
+  GIVEN
+  HELD
+  MISSED
+  REFUSED
+}
+
+model MAREntry {
+  id             String    @id @default(uuid())
+  organisationId String
+  patientId      String
+  encounterId    String?
+  prescriptionId String?
+  medicationName String
+  dose           String
+  route          String
+  scheduledAt    DateTime
+  administeredAt DateTime?
+  administeredBy String?
+  status         MARStatus @default(SCHEDULED)
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([organisationId, patientId, scheduledAt])
+  @@index([organisationId, encounterId, scheduledAt])
+  @@index([organisationId, patientId, status])
+  @@map("MAREntry")
+}
+
+// ---------------------------------------------------------------------------
+// Preventive Care Plans
+// ---------------------------------------------------------------------------
+
+enum PreventiveCareFrequency {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  BIANNUAL
+  ANNUAL
+  CUSTOM
+}
+
+enum PreventiveCareStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+model PreventiveCarePlan {
+  id                String                  @id @default(uuid())
+  organisationId    String
+  patientId         String
+  name              String
+  description       String?
+  status            PreventiveCareStatus    @default(ACTIVE)
+  createdBy         String?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  items             PreventiveCareItem[]
+
+  @@index([organisationId, patientId, status])
+  @@index([organisationId, patientId])
+  @@map("PreventiveCarePlan")
+}
+
+model PreventiveCareItem {
+  id              String                  @id @default(uuid())
+  planId          String
+  organisationId  String
+  careType        String
+  frequency       PreventiveCareFrequency
+  intervalDays    Int?
+  lastDoneAt      DateTime?
+  nextDueAt       DateTime?
+  notes           String?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  plan            PreventiveCarePlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([organisationId, nextDueAt])
+  @@index([planId])
+  @@map("PreventiveCareItem")
+}
+
+// ---------------------------------------------------------------------------
+// Surgical Procedure Records
+// ---------------------------------------------------------------------------
+
+enum SurgeryOutcome {
+  SUCCESS
+  COMPLICATION
+  ABANDONED
+  PENDING
+}
+
+enum AnesthesiaType {
+  GENERAL
+  LOCAL
+  SEDATION
+  EPIDURAL
+  REGIONAL
+  TOTAL_IV
+  NONE
+}
+
+model SurgicalProcedure {
+  id               String         @id @default(uuid())
+  organisationId   String
+  patientId        String
+  encounterId      String?
+  procedureName    String
+  surgeon          String?
+  assistants       String[]
+  anesthesiaType   AnesthesiaType @default(NONE)
+  anesthesiaAgent  String?
+  anesthesiaDoseMs Float?
+  startedAt        DateTime?
+  endedAt          DateTime?
+  durationMinutes  Int?
+  outcome          SurgeryOutcome @default(PENDING)
+  complications    String?
+  instruments      String[]
+  specimensSent    String[]
+  postOpNotes      String?
+  performedBy      String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, patientId, outcome])
+  @@index([encounterId])
+  @@map("SurgicalProcedure")
+}
+
+// ---------------------------------------------------------------------------
+// Patient Consent Records
+// ---------------------------------------------------------------------------
+
+enum ConsentType {
+  SURGICAL
+  ANESTHESIA
+  DIAGNOSTIC
+  TREATMENT
+  DATA_SHARING
+  DNR
+  OTHER
+}
+
+enum ConsentStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+model PatientConsent {
+  id              String        @id @default(uuid())
+  organisationId  String
+  patientId       String
+  consentType     ConsentType
+  status          ConsentStatus @default(ACTIVE)
+  procedureDesc   String?
+  consentedBy     String?
+  consentedByName String?
+  consentedAt     DateTime      @default(now())
+  expiresAt       DateTime?
+  witnessedBy     String?
+  revokedAt       DateTime?
+  revokedReason   String?
+  documentId      String?
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([organisationId, patientId, status])
+  @@index([organisationId, patientId])
+  @@map("PatientConsent")
+}
+
+// ---------------------------------------------------------------------------
+// Discharge Instructions
+// ---------------------------------------------------------------------------
+
+enum DischargeStatus {
+  DRAFT
+  SENT
+  ACKNOWLEDGED
+}
+
+model DischargeInstruction {
+  id                 String          @id @default(uuid())
+  organisationId     String
+  patientId          String
+  encounterId        String?
+  status             DischargeStatus @default(DRAFT)
+  medicationSchedule String?
+  dietaryNotes       String?
+  activityNotes      String?
+  woundCareNotes     String?
+  warningSigns       String?
+  followUpDate       DateTime?
+  followUpNotes      String?
+  emergencyContact   String?
+  additionalNotes    String?
+  preparedBy         String?
+  sentAt             DateTime?
+  acknowledgedAt     DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([encounterId])
+  @@map("DischargeInstruction")
+}
+
+// ---------------------------------------------------------------------------
+// Diagnostic Imaging Records
+// ---------------------------------------------------------------------------
+
+enum ImagingType {
+  RADIOGRAPH
+  ULTRASOUND
+  CT_SCAN
+  MRI
+  ENDOSCOPY
+  FLUOROSCOPY
+  SCINTIGRAPHY
+  OTHER
+}
+
+enum ImagingStatus {
+  PENDING_REVIEW
+  REVIEWED
+  REQUIRES_SPECIALIST
+}
+
+model DiagnosticImage {
+  id               String        @id @default(uuid())
+  organisationId   String
+  patientId        String
+  encounterId      String?
+  imagingType      ImagingType
+  bodyRegion       String?
+  indication       String?
+  takenAt          DateTime
+  takenBy          String?
+  interpretedBy    String?
+  interpretedAt    DateTime?
+  findings         String?
+  impression       String?
+  followUpRequired Boolean       @default(false)
+  documentId       String?
+  status           ImagingStatus @default(PENDING_REVIEW)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([encounterId])
+  @@map("DiagnosticImage")
+}
+
+
+// ---------------------------------------------------------------------------
+// Blood Transfusion Records
+// ---------------------------------------------------------------------------
+
+enum BloodType {
+  DEA_1_POSITIVE
+  DEA_1_NEGATIVE
+  TYPE_A
+  TYPE_B
+  TYPE_AB
+  UNKNOWN
+}
+
+enum TransfusionReaction {
+  NONE
+  FEBRILE
+  HAEMOLYTIC
+  ALLERGIC
+  ANAPHYLACTIC
+  CIRCULATORY_OVERLOAD
+  OTHER
+}
+
+model BloodTransfusion {
+  id              String              @id @default(uuid())
+  organisationId  String
+  patientId       String
+  encounterId     String?
+  donorId         String?
+  productType     String
+  bloodType       BloodType
+  volumeMl        Float
+  startedAt       DateTime
+  endedAt         DateTime?
+  durationMinutes Int?
+  reaction        TransfusionReaction @default(NONE)
+  reactionNotes   String?
+  administeredBy  String?
+  crossMatchDone  Boolean             @default(false)
+  crossMatchResult String?
+  preTransfusionPCV Float?
+  postTransfusionPCV Float?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([encounterId])
+  @@map("BloodTransfusion")
+}
+
+// ---------------------------------------------------------------------------
+// Fluid Therapy Plans
+// ---------------------------------------------------------------------------
+
+enum FluidType {
+  SALINE_09
+  LACTATED_RINGERS
+  DEXTROSE_5
+  HARTMANNS
+  PLASMALYTE
+  COLLOID
+  BLOOD_PRODUCT
+  CUSTOM
+}
+
+enum FluidTherapyStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  DISCONTINUED
+}
+
+model FluidTherapyPlan {
+  id               String             @id @default(uuid())
+  organisationId   String
+  patientId        String
+  encounterId      String?
+  admissionId      String?
+  fluidType        FluidType
+  customFluidName  String?
+  additives        String?
+  rateMlPerHour    Float
+  totalVolumeMl    Float?
+  durationHours    Float?
+  startedAt        DateTime
+  endedAt          DateTime?
+  status           FluidTherapyStatus @default(ACTIVE)
+  indication       String?
+  prescribedBy     String?
+  notes            String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([encounterId])
+  @@map("FluidTherapyPlan")
+}
+
+// ---------------------------------------------------------------------------
+// Diet & Nutrition Plans
+// ---------------------------------------------------------------------------
+
+enum NutritionPlanStatus {
+  ACTIVE
+  COMPLETED
+  DISCONTINUED
+}
+
+model NutritionPlan {
+  id              String              @id @default(uuid())
+  organisationId  String
+  patientId       String
+  encounterId     String?
+  status          NutritionPlanStatus @default(ACTIVE)
+  dietName        String
+  calories        Float?
+  calorieUnit     String?
+  protein         Float?
+  fat             Float?
+  fibre           Float?
+  feedingFrequency String?
+  portionSize     String?
+  waterIntake     String?
+  restrictions    String?
+  indication      String?
+  prescribedBy    String?
+  reviewDate      DateTime?
+  notes           String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([encounterId])
+  @@map("NutritionPlan")
+}
+
+// ---------------------------------------------------------------------------
+// Post-Operative Care Plans
+// ---------------------------------------------------------------------------
+
+enum PostOpCareStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+model PostOpCarePlan {
+  id                String          @id @default(uuid())
+  organisationId    String
+  patientId         String
+  encounterId       String?
+  surgicalProcedureId String?
+  status            PostOpCareStatus @default(ACTIVE)
+  painScore         Int?
+  analgesiaProtocol String?
+  woundCareInstructions String?
+  activityRestrictions  String?
+  dietaryNotes      String?
+  fluidTherapyNotes String?
+  monitoringParams  String?
+  firstReviewAt     DateTime?
+  nextReviewAt      DateTime?
+  reviewedBy        String?
+  reviewNotes       String?
+  prescribedBy      String?
+  notes             String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([encounterId])
+  @@map("PostOpCarePlan")
+}
+
+// ---------------------------------------------------------------------------
+// Hospitalization Monitoring (Nursing Obs Chart)
+// ---------------------------------------------------------------------------
+
+model HospitalizationMonitoring {
+  id                     String   @id @default(uuid())
+  organisationId         String
+  patientId              String
+  admissionId            String?
+  encounterId            String?
+  observedAt             DateTime
+  observedBy             String?
+  temperature            Decimal?
+  temperatureUnit        String?
+  heartRate              Int?
+  respiratoryRate        Int?
+  spo2                   Int?
+  bloodPressureSystolic  Int?
+  bloodPressureDiastolic Int?
+  etco2                  Int?
+  painScore              Int?
+  crtSecs                Decimal?
+  mucousMembranes        String?
+  inputMl                Decimal?
+  outputMl               Decimal?
+  mentalStatus           String?
+  appetite               String?
+  urination              String?
+  defecation             String?
+  notes                  String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, admissionId])
+  @@index([observedAt])
+  @@map("HospitalizationMonitoring")
+}
+
+// ---------------------------------------------------------------------------
+// Physiotherapy Plans
+// ---------------------------------------------------------------------------
+
+enum PhysiotherapyStatus {
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  DISCONTINUED
+}
+
+model PhysiotherapyPlan {
+  id                   String              @id @default(uuid())
+  organisationId       String
+  patientId            String
+  encounterId          String?
+  surgicalProcedureId  String?
+  diagnosis            String
+  goals                String?
+  frequency            String?
+  durationMinutes      Int?
+  totalSessions        Int?
+  exercisePrescription String?
+  hydrotherapy         Boolean             @default(false)
+  laserTherapy         Boolean             @default(false)
+  therapeuticUltrasound Boolean            @default(false)
+  massage              Boolean             @default(false)
+  acupuncture          Boolean             @default(false)
+  tapeApplication      Boolean             @default(false)
+  precautions          String?
+  homeExercises        String?
+  startDate            DateTime?
+  endDate              DateTime?
+  lastSessionAt        DateTime?
+  nextSessionAt        DateTime?
+  therapist            String?
+  prescribedBy         String?
+  status               PhysiotherapyStatus @default(ACTIVE)
+  notes                String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([encounterId])
+  @@map("PhysiotherapyPlan")
+}
+
+// ---------------------------------------------------------------------------
+// Wound Assessments
+// ---------------------------------------------------------------------------
+
+enum WoundType {
+  SURGICAL_INCISION
+  LACERATION
+  PUNCTURE
+  ABRASION
+  BURN
+  PRESSURE_SORE
+  ULCER
+  BITE_WOUND
+  OTHER
+}
+
+enum WoundHealingStage {
+  HAEMOSTASIS
+  INFLAMMATION
+  PROLIFERATION
+  MATURATION
+}
+
+enum WoundHealingStatus {
+  HEALING
+  STATIC
+  DETERIORATING
+  HEALED
+  COMPLICATED
+}
+
+model WoundAssessment {
+  id                  String             @id @default(uuid())
+  organisationId      String
+  patientId           String
+  encounterId         String?
+  surgicalProcedureId String?
+  woundType           WoundType
+  location            String
+  lengthCm            Decimal?
+  widthCm             Decimal?
+  depthCm             Decimal?
+  healingStage        WoundHealingStage?
+  healingStatus       WoundHealingStatus @default(HEALING)
+  exudateType         String?
+  exudateAmount       String?
+  odour               String?
+  woundBed            String?
+  woundEdges          String?
+  periwoundSkin       String?
+  dressing            String?
+  dressingChangeFreq  String?
+  assessedAt          DateTime
+  assessedBy          String?
+  notes               String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, surgicalProcedureId])
+  @@index([assessedAt])
+  @@map("WoundAssessment")
+}
+
+// ---------------------------------------------------------------------------
+// Pathology Submissions
+// ---------------------------------------------------------------------------
+
+enum PathologyType {
+  HISTOPATHOLOGY
+  CYTOLOGY
+  CULTURE_SENSITIVITY
+  HAEMATOLOGY
+  BIOCHEMISTRY
+  URINALYSIS
+  PCR
+  SEROLOGY
+  NECROPSY
+  OTHER
+}
+
+enum PathologyStatus {
+  PENDING
+  RECEIVED_BY_LAB
+  PROCESSING
+  RESULTS_AVAILABLE
+  REVIEWED
+}
+
+model PathologySubmission {
+  id              String          @id @default(uuid())
+  organisationId  String
+  patientId       String
+  encounterId     String?
+  pathologyType   PathologyType
+  sampleType      String
+  anatomicSite    String
+  collectedAt     DateTime
+  collectedBy     String?
+  submittedAt     DateTime?
+  labName         String?
+  labRefNumber    String?
+  clinicalHistory String?
+  differentials   String?
+  results         String?
+  diagnosis       String?
+  interpretation  String?
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  status          PathologyStatus @default(PENDING)
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, status])
+  @@map("PathologySubmission")
+}
+
+// ---------------------------------------------------------------------------
+// Emergency Triage
+// ---------------------------------------------------------------------------
+
+enum TriagePriority {
+  IMMEDIATE
+  URGENT
+  LESS_URGENT
+  STANDARD
+  NON_URGENT
+}
+
+model EmergencyTriage {
+  id                     String         @id @default(uuid())
+  organisationId         String
+  patientId              String
+  encounterId            String?
+  triagePriority         TriagePriority
+  chiefComplaint         String
+  presentationAt         DateTime
+  heartRate              Int?
+  respiratoryRate        Int?
+  temperature            Decimal?
+  bloodPressureSystolic  Int?
+  bloodPressureDiastolic Int?
+  oxygenSaturation       Decimal?
+  capillaryRefillTime    Decimal?
+  mentalStatus           String?
+  escalated              Boolean        @default(false)
+  escalatedAt            DateTime?
+  escalatedReason        String?
+  triageBy               String?
+  notes                  String?
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, presentationAt])
+  @@map("EmergencyTriage")
+}
+
+// ---------------------------------------------------------------------------
+// ICU Care Plan
+// ---------------------------------------------------------------------------
+
+enum IcuPlanStatus {
+  ACTIVE
+  TRANSFERRED
+  DISCHARGED
+  DECEASED
+}
+
+model IcuCarePlan {
+  id                   String        @id @default(uuid())
+  organisationId       String
+  patientId            String
+  encounterId          String?
+  status               IcuPlanStatus @default(ACTIVE)
+  admittedAt           DateTime
+  onVentilator         Boolean       @default(false)
+  onOxygenSupport      Boolean       @default(false)
+  hasUrinaryCatheter   Boolean       @default(false)
+  hasCentralLine       Boolean       @default(false)
+  hasDrain             Boolean       @default(false)
+  devices              String?
+  dailyGoals           String?
+  nursingFrequency     String?
+  alertThresholds      String?
+  primaryVet           String?
+  nursePrimary         String?
+  anticipatedDischarge DateTime?
+  dischargedAt         DateTime?
+  dischargeSummary     String?
+  notes                String?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, status])
+  @@map("IcuCarePlan")
+}
+
+// ---------------------------------------------------------------------------
+// Pain Assessment
+// ---------------------------------------------------------------------------
+
+enum PainScale {
+  NUMERIC_0_10
+  COLORADO_ACUTE_PAIN_SCALE
+  GLASGOW_COMPOSITE_PAIN_SCALE
+  UNESP_BOTUCATU
+  FELINE_GRIMACE_SCALE
+}
+
+enum PainInterventionType {
+  ANALGESIC_GIVEN
+  REPOSITIONED
+  ICE_APPLIED
+  BANDAGE_ADJUSTED
+  ENVIRONMENT_MODIFIED
+  REASSESSED
+  OTHER
+}
+
+model PainAssessment {
+  id                 String                @id @default(uuid())
+  organisationId     String
+  patientId          String
+  encounterId        String?
+  painScale          PainScale
+  painScore          Int
+  rawScore           String?
+  behaviouralSigns   String?
+  vocalisation       Boolean?
+  posture            String?
+  assessedAt         DateTime
+  assessedBy         String?
+  interventionType   PainInterventionType?
+  interventionDetail String?
+  reassessAt         DateTime?
+  notes              String?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, assessedAt])
+  @@map("PainAssessment")
+}
+
+// ---------------------------------------------------------------------------
+// Body Condition Record
+// ---------------------------------------------------------------------------
+
+enum BodyConditionScaleType {
+  BCS_5
+  BCS_9
+}
+
+model BodyConditionRecord {
+  id                   String                 @id @default(uuid())
+  organisationId       String
+  patientId            String
+  encounterId          String?
+  bcsScale             BodyConditionScaleType
+  bcsScore             Decimal
+  muscleConditionScore String?
+  weightKg             Decimal?
+  bodyFatPercentage    Decimal?
+  recordedAt           DateTime
+  recordedBy           String?
+  notes                String?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, recordedAt])
+  @@map("BodyConditionRecord")
+}
+
+// ---------------------------------------------------------------------------
+// Medication Reconciliation
+// ---------------------------------------------------------------------------
+
+enum ReconciliationStatus {
+  IN_PROGRESS
+  COMPLETED
+  PENDING_REVIEW
+}
+
+model MedicationReconciliation {
+  id              String               @id @default(uuid())
+  organisationId  String
+  patientId       String
+  encounterId     String?
+  status          ReconciliationStatus @default(IN_PROGRESS)
+  reconciledBy    String?
+  reconciledAt    DateTime?
+  homeMedications Json
+  hospitalOrders  Json
+  discrepancies   Json?
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  reviewNotes     String?
+  notes           String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([organisationId, patientId])
+  @@map("MedicationReconciliation")
+}
+
+// ---------------------------------------------------------------------------
+// Clinical Progress Notes
+// ---------------------------------------------------------------------------
+
+enum ClinicalNoteType {
+  SHIFT_NOTE
+  PROGRESS_NOTE
+  NURSE_NOTE
+  SPECIALIST_NOTE
+  DISCHARGE_SUMMARY
+  OTHER
+}
+
+model ClinicalProgressNote {
+  id                 String           @id @default(uuid())
+  organisationId     String
+  patientId          String
+  encounterId        String?
+  noteType           ClinicalNoteType
+  subjectiveFindings String?
+  objectiveFindings  String?
+  assessment         String?
+  plan               String?
+  freeText           String?
+  authorId           String?
+  authorName         String?
+  signedAt           DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, encounterId])
+  @@map("ClinicalProgressNote")
+}
+
+// ---------------------------------------------------------------------------
+// Dental Examination
+// ---------------------------------------------------------------------------
+
+enum DentalGrade {
+  GRADE_0
+  GRADE_1
+  GRADE_2
+  GRADE_3
+  GRADE_4
+}
+
+model DentalExamination {
+  id              String      @id @default(uuid())
+  organisationId  String
+  patientId       String
+  encounterId     String?
+  examinedAt      DateTime
+  examinedBy      String?
+  overallGrade    DentalGrade
+  findings        Json
+  calculusScore   Int?
+  plaqueScore     Int?
+  gingivalScore   Int?
+  procedures      String[]
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([organisationId, patientId])
+  @@map("DentalExamination")
+}
+
+// ---------------------------------------------------------------------------
+// Reproductive Health
+// ---------------------------------------------------------------------------
+
+enum ReproductiveStatus {
+  INTACT
+  SPAYED
+  NEUTERED
+  CASTRATED
+  UNKNOWN
+}
+
+enum PregnancyStatus {
+  SUSPECTED
+  CONFIRMED
+  WHELPED
+  QUEENED
+  ABORTED
+  RESORBED
+}
+
+model ReproductiveRecord {
+  id                    String              @id @default(uuid())
+  organisationId        String
+  patientId             String
+  reproductiveStatus    ReproductiveStatus
+  lastHeatDate          DateTime?
+  nextHeatExpected      DateTime?
+  matingDate            DateTime?
+  sireId                String?
+  sireName              String?
+  pregnancyStatus       PregnancyStatus?
+  pregnancyConfirmedAt  DateTime?
+  expectedWhelp         DateTime?
+  litterSizeUltrasound  Int?
+  litterSizeXray        Int?
+  actualWhelp           DateTime?
+  litterSizeBorn        Int?
+  litterSizeAlive       Int?
+  recordedBy            String?
+  notes                 String?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  @@index([organisationId, patientId])
+  @@map("ReproductiveRecord")
+}
+
+// ---------------------------------------------------------------------------
+// Ophthalmology Examination
+// ---------------------------------------------------------------------------
+
+enum VisionStatus {
+  NORMAL
+  REDUCED
+  ABSENT
+  UNKNOWN
+}
+
+enum PLRResponse {
+  NORMAL
+  SLUGGISH
+  ABSENT
+}
+
+model OphthalmologyExamination {
+  id                  String       @id @default(uuid())
+  organisationId      String
+  patientId           String
+  encounterId         String?
+  examinedAt          DateTime
+  examinedBy          String?
+  visionLeft          VisionStatus?
+  visionRight         VisionStatus?
+  menaceLeft          Boolean?
+  menaceRight         Boolean?
+  plrDirectLeft       PLRResponse?
+  plrDirectRight      PLRResponse?
+  plrConsensualLeft   PLRResponse?
+  plrConsensualRight  PLRResponse?
+  sttLeft             Int?
+  sttRight            Int?
+  iopLeft             Decimal?
+  iopRight            Decimal?
+  fluoresceinLeft     Boolean?
+  fluoresceinRight    Boolean?
+  findingsLeft        Json?
+  findingsRight       Json?
+  diagnoses           String[]
+  notes               String?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  @@index([organisationId, patientId])
+  @@map("OphthalmologyExamination")
+}
+
+// ---------------------------------------------------------------------------
+// Cardiology Assessment
+// ---------------------------------------------------------------------------
+
+enum MurmurGrade {
+  GRADE_1
+  GRADE_2
+  GRADE_3
+  GRADE_4
+  GRADE_5
+  GRADE_6
+}
+
+enum HeartRhythm {
+  NORMAL_SINUS
+  SINUS_ARRHYTHMIA
+  BRADYCARDIA
+  TACHYCARDIA
+  ATRIAL_FIBRILLATION
+  SECOND_DEGREE_AV_BLOCK
+  THIRD_DEGREE_AV_BLOCK
+  VENTRICULAR_PREMATURE_CONTRACTIONS
+  SUPRAVENTRICULAR_PREMATURE_CONTRACTIONS
+  OTHER
+}
+
+enum AcvimClass {
+  A
+  B1
+  B2
+  C
+  D
+}
+
+model CardiologyAssessment {
+  id                   String      @id @default(uuid())
+  organisationId       String
+  patientId            String
+  encounterId          String?
+  assessedAt           DateTime
+  assessedBy           String?
+  heartRate            Int?
+  heartRhythm          HeartRhythm?
+  murmurGrade          MurmurGrade?
+  murmurLocation       String?
+  murmurCharacter      String?
+  pulseQuality         String?
+  jugularPulse         String?
+  vertebralHeartScore  Decimal?
+  laAoRatio            Decimal?
+  fractionalShortening Decimal?
+  ejectionFraction     Decimal?
+  acvimClass           AcvimClass?
+  findings             Json?
+  diagnoses            String[]
+  notes                String?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  @@index([organisationId, patientId])
+  @@map("CardiologyAssessment")
+}
+
+// ---------------------------------------------------------------------------
+// Behavior Assessment
+// ---------------------------------------------------------------------------
+
+enum FasScore {
+  FAS_0
+  FAS_1
+  FAS_2
+  FAS_3
+  FAS_4
+  FAS_5
+}
+
+enum HandlingTolerance {
+  EASY
+  MODERATE
+  DIFFICULT
+  EXTREME
+}
+
+model BehaviorAssessment {
+  id                    String            @id @default(uuid())
+  organisationId        String
+  patientId             String
+  encounterId           String?
+  assessedAt            DateTime
+  assessedBy            String?
+  fasScore              FasScore?
+  nailTrimTolerance     HandlingTolerance?
+  handlingTolerance     HandlingTolerance?
+  aggressionTriggers    String[]
+  aversionBehaviors     String[]
+  trainingHistory       String?
+  diagnoses             String[]
+  referralRecommended   Boolean?
+  fearFreeNotes         String?
+  notes                 String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  @@index([organisationId, patientId])
+  @@map("BehaviorAssessment")
+}
+
+// ---------------------------------------------------------------------------
+// Dermatology Assessment
+// ---------------------------------------------------------------------------
+
+model DermatologyAssessment {
+  id                    String    @id @default(uuid())
+  organisationId        String
+  patientId             String
+  encounterId           String?
+  assessedAt            DateTime
+  assessedBy            String?
+  pruritusScore         Int?
+  affectedRegions       String[]
+  primaryLesions        String[]
+  secondaryLesions      String[]
+  coatQuality           String?
+  lesionMap             Json?
+  environmentalAllergens String[]
+  foodTrialStatus       String?
+  cades04Score          Int?
+  diagnoses             String[]
+  notes                 String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([organisationId, patientId])
+  @@map("DermatologyAssessment")
+}
+
+// ---------------------------------------------------------------------------
+// Neurology Assessment
+// ---------------------------------------------------------------------------
+
+enum ConsciousnessLevel {
+  ALERT
+  OBTUNDED
+  STUPOR
+  COMA
+}
+
+enum GaitScore {
+  NORMAL
+  PARETIC
+  ATAXIC
+  NON_AMBULATORY_PARAPLEGIC
+  NON_AMBULATORY_TETRAPLEGIC
+}
+
+model NeurologyAssessment {
+  id                    String             @id @default(uuid())
+  organisationId        String
+  patientId             String
+  encounterId           String?
+  assessedAt            DateTime
+  assessedBy            String?
+  consciousnessLevel    ConsciousnessLevel?
+  gaitScore             GaitScore?
+  cranialNerveFindings  String?
+  spinalReflexGrades    Json?
+  deepPainPresent       Boolean?
+  proprioceptionIntact  Boolean?
+  seizureHistory        Boolean?
+  seizureFrequency      String?
+  mriRecommended        Boolean?
+  diagnoses             String[]
+  notes                 String?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  @@index([organisationId, patientId])
+  @@map("NeurologyAssessment")
+}
+
+// ---------------------------------------------------------------------------
+// Oncology Assessment
+// ---------------------------------------------------------------------------
+
+enum OncologyStage {
+  STAGE_0
+  STAGE_I
+  STAGE_IA
+  STAGE_IB
+  STAGE_II
+  STAGE_IIA
+  STAGE_IIB
+  STAGE_III
+  STAGE_IIIA
+  STAGE_IIIB
+  STAGE_IV
+}
+
+model OncologyAssessment {
+  id                      String        @id @default(uuid())
+  organisationId          String
+  patientId               String
+  encounterId             String?
+  assessedAt              DateTime
+  assessedBy              String?
+  tumorType               String?
+  primaryTumorStage       String?
+  nodeStage               String?
+  metastasisStage         String?
+  overallStage            OncologyStage?
+  chemotherapyProtocol    String?
+  chemotherapyStartDate   DateTime?
+  chemotherapyCycles      Int?
+  qualityOfLifeScore      Int?
+  prognosis               String?
+  diagnoses               String[]
+  notes                   String?
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+
+  @@index([organisationId, patientId])
+  @@map("OncologyAssessment")
+}
+
+// ---------------------------------------------------------------------------
+// Nutrition Assessment
+// ---------------------------------------------------------------------------
+
+enum AppetiteScore {
+  EXCELLENT
+  GOOD
+  FAIR
+  POOR
+  NONE
+}
+
+enum FeedingRoute {
+  ORAL
+  NASOGASTRIC
+  ESOPHAGOSTOMY
+  GASTROSTOMY
+  IV_PARENTERAL
+}
+
+model NutritionAssessment {
+  id                        String        @id @default(uuid())
+  organisationId            String
+  patientId                 String
+  encounterId               String?
+  assessedAt                DateTime
+  assessedBy                String?
+  appetiteScore             AppetiteScore?
+  bodyConditionScore        Int?
+  muscleConditionScore      Int?
+  currentWeightKg           Float?
+  idealWeightKg             Float?
+  restingEnergyRequirement  Float?
+  feedingRoute              FeedingRoute?
+  currentDiet               String?
+  feedingPlan               String?
+  supplementation           String[]
+  hydrationStatus           String?
+  diagnoses                 String[]
+  notes                     String?
+  createdAt                 DateTime      @default(now())
+  updatedAt                 DateTime      @updatedAt
+
+  @@index([organisationId, patientId])
+  @@map("NutritionAssessment")
+}
+
+// ---------------------------------------------------------------------------
+// Point-of-Care Lab Result
+// ---------------------------------------------------------------------------
+
+enum PocTestType {
+  CBC
+  BLOOD_CHEMISTRY
+  URINALYSIS
+  FECAL_FLOAT
+  CYTOLOGY
+  COAGULATION
+  ELECTROLYTES
+  THYROID_PANEL
+  CORTISOL
+  GLUCOSE_CURVE
+  BLOOD_GAS
+  OTHER
+}
+
+model PointOfCareLab {
+  id                  String       @id @default(uuid())
+  organisationId      String
+  patientId           String
+  encounterId         String?
+  conductedAt         DateTime
+  conductedBy         String?
+  testType            PocTestType
+  analyzerName        String?
+  sampleType          String?
+  results             Json
+  overallInterpretation String?
+  abnormalFlags       String[]
+  criticalFlags       String[]
+  followUpRecommended Boolean?
+  notes               String?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, testType])
+  @@map("PointOfCareLab")
+}
+
+// ---------------------------------------------------------------------------
+// Genetic Health Screening
+// ---------------------------------------------------------------------------
+
+enum GeneticTestResult {
+  CLEAR
+  CARRIER
+  AFFECTED
+  AFFECTED_MINOR
+  INCONCLUSIVE
+  PENDING
+}
+
+enum OrthoRating {
+  EXCELLENT
+  GOOD
+  FAIR
+  BORDERLINE
+  MILD
+  MODERATE
+  SEVERE
+  NOT_EVALUABLE
+}
+
+model GeneticHealthScreen {
+  id                  String            @id @default(uuid())
+  organisationId      String
+  patientId           String
+  encounterId         String?
+  screenedAt          DateTime
+  screenedBy          String?
+  laboratoryName      String?
+  dnaTests            Json?
+  ofa_hips            OrthoRating?
+  ofa_elbows          OrthoRating?
+  ofa_patellas        OrthoRating?
+  ofa_cardiac         String?
+  ofa_eyes            String?
+  certificateNumber   String?
+  certificationExpiry DateTime?
+  notes               String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([organisationId, patientId])
+  @@map("GeneticHealthScreen")
+}
+
+// ---------------------------------------------------------------------------
+// Quality-of-Life Assessment
+// ---------------------------------------------------------------------------
+
+model QualityOfLifeAssessment {
+  id               String    @id @default(uuid())
+  organisationId   String
+  patientId        String
+  encounterId      String?
+  assessedAt       DateTime
+  assessedBy       String?
+  hhhhhmmScore     Int?
+  painScore        Int?
+  appetiteScore    Int?
+  hygieneScore     Int?
+  happinessScore   Int?
+  mobilityScore    Int?
+  moreDaysGood     Boolean?
+  overallScore     Int?
+  ownerAssessed    Boolean   @default(false)
+  clinicianNotes   String?
+  ownerNotes       String?
+  euthanasiaDiscussed Boolean?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([organisationId, patientId])
+  @@map("QualityOfLifeAssessment")
+}
+
+// ---------------------------------------------------------------------------
+// Controlled Substance Log
+// ---------------------------------------------------------------------------
+
+enum DeaSchedule {
+  II
+  III
+  IV
+  V
+}
+
+enum DrugUnit {
+  ML
+  MG
+  MCG
+  TABLET
+  CAPSULE
+  PATCH
+  UNIT
+}
+
+model ControlledSubstanceLog {
+  id                 String      @id @default(uuid())
+  organisationId     String
+  patientId          String?
+  encounterId        String?
+  loggedAt           DateTime
+  drug               String
+  deaSchedule        DeaSchedule
+  lotNumber          String?
+  strength           Float?
+  unit               DrugUnit
+  amountDrawn        Float
+  amountAdministered Float
+  amountWasted       Float       @default(0)
+  wastedWitness      String?
+  balanceBefore      Float?
+  balanceAfter       Float?
+  administeredBy     String?
+  notes              String?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  @@index([organisationId, drug])
+  @@index([organisationId, loggedAt])
+  @@map("ControlledSubstanceLog")
+}
+
+// ---------------------------------------------------------------------------
+// Aftercare Plan (End-of-Life Services)
+// ---------------------------------------------------------------------------
+
+enum AftercareType {
+  EUTHANASIA_SERVICE
+  CREMATION_PRIVATE
+  CREMATION_COMMUNAL
+  AQUAMATION
+  BURIAL
+  HOME_CARE
+  DONATION_TO_SCIENCE
+}
+
+model AftercarePlan {
+  id                   String        @id @default(uuid())
+  organisationId       String
+  patientId            String
+  type                 AftercareType
+  provider             String?
+  estimatedCost        Float?
+  depositPaid          Float?
+  pawPrintRequested    Boolean       @default(false)
+  furClippingRequested Boolean       @default(false)
+  urnsRequested        Int?
+  instructions         String?
+  certificateNumber    String?
+  completedAt          DateTime?
+  notes                String?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  @@index([organisationId, patientId])
+  @@map("AftercarePlan")
+}
+
+// ---------------------------------------------------------------------------
+// Blood Bank
+// ---------------------------------------------------------------------------
+
+enum DonationStatus {
+  COLLECTED
+  PROCESSED
+  AVAILABLE
+  TRANSFUSED
+  EXPIRED
+  DISCARDED
+}
+
+model BloodBankDonor {
+  id                     String    @id @default(uuid())
+  organisationId         String
+  patientId              String    @unique
+  bloodType              BloodType
+  lastScreeningAt        DateTime?
+  lastDonationAt         DateTime?
+  nextEligibleAt         DateTime?
+  isActive               Boolean   @default(true)
+  totalDonations         Int       @default(0)
+  disqualificationReason String?
+  notes                  String?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  donations BloodDonationCollection[]
+
+  @@index([organisationId, bloodType])
+  @@index([organisationId, isActive])
+  @@map("BloodBankDonor")
+}
+
+model BloodDonationCollection {
+  id                String         @id @default(uuid())
+  donorId           String
+  organisationId    String
+  collectedAt       DateTime
+  collectedBy       String?
+  volumeMl          Float
+  anticoagulant     String?
+  unitId            String?
+  expiresAt         DateTime?
+  crossmatchResults Json?
+  status            DonationStatus @default(COLLECTED)
+  notes             String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  donor BloodBankDonor @relation(fields: [donorId], references: [id])
+
+  @@index([organisationId, status])
+  @@index([donorId])
+  @@map("BloodDonationCollection")
+}
+
+// ---------------------------------------------------------------------------
+// Treatment Estimates
+// ---------------------------------------------------------------------------
+
+enum EstimateStatus {
+  DRAFT
+  SENT
+  APPROVED
+  DECLINED
+  EXPIRED
+  CONVERTED
+}
+
+model Estimate {
+  id                   String         @id @default(uuid())
+  organisationId       String
+  patientId            String
+  encounterId          String?
+  status               EstimateStatus @default(DRAFT)
+  validUntil           DateTime?
+  subtotal             Float          @default(0)
+  taxAmount            Float          @default(0)
+  total                Float          @default(0)
+  currency             String         @default("GBP")
+  notes                String?
+  approvedBy           String?
+  approvedAt           DateTime?
+  declinedAt           DateTime?
+  declineReason        String?
+  convertedToInvoiceId String?
+  createdBy            String?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  items EstimateItem[]
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, status])
+  @@map("Estimate")
+}
+
+model EstimateItem {
+  id          String   @id @default(uuid())
+  estimateId  String
+  description String
+  quantity    Float    @default(1)
+  unitPrice   Float
+  taxRate     Float    @default(0)
+  lineTotal   Float
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  estimate Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+
+  @@index([estimateId])
+  @@map("EstimateItem")
+}
+
+// ---------------------------------------------------------------------------
+// Deceased Patient Record
+// ---------------------------------------------------------------------------
+
+enum CauseOfDeathType {
+  EUTHANASIA
+  NATURAL_DEATH
+  TRAUMATIC_INJURY
+  ACUTE_ILLNESS
+  CHRONIC_DISEASE
+  SURGICAL_COMPLICATION
+  ANESTHETIC_COMPLICATION
+  UNKNOWN
+  OTHER
+}
+
+enum BodyDispositionType {
+  OWNER_COLLECTED
+  PRIVATE_CREMATION
+  COMMUNAL_CREMATION
+  AQUAMATION
+  BURIAL
+  NECROPSY_FACILITY
+  DONATED_TO_SCIENCE
+}
+
+model DeceasedRecord {
+  id                 String              @id @default(uuid())
+  organisationId     String
+  patientId          String              @unique
+  deceasedAt         DateTime
+  causeOfDeathType   CauseOfDeathType
+  causeOfDeathDetail String?
+  bodyWeightKg       Float?
+  bodyConditionScore Int?
+  necropsyRequested  Boolean             @default(false)
+  necropsyFacility   String?
+  bodyDisposition    BodyDispositionType?
+  ownerNotifiedAt    DateTime?
+  certifiedBy        String?
+  notes              String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  @@index([organisationId, deceasedAt])
+  @@map("DeceasedRecord")
+}
+
+// ---------------------------------------------------------------------------
+// Surgical Safety Checklist (WHO-style Sign-In / Time-Out / Sign-Out)
+// ---------------------------------------------------------------------------
+
+enum ChecklistPhase {
+  SIGN_IN
+  TIME_OUT
+  SIGN_OUT
+}
+
+enum ChecklistStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+model SurgicalChecklist {
+  id              String          @id @default(uuid())
+  organisationId  String
+  patientId       String
+  encounterId     String
+  phase           ChecklistPhase  @default(SIGN_IN)
+  status          ChecklistStatus @default(PENDING)
+  conductedBy     String?
+  completedAt     DateTime?
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  items SurgicalChecklistItem[]
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, encounterId])
+  @@map("SurgicalChecklist")
+}
+
+model SurgicalChecklistItem {
+  id          String   @id @default(uuid())
+  checklistId String
+  label       String
+  isChecked   Boolean  @default(false)
+  checkedBy   String?
+  checkedAt   DateTime?
+  notes       String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  checklist SurgicalChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+
+  @@index([checklistId])
+  @@map("SurgicalChecklistItem")
+}
+
+// ---------------------------------------------------------------------------
+// Drug Formulary (clinic-specific drug reference with dosage guidelines)
+// ---------------------------------------------------------------------------
+
+enum FormularyCategory {
+  ANALGESIC
+  ANTIBIOTIC
+  ANTIFUNGAL
+  ANTIPARASITIC
+  CARDIOVASCULAR
+  CHEMOTHERAPY
+  CONTROLLED_SUBSTANCE
+  DERMATOLOGY
+  ENDOCRINOLOGY
+  GASTROINTESTINAL
+  IMMUNOSUPPRESSANT
+  NEUROLOGY
+  OPHTHALMIC
+  RESPIRATORY
+  SEDATION_ANESTHESIA
+  VACCINE
+  OTHER
+}
+
+model DrugFormulary {
+  id             String            @id @default(uuid())
+  organisationId String
+  drugName       String
+  genericName    String?
+  category       FormularyCategory @default(OTHER)
+  manufacturer   String?
+  concentration  String?
+  availableUnits String[]
+  isActive       Boolean           @default(true)
+  notes          String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  dosageEntries DrugFormularyDosage[]
+
+  @@index([organisationId, isActive])
+  @@index([organisationId, category])
+  @@map("DrugFormulary")
+}
+
+model DrugFormularyDosage {
+  id          String   @id @default(uuid())
+  formularyId String
+  species     String
+  indication  String?
+  doseMin     Float?
+  doseMax     Float?
+  doseUnit    String?
+  route       String?
+  frequency   String?
+  maxDose     Float?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  formulary DrugFormulary @relation(fields: [formularyId], references: [id], onDelete: Cascade)
+
+  @@index([formularyId])
+  @@map("DrugFormularyDosage")
+}
+
+// ---------------------------------------------------------------------------
+// Client Complaint Registry
+// ---------------------------------------------------------------------------
+
+enum ComplaintStatus {
+  OPEN
+  INVESTIGATING
+  PENDING_RESPONSE
+  RESOLVED
+  CLOSED
+  ESCALATED
+}
+
+enum ComplaintCategory {
+  CLINICAL_CARE
+  COMMUNICATION
+  BILLING
+  WAIT_TIMES
+  FACILITIES
+  STAFF_CONDUCT
+  OUTCOME_CONCERN
+  OTHER
+}
+
+model ClientComplaint {
+  id              String            @id @default(uuid())
+  organisationId  String
+  clientId        String
+  patientId       String?
+  encounterId     String?
+  status          ComplaintStatus   @default(OPEN)
+  category        ComplaintCategory @default(OTHER)
+  summary         String
+  description     String?
+  reportedAt      DateTime          @default(now())
+  reportedBy      String?
+  assignedTo      String?
+  resolvedAt      DateTime?
+  resolutionNotes String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  notes ClientComplaintNote[]
+
+  @@index([organisationId, status])
+  @@index([organisationId, clientId])
+  @@map("ClientComplaint")
+}
+
+model ClientComplaintNote {
+  id          String   @id @default(uuid())
+  complaintId String
+  authorId    String?
+  content     String
+  isInternal  Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  complaint ClientComplaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+
+  @@index([complaintId])
+  @@map("ClientComplaintNote")
+}
+
+// ---------------------------------------------------------------------------
+// Pre-operative Risk Assessment
+// ---------------------------------------------------------------------------
+
+enum AsaClass {
+  ASA_I
+  ASA_II
+  ASA_III
+  ASA_IV
+  ASA_V
+  ASA_E
+}
+
+model PreOpAssessment {
+  id                   String    @id @default(uuid())
+  organisationId       String
+  patientId            String
+  encounterId          String
+  asaClass             AsaClass  @default(ASA_I)
+  fastingStartedAt     DateTime?
+  labsReviewed         Boolean   @default(false)
+  ecgReviewed          Boolean   @default(false)
+  ownerConsentSigned   Boolean   @default(false)
+  anesthetistId        String?
+  surgeonId            String?
+  plannedProcedure     String?
+  anesthesiaType       String?
+  knownAllergies       String?
+  currentMedications   String?
+  airwayNotes          String?
+  cardiovascularNotes  String?
+  notes                String?
+  assessedBy           String?
+  assessedAt           DateTime  @default(now())
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, encounterId])
+  @@map("PreOpAssessment")
+}
+
+// ---------------------------------------------------------------------------
+// Isolation / Infection Control Protocol
+// ---------------------------------------------------------------------------
+
+enum IsolationReason {
+  PARVOVIRUS
+  DISTEMPER
+  RINGWORM
+  MRSA
+  RESPIRATORY_INFECTION
+  GASTROINTESTINAL_INFECTION
+  TICK_BORNE_DISEASE
+  UNDIAGNOSED_CONTAGIOUS
+  POST_OP_PRECAUTION
+  OTHER
+}
+
+enum IsolationLevel {
+  STANDARD
+  CONTACT
+  DROPLET
+  AIRBORNE
+  STRICT
+}
+
+model IsolationProtocol {
+  id              String         @id @default(uuid())
+  organisationId  String
+  patientId       String
+  reason          IsolationReason @default(OTHER)
+  level           IsolationLevel  @default(CONTACT)
+  unitId          String?
+  startedAt       DateTime
+  endedAt         DateTime?
+  initiatedBy     String?
+  endedBy         String?
+  ppe             String[]
+  notes           String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, endedAt])
+  @@map("IsolationProtocol")
+}
+
+// ---------------------------------------------------------------------------
+// Patient Transfer Record
+// ---------------------------------------------------------------------------
+
+enum TransferType {
+  REFERRAL_SPECIALIST
+  REFERRAL_EMERGENCY
+  INTER_HOSPITAL
+  CLIENT_TRANSFER
+  DISCHARGE_HOME
+}
+
+model PatientTransfer {
+  id                    String       @id @default(uuid())
+  organisationId        String
+  patientId             String
+  encounterId           String?
+  transferType          TransferType
+  receivingFacility     String
+  receivingVetName      String?
+  receivingVetContact   String?
+  transferredAt         DateTime
+  transferredBy         String?
+  chiefComplaint        String?
+  currentDiagnoses      String?
+  ongoingTreatments     String?
+  medicationsDispensed  String?
+  caseSummary           String?
+  criticalAlerts        String?
+  ownerInformed         Boolean      @default(false)
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, transferredAt])
+  @@map("PatientTransfer")
+}
+
+// ---------------------------------------------------------------------------
+// Equipment Maintenance Log
+// ---------------------------------------------------------------------------
+
+enum MaintenanceType {
+  ROUTINE_SERVICE
+  CALIBRATION
+  REPAIR
+  INSPECTION
+  CLEANING
+  REPLACEMENT
+  SOFTWARE_UPDATE
+}
+
+enum EquipmentStatus {
+  OPERATIONAL
+  UNDER_MAINTENANCE
+  DECOMMISSIONED
+  AWAITING_REPAIR
+}
+
+model ClinicEquipment {
+  id              String          @id @default(uuid())
+  organisationId  String
+  name            String
+  model           String?
+  serialNumber    String?
+  manufacturer    String?
+  purchasedAt     DateTime?
+  warrantyExpiry  DateTime?
+  status          EquipmentStatus @default(OPERATIONAL)
+  locationNotes   String?
+  notes           String?
+  maintenanceLogs EquipmentMaintenanceLog[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([organisationId])
+  @@map("ClinicEquipment")
+}
+
+model EquipmentMaintenanceLog {
+  id            String          @id @default(uuid())
+  equipmentId   String
+  equipment     ClinicEquipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  maintenanceType MaintenanceType
+  performedBy   String?
+  vendor        String?
+  scheduledAt   DateTime?
+  performedAt   DateTime
+  nextDueAt     DateTime?
+  cost          Float?
+  currency      String?
+  passed        Boolean?
+  notes         String?
+  createdAt     DateTime        @default(now())
+
+  @@index([equipmentId])
+  @@index([equipmentId, performedAt])
+  @@map("EquipmentMaintenanceLog")
+}
+
+// ---------------------------------------------------------------------------
+// Appointment Reminder Outcome Log
+// ---------------------------------------------------------------------------
+
+enum ReminderChannel {
+  SMS
+  EMAIL
+  PUSH_NOTIFICATION
+  PHONE_CALL
+  WHATSAPP
+}
+
+enum ReminderOutcome {
+  DELIVERED
+  OPENED
+  CONFIRMED
+  RESCHEDULED
+  CANCELLED
+  NO_RESPONSE
+  BOUNCED
+  FAILED
+}
+
+model AppointmentReminderLog {
+  id             String          @id @default(uuid())
+  organisationId String
+  appointmentId  String
+  clientId       String
+  channel        ReminderChannel
+  outcome        ReminderOutcome @default(DELIVERED)
+  sentAt         DateTime
+  respondedAt    DateTime?
+  messagePreview String?
+  externalId     String?
+  errorMessage   String?
+  createdAt      DateTime        @default(now())
+
+  @@index([organisationId, appointmentId])
+  @@index([organisationId, clientId])
+  @@map("AppointmentReminderLog")
+}
+
+// ---------------------------------------------------------------------------
+// Clinical Decision Support Alert Log
+// ---------------------------------------------------------------------------
+
+enum ClinicalAlertType {
+  DRUG_INTERACTION
+  CRITICAL_LAB_VALUE
+  OVERDUE_VACCINATION
+  ALLERGY_CONTRAINDICATION
+  DOSE_CHECK
+  ABNORMAL_VITALS
+  SPECIALIST_REVIEW_DUE
+  WEIGHT_THRESHOLD
+  OTHER
+}
+
+enum ClinicalAlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+model ClinicalAlertLog {
+  id              String                @id @default(uuid())
+  organisationId  String
+  patientId       String
+  encounterId     String?
+  alertType       ClinicalAlertType
+  severity        ClinicalAlertSeverity @default(WARNING)
+  title           String
+  body            String?
+  triggeredBy     String?
+  acknowledgedAt  DateTime?
+  acknowledgedBy  String?
+  acknowledgedNote String?
+  dismissed       Boolean               @default(false)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, severity])
+  @@index([organisationId, dismissed])
+  @@map("ClinicalAlertLog")
+}
+
+// ---------------------------------------------------------------------------
+// Telemedicine Sessions
+// ---------------------------------------------------------------------------
+
+enum TelemedicinePlatform {
+  VIDEO_CALL
+  PHONE_CALL
+  CHAT
+  EMAIL
+}
+
+enum TelemedicineStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  NO_SHOW
+  CANCELLED
+}
+
+model TelemedicineSession {
+  id               String               @id @default(uuid())
+  organisationId   String
+  appointmentId    String?
+  clientId         String
+  patientId        String?
+  platform         TelemedicinePlatform
+  status           TelemedicineStatus   @default(SCHEDULED)
+  startedAt        DateTime?
+  endedAt          DateTime?
+  durationMinutes  Int?
+  conductedBy      String?
+  chiefComplaint   String?
+  clinicianNotes   String?
+  followUpRequired Boolean              @default(false)
+  recordingUrl     String?
+  externalSessionId String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  @@index([organisationId, clientId])
+  @@index([organisationId, status])
+  @@index([organisationId, appointmentId])
+  @@map("TelemedicineSession")
+}
+
+// ---------------------------------------------------------------------------
+// Patient Check-In / Triage
+// ---------------------------------------------------------------------------
+
+enum CheckInStatus {
+  WAITING
+  IN_CONSULTATION
+  COMPLETED
+  NO_SHOW
+  CANCELLED
+}
+
+model PatientCheckIn {
+  id              String         @id @default(uuid())
+  organisationId  String
+  patientId       String
+  clientId        String
+  appointmentId   String?
+  arrivedAt       DateTime
+  triagePriority  TriagePriority @default(NON_URGENT)
+  triageNote      String?
+  assignedRoomId  String?
+  checkedInBy     String?
+  waitStartedAt   DateTime?
+  seenAt          DateTime?
+  waitMinutes     Int?
+  status          CheckInStatus  @default(WAITING)
+  notes           String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([organisationId, status])
+  @@index([organisationId, patientId])
+  @@index([organisationId, arrivedAt])
+  @@map("PatientCheckIn")
+}
+
+// ---------------------------------------------------------------------------
+// Anaesthesia Records
+// ---------------------------------------------------------------------------
+
+enum AnaesthesiaStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  ABORTED
+}
+
+model AnaesthesiaRecord {
+  id                  String             @id @default(uuid())
+  organisationId      String
+  patientId           String
+  encounterId         String?
+  appointmentId       String?
+  surgicalProcedureId String?
+  anaesthetistId      String?
+  anesthesiaType      AnesthesiaType?
+  inductionAgent      String?
+  maintenanceAgent    String?
+  oxygenFlowLpm       Decimal?
+  startedAt           DateTime?
+  endedAt             DateTime?
+  durationMinutes     Int?
+  preOpAssessment     String?
+  preMedications      Json?
+  intraOpNotes        Json?
+  complications       String?
+  recoveryNotes       String?
+  status              AnaesthesiaStatus  @default(PLANNED)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, status])
+  @@index([organisationId, appointmentId])
+  @@map("AnaesthesiaRecord")
+}
+
+enum ShiftStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+model StaffShift {
+  id             String      @id @default(uuid())
+  organisationId String
+  staffId        String
+  role           String
+  shiftDate      DateTime
+  startTime      DateTime
+  endTime        DateTime
+  breakMinutes   Int?
+  status         ShiftStatus @default(SCHEDULED)
+  notes          String?
+  createdBy      String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([organisationId, shiftDate])
+  @@index([organisationId, staffId])
+  @@index([organisationId, status])
+  @@map("StaffShift")
+}
+
+enum TreatmentOutcomeType {
+  RECOVERED
+  IMPROVED
+  STABLE
+  DETERIORATED
+  DECEASED
+  REFERRED_OUT
+  LOST_TO_FOLLOWUP
+  ONGOING
+}
+
+model TreatmentOutcome {
+  id              String               @id @default(uuid())
+  organisationId  String
+  patientId       String
+  encounterId     String?
+  episodeOfCareId String?
+  recordedAt      DateTime
+  recordedBy      String?
+  outcomeType     TreatmentOutcomeType
+  clinicalNotes   String?
+  followUpDate    DateTime?
+  followUpNotes   String?
+  resolved        Boolean              @default(false)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, outcomeType])
+  @@index([organisationId, recordedAt])
+  @@map("TreatmentOutcome")
+}
+
+enum MedicalCertificateType {
+  HEALTH_CERTIFICATE
+  VACCINATION_CERTIFICATE
+  FIT_FOR_TRAVEL
+  EXPORT_CERTIFICATE
+  BOARDING_CLEARANCE
+  BREEDING_CLEARANCE
+  OTHER
+}
+
+enum MedicalCertificateStatus {
+  DRAFT
+  ISSUED
+  EXPIRED
+  REVOKED
+}
+
+model MedicalCertificate {
+  id              String                   @id @default(uuid())
+  organisationId  String
+  patientId       String
+  clientId        String
+  encounterId     String?
+  appointmentId   String?
+  certificateType MedicalCertificateType
+  status          MedicalCertificateStatus @default(DRAFT)
+  issueNumber     String?                  @unique
+  issuedAt        DateTime?
+  expiresAt       DateTime?
+  issuedBy        String?
+  validForTravel  Boolean                  @default(false)
+  destinationCountry String?
+  clinicalFindings   String?
+  restrictions       String?
+  notes              String?
+  revokedAt          DateTime?
+  revokedReason      String?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  @@index([organisationId, patientId])
+  @@index([organisationId, status])
+  @@index([organisationId, certificateType])
+  @@index([organisationId, issuedAt])
+  @@map("MedicalCertificate")
+}
+
+enum PatientFlagType {
+  AGGRESSION
+  ESCAPE_RISK
+  ALLERGY_WARNING
+  ANXIETY
+  SPECIAL_HANDLING
+  BILLING_NOTE
+  VIP
+  QUARANTINE
+  OTHER
+}
+
+enum FlagSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model PatientFlag {
+  id             String          @id @default(uuid())
+  organisationId String
+  patientId      String
+  flagType       PatientFlagType
+  severity       FlagSeverity    @default(MEDIUM)
+  title          String
+  description    String?
+  isActive       Boolean         @default(true)
+  createdBy      String?
+  resolvedAt     DateTime?
+  resolvedBy     String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([organisationId, patientId, isActive])
+  @@index([organisationId, flagType])
+  @@map("PatientFlag")
+}
+
+model InventoryCount {
+  id              String   @id @default(uuid())
+  organisationId  String
+  inventoryItemId String
+  countedBy       String?
+  countedAt       DateTime
+  systemCount     Int
+  physicalCount   Int
+  discrepancy     Int
+  notes           String?
+  reconciled      Boolean  @default(false)
+  reconciledAt    DateTime?
+  reconciledBy    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([organisationId, inventoryItemId])
+  @@index([organisationId, countedAt])
+  @@index([organisationId, reconciled])
+  @@map("InventoryCount")
+}
+
+enum ClinicNoteSubjectType {
+  PATIENT
+  CLIENT
+  APPOINTMENT
+}
+
+enum ClinicNoteType {
+  GENERAL
+  BILLING
+  COMMUNICATION
+  FOLLOW_UP
+  ALERT
+}
+
+model ClinicNote {
+  id             String                @id @default(uuid())
+  organisationId String
+  subjectType    ClinicNoteSubjectType
+  subjectId      String
+  noteType       ClinicNoteType        @default(GENERAL)
+  content        String
+  isPinned       Boolean               @default(false)
+  createdBy      String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  @@index([organisationId, subjectType, subjectId])
+  @@index([organisationId, isPinned])
+  @@index([organisationId, createdAt])
+  @@map("ClinicNote")
 }

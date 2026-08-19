@@ -64,7 +64,7 @@ const Availability = () => {
                 className={clsx(
                   'rounded-full! border px-[13px] py-1.5 text-[12px] transition-colors',
                   isActive
-                    ? 'border-[var(--divider)] bg-[var(--inset)] font-bold text-[var(--ink)]'
+                    ? 'border-[var(--chip-selected-border)] bg-[var(--chip-selected-bg)] font-bold text-[var(--chip-selected-ink)]'
                     : 'border-[var(--hairline)] font-semibold text-[var(--ink-muted)] hover:text-[var(--ink)]'
                 )}
                 onClick={() => setSelectedLabel(label.value)}

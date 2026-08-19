@@ -376,13 +376,22 @@ describe('Tasks page', () => {
     expect(screen.queryByRole('button', { name: 'New task' })).not.toBeInTheDocument();
   });
 
-  it('openAddTask: clicking the header New task CTA calls openAddTask', async () => {
+  it('openAddTask: the calendar toolbar owns the New task CTA', async () => {
+    // The CTA used to sit in the PAGE header, outside the calendar card, which
+    // is the difference you notice switching between the two planners -
+    // Appointments seats its primary action inside whichever toolbar the active
+    // view owns. It needed an `order-1` flex hack to land after the view toggle
+    // there, too. Each view now carries its own: the calendar's Header,
+    // TaskFilterBar for the list, TaskBoard's own toolbar for the board.
     render(<ProtectedTasks />);
 
-    // Per the design the CTA sits in the page header actions, not the filter row.
-    const addButton = screen.getByRole('button', { name: 'New task' });
+    expect(screen.queryByRole('button', { name: 'New task' })).not.toBeInTheDocument();
+
+    const { onAddTask } = taskCalendarSpy.mock.calls.at(-1)[0];
+    expect(typeof onAddTask).toBe('function');
+
     await act(async () => {
-      fireEvent.click(addButton);
+      onAddTask();
       await Promise.resolve();
     });
 

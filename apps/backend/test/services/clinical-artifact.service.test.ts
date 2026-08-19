@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import {
   ClinicalArtifactService,
@@ -77,6 +78,18 @@ jest.mock("src/config/prisma", () => ({
       findUnique: jest.fn(),
       findMany: jest.fn(),
     },
+    immunization: {
+      findMany: jest.fn(),
+    },
+    rabiesTitration: {
+      findMany: jest.fn(),
+    },
+    parasiteTreatment: {
+      findMany: jest.fn(),
+    },
+    clinicalExamination: {
+      findMany: jest.fn(),
+    },
     inventoryItem: {
       findMany: jest.fn(),
     },
@@ -136,6 +149,18 @@ describe("ClinicalArtifactService", () => {
       create: jest.Mock;
       update: jest.Mock;
       findUnique: jest.Mock;
+      findMany: jest.Mock;
+    };
+    immunization: {
+      findMany: jest.Mock;
+    };
+    rabiesTitration: {
+      findMany: jest.Mock;
+    };
+    parasiteTreatment: {
+      findMany: jest.Mock;
+    };
+    clinicalExamination: {
       findMany: jest.Mock;
     };
     inventoryItem: {
@@ -270,6 +295,158 @@ describe("ClinicalArtifactService", () => {
       signature: null,
     });
   };
+
+  const D1 = new Date("2026-01-01T00:00:00.000Z");
+  const D2 = new Date("2026-01-02T00:00:00.000Z");
+
+  /**
+   * `jest.clearAllMocks()` only clears recorded calls — a `...Once` value queued
+   * by an earlier suite survives it. The lifecycle suites below drive the same
+   * prisma delegates, so they start from a hard reset plus the handful of
+   * defaults the service assumes.
+   */
+  const resetClinicalPrismaMocks = () => {
+    [
+      mockedPrisma.appointment.updateMany,
+      mockedPrisma.workspaceTreatmentItem.findFirst,
+      mockedPrisma.workspaceTreatmentItem.deleteMany,
+      mockedPrisma.clinicalArtifact.create,
+      mockedPrisma.clinicalArtifact.update,
+      mockedPrisma.clinicalArtifact.findUnique,
+      mockedPrisma.renderedDocument.create,
+      mockedPrisma.renderedDocument.findUnique,
+      mockedPrisma.renderedDocument.update,
+      mockedPrisma.soapNote.create,
+      mockedPrisma.soapNote.update,
+      mockedPrisma.soapNote.findUnique,
+      mockedPrisma.soapNote.findMany,
+      mockedPrisma.prescription.create,
+      mockedPrisma.prescription.update,
+      mockedPrisma.prescription.findFirst,
+      mockedPrisma.prescription.findUnique,
+      mockedPrisma.prescription.findMany,
+      mockedPrisma.prescriptionDispenseRequest.findFirst,
+      mockedPrisma.dischargeSummary.create,
+      mockedPrisma.dischargeSummary.update,
+      mockedPrisma.dischargeSummary.findUnique,
+      mockedPrisma.dischargeSummary.findMany,
+      mockedPrisma.user.findFirst,
+      mockedPrisma.vitalRecord.create,
+      mockedPrisma.vitalRecord.update,
+      mockedPrisma.vitalRecord.findUnique,
+      mockedPrisma.vitalRecord.findMany,
+      mockedPrisma.inventoryItem.findMany,
+    ].forEach((mock) => mock.mockReset());
+
+    mockedPrisma.appointment.updateMany.mockResolvedValue({ count: 0 });
+    mockedPrisma.user.findFirst.mockResolvedValue(null);
+    mockedPrisma.inventoryItem.findMany.mockResolvedValue([]);
+    mockedPrisma.renderedDocument.create.mockResolvedValue({ id: "doc-new" });
+    mockedPrisma.renderedDocument.findUnique.mockResolvedValue(null);
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValue(null);
+  };
+
+  const artifactRow = (overrides: Record<string, unknown> = {}) => ({
+    id: artifactId,
+    organisationId,
+    appointmentId: null,
+    caseId: null,
+    encounterId: null,
+    kind: "SOAP_NOTE",
+    status: "DRAFT",
+    templateId: null,
+    templateVersion: null,
+    templateVersionId: null,
+    authorId: null,
+    signedBy: null,
+    signedAt: null,
+    summary: null,
+    createdAt: D1,
+    updatedAt: D1,
+    ...overrides,
+  });
+
+  const soapRow = (overrides: Record<string, unknown> = {}) => ({
+    id: soapNoteId,
+    artifactId,
+    subjective: { chiefComplaint: "S" },
+    objective: { findings: "O" },
+    assessment: { diagnosis: "A" },
+    plan: { instructions: "P" },
+    diagnoses: [{ code: "A1" }],
+    metadata: { source: "manual" },
+    createdAt: D1,
+    updatedAt: D1,
+    artifact: artifactRow(),
+    ...overrides,
+  });
+
+  const dischargeRow = (overrides: Record<string, unknown> = {}) => ({
+    id: "discharge-1",
+    artifactId,
+    summary: { text: "Recovered" },
+    diagnoses: [{ code: "A1" }],
+    medications: [{ medication: "Amox" }],
+    followUp: { afterDays: 7 },
+    instructions: { text: "Rest" },
+    metadata: { source: "template" },
+    createdAt: D1,
+    updatedAt: D1,
+    artifact: artifactRow({ kind: "DISCHARGE_SUMMARY" }),
+    ...overrides,
+  });
+
+  const vitalRow = (overrides: Record<string, unknown> = {}) => ({
+    id: "vital-1",
+    artifactId,
+    measuredAt: D1,
+    recordedBy: null,
+    vitals: { temperature: 38.2 },
+    notes: null,
+    metadata: null,
+    createdAt: D1,
+    updatedAt: D1,
+    artifact: artifactRow({ kind: "VITAL_RECORD" }),
+    ...overrides,
+  });
+
+  const prescriptionItemRow = (overrides: Record<string, unknown> = {}) => ({
+    id: "item-row-1",
+    prescriptionId: "prescription-1",
+    sourceLineKey: "line-1",
+    medication: "Amoxicillin",
+    strength: null,
+    dosage: null,
+    route: null,
+    frequency: null,
+    duration: null,
+    quantity: null,
+    instructions: null,
+    refill: null,
+    inventoryItemId: null,
+    inventoryItemSku: null,
+    batchId: null,
+    batchNumber: null,
+    lotNumber: null,
+    expiryDate: null,
+    metadata: null,
+    sortOrder: 0,
+    ...overrides,
+  });
+
+  const prescriptionRow = (overrides: Record<string, unknown> = {}) => ({
+    id: "prescription-1",
+    artifactId,
+    items: [],
+    medications: null,
+    instructions: null,
+    notes: null,
+    metadata: null,
+    createdAt: D1,
+    updatedAt: D1,
+    artifact: artifactRow({ kind: "PRESCRIPTION" }),
+    ...overrides,
+  });
 
   it("creates a dispense request when a prescription is signed", async () => {
     mockedPrisma.clinicalArtifact.create.mockResolvedValueOnce({
@@ -2633,6 +2810,1819 @@ describe("ClinicalArtifactService", () => {
       ),
     ).rejects.toBeInstanceOf(ClinicalArtifactServiceError);
   });
+
+  describe("encounter and appointment list queries", () => {
+    beforeEach(resetClinicalPrismaMocks);
+
+    it("lists SOAP notes for an encounter newest first", async () => {
+      mockedPrisma.soapNote.findMany.mockResolvedValueOnce([
+        soapRow({ artifact: artifactRow({ encounterId: "enc-1" }) }),
+      ]);
+
+      const records = await ClinicalArtifactService.listSoapNotesForEncounter(
+        `  ${organisationId}  `,
+        " enc-1 ",
+      );
+
+      expect(mockedPrisma.soapNote.findMany).toHaveBeenCalledWith({
+        where: {
+          artifact: {
+            organisationId,
+            encounterId: "enc-1",
+            kind: "SOAP_NOTE",
+          },
+        },
+        include: { artifact: true },
+        orderBy: { createdAt: "desc" },
+      });
+      expect(records).toHaveLength(1);
+      expect(records[0].artifact.encounterId).toBe("enc-1");
+      expect(records[0].soapNote.id).toBe(soapNoteId);
+    });
+
+    it("lists SOAP notes for an appointment newest first", async () => {
+      mockedPrisma.soapNote.findMany.mockResolvedValueOnce([
+        soapRow({ artifact: artifactRow({ appointmentId: "appt-1" }) }),
+      ]);
+
+      const records = await ClinicalArtifactService.listSoapNotesForAppointment(
+        organisationId,
+        "appt-1",
+      );
+
+      expect(mockedPrisma.soapNote.findMany).toHaveBeenCalledWith({
+        where: {
+          artifact: {
+            organisationId,
+            appointmentId: "appt-1",
+            kind: "SOAP_NOTE",
+          },
+        },
+        include: { artifact: true },
+        orderBy: { createdAt: "desc" },
+      });
+      expect(records[0].artifact.appointmentId).toBe("appt-1");
+      expect(records[0].soapNote.plan).toEqual({ instructions: "P" });
+    });
+
+    it.each([
+      [
+        "a blank organisation",
+        () => ClinicalArtifactService.listSoapNotesForEncounter("   ", "enc-1"),
+        "Invalid organisationId",
+      ],
+      [
+        "a blank encounter",
+        () =>
+          ClinicalArtifactService.listSoapNotesForEncounter(organisationId, ""),
+        "Invalid encounterId",
+      ],
+      [
+        "a blank appointment",
+        () =>
+          ClinicalArtifactService.listSoapNotesForAppointment(
+            organisationId,
+            "  ",
+          ),
+        "Invalid appointmentId",
+      ],
+      [
+        "a non-string organisation",
+        () =>
+          ClinicalArtifactService.listSoapNotesForAppointment(
+            undefined as unknown as string,
+            "appt-1",
+          ),
+        "Invalid organisationId",
+      ],
+    ])("rejects %s before touching the database", async (_l, call, message) => {
+      await expect(call()).rejects.toMatchObject({ statusCode: 400, message });
+      expect(mockedPrisma.soapNote.findMany).not.toHaveBeenCalled();
+    });
+
+    it("lists non-void prescriptions for an appointment and hydrates both line items and json medications", async () => {
+      mockedPrisma.prescription.findMany.mockResolvedValueOnce([
+        prescriptionRow({
+          items: [
+            prescriptionItemRow({
+              inventoryItemId: "inv-1",
+              quantity: "2",
+              expiryDate: D2,
+            }),
+          ],
+          artifact: artifactRow({
+            kind: "PRESCRIPTION",
+            appointmentId: "appt-1",
+          }),
+        }),
+        prescriptionRow({
+          id: "prescription-2",
+          items: null,
+          medications: [{ inventoryItemId: "inv-1", quantity: 5 }],
+          artifact: artifactRow({
+            id: "artifact-2",
+            kind: "PRESCRIPTION",
+            appointmentId: "appt-1",
+          }),
+        }),
+      ]);
+      mockedPrisma.inventoryItem.findMany.mockResolvedValueOnce([
+        {
+          id: "inv-1",
+          name: "Amoxicillin 500mg",
+          genericName: "Amoxicillin",
+          strength: "500mg",
+          dosageForm: "Capsule",
+          controlledItem: true,
+        },
+      ]);
+
+      const records =
+        await ClinicalArtifactService.listPrescriptionsForAppointment(
+          organisationId,
+          "appt-1",
+        );
+
+      expect(mockedPrisma.prescription.findMany).toHaveBeenCalledWith({
+        where: {
+          artifact: {
+            organisationId,
+            appointmentId: "appt-1",
+            kind: "PRESCRIPTION",
+            status: { not: "VOID" },
+          },
+        },
+        include: { artifact: true, items: true },
+        orderBy: { createdAt: "desc" },
+      });
+      expect(mockedPrisma.inventoryItem.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: { in: ["inv-1"] } } }),
+      );
+
+      const fromItems = records[0].prescription.medications as Array<
+        Record<string, unknown>
+      >;
+      expect(fromItems).toEqual([
+        expect.objectContaining({
+          medication: "Amoxicillin",
+          quantity: 2,
+          inventoryItemId: "inv-1",
+          expiryDate: D2.toISOString(),
+        }),
+      ]);
+
+      const fromJson = records[1].prescription.medications as Array<
+        Record<string, unknown>
+      >;
+      expect(fromJson).toEqual([
+        expect.objectContaining({
+          medication: "Amoxicillin 500mg",
+          genericName: "Amoxicillin",
+          strength: "500mg",
+          dosageForm: "Capsule",
+          controlledItem: true,
+          quantity: 5,
+        }),
+      ]);
+      expect(records[1].prescription.items).toEqual([]);
+    });
+
+    it("skips non-record medication entries when collecting inventory references", async () => {
+      mockedPrisma.prescription.findMany.mockResolvedValueOnce([
+        prescriptionRow({
+          items: [],
+          medications: ["free-text line", { inventoryItemId: "inv-1" }],
+          artifact: artifactRow({
+            kind: "PRESCRIPTION",
+            encounterId: "enc-1",
+          }),
+        }),
+      ]);
+      mockedPrisma.inventoryItem.findMany.mockResolvedValueOnce([
+        {
+          id: "inv-1",
+          name: "Amoxicillin 500mg",
+          genericName: null,
+          strength: null,
+          dosageForm: null,
+          controlledItem: false,
+        },
+      ]);
+
+      const records =
+        await ClinicalArtifactService.listPrescriptionsForEncounter(
+          organisationId,
+          "enc-1",
+        );
+
+      expect(mockedPrisma.inventoryItem.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: { in: ["inv-1"] } } }),
+      );
+      const meds = records[0].prescription.medications as unknown[];
+      expect(meds[0]).toBe("free-text line");
+      expect(meds[1]).toEqual({
+        inventoryItemId: "inv-1",
+        medication: "Amoxicillin 500mg",
+        strength: undefined,
+        genericName: undefined,
+        dosageForm: undefined,
+        controlledItem: false,
+      });
+    });
+
+    it("emits an undefined metadata column for a line item that carries none", async () => {
+      const { metadata: _metadata, ...itemWithoutMetadata } =
+        prescriptionItemRow({ inventoryItemId: "inv-1" });
+      mockedPrisma.prescription.findMany.mockResolvedValueOnce([
+        prescriptionRow({
+          items: [itemWithoutMetadata],
+          artifact: artifactRow({
+            kind: "PRESCRIPTION",
+            encounterId: "enc-1",
+          }),
+        }),
+      ]);
+
+      const records =
+        await ClinicalArtifactService.listPrescriptionsForEncounter(
+          organisationId,
+          "enc-1",
+        );
+
+      const meds = records[0].prescription.medications as Array<
+        Record<string, unknown>
+      >;
+      expect(meds).toHaveLength(1);
+      expect(Object.hasOwn(meds[0], "metadata")).toBe(true);
+      expect(meds[0].metadata).toBeUndefined();
+    });
+
+    it.each([
+      [
+        "encounter",
+        () =>
+          ClinicalArtifactService.listDischargeSummariesForEncounter(
+            organisationId,
+            "enc-1",
+          ),
+        { encounterId: "enc-1" },
+      ],
+      [
+        "appointment",
+        () =>
+          ClinicalArtifactService.listDischargeSummariesForAppointment(
+            organisationId,
+            "appt-1",
+          ),
+        { appointmentId: "appt-1" },
+      ],
+    ])(
+      "lists discharge summaries for an %s",
+      async (_label, call, scopeFilter) => {
+        mockedPrisma.dischargeSummary.findMany.mockResolvedValueOnce([
+          dischargeRow(),
+        ]);
+
+        const records = await call();
+
+        expect(mockedPrisma.dischargeSummary.findMany).toHaveBeenCalledWith({
+          where: {
+            artifact: {
+              organisationId,
+              ...scopeFilter,
+              kind: "DISCHARGE_SUMMARY",
+            },
+          },
+          include: { artifact: true },
+          orderBy: { createdAt: "desc" },
+        });
+        expect(records).toHaveLength(1);
+        expect(records[0].artifact.kind).toBe("DISCHARGE_SUMMARY");
+        expect(records[0].dischargeSummary).toEqual({
+          id: "discharge-1",
+          artifactId,
+          summary: { text: "Recovered" },
+          diagnoses: [{ code: "A1" }],
+          medications: [{ medication: "Amox" }],
+          followUp: { afterDays: 7 },
+          instructions: { text: "Rest" },
+          metadata: { source: "template" },
+          createdAt: D1,
+          updatedAt: D1,
+        });
+      },
+    );
+
+    it.each([
+      [
+        "encounter",
+        () =>
+          ClinicalArtifactService.listVitalRecordsForEncounter(
+            organisationId,
+            "enc-1",
+          ),
+        { encounterId: "enc-1" },
+      ],
+      [
+        "appointment",
+        () =>
+          ClinicalArtifactService.listVitalRecordsForAppointment(
+            organisationId,
+            "appt-1",
+          ),
+        { appointmentId: "appt-1" },
+      ],
+    ])(
+      "lists vital records for an %s ordered by measurement time and resolves the recorder",
+      async (_label, call, scopeFilter) => {
+        mockedPrisma.vitalRecord.findMany.mockResolvedValueOnce([
+          vitalRow({ metadata: { recordedByDisplay: "Nurse Joy" } }),
+          vitalRow({ id: "vital-2", recordedBy: "Practitioner/user-9" }),
+        ]);
+        mockedPrisma.user.findFirst.mockResolvedValueOnce({
+          firstName: "Ada",
+          lastName: "Byron",
+        });
+
+        const records = await call();
+
+        expect(mockedPrisma.vitalRecord.findMany).toHaveBeenCalledWith({
+          where: {
+            artifact: {
+              organisationId,
+              ...scopeFilter,
+              kind: "VITAL_RECORD",
+            },
+          },
+          include: { artifact: true },
+          orderBy: { measuredAt: "desc" },
+        });
+        expect(records.map((r) => r.vitalRecord.recordedByDisplay)).toEqual([
+          "Nurse Joy",
+          "Ada Byron",
+        ]);
+        expect(mockedPrisma.user.findFirst).toHaveBeenCalledTimes(1);
+        expect(records[0].artifact.kind).toBe("VITAL_RECORD");
+      },
+    );
+  });
+
+  describe("vital record recorder resolution", () => {
+    beforeEach(resetClinicalPrismaMocks);
+
+    it.each<
+      [
+        string,
+        Record<string, unknown>,
+        Record<string, unknown> | null,
+        string | null,
+      ]
+    >([
+      [
+        "prefers a trimmed metadata display over the user lookup",
+        {
+          metadata: { recordedByDisplay: " Nurse Joy " },
+          recordedBy: "Practitioner/user-9",
+        },
+        { firstName: "Ada", lastName: "Byron" },
+        "Nurse Joy",
+      ],
+      [
+        "ignores a non-string metadata display",
+        {
+          metadata: { recordedByDisplay: 42 },
+          recordedBy: "Practitioner/user-9",
+        },
+        { firstName: "Ada", lastName: "Byron" },
+        "Ada Byron",
+      ],
+      [
+        "ignores a blank metadata display",
+        { metadata: { recordedByDisplay: "   " }, recordedBy: "user-9" },
+        { firstName: "Ada", lastName: null },
+        "Ada",
+      ],
+      [
+        "ignores metadata that is not an object",
+        { metadata: ["nope"], recordedBy: "user-9" },
+        { firstName: null, lastName: "Byron" },
+        "Byron",
+      ],
+      [
+        "returns null when there is no recorder at all",
+        { metadata: null, recordedBy: null },
+        null,
+        null,
+      ],
+      [
+        "returns null for a bare Practitioner reference",
+        { metadata: null, recordedBy: "Practitioner/" },
+        null,
+        null,
+      ],
+      [
+        "returns null when the referenced user is missing",
+        { metadata: null, recordedBy: "user-9" },
+        null,
+        null,
+      ],
+      [
+        "returns null when the referenced user has no name",
+        { metadata: null, recordedBy: "user-9" },
+        { firstName: "", lastName: null },
+        null,
+      ],
+    ])("%s", async (_label, overrides, userRow, expected) => {
+      mockedPrisma.vitalRecord.findUnique.mockResolvedValueOnce(
+        vitalRow(overrides),
+      );
+      mockedPrisma.user.findFirst.mockResolvedValueOnce(userRow);
+
+      const record = await ClinicalArtifactService.getVitalRecord(
+        "vital-1",
+        organisationId,
+      );
+
+      expect(record.vitalRecord.recordedByDisplay).toBe(expected);
+      expect(record.artifact.kind).toBe("VITAL_RECORD");
+      expect(record.vitalRecord.vitals).toEqual({ temperature: 38.2 });
+    });
+
+    it("does not query the user directory when metadata already names the recorder", async () => {
+      mockedPrisma.vitalRecord.findUnique.mockResolvedValueOnce(
+        vitalRow({
+          metadata: { recordedByDisplay: "Nurse Joy" },
+          recordedBy: "Practitioner/user-9",
+        }),
+      );
+
+      await ClinicalArtifactService.getVitalRecord("vital-1", organisationId);
+
+      expect(mockedPrisma.user.findFirst).not.toHaveBeenCalled();
+    });
+
+    it("looks the recorder up by the reference-stripped user id", async () => {
+      mockedPrisma.vitalRecord.findUnique.mockResolvedValueOnce(
+        vitalRow({ recordedBy: "Practitioner/user-9" }),
+      );
+      mockedPrisma.user.findFirst.mockResolvedValueOnce({
+        firstName: "Ada",
+        lastName: "Byron",
+      });
+
+      await ClinicalArtifactService.getVitalRecord("vital-1", organisationId);
+
+      expect(mockedPrisma.user.findFirst).toHaveBeenCalledWith({
+        where: { userId: "user-9" },
+        select: { firstName: true, lastName: true },
+      });
+    });
+  });
+
+  describe("vital record lifecycle", () => {
+    beforeEach(resetClinicalPrismaMocks);
+
+    const stubVitalUpdate = (
+      artifactOverrides: Record<string, unknown> = {},
+      vitalOverrides: Record<string, unknown> = {},
+    ) => {
+      mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce(
+        artifactRow({ kind: "VITAL_RECORD", ...artifactOverrides }),
+      );
+      const { artifact: _artifact, ...vitalWithoutArtifact } = vitalRow(
+        vitalOverrides,
+      ) as Record<string, unknown>;
+      mockedPrisma.vitalRecord.update.mockResolvedValueOnce(
+        vitalWithoutArtifact,
+      );
+      mockClinicalRenderedDocumentPersistence({
+        id: "doc-vital",
+        kind: "VITAL_RECORD",
+        title: "Vital record",
+      });
+    };
+
+    it("applies every supplied field and folds the display name into metadata", async () => {
+      mockedPrisma.vitalRecord.findUnique.mockResolvedValueOnce(
+        vitalRow({
+          recordedBy: "old-user",
+          metadata: { recordedByDisplay: "Old Nurse", origin: "device" },
+        }),
+      );
+      stubVitalUpdate(
+        { status: "IN_PROGRESS", summary: "Updated" },
+        {
+          recordedBy: "new-user",
+          metadata: { origin: "manual", recordedByDisplay: "New Nurse" },
+          measuredAt: D2,
+        },
+      );
+
+      const result = await ClinicalArtifactService.updateVitalRecord(
+        "vital-1",
+        {
+          status: "IN_PROGRESS",
+          summary: "  Updated  ",
+          measuredAt: "2026-01-02T00:00:00.000Z",
+          recordedBy: "  new-user  ",
+          recordedByDisplay: "New Nurse",
+          vitals: { temperature: 39 },
+          notes: { text: "watch overnight" },
+          metadata: { origin: "manual" },
+        },
+        organisationId,
+      );
+
+      expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith({
+        where: { id: artifactId },
+        data: { status: "IN_PROGRESS", summary: "Updated" },
+      });
+      expect(mockedPrisma.vitalRecord.update).toHaveBeenCalledWith({
+        where: { id: "vital-1" },
+        data: {
+          measuredAt: D2,
+          recordedBy: "new-user",
+          vitals: { temperature: 39 },
+          notes: { text: "watch overnight" },
+          metadata: { origin: "manual", recordedByDisplay: "New Nurse" },
+        },
+      });
+      expect(result.vitalRecord.recordedByDisplay).toBe("New Nurse");
+      expect(result.artifact.status).toBe("IN_PROGRESS");
+      expect(mockedPrisma.user.findFirst).not.toHaveBeenCalled();
+    });
+
+    it("keeps the stored values for every field the caller omits", async () => {
+      mockedPrisma.vitalRecord.findUnique.mockResolvedValueOnce(
+        vitalRow({
+          recordedBy: "old-user",
+          notes: { text: "existing" },
+          metadata: { recordedByDisplay: "Old Nurse" },
+        }),
+      );
+      stubVitalUpdate(
+        {},
+        {
+          recordedBy: "old-user",
+          notes: { text: "existing" },
+          metadata: { recordedByDisplay: "Old Nurse" },
+        },
+      );
+
+      const result = await ClinicalArtifactService.updateVitalRecord(
+        "vital-1",
+        {},
+        organisationId,
+      );
+
+      expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith({
+        where: { id: artifactId },
+        data: { status: "DRAFT", summary: null },
+      });
+      expect(mockedPrisma.vitalRecord.update).toHaveBeenCalledWith({
+        where: { id: "vital-1" },
+        data: {
+          measuredAt: D1,
+          recordedBy: "old-user",
+          vitals: { temperature: 38.2 },
+          notes: { text: "existing" },
+          metadata: { recordedByDisplay: "Old Nurse" },
+        },
+      });
+      expect(result.vitalRecord.recordedByDisplay).toBe("Old Nurse");
+    });
+
+    it("clears the recorded display name when an empty display is supplied", async () => {
+      mockedPrisma.vitalRecord.findUnique.mockResolvedValueOnce(
+        vitalRow({ metadata: null }),
+      );
+      stubVitalUpdate({}, { metadata: null });
+
+      const result = await ClinicalArtifactService.updateVitalRecord(
+        "vital-1",
+        { recordedByDisplay: "   " },
+        organisationId,
+      );
+
+      const [{ data }] = mockedPrisma.vitalRecord.update.mock.calls[0] as [
+        { data: Record<string, unknown> },
+      ];
+      expect(data.metadata).toBe(Prisma.JsonNull);
+      expect(result.vitalRecord.recordedByDisplay).toBeNull();
+    });
+
+    it("seeds a metadata object when there is none and a display name arrives", async () => {
+      mockedPrisma.vitalRecord.findUnique.mockResolvedValueOnce(
+        vitalRow({ metadata: null }),
+      );
+      stubVitalUpdate({}, { metadata: { recordedByDisplay: "Nurse Joy" } });
+
+      await ClinicalArtifactService.updateVitalRecord(
+        "vital-1",
+        { recordedByDisplay: "Nurse Joy" },
+        organisationId,
+      );
+
+      const [{ data }] = mockedPrisma.vitalRecord.update.mock.calls[0] as [
+        { data: Record<string, unknown> },
+      ];
+      expect(data.metadata).toEqual({ recordedByDisplay: "Nurse Joy" });
+    });
+
+    it("leaves non-object metadata untouched rather than grafting a display onto it", async () => {
+      mockedPrisma.vitalRecord.findUnique.mockResolvedValueOnce(
+        vitalRow({ metadata: ["legacy"] }),
+      );
+      stubVitalUpdate({}, { metadata: ["legacy"] });
+
+      const result = await ClinicalArtifactService.updateVitalRecord(
+        "vital-1",
+        { recordedByDisplay: "Nurse Joy" },
+        organisationId,
+      );
+
+      const [{ data }] = mockedPrisma.vitalRecord.update.mock.calls[0] as [
+        { data: Record<string, unknown> },
+      ];
+      expect(data.metadata).toEqual(["legacy"]);
+      expect(result.vitalRecord.recordedByDisplay).toBe("Nurse Joy");
+    });
+
+    it.each([
+      [
+        "an unparsable measurement time",
+        { measuredAt: "not-a-date" },
+        "Invalid measuredAt",
+      ],
+    ])("rejects %s", async (_label, input, message) => {
+      mockedPrisma.vitalRecord.findUnique.mockResolvedValueOnce(vitalRow());
+
+      await expect(
+        ClinicalArtifactService.updateVitalRecord(
+          "vital-1",
+          input,
+          organisationId,
+        ),
+      ).rejects.toMatchObject({ statusCode: 400, message });
+      expect(mockedPrisma.vitalRecord.update).not.toHaveBeenCalled();
+    });
+
+    it("refuses to edit a final vital record", async () => {
+      mockedPrisma.vitalRecord.findUnique.mockResolvedValueOnce(
+        vitalRow({
+          artifact: artifactRow({ kind: "VITAL_RECORD", status: "SIGNED" }),
+        }),
+      );
+
+      await expect(
+        ClinicalArtifactService.updateVitalRecord(
+          "vital-1",
+          { summary: "late edit" },
+          organisationId,
+        ),
+      ).rejects.toMatchObject({
+        statusCode: 409,
+        message: "Artifact is final. Reopen or amend it before editing.",
+      });
+      expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
+    });
+
+    it("allows a final vital record to be moved back to a non-final status", async () => {
+      mockedPrisma.vitalRecord.findUnique.mockResolvedValueOnce(
+        vitalRow({
+          artifact: artifactRow({ kind: "VITAL_RECORD", status: "COMPLETED" }),
+        }),
+      );
+      stubVitalUpdate({ status: "IN_PROGRESS" });
+
+      const result = await ClinicalArtifactService.reopenVitalRecord(
+        "vital-1",
+        organisationId,
+      );
+
+      expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith({
+        where: { id: artifactId },
+        data: { status: "IN_PROGRESS", summary: null },
+      });
+      expect(result.artifact.status).toBe("IN_PROGRESS");
+    });
+
+    it("finalizes a vital record through the lifecycle helper", async () => {
+      mockedPrisma.vitalRecord.findUnique.mockResolvedValueOnce(vitalRow());
+      stubVitalUpdate({ status: "COMPLETED" });
+
+      const result = await ClinicalArtifactService.finalizeVitalRecord(
+        "vital-1",
+        organisationId,
+      );
+
+      expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith({
+        where: { id: artifactId },
+        data: { status: "COMPLETED", summary: null },
+      });
+      expect(result.artifact.status).toBe("COMPLETED");
+    });
+
+    it.each([
+      ["a missing vital record", null, 404, "Vital record not found"],
+      [
+        "an artifact of the wrong kind",
+        () => vitalRow({ artifact: artifactRow({ kind: "SOAP_NOTE" }) }),
+        409,
+        "Artifact is not a vital record",
+      ],
+      [
+        "an artifact owned by another organisation",
+        () =>
+          vitalRow({
+            artifact: artifactRow({
+              kind: "VITAL_RECORD",
+              organisationId: "other-org",
+            }),
+          }),
+        403,
+        "Artifact does not belong to organisation",
+      ],
+    ])("rejects %s", async (_label, row, statusCode, message) => {
+      mockedPrisma.vitalRecord.findUnique.mockResolvedValueOnce(
+        typeof row === "function" ? row() : row,
+      );
+
+      await expect(
+        ClinicalArtifactService.getVitalRecord("vital-1", organisationId),
+      ).rejects.toMatchObject({ statusCode, message });
+    });
+
+    it("rejects a blank vital record id before querying", async () => {
+      await expect(
+        ClinicalArtifactService.getVitalRecord("   ", organisationId),
+      ).rejects.toMatchObject({
+        statusCode: 400,
+        message: "Invalid vitalRecordId",
+      });
+      expect(mockedPrisma.vitalRecord.findUnique).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["an unparsable measurement time", "not-a-date", "Invalid measuredAt"],
+      ["a missing measurement time", undefined, "Invalid measuredAt"],
+    ])(
+      "refuses to create a vital record with %s",
+      async (_l, measuredAt, message) => {
+        await expect(
+          ClinicalArtifactService.createVitalRecord({
+            organisationId,
+            measuredAt: measuredAt as unknown as string,
+            vitals: {},
+          }),
+        ).rejects.toMatchObject({ statusCode: 400, message });
+        expect(mockedPrisma.clinicalArtifact.create).not.toHaveBeenCalled();
+      },
+    );
+
+    it("amends a vital record into a fresh draft carrying the whole clinical context", async () => {
+      const sourceArtifact = artifactRow({
+        kind: "VITAL_RECORD",
+        status: "COMPLETED",
+        appointmentId: "appt-1",
+        caseId: "case-1",
+        encounterId: "enc-1",
+        templateId: "tmpl-1",
+        templateVersion: 3,
+        templateVersionId: "tmpl-ver-1",
+        authorId: "author-1",
+        summary: "Vitals",
+      });
+      mockedPrisma.vitalRecord.findUnique.mockResolvedValueOnce(
+        vitalRow({
+          artifact: sourceArtifact,
+          recordedBy: "Practitioner/user-9",
+          metadata: { recordedByDisplay: "Nurse Joy" },
+        }),
+      );
+      mockedPrisma.clinicalArtifact.create.mockResolvedValueOnce(
+        artifactRow({
+          id: "artifact-amend",
+          kind: "VITAL_RECORD",
+          status: "DRAFT",
+          appointmentId: "appt-1",
+          encounterId: "enc-1",
+          summary: "Vitals",
+        }),
+      );
+      const { artifact: _artifact, ...createdVital } = vitalRow({
+        id: "vital-amend",
+      }) as Record<string, unknown>;
+      mockedPrisma.vitalRecord.create.mockResolvedValueOnce(createdVital);
+      mockClinicalRenderedDocumentPersistence({
+        id: "doc-amend-vital",
+        kind: "VITAL_RECORD",
+        title: "Vital record",
+        sourceId: "artifact-amend",
+      });
+
+      const amended = await ClinicalArtifactService.amendVitalRecord(
+        "vital-1",
+        organisationId,
+      );
+
+      expect(mockedPrisma.clinicalArtifact.create).toHaveBeenCalledWith({
+        data: {
+          organisationId,
+          appointmentId: "appt-1",
+          caseId: "case-1",
+          encounterId: "enc-1",
+          kind: "VITAL_RECORD",
+          status: "DRAFT",
+          templateId: "tmpl-1",
+          templateVersion: 3,
+          templateVersionId: "tmpl-ver-1",
+          authorId: "author-1",
+          summary: "Vitals",
+        },
+      });
+      expect(mockedPrisma.appointment.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: "appt-1",
+          organisationId,
+          status: "CHECKED_IN",
+        },
+        data: { status: "IN_PROGRESS" },
+      });
+      expect(amended.artifact.status).toBe("DRAFT");
+      expect(amended.vitalRecord.id).toBe("vital-amend");
+    });
+
+    it("amends a context-free vital record without advancing any appointment", async () => {
+      mockedPrisma.vitalRecord.findUnique.mockResolvedValueOnce(vitalRow());
+      mockedPrisma.clinicalArtifact.create.mockResolvedValueOnce(
+        artifactRow({ id: "artifact-amend", kind: "VITAL_RECORD" }),
+      );
+      const { artifact: _artifact, ...createdVital } = vitalRow({
+        id: "vital-amend",
+      }) as Record<string, unknown>;
+      mockedPrisma.vitalRecord.create.mockResolvedValueOnce(createdVital);
+      mockClinicalRenderedDocumentPersistence({
+        id: "doc-amend-vital",
+        kind: "VITAL_RECORD",
+        title: "Vital record",
+        sourceId: "artifact-amend",
+      });
+
+      await ClinicalArtifactService.amendVitalRecord("vital-1", organisationId);
+
+      expect(mockedPrisma.clinicalArtifact.create).toHaveBeenCalledWith({
+        data: {
+          organisationId,
+          appointmentId: undefined,
+          caseId: undefined,
+          encounterId: undefined,
+          kind: "VITAL_RECORD",
+          status: "DRAFT",
+          templateId: undefined,
+          templateVersion: undefined,
+          templateVersionId: undefined,
+          authorId: undefined,
+          summary: null,
+        },
+      });
+      expect(mockedPrisma.appointment.updateMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("discharge summary lifecycle", () => {
+    beforeEach(resetClinicalPrismaMocks);
+
+    const stubDischargeUpdate = (
+      artifactOverrides: Record<string, unknown> = {},
+      dischargeOverrides: Record<string, unknown> = {},
+    ) => {
+      mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce(
+        artifactRow({ kind: "DISCHARGE_SUMMARY", ...artifactOverrides }),
+      );
+      const { artifact: _artifact, ...dischargeWithoutArtifact } = dischargeRow(
+        dischargeOverrides,
+      ) as Record<string, unknown>;
+      mockedPrisma.dischargeSummary.update.mockResolvedValueOnce(
+        dischargeWithoutArtifact,
+      );
+      mockClinicalRenderedDocumentPersistence({
+        id: "doc-discharge",
+        kind: "DISCHARGE_SUMMARY",
+        title: "Discharge summary",
+      });
+    };
+
+    it("writes every supplied discharge section", async () => {
+      mockedPrisma.dischargeSummary.findUnique.mockResolvedValueOnce(
+        dischargeRow(),
+      );
+      stubDischargeUpdate({ status: "IN_PROGRESS", summary: "Ready to go" });
+
+      const result = await ClinicalArtifactService.updateDischargeSummary(
+        "discharge-1",
+        {
+          status: "IN_PROGRESS",
+          summary: "Ready to go",
+          summaryContent: { text: "Discharged well" },
+          diagnoses: [{ code: "B2" }],
+          medications: [{ medication: "Meloxicam" }],
+          followUp: { afterDays: 3 },
+          instructions: { text: "Short walks" },
+          metadata: { source: "manual" },
+        },
+        organisationId,
+      );
+
+      expect(mockedPrisma.dischargeSummary.update).toHaveBeenCalledWith({
+        where: { id: "discharge-1" },
+        data: {
+          summary: { text: "Discharged well" },
+          diagnoses: [{ code: "B2" }],
+          medications: [{ medication: "Meloxicam" }],
+          followUp: { afterDays: 3 },
+          instructions: { text: "Short walks" },
+          metadata: { source: "manual" },
+        },
+      });
+      expect(result.artifact.status).toBe("IN_PROGRESS");
+      expect(result.artifact.kind).toBe("DISCHARGE_SUMMARY");
+    });
+
+    it("keeps the stored discharge sections for every omitted field", async () => {
+      mockedPrisma.dischargeSummary.findUnique.mockResolvedValueOnce(
+        dischargeRow(),
+      );
+      stubDischargeUpdate();
+
+      await ClinicalArtifactService.updateDischargeSummary(
+        "discharge-1",
+        {},
+        organisationId,
+      );
+
+      expect(mockedPrisma.dischargeSummary.update).toHaveBeenCalledWith({
+        where: { id: "discharge-1" },
+        data: {
+          summary: { text: "Recovered" },
+          diagnoses: [{ code: "A1" }],
+          medications: [{ medication: "Amox" }],
+          followUp: { afterDays: 7 },
+          instructions: { text: "Rest" },
+          metadata: { source: "template" },
+        },
+      });
+    });
+
+    it("refuses to edit a final discharge summary", async () => {
+      mockedPrisma.dischargeSummary.findUnique.mockResolvedValueOnce(
+        dischargeRow({
+          artifact: artifactRow({
+            kind: "DISCHARGE_SUMMARY",
+            status: "COMPLETED",
+          }),
+        }),
+      );
+
+      await expect(
+        ClinicalArtifactService.updateDischargeSummary(
+          "discharge-1",
+          { status: "SIGNED" },
+          organisationId,
+        ),
+      ).rejects.toMatchObject({
+        statusCode: 409,
+        message: "Artifact is final. Reopen or amend it before editing.",
+      });
+      expect(mockedPrisma.dischargeSummary.update).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["finalizeDischargeSummary", "COMPLETED"],
+      ["reopenDischargeSummary", "IN_PROGRESS"],
+    ] as const)("%s moves the artifact to %s", async (method, status) => {
+      mockedPrisma.dischargeSummary.findUnique.mockResolvedValueOnce(
+        dischargeRow({
+          artifact: artifactRow({
+            kind: "DISCHARGE_SUMMARY",
+            status: status === "COMPLETED" ? "IN_PROGRESS" : "COMPLETED",
+          }),
+        }),
+      );
+      stubDischargeUpdate({ status });
+
+      const result = await ClinicalArtifactService[method](
+        "discharge-1",
+        organisationId,
+      );
+
+      expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith({
+        where: { id: artifactId },
+        data: { status, summary: null },
+      });
+      expect(result.artifact.status).toBe(status);
+    });
+
+    it.each([
+      ["a missing discharge summary", null, 404, "Discharge summary not found"],
+      [
+        "an artifact of the wrong kind",
+        () => dischargeRow({ artifact: artifactRow({ kind: "SOAP_NOTE" }) }),
+        409,
+        "Artifact is not a discharge summary",
+      ],
+    ])("rejects %s", async (_label, row, statusCode, message) => {
+      mockedPrisma.dischargeSummary.findUnique.mockResolvedValueOnce(
+        typeof row === "function" ? row() : row,
+      );
+
+      await expect(
+        ClinicalArtifactService.getDischargeSummary(
+          "discharge-1",
+          organisationId,
+        ),
+      ).rejects.toMatchObject({ statusCode, message });
+    });
+
+    it("amends a context-free discharge summary into a draft with no inherited template", async () => {
+      mockedPrisma.dischargeSummary.findUnique.mockResolvedValueOnce(
+        dischargeRow({
+          artifact: artifactRow({
+            kind: "DISCHARGE_SUMMARY",
+            status: "COMPLETED",
+          }),
+        }),
+      );
+      mockedPrisma.clinicalArtifact.create.mockResolvedValueOnce(
+        artifactRow({ id: "artifact-amend", kind: "DISCHARGE_SUMMARY" }),
+      );
+      const { artifact: _artifact, ...createdDischarge } = dischargeRow({
+        id: "discharge-amend",
+      }) as Record<string, unknown>;
+      mockedPrisma.dischargeSummary.create.mockResolvedValueOnce(
+        createdDischarge,
+      );
+      mockClinicalRenderedDocumentPersistence({
+        id: "doc-amend-discharge",
+        kind: "DISCHARGE_SUMMARY",
+        title: "Discharge summary",
+        sourceId: "artifact-amend",
+      });
+
+      const amended = await ClinicalArtifactService.amendDischargeSummary(
+        "discharge-1",
+        organisationId,
+      );
+
+      expect(mockedPrisma.clinicalArtifact.create).toHaveBeenCalledWith({
+        data: {
+          organisationId,
+          appointmentId: undefined,
+          caseId: undefined,
+          encounterId: undefined,
+          kind: "DISCHARGE_SUMMARY",
+          status: "DRAFT",
+          templateId: undefined,
+          templateVersion: undefined,
+          templateVersionId: undefined,
+          authorId: undefined,
+          summary: null,
+        },
+      });
+      expect(mockedPrisma.dischargeSummary.create).toHaveBeenCalledWith({
+        data: {
+          artifactId: "artifact-amend",
+          summary: { text: "Recovered" },
+          diagnoses: [{ code: "A1" }],
+          medications: [{ medication: "Amox" }],
+          followUp: { afterDays: 7 },
+          instructions: { text: "Rest" },
+          metadata: { source: "template" },
+        },
+      });
+      expect(amended.dischargeSummary.id).toBe("discharge-amend");
+    });
+  });
+
+  describe("SOAP note lifecycle gaps", () => {
+    beforeEach(resetClinicalPrismaMocks);
+
+    it("reports a missing SOAP note as 404", async () => {
+      mockedPrisma.soapNote.findUnique.mockResolvedValueOnce(null);
+
+      await expect(
+        ClinicalArtifactService.getSoapNote(soapNoteId, organisationId),
+      ).rejects.toMatchObject({
+        statusCode: 404,
+        message: "SOAP note not found",
+      });
+    });
+
+    it("rejects an artifact that is not a SOAP note", async () => {
+      mockedPrisma.soapNote.findUnique.mockResolvedValueOnce(
+        soapRow({ artifact: artifactRow({ kind: "PRESCRIPTION" }) }),
+      );
+
+      await expect(
+        ClinicalArtifactService.getSoapNote(soapNoteId, organisationId),
+      ).rejects.toMatchObject({
+        statusCode: 409,
+        message: "Artifact is not a SOAP note",
+      });
+    });
+
+    it("writes every supplied SOAP section", async () => {
+      mockedPrisma.soapNote.findUnique.mockResolvedValueOnce(soapRow());
+      mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce(
+        artifactRow({ status: "IN_PROGRESS", summary: "Updated" }),
+      );
+      const { artifact: _artifact, ...updatedNote } = soapRow() as Record<
+        string,
+        unknown
+      >;
+      mockedPrisma.soapNote.update.mockResolvedValueOnce(updatedNote);
+      mockClinicalRenderedDocumentPersistence({
+        id: "doc-soap",
+        kind: "SOAP_NOTE",
+        title: "SOAP note",
+      });
+
+      await ClinicalArtifactService.updateSoapNote(
+        soapNoteId,
+        {
+          status: "IN_PROGRESS",
+          summary: "Updated",
+          subjective: { chiefComplaint: "S2" },
+          objective: { findings: "O2" },
+          assessment: { diagnosis: "A2" },
+          plan: { instructions: "P2" },
+          diagnoses: [{ code: "B2" }],
+          metadata: { source: "device" },
+        },
+        organisationId,
+      );
+
+      expect(mockedPrisma.soapNote.update).toHaveBeenCalledWith({
+        where: { id: soapNoteId },
+        data: {
+          subjective: { chiefComplaint: "S2" },
+          objective: { findings: "O2" },
+          assessment: { diagnosis: "A2" },
+          plan: { instructions: "P2" },
+          diagnoses: [{ code: "B2" }],
+          metadata: { source: "device" },
+        },
+      });
+    });
+
+    it("keeps the stored SOAP sections for every omitted field", async () => {
+      mockedPrisma.soapNote.findUnique.mockResolvedValueOnce(soapRow());
+      mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce(artifactRow());
+      const { artifact: _artifact, ...updatedNote } = soapRow() as Record<
+        string,
+        unknown
+      >;
+      mockedPrisma.soapNote.update.mockResolvedValueOnce(updatedNote);
+      mockClinicalRenderedDocumentPersistence({
+        id: "doc-soap",
+        kind: "SOAP_NOTE",
+        title: "SOAP note",
+      });
+
+      await ClinicalArtifactService.updateSoapNote(
+        soapNoteId,
+        {},
+        organisationId,
+      );
+
+      expect(mockedPrisma.clinicalArtifact.update).toHaveBeenCalledWith({
+        where: { id: artifactId },
+        data: { status: "DRAFT", summary: null },
+      });
+      expect(mockedPrisma.soapNote.update).toHaveBeenCalledWith({
+        where: { id: soapNoteId },
+        data: {
+          subjective: { chiefComplaint: "S" },
+          objective: { findings: "O" },
+          assessment: { diagnosis: "A" },
+          plan: { instructions: "P" },
+          diagnoses: [{ code: "A1" }],
+          metadata: { source: "manual" },
+        },
+      });
+    });
+
+    it("amends a SOAP note into a fresh draft carrying the whole clinical context", async () => {
+      mockedPrisma.soapNote.findUnique.mockResolvedValueOnce(
+        soapRow({
+          artifact: artifactRow({
+            status: "COMPLETED",
+            appointmentId: "appt-1",
+            caseId: "case-1",
+            encounterId: "enc-1",
+            templateId: "tmpl-1",
+            templateVersion: 3,
+            templateVersionId: "tmpl-ver-1",
+            authorId: "author-1",
+            summary: "SOAP",
+          }),
+        }),
+      );
+      mockedPrisma.clinicalArtifact.create.mockResolvedValueOnce(
+        artifactRow({
+          id: "artifact-amend",
+          appointmentId: "appt-1",
+          summary: "SOAP",
+        }),
+      );
+      const { artifact: _artifact, ...createdNote } = soapRow({
+        id: "soap-amend",
+      }) as Record<string, unknown>;
+      mockedPrisma.soapNote.create.mockResolvedValueOnce(createdNote);
+      mockClinicalRenderedDocumentPersistence({
+        id: "doc-amend-soap",
+        kind: "SOAP_NOTE",
+        title: "SOAP note",
+        sourceId: "artifact-amend",
+      });
+
+      const amended = await ClinicalArtifactService.amendSoapNote(
+        soapNoteId,
+        organisationId,
+      );
+
+      expect(mockedPrisma.clinicalArtifact.create).toHaveBeenCalledWith({
+        data: {
+          organisationId,
+          appointmentId: "appt-1",
+          caseId: "case-1",
+          encounterId: "enc-1",
+          kind: "SOAP_NOTE",
+          status: "DRAFT",
+          templateId: "tmpl-1",
+          templateVersion: 3,
+          templateVersionId: "tmpl-ver-1",
+          authorId: "author-1",
+          summary: "SOAP",
+        },
+      });
+      expect(mockedPrisma.soapNote.create).toHaveBeenCalledWith({
+        data: {
+          artifactId: "artifact-amend",
+          subjective: { chiefComplaint: "S" },
+          objective: { findings: "O" },
+          assessment: { diagnosis: "A" },
+          plan: { instructions: "P" },
+          diagnoses: [{ code: "A1" }],
+          metadata: { source: "manual" },
+        },
+      });
+      expect(amended.artifact.status).toBe("DRAFT");
+      expect(amended.soapNote.id).toBe("soap-amend");
+    });
+
+    it("amends a context-free SOAP note without advancing any appointment", async () => {
+      mockedPrisma.soapNote.findUnique.mockResolvedValueOnce(soapRow());
+      mockedPrisma.clinicalArtifact.create.mockResolvedValueOnce(
+        artifactRow({ id: "artifact-amend" }),
+      );
+      const { artifact: _artifact, ...createdNote } = soapRow({
+        id: "soap-amend",
+      }) as Record<string, unknown>;
+      mockedPrisma.soapNote.create.mockResolvedValueOnce(createdNote);
+      mockClinicalRenderedDocumentPersistence({
+        id: "doc-amend-soap",
+        kind: "SOAP_NOTE",
+        title: "SOAP note",
+        sourceId: "artifact-amend",
+      });
+
+      await ClinicalArtifactService.amendSoapNote(soapNoteId, organisationId);
+
+      expect(mockedPrisma.clinicalArtifact.create).toHaveBeenCalledWith({
+        data: {
+          organisationId,
+          appointmentId: undefined,
+          caseId: undefined,
+          encounterId: undefined,
+          kind: "SOAP_NOTE",
+          status: "DRAFT",
+          templateId: undefined,
+          templateVersion: undefined,
+          templateVersionId: undefined,
+          authorId: undefined,
+          summary: null,
+        },
+      });
+      expect(mockedPrisma.appointment.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("skips rendered-document work for an artifact kind that is not document backed", async () => {
+      mockedPrisma.clinicalArtifact.create.mockResolvedValueOnce(
+        artifactRow({ kind: "ATTACHMENT" }),
+      );
+      const { artifact: _artifact, ...createdNote } = soapRow() as Record<
+        string,
+        unknown
+      >;
+      mockedPrisma.soapNote.create.mockResolvedValueOnce(createdNote);
+
+      const result = await ClinicalArtifactService.createSoapNote({
+        organisationId,
+      });
+
+      expect(mockedPrisma.renderedDocument.create).not.toHaveBeenCalled();
+      expect(mockedPrisma.renderedDocument.findUnique).not.toHaveBeenCalled();
+      expect(result.artifact.kind).toBe("ATTACHMENT");
+    });
+  });
+
+  describe("prescription lifecycle gaps", () => {
+    beforeEach(resetClinicalPrismaMocks);
+
+    it("raises a dispense request when a draft prescription is finalized", async () => {
+      mockedPrisma.prescription.findFirst.mockResolvedValueOnce(
+        prescriptionRow({
+          artifact: artifactRow({
+            kind: "PRESCRIPTION",
+            status: "DRAFT",
+            authorId: "author-1",
+            appointmentId: "appt-1",
+            encounterId: "enc-1",
+          }),
+        }),
+      );
+      mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce(
+        artifactRow({
+          kind: "PRESCRIPTION",
+          status: "COMPLETED",
+          authorId: "author-1",
+          appointmentId: "appt-1",
+          encounterId: "enc-1",
+        }),
+      );
+      mockedPrisma.prescription.update.mockResolvedValueOnce({
+        id: "prescription-1",
+        artifactId,
+        items: [prescriptionItemRow({ inventoryItemId: "inv-1" })],
+        medications: null,
+        instructions: null,
+        notes: null,
+        metadata: { source: "workspace" },
+        createdAt: D1,
+        updatedAt: D2,
+      });
+      mockClinicalRenderedDocumentPersistence({
+        id: "doc-rx",
+        kind: "PRESCRIPTION",
+        title: "Prescription",
+      });
+
+      const result = await ClinicalArtifactService.finalizePrescription(
+        "prescription-1",
+        organisationId,
+        { actorId: "author-1", canEditAny: false },
+      );
+
+      expect(result.artifact.status).toBe("COMPLETED");
+      expect(
+        InventoryConsumptionService.createPrescriptionDispenseRequest,
+      ).toHaveBeenCalledWith({
+        organisationId,
+        prescriptionId: "prescription-1",
+        medications: expect.arrayContaining([
+          expect.objectContaining({ inventoryItemId: "inv-1" }),
+        ]),
+        metadata: { source: "workspace" },
+        requestedBy: "author-1",
+        context: { appointmentId: "appt-1", encounterId: "enc-1" },
+      });
+      expect(
+        InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("writes every supplied prescription field and leaves the line items untouched", async () => {
+      mockedPrisma.prescription.findFirst.mockResolvedValueOnce(
+        prescriptionRow({
+          instructions: { text: "old" },
+          notes: { text: "old note" },
+          metadata: { source: "old" },
+          artifact: artifactRow({
+            kind: "PRESCRIPTION",
+            status: "DRAFT",
+            authorId: "author-1",
+          }),
+        }),
+      );
+      mockedPrisma.clinicalArtifact.update.mockResolvedValueOnce(
+        artifactRow({
+          kind: "PRESCRIPTION",
+          status: "IN_PROGRESS",
+          authorId: "author-1",
+        }),
+      );
+      mockedPrisma.prescription.update.mockResolvedValueOnce({
+        id: "prescription-1",
+        artifactId,
+        items: [],
+        medications: [{ medication: "Amoxicillin" }],
+        instructions: { text: "new" },
+        notes: { text: "new note" },
+        metadata: { source: "new" },
+        createdAt: D1,
+        updatedAt: D2,
+      });
+      mockClinicalRenderedDocumentPersistence({
+        id: "doc-rx",
+        kind: "PRESCRIPTION",
+        title: "Prescription",
+      });
+
+      const result = await ClinicalArtifactService.updatePrescription(
+        "prescription-1",
+        {
+          status: "IN_PROGRESS",
+          instructions: { text: "new" },
+          notes: { text: "new note" },
+          metadata: { source: "new" },
+        },
+        organisationId,
+        { actorId: "author-1", canEditAny: false },
+      );
+
+      expect(mockedPrisma.prescription.update).toHaveBeenCalledWith({
+        where: { id: "prescription-1" },
+        data: {
+          items: undefined,
+          instructions: { text: "new" },
+          notes: { text: "new note" },
+          metadata: { source: "new" },
+        },
+        include: { items: true },
+      });
+      expect(result.artifact.status).toBe("IN_PROGRESS");
+      expect(result.prescription.medications).toEqual([
+        { medication: "Amoxicillin" },
+      ]);
+      expect(
+        InventoryConsumptionService.createPrescriptionDispenseRequest,
+      ).not.toHaveBeenCalled();
+      expect(
+        InventoryConsumptionService.markPrescriptionDispenseRequestNotDispensed,
+      ).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["already billed", { billingStatus: "BILLED", invoiceRowId: null }],
+      [
+        "attached to an invoice row",
+        { billingStatus: "UNBILLED", invoiceRowId: "row-1" },
+      ],
+    ])(
+      "refuses to delete a draft prescription that is %s",
+      async (_label, treatmentItem) => {
+        mockedPrisma.prescription.findFirst.mockResolvedValueOnce(
+          prescriptionRow({
+            artifact: artifactRow({ kind: "PRESCRIPTION", status: "DRAFT" }),
+          }),
+        );
+        mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValueOnce({
+          id: "treatment-1",
+          ...treatmentItem,
+        });
+
+        await expect(
+          ClinicalArtifactService.deletePrescription(
+            "prescription-1",
+            organisationId,
+            { actorId: "anyone", canEditAny: true },
+          ),
+        ).rejects.toMatchObject({
+          statusCode: 409,
+          message: "Prescription has already been billed.",
+        });
+        expect(
+          mockedPrisma.workspaceTreatmentItem.deleteMany,
+        ).not.toHaveBeenCalled();
+        expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
+      },
+    );
+
+    it("returns an already-void prescription from cancel without touching inventory", async () => {
+      mockedPrisma.prescription.findFirst.mockResolvedValueOnce(
+        prescriptionRow({
+          artifact: artifactRow({ kind: "PRESCRIPTION", status: "VOID" }),
+        }),
+      );
+
+      const result = await ClinicalArtifactService.cancelPrescription(
+        "prescription-1",
+        organisationId,
+        { actorId: "anyone", canEditAny: true },
+      );
+
+      expect(result.artifact.status).toBe("VOID");
+      expect(
+        mockedPrisma.workspaceTreatmentItem.findFirst,
+      ).not.toHaveBeenCalled();
+      expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
+      expect(
+        InventoryConsumptionService.voidDispensePrescription,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("refuses to cancel a prescription that was never finalized", async () => {
+      mockedPrisma.prescription.findFirst.mockResolvedValueOnce(
+        prescriptionRow({
+          artifact: artifactRow({ kind: "PRESCRIPTION", status: "DRAFT" }),
+        }),
+      );
+
+      await expect(
+        ClinicalArtifactService.cancelPrescription(
+          "prescription-1",
+          organisationId,
+          { actorId: "anyone", canEditAny: true },
+        ),
+      ).rejects.toMatchObject({
+        statusCode: 409,
+        message: "Only finalized prescriptions can be cancelled.",
+      });
+      expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["a missing prescription", null],
+      [
+        "a voided prescription on a normal read",
+        () =>
+          prescriptionRow({
+            artifact: artifactRow({ kind: "PRESCRIPTION", status: "VOID" }),
+          }),
+      ],
+    ])("reports %s as 404", async (_label, row) => {
+      mockedPrisma.prescription.findFirst.mockResolvedValueOnce(
+        typeof row === "function" ? row() : row,
+      );
+
+      await expect(
+        ClinicalArtifactService.getPrescription(
+          "prescription-1",
+          organisationId,
+        ),
+      ).rejects.toMatchObject({
+        statusCode: 404,
+        message: "Prescription not found",
+      });
+    });
+
+    it("rejects an artifact that is not a prescription", async () => {
+      mockedPrisma.prescription.findFirst.mockResolvedValueOnce(
+        prescriptionRow({ artifact: artifactRow({ kind: "SOAP_NOTE" }) }),
+      );
+
+      await expect(
+        ClinicalArtifactService.getPrescription(
+          "prescription-1",
+          organisationId,
+        ),
+      ).rejects.toMatchObject({
+        statusCode: 409,
+        message: "Artifact is not a prescription",
+      });
+    });
+
+    it("skips the ownership pre-check on amend when the caller holds org-wide edit", async () => {
+      mockedPrisma.prescription.findFirst.mockResolvedValue(
+        prescriptionRow({
+          artifact: artifactRow({
+            kind: "PRESCRIPTION",
+            status: "COMPLETED",
+            authorId: null,
+            appointmentId: "appt-1",
+            caseId: "case-1",
+            encounterId: "enc-1",
+            templateId: "tmpl-1",
+            templateVersion: 3,
+            templateVersionId: "tmpl-ver-1",
+            summary: "Rx",
+          }),
+          medications: [{ medication: "Amoxicillin", quantity: 2 }],
+          instructions: { text: "Take daily" },
+          notes: { text: "n" },
+          metadata: { source: "workspace" },
+        }),
+      );
+      mockedPrisma.clinicalArtifact.create.mockResolvedValueOnce(
+        artifactRow({
+          id: "artifact-amend",
+          kind: "PRESCRIPTION",
+          appointmentId: "appt-1",
+        }),
+      );
+      mockedPrisma.prescription.create.mockResolvedValueOnce({
+        id: "prescription-amend",
+        artifactId: "artifact-amend",
+        items: [],
+        medications: null,
+        instructions: { text: "Take daily" },
+        notes: { text: "n" },
+        metadata: { source: "workspace" },
+        createdAt: D2,
+        updatedAt: D2,
+      });
+      mockClinicalRenderedDocumentPersistence({
+        id: "doc-amend-rx",
+        kind: "PRESCRIPTION",
+        title: "Prescription",
+        sourceId: "artifact-amend",
+      });
+
+      const amended = await ClinicalArtifactService.amendPrescription(
+        "prescription-1",
+        organisationId,
+        { actorId: "supervisor", canEditAny: true },
+      );
+
+      // the ownership pre-check is skipped, so the record is loaded once by the read
+      expect(mockedPrisma.prescription.findFirst).toHaveBeenCalledTimes(1);
+      expect(mockedPrisma.clinicalArtifact.create).toHaveBeenCalledWith({
+        data: {
+          organisationId,
+          appointmentId: "appt-1",
+          caseId: "case-1",
+          encounterId: "enc-1",
+          kind: "PRESCRIPTION",
+          status: "DRAFT",
+          templateId: "tmpl-1",
+          templateVersion: 3,
+          templateVersionId: "tmpl-ver-1",
+          authorId: undefined,
+          summary: "Rx",
+        },
+      });
+      expect(mockedPrisma.prescription.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            artifactId: "artifact-amend",
+            instructions: { text: "Take daily" },
+          }),
+        }),
+      );
+      expect(amended.prescription.id).toBe("prescription-amend");
+      expect(
+        InventoryConsumptionService.createPrescriptionDispenseRequest,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("re-reads the prescription for the ownership pre-check when the caller only holds own-scope edit", async () => {
+      mockedPrisma.prescription.findFirst.mockResolvedValue(
+        prescriptionRow({
+          artifact: artifactRow({
+            kind: "PRESCRIPTION",
+            status: "COMPLETED",
+            authorId: "author-1",
+          }),
+        }),
+      );
+      mockedPrisma.clinicalArtifact.create.mockResolvedValueOnce(
+        artifactRow({ id: "artifact-amend", kind: "PRESCRIPTION" }),
+      );
+      mockedPrisma.prescription.create.mockResolvedValueOnce({
+        id: "prescription-amend",
+        artifactId: "artifact-amend",
+        items: [],
+        medications: null,
+        instructions: null,
+        notes: null,
+        metadata: null,
+        createdAt: D2,
+        updatedAt: D2,
+      });
+      mockClinicalRenderedDocumentPersistence({
+        id: "doc-amend-rx",
+        kind: "PRESCRIPTION",
+        title: "Prescription",
+        sourceId: "artifact-amend",
+      });
+
+      await ClinicalArtifactService.amendPrescription(
+        "prescription-1",
+        organisationId,
+        { actorId: "author-1", canEditAny: false },
+      );
+
+      expect(mockedPrisma.prescription.findFirst).toHaveBeenCalledTimes(2);
+      expect(mockedPrisma.clinicalArtifact.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            authorId: "author-1",
+            status: "DRAFT",
+          }),
+        }),
+      );
+    });
+
+    it("normalizes loosely shaped medication lines into prescription item rows", async () => {
+      mockedPrisma.clinicalArtifact.create.mockResolvedValueOnce(
+        artifactRow({ kind: "PRESCRIPTION" }),
+      );
+      mockedPrisma.prescription.create.mockResolvedValueOnce({
+        id: "prescription-1",
+        artifactId,
+        items: [],
+        medications: null,
+        instructions: null,
+        notes: null,
+        metadata: null,
+        createdAt: D1,
+        updatedAt: D1,
+      });
+      mockClinicalRenderedDocumentPersistence({
+        id: "doc-rx",
+        kind: "PRESCRIPTION",
+        title: "Prescription",
+      });
+
+      await ClinicalArtifactService.createPrescription({
+        organisationId,
+        medications: [
+          {
+            id: "line-1",
+            medicineName: "Amoxicillin",
+            doseStrength: "500mg",
+            dose: "1 tab",
+            routeOfAdministration: "PO",
+            freq: "BID",
+            durationDays: "7",
+            refill: "1",
+            qty: "3",
+            sig: "with food",
+            inventoryItemId: "inv-1",
+            sku: "SKU-1",
+            inventoryBatchId: "batch-1",
+            batchNumber: "B1",
+            lotNumber: "L1",
+            expiryDate: "2027-05-01T00:00:00.000Z",
+            metadata: { origin: "catalog" },
+          },
+          {
+            medication: "   ",
+            name: "Ivermectin",
+            units: 0,
+            count: -2,
+            dispenseQuantity: 2.9,
+            expiryDate: "not-a-date",
+          },
+          { medication: 5, drug: "Meloxicam", quantity: "abc", qty: "0" },
+          {
+            product: "Carprofen",
+            quantity: 4.7,
+            expiryDate: new Date("2027-06-01T00:00:00.000Z"),
+          },
+          "PlainString",
+          null,
+        ],
+      });
+
+      const [createArgs] = mockedPrisma.prescription.create.mock.calls[0] as [
+        { data: { items: { create: unknown[] } } },
+      ];
+      expect(createArgs.data.items.create).toEqual([
+        {
+          sourceLineKey: "line-1",
+          medication: "Amoxicillin",
+          strength: "500mg",
+          dosage: "1 tab",
+          route: "PO",
+          frequency: "BID",
+          duration: "7",
+          quantity: "3",
+          instructions: "with food",
+          refill: "1",
+          inventoryItemId: "inv-1",
+          inventoryItemSku: "SKU-1",
+          batchId: "batch-1",
+          batchNumber: "B1",
+          lotNumber: "L1",
+          expiryDate: new Date("2027-05-01T00:00:00.000Z"),
+          metadata: { origin: "catalog" },
+          sortOrder: 0,
+        },
+        { medication: "Ivermectin", quantity: "2", sortOrder: 1 },
+        { medication: "Meloxicam", sortOrder: 2 },
+        {
+          medication: "Carprofen",
+          quantity: "4",
+          expiryDate: new Date("2027-06-01T00:00:00.000Z"),
+          sortOrder: 3,
+        },
+        { medication: "PlainString", sortOrder: 4 },
+        { medication: "", sortOrder: 5 },
+      ]);
+    });
+  });
 });
 
 describe("hydrateMedications", () => {
@@ -2692,6 +4682,45 @@ describe("hydrateMedications", () => {
     expect(hydrateMedications(null, inventory)).toBeNull();
     expect(hydrateMedications({ a: 1 } as never, inventory)).toEqual({ a: 1 });
   });
+
+  it("leaves a medication carrying no inventory reference untouched", () => {
+    const result = hydrateMedications(
+      [{ medication: "Compounded cream", quantity: 1 }],
+      inventory,
+    ) as Array<Record<string, unknown>>;
+
+    expect(result[0]).toEqual({ medication: "Compounded cream", quantity: 1 });
+  });
+
+  it("omits catalogue fields the inventory item does not carry and honours an explicit controlled flag", () => {
+    const sparseInventory = new Map([
+      [
+        "item-2",
+        {
+          id: "item-2",
+          name: "Saline flush",
+          genericName: null,
+          strength: null,
+          dosageForm: null,
+          controlledItem: true,
+        },
+      ],
+    ]);
+
+    const result = hydrateMedications(
+      [{ inventoryItemId: "item-2", controlledItem: false }],
+      sparseInventory,
+    ) as Array<Record<string, unknown>>;
+
+    expect(result[0]).toEqual({
+      inventoryItemId: "item-2",
+      medication: "Saline flush",
+      strength: undefined,
+      genericName: undefined,
+      dosageForm: undefined,
+      controlledItem: false,
+    });
+  });
 });
 
 describe("ClinicalArtifactService.listPrescriptionsForEncounter hydration", () => {
@@ -2748,6 +4777,265 @@ describe("ClinicalArtifactService.listPrescriptionsForEncounter hydration", () =
     expect(meds[0].medication).toBe("Amoxicillin 500mg");
     expect(mocked.inventoryItem.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: { in: ["item-1"] } } }),
+    );
+  });
+
+  describe("passport clinical-record FHIR reads", () => {
+    const mockedReads = prisma as unknown as {
+      immunization: { findMany: jest.Mock };
+      rabiesTitration: { findMany: jest.Mock };
+      parasiteTreatment: { findMany: jest.Mock };
+      clinicalExamination: { findMany: jest.Mock };
+    };
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+    const when = new Date("2026-01-01T00:00:00.000Z");
+    const artifactRow = {
+      id: "art-1",
+      organisationId: "org-1",
+      appointmentId: "appt-1",
+      caseId: null,
+      encounterId: "enc-1",
+      kind: "IMMUNIZATION",
+      status: "SIGNED",
+      templateId: null,
+      templateVersion: null,
+      templateVersionId: null,
+      authorId: "vet-1",
+      signedBy: "vet-1",
+      signedAt: when,
+      summary: null,
+      createdAt: when,
+      updatedAt: when,
+    };
+
+    it("lists immunizations by encounter and appointment", async () => {
+      mockedReads.immunization.findMany.mockResolvedValue([
+        {
+          id: "imm-1",
+          artifactId: "art-1",
+          vaccineType: "RABIES",
+          vaccineName: "Nobivac",
+          manufacturer: null,
+          batchNumber: null,
+          lotNumber: null,
+          dateAdministered: when,
+          validFrom: null,
+          validUntil: null,
+          nextDueDate: null,
+          site: null,
+          route: null,
+          notes: null,
+          metadata: null,
+          createdAt: when,
+          updatedAt: when,
+          artifact: artifactRow,
+        },
+      ]);
+
+      const byEncounter =
+        await ClinicalArtifactService.listImmunizationsForEncounter(
+          "org-1",
+          "enc-1",
+        );
+      expect(byEncounter[0].artifact.kind).toBe("IMMUNIZATION");
+      expect(byEncounter[0].immunization.vaccineName).toBe("Nobivac");
+      expect(mockedReads.immunization.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            artifact: expect.objectContaining({
+              encounterId: "enc-1",
+              kind: "IMMUNIZATION",
+            }),
+          },
+        }),
+      );
+
+      await ClinicalArtifactService.listImmunizationsForAppointment(
+        "org-1",
+        "appt-1",
+      );
+      expect(mockedReads.immunization.findMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: {
+            artifact: expect.objectContaining({
+              appointmentId: "appt-1",
+              kind: "IMMUNIZATION",
+            }),
+          },
+        }),
+      );
+    });
+
+    it("lists rabies titrations by encounter and appointment", async () => {
+      mockedReads.rabiesTitration.findMany.mockResolvedValue([
+        {
+          id: "tit-1",
+          artifactId: "art-1",
+          approvedLab: "APHA",
+          sampleDate: when,
+          resultIuMl: 1.5,
+          reportUrl: null,
+          metadata: null,
+          createdAt: when,
+          updatedAt: when,
+          artifact: artifactRow,
+        },
+      ]);
+
+      const byEncounter =
+        await ClinicalArtifactService.listRabiesTitrationsForEncounter(
+          "org-1",
+          "enc-1",
+        );
+      expect(byEncounter[0].artifact.kind).toBe("RABIES_TITRATION");
+      expect(byEncounter[0].rabiesTitration.resultIuMl).toBe(1.5);
+
+      await ClinicalArtifactService.listRabiesTitrationsForAppointment(
+        "org-1",
+        "appt-1",
+      );
+      expect(mockedReads.rabiesTitration.findMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: {
+            artifact: expect.objectContaining({
+              appointmentId: "appt-1",
+              kind: "RABIES_TITRATION",
+            }),
+          },
+        }),
+      );
+    });
+
+    it("lists parasite treatments by encounter and appointment", async () => {
+      mockedReads.parasiteTreatment.findMany.mockResolvedValue([
+        {
+          id: "par-1",
+          artifactId: "art-1",
+          treatmentType: "FLEA",
+          productName: "Bravecto",
+          manufacturer: null,
+          treatedAt: when,
+          notes: null,
+          metadata: null,
+          createdAt: when,
+          updatedAt: when,
+          artifact: artifactRow,
+        },
+      ]);
+
+      const byEncounter =
+        await ClinicalArtifactService.listParasiteTreatmentsForEncounter(
+          "org-1",
+          "enc-1",
+        );
+      expect(byEncounter[0].artifact.kind).toBe("PARASITE_TREATMENT");
+      expect(byEncounter[0].parasiteTreatment.productName).toBe("Bravecto");
+
+      await ClinicalArtifactService.listParasiteTreatmentsForAppointment(
+        "org-1",
+        "appt-1",
+      );
+      expect(mockedReads.parasiteTreatment.findMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: {
+            artifact: expect.objectContaining({
+              appointmentId: "appt-1",
+              kind: "PARASITE_TREATMENT",
+            }),
+          },
+        }),
+      );
+    });
+
+    it("lists clinical examinations by encounter and appointment", async () => {
+      mockedReads.clinicalExamination.findMany.mockResolvedValue([
+        {
+          id: "exam-1",
+          artifactId: "art-1",
+          examinedAt: when,
+          fitForTravel: true,
+          findings: null,
+          weightKg: null,
+          temperatureC: null,
+          metadata: null,
+          createdAt: when,
+          updatedAt: when,
+          artifact: artifactRow,
+        },
+      ]);
+
+      const byEncounter =
+        await ClinicalArtifactService.listClinicalExaminationsForEncounter(
+          "org-1",
+          "enc-1",
+        );
+      expect(byEncounter[0].artifact.kind).toBe("CLINICAL_EXAM");
+      expect(byEncounter[0].clinicalExamination.fitForTravel).toBe(true);
+
+      await ClinicalArtifactService.listClinicalExaminationsForAppointment(
+        "org-1",
+        "appt-1",
+      );
+      expect(mockedReads.clinicalExamination.findMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: {
+            artifact: expect.objectContaining({
+              appointmentId: "appt-1",
+              kind: "CLINICAL_EXAM",
+            }),
+          },
+        }),
+      );
+    });
+  });
+
+  it("falls back to medications per record, not just for the first record", async () => {
+    const artifact = {
+      id: "artifact-1",
+      organisationId: "org-1",
+      encounterId: "enc-1",
+      kind: "PRESCRIPTION",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    };
+    const base = {
+      artifactId: "artifact-1",
+      instructions: null,
+      notes: null,
+      metadata: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      artifact,
+    };
+    mocked.prescription.findMany.mockResolvedValue([
+      {
+        ...base,
+        id: "prescription-1",
+        items: [{ inventoryItemId: "item-1", quantity: 1 }],
+        medications: null,
+      },
+      {
+        ...base,
+        id: "prescription-2",
+        items: [],
+        medications: [{ inventoryItemId: "item-2", quantity: 2 }],
+      },
+    ]);
+    mocked.inventoryItem.findMany.mockResolvedValue([]);
+
+    await ClinicalArtifactService.listPrescriptionsForEncounter(
+      "org-1",
+      "enc-1",
+    );
+
+    // The second record contributes item-2 even though the first already put
+    // item-1 into the shared set.
+    expect(mocked.inventoryItem.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: { in: ["item-1", "item-2"] } },
+      }),
     );
   });
 

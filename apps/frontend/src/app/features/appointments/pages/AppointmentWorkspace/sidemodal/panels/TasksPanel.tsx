@@ -408,7 +408,9 @@ const PanelTaskForm = ({
         assigneeOptions={assignees}
         onAssigneeSelect={(option) => setFormData({ ...formData, assignedTo: option.value })}
       />
-      {(error || editError) && <p className="text-caption-1 text-red-600">{error || editError}</p>}
+      {(error || editError) && (
+        <p className="text-caption-1 text-text-error">{error || editError}</p>
+      )}
       <div className="flex items-center gap-3">
         <Primary
           text={isLoading ? 'Saving…' : 'Save task'}
@@ -647,7 +649,7 @@ const TasksPanel = ({
         </ul>
       )}
       <div className="flex justify-center">
-        {saveError && <p className="text-caption-1 text-red-600">{saveError}</p>}
+        {saveError && <p className="text-caption-1 text-text-error">{saveError}</p>}
         <Primary text="New Task" icon={<IoAddOutline aria-hidden="true" />} onClick={openNew} />
       </div>
     </div>

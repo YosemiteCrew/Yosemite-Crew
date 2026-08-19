@@ -44,12 +44,17 @@ export type ConversationRowProps = Readonly<{
 const HOUR_MS = 60 * 60 * 1000;
 
 /**
- * Unread count pill. Design (Chat workspace conversation list): a 17px --blue
- * (#257bed) pill with white 10px/800 text — not the deeper solid brand badge.
+ * Unread count pill. Design (Chat workspace conversation list): a 17px blue
+ * pill with white 10px/800 text — not the deeper solid brand badge.
+ *
+ * The fill is `--blue-strong`, not `--blue`: white on #257bed is 4.09:1, under
+ * AA for 10px text. `--blue-strong` is the same hue family at 6.48:1, so the
+ * pill still reads as the design's blue rather than the brand badge it was
+ * distinguishing itself from.
  */
 function UnreadBadge({ count }: Readonly<{ count: number }>) {
   return (
-    <span className="inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[var(--blue)] px-1.5 py-0.5 text-[10px] font-extrabold leading-none text-white">
+    <span className="inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[var(--blue-strong)] px-1.5 py-0.5 text-[10px] font-extrabold leading-none text-white">
       {count}
     </span>
   );
@@ -108,9 +113,8 @@ export function ConversationRow({
         // left-stripe (see design "Chat extended", conversation list).
         'group relative flex items-center pr-1 rounded-[13px] xl:rounded-[14px]',
         active
-          ? 'border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_3px_var(--sh05)] xl:border-transparent xl:bg-[var(--surface-soft)] xl:shadow-[inset_3px_0_0_var(--pink)]'
-          : 'hover:bg-[var(--screen)] xl:hover:bg-[var(--surface-soft)]',
-        muted && !active && 'opacity-[0.62]'
+          ? 'border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_3px_var(--sh05)] xl:border-transparent xl:bg-[var(--surface-soft)] xl:shadow-[inset_3px_0_0_var(--blue)]'
+          : 'hover:bg-[var(--screen)] xl:hover:bg-[var(--surface-soft)]'
       )}
     >
       <button

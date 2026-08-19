@@ -38,6 +38,7 @@ import { resolveDefaultOpenScreenRouteForProfile } from '@/app/lib/defaultOpenSc
 import { useIsTabletRail } from './useIsTabletRail';
 
 import './Sidebar.css';
+import { usePlatformStatus } from '@/app/hooks/usePlatformStatus';
 
 const ROUTE_ICONS: Record<string, IconType> = {
   Dashboard: IoGridOutline,
@@ -91,6 +92,7 @@ const Sidebar = () => {
   // Tablet is always the icon rail, so it overrides a stored desktop preference
   // (which would otherwise render the 224px sidebar after a desktop -> tablet resize).
   const isTabletRail = useIsTabletRail();
+  const platformStatus = usePlatformStatus();
   const isCollapsed = isTabletRail || prefersCollapsed;
 
   const isDevPortal = pathname?.startsWith('/developers') || false;
@@ -214,8 +216,11 @@ const Sidebar = () => {
                       <Link
                         className={routeClassName}
                         href={route.href}
+                        prefetch={false}
                         onClick={onClick}
                         aria-current={isActive ? 'page' : undefined}
+                        aria-disabled={isDisabled || undefined}
+                        tabIndex={isDisabled ? -1 : undefined}
                       >
                         <span className="sr-only">{route.name}</span>
                         <span className="route-collapsed-icon-wrap">{routeIcon}</span>
@@ -229,8 +234,25 @@ const Sidebar = () => {
                     key={route.name}
                     className={routeClassName}
                     href={route.href}
+                    // Every sidebar route is permanently in the viewport, so the
+                    // App Router's default viewport prefetch fired an RSC request
+                    // for ALL of them on mount. Measured on dev: five of those
+                    // (/appointments, /chat, /tasks, /dashboard, /companions) took
+                    // 3.0-3.8s EACH and ran concurrently with the page's own data,
+                    // against a ~6-connection-per-origin cap - so the page you had
+                    // actually opened queued behind prefetches for pages you had
+                    // not. prefetch={false} drops the viewport prefetch; Next still
+                    // prefetches on hover, which is the point of intent anyway.
+                    prefetch={false}
                     onClick={onClick}
                     aria-current={isActive ? 'page' : undefined}
+                    // A disabled route was disabled to the EYE only - greyed, with
+                    // cursor:not-allowed and a click handler that returns early -
+                    // while still being a focusable link announced as actionable.
+                    // An unverified org's Patients entry could be tabbed to and
+                    // read out as a normal destination it can never reach.
+                    aria-disabled={isDisabled || undefined}
+                    tabIndex={isDisabled ? -1 : undefined}
                   >
                     {routeIcon}
                     <span className="route-label">{route.name}</span>
@@ -243,9 +265,9 @@ const Sidebar = () => {
       </div>
       <div className="sidebar-footer">
         {!isCollapsed && (
-          <span className="sidebar-status">
+          <span className={`sidebar-status sidebar-status-${platformStatus.tone}`}>
             <span className="sidebar-status-dot" aria-hidden />
-            {'All systems live'}
+            {platformStatus.label}
           </span>
         )}
         {/* Tablet is locked to the rail by the breakpoint contract, so there is

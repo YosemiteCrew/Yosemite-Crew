@@ -46,6 +46,29 @@
   font-style: italic;
 }
 
+/* Newsreader (OFL) is ALSO self-hosted here, in addition to next/font in
+   layout.tsx. next/font resolves at BUILD time over the network, so a restricted
+   CI runner or a Google Fonts outage fails `storybook:build` outright with
+   "Failed to fetch Newsreader" — and Chromatic runs that build on every PR, so a
+   network blip would take the visual gate offline rather than degrade it.
+   The token chain is `var(--font-newsreader-src, 'Newsreader')`: in the app
+   next/font still wins, and anywhere that variable is unset (Storybook) this
+   local face resolves instead of silently falling back to Georgia. */
+@font-face {
+  font-family: 'Newsreader';
+  src: url('/fonts/newsreader/Newsreader-Variable.woff2') format('woff2');
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Newsreader';
+  src: url('/fonts/newsreader/Newsreader-VariableItalic.woff2') format('woff2');
+  font-weight: 200 800;
+  font-style: italic;
+  font-display: swap;
+}
+
 /* Newsreader (OFL) — marketing display serif — is loaded once by next/font in
    layout.tsx and reaches every surface through the --font-newsreader token
    below. It is deliberately not declared a second time here: a self-hosted
@@ -298,8 +321,17 @@ textarea:focus-visible {
 
   --color-text-primary: var(--color-neutral-900);
   --color-text-cta: var(--color-neutral-900);
-  --color-text-error: var(--color-danger-700);
-  --color-text-brand: var(--color-brand-950);
+  /* --danger-text, not the 700 fill step: as text on --screen the fill read
+     4.40 (the account menu's Sign out row). Both already agree in dark. */
+  --color-text-error: var(--danger-text);
+  /* The brand blue #007cf5 is a FILL. As an ink on the bone screen it measures
+     3.56-3.86:1 - the footer's support address, "View all organizations" in the
+     org switcher and the Upgrade card's yearly-saving line all sat under AA.
+     --color-accent-deep is the same hue family tuned for text (#1657c9, ~6.6:1)
+     and is what --blue-text already resolves to; the dark side was already an
+     ink (#8fb6f5). Every use of this token in the codebase is a `color`, so
+     nothing is being restyled as a fill by this change. */
+  --color-text-brand: var(--color-accent-deep);
   --color-text-secondary: var(--color-neutral-700);
   --color-text-tertiary: var(--color-neutral-600);
   --color-text-extra: var(--color-neutral-500);
@@ -311,7 +343,11 @@ textarea:focus-visible {
   --color-state-selected: var(--color-neutral-950);
 
   --color-input-text-placeholder: var(--color-neutral-700);
-  --color-input-text-placeholder-active: var(--color-brand-950);
+  /* An ink, so it takes the ink-tuned blue. --color-brand-950 is the brand FILL
+     (#007cf5) with no dark value, which left the active field's placeholder at
+     3.16:1 on the dark field. The border below stays the fill: it is a non-text
+     boundary and clears its 3:1 in both themes. */
+  --color-input-text-placeholder-active: var(--blue-text);
   --color-input-border-default: var(--color-neutral-200);
   --color-input-border-error: var(--color-danger-600);
   --color-input-border-active: var(--color-brand-950);
@@ -331,7 +367,19 @@ textarea:focus-visible {
   --color-grey-noti: var(--color-neutral-700);
   /* The design's blue (#257bed), not the brighter brand-ramp primary-500
      (#007cf5) — links, active states and badges read as --blue in every frame. */
-  --color-blue-text: var(--blue);
+  /* The utility form of the text blue. This pointed at --blue (the FILL), so
+     `text-blue-text` stayed at 3.12-3.70:1 on the bone surfaces even after
+     --blue-text was fixed. Both spellings must resolve to the same value. */
+  --color-blue-text: var(--color-accent-deep);
+  /* Utility-form twins for the tokens this app uses as fills in markup. Without
+     them `bg-blue-strong` compiles to nothing - silently no colour - while
+     `bg-[var(--blue-strong)]` works, which is a trap for the next person.
+     Aliased, never literal, per the rule in ui/tokens.md. */
+  --color-blue-strong: var(--blue-strong);
+  --color-chip-selected-bg: var(--chip-selected-bg);
+  --color-chip-selected-ink: var(--chip-selected-ink);
+  --color-chip-selected-border: var(--chip-selected-border);
+  --color-table-head-ink: var(--table-head-ink);
   --color-blue-light: var(--color-primary-100);
   --color-blue-sky: #428bec;
   --color-white-text: var(--color-neutral-100);
@@ -343,7 +391,10 @@ textarea:focus-visible {
   --color-error-500: #ef4444;
   --color-error-700: #b91c1c;
   --color-delete: var(--color-danger-700);
-  --color-pending-text: #f68523;
+  /* Painted as text by .OrgStatus, where #f68523 was 1.93:1 on --band and
+     2.29:1 on --screen. Darkened to clear AA; the pill's own --pendingbg
+     (#fef3e9) is unchanged, so only the label moves. */
+  --color-pending-text: #9d4c06;
   --color-danger-soft: #fee7e7;
   --color-calendar-line-strong: #c3cedc;
   --color-calendar-line-soft: #e9edf3;
@@ -365,18 +416,23 @@ textarea:focus-visible {
   --color-shadow-xs: rgba(17, 24, 39, 0.04);
   --color-shadow-sm: rgba(0, 0, 0, 0.16);
   --color-shadow-md: rgba(0, 0, 0, 0.2);
-  --color-muted-999: #999999;
+  --color-muted-999: var(--ink-muted);
   --color-muted-400: #c2c2c1;
   --color-text-hidden: #2b2b2a;
   --color-toast-error-bg: #f8c1bd;
   --color-toast-warning-bg: #fcd9bb;
   --color-toast-success-bg: #b0dccd;
-  --color-select-ink: #312943;
-  --color-select-ink-muted: #31294399;
+  /* Themed inks, not fixed literals. These had no dark value, so in dark mode
+     the select's own text stayed near-black on a near-black surface - 1.07:1
+     for the placeholder. Aliasing to the warm-bone scale gives them a dark
+     value for free, and --color-muted-999 (#999999) was failing in LIGHT too
+     at 2.58:1. */
+  --color-select-ink: var(--ink);
+  --color-select-ink-muted: var(--ink-muted);
   --color-surface-disabled: #ece5d9;
   --color-text-subtle: #555555;
   --color-text-strong: #333333;
-  --color-text-body-dark: #222222;
+  --color-text-body-dark: var(--ink-body);
   --color-linkedin-blue: #0a66c2;
   --color-chat-empty-bg: #faf7f0;
   --color-onboarding-accent-border: #b7c8ff;
@@ -389,7 +445,7 @@ textarea:focus-visible {
   --color-upload-error-soft: #e53e3e;
   --color-upload-info: #2563eb;
   --color-upload-success: #10b981;
-  --color-upload-text: #222222;
+  --color-upload-text: var(--ink-body);
 
   --color-badge-blue-bg: var(--color-primary-500);
   --color-badge-blue-text: #eaf3ff;
@@ -447,7 +503,9 @@ textarea:focus-visible {
   --status-no-show-border: #f97316;
 
   --status-danger-bg: rgba(234, 55, 41, 0.09);
-  --status-danger-text: #c2261a;
+  /* On its own --status-danger-bg tint this composites to #efd8cc, where
+     #c2261a is 4.28. The 800 step clears it at 5.24. */
+  --status-danger-text: #a6271d;
   --status-danger-border: rgba(234, 55, 41, 0.32);
 
   /* Alert / document-category palette (workspace revamp — Figma "documents cat" sheet) */
@@ -490,6 +548,12 @@ textarea:focus-visible {
   --blue-text: var(--color-blue-text);
   --light-blue: var(--color-primary-100);
   --white-text: #ffffff;
+  /* Its counterpart. Some surfaces are a FIXED colour in both themes -
+     brand illustration fills, a LinkedIn-blue avatar - so their text must
+     be fixed too. A themed ink on a fixed surface inverts in dark: the
+     LaunchGrowTab tabs are permanently light blue, and their heading went
+     from 15:1 to 1.11:1 the moment the theme flipped. */
+  --ink-fixed: #1d1c1b;
   --whitebg: var(--color-white-bg);
   --greyborder: var(--color-grey-border);
   --lightgrey: var(--color-grey-light);
@@ -541,6 +605,14 @@ textarea:focus-visible {
   --screen-2: #f1ebe1;
   --hairline: #e5dccf;
   --divider: #d6d1cd;
+  /* Selected filter chip. Every neutral surface token sits within 1.03-1.24:1 of
+     `--page`, so the old `--inset` fill was invisible and weight alone (600 vs
+     700) carried the selected state. An ink fill is the app's existing answer
+     for a chosen option (see the datepicker's selected day) and reads at ~14:1.
+     Both sides are theme tokens, so dark mode inverts them for free. */
+  --chip-selected-bg: var(--ink);
+  --chip-selected-border: var(--ink);
+  --chip-selected-ink: var(--screen);
   --hairline-hover: #d6d1cd;
   /* active nav item (current page) */
   --nav-active: #1657c9;
@@ -549,7 +621,17 @@ textarea:focus-visible {
   --ink: #1d1c1b;
   --ink-body: #302f2e;
   --ink-muted: #5c5956;
+  /* Column-header ink. The header recipe used --ink-faint, which is 2.91:1 on
+     the --screen-2 band - under AA at 10.5px, and true of every PIMS table
+     header long before the shared recipe existed. --ink-muted clears it at
+     5.87:1 light / 6.34:1 dark. */
+  --table-head-ink: var(--ink-muted);
   --ink-soft: #423f3c;
+  /* The bone palette's faint inks. These values are correct on the always-dark
+     --spot sections the marketing pages use (6.82:1) but unreadable on bone:
+     2.64:1 and 1.90:1 against --band. They are therefore left alone here and
+     overridden for the app shell below, rather than darkened globally - which
+     would have fixed PIMS and broken every --spot section on the public site. */
   --ink-faint: #8f8984;
   --ink-faint2: #a9a39e;
   --ink-6b: #6b6763;
@@ -564,12 +646,50 @@ textarea:focus-visible {
   --dl-btn-hover: #302f2e;
   /* accents */
   --blue: #257bed;
-  --blue-text: #257bed;
+  /* The text-weight blue. In dark this already lightens to #8fb6f5 so it can be
+     read on the espresso page, but in light it was left identical to --blue and
+     never earned its name: #257bed is 3.12-3.70:1 on the bone surfaces, i.e.
+     under AA on every one of them, across ~150 usages. --color-accent-deep is
+     the brand's own darker blue and clears AA on all five (4.94-5.86:1).
+     --blue stays #257bed: it is the FILL token, and fills carry no contrast
+     requirement of their own. */
+  /* Aliased, never re-stated: this token is also spelled --color-blue-text in
+     the @theme block for the Tailwind utility form, and maintaining a literal
+     in both layers is exactly how the two drifted apart - the utility kept
+     resolving to --blue (3.12-3.70:1) after the variable had been fixed. */
+  --blue-text: var(--color-blue-text);
   --blue-soft: #e6f2ff;
+  /* For fills that carry white text (count badges, selected slots). Two
+     constraints, not one: white on the fill needs 4.5:1, AND the fill itself
+     needs 3:1 against its surface, because selected controls like Slotpicker
+     drop their border and let the fill alone carry the state. Holding one value
+     for both themes satisfied the first and broke the second - #1657c9 is only
+     2.23:1 on the dark page. Light: 6.48 white / 5.04-5.86 surface. */
+  --blue-strong: var(--color-accent-deep);
+  /* A destructive button is a FILL carrying a label, so it owes 4.5:1 to that
+     label AND 3:1 to the surface it sits on (1.4.11). A single fixed value
+     cannot do both in dark: clearing white text caps the fill at L 0.183 while
+     clearing the dark screen needs at least L 0.165, and that sliver fails
+     against --band anyway. So the PAIR inverts instead - dark fill with a light
+     label in light mode, light fill with a dark label in dark. --danger-strong-ink
+     moves with it; never pair this fill with a literal white. */
+  --danger-strong: #a6271d;
+  --danger-strong-ink: var(--white-text);
+  /* And the success equivalent, fixed for the same reason. --color-success-600
+     is #008f5d in light and #2bbd86 in dark, so the Dispense confirm carried
+     white on 4.13:1 light and 2.41:1 dark - the affirmative half of a
+     dispense-or-cancel pair, unreadable on both sides. #006642 is 7.05 under
+     white and does not move with the theme. */
+  --success-strong: #006642;
+  --success-strong-ink: var(--white-text);
   --pink: #ff90d4;
   --cyan: #5ce1e6;
   --cyan-text: #38ccd8;
   --success: #008f5d;
+  /* --success is a FILL (status dots, bars) and carries no contrast duty; it is
+     3.15:1 on --band, so it must not paint text. This is its text twin, the
+     same pairing as --danger/--danger-text and --blue/--blue-text. */
+  --success-text: #006642;
   --warn: #f59e0b;
   /* always-dark spotlight blocks (manifesto / code / phone bezel) */
   --spot: #1d1c1b;
@@ -582,7 +702,7 @@ textarea:focus-visible {
   --avatar-green-bg: #e6f4ef;
   --avatar-green-ink: #006642;
   --avatar-amber-bg: #fef3e9;
-  --avatar-amber-ink: #af5e19;
+  --avatar-amber-ink: #965115;
   /* glassy nav bits */
   --nav-hover: rgba(255, 255, 255, 0.5);
   --glass-btn: linear-gradient(180deg, rgba(255, 253, 250, 0.9), rgba(250, 246, 239, 0.8));
@@ -647,14 +767,21 @@ textarea:focus-visible {
   --danger-bg: rgba(234, 55, 41, 0.09);
   /* Faintest danger tint (emergency / overdue row wash). */
   --danger-bg-faint: rgba(234, 55, 41, 0.04);
-  --danger-text: #c2261a;
+  /* #a6271d, not #c2261a. On its own --danger-bg tint (which composites to
+     #efd8cc) the lighter value measured 4.28:1 at 12px - the selected
+     Emergencies chip, the month-overview emergency chip and the inventory
+     turnover pill all read on that tint. #a6271d takes them to 5.24 and only
+     raises contrast everywhere else this ink is used. */
+  --danger-text: #a6271d;
   --danger: #ea3729;
   --danger-border: rgba(234, 55, 41, 0.32);
   --warn-bg: rgba(245, 158, 11, 0.12);
-  --warn-text: #b45309;
+  /* 3.84 on its own --warn-bg tint (the dashboard's "Verification in
+     progress" pill). One step darker clears it at 5.42. */
+  --warn-text: #92400e;
   --warn-border: rgba(245, 158, 11, 0.3);
   --pink-soft: #ffe8f6;
-  --pink-text: #c43d94;
+  --pink-text: #b3307f;
 }
 
 html[data-theme='dark'] {
@@ -686,7 +813,11 @@ html[data-theme='dark'] {
   --ink-muted: #a89e90;
   --ink-soft: #cabfb0;
   --ink-faint: #9d9285;
-  --ink-faint2: #8b8173;
+  /* #8b8173 passed only on --spot: it was 3.78:1 on --inset (the marketing
+     footer), 3.84 on --screen and 4.10 on --band. #998f82 clears 4.5 on every
+     dark surface (4.56-5.78) and is the value the app scope already used, so
+     the two agree now instead of the app being the only readable one. */
+  --ink-faint2: #998f82;
   --ink-6b: #a1968a;
   --cta: #f2ece1;
   --cta-hover: #fbf8f1;
@@ -696,12 +827,25 @@ html[data-theme='dark'] {
   --dl-btn-sub: #6b6155;
   --dl-btn-hover: #ffffff;
   --blue: #257bed;
-  --blue-text: #8fb6f5;
+  /* The window is narrow: white needs the fill dark, the espresso page needs it
+     light. #2f74d9 is the value that clears both - 4.54:1 white, 3.19-3.72:1
+     against every dark surface. */
+  --blue-strong: #2f74d9;
+  /* Inverted here: see the light declaration. A dark fill on a dark surface has
+     no visible boundary (#a6271d is 2.05:1 on --screen), so dark mode uses the
+     light tone as the fill and a near-black as its label. 6.5-7.5 against every
+     dark surface, 7.5 for the label on top. */
+  --danger-strong: #f2938a;
+  --danger-strong-ink: var(--ink-fixed);
+  --success-strong: #2bbd86;
+  --success-strong-ink: var(--ink-fixed);
+  --blue-text: var(--color-blue-text);
   --blue-soft: rgba(143, 182, 245, 0.16);
   --pink: #ff90d4;
   --cyan: #5ce1e6;
   --cyan-text: #5ce1e6;
   --success: #2bbd86;
+  --success-text: #2bbd86;
   --warn: #f5a83c;
   --spot: #17140f;
   --spot-ink: #f4efe6;
@@ -800,18 +944,35 @@ html[data-theme='dark'] {
   --ink-muted: #a89e90;
   --ink-soft: #cabfb0;
   --ink-faint: #9d9285;
-  --ink-faint2: #8b8173;
+  /* #8b8173 passed only on --spot: it was 3.78:1 on --inset (the marketing
+     footer), 3.84 on --screen and 4.10 on --band. #998f82 clears 4.5 on every
+     dark surface (4.56-5.78) and is the value the app scope already used, so
+     the two agree now instead of the app being the only readable one. */
+  --ink-faint2: #998f82;
   --ink-6b: #a1968a;
   --cta: #f2ece1;
   --cta-hover: #fbf8f1;
   --cta-text: #201c18;
   --blue: #257bed;
-  --blue-text: #8fb6f5;
+  /* The window is narrow: white needs the fill dark, the espresso page needs it
+     light. #2f74d9 is the value that clears both - 4.54:1 white, 3.19-3.72:1
+     against every dark surface. */
+  --blue-strong: #2f74d9;
+  /* Inverted here: see the light declaration. A dark fill on a dark surface has
+     no visible boundary (#a6271d is 2.05:1 on --screen), so dark mode uses the
+     light tone as the fill and a near-black as its label. 6.5-7.5 against every
+     dark surface, 7.5 for the label on top. */
+  --danger-strong: #f2938a;
+  --danger-strong-ink: var(--ink-fixed);
+  --success-strong: #2bbd86;
+  --success-strong-ink: var(--ink-fixed);
+  --blue-text: var(--color-blue-text);
   --blue-soft: rgba(143, 182, 245, 0.16);
   --pink: #ff90d4;
   --cyan: #5ce1e6;
   --cyan-text: #5ce1e6;
   --success: #2bbd86;
+  --success-text: #2bbd86;
   --avatar-violet-bg: rgba(167, 139, 250, 0.2);
   --avatar-violet-ink: #cbb2f4;
   --avatar-green-bg: rgba(74, 205, 155, 0.17);
@@ -923,6 +1084,11 @@ html[data-theme='dark'] {
   --status-completed-border: rgba(74, 205, 155, 0.55);
   --status-cancelled-bg: rgba(249, 115, 22, 0.15);
   --status-cancelled-text: #f0a36c;
+  /* The alert pill's inks. The 100 tints already had dark values but these did
+     not, so darkening them for light mode left them dark-on-dark in the other
+     theme - 1.75 and 1.98 on the composited tints. Existing ramp steps. */
+  --color-warning-900: #f9ad6c;
+  --color-danger-800: #f5a39d;
   --status-cancelled-border: rgba(249, 115, 22, 0.5);
   --status-no-show-bg: rgba(249, 115, 22, 0.15);
   --status-no-show-text: #f0a36c;
@@ -939,15 +1105,14 @@ html[data-theme='dark'] {
 html[data-theme='dark'] [data-yc-theme] {
   color-scheme: dark;
 }
-html[data-theme-ready] [data-yc-theme] * {
-  transition:
-    background-color 300ms ease,
-    border-color 300ms ease,
-    color 300ms ease,
-    box-shadow 300ms ease;
+/* Same shape as the app shell below, and for the same reason: a `*` transition
+   here started one animation per element on every theme flip, and a transition
+   that stalls at currentTime 0 strands the element in the outgoing theme. */
+html[data-theme-ready] [data-yc-theme] {
+  transition: background-color 300ms ease;
 }
 @media (prefers-reduced-motion: reduce) {
-  html[data-theme-ready] [data-yc-theme] * {
+  html[data-theme-ready] [data-yc-theme] {
     transition: none !important;
   }
 }
@@ -1220,7 +1385,7 @@ input[type='number'] {
   }
 
   .text-yc-14-b-primary {
-    color: var(--color-primary-600);
+    color: var(--blue-text);
     font-family: var(--font-satoshi);
     font-size: 14px;
     font-style: normal;
@@ -1250,7 +1415,7 @@ input[type='number'] {
   }
 
   .text-yc-16-b-primary {
-    color: var(--color-primary-600);
+    color: var(--blue-text);
     font-family: var(--font-satoshi);
     font-size: 16px;
     font-style: normal;
@@ -1260,7 +1425,7 @@ input[type='number'] {
   }
 
   .text-yc-20-b-primary {
-    color: var(--color-primary-600);
+    color: var(--blue-text);
     font-family: var(--font-satoshi);
     font-size: 20px;
     font-style: normal;
@@ -1291,57 +1456,52 @@ input[type='number'] {
   }
 }
 
-/* Typography overrides outside @layer — beats Bootstrap's unlayered element resets on button/input.
-   Bootstrap loads after globals.css but @layer styles lose to unlayered styles regardless of
-   specificity. These rules use !important so they win on button elements too. */
-.text-caption-2 {
-  font-size: 0.75rem !important;
-  font-weight: 500 !important;
-  line-height: 1.125rem;
-  letter-spacing: -0.24px;
-}
-
-/* Caption - 10px/0.625rem - DS micro-badge type: status pills, compact labels.
-   ALL-CAPS 10px / 700 / 0.08em per the design system Badge convention. */
-.text-caption-3 {
-  font-family: var(--font-satoshi);
-  font-size: 0.625rem !important;
-  font-weight: 700 !important;
-  line-height: 1;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-/* Mobile responsive typography - applies to all heading/display classes */
-@media screen and (max-width: 768px) {
-  .text-display-1,
-  .text-display-2,
-  .text-heading-1,
-  .text-heading-2 {
-    font-family: var(--font-satoshi) !important;
-    font-size: 1.5rem !important;
-    font-weight: 500 !important;
-    line-height: 1.875rem !important;
-    letter-spacing: -0.48px;
+/* These typography overrides live in @layer components so font-* weight utilities (utilities
+   layer) can still win over the base weight here. font-size, line-height and font-family keep
+   !important so the responsive mobile sizing and the satoshi/newsreader family stay authoritative. */
+@layer components {
+  /* Caption - 10px/0.625rem - DS micro-badge type: status pills, compact labels.
+     ALL-CAPS 10px / 700 / 0.08em per the design system Badge convention. */
+  .text-caption-3 {
+    font-family: var(--font-satoshi);
+    font-size: 0.625rem !important;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
   }
 
-  .text-heading-3,
-  .text-body-2,
-  .text-body-3,
-  .text-body-4 {
-    font-family: var(--font-satoshi) !important;
-    font-size: 1rem !important;
-    font-weight: 400 !important;
-    line-height: 1.5rem !important;
-    letter-spacing: -0.32px;
-  }
+  /* Mobile responsive typography - applies to all heading/display classes */
+  @media screen and (max-width: 768px) {
+    .text-display-1,
+    .text-display-2,
+    .text-heading-1,
+    .text-heading-2 {
+      font-family: var(--font-satoshi) !important;
+      font-size: 1.5rem !important;
+      font-weight: 500;
+      line-height: 1.875rem !important;
+      letter-spacing: -0.48px;
+    }
 
-  .text-body-3-emphasis {
-    font-family: var(--font-satoshi) !important;
-    font-size: 1rem !important;
-    font-weight: 500 !important;
-    line-height: 1.5rem !important;
-    letter-spacing: -0.32px;
+    .text-heading-3,
+    .text-body-2,
+    .text-body-3,
+    .text-body-4 {
+      font-family: var(--font-satoshi) !important;
+      font-size: 1rem !important;
+      font-weight: 400;
+      line-height: 1.5rem !important;
+      letter-spacing: -0.32px;
+    }
+
+    .text-body-3-emphasis {
+      font-family: var(--font-satoshi) !important;
+      font-size: 1rem !important;
+      font-weight: 500;
+      line-height: 1.5rem !important;
+      letter-spacing: -0.32px;
+    }
   }
 }
 
@@ -1454,8 +1614,12 @@ input[type='number'] {
   border-radius: 8px !important;
 }
 
+/* --ink-faint, not the 200 ramp step. neutral-200 is the HAIRLINE value: as text
+   it measured 1.11:1 in light and 1.44 in dark, so the twelve adjacent-month days
+   filling the grid were invisible - and they are clickable, so WCAG 1.4.3 does
+   not exempt them the way it does the disabled rule below. */
 .yc-datepicker-calendar .react-datepicker__day--outside-month {
-  color: var(--color-neutral-200);
+  color: var(--ink-faint);
 }
 
 .yc-datepicker-calendar
@@ -1472,16 +1636,21 @@ input[type='number'] {
   color: var(--color-text-primary);
 }
 
+/* --blue-text over a tint mixed into the SURFACE, not into literal white.
+   --color-brand-950 is the brand fill (#007cf5) and has no dark value, and the
+   8%-of-white tint stayed near-white in dark, so "today" in the appointment
+   date picker was a fixed blue on a fixed white chip inside a dark modal. */
 .yc-datepicker-calendar .react-datepicker__day--today:not(.react-datepicker__day--selected) {
   font-weight: 600;
-  color: var(--color-brand-950);
-  background-color: color-mix(in srgb, var(--color-brand-950) 8%, white);
+  color: var(--blue-text);
+  background-color: color-mix(in srgb, var(--blue-text) 12%, var(--neutral-0, var(--screen)));
   border-radius: 8px !important;
 }
 
 .yc-datepicker-calendar .react-datepicker__day--selected {
-  background-color: var(--color-brand-950) !important;
-  color: #ffffff !important;
+  /* --blue-strong, not the brand fill: white on #007cf5 is 4.04:1. */
+  background-color: var(--blue-strong) !important;
+  color: var(--white-text) !important;
   font-weight: 600;
   border-radius: 8px !important;
 }
@@ -1521,8 +1690,9 @@ input[type='number'] {
 }
 
 .yc-datepicker-calendar .react-datepicker__time-list-item--selected {
-  background-color: var(--color-brand-950) !important;
-  color: #ffffff !important;
+  /* --blue-strong, not the brand fill: white on #007cf5 is 4.04:1. */
+  background-color: var(--blue-strong) !important;
+  color: var(--white-text) !important;
   font-weight: 600;
 }
 
@@ -1541,6 +1711,92 @@ input[type='number'] {
     transform: translateY(-6px);
     opacity: 0.6;
   }
+}
+
+/* ============================================================
+   Warm-bone theme (scoped) — Pet Passport, wallet & share surfaces.
+   Self-contained token layer for the PR #1675 warm-bone redesign
+   (subset of the design-system site-theme). Applies only inside
+   `.yc-warmbone`; dark mode flips via `data-wb-theme="dark"`.
+   ============================================================ */
+.yc-warmbone {
+  --page: #efe8dc;
+  --band: #e8e0d2;
+  --inset: #eae2d5;
+  --screen: #f7f3ec;
+  --screen-2: #f1ebe1;
+  --hairline: #e5dccf;
+  --divider: #d6d1cd;
+  --hairline-soft: rgba(29, 28, 27, 0.09);
+  --ink: #1d1c1b;
+  --ink-body: #302f2e;
+  --ink-muted: #5c5956;
+  --ink-soft: #423f3c;
+  --ink-faint: #8f8984;
+  --ink-faint2: #a9a39e;
+  --blue-text: #257bed;
+  --blue-soft: #e6f2ff;
+  --success: #008f5d;
+  --danger-text: #c2261a;
+  --danger-bg: rgba(234, 55, 41, 0.09);
+  --danger-border: rgba(234, 55, 41, 0.32);
+  --avatar-amber-bg: #fef3e9;
+  --dl-btn: #1d1c1b;
+  --dl-btn-text: #ffffff;
+  --status-completed-bg: #f0fdf4;
+  --status-completed-text: #166534;
+  --status-completed-border: #64c487;
+  --status-upcoming-border: #007cf5;
+  --sh03: rgba(29, 28, 27, 0.03);
+  --sh05: rgba(29, 28, 27, 0.05);
+  --sh08: rgba(29, 28, 27, 0.08);
+  --sh10: rgba(29, 28, 27, 0.1);
+  --sh16: rgba(29, 28, 27, 0.16);
+  --glass-93: rgba(239, 232, 220, 0.93);
+  --pbg: #efe8dc;
+  --pfg: #1d1c1b;
+  --pml: #6b6763;
+  --phl: rgba(29, 28, 27, 0.12);
+  background: var(--page);
+  color: var(--ink-body);
+}
+.yc-warmbone[data-wb-theme='dark'] {
+  --page: #201c18;
+  --band: #2a2216;
+  --inset: #302820;
+  --screen: #2f271e;
+  --screen-2: #221d17;
+  --hairline: #40362b;
+  --divider: #3a3128;
+  --hairline-soft: rgba(255, 255, 255, 0.09);
+  --ink: #f4efe6;
+  --ink-body: #e6ddd0;
+  --ink-muted: #a89e90;
+  --ink-soft: #cabfb0;
+  --ink-faint: #9d9285;
+  --ink-faint2: #998f82;
+  --blue-text: var(--color-blue-text);
+  --blue-soft: rgba(143, 182, 245, 0.16);
+  --success: #2bbd86;
+  --danger-text: #f2938a;
+  --danger-bg: rgba(234, 55, 41, 0.18);
+  --danger-border: rgba(242, 147, 138, 0.42);
+  --avatar-amber-bg: rgba(233, 170, 120, 0.17);
+  --dl-btn: #f7f3ec;
+  --dl-btn-text: #201c18;
+  --status-completed-bg: rgba(74, 205, 155, 0.16);
+  --status-completed-text: #74d0a2;
+  --status-completed-border: rgba(74, 205, 155, 0.55);
+  --status-upcoming-border: rgba(103, 160, 239, 0.6);
+  --sh03: rgba(0, 0, 0, 0.14);
+  --sh05: rgba(0, 0, 0, 0.2);
+  --sh08: rgba(0, 0, 0, 0.3);
+  --sh10: rgba(0, 0, 0, 0.34);
+  --sh16: rgba(0, 0, 0, 0.44);
+  --glass-93: rgba(34, 29, 23, 0.92);
+}
+.yc-serif {
+  font-family: var(--font-newsreader), 'Newsreader', Georgia, serif;
 }
 
 /* Full-page loading skeleton shimmer — opacity oscillates 1 ↔ 0.45 over 1.6s.
@@ -1570,15 +1826,24 @@ input[type='number'] {
 html[data-theme='dark'] [data-yc-app] {
   color-scheme: dark;
 }
-html[data-theme-ready] [data-yc-app] * {
-  transition:
-    background-color 300ms ease,
-    border-color 300ms ease,
-    color 300ms ease,
-    box-shadow 300ms ease;
+/* The transition lives on the SHELL, not on `*`.
+   It used to be `[data-yc-app] *`, which put a 300ms transition on every element
+   in the app - roughly 700 of them on a real page. A theme flip then started ~700
+   simultaneous transitions, and some never advanced: caught in the browser with
+   playState "running" and currentTime stuck at 0, which leaves the element painted
+   in the OUTGOING theme's colour indefinitely. The Patients page heading ended up
+   at #f4efe6 on #efe8dc - 1.06:1, invisible - while a freshly created element with
+   the same class rendered correctly, proving the CSS was fine and the transition
+   was the fault.
+   Backgrounds still cross-fade at the surface level, which is the part anyone
+   perceives; text and borders swap instantly, which is both correct and cheaper.
+   `color` is deliberately NOT transitioned - it is the property whose failure mode
+   is unreadable text. */
+html[data-theme-ready] [data-yc-app] {
+  transition: background-color 300ms ease;
 }
 @media (prefers-reduced-motion: reduce) {
-  html[data-theme-ready] [data-yc-app] * {
+  html[data-theme-ready] [data-yc-app] {
     transition: none !important;
   }
 }
@@ -1612,19 +1877,11 @@ html[data-theme='dark'] [data-yc-app] ::selection {
  * bg/border/shadow utilities on the same element.
  * ------------------------------------------------------------------ */
 .yc-glass-overlay {
-  background: var(--glass-93);
-  border: 1px solid var(--hairline-soft);
+  background: var(--screen);
+  border: 1px solid var(--hairline);
   box-shadow:
     0 12px 34px var(--sh12),
     inset 0 1px 0 var(--glass-inset-hi);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
-  backdrop-filter: blur(24px) saturate(1.4);
-}
-
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .yc-glass-overlay {
-    background: var(--screen);
-  }
 }
 
 /* Material-luxury edge for ELEVATED in-flow cards & stat tiles. NOT a frost:
@@ -1642,14 +1899,12 @@ html[data-theme='dark'] [data-yc-app] ::selection {
    selector beats the library's single-class defaults regardless of import order;
    react-toastify keeps its own layout, positioning, and progress bar. */
 .Toastify .Toastify__toast {
-  background: var(--glass-93);
-  border: 1px solid var(--hairline-soft);
+  background: var(--screen);
+  border: 1px solid var(--hairline);
   border-radius: 14px;
   box-shadow:
     0 12px 34px var(--sh12),
     inset 0 1px 0 var(--glass-inset-hi);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
-  backdrop-filter: blur(24px) saturate(1.4);
   color: var(--ink);
 }
 
@@ -1689,4 +1944,94 @@ html[data-theme='dark'] [data-yc-app] ::selection {
   .yc-page-content {
     padding: 26px 30px;
   }
+}
+
+/* PIMS runs entirely on bone surfaces, where the faint inks above are
+   unreadable - roughly 476 usages measured between 1.90:1 and 2.64:1 against
+   --band, the darkest bone surface: nav labels, metadata lines, counts,
+   weekday labels, empty states. #66635f is the LIGHTEST warm grey that clears
+   4.5 on every bone surface (4.56 on --band, 5.40 on --screen), so it stays as faint as the palette
+   allows while being legible, and stays lighter than --ink-muted (5.31) so the
+   hierarchy still reads.
+
+   Scoped rather than global: the public marketing pages put this same token on
+   always-dark --spot panels, where the lighter value is the correct one.
+
+   The hook is `body:has([data-yc-app])`, not the shell element itself: modals,
+   dropdowns and row-action menus mount through createPortal into document.body,
+   so they are siblings of the shell rather than descendants and would have kept
+   the unreadable values. Marketing pages never render the shell, so body does
+   not match there and they are untouched.
+   --ink-faint2 collapses onto --ink-faint here because between the 4.56 ceiling
+   and --ink-muted there is no room for two passing steps below muted. */
+body:has([data-yc-app]) {
+  --ink-faint: #66635f;
+  --ink-faint2: #66635f;
+  /* The @theme layer aliases these inks, and those aliases are COMPUTED ON
+     :root - so overriding only the short tokens here leaves every alias
+     consumer on the old value.
+
+     These re-declarations are ALIASES, never literals. Every one is on this
+     same element as the inks above, so `var(--ink-faint)` resolves to the
+     scoped value; writing the hex again would be a fourth place to keep in
+     step, which is the drift this whole change exists to stop.
+
+     Only TEXT tokens appear here. Two groups are deliberately absent:
+       - --color-grey-border / --greyborder are borders (OtpModal,
+         UploadImage). Darkening a border is a visible change with no contrast
+         argument behind it.
+       - --color-neutral-500 / -600 are raw ramp steps, not text semantics.
+         neutral-500 also backs `border-neutral-500` in three components and
+         the scrollbar thumb at :216 and :245, so bending it here would darken
+         outlines and scrollbars to fix text. The handful of call sites that
+         reached for `text-neutral-500` directly now use `text-text-tertiary`
+         instead - the semantic token is the one that carries the guarantee. */
+  --color-text-tertiary: var(--ink-faint);
+  --color-text-extra: var(--ink-faint2);
+  --color-grey-text: var(--ink-faint);
+  --color-grey-bg: var(--ink-faint);
+  --black-grey: var(--ink-faint);
+  --black-grey-Text: var(--ink-faint);
+}
+/* Fixed-light product surfaces.
+   /payment-status, /success and /accessibility/report paint on literal white
+   and #e6f2ff regardless of the chosen theme, so the theme-aware scope below
+   is wrong for them: in dark mode it handed them #9d9285, which is 3.05:1 on
+   white and 2.69:1 on the footer band - the light-mode fix reversing itself.
+   These pin the light inks in BOTH themes. Declared on the surface element
+   rather than on body, so it wins for that subtree by proximity. */
+[data-yc-surface='light'] {
+  /* The BODY inks have to be pinned here too, not just the faint ones. The card
+     is a literal `bg-white/80` in both themes, so a themed --ink-body (#e6ddd0 in
+     dark) put the "Payment complete" heading, the session id and the Return home
+     label at 1.34:1 - a white card with white text on it. Each alias is
+     re-declared rather than only its base token: an alias declared at :root
+     computes there and descendants inherit the already-substituted value, so
+     overriding --ink-body alone would not have reached --color-text-primary. */
+  --ink: #1d1c1b;
+  --ink-body: #302f2e;
+  --ink-muted: #5c5956;
+  --color-neutral-900: var(--ink-body);
+  --color-neutral-700: var(--ink-muted);
+  --color-text-primary: var(--color-neutral-900);
+  --color-text-secondary: var(--color-neutral-700);
+  --ink-faint: #66635f;
+  --ink-faint2: #66635f;
+  --color-text-tertiary: var(--ink-faint);
+  --color-text-extra: var(--ink-faint2);
+  --color-grey-text: var(--ink-faint);
+  --color-grey-bg: var(--ink-faint);
+  --black-grey: var(--ink-faint);
+  --black-grey-Text: var(--ink-faint);
+}
+
+html[data-theme='dark'] body:has([data-yc-app]) {
+  --ink-faint: #9d9285;
+  --ink-faint2: #998f82;
+  --color-text-tertiary: var(--ink-faint);
+  --color-text-extra: var(--ink-faint2);
+  --color-grey-text: var(--ink-faint);
+  --color-grey-bg: var(--ink-faint);
+  --black-grey: var(--ink-faint);
+  --black-grey-Text: var(--ink-faint);
 }

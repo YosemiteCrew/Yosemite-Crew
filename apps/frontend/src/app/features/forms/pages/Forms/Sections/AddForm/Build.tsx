@@ -95,63 +95,23 @@ type OptionProp = {
   key: OptionKey;
 };
 
+const opt = (name: string, key: OptionKey): OptionProp => ({ name, key });
+
 const addOptions: OptionProp[] = [
-  {
-    name: 'Long Text',
-    key: 'textarea',
-  },
-  {
-    name: 'Rich Text',
-    key: 'richtext',
-  },
-  {
-    name: 'Short Text',
-    key: 'input',
-  },
-  {
-    name: 'Number',
-    key: 'number',
-  },
-  {
-    name: 'Select List',
-    key: 'dropdown',
-  },
-  {
-    name: 'Single Choice',
-    key: 'radio',
-  },
-  {
-    name: 'Multiple Choice',
-    key: 'checkbox',
-  },
-  {
-    name: 'Yes / No',
-    key: 'boolean',
-  },
-  {
-    name: 'Date',
-    key: 'date',
-  },
-  {
-    name: 'Signature',
-    key: 'signature',
-  },
-  {
-    name: 'Field Group',
-    key: 'group',
-  },
-  {
-    name: 'Medications',
-    key: 'medication',
-  },
-  {
-    name: 'Services / Packages',
-    key: 'service-group',
-  },
-  {
-    name: 'Tasks',
-    key: 'task-group',
-  },
+  opt('Long Text', 'textarea'),
+  opt('Rich Text', 'richtext'),
+  opt('Short Text', 'input'),
+  opt('Number', 'number'),
+  opt('Select List', 'dropdown'),
+  opt('Single Choice', 'radio'),
+  opt('Multiple Choice', 'checkbox'),
+  opt('Yes / No', 'boolean'),
+  opt('Date', 'date'),
+  opt('Signature', 'signature'),
+  opt('Field Group', 'group'),
+  opt('Medications', 'medication'),
+  opt('Services / Packages', 'service-group'),
+  opt('Tasks', 'task-group'),
 ];
 
 type BuilderComponentProps = {

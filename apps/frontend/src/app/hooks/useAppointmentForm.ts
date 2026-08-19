@@ -31,6 +31,7 @@ import { loadInvoicesForOrgPrimaryOrg } from '@/app/features/billing/services/in
 import { EMPTY_APPOINTMENT } from '@/app/features/appointments/constants/emptyAppointment';
 import { AppointmentDraftPrefill } from '@/app/features/appointments/types/calendar';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
+import { Team } from '@/app/features/organization/types/team';
 import { PackageRevamp, ServiceRevamp } from '@/app/features/organization/types/revamp';
 import {
   hasBookableBreakdownItem,
@@ -361,6 +362,133 @@ const applyPrefillSlot = (
   }));
 };
 
+type IncomingPrefillCtx = {
+  teams: Team[];
+  normalizeId: (value?: string) => string;
+  getLeadProfileUrl: (leadId: string) => string | undefined;
+  setPendingPrefill: React.Dispatch<React.SetStateAction<AppointmentDraftPrefill | null>>;
+  setSelectedDate: React.Dispatch<React.SetStateAction<Date>>;
+  setSelectedSlot: React.Dispatch<React.SetStateAction<Slot | null>>;
+  setFormData: React.Dispatch<React.SetStateAction<AppointmentWithCompanion>>;
+};
+
+const applyIncomingPrefill = (prefill: AppointmentDraftPrefill, ctx: IncomingPrefillCtx) => {
+  ctx.setPendingPrefill(prefill);
+  ctx.setSelectedDate(prefill.date);
+  ctx.setSelectedSlot(null);
+  const prefillStart = buildDateInPreferredTimeZone(prefill.date, prefill.minuteOfDay);
+
+  // Prefill lead immediately from teams — before service/slot are chosen.
+  // The pendingPrefill effect re-validates once a slot is matched.
+  const prefillLead = prefill.leadId
+    ? ctx.teams.find(
+        (t) => ctx.normalizeId(t.practionerId || t._id) === ctx.normalizeId(prefill.leadId)
+      )
+    : undefined;
+  const prefillLeadId = prefillLead ? prefillLead.practionerId || prefillLead._id : undefined;
+  const prefillLeadName = prefillLead?.name || prefillLead?.practionerId || prefillLead?._id;
+
+  ctx.setFormData((prev) => ({
+    ...prev,
+    appointmentDate: prefillStart,
+    startTime: prefillStart,
+    endTime: prefillStart,
+    ...(prefillLeadId
+      ? {
+          lead: {
+            id: prefillLeadId,
+            name: prefillLeadName ?? '',
+            profileUrl: ctx.getLeadProfileUrl(prefillLeadId),
+          },
+        }
+      : {}),
+  }));
+};
+
+type ServiceKindSyncCtx = {
+  appointmentKind: AppointmentKind;
+  services: AppointmentCatalogService[];
+  setFormData: React.Dispatch<React.SetStateAction<AppointmentWithCompanion>>;
+  setFormDataErrors: React.Dispatch<React.SetStateAction<AppointmentFormErrors>>;
+  setSelectedSlot: React.Dispatch<React.SetStateAction<Slot | null>>;
+  setTimeSlots: React.Dispatch<React.SetStateAction<Slot[]>>;
+};
+
+// Align the appointment kind with the selected service's preference, or clear a
+// selected service that is no longer bookable.
+const syncServiceSelectionWithKind = (
+  selectedServiceId: string | undefined,
+  ctx: ServiceKindSyncCtx
+) => {
+  if (!selectedServiceId) return;
+  const selectedService = ctx.services.find((service) => service.id === selectedServiceId);
+  if (!selectedService) return;
+  const serviceAppointmentKind = resolveServiceAppointmentKind(
+    selectedService,
+    ctx.appointmentKind
+  );
+  if (serviceAppointmentKind !== ctx.appointmentKind) {
+    ctx.setFormData((prev) => ({
+      ...prev,
+      appointmentKind: serviceAppointmentKind,
+    }));
+    return;
+  }
+  if (isSelectableAppointmentService(selectedService)) return;
+  ctx.setSelectedSlot(null);
+  ctx.setTimeSlots([]);
+  ctx.setFormData((prev) => ({
+    ...prev,
+    appointmentKind: ctx.appointmentKind,
+    appointmentType: {
+      id: '',
+      name: '',
+      speciality: prev.appointmentType?.speciality ?? { id: '', name: '' },
+    },
+    lead: undefined,
+  }));
+  ctx.setFormDataErrors((prev) => ({
+    ...prev,
+    serviceId: 'Select a bookable service.',
+    slot: undefined,
+    leadId: undefined,
+  }));
+};
+
+type SlotScopePruneCtx = {
+  slotScopedSpecialityIds: string[];
+  slotScopedServicesBySpecialityId: Record<string, Array<{ label: string; value: string }>>;
+  setFormData: React.Dispatch<React.SetStateAction<AppointmentWithCompanion>>;
+};
+
+// Empty any speciality/service selection that falls outside the slot-scoped
+// options; each correction self-invalidates on the follow-up render.
+const pruneSelectionsOutsideSlotScope = (
+  appointmentType: AppointmentWithCompanion['appointmentType'],
+  ctx: SlotScopePruneCtx
+) => {
+  const selectedSpecialityId = appointmentType?.speciality.id;
+  if (!selectedSpecialityId) return;
+  if (!ctx.slotScopedSpecialityIds.includes(selectedSpecialityId)) {
+    ctx.setFormData((prev) => ({ ...prev, appointmentType: undefined }));
+    return;
+  }
+  const selectedServiceId = appointmentType?.id;
+  if (!selectedServiceId) return;
+  const allowedServices = ctx.slotScopedServicesBySpecialityId[selectedSpecialityId] ?? [];
+  const hasService = allowedServices.some((option) => option.value === selectedServiceId);
+  if (hasService) return;
+  ctx.setFormData((prev) => ({
+    ...prev,
+    appointmentType: {
+      ...prev.appointmentType,
+      id: '',
+      name: '',
+      speciality: prev.appointmentType?.speciality ?? { id: '', name: '' },
+    },
+  }));
+};
+
 export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
   const {
     onSuccess,
@@ -576,39 +704,15 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
   if (prevInitialPrefill !== initialPrefill) {
     setPrevInitialPrefill(initialPrefill);
     if (initialPrefill) {
-      setPendingPrefill(initialPrefill);
-      setSelectedDate(initialPrefill.date);
-      setSelectedSlot(null);
-      const prefillStart = buildDateInPreferredTimeZone(
-        initialPrefill.date,
-        initialPrefill.minuteOfDay
-      );
-
-      // Prefill lead immediately from teams — before service/slot are chosen.
-      // The pendingPrefill effect re-validates once a slot is matched.
-      const prefillLead = initialPrefill.leadId
-        ? teams.find(
-            (t) => normalizeId(t.practionerId || t._id) === normalizeId(initialPrefill.leadId)
-          )
-        : undefined;
-      const prefillLeadId = prefillLead ? prefillLead.practionerId || prefillLead._id : undefined;
-      const prefillLeadName = prefillLead?.name || prefillLead?.practionerId || prefillLead?._id;
-
-      setFormData((prev) => ({
-        ...prev,
-        appointmentDate: prefillStart,
-        startTime: prefillStart,
-        endTime: prefillStart,
-        ...(prefillLeadId
-          ? {
-              lead: {
-                id: prefillLeadId,
-                name: prefillLeadName ?? '',
-                profileUrl: getLeadProfileUrl(prefillLeadId),
-              },
-            }
-          : {}),
-      }));
+      applyIncomingPrefill(initialPrefill, {
+        teams,
+        normalizeId,
+        getLeadProfileUrl,
+        setPendingPrefill,
+        setSelectedDate,
+        setSelectedSlot,
+        setFormData,
+      });
     }
   }
 
@@ -1053,66 +1157,25 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
       serviceId: formData.appointmentType?.id,
       services,
     });
-    const selectedServiceId = formData.appointmentType?.id;
-    if (selectedServiceId) {
-      const selectedService = services.find((service) => service.id === selectedServiceId);
-      const serviceAppointmentKind = resolveServiceAppointmentKind(
-        selectedService,
-        appointmentKind
-      );
-      if (selectedService && serviceAppointmentKind !== appointmentKind) {
-        setFormData((prev) => ({
-          ...prev,
-          appointmentKind: serviceAppointmentKind,
-        }));
-      } else if (selectedService && selectedService.isBookable === false) {
-        // Inlined isSelectableAppointmentService: calling the helper here makes
-        // React Compiler treat selectedService as mutated during render.
-        setSelectedSlot(null);
-        setTimeSlots([]);
-        setFormData((prev) => ({
-          ...prev,
-          appointmentKind,
-          appointmentType: {
-            id: '',
-            name: '',
-            speciality: prev.appointmentType?.speciality ?? { id: '', name: '' },
-          },
-          lead: undefined,
-        }));
-        setFormDataErrors((prev) => ({
-          ...prev,
-          serviceId: 'Select a bookable service.',
-          slot: undefined,
-          leadId: undefined,
-        }));
-      }
-    }
+    syncServiceSelectionWithKind(formData.appointmentType?.id, {
+      appointmentKind,
+      services,
+      setFormData,
+      setFormDataErrors,
+      setSelectedSlot,
+      setTimeSlots,
+    });
   }
 
   // Prune selections that fall outside the slot-scoped options during render.
   // Each correction empties the offending selection, so the condition
   // self-invalidates on the follow-up render.
   if (calendarSlotFlow && slotScopedSpecialityIds.length) {
-    const selectedSpecialityId = formData.appointmentType?.speciality.id;
-    if (selectedSpecialityId && !slotScopedSpecialityIds.includes(selectedSpecialityId)) {
-      setFormData((prev) => ({ ...prev, appointmentType: undefined }));
-    } else if (selectedSpecialityId && formData.appointmentType?.id) {
-      const selectedServiceId = formData.appointmentType.id;
-      const allowedServices = slotScopedServicesBySpecialityId[selectedSpecialityId] ?? [];
-      const hasService = allowedServices.some((option) => option.value === selectedServiceId);
-      if (!hasService) {
-        setFormData((prev) => ({
-          ...prev,
-          appointmentType: {
-            ...prev.appointmentType,
-            id: '',
-            name: '',
-            speciality: prev.appointmentType?.speciality ?? { id: '', name: '' },
-          },
-        }));
-      }
-    }
+    pruneSelectionsOutsideSlotScope(formData.appointmentType, {
+      slotScopedSpecialityIds,
+      slotScopedServicesBySpecialityId,
+      setFormData,
+    });
   }
 
   const ServiceInfoData = useMemo(() => {

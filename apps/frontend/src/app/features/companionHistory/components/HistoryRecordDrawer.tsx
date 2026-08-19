@@ -17,6 +17,7 @@ import {
   getPrimaryActionLabel,
   resolveHistoryDocumentId,
 } from '@/app/features/companionHistory/utils/historyFormatters';
+import '@/app/ui/tables/GenericTable/Generictable.css';
 
 export type RecordDetailPair = {
   label: string;
@@ -138,10 +139,10 @@ const HistoryRecordDrawer = ({
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
           {results.length > 0 ? (
             <div className="overflow-hidden rounded-[14px] border border-hairline bg-[var(--screen)]">
-              <div className={`${RESULT_GRID_CLASS} bg-[var(--screen-2)] py-2.5`}>
-                <span className={MICRO_CAPTION_CLASS}>Analyte</span>
-                <span className={MICRO_CAPTION_CLASS}>Result</span>
-                <span className={MICRO_CAPTION_CLASS}>Range</span>
+              <div className={`${RESULT_GRID_CLASS} yc-table-head yc-table-head--static px-3.5!`}>
+                <span>Analyte</span>
+                <span>Result</span>
+                <span>Range</span>
               </div>
               {results.map((result) => (
                 <ResultRow key={`${entry.id}-${result.label}`} result={result} />

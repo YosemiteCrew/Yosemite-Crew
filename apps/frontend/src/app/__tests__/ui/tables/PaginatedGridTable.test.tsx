@@ -17,12 +17,13 @@ const GRID_COLUMNS = '1fr 100px 80px';
 const makeRows = (count: number): Row[] =>
   Array.from({ length: count }, (_, i) => ({ id: `r-${i}`, name: `Row ${i}` }));
 
-const renderTable = (rows: Row[], pageSize = 3) =>
+const renderTable = (rows: Row[], pageSize = 3, minWidthPx?: number) =>
   render(
     <PaginatedGridTable
       rows={rows}
       pageSize={pageSize}
       gridColumns={GRID_COLUMNS}
+      minWidthPx={minWidthPx}
       headerCells={HEADER_CELLS}
       itemNoun="items"
       renderRow={(row) => <div key={row.id} data-testid="row" />}
@@ -45,13 +46,33 @@ describe('PaginatedGridTable', () => {
     expect(screen.getByText('Name')).not.toHaveClass('text-right');
     expect(screen.getByText('Amount')).toHaveClass('text-right');
     // The blank-label column still renders a span (keyed by index fallback).
-    const header = container.querySelector('.sticky') as HTMLElement;
+    const header = container.querySelector('.yc-table-head') as HTMLElement;
     expect(header.querySelectorAll('span')).toHaveLength(3);
+  });
+
+  /* The horizontal floor has to clear each caller's fixed tracks plus gaps and
+     gutters. One shared 1080px value left Inventory's twelve columns 76px to
+     split between two fr tracks, collapsing the item name to roughly 48px, so
+     the floor became per-caller — and a silent regression here brings that back. */
+  it('falls back to the 1080px floor when the caller names no width', () => {
+    const { container } = renderTable(makeRows(1));
+
+    const scroller = container.querySelector('[style*="min-width"]') as HTMLElement;
+    expect(scroller).toHaveStyle({ minWidth: '1080px' });
+  });
+
+  it('honours a caller floor wide enough for its own fixed tracks', () => {
+    const { container } = renderTable(makeRows(1), 3, 1320);
+
+    const scroller = container.querySelector('[style*="min-width"]') as HTMLElement;
+    expect(scroller).toHaveStyle({ minWidth: '1320px' });
+    // The default must not win over an explicit floor.
+    expect(scroller).not.toHaveStyle({ minWidth: '1080px' });
   });
 
   it('applies the caller grid track to the header', () => {
     const { container } = renderTable(makeRows(1));
-    const header = container.querySelector('.sticky') as HTMLElement;
+    const header = container.querySelector('.yc-table-head') as HTMLElement;
     expect(header).toHaveStyle({ gridTemplateColumns: GRID_COLUMNS });
   });
 

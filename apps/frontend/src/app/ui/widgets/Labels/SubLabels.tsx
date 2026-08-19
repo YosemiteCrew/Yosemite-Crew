@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { IoOpenOutline } from 'react-icons/io5';
+import { IoAlertCircle, IoCheckmarkCircle, IoOpenOutline } from 'react-icons/io5';
 
 type SubLabelItem = {
   key: string;
@@ -105,7 +105,7 @@ const SubLabels = ({
         const disabledClass = disableClicking ? 'opacity-70 cursor-not-allowed' : '';
         const activeClass =
           activeLabel === label.key
-            ? 'bg-neutral-0! text-(--color-primary-700)! border-text-brand!'
+            ? 'bg-neutral-0! text-[var(--ink)]! border-text-brand!'
             : 'text-black-text border-transparent hover:bg-neutral-0';
         const isLogoOnlyWithRedirect = isLogoOnlyIdexx && Boolean(label.redirectHref);
         const hasEmbeddedRedirect = Boolean(label.redirectHref);
@@ -139,9 +139,21 @@ const SubLabels = ({
               <span className="flex items-center justify-center gap-2 text-center w-full">
                 {label.name}
                 {statuses[label.key] === 'valid' && (
-                  <span className="text-green-600 text-sm">•</span>
+                  <IoCheckmarkCircle
+                    role="img"
+                    title="Section complete"
+                    aria-label="Section complete"
+                    className="size-4 shrink-0 text-[var(--color-pill-success-text)]"
+                  />
                 )}
-                {statuses[label.key] === 'error' && <span className="text-red-500 text-sm">•</span>}
+                {statuses[label.key] === 'error' && (
+                  <IoAlertCircle
+                    role="img"
+                    title="Section has errors"
+                    aria-label="Section has errors"
+                    className="size-4 shrink-0 text-[var(--color-pill-danger-text)]"
+                  />
+                )}
               </span>
             </button>
             {label.redirectHref && !disableClicking && (

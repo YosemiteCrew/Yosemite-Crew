@@ -195,7 +195,9 @@ jest.mock('@/app/features/appointments/components/Calendar/weekHelpers', () => (
 }));
 
 jest.mock('@/app/lib/forms', () => ({
-  formatTimeLabel: () => '10:00 AM',
+  // Honours its input: the real one returns '' for an empty value, and a mock
+  // that always returns a time makes the empty-value branch untestable.
+  formatTimeLabel: (value?: string) => (value ? '10:00 AM' : ''),
 }));
 
 jest.mock('@/app/lib/validators', () => ({
@@ -244,6 +246,45 @@ describe('EditableAccordion Component', () => {
     expect(screen.getByText('A, B')).toBeInTheDocument();
     expect(screen.getAllByText('Feb 1, 2024').length).toBeGreaterThan(0);
     expect(screen.getByText('10:00 AM')).toBeInTheDocument();
+  });
+
+  it('shows a dash for an unset select rather than an empty row', () => {
+    // The task drawer rendered "Priority" as a label with nothing beside it,
+    // which reads as a rendering fault rather than "not set": a select whose
+    // value matches no option fell through resolveLabel to the raw (empty)
+    // value instead of the dash every other row uses.
+    const { container } = render(
+      <EditableAccordion
+        title="Task details"
+        fields={[
+          {
+            label: 'Priority',
+            key: 'priority',
+            type: 'select',
+            options: [{ label: 'High', value: 'high' }],
+          },
+        ]}
+        data={{ priority: '' }}
+        defaultOpen
+      />
+    );
+
+    expect(container.querySelector('.text-right')?.textContent).toBe('-');
+  });
+
+  it('shows a dash for an unset time rather than an empty row', () => {
+    // The read-only `time` row had no empty fallback even though its `timeInput`
+    // sibling always did, so "Due time" rendered blank.
+    const { container } = render(
+      <EditableAccordion
+        title="Schedule"
+        fields={[{ label: 'Due time', key: 'dueTime', type: 'time' }]}
+        data={{ dueTime: '' }}
+        defaultOpen
+      />
+    );
+
+    expect(container.querySelector('.text-right')?.textContent).toBe('-');
   });
 
   it('shows validation errors and blocks save when required fields are empty', async () => {

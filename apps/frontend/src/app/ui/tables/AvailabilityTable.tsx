@@ -10,7 +10,11 @@ import AvailabilityCard from '@/app/ui/cards/AvailabilityCard';
 import { toTitleCase } from '@/app/lib/validators';
 import { getSafeImageUrl } from '@/app/lib/urls';
 
-import { formatWeeklyWorkingHours, getAvailabilityStatusTone } from '@/app/ui/tables/tableUtils';
+import {
+  formatWeeklyWorkingHours,
+  getAvailabilityStatusTone,
+  toSpecialityNames,
+} from '@/app/ui/tables/tableUtils';
 
 import './DataTable.css';
 
@@ -78,17 +82,30 @@ const AvailabilityTable = ({
       label: 'Speciality',
       key: 'speciality',
       width: '18%',
-      render: (item: Team) => (
-        <div className="appointment-profile-title">
-          {Array.isArray(item?.speciality) && item.speciality.length > 0
-            ? item.speciality
-                .map((spec: any) =>
-                  typeof spec === 'string' ? spec : spec?.name || JSON.stringify(spec)
-                )
-                .join(', ')
-            : '-'}
-        </div>
-      ),
+      render: (item: Team) => {
+        const names = toSpecialityNames(item.speciality);
+        if (names.length === 0) return <div className="appointment-profile-title">-</div>;
+        // Joining every speciality made this the only cell in PIMS whose height
+        // tracked its data: six specialities wrapped to six lines and stretched
+        // the row to 159px next to a 67px neighbour. Lead with the first and
+        // count the rest, keeping the full list on hover.
+        const [first, ...rest] = names;
+        // The count is a non-shrinking sibling of the truncating name, not a child
+        // of it: clamping the combined line let a long first speciality push the
+        // "+N" past the clip edge, so the only hint that more existed vanished
+        // exactly when it was needed most.
+        return (
+          <div
+            className="appointment-profile-title flex min-w-0 items-baseline"
+            title={names.join(', ')}
+          >
+            <div className="min-w-0 flex-1 cell-truncate">{first}</div>
+            {rest.length > 0 && (
+              <span className="cell-overflow-count shrink-0">{`+${rest.length}`}</span>
+            )}
+          </div>
+        );
+      },
     },
     {
       label: "Today's Appointment",

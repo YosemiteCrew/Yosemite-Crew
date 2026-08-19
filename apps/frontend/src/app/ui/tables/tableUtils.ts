@@ -114,6 +114,29 @@ export const formatWeeklyWorkingHours = (value: Team['weeklyWorkingHours']) => {
   }).format(parsed);
 };
 
+/** Shown when a speciality record carries neither a name nor a code. */
+export const UNNAMED_SPECIALITY = 'Unnamed speciality';
+
+/**
+ * Specialities arrive either as plain names or as records. A record with no
+ * `name` is still a real assignment, so it has to survive into the count rather
+ * than be dropped - otherwise the summary reads "Cardiology +1" for a
+ * practitioner who holds three. It falls back to any code before a neutral
+ * label; the previous behaviour printed `JSON.stringify(spec)` straight into
+ * the cell, which showed clinicians `{"code":"X1"}`.
+ */
+export const toSpecialityNames = (value: Team['speciality']): string[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((spec: unknown) => {
+      if (typeof spec === 'string') return spec.trim();
+      if (!spec || typeof spec !== 'object') return '';
+      const record = spec as { name?: string; code?: string };
+      return (record.name ?? '').trim() || (record.code ?? '').trim() || UNNAMED_SPECIALITY;
+    })
+    .filter(Boolean);
+};
+
 export const getAvailabilityStatusStyle = (status: string) => {
   switch (status.toLowerCase()) {
     case 'available':
@@ -326,9 +349,9 @@ export const getTaskStatusTone = (status: string): StatusTone => {
 export const getOrganizationStatusStyle = (status: string) => {
   switch (status?.toLowerCase()) {
     case 'active':
-      return { color: 'var(--color-success-400)', backgroundColor: 'var(--color-success-100)' };
+      return { color: 'var(--success-text)', backgroundColor: 'var(--color-success-100)' };
     case 'pending':
-      return { color: 'var(--color-warning-600)', backgroundColor: 'var(--color-warning-100)' };
+      return { color: 'var(--color-warning-900)', backgroundColor: 'var(--color-warning-100)' };
     default:
       return { color: 'var(--color-neutral-0)', backgroundColor: 'var(--color-badge-blue-bg)' };
   }

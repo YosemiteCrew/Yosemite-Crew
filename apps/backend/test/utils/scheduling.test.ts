@@ -187,4 +187,88 @@ describe("scheduling utils", () => {
       },
     });
   });
+
+  it("filters lead mismatches and out-of-tolerance slots from prefill matches", async () => {
+    const matches = await buildCalendarPrefillMatches({
+      inputDate: new Date("2026-06-20T00:00:00.000Z"),
+      timezone: "UTC",
+      minuteOfDay: 540,
+      leadId: "vet-1",
+      contexts: [
+        {
+          matchId: "service-1",
+          organisationId: "org-1",
+          durationMinutes: 30,
+          vetIds: ["vet-1", "vet-2"],
+        },
+      ],
+      utcDateShifts: [0] as const,
+      getBookableWindows: async () => ({
+        date: "2026-06-20",
+        dayOfWeek: "SATURDAY",
+        windows: [
+          // Belongs to another vet: removed by the lead filter.
+          { startTime: "09:00", endTime: "09:30", vetIds: ["vet-2"] },
+          // More than 5 minutes from minuteOfDay: removed by the tolerance
+          // filter.
+          { startTime: "12:00", endTime: "12:30", vetIds: ["vet-1"] },
+          { startTime: "09:00", endTime: "09:30", vetIds: ["vet-1"] },
+        ],
+      }),
+    });
+
+    expect(matches).toHaveLength(1);
+    expect(matches[0]?.slot).toEqual({
+      startTime: "09:00",
+      endTime: "09:30",
+      vetIds: ["vet-1"],
+    });
+  });
+
+  it("sorts prefill matches by start minute, end minute, then match id", async () => {
+    const matches = await buildCalendarPrefillMatches({
+      inputDate: new Date("2026-06-20T00:00:00.000Z"),
+      timezone: "UTC",
+      minuteOfDay: 540,
+      contexts: [
+        {
+          matchId: "service-b",
+          organisationId: "org-1",
+          durationMinutes: 30,
+          vetIds: ["vet-1"],
+        },
+        {
+          matchId: "service-a",
+          organisationId: "org-1",
+          durationMinutes: 30,
+          vetIds: ["vet-1"],
+        },
+      ],
+      utcDateShifts: [0] as const,
+      getBookableWindows: async () => ({
+        date: "2026-06-20",
+        dayOfWeek: "SATURDAY",
+        windows: [
+          { startTime: "09:04", endTime: "09:30", vetIds: ["vet-1"] },
+          { startTime: "09:00", endTime: "09:45", vetIds: ["vet-1"] },
+          { startTime: "09:00", endTime: "09:30", vetIds: ["vet-1"] },
+        ],
+      }),
+    });
+
+    expect(
+      matches.map((match) => [
+        match.matchId,
+        match.meta.localStartMinute,
+        match.meta.localEndMinute,
+      ]),
+    ).toEqual([
+      ["service-a", 540, 570],
+      ["service-b", 540, 570],
+      ["service-a", 540, 585],
+      ["service-b", 540, 585],
+      ["service-a", 544, 570],
+      ["service-b", 544, 570],
+    ]);
+  });
 });

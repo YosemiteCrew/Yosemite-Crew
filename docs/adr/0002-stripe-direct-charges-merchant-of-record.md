@@ -11,18 +11,20 @@ The team also explored Adyen for Platforms as a second payment provider alongsid
 
 ## Decision
 
-- Use Stripe **Standard Connect accounts** per clinic, with **direct charges**: the payment intent/checkout session is created *on the clinic's connected account* (`stripeAccount: organisation.stripeAccountId`), not on the platform account. The clinic is the merchant of record; it bears processing fees, disputes, and refund liability directly with Stripe. The platform takes **no platform fee / application fee**.
+- Use Stripe **Standard Connect accounts** per clinic, with **direct charges**: the payment intent/checkout session is created _on the clinic's connected account_ (`stripeAccount: organisation.stripeAccountId`), not on the platform account. The clinic is the merchant of record; it bears processing fees, disputes, and refund liability directly with Stripe. The platform takes **no platform fee / application fee**.
 - Drop Adyen. For clinics that need financing/point-of-care lending rather than a second card processor, integrate **CareCredit** and **Scratchpay** instead — both are financing partners with a direct clinic-to-provider relationship, so they don't require the platform to become a regulatory principal.
 - Introduce a `PaymentProviderPort` abstraction (in progress, branch `feat/payment-provider-port`, not yet merged to `dev`) so Stripe is one implementation behind a provider-agnostic interface rather than hard-wired throughout the backend, ahead of adding CareCredit/Scratchpay.
 
 ## Consequences
 
 **Good:**
+
 - The platform never holds or moves clinic funds, keeping it out of payment-facilitator/money-transmitter regulatory scope.
 - Clinics keep their own Stripe dashboard, their own dispute/refund relationship with Stripe, and portable payment history if they ever leave the platform.
 - No platform take-rate to justify, explain, or reconcile.
 
 **Bad / accepted trade-offs:**
+
 - Every clinic must complete Stripe Connect onboarding (KYC) before accepting payments — there is no "instant" platform-mediated path.
 - The platform has less visibility/control over the payment flow than it would with destination charges (e.g. it cannot unilaterally hold or redirect funds).
 - The `PaymentProviderPort` abstraction is not yet merged; until it lands, Stripe-specific code exists directly in backend services rather than behind the port.

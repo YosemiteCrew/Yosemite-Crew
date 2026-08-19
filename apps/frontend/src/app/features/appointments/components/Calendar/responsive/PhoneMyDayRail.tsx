@@ -75,7 +75,7 @@ const RailTime = ({ entry }: { entry: MyDayRailEntry }) => {
 const NowMarker = ({ now }: { now: Date }) => (
   <div className="flex items-center gap-[7px]" data-testid="my-day-now-marker">
     <span className="w-[38px] flex-none pr-0.5 text-right">
-      <span className="inline-block rounded-full bg-[var(--blue)] px-1.5 py-0.5 text-[8.5px] font-bold tabular-nums text-white">
+      <span className="inline-block rounded-full bg-[var(--blue-strong)] px-1.5 py-0.5 text-[8.5px] font-bold tabular-nums text-white">
         {formatRailTime(now)}
       </span>
     </span>
@@ -93,17 +93,17 @@ const CompletedAppointmentCard = ({
   <button
     type="button"
     onClick={() => onSelect?.(entry.appointment)}
-    className="flex flex-1 items-center gap-[9px] rounded-xl border border-l-[3px] border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] px-[11px] py-[9px] text-left opacity-85"
+    className="flex flex-1 items-center gap-[9px] rounded-xl border border-l-[3px] border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] px-[11px] py-[9px] text-left"
   >
     <span className="min-w-0 flex-1">
       <span className="block truncate text-[11.5px] font-bold text-[var(--status-completed-text)]">
         {buildAppointmentTitle(entry.appointment)}
       </span>
-      <span className="block truncate text-[9.5px] text-[var(--status-completed-text)] opacity-75">
+      <span className="block truncate text-[9.5px] text-[var(--status-completed-text)]">
         {buildAppointmentSubtitle(entry)}
       </span>
     </span>
-    <span className="flex size-[18px] flex-none items-center justify-center rounded-full bg-[var(--success)] text-white">
+    <span className="flex size-[18px] flex-none items-center justify-center rounded-full bg-[var(--success-strong)] text-[var(--success-strong-ink)]">
       <IoCheckmark size={11} aria-hidden="true" />
     </span>
   </button>
@@ -125,7 +125,7 @@ const UpcomingAppointmentCard = ({
       <span className="block truncate text-[11.5px] font-bold text-[var(--status-upcoming-text)]">
         {buildAppointmentTitle(entry.appointment)}
       </span>
-      <span className="block truncate text-[9.5px] text-[var(--status-upcoming-text)] opacity-75">
+      <span className="block truncate text-[9.5px] text-[var(--status-upcoming-text)]">
         {buildAppointmentSubtitle(entry)}
       </span>
     </span>
@@ -170,7 +170,7 @@ const NextAppointmentCard = ({
         <button
           type="button"
           onClick={() => onOpenWorkspace?.(entry.appointment)}
-          className="flex h-[30px] flex-1 items-center justify-center rounded-full bg-[var(--blue)] text-[10.5px] font-bold text-white"
+          className="flex h-[30px] flex-1 items-center justify-center rounded-full bg-[var(--blue-strong)] text-[10.5px] font-bold text-white"
         >
           Open workspace
         </button>
@@ -231,7 +231,8 @@ const TaskRow = ({
       onClick={() => onToggleTask?.(entry.task)}
       className={clsx(
         'flex size-5 flex-none items-center justify-center rounded-md border-[1.5px] border-[var(--divider)]',
-        entry.isDone && 'border-[var(--success)] bg-[var(--success)] text-white'
+        entry.isDone &&
+          'border-[var(--success-strong)] bg-[var(--success-strong)] text-[var(--success-strong-ink)]'
       )}
     >
       {entry.isDone && <IoCheckmark size={12} aria-hidden="true" />}
@@ -375,7 +376,8 @@ const AnytimePill = ({
         <span
           className={clsx(
             'flex size-3.5 items-center justify-center rounded-[5px] border-[1.5px] border-[var(--divider)]',
-            entry.isDone && 'border-[var(--success)] bg-[var(--success)] text-white'
+            entry.isDone &&
+              'border-[var(--success-strong)] bg-[var(--success-strong)] text-[var(--success-strong-ink)]'
           )}
         >
           {entry.isDone && <IoCheckmark size={9} aria-hidden="true" />}

@@ -393,6 +393,57 @@ describe('DayCalendar (Appointments)', () => {
     expect(screen.getByRole('menuitem', { name: 'Open companion overview' })).toBeInTheDocument();
   });
 
+  it('dims the gaps between visible availability intervals once availability loads', () => {
+    const getVisibleAvailabilityIntervals = jest.fn(() => [
+      { startMinute: 60, endMinute: 120 },
+      { startMinute: 180, endMinute: 240 },
+    ]);
+
+    const { container } = render(
+      <DayCalendar
+        events={[]}
+        date={baseDate}
+        handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        canEditAppointments={false}
+        getVisibleAvailabilityIntervals={getVisibleAvailabilityIntervals}
+        availabilityLoaded
+      />
+    );
+
+    // Window snaps to 0-300 minutes, so the gaps are 0-60, 120-180, and 240-300.
+    const overlays = container.querySelectorAll('[style*="calendar-dim-overlay"]');
+    expect(overlays).toHaveLength(3);
+    expect(getVisibleAvailabilityIntervals).toHaveBeenCalledWith(baseDate);
+  });
+
+  it('highlights drop availability intervals while an appointment is dragged', () => {
+    const getDropAvailabilityIntervals = jest.fn(() => [
+      { startMinute: 60, endMinute: 120 },
+      { startMinute: 180, endMinute: 240 },
+    ]);
+
+    const { container } = render(
+      <DayCalendar
+        events={[timedEvent]}
+        date={baseDate}
+        handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        canEditAppointments
+        draggedAppointmentId="timed"
+        draggedAppointmentLabel="Rex — Grooming"
+        draggedAppointmentDurationMinutes={30}
+        getDropAvailabilityIntervals={getDropAvailabilityIntervals}
+      />
+    );
+
+    const highlights = container.querySelectorAll('.bg-calendar-availability-overlay');
+    expect(highlights).toHaveLength(2);
+    expect(getDropAvailabilityIntervals).toHaveBeenCalledWith(baseDate);
+  });
+
   it('renders a bare day header with no in-grid day arrows', () => {
     // Day navigation is owned by the header toolbar's date-nav pill (covered in
     // Header.test.tsx); the grid's day header is just the frame's label + date.

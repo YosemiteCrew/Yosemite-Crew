@@ -98,7 +98,9 @@
   border: 1px solid var(--hairline);
   border-radius: 6px;
   background: var(--pill-raised);
-  color: var(--ink-faint);
+  /* --ink-muted: the keycap sits on --pill-raised, a LIFTED surface, so the
+     faint step only reached 4.25 against it in dark. */
+  color: var(--ink-muted);
   font-family: var(--font-satoshi);
   font-size: 10.5px;
   font-weight: 700;
@@ -236,7 +238,9 @@
   border: 1px solid var(--hairline);
   border-radius: 6px;
   background: var(--pill-raised);
-  color: var(--ink-faint);
+  /* --ink-muted: the keycap sits on --pill-raised, a LIFTED surface, so the
+     faint step only reached 4.25 against it in dark. */
+  color: var(--ink-muted);
   font-family: var(--font-satoshi);
   font-size: 10.5px;
   font-weight: 700;

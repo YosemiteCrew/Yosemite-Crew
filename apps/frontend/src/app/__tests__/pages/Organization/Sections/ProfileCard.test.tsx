@@ -664,4 +664,55 @@ describe('Organization ProfileCard', () => {
 
     expect(screen.getByText('Full Name')).toBeInTheDocument();
   });
+
+  it('edits dropdown and country fields through their editors', async () => {
+    const onSave = jest.fn().mockResolvedValue(undefined);
+    render(
+      <ProfileCard
+        title="Prefs"
+        fields={[
+          {
+            label: 'Plan',
+            key: 'plan',
+            type: 'dropdown',
+            editable: true,
+            options: [{ label: 'Picked', value: 'picked' }],
+          },
+          { label: 'Country', key: 'country', type: 'country', editable: true },
+        ]}
+        org={{ plan: 'basic', country: 'US' }}
+        onSave={onSave}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Prefs' }));
+    fireEvent.click(screen.getByText('dropdown-Plan'));
+    fireEvent.click(screen.getByText('dropdown-Country'));
+    fireEvent.click(screen.getByText('Save'));
+
+    await waitFor(() =>
+      expect(onSave).toHaveBeenCalledWith(
+        expect.objectContaining({ plan: 'picked', country: 'picked' })
+      )
+    );
+  });
+
+  it('shows a scalar multiSelect value populated by address autofill', () => {
+    render(
+      <ProfileCard
+        title="Address"
+        fields={[
+          { label: 'Address', key: 'address', type: 'googleAddress', editable: true },
+          { label: 'Cities', key: 'city', type: 'multiSelect', editable: false },
+        ]}
+        org={{ address: '', city: '' }}
+        onSave={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Address' }));
+    // The non-editable multiSelect row renders the scalar value set via onMultiChange.
+    fireEvent.click(screen.getByText('addr-country-Address'));
+    expect(screen.getByText('City')).toBeInTheDocument();
+  });
 });

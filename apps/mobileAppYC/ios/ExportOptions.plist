@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Export settings for an App Store / TestFlight build. xcodebuild
+       -exportArchive requires this file and fails without it, which is easy to
+       miss because a local Xcode export supplies these choices through the UI. -->
+  <key>method</key>
+  <string>app-store</string>
+
+  <key>teamID</key>
+  <string>9TZWPYQ45S</string>
+
+  <!-- Symbols are needed for readable crash reports in App Store Connect. -->
+  <key>uploadSymbols</key>
+  <true/>
+
+  <!-- Bitcode has been removed from the toolchain since Xcode 14. -->
+  <key>uploadBitcode</key>
+  <false/>
+
+  <key>signingStyle</key>
+  <string>automatic</string>
+
+  <key>destination</key>
+  <string>export</string>
+</dict>
+</plist>

@@ -44,28 +44,21 @@
     width: auto;
     color: inherit;
     border-radius: 24px 24px 0 0;
-    /* Warm frosted-glass sheet with a top sheen. */
-    background: var(--glass-93);
+    /* Opaque sheet with a top sheen. A bottom sheet carries forms and content,
+       so it follows the overlay rule: no alpha, no backdrop-filter. */
+    background: var(--screen);
     box-shadow:
       0 -18px 60px var(--sh55),
       inset 0 1px 0 var(--glass-inset-hi);
-    -webkit-backdrop-filter: blur(24px) saturate(1.4);
-    backdrop-filter: blur(24px) saturate(1.4);
     padding: 0 20px calc(16px + env(safe-area-inset-bottom, 0px));
     animation: ycPhoneSheetUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    .yc-phone-sheet {
-      background: var(--screen);
-    }
   }
 
   /* Floating field labels straddle the field's top border, so inside a sheet the
      protruding half must match the sheet surface (not the desktop --neutral-0
      panel) or it shows as a lighter cream patch. */
   .yc-phone-sheet .yc-float-label {
-    background: var(--glass-93);
+    background: var(--screen);
   }
 
   /* The grabber, title row and footer are fixed furniture: `flex: none` keeps

@@ -17,6 +17,9 @@ export class AvailabilityServiceError extends Error {
   }
 }
 
+export type AvailabilityStatus =
+  "Consulting" | "Available" | "Off-Duty" | "Unavailable";
+
 const asNonEmptyString = (value: unknown): string | undefined => {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
@@ -303,7 +306,7 @@ const resolveStatusFromSlots = (
   date: string,
   slots: AvailabilitySlotMongo[],
   isOccupiedNow: boolean,
-): "Consulting" | "Available" | "Off-Duty" | "Unavailable" => {
+): AvailabilityStatus => {
   if (isOccupiedNow) return "Consulting";
 
   const activeSlot = slots.some((s) => {
@@ -662,7 +665,7 @@ export const AvailabilityService = {
   async getCurrentStatus(
     organisationId: string,
     userId: string,
-  ): Promise<"Consulting" | "Available" | "Off-Duty" | "Unavailable"> {
+  ): Promise<AvailabilityStatus> {
     const safeOrganisationId = ensureNonEmptyString(
       organisationId,
       "organisationId",
@@ -702,9 +705,7 @@ export const AvailabilityService = {
   async getCurrentStatusBulk(
     organisationId: string,
     userIds: string[],
-  ): Promise<
-    Map<string, "Consulting" | "Available" | "Off-Duty" | "Unavailable">
-  > {
+  ): Promise<Map<string, AvailabilityStatus>> {
     const safeOrganisationId = ensureNonEmptyString(
       organisationId,
       "organisationId",
@@ -718,10 +719,7 @@ export const AvailabilityService = {
       ),
     );
 
-    const statuses = new Map<
-      string,
-      "Consulting" | "Available" | "Off-Duty" | "Unavailable"
-    >();
+    const statuses = new Map<string, AvailabilityStatus>();
     if (ids.length === 0) return statuses;
 
     const nowUtc = dayjs.utc();

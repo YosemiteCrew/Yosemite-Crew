@@ -55,9 +55,15 @@ jest.mock('@/app/features/appointments/components/Calendar/PhoneTaskDayList', ()
 jest.mock('@/app/features/appointments/components/Calendar/common/Header', () => {
   return function MockHeader(props: any) {
     return (
-      <div data-testid="header">
+      <div
+        data-testid="header"
+        data-has-set-week-start={String(typeof props.setWeekStart === 'function')}
+      >
         Header - Current: {props.currentDate.toISOString()}
         <button onClick={() => props.setCurrentDate(new Date('2023-01-02'))}>Change Date</button>
+        <button onClick={() => props.setWeekStart?.(new Date('2023-01-09'))}>
+          Header Next Week
+        </button>
       </div>
     );
   };
@@ -343,6 +349,29 @@ describe('TaskCalendar Component', () => {
       fireEvent.click(screen.getByTestId('phone-view'));
       expect(mockSetActiveTask).toHaveBeenCalledWith(mockTasks[0]);
       expect(mockSetViewPopup).toHaveBeenCalledWith(true);
+    });
+  });
+
+  describe('week navigation', () => {
+    // Header derives `navigatesByWeek` from `activeCalendar === 'week' &&
+    // !!setWeekStart`. TaskCalendar passed setWeekStart to TaskCalendarBody but
+    // NOT to Header, so on the Tasks week view the toolbar ran DAY navigation:
+    // the grid rolled forward one day at a time (Mon 17 - Sun 23 became
+    // Tue 18 - Mon 24) instead of moving a calendar week, and the buttons were
+    // labelled "Previous day" / "Next day" on a week view. Appointments passes
+    // it and pages Mon 17 -> Mon 24.
+    it('hands Header the week setter so the toolbar pages by week', () => {
+      render(<TaskCalendar {...defaultProps} activeCalendar="week" />);
+
+      expect(screen.getByTestId('header')).toHaveAttribute('data-has-set-week-start', 'true');
+    });
+
+    it('drives the same weekStart state the grid renders from', () => {
+      render(<TaskCalendar {...defaultProps} activeCalendar="week" />);
+
+      fireEvent.click(screen.getByText('Header Next Week'));
+
+      expect(mockSetWeekStart).toHaveBeenCalled();
     });
   });
 });

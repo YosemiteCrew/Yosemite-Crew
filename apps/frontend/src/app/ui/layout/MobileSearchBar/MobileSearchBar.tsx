@@ -28,7 +28,7 @@ const MobileSearchBar = ({ placeholder = 'Search' }: MobileSearchBarProps) => {
       />
       <IoIosSearch
         size={18}
-        color="var(--color-neutral-500)"
+        color="var(--color-text-tertiary)"
         aria-hidden="true"
         className="shrink-0"
       />

@@ -115,9 +115,16 @@ export default function AccessibilityReportClient() {
 
   if (submitted) {
     return (
-      <>
+      <div data-yc-app style={{ display: 'contents' }}>
         <main id="main-content" tabIndex={-1} className="mx-auto max-w-2xl px-6 pt-22 pb-16">
+          {/* Pins its inks light because the card is a literal `bg-white` in both
+              themes. Without this the themed --ink-body (#e6ddd0 in dark) put the
+              heading, the body copy and both links at 1.34:1 - white text on a white
+              card, so the whole confirmation read as blank. globals.css:2001 already
+              names /accessibility/report as one of the three fixed-light surfaces
+              that must carry this pin; only /payment-status had it. */}
           <output
+            data-yc-surface="light"
             aria-live="polite"
             className="rounded-2xl border border-card-border bg-white p-8 text-center"
           >
@@ -139,14 +146,19 @@ export default function AccessibilityReportClient() {
           </output>
         </main>
         <Footer />
-      </>
+      </div>
     );
   }
 
   const hasErrors = Object.keys(errors).length > 0;
 
   return (
-    <>
+    // A bone product surface outside the (app) layout, so it opts into the
+    // readable faint inks itself - see body:has([data-yc-app]) in globals.css.
+    // Without it the shared Footer's links resolve the root #8f8984, which is
+    // 3.04:1 on this page's --color-brand-100 band. `display: contents` keeps
+    // it out of the box tree.
+    <div data-yc-app style={{ display: 'contents' }}>
       <main id="main-content" tabIndex={-1} className="mx-auto max-w-2xl px-6 pt-22 pb-16">
         <nav aria-label="Breadcrumb" className="mb-6">
           <ol className="flex items-center gap-2 text-body-4 text-text-secondary list-none p-0 m-0">
@@ -177,7 +189,7 @@ export default function AccessibilityReportClient() {
             id={errorSummaryId}
             role="alert"
             aria-labelledby={`${errorSummaryId}-title`}
-            className="mb-6 rounded-xl border border-error-border bg-danger-50 px-4 py-3"
+            className="mb-6 rounded-xl border border-[var(--error-color)] bg-danger-100 px-4 py-3"
           >
             <h2
               id={`${errorSummaryId}-title`}
@@ -269,6 +281,6 @@ export default function AccessibilityReportClient() {
         </form>
       </main>
       <Footer />
-    </>
+    </div>
   );
 }

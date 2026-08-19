@@ -245,12 +245,12 @@ export const RoomUnitGroupService = {
         assertRoomSupportsUnits(room);
       }
 
-      const unitCount =
-        input.unitCount == null
-          ? undefined
-          : Number.isInteger(input.unitCount)
-            ? input.unitCount
-            : current.unitCount;
+      let unitCount: number | undefined;
+      if (input.unitCount != null) {
+        unitCount = Number.isInteger(input.unitCount)
+          ? input.unitCount
+          : current.unitCount;
+      }
 
       if (unitCount !== undefined && unitCount <= 0) {
         throw new RoomUnitGroupServiceError(

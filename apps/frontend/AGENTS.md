@@ -31,7 +31,68 @@ src/app/ui/
 
 Import from barrel: `import { Button, Card } from '@/app/ui'`
 
-Design-token source of truth: `src/app/globals.css` (`@theme`). `src/app/ui/tokens.md` is reference material only. Never hardcode colors - use `--color-*` CSS tokens.
+Design-token source of truth: `src/app/globals.css`. `src/app/ui/tokens.md` is reference material only. Never hardcode colors.
+
+**There are two token layers and they must agree.** The `@theme` block defines
+`--color-*`, which is what Tailwind utilities compile against (`text-blue-text`,
+`bg-card-hover`). The warm-bone layer below it defines the short runtime names
+(`--blue`, `--ink`, `--screen`, `--hairline`) used by `var(--x)` and arbitrary
+values like `text-[var(--ink-muted)]`. The short forms outnumber `--color-*` in
+the app roughly 3:1, so "use `--color-*`" is not the rule - **use whichever
+layer the surrounding code uses, and never let the two spellings of one concept
+hold separate literals.** Alias one to the other (`--blue-text:
+var(--color-blue-text)`), because a token maintained by hand in both places
+drifts: `--color-blue-text` sat at `var(--blue)` and kept resolving to a
+sub-AA value after `--blue-text` had been fixed.
+
+**Every ink token must clear AA on the DARKEST surface it can land on.** The
+bone palette's darkest is `--band` (#e8e0d2), not `--screen`, so checking
+against `--screen` alone passes things that fail in the wild. The light ramp is
+`--ink` > `--ink-body` > `--ink-soft` > `--ink-muted` (5.31) > `--ink-faint`
+(4.56, the lightest value the palette allows at AA). There is no room below
+`--ink-faint` - `--ink-faint2` is the same value for exactly that reason. If you
+want text fainter than `--ink-faint`, the answer is not a lighter ink; it is
+less text, or a larger size, or a different surface.
+
+That 4.56 ramp is the **app** value. The faint inks are the one deliberately
+two-valued pair in the palette: PIMS gets `#66635f` under
+`body:has([data-yc-app])`, while `:root` keeps `#8f8984` for the marketing
+pages, whose `--spot` sections are always dark and would drop to 2.85:1 if
+darkened. Three consequences, all of which have already shipped as bugs:
+
+1. **The hook is on `body` via `:has()`**, not on the shell element, because
+   overlays `createPortal` out of the shell and would keep the wrong value.
+2. **The TEXT-SEMANTIC aliases must be re-declared with the inks**, since an
+   alias resolves where it is declared - on `:root` - and will not recompute
+   just because its dependency changed lower down. That is
+   `--color-text-tertiary`, `--color-text-extra`, `--color-grey-text`,
+   `--color-grey-bg`, `--black-grey`. The RAW ramp steps
+   (`--color-neutral-500` / `-600`) are deliberately **left alone**: they also
+   back `border-neutral-500` and the scrollbar thumb, so scoping them would
+   darken borders to fix text. Text belongs on a `--color-text-*` token, never
+   on a raw ramp step - `appScopeAliasClosure.test.ts` enforces both halves.
+3. **Opacity composites text too.** A faint ink that passes at full strength
+   fails behind `opacity`, and the ramp bottoms out with no headroom: at 0.45
+   `#66635f` is 1.81:1 on `--band`, and no alpha below 1.0 gets it back to 4.5.
+   Recede a control with a lighter INK, not with opacity.
+
+See `src/app/ui/tokens.md` for the value table and the guard.
+
+**Column headers come from one recipe.** `<GenericTable>` for real tabular
+markup; `<TableHead>` (`src/app/ui/tables/TableHead.tsx`) for grid or flex
+shells. Do not hand-roll a `--screen-2` band with uppercase micro-type - PIMS
+grew five separate recipes that way, and a single page was rendering three of
+them. `src/app/__tests__/ui/tables/tableHeadConsistency.test.ts` fails the build
+if you do, and `Tables/TableHead` in Storybook stacks the table header against
+the shell header so drift shows up as a Chromatic diff. If a shell needs the
+band but NOT the header type - because its labels are proper names rather than
+column nouns - take the band alone; the recipe's uppercase would eat them.
+
+**Fill tokens and text tokens are not interchangeable.** `--blue` is a fill and
+carries no contrast duty; `--blue-text` must clear 4.5:1 on the bone surfaces.
+A fill that carries white text has two duties at once - 4.5:1 for the label and
+3:1 against its own surface, since a selected control may drop its border and
+let the fill alone signal state. That is what `--blue-strong` is for.
 
 ---
 

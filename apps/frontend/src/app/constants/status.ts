@@ -97,78 +97,36 @@ export const getAppointmentStatusTone = (status?: string | null): StatusTone => 
   }
 };
 
+/**
+ * Builds a StatusLabel whose colour tokens all derive from one CSS variable
+ * prefix (`--<prefix>-bg` / `--<prefix>-text` / `--<prefix>-border`). Entries
+ * whose border token comes from elsewhere pass it as `borderOverride`.
+ */
+export const statusLabel = (
+  name: string,
+  key: string,
+  cssPrefix: string,
+  borderOverride?: string
+): StatusLabel => ({
+  name,
+  key,
+  bg: `var(--${cssPrefix}-bg)`,
+  text: `var(--${cssPrefix}-text)`,
+  border: borderOverride ?? `var(--${cssPrefix}-border)`,
+});
+
 export const AppointmentLabels: StatusLabel[] = [
-  {
-    name: 'Requested',
-    key: 'requested',
-    bg: 'var(--status-requested-bg)',
-    text: 'var(--status-requested-text)',
-    border: 'var(--status-requested-border)',
-  },
-  {
-    name: 'Upcoming',
-    key: 'upcoming',
-    bg: 'var(--status-upcoming-bg)',
-    text: 'var(--status-upcoming-text)',
-    border: 'var(--status-upcoming-border)',
-  },
-  {
-    name: 'Checked-in',
-    key: 'checked_in',
-    bg: 'var(--status-checked-in-bg)',
-    text: 'var(--status-checked-in-text)',
-    border: 'var(--status-checked-in-border)',
-  },
-  {
-    name: 'In progress',
-    key: 'in_progress',
-    bg: 'var(--status-in-progress-bg)',
-    text: 'var(--status-in-progress-text)',
-    border: 'var(--status-in-progress-border)',
-  },
-  {
-    name: 'Completed',
-    key: 'completed',
-    bg: 'var(--status-completed-bg)',
-    text: 'var(--status-completed-text)',
-    border: 'var(--status-completed-border)',
-  },
-  {
-    name: 'Cancelled',
-    key: 'cancelled',
-    bg: 'var(--status-cancelled-bg)',
-    text: 'var(--status-cancelled-text)',
-    border: 'var(--status-cancelled-border)',
-  },
+  statusLabel('Requested', 'requested', 'status-requested'),
+  statusLabel('Upcoming', 'upcoming', 'status-upcoming'),
+  statusLabel('Checked in', 'checked_in', 'status-checked-in'),
+  statusLabel('In progress', 'in_progress', 'status-in-progress'),
+  statusLabel('Completed', 'completed', 'status-completed'),
+  statusLabel('Cancelled', 'cancelled', 'status-cancelled'),
 ];
 
 export const TaskLabels: StatusLabel[] = [
-  {
-    name: 'Pending',
-    key: 'pending',
-    bg: 'var(--status-requested-bg)',
-    text: 'var(--status-requested-text)',
-    border: 'var(--status-requested-border)',
-  },
-  {
-    name: 'In progress',
-    key: 'in_progress',
-    bg: 'var(--status-in-progress-bg)',
-    text: 'var(--status-in-progress-text)',
-    border: 'var(--status-in-progress-border)',
-  },
-  {
-    name: 'Completed',
-    key: 'completed',
-    bg: 'var(--status-completed-bg)',
-    text: 'var(--status-completed-text)',
-    border: 'var(--status-completed-border)',
-  },
-  {
-    name: 'Cancelled',
-    key: 'cancelled',
-    bg: 'var(--status-cancelled-bg)',
-    text: 'var(--status-cancelled-text)',
-    border: 'var(--status-cancelled-border)',
-  },
+  statusLabel('Pending', 'pending', 'status-requested'),
+  statusLabel('In progress', 'in_progress', 'status-in-progress'),
+  statusLabel('Completed', 'completed', 'status-completed'),
+  statusLabel('Cancelled', 'cancelled', 'status-cancelled'),
 ];

@@ -13,6 +13,7 @@ import {
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 
 import { useAuthStore } from '@/app/stores/authStore';
+import { useConfirm } from '@/app/ui/overlays/Modal/ConfirmModal';
 
 type ChatProps = {
   activeAppointment: Appointment | null;
@@ -20,6 +21,7 @@ type ChatProps = {
 
 const Chat = ({ activeAppointment }: ChatProps) => {
   const router = useRouter();
+  const { confirm, confirmDialog } = useConfirm();
   const { attributes } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -120,9 +122,12 @@ const Chat = ({ activeAppointment }: ChatProps) => {
     // Prevent duplicate calls if already closing or already closed
     if (closingSession || sessionClosed) return;
 
-    const confirmed = confirm(
-      'Are you sure you want to close this chat session? The client will no longer be able to send messages.'
-    );
+    const confirmed = await confirm({
+      title: 'Close this chat session?',
+      body: 'The client will no longer be able to send messages in this conversation.',
+      confirmLabel: 'Close session',
+      tone: 'danger',
+    });
     if (!confirmed) {
       return;
     }
@@ -217,7 +222,7 @@ const Chat = ({ activeAppointment }: ChatProps) => {
 
         {error && (
           <div className="px-4 py-3 rounded-2xl border border-error bg-neutral-0">
-            <p className="font-satoshi text-[14px] text-error m-0">{error}</p>
+            <p className="font-satoshi text-[14px] text-text-error m-0">{error}</p>
           </div>
         )}
 
@@ -250,6 +255,7 @@ const Chat = ({ activeAppointment }: ChatProps) => {
 
   return (
     <div className="flex flex-col gap-6 w-full flex-1 justify-between overflow-y-auto">
+      {confirmDialog}
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
           <div className="font-satoshi font-medium text-black-text text-[23px]">

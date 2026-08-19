@@ -201,6 +201,26 @@ describe('FormsFilters Component', () => {
     expect(screen.getByTestId('option-Inpatient Schedule')).toBeInTheDocument();
   });
 
+  it('offers the whole taxonomy when no primary org is selected', () => {
+    mockUseOrgStore.mockImplementation((selector: any) =>
+      selector({ primaryOrgId: undefined, orgsById: {} })
+    );
+    renderFilters();
+    openMenu();
+    for (const category of FormsCategoryOptions) {
+      expect(screen.getByTestId(`option-${category}`)).toBeInTheDocument();
+    }
+  });
+
+  it('treats a primary org without a loaded record as an unknown org type', () => {
+    mockUseOrgStore.mockImplementation((selector: any) =>
+      selector({ primaryOrgId: 'org-9', orgsById: {} })
+    );
+    renderFilters();
+    openMenu();
+    expect(screen.getByTestId('option-Custom')).toBeInTheDocument();
+  });
+
   it('offers the whole taxonomy when the org type is unknown', () => {
     renderFilters();
     openMenu();

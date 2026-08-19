@@ -952,6 +952,82 @@ describe("TemplateService.update version handling", () => {
     );
   });
 
+  it("forks a new version reusing the current schema when only render/validation change", async () => {
+    (prisma.template.findUnique as jest.Mock).mockResolvedValue(baseTemplate);
+    (prisma.templateVersion.findUnique as jest.Mock).mockResolvedValue({
+      id: "v1",
+      schemaSnapshot: { sections: [] },
+      renderConfigSnapshot: { r: 1 },
+      validationSnapshot: { v: 1 },
+    });
+
+    const txTemplateUpdate = jest.fn().mockResolvedValue({});
+    const txVersionCreate = jest.fn().mockResolvedValue({});
+    (prisma.$transaction as jest.Mock).mockImplementation(
+      async (callback: any) =>
+        callback({
+          template: { update: txTemplateUpdate },
+          templateVersion: { create: txVersionCreate },
+        }),
+    );
+
+    await TemplateService.update(
+      "tpl-1",
+      {
+        renderConfigSnapshot: { r: 2 },
+        validationSnapshot: { v: 2 },
+      },
+      "org-1",
+    );
+
+    expect(txVersionCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          version: 2,
+          schemaSnapshot: { sections: [] },
+          renderConfigSnapshot: { r: 2 },
+          validationSnapshot: { v: 2 },
+        }),
+      }),
+    );
+  });
+
+  it("updates schema and validation in place while keeping the render config", async () => {
+    (prisma.template.findUnique as jest.Mock).mockResolvedValue({
+      ...baseTemplate,
+      latestVersion: 2,
+      publishedVersion: 1,
+    });
+    (prisma.templateVersion.findUnique as jest.Mock).mockResolvedValue({
+      id: "v2",
+      schemaSnapshot: { sections: [] },
+      renderConfigSnapshot: { r: 1 },
+      validationSnapshot: { v: 1 },
+    });
+
+    await TemplateService.update(
+      "tpl-1",
+      {
+        schemaSnapshot: {
+          sections: [{ id: "s", title: "S", fields: [] }],
+        },
+        validationSnapshot: { v: 2 },
+      },
+      "org-1",
+    );
+
+    expect(prisma.templateVersion.update).toHaveBeenCalledWith({
+      where: { id: "v2" },
+      data: {
+        schemaSnapshot: expect.objectContaining({
+          sections: [expect.objectContaining({ id: "s" })],
+        }),
+        renderConfigSnapshot: { r: 1 },
+        validationSnapshot: { v: 2 },
+      },
+    });
+  });
+
   it("clears description and rules without touching versions", async () => {
     (prisma.template.findUnique as jest.Mock).mockResolvedValue({
       ...baseTemplate,

@@ -4,6 +4,24 @@ import '@testing-library/jest-dom';
 // jest.mock calls below are hoisted above this import, so the component loads with mocked deps.
 import ProtectedIntegrations from '@/app/features/integrations/pages/Integrations';
 
+// The native confirm() these flows used has been replaced by the ConfirmModal
+// hook. Mock the hook so each test can decide the answer without driving the
+// dialog, keeping the assertions focused on the downstream action.
+let mockConfirmResult = true;
+const setConfirmResult = (value: boolean) => {
+  mockConfirmResult = value;
+};
+const mockConfirm = jest.fn(async () => mockConfirmResult);
+jest.mock('@/app/ui/overlays/Modal/ConfirmModal', () => ({
+  useConfirm: () => ({ confirm: mockConfirm, confirmDialog: null }),
+}));
+
+// Default to confirming, so a test that declines cannot leak into the next one.
+beforeEach(() => {
+  mockConfirmResult = true;
+  mockConfirm.mockClear();
+});
+
 // ---------------------------------------------------------------------------
 // Mock handles (declared before jest.mock factories, mirroring the established
 // convention in the sibling Integrations.test.tsx).
@@ -810,26 +828,24 @@ describe('IntegrationsPage — enable/disable IDEXX', () => {
 
   it('disables IDEXX after confirmation from the trash quick action', async () => {
     useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(makeEnabledIdexx());
-    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
+    setConfirmResult(true);
 
     renderPage();
     await waitForPage();
     await waitFor(() => expect(listIdexxIvlsDevicesMock).toHaveBeenCalled());
 
     fireEvent.click(screen.getByRole('button', { name: 'Disable IDEXX quick action' }));
-
-    await waitFor(() => expect(confirmSpy).toHaveBeenCalled());
+    await waitFor(() => expect(mockConfirm).toHaveBeenCalled());
     await waitFor(() => expect(disableIntegrationMock).toHaveBeenCalledWith('org-1', 'IDEXX'));
     await waitFor(() =>
       expect(loadIntegrationsForPrimaryOrgMock).toHaveBeenCalledWith({ force: true, silent: true })
     );
     await flush();
-    confirmSpy.mockRestore();
   });
 
   it('does not disable IDEXX when the confirmation is cancelled', async () => {
     useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(makeEnabledIdexx());
-    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(false);
+    setConfirmResult(false);
 
     renderPage();
     await waitForPage();
@@ -839,17 +855,15 @@ describe('IntegrationsPage — enable/disable IDEXX', () => {
     fireEvent.click(
       within(screen.getByTestId('settings-modal')).getByRole('button', { name: 'Disable IDEXX' })
     );
-
-    await waitFor(() => expect(confirmSpy).toHaveBeenCalled());
+    await waitFor(() => expect(mockConfirm).toHaveBeenCalled());
     expect(disableIntegrationMock).not.toHaveBeenCalled();
     await flush();
-    confirmSpy.mockRestore();
   });
 
   it('surfaces an error when disabling fails', async () => {
     useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(makeEnabledIdexx());
     disableIntegrationMock.mockRejectedValue(new Error('down'));
-    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
+    setConfirmResult(true);
 
     renderPage();
     await waitForPage();
@@ -860,14 +874,13 @@ describe('IntegrationsPage — enable/disable IDEXX', () => {
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Unable to update IDEXX integration status.');
     await flush();
-    confirmSpy.mockRestore();
   });
 
   it('shows "Updating..." in the modal while a disable request is in flight', async () => {
     useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(makeEnabledIdexx());
     const deferred = createDeferred<any>();
     disableIntegrationMock.mockReturnValue(deferred.promise);
-    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
+    setConfirmResult(true);
 
     renderPage();
     await waitForPage();
@@ -889,7 +902,6 @@ describe('IntegrationsPage — enable/disable IDEXX', () => {
     await waitFor(() => expect(loadIntegrationsForPrimaryOrgMock).toHaveBeenCalled());
     await screen.findByRole('button', { name: 'Disable IDEXX' });
     await flush();
-    confirmSpy.mockRestore();
   });
 });
 

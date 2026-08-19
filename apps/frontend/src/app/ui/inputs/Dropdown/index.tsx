@@ -1,29 +1,11 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { IoChevronDown } from 'react-icons/io5';
 import { IoIosWarning } from 'react-icons/io';
+import { useListboxKeyboardNav } from './useDropdownKeyboardNav';
 
 type Option = {
   key: string;
   label: string;
-};
-
-/** Wrap the active option index when navigating with the arrow keys. */
-const wrapActiveIndex = (current: number, optionCount: number, delta: 1 | -1): number => {
-  if (delta === 1) return current + 1 >= optionCount ? 0 : current + 1;
-  return current <= 0 ? optionCount - 1 : current - 1;
-};
-
-/** Compute the active option index when the open/options/selection context changes. */
-const resolveActiveIndex = (
-  open: boolean,
-  options: Option[],
-  activeIndex: number,
-  selectedKey?: string
-): number => {
-  if (!open || options.length === 0) return -1;
-  if (activeIndex >= 0 && activeIndex < options.length) return activeIndex;
-  const selectedIndex = options.findIndex((option) => option.key === selectedKey);
-  return Math.max(selectedIndex, 0);
 };
 
 type DropdownProps = {
@@ -37,13 +19,8 @@ type DropdownProps = {
 const Dropdown = ({ placeholder, options, defaultOption, onSelect, error }: DropdownProps) => {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Option | null>(null);
-  const [activeIndex, setActiveIndex] = useState(-1);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const listboxId = useId();
-  const activeOptionId =
-    activeIndex >= 0 && activeIndex < options.length
-      ? `${listboxId}-option-${options[activeIndex].key}`
-      : undefined;
 
   const [prevDefaultDeps, setPrevDefaultDeps] = useState<{
     defaultOption?: string;
@@ -73,84 +50,26 @@ const Dropdown = ({ placeholder, options, defaultOption, onSelect, error }: Drop
     };
   }, []);
 
-  const [activeIndexDeps, setActiveIndexDeps] = useState({
-    options,
-    open,
-    selectedKey: selected?.key,
-  });
-  if (
-    options !== activeIndexDeps.options ||
-    open !== activeIndexDeps.open ||
-    selected?.key !== activeIndexDeps.selectedKey
-  ) {
-    setActiveIndexDeps({ options, open, selectedKey: selected?.key });
-    setActiveIndex(resolveActiveIndex(open, options, activeIndex, selected?.key));
-  }
-
-  useEffect(() => {
-    if (!open || !activeOptionId) return;
-    document.getElementById(activeOptionId)?.scrollIntoView({ block: 'nearest' });
-  }, [activeOptionId, open]);
-
   const selectOption = (option: Option) => {
     setSelected(option);
     onSelect(option);
     setOpen(false);
   };
 
-  const handleArrowKey = (delta: 1 | -1) => {
-    const optionCount = options.length;
-    if (optionCount === 0) return;
-    if (!open) {
-      setOpen(true);
-      return;
-    }
-    setActiveIndex((current) => wrapActiveIndex(current, optionCount, delta));
-  };
+  const openDropdown = useCallback(() => setOpen(true), []);
+  const closeDropdown = useCallback(() => setOpen(false), []);
 
-  const handleConfirmKey = () => {
-    const optionCount = options.length;
-    if (!open) {
-      setOpen(true);
-      return;
-    }
-    if (activeIndex < 0 || activeIndex >= optionCount) return;
-    selectOption(options[activeIndex]);
-  };
-
-  const handleKeyDown = (event: React.KeyboardEvent) => {
-    const optionCount = options.length;
-    switch (event.key) {
-      case 'Escape':
-        event.preventDefault();
-        setOpen(false);
-        return;
-      case 'ArrowDown':
-        event.preventDefault();
-        handleArrowKey(1);
-        return;
-      case 'ArrowUp':
-        event.preventDefault();
-        handleArrowKey(-1);
-        return;
-      case 'Home':
-        if (!open || optionCount === 0) return;
-        event.preventDefault();
-        setActiveIndex(0);
-        return;
-      case 'End':
-        if (!open || optionCount === 0) return;
-        event.preventDefault();
-        setActiveIndex(optionCount - 1);
-        return;
-      case 'Enter':
-      case ' ':
-        event.preventDefault();
-        handleConfirmKey();
-        return;
-      default:
-    }
-  };
+  const { activeOptionId, setActiveIndex, handleKeyDown } = useListboxKeyboardNav({
+    open,
+    openDropdown,
+    closeDropdown,
+    options,
+    listboxId,
+    selectionKey: selected?.key,
+    getOptionValue: (option) => option.key,
+    isOptionSelected: (option) => option.key === selected?.key,
+    selectOption,
+  });
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -183,7 +102,7 @@ const Dropdown = ({ placeholder, options, defaultOption, onSelect, error }: Drop
       {open && (
         <div
           id={listboxId}
-          className="max-h-[200px] overflow-y-auto scrollbar-hidden z-200 absolute top-[calc(100%_+_4px)] left-0 rounded-[13px] border border-[var(--hairline-soft)] bg-[var(--glass-93)] shadow-[0_24px_60px_var(--sh28)] backdrop-blur-[24px] backdrop-saturate-150 flex flex-col items-stretch gap-px w-full p-1.5"
+          className="max-h-[200px] overflow-y-auto scrollbar-hidden z-200 absolute top-[calc(100%_+_4px)] left-0 rounded-[13px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_24px_60px_var(--sh28)] flex flex-col items-stretch gap-px w-full p-1.5"
         >
           {options.map((option, i) => (
             <button

@@ -500,6 +500,74 @@ describe("Documenso controllers", () => {
       });
     });
 
+    it("falls back to the email and the route org id when name and org id are absent", async () => {
+      req.params = { orgId: "org-fallback" };
+      (req as any).userId = "user-1";
+      mockedPrisma.user.findFirst.mockResolvedValue({
+        email: "nameless@example.com",
+        firstName: null,
+        lastName: null,
+      });
+      mockedOrganizationService.getById.mockResolvedValue({
+        name: "Nameless Vet",
+      });
+      mockedPrisma.userOrganization.findFirst.mockResolvedValue({
+        roleCode: "VETERINARIAN",
+      });
+      mockedDocumensoService.generateExternalRedirectUrl.mockResolvedValue(
+        "https://documenso.example/auth/fallback",
+      );
+
+      await DocumensoAuthController.createRedirectUrl(
+        req as Request<{ orgId: string }>,
+        res as Response,
+      );
+
+      expect(
+        mockedDocumensoService.generateExternalRedirectUrl,
+      ).toHaveBeenCalledWith({
+        email: "nameless@example.com",
+        name: "nameless@example.com",
+        businessId: "org-fallback",
+        businessName: "Nameless Vet",
+        role: "MANAGER" satisfies DocumensoExternalRole,
+      });
+      expect(statusMock).toHaveBeenCalledWith(200);
+    });
+
+    it("maps admins to ADMIN", async () => {
+      req.params = { orgId: "org-1" };
+      (req as any).userId = "user-1";
+      mockedPrisma.user.findFirst.mockResolvedValue({
+        email: "admin@example.com",
+        firstName: "Ad",
+        lastName: "Min",
+      });
+      mockedOrganizationService.getById.mockResolvedValue({
+        id: "org-1",
+        name: "Admin Vet",
+      });
+      mockedPrisma.userOrganization.findFirst.mockResolvedValue({
+        roleCode: "admin",
+      });
+      mockedDocumensoService.generateExternalRedirectUrl.mockResolvedValue(
+        "https://documenso.example/auth/admin",
+      );
+
+      await DocumensoAuthController.createRedirectUrl(
+        req as Request<{ orgId: string }>,
+        res as Response,
+      );
+
+      expect(
+        mockedDocumensoService.generateExternalRedirectUrl,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          role: "ADMIN" satisfies DocumensoExternalRole,
+        }),
+      );
+    });
+
     it("returns 500 when redirect generation throws", async () => {
       req.params = { orgId: "org-1" };
       (req as any).userId = "user-1";
@@ -594,6 +662,28 @@ describe("Documenso controllers", () => {
         res as Response,
       );
 
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "apiToken is required.",
+      });
+    });
+
+    it("signs an absent body as an empty object and then rejects the missing apiToken", async () => {
+      req.params = { orgId: "org-1" };
+      req.body = undefined;
+      req.headers = {
+        "x-documenso-signature": buildSignature(
+          Buffer.from("{}"),
+          "key-secret",
+        ),
+      };
+
+      await DocumensoKeyController.storeApiKey(
+        req as Request<{ orgId: string }>,
+        res as Response,
+      );
+
+      expect(mockedPrisma.organization.findFirst).not.toHaveBeenCalled();
       expect(statusMock).toHaveBeenCalledWith(400);
       expect(jsonMock).toHaveBeenCalledWith({
         message: "apiToken is required.",

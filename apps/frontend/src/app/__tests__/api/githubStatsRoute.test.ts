@@ -49,13 +49,20 @@ describe('github-stats route handler', () => {
     globalThis.fetch = originalFetch;
   });
 
-  it('resolves stars, self-hosters and contributors in one response', async () => {
+  it('resolves stars, repository clones and contributors in one response', async () => {
     globalThis.fetch = jest.fn((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes('summary.json'))
         return Promise.resolve(makeRes({ clones: { total: 67134 } }));
       if (url.includes('contributors'))
-        return Promise.resolve(makeRes([], '<u&page=58>; rel="last"'));
+        // 58 people plus 2 bots. The bots must not reach the response.
+        return Promise.resolve(
+          makeRes([
+            ...Array.from({ length: 58 }, () => ({ type: 'User' })),
+            { type: 'Bot' },
+            { type: 'Bot' },
+          ])
+        );
       if (url.endsWith('/Yosemite-Crew'))
         return Promise.resolve(makeRes({ stargazers_count: 2431 }));
       return Promise.resolve(notOk());
@@ -66,7 +73,7 @@ describe('github-stats route handler', () => {
     expect(res.body).toEqual({
       stars: '2.4k',
       starsFull: '2,431',
-      selfHosters: '67,134',
+      repositoryClones: '67,134',
       contributors: '58',
     });
     // Shared caches only: the browser must still ask us, because the surfaces
@@ -88,7 +95,7 @@ describe('github-stats route handler', () => {
     expect(res.body.starsFull).toBe('943');
   });
 
-  it('reads the self-hoster total from the chart dataset shape', async () => {
+  it('reads the clone total from the chart dataset shape', async () => {
     globalThis.fetch = jest.fn((input: RequestInfo | URL) =>
       String(input).includes('summary.json')
         ? Promise.resolve(
@@ -101,7 +108,7 @@ describe('github-stats route handler', () => {
         : Promise.resolve(notOk())
     ) as unknown as FetchLike;
 
-    expect((await call()).body.selfHosters).toBe('67');
+    expect((await call()).body.repositoryClones).toBe('67');
   });
 
   it('treats a chart entry with no clone count as zero', async () => {
@@ -113,7 +120,7 @@ describe('github-stats route handler', () => {
         : Promise.resolve(notOk())
     ) as unknown as FetchLike;
 
-    expect((await call()).body.selfHosters).toBe('5');
+    expect((await call()).body.repositoryClones).toBe('5');
   });
 
   it.each([
@@ -124,14 +131,14 @@ describe('github-stats route handler', () => {
     ],
     ['a summary that is not an object', 'not-json-object'],
     ['a null summary', null],
-  ])('reports no self-hoster count for %s', async (_label, payload) => {
+  ])('reports no clone count for %s', async (_label, payload) => {
     globalThis.fetch = jest.fn((input: RequestInfo | URL) =>
       String(input).includes('summary.json')
         ? Promise.resolve(makeRes(payload))
         : Promise.resolve(notOk())
     ) as unknown as FetchLike;
 
-    expect((await call()).body.selfHosters).toBeNull();
+    expect((await call()).body.repositoryClones).toBeNull();
   });
 
   it('reports no star count when the repo payload has no numeric star field', async () => {
@@ -147,31 +154,41 @@ describe('github-stats route handler', () => {
     expect(res.body.starsFull).toBeNull();
   });
 
-  it('reports no contributor count when the response omits the Link header', async () => {
-    // headers.get returns null rather than an empty string, which is the branch
-    // the `?? ''` fallback exists for.
-    const noLinkHeader = {
+  it('excludes bot accounts from the contributor count', async () => {
+    // dependabot and the Aikido autofix account both appear on the contributor
+    // graph. They are not people and must not inflate the headline figure.
+    const withBots = {
       ok: true,
-      json: () => Promise.resolve([]),
+      json: () =>
+        Promise.resolve([
+          { type: 'User' },
+          { type: 'User' },
+          { type: 'Anonymous' },
+          { type: 'Bot' },
+          { type: 'Bot' },
+        ]),
       headers: { get: () => null },
     } as unknown as Response;
     globalThis.fetch = jest.fn((input: RequestInfo | URL) =>
-      String(input).includes('contributors')
-        ? Promise.resolve(noLinkHeader)
-        : Promise.resolve(notOk())
+      String(input).includes('contributors') ? Promise.resolve(withBots) : Promise.resolve(notOk())
     ) as unknown as FetchLike;
 
-    expect((await call()).body.contributors).toBeNull();
+    // 5 entries, 2 bots, so 3 people. Anonymous entries are real humans whose
+    // commit emails were never linked to an account, so they are kept.
+    expect((await call()).body.contributors).toBe('3');
   });
 
   it.each([
-    ['an empty Link header', ''],
-    ['a Link header without a last page', '<u&page=2>; rel="next"'],
-  ])('reports no contributor count with %s', async (_label, link) => {
+    ['a non-array body', { message: 'nope' }],
+    ['a null body', null],
+  ])('reports no contributor count for %s', async (_label, payload) => {
+    const badShape = {
+      ok: true,
+      json: () => Promise.resolve(payload),
+      headers: { get: () => null },
+    } as unknown as Response;
     globalThis.fetch = jest.fn((input: RequestInfo | URL) =>
-      String(input).includes('contributors')
-        ? Promise.resolve(makeRes([], link))
-        : Promise.resolve(notOk())
+      String(input).includes('contributors') ? Promise.resolve(badShape) : Promise.resolve(notOk())
     ) as unknown as FetchLike;
 
     expect((await call()).body.contributors).toBeNull();
@@ -185,7 +202,7 @@ describe('github-stats route handler', () => {
     expect(res.body).toEqual({
       stars: null,
       starsFull: null,
-      selfHosters: null,
+      repositoryClones: null,
       contributors: null,
     });
     // A transient outage must be retried on the next request, never pinned as
@@ -209,7 +226,7 @@ describe('github-stats route handler', () => {
 
   it.each([
     ['the stars lookup', '/Yosemite-Crew'],
-    ['the self-hosters lookup', 'summary.json'],
+    ['the repository clones lookup', 'summary.json'],
     ['the contributors lookup', 'contributors'],
   ])('survives %s throwing', async (_label, failing) => {
     globalThis.fetch = jest.fn((input: RequestInfo | URL) =>

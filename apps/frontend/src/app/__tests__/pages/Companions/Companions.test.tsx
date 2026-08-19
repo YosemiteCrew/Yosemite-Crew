@@ -321,6 +321,26 @@ describe('Companions page', () => {
     expect(sortPill).toHaveAttribute('aria-pressed', 'true');
   });
 
+  it('marks the selected sort with the shared chip tokens, not the old inset fill', () => {
+    render(<ProtectedCompanions />);
+    const sortPill = screen.getByRole('button', { name: /Last visit/ });
+
+    // Inactive: outline only, muted ink.
+    expect(sortPill).toHaveClass('border-[var(--hairline)]', 'text-[var(--ink-muted)]');
+    expect(sortPill).not.toHaveClass('bg-[var(--chip-selected-bg)]');
+
+    fireEvent.click(sortPill);
+
+    // Selected: the shared ink fill. `--inset` sat within 1.06:1 of the page, so
+    // weight alone used to carry the selection and a revert would look "fine".
+    expect(sortPill).toHaveClass(
+      'border-[var(--chip-selected-border)]',
+      'bg-[var(--chip-selected-bg)]',
+      'text-[var(--chip-selected-ink)]'
+    );
+    expect(sortPill).not.toHaveClass('bg-[var(--inset)]');
+  });
+
   it('opens the companion view from a companionId deep link', async () => {
     searchParamsGetMock.mockReturnValue('c1');
     render(<ProtectedCompanions />);

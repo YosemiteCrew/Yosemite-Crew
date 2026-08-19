@@ -43,6 +43,7 @@ import {
   getTestSpecimen,
   toTitleCase,
 } from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/labTestsUtils';
+import { getIdexxTestSearchProps } from '@/app/features/appointments/pages/AppointmentWorkspace/steps/idexxTestSearchProps';
 import type { IdexxTest } from '@/app/features/integrations/services/types';
 import type { DiagnosticOrder } from '@/app/features/appointments/types/workspace';
 import { getSafeIdexxIframeUrl } from '@/app/lib/urls';
@@ -54,6 +55,7 @@ import {
   normalizeWorkspaceBootstrapForEncounter,
 } from '@/app/features/appointments/services/workspaceAggregateService';
 import { getIdexxCombinedResultsPdfBlob } from '@/app/features/integrations/services/idexxService';
+import '@/app/ui/tables/GenericTable/Generictable.css';
 
 type DiagnosticProvider = 'IDEXX' | 'RAD_ANALYZER';
 
@@ -237,7 +239,7 @@ const RESULTS_ROW_GRID = `grid gap-3 ${RESULTS_COLS} sm:items-center`;
 
 const TableHeadings = ({ rowGrid, columns }: { rowGrid: string; columns: string[] }) => (
   <div
-    className={`${rowGrid} hidden border border-transparent px-4 text-caption-2 font-medium tracking-wide text-text-secondary uppercase [&>span]:truncate sm:grid`}
+    className={`${rowGrid} yc-table-head yc-table-head--static hidden rounded-lg border border-transparent px-4! [&>span]:truncate sm:grid`}
   >
     {columns.map((column, index) => (
       <span key={column} className={index === columns.length - 1 ? 'text-right' : undefined}>
@@ -336,22 +338,8 @@ const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
     <div className="flex flex-col gap-4">
       <SearchDropdown
         placeholder="Search for lab tests"
-        options={s.tests.map((test) => ({
-          value: test.code,
-          label: `${test.display} (${test.code})`,
-          meta: test,
-        }))}
+        {...getIdexxTestSearchProps(s)}
         onSelect={s.selectSearchResult}
-        query={s.selectedTestLabel || s.query}
-        setQuery={(value: string) => {
-          s.setSelectedTestLabel(value);
-          s.setQuery(value);
-        }}
-        minChars={0}
-        onReachEnd={s.loadMoreTests}
-        hasMore={s.testsHasMore}
-        isLoadingMore={s.testsLoadingMore}
-        optionClassName="w-full text-start rounded-2xl! border border-card-border bg-neutral-0 px-3 py-2 mb-2 last:mb-0 hover:bg-neutral-0 transition-colors"
         renderOption={(option) => {
           const test = option.meta as IdexxTest | undefined;
           if (!test) return option.label;
@@ -370,8 +358,8 @@ const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
       />
       <PendingTestConfirmation s={s} />
       <p className="max-w-2xl text-body-4 text-text-secondary">
-        IDEXX test reference data does not explicitly flag tests as in-house vs device-specific in
-        this contract. Use reference lab for external IDEXX ordering.
+        Reference lab tests are submitted to IDEXX for processing. Add the tests you need and place
+        the order; results attach to this appointment when IDEXX returns them.
       </p>
       <div className="flex min-h-24 flex-1 [&>div]:h-full [&>div>div]:h-full [&_textarea]:h-full [&_textarea]:resize-none">
         <FormDesc
@@ -418,7 +406,7 @@ const InhouseOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => {
       <div className="flex flex-col gap-4">
         <p className="max-w-2xl text-body-4 text-text-secondary">
           {terminologyText(
-            'In-house IDEXX workflow requires selecting an IVLS device, then adding the patient to census here. Complete ordering on the IDEXX machine after census is confirmed.'
+            'In-house tests run on your IVLS device. Select the device and add the patient to census here, then complete the order on the IDEXX machine.'
           )}
         </p>
         <output

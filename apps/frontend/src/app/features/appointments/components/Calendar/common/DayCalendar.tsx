@@ -41,6 +41,7 @@ import TimedEventMarker from '@/app/features/appointments/components/Calendar/co
 import { getEventKey } from '@/app/features/appointments/components/Calendar/common/dayCalendarHelpers';
 import { useDayCalendarMarkerInteractions } from '@/app/features/appointments/components/Calendar/common/useDayCalendarMarkerInteractions';
 import { useHasMounted } from '@/app/hooks/useHasMounted';
+import type { AppointmentCalendarInteractionProps } from '@/app/features/appointments/components/Calendar/common/calendarInteractionProps';
 
 type DayCalendarProps = {
   events: Appointment[];
@@ -52,28 +53,7 @@ type DayCalendarProps = {
   handleRescheduleAppointment: (appointment: Appointment) => void;
   handleChangeRoomAppointment?: (appointment: Appointment) => void;
   handleAcceptAppointment?: (appointment: Appointment) => void;
-  canEditAppointments: boolean;
-  draggedAppointmentId?: string | null;
-  draggedAppointmentLabel?: string | null;
-  canDragAppointment?: (appointment: Appointment) => boolean;
-  onAppointmentDragStart?: (appointment: Appointment) => void;
-  onAppointmentDragEnd?: () => void;
-  onAppointmentDropAt?: (date: Date, minuteOfDay: number, targetLeadId?: string) => void;
-  onDragHoverTarget?: (date: Date, targetLeadId?: string) => void;
-  onCreateAppointmentAt?: (date: Date, minuteOfDay: number, targetLeadId?: string) => void;
-  getDropAvailabilityIntervals?: (
-    date: Date,
-    targetLeadId?: string
-  ) => Array<{ startMinute: number; endMinute: number }>;
-  getVisibleAvailabilityIntervals?: (
-    date: Date,
-    targetLeadId?: string
-  ) => Array<{ startMinute: number; endMinute: number }>;
-  draggedAppointmentDurationMinutes?: number;
-  slotStepMinutes?: number;
-  availabilityLoaded?: boolean;
-  skipAutoScroll?: boolean;
-};
+} & AppointmentCalendarInteractionProps;
 
 const shouldIgnoreTimelineCreate = (target: EventTarget | null) => {
   if (!(target instanceof HTMLElement)) return false;

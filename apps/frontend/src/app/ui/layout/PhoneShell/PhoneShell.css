@@ -118,7 +118,10 @@
     height: 6px;
     border: 1.5px solid var(--screen);
     border-radius: 999px;
-    background: var(--pink);
+    /* Twin of .yc-notification-dot in UserHeader.css - same badge, same
+       meaning, so the same blue at both breakpoints. */
+    /* --blue-strong: this fill carries white text, and --blue is 4.09 under it. */
+    background: var(--blue-strong);
   }
 
   /* -------------------------------------------------------------- tab bar */
@@ -205,7 +208,8 @@
     justify-content: center;
     padding: 0 4px;
     border-radius: 999px;
-    background: var(--blue);
+    /* --blue-strong: this fill carries white text, and --blue is 4.09 under it. */
+    background: var(--blue-strong);
     color: #fff;
     font-size: 9px;
     font-weight: 700;
@@ -407,6 +411,18 @@
     border-radius: 999px;
     background: var(--success);
     animation: ycPhonePulseDot 3.4s ease-out infinite;
+  }
+
+  .yc-phone-more-status-warning .yc-phone-more-status-dot {
+    background: var(--amber);
+  }
+
+  .yc-phone-more-status-danger .yc-phone-more-status-dot {
+    background: var(--danger);
+  }
+
+  .yc-phone-more-status-neutral .yc-phone-more-status-dot {
+    background: var(--ink-faint);
   }
 
   .yc-phone-more-status-url {

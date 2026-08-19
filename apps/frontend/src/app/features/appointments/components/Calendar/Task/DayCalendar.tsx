@@ -19,7 +19,7 @@ import {
   useNowIndicator,
   useSlotOffsetMinutes,
 } from '@/app/features/appointments/components/Calendar/useCalendarSlots';
-import { DropAvailabilityInterval } from '@/app/features/appointments/components/Calendar/availabilityIntervals';
+import type { TaskCalendarInteractionProps } from '@/app/features/appointments/components/Calendar/Task/taskCalendarInteractionProps';
 
 const HOUR_ROW_GAP_PX = 0;
 
@@ -31,23 +31,7 @@ type DayCalendarProps = {
   handleChangeStatusTask?: (task: Task) => void;
   handleRescheduleTask?: (task: Task) => void;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
-  canEditTasks?: boolean;
-  draggedTaskId?: string | null;
-  draggedTaskLabel?: string | null;
-  canDragTask?: (task: Task) => boolean;
-  onTaskDragStart?: (task: Task) => void;
-  onTaskDragEnd?: () => void;
-  onTaskDropAt?: (date: Date, minuteOfDay: number, targetAssigneeId?: string) => void;
-  onCreateTaskAt?: (date: Date, minuteOfDay: number, targetAssigneeId?: string) => void;
-  onDragHoverTarget?: (date: Date, targetAssigneeId?: string) => void;
-  getDropAvailabilityIntervals?: (
-    date: Date,
-    targetAssigneeId?: string
-  ) => DropAvailabilityInterval[];
-  draggedTaskDurationMinutes?: number;
-  slotStepMinutes?: number;
-  resolveDisplayName?: (memberId?: string) => string;
-};
+} & TaskCalendarInteractionProps;
 
 const DayCalendar = ({
   events,
@@ -115,8 +99,8 @@ const DayCalendar = ({
       <div className="flex items-center justify-between p-2 border-b border-card-border">
         <Back onClick={handlePrevDay} />
         <div className="flex items-center gap-2 text-center">
-          <div className="text-body-4 text-(--color-primary-700)">{weekday}</div>
-          <div className="text-body-4-emphasis text-white size-10 flex items-center justify-center rounded-full bg-text-brand">
+          <div className="text-body-4 text-[var(--blue-text)]">{weekday}</div>
+          <div className="text-body-4-emphasis text-white size-10 flex items-center justify-center rounded-full bg-[var(--blue-strong)]">
             {dateNumber}
           </div>
         </div>
@@ -199,13 +183,26 @@ const DayCalendar = ({
                       top: nowPosition.topPx,
                     }}
                   >
+                    {/* Matches common/HorizontalLines.tsx:102-125, which this page's own
+                        Team tab already renders. The now-line was red here, red-but-a
+                        different-red on the Week tab, and blue on Team, so the same page
+                        changed the colour of the same line between its own tabs. */}
                     {nowTimeLabel && (
-                      <div className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold text-danger-700 whitespace-nowrap">
+                      <div
+                        className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold whitespace-nowrap"
+                        style={{ color: 'var(--blue-text)' }}
+                      >
                         {nowTimeLabel}
                       </div>
                     )}
-                    <div className="absolute left-[-5px] size-3 rounded-full bg-red-500 translate-y-[-50%]" />
-                    <div className="border-t-2 border-t-red-500 translate-y-[-50%]" />
+                    <div
+                      className="absolute left-[-5px] size-[7px] rounded-full translate-y-[-50%]"
+                      style={{ backgroundColor: 'var(--blue)' }}
+                    />
+                    <div
+                      className="translate-y-[-50%] border-t-2 border-solid"
+                      style={{ borderTopColor: 'var(--blue)', opacity: 0.75 }}
+                    />
                   </div>
                 </div>
               </div>

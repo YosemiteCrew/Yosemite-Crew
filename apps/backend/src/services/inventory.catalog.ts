@@ -282,6 +282,18 @@ export function validateInventoryCategorySelection(
   };
 }
 
+const normalizeExpiryDate = (
+  expiryDate: Date | string | null | undefined,
+): Date | null => {
+  if (expiryDate instanceof Date) {
+    return expiryDate;
+  }
+  if (expiryDate) {
+    return new Date(expiryDate);
+  }
+  return null;
+};
+
 export function calculateInventoryStockStatus(args: {
   active: boolean;
   currentStock: number;
@@ -304,12 +316,7 @@ export function calculateInventoryStockStatus(args: {
     return "Out of stock" as const;
   }
 
-  const normalizedExpiry =
-    expiryDate instanceof Date
-      ? expiryDate
-      : expiryDate
-        ? new Date(expiryDate)
-        : null;
+  const normalizedExpiry = normalizeExpiryDate(expiryDate);
   if (normalizedExpiry && !Number.isNaN(normalizedExpiry.getTime())) {
     const now = new Date();
     const daysUntilExpiry = Math.ceil(

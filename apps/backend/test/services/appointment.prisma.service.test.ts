@@ -4392,4 +4392,230 @@ describe("AppointmentPrismaService", () => {
       expect((result as any).appointment.appointmentKind).toBe("INPATIENT");
     });
   });
+  // -------------------------------------------------------------------------
+  // Remaining conditional arms: the fallback halves of the encounter / case
+  // resolution used by check-in, the IN_PROGRESS transition and admission.
+  // -------------------------------------------------------------------------
+  describe("encounter and case fallbacks", () => {
+    it("reuses a linked encounter on check-in and reports a null case when the row has none", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
+        makeRow({ status: "UPCOMING", caseId: null, encounterId: "enc_1" }),
+      );
+      mockedPrisma.appointment.update.mockResolvedValue(
+        makeRow({ status: "CHECKED_IN", caseId: null, encounterId: "enc_1" }),
+      );
+      mockedPrisma.invoice.findMany.mockResolvedValue([]);
+
+      const result = await AppointmentPrismaService.checkInAppointment(
+        "appt_1",
+        "org_1",
+      );
+
+      // The already-linked encounter is reused: nothing new is created.
+      expect(mockedPrisma.encounter.create).not.toHaveBeenCalled();
+      expect(mockedPrisma.case.create).not.toHaveBeenCalled();
+      expect(mockedPrisma.appointment.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "appt_1" },
+          data: expect.objectContaining({
+            status: "CHECKED_IN",
+            encounterId: "enc_1",
+          }),
+        }),
+      );
+      expect((result as any).encounterId).toBe("enc_1");
+    });
+
+    it("creates an outpatient case and encounter on an IN_PROGRESS transition and tolerates an unreadable encounter", async () => {
+      // No caseId, no encounterId and an OUTPATIENT kind: the case must be
+      // created from the patched row, and a stamp against an encounter that can
+      // no longer be read must be a no-op rather than a crash.
+      mockedTypes.fromAppointmentRequestDTO.mockReturnValue({
+        ...baseDomain,
+        status: "IN_PROGRESS",
+        appointmentKind: "OUTPATIENT",
+        caseId: undefined,
+        encounterId: undefined,
+        concern: undefined,
+      } as any);
+      mockedPrisma.appointment.findUnique.mockResolvedValue(
+        makeRow({
+          status: "CHECKED_IN",
+          appointmentKind: "OUTPATIENT",
+          caseId: null,
+          encounterId: null,
+          concern: "Row concern",
+        }),
+      );
+      mockedPrisma.case.create.mockResolvedValue({ id: "case_new" } as any);
+      mockedPrisma.encounter.create.mockResolvedValue({
+        id: "enc_new",
+      } as any);
+      mockedPrisma.encounter.findUnique.mockResolvedValue(null);
+      mockedPrisma.appointment.update.mockResolvedValue(
+        makeRow({
+          status: "IN_PROGRESS",
+          appointmentKind: "OUTPATIENT",
+          caseId: "case_new",
+          encounterId: "enc_new",
+        }),
+      );
+      mockedPrisma.invoice.findMany.mockResolvedValue([]);
+
+      const result = await AppointmentPrismaService.updateAppointmentPMS(
+        "appt_1",
+        { resourceType: "Appointment" } as any,
+      );
+
+      expect(mockedPrisma.case.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          appointmentKind: "OUTPATIENT",
+          title: "Outpatient case",
+          // The concern comes from the row because the payload omitted one.
+          description: "Row concern",
+        }),
+        select: { id: true },
+      });
+      expect(mockedPrisma.encounter.create).toHaveBeenCalled();
+      // The encounter vanished before the stamp, so no update is attempted.
+      expect(mockedPrisma.encounter.update).not.toHaveBeenCalled();
+      expect(mockedPrisma.appointment.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            caseId: "case_new",
+            encounterId: "enc_new",
+          }),
+        }),
+      );
+      expect(result.status).toBe("IN_PROGRESS");
+    });
+
+    it("stamps the transition time on an already-started encounter that never recorded one", async () => {
+      mockedTypes.fromAppointmentRequestDTO.mockReturnValue({
+        ...baseDomain,
+        status: "IN_PROGRESS",
+      } as any);
+      mockedPrisma.appointment.findUnique.mockResolvedValue(
+        makeRow({
+          status: "CHECKED_IN",
+          caseId: "case_1",
+          encounterId: "enc_1",
+        }),
+      );
+      mockedPrisma.case.findUnique.mockResolvedValue({
+        id: "case_1",
+        organisationId: "org_1",
+        patientId: "comp_1",
+      } as any);
+      mockedPrisma.encounter.findUnique.mockResolvedValue({
+        id: "enc_1",
+        caseId: "case_1",
+        organisationId: "org_1",
+        patientId: "comp_1",
+        status: "onleave",
+        periodStart: null,
+      } as any);
+      mockedPrisma.encounter.update.mockResolvedValue({ id: "enc_1" } as any);
+      mockedPrisma.appointment.update.mockResolvedValue(
+        makeRow({
+          status: "IN_PROGRESS",
+          caseId: "case_1",
+          encounterId: "enc_1",
+        }),
+      );
+      mockedPrisma.invoice.findMany.mockResolvedValue([]);
+
+      const before = Date.now();
+      await AppointmentPrismaService.updateAppointmentPMS("appt_1", {
+        resourceType: "Appointment",
+      } as any);
+
+      const stampCall = mockedPrisma.encounter.update.mock.calls.find(
+        ([arg]: any[]) => arg?.where?.id === "enc_1",
+      );
+      const data = stampCall?.[0]?.data as {
+        status: string;
+        periodStart: Date;
+      };
+      // The in-flight status is preserved, but the missing start is backfilled.
+      expect(data.status).toBe("onleave");
+      expect(data.periodStart).toBeInstanceOf(Date);
+      expect(data.periodStart.getTime()).toBeGreaterThanOrEqual(before);
+    });
+
+    it("preserves the admission time as the start of an encounter that is under way without one", async () => {
+      const admittedAt = new Date("2026-06-11T12:00:00.000Z");
+      mockedPrisma.appointment.findUnique.mockResolvedValue(
+        makeRow({
+          status: "CHECKED_IN",
+          appointmentKind: "INPATIENT",
+          caseId: "case_1",
+          encounterId: "enc_1",
+        }),
+      );
+      mockedPrisma.encounter.findUnique.mockResolvedValue({
+        id: "enc_1",
+        caseId: "case_1",
+        organisationId: "org_1",
+        patientId: "comp_1",
+        status: "in-progress",
+        encounterClass: "IMP",
+        appointmentKind: "INPATIENT",
+        periodStart: null,
+        periodEnd: null,
+      } as any);
+      mockedPrisma.encounter.update.mockResolvedValue({ id: "enc_1" } as any);
+      mockedPrisma.admission.findUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue({
+          encounterId: "enc_1",
+          organisationId: "org_1",
+          patientId: "comp_1",
+          unitId: null,
+          expectedStayDays: null,
+          admittedAt,
+          dischargedAt: null,
+          createdAt: admittedAt,
+          updatedAt: admittedAt,
+        } as any);
+      mockedPrisma.admission.upsert.mockResolvedValue({
+        encounterId: "enc_1",
+        organisationId: "org_1",
+        patientId: "comp_1",
+        unitId: null,
+        expectedStayDays: null,
+        admittedAt,
+        dischargedAt: null,
+        createdAt: admittedAt,
+        updatedAt: admittedAt,
+      } as any);
+      mockedPrisma.appointment.update.mockResolvedValue(
+        makeRow({
+          status: "IN_PROGRESS",
+          appointmentKind: "INPATIENT",
+          caseId: "case_1",
+          encounterId: "enc_1",
+        }),
+      );
+      mockedPrisma.invoice.findMany.mockResolvedValue([]);
+
+      await AppointmentPrismaService.admitAppointmentToInpatient(
+        "appt_1",
+        "org_1",
+        { admittedAt } as any,
+      );
+
+      expect(mockedPrisma.encounter.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "enc_1" },
+          data: expect.objectContaining({
+            // Already under way, so the status is kept and the admission time
+            // backfills the missing start.
+            status: "in-progress",
+            periodStart: admittedAt,
+          }),
+        }),
+      );
+    });
+  });
 });

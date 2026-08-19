@@ -455,4 +455,65 @@ describe('ServiceFormDraft', () => {
       expect(totalInput).toHaveValue('');
     });
   });
+
+  describe('failure branches and remaining interactions', () => {
+    it('notifies an error and stays open when saving fails', async () => {
+      mockAddService.mockRejectedValueOnce(new Error('save failed'));
+      render(<ServiceFormDraft {...defaultProps} />);
+      fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Svc' } });
+      fireEvent.change(screen.getByLabelText('Gross amt.'), { target: { value: '100' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save Service' }));
+      await waitFor(() =>
+        expect(mockNotify).toHaveBeenCalledWith(
+          'error',
+          expect.objectContaining({ title: 'Unable to save service' })
+        )
+      );
+      expect(defaultProps.onClose).not.toHaveBeenCalled();
+    });
+
+    it('notifies an error and stays open when deleting fails', async () => {
+      mockDeleteService.mockRejectedValueOnce(new Error('delete failed'));
+      render(<ServiceFormDraft {...defaultProps} editService={mockEditService} />);
+      fireEvent.click(screen.getByText('Delete Service'));
+      fireEvent.click(screen.getByText('Delete'));
+      await waitFor(() =>
+        expect(mockNotify).toHaveBeenCalledWith(
+          'error',
+          expect.objectContaining({ title: 'Unable to delete service' })
+        )
+      );
+      expect(defaultProps.onClose).not.toHaveBeenCalled();
+    });
+
+    it('closes the delete confirmation without deleting when its Cancel is clicked', () => {
+      render(<ServiceFormDraft {...defaultProps} editService={mockEditService} />);
+      fireEvent.click(screen.getByText('Delete Service'));
+      const cancelButtons = screen.getAllByRole('button', { name: 'Cancel' });
+      fireEvent.click(cancelButtons.at(-1) as HTMLElement);
+      expect(mockDeleteService).not.toHaveBeenCalled();
+      expect(defaultProps.onClose).not.toHaveBeenCalled();
+      expect(screen.getAllByRole('button', { name: 'Cancel' })).toHaveLength(1);
+    });
+
+    it('changes duration via the dropdown and saves it', () => {
+      render(<ServiceFormDraft {...defaultProps} />);
+      fireEvent.change(screen.getByLabelText('Duration'), { target: { value: '60' } });
+      fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Svc' } });
+      fireEvent.change(screen.getByLabelText('Gross amt.'), { target: { value: '100' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save Service' }));
+      expect(mockAddService).toHaveBeenCalledWith(expect.objectContaining({ durationMinutes: 60 }));
+    });
+
+    it('defaults cleared discounts to 0 when updating an existing service', () => {
+      render(<ServiceFormDraft {...defaultProps} editService={mockEditService} />);
+      fireEvent.change(screen.getByLabelText('Default Discount (%)'), { target: { value: '' } });
+      fireEvent.change(screen.getByLabelText('Max. Discount (%)'), { target: { value: '' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save Service' }));
+      expect(mockUpdateService).toHaveBeenCalledWith(
+        'svc-edit-1',
+        expect.objectContaining({ defaultDiscount: 0, maxDiscount: 0 })
+      );
+    });
+  });
 });

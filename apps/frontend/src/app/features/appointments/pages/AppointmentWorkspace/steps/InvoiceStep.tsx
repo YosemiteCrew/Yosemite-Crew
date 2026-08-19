@@ -64,6 +64,7 @@ import {
   usePackageBreakdownHydration,
   usePaymentProgress,
 } from './invoiceStepHooks';
+import '@/app/ui/tables/GenericTable/Generictable.css';
 
 type InvoiceStepProps = {
   appointmentId: string;
@@ -450,7 +451,7 @@ export const PaymentProgressOverlay = ({
 export const SettledBadge = ({ invoice }: { invoice: PastInvoice }) => {
   const label = invoice.paidFromDeposit ? 'Withdrawn from Deposit' : 'Invoice Paid';
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-3xl bg-success-600 px-3 py-1 text-caption-1 font-medium text-white">
+    <span className="inline-flex items-center gap-1.5 rounded-3xl bg-[var(--success-strong)] px-3 py-1 text-caption-1 font-medium text-[var(--success-strong-ink)]">
       {label}
       <IoCheckmarkOutline aria-hidden="true" />
     </span>
@@ -470,7 +471,7 @@ export const InvoiceBreakdown = ({
   <SectionContainer title="Breakdown" nested className="bg-neutral-0">
     <div className="flex flex-col gap-2">
       <div
-        className={`${ROW_GRID} px-1 text-caption-2 font-medium tracking-wide text-text-secondary uppercase [&>span]:truncate`}
+        className={`${ROW_GRID} yc-table-head yc-table-head--static rounded-lg px-1! [&>span]:truncate`}
       >
         <span>Item Name</span>
         <span>Unit Price</span>
@@ -558,7 +559,7 @@ const INVOICE_ROW_GRID = `grid gap-3 ${INVOICE_COLS} sm:items-center`;
 export const InvoiceHeadings = () => (
   <div
     // Match the row's p-4 + 1px border so the column origins line up exactly.
-    className={`${INVOICE_ROW_GRID} hidden border border-transparent px-4 text-caption-2 font-medium tracking-wide text-text-secondary uppercase [&>span]:truncate sm:grid`}
+    className={`${INVOICE_ROW_GRID} yc-table-head yc-table-head--static hidden rounded-lg border border-transparent px-4! [&>span]:truncate sm:grid`}
   >
     <span>Invoice ID</span>
     <span>Time / Date</span>
@@ -650,7 +651,7 @@ export const InvoiceRow = ({
             )}
           </span>
           {invoice.paymentMethod && (
-            <span className="inline-flex items-center gap-2 rounded-3xl bg-success-600 px-4 py-2 text-body-4 font-medium text-white">
+            <span className="inline-flex items-center gap-2 rounded-3xl bg-[var(--success-strong)] px-4 py-2 text-body-4 font-medium text-[var(--success-strong-ink)]">
               {PAYMENT_LABELS[invoice.paymentMethod]}
               <IoCheckmarkOutline aria-hidden="true" />
             </span>
@@ -1479,7 +1480,7 @@ const useInvoiceStepContent = ({
             />
 
             {errorMessage && (
-              <p role="alert" className="rounded-2xl bg-danger-100 p-3 text-body-4 text-danger-700">
+              <p role="alert" className="rounded-2xl bg-danger-100 p-3 text-body-4 text-text-error">
                 {errorMessage}
               </p>
             )}

@@ -188,22 +188,6 @@ const HERO_GITHUB_BUTTON_STYLE: CSSProperties = {
   border: '1px solid var(--hairline)',
 };
 
-const HERO_AVATAR_BADGE_STYLE: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: 40,
-  height: 40,
-  borderRadius: 9999,
-  boxShadow: '0 0 0 2px var(--page)',
-  background: 'var(--cta)',
-  color: 'var(--inset)',
-  fontSize: 12.5,
-  fontWeight: 700,
-  letterSpacing: '-0.02em',
-  marginLeft: -12,
-};
-
 const MANIFESTO_STATEMENT_STYLE: CSSProperties = {
   display: 'block',
   margin: '32px 0 0',
@@ -697,7 +681,6 @@ function HeroSocialProof() {
             />
           </span>
         ))}
-        <span style={HERO_AVATAR_BADGE_STYLE}>+9k</span>
       </div>
       <div style={{ textAlign: 'left' }}>
         <div
@@ -708,8 +691,8 @@ function HeroSocialProof() {
             color: 'var(--ink-body)',
           }}
         >
-          Trusted by <CountUp value={stats.selfHosters ?? '·'} style={{ color: 'var(--ink)' }} />{' '}
-          self-hosters
+          <CountUp value={stats.repositoryClones ?? '·'} style={{ color: 'var(--ink)' }} />{' '}
+          repository clones
         </div>
         <div style={{ fontSize: 13, letterSpacing: '-0.01em', color: 'var(--ink-6b)' }}>
           Clinics and developers running it in the open, no platform fees.
@@ -2017,8 +2000,8 @@ function BuildingInPublic() {
           }}
         >
           <Metric
-            value={stats.selfHosters ?? '·'}
-            label="Self-hosters"
+            value={stats.repositoryClones ?? '·'}
+            label="Repository clones"
             source="live via GitHub"
             delay={0}
           />

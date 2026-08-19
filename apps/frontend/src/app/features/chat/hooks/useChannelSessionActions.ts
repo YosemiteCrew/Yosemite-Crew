@@ -9,6 +9,7 @@ import { getChatSession } from '@/app/features/chat/services/chatService';
 import { endChatChannel } from '@/app/features/chat/services/streamChatService';
 import { buildWorkspaceHref } from '@/app/lib/appointmentWorkspace';
 import { useNotify } from '@/app/hooks/useNotify';
+import type { ConfirmOptions } from '@/app/ui/overlays/Modal/ConfirmModal';
 
 type UseChannelSessionActionsArgs = {
   channel: StreamChannel | null | undefined;
@@ -16,6 +17,11 @@ type UseChannelSessionActionsArgs = {
   appointmentId?: string;
   backendStatus?: 'active' | 'ended';
   refreshStatuses: () => void;
+  /**
+   * Confirmation for closing a client's session. Supplied by the consumer so a
+   * single dialog instance serves the whole chat surface.
+   */
+  confirm: (options: ConfirmOptions) => Promise<boolean>;
 };
 
 export type ChannelSessionActions = {
@@ -41,6 +47,7 @@ export const useChannelSessionActions = ({
   appointmentId,
   backendStatus,
   refreshStatuses,
+  confirm,
 }: UseChannelSessionActionsArgs): ChannelSessionActions => {
   const { notify } = useNotify();
   const router = useRouter();
@@ -72,9 +79,12 @@ export const useChannelSessionActions = ({
       return;
     }
 
-    const confirmed = confirm(
-      'Are you sure you want to close this chat session? The client will no longer be able to send messages.'
-    );
+    const confirmed = await confirm({
+      title: 'Close this chat session?',
+      body: 'The client will no longer be able to send messages in this conversation.',
+      confirmLabel: 'Close session',
+      tone: 'danger',
+    });
     if (!confirmed) {
       return;
     }

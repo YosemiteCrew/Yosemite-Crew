@@ -222,6 +222,14 @@ const Slotpicker = ({
                 type="button"
                 key={day.toISOString()}
                 ref={isCurrent ? selectedDateRef : null}
+                // Past days were painted at opacity-40 and given
+                // `cursor-not-allowed`, and handleClickDate returns early for
+                // them - but the button was never actually disabled. So they
+                // stayed in the tab order announcing themselves as pressable,
+                // and the dim was not an inactive state that WCAG 1.4.3 exempts,
+                // it was just 2.23:1 text. Marking them disabled makes the
+                // existing visuals honest.
+                disabled={isPast}
                 onClick={() => handleClickDate(day)}
                 className={[
                   'relative flex flex-col gap-1 items-center justify-center px-3 py-2 border rounded-xl! shrink-0 min-w-14',
@@ -266,7 +274,7 @@ const Slotpicker = ({
                 type="button"
                 key={slot.startTime + i}
                 onClick={() => setSelectedSlot(slot)}
-                className={`${selected ? 'bg-blue-text! text-white border-transparent! shadow-[0_6px_16px_var(--glow-b26)]' : 'border-input-border-default! bg-neutral-0 text-text-primary'} px-3.5 h-10 flex items-center justify-center border-[1.5px] rounded-[11px]! font-satoshi text-[12.5px]! font-semibold tabular-nums`}
+                className={`${selected ? 'bg-[var(--blue-strong)] text-white border-transparent! shadow-[0_6px_16px_var(--glow-b26)]' : 'border-input-border-default! bg-neutral-0 text-text-primary'} px-3.5 h-10 flex items-center justify-center border-[1.5px] rounded-[11px]! font-satoshi text-[12.5px]! font-semibold tabular-nums`}
               >
                 {formatUtcTimeToLocalLabel(slot.startTime)}
               </button>

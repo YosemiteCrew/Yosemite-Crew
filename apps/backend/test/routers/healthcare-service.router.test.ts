@@ -1,5 +1,5 @@
 import express from "express";
-import type { Router } from "express";
+import type { NextFunction, Request, Response, Router } from "express";
 
 const requireWebAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissionsMiddleware = jest.fn((_req, _res, next) => next());
@@ -98,5 +98,55 @@ describe("healthcare-service.router", () => {
     const routePath = matchMountedRouteRegexp(String.raw`/\$search-components`);
 
     expect(routePath).toBe(String.raw`/\$search-components`);
+  });
+
+  describe("attachOrganisationIdFromQuery", () => {
+    const attachOrganisationIdFromQuery = findRoute("/", "get")?.stack[1]
+      .handle as (req: Request, res: Response, next: NextFunction) => void;
+
+    const runMiddleware = (
+      query: Record<string, unknown>,
+      params: Record<string, string> = {},
+    ) => {
+      const req = { query, params } as unknown as Request;
+      const next = jest.fn();
+
+      attachOrganisationIdFromQuery(req, {} as Response, next);
+
+      return { req, next };
+    };
+
+    it("copies the organization query into params without the FHIR prefix", () => {
+      const { req, next } = runMiddleware({
+        organization: "Organization/org-1",
+      });
+
+      expect(req.params.organisationId).toBe("org-1");
+      expect(next).toHaveBeenCalledTimes(1);
+    });
+
+    it("falls back to the provided-by query value", () => {
+      const { req, next } = runMiddleware({ "provided-by": "org-2" });
+
+      expect(req.params.organisationId).toBe("org-2");
+      expect(next).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves params untouched when neither query value is a string", () => {
+      const { req, next } = runMiddleware({ organization: ["Organization/a"] });
+
+      expect(req.params.organisationId).toBeUndefined();
+      expect(next).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not overwrite an existing organisationId param", () => {
+      const { req, next } = runMiddleware(
+        { organization: "Organization/org-1" },
+        { organisationId: "already-set" },
+      );
+
+      expect(req.params.organisationId).toBe("already-set");
+      expect(next).toHaveBeenCalledTimes(1);
+    });
   });
 });

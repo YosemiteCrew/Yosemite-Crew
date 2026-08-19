@@ -13,6 +13,27 @@ updates:
       timezone: 'UTC'
     target-branch: dev
     open-pull-requests-limit: 10
+    # Wait this long after a release before proposing it. This is the only
+    # defence in the repo against a compromised maintainer publishing a
+    # malicious version: the attacks that matter are caught and yanked within
+    # hours to days, so the whole value is in not being first to install.
+    #
+    # Dependabot already applies a 3 day cooldown when this block is absent, so
+    # what is bought here is the extra margin, and majors get the longest wait
+    # because they are the least reversible.
+    #
+    # Cooldown does NOT apply to security updates - GitHub exempts them - so an
+    # advisory-driven bump still arrives immediately. Nothing here delays a
+    # patch for a known vulnerability.
+    #
+    # Patches get the same 7 days as minors deliberately. The instinct is to let
+    # patches through faster, but a hijacked package is typically published AS a
+    # patch, so that is the release line the wait most needs to cover.
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+      semver-minor-days: 7
+      semver-patch-days: 7
     # Only labels that exist in the repo. Dependabot cannot create labels, so an
     # unknown name makes it post a config error on every PR it opens instead of
     # applying the label.
@@ -39,8 +60,16 @@ updates:
       # test suite; reanimated and worklets are pinned since the Android build
       # fix (#2052); stripe-react-native and the nitro modules are 0.x native
       # code; react-test-renderer must exactly match the react version RN pins
-      # (its 19.2.8 ride-along failed all 457 suites). RN upgrades are
-      # deliberate migrations with device builds, never weekly PRs.
+      # (its 19.2.8 ride-along failed all 457 suites); react-native-screens is
+      # pinned to 4.24.0 for two separate reasons. 4.26.0+ emit
+      # React.ComponentRef<> in their src/fabric/ codegen specs and RN 0.81.6's
+      # parser accepts only React.ElementRef<>, which was observed failing on
+      # 4.27.0 and 4.26.2 - both iOS pod install and the Android codegen task,
+      # each on a different command (showColumn, setToolbarMenuElementOptions).
+      # 4.25.0's specs are clean and it does build, but it declares
+      # react-native >=0.82.0, so it is unsupported here. 4.24.0 is the last
+      # version that both builds and claims to support 0.81.6 (#2271, #2272).
+      # RN upgrades are deliberate migrations with device builds, never weekly PRs.
       - dependency-name: 'react-native'
         update-types: ['version-update:semver-minor', 'version-update:semver-major']
       - dependency-name: '@react-native/*'
@@ -54,6 +83,8 @@ updates:
       - dependency-name: 'react-native-nitro-*'
         update-types: ['version-update:semver-minor', 'version-update:semver-major']
       - dependency-name: '@stripe/stripe-react-native'
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']
+      - dependency-name: 'react-native-screens'
         update-types: ['version-update:semver-minor', 'version-update:semver-major']
       # react-test-renderer is fully frozen: @testing-library/react-native
       # requires it to EXACTLY equal the react version RN pins, so even the
@@ -87,6 +118,18 @@ updates:
       # accepting anything new.
       - dependency-name: 'ioredis'
         update-types: ['version-update:semver-major']
+      # typescript 7 is the native compiler rewrite and nothing in the toolchain
+      # admits it yet: ts-jest 29.4.12 peers "typescript >=4.3 <7" (no published
+      # release, stable or next, allows 7), and typescript-eslint peers
+      # ">=4.8.4 <6.1.0" on BOTH latest and its canary channel. Because .npmrc
+      # sets auto-install-peers without strict-peer-dependencies, an install
+      # stays green while both contracts are violated, so the breakage only
+      # appears at compile and test time (#2200). TS 7 also removed baseUrl and
+      # made rootDir mandatory alongside outDir, which fails the shared package
+      # builds before any app code compiles. Migration is tracked in #1992 and
+      # has to move with ts-jest and typescript-eslint, not ahead of them.
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
       # @babel/core 8 cannot be installed while the app is on React Native
       # 0.81: @react-native/babel-preset asserts Babel "^7.0.0-0" at load time
       # and throws "Requires Babel ^7.0.0-0, but was loaded with 8.0.1" for
@@ -94,6 +137,18 @@ updates:
       # not something a config can work around. Unfreeze with the React Native
       # upgrade that ships a Babel 8 compatible preset.
       - dependency-name: '@babel/core'
+        update-types: ['version-update:semver-major']
+      # @babel/runtime 8 is blocked by the same Babel-8-too-early constraint,
+      # but fails differently and later: 8.0.0 drops the "./regenerator"
+      # export subpath, keeping only "./helpers/regenerator*". Two packages
+      # still import the old path - posthog-react-native (4 files, including
+      # in its current 4.63.2, so there is nothing to upgrade to) and
+      # react-native-vector-icons (1 file) - so Metro cannot resolve it and
+      # :app:createBundleReleaseJsAndAssets
+      # dies. That task only runs for RELEASE builds, so assembleDebug and
+      # every jest suite stay green while release is broken (#2109 shipped it
+      # unnoticed on 2026-08-09). Unfreeze alongside @babel/core.
+      - dependency-name: '@babel/runtime'
         update-types: ['version-update:semver-major']
       # eslint 10 is blocked in two workspaces at once (#2180), so the repo
       # stays on 9 until both clear:
@@ -169,6 +224,11 @@ updates:
       timezone: 'UTC'
     target-branch: dev
     open-pull-requests-limit: 5
+    # Same rationale as the npm entry above. Bundler supports cooldown; only
+    # `default-days` is used because the CocoaPods toolchain gems are few and
+    # do not need per-semver tuning.
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: 'chore(mobile)'
     labels:
@@ -190,6 +250,12 @@ updates:
       timezone: 'UTC'
     target-branch: dev
     open-pull-requests-limit: 10
+    # No `cooldown` here, and that is not an oversight: GitHub does not support
+    # cooldown for the github-actions ecosystem, and it is listed as "not
+    # currently supported" in the options reference. Adding it would be an
+    # unrecognised key rather than a longer wait. Actions are pinned by commit
+    # SHA throughout .github/workflows, which is the mitigation that applies to
+    # this ecosystem instead.
     commit-message:
       prefix: 'ci(repo)'
     labels:

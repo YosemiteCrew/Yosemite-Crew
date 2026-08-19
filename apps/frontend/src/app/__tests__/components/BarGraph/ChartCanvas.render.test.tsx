@@ -19,13 +19,13 @@ jest.mock('recharts', () => {
 });
 
 const data = [
-  { month: 'Apr 1', dayNumber: 1, 'Self Hosters': 6, Builders: 2 },
-  { month: 'Apr 2', dayNumber: 2, 'Self Hosters': 9, Builders: 4 },
-  { month: 'Apr 3', dayNumber: 3, 'Self Hosters': 3, Builders: 7 },
+  { month: 'Apr 1', dayNumber: 1, 'Repository clones': 6, Builders: 2 },
+  { month: 'Apr 2', dayNumber: 2, 'Repository clones': 9, Builders: 4 },
+  { month: 'Apr 3', dayNumber: 3, 'Repository clones': 3, Builders: 7 },
 ];
 
 const keys = [
-  { name: 'Self Hosters', color: '#123456' },
+  { name: 'Repository clones', color: '#123456' },
   { name: 'Builders', color: '#654321' },
 ];
 

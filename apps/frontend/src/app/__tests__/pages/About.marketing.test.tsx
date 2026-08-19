@@ -24,7 +24,7 @@ jest.mock('next/image', () => ({
 const mockStats = {
   stars: '2.4k',
   starsFull: '2,431',
-  selfHosters: '67,134',
+  repositoryClones: '67,134',
   contributors: '58',
   discord: '412',
 };
@@ -117,7 +117,7 @@ describe('About (marketing)', () => {
     expect(screen.getByText('412')).toBeInTheDocument();
     expect(screen.getByText('2,431')).toBeInTheDocument();
 
-    expect(screen.getByText('Self-hosters')).toBeInTheDocument();
+    expect(screen.getByText('Repository clones')).toBeInTheDocument();
     expect(screen.getByText('Contributors')).toBeInTheDocument();
     expect(screen.getByText('Discord members')).toBeInTheDocument();
     expect(screen.getByText('Repo stars')).toBeInTheDocument();

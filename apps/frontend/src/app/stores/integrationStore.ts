@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { IntegrationProvider, OrgIntegration } from '@/app/features/integrations/services/types';
+import { loadingStatusActions } from '@/app/stores/loadingStatusActions';
 
 type IntegrationStoreStatus = 'idle' | 'loading' | 'loaded' | 'error';
 
@@ -120,12 +121,5 @@ export const useIntegrationStore = create<IntegrationState>()((set, get) => ({
       lastFetchedAt: null,
     })),
 
-  startLoading: () => set(() => ({ status: 'loading', error: null })),
-  endLoading: () =>
-    set(() => ({
-      status: 'loaded',
-      error: null,
-      lastFetchedAt: new Date().toISOString(),
-    })),
-  setError: (message) => set(() => ({ status: 'error', error: message })),
+  ...loadingStatusActions(set),
 }));

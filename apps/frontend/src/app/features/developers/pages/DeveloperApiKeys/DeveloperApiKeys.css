@@ -134,8 +134,11 @@
   border-top: 1px solid var(--color-card-border);
 }
 
-.dev-keys-row.is-revoked {
-  opacity: 0.6;
+/* A revoked key is called out by its status cell, not by dimming the row: at
+   0.6 the row's --color-text-tertiary cells composited to about 2.5:1, and a
+   revoked row is informational text, not an inactive control. */
+.dev-keys-row.is-revoked .dev-key-name {
+  color: var(--ink-muted);
 }
 
 /* Just-created key row — tied visually to the reveal banner above it. */

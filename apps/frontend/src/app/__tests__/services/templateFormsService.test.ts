@@ -336,6 +336,154 @@ describe('templateFormsService', () => {
     expect(upsertForm).toHaveBeenCalledWith(expect.objectContaining({ _id: 'tpl-1' }));
   });
 
+  it('surfaces the API error message when saving fails with an axios error', async () => {
+    (postData as jest.Mock).mockRejectedValue({
+      isAxiosError: true,
+      message: 'Request failed',
+      response: { data: { message: 'Name already in use' } },
+    });
+
+    await expect(
+      saveTemplateFormDraft(
+        {
+          name: 'SOAP',
+          category: 'SOAP',
+          usage: 'Internal',
+          updatedBy: '',
+          lastUpdated: '',
+          schema: [],
+        },
+        'org-1'
+      )
+    ).rejects.toMatchObject({ message: 'Request failed' });
+
+    expect(setError).toHaveBeenCalledWith('Name already in use');
+    expect(upsertForm).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the axios error message when the response has no message', async () => {
+    (postData as jest.Mock).mockRejectedValue({
+      isAxiosError: true,
+      message: 'Network down',
+    });
+
+    await expect(
+      saveTemplateFormDraft(
+        {
+          name: 'SOAP',
+          category: 'SOAP',
+          usage: 'Internal',
+          updatedBy: '',
+          lastUpdated: '',
+          schema: [],
+        },
+        'org-1'
+      )
+    ).rejects.toMatchObject({ message: 'Network down' });
+
+    expect(setError).toHaveBeenCalledWith('Network down');
+  });
+
+  it('uses the generic save message for non-axios errors', async () => {
+    (postData as jest.Mock).mockRejectedValue(new Error('boom'));
+
+    await expect(
+      saveTemplateFormDraft(
+        {
+          name: 'SOAP',
+          category: 'SOAP',
+          usage: 'Internal',
+          updatedBy: '',
+          lastUpdated: '',
+          schema: [],
+        },
+        'org-1'
+      )
+    ).rejects.toThrow('boom');
+
+    expect(setError).toHaveBeenCalledWith('Unable to save template');
+  });
+
+  it('keeps the saved draft when the catalog link sync fails', async () => {
+    (postData as jest.Mock).mockResolvedValue({ data: { id: 'tpl-new', name: 'SOAP' } });
+    (patchData as jest.Mock).mockRejectedValue(new Error('link failed'));
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const result = await saveTemplateFormDraft(
+      {
+        name: 'SOAP',
+        category: 'SOAP',
+        usage: 'Internal',
+        updatedBy: '',
+        lastUpdated: '',
+        schema: [],
+        services: ['svc-1'],
+      },
+      'org-1'
+    );
+
+    // The template itself saved; the link failure is logged but the draft is not lost.
+    expect(result).toEqual(expect.objectContaining({ _id: 'tpl-new' }));
+    expect(setError).toHaveBeenCalledWith('Unable to update template catalog links');
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Failed to sync template catalog links',
+      expect.any(Error)
+    );
+    consoleSpy.mockRestore();
+  });
+
+  it('rejects catalog-link updates, publish, unpublish, and archive without a template id', async () => {
+    const form: FormsProps = {
+      name: 'SOAP',
+      category: 'SOAP',
+      usage: 'Internal',
+      updatedBy: '',
+      lastUpdated: '',
+      schema: [],
+    };
+
+    await expect(updateTemplateFormCatalogLinks(form, 'org-1', ['svc-1'])).rejects.toThrow(
+      'Template id is required to update catalog links'
+    );
+    await expect(publishTemplateForm(form, 'org-1')).rejects.toThrow(
+      'Template id is required to publish template'
+    );
+    await expect(unpublishTemplateForm(form, 'org-1')).rejects.toThrow(
+      'Template id is required to unpublish template'
+    );
+    await expect(archiveTemplateForm(form, 'org-1')).rejects.toThrow(
+      'Template id is required to archive template'
+    );
+    expect(patchData).not.toHaveBeenCalled();
+    expect(postData).not.toHaveBeenCalled();
+    expect(deleteData).not.toHaveBeenCalled();
+  });
+
+  it('sets a fallback error and rethrows when publish, unpublish, or archive fails', async () => {
+    (postData as jest.Mock).mockRejectedValue(new Error('publish down'));
+    (patchData as jest.Mock).mockRejectedValue(new Error('unpublish down'));
+    (deleteData as jest.Mock).mockRejectedValue(new Error('archive down'));
+    const form: FormsProps = {
+      _id: 'tpl-1',
+      templateId: 'tpl-1',
+      name: 'SOAP',
+      category: 'SOAP',
+      usage: 'Internal',
+      updatedBy: '',
+      lastUpdated: '',
+      schema: [],
+      isTemplateBacked: true,
+    };
+
+    await expect(publishTemplateForm(form, 'org-1')).rejects.toThrow('publish down');
+    await expect(unpublishTemplateForm(form, 'org-1')).rejects.toThrow('unpublish down');
+    await expect(archiveTemplateForm(form, 'org-1')).rejects.toThrow('archive down');
+
+    expect(setError).toHaveBeenCalledWith('Unable to publish template');
+    expect(setError).toHaveBeenCalledWith('Unable to unpublish template');
+    expect(setError).toHaveBeenCalledWith('Unable to archive template');
+  });
+
   it('publishes, unpublishes, and archives template-backed forms', async () => {
     (postData as jest.Mock).mockResolvedValue({ data: { id: 'tpl-1', name: 'Template' } });
     (patchData as jest.Mock).mockResolvedValue({ data: { id: 'tpl-1', name: 'Template' } });

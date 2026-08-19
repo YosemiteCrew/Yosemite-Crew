@@ -85,12 +85,10 @@
   position: absolute;
   top: calc(100% + 4px);
   border-radius: 13px;
-  border: 1px solid var(--hairline-soft) !important;
+  border: 1px solid var(--hairline) !important;
   /* Warm liquid-glass floating menu: cream frost in light, espresso in dark. */
-  background: var(--glass-93);
+  background: var(--screen);
   box-shadow: 0 24px 60px var(--sh28);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
-  backdrop-filter: blur(24px) saturate(1.4);
   outline: none;
   z-index: 200;
   overflow-y: auto;
@@ -100,11 +98,6 @@
   padding: 6px;
 }
 
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .select-input-dropdown {
-    background: var(--screen);
-  }
-}
 /* The portal path positions the panel flush under the trigger (rect.bottom - 1),
    so recover the design's 4px detachment here. */
 .select-input-dropdown-portal {
@@ -169,6 +162,8 @@
   font-size: 12px;
   line-height: 120%;
   font-family: var(--satoshi-font);
-  color: var(--delete);
+  /* --danger-text, not --delete: --delete is the button FILL, and as 12px
+     error text it read 4.00 on the form background. */
+  color: var(--danger-text);
   margin-top: 6px;
 }

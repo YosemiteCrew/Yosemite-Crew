@@ -114,13 +114,8 @@ const HorizontalLines = ({
             style={{ backgroundColor: 'var(--blue)' }}
           />
           <div
-            className="translate-y-[-50%]"
-            style={{
-              borderTopWidth: '2px',
-              borderTopStyle: 'solid',
-              borderTopColor: 'var(--blue)',
-              opacity: 0.75,
-            }}
+            className="translate-y-[-50%] border-t-2 border-solid"
+            style={{ borderTopColor: 'var(--blue)', opacity: 0.75 }}
           />
         </div>
       )}

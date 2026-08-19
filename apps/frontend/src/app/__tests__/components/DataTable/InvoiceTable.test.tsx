@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import React from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
@@ -43,10 +45,14 @@ const capturedColumnWidths = () => {
   const columnsFor = (desktop: boolean) =>
     mockGenericTableCalls.find((c) => isDesktopVariant(c.tableClassName) === desktop)!.columns;
   return {
-    desktop: { status: widthOf(columnsFor(true), 'status') },
+    desktop: {
+      status: widthOf(columnsFor(true), 'status'),
+      actions: widthOf(columnsFor(true), 'actions'),
+    },
     tablet: {
       status: widthOf(columnsFor(false), 'status'),
       parent: widthOf(columnsFor(false), 'appointment-id'),
+      actions: widthOf(columnsFor(false), 'actions'),
     },
   };
 };
@@ -337,6 +343,40 @@ describe('InvoiceTable', () => {
       const widths = capturedColumnWidths();
       expect(Number.parseInt(widths.desktop.status, 10)).toBeGreaterThanOrEqual(176);
       expect(Number.parseInt(widths.tablet.status, 10)).toBeGreaterThanOrEqual(176);
+    });
+
+    it('gives Actions a column wide enough for its own header', () => {
+      render(<InvoiceTable filteredList={[invoice]} />);
+
+      // This is the only PIMS table with `table-layout: fixed`, so a narrow
+      // column cannot grow to fit its label - it ellipsises the header instead.
+      // "Actions" measures 53.3px + 31px th padding = 84.3px, and the shipped
+      // 64px desktop / 56px tablet values both rendered "Action...".
+      const widths = capturedColumnWidths();
+      expect(Number.parseInt(widths.desktop.actions, 10)).toBeGreaterThanOrEqual(85);
+      expect(Number.parseInt(widths.tablet.actions, 10)).toBeGreaterThanOrEqual(85);
+    });
+
+    it('keeps .invoice-table-fixed min-width equal to the sum of its column widths', () => {
+      /* DataTable.css states the invariant directly: "Each class carries its own
+         min-width = sum of its column px widths". A table-layout:fixed table whose
+         min-width is under that sum squeezes every column proportionally at narrow
+         viewports, which is exactly where the trailing Actions column runs past the
+         reachable scroll extent - the CSS comment on .forms-table-fixed warns about
+         it. The value has drifted twice now, both times because a column width was
+         changed without updating the min-width, so assert it rather than trust it. */
+      render(<InvoiceTable filteredList={[invoice]} />);
+
+      const desktop = mockGenericTableCalls.find((c) => isDesktopVariant(c.tableClassName))!;
+      const sum = desktop.columns.reduce(
+        (total: number, col: any) => total + Number.parseInt(col.width, 10),
+        0
+      );
+
+      const css = readFileSync(join(__dirname, '../../../ui/tables/DataTable.css'), 'utf8');
+      const rule = /\.invoice-table-fixed\s*\{[^}]*?min-width:\s*(\d+)px/.exec(css);
+      expect(rule).not.toBeNull();
+      expect(sum).toBe(Number.parseInt(rule![1], 10));
     });
 
     it('leaves the Parent / patient column fluid so it absorbs the slack', () => {

@@ -34,6 +34,7 @@ import {
   LabResultTest,
   LabResult,
 } from '@/app/features/integrations/services/types';
+import { getIdexxTestSearchProps } from '@/app/features/appointments/pages/AppointmentWorkspace/steps/idexxTestSearchProps';
 import { formatDateTimeLocal } from '@/app/lib/date';
 import {
   formatTestPrice,
@@ -108,7 +109,7 @@ export const LabResultCategoryTable = ({
             >
               <td className="text-caption-1 text-text-primary py-2 pr-2">{test.name}</td>
               <td
-                className={`text-caption-1 py-2 pr-2 ${test.outOfRange ? 'text-red-600' : 'text-text-primary'}`}
+                className={`text-caption-1 py-2 pr-2 ${test.outOfRange ? 'text-text-error' : 'text-text-primary'}`}
               >
                 <LabResultValue test={test} />
               </td>
@@ -940,7 +941,7 @@ const InhouseCensusStatus = ({ s }: { s: UseLabTestsReturn }) => {
 
   return (
     <div
-      className={`rounded-2xl border p-3 ${s.companionInCensus ? 'border-green-200 bg-green-50' : 'border-card-border'}`}
+      className={`rounded-2xl border p-3 ${s.companionInCensus ? 'border-pill-success-border bg-pill-success-bg' : 'border-card-border'}`}
     >
       <div className="text-body-4 text-text-primary">
         Companion census status: {censusStatusLabel}
@@ -975,28 +976,17 @@ const InhouseCensusStatus = ({ s }: { s: UseLabTestsReturn }) => {
 
 const ReferenceLabForm = ({ s }: { s: UseLabTestsReturn }) => (
   <>
-    <div className="text-caption-1 text-text-secondary">
-      IDEXX test reference data does not explicitly flag tests as in-house vs device-specific in
-      this contract. Use reference lab for external IDEXX ordering.
+    {/* text-body-4, matching the In-house note in the sibling form below and the
+        same paragraph on the workspace step. These two notes are a pair and were
+        rendering at different type scales. */}
+    <div className="text-body-4 text-text-secondary">
+      Reference lab tests are submitted to IDEXX for processing. Add the tests you need and place
+      the order; results attach to this appointment when IDEXX returns them.
     </div>
     <SearchDropdown
       placeholder="Search IDEXX tests"
-      options={s.tests.map((test) => ({
-        value: test.code,
-        label: `${test.display} (${test.code})`,
-        meta: test,
-      }))}
+      {...getIdexxTestSearchProps(s)}
       onSelect={s.addTest}
-      query={s.selectedTestLabel || s.query}
-      setQuery={(value: string) => {
-        s.setSelectedTestLabel(value);
-        s.setQuery(value);
-      }}
-      minChars={0}
-      onReachEnd={s.loadMoreTests}
-      hasMore={s.testsHasMore}
-      isLoadingMore={s.testsLoadingMore}
-      optionClassName="w-full text-start rounded-2xl! border border-card-border bg-neutral-0 px-3 py-2 mb-2 last:mb-0 hover:bg-neutral-0 transition-colors"
       renderOption={(option) => {
         const test = option.meta as IdexxTest | undefined;
         if (!test) return option.label;
@@ -1086,8 +1076,8 @@ const ReferenceLabForm = ({ s }: { s: UseLabTestsReturn }) => (
 const InhouseLabForm = ({ s }: { s: UseLabTestsReturn }) => (
   <>
     <div className="text-body-4 text-text-secondary">
-      In-house IDEXX workflow requires selecting an IVLS device, then adding the companion to census
-      here. Complete ordering on the IDEXX machine after census is confirmed.
+      In-house tests run on your IVLS device. Select the device and add the companion to census
+      here, then complete the order on the IDEXX machine.
     </div>
     <LabelDropdown
       placeholder="Select IVLS device"
@@ -1289,12 +1279,16 @@ const IdexxOrderIframeOverlay = ({ url, title, onClose }: IdexxOrderIframeOverla
   const isFollowUp = title.toLowerCase().includes('follow-up');
   return (
     <div
-      className="fixed inset-0 z-5000 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+      // --sh55, matching the two other copies of this overlay (DiagnosticsStep:753
+      // and IdexxWorkspace:731). bg-black/60 is a hardcoded scrim: the token is
+      // a warm rgba(29,28,27,.55) in light and a heavier rgba(0,0,0,.8) in dark,
+      // so this copy was both the wrong hue in light and too weak in dark.
+      className="fixed inset-0 z-[5000] flex items-center justify-center bg-[var(--sh55)] p-4 backdrop-blur-sm"
       data-signing-overlay="true"
       style={{ pointerEvents: 'auto' }}
     >
       <div className="relative bg-neutral-0 rounded-2xl shadow-2xl size-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-2 border-b border-black/10">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-card-border">
           <div className="flex flex-col">
             <div className="text-body-2 text-text-primary">{title}</div>
             {isFollowUp ? (
@@ -1307,7 +1301,7 @@ const IdexxOrderIframeOverlay = ({ url, title, onClose }: IdexxOrderIframeOverla
           <button
             type="button"
             onClick={onClose}
-            className="p-2 hover:bg-black/5 rounded-full transition-colors cursor-pointer"
+            className="p-2 hover:bg-card-hover rounded-full transition-colors cursor-pointer"
             aria-label="Close IDEXX order frame"
             style={{ pointerEvents: 'auto' }}
           >

@@ -124,7 +124,7 @@
 }
 
 .yc-state-inline-link:hover {
-  color: var(--blue);
+  color: var(--blue-text);
 }
 
 .yc-state-actions {

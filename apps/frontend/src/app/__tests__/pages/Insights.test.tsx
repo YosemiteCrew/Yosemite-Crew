@@ -19,7 +19,7 @@ jest.mock('next/image', () => ({
 const stats = {
   stars: '2k',
   starsFull: '2,049',
-  selfHosters: '101,807',
+  repositoryClones: '101,807',
   contributors: '28',
   discord: '196',
 };
@@ -78,7 +78,7 @@ describe('Insights page', () => {
     repo = defaultRepo;
   });
 
-  test('renders the hero and its live self-hoster proof', () => {
+  test('renders the hero and its live clone proof', () => {
     render(<Insights />);
     // The heading is real text (with spaces) so its accessible name reads cleanly.
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
@@ -90,7 +90,7 @@ describe('Insights page', () => {
 
   test('renders the four live community stats with their labels', () => {
     render(<Insights />);
-    expect(screen.getByText('Self-hosters')).toBeInTheDocument();
+    expect(screen.getByText('Repository clones')).toBeInTheDocument();
     expect(screen.getByText('101,807')).toBeInTheDocument();
     expect(screen.getByText('Discord members')).toBeInTheDocument();
     expect(screen.getByText('196')).toBeInTheDocument();

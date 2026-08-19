@@ -134,6 +134,51 @@ describe("AvailabilityController", () => {
     });
   });
 
+  describe("setBaseAvailabilityForUser", () => {
+    it("should 400 if params missing", async () => {
+      req.params = { orgId: "o1" }; // missing userId route param
+      req.body = { availabilities: [] };
+      await AvailabilityController.setBaseAvailabilityForUser(
+        req as any,
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(jsonMock).toHaveBeenCalledWith({
+        message: "Missing or invalid payload",
+      });
+    });
+
+    it("should save for the routed user (201)", async () => {
+      req.params = { orgId: "o1", userId: "vet-2" };
+      req.body = { availabilities: [] };
+      mockedAvailabilityService.setAllBaseAvailability.mockResolvedValue(
+        {} as any,
+      );
+
+      await AvailabilityController.setBaseAvailabilityForUser(
+        req as any,
+        res as Response,
+      );
+
+      expect(
+        mockedAvailabilityService.setAllBaseAvailability,
+      ).toHaveBeenCalledWith("o1", "vet-2", []);
+      expect(statusMock).toHaveBeenCalledWith(201);
+    });
+
+    it("should handle error", async () => {
+      req.params = { orgId: "o1", userId: "vet-2" };
+      req.body = { availabilities: [] };
+      mockGenericError("setAllBaseAvailability");
+
+      await AvailabilityController.setBaseAvailabilityForUser(
+        req as any,
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(500);
+    });
+  });
+
   describe("getBaseAvailability", () => {
     it("should 400 if missing params", async () => {
       req.params = {};

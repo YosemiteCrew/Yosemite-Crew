@@ -219,7 +219,11 @@ describe('Appointments table', () => {
       />
     );
 
-    fireEvent.click(screen.getByTitle('Open appointment overview'));
+    // The name button used to carry title="Open appointment overview" - the same
+    // string on every row, which also overrode each button's accessible name. The
+    // title now holds the row's own name so a clipped cell can be read on hover,
+    // so select it the way a user would instead.
+    fireEvent.click(screen.getAllByRole('button', { name: /Buddy/ })[0]);
     openRowMenu('Buddy');
     fireEvent.click(screen.getByTestId('IoEyeOutline').closest('button')!);
     openRowMenu('Buddy');
@@ -288,6 +292,46 @@ describe('Appointments table', () => {
     render(<Appointments filteredList={[appointment]} canEditAppointments />);
 
     expect(screen.getByText('-')).toBeInTheDocument();
+  });
+
+  it('shows the first two support staff and counts the rest', () => {
+    // One line per staff member let a busy appointment grow the row without
+    // bound in a 110px column.
+    const appointment: any = {
+      id: 'a3b',
+      status: 'UPCOMING',
+      concern: 'Checkup',
+      appointmentType: { name: 'Exam' },
+      room: { name: 'Room 1' },
+      appointmentDate: '2025-01-06T09:00:00.000Z',
+      startTime: '2025-01-06T09:00:00.000Z',
+      lead: { name: 'Dr. Lee' },
+      supportStaff: [
+        { id: 's1', name: 'Nurse Ada' },
+        { id: 's2', name: 'Nurse Bo' },
+        { id: 's3', name: 'Nurse Cy' },
+        { id: 's4', name: 'Nurse Di' },
+      ],
+      companion: {
+        id: 'c3',
+        name: 'Buddy',
+        species: 'dog',
+        parent: { name: 'Jamie' },
+      },
+    };
+
+    render(<Appointments filteredList={[appointment]} canEditAppointments />);
+
+    expect(screen.getAllByText('Nurse Ada').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Nurse Bo').length).toBeGreaterThan(0);
+    // The overflow is summarised rather than stacked...
+    expect(screen.queryByText('Nurse Cy')).not.toBeInTheDocument();
+    expect(screen.queryByText('Nurse Di')).not.toBeInTheDocument();
+    expect(screen.getAllByText('+2').length).toBeGreaterThan(0);
+    // ...and no assignment is actually lost.
+    expect(screen.getAllByTitle('Nurse Ada, Nurse Bo, Nurse Cy, Nurse Di').length).toBeGreaterThan(
+      0
+    );
   });
 
   it('renders the desktop status cell through the protected shared pill class', () => {

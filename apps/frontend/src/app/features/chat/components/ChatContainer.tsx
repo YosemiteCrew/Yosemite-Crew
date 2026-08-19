@@ -126,6 +126,7 @@ const ChatBackContext = createContext<{ showBack: boolean; onBack: () => void }>
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
+import { useConfirm } from '@/app/ui/overlays/Modal/ConfirmModal';
 
 const CHAT_PAGE_SKELETON = <PageSkeleton variant="list" />;
 
@@ -350,6 +351,7 @@ const ChannelHeaderWithCounterpart: FC<{
     appointmentId ? s.appointmentsById[appointmentId] : undefined
   );
   const companion = useCompanionStore((s) => (patientId ? s.companionsById[patientId] : undefined));
+  const { confirm, confirmDialog } = useConfirm();
 
   const {
     sessionClosed,
@@ -367,6 +369,7 @@ const ChannelHeaderWithCounterpart: FC<{
     appointmentId,
     backendStatus,
     refreshStatuses,
+    confirm,
   });
 
   const {
@@ -391,6 +394,7 @@ const ChannelHeaderWithCounterpart: FC<{
 
   return (
     <>
+      {confirmDialog}
       <ChannelHeaderBar
         title={title}
         statusText={statusText}
@@ -561,7 +565,7 @@ const ChatClosedFooter: FC<{ closedAt?: string }> = ({ closedAt }) => {
         Chat session closed
       </Text>
       {formattedClosedTime && (
-        <Text as="p" variant="caption-2" className="text-neutral-500">
+        <Text as="p" variant="caption-2" className="text-text-tertiary">
           {formattedClosedTime}
         </Text>
       )}
@@ -622,7 +626,7 @@ const ChatEmptyThread: FC = () => (
     <Text as="p" variant="body-3-emphasis" className="text-neutral-700">
       No messages yet
     </Text>
-    <Text as="p" variant="caption-1" className="text-neutral-500">
+    <Text as="p" variant="caption-1" className="text-text-tertiary">
       Send the first message to start the conversation.
     </Text>
   </div>
@@ -737,7 +741,11 @@ const ChatLayout: FC<ChatLayoutProps> = ({
   );
 };
 
-const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
+// Exported for Storybook only. The header is mounted deep inside the Stream
+// `ChannelList` shell, so the only way to draw it was to build a real chat
+// client first; exporting it lets the stories mount the real component with
+// plain props instead.
+export const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
   showArchived,
   onToggleArchived,
   scope,
@@ -887,7 +895,11 @@ const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
                           {user.name}
                         </Text>
                         {user.email && (
-                          <Text as="span" variant="caption-2" className="truncate text-neutral-500">
+                          <Text
+                            as="span"
+                            variant="caption-2"
+                            className="truncate text-text-tertiary"
+                          >
                             {user.email}
                           </Text>
                         )}
@@ -1085,6 +1097,7 @@ const useChatContainerView = ({
     []
   );
   const groupModalBackendIdRef = useRef<string | undefined>(undefined);
+  const { confirm, confirmDialog } = useConfirm();
   // Rendered into the modal, so state (not a ref); only written in the open
   // handlers below.
   const [groupModalOwner, setGroupModalOwner] = useState<string | undefined>(undefined);
@@ -1473,6 +1486,34 @@ const useChatContainerView = ({
     [client, onChannelSelect]
   );
 
+  /**
+   * Shared post-create activation for backend chat sessions: query the
+   * session's channel so it appears in lists, stamp the chat metadata on it,
+   * and select it (falling back to activateChannelById when the query misses).
+   */
+  const activateSessionChannel = useCallback(
+    async (chatClient: StreamChat, channelId: string, metadata: Record<string, unknown>) => {
+      const applyMetadata = (chan: StreamChannel) => chan.update(metadata, {});
+      const queried = await chatClient.queryChannels(
+        { id: { $eq: channelId } },
+        [{ last_message_at: -1 }],
+        { watch: true, state: true, presence: true, limit: 1 }
+      );
+      if (queried[0]) {
+        await queried[0].watch();
+        await applyMetadata(queried[0]);
+        setIsChannelSelected(true);
+        setShowEmptyPlaceholder(false);
+        onChannelSelect?.(queried[0]);
+      } else {
+        await activateChannelById(channelId);
+        const chan = chatClient.channel('team', channelId);
+        await applyMetadata(chan);
+      }
+    },
+    [activateChannelById, onChannelSelect]
+  );
+
   const handleStartDirectChat = useCallback(
     async (user: OrgUserOption) => {
       if (!primaryOrgId || !client) return;
@@ -1591,37 +1632,15 @@ const useChatContainerView = ({
             organisationId: primaryOrgId,
             otherUserId,
           });
-          const applyMetadata = async (chan: StreamChannel) => {
-            await chan.update(
-              {
-                directId: session._id,
-                title: session.title,
-                description: session.description,
-                type: session.type,
-                chatCategory: 'colleagues',
-                organisationId: session.organisationId,
-                createdBy: session.createdBy,
-              } as Record<string, unknown>,
-              {}
-            );
-          };
-          // Try to load the channel via query to ensure it appears in lists
-          const queried = await client.queryChannels(
-            { id: { $eq: session.channelId } },
-            [{ last_message_at: -1 }],
-            { watch: true, state: true, presence: true, limit: 1 }
-          );
-          if (queried[0]) {
-            await queried[0].watch();
-            await applyMetadata(queried[0]);
-            setIsChannelSelected(true);
-            setShowEmptyPlaceholder(false);
-            onChannelSelect?.(queried[0]);
-          } else {
-            await activateChannelById(session.channelId);
-            const chan = client.channel('team', session.channelId);
-            await applyMetadata(chan);
-          }
+          await activateSessionChannel(client, session.channelId, {
+            directId: session._id,
+            title: session.title,
+            description: session.description,
+            type: session.type,
+            chatCategory: 'colleagues',
+            organisationId: session.organisationId,
+            createdBy: session.createdBy,
+          });
           success = true;
           break;
         } catch (err) {
@@ -1637,7 +1656,7 @@ const useChatContainerView = ({
       }
       setCreatingChat(false);
     },
-    [primaryOrgId, client, activateChannelById, onChannelSelect, notify]
+    [primaryOrgId, client, activateSessionChannel, onChannelSelect, notify]
   );
 
   const handleNetworkChatStarted = useCallback(
@@ -1682,36 +1701,15 @@ const useChatContainerView = ({
           memberIds: allMembers,
           isPrivate: true,
         });
-        const applyMetadata = async (chan: StreamChannel) => {
-          await chan.update(
-            {
-              groupId: session._id,
-              title: session.title || title,
-              description: session.description,
-              type: session.type,
-              chatCategory: 'group',
-              organisationId: session.organisationId,
-              createdBy: session.createdBy,
-            } as Record<string, unknown>,
-            {}
-          );
-        };
-        const queried = await client.queryChannels(
-          { id: { $eq: session.channelId } },
-          [{ last_message_at: -1 }],
-          { watch: true, state: true, presence: true, limit: 1 }
-        );
-        if (queried[0]) {
-          await queried[0].watch();
-          await applyMetadata(queried[0]);
-          setIsChannelSelected(true);
-          setShowEmptyPlaceholder(false);
-          onChannelSelect?.(queried[0]);
-        } else {
-          await activateChannelById(session.channelId);
-          const chan = client.channel('team', session.channelId);
-          await applyMetadata(chan);
-        }
+        await activateSessionChannel(client, session.channelId, {
+          groupId: session._id,
+          title: session.title || title,
+          description: session.description,
+          type: session.type,
+          chatCategory: 'group',
+          organisationId: session.organisationId,
+          createdBy: session.createdBy,
+        });
         setGroupModalOpen(false);
       } catch (err) {
         console.error('Failed to create group', err);
@@ -1723,15 +1721,7 @@ const useChatContainerView = ({
         setGroupModalBusy(false);
       }
     },
-    [
-      primaryOrgId,
-      client,
-      activateChannelById,
-      onChannelSelect,
-      notify,
-      setGroupModalBusy,
-      setGroupModalOpen,
-    ]
+    [primaryOrgId, client, activateSessionChannel, notify, setGroupModalBusy, setGroupModalOpen]
   );
 
   const handleModalUpdateTitle = useCallback(
@@ -1842,7 +1832,12 @@ const useChatContainerView = ({
       });
       return;
     }
-    const confirmed = confirm('Delete this group? This cannot be undone.');
+    const confirmed = await confirm({
+      title: 'Delete this group?',
+      body: 'The group and its messages are removed for everyone. This cannot be undone.',
+      confirmLabel: 'Delete group',
+      tone: 'danger',
+    });
     if (!confirmed) return;
     setGroupModalBusy(true);
     try {
@@ -1872,7 +1867,7 @@ const useChatContainerView = ({
     } finally {
       setGroupModalBusy(false);
     }
-  }, [groupModalChannel, onChannelSelect, notify, setGroupModalBusy, setGroupModalOpen]);
+  }, [groupModalChannel, onChannelSelect, notify, setGroupModalBusy, setGroupModalOpen, confirm]);
 
   const groupModalContextValue = useMemo(
     () => ({
@@ -1939,7 +1934,7 @@ const useChatContainerView = ({
           minHeight: '360px',
         }}
       >
-        <p style={{ color: 'var(--color-danger-700)' }}>{errorMessage}</p>
+        <p style={{ color: 'var(--color-text-error)' }}>{errorMessage}</p>
       </div>
     );
   }
@@ -2025,6 +2020,7 @@ const useChatContainerView = ({
 
   return (
     <ChatSessionStatusContext.Provider value={chatSessionStatusContextValue}>
+      {confirmDialog}
       <GroupModalContext.Provider value={groupModalContextValue}>
         <ChatShareContext.Provider value={shareContextValue}>
           <div className={className}>

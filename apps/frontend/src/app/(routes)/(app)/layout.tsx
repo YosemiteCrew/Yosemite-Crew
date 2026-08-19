@@ -13,7 +13,15 @@ export default async function AppLayout({ children }: Readonly<AppLayoutProps>) 
   return (
     <>
       <ThemeScript />
-      <SessionInitializer>{children}</SessionInitializer>
+      {/* `display: contents` so this introduces no box and cannot disturb the
+          height chains beneath it, while still passing the scoped faint-ink
+          custom properties down - see [data-yc-app] in globals.css. PIMS sits
+          on bone surfaces where the global faint inks are unreadable; the
+          public marketing pages need the lighter values for their always-dark
+          --spot panels, so the two cannot share one value. */}
+      <div data-yc-app style={{ display: 'contents' }}>
+        <SessionInitializer>{children}</SessionInitializer>
+      </div>
     </>
   );
 }

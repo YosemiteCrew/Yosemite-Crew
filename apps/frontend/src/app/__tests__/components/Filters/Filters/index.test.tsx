@@ -69,6 +69,24 @@ describe('Filters', () => {
     expect(screen.getByRole('button', { name: 'Available' })).toBeInTheDocument();
   });
 
+  it('selects a status option from the dropdown panel and closes it', () => {
+    const setActiveStatus = jest.fn();
+    render(
+      <Filters
+        statusOptions={statusOptions}
+        activeStatus="available"
+        setActiveStatus={setActiveStatus}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Available' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Requested' }));
+
+    expect(setActiveStatus).toHaveBeenCalledWith('requested');
+    // The panel closes after a selection.
+    expect(screen.queryByText('Requested')).not.toBeInTheDocument();
+  });
+
   it('keeps the status dropdown open when interacting inside the panel', () => {
     render(
       <Filters statusOptions={statusOptions} activeStatus="available" setActiveStatus={jest.fn()} />
@@ -298,9 +316,9 @@ describe('Filters', () => {
       renderListToolbar('all');
 
       expect(screen.getByRole('button', { name: 'All statuses' })).toHaveStyle({
-        backgroundColor: 'var(--inset)',
-        borderColor: 'var(--divider)',
-        color: 'var(--ink)',
+        backgroundColor: 'var(--chip-selected-bg)',
+        borderColor: 'var(--chip-selected-border)',
+        color: 'var(--chip-selected-ink)',
       });
     });
 
@@ -309,6 +327,24 @@ describe('Filters', () => {
 
       expect(screen.getByRole('button', { name: 'Cancelled' })).toHaveStyle({
         borderColor: 'var(--status-cancelled-bg)',
+      });
+    });
+
+    it('falls back to the hairline border when an active status has no colour tokens at all', () => {
+      render(
+        <Filters
+          filterOptions={[{ key: 'emergencies', name: 'Emergencies' }]}
+          statusOptions={[{ key: 'ghost', name: 'Ghost' }]}
+          activeFilter="all"
+          activeStatus="ghost"
+          setActiveFilter={jest.fn()}
+          setActiveStatus={jest.fn()}
+        />
+      );
+
+      expect(screen.getByRole('button', { name: 'Ghost' })).toHaveStyle({
+        borderColor: 'var(--hairline)',
+        color: 'var(--ink)',
       });
     });
   });

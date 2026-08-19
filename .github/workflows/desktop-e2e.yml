@@ -1,0 +1,155 @@
+name: Desktop E2E
+
+# Runs the Playwright-Electron suite in apps/desktop/tests/e2e. Those specs have
+# existed for a while - tabs, command palette, compliance, document vault,
+# offline cache, packaged app - but nothing ran them, so the desktop shell was
+# the one shipped surface with no automated end-to-end coverage at all.
+#
+# Windows and macOS only, and only when the desktop app changes. Those are the
+# two platforms desktop-release.yml signs and ships, and macOS runners bill at
+# ten times the Linux rate, so a path filter is what makes running the real
+# thing on the real platforms affordable. Linux is built by electron-builder but
+# is not signed or published, so it is not covered here.
+#
+# The suite drives Electron directly rather than a browser, so no
+# `playwright install` step is needed: there are no browser binaries to fetch.
+# Electron's own binary arrives through its postinstall during the shared setup
+# step.
+
+# Triggered on EVERY pull request, with the path decision made inside the jobs
+# rather than here. A path filter at this level looks equivalent and is not: once
+# `Desktop E2E Required` is marked required on the branch ruleset, a PR touching
+# no desktop path skips the whole workflow, the required check is never created,
+# and the PR waits for it forever. Filtering inside means the aggregate always
+# reports, and reports success when desktop testing was legitimately unnecessary.
+on:
+  pull_request: {}
+  push:
+    branches: [main, dev]
+  workflow_dispatch: {}
+
+concurrency:
+  group: desktop-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Detect desktop changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      desktop: ${{ steps.filter.outputs.desktop }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Decide whether the desktop suite needs to run
+        id: filter
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # Anything other than a pull request runs the suite: a push to dev or
+          # main, or a manual dispatch, is never the case this filter exists to
+          # skip, and failing open costs a run rather than hiding a regression.
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "desktop=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          CHANGED=$(git diff --name-only "${BASE_SHA}...${HEAD_SHA}" \
+            -- 'apps/desktop/**' '.github/workflows/desktop-e2e.yml' | wc -l)
+          if [ "$CHANGED" -gt 0 ]; then
+            echo "desktop=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "desktop=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  e2e:
+    name: Desktop E2E (${{ matrix.os }})
+    needs: [changes]
+    if: needs.changes.outputs.desktop == 'true'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      # Report both platforms on every run. A Windows-only failure is exactly
+      # the kind of thing this suite exists to catch, and fail-fast would hide
+      # it behind an unrelated macOS failure.
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      # The specs launch Electron with the app root as its argument, and the
+      # package's `main` points at build/main.js, so an unbuilt tree starts an
+      # app with no entry point rather than failing informatively.
+      - name: Build the desktop app
+        run: pnpm --filter @yosemite-crew/desktop run build
+
+      # All 44 specs pass, so the suite's own exit code is the gate. It briefly
+      # ran behind a passing-count ratchet while #2245 was open; that is no
+      # longer needed and a plain non-zero exit is both stricter and simpler.
+      - name: Run the Playwright Electron suite
+        working-directory: apps/desktop
+        run: pnpm --filter @yosemite-crew/desktop run e2e
+
+      # The list reporter prints enough to diagnose a failure in the log, but
+      # traces and screenshots are what make an OS-specific failure tractable
+      # from another machine.
+      # always(), not failure(): while the suite is red the traces are the whole
+      # point of running it, and someone picking up the remaining failures needs
+      # them from a passing-overall run too.
+      - name: Upload Playwright output
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: desktop-e2e-${{ matrix.os }}
+          path: |
+            apps/desktop/test-results/
+            apps/desktop/playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # Single check to mark required on the branch ruleset, for the same reason
+  # ci.yaml and supply-chain.yml each have one: a required check treats a skipped
+  # job as satisfied, so the matrix needs an aggregate that fails when any leg
+  # fails or is skipped unexpectedly.
+  #
+  desktop-e2e-required:
+    name: Desktop E2E Required
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [changes, e2e]
+    steps:
+      - name: Fail on any failed or cancelled leg
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+          NEEDED: ${{ needs.changes.outputs.desktop }}
+        run: |
+          set -euo pipefail
+          echo "$RESULTS"
+          # A skipped e2e job is only acceptable when the filter said the desktop
+          # app was untouched. Skipped for any other reason is a stage that
+          # silently did not run, which is what this aggregate exists to catch.
+          if [ "$NEEDED" != "true" ]; then
+            echo "Desktop E2E Required: no desktop changes in this pull request, nothing to run"
+            exit 0
+          fi
+          if echo "$RESULTS" | grep -qE '"result": *"(failure|cancelled|skipped)"'; then
+            echo "Desktop E2E Required: at least one platform failed, was cancelled, or did not run"
+            exit 1
+          fi

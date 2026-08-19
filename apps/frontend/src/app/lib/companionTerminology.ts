@@ -31,12 +31,45 @@ const TERM_FORMS: Record<CompanionTerminologyOption, CompanionTermForms> = {
   PATIENT: { singular: 'patient', plural: 'patients' },
 };
 
-// "Pet parent" / "pet parents" is the fixed term for the owner and must never be
-// rewritten (e.g. it must not become "patient parent"), so only "pet" is exempt
-// before "parent"/"parents". The other nouns still rewrite there, otherwise
-// authored copy such as "companion parent chat" would never track the org's term.
-const SINGULAR_PATTERN = /\b(?:pet\b(?!\s+parents?\b)|(?:animal|companion|patient)\b)/gi;
-const PLURAL_PATTERN = /\b(?:pets\b(?!\s+parents?\b)|(?:animals|companions|patients)\b)/gi;
+// Fixed product terms that must never track the org's companion noun:
+//  - "pet parent(s)" is the owner (it must not become "patient parent"),
+//  - "pet business(es)" is the audience and the account type on the sign-in tabs,
+//  - "animal health" is the brand tagline.
+// The rewrite walks every text node in the document and the chosen option is
+// persisted per org in localStorage, so it also runs after sign-out on public
+// routes. Without these exemptions an org set to "Patients" rewrote the public
+// sign-in page to "Patient business" and
+// "OPEN-SOURCE OPERATING SYSTEM FOR PATIENT HEALTH".
+// Only "pet" and "animal" are exempt, and only before those words. The other
+// nouns still rewrite there, otherwise authored copy such as
+// "companion parent chat" would never track the org's term.
+//
+// The exemption is decided in code rather than with nested lookaheads: folding
+// it into the pattern pushed the regex past the complexity ceiling
+// (typescript:S5843) and made it hard to read. These stay plain alternations.
+const SINGULAR_PATTERN = /\b(?:pet|animal|companion|patient)\b/gi;
+const PLURAL_PATTERN = /\b(?:pets|animals|companions|patients)\b/gi;
+
+/** The word that follows a match, lower-cased, or undefined at end of text. */
+const FOLLOWING_WORD = /^\s+([a-z]+)/i;
+
+const PROTECTED_FOLLOWERS: Record<string, ReadonlySet<string>> = {
+  pet: new Set(['parent', 'parents', 'business', 'businesses']),
+  pets: new Set(['parent', 'parents']),
+  animal: new Set(['health']),
+  animals: new Set(['health']),
+};
+
+/**
+ * True when this occurrence is part of a fixed product term and must be left
+ * alone: "pet parent", "pet business(es)", "animal health".
+ */
+const isProtectedTerm = (whole: string, match: string, offset: number) => {
+  const followers = PROTECTED_FOLLOWERS[match.toLowerCase()];
+  if (!followers) return false;
+  const next = FOLLOWING_WORD.exec(whole.slice(offset + match.length))?.[1];
+  return next !== undefined && followers.has(next.toLowerCase());
+};
 
 const normalizeOrgId = (orgId?: string | null) => String(orgId ?? '').trim();
 const normalizeOrgType = (orgType?: string | null) =>
@@ -133,8 +166,10 @@ export const rewriteCompanionTerminologyText = (
 ) => {
   if (!input) return input;
   const forms = TERM_FORMS[option] ?? TERM_FORMS[DEFAULT_OPTION];
-  const pluralReplaced = input.replaceAll(PLURAL_PATTERN, (match) =>
-    matchCase(match, forms.plural)
+  const pluralReplaced = input.replaceAll(PLURAL_PATTERN, (match, offset: number, whole: string) =>
+    isProtectedTerm(whole, match, offset) ? match : matchCase(match, forms.plural)
   );
-  return pluralReplaced.replaceAll(SINGULAR_PATTERN, (match) => matchCase(match, forms.singular));
+  return pluralReplaced.replaceAll(SINGULAR_PATTERN, (match, offset: number, whole: string) =>
+    isProtectedTerm(whole, match, offset) ? match : matchCase(match, forms.singular)
+  );
 };

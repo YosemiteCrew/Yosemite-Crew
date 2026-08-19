@@ -1,3 +1,5 @@
+import { createElement } from 'react';
+import { renderToString } from 'react-dom/server';
 import { renderHook, act } from '@testing-library/react';
 import { useTheme } from '@/app/ui/theme/useTheme';
 
@@ -227,5 +229,39 @@ describe('useTheme', () => {
     const { result } = renderHook(() => useTheme());
     expect(result.current.appearance).toBe('auto');
     spy.mockRestore();
+  });
+
+  it('server-renders the light/auto defaults so hydration matches the server HTML', () => {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    localStorage.setItem('yc-theme', 'dark');
+    let ssr: { theme: string; appearance: string } | null = null;
+    const Probe = () => {
+      const { theme, appearance } = useTheme();
+      ssr = { theme, appearance };
+      return null;
+    };
+    renderToString(createElement(Probe));
+    expect(ssr).toEqual({ theme: 'light', appearance: 'auto' });
+  });
+
+  it('reports auto appearance when localStorage is unavailable', () => {
+    const original = globalThis.localStorage;
+    Object.defineProperty(globalThis, 'localStorage', { value: undefined, configurable: true });
+    try {
+      const { result } = renderHook(() => useTheme());
+      expect(result.current.appearance).toBe('auto');
+    } finally {
+      Object.defineProperty(globalThis, 'localStorage', { value: original, configurable: true });
+    }
+  });
+
+  it('setAppearance to auto falls back to light when matchMedia is unavailable', () => {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    (globalThis as { matchMedia?: unknown }).matchMedia = undefined;
+    const { result } = renderHook(() => useTheme());
+
+    act(() => result.current.setAppearance('auto'));
+
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
   });
 });

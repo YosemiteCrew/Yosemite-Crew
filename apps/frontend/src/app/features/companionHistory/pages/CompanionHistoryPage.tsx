@@ -5,7 +5,13 @@ import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { IoIosArrowBack } from 'react-icons/io';
-import { IoAddOutline, IoCheckmarkOutline, IoPencilOutline } from 'react-icons/io5';
+import {
+  IoAddOutline,
+  IoCheckmarkOutline,
+  IoIdCardOutline,
+  IoPencilOutline,
+  IoShareSocialOutline,
+} from 'react-icons/io5';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
@@ -44,6 +50,9 @@ import { useNotify } from '@/app/hooks/useNotify';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { isCompanionRevampEnabled } from '@/app/lib/featureFlags';
+import ShareCompanionCardModal from '@/app/features/companionCard/components/ShareCompanionCardModal';
+import { buildStaffCard } from '@/app/features/companionCard/lib/buildStaffCard';
+import PetPassportModal from '@/app/features/petPassport/components/PetPassportModal';
 import type {
   CompanionParent,
   StoredCompanion,
@@ -159,7 +168,7 @@ const ProfileDetail = ({
   labelWidth?: 74 | 88;
   /** `danger` paints the value in --danger-text, matching the design's red allergy emphasis. */
   tone?: 'default' | 'danger';
-  /** Trailing qualifier rendered in --pink (the co-parent row's "· shared care"). */
+  /** Trailing qualifier rendered in --pink-text (the co-parent row's "· shared care"). */
   suffix?: string;
 }) => (
   <div
@@ -173,7 +182,7 @@ const ProfileDetail = ({
       style={{ color: tone === 'danger' ? 'var(--danger-text)' : 'var(--ink)' }}
     >
       {value}
-      {suffix ? <span style={{ color: 'var(--pink)' }}> {suffix}</span> : null}
+      {suffix ? <span style={{ color: 'var(--pink-text)' }}> {suffix}</span> : null}
     </span>
   </div>
 );
@@ -391,6 +400,39 @@ const AddAlertButton = ({
   );
 };
 
+/**
+ * Round header action (share card, pet passport). Sits beside "Add appointment"
+ * so it is sized for the title row rather than the inline alert rows, and takes
+ * its colours from the shared ink/divider tokens like the rest of the header.
+ */
+const HeaderActionButton = ({
+  show,
+  tooltip,
+  label,
+  icon,
+  onClick,
+}: {
+  show: boolean;
+  tooltip: string;
+  label: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+}) => {
+  if (!show) return null;
+  return (
+    <GlassTooltip content={tooltip} side="bottom">
+      <button
+        type="button"
+        aria-label={label}
+        onClick={onClick}
+        className="flex size-10 items-center justify-center rounded-full border border-[var(--divider)] text-[var(--ink-body)] transition-colors hover:border-text-brand hover:text-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+      >
+        {icon}
+      </button>
+    </GlassTooltip>
+  );
+};
+
 const useCompanionAlerts = (
   activeCompanion: CompanionParent | null,
   notify: ReturnType<typeof useNotify>['notify'],
@@ -516,6 +558,8 @@ type CompanionHistoryContentProps = {
   onAddClientAlert: () => void;
   onRemoveCompanionAlert: (id: string) => void;
   onRemoveClientAlert: (id: string) => void;
+  onShareCard: () => void;
+  onOpenPassport: () => void;
 };
 
 /**
@@ -545,6 +589,8 @@ const CompanionHistoryDesktopBody = ({
   onAddClientAlert,
   onRemoveCompanionAlert,
   onRemoveClientAlert,
+  onShareCard,
+  onOpenPassport,
 }: CompanionHistoryDesktopBodyProps) => (
   <div className="flex w-full flex-col gap-6 px-4 py-5 md:px-8">
     <div className="flex flex-col gap-6">
@@ -579,6 +625,20 @@ const CompanionHistoryDesktopBody = ({
         </div>
 
         <div className="flex items-center gap-3">
+          <HeaderActionButton
+            show={Boolean(activeCompanion)}
+            tooltip="Share companion card"
+            label="Share companion card"
+            icon={<IoShareSocialOutline size={18} aria-hidden="true" />}
+            onClick={onShareCard}
+          />
+          <HeaderActionButton
+            show={Boolean(activeCompanion)}
+            tooltip="Pet passport"
+            label="Open pet passport"
+            icon={<IoIdCardOutline size={18} aria-hidden="true" />}
+            onClick={onOpenPassport}
+          />
           <Primary
             icon={<IoAddOutline size={18} aria-hidden="true" />}
             text="Add appointment"
@@ -654,6 +714,10 @@ type CompanionHistoryModalsProps = {
   alertTarget: 'companion' | 'client' | null;
   setAlertTarget: React.Dispatch<React.SetStateAction<'companion' | 'client' | null>>;
   onAddAlert: (alert: Omit<CompanionAlert, 'id'>) => Promise<void>;
+  shareOpen: boolean;
+  setShareOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  passportOpen: boolean;
+  setPassportOpen: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
 /**
@@ -673,6 +737,10 @@ const CompanionHistoryModals = ({
   alertTarget,
   setAlertTarget,
   onAddAlert,
+  shareOpen,
+  setShareOpen,
+  passportOpen,
+  setPassportOpen,
 }: CompanionHistoryModalsProps) => (
   <>
     <AddAppointmentCentralModal
@@ -714,6 +782,25 @@ const CompanionHistoryModals = ({
       onClose={() => setAlertTarget(null)}
       onAdd={onAddAlert}
     />
+
+    {activeCompanion ? (
+      <ShareCompanionCardModal
+        open={shareOpen}
+        card={buildStaffCard(activeCompanion)}
+        companionId={activeCompanion.companion.id}
+        companionName={activeCompanion.companion.name}
+        onClose={() => setShareOpen(false)}
+      />
+    ) : null}
+
+    {activeCompanion ? (
+      <PetPassportModal
+        open={passportOpen}
+        companionId={activeCompanion.companion.id}
+        companionName={activeCompanion.companion.name}
+        onClose={() => setPassportOpen(false)}
+      />
+    ) : null}
   </>
 );
 
@@ -730,6 +817,8 @@ const CompanionHistoryPageInner = () => {
   const canEditCompanions = permissions.can(PERMISSIONS.COMPANIONS_EDIT_ANY);
   const [editCompanionOpen, setEditCompanionOpen] = useState(false);
   const [addAppointmentOpen, setAddAppointmentOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [passportOpen, setPassportOpen] = useState(false);
   const appointmentFilterStateRef = useRef('all');
   const appointmentStatusStateRef = useRef('all');
   const setAppointmentFilterState = useCallback((value: string | ((prev: string) => string)) => {
@@ -803,6 +892,8 @@ const CompanionHistoryPageInner = () => {
           onAddClientAlert={() => setAlertTarget('client')}
           onRemoveCompanionAlert={handleRemoveCompanionAlert}
           onRemoveClientAlert={handleRemoveClientAlert}
+          onShareCard={() => setShareOpen(true)}
+          onOpenPassport={() => setPassportOpen(true)}
         />
 
         <CompanionHistoryModals
@@ -818,6 +909,10 @@ const CompanionHistoryPageInner = () => {
           alertTarget={alertTarget}
           setAlertTarget={setAlertTarget}
           onAddAlert={handleAddAlert}
+          shareOpen={shareOpen}
+          setShareOpen={setShareOpen}
+          passportOpen={passportOpen}
+          setPassportOpen={setPassportOpen}
         />
       </OrgGuard>
     </ProtectedRoute>

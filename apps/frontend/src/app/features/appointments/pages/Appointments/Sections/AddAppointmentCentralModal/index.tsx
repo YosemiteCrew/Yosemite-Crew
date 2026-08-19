@@ -38,6 +38,7 @@ import { hasUnsavedCentralChanges } from '@/app/features/appointments/components
 import { IoIosWarning } from 'react-icons/io';
 import { IoAdd, IoArrowForward, IoChevronDown, IoPaw, IoPerson } from 'react-icons/io5';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import { primaryButtonGlowHandlers } from '@/app/ui/primitives/buttonGlowHandlers';
 import clsx from 'clsx';
 import type { AppointmentKind } from '@yosemite-crew/types';
 
@@ -1044,16 +1045,7 @@ export const DiscardConfirmationModal = ({
           type="button"
           onClick={onDiscard}
           className="yc-primary-button rounded-2xl! px-5 py-2.5 font-satoshi text-base font-medium leading-[1.2] disabled:cursor-not-allowed disabled:opacity-60"
-          onPointerDown={(e) => {
-            const r = e.currentTarget.getBoundingClientRect();
-            e.currentTarget.style.setProperty('--yc-button-x', `${e.clientX - r.left}px`);
-            e.currentTarget.style.setProperty('--yc-button-y', `${e.clientY - r.top}px`);
-          }}
-          onPointerMove={(e) => {
-            const r = e.currentTarget.getBoundingClientRect();
-            e.currentTarget.style.setProperty('--yc-button-x', `${e.clientX - r.left}px`);
-            e.currentTarget.style.setProperty('--yc-button-y', `${e.clientY - r.top}px`);
-          }}
+          {...primaryButtonGlowHandlers}
         >
           Discard
         </button>

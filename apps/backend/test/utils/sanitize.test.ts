@@ -126,3 +126,51 @@ describe("Sanitize Utils", () => {
     });
   });
 });
+
+describe("sanitizeInput prototype pollution", () => {
+  afterEach(() => {
+    // Fail loudly if a test above actually polluted the global prototype.
+    delete (Object.prototype as Record<string, unknown>).polluted;
+  });
+
+  it("does not copy __proto__ from a JSON-parsed payload", () => {
+    // JSON.parse creates __proto__ as an OWN property, so Object.keys returns
+    // it. Assigning it onto a {} literal would invoke the prototype setter.
+    const payload = JSON.parse('{"__proto__":{"polluted":"yes"},"name":"ok"}');
+
+    const result = sanitizeInput(payload) as Record<string, unknown>;
+
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
+    expect(result.name).toBe("ok");
+  });
+
+  it("drops constructor and prototype keys too", () => {
+    const payload = JSON.parse(
+      '{"constructor":{"x":1},"prototype":{"y":2},"keep":"z"}',
+    );
+
+    const result = sanitizeInput(payload) as Record<string, unknown>;
+
+    expect(Object.keys(result)).toEqual(["keep"]);
+  });
+
+  it("strips them at any nesting depth", () => {
+    const payload = JSON.parse(
+      '{"outer":{"__proto__":{"polluted":"yes"},"inner":"kept"}}',
+    );
+
+    const result = sanitizeInput(payload) as Record<
+      string,
+      Record<string, unknown>
+    >;
+
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    expect(Object.keys(result.outer)).toEqual(["inner"]);
+    // The load-bearing assertion. Without the guard, `sanitized["__proto__"] =`
+    // sets the inner object's PROTOTYPE rather than adding a key, so the
+    // Object.keys check above still reads ["inner"] and proves nothing.
+    expect(Object.getPrototypeOf(result.outer)).toBe(Object.prototype);
+    expect(result.outer.polluted).toBeUndefined();
+  });
+});

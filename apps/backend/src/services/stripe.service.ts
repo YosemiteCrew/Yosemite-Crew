@@ -520,11 +520,11 @@ export const StripeService = {
         break;
 
       case "payment_intent.payment_failed":
-        await this._handlePaymentFailed(event.data.object, connectedAccountId);
+        await this._handlePaymentFailed(event.data.object);
         break;
 
       case "charge.refunded":
-        await this._handleRefund(event.data.object, connectedAccountId);
+        await this._handleRefund(event.data.object);
         break;
 
       // connect readiness
@@ -820,11 +820,7 @@ export const StripeService = {
     }
   },
 
-  async _handlePaymentFailed(
-    pi: Stripe.PaymentIntent,
-    _connectedAccountId?: string,
-  ) {
-    void _connectedAccountId;
+  async _handlePaymentFailed(pi: Stripe.PaymentIntent) {
     const appointmentId = pi.metadata?.appointmentId;
     const invoiceId = pi.metadata?.invoiceId;
     const result = await FinancePaymentService.handleInvoicePaymentFailed({
@@ -837,8 +833,7 @@ export const StripeService = {
     }
   },
 
-  async _handleRefund(charge: Stripe.Charge, _connectedAccountId?: string) {
-    void _connectedAccountId;
+  async _handleRefund(charge: Stripe.Charge) {
     const invoiceId = charge.metadata?.invoiceId;
     const result = await FinancePaymentService.markInvoiceRefundedFromWebhook({
       invoiceId,

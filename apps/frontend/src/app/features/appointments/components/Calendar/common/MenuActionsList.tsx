@@ -24,7 +24,9 @@ const MenuActionsList = ({
   <div className="flex flex-col gap-0.5">
     {actions.map((action, index) => (
       <React.Fragment key={action.key}>
-        {index > 0 ? <div className="mx-1 border-t border-white/30" aria-hidden="true" /> : null}
+        {index > 0 ? (
+          <div className="mx-1 border-t border-[var(--hairline)]" aria-hidden="true" />
+        ) : null}
         <button
           ref={(element) => {
             itemRefs.current[action.key] = element;

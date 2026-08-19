@@ -73,7 +73,10 @@ describe('HorizontalLines Component', () => {
     expect(nowDot).toBeInTheDocument();
     expect(nowDot).toHaveClass('size-[7px]');
     expect(nowLine).toBeInTheDocument();
-    expect(nowLine?.getAttribute('style')).toContain('border-top-width: 2px');
+    // The 2px solid rule is a utility class now, not an inline style; only the
+    // themed colour and the opacity stay inline.
+    expect(nowLine).toHaveClass('border-t-2');
+    expect(nowLine?.getAttribute('style')).toContain('border-top-color: var(--blue)');
 
     // Check position
     const wrapper = nowDot?.parentElement;

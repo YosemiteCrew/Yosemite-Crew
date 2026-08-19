@@ -49,7 +49,7 @@ type CompanionFormSubmission = {
   submittedBy?: string;
   submittedAt: Date;
   answers: Record<string, unknown>;
-  signing?: FormSubmissionDocument["signing"];
+  signing?: NonNullable<FormSubmissionDocument["signing"]>;
   formName?: string | null;
   formCategory?: string | null;
 };
@@ -96,7 +96,7 @@ const ensureNonEmptyString = (value: unknown, label: string) => {
 
 type AppointmentLookupRecord = {
   organisationId: string;
-  formIds?: string[] | undefined;
+  formIds?: string[];
   patient?: unknown;
 };
 

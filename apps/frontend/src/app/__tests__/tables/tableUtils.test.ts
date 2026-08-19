@@ -1,5 +1,7 @@
 import {
   buildPagerPageList,
+  toSpecialityNames,
+  UNNAMED_SPECIALITY,
   getInvoiceItemNames,
   getInvoiceStatusStyle,
   getInvoiceStatusTone,
@@ -261,6 +263,59 @@ describe('tableUtils', () => {
 
     it('returns an empty run when there are no pages', () => {
       expect(buildPagerPageList(1, 0)).toEqual([]);
+    });
+  });
+
+  describe('toSpecialityNames', () => {
+    it('passes plain string entries straight through', () => {
+      expect(toSpecialityNames(['Cardiology', 'Oncology'] as never)).toEqual([
+        'Cardiology',
+        'Oncology',
+      ]);
+    });
+
+    it('reads the name off record entries', () => {
+      expect(toSpecialityNames([{ name: 'Surgery' }, { name: 'Radiology' }] as never)).toEqual([
+        'Surgery',
+        'Radiology',
+      ]);
+    });
+
+    it('drops blank strings but keeps a record that is merely unnamed', () => {
+      // A blank string is noise; a record is a real assignment and must survive
+      // into the count, or the summary understates how many a team holds.
+      expect(toSpecialityNames(['Cardiology', '', '   '] as never)).toEqual(['Cardiology']);
+      expect(toSpecialityNames([{ name: '' }] as never)).toEqual([UNNAMED_SPECIALITY]);
+    });
+
+    it('trims surrounding whitespace', () => {
+      expect(toSpecialityNames(['  Cardiology  '] as never)).toEqual(['Cardiology']);
+    });
+
+    it('returns nothing for a non-array value', () => {
+      // The Team payload sometimes carries a single record instead of a list.
+      expect(toSpecialityNames({ name: 'Cardiology' } as never)).toEqual([]);
+      expect(toSpecialityNames(undefined as never)).toEqual([]);
+    });
+
+    it('falls back to a code before a neutral label', () => {
+      expect(toSpecialityNames([{ code: 'X1' }, { name: 'Dentistry' }] as never)).toEqual([
+        'X1',
+        'Dentistry',
+      ]);
+    });
+
+    it('keeps an unidentifiable record so the count stays honest', () => {
+      expect(toSpecialityNames([{ _id: 'x' }, { name: 'Dentistry' }] as never)).toEqual([
+        UNNAMED_SPECIALITY,
+        'Dentistry',
+      ]);
+    });
+
+    it('drops null and undefined entries, which are not assignments', () => {
+      expect(toSpecialityNames([null, undefined, { name: 'Dentistry' }] as never)).toEqual([
+        'Dentistry',
+      ]);
     });
   });
 });

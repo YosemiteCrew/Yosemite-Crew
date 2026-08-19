@@ -370,6 +370,41 @@ const getSnapshotFields = (section: SnapshotSection | undefined) => {
   return section.fields;
 };
 
+export const blueprintOptionsMatch = (
+  snapshotField: SnapshotField,
+  expectedOptions: NonNullable<BlueprintField["options"]>,
+): boolean => {
+  const snapshotOptions = snapshotField.options ?? [];
+
+  return (
+    snapshotOptions.length === expectedOptions.length &&
+    expectedOptions.every((option, index) => {
+      const snapshotOption = snapshotOptions[index];
+      return (
+        snapshotOption?.label === option.label &&
+        snapshotOption?.value === option.value
+      );
+    })
+  );
+};
+
+export const blueprintRulesMatch = (
+  snapshotField: SnapshotField,
+  expectedRules: NonNullable<BlueprintField["rules"]>,
+): boolean => {
+  const snapshotRules = snapshotField.rules;
+  if (!snapshotRules || typeof snapshotRules !== "object") {
+    return false;
+  }
+
+  return Object.entries(expectedRules).every(([key, value]) => {
+    const snapshotValue = Object.entries(snapshotRules).find(
+      ([snapshotKey]) => snapshotKey === key,
+    )?.[1];
+    return JSON.stringify(snapshotValue) === JSON.stringify(value);
+  });
+};
+
 const validateBlueprintField = (
   kind: ClinicalTemplateKind,
   sectionId: string,
@@ -397,42 +432,18 @@ const validateBlueprintField = (
     issues.push(`${kind}.${sectionId}.${field.key}.repeatable`);
   }
 
-  if (field.options !== undefined) {
-    const snapshotOptions = snapshotField.options ?? [];
-    const expectedOptions = field.options;
-
-    const optionsMatch =
-      snapshotOptions.length === expectedOptions.length &&
-      expectedOptions.every((option, index) => {
-        const snapshotOption = snapshotOptions[index];
-        return (
-          snapshotOption?.label === option.label &&
-          snapshotOption?.value === option.value
-        );
-      });
-
-    if (!optionsMatch) {
-      issues.push(`${kind}.${sectionId}.${field.key}.options`);
-    }
+  if (
+    field.options !== undefined &&
+    !blueprintOptionsMatch(snapshotField, field.options)
+  ) {
+    issues.push(`${kind}.${sectionId}.${field.key}.options`);
   }
 
-  if (field.rules !== undefined) {
-    const snapshotRules = snapshotField.rules;
-    if (!snapshotRules || typeof snapshotRules !== "object") {
-      issues.push(`${kind}.${sectionId}.${field.key}.rules`);
-    } else {
-      const expectedRules = field.rules;
-      const rulesMatch = Object.entries(expectedRules).every(([key, value]) => {
-        const snapshotValue = Object.entries(snapshotRules).find(
-          ([snapshotKey]) => snapshotKey === key,
-        )?.[1];
-        return JSON.stringify(snapshotValue) === JSON.stringify(value);
-      });
-
-      if (!rulesMatch) {
-        issues.push(`${kind}.${sectionId}.${field.key}.rules`);
-      }
-    }
+  if (
+    field.rules !== undefined &&
+    !blueprintRulesMatch(snapshotField, field.rules)
+  ) {
+    issues.push(`${kind}.${sectionId}.${field.key}.rules`);
   }
 
   return issues;

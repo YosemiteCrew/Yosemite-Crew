@@ -22,6 +22,46 @@ type ModalBaseProps = {
   'aria-describedby'?: string;
 };
 
+/**
+ * Every modal portals to document.body and installs its own document-level
+ * Escape and outside-mousedown listeners. A modal opened from inside another
+ * one (a confirmation over the group editor, say) therefore had BOTH respond to
+ * the same key or backdrop click, dismissing the parent and discarding its
+ * state. `stopPropagation` cannot prevent that: both listeners sit on the same
+ * node, so only the topmost dialog may act.
+ */
+const modalStack: object[] = [];
+
+/**
+ * The scroll lock is shared, so releasing it must be ref-counted. Otherwise
+ * closing a nested modal cleared body overflow while its parent was still open
+ * and the page behind it started scrolling.
+ */
+let scrollLockCount = 0;
+
+const acquireScrollLock = () => {
+  if (scrollLockCount === 0) {
+    const scrollbarWidth =
+      globalThis.window === undefined
+        ? 0
+        : globalThis.window.innerWidth - document.documentElement.clientWidth;
+    document.body.style.overflow = 'hidden';
+    document.body.style.paddingRight = `${scrollbarWidth}px`;
+    // Safari requires overflow:hidden on <html> to prevent body scroll
+    document.documentElement.style.overflow = 'hidden';
+  }
+  scrollLockCount += 1;
+};
+
+const releaseScrollLock = () => {
+  scrollLockCount = Math.max(0, scrollLockCount - 1);
+  if (scrollLockCount === 0) {
+    document.body.style.overflow = '';
+    document.body.style.paddingRight = '';
+    document.documentElement.style.overflow = '';
+  }
+};
+
 /** Focusable element selectors used for focus-trap logic. */
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -42,6 +82,9 @@ const ModalBase = ({
 }: ModalBaseProps) => {
   const containerRef = useRef<HTMLDialogElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  // Stable per-instance identity used as this modal's token in `modalStack`.
+  const stackTokenRef = useRef<object>({});
+  const isTopmostModal = useCallback(() => modalStack.at(-1) === stackTokenRef.current, []);
   // React 19 owns the inert attribute via this boolean prop (true = inert, undefined = not inert).
   // Never mix with imperative setAttribute to avoid the empty-string boolean warning.
   // Derived directly from showModal — no need to copy it into state and sync it in an effect.
@@ -56,6 +99,15 @@ const ModalBase = ({
   const closeModalRef = useRef(closeModal);
   useEffect(() => {
     closeModalRef.current = closeModal;
+  });
+
+  // Read through a ref for the same reason as closeModal above: the document
+  // listeners below should attach once per open, never re-subscribe because an
+  // identity changed. isTopmostModal is stable today, but keeping it out of the
+  // dependency arrays means that stays true if it ever gains dependencies.
+  const isTopmostModalRef = useRef(isTopmostModal);
+  useEffect(() => {
+    isTopmostModalRef.current = isTopmostModal;
   });
 
   const ignoreOutsideClickRef = useRef(ignoreOutsideClick);
@@ -75,19 +127,18 @@ const ModalBase = ({
       return;
     }
     previousFocusRef.current = document.activeElement as HTMLElement;
-    const scrollbarWidth =
-      globalThis.window === undefined
-        ? 0
-        : globalThis.window.innerWidth - document.documentElement.clientWidth;
-    document.body.style.overflow = 'hidden';
-    document.body.style.paddingRight = `${scrollbarWidth}px`;
-    // Safari requires overflow:hidden on <html> to prevent body scroll
-    document.documentElement.style.overflow = 'hidden';
+    const token = stackTokenRef.current;
+    modalStack.push(token);
+    acquireScrollLock();
     // Released via cleanup so unmounting while open cannot strand the lock.
     return () => {
-      document.body.style.overflow = '';
-      document.body.style.paddingRight = '';
-      document.documentElement.style.overflow = '';
+      const index = modalStack.lastIndexOf(token);
+      if (index !== -1) modalStack.splice(index, 1);
+      releaseScrollLock();
+      // A modal that unmounts while still open never reaches the `!showModal`
+      // branch above, so without this the opener loses focus to document.body.
+      previousFocusRef.current?.focus();
+      previousFocusRef.current = null;
     };
   }, [showModal]);
 
@@ -107,6 +158,10 @@ const ModalBase = ({
   useEffect(() => {
     if (!showModal) return;
     const handleClickOutside = (e: MouseEvent) => {
+      // Only the topmost dialog dismisses: the child's backdrop sits outside
+      // `.yc-modal-dialog`, so without this a backdrop click closed the parent
+      // underneath it too.
+      if (!isTopmostModalRef.current()) return;
       const target = e.target as HTMLElement | null;
       if (ignoreOutsideClickRef.current?.(target)) return;
       // Every modal portals to document.body, so a modal opened from inside
@@ -128,10 +183,12 @@ const ModalBase = ({
   useEffect(() => {
     if (!showModal) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        closeModalRef.current();
-      }
+      if (e.key !== 'Escape') return;
+      // Both modals' listeners live on `document`, so stopPropagation cannot
+      // shield the parent. The stack decides who responds.
+      if (!isTopmostModalRef.current()) return;
+      e.stopPropagation();
+      closeModalRef.current();
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);

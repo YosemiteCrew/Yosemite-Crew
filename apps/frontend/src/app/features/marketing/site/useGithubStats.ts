@@ -14,19 +14,19 @@ export interface GithubStats {
   /** Full star count, e.g. '2,431'. */
   starsFull: string | null;
   /** Flagship proof stat: clone-traffic total, e.g. '67,134'. */
-  selfHosters: string | null;
+  repositoryClones: string | null;
   contributors: string | null;
   discord: string | null;
 }
 
-const STATS_CACHE_KEY = 'yc_marketing_stats_v1';
-const STATS_TS_KEY = 'yc_marketing_stats_ts_v1';
+const STATS_CACHE_KEY = 'yc_marketing_stats_v2';
+const STATS_TS_KEY = 'yc_marketing_stats_ts_v2';
 const STATS_TTL_MS = 5 * 60 * 1000;
 
 const EMPTY_STATS: GithubStats = {
   stars: null,
   starsFull: null,
-  selfHosters: null,
+  repositoryClones: null,
   contributors: null,
   discord: null,
 };
@@ -221,7 +221,7 @@ const releaseSnapshots = new Map<string, { raw: string | null; value: ReleaseInf
 const getReleaseSnapshot = (cacheKey: string): ReleaseInfo => {
   const raw = getStorageItem('session', cacheKey);
   const memo = releaseSnapshots.get(cacheKey);
-  if (memo && memo.raw === raw) return memo.value;
+  if (memo?.raw === raw) return memo.value;
   const value = parseJson<ReleaseInfo>(raw) ?? EMPTY_RELEASE;
   releaseSnapshots.set(cacheKey, { raw, value });
   return value;

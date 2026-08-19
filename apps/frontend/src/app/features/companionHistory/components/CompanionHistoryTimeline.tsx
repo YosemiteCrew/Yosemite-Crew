@@ -74,6 +74,7 @@ import {
   getPayloadString,
   resolveHistoryDocumentId,
 } from '@/app/features/companionHistory/utils/historyFormatters';
+import '@/app/ui/tables/GenericTable/Generictable.css';
 
 type CompanionHistoryTimelineProps = {
   companionId: string;
@@ -138,7 +139,7 @@ const ALL_STATUS_OPTION: StatusFilterOption = {
 const APPOINTMENT_STATUS_FILTERS: StatusFilterOption[] = [
   { label: 'Requested', value: 'requested', match: ['REQUESTED'] },
   { label: 'Upcoming', value: 'upcoming', match: ['UPCOMING'] },
-  { label: 'Checked-in', value: 'checked_in', match: ['CHECKED_IN'] },
+  { label: 'Checked in', value: 'checked_in', match: ['CHECKED_IN'] },
   { label: 'In progress', value: 'in_progress', match: ['IN_PROGRESS'] },
   { label: 'Completed', value: 'completed', match: ['COMPLETED'] },
   { label: 'Cancelled', value: 'cancelled', match: ['CANCELLED'] },
@@ -405,15 +406,6 @@ export const StatusPillSelect = ({
   );
 };
 
-const TABLE_HEADING_STYLE = {
-  color: 'var(--color-neutral-600)',
-  fontFamily: 'var(--font-satoshi), "Satoshi Variable", sans-serif',
-  fontSize: '12px',
-  fontStyle: 'normal',
-  fontWeight: 700,
-  lineHeight: '120%',
-} satisfies React.CSSProperties;
-
 const TABLE_DATA_STYLE = {
   color: 'var(--color-neutral-900)',
   fontFamily: 'var(--font-satoshi), "Satoshi Variable", sans-serif',
@@ -654,11 +646,11 @@ export const StructuredResultsPanel = ({
   results: DetailPair[];
 }) => (
   <div className="mt-3 rounded-2xl border border-card-border px-4 py-3">
-    <div className="grid grid-cols-[minmax(160px,1fr)_120px_120px_100px] gap-3">
-      <span style={TABLE_HEADING_STYLE}>Test</span>
-      <span style={TABLE_HEADING_STYLE}>Value</span>
-      <span style={TABLE_HEADING_STYLE}>Reference</span>
-      <span style={TABLE_HEADING_STYLE}>Meter</span>
+    <div className="yc-table-head yc-table-head--static grid grid-cols-[minmax(160px,1fr)_120px_120px_100px] gap-3 px-0!">
+      <span>Test</span>
+      <span>Value</span>
+      <span>Reference</span>
+      <span>Meter</span>
     </div>
     {results.map((result) => (
       <div

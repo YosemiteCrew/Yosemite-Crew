@@ -445,7 +445,7 @@ const SoapStep = ({
               {saveError && (
                 <p
                   role="alert"
-                  className="rounded-2xl bg-danger-100 p-3 text-body-4 text-danger-700"
+                  className="rounded-2xl bg-danger-100 p-3 text-body-4 text-text-error"
                 >
                   {saveError}
                 </p>

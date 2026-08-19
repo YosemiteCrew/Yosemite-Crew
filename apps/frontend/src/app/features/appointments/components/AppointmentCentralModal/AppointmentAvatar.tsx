@@ -39,7 +39,10 @@ const AppointmentAvatar = ({ name, photoUrl, size = 32 }: AppointmentAvatarProps
     >
       <span
         style={{
-          color: 'var(--color-primary-700)',
+          // --blue-text, not the 700 fill step: --color-primary-100 under it DOES
+          // have a dark value (a 16% tint that composites dark), so the fixed dark
+          // blue left these initials at 1.6:1 in dark.
+          color: 'var(--blue-text)',
           fontSize: 12,
           fontWeight: 500,
           fontFamily: 'var(--font-satoshi), sans-serif',

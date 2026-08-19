@@ -160,7 +160,9 @@ const SignatureActions = ({ submission, onStatusChange }: SignatureActionsProps)
   return (
     <div className="flex flex-col gap-2">
       {signingStatusLabel ? (
-        <div className={`text-xs ${isSigned ? 'text-success-600' : 'text-text-secondary'}`}>
+        <div
+          className={`text-xs ${isSigned ? 'text-[var(--success-text)]' : 'text-text-secondary'}`}
+        >
           {signingStatusLabel}
         </div>
       ) : null}
@@ -185,7 +187,7 @@ const SignatureActions = ({ submission, onStatusChange }: SignatureActionsProps)
           />
         ) : null}
       </div>
-      {error ? <div className="text-xs text-error-main">{error}</div> : null}
+      {error ? <div className="text-xs text-text-error">{error}</div> : null}
     </div>
   );
 };

@@ -219,8 +219,16 @@ export const TaskStatusFilters: StatusOption[] = [
   ),
 ];
 
+/**
+ * Audience: who the task is FOR. "Staff", not "Team" - the assignee SCOPE control
+ * sitting immediately to the left of these chips is "My tasks | Team", so the
+ * toolbar read "My tasks - Team - All - Team - Pet parents", two adjacent buttons
+ * with the same label meaning different things. Tasks/index.tsx tried to separate
+ * them by SHAPE (segmented control vs chip) and that was not enough. "Staff" also
+ * pairs properly with "Pet parents": staff-facing against client-facing.
+ */
 export const TaskFilters: FilterOption[] = [
   filter('All', 'all'),
-  filter('Team', 'employee_task'),
+  filter('Staff', 'employee_task'),
   filter('Pet parents', 'parent_task'),
 ];

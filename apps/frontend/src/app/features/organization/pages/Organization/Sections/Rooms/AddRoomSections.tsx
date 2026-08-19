@@ -8,12 +8,12 @@ import {
   RoomEquipmentOptions,
   RoomSpeciesOptions,
   RoomsTypes,
-  RoomUnitSizeOptions,
 } from '@/app/features/organization/pages/Organization/types';
 import { OrganisationRoom } from '@yosemite-crew/types';
 import { FiPlus } from 'react-icons/fi';
 import type { RoomFormData, RoomUnitDraft } from './AddRoom';
 import { SectionHeader, ToggleSwitch } from './roomSectionPrimitives';
+import RoomUnitFieldsEditor from './RoomUnitFieldsEditor';
 
 export { SectionHeader, ToggleSwitch };
 
@@ -74,7 +74,7 @@ export const BasicDetailsSection = ({
             options={specialitiesOptions}
           />
         </div>
-        <div className="sm:col-span-2 rounded-2xl border border-card-border bg-card-subtle px-3 py-2 text-caption-1 text-text-secondary">
+        <div className="sm:col-span-2 rounded-2xl border border-card-border bg-card-hover px-3 py-2 text-caption-1 text-text-secondary">
           Assign a specialty if this room is dedicated to a specific speciality or service.
         </div>
       </div>
@@ -194,7 +194,7 @@ export const UnitsSection = ({
             type="button"
             aria-label="Add unit type"
             onClick={onAddUnit}
-            className="flex size-8 items-center justify-center rounded-full bg-text-primary text-white"
+            className="flex size-8 items-center justify-center rounded-full bg-text-primary text-[var(--screen)]"
           >
             <FiPlus size={16} aria-hidden="true" />
           </button>
@@ -206,29 +206,7 @@ export const UnitsSection = ({
         {formData.units.map((unit) => (
           <div key={unit.id} className="rounded-2xl border border-blue-text p-3">
             <div className="mb-3 text-caption-1 text-blue-text">Draft unit type</div>
-            <div className="grid grid-cols-1 gap-3">
-              <FormInput
-                intype="text"
-                value={unit.name}
-                inlabel="Name"
-                onChange={(event) => onUpdateUnit(unit.id, { name: event.target.value })}
-              />
-              <LabelDropdown
-                placeholder="Size"
-                options={RoomUnitSizeOptions}
-                defaultOption={unit.size}
-                onSelect={(option) => onUpdateUnit(unit.id, { size: option.value })}
-              />
-              <FormInput
-                intype="number"
-                value={String(unit.count)}
-                inlabel="Units"
-                onChange={(event) => {
-                  const parsed = Number(event.target.value);
-                  onUpdateUnit(unit.id, { count: Number.isNaN(parsed) ? 0 : Math.max(0, parsed) });
-                }}
-              />
-            </div>
+            <RoomUnitFieldsEditor unit={unit} onUpdateUnit={onUpdateUnit} />
           </div>
         ))}
         {formData.units.length === 0 && supportsUnits && (
@@ -287,7 +265,7 @@ export const EquipmentSection = ({
               type="button"
               aria-label="Add custom equipment"
               onClick={onAddCustomEquipment}
-              className="flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-2xl bg-text-primary text-white"
+              className="flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-2xl bg-text-primary text-[var(--screen)]"
             >
               <FiPlus size={18} aria-hidden="true" />
             </button>

@@ -34,6 +34,7 @@ import {
 } from '@/app/features/companions/pages/Companions/companionsDirectory';
 
 import './DataTable.css';
+import './GenericTable/Generictable.css';
 
 const SPECIES_LABEL: Record<string, string> = {
   dog: 'Dog',
@@ -120,7 +121,7 @@ const CompanionAvatar = ({
 );
 
 const CoParentPill = () => (
-  <span className="ml-1 inline-flex items-center rounded-full border border-[var(--pink)] bg-[var(--glow-p12)] px-[7px] py-px text-[9px] font-bold text-[var(--pink)]">
+  <span className="ml-1 inline-flex items-center rounded-full border border-[var(--pink)] bg-[var(--glow-p12)] px-[7px] py-px text-[9px] font-bold text-[var(--pink-text)]">
     + CO-PARENT
   </span>
 );
@@ -147,12 +148,11 @@ const CompanionRow = ({
   onOpenHistory: (companion: CompanionParent) => void;
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const isInactive = String(item.companion.status ?? 'inactive').toLowerCase() !== 'active';
   return (
     <div
-      className={`${GRID_COLS} border-t border-[var(--hairline)] px-5 py-[10px] text-[13.5px] text-text-primary transition-colors ${
+      className={`${GRID_COLS} border-t border-[var(--hairline)] px-5 py-3 text-[13.5px] text-text-primary transition-colors ${
         menuOpen ? 'bg-[var(--surface-soft)]' : 'hover:bg-[var(--surface-soft)]'
-      } ${isInactive ? 'opacity-[0.62]' : ''}`}
+      }`}
     >
       {/* Patient */}
       <span className="flex min-w-0 items-center gap-3">
@@ -219,13 +219,8 @@ const CompanionGridCard = ({
   terminologyText: (label: string) => string;
   onOpen: (companion: CompanionParent) => void;
 }) => {
-  const isInactive = String(item.companion.status ?? 'inactive').toLowerCase() !== 'active';
   return (
-    <div
-      className={`flex flex-col justify-between gap-3 overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] p-3.5 shadow-[0_1px_2px_var(--sh03),0_10px_26px_var(--sh05)] ${
-        isInactive ? 'opacity-[0.62]' : ''
-      }`}
-    >
+    <div className="flex flex-col justify-between gap-3 overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] p-3.5 shadow-[0_1px_2px_var(--sh03),0_10px_26px_var(--sh05)]">
       <div className="flex items-center gap-3">
         <CompanionAvatar companion={item.companion} size={46} textClassName="text-[20px]" />
         <button
@@ -259,7 +254,6 @@ const CompanionPhoneCard = ({
   onOpen: (companion: CompanionParent) => void;
   terminologyText: (label: string) => string;
 }) => {
-  const isInactive = String(item.companion.status ?? 'inactive').toLowerCase() !== 'active';
   const subline = [formatDisplayValue(item.companion.breed, ''), formatParentName(item.parent)]
     .filter(Boolean)
     .join(' · ');
@@ -268,9 +262,7 @@ const CompanionPhoneCard = ({
       type="button"
       onClick={() => onOpen(item)}
       title={terminologyText('Open companion history')}
-      className={`flex w-full items-center gap-[11px] rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] px-3.5 py-[11px] text-left shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)] ${
-        isInactive ? 'opacity-[0.62]' : ''
-      }`}
+      className="flex w-full items-center gap-[11px] rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] px-3.5 py-[11px] text-left shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)]"
     >
       <CompanionAvatar companion={item.companion} size={44} textClassName="text-[19px]" />
       <span className="flex min-w-0 flex-1 flex-col">
@@ -513,9 +505,7 @@ const CompanionsTable = ({
           ) : (
             <>
               {/* Header row */}
-              <div
-                className={`${GRID_COLS} shrink-0 bg-[var(--screen-2)] px-5 py-[11px] text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]`}
-              >
+              <div className={`${GRID_COLS} yc-table-head shrink-0`}>
                 <span>{terminologyText('Patient')}</span>
                 <span>Parent</span>
                 <span>Breed</span>

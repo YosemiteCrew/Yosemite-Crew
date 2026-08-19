@@ -3,7 +3,11 @@ import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import React from 'react';
 import { Team } from '@/app/features/organization/types/team';
 import { getSafeImageUrl } from '@/app/lib/urls';
-import { formatWeeklyWorkingHours, getAvailabilityStatusTone } from '@/app/ui/tables/tableUtils';
+import {
+  formatWeeklyWorkingHours,
+  getAvailabilityStatusTone,
+  toSpecialityNames,
+} from '@/app/ui/tables/tableUtils';
 import { toTitleCase } from '@/app/lib/validators';
 import { Secondary } from '@/app/ui/primitives/Buttons';
 
@@ -36,13 +40,11 @@ const AvailabilityCard = ({ team, handleViewTeam }: AvailabilityCardProps) => {
       <div className="flex gap-1">
         <div className="text-caption-1 text-text-extra">Speciality:</div>
         <div className="text-caption-1 text-text-primary">
-          {Array.isArray(team?.speciality) && team.speciality.length > 0
-            ? team.speciality
-                .map((spec: any) =>
-                  typeof spec === 'string' ? spec : spec?.name || JSON.stringify(spec)
-                )
-                .join(', ')
-            : '-'}
+          {/* Shares the table's reader so the phone card and the desktop row can
+              never disagree about a team's specialities. It also replaces the
+              old JSON.stringify fallback, which printed `{"code":"X1"}` at a
+              clinician. */}
+          {toSpecialityNames(team?.speciality).join(', ') || '-'}
         </div>
       </div>
       <div className="flex gap-1">

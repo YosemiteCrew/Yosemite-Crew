@@ -1,5 +1,6 @@
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
+import NameDescriptionFields from '@/app/features/organization/pages/Specialities/NameDescriptionFields';
 import { LEAD_OPTIONS, STAFF_COUNT_OPTIONS } from './packageFormDraftHelpers';
 
 type PackageTopFieldsProps = {
@@ -47,30 +48,14 @@ const PackageTopFields = ({
 }: PackageTopFieldsProps) => (
   <div className="grid grid-cols-1 @2xl:grid-cols-2 gap-x-6 gap-y-4 items-start">
     {/* Left col: Name + Description */}
-    <div className="flex flex-col gap-4">
-      <FormInput
-        intype="text"
-        inlabel="Name"
-        value={name}
-        onChange={(e) => onNameChange(e.target.value)}
-        error={nameError}
-      />
-      <div className="w-full">
-        <label
-          htmlFor={descId}
-          className="mb-1.5 block truncate text-[12.5px] font-semibold text-[var(--ink-soft)]"
-        >
-          Description
-        </label>
-        <textarea
-          id={descId}
-          aria-label="Description"
-          value={description}
-          onChange={(e) => onDescriptionChange(e.target.value)}
-          className="w-full rounded-2xl bg-transparent px-6 pt-4 pb-3 text-body-4 text-text-primary outline-none border border-input-border-default focus:border-input-border-active resize-none min-h-28"
-        />
-      </div>
-    </div>
+    <NameDescriptionFields
+      name={name}
+      onNameChange={onNameChange}
+      nameError={nameError}
+      descId={descId}
+      description={description}
+      onDescriptionChange={onDescriptionChange}
+    />
 
     {/* Right col: Duration / Lead+Support row / scheduling checkboxes */}
     <div className="flex flex-col gap-4">

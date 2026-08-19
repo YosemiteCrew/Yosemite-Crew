@@ -397,6 +397,196 @@ describe("DocumentService", () => {
     );
   });
 
+  it("updates a synced document as a PMS user with new categorization and attachments", async () => {
+    mockedPrisma.document.findUnique.mockResolvedValueOnce({
+      ...baseRow,
+      uploadedByParentId: null,
+      uploadedByPmsUserId: "pms-1",
+      syncedFromPms: true,
+      attachments: baseRow.attachments,
+    } as any);
+    mockedPrisma.document.update.mockResolvedValueOnce({
+      ...baseRow,
+      category: "ADMIN",
+      subcategory: "PASSPORT",
+      syncedFromPms: true,
+      attachments: baseRow.attachments,
+    } as any);
+
+    const updated = await DocumentService.update(
+      uuidDocumentId,
+      {
+        category: "admin",
+        subcategory: "passport",
+        attachments: [{ key: "k-2", mimeType: "application/pdf", size: 5 }],
+      },
+      { pmsUserId: "pms-1", organisationId: uuidOrganisationId },
+    );
+
+    expect(mockedPrisma.document.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          category: "ADMIN",
+          subcategory: "PASSPORT",
+          pmsVisible: true,
+        }),
+      }),
+    );
+    expect(mockedPrisma.documentAttachment.deleteMany).toHaveBeenCalledWith({
+      where: { documentId: uuidDocumentId },
+    });
+    expect(mockedPrisma.documentAttachment.createMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [
+          expect.objectContaining({ documentId: uuidDocumentId, key: "k-2" }),
+        ],
+      }),
+    );
+    expect(mockedAuditTrail.recordSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "DOCUMENT_UPDATED",
+        actorType: "PMS_USER",
+        actorId: "pms-1",
+      }),
+    );
+    expect(updated.category).toBe("ADMIN");
+  });
+
+  it("clears the subcategory when the update sets it to null", async () => {
+    mockedPrisma.document.findUnique.mockResolvedValueOnce({
+      ...baseRow,
+      subcategory: "PRESCRIPTION",
+      attachments: baseRow.attachments,
+    } as any);
+    mockedPrisma.document.update.mockResolvedValueOnce({
+      ...baseRow,
+      subcategory: null,
+      attachments: baseRow.attachments,
+    } as any);
+
+    await DocumentService.update(
+      uuidDocumentId,
+      { subcategory: null },
+      { parentId: uuidParentId },
+    );
+
+    expect(mockedPrisma.document.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ subcategory: undefined }),
+      }),
+    );
+  });
+
+  it("enforces update permissions", async () => {
+    mockedPrisma.document.findUnique.mockResolvedValueOnce(null);
+    await expect(
+      DocumentService.update(uuidDocumentId, {}, { parentId: uuidParentId }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+
+    mockedPrisma.document.findUnique.mockResolvedValueOnce({
+      ...baseRow,
+      uploadedByParentId: "someone-else",
+      attachments: baseRow.attachments,
+    } as any);
+    await expect(
+      DocumentService.update(uuidDocumentId, {}, { parentId: uuidParentId }),
+    ).rejects.toMatchObject({ statusCode: 403 });
+
+    mockedPrisma.document.findUnique.mockResolvedValueOnce({
+      ...baseRow,
+      syncedFromPms: true,
+      attachments: baseRow.attachments,
+    } as any);
+    await expect(
+      DocumentService.update(uuidDocumentId, {}, { pmsUserId: "pms-1" }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+
+    mockedPrisma.document.findUnique.mockResolvedValueOnce({
+      ...baseRow,
+      syncedFromPms: false,
+      attachments: baseRow.attachments,
+    } as any);
+    await expect(
+      DocumentService.update(
+        uuidDocumentId,
+        {},
+        { pmsUserId: "pms-1", organisationId: uuidOrganisationId },
+      ),
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it("maps rendered documents with signing status for appointment listings", async () => {
+    const renderedBase = {
+      organisationId: uuidOrganisationId,
+      sourceKind: "TEMPLATE_INSTANCE",
+      templateId: "tpl-1",
+      templateVersion: 2,
+      kind: "SOAP_NOTE",
+      title: "Soap note",
+      pdfUrl: "https://pdf/url",
+      createdAt: now,
+      updatedAt: now,
+      templateInstance: { appointmentId: uuidAppointmentId, encounterId: null },
+      clinicalArtifact: null,
+    };
+    mockedPrisma.renderedDocument.findMany.mockResolvedValueOnce([
+      {
+        ...renderedBase,
+        id: "rd-1",
+        sourceId: "src-1",
+        status: "DRAFT",
+        signing: { status: "IN_PROGRESS" },
+      },
+      {
+        ...renderedBase,
+        id: "rd-2",
+        sourceId: "src-2",
+        status: "SIGNED",
+        signing: null,
+      },
+      {
+        ...renderedBase,
+        id: "rd-3",
+        sourceId: "src-3",
+        status: "DRAFT",
+        signing: [],
+        templateInstance: null,
+      },
+    ] as any);
+
+    const result = await DocumentService.listForAppointmentParent({
+      appointmentId: uuidAppointmentId,
+      parentId: uuidParentId,
+    });
+
+    const byId = new Map(result.map((doc) => [doc.id, doc]));
+    expect(byId.get("rd-1")).toMatchObject({
+      signingStatus: "IN_PROGRESS",
+      pmsVisible: false,
+      appointmentId: uuidAppointmentId,
+      templateId: "tpl-1",
+    });
+    expect(byId.get("rd-2")).toMatchObject({
+      signingStatus: "SIGNED",
+      pmsVisible: true,
+    });
+    expect(byId.get("rd-3")).toMatchObject({
+      signingStatus: "NOT_STARTED",
+      patientId: "src-3",
+      appointmentId: null,
+    });
+  });
+
+  it("rejects attachment lookups without a requester scope", async () => {
+    await expect(
+      DocumentService.getAllAttachmentUrls({ documentId: uuidDocumentId }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+
+    await expect(
+      DocumentService.getAttachmentUrlByKey({ key: "k-1" }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
   it("returns attachment urls and supports key lookup", async () => {
     mockedPrisma.document.findUnique.mockResolvedValueOnce({
       ...baseRow,

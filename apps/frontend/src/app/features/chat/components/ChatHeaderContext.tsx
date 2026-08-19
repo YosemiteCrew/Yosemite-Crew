@@ -6,6 +6,7 @@ import { ChatAvatar } from './ChatAvatar';
 import type { ConversationInfoPinned } from './conversationInfoPanelUtils';
 import { allowReschedule, canTransitionAppointmentStatus } from '@/app/lib/appointments';
 import { canEnterAppointmentWorkspace } from '@/app/lib/appointmentWorkspace';
+import { formatDateInPreferredTimeZone } from '@/app/lib/timezone';
 
 /**
  * Clinical context rendered under the chat header for a pet-parent (appointment)
@@ -58,7 +59,7 @@ function PinnedBanner({
         onClick={onOpen}
         className="flex w-full items-center gap-[9px] rounded-xl border border-[var(--hairline)] bg-[var(--surface-soft)] px-3.5 py-[7px] text-left"
       >
-        <IoPin className="h-3 w-3 shrink-0 text-[var(--pink)]" />
+        <IoPin className="h-3 w-3 shrink-0 text-[var(--blue-text)]" />
         <Text
           as="span"
           variant="caption-1"
@@ -103,7 +104,7 @@ export function ChatHeaderContext({
 
   const apptTime = appointment?.startTime ? new Date(appointment.startTime) : undefined;
   const apptLabel = apptTime
-    ? apptTime.toLocaleString(undefined, {
+    ? formatDateInPreferredTimeZone(apptTime, {
         weekday: 'short',
         month: 'short',
         day: 'numeric',

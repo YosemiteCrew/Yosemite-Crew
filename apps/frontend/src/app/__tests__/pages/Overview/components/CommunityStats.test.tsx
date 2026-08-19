@@ -53,48 +53,48 @@ const mockTrafficChart = [
   {
     dateKey: '2026-02-27',
     month: 'Feb 27',
-    'Self Hosters (Unique)': 4,
-    'Self Hosters (Cumulative)': 40,
+    'Repository clones (unique)': 4,
+    'Repository clones (cumulative)': 40,
     'Builders (Unique)': 2,
     'Builders (Cumulative)': 20,
   },
   {
     dateKey: '2026-03-08',
     month: 'Mar 8',
-    'Self Hosters (Unique)': 10,
-    'Self Hosters (Cumulative)': 100,
+    'Repository clones (unique)': 10,
+    'Repository clones (cumulative)': 100,
     'Builders (Unique)': 5,
     'Builders (Cumulative)': 50,
   },
   {
     dateKey: '2026-03-09',
     month: 'Mar 9',
-    'Self Hosters (Unique)': 8,
-    'Self Hosters (Cumulative)': 90,
+    'Repository clones (unique)': 8,
+    'Repository clones (cumulative)': 90,
     'Builders (Unique)': 3,
     'Builders (Cumulative)': 53,
   },
   {
     dateKey: '2026-04-01',
     month: 'Apr 1',
-    'Self Hosters (Unique)': 6,
-    'Self Hosters (Cumulative)': 70,
+    'Repository clones (unique)': 6,
+    'Repository clones (cumulative)': 70,
     'Builders (Unique)': 2,
     'Builders (Cumulative)': 55,
   },
   {
     dateKey: '2026-04-02',
     month: 'Apr 2',
-    'Self Hosters (Unique)': 7,
-    'Self Hosters (Cumulative)': 80,
+    'Repository clones (unique)': 7,
+    'Repository clones (cumulative)': 80,
     'Builders (Unique)': 4,
     'Builders (Cumulative)': 59,
   },
   {
     dateKey: '2025-12-31',
     month: 'Dec 31',
-    'Self Hosters (Unique)': 3,
-    'Self Hosters (Cumulative)': 35,
+    'Repository clones (unique)': 3,
+    'Repository clones (cumulative)': 35,
     'Builders (Unique)': 1,
     'Builders (Cumulative)': 18,
   },
@@ -160,8 +160,8 @@ describe('CommunityStats Component', () => {
 
     // Verify default daily view only shows the latest month
     expect(chartData).toEqual([
-      { month: 'Apr 1', dayNumber: 1, 'Self Hosters': 6, Builders: 2 },
-      { month: 'Apr 2', dayNumber: 2, 'Self Hosters': 7, Builders: 4 },
+      { month: 'Apr 1', dayNumber: 1, 'Repository clones': 6, Builders: 2 },
+      { month: 'Apr 2', dayNumber: 2, 'Repository clones': 7, Builders: 4 },
     ]);
     expect(screen.getByText('April 2026')).toBeInTheDocument();
 
@@ -195,8 +195,8 @@ describe('CommunityStats Component', () => {
 
     // Verify mapping logic swapped to the latest month's cumulative values
     expect(chartData).toEqual([
-      { month: 'Apr 1', dayNumber: 1, 'Self Hosters': 70, Builders: 55 },
-      { month: 'Apr 2', dayNumber: 2, 'Self Hosters': 80, Builders: 59 },
+      { month: 'Apr 1', dayNumber: 1, 'Repository clones': 70, Builders: 55 },
+      { month: 'Apr 2', dayNumber: 2, 'Repository clones': 80, Builders: 59 },
     ]);
   });
 
@@ -215,9 +215,9 @@ describe('CommunityStats Component', () => {
     const chartData = JSON.parse(chartDataJson as unknown as string);
 
     expect(chartData).toEqual([
-      { month: "Feb '26", 'Self Hosters': 4, Builders: 2 },
-      { month: "Mar '26", 'Self Hosters': 18, Builders: 8 },
-      { month: "Apr '26", 'Self Hosters': 13, Builders: 6 },
+      { month: "Feb '26", 'Repository clones': 4, Builders: 2 },
+      { month: "Mar '26", 'Repository clones': 18, Builders: 8 },
+      { month: "Apr '26", 'Repository clones': 13, Builders: 6 },
     ]);
     expect(screen.getByText('2026')).toBeInTheDocument();
     expect(screen.getByTestId('chart-compact-axis').textContent).toBe('false');
@@ -237,8 +237,8 @@ describe('CommunityStats Component', () => {
     const chartData = JSON.parse(chartDataJson as unknown as string);
 
     expect(chartData).toEqual([
-      { month: 'Mar 8', dayNumber: 8, 'Self Hosters': 10, Builders: 5 },
-      { month: 'Mar 9', dayNumber: 9, 'Self Hosters': 8, Builders: 3 },
+      { month: 'Mar 8', dayNumber: 8, 'Repository clones': 10, Builders: 5 },
+      { month: 'Mar 9', dayNumber: 9, 'Repository clones': 8, Builders: 3 },
     ]);
     expect(screen.getByText('March 2026')).toBeInTheDocument();
   });
@@ -313,7 +313,7 @@ describe('CommunityStats Component', () => {
     const chartDataJson = screen.getByTestId('chart-data').textContent;
     const chartData = JSON.parse(chartDataJson as unknown as string);
 
-    expect(chartData).toEqual([{ month: "Dec '25", 'Self Hosters': 3, Builders: 1 }]);
+    expect(chartData).toEqual([{ month: "Dec '25", 'Repository clones': 3, Builders: 1 }]);
     expect(screen.getByText('2025')).toBeInTheDocument();
   });
 
@@ -338,8 +338,8 @@ describe('CommunityStats Component', () => {
 
     expect(screen.getByText('March 2026')).toBeInTheDocument();
     expect(chartData).toEqual([
-      { month: 'Mar 8', dayNumber: 8, 'Self Hosters': 10, Builders: 5 },
-      { month: 'Mar 9', dayNumber: 9, 'Self Hosters': 8, Builders: 3 },
+      { month: 'Mar 8', dayNumber: 8, 'Repository clones': 10, Builders: 5 },
+      { month: 'Mar 9', dayNumber: 9, 'Repository clones': 8, Builders: 3 },
     ]);
   });
 
@@ -358,7 +358,7 @@ describe('CommunityStats Component', () => {
 
     // Verify all three labels are permanently passed to the legend
     expect(chartKeys).toEqual([
-      { name: 'Self Hosters', color: 'var(--color-badge-blue-bg)' },
+      { name: 'Repository clones', color: 'var(--color-badge-blue-bg)' },
       { name: 'Builders', color: 'var(--success)' },
       { name: 'Github Stars', color: 'var(--color-warning-600)' },
     ]);
@@ -379,11 +379,11 @@ describe('CommunityStats Component', () => {
     expect(screen.getByText('Cumulative')).toHaveClass('Active');
     expect(screen.getByText('Monthly')).toHaveClass('Active');
 
-    // Self Hosters sum within the month, Builders take the month's last cumulative value
+    // Repository clones sum within the month, Builders take the month's last cumulative value
     expect(readChartData()).toEqual([
-      { month: "Feb '26", 'Self Hosters': 40, Builders: 20 },
-      { month: "Mar '26", 'Self Hosters': 190, Builders: 53 },
-      { month: "Apr '26", 'Self Hosters': 150, Builders: 59 },
+      { month: "Feb '26", 'Repository clones': 40, Builders: 20 },
+      { month: "Mar '26", 'Repository clones': 190, Builders: 53 },
+      { month: "Apr '26", 'Repository clones': 150, Builders: 59 },
     ]);
   });
 
@@ -406,8 +406,8 @@ describe('CommunityStats Component', () => {
           {
             dateKey: '2026-04-01',
             month: 'Apr 1',
-            'Self Hosters (Unique)': 6,
-            'Self Hosters (Cumulative)': 70,
+            'Repository clones (unique)': 6,
+            'Repository clones (cumulative)': 70,
             'Builders (Unique)': 2,
             'Builders (Cumulative)': 55,
           },
@@ -418,7 +418,7 @@ describe('CommunityStats Component', () => {
     );
 
     expect(readChartData()).toEqual([
-      { month: 'Apr 1', dayNumber: 1, 'Self Hosters': 6, Builders: 2 },
+      { month: 'Apr 1', dayNumber: 1, 'Repository clones': 6, Builders: 2 },
     ]);
     expect(screen.queryByLabelText('Show previous period')).not.toBeInTheDocument();
     expect(screen.getByTestId('chart-footer')).toBeEmptyDOMElement();
@@ -444,8 +444,8 @@ describe('CommunityStats Component', () => {
 
     expect(screen.getByText('April 2026')).toBeInTheDocument();
     expect(readChartData()).toEqual([
-      { month: 'Apr 1', dayNumber: 1, 'Self Hosters': 6, Builders: 2 },
-      { month: 'Apr 2', dayNumber: 2, 'Self Hosters': 7, Builders: 4 },
+      { month: 'Apr 1', dayNumber: 1, 'Repository clones': 6, Builders: 2 },
+      { month: 'Apr 2', dayNumber: 2, 'Repository clones': 7, Builders: 4 },
     ]);
   });
 
@@ -487,9 +487,9 @@ describe('CommunityStats Component', () => {
     expect(screen.queryByText('Yearly')).not.toBeInTheDocument();
     expect(screen.getByText('2026')).toBeInTheDocument();
     expect(readChartData()).toEqual([
-      { month: "Feb '26", 'Self Hosters': 4, Builders: 2 },
-      { month: "Mar '26", 'Self Hosters': 18, Builders: 8 },
-      { month: "Apr '26", 'Self Hosters': 13, Builders: 6 },
+      { month: "Feb '26", 'Repository clones': 4, Builders: 2 },
+      { month: "Mar '26", 'Repository clones': 18, Builders: 8 },
+      { month: "Apr '26", 'Repository clones': 13, Builders: 6 },
     ]);
   });
 
@@ -510,9 +510,9 @@ describe('CommunityStats Component', () => {
     expect(screen.getByText('Monthly')).toHaveClass('Active');
     expect(screen.getByText('2026')).toBeInTheDocument();
     expect(readChartData()).toEqual([
-      { month: "Feb '26", 'Self Hosters': 40, Builders: 20 },
-      { month: "Mar '26", 'Self Hosters': 190, Builders: 53 },
-      { month: "Apr '26", 'Self Hosters': 150, Builders: 59 },
+      { month: "Feb '26", 'Repository clones': 40, Builders: 20 },
+      { month: "Mar '26", 'Repository clones': 190, Builders: 53 },
+      { month: "Apr '26", 'Repository clones': 150, Builders: 59 },
     ]);
   });
 
@@ -589,24 +589,24 @@ describe('CommunityStats Component', () => {
           {
             dateKey: '2026-04-01',
             month: 'Apr 1',
-            'Self Hosters (Unique)': 6,
-            'Self Hosters (Cumulative)': 70,
+            'Repository clones (unique)': 6,
+            'Repository clones (cumulative)': 70,
             'Builders (Unique)': 2,
             'Builders (Cumulative)': 55,
           },
           {
             dateKey: '2026-04-01',
             month: 'Apr 1',
-            'Self Hosters (Unique)': 1,
-            'Self Hosters (Cumulative)': 71,
+            'Repository clones (unique)': 1,
+            'Repository clones (cumulative)': 71,
             'Builders (Unique)': 1,
             'Builders (Cumulative)': 56,
           },
           {
             dateKey: '2026-04-03',
             month: 'Apr 3',
-            'Self Hosters (Unique)': 9,
-            'Self Hosters (Cumulative)': 80,
+            'Repository clones (unique)': 9,
+            'Repository clones (cumulative)': 80,
             'Builders (Unique)': 3,
             'Builders (Cumulative)': 59,
           },

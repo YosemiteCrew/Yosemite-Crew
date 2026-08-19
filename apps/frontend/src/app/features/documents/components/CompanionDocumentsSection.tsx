@@ -34,13 +34,16 @@ import {
   getAvailableLifecycleTabs,
   getLifecycleForFilter,
 } from '@/app/features/documents/components/recordLifecycle';
+import PassportAttestationAction from '@/app/features/petPassport/components/attestation/PassportAttestationAction';
 
 const handleDownload = async (id: string | undefined) => {
   try {
     const data = await loadDocumentDownloadURL(id);
     if (data.length > 0) {
       const docURL = data[0].url;
-      globalThis.open(docURL, '_blank');
+      // `noopener` keeps the signed storage URL from handing the opener window
+      // to the new tab.
+      globalThis.open(docURL, '_blank', 'noopener');
     }
   } catch (error) {
     console.log(error);
@@ -69,7 +72,7 @@ const FilterPill = ({ active, onClick, children }: FilterPillProps) => (
     aria-pressed={active}
     className={`rounded-full border px-3 py-1.5 text-[12px] ${
       active
-        ? 'border-[var(--divider)] bg-[var(--inset)] font-bold text-[var(--ink)]'
+        ? 'border-[var(--chip-selected-border)] bg-[var(--chip-selected-bg)] font-bold text-[var(--chip-selected-ink)]'
         : 'border-[var(--hairline)] font-semibold text-[var(--ink-muted)]'
     }`}
   >
@@ -80,6 +83,30 @@ const FilterPill = ({ active, onClick, children }: FilterPillProps) => (
 type CompanionDocumentsSectionProps = {
   companionId: string;
 };
+
+/**
+ * A record row plus the veterinarian's passport action. The action renders
+ * nothing unless the record is linked to a passport clinical record and the
+ * viewer may attest, so every other role and record keeps the plain row.
+ * `CompanionRecordRow` is itself a button, so the action sits beside it rather
+ * than inside it.
+ */
+const RecordListRow = ({
+  doc,
+  companionId,
+  onOpen,
+}: {
+  doc: CompanionRecord;
+  companionId: string;
+  onOpen: () => void;
+}) => (
+  <div className="flex items-center gap-2">
+    <div className="min-w-0 flex-1">
+      <CompanionRecordRow doc={doc} onOpen={onOpen} />
+    </div>
+    <PassportAttestationAction companionId={companionId} record={doc} />
+  </div>
+);
 
 // The upload sheet's draft — the picked file, the form fields, and their
 // validation errors — is one conceptual unit that is reset together on save, so
@@ -272,10 +299,11 @@ const CompanionDocumentsSection = ({ companionId }: CompanionDocumentsSectionPro
                   <div key={group.label} className="flex flex-col gap-2">
                     <div className="text-caption-3 text-[var(--ink-faint)]">{group.label}</div>
                     <div className="flex flex-col gap-2">
-                      {group.items.map((doc, index) => (
-                        <CompanionRecordRow
-                          key={doc.id ?? `${group.label}-${index}`}
+                      {group.items.map((doc) => (
+                        <RecordListRow
+                          key={doc.id ?? `${group.label}-${doc.title}-${doc.issueDate ?? ''}`}
                           doc={doc}
+                          companionId={companionId}
                           onOpen={() => handleDownload(doc.id)}
                         />
                       ))}

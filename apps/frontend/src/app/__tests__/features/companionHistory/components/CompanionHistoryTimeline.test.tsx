@@ -716,7 +716,7 @@ describe('CompanionHistoryTimeline', () => {
 
     await screen.findByText('Recheck visit');
     fireEvent.click(screen.getAllByRole('button', { name: 'Status' }).at(-1)!);
-    fireEvent.mouseDown(screen.getByRole('menuitem', { name: 'Checked-in' }));
+    fireEvent.mouseDown(screen.getByRole('menuitem', { name: 'Checked in' }));
 
     await waitFor(() => {
       expect(changeAppointmentStatus).toHaveBeenCalledWith(
@@ -724,7 +724,7 @@ describe('CompanionHistoryTimeline', () => {
         'CHECKED_IN'
       );
     });
-    expect(await screen.findByText('Checked-in')).toBeInTheDocument();
+    expect(await screen.findByText('Checked in')).toBeInTheDocument();
   });
 
   it('only offers valid next statuses in the appointment status menu', async () => {
@@ -746,7 +746,7 @@ describe('CompanionHistoryTimeline', () => {
     await screen.findByText('Recheck visit');
     fireEvent.click(screen.getAllByRole('button', { name: 'Status' }).at(-1)!);
 
-    expect(screen.getByRole('menuitem', { name: 'Checked-in' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Checked in' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Cancelled' })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: 'Requested' })).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: 'Completed' })).not.toBeInTheDocument();
@@ -772,7 +772,7 @@ describe('CompanionHistoryTimeline', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Status' }).at(-1)!);
     // UPCOMING → CHECKED_IN is offered by the menu, but the loaded appointment is
     // COMPLETED so the transition is invalid.
-    fireEvent.mouseDown(screen.getByRole('menuitem', { name: 'Checked-in' }));
+    fireEvent.mouseDown(screen.getByRole('menuitem', { name: 'Checked in' }));
 
     await waitFor(() => {
       expect(mockNotify).toHaveBeenCalledWith(
@@ -1087,7 +1087,7 @@ describe('CompanionHistoryTimeline', () => {
 
     await screen.findByText('Recheck visit');
     fireEvent.click(screen.getAllByRole('button', { name: 'Status' }).at(-1)!);
-    fireEvent.mouseDown(screen.getByRole('menuitem', { name: 'Checked-in' }));
+    fireEvent.mouseDown(screen.getByRole('menuitem', { name: 'Checked in' }));
 
     await waitFor(() => {
       expect(mockNotify).toHaveBeenCalledWith('error', {
@@ -1282,7 +1282,7 @@ describe('CompanionHistoryTimeline', () => {
 
     await screen.findByText('Recheck visit');
     fireEvent.click(screen.getAllByRole('button', { name: 'Status' }).at(-1)!);
-    fireEvent.mouseDown(screen.getByRole('menuitem', { name: 'Checked-in' }));
+    fireEvent.mouseDown(screen.getByRole('menuitem', { name: 'Checked in' }));
 
     await waitFor(() => {
       expect(mockNotify).toHaveBeenCalledWith('error', {
@@ -1341,7 +1341,7 @@ describe('CompanionHistoryTimeline', () => {
 
     await screen.findByText('Recheck visit');
     fireEvent.click(screen.getAllByRole('button', { name: 'Status' }).at(-1)!);
-    fireEvent.mouseDown(screen.getByRole('menuitem', { name: 'Checked-in' }));
+    fireEvent.mouseDown(screen.getByRole('menuitem', { name: 'Checked in' }));
 
     await waitFor(() => {
       expect(mockNotify).toHaveBeenCalledWith('error', {
@@ -1370,7 +1370,7 @@ describe('CompanionHistoryTimeline', () => {
 
     await screen.findByText('Recheck visit');
     fireEvent.click(screen.getAllByRole('button', { name: 'Status' }).at(-1)!);
-    fireEvent.mouseDown(screen.getByRole('menuitem', { name: 'Checked-in' }));
+    fireEvent.mouseDown(screen.getByRole('menuitem', { name: 'Checked in' }));
 
     await waitFor(() => {
       expect(mockNotify).toHaveBeenCalledWith('error', {
@@ -1732,7 +1732,7 @@ describe('CompanionHistoryTimeline', () => {
     await screen.findByText('Recheck visit');
     fireEvent.click(screen.getAllByRole('button', { name: 'Status' }).at(-1)!);
     delete mockAppointmentsById['a-1'];
-    fireEvent.mouseDown(screen.getByRole('menuitem', { name: 'Checked-in' }));
+    fireEvent.mouseDown(screen.getByRole('menuitem', { name: 'Checked in' }));
 
     await waitFor(() => {
       expect(mockNotify).toHaveBeenCalledWith(
@@ -1966,12 +1966,12 @@ describe('CompanionHistoryTimeline', () => {
     await screen.findByText('Recheck visit');
     const statusButton = screen.getAllByRole('button', { name: 'Status' }).at(-1)!;
     fireEvent.click(statusButton);
-    expect(screen.getByRole('menuitem', { name: 'Checked-in' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Checked in' })).toBeInTheDocument();
 
     fireEvent.blur(statusButton);
 
     await waitFor(() => {
-      expect(screen.queryByRole('menuitem', { name: 'Checked-in' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: 'Checked in' })).not.toBeInTheDocument();
     });
   });
 
@@ -2499,7 +2499,7 @@ describe('CompanionHistoryTimeline', () => {
           status={null}
           options={[
             { name: 'Upcoming', key: 'upcoming' },
-            { name: 'Checked-in', key: 'checked_in' },
+            { name: 'Checked in', key: 'checked_in' },
           ]}
           onChange={onChange}
         />
@@ -2511,7 +2511,7 @@ describe('CompanionHistoryTimeline', () => {
 
       fireEvent.click(trigger);
       expect(screen.getByRole('menuitem', { name: 'Upcoming' })).toBeInTheDocument();
-      expect(screen.getByRole('menuitem', { name: 'Checked-in' })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: 'Checked in' })).toBeInTheDocument();
 
       fireEvent.mouseDown(screen.getByRole('menuitem', { name: 'Upcoming' }));
       expect(onChange).toHaveBeenCalledWith('upcoming');
@@ -2524,7 +2524,7 @@ describe('CompanionHistoryTimeline', () => {
           status="upcoming"
           options={[
             { name: 'Upcoming', key: 'upcoming' },
-            { name: 'Checked-in', key: 'checked_in' },
+            { name: 'Checked in', key: 'checked_in' },
             { name: 'Completed', key: 'completed' },
           ]}
           allowedKeys={['CHECKED_IN']}
@@ -2533,7 +2533,7 @@ describe('CompanionHistoryTimeline', () => {
       );
 
       fireEvent.click(screen.getByRole('button', { name: 'Status' }));
-      expect(screen.getByRole('menuitem', { name: 'Checked-in' })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: 'Checked in' })).toBeInTheDocument();
       expect(screen.queryByRole('menuitem', { name: 'Upcoming' })).not.toBeInTheDocument();
       expect(screen.queryByRole('menuitem', { name: 'Completed' })).not.toBeInTheDocument();
     });

@@ -23,9 +23,10 @@
 .yc-step-trigger.is-clickable {
   cursor: pointer;
 }
-.yc-step-trigger.is-upcoming {
-  opacity: 0.6;
-}
+/* No dim for `is-upcoming`. The trigger already carries :disabled whenever the
+   step is not selectable, and a disabled control is exempt from AA - but when
+   canSelectStep is not supplied the button stays ENABLED, and this rule then
+   dimmed a live control's label. */
 .yc-step-trigger:disabled {
   opacity: 0.6;
 }

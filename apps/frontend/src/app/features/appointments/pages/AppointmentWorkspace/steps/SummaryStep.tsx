@@ -29,6 +29,7 @@ import PdfPreviewOverlay from '@/app/ui/overlays/PdfPreviewOverlay';
 import SigningOverlay from '@/app/ui/overlays/SigningOverlay';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import { useSigningOverlayStore } from '@/app/stores/signingOverlayStore';
+import { getTemplateSchemaSnapshot } from '@/app/features/appointments/pages/AppointmentWorkspace/templateSchemaSnapshot';
 import { isRichTextEmpty, sanitizeRichText } from '@/app/lib/richText';
 import type { AppointmentEncounter } from '@/app/features/appointments/types/workspace';
 import { formatStampDate, formatStampTime } from '@/app/lib/appointmentWorkspace';
@@ -87,20 +88,6 @@ const escapeHtml = (value: string): string =>
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
-
-const hasTemplateSchemaSnapshot = (value: unknown): value is TemplateSchemaSnapshot =>
-  Boolean(
-    value && typeof value === 'object' && Array.isArray((value as { sections?: unknown }).sections)
-  );
-
-const getTemplateSchemaSnapshot = (template: TemplateLike): TemplateSchemaSnapshot | undefined => {
-  const rootSnapshot = (template as TemplateLike & { schemaSnapshot?: unknown }).schemaSnapshot;
-  if (hasTemplateSchemaSnapshot(rootSnapshot)) return rootSnapshot;
-  const version = template.versions?.find(
-    (item) => item.version === template.publishedVersion || item.version === template.latestVersion
-  );
-  return hasTemplateSchemaSnapshot(version?.schemaSnapshot) ? version.schemaSnapshot : undefined;
-};
 
 const DISCHARGE_META_FIELD_KEYS = new Set(['followUpInDays', 'followUpDate']);
 
@@ -275,7 +262,7 @@ export const AllDocumentsTable = ({
   return (
     <SectionContainer title="All Documents" className="flex flex-col gap-4">
       {error && (
-        <p role="alert" className="rounded-2xl bg-danger-100 p-4 text-body-4 text-danger-700">
+        <p role="alert" className="rounded-2xl bg-danger-100 p-4 text-body-4 text-text-error">
           {error}
         </p>
       )}
@@ -330,7 +317,7 @@ export const AllDocumentsTable = ({
             ))}
           </ul>
           {documentError && (
-            <p role="alert" className="rounded-2xl bg-danger-100 p-3 text-body-4 text-danger-700">
+            <p role="alert" className="rounded-2xl bg-danger-100 p-3 text-body-4 text-text-error">
               {documentError}
             </p>
           )}
@@ -812,7 +799,7 @@ const useSummaryStepContent = ({
                 )}
               </SearchResultsDropdown>
               {templateState.error && (
-                <p className="mt-2 text-caption-1 text-danger-600">{templateState.error}</p>
+                <p className="mt-2 text-caption-1 text-text-error">{templateState.error}</p>
               )}
             </div>
           </div>
@@ -898,7 +885,7 @@ const useSummaryStepContent = ({
 
           <div className="flex flex-col items-end gap-2">
             {signError && (
-              <p role="alert" className="text-body-4 text-danger-700">
+              <p role="alert" className="text-body-4 text-text-error">
                 {signError}
               </p>
             )}

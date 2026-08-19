@@ -8,7 +8,14 @@ export const metadata: Metadata = {
 };
 
 function page() {
-  return <EmbeddedMerckManuals />;
+  // A product surface on bone, but outside the (app) layout, so it needs the
+  // readable-ink marker of its own - see body:has([data-yc-app]) in globals.css.
+  // `display: contents` keeps it out of the box tree.
+  return (
+    <div data-yc-app style={{ display: 'contents' }}>
+      <EmbeddedMerckManuals />
+    </div>
+  );
 }
 
 export default page;

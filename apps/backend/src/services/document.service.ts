@@ -308,6 +308,21 @@ const mapDocumentToDto = (doc: PrismaDocumentRow): DocumentDto => ({
   updatedAt: doc.updatedAt.toISOString(),
 });
 
+const resolveRenderedSigningStatus = (
+  signing: unknown,
+  status: string,
+): string => {
+  if (
+    typeof signing === "object" &&
+    signing !== null &&
+    !Array.isArray(signing) &&
+    typeof (signing as { status?: unknown }).status === "string"
+  ) {
+    return (signing as { status: string }).status;
+  }
+  return status === "SIGNED" ? "SIGNED" : "NOT_STARTED";
+};
+
 const mapRenderedDocumentToDto = (
   document: RenderedDocumentRow,
 ): DocumentDto => ({
@@ -335,15 +350,10 @@ const mapRenderedDocumentToDto = (
   sourceId: document.sourceId,
   templateId: document.templateId,
   templateVersion: document.templateVersion,
-  signingStatus:
-    typeof document.signing === "object" &&
-    document.signing !== null &&
-    !Array.isArray(document.signing) &&
-    typeof (document.signing as { status?: unknown }).status === "string"
-      ? String((document.signing as { status?: string }).status)
-      : document.status === "SIGNED"
-        ? "SIGNED"
-        : "NOT_STARTED",
+  signingStatus: resolveRenderedSigningStatus(
+    document.signing,
+    document.status,
+  ),
   pdfUrl: document.pdfUrl,
   createdAt: document.createdAt.toISOString(),
   updatedAt: document.updatedAt.toISOString(),
@@ -477,23 +487,7 @@ const createDocumentRecord = async (
     throw new DocumentServiceError("Document not found.", 404);
   }
 
-  if (context.organisationId) {
-    await AuditTrailService.recordSafely({
-      organisationId: context.organisationId,
-      patientId: created.patientId,
-      eventType: "DOCUMENT_ADDED",
-      actorType: context.pmsUserId ? "PMS_USER" : "SYSTEM",
-      actorId: context.pmsUserId ?? null,
-      entityType: "DOCUMENT",
-      entityId: created.id,
-      metadata: {
-        category: created.category,
-        subcategory: created.subcategory,
-        appointmentId: created.appointmentId,
-        title: created.title,
-      },
-    });
-  }
+  await recordDocumentAuditSafely("DOCUMENT_ADDED", created, context);
 
   return mapDocumentToDto(created);
 };
@@ -533,6 +527,125 @@ const loadDocumentForPmsAccess = async (
 
   await assertPmsCanAccessCompanion(organisationId, doc.patientId);
   return mapDocumentToDto(doc);
+};
+
+const loadDocumentForRequester = async (
+  documentId: string,
+  requester: { parentId?: string; organisationId?: string },
+): Promise<DocumentDto | null> => {
+  if (requester.parentId) {
+    return loadDocumentForParentAccess(documentId, requester.parentId);
+  }
+  if (requester.organisationId) {
+    return loadDocumentForPmsAccess(documentId, requester.organisationId, true);
+  }
+  return null;
+};
+
+const assertParentCanUpdateDocument = async (
+  parentId: string,
+  doc: { patientId: string; uploadedByParentId: string | null },
+): Promise<void> => {
+  await assertParentCanAccessCompanion(parentId, doc.patientId);
+  if (doc.uploadedByParentId !== parentId) {
+    throw new DocumentServiceError(
+      "Parent is not allowed to update this document.",
+      403,
+    );
+  }
+};
+
+const assertPmsCanUpdateDocument = async (
+  context: DocumentCreateContext,
+  doc: { patientId: string; syncedFromPms: boolean },
+): Promise<void> => {
+  if (!context.organisationId) {
+    throw new DocumentServiceError("organisationId is required.", 400);
+  }
+  await assertPmsCanAccessCompanion(context.organisationId, doc.patientId);
+  if (!doc.syncedFromPms) {
+    throw new DocumentServiceError(
+      "PMS cannot update documents uploaded by parent.",
+      403,
+    );
+  }
+};
+
+const resolveUpdatedCategorization = (
+  updates: Partial<CreateDocumentInput>,
+  doc: { category: string; subcategory: string | null },
+): { category: string; subcategory: string | null } => {
+  const category = updates.category
+    ? updates.category.toUpperCase()
+    : doc.category;
+
+  let subcategory: string | null;
+  if (updates.subcategory === undefined) {
+    subcategory = doc.subcategory;
+  } else if (updates.subcategory) {
+    subcategory = updates.subcategory.toUpperCase();
+  } else {
+    subcategory = null;
+  }
+
+  if (updates.category || updates.subcategory !== undefined) {
+    validateCategoryAndSubcategory(category, subcategory);
+  }
+
+  return { category, subcategory };
+};
+
+const buildDocumentUpdateData = (
+  updates: Partial<CreateDocumentInput>,
+  category: string,
+  subcategory: string | null,
+) => ({
+  category,
+  subcategory: subcategory ?? undefined,
+  visitType:
+    updates.visitType === undefined ? undefined : (updates.visitType ?? null),
+  title: isNonEmptyString(updates.title) ? updates.title.trim() : undefined,
+  issuingBusinessName:
+    updates.issuingBusinessName === undefined
+      ? undefined
+      : (updates.issuingBusinessName?.trim() ?? null),
+  issueDate:
+    updates.issueDate === undefined
+      ? undefined
+      : parseIssueDate(updates.issueDate),
+  pmsVisible: isPmsVisibleCategory(category),
+});
+
+const recordDocumentAuditSafely = async (
+  eventType: "DOCUMENT_ADDED" | "DOCUMENT_UPDATED",
+  doc: {
+    id: string;
+    patientId: string;
+    category: string;
+    subcategory: string | null;
+    appointmentId: string | null;
+    title: string;
+  },
+  context: DocumentCreateContext,
+): Promise<void> => {
+  if (!context.organisationId) {
+    return;
+  }
+  await AuditTrailService.recordSafely({
+    organisationId: context.organisationId,
+    patientId: doc.patientId,
+    eventType,
+    actorType: context.pmsUserId ? "PMS_USER" : "SYSTEM",
+    actorId: context.pmsUserId ?? null,
+    entityType: "DOCUMENT",
+    entityId: doc.id,
+    metadata: {
+      category: doc.category,
+      subcategory: doc.subcategory,
+      appointmentId: doc.appointmentId,
+      title: doc.title,
+    },
+  });
 };
 
 const syncDocumentAttachmentsToPostgres = async (
@@ -773,64 +886,21 @@ export const DocumentService = {
     }
 
     if (context.parentId) {
-      await assertParentCanAccessCompanion(context.parentId, doc.patientId);
-      if (doc.uploadedByParentId !== context.parentId) {
-        throw new DocumentServiceError(
-          "Parent is not allowed to update this document.",
-          403,
-        );
-      }
+      await assertParentCanUpdateDocument(context.parentId, doc);
     }
 
     if (context.pmsUserId) {
-      if (!context.organisationId) {
-        throw new DocumentServiceError("organisationId is required.", 400);
-      }
-      await assertPmsCanAccessCompanion(context.organisationId, doc.patientId);
-      if (!doc.syncedFromPms) {
-        throw new DocumentServiceError(
-          "PMS cannot update documents uploaded by parent.",
-          403,
-        );
-      }
+      await assertPmsCanUpdateDocument(context, doc);
     }
 
-    const category = updates.category
-      ? updates.category.toUpperCase()
-      : doc.category;
-    const subcategory =
-      updates.subcategory === undefined
-        ? doc.subcategory
-        : updates.subcategory
-          ? updates.subcategory.toUpperCase()
-          : null;
-
-    if (updates.category || updates.subcategory !== undefined) {
-      validateCategoryAndSubcategory(category, subcategory);
-    }
+    const { category, subcategory } = resolveUpdatedCategorization(
+      updates,
+      doc,
+    );
 
     const updated = await prisma.document.update({
       where: { id: documentId },
-      data: {
-        category,
-        subcategory: subcategory ?? undefined,
-        visitType:
-          updates.visitType === undefined
-            ? undefined
-            : (updates.visitType ?? null),
-        title: isNonEmptyString(updates.title)
-          ? updates.title.trim()
-          : undefined,
-        issuingBusinessName:
-          updates.issuingBusinessName === undefined
-            ? undefined
-            : (updates.issuingBusinessName?.trim() ?? null),
-        issueDate:
-          updates.issueDate === undefined
-            ? undefined
-            : parseIssueDate(updates.issueDate),
-        pmsVisible: isPmsVisibleCategory(category),
-      },
+      data: buildDocumentUpdateData(updates, category, subcategory),
       include: { attachments: true },
     });
 
@@ -845,23 +915,7 @@ export const DocumentService = {
       );
     }
 
-    if (context.organisationId) {
-      await AuditTrailService.recordSafely({
-        organisationId: context.organisationId,
-        patientId: updated.patientId,
-        eventType: "DOCUMENT_UPDATED",
-        actorType: context.pmsUserId ? "PMS_USER" : "SYSTEM",
-        actorId: context.pmsUserId ?? null,
-        entityType: "DOCUMENT",
-        entityId: updated.id,
-        metadata: {
-          category: updated.category,
-          subcategory: updated.subcategory,
-          appointmentId: updated.appointmentId,
-          title: updated.title,
-        },
-      });
-    }
+    await recordDocumentAuditSafely("DOCUMENT_UPDATED", updated, context);
 
     return mapDocumentToDto(updated);
   },
@@ -871,15 +925,7 @@ export const DocumentService = {
     parentId?: string;
     organisationId?: string;
   }) {
-    const accessDoc = params.parentId
-      ? await loadDocumentForParentAccess(params.documentId, params.parentId)
-      : params.organisationId
-        ? await loadDocumentForPmsAccess(
-            params.documentId,
-            params.organisationId,
-            true,
-          )
-        : null;
+    const accessDoc = await loadDocumentForRequester(params.documentId, params);
 
     if (!accessDoc) {
       throw new DocumentServiceError("Document not found.", 404);
@@ -930,18 +976,10 @@ export const DocumentService = {
       throw new DocumentServiceError("Attachment not found.", 404);
     }
 
-    const accessDoc = params.parentId
-      ? await loadDocumentForParentAccess(
-          attachment.documentId,
-          params.parentId,
-        )
-      : params.organisationId
-        ? await loadDocumentForPmsAccess(
-            attachment.documentId,
-            params.organisationId,
-            true,
-          )
-        : null;
+    const accessDoc = await loadDocumentForRequester(
+      attachment.documentId,
+      params,
+    );
 
     if (!accessDoc) {
       throw new DocumentServiceError("Attachment not found.", 404);

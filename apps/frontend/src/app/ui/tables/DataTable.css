@@ -5,10 +5,39 @@
   width: 100%;
 }
 
-/* Spacious cell padding for the Specialities table */
-.specialities-table thead tr th,
-.specialities-table tbody tr td {
-  padding: 12px 20px;
+/* Cell text clamps. Tailwind's `truncate` lives in the utilities layer, but this
+   file is unlayered, so `.appointment-profile-title`'s `white-space: normal` /
+   `overflow-wrap: anywhere` silently beat it — every cell that combined the two
+   wrapped instead of ellipsing, and multi-value cells grew the row without
+   bound. These clamps are declared alongside that rule so they actually win. */
+.cell-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: normal;
+}
+/* Compounded so it also outranks `.appointment-profile-title` itself. */
+.appointment-profile-title.cell-truncate {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+/* Two-line variant for cells whose second line carries real meaning. */
+.cell-clamp-2 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+/* "+3" marker for cells that summarise a list. Inline after the leading value in
+   single-line cells, or on its own line under a stack — hence the span-only gap. */
+.cell-overflow-count {
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+span.cell-overflow-count {
+  margin-left: 6px;
 }
 
 /* table-layout:fixed + explicit colgroup widths on every column locks headers.
@@ -21,30 +50,26 @@
 }
 .tasks-table-fixed {
   table-layout: fixed;
-  min-width: 1110px; /* 160+200+110+120+120+110+130+160 */
+  min-width: 1126px; /* 160+200+110+120+120+110+130+176 */
 }
 .forms-table-fixed {
   table-layout: fixed;
-  /* 200+130+190+90+150+110+64 — includes the conditional "Linked services"
+  /* 200+130+190+90+150+110+88 — includes the conditional "Linked services"
      column (190px). It must cover the widest colgroup, or with that column
      rendered the trailing Actions column sits past the reachable scroll extent. */
-  min-width: 934px;
+  min-width: 958px;
 }
 .invoice-table-fixed {
   table-layout: fixed;
-  min-width: 1220px; /* 96+200+180+150+90+70+80+180+110+64 */
+  min-width: 1244px; /* 96+200+180+150+90+70+80+180+110+88 */
 }
 .companions-table-fixed {
   table-layout: fixed;
   min-width: 1096px; /* 56+220+130+100+110+170+110+200 */
 }
-.inventory-table-fixed {
-  table-layout: fixed;
-  min-width: 1081px; /* compact inventory revamp columns */
-}
 .inventory-turnover-table-fixed {
   table-layout: fixed;
-  min-width: 1040px; /* 160+110+130+120+100+120+100+100+100 */
+  min-width: 1238px; /* 160+110+172+152+128+144+108+124+140 */
 }
 .invoice-compact-fixed {
   table-layout: fixed;
@@ -141,7 +166,7 @@
    badge-only ramp. Declared unlayered so they beat Tailwind's utility layer and
    stay theme-live in both light and dark. */
 .cell-ink-success {
-  color: var(--success);
+  color: var(--success-text);
 }
 .cell-ink-warn {
   color: var(--warn-text);
@@ -157,45 +182,6 @@
   border-color: var(--divider);
 }
 
-.InviteDetails {
-  color: var(--color-primary-500);
-  font-size: 16px;
-  font-style: normal;
-  font-weight: 400;
-  line-height: 150%;
-  letter-spacing: -0.32px;
-  font-family: var(--font-satoshi);
-  cursor: pointer;
-}
-.InviteTime {
-  color: var(--color-neutral-900);
-  font-size: 16px;
-  font-style: normal;
-  font-weight: 400;
-  line-height: 150%;
-  letter-spacing: -0.32px;
-  font-family: var(--font-satoshi);
-}
-.InviteExpires {
-  color: var(--color-neutral-900);
-  font-size: 16px;
-  font-style: normal;
-  font-weight: 400;
-  line-height: 150%;
-  letter-spacing: -0.32px;
-  font-family: var(--font-satoshi);
-}
-
-.OrgListDetails {
-  color: var(--color-primary-500);
-  font-size: 16px;
-  font-style: normal;
-  font-weight: 400;
-  line-height: 150%;
-  letter-spacing: -0.32px;
-  font-family: var(--font-satoshi);
-  cursor: pointer;
-}
 .OrgStatus {
   display: flex;
   padding: 8px 16px;
@@ -204,20 +190,17 @@
   gap: 10px;
   width: fit-content;
   border-radius: 16px;
-  background: var(--pendingbg, #fef3e9);
-  color: var(--pendingtext, #f68523);
+  background: var(--pendingbg);
+  /* No literal fallback: it still held #f68523, the pre-fix orange that reads
+     2.29:1 on this tint. Both tokens are declared, so the fallback was dead -
+     but a dead fallback to a failing colour is a landmine. */
+  color: var(--pendingtext);
   font-size: 16px;
   font-style: normal;
   font-weight: 400;
   line-height: 150%;
   letter-spacing: -0.32px;
   font-family: var(--font-satoshi);
-}
-.OrgListDetailsCol {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: fit-content;
 }
 .action-btn-col {
   display: inline-flex;
@@ -252,16 +235,6 @@
   width: 40px;
   cursor: pointer;
 }
-.action-btn-text {
-  color: var(--color-neutral-900);
-  text-align: center;
-  font-family: var(--font-satoshi);
-  font-size: 16px;
-  font-style: normal;
-  font-weight: 500;
-  line-height: 120%; /* 19.2px */
-  letter-spacing: -0.32px;
-}
 
 .appointment-profile {
   display: flex;
@@ -277,7 +250,12 @@
   max-width: 100%;
   font-family: var(--font-satoshi);
   color: var(--color-neutral-900);
-  font-size: 16px;
+  /* 14px is what Appointments, Tasks and Documents already set explicitly; the old
+     16px base predated the design system, and its own comment called every ledger
+     cell "2-3px oversize". Five tables were never given a rule at all and rendered
+     at 16px next to 14px siblings, so the designed value now lives in the base and
+     only genuine deviations (the denser finance ramp, Forms) override it. */
+  font-size: 14px;
   font-style: normal;
   font-weight: 400;
   line-height: 120%;
@@ -287,8 +265,8 @@
 }
 .appointment-profile-sub {
   font-family: var(--font-satoshi);
-  color: var(--color-neutral-900);
-  font-size: 16px;
+  color: var(--ink-faint);
+  font-size: 12.5px;
   font-style: normal;
   font-weight: 400;
   line-height: 120%;
@@ -324,16 +302,7 @@
   color: var(--ink);
 }
 
-/* Per-table body scale. The shared 16px base predates the design system and
-   renders every ledger cell 2-3px oversize; each frame in the 19 July designs
-   carries its own row size, so the scale lives with the table, not the class. */
-.appointments-table-fixed .appointment-profile-title {
-  font-size: 14px;
-}
-.appointments-table-fixed .appointment-profile-sub {
-  font-size: 12.5px;
-  color: var(--ink-faint);
-}
+/* Per-table body scale — only where a frame genuinely departs from the base. */
 .invoice-table-fixed .appointment-profile-title,
 .invoice-compact-fixed .appointment-profile-title {
   font-size: 13.5px;

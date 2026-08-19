@@ -153,6 +153,43 @@ describe("ServiceService", () => {
     });
   });
 
+  describe("createMany", () => {
+    it("rejects an empty payload list", async () => {
+      await expect(ServiceService.createMany([] as any)).rejects.toMatchObject({
+        message: "Payload list cannot be empty.",
+        statusCode: 400,
+      });
+    });
+
+    it("creates every item and prefixes validation errors with the item index", async () => {
+      (prisma.service.create as jest.Mock).mockResolvedValue(
+        makeServiceRecord(),
+      );
+
+      const valid = {
+        organisationId: validIdStr,
+        name: "Bulk Service",
+        durationMinutes: 30,
+        cost: 100,
+        serviceType: "STANDARD",
+        isActive: true,
+      };
+
+      const results = await ServiceService.createMany([valid] as any);
+      expect(results).toHaveLength(1);
+
+      await expect(
+        ServiceService.createMany([
+          valid,
+          { ...valid, organisationId: "   " },
+        ] as any),
+      ).rejects.toMatchObject({
+        message: "Item 1: Invalid organisationId",
+        statusCode: 400,
+      });
+    });
+  });
+
   describe("getById", () => {
     it("should return null if document not found", async () => {
       (prisma.service.findFirst as jest.Mock).mockResolvedValue(null);

@@ -1,8 +1,10 @@
-import React, { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import React, { useCallback, useId, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { IoChevronDown } from 'react-icons/io5';
 import { IoIosWarning } from 'react-icons/io';
 import { useDropdown, useFilteredOptions, DropdownOption } from '@/app/hooks/useDropdown';
+import { useListboxKeyboardNav } from './useDropdownKeyboardNav';
+import { useDropdownPositioning } from './useDropdownPositioning';
 
 type DropdownProps = {
   placeholder: string;
@@ -17,27 +19,6 @@ type DropdownProps = {
   noOptionsMessage?: string;
 };
 
-/** Wrap the active option index when navigating with the arrow keys. */
-const wrapActiveIndex = (current: number, optionCount: number, delta: 1 | -1): number => {
-  if (delta === 1) return current + 1 >= optionCount ? 0 : current + 1;
-  return current <= 0 ? optionCount - 1 : current - 1;
-};
-
-/** Compute the active option index when the open/options/selection context changes. */
-const resolveActiveIndex = (
-  open: boolean,
-  options: DropdownOption[],
-  activeIndex: number,
-  selectedValue?: string
-): number => {
-  if (!open || options.length === 0) return -1;
-  if (activeIndex >= 0 && activeIndex < options.length) return activeIndex;
-  const selectedIndex = options.findIndex((option) => option.value === selectedValue);
-  return Math.max(selectedIndex, 0);
-};
-
-const DROPDOWN_MAX_HEIGHT = 200;
-const DROPDOWN_MIN_HEIGHT = 72;
 const TERMINOLOGY_LOCK_SELECTOR = "[data-terminology-lock='true']";
 
 const findDropdownOption = (options: DropdownOption[], defaultOption?: string) => {
@@ -99,7 +80,7 @@ const DropdownPanel = ({
       aria-label={placeholder}
       data-portal-dropdown
       data-terminology-lock={isTerminologyLocked ? 'true' : undefined}
-      className="max-h-[200px] overflow-y-auto scrollbar-hidden z-200 rounded-[13px] border border-[var(--hairline-soft)] bg-[var(--glass-93)] shadow-[0_24px_60px_var(--sh28)] backdrop-blur-[24px] backdrop-saturate-150 flex flex-col items-stretch gap-px w-full p-1.5"
+      className="max-h-[200px] overflow-y-auto scrollbar-hidden z-200 rounded-[13px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_24px_60px_var(--sh28)] flex flex-col items-stretch gap-px w-full p-1.5"
       style={shouldPortal ? (portalStyle ?? undefined) : undefined}
     >
       {filteredOptions.length > 0 &&
@@ -215,8 +196,6 @@ const LabelDropdown = ({
   const [internalSelected, setInternalSelected] = useState<DropdownOption | null>(() =>
     findDropdownOption(options, defaultOption)
   );
-  const [portalStyle, setPortalStyle] = useState<React.CSSProperties | null>(null);
-  const [activeIndex, setActiveIndex] = useState(-1);
   const listboxId = useId();
   const controlledSelected = findDropdownOption(options, defaultOption);
   // `internalSelected` is the single source of truth so a user click always moves
@@ -254,84 +233,15 @@ const LabelDropdown = ({
     },
     [dropdownRef]
   );
-  const activeOptionId =
-    activeIndex >= 0 && activeIndex < filteredOptions.length
-      ? `${listboxId}-option-${filteredOptions[activeIndex].value}`
-      : undefined;
 
-  const computeStyle = useCallback(() => {
-    const rect = dropdownRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const viewportHeight = globalThis.window.innerHeight;
-    const spaceBelow = viewportHeight - rect.bottom;
-    const panelMaxHeight = Math.min(
-      DROPDOWN_MAX_HEIGHT,
-      Math.max(DROPDOWN_MIN_HEIGHT, spaceBelow - 8)
-    );
-    setPortalStyle({
-      position: 'absolute',
-      left: rect.left + globalThis.window.scrollX,
-      width: rect.width,
-      // Design detaches the menu from the trigger by 4px.
-      top: rect.bottom + globalThis.window.scrollY + 4,
-      maxHeight: panelMaxHeight,
-      zIndex: 5000,
-    });
-  }, [dropdownRef]);
-
-  const computeStyleRef = useRef(computeStyle);
-  useLayoutEffect(() => {
-    computeStyleRef.current = computeStyle;
-  });
-
-  // Clear the floating style the moment the panel closes (render-time adjust,
-  // guarded so it only fires when open/portal actually change).
-  const [prevOpenPortal, setPrevOpenPortal] = useState({ open, portal });
-  if (prevOpenPortal.open !== open || prevOpenPortal.portal !== portal) {
-    setPrevOpenPortal({ open, portal });
-    if (!open || !portal) setPortalStyle(null);
-  }
-
-  useLayoutEffect(() => {
-    if (!open || !portal) return;
-    computeStyleRef.current();
-  }, [open, portal]);
-
-  useEffect(() => {
-    if (!open || !portal) return;
-    const stableResize = () => computeStyleRef.current();
-    const handleOuterScroll = (event: Event) => {
-      const target = event.target;
-      if (target instanceof HTMLElement && target.closest('[data-portal-dropdown]')) return;
-      closeDropdown();
-    };
-    globalThis.window.addEventListener('resize', stableResize);
-    globalThis.window.addEventListener('scroll', handleOuterScroll, true);
-    return () => {
-      globalThis.window.removeEventListener('resize', stableResize);
-      globalThis.window.removeEventListener('scroll', handleOuterScroll, true);
-    };
-  }, [closeDropdown, open, portal]);
-
-  const [activeIndexDeps, setActiveIndexDeps] = useState({
-    filteredOptions,
+  const { portalStyle } = useDropdownPositioning({
     open,
-    selectedValue: selected?.value,
+    portal,
+    dropdownRef,
+    onOuterScrollDismiss: closeDropdown,
+    // Design detaches the menu from the trigger by 4px.
+    topOffset: 4,
   });
-  if (
-    filteredOptions !== activeIndexDeps.filteredOptions ||
-    open !== activeIndexDeps.open ||
-    selected?.value !== activeIndexDeps.selectedValue
-  ) {
-    setActiveIndexDeps({ filteredOptions, open, selectedValue: selected?.value });
-    setActiveIndex(resolveActiveIndex(open, filteredOptions, activeIndex, selected?.value));
-  }
-
-  useEffect(() => {
-    if (!open || !activeOptionId) return;
-    const activeElement = document.getElementById(activeOptionId);
-    activeElement?.scrollIntoView({ block: 'nearest' });
-  }, [activeOptionId, open]);
 
   const selectOption = useCallback(
     (option: DropdownOption) => {
@@ -342,65 +252,17 @@ const LabelDropdown = ({
     [closeDropdown, onSelect]
   );
 
-  const handleArrowKey = useCallback(
-    (delta: 1 | -1) => {
-      const optionCount = filteredOptions.length;
-      if (optionCount === 0) return;
-      if (!open) {
-        openDropdown();
-        return;
-      }
-      setActiveIndex((current) => wrapActiveIndex(current, optionCount, delta));
-    },
-    [filteredOptions.length, open, openDropdown]
-  );
-
-  const handleConfirmKey = useCallback(() => {
-    const optionCount = filteredOptions.length;
-    if (!open) {
-      openDropdown();
-      return;
-    }
-    if (activeIndex < 0 || activeIndex >= optionCount) return;
-    selectOption(filteredOptions[activeIndex]);
-  }, [activeIndex, filteredOptions, open, openDropdown, selectOption]);
-
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent) => {
-      const optionCount = filteredOptions.length;
-      switch (event.key) {
-        case 'Escape':
-          event.preventDefault();
-          closeDropdown();
-          return;
-        case 'ArrowDown':
-          event.preventDefault();
-          handleArrowKey(1);
-          return;
-        case 'ArrowUp':
-          event.preventDefault();
-          handleArrowKey(-1);
-          return;
-        case 'Home':
-          if (!open || optionCount === 0) return;
-          event.preventDefault();
-          setActiveIndex(0);
-          return;
-        case 'End':
-          if (!open || optionCount === 0) return;
-          event.preventDefault();
-          setActiveIndex(optionCount - 1);
-          return;
-        case 'Enter':
-        case ' ':
-          event.preventDefault();
-          handleConfirmKey();
-          return;
-        default:
-      }
-    },
-    [closeDropdown, filteredOptions.length, handleArrowKey, handleConfirmKey, open]
-  );
+  const { activeOptionId, setActiveIndex, handleKeyDown } = useListboxKeyboardNav({
+    open,
+    openDropdown,
+    closeDropdown,
+    options: filteredOptions,
+    listboxId,
+    selectionKey: selected?.value,
+    getOptionValue: (option) => option.value,
+    isOptionSelected: (option) => option.value === selected?.value,
+    selectOption,
+  });
 
   // Same visual style for both portal and inline — connected panel below trigger
   const panelNode = (

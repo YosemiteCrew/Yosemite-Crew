@@ -34,21 +34,10 @@ import {
 import { BusinessType } from '@/app/features/organization/types/org';
 
 export type FieldComponentType =
-  | 'text'
-  | 'dropdown'
-  | 'textarea'
-  | 'date'
-  | 'multiSelect'
-  | 'checkbox'
-  | 'upload';
+  'text' | 'dropdown' | 'textarea' | 'date' | 'multiSelect' | 'checkbox' | 'upload';
 
 export type InventorySectionKey =
-  | 'basicInfo'
-  | 'classification'
-  | 'pricing'
-  | 'vendor'
-  | 'stock'
-  | 'batch';
+  'basicInfo' | 'classification' | 'pricing' | 'vendor' | 'stock' | 'batch';
 
 export type FieldNameForSection<S extends InventorySectionKey> = keyof InventoryItem[S] & string;
 
@@ -63,8 +52,7 @@ export type FieldDef<S extends InventorySectionKey = InventorySectionKey> = {
 };
 
 export type ConfigItem<S extends InventorySectionKey = InventorySectionKey> =
-  | { kind: 'field'; field: FieldDef<S> }
-  | { kind: 'row'; fields: FieldDef<S>[] };
+  { kind: 'field'; field: FieldDef<S> } | { kind: 'row'; fields: FieldDef<S>[] };
 
 export type SectionConfig<S extends InventorySectionKey = InventorySectionKey> = ConfigItem<S>[];
 
@@ -97,6 +85,25 @@ const readonlyF = <S extends InventorySectionKey>(
   placeholder: string,
   component: FieldComponentType = 'text'
 ): FieldDef<S> => ({ name, placeholder, component, readonly: true });
+
+const formPresentationField = field<'classification'>(
+  'form',
+  'Form / Presentation',
+  'dropdown',
+  FormOptions
+);
+
+const speciesAdministrationRow = row<'classification'>(
+  f('species', 'Species', 'multiSelect', SpeciesOptions),
+  f('administration', 'Administration', 'dropdown', AdminstrationOptions)
+);
+
+const unitOfMeasureBaseField = field<'classification'>(
+  'unitofMeasure',
+  'Unit of Measure (Base)',
+  'dropdown',
+  UnitOptions
+);
 
 const commonPricingFields: SectionConfig<'pricing'> = [
   field('purchaseCost', 'Unit cost', 'text', undefined, true),
@@ -390,68 +397,12 @@ export const InventoryFormConfig: Record<
       },
     ],
     classification: [
-      {
-        kind: 'field',
-        field: {
-          name: 'form',
-          placeholder: 'Form / Presentation',
-          component: 'dropdown',
-          options: FormOptions,
-        },
-      },
-      {
-        kind: 'row',
-        fields: [
-          {
-            name: 'species',
-            placeholder: 'Species',
-            component: 'multiSelect',
-            options: SpeciesOptions,
-          },
-          {
-            name: 'administration',
-            placeholder: 'Administration',
-            component: 'dropdown',
-            options: AdminstrationOptions,
-          },
-        ],
-      },
-      {
-        kind: 'field',
-        field: {
-          name: 'unitofMeasure',
-          placeholder: 'Unit of Measure (Base)',
-          component: 'dropdown',
-          options: UnitOptions,
-        },
-      },
-      {
-        kind: 'field',
-        field: {
-          name: 'dispenseUnit',
-          placeholder: 'Dispense unit',
-          component: 'dropdown',
-          options: DispenseUnitOptions,
-        },
-      },
-      {
-        kind: 'field',
-        field: {
-          name: 'packSize',
-          placeholder: 'Pack size / Quantity per pack',
-          component: 'text',
-          numeric: true,
-        },
-      },
-      {
-        kind: 'field',
-        field: {
-          name: 'usagePerService',
-          placeholder: 'Usage per service',
-          component: 'text',
-          numeric: true,
-        },
-      },
+      formPresentationField,
+      speciesAdministrationRow,
+      unitOfMeasureBaseField,
+      field('dispenseUnit', 'Dispense unit', 'dropdown', DispenseUnitOptions),
+      field('packSize', 'Pack size / Quantity per pack', 'text', undefined, true),
+      field('usagePerService', 'Usage per service', 'text', undefined, true),
     ],
     pricing: commonPricingFields,
     vendor: commonVendorFields(false),
@@ -709,75 +660,18 @@ export const InventoryFormConfig: Record<
       },
     ],
     classification: [
-      {
-        kind: 'field',
-        field: {
-          name: 'intakeType',
-          placeholder: 'Item type',
-          component: 'dropdown',
-          options: IntakeTypeOptions,
-        },
-      },
-      {
-        kind: 'field',
-        field: {
-          name: 'form',
-          placeholder: 'Form / Presentation',
-          component: 'dropdown',
-          options: FormOptions,
-        },
-      },
-      {
-        kind: 'row',
-        fields: [
-          {
-            name: 'species',
-            placeholder: 'Species',
-            component: 'multiSelect',
-            options: SpeciesOptions,
-          },
-          {
-            name: 'administration',
-            placeholder: 'Administration',
-            component: 'dropdown',
-            options: AdminstrationOptions,
-          },
-        ],
-      },
-      {
-        kind: 'field',
-        field: {
-          name: 'unitofMeasure',
-          placeholder: 'Unit of Measure (Base)',
-          component: 'dropdown',
-          options: UnitOptions,
-        },
-      },
-      {
-        kind: 'field',
-        field: {
-          name: 'safetyClassification',
-          placeholder: 'Safety classification',
-          component: 'dropdown',
-          options: SafetyClassificationOptions,
-        },
-      },
-      {
-        kind: 'field',
-        field: {
-          name: 'brand',
-          placeholder: 'Brand',
-          component: 'text',
-        },
-      },
-      {
-        kind: 'field',
-        field: {
-          name: 'shelfLife',
-          placeholder: 'Shelf life (optional)',
-          component: 'text',
-        },
-      },
+      field('intakeType', 'Item type', 'dropdown', IntakeTypeOptions),
+      formPresentationField,
+      speciesAdministrationRow,
+      unitOfMeasureBaseField,
+      field(
+        'safetyClassification',
+        'Safety classification',
+        'dropdown',
+        SafetyClassificationOptions
+      ),
+      field('brand', 'Brand', 'text'),
+      field('shelfLife', 'Shelf life (optional)', 'text'),
     ],
     pricing: commonPricingFields,
     vendor: commonVendorFields(false),

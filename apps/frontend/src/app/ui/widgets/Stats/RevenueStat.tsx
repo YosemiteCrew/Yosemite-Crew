@@ -48,7 +48,7 @@ const RevenueStat = () => {
         headerContent={
           periodTotal > 0 ? (
             <div className="flex w-full justify-end">
-              <span className="text-[12px] font-semibold text-[var(--success)]">
+              <span className="text-[12px] font-semibold text-[var(--success-text)]">
                 {formatMoney(periodTotal, currency)}
               </span>
             </div>

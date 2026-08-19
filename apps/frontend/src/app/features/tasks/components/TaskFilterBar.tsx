@@ -79,7 +79,7 @@ const TaskFilterBar = ({
                     className={clsx(
                       'inline-flex h-6 items-center rounded-full px-3 text-[12px] transition-colors',
                       isActive
-                        ? 'bg-[var(--inset)] font-bold text-[var(--ink)]'
+                        ? 'bg-[var(--chip-selected-bg)] font-bold text-[var(--chip-selected-ink)]'
                         : 'font-semibold text-[var(--ink-muted)] hover:bg-card-hover'
                     )}
                   >
@@ -104,7 +104,7 @@ const TaskFilterBar = ({
               className={clsx(
                 'inline-flex h-7 items-center gap-1.5 rounded-full border px-3.5 text-[12px] transition-colors',
                 isActive
-                  ? 'border-[var(--divider)] bg-[var(--inset)] font-bold text-[var(--ink)]'
+                  ? 'border-[var(--chip-selected-border)] bg-[var(--chip-selected-bg)] font-bold text-[var(--chip-selected-ink)]'
                   : 'border-[var(--hairline)] font-semibold text-[var(--ink-muted)] hover:bg-card-hover'
               )}
             >
@@ -134,7 +134,14 @@ const TaskFilterBar = ({
               onClick={() => toggleStatus(option.key)}
               className={clsx(
                 'inline-flex min-h-[38px] items-center justify-center rounded-full px-1 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand',
-                !isActive && 'opacity-65 transition-opacity hover:opacity-100'
+                // The selected filter needs a visible state of its own. It used
+                // to be the ABSENCE of an opacity-65 dim on the others, which
+                // meant the only way to see which filter was active was that the
+                // rest were faded - and that dim composited their labels below
+                // AA. A ring marks the selected one instead, so nothing has to
+                // be made unreadable to show it.
+                isActive &&
+                  'ring-2 ring-[var(--blue-strong)] ring-offset-1 ring-offset-[var(--screen)]'
               )}
             >
               <StatusPill tokens={getStatusPillTokens(option)} label={option.name} />
@@ -148,7 +155,7 @@ const TaskFilterBar = ({
           text={addButtonText}
           onClick={onAddButtonClick}
           icon={<IoAdd size={18} aria-hidden="true" />}
-          className="h-10 w-fit justify-center gap-2 px-4 py-0 whitespace-nowrap hover:scale-100"
+          className="w-fit shrink-0 justify-center py-0 whitespace-nowrap hover:scale-100"
         />
       )}
     </div>

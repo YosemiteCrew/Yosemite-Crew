@@ -140,12 +140,29 @@ describe('PhoneMonthOverview — dot map', () => {
     expect(screen.getAllByRole('button')).toHaveLength(40);
   });
 
-  it('fades padding days and quiet days by different amounts', () => {
+  it('separates padding and quiet days by ink, not by fading them', () => {
     renderOverview({ appointments: appointmentsOn(1, 2) });
 
-    expect(dayButton('2026-06-29', 0).className).toContain('opacity-[0.35]');
-    expect(dayButton('2026-07-05', 0).className).toContain('opacity-[0.45]');
-    expect(dayButton('2026-07-01', 2).className).not.toContain('opacity-');
+    const padding = dayButton('2026-06-29', 0);
+    const quiet = dayButton('2026-07-05', 0);
+    const busy = dayButton('2026-07-01', 2);
+
+    // No alpha anywhere - that is what made the padding days unreadable.
+    for (const cell of [padding, quiet, busy]) {
+      expect(cell.className).not.toContain('opacity-');
+    }
+
+    // And the three really are distinguishable. Asserting only the absence of
+    // opacity let padding and quiet days collapse onto the same ink while this
+    // test still passed, which is exactly what happened.
+    const ink = (cell: HTMLElement) =>
+      cell.querySelector('span')?.className.match(/text-\[var\(--[a-z-]+\)\]/)?.[0];
+
+    expect(ink(padding)).toBe('text-[var(--ink-faint)]');
+    expect(ink(quiet)).toBe('text-[var(--ink-muted)]');
+    expect(ink(padding)).not.toBe(ink(quiet));
+    // `busy` is deliberately not compared: it is a PAST day here, so it takes
+    // the past branch and legitimately shares --ink-muted with a quiet day.
   });
 
   it('renders dots rather than event chips, capped at three', () => {
@@ -191,7 +208,7 @@ describe('PhoneMonthOverview — dot map', () => {
 
     const selected = dayButton('2026-07-07', 14);
     expect(selected).toHaveAttribute('aria-pressed', 'true');
-    expect(within(selected).getByText('7').className).toContain('bg-[var(--blue)]');
+    expect(within(selected).getByText('7').className).toContain('bg-[var(--blue-strong)]');
     expect(dayButton('2026-07-08', 0)).toHaveAttribute('aria-pressed', 'false');
   });
 
@@ -259,7 +276,7 @@ describe('PhoneMonthOverview — day peek', () => {
 
     expect(screen.getByText('Poppy · annual check-up')).toBeInTheDocument();
     expect(screen.getByText('Dr. Weber · Rm 1')).toBeInTheDocument();
-    expect(screen.getByText('CHECKED-IN')).toBeInTheDocument();
+    expect(screen.getByText('CHECKED IN')).toBeInTheDocument();
     expect(screen.getByText('Poppy · mass removal')).toBeInTheDocument();
     expect(screen.getByText('IN PROGRESS')).toBeInTheDocument();
     expect(screen.getByText('08:30')).toBeInTheDocument();

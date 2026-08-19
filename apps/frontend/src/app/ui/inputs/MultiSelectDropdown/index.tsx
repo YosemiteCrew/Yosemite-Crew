@@ -1,9 +1,11 @@
-import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useId, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { IoIosWarning } from 'react-icons/io';
 import { Option } from '@/app/features/companions/types/companion';
 import { IoCheckmarkOutline, IoChevronDown } from 'react-icons/io5';
 import { useDropdown, useFilteredOptions } from '@/app/hooks/useDropdown';
+import { useListboxKeyboardNav } from '@/app/ui/inputs/Dropdown/useDropdownKeyboardNav';
+import { useDropdownPositioning } from '@/app/ui/inputs/Dropdown/useDropdownPositioning';
 
 type DropdownProps = {
   placeholder: string;
@@ -14,188 +16,6 @@ type DropdownProps = {
   searchable?: boolean;
   icon?: React.ReactNode;
   portal?: boolean;
-};
-
-const DROPDOWN_MAX_HEIGHT = 200;
-const DROPDOWN_MIN_HEIGHT = 72;
-
-/** Wrap the active option index when navigating with the arrow keys. */
-const wrapActiveIndex = (current: number, optionCount: number, delta: 1 | -1): number => {
-  if (delta === 1) return current + 1 >= optionCount ? 0 : current + 1;
-  return current <= 0 ? optionCount - 1 : current - 1;
-};
-
-const usePortalPositioning = (
-  dropdownRef: React.RefObject<HTMLDivElement | null>,
-  open: boolean,
-  portal: boolean,
-  closeDropdown: () => void
-) => {
-  const [portalStyle, setPortalStyle] = React.useState<React.CSSProperties | null>(null);
-
-  const computeStyle = useCallback(() => {
-    /* v8 ignore next 2 -- dropdownRef is always mounted while the dropdown is open (computeStyle only runs behind an `open` guard), so getBoundingClientRect never returns undefined */
-    const rect = dropdownRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const spaceBelow = globalThis.window.innerHeight - rect.bottom;
-    const panelMaxHeight = Math.min(
-      DROPDOWN_MAX_HEIGHT,
-      Math.max(DROPDOWN_MIN_HEIGHT, spaceBelow - 8)
-    );
-    setPortalStyle({
-      position: 'absolute',
-      left: rect.left + globalThis.window.scrollX,
-      width: rect.width,
-      top: rect.bottom + globalThis.window.scrollY - 1,
-      maxHeight: panelMaxHeight,
-      zIndex: 5000,
-    });
-  }, [dropdownRef]);
-
-  const computeStyleRef = useRef(computeStyle);
-  useLayoutEffect(() => {
-    computeStyleRef.current = computeStyle;
-  });
-
-  // Clear the floating style the moment the panel closes (render-time adjust,
-  // guarded so it only fires when open/portal actually change).
-  const [prevOpenPortal, setPrevOpenPortal] = React.useState({ open, portal });
-  if (prevOpenPortal.open !== open || prevOpenPortal.portal !== portal) {
-    setPrevOpenPortal({ open, portal });
-    if (!open || !portal) setPortalStyle(null);
-  }
-
-  useLayoutEffect(() => {
-    if (!open || !portal) return;
-    computeStyleRef.current();
-  }, [open, portal]);
-
-  useEffect(() => {
-    if (!open || !portal) return;
-    const stableResize = () => computeStyleRef.current();
-    const handleOuterScroll = (event: Event) => {
-      const target = event.target;
-      if (target instanceof HTMLElement && target.closest('[data-portal-dropdown]')) return;
-      closeDropdown();
-    };
-    globalThis.window.addEventListener('resize', stableResize);
-    globalThis.window.addEventListener('scroll', handleOuterScroll, true);
-    return () => {
-      globalThis.window.removeEventListener('resize', stableResize);
-      globalThis.window.removeEventListener('scroll', handleOuterScroll, true);
-    };
-  }, [closeDropdown, open, portal]);
-
-  return portalStyle;
-};
-
-type ActiveOptionArgs = {
-  open: boolean;
-  listboxId: string;
-  filteredOptions: Option[];
-  valueSet: Set<string>;
-  openDropdown: () => void;
-  closeDropdown: () => void;
-  toggleOption: (option: Option) => void;
-};
-
-const useActiveOption = ({
-  open,
-  listboxId,
-  filteredOptions,
-  valueSet,
-  openDropdown,
-  closeDropdown,
-  toggleOption,
-}: ActiveOptionArgs) => {
-  const [activeIndex, setActiveIndex] = React.useState(-1);
-
-  const activeOptionId =
-    activeIndex >= 0 && activeIndex < filteredOptions.length
-      ? `${listboxId}-option-${filteredOptions[activeIndex].value}`
-      : undefined;
-
-  const [activeIndexDeps, setActiveIndexDeps] = React.useState({ filteredOptions, open, valueSet });
-  if (
-    filteredOptions !== activeIndexDeps.filteredOptions ||
-    open !== activeIndexDeps.open ||
-    valueSet !== activeIndexDeps.valueSet
-  ) {
-    setActiveIndexDeps({ filteredOptions, open, valueSet });
-    if (!open || filteredOptions.length === 0) {
-      setActiveIndex(-1);
-    } else if (activeIndex < 0 || activeIndex >= filteredOptions.length) {
-      const selectedIndex = filteredOptions.findIndex((option) => valueSet.has(option.value));
-      setActiveIndex(Math.max(selectedIndex, 0));
-    }
-  }
-
-  useEffect(() => {
-    if (!open || !activeOptionId) return;
-    document.getElementById(activeOptionId)?.scrollIntoView({ block: 'nearest' });
-  }, [activeOptionId, open]);
-
-  const handleArrowKey = useCallback(
-    (delta: 1 | -1) => {
-      const optionCount = filteredOptions.length;
-      if (optionCount === 0) return;
-      if (!open) {
-        openDropdown();
-        return;
-      }
-      setActiveIndex((current) => wrapActiveIndex(current, optionCount, delta));
-    },
-    [filteredOptions.length, open, openDropdown]
-  );
-
-  const handleConfirmKey = useCallback(() => {
-    const optionCount = filteredOptions.length;
-    if (!open) {
-      openDropdown();
-      return;
-    }
-    if (activeIndex < 0 || activeIndex >= optionCount) return;
-    toggleOption(filteredOptions[activeIndex]);
-  }, [activeIndex, filteredOptions, open, openDropdown, toggleOption]);
-
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent) => {
-      const optionCount = filteredOptions.length;
-      switch (event.key) {
-        case 'Escape':
-          event.preventDefault();
-          closeDropdown();
-          return;
-        case 'ArrowDown':
-          event.preventDefault();
-          handleArrowKey(1);
-          return;
-        case 'ArrowUp':
-          event.preventDefault();
-          handleArrowKey(-1);
-          return;
-        case 'Home':
-          if (!open || optionCount === 0) return;
-          event.preventDefault();
-          setActiveIndex(0);
-          return;
-        case 'End':
-          if (!open || optionCount === 0) return;
-          event.preventDefault();
-          setActiveIndex(optionCount - 1);
-          return;
-        case 'Enter':
-        case ' ':
-          event.preventDefault();
-          handleConfirmKey();
-          return;
-        default:
-      }
-    },
-    [closeDropdown, filteredOptions.length, handleArrowKey, handleConfirmKey, open]
-  );
-
-  return { activeIndex, activeOptionId, setActiveIndex, handleKeyDown };
 };
 
 type MultiSelectPanelProps = {
@@ -224,8 +44,8 @@ const MultiSelectPanel = ({
   <div
     id={listboxId}
     data-portal-dropdown
-    className="border-[var(--blue)] max-h-50 overflow-y-auto scrollbar-hidden z-200 rounded-b-[12px] border border-t bg-[var(--glass-93)] shadow-[0_16px_34px_var(--sh12)] backdrop-blur-[24px] backdrop-saturate-150 flex flex-col items-stretch w-full px-3 py-2.5"
-    style={shouldPortal ? (portalStyle ?? undefined) : undefined}
+    className="border-[var(--blue)] max-h-50 overflow-y-auto scrollbar-hidden z-200 rounded-b-[12px] border border-t bg-[var(--screen)] shadow-[0_16px_34px_var(--sh12)] flex flex-col items-stretch w-full px-3 py-2.5"
+    style={shouldPortal && portalStyle ? portalStyle : undefined}
   >
     {filteredOptions.length > 0 ? (
       filteredOptions.map((option) => {
@@ -384,7 +204,12 @@ const MultiSelectDropdown = ({
   const filteredOptions = useFilteredOptions(list, searchQuery);
   const shouldPortal = portal && typeof document !== 'undefined';
 
-  const portalStyle = usePortalPositioning(dropdownRef, open, portal, closeDropdown);
+  const { portalStyle } = useDropdownPositioning({
+    open,
+    portal,
+    dropdownRef,
+    onOuterScrollDismiss: closeDropdown,
+  });
 
   const toggleOption = useCallback(
     (option: Option) => {
@@ -395,14 +220,16 @@ const MultiSelectDropdown = ({
     [onChange, value, valueSet]
   );
 
-  const { activeOptionId, setActiveIndex, handleKeyDown } = useActiveOption({
+  const { activeOptionId, setActiveIndex, handleKeyDown } = useListboxKeyboardNav({
     open,
-    listboxId,
-    filteredOptions,
-    valueSet,
     openDropdown,
     closeDropdown,
-    toggleOption,
+    options: filteredOptions,
+    listboxId,
+    selectionKey: valueSet,
+    getOptionValue: (option) => option.value,
+    isOptionSelected: (option) => valueSet.has(option.value),
+    selectOption: toggleOption,
   });
 
   const panel = (

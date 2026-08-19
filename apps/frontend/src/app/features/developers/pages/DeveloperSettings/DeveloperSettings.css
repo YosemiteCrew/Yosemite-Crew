@@ -156,7 +156,7 @@
   gap: 4px;
   font-size: 10.5px;
   font-weight: 700;
-  color: var(--color-success-600);
+  color: var(--success-text);
 }
 
 .dev-settings-unverified {
@@ -175,7 +175,7 @@
   gap: 4px;
   font-size: 10.5px;
   font-weight: 700;
-  color: var(--color-success-600);
+  color: var(--success-text);
 }
 
 .dev-health-dot {
@@ -208,7 +208,6 @@
   display: block;
   font-size: 11.5px;
   color: var(--danger-text);
-  opacity: 0.85;
 }
 
 .dev-danger-actions {
@@ -245,9 +244,13 @@
   font-family: var(--font-satoshi);
 }
 
+/* --danger-strong (fixed #a6271d), not --danger-text. danger-text is an INK: it
+   lightens to #f2938a in dark so it can be read on dark surfaces, which under
+   white put this destructive confirm at 1.7:1 - the most dangerous button in the
+   dialog was the least legible one. */
 .dev-confirm-btn.confirm {
-  background: var(--danger-text);
-  color: #ffffff;
+  background: var(--danger-strong);
+  color: var(--danger-strong-ink);
 }
 
 .dev-confirm-btn.cancel {

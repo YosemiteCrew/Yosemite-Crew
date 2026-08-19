@@ -66,15 +66,14 @@ export type PhoneMonthOverviewProps = {
   className?: string;
 };
 
-/** Cell opacity: padding days recede hardest, quiet in-month days a little. */
-const cellOpacityClass = (cell: PhoneMonthCell): string => {
-  if (cell.isOutsideMonth) return 'opacity-[0.35]';
-  if (cell.appointmentCount === 0) return 'opacity-[0.45]';
-  return '';
-};
-
 const dayNumberColourClass = (cell: PhoneMonthCell): string => {
-  if (cell.isOutsideMonth || cell.appointmentCount === 0) return 'text-[var(--ink-faint)]';
+  // Three distinct steps, all of which clear AA. These used to be separated by
+  // cell opacity (0.35 for padding, 0.45 for quiet), which is what made the
+  // padding days unreadable; collapsing both onto --ink-faint then made an
+  // adjacent-month day look like an ordinary quiet one. --ink-faint is the
+  // faintest passing ink and reads as furthest away, --ink-muted a step nearer.
+  if (cell.isOutsideMonth) return 'text-[var(--ink-faint)]';
+  if (cell.appointmentCount === 0) return 'text-[var(--ink-muted)]';
   if (cell.isToday) return 'text-[var(--nav-active)]';
   if (cell.isPast) return 'text-[var(--ink-muted)]';
   return 'text-[var(--ink)]';
@@ -109,13 +108,10 @@ const DayCell = ({
     aria-current={cell.isToday ? 'date' : undefined}
     aria-label={`${cell.dateKey} · ${cell.appointmentCount} appointments`}
     onClick={() => onSelectDay?.(cell)}
-    className={clsx(
-      'flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5',
-      cellOpacityClass(cell)
-    )}
+    className="flex cursor-pointer flex-col items-center gap-[2px] rounded-xl py-1.5"
   >
     {cell.isSelected ? (
-      <span className="flex size-[26px] items-center justify-center rounded-full bg-[var(--blue)] text-[12.5px] font-bold text-white shadow-[0_4px_12px_var(--glow-b26)]">
+      <span className="flex size-[26px] items-center justify-center rounded-full bg-[var(--blue-strong)] text-[12.5px] font-bold text-white shadow-[0_4px_12px_var(--glow-b26)]">
         {cell.dayOfMonth}
       </span>
     ) : (

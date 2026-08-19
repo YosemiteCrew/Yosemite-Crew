@@ -543,20 +543,34 @@ const toTaxLineItems = (items: DraftInvoiceItemInput[]) =>
     discountPercent: item.discountPercent,
   }));
 
-const resolveInvoiceTotals = async (
-  items: DraftInvoiceItemInput[],
-  taxPercent = 0,
-  invoiceDiscount?: PricingInvoiceDiscountInput,
-  taxBehavior: PrismaTaxBehavior = DEFAULT_TAX_BEHAVIOR,
-  currency = "usd",
-  provider?: string | null,
-  mode: "preview" | "finalize" = "preview",
+type ResolveInvoiceTotalsOptions = {
+  taxPercent?: number;
+  invoiceDiscount?: PricingInvoiceDiscountInput;
+  taxBehavior?: PrismaTaxBehavior;
+  currency?: string;
+  provider?: string | null;
+  mode?: "preview" | "finalize";
   taxContext?: {
     customerAddress?: Stripe.AddressParam | null;
     liabilityAccountId?: string | null;
-  },
-  options?: { skipTaxCalculation?: boolean },
+  };
+  skipTaxCalculation?: boolean;
+};
+
+const resolveInvoiceTotals = async (
+  items: DraftInvoiceItemInput[],
+  options: ResolveInvoiceTotalsOptions = {},
 ) => {
+  const {
+    taxPercent = 0,
+    invoiceDiscount,
+    taxBehavior = DEFAULT_TAX_BEHAVIOR,
+    currency = "usd",
+    provider,
+    mode = "preview",
+    taxContext,
+    skipTaxCalculation,
+  } = options;
   const pricing = calculateInvoicePricing({
     lines: items.map((item) => ({
       quantity: item.quantity,
@@ -569,7 +583,7 @@ const resolveInvoiceTotals = async (
     invoiceDiscount,
   });
 
-  if (options?.skipTaxCalculation) {
+  if (skipTaxCalculation) {
     return {
       subtotal: pricing.subtotal,
       discountTotal: pricing.lineDiscountTotal,
@@ -949,6 +963,47 @@ const cancelUnpaidInvoice = async (invoice: PrismaInvoice, reason: string) =>
       return updated;
     });
 
+// Shared cancellation path for a still-open (AWAITING_PAYMENT/PENDING)
+// invoice: refund whatever has been collected, otherwise cancel it unpaid.
+// Both outcomes record the matching audit row.
+const closeOpenInvoiceForCancellation = async (
+  invoice: PrismaInvoice,
+  reason: string,
+  auditExtras: { includeCurrency?: boolean } = {},
+): Promise<
+  | { outcome: "REFUNDED"; updated: PrismaInvoice; refundId?: string | null }
+  | { outcome: "CANCELLED_UNPAID"; updated: PrismaInvoice }
+> => {
+  const summary = await getInvoiceFinancialSummary(
+    invoice.id,
+    invoice.totalAmount,
+    invoice.depositCollectedAmount ?? 0,
+  );
+
+  if (summary.paid > 0) {
+    const {
+      invoice: updated,
+      refunds,
+      totalRefunded,
+    } = await FinancePaymentService.refundInvoicePayments(invoice.id, reason);
+    await recordInvoiceAuditForRow(updated, "INVOICE_REFUNDED", updated.id, {
+      status: updated.status,
+      reason,
+      refundId: refunds[0]?.refundId,
+      amount: totalRefunded,
+      ...(auditExtras.includeCurrency ? { currency: updated.currency } : {}),
+    });
+    return { outcome: "REFUNDED", updated, refundId: refunds[0]?.refundId };
+  }
+
+  const updated = await cancelUnpaidInvoice(invoice, reason);
+  await recordInvoiceAuditForRow(updated, "INVOICE_CANCELLED", updated.id, {
+    status: updated.status,
+    reason,
+  });
+  return { outcome: "CANCELLED_UNPAID", updated };
+};
+
 const generateCreditNoteNumber = (invoiceId: string) =>
   `CN-${invoiceId.slice(0, 8).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
 
@@ -1006,17 +1061,14 @@ const normalizeCreateInput = async (
   options?: { skipTaxCalculation?: boolean },
 ) => {
   const items = buildInvoiceLineSnapshots(input.items);
-  const totals = await resolveInvoiceTotals(
-    input.items,
-    0,
-    input.invoiceDiscount,
+  const totals = await resolveInvoiceTotals(input.items, {
+    invoiceDiscount: input.invoiceDiscount,
     taxBehavior,
     currency,
-    undefined,
-    "preview",
+    mode: "preview",
     taxContext,
-    options,
-  );
+    skipTaxCalculation: options?.skipTaxCalculation,
+  });
 
   return {
     items,
@@ -1169,16 +1221,15 @@ const computeInvoiceTaxTotals = async (
     invoice.organisationId ?? "",
     invoice.parentId ?? null,
   );
-  return resolveInvoiceTotals(
-    items,
-    invoice.taxPercent,
+  return resolveInvoiceTotals(items, {
+    taxPercent: invoice.taxPercent,
     invoiceDiscount,
-    invoice.taxSnapshot?.taxBehavior ?? DEFAULT_TAX_BEHAVIOR,
-    invoice.currency,
-    taxProvider ?? invoice.taxSnapshot?.provider,
+    taxBehavior: invoice.taxSnapshot?.taxBehavior ?? DEFAULT_TAX_BEHAVIOR,
+    currency: invoice.currency,
+    provider: taxProvider ?? invoice.taxSnapshot?.provider,
     mode,
     taxContext,
-  );
+  });
 };
 
 export const InvoiceService = {
@@ -1338,7 +1389,7 @@ export const InvoiceService = {
 
   async markInvoicePaidManually(invoiceId: string, organisationId: string) {
     const doc = await prisma.invoice.findUnique({ where: { id: invoiceId } });
-    if (!doc || doc.organisationId !== organisationId) {
+    if (doc?.organisationId !== organisationId) {
       throw new InvoiceServiceError("Invoice not found.", 404);
     }
 
@@ -1378,7 +1429,7 @@ export const InvoiceService = {
     const doc = await prisma.invoice.findUnique({
       where: { id: invoiceId },
     });
-    if (!doc || doc.organisationId !== organisationId) {
+    if (doc?.organisationId !== organisationId) {
       throw new InvoiceServiceError("Invoice not found.", 404);
     }
 
@@ -1954,21 +2005,21 @@ export const InvoiceService = {
       invoice.organisationId ?? "",
       invoice.parentId ?? null,
     );
-    const totals = await resolveInvoiceTotals(
-      mergedItems,
-      invoice.taxPercent,
-      invoice.invoiceDiscountType && invoice.invoiceDiscountValue != null
-        ? {
-            type: invoice.invoiceDiscountType as PricingInvoiceDiscountInput["type"],
-            value: invoice.invoiceDiscountValue,
-          }
-        : undefined,
-      invoice.taxSnapshot?.taxBehavior ?? DEFAULT_TAX_BEHAVIOR,
-      invoice.currency,
-      invoice.taxSnapshot?.provider,
-      "preview",
+    const totals = await resolveInvoiceTotals(mergedItems, {
+      taxPercent: invoice.taxPercent,
+      invoiceDiscount:
+        invoice.invoiceDiscountType && invoice.invoiceDiscountValue != null
+          ? {
+              type: invoice.invoiceDiscountType as PricingInvoiceDiscountInput["type"],
+              value: invoice.invoiceDiscountValue,
+            }
+          : undefined,
+      taxBehavior: invoice.taxSnapshot?.taxBehavior ?? DEFAULT_TAX_BEHAVIOR,
+      currency: invoice.currency,
+      provider: invoice.taxSnapshot?.provider,
+      mode: "preview",
       taxContext,
-    );
+    });
 
     const updated = await prisma.invoice.update({
       where: { id: invoiceId },
@@ -2184,39 +2235,10 @@ export const InvoiceService = {
     }
 
     if (["AWAITING_PAYMENT", "PENDING"].includes(invoice.status)) {
-      const summary = await getInvoiceFinancialSummary(
-        invoice.id,
-        invoice.totalAmount,
-        invoice.depositCollectedAmount ?? 0,
-      );
-      if (summary.paid > 0) {
-        const {
-          invoice: updated,
-          refunds,
-          totalRefunded,
-        } = await FinancePaymentService.refundInvoicePayments(
-          invoice.id,
-          reason,
-        );
-        await recordInvoiceAuditForRow(
-          updated,
-          "INVOICE_REFUNDED",
-          updated.id,
-          {
-            status: updated.status,
-            reason,
-            refundId: refunds[0]?.refundId,
-            amount: totalRefunded,
-          },
-        );
-        return { action: "REFUNDED", refundId: refunds[0]?.refundId };
+      const closed = await closeOpenInvoiceForCancellation(invoice, reason);
+      if (closed.outcome === "REFUNDED") {
+        return { action: "REFUNDED", refundId: closed.refundId };
       }
-
-      const updated = await cancelUnpaidInvoice(invoice, reason);
-      await recordInvoiceAuditForRow(updated, "INVOICE_CANCELLED", updated.id, {
-        status: updated.status,
-        reason,
-      });
       return { action: "CANCELLED_UNPAID" };
     }
 
@@ -2248,41 +2270,13 @@ export const InvoiceService = {
     }
 
     if (["AWAITING_PAYMENT", "PENDING"].includes(invoice.status)) {
-      const summary = await getInvoiceFinancialSummary(
-        invoice.id,
-        invoice.totalAmount,
-        invoice.depositCollectedAmount ?? 0,
-      );
-      if (summary.paid > 0) {
-        const {
-          invoice: updated,
-          refunds,
-          totalRefunded,
-        } = await FinancePaymentService.refundInvoicePayments(
-          invoice.id,
-          reason,
-        );
-        await recordInvoiceAuditForRow(
-          updated,
-          "INVOICE_REFUNDED",
-          updated.id,
-          {
-            status: updated.status,
-            reason,
-            refundId: refunds[0]?.refundId,
-            amount: totalRefunded,
-            currency: updated.currency,
-          },
-        );
-        return { action: "REFUNDED", status: updated.status };
-      }
-
-      const updated = await cancelUnpaidInvoice(invoice, reason);
-      await recordInvoiceAuditForRow(updated, "INVOICE_CANCELLED", updated.id, {
-        status: updated.status,
-        reason,
+      const closed = await closeOpenInvoiceForCancellation(invoice, reason, {
+        includeCurrency: true,
       });
-      return { action: "CANCELLED_UNPAID", status: updated.status };
+      if (closed.outcome === "REFUNDED") {
+        return { action: "REFUNDED", status: closed.updated.status };
+      }
+      return { action: "CANCELLED_UNPAID", status: closed.updated.status };
     }
 
     if (invoice.status === "PAID") {
@@ -2334,15 +2328,12 @@ export const InvoiceService = {
           },
         });
 
-    const doc = paymentAttempt
+    const linkedInvoiceId = paymentAttempt?.invoiceId ?? payment?.invoiceId;
+    const doc = linkedInvoiceId
       ? await prisma.invoice.findUnique({
-          where: { id: paymentAttempt.invoiceId },
+          where: { id: linkedInvoiceId },
         })
-      : payment
-        ? await prisma.invoice.findUnique({
-            where: { id: payment.invoiceId },
-          })
-        : null;
+      : null;
 
     if (!doc) {
       return null;

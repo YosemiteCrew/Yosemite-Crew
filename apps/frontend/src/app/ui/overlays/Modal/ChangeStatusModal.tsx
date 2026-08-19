@@ -136,7 +136,7 @@ const ChangeStatusModal = <S extends string>({
       <div className="flex flex-col gap-4 w-full">
         <ModalHeader title="Change status" onClose={handleCancel} />
         <div className="flex flex-col gap-2">
-          <div className={saving ? 'pointer-events-none opacity-60' : ''}>
+          <div className={saving ? 'pointer-events-none' : ''}>
             <LabelDropdown
               placeholder={placeholder}
               options={statusOptions}
@@ -146,7 +146,9 @@ const ChangeStatusModal = <S extends string>({
             />
           </div>
           {renderExtraContent ? renderExtraContent({ selectedStatus, saving }) : null}
-          {errorMessage ? <p className="text-sm text-red-600">{errorMessage}</p> : null}
+          {errorMessage ? (
+            <p className="text-sm text-[var(--danger-text)]">{errorMessage}</p>
+          ) : null}
         </div>
         <div className="flex items-center justify-center gap-2 w-full pb-3 flex-wrap">
           <Secondary

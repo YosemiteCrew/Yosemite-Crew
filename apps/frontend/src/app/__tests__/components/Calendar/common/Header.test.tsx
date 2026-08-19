@@ -202,9 +202,14 @@ describe('Header Component', () => {
     // in both themes) so selected/unselected are unmistakable. The old translucent
     // danger-bg tint + `text-danger-500!` label failed WCAG AA in dark mode (#1885).
     const activePill = screen.getByRole('button', { name: 'Emergencies' });
-    expect(activePill.getAttribute('style')).toContain('background-color: var(--color-danger-800)');
-    expect(activePill.getAttribute('style')).toContain('border-color: var(--color-danger-800)');
-    expect(activePill.getAttribute('style')).toContain('color: var(--color-white)');
+    // --danger-strong with its PAIRED ink, not --color-danger-800 under a literal
+    // white. The 800 step is an ink and was given a light dark-mode value, which
+    // as a fill put this pill at 1.98:1. --danger-strong inverts as a pair in
+    // dark so the fill also keeps a 3:1 boundary against the surface; pinning
+    // the label to white here would break that half again.
+    expect(activePill.getAttribute('style')).toContain('background-color: var(--danger-strong)');
+    expect(activePill.getAttribute('style')).toContain('border-color: var(--danger-strong)');
+    expect(activePill.getAttribute('style')).toContain('color: var(--danger-strong-ink)');
     // The `!important` danger-500 label class must be gone so the inline white wins.
     expect(activePill).not.toHaveClass('text-danger-500!');
   });
@@ -264,11 +269,16 @@ describe('Header Component', () => {
       />
     );
 
-    // Active non-emergency pill fills with --inset behind a --divider outline and
-    // steps its label to --ink 700, per the planner's filter row.
+    // Active non-emergency pill takes the shared --chip-selected-* ink fill at
+    // 700. The neutral surface tokens it used before sat within 1.1:1 of the
+    // page, so weight was the only thing marking the selection.
     const allPillActive = screen.getByRole('button', { name: 'All' });
-    expect(allPillActive).toHaveClass('bg-[var(--inset)]', 'font-bold', 'text-[var(--ink)]');
-    expect(allPillActive).toHaveStyle({ borderColor: 'var(--divider)' });
+    expect(allPillActive).toHaveClass(
+      'bg-[var(--chip-selected-bg)]',
+      'font-bold',
+      'text-[var(--chip-selected-ink)]'
+    );
+    expect(allPillActive).not.toHaveClass('bg-[var(--inset)]');
 
     // Clicking an inactive pill selects it; clicking the active pill resets to 'all'.
     fireEvent.click(screen.getByRole('button', { name: 'Emergencies' }));
@@ -296,7 +306,7 @@ describe('Header Component', () => {
     // danger-800), so it no longer carries the AA-failing `text-danger-500!` class.
     const activeEmergencyPill = screen.getByRole('button', { name: 'Emergencies' });
     expect(activeEmergencyPill).not.toHaveClass('text-danger-500!');
-    expect(activeEmergencyPill.getAttribute('style')).toContain('color: var(--color-white)');
+    expect(activeEmergencyPill.getAttribute('style')).toContain('color: var(--danger-strong-ink)');
   });
 
   it('ignores filter toggles when no setter is provided', () => {
@@ -318,6 +328,13 @@ describe('Header Component', () => {
 
     const trigger = screen.getByRole('button', { name: /All statuses/i });
     expect(trigger).toHaveStyle({ borderColor: 'var(--hairline)' });
+  });
+
+  it('falls back to the first status option when the active status matches none', () => {
+    render(<Header {...defaultProps} activeStatus="missing" statusOptions={statusOptions} />);
+
+    // selectedStatus falls back to statusOptions[0] ('all') → neutral trigger.
+    expect(screen.getByRole('button', { name: /All statuses/i })).toBeInTheDocument();
   });
 
   it('keeps the selected status chevron inside the coloured pill', () => {
