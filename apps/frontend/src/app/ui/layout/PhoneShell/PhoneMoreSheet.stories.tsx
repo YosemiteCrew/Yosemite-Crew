@@ -31,24 +31,15 @@ const LINKS: PhoneMoreLink[] = PHONE_MORE_LINKS.map((link) => ({
   icon: link.icon,
 }));
 
-const PHONE_VIEWPORT = {
-  phone: {
-    name: 'Mobile (375)',
-    styles: { width: '375px', height: '812px' },
-    type: 'mobile',
-  },
-};
-
 const meta = {
   title: 'Layout/PhoneMoreSheet',
   component: PhoneMoreSheet,
-  globals: { viewport: { value: 'phone', isRotated: false } },
+  globals: { viewport: { value: 'mobile', isRotated: false } },
   parameters: {
     layout: 'fullscreen',
     // Both the sheet skin (Sheet.css) and the tile grid (PhoneShell.css) sit
     // inside `max-width: 767px` media queries, so the canvas and the Chromatic
     // snapshot have to be phone width or this renders as unstyled lists.
-    viewport: { options: PHONE_VIEWPORT },
     chromatic: { viewports: [375] },
     docs: {
       description: {

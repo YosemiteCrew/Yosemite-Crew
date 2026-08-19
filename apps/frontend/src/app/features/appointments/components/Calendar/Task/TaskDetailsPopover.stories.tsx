@@ -135,6 +135,11 @@ export const LongValues: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    /* One "Category" row, not two. The popover used to print it in this grid AND again
+       in the quick-details list below, because `getTaskQuickDetails` leads with Category
+       and the popover took its first two entries. This query would have been ambiguous
+       either way, and that ambiguity is what found the duplication. */
+    await expect(canvas.getAllByText('Category')).toHaveLength(1);
     const grid = canvas.getByText('Category').parentElement as HTMLElement;
     await expect(getComputedStyle(grid).gridTemplateColumns.trim().split(/\s+/)).toHaveLength(2);
   },

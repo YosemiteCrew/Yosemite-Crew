@@ -27,14 +27,6 @@ const MEMBERSHIP: UserOrganization = {
   active: true,
 };
 
-const PHONE_VIEWPORT = {
-  phone: {
-    name: 'Mobile (375)',
-    styles: { width: '375px', height: '812px' },
-    type: 'mobile',
-  },
-};
-
 type ShellFixture = {
   org: boolean;
   chatUnread: number;
@@ -69,10 +61,9 @@ const withShellState =
 const meta = {
   title: 'Layout/PhoneShell',
   component: PhoneShell,
-  globals: { viewport: { value: 'phone', isRotated: false } },
+  globals: { viewport: { value: 'mobile', isRotated: false } },
   parameters: {
     layout: 'fullscreen',
-    viewport: { options: PHONE_VIEWPORT },
     // The shell is gated on a `(max-width: 767px)` media query and renders
     // nothing above it, so both the Storybook canvas and the Chromatic snapshot
     // have to be phone-width.

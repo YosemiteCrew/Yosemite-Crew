@@ -147,7 +147,7 @@ export const BlockingAction: Story = {
   args: { blockingSources: ['invoice-finalize'] },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(await canvas.findByTestId(LOADER_TEST_ID)).toBeInTheDocument();
+    expect(await canvas.findByTestId(LOADER_TEST_ID)).toBeInTheDocument();
   },
   parameters: {
     docs: {
@@ -168,7 +168,7 @@ export const ShownByInteraction: Story = {
     await expect(canvas.queryByTestId(LOADER_TEST_ID)).not.toBeInTheDocument();
     await userEvent.click(canvas.getByRole('button', { name: 'Start blocking action' }));
     // Reached through the same store call the app makes, not by seeding a fixture.
-    await expect(await canvas.findByTestId(LOADER_TEST_ID)).toBeInTheDocument();
+    expect(await canvas.findByTestId(LOADER_TEST_ID)).toBeInTheDocument();
   },
   parameters: {
     docs: {
@@ -187,7 +187,7 @@ export const RefCountedSources: Story = {
   args: { blockingSources: ['workspace-bootstrap', 'storybook-action'] },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(await canvas.findByTestId(LOADER_TEST_ID)).toBeInTheDocument();
+    expect(await canvas.findByTestId(LOADER_TEST_ID)).toBeInTheDocument();
     await userEvent.click(canvas.getByRole('button', { name: 'Finish blocking action' }));
     // One source released, one still held: the overlay must stay up.
     await expect(canvas.getByTestId(LOADER_TEST_ID)).toBeInTheDocument();

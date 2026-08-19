@@ -277,7 +277,7 @@ const MerckReaderOverlay = ({
     <div className="relative flex size-full max-h-[95vh] max-w-7xl flex-col overflow-hidden rounded-2xl border border-hairline bg-[var(--screen)] shadow-2xl">
       <div className="flex items-center justify-between gap-2 border-b border-hairline px-5 py-3">
         <div className="flex min-w-0 items-center gap-2.5 pr-2">
-          <span className="flex size-8 flex-none items-center justify-center rounded-[9px] bg-blue-soft text-blue-text">
+          <span className="flex size-8 flex-none items-center justify-center rounded-[9px] bg-[var(--blue-soft)] text-blue-text">
             <IoBookOutline size={15} aria-hidden="true" />
           </span>
           <span className="truncate text-[13.5px] font-bold text-[var(--ink)]">{title}</span>
@@ -300,7 +300,7 @@ const MerckReaderOverlay = ({
           // Safety net for a manual that never finishes loading (network stall, MSD
           // outage). Rather than spin forever, offer the working new-tab path.
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[var(--screen)] px-6 text-center">
-            <span className="flex size-11 items-center justify-center rounded-full bg-blue-soft text-blue-text">
+            <span className="flex size-11 items-center justify-center rounded-full bg-[var(--blue-soft)] text-blue-text">
               <IoOpenOutline size={20} aria-hidden="true" />
             </span>
             <span className="text-[13.5px] font-bold text-[var(--ink)]">
@@ -517,7 +517,7 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
       >
         <div className="flex items-center justify-between gap-2">
           <span className="flex items-center gap-2 text-[13px] font-bold text-[var(--ink)]">
-            <span className="flex size-7 items-center justify-center rounded-[9px] bg-blue-soft text-blue-text">
+            <span className="flex size-7 items-center justify-center rounded-[9px] bg-[var(--blue-soft)] text-blue-text">
               <IoBookOutline size={14} aria-hidden="true" />
             </span>
             {'MSD Manual'}

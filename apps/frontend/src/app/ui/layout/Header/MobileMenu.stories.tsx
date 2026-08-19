@@ -29,12 +29,12 @@ const MenuLinks = () => (
 const meta = {
   title: 'Layout/Header/MobileMenu',
   component: MobileMenu,
+  // Both are `lg:hidden`: on the default desktop canvas they render into a
+  // display:none box - in the DOM, zero pixels on screen. Pin to mobile.
+  globals: { viewport: { value: 'mobile', isRotated: false } },
   parameters: {
     layout: 'padded',
     surface: 'marketing',
-    // Both are `lg:hidden`: on the default desktop canvas they render into a
-    // display:none box - in the DOM, zero pixels on screen. Pin to mobile.
-    viewport: { defaultViewport: 'mobile' },
     docs: {
       description: {
         component:

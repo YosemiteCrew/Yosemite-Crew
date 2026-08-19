@@ -1,5 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
+import { expect, fn, waitFor, within } from 'storybook/test';
+
+import {
+  closeGlassTooltip,
+  openGlassTooltip,
+} from '@/app/ui/primitives/GlassTooltip/storyInteractions';
 import type { Appointment, Organisation } from '@yosemite-crew/types';
 
 import AppointmentCard from './index';
@@ -197,39 +202,32 @@ export const LongValues: Story = {
 };
 
 /**
- * Hovers one action and returns the single portalled bubble it opened.
+ * Opens one action's bubble and returns it together with its trigger.
  *
- * The pointer session is passed in rather than using the bare `userEvent` helper:
- * the direct API builds a fresh pointer state per call, so it never emits the
- * `mouseleave` that closes the bubble you are moving away from, and a walk along
- * the rail would leave a trail of bubbles behind for reasons that have nothing to
- * do with the component. A `userEvent.setup()` session keeps the pointer's
- * position between calls and produces the real leave/enter pair.
+ * `openGlassTooltip` rather than a `userEvent` pointer session: the wrapper binds its
+ * listeners in an effect, and a play function can start before that effect has flushed -
+ * a single dispatch then lands on an element that is not listening and is lost, because
+ * `findByRole` retries the query and never re-sends the event.
+ *
+ * That also means leaving is explicit. A dispatched `mouseenter` on the next icon does
+ * not emit a `mouseleave` on the last one, so a walk along the rail has to close each
+ * bubble itself or they pile up on `document.body` - which is exactly what the
+ * one-bubble assertion below is there to catch.
  */
-const hoverAction = async (
-  user: ReturnType<typeof userEvent.setup>,
-  canvasElement: HTMLElement,
-  actionLabel: string
-) => {
-  const canvas = within(canvasElement);
-  await user.hover(canvas.getByRole('button', { name: actionLabel }));
-  // The bubble portals to document.body, so it is outside canvasElement. Settling
-  // on exactly one is the real assertion: the outgoing bubble is momentarily still
-  // mounted beside the incoming one, and a leak there would never settle.
+const openAction = async (canvasElement: HTMLElement, actionLabel: string) => {
+  const button = within(canvasElement).getByRole('button', { name: actionLabel });
+  const bubble = await openGlassTooltip(button);
+  // Settling on exactly one is the real assertion: a teardown leak would never settle.
   await waitFor(() => {
     expect(within(document.body).getAllByRole('tooltip')).toHaveLength(1);
   });
-  return within(document.body).getByRole('tooltip');
+  return { bubble, button };
 };
 
 export const ViewTooltip: Story = {
   name: 'Tooltip — view action',
   play: async ({ canvasElement }) => {
-    const bubble = await hoverAction(
-      userEvent.setup(),
-      canvasElement,
-      'View appointment for Poppy'
-    );
+    const { bubble } = await openAction(canvasElement, 'View appointment for Poppy');
     await expect(bubble).toHaveTextContent('View appointment');
   },
   parameters: {
@@ -247,7 +245,7 @@ export const ViewTooltip: Story = {
 export const ClinicalNotesTooltip: Story = {
   name: 'Tooltip — clinical notes label',
   play: async ({ canvasElement }) => {
-    const bubble = await hoverAction(userEvent.setup(), canvasElement, 'Medical Records for Poppy');
+    const { bubble } = await openAction(canvasElement, 'Medical Records for Poppy');
     // The org store says HOSPITAL, so the bubble must say Medical Records rather
     // than the Care fallback. This string is data, not a constant.
     await expect(bubble).toHaveTextContent('Medical Records');
@@ -277,13 +275,13 @@ export const RailTooltips: Story = {
       ['Lab tests for Poppy', 'Lab tests'],
     ];
 
-    // One pointer session for the whole walk, so moving to the next icon really
-    // leaves the previous one: each hover must open its own bubble AND close the
-    // one before it. Seven stacked bubbles would be its own defect.
-    const user = userEvent.setup();
+    // Each icon is closed before the next is opened, so the one-bubble assertion inside
+    // `openAction` really is checking teardown rather than a lucky ordering. Seven
+    // stacked bubbles would be its own defect.
     for (const [trigger, label] of expectations) {
-      const bubble = await hoverAction(user, canvasElement, trigger);
+      const { bubble, button } = await openAction(canvasElement, trigger);
       await expect(bubble).toHaveTextContent(label);
+      await closeGlassTooltip(button);
     }
   },
   parameters: {
@@ -311,7 +309,7 @@ export const RequestedTooltip: Story = {
   play: async ({ canvasElement }) => {
     // Hover only. The decline button fires `rejectAppointment` over the network
     // on click, so a story must never press it.
-    const bubble = await hoverAction(userEvent.setup(), canvasElement, 'Accept request for Poppy');
+    const { bubble } = await openAction(canvasElement, 'Accept request for Poppy');
     await expect(bubble).toHaveTextContent('Accept request');
   },
   parameters: {
@@ -330,10 +328,13 @@ export const TooltipByKeyboard: Story = {
   name: 'Tooltip — opened by keyboard focus',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    // focusin, not hover: the path a keyboard user gets, and the one that rots
-    // unnoticed because every manual check is done with a mouse.
-    canvas.getByRole('button', { name: 'Lab tests for Poppy' }).focus();
-    const bubble = await within(document.body).findByRole('tooltip');
+    /* focusin, not hover: the path a keyboard user gets, and the one that rots unnoticed
+       because every manual check is done with a mouse. Dispatched at the wrapper rather
+       than via `.focus()`, which fires nothing unless the page itself has focus. */
+    const bubble = await openGlassTooltip(
+      canvas.getByRole('button', { name: 'Lab tests for Poppy' }),
+      { via: 'focus' }
+    );
     await expect(bubble).toHaveTextContent('Lab tests');
   },
   parameters: {

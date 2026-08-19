@@ -105,7 +105,7 @@ export const CompactActions: Story = {
   args: { compactInlineActions: true },
   play: async ({ canvasElement }) => {
     const canvas = await startEditing(canvasElement);
-    await expect(await canvas.findByRole('button', { name: 'Save' })).toBeInTheDocument();
+    expect(await canvas.findByRole('button', { name: 'Save' })).toBeInTheDocument();
   },
   parameters: {
     docs: {
@@ -128,7 +128,7 @@ export const Saving: Story = {
   play: async ({ canvasElement }) => {
     const canvas = await startEditing(canvasElement);
     await userEvent.click(await canvas.findByRole('button', { name: 'Save' }));
-    await expect(await canvas.findByRole('button', { name: 'Saving...' })).toBeInTheDocument();
+    expect(await canvas.findByRole('button', { name: 'Saving...' })).toBeInTheDocument();
   },
   parameters: {
     docs: {
@@ -149,7 +149,7 @@ export const SaveFailed: Story = {
   play: async ({ canvasElement }) => {
     const canvas = await startEditing(canvasElement);
     await userEvent.click(await canvas.findByRole('button', { name: 'Save' }));
-    await expect(
+    expect(
       await canvas.findByText('Failed to save changes. Please try again.')
     ).toBeInTheDocument();
   },

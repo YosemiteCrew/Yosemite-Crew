@@ -1,5 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { expect, fn, userEvent, within } from 'storybook/test';
+import { expect, fn, within } from 'storybook/test';
+
+import {
+  closeGlassTooltip,
+  openGlassTooltip,
+} from '@/app/ui/primitives/GlassTooltip/storyInteractions';
 import type { CompanionParent } from '@/app/features/companions/pages/Companions/types';
 import CompanionCard from './CompanionCard';
 
@@ -153,22 +158,28 @@ export const LongText: Story = {
 };
 
 /**
- * The bubble portals to `document.body`, so it is outside `canvasElement`. It is
- * also the only element with `role="tooltip"`, and only one is ever open.
+ * Opens the bubble for `name` and asserts its copy.
+ *
+ * The bubble portals to `document.body`, so it is outside `canvasElement`; it is also
+ * the only element with `role="tooltip"`, and only one is ever open.
+ *
+ * `openGlassTooltip` rather than `userEvent.hover`: the wrapper's listeners are bound in
+ * an effect that has not necessarily flushed when a play function starts, so a single
+ * dispatch can land on an element that is not listening yet. `findByRole` retries the
+ * query but never re-sends the event, so that dispatch is lost for good.
  */
-const expectTooltip = async (text: RegExp) => {
-  const tooltip = await within(document.body).findByRole('tooltip');
+const openTooltipFor = async (canvasElement: HTMLElement, name: RegExp, text: RegExp) => {
+  const button = within(canvasElement).getByRole('button', { name });
+  const tooltip = await openGlassTooltip(button);
   await expect(tooltip).toHaveTextContent(text);
-  return tooltip;
+  return button;
 };
 
 export const ViewTooltip: Story = {
   name: 'Tooltip - View (hover)',
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
     // The label is rewritten per org type, so match its shape rather than one wording.
-    await userEvent.hover(canvas.getByRole('button', { name: /^View .*Kiko$/ }));
-    await expectTooltip(/^View /);
+    await openTooltipFor(canvasElement, /^View .*Kiko$/, /^View /);
   },
   parameters: {
     docs: {
@@ -184,7 +195,6 @@ export const ViewTooltip: Story = {
 export const AllFourTooltips: Story = {
   name: 'All four tooltips (hovered in turn)',
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
     const body = within(document.body);
     // Nothing is open at rest: the bubble does not exist until a pointer arrives.
     await expect(body.queryByRole('tooltip')).not.toBeInTheDocument();
@@ -197,16 +207,13 @@ export const AllFourTooltips: Story = {
     ];
 
     for (const [trigger, copy] of steps) {
-      const button = canvas.getByRole('button', { name: trigger });
-      await userEvent.hover(button);
-      await expectTooltip(copy);
+      const button = await openTooltipFor(canvasElement, trigger, copy);
       // mouseleave unmounts the portal, so the next bubble is unambiguous.
-      await userEvent.unhover(button);
+      await closeGlassTooltip(button);
     }
 
     // Leave the last one open so the story has something to look at.
-    await userEvent.hover(canvas.getByRole('button', { name: /^Create task for Kiko$/ }));
-    await expectTooltip(/^Task$/);
+    await openTooltipFor(canvasElement, /^Create task for Kiko$/, /^Task$/);
   },
   parameters: {
     docs: {
@@ -223,12 +230,14 @@ export const AllFourTooltips: Story = {
 export const TooltipOnFocus: Story = {
   name: 'Tooltip - keyboard focus',
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    const button = canvas.getByRole('button', { name: /^Change status for Kiko$/ });
-    // `focusin` bubbles to the wrapper span, which is where the listener lives -
-    // so the bubble is reachable without a pointer at all.
-    button.focus();
-    await expectTooltip(/^Change status$/);
+    /* `focusin` is a separate listener from the mouse pair, so the bubble is reachable
+       without a pointer at all. Driven by dispatching at the wrapper rather than by
+       `.focus()`, which fires nothing unless the page itself has focus - not something
+       an automated run can guarantee. */
+    const button = within(canvasElement).getByRole('button', {
+      name: /^Change status for Kiko$/,
+    });
+    expect(await openGlassTooltip(button, { via: 'focus' })).toHaveTextContent(/^Change status$/);
   },
   parameters: {
     docs: {
@@ -251,10 +260,8 @@ export const ViewOnlyTooltip: Story = {
     canEditCompanions: false,
   },
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(canvas.getAllByRole('button')).toHaveLength(1);
-    await userEvent.hover(canvas.getByRole('button', { name: /^View .*Kiko$/ }));
-    await expectTooltip(/^View /);
+    await expect(within(canvasElement).getAllByRole('button')).toHaveLength(1);
+    await openTooltipFor(canvasElement, /^View .*Kiko$/, /^View /);
   },
   parameters: {
     docs: {

@@ -17,14 +17,6 @@ const withSignedOutSession = () => {
 };
 
 /** Registered on the story that needs it so the phone width survives a Chromatic run. */
-const MOBILE_VIEWPORT = {
-  mobile: {
-    name: 'Mobile (375)',
-    styles: { width: '375px', height: '812px' },
-    type: 'mobile',
-  },
-};
-
 const PageBody = () => (
   <section style={{ padding: '120px 24px 200px', maxWidth: 760, margin: '0 auto' }}>
     <h2 className="text-[34px] leading-[1.15] font-normal text-[var(--ink)]">
@@ -108,7 +100,6 @@ export const Mobile: Story = {
   name: 'Mobile (hamburger)',
   globals: { viewport: { value: 'mobile', isRotated: false } },
   parameters: {
-    viewport: { options: MOBILE_VIEWPORT },
     chromatic: { viewports: [375] },
     docs: {
       description: {

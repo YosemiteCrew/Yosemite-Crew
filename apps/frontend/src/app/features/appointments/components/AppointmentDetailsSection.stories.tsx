@@ -101,7 +101,7 @@ export const Expanded: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('button', { name: 'Appointment details' }));
     // Assert the body actually mounted its fields - not just that aria-expanded flipped.
-    await expect(await canvas.findByRole('button', { name: 'Speciality' })).toBeInTheDocument();
+    expect(await canvas.findByRole('button', { name: 'Speciality' })).toBeInTheDocument();
     await expect(canvas.getByRole('button', { name: 'Services / Packages' })).toBeInTheDocument();
     await expect(canvas.getByRole('textbox', { name: 'Describe concern' })).toBeInTheDocument();
     await expect(canvas.getByRole('button', { name: 'Next' })).toBeInTheDocument();

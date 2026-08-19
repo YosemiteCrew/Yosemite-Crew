@@ -64,7 +64,7 @@ export const Open: Story = {
     await expect(canvas.queryByText('Microchip')).not.toBeInTheDocument();
     await userEvent.click(canvas.getByRole('button', { name: /companion details/i }));
     // Assert the body actually rendered its children, not just that state flipped.
-    await expect(await canvas.findByText('Microchip')).toBeInTheDocument();
+    expect(await canvas.findByText('Microchip')).toBeInTheDocument();
   },
   parameters: {
     docs: {

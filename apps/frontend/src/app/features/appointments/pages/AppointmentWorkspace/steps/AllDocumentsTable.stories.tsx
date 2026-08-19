@@ -276,7 +276,7 @@ export const LoadFailed: Story = {
   args: { error: 'Documents are unavailable for this visit.' },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(await canvas.findByRole('alert')).toHaveTextContent(
+    expect(await canvas.findByRole('alert')).toHaveTextContent(
       'Documents are unavailable for this visit.'
     );
     // `error` replaces the list outright rather than sitting above it.

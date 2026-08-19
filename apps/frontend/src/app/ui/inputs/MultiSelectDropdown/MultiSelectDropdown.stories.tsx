@@ -172,9 +172,7 @@ export const Searching: Story = {
     await expect(within(panel).getAllByRole('button')).toHaveLength(6);
     // The search field is the input the open trigger swaps in; it is focused on open.
     await userEvent.type(canvas.getByLabelText('Search Services'), 'den');
-    await waitFor(async () => {
-      await expect(within(panel).getAllByRole('button')).toHaveLength(1);
-    });
+    await waitFor(() => expect(within(panel).getAllByRole('button')).toHaveLength(1));
     await expect(within(panel).getByText('Dental scale and polish')).toBeInTheDocument();
   },
   parameters: {
@@ -195,7 +193,7 @@ export const NoMatches: Story = {
     const canvas = within(canvasElement);
     const panel = await openPanel(canvasElement, 'Services');
     await userEvent.type(canvas.getByLabelText('Search Services'), 'zzz');
-    await expect(await within(panel).findByText('No matches found')).toBeInTheDocument();
+    expect(await within(panel).findByText('No matches found')).toBeInTheDocument();
     await expect(within(panel).queryAllByRole('button')).toHaveLength(0);
   },
   parameters: {

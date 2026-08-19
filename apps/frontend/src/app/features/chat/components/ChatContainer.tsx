@@ -741,7 +741,11 @@ const ChatLayout: FC<ChatLayoutProps> = ({
   );
 };
 
-const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
+// Exported for Storybook only. The header is mounted deep inside the Stream
+// `ChannelList` shell, so the only way to draw it was to build a real chat
+// client first; exporting it lets the stories mount the real component with
+// plain props instead.
+export const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
   showArchived,
   onToggleArchived,
   scope,

@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { expect, userEvent, within } from 'storybook/test';
+import { expect, within } from 'storybook/test';
+
+import { openGlassTooltip } from '@/app/ui/primitives/GlassTooltip/storyInteractions';
 
 import PackageBreakdownTooltip from './PackageBreakdownTooltip';
 import type {
@@ -57,13 +59,19 @@ const PACKAGE_ITEM: InvoiceLineItem = {
   breakdown: BREAKDOWN,
 };
 
-/** Opens the portalled bubble and hands back its root for assertions. */
-const openBubble = async (canvasElement: HTMLElement, itemName: string) => {
-  const canvas = within(canvasElement);
-  await userEvent.hover(canvas.getByRole('button', { name: `View ${itemName} package breakdown` }));
+/**
+ * Opens the portalled bubble and hands back its root for assertions.
+ *
+ * The wrapper span carries the listeners and binds them in an effect, which a play
+ * function can start ahead of - so the dispatch is retried rather than sent once.
+ * `findByRole` retries the query but never re-sends the event, so a dispatch that lands
+ * before the listener exists is lost for good.
+ */
+const openBubble = (canvasElement: HTMLElement, itemName: string) =>
   // GlassTooltip portals to document.body, so the bubble is outside canvasElement.
-  return within(document.body).findByRole('tooltip');
-};
+  openGlassTooltip(
+    within(canvasElement).getByRole('button', { name: `View ${itemName} package breakdown` })
+  );
 
 const meta = {
   title: 'Workspace/PackageBreakdownTooltip',
@@ -232,10 +240,13 @@ export const KeyboardFocus: Story = {
   name: 'Opened by keyboard focus',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    // focusin, not hover: the path a keyboard user gets, and the one that rots
-    // unnoticed because every manual check is done with a mouse.
-    canvas.getByRole('button', { name: `View ${PACKAGE_ITEM.name} package breakdown` }).focus();
-    const bubble = await within(document.body).findByRole('tooltip');
+    /* focusin, not hover: the path a keyboard user gets, and the one that rots unnoticed
+       because every manual check is done with a mouse. Dispatched at the wrapper rather
+       than via `.focus()`, which fires nothing unless the page itself has focus. */
+    const bubble = await openGlassTooltip(
+      canvas.getByRole('button', { name: `View ${PACKAGE_ITEM.name} package breakdown` }),
+      { via: 'focus' }
+    );
     await expect(within(bubble).getAllByRole('columnheader')).toHaveLength(7);
   },
   parameters: {

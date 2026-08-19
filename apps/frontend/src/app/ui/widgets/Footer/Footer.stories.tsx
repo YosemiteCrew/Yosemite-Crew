@@ -41,14 +41,6 @@ const withFailingStatusFetch = () => {
   };
 };
 
-const PHONE_VIEWPORT = {
-  phone: {
-    name: 'Mobile (375)',
-    styles: { width: '375px', height: '812px' },
-    type: 'mobile',
-  },
-};
-
 const meta = {
   title: 'Widgets/Footer',
   component: Footer,
@@ -120,9 +112,8 @@ export const StatusUnavailable: Story = {
 
 export const Mobile: Story = {
   name: 'Mobile (375)',
-  globals: { viewport: { value: 'phone', isRotated: false } },
+  globals: { viewport: { value: 'mobile', isRotated: false } },
   parameters: {
-    viewport: { options: PHONE_VIEWPORT },
     chromatic: { viewports: [375] },
     docs: {
       description: {

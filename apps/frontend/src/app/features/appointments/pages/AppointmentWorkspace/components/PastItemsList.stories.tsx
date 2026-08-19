@@ -114,7 +114,7 @@ export const Expanded: Story = {
     await userEvent.click(canvas.getByRole('button', { name: 'View By Dr. Tim Apple' }));
     // Assert the detail block has its real content, not just that the button relabelled -
     // the weaker check passes on an empty panel, which is how a regression stays invisible.
-    await expect(
+    expect(
       await canvas.findByText(/Suspected partial cranial cruciate ligament tear/)
     ).toBeInTheDocument();
     await expect(canvas.getByText(/Grade 2\/4 lameness/)).toBeInTheDocument();
@@ -138,7 +138,7 @@ export const TwoExpanded: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('button', { name: 'View By Dr. Tim Apple' }));
     await userEvent.click(canvas.getByRole('button', { name: 'View By Dr. Ravi Menon' }));
-    await expect(
+    expect(
       await canvas.findByText(/Suspected partial cranial cruciate ligament tear/)
     ).toBeInTheDocument();
     await expect(

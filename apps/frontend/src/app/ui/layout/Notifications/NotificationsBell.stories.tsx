@@ -8,14 +8,6 @@ import NotificationsBell from './NotificationsBell';
 import '../Header/UserHeader/UserHeader.css';
 import '../PhoneShell/PhoneShell.css';
 
-const PHONE_VIEWPORT = {
-  phone: {
-    name: 'Mobile (375)',
-    styles: { width: '375px', height: '812px' },
-    type: 'mobile',
-  },
-};
-
 /** A stand-in header row: the panel is anchored to the bell, so it needs a right edge. */
 const HeaderRow = (Story: React.ComponentType) => (
   <div className="min-h-[520px] bg-[var(--page)] p-4">
@@ -130,7 +122,7 @@ export const DesktopEscapeCloses: Story = {
     const canvas = within(canvasElement);
     const bell = canvas.getByRole('button', { name: 'Notifications' });
     await userEvent.click(bell);
-    await expect(await canvas.findByRole('dialog', { name: 'Notifications' })).toBeInTheDocument();
+    expect(await canvas.findByRole('dialog', { name: 'Notifications' })).toBeInTheDocument();
 
     await userEvent.keyboard('{Escape}');
     await expect(canvas.queryByRole('dialog')).toBeNull();
@@ -151,9 +143,8 @@ export const DesktopEscapeCloses: Story = {
 export const PhoneSheetOpen: Story = {
   name: 'Phone sheet open',
   args: { variant: 'phone' },
-  globals: { viewport: { value: 'phone', isRotated: false } },
+  globals: { viewport: { value: 'mobile', isRotated: false } },
   parameters: {
-    viewport: { options: PHONE_VIEWPORT },
     chromatic: { viewports: [375] },
     docs: {
       description: {

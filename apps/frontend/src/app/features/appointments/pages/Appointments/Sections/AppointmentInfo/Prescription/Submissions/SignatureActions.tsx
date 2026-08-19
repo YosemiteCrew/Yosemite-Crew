@@ -187,7 +187,7 @@ const SignatureActions = ({ submission, onStatusChange }: SignatureActionsProps)
           />
         ) : null}
       </div>
-      {error ? <div className="text-xs text-error-main">{error}</div> : null}
+      {error ? <div className="text-xs text-text-error">{error}</div> : null}
     </div>
   );
 };

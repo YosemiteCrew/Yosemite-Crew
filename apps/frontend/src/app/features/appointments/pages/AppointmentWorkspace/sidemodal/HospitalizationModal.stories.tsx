@@ -202,7 +202,7 @@ export const UnitFollowsRoom: Story = {
     const listbox = await within(document.body).findByLabelText('Room');
     await userEvent.click(within(listbox).getByText('Ward B'));
     // Ward B has no critical-care unit, so the unit falls to the room's first option.
-    await expect(
+    expect(
       await panel.findByRole('button', { name: 'Unit: General inpatient' })
     ).toBeInTheDocument();
   },
@@ -224,7 +224,7 @@ export const ValidationErrors: Story = {
   play: async ({ canvasElement }) => {
     const panel = within(await openModal(canvasElement));
     await userEvent.click(panel.getByRole('button', { name: 'Convert to Inpatient' }));
-    await expect(await panel.findByText('Room is required.')).toBeInTheDocument();
+    expect(await panel.findByText('Room is required.')).toBeInTheDocument();
     await expect(panel.getByText('Unit is required.')).toBeInTheDocument();
   },
   parameters: {

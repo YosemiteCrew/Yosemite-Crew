@@ -100,16 +100,24 @@ export const Open: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.type(canvas.getByLabelText('Pet parent'), 'ma');
-    const panel = document.querySelector('[data-iwd-panel]');
+    const panel = document.querySelector('[data-iwd-panel]') as HTMLElement;
     await expect(panel).toBeInTheDocument();
+    /* Three, not two. `useFilteredOptions` is a plain `label.toLowerCase().includes()`
+       over the WHOLE label, so "ma" also matches the middle of "Priya Raman". Asserting
+       two here was wrong about the component, and the number is the point of the story:
+       a substring filter with no word-boundary rule surfaces mid-surname matches that
+       look like noise to whoever is typing. */
     // Options are plain buttons, not role="option" - assert the content, not the role.
-    await expect(within(panel as HTMLElement).getAllByRole('button')).toHaveLength(2);
+    await expect(within(panel).getAllByRole('button')).toHaveLength(3);
+    await expect(within(panel).getByText('Priya Raman')).toBeInTheDocument();
   },
   parameters: {
     docs: {
       description: {
         story:
-          'Typing "ma" narrows five parents to Maya Whitfield and Marcus Alvarez. The input has ' +
+          'Typing "ma" narrows five parents to three: Maya Whitfield, Marcus Alvarez and - less ' +
+          'obviously - Priya Ra**ma**n, because the filter is a substring test over the whole ' +
+          'label with no word-boundary rule. The input has ' +
           'squared its bottom corners and dropped its bottom border so it joins the panel.',
       },
     },

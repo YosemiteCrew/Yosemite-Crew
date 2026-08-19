@@ -74,7 +74,7 @@ export const BasicDetailsSection = ({
             options={specialitiesOptions}
           />
         </div>
-        <div className="sm:col-span-2 rounded-2xl border border-card-border bg-card-subtle px-3 py-2 text-caption-1 text-text-secondary">
+        <div className="sm:col-span-2 rounded-2xl border border-card-border bg-card-hover px-3 py-2 text-caption-1 text-text-secondary">
           Assign a specialty if this room is dedicated to a specific speciality or service.
         </div>
       </div>

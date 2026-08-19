@@ -160,7 +160,7 @@ export const AdditionalDetailsOpen: Story = {
     await userEvent.click(canvas.getByRole('button', { name: 'Additional Details' }));
     // Assert the body actually mounted its rows. Checking aria-expanded alone
     // would pass on an empty panel, which is how this stayed invisible.
-    await expect(await canvas.findByText('Color')).toBeInTheDocument();
+    expect(await canvas.findByText('Color')).toBeInTheDocument();
     await expect(canvas.getByText('Blood group')).toBeInTheDocument();
     await expect(canvas.getByText('Weight (kg)')).toBeInTheDocument();
     await expect(canvas.getByText('Country of origin')).toBeInTheDocument();
@@ -197,7 +197,7 @@ export const SparseAdditionalDetails: Story = {
     await userEvent.click(canvas.getByRole('button', { name: 'Additional Details' }));
     // Every row inside is conditional, so the panel collapses to the one
     // unconditional line - a very different shape from the populated case.
-    await expect(await canvas.findByText('Insurance')).toBeInTheDocument();
+    expect(await canvas.findByText('Insurance')).toBeInTheDocument();
     await expect(canvas.getByText('Not insured')).toBeInTheDocument();
     await expect(canvas.queryByText('Microchip')).not.toBeInTheDocument();
     await expect(canvas.queryByText('Insurance company')).not.toBeInTheDocument();
