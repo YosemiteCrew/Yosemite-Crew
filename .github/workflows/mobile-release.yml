@@ -169,7 +169,10 @@ jobs:
     name: iOS (TestFlight)
     if: github.event_name == 'push' || inputs.platform == 'both' || inputs.platform == 'ios'
     needs: preflight
-    runs-on: macos-14
+    # React Native 0.81 requires Xcode >= 16.1 (min_xcode_version_supported in
+    # react-native/scripts/cocoapods/helpers.rb). The macos-14 image ships 15.x,
+    # so `pod install` aborted with "Please upgrade XCode" before any build ran.
+    runs-on: macos-15
     environment: release
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

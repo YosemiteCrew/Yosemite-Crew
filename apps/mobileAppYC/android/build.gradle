@@ -5,7 +5,15 @@ buildscript {
         compileSdkVersion = 36
         targetSdkVersion = 36
         ndkVersion = "27.1.12297006"
+        // Pinned to what React Native 0.81 uses. Raising it here does NOT change the
+        // compiler: @react-native/gradle-plugin is an included build whose own catalog
+        // pins kotlin 2.1.20, and that wins for the modules RN applies the plugin to.
+        // Verified by setting this to 2.3.10 and watching the compile still report 2.1.
         kotlinVersion = "2.1.20"
+        // stripe-react-native defaults this to the floating range "23.1.+". The lockfile
+        // resolves it, so the version only moves when someone relocks, which is what
+        // 61b25145d did for stripe 0.61. Pinning it makes that movement explicit.
+        stripeVersion = "23.1.0"
     }
     repositories {
         google()
@@ -24,5 +32,17 @@ apply plugin: "com.facebook.react.rootproject"
 allprojects {
     dependencyLocking {
         lockAllConfigurations()
+    }
+
+    // stripe-react-native 0.61 requires com.stripe:stripe-android 23.x, whose classes
+    // carry Kotlin 2.3 metadata. React Native 0.81 pins the Kotlin plugin to 2.1.20 via
+    // its included build, and a 2.1 compiler reads metadata only up to 2.2, so
+    // :stripe_stripe-react-native:compileReleaseKotlin failed with "Incompatible classes
+    // were found in dependencies". The metadata is newer than the reader, not
+    // incompatible in substance, which is the case this flag exists for.
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+        compilerOptions {
+            freeCompilerArgs.add("-Xskip-metadata-version-check")
+        }
     }
 }
