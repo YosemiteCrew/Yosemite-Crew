@@ -85,7 +85,7 @@ describe('useGithubStats hooks', () => {
     const fetchMock = jest.fn(() => Promise.resolve(makeRes(null)));
     globalThis.fetch = fetchMock as unknown as FetchLike;
     sessionStorage.setItem(
-      'yc_marketing_stats_v1',
+      'yc_marketing_stats_v2',
       JSON.stringify({
         stars: '9k',
         starsFull: '9,000',
@@ -94,7 +94,7 @@ describe('useGithubStats hooks', () => {
         discord: '4,000',
       })
     );
-    sessionStorage.setItem('yc_marketing_stats_ts_v1', String(Date.now()));
+    sessionStorage.setItem('yc_marketing_stats_ts_v2', String(Date.now()));
 
     const { result } = renderHook(() => useGithubStats());
 
@@ -104,7 +104,7 @@ describe('useGithubStats hooks', () => {
   });
 
   it('server-renders the loading placeholders even when the session cache is seeded', () => {
-    sessionStorage.setItem('yc_marketing_stats_v1', JSON.stringify({ stars: '9k' }));
+    sessionStorage.setItem('yc_marketing_stats_v2', JSON.stringify({ stars: '9k' }));
     sessionStorage.setItem(
       'yc_rel_platform_v1',
       JSON.stringify({ tag: 'v9.9.9', date: 'Jan 1, 2026', url: 'https://x/cached' })
@@ -125,7 +125,7 @@ describe('useGithubStats hooks', () => {
   });
 
   it('treats a corrupt session cache entry as the empty placeholders', async () => {
-    sessionStorage.setItem('yc_marketing_stats_v1', '{not json');
+    sessionStorage.setItem('yc_marketing_stats_v2', '{not json');
     globalThis.fetch = jest.fn(() => Promise.resolve(notOk())) as unknown as FetchLike;
     const { result } = renderHook(() => useGithubStats());
     expect(result.current.stars).toBeNull();
@@ -149,7 +149,7 @@ describe('useGithubStats hooks', () => {
     });
     globalThis.fetch = fetchMock as unknown as FetchLike;
     sessionStorage.setItem(
-      'yc_marketing_stats_v1',
+      'yc_marketing_stats_v2',
       JSON.stringify({
         stars: '9k',
         starsFull: '9,000',
@@ -158,7 +158,7 @@ describe('useGithubStats hooks', () => {
         discord: null,
       })
     );
-    sessionStorage.setItem('yc_marketing_stats_ts_v1', String(Date.now()));
+    sessionStorage.setItem('yc_marketing_stats_ts_v2', String(Date.now()));
 
     const { result } = renderHook(() => useGithubStats());
 
@@ -184,7 +184,7 @@ describe('useGithubStats hooks', () => {
     });
     globalThis.fetch = fetchMock as unknown as FetchLike;
     sessionStorage.setItem(
-      'yc_marketing_stats_v1',
+      'yc_marketing_stats_v2',
       JSON.stringify({
         stars: '9k',
         starsFull: '9,000',
@@ -193,7 +193,7 @@ describe('useGithubStats hooks', () => {
         discord: '4,000',
       })
     );
-    sessionStorage.setItem('yc_marketing_stats_ts_v1', String(Date.now()));
+    sessionStorage.setItem('yc_marketing_stats_ts_v2', String(Date.now()));
 
     const { result } = renderHook(() => useGithubStats({ live: true }));
 
@@ -206,7 +206,7 @@ describe('useGithubStats hooks', () => {
 
   it('in live mode shows placeholders for failed fetchers, never cached or fabricated values', async () => {
     sessionStorage.setItem(
-      'yc_marketing_stats_v1',
+      'yc_marketing_stats_v2',
       JSON.stringify({
         stars: '9k',
         starsFull: '9,000',
@@ -215,7 +215,7 @@ describe('useGithubStats hooks', () => {
         discord: '4,000',
       })
     );
-    sessionStorage.setItem('yc_marketing_stats_ts_v1', String(Date.now()));
+    sessionStorage.setItem('yc_marketing_stats_ts_v2', String(Date.now()));
     discordMembers = '3,210';
     // Every other endpoint fails: stars, the clone report, and contributors.
     globalThis.fetch = withDiscord(() => Promise.resolve(notOk())) as unknown as FetchLike;

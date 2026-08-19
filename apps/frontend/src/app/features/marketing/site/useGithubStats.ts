@@ -19,8 +19,8 @@ export interface GithubStats {
   discord: string | null;
 }
 
-const STATS_CACHE_KEY = 'yc_marketing_stats_v1';
-const STATS_TS_KEY = 'yc_marketing_stats_ts_v1';
+const STATS_CACHE_KEY = 'yc_marketing_stats_v2';
+const STATS_TS_KEY = 'yc_marketing_stats_ts_v2';
 const STATS_TTL_MS = 5 * 60 * 1000;
 
 const EMPTY_STATS: GithubStats = {

@@ -83,7 +83,9 @@ describe('useOverviewStats Hook', () => {
     expect(result.current.totalStars).toBe(2200);
     expect(result.current.totalForks).toBe(64);
     expect(result.current.totalContributors).toBe(3);
-    expect(result.current.totalDiscordMembers).toBe(169);
+    // No hardcoded fallback any more: an unfetched Discord count renders as an
+    // empty tile rather than a stale constant that looks measured.
+    expect(result.current.totalDiscordMembers).toBe(0);
 
     // 2. Verify Traffic Chart now covers the full daily traffic history
     expect(result.current.trafficChart.length).toBeGreaterThan(100);
@@ -142,7 +144,9 @@ describe('useOverviewStats Hook', () => {
     expect(result.current.totalStars).toBe(0);
     expect(result.current.totalForks).toBe(0);
     expect(result.current.totalContributors).toBe(0);
-    expect(result.current.totalDiscordMembers).toBe(169);
+    // No hardcoded fallback any more: an unfetched Discord count renders as an
+    // empty tile rather than a stale constant that looks measured.
+    expect(result.current.totalDiscordMembers).toBe(0);
   });
 
   it('3. handles missing dataset properties smoothly (extractChartData fallback)', async () => {
