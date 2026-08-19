@@ -229,8 +229,28 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
           security list-keychain -d user -s "$KEYCHAIN" login.keychain-db
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "$PROFILE_BASE64" | base64 -d > ~/Library/MobileDevice/Provisioning\ Profiles/release.mobileprovision
+          PROFILE=~/Library/MobileDevice/Provisioning\ Profiles/release.mobileprovision
+          echo "$PROFILE_BASE64" | base64 -d > "$PROFILE"
           rm -f "${RUNNER_TEMP}/cert.p12"
+
+          # Manual signing needs the profile's own name, and the name is inside
+          # the CMS envelope rather than the filename. Reading it here means the
+          # archive never has to ask Apple which profile to use.
+          security cms -D -i "$PROFILE" > "${RUNNER_TEMP}/profile.plist"
+          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "${RUNNER_TEMP}/profile.plist")
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "${RUNNER_TEMP}/profile.plist")
+          IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN" | sed -n '1s/.*"\(.*\)".*/\1/p')
+          rm -f "${RUNNER_TEMP}/profile.plist"
+
+          if [ -z "$PROFILE_NAME" ] || [ -z "$IDENTITY" ]; then
+            echo "Could not read the provisioning profile name or the signing identity." >&2
+            exit 1
+          fi
+          echo "Signing as: $IDENTITY"
+          echo "Profile:    $PROFILE_NAME ($PROFILE_UUID)"
+          echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+          echo "PROFILE_UUID=$PROFILE_UUID" >> "$GITHUB_ENV"
+          echo "SIGNING_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
 
       - name: Install pods
         working-directory: apps/mobileAppYC/ios
@@ -258,29 +278,38 @@ jobs:
           fi
           echo "ASC_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
 
+      # Manual signing, deliberately. Automatic signing asks App Store Connect to
+      # resolve a profile, which returned 401 on listTeams.action and then hunted
+      # for an "iOS App Development" profile that a distribution archive should
+      # never want. The certificate and the distribution profile are both already
+      # installed above, so nothing needs to be fetched at build time.
       - name: Archive and export IPA
         working-directory: apps/mobileAppYC/ios
-        env:
-          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
           xcodebuild -workspace mobileAppYC.xcworkspace \
             -scheme mobileAppYC \
             -configuration Release \
             -archivePath "${RUNNER_TEMP}/mobileAppYC.xcarchive" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$ASC_KEY_PATH" \
-            -authenticationKeyID "$KEY_ID" \
-            -authenticationKeyIssuerID "$ISSUER_ID" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="$SIGNING_IDENTITY" \
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+            DEVELOPMENT_TEAM=9TZWPYQ45S \
             archive
+
+          # The committed ExportOptions.plist asks for automatic signing and cannot
+          # name the profile, because the name only exists inside the secret. This
+          # writes the manual equivalent from what was actually installed.
+          EXPORT_PLIST="${RUNNER_TEMP}/ExportOptions.manual.plist"
+          cp ExportOptions.plist "$EXPORT_PLIST"
+          /usr/libexec/PlistBuddy -c "Set :signingStyle manual" "$EXPORT_PLIST"
+          /usr/libexec/PlistBuddy -c "Add :signingCertificate string $SIGNING_IDENTITY" "$EXPORT_PLIST"
+          /usr/libexec/PlistBuddy -c "Add :provisioningProfiles dict" "$EXPORT_PLIST"
+          /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:com.yosemitecrew.mobile string $PROFILE_NAME" "$EXPORT_PLIST"
+
           xcodebuild -exportArchive \
             -archivePath "${RUNNER_TEMP}/mobileAppYC.xcarchive" \
-            -exportOptionsPlist ExportOptions.plist \
-            -exportPath "${RUNNER_TEMP}/export" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$ASC_KEY_PATH" \
-            -authenticationKeyID "$KEY_ID" \
-            -authenticationKeyIssuerID "$ISSUER_ID"
+            -exportOptionsPlist "$EXPORT_PLIST" \
+            -exportPath "${RUNNER_TEMP}/export"
 
       - name: Upload to TestFlight
         env:
