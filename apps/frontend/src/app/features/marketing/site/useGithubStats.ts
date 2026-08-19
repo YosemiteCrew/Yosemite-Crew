@@ -14,7 +14,7 @@ export interface GithubStats {
   /** Full star count, e.g. '2,431'. */
   starsFull: string | null;
   /** Flagship proof stat: clone-traffic total, e.g. '67,134'. */
-  selfHosters: string | null;
+  repositoryClones: string | null;
   contributors: string | null;
   discord: string | null;
 }
@@ -26,7 +26,7 @@ const STATS_TTL_MS = 5 * 60 * 1000;
 const EMPTY_STATS: GithubStats = {
   stars: null,
   starsFull: null,
-  selfHosters: null,
+  repositoryClones: null,
   contributors: null,
   discord: null,
 };

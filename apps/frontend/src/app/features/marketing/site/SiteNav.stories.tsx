@@ -26,7 +26,7 @@ const STATS_TS_KEY = 'yc_marketing_stats_ts_v1';
 const CACHED_STATS = {
   stars: '2.4k',
   starsFull: '2,431',
-  selfHosters: '67,134',
+  repositoryClones: '67,134',
   contributors: '128',
   discord: '3,182',
 };

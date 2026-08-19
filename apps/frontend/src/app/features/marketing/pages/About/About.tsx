@@ -601,8 +601,8 @@ function BuildingInPublic() {
   const stats = useGithubStats();
   const columns: LiveStat[] = [
     {
-      value: stats.selfHosters ?? '·',
-      label: 'Self-hosters',
+      value: stats.repositoryClones ?? '·',
+      label: 'Repository clones',
       source: 'live via GitHub',
       delay: 0,
     },

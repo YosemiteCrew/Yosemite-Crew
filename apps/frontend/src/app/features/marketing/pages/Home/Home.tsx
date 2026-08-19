@@ -708,8 +708,8 @@ function HeroSocialProof() {
             color: 'var(--ink-body)',
           }}
         >
-          Trusted by <CountUp value={stats.selfHosters ?? '·'} style={{ color: 'var(--ink)' }} />{' '}
-          self-hosters
+          <CountUp value={stats.repositoryClones ?? '·'} style={{ color: 'var(--ink)' }} />{' '}
+          repository clones
         </div>
         <div style={{ fontSize: 13, letterSpacing: '-0.01em', color: 'var(--ink-6b)' }}>
           Clinics and developers running it in the open, no platform fees.
@@ -2017,8 +2017,8 @@ function BuildingInPublic() {
           }}
         >
           <Metric
-            value={stats.selfHosters ?? '·'}
-            label="Self-hosters"
+            value={stats.repositoryClones ?? '·'}
+            label="Repository clones"
             source="live via GitHub"
             delay={0}
           />
