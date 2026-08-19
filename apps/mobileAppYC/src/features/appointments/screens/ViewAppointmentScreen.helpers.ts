@@ -145,6 +145,44 @@ export const formatAppointmentDateTime = (apt: any) => {
   return {dateTimeLabel};
 };
 
+/**
+ * Render one answer value as text.
+ *
+ * Shared by the schema-driven rows and the raw-answer fallback below. Both used
+ * to stringify independently and the fallback did it with a template literal,
+ * so an object answer reached the screen as "[object Object]". Recursing for
+ * array members keeps nested values readable instead of repeating that bug one
+ * level down.
+ */
+const MAX_ANSWER_DEPTH = 4;
+
+const formatAnswerValue = (value: unknown, depth = 0): string => {
+  if (Array.isArray(value)) {
+    if (depth >= MAX_ANSWER_DEPTH) {
+      return '…';
+    }
+    return value.map(item => formatAnswerValue(item, depth + 1)).join(', ');
+  }
+  if (typeof value === 'object' && value !== null) {
+    // Only a string url is a url. Coercing an arbitrary value here just moved
+    // the "[object Object]" one level down, which is what this whole change
+    // set out to remove; anything else falls through to the serialiser below.
+    const url = (value as {url?: unknown}).url;
+    if (typeof url === 'string' && url !== '') {
+      return url;
+    }
+    try {
+      // Answers are submitted data, so they can be circular or nested deeply
+      // enough to overflow the stack. JSON.stringify throws on both, and this
+      // path now takes objects the old fallback never passed to it.
+      return JSON.stringify(value) ?? '';
+    } catch {
+      return '…';
+    }
+  }
+  return String(value);
+};
+
 export const formatAppointmentFormValue = (
   field: FormField,
   value: any,
@@ -162,16 +200,7 @@ export const formatAppointmentFormValue = (
   if (field.type === 'richtext') {
     return stripHtmlToPlainText(value) || '—';
   }
-  if (Array.isArray(value)) {
-    return value.map(v => `${v}`).join(', ') || '—';
-  }
-  if (typeof value === 'object') {
-    if ('url' in value && value.url) {
-      return String(value.url);
-    }
-    return JSON.stringify(value);
-  }
-  return `${value}`;
+  return formatAnswerValue(value) || '—';
 };
 
 export const getAppointmentFormAction = (
@@ -239,16 +268,18 @@ export const getAppointmentFormAnswerRows = (
       fieldTypeById.get(key) === 'richtext' && typeof val === 'string'
         ? stripHtmlToPlainText(val)
         : val;
-    return resolvedVal !== undefined &&
-      resolvedVal !== null &&
-      `${resolvedVal}`.trim() !== ''
-      ? [
+    if (resolvedVal === undefined || resolvedVal === null) {
+      return [];
+    }
+    const text = formatAnswerValue(resolvedVal);
+    return text.trim() === ''
+      ? []
+      : [
           {
             id: key,
             label: capitalize(key.replaceAll('_', ' ')),
-            value: `${resolvedVal}`,
+            value: text,
           },
-        ]
-      : [];
+        ];
   });
 };

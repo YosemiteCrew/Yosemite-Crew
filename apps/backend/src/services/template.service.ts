@@ -1299,9 +1299,12 @@ export const TemplateService = {
         }
       }
 
-      const bestMatch = matches.sort((left, right) =>
+      // Sort a copy: `matches` is reused below, and sorting in place made the
+      // ranking depend on how many times this ran.
+      const rankedMatches = [...matches].sort((left, right) =>
         compareResolverMatches(left.matched, right.matched),
-      )[0];
+      );
+      const bestMatch = rankedMatches[0];
 
       if (!bestMatch) {
         return null;
