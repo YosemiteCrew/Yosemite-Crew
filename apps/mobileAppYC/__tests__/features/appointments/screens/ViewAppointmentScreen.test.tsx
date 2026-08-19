@@ -665,6 +665,13 @@ describe('ViewAppointmentScreen', () => {
           foo: 'bar',
         }),
       ).toBe('{"foo":"bar"}');
+      // A non-string url is not a url. Coercing it would just print
+      // "[object Object]" one level down, so it serialises instead.
+      expect(
+        formatAppointmentFormValue({id: 'weird-url', type: 'file'} as any, {
+          url: {href: 'https://example.com/x.pdf'},
+        }),
+      ).toBe('{"url":{"href":"https://example.com/x.pdf"}}');
       expect(
         formatAppointmentFormValue({id: 'raw', type: 'text'} as any, 42),
       ).toBe('42');
@@ -680,6 +687,46 @@ describe('ViewAppointmentScreen', () => {
           '<p></p>',
         ),
       ).toBe('—');
+    });
+
+    it('survives hostile answer shapes instead of crashing the screen', () => {
+      // Answers are submitted data. Nesting deep enough to overflow the stack
+      // must truncate rather than throw.
+      let deepArray: any = ['leaf'];
+      for (let i = 0; i < 500; i += 1) {
+        deepArray = [deepArray];
+      }
+      expect(() =>
+        formatAppointmentFormValue(
+          {id: 'deep', type: 'text'} as any,
+          deepArray,
+        ),
+      ).not.toThrow();
+      expect(
+        formatAppointmentFormValue(
+          {id: 'deep', type: 'text'} as any,
+          deepArray,
+        ),
+      ).toBe('…');
+
+      // A circular object makes JSON.stringify throw, and this path now takes
+      // objects the old fallback never serialised.
+      const circular: any = {name: 'loop'};
+      circular.self = circular;
+      expect(() =>
+        formatAppointmentFormValue({id: 'circ', type: 'text'} as any, circular),
+      ).not.toThrow();
+      expect(
+        formatAppointmentFormValue({id: 'circ', type: 'text'} as any, circular),
+      ).toBe('…');
+
+      // The same guards apply on the raw-answer fallback path.
+      expect(() =>
+        getAppointmentFormAnswerRows({
+          form: {},
+          submission: {answers: {deep: deepArray, circ: circular}},
+        } as any),
+      ).not.toThrow();
     });
 
     it('resolves appointment form actions for each form state', () => {
@@ -826,6 +873,34 @@ describe('ViewAppointmentScreen', () => {
         } as any),
       ).toEqual([
         {id: 'extra_note', label: 'Extra note', value: 'Orphaned answer'},
+      ]);
+
+      // Answers with no matching schema field go through the same formatter as
+      // the schema-driven rows. They used to be stringified with a template
+      // literal here, so an object answer reached the screen as
+      // "[object Object]" and an attachment lost its url.
+      expect(
+        getAppointmentFormAnswerRows({
+          form: {},
+          submission: {
+            answers: {
+              vitals: {weight: '12kg'},
+              attachment: {url: 'https://example.com/scan.pdf'},
+              tags: ['urgent', 'recheck'],
+              nested: [{a: 1}, 'plain'],
+              empty_list: [],
+            },
+          },
+        } as any),
+      ).toEqual([
+        {id: 'vitals', label: 'Vitals', value: '{"weight":"12kg"}'},
+        {
+          id: 'attachment',
+          label: 'Attachment',
+          value: 'https://example.com/scan.pdf',
+        },
+        {id: 'tags', label: 'Tags', value: 'urgent, recheck'},
+        {id: 'nested', label: 'Nested', value: '{"a":1}, plain'},
       ]);
     });
   });
