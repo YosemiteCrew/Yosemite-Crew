@@ -50,7 +50,10 @@ const PassportClient = ({ id }: PassportClientProps) => {
           border: '1px solid var(--hairline-soft)',
           boxShadow: '0 6px 20px var(--sh10)',
           color: 'var(--ink-body)',
-          backdropFilter: 'blur(24px)',
+          // 8px, not 24px: backdrop blur cost scales with radius and this sits on a
+          // fixed element, so it composites on every scroll of the passport page.
+          // --glass-93 is 93% opaque, so almost none of the blur was visible anyway.
+          backdropFilter: 'blur(8px)',
         }}
       >
         {theme === 'dark' ? <IoSunnyOutline /> : <IoMoonOutline />}
