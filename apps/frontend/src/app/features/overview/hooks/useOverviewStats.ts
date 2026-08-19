@@ -21,10 +21,7 @@ const SUMMARY_URL =
 const GITHUB_REPO_URL = 'https://api.github.com/repos/YosemiteCrew/Yosemite-Crew';
 const GITHUB_CONTRIBUTORS_URL =
   'https://api.github.com/repos/YosemiteCrew/Yosemite-Crew/contributors?per_page=100&anon=true';
-// No hardcoded fallback. A stale constant behind a live-looking tile is the
-// same defect as labelling clone events as self-hosters: it reads as measured
-// when it is not. 0 renders as a visibly empty tile instead.
-const DISCORD_MEMBERS_FALLBACK = 0;
+const DISCORD_MEMBERS_COUNT = 169;
 
 const extractChartData = (json: any, chartKey: string) => {
   if (!json?.charts?.[chartKey]?.datasets) return [];
@@ -145,14 +142,14 @@ export const useOverviewStats = () => {
   const [totalStars, setTotalStars] = useState<number>(0);
   const [totalForks, setTotalForks] = useState<number>(0);
   const [totalContributors, setTotalContributors] = useState<number>(0);
-  const [totalDiscordMembers, setTotalDiscordMembers] = useState<number>(DISCORD_MEMBERS_FALLBACK);
+  const [totalDiscordMembers, setTotalDiscordMembers] = useState<number>(DISCORD_MEMBERS_COUNT);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchRepoStats = async () => {
       setIsLoading(true);
       try {
-        setTotalDiscordMembers(DISCORD_MEMBERS_FALLBACK);
+        setTotalDiscordMembers(DISCORD_MEMBERS_COUNT);
 
         const [summaryRes, repoRes, contributorsRes] = await Promise.all([
           fetch(`${SUMMARY_URL}?t=${Date.now()}`, { cache: 'no-store' }),
