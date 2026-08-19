@@ -22,13 +22,22 @@ const parseGithubContributors = (
   contributors: GithubContributorResponse[] | null
 ): GithubContributor[] | null => {
   if (!Array.isArray(contributors)) return null;
-  return contributors
-    .filter((contributor) => contributor?.login && contributor.type !== 'Bot')
-    .map((contributor) => ({
-      login: contributor.login as string,
-      avatarSrc: contributor.avatar_url ?? '',
-      href: contributor.html_url ?? `https://github.com/${contributor.login}`,
-    }));
+  return (
+    contributors
+      // turbobot-temp is type 'User' on GitHub but is Turborepo's scaffold bot,
+      // so a type check alone still renders it as a human face on the roster.
+      .filter(
+        (contributor) =>
+          contributor?.login &&
+          contributor.type !== 'Bot' &&
+          !/(\[bot\]|^turbobot-)/i.test(contributor.login)
+      )
+      .map((contributor) => ({
+        login: contributor.login as string,
+        avatarSrc: contributor.avatar_url ?? '',
+        href: contributor.html_url ?? `https://github.com/${contributor.login}`,
+      }))
+  );
 };
 
 export function useGithubContributors(): GithubContributor[] | null {

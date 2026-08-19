@@ -72,7 +72,7 @@ describe('OverviewPage Component', () => {
     (useOverviewStats as jest.Mock).mockReturnValue({
       trafficChart: [],
       starsChart: [],
-      totalSelfHosters: 1600,
+      totalRepositoryClones: 1600,
       totalStars: 2100, // Should hit the >= 1000 branch and return "2.1k"
       totalForks: 64,
       totalContributors: 15,
@@ -90,7 +90,7 @@ describe('OverviewPage Component', () => {
     expect(screen.getByText('2.1k')).toBeInTheDocument();
     expect(screen.getByText('169')).toBeInTheDocument();
     expect(screen.getByText('15')).toBeInTheDocument();
-    expect(screen.getByText('Self Hosters')).toBeInTheDocument();
+    expect(screen.getByText('Repository clones')).toBeInTheDocument();
     expect(screen.getByText('Contributors')).toBeInTheDocument();
     expect(screen.getByText('Discord Members')).toBeInTheDocument();
     expect(screen.getByText('Repo Stars')).toBeInTheDocument();
@@ -117,7 +117,7 @@ describe('OverviewPage Component', () => {
     (useOverviewStats as jest.Mock).mockReturnValue({
       trafficChart: [],
       starsChart: [],
-      totalSelfHosters: 1600,
+      totalRepositoryClones: 1600,
       totalStars: 2100,
       totalForks: 64,
       totalContributors: 15,
@@ -147,7 +147,7 @@ describe('OverviewPage Component', () => {
     (useOverviewStats as jest.Mock).mockReturnValue({
       trafficChart: [],
       starsChart: [],
-      totalSelfHosters: 0,
+      totalRepositoryClones: 0,
       totalStars: 0,
       totalForks: 0,
       totalContributors: 0,
@@ -177,7 +177,7 @@ describe('OverviewPage Component', () => {
     (useOverviewStats as jest.Mock).mockReturnValue({
       trafficChart: [],
       starsChart: [],
-      totalSelfHosters: 0,
+      totalRepositoryClones: 0,
       totalStars: 0,
       totalForks: 0,
       totalContributors: 0,

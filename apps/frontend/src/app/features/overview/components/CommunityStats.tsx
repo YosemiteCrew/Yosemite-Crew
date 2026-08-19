@@ -18,7 +18,7 @@ type GranularityType = 'Daily' | 'Monthly' | 'Yearly';
 type AggregatedTrafficPoint = {
   dateKey: string;
   month: string;
-  'Self Hosters': number;
+  'Repository clones': number;
   Builders: number;
 };
 type AggregatedStarsPoint = {
@@ -71,15 +71,15 @@ const aggregateTrafficByMonth = (
     const date = new Date(dataPoint.dateKey);
     const monthKey = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
     const existing = aggregated.get(monthKey);
-    const selfHostersValue =
+    const repositoryClonesValue =
       view === 'Unique'
-        ? dataPoint['Self Hosters (Unique)']
-        : dataPoint['Self Hosters (Cumulative)'];
+        ? dataPoint['Repository clones (unique)']
+        : dataPoint['Repository clones (cumulative)'];
     const buildersValue =
       view === 'Unique' ? dataPoint['Builders (Unique)'] : dataPoint['Builders (Cumulative)'];
 
     if (existing) {
-      existing['Self Hosters'] += selfHostersValue;
+      existing['Repository clones'] += repositoryClonesValue;
       existing.Builders = view === 'Unique' ? existing.Builders + buildersValue : buildersValue;
       return;
     }
@@ -87,7 +87,7 @@ const aggregateTrafficByMonth = (
     aggregated.set(monthKey, {
       dateKey: `${monthKey}-01T00:00:00.000Z`,
       month: formatMonthLabel(dataPoint.dateKey),
-      'Self Hosters': selfHostersValue,
+      'Repository clones': repositoryClonesValue,
       Builders: buildersValue,
     });
   });
@@ -220,7 +220,8 @@ const buildTrafficChartConfig = (
   const mapTrafficPoint = (d: TrafficDataPoint) => ({
     month: d.month,
     dayNumber: getDayNumber(d.dateKey),
-    'Self Hosters': view === 'Unique' ? d['Self Hosters (Unique)'] : d['Self Hosters (Cumulative)'],
+    'Repository clones':
+      view === 'Unique' ? d['Repository clones (unique)'] : d['Repository clones (cumulative)'],
     Builders: view === 'Unique' ? d['Builders (Unique)'] : d['Builders (Cumulative)'],
   });
 
@@ -268,7 +269,7 @@ const buildTrafficChartConfig = (
 };
 
 const chartKeys = [
-  { name: 'Self Hosters', color: 'var(--color-badge-blue-bg)' },
+  { name: 'Repository clones', color: 'var(--color-badge-blue-bg)' },
   { name: 'Builders', color: 'var(--success)' },
   { name: 'Github Stars', color: 'var(--color-warning-600)' },
 ];

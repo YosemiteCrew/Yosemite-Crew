@@ -24,7 +24,11 @@ import {
  */
 
 const GITHUB_API_REPO = 'https://api.github.com/repos/YosemiteCrew/Yosemite-Crew';
-const CONTRIBUTORS_API = `${GITHUB_API_REPO}/contributors?per_page=1&anon=true`;
+// anon=true is deliberate: our two most prolific contributors committed under
+// emails never linked to their GitHub accounts, and omitting them would erase
+// more than 2,000 commits of real human work. per_page=100 returns the whole
+// list in one request so bot accounts can be filtered out of the count.
+const CONTRIBUTORS_API = `${GITHUB_API_REPO}/contributors?per_page=100&anon=true`;
 const REPO_STATS_SUMMARY =
   'https://raw.githubusercontent.com/YosemiteCrew/Yosemite-Crew/github-repo-stats/YosemiteCrew/Yosemite-Crew/latest-report/summary.json';
 
@@ -36,15 +40,20 @@ export interface GithubStatsResponse {
   stars: string | null;
   /** Full star count, e.g. '2,431'. */
   starsFull: string | null;
-  /** Clone-traffic total. */
-  selfHosters: string | null;
+  /**
+   * Cumulative repository clone EVENTS since the stats branch began collecting,
+   * straight from GitHub's traffic API. Not a user count and not an install
+   * count: one machine cloning ten times is ten, and CI runners clone on every
+   * workflow job. Label it as clones wherever it is rendered.
+   */
+  repositoryClones: string | null;
   contributors: string | null;
 }
 
 const EMPTY: GithubStatsResponse = {
   stars: null,
   starsFull: null,
-  selfHosters: null,
+  repositoryClones: null,
   contributors: null,
 };
 
@@ -61,7 +70,7 @@ const githubFetch = (url: string) =>
     cache: 'no-store',
   });
 
-const readSelfHostersTotal = (summary: unknown): number | null => {
+const readRepositoryClonesTotal = (summary: unknown): number | null => {
   if (!summary || typeof summary !== 'object') return null;
   const data = summary as {
     clones?: { total?: number };
@@ -93,11 +102,11 @@ const fetchStars = async (): Promise<Pick<GithubStatsResponse, 'stars' | 'starsF
   }
 };
 
-const fetchSelfHosters = async (): Promise<string | null> => {
+const fetchRepositoryClones = async (): Promise<string | null> => {
   try {
     const res = await githubFetch(REPO_STATS_SUMMARY);
     if (!res.ok) return null;
-    const total = readSelfHostersTotal(await res.json());
+    const total = readRepositoryClonesTotal(await res.json());
     return total === null ? null : total.toLocaleString('en-US');
   } catch {
     return null;
@@ -110,9 +119,11 @@ const fetchContributors = async (): Promise<string | null> => {
   try {
     const res = await githubFetch(CONTRIBUTORS_API);
     if (!res.ok) return null;
-    const match = /[?&]page=(\d+)>; rel="last"/.exec(res.headers.get('Link') ?? '');
-    if (!match) return null;
-    return Number.parseInt(match[1], 10).toLocaleString('en-US');
+    const list = (await res.json()) as Array<{ type?: string }>;
+    if (!Array.isArray(list)) return null;
+    // Bots are not people. dependabot and the Aikido autofix account both appear
+    // on the contributor graph and would otherwise inflate the headline figure.
+    return list.filter((c) => c.type !== 'Bot').length.toLocaleString('en-US');
   } catch {
     return null;
   }
@@ -123,13 +134,13 @@ export async function GET(request: Request): Promise<NextResponse> {
   const rejected = rejectUnexpectedParams(request, {});
   if (rejected) return rejected;
 
-  const [starCounts, selfHosters, contributors] = await Promise.all([
+  const [starCounts, repositoryClones, contributors] = await Promise.all([
     fetchStars(),
-    fetchSelfHosters(),
+    fetchRepositoryClones(),
     fetchContributors(),
   ]);
 
-  const stats: GithubStatsResponse = { ...starCounts, selfHosters, contributors };
+  const stats: GithubStatsResponse = { ...starCounts, repositoryClones, contributors };
 
   // Cache only when something resolved, so a GitHub outage is retried on the next
   // request rather than pinned as nulls for the whole TTL.

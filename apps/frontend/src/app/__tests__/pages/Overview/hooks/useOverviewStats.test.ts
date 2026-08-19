@@ -79,7 +79,7 @@ describe('useOverviewStats Hook', () => {
     });
 
     // 1. Verify Top-Level Widget Totals
-    expect(result.current.totalSelfHosters).toBe(75);
+    expect(result.current.totalRepositoryClones).toBe(75);
     expect(result.current.totalStars).toBe(2200);
     expect(result.current.totalForks).toBe(64);
     expect(result.current.totalContributors).toBe(3);
@@ -90,8 +90,8 @@ describe('useOverviewStats Hook', () => {
 
     const todayTraffic = result.current.trafficChart[result.current.trafficChart.length - 1];
     expect(todayTraffic.dateKey).toBe('2026-03-24');
-    expect(todayTraffic['Self Hosters (Unique)']).toBe(10);
-    expect(todayTraffic['Self Hosters (Cumulative)']).toBe(50); // Mapped directly, not added!
+    expect(todayTraffic['Repository clones (unique)']).toBe(10);
+    expect(todayTraffic['Repository clones (cumulative)']).toBe(50); // Mapped directly, not added!
     expect(todayTraffic['Builders (Cumulative)']).toBe(64);
     expect(todayTraffic['Builders (Unique)']).toBe(44); // 64 - 20 (previous) = 44
 
@@ -100,8 +100,8 @@ describe('useOverviewStats Hook', () => {
       (dataPoint) => dataPoint.dateKey === '2026-03-10'
     );
     expect(emptyDayTraffic).toBeDefined();
-    expect(emptyDayTraffic?.['Self Hosters (Unique)']).toBe(0);
-    expect(emptyDayTraffic?.['Self Hosters (Cumulative)']).toBe(0);
+    expect(emptyDayTraffic?.['Repository clones (unique)']).toBe(0);
+    expect(emptyDayTraffic?.['Repository clones (cumulative)']).toBe(0);
 
     // 3. Verify Stars Chart formatting logic and getCumulative loops
     expect(result.current.starsChart.length).toBeGreaterThan(0);
@@ -138,7 +138,7 @@ describe('useOverviewStats Hook', () => {
 
     expect(result.current.trafficChart).toEqual([]);
     expect(result.current.starsChart).toEqual([]);
-    expect(result.current.totalSelfHosters).toBe(0);
+    expect(result.current.totalRepositoryClones).toBe(0);
     expect(result.current.totalStars).toBe(0);
     expect(result.current.totalForks).toBe(0);
     expect(result.current.totalContributors).toBe(0);

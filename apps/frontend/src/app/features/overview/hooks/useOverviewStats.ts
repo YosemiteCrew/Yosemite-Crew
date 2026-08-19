@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 export type TrafficDataPoint = {
   dateKey: string;
   month: string;
-  'Self Hosters (Unique)': number;
-  'Self Hosters (Cumulative)': number;
+  'Repository clones (unique)': number;
+  'Repository clones (cumulative)': number;
   'Builders (Unique)': number;
   'Builders (Cumulative)': number;
 };
@@ -125,8 +125,8 @@ const generateFullTrafficHistory = (
     generatedTraffic.push({
       dateKey: dateString,
       month: monthLabel,
-      'Self Hosters (Unique)': clonesUnique,
-      'Self Hosters (Cumulative)': clonesTotal,
+      'Repository clones (unique)': clonesUnique,
+      'Repository clones (cumulative)': clonesTotal,
       'Builders (Unique)': forksUnique,
       'Builders (Cumulative)': forksCum,
     });
@@ -138,7 +138,7 @@ const generateFullTrafficHistory = (
 export const useOverviewStats = () => {
   const [trafficChart, setTrafficChart] = useState<TrafficDataPoint[]>([]);
   const [starsChart, setStarsChart] = useState<StarsDataPoint[]>([]);
-  const [totalSelfHosters, setTotalSelfHosters] = useState<number>(0);
+  const [totalRepositoryClones, setTotalRepositoryClones] = useState<number>(0);
   const [totalStars, setTotalStars] = useState<number>(0);
   const [totalForks, setTotalForks] = useState<number>(0);
   const [totalContributors, setTotalContributors] = useState<number>(0);
@@ -183,7 +183,7 @@ export const useOverviewStats = () => {
         // ==========================================
         // 1. EXTRACT TOTALS FOR TOP WIDGETS
         // ==========================================
-        setTotalSelfHosters(
+        setTotalRepositoryClones(
           clonesData.reduce(
             (sum: number, dataPoint: any) => sum + Number(dataPoint?.clones_total ?? 0),
             0
@@ -247,7 +247,7 @@ export const useOverviewStats = () => {
   return {
     trafficChart,
     starsChart,
-    totalSelfHosters,
+    totalRepositoryClones,
     totalStars,
     totalForks,
     totalContributors,

@@ -496,9 +496,9 @@ function Hero() {
               textWrap: 'pretty',
             }}
           >
-            Most companies keep their numbers private. We publish ours: every self-hoster,
-            contributor and commit. Public numbers keep us honest, and the open in open source was
-            never meant to stop at the code.
+            Most companies keep their numbers private. We publish ours: every clone, contributor and
+            commit. Public numbers keep us honest, and the open in open source was never meant to
+            stop at the code.
           </p>
           <div
             data-stack-m="true"
@@ -590,10 +590,10 @@ function StatBand() {
   const stats = useGithubStats({ live: true });
   const cells: BandStat[] = [
     {
-      key: 'selfHosters',
-      value: stats.selfHosters,
-      label: 'Self-hosters',
-      desc: 'Installs counted from GitHub clone traffic.',
+      key: 'repositoryClones',
+      value: stats.repositoryClones,
+      label: 'Repository clones',
+      desc: 'Clone events from GitHub traffic. Not installs, not people.',
       accent: true,
       delay: 0,
     },
@@ -601,7 +601,7 @@ function StatBand() {
       key: 'contributors',
       value: stats.contributors,
       label: 'Contributors',
-      desc: 'People who have shipped code to the repo.',
+      desc: 'Accounts credited with commits, bots excluded.',
       accent: false,
       delay: 90,
     },

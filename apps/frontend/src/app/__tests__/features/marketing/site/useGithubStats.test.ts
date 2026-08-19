@@ -30,7 +30,7 @@ const DISCORD_ENDPOINT = '/api/community/discord-members';
 const GITHUB_STATS_ENDPOINT = '/api/community/github-stats';
 
 /**
- * Stars, self-hosters and contributors are now resolved server-side by the
+ * Stars, repository clones and contributors are now resolved server-side by the
  * github-stats route handler and arrive as one payload, so tests stub that
  * endpoint rather than the three upstream URLs. The upstream parsing those URLs
  * needed is covered by the route handler's own test.
@@ -57,7 +57,7 @@ describe('useGithubStats hooks', () => {
     discordMembers = null;
   });
 
-  it('resolves stars, self-hosters, contributors and discord', async () => {
+  it('resolves stars, repository clones, contributors and discord', async () => {
     discordMembers = '3,210';
     globalThis.fetch = withDiscord((url) => {
       if (url.includes('/releases')) return Promise.resolve(makeRes([]));
@@ -66,7 +66,7 @@ describe('useGithubStats hooks', () => {
           statsResponse({
             stars: '2.4k',
             starsFull: '2,431',
-            selfHosters: '67,134',
+            repositoryClones: '67,134',
             contributors: '58',
           })
         );
@@ -76,7 +76,7 @@ describe('useGithubStats hooks', () => {
     const { result } = renderHook(() => useGithubStats());
     await waitFor(() => expect(result.current.stars).toBe('2.4k'));
     expect(result.current.starsFull).toBe('2,431');
-    await waitFor(() => expect(result.current.selfHosters).toBe('67,134'));
+    await waitFor(() => expect(result.current.repositoryClones).toBe('67,134'));
     await waitFor(() => expect(result.current.contributors).toBe('58'));
     await waitFor(() => expect(result.current.discord).toBe('3,210'));
   });
@@ -85,16 +85,16 @@ describe('useGithubStats hooks', () => {
     const fetchMock = jest.fn(() => Promise.resolve(makeRes(null)));
     globalThis.fetch = fetchMock as unknown as FetchLike;
     sessionStorage.setItem(
-      'yc_marketing_stats_v1',
+      'yc_marketing_stats_v2',
       JSON.stringify({
         stars: '9k',
         starsFull: '9,000',
-        selfHosters: '70,000',
+        repositoryClones: '70,000',
         contributors: '60',
         discord: '4,000',
       })
     );
-    sessionStorage.setItem('yc_marketing_stats_ts_v1', String(Date.now()));
+    sessionStorage.setItem('yc_marketing_stats_ts_v2', String(Date.now()));
 
     const { result } = renderHook(() => useGithubStats());
 
@@ -104,7 +104,7 @@ describe('useGithubStats hooks', () => {
   });
 
   it('server-renders the loading placeholders even when the session cache is seeded', () => {
-    sessionStorage.setItem('yc_marketing_stats_v1', JSON.stringify({ stars: '9k' }));
+    sessionStorage.setItem('yc_marketing_stats_v2', JSON.stringify({ stars: '9k' }));
     sessionStorage.setItem(
       'yc_rel_platform_v1',
       JSON.stringify({ tag: 'v9.9.9', date: 'Jan 1, 2026', url: 'https://x/cached' })
@@ -125,7 +125,7 @@ describe('useGithubStats hooks', () => {
   });
 
   it('treats a corrupt session cache entry as the empty placeholders', async () => {
-    sessionStorage.setItem('yc_marketing_stats_v1', '{not json');
+    sessionStorage.setItem('yc_marketing_stats_v2', '{not json');
     globalThis.fetch = jest.fn(() => Promise.resolve(notOk())) as unknown as FetchLike;
     const { result } = renderHook(() => useGithubStats());
     expect(result.current.stars).toBeNull();
@@ -141,7 +141,7 @@ describe('useGithubStats hooks', () => {
           statsResponse({
             stars: '2.4k',
             starsFull: '2,431',
-            selfHosters: '67,134',
+            repositoryClones: '67,134',
             contributors: '58',
           })
         );
@@ -149,16 +149,16 @@ describe('useGithubStats hooks', () => {
     });
     globalThis.fetch = fetchMock as unknown as FetchLike;
     sessionStorage.setItem(
-      'yc_marketing_stats_v1',
+      'yc_marketing_stats_v2',
       JSON.stringify({
         stars: '9k',
         starsFull: '9,000',
-        selfHosters: '70,000',
+        repositoryClones: '70,000',
         contributors: '60',
         discord: null,
       })
     );
-    sessionStorage.setItem('yc_marketing_stats_ts_v1', String(Date.now()));
+    sessionStorage.setItem('yc_marketing_stats_ts_v2', String(Date.now()));
 
     const { result } = renderHook(() => useGithubStats());
 
@@ -176,7 +176,7 @@ describe('useGithubStats hooks', () => {
           statsResponse({
             stars: '2.4k',
             starsFull: '2,431',
-            selfHosters: '67,134',
+            repositoryClones: '67,134',
             contributors: '58',
           })
         );
@@ -184,16 +184,16 @@ describe('useGithubStats hooks', () => {
     });
     globalThis.fetch = fetchMock as unknown as FetchLike;
     sessionStorage.setItem(
-      'yc_marketing_stats_v1',
+      'yc_marketing_stats_v2',
       JSON.stringify({
         stars: '9k',
         starsFull: '9,000',
-        selfHosters: '70,000',
+        repositoryClones: '70,000',
         contributors: '60',
         discord: '4,000',
       })
     );
-    sessionStorage.setItem('yc_marketing_stats_ts_v1', String(Date.now()));
+    sessionStorage.setItem('yc_marketing_stats_ts_v2', String(Date.now()));
 
     const { result } = renderHook(() => useGithubStats({ live: true }));
 
@@ -201,23 +201,23 @@ describe('useGithubStats hooks', () => {
     // so the live numbers replace the seeded cached ones.
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     await waitFor(() => expect(result.current.starsFull).toBe('2,431'));
-    expect(result.current.selfHosters).toBe('67,134');
+    expect(result.current.repositoryClones).toBe('67,134');
   });
 
   it('in live mode shows placeholders for failed fetchers, never cached or fabricated values', async () => {
     sessionStorage.setItem(
-      'yc_marketing_stats_v1',
+      'yc_marketing_stats_v2',
       JSON.stringify({
         stars: '9k',
         starsFull: '9,000',
-        selfHosters: '70,000',
+        repositoryClones: '70,000',
         contributors: '60',
         discord: '4,000',
       })
     );
-    sessionStorage.setItem('yc_marketing_stats_ts_v1', String(Date.now()));
+    sessionStorage.setItem('yc_marketing_stats_ts_v2', String(Date.now()));
     discordMembers = '3,210';
-    // Every other endpoint fails: stars, the self-hoster report, and contributors.
+    // Every other endpoint fails: stars, the clone report, and contributors.
     globalThis.fetch = withDiscord(() => Promise.resolve(notOk())) as unknown as FetchLike;
 
     const { result } = renderHook(() => useGithubStats({ live: true }));
@@ -225,11 +225,11 @@ describe('useGithubStats hooks', () => {
     // Only Discord resolved; it shows its live value.
     await waitFor(() => expect(result.current.discord).toBe('3,210'));
     // Every failed fetcher shows the placeholder, never the seeded cache value and
-    // never a hard-coded self-hoster constant.
+    // never a hard-coded clone constant.
     expect(result.current.stars).toBeNull();
     expect(result.current.starsFull).toBeNull();
     expect(result.current.contributors).toBeNull();
-    expect(result.current.selfHosters).toBeNull();
+    expect(result.current.repositoryClones).toBeNull();
   });
 
   it('fires exactly one round of requests when several instances mount at once', async () => {
@@ -240,7 +240,7 @@ describe('useGithubStats hooks', () => {
           statsResponse({
             stars: '2.4k',
             starsFull: '2,431',
-            selfHosters: '67,134',
+            repositoryClones: '67,134',
             contributors: '58',
           })
         );
@@ -264,31 +264,31 @@ describe('useGithubStats hooks', () => {
     expect(countIncluding(DISCORD_ENDPOINT)).toBe(1);
     expect(fetchMock).toHaveBeenCalledTimes(2);
 
-    expect(result.current.selfHosters).toBe('67,134');
+    expect(result.current.repositoryClones).toBe('67,134');
     expect(result.current.contributors).toBe('58');
     expect(result.current.discord).toBe('3,210');
   });
 
-  it('surfaces the self-hoster count the stats route returns', async () => {
+  it('surfaces the clone count the stats route returns', async () => {
     // Parsing the upstream clone-traffic report is the route handler's job now
     // and is covered by its own test; the hook just surfaces the value.
     globalThis.fetch = jest.fn((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes(GITHUB_STATS_ENDPOINT)) {
-        return Promise.resolve(statsResponse({ selfHosters: '67' }));
+        return Promise.resolve(statsResponse({ repositoryClones: '67' }));
       }
       return Promise.resolve(notOk());
     }) as unknown as FetchLike;
     const { result } = renderHook(() => useGithubStats());
-    await waitFor(() => expect(result.current.selfHosters).toBe('67'));
+    await waitFor(() => expect(result.current.repositoryClones).toBe('67'));
   });
 
-  it('shows no self-hoster count (placeholder) when the report is unavailable', async () => {
+  it('shows no clone count (placeholder) when the report is unavailable', async () => {
     globalThis.fetch = jest.fn(() => Promise.resolve(notOk())) as unknown as FetchLike;
     const { result } = renderHook(() => useGithubStats());
     // No hard-coded fallback: a failed report leaves the placeholder, never a fake number.
     await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
-    expect(result.current.selfHosters).toBeNull();
+    expect(result.current.repositoryClones).toBeNull();
   });
 
   it('resolves the latest platform release and strips the tag prefix', async () => {
@@ -369,12 +369,12 @@ describe('useGithubStats hooks', () => {
     globalThis.fetch = jest.fn(() => Promise.reject(new Error('network'))) as unknown as FetchLike;
     const { result } = renderHook(() => useGithubStats());
     await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
-    expect(result.current.selfHosters).toBeNull();
+    expect(result.current.repositoryClones).toBeNull();
     expect(result.current.contributors).toBeNull();
     expect(result.current.stars).toBeNull();
   });
 
-  it('shows no self-hoster count when the summary lacks a clones total or chart dataset', async () => {
+  it('shows no clone count when the summary lacks a clones total or chart dataset', async () => {
     globalThis.fetch = jest.fn((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes('summary.json')) return Promise.resolve(makeRes({}));
@@ -382,7 +382,7 @@ describe('useGithubStats hooks', () => {
     }) as unknown as FetchLike;
     const { result } = renderHook(() => useGithubStats());
     await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
-    expect(result.current.selfHosters).toBeNull();
+    expect(result.current.repositoryClones).toBeNull();
   });
 
   it('seeds the platform release from the session cache before the network answers', async () => {

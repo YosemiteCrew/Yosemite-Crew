@@ -20,7 +20,7 @@ const OverviewPage = () => {
   const {
     trafficChart,
     starsChart,
-    totalSelfHosters,
+    totalRepositoryClones,
     totalStars,
     totalContributors,
     totalDiscordMembers,
@@ -50,8 +50,10 @@ const OverviewPage = () => {
 
             <div className="OverviewStatsRow">
               <div className="StatItem">
-                <span className="StatNumber">{isLoading ? '-' : formatStat(totalSelfHosters)}</span>
-                <span className="StatLabel">Self Hosters</span>
+                <span className="StatNumber">
+                  {isLoading ? '-' : formatStat(totalRepositoryClones)}
+                </span>
+                <span className="StatLabel">Repository clones</span>
               </div>
 
               <div className="StatItem">
