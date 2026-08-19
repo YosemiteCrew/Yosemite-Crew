@@ -665,6 +665,13 @@ describe('ViewAppointmentScreen', () => {
           foo: 'bar',
         }),
       ).toBe('{"foo":"bar"}');
+      // A non-string url is not a url. Coercing it would just print
+      // "[object Object]" one level down, so it serialises instead.
+      expect(
+        formatAppointmentFormValue({id: 'weird-url', type: 'file'} as any, {
+          url: {href: 'https://example.com/x.pdf'},
+        }),
+      ).toBe('{"url":{"href":"https://example.com/x.pdf"}}');
       expect(
         formatAppointmentFormValue({id: 'raw', type: 'text'} as any, 42),
       ).toBe('42');

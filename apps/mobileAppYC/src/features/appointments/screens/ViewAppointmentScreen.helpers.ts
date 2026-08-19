@@ -164,9 +164,12 @@ const formatAnswerValue = (value: unknown, depth = 0): string => {
     return value.map(item => formatAnswerValue(item, depth + 1)).join(', ');
   }
   if (typeof value === 'object' && value !== null) {
+    // Only a string url is a url. Coercing an arbitrary value here just moved
+    // the "[object Object]" one level down, which is what this whole change
+    // set out to remove; anything else falls through to the serialiser below.
     const url = (value as {url?: unknown}).url;
-    if (url) {
-      return String(url);
+    if (typeof url === 'string' && url !== '') {
+      return url;
     }
     try {
       // Answers are submitted data, so they can be circular or nested deeply
