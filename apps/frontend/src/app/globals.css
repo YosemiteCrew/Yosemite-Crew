@@ -1456,57 +1456,52 @@ input[type='number'] {
   }
 }
 
-/* Typography overrides outside @layer — beats Bootstrap's unlayered element resets on button/input.
-   Bootstrap loads after globals.css but @layer styles lose to unlayered styles regardless of
-   specificity. These rules use !important so they win on button elements too. */
-.text-caption-2 {
-  font-size: 0.75rem !important;
-  font-weight: 500 !important;
-  line-height: 1.125rem;
-  letter-spacing: -0.24px;
-}
-
-/* Caption - 10px/0.625rem - DS micro-badge type: status pills, compact labels.
-   ALL-CAPS 10px / 700 / 0.08em per the design system Badge convention. */
-.text-caption-3 {
-  font-family: var(--font-satoshi);
-  font-size: 0.625rem !important;
-  font-weight: 700 !important;
-  line-height: 1;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-/* Mobile responsive typography - applies to all heading/display classes */
-@media screen and (max-width: 768px) {
-  .text-display-1,
-  .text-display-2,
-  .text-heading-1,
-  .text-heading-2 {
-    font-family: var(--font-satoshi) !important;
-    font-size: 1.5rem !important;
-    font-weight: 500 !important;
-    line-height: 1.875rem !important;
-    letter-spacing: -0.48px;
+/* These typography overrides live in @layer components so font-* weight utilities (utilities
+   layer) can still win over the base weight here. font-size, line-height and font-family keep
+   !important so the responsive mobile sizing and the satoshi/newsreader family stay authoritative. */
+@layer components {
+  /* Caption - 10px/0.625rem - DS micro-badge type: status pills, compact labels.
+     ALL-CAPS 10px / 700 / 0.08em per the design system Badge convention. */
+  .text-caption-3 {
+    font-family: var(--font-satoshi);
+    font-size: 0.625rem !important;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
   }
 
-  .text-heading-3,
-  .text-body-2,
-  .text-body-3,
-  .text-body-4 {
-    font-family: var(--font-satoshi) !important;
-    font-size: 1rem !important;
-    font-weight: 400 !important;
-    line-height: 1.5rem !important;
-    letter-spacing: -0.32px;
-  }
+  /* Mobile responsive typography - applies to all heading/display classes */
+  @media screen and (max-width: 768px) {
+    .text-display-1,
+    .text-display-2,
+    .text-heading-1,
+    .text-heading-2 {
+      font-family: var(--font-satoshi) !important;
+      font-size: 1.5rem !important;
+      font-weight: 500;
+      line-height: 1.875rem !important;
+      letter-spacing: -0.48px;
+    }
 
-  .text-body-3-emphasis {
-    font-family: var(--font-satoshi) !important;
-    font-size: 1rem !important;
-    font-weight: 500 !important;
-    line-height: 1.5rem !important;
-    letter-spacing: -0.32px;
+    .text-heading-3,
+    .text-body-2,
+    .text-body-3,
+    .text-body-4 {
+      font-family: var(--font-satoshi) !important;
+      font-size: 1rem !important;
+      font-weight: 400;
+      line-height: 1.5rem !important;
+      letter-spacing: -0.32px;
+    }
+
+    .text-body-3-emphasis {
+      font-family: var(--font-satoshi) !important;
+      font-size: 1rem !important;
+      font-weight: 500;
+      line-height: 1.5rem !important;
+      letter-spacing: -0.32px;
+    }
   }
 }
 
