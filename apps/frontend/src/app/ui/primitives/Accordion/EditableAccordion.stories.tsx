@@ -149,7 +149,7 @@ export const SaveFailed: Story = {
   play: async ({ canvasElement }) => {
     const canvas = await startEditing(canvasElement);
     await userEvent.click(await canvas.findByRole('button', { name: 'Save' }));
-    await expect(
+    expect(
       await canvas.findByText('Failed to save changes. Please try again.')
     ).toBeInTheDocument();
   },

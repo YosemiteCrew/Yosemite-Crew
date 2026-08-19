@@ -290,7 +290,14 @@ const hasMeaningfulSoapContent = (notes: SoapNoteEntry[]): boolean =>
       )
   );
 
-const DischargeDateTimeModal = ({
+/**
+ * Exported rather than kept private to this module so Storybook can draw it on
+ * its own. Reaching it through the workspace needs the whole bootstrap
+ * aggregate - an appointment, an inpatient encounter, a room unit and a
+ * backend-owned finalization gate - so the gate-blocked branch below had never
+ * been rendered anywhere outside the running app.
+ */
+export const DischargeDateTimeModal = ({
   showModal,
   setShowModal,
   dischargeDate,

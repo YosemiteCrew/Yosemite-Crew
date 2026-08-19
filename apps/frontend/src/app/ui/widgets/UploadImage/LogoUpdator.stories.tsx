@@ -163,7 +163,7 @@ export const RejectedFileType: Story = {
 
     fireEvent.change(input, { target: { files: [makeFile('logo.svg', 'image/svg+xml')] } });
 
-    await expect(
+    expect(
       await within(dialog).findByText('Please choose a valid image file (PNG, JPG, or WEBP).')
     ).toBeInTheDocument();
     // The rejection is local, so the well stays empty rather than previewing

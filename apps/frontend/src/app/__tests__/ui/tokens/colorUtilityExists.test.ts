@@ -7,13 +7,18 @@ import { join } from 'path';
  * deliberate. Nothing catches it: it type-checks, it lints, the component's own tests
  * pass, and a screenshot shows readable text.
  *
- * `text-error-main` shipped exactly that way. There is no `--color-error-main` in
- * `globals.css` and no `.text-error-main` rule in the built stylesheet, so FIVE error
- * messages across PIMS - the appointment submit error, the prescription signature
- * error, the companion-history load failure and the document-signing portal error -
- * rendered in ordinary body ink with no colour signal that anything had gone wrong.
- * Found by a story that asserted the error colour differed from the normal one and
- * measured both as rgb(48, 47, 46).
+ * `text-error-main` once shipped exactly that way, and is FIXED - this note is history,
+ * not a live defect. There was no `--color-error-main` in `globals.css` and no
+ * `.text-error-main` rule in the built stylesheet, so five error messages across PIMS
+ * (the appointment submit error, the prescription signature error, the
+ * companion-history load failure and the document-signing portal error) rendered in
+ * ordinary body ink with no colour signal that anything had gone wrong. All five now
+ * use `text-text-error`. Found by a story that asserted the error colour differed from
+ * the normal one and measured both as rgb(48, 47, 46).
+ *
+ * Eight more dead utilities came out of the same audit: `border-error-border`,
+ * `bg-danger-50`, `bg-blue-soft` (x4), `border-input-border`, `bg-surface-1`,
+ * `bg-card-subtle` and `text-capton-1`. This test is what keeps them from returning.
  *
  * Tailwind v4 generates `text-x`, `bg-x` and `border-x` from a `--color-x` token, so
  * that is what this checks. Arbitrary values (`text-[var(--ink)]`) are generated from

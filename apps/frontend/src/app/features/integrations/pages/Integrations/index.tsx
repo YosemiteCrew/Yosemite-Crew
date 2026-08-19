@@ -690,7 +690,14 @@ const useIntegrationsPage = () => {
 
 const INTEGRATION_SETTINGS_TITLE_ID = 'integration-settings-title';
 
-const IdexxSettingsModal = ({
+/**
+ * Exported for `IdexxSettingsModal.stories.tsx`. The panel is presentation only -
+ * every value and every handler arrives as a prop - but the page that owns those
+ * props is reachable only through `ProtectedRoute` + `OrgGuard`, and the hook
+ * behind it (`useIntegrationsPage`) fetches devices and orders over axios. So the
+ * only way to draw this surface without a network stub is to render it directly.
+ */
+export const IdexxSettingsModal = ({
   showSettings,
   setShowSettings,
   idexxIntegration,

@@ -132,9 +132,7 @@ export const Drawer: Story = {
     // The drawer portals out of the story canvas, so every query goes through
     // document.body rather than canvasElement.
     const body = within(document.body);
-    await expect(
-      await body.findByRole('heading', { name: ITEM.basicInfo.name })
-    ).toBeInTheDocument();
+    expect(await body.findByRole('heading', { name: ITEM.basicInfo.name })).toBeInTheDocument();
     // The tab row and the section body both have to be there - a drawer with a
     // header and an empty body would satisfy a "the dialog opened" assertion.
     await expect(body.getAllByRole('tab')).toHaveLength(6);
@@ -164,15 +162,13 @@ export const DeleteConfirmation: Story = {
   name: 'Nested delete confirmation',
   play: async () => {
     const body = within(document.body);
-    await expect(
-      await body.findByRole('heading', { name: ITEM.basicInfo.name })
-    ).toBeInTheDocument();
+    expect(await body.findByRole('heading', { name: ITEM.basicInfo.name })).toBeInTheDocument();
 
     await userEvent.click(body.getByRole('button', { name: 'Delete item' }));
 
     // Assert the second dialog has its real content, not just that a second
     // dialog exists.
-    await expect(
+    expect(
       await body.findByRole('heading', { name: 'Delete inventory item?' })
     ).toBeInTheDocument();
     await expect(body.getByText(/This will remove/)).toHaveTextContent(ITEM.basicInfo.name);
@@ -198,7 +194,7 @@ export const ConfirmationDiscarded: Story = {
   play: async () => {
     const body = within(document.body);
     await userEvent.click(await body.findByRole('button', { name: 'Delete item' }));
-    await expect(
+    expect(
       await body.findByRole('heading', { name: 'Delete inventory item?' })
     ).toBeInTheDocument();
 
@@ -252,9 +248,7 @@ export const ReadOnly: Story = {
   args: { canEdit: false },
   play: async () => {
     const body = within(document.body);
-    await expect(
-      await body.findByRole('heading', { name: ITEM.basicInfo.name })
-    ).toBeInTheDocument();
+    expect(await body.findByRole('heading', { name: ITEM.basicInfo.name })).toBeInTheDocument();
     // The whole primary action is dropped rather than dimmed: a control that
     // looks inactive but still fires is its own defect.
     await expect(body.queryByRole('button', { name: 'Delete item' })).not.toBeInTheDocument();

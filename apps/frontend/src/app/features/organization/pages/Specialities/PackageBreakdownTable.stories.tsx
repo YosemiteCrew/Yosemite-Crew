@@ -184,14 +184,12 @@ export const NestedBreakdownOpen: Story = {
   name: 'Nested package breakdown (open)',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    // Only the PACKAGE row with a nestedBreakdown grows the (i).
-    const rows = canvas.getAllByRole('row');
-    await expect(canvasElement.querySelectorAll('.glass-tooltip')).toHaveLength(1);
-    await expect(rows.length).toBeGreaterThan(4);
+    // Only the PACKAGE row carrying a nestedBreakdown grows the (i) - one of four rows.
+    await expect(canvas.getAllByRole('row')).toHaveLength(ITEMS.length + 2);
+    const trigger = canvasElement.querySelector('.glass-tooltip') as HTMLElement;
+    await expect(trigger).toBeInTheDocument();
 
-    const bubble = await openGlassTooltip(
-      canvasElement.querySelector('.glass-tooltip') as HTMLElement
-    );
+    const bubble = await openGlassTooltip(trigger);
 
     /* Assert the nested TABLE rendered, not merely that a bubble appeared. The
        failure this story exists for is a bubble that opens with its contents

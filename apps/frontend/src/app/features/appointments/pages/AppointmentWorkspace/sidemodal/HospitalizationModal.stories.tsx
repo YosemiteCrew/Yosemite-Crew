@@ -202,7 +202,7 @@ export const UnitFollowsRoom: Story = {
     const listbox = await within(document.body).findByLabelText('Room');
     await userEvent.click(within(listbox).getByText('Ward B'));
     // Ward B has no critical-care unit, so the unit falls to the room's first option.
-    await expect(
+    expect(
       await panel.findByRole('button', { name: 'Unit: General inpatient' })
     ).toBeInTheDocument();
   },

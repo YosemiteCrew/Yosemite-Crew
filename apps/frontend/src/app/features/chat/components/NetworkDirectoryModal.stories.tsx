@@ -263,9 +263,7 @@ export const Cleared: Story = {
     await userEvent.click(canvas.getByRole('button', { name: 'Clear search' }));
     // Clearing empties the results synchronously rather than waiting on a request,
     // so the prompt line comes back rather than "No colleagues found".
-    await expect(
-      await canvas.findByText('Search for a colleague at another clinic')
-    ).toBeInTheDocument();
+    expect(await canvas.findByText('Search for a colleague at another clinic')).toBeInTheDocument();
     await expect(canvas.queryByText('Priya Raghavan')).not.toBeInTheDocument();
   },
   parameters: {
