@@ -68,6 +68,65 @@ const stripeSetupReducer = (
   }
 };
 
+export type StripeSetupStatusProps = {
+  /** Message from a failed account creation or a failed Connect initialisation. */
+  setupError: string | null;
+  /** Still waiting on the account/secret round trip. Drives `aria-busy`. */
+  isPreparing: boolean;
+  /** The Connect embed has an instance, so neither status block belongs on screen. */
+  isEmbedReady: boolean;
+  /** Retry is only offered while there is no connected account to re-use. */
+  canRetrySetup: boolean;
+  onRetry: () => void;
+};
+
+/**
+ * The two async-result branches that sit between the page heading and the Stripe
+ * embed: the failure alert with its conditional retry, and the polite live
+ * region shown while the account and client secret are being prepared.
+ *
+ * Split out of the page body so both states can be rendered - and reviewed -
+ * without a Stripe account, a publishable key or a network round trip. The page
+ * renders it in the same position and with the same conditions as before.
+ */
+export const StripeSetupStatus = ({
+  setupError,
+  isPreparing,
+  isEmbedReady,
+  canRetrySetup,
+  onRetry,
+}: StripeSetupStatusProps) => {
+  if (setupError) {
+    return (
+      <div
+        className="w-full rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] px-5 py-4 text-center text-body-4 text-text-primary shadow-[0_2px_6px_var(--sh05),0_20px_55px_var(--sh10)]"
+        role="alert"
+      >
+        <div>{setupError}</div>
+        {canRetrySetup ? (
+          <div className="mt-3">
+            <Secondary text="Try again" onClick={onRetry} />
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (isEmbedReady) {
+    return null;
+  }
+
+  return (
+    <output
+      className="w-full rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] px-5 py-4 text-center text-body-4 text-text-secondary shadow-[0_2px_6px_var(--sh05),0_20px_55px_var(--sh10)]"
+      aria-live="polite"
+      aria-busy={isPreparing}
+    >
+      Preparing your secure Stripe onboarding experience…
+    </output>
+  );
+};
+
 const StripeOnboarding = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -184,28 +243,13 @@ const StripeOnboarding = () => {
         </p>
       </div>
 
-      {setupError && (
-        <div
-          className="w-full rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] px-5 py-4 text-center text-body-4 text-text-primary shadow-[0_2px_6px_var(--sh05),0_20px_55px_var(--sh10)]"
-          role="alert"
-        >
-          <div>{setupError}</div>
-          {canRetrySetup ? (
-            <div className="mt-3">
-              <Secondary text="Try again" onClick={() => createAccountIfNeeded()} />
-            </div>
-          ) : null}
-        </div>
-      )}
-      {!setupError && !connectInstance && (
-        <output
-          className="w-full rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] px-5 py-4 text-center text-body-4 text-text-secondary shadow-[0_2px_6px_var(--sh05),0_20px_55px_var(--sh10)]"
-          aria-live="polite"
-          aria-busy={isPreparing}
-        >
-          Preparing your secure Stripe onboarding experience…
-        </output>
-      )}
+      <StripeSetupStatus
+        setupError={setupError}
+        isPreparing={isPreparing}
+        isEmbedReady={Boolean(connectInstance)}
+        canRetrySetup={canRetrySetup}
+        onRetry={() => createAccountIfNeeded()}
+      />
       {connectInstance && (
         <div className="w-full rounded-[20px] border border-[var(--hairline)] bg-[var(--screen)] px-6 py-6 shadow-[0_2px_6px_var(--sh05),0_20px_55px_var(--sh10)]">
           <ConnectComponentsProvider connectInstance={connectInstance}>

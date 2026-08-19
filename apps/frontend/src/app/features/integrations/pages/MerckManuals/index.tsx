@@ -576,7 +576,14 @@ const MerckReaderFallback = ({
   </div>
 );
 
-const MerckReaderPortal = ({
+/**
+ * Exported for `MerckReaderPortal.stories.tsx`. The overlay is presentation only -
+ * every piece of state arrives as a prop - but the page that owns those props
+ * sits behind `ProtectedRoute` + `OrgGuard` and only reaches this surface after a
+ * live MSD search, so the three reader states are unreachable from the page in a
+ * story. Rendering it directly is the only way to draw them.
+ */
+export const MerckReaderPortal = ({
   readerOpen,
   readerUrl,
   readerTitle,

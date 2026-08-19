@@ -252,8 +252,14 @@ const MerckRefinePanel = ({
   </div>
 );
 
-/** Full-screen in-app reader for a single manual page; the iframe stays sandboxed. */
-const MerckReaderOverlay = ({
+/**
+ * Full-screen in-app reader for a single manual page; the iframe stays sandboxed.
+ *
+ * Exported so it can be rendered on its own. It is portalled and only ever mounted
+ * after a live search returns an entry, so nothing else can reach its spinner or its
+ * blocked fallback without a running MSD gateway.
+ */
+export const MerckReaderOverlay = ({
   url,
   title,
   loading,
