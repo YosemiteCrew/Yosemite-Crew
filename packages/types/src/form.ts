@@ -818,7 +818,34 @@ const buildFieldLookup = (fields?: FormField[]): Record<string, FormField> => {
  * used as a property name unchecked: writing `__proto__` onto a `{}` literal
  * invokes the prototype setter instead of adding a key, which would let a
  * submitted questionnaire reshape the answers object every later reader sees.
+ *
+ * BOTH guards are load-bearing, for different reasons. Do not collapse them.
+ *
+ * SAFE_LINK_ID is an anchored, wildcard-free allowlist. Its first character
+ * class excludes `_`, so it rejects `__proto__` on its own, and it is the only
+ * shape CodeQL's js/remote-property-injection accepts as a sanitizer: every
+ * membership guard that query knows (Set.has, Array.includes, !==, switch,
+ * hasOwnProperty) blocks taint only in the branch where the test is TRUE, so a
+ * DENYLIST is always the wrong polarity and can never clear the alert. The
+ * anchors are mandatory, and `.`, `\w`, `\S` or any inverted class such as
+ * `[^_]` would disqualify the regex; keep it literal.
+ *
+ * UNSAFE_LINK_IDS still blocks `constructor` and `prototype`, which the regex
+ * admits. On a `{}` literal those two create ordinary own properties rather
+ * than replacing the prototype, so they are shadowing risks, not pollution,
+ * but no consumer of `answers` should have to defend against them.
+ *
+ * The TAIL class is deliberately wide. FHIR types linkId as a plain string, not
+ * an id, so implementers legitimately use URIs like
+ * `http://example.org/Questionnaire/1#item`. A tight class would silently drop
+ * those answers, and silent data loss on an inbound clinical payload is worse
+ * than a permissive tail: the anti-pollution property lives entirely in the
+ * FIRST class, which admits no `_`.
+ *
+ * Never add `_` to the first class "to be permissive": that silences CodeQL
+ * while re-admitting `__proto__`, which is the exact trap this shape avoids.
  */
+const SAFE_LINK_ID = /^[A-Za-z0-9][A-Za-z0-9._:/#?=&@~+,;%-]*$/;
 const UNSAFE_LINK_IDS = new Set(['__proto__', 'constructor', 'prototype']);
 
 const collectAnswersFromItems = (
@@ -830,7 +857,7 @@ const collectAnswersFromItems = (
     if (it.answer?.length) {
       const field = lookup[it.linkId];
       const val = answerToValue(it.answer, field);
-      if (val !== undefined && !UNSAFE_LINK_IDS.has(it.linkId)) {
+      if (val !== undefined && !UNSAFE_LINK_IDS.has(it.linkId) && SAFE_LINK_ID.test(it.linkId)) {
         acc[it.linkId] = val;
       }
     }

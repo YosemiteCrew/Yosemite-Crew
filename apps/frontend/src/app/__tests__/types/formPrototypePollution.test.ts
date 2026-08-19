@@ -46,3 +46,40 @@ describe('fromFHIRQuestionnaireResponse prototype pollution', () => {
     expect(Object.keys(submission.answers)).toEqual(['real']);
   });
 });
+
+describe('fromFHIRQuestionnaireResponse SAFE_LINK_ID allowlist', () => {
+  const withLinkId = (linkId: string) =>
+    JSON.parse(
+      JSON.stringify({
+        resourceType: 'QuestionnaireResponse',
+        status: 'completed',
+        item: [{ linkId, answer: [{ valueString: 'v' }] }],
+      })
+    );
+
+  // FHIR linkIds are frequently URL-ish or dotted, so the allowlist has to admit
+  // these or real questionnaires would silently lose answers.
+  it.each([
+    'simple',
+    'snake_case_is_fine_after_the_first_char',
+    'kebab-case',
+    'dotted.path.id',
+    'ns:scoped',
+    'http://example.org/Questionnaire/1#item',
+    'medications_med_12_price',
+    '0-leading-digit',
+  ])('accepts the legitimate linkId %s', (linkId) => {
+    const submission = fromFHIRQuestionnaireResponse(withLinkId(linkId));
+    expect(submission.answers[linkId]).toBe('v');
+  });
+
+  // Rejected because the first character class excludes `_`, which is what makes
+  // the regex reject __proto__ without needing a denylist.
+  it.each(['_leading-underscore', 'has space', 'bad id with spaces!', 'ünicode'])(
+    'rejects the malformed linkId %s',
+    (linkId) => {
+      const submission = fromFHIRQuestionnaireResponse(withLinkId(linkId));
+      expect(Object.keys(submission.answers)).toEqual([]);
+    }
+  );
+});

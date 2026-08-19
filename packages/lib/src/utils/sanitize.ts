@@ -23,12 +23,21 @@ export const sanitizeInput = (value: any): any => {
     return value.map((element) => sanitizeInput(element));
   }
   if (typeof value === 'object' && value !== null) {
-    const sanitized: Record<string, any> = {};
-    for (const key of Object.keys(value)) {
-      if (UNSAFE_KEYS.has(key)) continue;
-      sanitized[key] = sanitizeInput(value[key]);
-    }
-    return sanitized;
+    // Object.fromEntries uses CreateDataProperty, so it can never invoke the
+    // `__proto__` setter the way `obj[key] = ...` does. UNSAFE_KEYS still
+    // filters first, so the dangerous keys are dropped rather than relocated
+    // onto the result as own properties where a downstream Object.assign would
+    // re-arm them.
+    //
+    // Note for reviewers: this also removes the CodeQL sink, and the
+    // js/remote-property-injection alert on this line goes quiet because there
+    // is no longer a property write, NOT because the Set guard was recognised.
+    // A denylist is the wrong polarity for that query and never clears it.
+    return Object.fromEntries(
+      Object.keys(value)
+        .filter((key) => !UNSAFE_KEYS.has(key))
+        .map((key) => [key, sanitizeInput(value[key])])
+    );
   }
   return value;
 };
