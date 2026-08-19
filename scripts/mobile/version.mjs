@@ -17,7 +17,7 @@
  * backwards regardless of which platform was ahead.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve, relative } from 'node:path';
 
 // Resolved from the script path rather than cwd, so these run correctly
 // whether invoked from the repo root or the mobile workspace.
@@ -25,7 +25,15 @@ const root = join(dirname(process.argv[1]), '../../apps/mobileAppYC');
 const GRADLE = join(root, 'android/app/build.gradle');
 const PBXPROJ = join(root, 'ios/mobileAppYC.xcodeproj/project.pbxproj');
 
-const read = (p) => readFileSync(p, 'utf8');
+const read = (p) => {
+  const base = resolve(root);
+  const target = resolve(p);
+  const rel = relative(base, target);
+  if (rel.startsWith('..') || resolve(rel) === rel) {
+    throw new Error('Invalid file path');
+  }
+  return readFileSync(target, 'utf8');
+};
 
 const parseAndroid = (src) => ({
   versionCode: Number(/versionCode\s+(\d+)/.exec(src)?.[1]),

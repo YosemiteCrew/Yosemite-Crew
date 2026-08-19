@@ -71,6 +71,9 @@ const PLACEHOLDER = /YOUR_[A-Z_]+|CHANGE_?ME|REPLACE_?ME|<[A-Z_]+>/;
 // this check exists to remove.
 const isPlaceholder = (file) => {
   try {
+    if (file.includes('..') || path.isAbsolute(file)) {
+      return null;
+    }
     return PLACEHOLDER.test(readFileSync(file, 'utf8'));
   } catch {
     return null;
@@ -232,7 +235,9 @@ const componentRefSpecs = (pkgDir) => {
   const walk = (dir, depth = 0) => {
     if (depth > MAX_DEPTH) return;
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const full = join(dir, entry.name);
+      const full = path.resolve(dir, entry.name);
+      const relative = path.relative(fabric, full);
+      if (relative.startsWith('..') || path.isAbsolute(relative)) continue;
       if (entry.isDirectory()) walk(full, depth + 1);
       else if (entry.isFile() && /\.tsx?$/.test(entry.name)) {
         try {
