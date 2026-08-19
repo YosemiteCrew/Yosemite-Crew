@@ -60,6 +60,11 @@ exports.default = async function applyElectronFuses(context) {
     // Local splash/welcome/offline pages load via file:// and need standard
     // file-protocol privileges to render in a packaged build.
     [FuseV1Options.GrantFileProtocolExtraPrivileges]: true,
+    // Added in @electron/fuses 2.1. `strictlyRequireAllFuses` above means a new
+    // fuse fails the build rather than defaulting silently, which is why the
+    // v0.1.0-beta.4 tag could not produce installers. `true` is the upstream
+    // default, so the packaged runtime behaves as it did before the bump.
+    [FuseV1Options.WasmTrapHandlers]: true,
   });
   patchMacInfoPlist(context);
 };
