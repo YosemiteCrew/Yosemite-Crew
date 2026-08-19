@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { MarketingShell } from '@/app/features/marketing/site';
 import AccessibilityReportClient from './AccessibilityReportClient';
 
 export const metadata: Metadata = {
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function AccessibilityReportPage() {
-  return <AccessibilityReportClient />;
+  return (
+    <MarketingShell>
+      <AccessibilityReportClient />
+    </MarketingShell>
+  );
 }

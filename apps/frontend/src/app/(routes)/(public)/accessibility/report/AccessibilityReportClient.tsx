@@ -8,7 +8,6 @@ import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import FormDesc from '@/app/ui/inputs/FormDesc/FormDesc';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import { Primary } from '@/app/ui/primitives/Buttons';
-import Footer from '@/app/ui/widgets/Footer/Footer';
 
 type FieldErrors = {
   name?: string;
@@ -115,37 +114,34 @@ export default function AccessibilityReportClient() {
 
   if (submitted) {
     return (
-      <div data-yc-app style={{ display: 'contents' }}>
-        <main id="main-content" tabIndex={-1} className="mx-auto max-w-2xl px-6 pt-22 pb-16">
-          {/* Pins its inks light because the card is a literal `bg-white` in both
+      <div className="mx-auto max-w-2xl px-6 pt-22 pb-16">
+        {/* Pins its inks light because the card is a literal `bg-white` in both
               themes. Without this the themed --ink-body (#e6ddd0 in dark) put the
               heading, the body copy and both links at 1.34:1 - white text on a white
               card, so the whole confirmation read as blank. globals.css:2001 already
               names /accessibility/report as one of the three fixed-light surfaces
               that must carry this pin; only /payment-status had it. */}
-          <output
-            data-yc-surface="light"
-            aria-live="polite"
-            className="rounded-2xl border border-card-border bg-white p-8 text-center"
+        <output
+          data-yc-surface="light"
+          aria-live="polite"
+          className="rounded-2xl border border-card-border bg-white p-8 text-center"
+        >
+          <h1 className="text-heading-2 text-text-primary mb-4">Thank you for your report</h1>
+          <p className="text-body-4 text-text-secondary mb-6">
+            We have received your accessibility report and will aim to respond within 5 business
+            days. If your issue is urgent, you can also email us at{' '}
+            <a href="mailto:accessibility@yosemitecrew.com" className="text-text-brand underline">
+              accessibility@yosemitecrew.com
+            </a>
+            {'.'}
+          </p>
+          <Link
+            href="/accessibility"
+            className="text-body-4-emphasis text-text-brand underline focus-visible:outline-2 focus-visible:outline-offset-2"
           >
-            <h1 className="text-heading-2 text-text-primary mb-4">Thank you for your report</h1>
-            <p className="text-body-4 text-text-secondary mb-6">
-              We have received your accessibility report and will aim to respond within 5 business
-              days. If your issue is urgent, you can also email us at{' '}
-              <a href="mailto:accessibility@yosemitecrew.com" className="text-text-brand underline">
-                accessibility@yosemitecrew.com
-              </a>
-              {'.'}
-            </p>
-            <Link
-              href="/accessibility"
-              className="text-body-4-emphasis text-text-brand underline focus-visible:outline-2 focus-visible:outline-offset-2"
-            >
-              Back to Accessibility Statement
-            </Link>
-          </output>
-        </main>
-        <Footer />
+            Back to Accessibility Statement
+          </Link>
+        </output>
       </div>
     );
   }
@@ -153,134 +149,123 @@ export default function AccessibilityReportClient() {
   const hasErrors = Object.keys(errors).length > 0;
 
   return (
-    // A bone product surface outside the (app) layout, so it opts into the
-    // readable faint inks itself - see body:has([data-yc-app]) in globals.css.
-    // Without it the shared Footer's links resolve the root #8f8984, which is
-    // 3.04:1 on this page's --color-brand-100 band. `display: contents` keeps
-    // it out of the box tree.
-    <div data-yc-app style={{ display: 'contents' }}>
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-2xl px-6 pt-22 pb-16">
-        <nav aria-label="Breadcrumb" className="mb-6">
-          <ol className="flex items-center gap-2 text-body-4 text-text-secondary list-none p-0 m-0">
-            <li>
-              <Link
-                href="/accessibility"
-                className="text-text-brand underline focus-visible:outline-2 focus-visible:outline-offset-2"
-              >
-                Accessibility Statement
-              </Link>
-            </li>
-            <li aria-hidden="true">›</li>
-            <li aria-current="page" className="text-text-primary">
-              Report a barrier
-            </li>
-          </ol>
-        </nav>
-
-        <h1 className="text-heading-1 text-text-primary mb-3">Report an accessibility barrier</h1>
-        <p className="text-body-4 text-text-secondary mb-8">
-          Use this form to tell us about an accessibility problem you encountered. We aim to respond
-          within 5 business days. Fields marked <span aria-hidden="true">*</span>{' '}
-          <span className="sr-only">with an asterisk</span> are required.
-        </p>
-
-        {hasErrors && (
-          <div
-            id={errorSummaryId}
-            role="alert"
-            aria-labelledby={`${errorSummaryId}-title`}
-            className="mb-6 rounded-xl border border-[var(--error-color)] bg-danger-100 px-4 py-3"
-          >
-            <h2
-              id={`${errorSummaryId}-title`}
-              className="text-body-4-emphasis text-text-error mb-1"
+    <div className="mx-auto max-w-2xl px-6 pt-22 pb-16">
+      <nav aria-label="Breadcrumb" className="mb-6">
+        <ol className="flex items-center gap-2 text-body-4 text-text-secondary list-none p-0 m-0">
+          <li>
+            <Link
+              href="/accessibility"
+              className="text-text-brand underline focus-visible:outline-2 focus-visible:outline-offset-2"
             >
-              Please fix the following errors:
-            </h2>
-            <ul className="list-disc pl-5 text-body-4 text-text-error space-y-0.5">
-              {errors.name && <li>{errors.name}</li>}
-              {errors.email && <li>{errors.email}</li>}
-              {errors.description && <li>{errors.description}</li>}
-              {errors.submit && <li>{errors.submit}</li>}
-            </ul>
-          </div>
-        )}
+              Accessibility Statement
+            </Link>
+          </li>
+          <li aria-hidden="true">›</li>
+          <li aria-current="page" className="text-text-primary">
+            Report a barrier
+          </li>
+        </ol>
+      </nav>
 
-        <form
-          onSubmit={handleSubmit}
-          noValidate
-          aria-describedby={hasErrors ? errorSummaryId : undefined}
+      <h1 className="text-heading-1 text-text-primary mb-3">Report an accessibility barrier</h1>
+      <p className="text-body-4 text-text-secondary mb-8">
+        Use this form to tell us about an accessibility problem you encountered. We aim to respond
+        within 5 business days. Fields marked <span aria-hidden="true">*</span>{' '}
+        <span className="sr-only">with an asterisk</span> are required.
+      </p>
+
+      {hasErrors && (
+        <div
+          id={errorSummaryId}
+          role="alert"
+          aria-labelledby={`${errorSummaryId}-title`}
+          className="mb-6 rounded-xl border border-[var(--error-color)] bg-danger-100 px-4 py-3"
         >
-          <div className="flex flex-col gap-5">
-            <FormInput
+          <h2 id={`${errorSummaryId}-title`} className="text-body-4-emphasis text-text-error mb-1">
+            Please fix the following errors:
+          </h2>
+          <ul className="list-disc pl-5 text-body-4 text-text-error space-y-0.5">
+            {errors.name && <li>{errors.name}</li>}
+            {errors.email && <li>{errors.email}</li>}
+            {errors.description && <li>{errors.description}</li>}
+            {errors.submit && <li>{errors.submit}</li>}
+          </ul>
+        </div>
+      )}
+
+      <form
+        onSubmit={handleSubmit}
+        noValidate
+        aria-describedby={hasErrors ? errorSummaryId : undefined}
+      >
+        <div className="flex flex-col gap-5">
+          <FormInput
+            intype="text"
+            inname="name"
+            inlabel="Your name *"
+            value={form.name}
+            onChange={set('name')}
+            error={errors.name}
+          />
+
+          <FormInput
+            intype="email"
+            inname="email"
+            inlabel="Email address *"
+            value={form.email}
+            onChange={set('email')}
+            error={errors.email}
+          />
+
+          <FormInput
+            intype="url"
+            inname="pageUrl"
+            inlabel="Page or URL where you encountered the barrier"
+            value={form.pageUrl}
+            onChange={set('pageUrl')}
+          />
+
+          <LabelDropdown
+            placeholder="How severe is the impact?"
+            options={SEVERITY_OPTIONS}
+            defaultOption={form.severity}
+            searchable={false}
+            onSelect={(option) => {
+              setForm((prev) => ({ ...prev, severity: option.value }));
+            }}
+          />
+
+          <div className="flex flex-col gap-1">
+            <p className="mb-2 text-body-4 text-text-secondary text-[12px]">
+              Include what you were trying to do, what went wrong, and which assistive technology or
+              browser you use if relevant.
+            </p>
+            <FormDesc
               intype="text"
-              inname="name"
-              inlabel="Your name *"
-              value={form.name}
-              onChange={set('name')}
-              error={errors.name}
+              inname="description"
+              inlabel="Describe the barrier *"
+              value={form.description}
+              onChange={set('description')}
+              error={errors.description}
+              className="min-h-30 resize-y"
             />
-
-            <FormInput
-              intype="email"
-              inname="email"
-              inlabel="Email address *"
-              value={form.email}
-              onChange={set('email')}
-              error={errors.email}
-            />
-
-            <FormInput
-              intype="url"
-              inname="pageUrl"
-              inlabel="Page or URL where you encountered the barrier"
-              value={form.pageUrl}
-              onChange={set('pageUrl')}
-            />
-
-            <LabelDropdown
-              placeholder="How severe is the impact?"
-              options={SEVERITY_OPTIONS}
-              defaultOption={form.severity}
-              searchable={false}
-              onSelect={(option) => {
-                setForm((prev) => ({ ...prev, severity: option.value }));
-              }}
-            />
-
-            <div className="flex flex-col gap-1">
-              <p className="mb-2 text-body-4 text-text-secondary text-[12px]">
-                Include what you were trying to do, what went wrong, and which assistive technology
-                or browser you use if relevant.
-              </p>
-              <FormDesc
-                intype="text"
-                inname="description"
-                inlabel="Describe the barrier *"
-                value={form.description}
-                onChange={set('description')}
-                error={errors.description}
-                className="min-h-30 resize-y"
-              />
-            </div>
-
-            <div className="flex flex-wrap items-center gap-4 pt-2">
-              <Primary
-                type="submit"
-                text={submitting ? 'Submitting...' : 'Submit report'}
-                isDisabled={submitting}
-              />
-              <Link
-                href="/accessibility"
-                className="text-body-4 text-text-secondary underline focus-visible:outline-2 focus-visible:outline-offset-2"
-              >
-                Cancel
-              </Link>
-            </div>
           </div>
-        </form>
-      </main>
-      <Footer />
+
+          <div className="flex flex-wrap items-center gap-4 pt-2">
+            <Primary
+              type="submit"
+              text={submitting ? 'Submitting...' : 'Submit report'}
+              isDisabled={submitting}
+            />
+            <Link
+              href="/accessibility"
+              className="text-body-4 text-text-secondary underline focus-visible:outline-2 focus-visible:outline-offset-2"
+            >
+              Cancel
+            </Link>
+          </div>
+        </div>
+      </form>
     </div>
   );
 }
