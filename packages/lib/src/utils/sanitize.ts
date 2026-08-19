@@ -3,6 +3,18 @@ import validator from 'validator';
 
 const { escape, stripLow, trim } = validator;
 
+/**
+ * Keys that must never be copied from caller-supplied input onto a plain object.
+ *
+ * `JSON.parse('{"__proto__": {...}}')` produces an OWN property named
+ * `__proto__`, and `Object.keys` returns it. Assigning it back onto a `{}`
+ * literal invokes the prototype setter rather than creating a property, so a
+ * recursive copy that trusts its key list rewrites the prototype of the object
+ * it is building. Skipping is preferred over `Object.create(null)` here: the
+ * result is handed to callers that expect an ordinary object.
+ */
+const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
 export const sanitizeInput = (value: any): any => {
   if (typeof value === 'string') {
     return escape(stripLow(trim(value)));
@@ -13,6 +25,7 @@ export const sanitizeInput = (value: any): any => {
   if (typeof value === 'object' && value !== null) {
     const sanitized: Record<string, any> = {};
     for (const key of Object.keys(value)) {
+      if (UNSAFE_KEYS.has(key)) continue;
       sanitized[key] = sanitizeInput(value[key]);
     }
     return sanitized;

@@ -67,12 +67,7 @@ export interface GroupField extends BaseField {
 }
 
 export type FormField =
-  | InputField
-  | ChoiceField
-  | BooleanField
-  | DateField
-  | SignatureField
-  | GroupField;
+  InputField | ChoiceField | BooleanField | DateField | SignatureField | GroupField;
 
 export interface FormSchema {
   fields: FormField[];
@@ -411,8 +406,7 @@ const getFormDateExtensionValue = (ex: Extension[] | undefined, url: string): st
 
 const parseFieldType = (item: QuestionnaireItem): FieldType => {
   const ext = getFieldExtension(item.extension, FIELD_TYPE_EXTENSION_URL)?.valueString as
-    | FieldType
-    | undefined;
+    FieldType | undefined;
 
   if (ext) return ext;
 
@@ -508,11 +502,9 @@ export const fromFHIRQuestionnaire = (q: Questionnaire): Form => {
     name: q.title || q.name || '',
     category: getFormExtensionValue(ex, FORM_CATEGORY_EXTENSION_URL) || q.code?.[0]?.code || '',
     businessType: getFormExtensionValue(ex, FORM_BUSINESS_TYPE_URL) as
-      | Form['businessType']
-      | undefined,
+      Form['businessType'] | undefined,
     requiredSigner: getFormExtensionValue(ex, FORM_REQUIRED_SIGNER_URL) as
-      | Form['requiredSigner']
-      | undefined,
+      Form['requiredSigner'] | undefined,
     description: q.description,
     visibilityType:
       (getFormExtensionValue(ex, FORM_VISIBILITY_URL) as Form['visibilityType']) || 'Internal',
@@ -821,6 +813,14 @@ const buildFieldLookup = (fields?: FormField[]): Record<string, FormField> => {
   return map;
 };
 
+/**
+ * linkId arrives from an external FHIR QuestionnaireResponse, so it cannot be
+ * used as a property name unchecked: writing `__proto__` onto a `{}` literal
+ * invokes the prototype setter instead of adding a key, which would let a
+ * submitted questionnaire reshape the answers object every later reader sees.
+ */
+const UNSAFE_LINK_IDS = new Set(['__proto__', 'constructor', 'prototype']);
+
 const collectAnswersFromItems = (
   items: QuestionnaireResponseItem[] | undefined,
   lookup: Record<string, FormField>,
@@ -830,7 +830,9 @@ const collectAnswersFromItems = (
     if (it.answer?.length) {
       const field = lookup[it.linkId];
       const val = answerToValue(it.answer, field);
-      if (val !== undefined) acc[it.linkId] = val;
+      if (val !== undefined && !UNSAFE_LINK_IDS.has(it.linkId)) {
+        acc[it.linkId] = val;
+      }
     }
     if (it.item?.length) collectAnswersFromItems(it.item, lookup, acc);
   });
