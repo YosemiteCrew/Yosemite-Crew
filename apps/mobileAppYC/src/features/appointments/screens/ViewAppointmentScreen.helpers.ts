@@ -145,6 +145,29 @@ export const formatAppointmentDateTime = (apt: any) => {
   return {dateTimeLabel};
 };
 
+/**
+ * Render one answer value as text.
+ *
+ * Shared by the schema-driven rows and the raw-answer fallback below. Both used
+ * to stringify independently and the fallback did it with a template literal,
+ * so an object answer reached the screen as "[object Object]". Recursing for
+ * array members keeps nested values readable instead of repeating that bug one
+ * level down.
+ */
+const formatAnswerValue = (value: unknown): string => {
+  if (Array.isArray(value)) {
+    return value.map(item => formatAnswerValue(item)).join(', ');
+  }
+  if (typeof value === 'object' && value !== null) {
+    const url = (value as {url?: unknown}).url;
+    if (url) {
+      return String(url);
+    }
+    return JSON.stringify(value);
+  }
+  return String(value);
+};
+
 export const formatAppointmentFormValue = (
   field: FormField,
   value: any,
@@ -162,16 +185,7 @@ export const formatAppointmentFormValue = (
   if (field.type === 'richtext') {
     return stripHtmlToPlainText(value) || '—';
   }
-  if (Array.isArray(value)) {
-    return value.map(v => `${v}`).join(', ') || '—';
-  }
-  if (typeof value === 'object') {
-    if ('url' in value && value.url) {
-      return String(value.url);
-    }
-    return JSON.stringify(value);
-  }
-  return `${value}`;
+  return formatAnswerValue(value) || '—';
 };
 
 export const getAppointmentFormAction = (
@@ -239,16 +253,18 @@ export const getAppointmentFormAnswerRows = (
       fieldTypeById.get(key) === 'richtext' && typeof val === 'string'
         ? stripHtmlToPlainText(val)
         : val;
-    return resolvedVal !== undefined &&
-      resolvedVal !== null &&
-      `${resolvedVal}`.trim() !== ''
-      ? [
+    if (resolvedVal === undefined || resolvedVal === null) {
+      return [];
+    }
+    const text = formatAnswerValue(resolvedVal);
+    return text.trim() === ''
+      ? []
+      : [
           {
             id: key,
             label: capitalize(key.replaceAll('_', ' ')),
-            value: `${resolvedVal}`,
+            value: text,
           },
-        ]
-      : [];
+        ];
   });
 };

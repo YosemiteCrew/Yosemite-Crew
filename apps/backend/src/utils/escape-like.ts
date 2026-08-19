@@ -20,7 +20,7 @@ export function escapeLikePattern(value: string): string {
     throw new TypeError("Expected a string");
   }
 
-  return value.replace(/[\\%_]/g, "\\$&");
+  return value.replace(/[\\%_]/g, String.raw`\$&`);
 }
 
 export default escapeLikePattern;

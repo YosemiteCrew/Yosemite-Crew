@@ -147,7 +147,9 @@ const Forms = () => {
   }, [activeFormId, filteredList, formsById]);
 
   const serviceOptions = useMemo(() => {
-    const specialityNameById = new Map(
+    // Annotated: inferred from a string[][] the entries widen to any, so
+    // `.get()` came back as any and the label below stringified an object.
+    const specialityNameById = new Map<string, string>(
       orgSpecialities.map((speciality) => [
         String(speciality.id ?? ''),
         toPrimitiveString(speciality.name),

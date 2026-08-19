@@ -827,6 +827,34 @@ describe('ViewAppointmentScreen', () => {
       ).toEqual([
         {id: 'extra_note', label: 'Extra note', value: 'Orphaned answer'},
       ]);
+
+      // Answers with no matching schema field go through the same formatter as
+      // the schema-driven rows. They used to be stringified with a template
+      // literal here, so an object answer reached the screen as
+      // "[object Object]" and an attachment lost its url.
+      expect(
+        getAppointmentFormAnswerRows({
+          form: {},
+          submission: {
+            answers: {
+              vitals: {weight: '12kg'},
+              attachment: {url: 'https://example.com/scan.pdf'},
+              tags: ['urgent', 'recheck'],
+              nested: [{a: 1}, 'plain'],
+              empty_list: [],
+            },
+          },
+        } as any),
+      ).toEqual([
+        {id: 'vitals', label: 'Vitals', value: '{"weight":"12kg"}'},
+        {
+          id: 'attachment',
+          label: 'Attachment',
+          value: 'https://example.com/scan.pdf',
+        },
+        {id: 'tags', label: 'Tags', value: 'urgent, recheck'},
+        {id: 'nested', label: 'Nested', value: '{"a":1}, plain'},
+      ]);
     });
   });
 
