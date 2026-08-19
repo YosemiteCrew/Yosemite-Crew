@@ -19,6 +19,7 @@ import {
   scanMessageAttachments,
 } from "src/controllers/app/chatWebhook.controller";
 import { scanAttachmentUrl } from "src/services/attachmentScanner.service";
+import logger from "src/utils/logger";
 import type { Request, Response } from "express";
 
 const mockScan = scanAttachmentUrl as unknown as jest.Mock;
@@ -120,6 +121,20 @@ describe("scanMessageAttachments", () => {
       message: { id: "m1", attachments: [{ image_url: "u" }] },
     });
     expect(mockDeleteMessage).toHaveBeenCalledWith("m1", true);
+  });
+
+  it("strips line terminators from the logged message id but deletes the raw id", async () => {
+    mockScan.mockResolvedValue({ clean: false, threat: "bad" });
+    const warnSpy = jest.spyOn(logger, "warn").mockReturnValue(logger as never);
+    const rawId = "m1\nFAKE injected log line";
+    await scanMessageAttachments({
+      type: "message.new",
+      message: { id: rawId, attachments: [{ asset_url: "u" }] },
+    });
+    const logged = warnSpy.mock.calls[0][0] as string;
+    expect(logged).not.toContain("\n");
+    expect(logged).not.toContain("\r");
+    expect(mockDeleteMessage).toHaveBeenCalledWith(rawId, true);
   });
 
   it("swallows a delete failure", async () => {

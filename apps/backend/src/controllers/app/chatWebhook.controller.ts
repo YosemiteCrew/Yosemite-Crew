@@ -36,8 +36,9 @@ export const scanMessageAttachments = async (
 
     const result = await scanAttachmentUrl(url);
     if (!result.clean) {
+      const safeMessageId = messageId.replace(/[\r\n\u2028\u2029]/g, " ");
       logger.warn(
-        `Unsafe chat attachment on message ${messageId} (${result.threat}); deleting message`,
+        `Unsafe chat attachment on message ${safeMessageId} (${result.threat}); deleting message`,
       );
       try {
         const client = StreamChat.getInstance(STREAM_KEY, STREAM_SECRET);
