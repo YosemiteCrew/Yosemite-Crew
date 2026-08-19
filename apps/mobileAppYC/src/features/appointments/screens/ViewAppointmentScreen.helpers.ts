@@ -154,16 +154,28 @@ export const formatAppointmentDateTime = (apt: any) => {
  * array members keeps nested values readable instead of repeating that bug one
  * level down.
  */
-const formatAnswerValue = (value: unknown): string => {
+const MAX_ANSWER_DEPTH = 4;
+
+const formatAnswerValue = (value: unknown, depth = 0): string => {
   if (Array.isArray(value)) {
-    return value.map(item => formatAnswerValue(item)).join(', ');
+    if (depth >= MAX_ANSWER_DEPTH) {
+      return '…';
+    }
+    return value.map(item => formatAnswerValue(item, depth + 1)).join(', ');
   }
   if (typeof value === 'object' && value !== null) {
     const url = (value as {url?: unknown}).url;
     if (url) {
       return String(url);
     }
-    return JSON.stringify(value);
+    try {
+      // Answers are submitted data, so they can be circular or nested deeply
+      // enough to overflow the stack. JSON.stringify throws on both, and this
+      // path now takes objects the old fallback never passed to it.
+      return JSON.stringify(value) ?? '';
+    } catch {
+      return '…';
+    }
   }
   return String(value);
 };

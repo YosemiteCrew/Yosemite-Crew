@@ -682,6 +682,46 @@ describe('ViewAppointmentScreen', () => {
       ).toBe('—');
     });
 
+    it('survives hostile answer shapes instead of crashing the screen', () => {
+      // Answers are submitted data. Nesting deep enough to overflow the stack
+      // must truncate rather than throw.
+      let deepArray: any = ['leaf'];
+      for (let i = 0; i < 500; i += 1) {
+        deepArray = [deepArray];
+      }
+      expect(() =>
+        formatAppointmentFormValue(
+          {id: 'deep', type: 'text'} as any,
+          deepArray,
+        ),
+      ).not.toThrow();
+      expect(
+        formatAppointmentFormValue(
+          {id: 'deep', type: 'text'} as any,
+          deepArray,
+        ),
+      ).toBe('…');
+
+      // A circular object makes JSON.stringify throw, and this path now takes
+      // objects the old fallback never serialised.
+      const circular: any = {name: 'loop'};
+      circular.self = circular;
+      expect(() =>
+        formatAppointmentFormValue({id: 'circ', type: 'text'} as any, circular),
+      ).not.toThrow();
+      expect(
+        formatAppointmentFormValue({id: 'circ', type: 'text'} as any, circular),
+      ).toBe('…');
+
+      // The same guards apply on the raw-answer fallback path.
+      expect(() =>
+        getAppointmentFormAnswerRows({
+          form: {},
+          submission: {answers: {deep: deepArray, circ: circular}},
+        } as any),
+      ).not.toThrow();
+    });
+
     it('resolves appointment form actions for each form state', () => {
       expect(
         getAppointmentFormAction({
