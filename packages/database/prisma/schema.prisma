@@ -594,6 +594,20 @@ model PetPassport {
   publicToken       String?       @unique
   publicTokenIssuedAt DateTime?
   publicTokenRevokedAt DateTime?
+  // Staff-facing wallet passes carry THIS token, never `publicToken`.
+  //
+  // The owner's public token resolves with "owner" scope, which shows every
+  // practice's records with no consent gate. Handing that value to a practice
+  // session would give staff, through their own wallet pass, the cross-practice
+  // history the consent filter deliberately withholds from their passport view.
+  //
+  // This one is bound to the passport row's own organisation and resolves with
+  // "practice" scope, so it grants strictly less than the staff member already
+  // has. Minting it from a staff session is therefore safe, unlike the public
+  // token, which only the owner may create.
+  practiceWalletToken       String?       @unique
+  practiceWalletTokenIssuedAt DateTime?
+  practiceWalletTokenRevokedAt DateTime?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 

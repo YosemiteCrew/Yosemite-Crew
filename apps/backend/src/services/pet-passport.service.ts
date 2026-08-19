@@ -580,6 +580,54 @@ export const PetPassportService = {
   },
 
   /**
+   * The token a STAFF wallet pass carries.
+   *
+   * Distinct from `publicToken` on purpose. The public one resolves with
+   * "owner" scope - every practice's records, no consent gate - so handing it
+   * to a practice session would let staff read, via their own pass, the
+   * cross-practice history the consent filter withholds from their passport
+   * view. This one is bound to the passport row's organisation and resolves
+   * with "practice" scope, so it grants no more than the caller already has.
+   *
+   * That is also why minting here is safe while `getExistingPublicToken` never
+   * mints: a practice creating a credential no wider than its own session is
+   * not an escalation, and staff must be able to issue a pass without waiting
+   * for the owner to create a public link first.
+   */
+  async getOrCreatePracticeWalletToken(
+    patientId: string,
+    organisationId: string,
+  ): Promise<string> {
+    const row = await prisma.petPassport.findFirst({
+      where: { patientId, organisationId },
+      orderBy: { issueDate: "desc" },
+      select: {
+        id: true,
+        passportNumber: true,
+        practiceWalletToken: true,
+        practiceWalletTokenRevokedAt: true,
+      },
+    });
+    if (!row?.passportNumber) {
+      throw new PetPassportServiceError("Passport not found.", 404);
+    }
+    if (row.practiceWalletToken && !row.practiceWalletTokenRevokedAt) {
+      return row.practiceWalletToken;
+    }
+    // Reissued after a revoke rather than reused, so a revoked pass stays dead.
+    const token = generatePublicToken();
+    await prisma.petPassport.update({
+      where: { id: row.id },
+      data: {
+        practiceWalletToken: token,
+        practiceWalletTokenIssuedAt: new Date(),
+        practiceWalletTokenRevokedAt: null,
+      },
+    });
+    return token;
+  },
+
+  /**
    * Kills the circulating public link. Any wallet pass already carrying it
    * stops verifying, which is the intended effect of a revoke.
    */
@@ -618,18 +666,48 @@ export const PetPassportService = {
     if (!rawToken) {
       throw new PetPassportServiceError("Passport not found.", 404);
     }
-    const row = await prisma.petPassport.findFirst({
+    // Two credentials resolve here and they are NOT equivalent. The owner's
+    // public token is owner-initiated and shows every practice's records; a
+    // practice wallet token was minted by one practice and must stay inside
+    // that practice's consent boundary. Scope is decided by which column
+    // matched, never by anything the caller supplies.
+    const owned = await prisma.petPassport.findFirst({
       where: { publicToken: rawToken, publicTokenRevokedAt: null },
       orderBy: { issueDate: "desc" },
       select: { patientId: true, organisationId: true, passportNumber: true },
     });
     // Only a formally issued passport resolves: passportNumber is what issuance
     // sets, so a row without one is not a document anyone should verify.
-    if (!row?.passportNumber) {
+    if (owned) {
+      if (!owned.passportNumber) {
+        throw new PetPassportServiceError("Passport not found.", 404);
+      }
+      // The public QR is owner-initiated, so it shows the pet's full record
+      // across every practice (no per-practice consent gate).
+      return assemblePassport(
+        owned.patientId,
+        owned.organisationId,
+        false,
+        "owner",
+      );
+    }
+
+    const practice = await prisma.petPassport.findFirst({
+      where: {
+        practiceWalletToken: rawToken,
+        practiceWalletTokenRevokedAt: null,
+      },
+      orderBy: { issueDate: "desc" },
+      select: { patientId: true, organisationId: true, passportNumber: true },
+    });
+    if (!practice?.passportNumber) {
       throw new PetPassportServiceError("Passport not found.", 404);
     }
-    // The public QR is owner-initiated, so it shows the pet's full record across
-    // every practice (no per-practice consent gate).
-    return assemblePassport(row.patientId, row.organisationId, false, "owner");
+    return assemblePassport(
+      practice.patientId,
+      practice.organisationId,
+      false,
+      "practice",
+    );
   },
 };

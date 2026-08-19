@@ -35,6 +35,7 @@ jest.mock("../../../src/services/pet-passport.service", () => {
       getPublicPassportByToken: jest.fn(),
       ensurePublicToken: jest.fn(),
       getExistingPublicToken: jest.fn(),
+      getOrCreatePracticeWalletToken: jest.fn(),
       issuePublicToken: jest.fn(),
       revokePublicToken: jest.fn(),
     },
@@ -99,6 +100,9 @@ describe("PetPassportController", () => {
     jest.clearAllMocks();
     service.ensurePublicToken.mockResolvedValue("share-token-abc" as never);
     // Staff pass builders read an already-live token and never mint one.
+    service.getOrCreatePracticeWalletToken.mockResolvedValue(
+      "practice-token" as never,
+    );
     service.getExistingPublicToken.mockResolvedValue(
       "share-token-abc" as never,
     );
@@ -689,25 +693,48 @@ describe("PetPassportController", () => {
       expect(statusMock).toHaveBeenCalledWith(501);
     });
 
-    it("never mints a public share token from a staff session", async () => {
-      // The token resolves the public passport with "owner" scope, bypassing
-      // the cross-practice consent filter that constrains the same staff
-      // member's own passport view - and creates a durable public credential
-      // the owner never authorised. Staff must reuse a live one or get a 409.
-      service.getPassport.mockResolvedValue(passportDto as never);
-      service.getExistingPublicToken.mockResolvedValue(null as never);
-      await PetPassportController.getApplePass(authed(), res as Response);
-      expect(statusMock).toHaveBeenCalledWith(409);
-      expect(service.ensurePublicToken).not.toHaveBeenCalled();
-      expect(wallet.buildApplePass).not.toHaveBeenCalled();
-    });
-
-    it("builds the staff pass from an already-live token", async () => {
+    it("never puts the owner's public token in a staff pass", async () => {
+      // The public token resolves with "owner" scope, which shows every
+      // practice's records with no consent gate. Embedding it here would let a
+      // practice read, through a pass it generated itself, the cross-practice
+      // history the consent filter withholds from its own passport view.
       service.getPassport.mockResolvedValue(passportDto as never);
       wallet.buildApplePass.mockResolvedValue(Buffer.from("pk") as never);
+
       await PetPassportController.getApplePass(authed(), res as Response);
-      expect(service.getExistingPublicToken).toHaveBeenCalledWith("pat-1");
+
+      expect(service.getExistingPublicToken).not.toHaveBeenCalled();
       expect(service.ensurePublicToken).not.toHaveBeenCalled();
+      expect(wallet.buildApplePass).toHaveBeenCalledWith(
+        passportDto,
+        "practice-token",
+      );
+    });
+
+    it("builds the staff pass from a practice token scoped to the caller's org", async () => {
+      service.getPassport.mockResolvedValue(passportDto as never);
+      wallet.buildApplePass.mockResolvedValue(Buffer.from("pk") as never);
+
+      await PetPassportController.getApplePass(authed(), res as Response);
+
+      expect(service.getOrCreatePracticeWalletToken).toHaveBeenCalledWith(
+        "pat-1",
+        "org-1",
+      );
+    });
+
+    it("no longer requires the owner to have created a public link first", async () => {
+      // This used to answer 409 when no public link existed, which blocked
+      // staff from issuing a pass at the desk. The practice token is theirs to
+      // mint, so there is nothing to wait for.
+      service.getPassport.mockResolvedValue(passportDto as never);
+      service.getExistingPublicToken.mockResolvedValue(null as never);
+      wallet.buildApplePass.mockResolvedValue(Buffer.from("pk") as never);
+
+      await PetPassportController.getApplePass(authed(), res as Response);
+
+      expect(statusMock).not.toHaveBeenCalledWith(409);
+      expect(wallet.buildApplePass).toHaveBeenCalled();
     });
 
     it("falls back to a default filename for a nameless companion", async () => {

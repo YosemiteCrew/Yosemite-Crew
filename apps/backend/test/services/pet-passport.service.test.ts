@@ -724,3 +724,152 @@ describe("PetPassportService.getPassportForParent", () => {
     expect(passport.identity.name).toBe("Doggy");
   });
 });
+
+describe("PetPassportService token scope split", () => {
+  const issued = {
+    patientId: "pat-1",
+    organisationId: "org-1",
+    passportNumber: "GB-YC-1",
+  };
+
+  it("resolves the owner's public token across every practice", async () => {
+    prismaMock.petPassport.findFirst.mockResolvedValueOnce(issued);
+
+    await PetPassportService.getPublicPassportByToken("owner-token");
+
+    const where = prismaMock.encounter.findMany.mock.calls[0][0].where;
+    expect(where.organisationId).toBeUndefined();
+  });
+
+  it("confines a practice wallet token to its own consent boundary", async () => {
+    // This is the whole point of the second token. If a practice token ever
+    // resolved with owner scope, a practice could read the cross-practice
+    // history its own passport view withholds - through a pass it minted.
+    prismaMock.petPassport.findFirst
+      .mockResolvedValueOnce(null) // not the owner's public token
+      .mockResolvedValueOnce(issued); // matched on practiceWalletToken
+
+    await PetPassportService.getPublicPassportByToken("practice-token");
+
+    const where = prismaMock.encounter.findMany.mock.calls[0][0].where;
+    expect(where.organisationId).toBeDefined();
+    expect(where.organisationId.in).toContain("org-1");
+  });
+
+  it("looks the practice token up only after the public one misses, and excludes revoked", async () => {
+    prismaMock.petPassport.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(issued);
+
+    await PetPassportService.getPublicPassportByToken("practice-token");
+
+    const second = prismaMock.petPassport.findFirst.mock.calls[1][0].where;
+    expect(second.practiceWalletToken).toBe("practice-token");
+    expect(second.practiceWalletTokenRevokedAt).toBeNull();
+  });
+
+  it("404s when neither token matches", async () => {
+    prismaMock.petPassport.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+
+    await expect(
+      PetPassportService.getPublicPassportByToken("nothing"),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
+describe("PetPassportService.getOrCreatePracticeWalletToken", () => {
+  const issuedRow = {
+    id: "pp-1",
+    passportNumber: "GB-YC-1",
+    practiceWalletToken: null,
+    practiceWalletTokenRevokedAt: null,
+  };
+
+  it("scopes the passport lookup to the caller's organisation", async () => {
+    prismaMock.petPassport.findFirst.mockResolvedValue({
+      ...issuedRow,
+      practiceWalletToken: "live-token",
+    });
+
+    await PetPassportService.getOrCreatePracticeWalletToken("pat-1", "org-1");
+
+    const where = prismaMock.petPassport.findFirst.mock.calls[0][0].where;
+    expect(where).toMatchObject({
+      patientId: "pat-1",
+      organisationId: "org-1",
+    });
+  });
+
+  it("reuses a live token so regenerating a pass keeps issued ones working", async () => {
+    prismaMock.petPassport.findFirst.mockResolvedValue({
+      ...issuedRow,
+      practiceWalletToken: "live-token",
+    });
+
+    const token = await PetPassportService.getOrCreatePracticeWalletToken(
+      "pat-1",
+      "org-1",
+    );
+
+    expect(token).toBe("live-token");
+    expect(prismaMock.petPassport.update).not.toHaveBeenCalled();
+  });
+
+  it("mints on first use, which staff may do because it grants no more than their session", async () => {
+    prismaMock.petPassport.findFirst.mockResolvedValue(issuedRow);
+
+    const token = await PetPassportService.getOrCreatePracticeWalletToken(
+      "pat-1",
+      "org-1",
+    );
+
+    expect(typeof token).toBe("string");
+    expect(token.length).toBeGreaterThan(20);
+    const update = prismaMock.petPassport.update.mock.calls[0][0];
+    expect(update.where).toEqual({ id: "pp-1" });
+    expect(update.data.practiceWalletToken).toBe(token);
+    expect(update.data.practiceWalletTokenRevokedAt).toBeNull();
+  });
+
+  it("reissues rather than reusing after a revoke, so a revoked pass stays dead", async () => {
+    prismaMock.petPassport.findFirst.mockResolvedValue({
+      ...issuedRow,
+      practiceWalletToken: "old-token",
+      practiceWalletTokenRevokedAt: new Date("2026-08-01T00:00:00.000Z"),
+    });
+
+    const token = await PetPassportService.getOrCreatePracticeWalletToken(
+      "pat-1",
+      "org-1",
+    );
+
+    expect(token).not.toBe("old-token");
+    expect(
+      prismaMock.petPassport.update.mock.calls[0][0].data
+        .practiceWalletTokenRevokedAt,
+    ).toBeNull();
+  });
+
+  it("404s when no passport row exists for this organisation", async () => {
+    prismaMock.petPassport.findFirst.mockResolvedValue(null);
+
+    await expect(
+      PetPassportService.getOrCreatePracticeWalletToken("pat-1", "org-1"),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(prismaMock.petPassport.update).not.toHaveBeenCalled();
+  });
+
+  it("404s when the passport was never formally issued", async () => {
+    prismaMock.petPassport.findFirst.mockResolvedValue({
+      ...issuedRow,
+      passportNumber: null,
+    });
+
+    await expect(
+      PetPassportService.getOrCreatePracticeWalletToken("pat-1", "org-1"),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(prismaMock.petPassport.update).not.toHaveBeenCalled();
+  });
+});
