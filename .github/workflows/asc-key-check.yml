@@ -1,0 +1,31 @@
+# Answers one question on demand: does the App Store Connect API key in the
+# release environment still authenticate?
+#
+# The iOS release job spends about forty minutes building before it ever
+# touches App Store Connect, so a credential problem costs a full build to
+# observe. This asks the API directly and finishes in seconds.
+name: App Store Connect key check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check the App Store Connect key
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v3.6.0
+
+      - name: Ask App Store Connect
+        env:
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_KEY_BASE64 }}
+        run: |
+          KEY_PATH="${RUNNER_TEMP}/AuthKey.p8"
+          echo "$KEY_BASE64" | base64 -d > "$KEY_PATH"
+          ASC_KEY_PATH="$KEY_PATH" ruby scripts/ci/asc-key-check.rb

@@ -301,6 +301,16 @@ jobs:
           KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_KEY_BASE64 }}
         run: |
+          # A secret pasted with a trailing newline is invisible in the log,
+          # because Actions masks the value either way. It reaches the key
+          # filename and the JWT that altool signs, and comes back as nothing
+          # more specific than "Failed to authenticate for session".
+          KEY_ID=$(printf '%s' "$KEY_ID" | LC_ALL=C tr -d '[:space:]')
+          if [ -z "$KEY_ID" ]; then
+            echo "APP_STORE_CONNECT_KEY_ID is empty." >&2
+            exit 1
+          fi
+
           mkdir -p ~/.appstoreconnect/private_keys
           KEY_PATH=~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
           echo "$KEY_BASE64" | base64 -d > "$KEY_PATH"
@@ -311,6 +321,7 @@ jobs:
             exit 1
           fi
           echo "ASC_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+          echo "ASC_KEY_ID=$KEY_ID" >> "$GITHUB_ENV"
 
       # Manual signing, deliberately. Automatic signing asks App Store Connect to
       # resolve a profile, which returned 401 on listTeams.action and then hunted
@@ -359,11 +370,16 @@ jobs:
 
       - name: Upload to TestFlight
         env:
-          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
+          ISSUER_ID=$(printf '%s' "$ISSUER_ID" | LC_ALL=C tr -d '[:space:]')
+          if [ -z "$ISSUER_ID" ]; then
+            echo "APP_STORE_CONNECT_ISSUER_ID is empty." >&2
+            exit 1
+          fi
+
           xcrun altool --upload-app -f "${RUNNER_TEMP}/export/mobileAppYC.ipa" \
-            -t ios --apiKey "$KEY_ID" --apiIssuer "$ISSUER_ID"
+            -t ios --apiKey "$ASC_KEY_ID" --apiIssuer "$ISSUER_ID"
 
       - name: Remove restored secrets
         if: always()
