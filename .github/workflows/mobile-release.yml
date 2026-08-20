@@ -289,12 +289,13 @@ jobs:
           echo "pod install failed three times; this is no longer the known flake." >&2
           exit 1
 
-      # The key is written BEFORE the archive, not just before the upload. The
-      # project sets DEVELOPMENT_TEAM but no CODE_SIGN_STYLE, so Xcode signs
-      # automatically, and `-allowProvisioningUpdates` needs an authenticated
-      # App Store Connect session to fetch a profile. Without one the archive
-      # failed with "No Accounts: Add a new account in Accounts settings" and
-      # "No profiles for 'com.yosemitecrew.mobile' were found".
+      # altool authenticates with this key on the upload. It is written here,
+      # ahead of the archive, because the archive used to sign automatically and
+      # `-allowProvisioningUpdates` needs an authenticated App Store Connect
+      # session to fetch a profile; without one it failed with "No Accounts: Add
+      # a new account in Accounts settings". The archive now signs manually and
+      # no longer needs the session, but the ordering is kept so the key is in
+      # place for every step that follows.
       - name: Provide the App Store Connect API key
         env:
           KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
@@ -316,6 +317,22 @@ jobs:
       # for an "iOS App Development" profile that a distribution archive should
       # never want. The certificate and the distribution profile are both already
       # installed above, so nothing needs to be fetched at build time.
+      # Signing is written into the app target instead of being passed to
+      # xcodebuild. Command line build settings reach every target in the
+      # workspace, and a Pods framework cannot carry a provisioning profile, so
+      # the archive failed with "FirebaseCoreExtension does not support
+      # provisioning profiles" on targets that have nothing to sign.
+      - name: Point the app target at the release profile
+        working-directory: apps/mobileAppYC/ios
+        env:
+          DEVELOPMENT_TEAM: '9TZWPYQ45S'
+        run: |
+          if ! ruby -rxcodeproj -e 'nil' 2>/dev/null; then
+            gem install xcodeproj --no-document
+          fi
+          ruby "${GITHUB_WORKSPACE}/scripts/ci/ios-manual-signing.rb" \
+            mobileAppYC.xcodeproj mobileAppYC Release
+
       - name: Archive and export IPA
         working-directory: apps/mobileAppYC/ios
         run: |
@@ -323,10 +340,6 @@ jobs:
             -scheme mobileAppYC \
             -configuration Release \
             -archivePath "${RUNNER_TEMP}/mobileAppYC.xcarchive" \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="$SIGNING_IDENTITY" \
-            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
-            DEVELOPMENT_TEAM=9TZWPYQ45S \
             archive
 
           # The committed ExportOptions.plist asks for automatic signing and cannot
