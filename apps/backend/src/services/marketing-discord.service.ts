@@ -1,5 +1,8 @@
 import logger from "src/utils/logger";
 
+// First code to return a count wins. "SwM6mX85KD" is the raw invite and never
+// expires; the "yosemitecrew" vanity slug is a dead ("Unknown Invite") fallback
+// kept only in case the guild regains the boost level a vanity URL requires.
 const DISCORD_INVITE_CODES = ["SwM6mX85KD", "yosemitecrew"];
 const DISCORD_USER_AGENT = "DiscordBot (https://www.yosemitecrew.com, 1.0)";
 const DISCORD_CACHE_TTL_MS = 5 * 60 * 1000;
