@@ -63,7 +63,7 @@ jest.mock('@/app/features/marketing/site', () => {
     CountUp: ({ value }: any) => R.createElement('span', null, value),
     InkAnnotate: ({ children }: any) => children,
     GITHUB_REPO_URL: 'https://github.com/YosemiteCrew/Yosemite-Crew',
-    DISCORD_INVITE_URL: 'https://discord.gg/yosemitecrew',
+    DISCORD_INVITE_URL: 'https://discord.gg/SwM6mX85KD',
     useGithubStats: () => stats,
     useLatestRelease: () => release,
     useRepoInsights: () => repo,

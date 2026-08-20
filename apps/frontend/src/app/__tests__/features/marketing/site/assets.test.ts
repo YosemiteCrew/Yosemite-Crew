@@ -1,4 +1,8 @@
-import { GITHUB_STAR_CTA_STYLE, ctaBandContainerStyle } from '@/app/features/marketing/site/assets';
+import {
+  DISCORD_INVITE_URL,
+  GITHUB_STAR_CTA_STYLE,
+  ctaBandContainerStyle,
+} from '@/app/features/marketing/site/assets';
 
 describe('marketing site shared styles', () => {
   it('exposes the solid GitHub CTA style as a light pill', () => {
@@ -16,5 +20,18 @@ describe('marketing site shared styles', () => {
     expect(style.flexDirection).toBe('column');
     expect(style.alignItems).toBe('center');
     expect(style.textAlign).toBe('center');
+  });
+});
+
+describe('marketing site community links', () => {
+  // The `yosemitecrew` vanity invite stopped resolving once the guild lost the
+  // boost level a vanity URL requires, which silently broke the Discord link in
+  // the footer, on Contact us and on About. The raw invite code never expires,
+  // so it is the one the site publishes. Note that the dead vanity URL still
+  // 301s, so only resolving it through Discord's API reveals it is invalid -
+  // pin the value here instead.
+  it('publishes the non-expiring raw Discord invite, not the vanity slug', () => {
+    expect(DISCORD_INVITE_URL).toBe('https://discord.gg/SwM6mX85KD');
+    expect(DISCORD_INVITE_URL).not.toContain('discord.gg/yosemitecrew');
   });
 });
