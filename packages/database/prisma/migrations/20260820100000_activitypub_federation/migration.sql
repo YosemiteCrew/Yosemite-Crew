@@ -142,3 +142,22 @@ ALTER TABLE "APFollowing" ADD CONSTRAINT "APFollowing_localActorId_fkey"
 
 ALTER TABLE "APActivity" ADD CONSTRAINT "APActivity_localActorId_fkey"
     FOREIGN KEY ("localActorId") REFERENCES "APActor"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- Enable row level security on the tables this migration creates.
+--
+-- 20260818090000_enable_row_level_security switches RLS on for every table in
+-- the public schema, but it is already applied and therefore immutable, and
+-- these tables are created after it. Without this block the CI check "row level
+-- security is enabled on every public table" fails, and on Supabase the tables
+-- would be readable directly over PostgREST by the anon and authenticated keys.
+--
+-- Enabling with no policy is the intended default here, exactly as in that
+-- migration: the API connects as the owning role, which bypasses RLS, so Prisma
+-- queries are unaffected. What it closes is the PostgREST surface. Tenant
+-- scoping stays in the application's organisation filters.
+ALTER TABLE "APActor" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "APFollower" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "APFollowing" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "APRemoteActor" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "APActivity" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "APReferral" ENABLE ROW LEVEL SECURITY;
