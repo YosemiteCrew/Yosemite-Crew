@@ -252,9 +252,25 @@ jobs:
           echo "PROFILE_UUID=$PROFILE_UUID" >> "$GITHUB_ENV"
           echo "SIGNING_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
 
+      # CocoaPods fails intermittently in pnpm monorepos with
+      # "ArgumentError - pathname contains null byte". It is not deterministic:
+      # the same commit installed cleanly on the previous run and failed on the
+      # next. Retrying costs a couple of minutes; not retrying costs a whole
+      # tagged release, because the tag has to be deleted and re-cut.
+      # Podfile.lock is left alone so resolution stays reproducible.
       - name: Install pods
         working-directory: apps/mobileAppYC/ios
-        run: pod install
+        run: |
+          for attempt in 1 2 3; do
+            if pod install; then
+              exit 0
+            fi
+            echo "::warning::pod install failed on attempt ${attempt}, retrying"
+            rm -rf Pods
+            sleep 10
+          done
+          echo "pod install failed three times; this is no longer the known flake." >&2
+          exit 1
 
       # The key is written BEFORE the archive, not just before the upload. The
       # project sets DEVELOPMENT_TEAM but no CODE_SIGN_STYLE, so Xcode signs
