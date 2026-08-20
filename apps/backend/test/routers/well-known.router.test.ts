@@ -84,9 +84,13 @@ describe("well-known.router AP_ENABLED gate", () => {
     expect(controller.webfinger).not.toHaveBeenCalled();
   });
 
-  it("host-meta is reachable even when disabled (no gate)", async () => {
-    await dispatch("GET", "/host-meta");
-    expect(controller.hostMeta).toHaveBeenCalledTimes(1);
+  it("host-meta 404s when disabled, like webfinger", async () => {
+    // Previously ungated, which this test asserted as intended behaviour. It
+    // is not: host-meta publishes the webfinger template, so serving it with
+    // AP_ENABLED off advertised a federation surface that is switched off.
+    const res = await dispatch("GET", "/host-meta");
+    expect(res.statusCode).toBe(404);
+    expect(controller.hostMeta).not.toHaveBeenCalled();
   });
 });
 

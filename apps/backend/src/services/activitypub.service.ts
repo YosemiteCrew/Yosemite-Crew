@@ -299,17 +299,29 @@ async function fanOutToFollowers(actor: APActor, activity: unknown) {
 
 // ─── Follow / Unfollow ────────────────────────────────────────────────────────
 
-export async function sendFollow(orgId: string, remoteActorUri: string) {
-  const actor = await getOrCreateActor(orgId);
-
-  // Only verified instances may initiate federation
+/**
+ * Federation is gated to license-verified businesses. Every outbound activity
+ * that this instance *initiates* has to pass through here.
+ *
+ * Only sendFollow used to check, which left sendAgentTask, sendNote and
+ * announceEmergency able to originate federation traffic from an unlicensed
+ * instance. sendReferral was covered only indirectly, by requiring an accepted
+ * follow link, which is a consent gate rather than a licence gate.
+ */
+async function assertVerifiedInstance(licenseToken: string | null) {
   const { isLicenseTokenValid } = await import("./ap-license.service");
-  const verified = await isLicenseTokenValid(actor.licenseToken, apBaseUrl());
+  const verified = await isLicenseTokenValid(licenseToken, apBaseUrl());
   if (!verified) {
     throw new Error(
       "This instance does not have a valid federation license. Contact Yosemite Crew to get verified.",
     );
   }
+}
+
+export async function sendFollow(orgId: string, remoteActorUri: string) {
+  const actor = await getOrCreateActor(orgId);
+
+  await assertVerifiedInstance(actor.licenseToken);
 
   const remote = await fetchRemoteActor(remoteActorUri);
   const id = generateActivityId();
@@ -492,6 +504,7 @@ export async function sendReferral(opts: {
   clinicalContext?: string;
 }) {
   const actor = await getOrCreateActor(opts.fromOrgId);
+  await assertVerifiedInstance(actor.licenseToken);
 
   // Consent gate: clinical data only flows over an established (ACCEPTED) follow link
   const link = await prisma.aPFollowing.findUnique({
@@ -603,6 +616,7 @@ export async function sendAgentTask(opts: {
   input?: Record<string, unknown>;
 }) {
   const actor = await getOrCreateActor(opts.fromOrgId);
+  await assertVerifiedInstance(actor.licenseToken);
   const remote = await fetchRemoteActor(opts.toActorUri);
 
   const taskId = generateActivityId();
@@ -642,6 +656,7 @@ export async function sendNote(opts: {
   inReplyTo?: string;
 }) {
   const actor = await getOrCreateActor(opts.fromOrgId);
+  await assertVerifiedInstance(actor.licenseToken);
   const remote = await fetchRemoteActor(opts.toActorUri);
   const id = generateActivityId();
   const activity = buildNoteActivity({
@@ -682,6 +697,7 @@ export async function announceEmergency(opts: {
   urgency?: string;
 }) {
   const actor = await getOrCreateActor(opts.fromOrgId);
+  await assertVerifiedInstance(actor.licenseToken);
   const id = generateActivityId();
   const activity = buildAnnounceActivity({
     id,
@@ -980,7 +996,10 @@ export async function listDirectory(
   try {
     const clinics = await addCachedPromise(
       directoryCache,
-      "directory",
+      // Keyed per org, not a single shared "directory" key. The fetch is made
+      // with the calling org's license token, so one global entry let an
+      // unlicensed org read the copy a licensed one had just warmed.
+      orgId,
       DIRECTORY_CACHE_TTL_MS,
       async () => {
         const res = await fetch(`${directoryAuthorityBase()}/api/directory`, {

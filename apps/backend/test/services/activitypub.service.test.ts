@@ -1092,6 +1092,58 @@ describe("getLicenseTokenStatus", () => {
   });
 });
 
+// ─── Federation licence gate on outbound senders ─────────────────────────────
+
+describe("outbound senders require a verified instance", () => {
+  // Before this, only sendFollow checked. The others could originate
+  // federation traffic from an instance with no valid licence at all.
+  const cases: Array<[string, () => Promise<unknown>]> = [
+    [
+      "sendAgentTask",
+      () =>
+        svc.sendAgentTask({
+          fromOrgId: "org-1",
+          toActorUri: "https://remote.example/actor",
+          taskType: "capability_query",
+        }),
+    ],
+    [
+      "sendNote",
+      () =>
+        svc.sendNote({
+          fromOrgId: "org-1",
+          toActorUri: "https://remote.example/actor",
+          content: "hello",
+        }),
+    ],
+    [
+      "announceEmergency",
+      () => svc.announceEmergency({ fromOrgId: "org-1", content: "help" }),
+    ],
+    [
+      "sendReferral",
+      () =>
+        svc.sendReferral({
+          fromOrgId: "org-1",
+          toActorUri: "https://remote.example/actor",
+          patientSummary: { species: "dog", chiefComplaint: "limp" },
+          urgency: "ROUTINE",
+        }),
+    ],
+  ];
+
+  it.each(cases)(
+    "%s rejects when the licence is not valid",
+    async (_n, call) => {
+      prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+      isLicenseTokenValid.mockResolvedValue(false);
+
+      await expect(call()).rejects.toThrow(/valid federation license/);
+      expect(queueAdd).not.toHaveBeenCalled();
+    },
+  );
+});
+
 // ─── setDirectoryListing ──────────────────────────────────────────────────────
 
 describe("setDirectoryListing", () => {

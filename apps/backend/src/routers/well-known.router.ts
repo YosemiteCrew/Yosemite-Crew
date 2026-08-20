@@ -30,6 +30,10 @@ router.get(
 );
 router.get(
   "/host-meta",
+  // Gated like /webfinger. host-meta advertises the webfinger template, so
+  // leaving it open told the world this was a federating instance even with
+  // AP_ENABLED off, which is the opposite of failing closed.
+  apEnabled,
   h((req, res) => WellKnownController.hostMeta(req, res)),
 );
 
