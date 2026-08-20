@@ -109,13 +109,32 @@ jobs:
     if: needs.core.outputs.frontend == 'true'
     uses: ./.github/workflows/frontend-quality.yml
 
+  mobile-version:
+    name: Mobile version preflight
+    # mobile-release.yml runs this same check, but only once a release tag has
+    # been pushed, which is the worst moment to learn the answer: the tag is
+    # already cut and the run dies before it builds anything. It reads two
+    # files and takes seconds, so run it on pull requests too.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - run: node scripts/mobile/version.mjs --check
+
   ci-required:
     name: CI Required
     # Not yet a required status check on either ruleset. It is published now so
     # its behaviour can be observed before it is made required; the runbook in
     # docs/ci/required-checks-migration.md covers that switchover.
     if: always()
-    needs: [core, test, migration, sonar, frontend-quality]
+    needs: [core, test, migration, sonar, frontend-quality, mobile-version]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
