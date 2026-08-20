@@ -143,7 +143,10 @@ android {
         applicationId "com.mobileappyc"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 18
+        // CI passes versionCodeOverride. Play refuses a version code it has
+        // already seen, so re-cutting a release tag has to produce a new one;
+        // the literal below is what a local build gets.
+        versionCode(project.hasProperty('versionCodeOverride') ? project.versionCodeOverride.toInteger() : 18)
         versionName "1.6.0"
         manifestPlaceholders = [
             MAPS_API_KEY: localProperties['MAPS_API_KEY'] ?: System.getenv('MAPS_API_KEY') ?: ''
