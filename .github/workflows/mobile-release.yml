@@ -179,6 +179,10 @@ jobs:
     # React Native 0.81 requires Xcode >= 16.1 (min_xcode_version_supported in
     # react-native/scripts/cocoapods/helpers.rb). The macos-14 image ships 15.x,
     # so `pod install` aborted with "Please upgrade XCode" before any build ran.
+    #
+    # This image defaults to Xcode 16.4, which is no longer enough to upload.
+    # It also carries Xcode 26, so the Select Xcode step below picks one rather
+    # than moving the image out from under a signing path that works.
     runs-on: macos-15
     environment: release
     steps:
@@ -189,6 +193,35 @@ jobs:
           # compromised third-party action could read it. That matters more
           # in this workflow than most, since it also handles signing secrets.
           persist-credentials: false
+
+      # App Store Connect refuses anything built with an older SDK:
+      #
+      #   SDK version issue. This app was built with the iOS 18.5 SDK. All iOS
+      #   and iPadOS apps must be built with the iOS 26 SDK or later, included
+      #   in Xcode 26 or later
+      #
+      # It refuses it at upload rather than at build, so without this the job
+      # archives, exports and signs correctly and then throws the result away
+      # on the last step, forty minutes in. Selecting the toolchain first means
+      # a wrong one fails in seconds instead.
+      #
+      # 26.3 is the newest Xcode on this image, and is pinned rather than
+      # inherited because image defaults move without a workflow edit. It is
+      # also deliberately not the newest Xcode that exists: from 26.4 the
+      # compiler miscompiles Firebase's `async let` in release builds, and this
+      # app is on FirebaseAuth 12.8.0, below the version that works around it.
+      # That one would ship rather than fail the build.
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.3.app
+          xcodebuild -version
+          SDK=$(xcrun --sdk iphoneos --show-sdk-version)
+          echo "iphoneos SDK: ${SDK}"
+          if [ "${SDK%%.*}" -lt 26 ]; then
+            echo "Selected Xcode carries the iOS ${SDK} SDK; uploads need 26 or later." >&2
+            exit 1
+          fi
+
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
