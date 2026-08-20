@@ -14,14 +14,21 @@ jest.mock("src/services/attachmentScanner.service", () => ({
   scanAttachmentUrl: jest.fn(),
 }));
 
+jest.mock("src/utils/logger", () => ({
+  __esModule: true,
+  default: { warn: jest.fn(), error: jest.fn() },
+}));
+
 import {
   ChatWebhookController,
   scanMessageAttachments,
 } from "src/controllers/app/chatWebhook.controller";
 import { scanAttachmentUrl } from "src/services/attachmentScanner.service";
+import logger from "src/utils/logger";
 import type { Request, Response } from "express";
 
 const mockScan = scanAttachmentUrl as unknown as jest.Mock;
+const mockWarn = logger.warn as unknown as jest.Mock;
 
 const makeRes = () =>
   ({
@@ -120,6 +127,19 @@ describe("scanMessageAttachments", () => {
       message: { id: "m1", attachments: [{ image_url: "u" }] },
     });
     expect(mockDeleteMessage).toHaveBeenCalledWith("m1", true);
+  });
+
+  it("sanitizes the message id before logging but deletes with the raw id", async () => {
+    mockScan.mockResolvedValue({ clean: false, threat: "bad" });
+    const rawId = "m1\nFAKE injected log line";
+    await scanMessageAttachments({
+      type: "message.new",
+      message: { id: rawId, attachments: [{ asset_url: "u" }] },
+    });
+    expect(mockWarn).toHaveBeenCalledTimes(1);
+    const logged = mockWarn.mock.calls[0][0] as string;
+    expect(logged).not.toMatch(/[\r\n]/);
+    expect(mockDeleteMessage).toHaveBeenCalledWith(rawId, true);
   });
 
   it("swallows a delete failure", async () => {
