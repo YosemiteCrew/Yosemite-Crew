@@ -100,6 +100,7 @@ const CopyRow = ({ label, value }: { label: string; value: string }) => {
           {value}
         </code>
         <button
+          type="button"
           onClick={copy}
           className={`${TEXT_MUTED} hover:text-text-primary transition-colors shrink-0`}
           aria-label={`Copy ${label}`}
@@ -310,12 +311,14 @@ const FollowersCard = () => {
               {f.state === 'PENDING' && (
                 <div className="flex gap-2 shrink-0">
                   <button
+                    type="button"
                     onClick={() => handleApprove(f.remoteActorUri)}
                     className="text-body-4 text-success-700 hover:text-success-900"
                   >
                     Approve
                   </button>
                   <button
+                    type="button"
                     onClick={() => handleReject(f.remoteActorUri)}
                     className="text-body-4 text-danger-600 hover:text-danger-800"
                   >
@@ -407,6 +410,7 @@ const FollowingCard = () => {
                 <StateBadge state={f.state} />
               </div>
               <button
+                type="button"
                 onClick={() => handleUnfollow(f.remoteActorUri)}
                 className={`${TEXT_MUTED} hover:text-danger-600 shrink-0`}
               >
@@ -715,6 +719,7 @@ const EmergencyCard = () => {
       />
       <div className="flex justify-end">
         <button
+          type="button"
           onClick={handleAnnounce}
           disabled={submitting || !content.trim()}
           className="px-4 py-2 rounded-xl text-body-4 font-medium bg-danger-600 text-white hover:bg-danger-700 disabled:opacity-40 transition-colors"
