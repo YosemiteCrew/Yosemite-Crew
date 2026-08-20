@@ -143,10 +143,7 @@ android {
         applicationId "com.mobileappyc"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        // CI passes versionCodeOverride. Play refuses a version code it has
-        // already seen, so re-cutting a release tag has to produce a new one;
-        // the literal below is what a local build gets.
-        versionCode(project.hasProperty('versionCodeOverride') ? project.versionCodeOverride.toInteger() : 18)
+        versionCode 18
         versionName "1.6.0"
         manifestPlaceholders = [
             MAPS_API_KEY: localProperties['MAPS_API_KEY'] ?: System.getenv('MAPS_API_KEY') ?: ''
@@ -227,6 +224,18 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+}
+
+// Play refuses a version code it has already accepted, so re-cutting a release
+// tag has to produce a new one. CI passes versionCodeOverride for that.
+//
+// The assignment is here rather than inside defaultConfig on purpose: the
+// literal above has to stay a literal, because scripts/mobile/version.mjs both
+// reads and rewrites it with a `versionCode <number>` pattern, and a ternary in
+// its place stops the release preflight dead with "could not read
+// versionCode/versionName from build.gradle".
+if (project.hasProperty('versionCodeOverride')) {
+    android.defaultConfig.versionCode = project.versionCodeOverride.toInteger()
 }
 
 // Bundle the react-native-vector-icons glyph fonts used by the warm-bone UI
