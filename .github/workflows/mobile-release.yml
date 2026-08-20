@@ -147,7 +147,14 @@ jobs:
           YC_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           YC_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           YC_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: ./gradlew bundleRelease --no-daemon
+        run: |
+          # Every run of this workflow gets its own version code. Play rejects
+          # a repeat, and recovering from that means re-cutting the tag, which
+          # is how the release ends up chasing its own tail. The base sits
+          # above the highest code already published by hand.
+          VERSION_CODE=$(( 20 + GITHUB_RUN_NUMBER ))
+          echo "Building version code ${VERSION_CODE}"
+          ./gradlew bundleRelease --no-daemon "-PversionCodeOverride=${VERSION_CODE}"
 
       - name: Upload to Play internal track
         uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
