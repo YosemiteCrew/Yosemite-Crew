@@ -36,7 +36,6 @@ import {
 import {
   generateRsaKeyPair,
   encryptPrivateKey,
-  decryptPrivateKey,
 } from "./activitypub-crypto.service";
 import {
   assertPublicHttpsUrl,
@@ -1023,4 +1022,3 @@ export async function getActorSettingsData(orgId: string): Promise<{
 }
 
 export type { APActor };
-export { decryptPrivateKey };
