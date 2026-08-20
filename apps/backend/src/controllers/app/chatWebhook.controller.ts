@@ -36,7 +36,7 @@ export const scanMessageAttachments = async (
 
     const result = await scanAttachmentUrl(url);
     if (!result.clean) {
-      const safeMessageId = messageId.replace(/[\r\n\t]/g, " ");
+      const safeMessageId = messageId.replace(/\n|\r/g, "");
       logger.warn(
         `Unsafe chat attachment on message ${safeMessageId} (${result.threat}); deleting message`,
       );
