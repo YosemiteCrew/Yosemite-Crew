@@ -92,5 +92,6 @@ puts
 puts 'The key does not authenticate. This is fixed in App Store Connect, not here:'
 puts 'Users and Access > Integrations > App Store Connect API. Check that the key is'
 puts 'active, that its role can upload builds, and that the issuer id on that page'
-puts 'matches APP_STORE_CONNECT_ISSUER_ID.'
+puts 'matches the one this job just used, which comes from the release environment'
+puts 'secret APP_STORE_CONNECT_ISSUER_ID and arrives here as ISSUER_ID.'
 exit 1
