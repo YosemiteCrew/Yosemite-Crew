@@ -368,6 +368,20 @@ jobs:
             -exportOptionsPlist "$EXPORT_PLIST" \
             -exportPath "${RUNNER_TEMP}/export"
 
+      # altool reports an authentication failure as "Failed to authenticate for
+      # session" and nothing else, which does not say whether the key is
+      # revoked, the issuer id is wrong, or the role cannot upload builds. This
+      # asks App Store Connect the same question directly and prints what it
+      # answers. It never fails the job: if the credentials are fine the upload
+      # is the real test, and if they are not the upload says so too, with less
+      # to go on.
+      - name: Check the App Store Connect key
+        continue-on-error: true
+        env:
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: ruby scripts/ci/asc-key-check.rb
+
       - name: Upload to TestFlight
         env:
           ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}

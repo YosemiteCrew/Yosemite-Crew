@@ -4,6 +4,12 @@
 # The iOS release job spends about forty minutes building before it ever
 # touches App Store Connect, so a credential problem costs a full build to
 # observe. This asks the API directly and finishes in seconds.
+#
+# The release environment currently allows deployments from release tags only,
+# so a dispatch on a branch is rejected before the job starts, with "Branch
+# main is not allowed to deploy to release". Add main to that environment's
+# deployment branch policy to use this. The iOS job runs the same check inline
+# in the meantime, which needs no such change but costs a build to reach.
 name: App Store Connect key check
 
 on:

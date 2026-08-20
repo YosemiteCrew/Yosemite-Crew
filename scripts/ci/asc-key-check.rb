@@ -13,7 +13,6 @@
 # Nothing secret is printed: the key id and issuer id are described by shape,
 # never by value, and the token is never echoed.
 
-require 'base64'
 require 'json'
 require 'net/http'
 require 'openssl'
@@ -48,8 +47,10 @@ puts
 
 key = OpenSSL::PKey::EC.new(key_pem)
 
+# pack rather than the base64 library, which stopped being a default gem in
+# Ruby 3.4 and is not worth a bundle here.
 def b64(data)
-  Base64.urlsafe_encode64(data).delete('=')
+  [data].pack('m0').tr('+/', '-_').delete('=')
 end
 
 # ES256 wants a raw 64 byte r||s signature. OpenSSL hands back DER, so unpack
