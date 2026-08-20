@@ -275,6 +275,11 @@ export async function deliverActivity(opts: {
     },
     timeout: 15_000,
     maxRedirects: 0,
+    // assertPublicHttpsUrl above resolves and checks the host, but DNS can
+    // change between that check and the connect. The agent re-validates the
+    // resolved address at connect time, which is what closes the rebinding
+    // window. ap-delivery.worker already pairs the two; this path did not.
+    httpsAgent: guardedHttpsAgent,
   });
 }
 
