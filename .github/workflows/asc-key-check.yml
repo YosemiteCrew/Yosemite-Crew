@@ -19,6 +19,8 @@ jobs:
     environment: release
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v3.6.0
+        with:
+          persist-credentials: false
 
       - name: Ask App Store Connect
         env:
