@@ -42,7 +42,7 @@ const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", {
 
 // The JWKS endpoint advertises the public half of the signing key.
 const signingJwk = {
-  ...(publicKey.export({ format: "jwk" }) as crypto.JsonWebKey),
+  ...publicKey.export({ format: "jwk" }),
   kid: KID,
   use: "sig",
   alg: "RS256",

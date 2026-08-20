@@ -76,10 +76,10 @@ function base64urlDecode(str: string): Buffer {
 }
 
 function jwkToPublicKey(jwk: JWK): crypto.KeyObject {
-  return crypto.createPublicKey({
-    key: jwk as unknown as crypto.JsonWebKey,
-    format: "jwk",
-  });
+  // No cast: `crypto.JsonWebKey` is gone from the current @types/node, so the
+  // old double assertion resolved to `error` and merely silenced the checker.
+  // createPublicKey accepts this shape directly.
+  return crypto.createPublicKey({ key: jwk, format: "jwk" });
 }
 
 export async function verifyLicenseToken(

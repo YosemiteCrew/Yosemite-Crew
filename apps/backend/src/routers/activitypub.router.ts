@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { ActivityPubController } from "src/controllers/web/activitypub.controller";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 import { withOrgPermissions } from "src/middlewares/rbac";
 import logger from "src/utils/logger";
 
@@ -54,7 +54,10 @@ router.post(
 );
 
 // ─── Authenticated management API (org-scoped) ───────────────────────────────
-router.use(authorizeCognito, withOrgPermissions());
+// The management API is reached from the web settings panel. This branch
+// predates the SuperTokens migration, which retired `authorizeCognito`;
+// `requireWebAuth` is its replacement for browser-session routes.
+router.use(requireWebAuth, withOrgPermissions());
 
 router.get(
   "/manage/actor",

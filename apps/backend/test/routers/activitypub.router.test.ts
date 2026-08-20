@@ -37,8 +37,7 @@ jest.mock("src/controllers/web/activitypub.controller", () => ({
 
 // Auth + rbac middleware are pass-throughs so we can reach the manage handlers.
 jest.mock("src/middlewares/auth", () => ({
-  authorizeCognito: (_req: Request, _res: Response, next: NextFunction) =>
-    next(),
+  requireWebAuth: (_req: Request, _res: Response, next: NextFunction) => next(),
 }));
 jest.mock("src/middlewares/rbac", () => ({
   withOrgPermissions:

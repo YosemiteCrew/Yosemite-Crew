@@ -6196,6 +6196,8 @@ model ClinicNote {
   @@index([organisationId, isPinned])
   @@index([organisationId, createdAt])
   @@map("ClinicNote")
+}
+
 // ─── ActivityPub Federation ───────────────────────────────────────────────────
 
 model APActor {
