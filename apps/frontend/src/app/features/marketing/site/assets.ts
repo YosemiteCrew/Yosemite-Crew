@@ -6,7 +6,7 @@ export const CDN_BASE = 'https://d2il6osz49gpup.cloudfront.net';
 
 export const GITHUB_REPO_URL = 'https://github.com/YosemiteCrew/Yosemite-Crew';
 export const GITHUB_API_REPO = 'https://api.github.com/repos/YosemiteCrew/Yosemite-Crew';
-export const DISCORD_INVITE_URL = 'https://discord.gg/yosemitecrew';
+export const DISCORD_INVITE_URL = 'https://discord.gg/SwM6mX85KD';
 export const LINKEDIN_URL = 'https://www.linkedin.com/company/yosemitecrew';
 export const INSTAGRAM_URL = 'https://www.instagram.com/yosemite_crew';
 export const X_URL = 'https://x.com/yosemitecrew';

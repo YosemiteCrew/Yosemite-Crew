@@ -9,7 +9,7 @@ jest.mock('@/app/features/marketing/site', () => ({
   useMagnet: () => ({ current: null }),
   HeroGlow: () => null,
   InkAnnotate: ({ children }: { children: React.ReactNode }) => children,
-  DISCORD_INVITE_URL: 'https://discord.gg/yosemitecrew',
+  DISCORD_INVITE_URL: 'https://discord.gg/SwM6mX85KD',
 }));
 
 jest.mock('@/app/services/axios', () => ({
@@ -38,7 +38,7 @@ describe('ContactusPage', () => {
     const discord = screen.getByText('Join the Discord').closest('a');
     expect(discord).toHaveAttribute('target', '_blank');
     expect(discord).toHaveAttribute('rel', 'noopener noreferrer');
-    expect(discord).toHaveAttribute('href', 'https://discord.gg/yosemitecrew');
+    expect(discord).toHaveAttribute('href', 'https://discord.gg/SwM6mX85KD');
   });
 
   it('should switch to and render the "Complaint" form when selected', () => {

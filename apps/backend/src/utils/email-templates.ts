@@ -172,7 +172,7 @@ const renderBaseEmail = (
                               </p>
                               <p style="margin:0 0 6px 0; font-size:14px;">
                                 <a
-                                  href=""https://discord.gg/yosemitecrew"
+                                  href="https://discord.gg/SwM6mX85KD"
                                   target="_blank"
                                   style="color:#2b2b2b; text-decoration:none;"
                                 >
