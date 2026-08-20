@@ -38,7 +38,6 @@ import {
   encryptPrivateKey,
   decryptPrivateKey,
 } from "./activitypub-crypto.service";
-import { signRequest } from "src/utils/http-signature";
 import {
   assertPublicHttpsUrl,
   guardedHttpsAgent,
@@ -246,40 +245,6 @@ export async function getOutboxCollection(orgId: string) {
     id: outboxUri(orgId),
     totalItems: rows.length,
     items: rows.map((r) => r.rawJson),
-  });
-}
-
-// ─── Delivery helper ──────────────────────────────────────────────────────────
-
-export async function deliverActivity(opts: {
-  actor: APActor;
-  targetInboxUri: string;
-  activity: unknown;
-}) {
-  await assertPublicHttpsUrl(opts.targetInboxUri);
-
-  const body = JSON.stringify(opts.activity);
-  const privateKeyPem = decryptPrivateKey(opts.actor.privateKeyPem);
-  const signedHeaders = signRequest({
-    privateKeyPem,
-    keyId: opts.actor.publicKeyId,
-    method: "POST",
-    url: opts.targetInboxUri,
-    body,
-  });
-
-  await axios.post(opts.targetInboxUri, body, {
-    headers: {
-      "Content-Type": AP_CONTENT_TYPE,
-      ...signedHeaders,
-    },
-    timeout: 15_000,
-    maxRedirects: 0,
-    // assertPublicHttpsUrl above resolves and checks the host, but DNS can
-    // change between that check and the connect. The agent re-validates the
-    // resolved address at connect time, which is what closes the rebinding
-    // window. ap-delivery.worker already pairs the two; this path did not.
-    httpsAgent: guardedHttpsAgent,
   });
 }
 

@@ -737,33 +737,6 @@ describe("updateLicenseToken", () => {
   });
 });
 
-// ─── deliverActivity ──────────────────────────────────────────────────────────
-
-describe("deliverActivity", () => {
-  it("signs and POSTs the activity to the target inbox", async () => {
-    decryptPrivateKey.mockReturnValue("DECRYPTED");
-    mockAxios.post.mockResolvedValue({ status: 202 });
-
-    await svc.deliverActivity({
-      actor: makeActor() as never,
-      targetInboxUri: "https://remote.example/inbox",
-      activity: { type: "Follow" },
-    });
-
-    expect(assertPublicHttpsUrl).toHaveBeenCalledWith(
-      "https://remote.example/inbox",
-    );
-    expect(decryptPrivateKey).toHaveBeenCalledWith("ENC_PRIV");
-    expect(mockAxios.post).toHaveBeenCalledWith(
-      "https://remote.example/inbox",
-      JSON.stringify({ type: "Follow" }),
-      expect.objectContaining({
-        headers: expect.objectContaining({ Signature: "sig" }),
-      }),
-    );
-  });
-});
-
 // ─── sendUnfollow ─────────────────────────────────────────────────────────────
 
 describe("sendUnfollow", () => {
