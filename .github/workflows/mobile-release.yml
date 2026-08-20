@@ -236,16 +236,33 @@ jobs:
           # Manual signing needs the profile's own name, and the name is inside
           # the CMS envelope rather than the filename. Reading it here means the
           # archive never has to ask Apple which profile to use.
+          # A .mobileprovision is a CMS envelope wrapping a plist, and the decode
+          # can carry bytes past the plist. Anything read out of it is scrubbed of
+          # NUL and control characters before it goes near the environment: a NUL
+          # reaching GITHUB_ENV corrupts every later step, and Ruby then fails with
+          # "ArgumentError - pathname contains null byte" somewhere unrelated, which
+          # is exactly how this presented as a CocoaPods flake.
+          clean() { LC_ALL=C tr -d '\000-\037' | LC_ALL=C sed 's/[[:space:]]*$//'; }
+
           security cms -D -i "$PROFILE" > "${RUNNER_TEMP}/profile.plist"
-          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "${RUNNER_TEMP}/profile.plist")
-          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "${RUNNER_TEMP}/profile.plist")
-          IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN" | sed -n '1s/.*"\(.*\)".*/\1/p')
+          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "${RUNNER_TEMP}/profile.plist" | clean)
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "${RUNNER_TEMP}/profile.plist" | clean)
+          IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN" | sed -n '1s/.*"\(.*\)".*/\1/p' | clean)
           rm -f "${RUNNER_TEMP}/profile.plist"
 
           if [ -z "$PROFILE_NAME" ] || [ -z "$IDENTITY" ]; then
             echo "Could not read the provisioning profile name or the signing identity." >&2
             exit 1
           fi
+          # Refuse anything with a newline as well. GITHUB_ENV is line based, so a
+          # newline in a value silently turns the rest into a separate variable.
+          for pair in "PROFILE_NAME=$PROFILE_NAME" "PROFILE_UUID=$PROFILE_UUID" "SIGNING_IDENTITY=$IDENTITY"; do
+            if [ "$(printf '%s' "$pair" | wc -l | tr -d ' ')" != "0" ]; then
+              echo "A signing value contains a newline; refusing to write it to the environment." >&2
+              exit 1
+            fi
+          done
+
           echo "Signing as: $IDENTITY"
           echo "Profile:    $PROFILE_NAME ($PROFILE_UUID)"
           echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
