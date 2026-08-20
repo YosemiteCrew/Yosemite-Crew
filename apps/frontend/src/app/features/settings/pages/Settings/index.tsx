@@ -64,7 +64,7 @@ const DeleteProfile = dynamic(
 );
 const FederationSection = dynamic(
   () => import('@/app/features/settings/pages/Settings/Sections/FederationSection'),
-  { loading: () => <SettingsSectionSkeleton /> }
+  { loading: () => <CardSkeleton /> }
 );
 
 const Settings = () => {

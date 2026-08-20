@@ -156,6 +156,11 @@ describe("StripeService", () => {
     jest.clearAllMocks();
     jest.restoreAllMocks(); // CRITICAL: Fixes the blackhole coverage bug caused by mockImplementation(jest.fn())
 
+    // `account.updated` now recomputes org verification, which lists the orgs on
+    // the Connect account. Prisma always returns an array here, so default to
+    // one; without it every unrelated account.updated test throws "not iterable".
+    (prisma.organizationBilling.findMany as jest.Mock).mockResolvedValue([]);
+
     process.env = {
       ...originalEnv,
       STRIPE_SECRET_KEY: "sk_test_mock",

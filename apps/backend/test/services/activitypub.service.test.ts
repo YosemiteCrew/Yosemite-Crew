@@ -1127,7 +1127,10 @@ describe("setDirectoryListing", () => {
   });
 
   it("updates locally and calls the authority with the bearer token on success", async () => {
-    prisma.organization.findUnique.mockResolvedValue({ isVerified: true });
+    prisma.organization.findUnique.mockResolvedValue({
+      isVerified: true,
+      name: "Example Vets",
+    });
     prisma.aPActor.findUnique.mockResolvedValue(makeActor());
     prisma.aPActor.update.mockResolvedValue({});
     mockFetch().mockResolvedValue({ ok: true });
@@ -1144,7 +1147,47 @@ describe("setDirectoryListing", () => {
     expect(opts.method).toBe("PUT");
     expect(opts.headers.Authorization).toBe("Bearer lic-token");
     expect(opts.headers["Content-Type"]).toBe("application/json");
-    expect(JSON.parse(opts.body)).toEqual({ listed: true });
+    // The authority stores no organisation names, so listing carries the
+    // display fields. Omitting orgName here would earn a 400 from it.
+    expect(JSON.parse(opts.body)).toEqual({
+      listed: true,
+      actorUri: "https://vet.example/ap/organizations/org-1",
+      orgName: "Example Vets",
+      handle: "@clinic@vet.example",
+    });
+  });
+
+  it("sends only the flag when unlisting, since display fields are not needed", async () => {
+    prisma.organization.findUnique.mockResolvedValue({
+      isVerified: true,
+      name: "Example Vets",
+    });
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPActor.update.mockResolvedValue({});
+    mockFetch().mockResolvedValue({ ok: true });
+
+    await svc.setDirectoryListing("org-1", false);
+
+    expect(JSON.parse(mockFetch().mock.calls[0][1].body)).toEqual({
+      listed: false,
+    });
+  });
+
+  it("leaves the local flag untouched when the authority rejects the change", async () => {
+    prisma.organization.findUnique.mockResolvedValue({
+      isVerified: true,
+      name: "Example Vets",
+    });
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPActor.update.mockResolvedValue({});
+    mockFetch().mockResolvedValue({ ok: false, status: 500 });
+
+    await expect(svc.setDirectoryListing("org-1", true)).rejects.toThrow(
+      /HTTP 500/,
+    );
+    // The settings toggle would otherwise claim the clinic is listed while the
+    // authority never recorded it - a state the user cannot see or repair.
+    expect(prisma.aPActor.update).not.toHaveBeenCalled();
   });
 
   it("throws when the authority responds non-ok", async () => {
@@ -1158,9 +1201,30 @@ describe("setDirectoryListing", () => {
     );
   });
 
+  it("falls back to a bare handle when the actor uri will not parse", async () => {
+    prisma.organization.findUnique.mockResolvedValue({
+      isVerified: true,
+      name: "Example Vets",
+    });
+    prisma.aPActor.findUnique.mockResolvedValue(
+      makeActor({ uri: "not a uri" }),
+    );
+    prisma.aPActor.update.mockResolvedValue({});
+    mockFetch().mockResolvedValue({ ok: true });
+
+    await svc.setDirectoryListing("org-1", true);
+
+    expect(JSON.parse(mockFetch().mock.calls[0][1].body).handle).toBe(
+      "@clinic",
+    );
+  });
+
   it("falls back to the default authority base when the env var is unset", async () => {
     delete process.env.AP_LICENSE_AUTHORITY_URL;
-    prisma.organization.findUnique.mockResolvedValue({ isVerified: true });
+    prisma.organization.findUnique.mockResolvedValue({
+      isVerified: true,
+      name: "Example Vets",
+    });
     prisma.aPActor.findUnique.mockResolvedValue(makeActor());
     prisma.aPActor.update.mockResolvedValue({});
     mockFetch().mockResolvedValue({ ok: true });
@@ -1259,12 +1323,10 @@ describe("listDirectory", () => {
     await jest.isolateModulesAsync(async () => {
       const fresh = await import("src/services/activitypub.service");
       prisma.aPActor.findUnique.mockResolvedValue(makeActor());
-      global.fetch = jest
-        .fn()
-        .mockResolvedValue({
-          ok: false,
-          status: 500,
-        }) as unknown as typeof fetch;
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+      }) as unknown as typeof fetch;
 
       const result = await fresh.listDirectory("org-1");
       expect(result).toEqual({ clinics: [] });

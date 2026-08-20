@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNotify } from '@/app/hooks/useNotify';
 import { Primary } from '@/app/ui/primitives/Buttons';
+import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 import type {
   APActorSettings,
   APFollower,
@@ -36,16 +37,24 @@ const URGENCY_LABELS: Record<APReferralUrgency, string> = {
 
 const URGENCY_COLORS: Record<APReferralUrgency, string> = {
   ROUTINE: 'text-text-secondary',
-  URGENT: 'text-yellow-600',
-  EMERGENCY: 'text-red-600',
+  URGENT: 'text-warning-700',
+  EMERGENCY: 'text-danger-600',
 };
 
-const BADGE_SUCCESS = 'bg-green-100 text-green-800';
-const BADGE_DANGER = 'bg-red-100 text-red-800';
-const BADGE_NEUTRAL = 'bg-gray-200 text-gray-700';
-const BADGE_MUTED = 'bg-gray-100 text-gray-600';
+// Federation states map onto the app's shared pill tones rather than carrying
+// their own colours. The original panel hardcoded Tailwind's default palette,
+// which predates the warm-bone redesign: those greys are cool against a warm
+// ground and, being static light values, stayed light in dark mode.
+const STATE_TONES: Record<string, StatusTone> = {
+  PENDING: 'warning',
+  APPROVED: 'success',
+  ACCEPTED: 'success',
+  REJECTED: 'danger',
+  DECLINED: 'danger',
+  BLOCKED: 'neutral',
+  CANCELLED: 'neutral',
+};
 
-const BADGE_BASE = 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium';
 const TEXT_MUTED = 'text-body-4 text-text-secondary';
 const FIELD_LABEL_CLS = `block ${TEXT_MUTED} mb-1`;
 const ROW_CLS =
@@ -69,22 +78,12 @@ const SectionCard = ({ title, children }: { title: string; children: React.React
   </div>
 );
 
-const StateBadge = ({ state }: { state: string }) => {
-  const colors: Record<string, string> = {
-    PENDING: 'bg-yellow-100 text-yellow-800',
-    APPROVED: BADGE_SUCCESS,
-    ACCEPTED: BADGE_SUCCESS,
-    REJECTED: BADGE_DANGER,
-    DECLINED: BADGE_DANGER,
-    BLOCKED: BADGE_NEUTRAL,
-    CANCELLED: BADGE_NEUTRAL,
-  };
-  return (
-    <span className={`${BADGE_BASE} ${colors[state] ?? BADGE_MUTED}`}>
-      {state.charAt(0) + state.slice(1).toLowerCase()}
-    </span>
-  );
-};
+const StateBadge = ({ state }: { state: string }) => (
+  <StatusPill
+    tone={STATE_TONES[state] ?? 'neutral'}
+    label={state.charAt(0) + state.slice(1).toLowerCase()}
+  />
+);
 
 const CopyRow = ({ label, value }: { label: string; value: string }) => {
   const { notify } = useNotify();
@@ -126,21 +125,21 @@ const ActorInfoCard = ({ actor }: { actor: APActorSettings }) => (
 
 const LICENSE_STATUS_CONFIG: Record<
   LicenseTokenStatus,
-  { label: string; color: string; hint: string }
+  { label: string; tone: StatusTone; hint: string }
 > = {
   none: {
     label: 'Not set',
-    color: BADGE_MUTED,
+    tone: 'neutral',
     hint: 'Paste the license token issued by Yosemite Crew below to enable federation.',
   },
   valid: {
     label: 'Verified',
-    color: BADGE_SUCCESS,
+    tone: 'success',
     hint: 'This instance is verified and can federate with other Yosemite Crew instances.',
   },
   invalid: {
     label: 'Invalid / expired',
-    color: 'bg-red-100 text-red-700',
+    tone: 'danger',
     hint: 'The stored token is expired or invalid. Paste a fresh token from Yosemite Crew.',
   },
 };
@@ -176,7 +175,7 @@ const LicenseTokenCard = ({
   return (
     <SectionCard title="Federation license">
       <div className="flex items-center gap-3">
-        <span className={`${BADGE_BASE} ${config.color}`}>{config.label}</span>
+        <StatusPill tone={config.tone} label={config.label} />
         <span className={TEXT_MUTED}>{config.hint}</span>
       </div>
       {status !== 'valid' && (
@@ -239,9 +238,10 @@ const DirectoryListingCard = ({
   return (
     <SectionCard title="Directory listing">
       <div className="flex items-center gap-3">
-        <span className={`${BADGE_BASE} ${directoryListed ? BADGE_SUCCESS : BADGE_MUTED}`}>
-          {directoryListed ? 'Listed' : 'Not listed'}
-        </span>
+        <StatusPill
+          tone={directoryListed ? 'success' : 'neutral'}
+          label={directoryListed ? 'Listed' : 'Not listed'}
+        />
         <span className={TEXT_MUTED}>
           {isVerified
             ? 'List this clinic in the directory so other verified clinics can find and follow you.'
@@ -272,7 +272,13 @@ const FollowersCard = () => {
   }, []);
 
   useEffect(() => {
-    load();
+    // The loader is declared inside the effect so the hooks lint can see that
+    // every setState it performs happens after an await, not synchronously
+    // during the effect body.
+    const run = async () => {
+      await load();
+    };
+    run();
   }, [load]);
 
   const handleApprove = async (uri: string) => {
@@ -305,13 +311,13 @@ const FollowersCard = () => {
                 <div className="flex gap-2 shrink-0">
                   <button
                     onClick={() => handleApprove(f.remoteActorUri)}
-                    className="text-body-4 text-green-700 hover:text-green-900"
+                    className="text-body-4 text-success-700 hover:text-success-900"
                   >
                     Approve
                   </button>
                   <button
                     onClick={() => handleReject(f.remoteActorUri)}
-                    className="text-body-4 text-red-600 hover:text-red-800"
+                    className="text-body-4 text-danger-600 hover:text-danger-800"
                   >
                     Reject
                   </button>
@@ -339,7 +345,13 @@ const FollowingCard = () => {
   }, []);
 
   useEffect(() => {
-    load();
+    // The loader is declared inside the effect so the hooks lint can see that
+    // every setState it performs happens after an await, not synchronously
+    // during the effect body.
+    const run = async () => {
+      await load();
+    };
+    run();
   }, [load]);
 
   const handleFollow = async () => {
@@ -396,7 +408,7 @@ const FollowingCard = () => {
               </div>
               <button
                 onClick={() => handleUnfollow(f.remoteActorUri)}
-                className={`${TEXT_MUTED} hover:text-red-600 shrink-0`}
+                className={`${TEXT_MUTED} hover:text-danger-600 shrink-0`}
               >
                 Unfollow
               </button>
@@ -705,7 +717,7 @@ const EmergencyCard = () => {
         <button
           onClick={handleAnnounce}
           disabled={submitting || !content.trim()}
-          className="px-4 py-2 rounded-xl text-body-4 font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-40 transition-colors"
+          className="px-4 py-2 rounded-xl text-body-4 font-medium bg-danger-600 text-white hover:bg-danger-700 disabled:opacity-40 transition-colors"
         >
           {submitting ? 'Sending...' : 'Broadcast emergency'}
         </button>
@@ -733,7 +745,14 @@ const FederationSection = () => {
   }, [notify]);
 
   useEffect(() => {
-    loadActor();
+    // `loadActor` is also the refresh callback for the license and directory
+    // cards, so its leading setLoading(true) has to stay for those callers. On
+    // mount it is a no-op, since `loading` already starts true and React bails
+    // out of a re-render for an unchanged value.
+    const run = async () => {
+      await loadActor();
+    };
+    run();
   }, [loadActor]);
 
   if (loading) {

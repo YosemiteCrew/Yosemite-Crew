@@ -890,6 +890,19 @@ const directoryCache = new Map<string, CachedPromise<DirectoryClinic[]>>();
 const DIRECTORY_CACHE_OPTIONS = { maxEntries: 8, pruneIntervalMs: 60_000 };
 
 /**
+ * Builds the webfinger-style `@user@host` handle other clinics see in the
+ * directory. Falls back to the bare username if the actor URI is unparseable,
+ * which should not happen for an actor we minted ourselves.
+ */
+function buildActorHandle(actorUri: string, preferredUsername: string): string {
+  try {
+    return `@${preferredUsername}@${new URL(actorUri).hostname}`;
+  } catch {
+    return `@${preferredUsername}`;
+  }
+}
+
+/**
  * Toggle this organisation's presence in the SuperAdmin federation directory.
  * Requires a verified organisation and a stored license token; mirrors the
  * change to the authority using the org's own bearer token.
@@ -900,7 +913,7 @@ export async function setDirectoryListing(
 ): Promise<{ listed: boolean }> {
   const org = await prisma.organization.findUnique({
     where: { id: orgId },
-    select: { isVerified: true },
+    select: { isVerified: true, name: true },
   });
   if (!org?.isVerified) {
     throw new Error(
@@ -915,23 +928,40 @@ export async function setDirectoryListing(
     );
   }
 
-  await prisma.aPActor.update({
-    where: { id: actor.id },
-    data: { directoryListed: listed },
-  });
-
+  // The authority is told first, and the local flag is only persisted once it
+  // accepts. Writing locally first would leave the settings toggle claiming the
+  // clinic is listed whenever the authority is unreachable, which is the one
+  // state a user cannot diagnose or correct from the UI.
   const res = await fetch(`${directoryAuthorityBase()}/api/directory/listing`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${actor.licenseToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ listed }),
+    // The authority holds no organisation names, so the display fields travel
+    // with the request. It binds `instanceHost` from the license token itself
+    // and rejects an `actorUri` on any other host, so these are display data
+    // rather than anything the authority trusts for identity.
+    body: JSON.stringify(
+      listed
+        ? {
+            listed,
+            actorUri: actor.uri,
+            orgName: org.name,
+            handle: buildActorHandle(actor.uri, actor.preferredUsername),
+          }
+        : { listed },
+    ),
     signal: AbortSignal.timeout(10_000),
   });
   if (!res.ok) {
     throw new Error(`Directory authority responded HTTP ${res.status}`);
   }
+
+  await prisma.aPActor.update({
+    where: { id: actor.id },
+    data: { directoryListed: listed },
+  });
 
   return { listed };
 }

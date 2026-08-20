@@ -60,7 +60,9 @@ const NetworkDirectory = () => {
   const [followingUri, setFollowingUri] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    // No setLoading(true) here: this runs once from the mount effect and
+    // `loading` already starts true, so the only effect of setting it again
+    // would be a synchronous state write during the effect body.
     try {
       const data = await listDirectory();
       setClinics(data);
@@ -75,7 +77,13 @@ const NetworkDirectory = () => {
   }, [notify]);
 
   useEffect(() => {
-    load();
+    // Wrapped rather than called directly: the hooks lint cannot see through the
+    // useCallback to prove the setStates all happen after an await, and flags a
+    // bare `load()` as a synchronous state write.
+    const run = async () => {
+      await load();
+    };
+    run();
   }, [load]);
 
   const handleFollow = useCallback(
