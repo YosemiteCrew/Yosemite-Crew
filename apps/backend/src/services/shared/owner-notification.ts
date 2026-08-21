@@ -1,4 +1,5 @@
 import { prisma } from "src/config/prisma";
+import { escapeHtml } from "src/utils/email-templates";
 import { NotificationService } from "src/services/notification.service";
 import type { NotificationPayload } from "src/utils/notificationTemplates";
 import { sendEmail } from "src/utils/email";
@@ -88,7 +89,12 @@ export const notifyPatientOwner = async ({
     if (owner.email) {
       const email = buildEmail
         ? buildEmail({ patientId, patientName: owner.patientName, payload })
-        : { subject: payload.title, htmlBody: `<p>${payload.body}</p>` };
+        : {
+            subject: payload.title,
+            // The notification body is assembled from companion/staff names, so
+            // escape it before it becomes email markup.
+            htmlBody: `<p>${escapeHtml(payload.body)}</p>`,
+          };
       await sendEmail({ to: owner.email, ...email }).catch((error: unknown) =>
         logger.error(`${label} email failed for patient ${patientId}`, error),
       );
@@ -130,10 +136,10 @@ export const passportLinkEmail =
       );
     }
     const link = url
-      ? `<p><a href="${url}">View ${patientName}'s passport</a></p>`
+      ? `<p><a href="${escapeHtml(url)}">View ${escapeHtml(patientName)}'s passport</a></p>`
       : "";
     return {
       subject: buildSubject(patientName),
-      htmlBody: `<p>${payload.body}</p>${link}`,
+      htmlBody: `<p>${escapeHtml(payload.body)}</p>${link}`,
     };
   };

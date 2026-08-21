@@ -494,8 +494,13 @@ const resolveTemplateModeFromContext = async (
     return undefined;
   }
 
+  // `appointmentId` / `encounterId` arrive as free-form resolver context while
+  // RBAC only authorised `organisationId`, so this read has to be constrained to
+  // that organisation - otherwise naming another tenant's appointment made the
+  // resolver read it.
   const appointment = await prisma.appointment.findFirst({
     where: {
+      organisationId: input.organisationId,
       OR: contextClauses,
     },
     select: {
@@ -508,7 +513,22 @@ const resolveTemplateModeFromContext = async (
     return "INPATIENT";
   }
 
-  const encounterId = appointment?.encounterId ?? input.encounterId;
+  // Only follow through to the admission for an encounter this organisation
+  // actually owns: the caller-supplied `encounterId` fallback would otherwise
+  // reintroduce the same cross-tenant read one level down.
+  const encounterId =
+    appointment?.encounterId ??
+    (input.encounterId
+      ? ((
+          await prisma.encounter.findFirst({
+            where: {
+              id: input.encounterId,
+              organisationId: input.organisationId,
+            },
+            select: { id: true },
+          })
+        )?.id ?? null)
+      : null);
   if (!encounterId) {
     return undefined;
   }

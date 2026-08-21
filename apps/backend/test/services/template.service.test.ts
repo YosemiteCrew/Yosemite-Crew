@@ -39,6 +39,9 @@ jest.mock("src/config/prisma", () => ({
     appointment: {
       findFirst: jest.fn(),
     },
+    encounter: {
+      findFirst: jest.fn(),
+    },
     admission: {
       findUnique: jest.fn(),
     },
@@ -1951,9 +1954,11 @@ describe("TemplateService.resolve", () => {
         }),
       ).rejects.toMatchObject({ statusCode: 404 });
 
+      // Scoped to the authorised organisation - a caller may not name another
+      // tenant's appointment as resolver context.
       expect(prisma.appointment.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { OR: [{ id: "apt-1" }] },
+          where: { organisationId: "org-1", OR: [{ id: "apt-1" }] },
         }),
       );
       expect(prisma.admission.findUnique).not.toHaveBeenCalled();
@@ -1961,6 +1966,11 @@ describe("TemplateService.resolve", () => {
 
     it("infers INPATIENT from an admission on the encounter", async () => {
       (prisma.appointment.findFirst as jest.Mock).mockResolvedValue(null);
+      // The caller-supplied encounter must belong to the authorised org before
+      // its admission is read.
+      (prisma.encounter.findFirst as jest.Mock).mockResolvedValue({
+        id: "enc-1",
+      });
       (prisma.admission.findUnique as jest.Mock).mockResolvedValue({
         admittedAt: new Date("2026-04-04T00:00:00.000Z"),
       });

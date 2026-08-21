@@ -1,4 +1,5 @@
 import { prisma } from "src/config/prisma";
+import { escapeHtml } from "src/utils/email-templates";
 import { AuditTrailService } from "./audit-trail.service";
 import { sendEmail } from "src/utils/email";
 import logger from "src/utils/logger";
@@ -84,29 +85,33 @@ const buildEmailBody = (
   patientName: string,
   referringVetName: string | null,
 ) => {
+  // Every field below is clinician free text or a name someone typed, and the
+  // result is sent as email HTML - escape before interpolating.
   const clinicSuffix = letter.specialistClinic
-    ? `, ${letter.specialistClinic}`
+    ? `, ${escapeHtml(letter.specialistClinic)}`
     : "";
   const specialistLine = letter.specialistName
-    ? `<p><strong>To:</strong> ${letter.specialistName}${clinicSuffix}</p>`
+    ? `<p><strong>To:</strong> ${escapeHtml(letter.specialistName)}${clinicSuffix}</p>`
     : "";
 
   const sections: string[] = [
-    `<h2>Referral Letter for ${patientName}</h2>`,
+    `<h2>Referral Letter for ${escapeHtml(patientName)}</h2>`,
     specialistLine,
-    referringVetName ? `<p><strong>From:</strong> ${referringVetName}</p>` : "",
-    `<h3>Reason for Referral</h3><p>${letter.reasonForReferral}</p>`,
+    referringVetName
+      ? `<p><strong>From:</strong> ${escapeHtml(referringVetName)}</p>`
+      : "",
+    `<h3>Reason for Referral</h3><p>${escapeHtml(letter.reasonForReferral)}</p>`,
     letter.historySummary
-      ? `<h3>History Summary</h3><p>${letter.historySummary}</p>`
+      ? `<h3>History Summary</h3><p>${escapeHtml(letter.historySummary)}</p>`
       : "",
     letter.examFindings
-      ? `<h3>Examination Findings</h3><p>${letter.examFindings}</p>`
+      ? `<h3>Examination Findings</h3><p>${escapeHtml(letter.examFindings)}</p>`
       : "",
     letter.currentMedications
-      ? `<h3>Current Medications</h3><p>${letter.currentMedications}</p>`
+      ? `<h3>Current Medications</h3><p>${escapeHtml(letter.currentMedications)}</p>`
       : "",
     letter.additionalNotes
-      ? `<h3>Additional Notes</h3><p>${letter.additionalNotes}</p>`
+      ? `<h3>Additional Notes</h3><p>${escapeHtml(letter.additionalNotes)}</p>`
       : "",
   ];
   return sections.filter(Boolean).join("\n");
