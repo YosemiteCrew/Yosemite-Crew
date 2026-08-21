@@ -75,6 +75,10 @@ jest.mock("src/config/prisma", () => ({
       findFirst: jest.fn(),
       create: jest.fn(),
     },
+    userOrganization: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
     speciality: {
       findMany: jest.fn(),
     },
@@ -315,7 +319,11 @@ describe("OrganizationService", () => {
         prisma.organization.findUniqueOrThrow as jest.Mock
       ).mockResolvedValueOnce(baseOrg);
 
-      const result = await OrganizationService.upsert(baseDto);
+      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: "mapping-1",
+      });
+
+      const result = await OrganizationService.upsert(baseDto, userId);
 
       expect(prisma.organization.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -341,19 +349,51 @@ describe("OrganizationService", () => {
       ).resolves.toBeNull();
     });
 
-    it("returns organizations from prisma for getById and listAll", async () => {
+    it("returns organizations from prisma for getById and listForUser", async () => {
       (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(
         baseOrg,
       );
+      (prisma.userOrganization.findMany as jest.Mock).mockResolvedValueOnce([
+        { organizationReference: `Organization/${orgId}` },
+      ]);
       (prisma.organization.findMany as jest.Mock).mockResolvedValueOnce([
         baseOrg,
       ]);
 
       const single = await OrganizationService.getById(orgId);
-      const list = await OrganizationService.listAll();
+      const list = await OrganizationService.listForUser("user-1");
 
       expect(single?.name).toBe("Test Hospital");
       expect(list).toHaveLength(1);
+      expect(prisma.organization.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: { in: [orgId] } } }),
+      );
+    });
+
+    it("returns nothing for a caller with no active memberships", async () => {
+      (prisma.userOrganization.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      await expect(
+        OrganizationService.listForUser("stranger"),
+      ).resolves.toEqual([]);
+      expect(prisma.organization.findMany).not.toHaveBeenCalled();
+    });
+
+    it("refuses to overwrite an existing organisation for a non-member", async () => {
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(
+        baseOrg,
+      );
+      (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
+
+      await expect(
+        OrganizationService.upsert(
+          { resourceType: "Organization", id: orgId, name: "Hijacked" },
+          "stranger",
+        ),
+      ).rejects.toMatchObject({ statusCode: 403 });
+      expect(prisma.organization.update).not.toHaveBeenCalled();
     });
 
     it("resolves organisations by place, lat/lng, and name", async () => {

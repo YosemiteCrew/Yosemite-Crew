@@ -690,6 +690,42 @@ const buildOrganizationWriteData = (persistable: OrganizationMongo) => ({
   crossOrgMessagingEnabled: persistable.crossOrgMessagingEnabled ?? false,
 });
 
+/**
+ * Proves the caller is an active member of an organisation they are about to
+ * mutate. Used by write paths that resolve their target from the request body
+ * rather than from an org-scoped route, where `withOrgPermissions` has nothing
+ * to bind to.
+ */
+const assertActiveMembership = async (
+  organisationId: string,
+  userId?: string,
+): Promise<void> => {
+  const actor = userId?.trim();
+  if (!actor) {
+    throw new OrganizationServiceError(
+      "Not authorised to modify this organisation.",
+      403,
+    );
+  }
+  const mapping = await prisma.userOrganization.findFirst({
+    where: {
+      practitionerReference: actor,
+      active: true,
+      OR: [
+        { organizationReference: organisationId },
+        { organizationReference: `Organization/${organisationId}` },
+      ],
+    },
+    select: { id: true },
+  });
+  if (!mapping) {
+    throw new OrganizationServiceError(
+      "Not authorised to modify this organisation.",
+      403,
+    );
+  }
+};
+
 export const OrganizationService = {
   async upsert(payload: OrganizationFHIRPayload, userId?: string) {
     const { persistable, attributes } = createPersistableFromFHIR(payload);
@@ -702,6 +738,15 @@ export const OrganizationService = {
           include: { address: true },
         })
       : null;
+
+    // The onboarding route is only authenticated, not org-scoped - a new
+    // practice has no organisation to be scoped to yet. That makes the CREATE
+    // branch safe for any signed-in user, but the UPDATE branch is a different
+    // operation reached purely by naming an existing identifier in the body, so
+    // it needs the membership check the route cannot perform.
+    if (existing) {
+      await assertActiveMembership(existing.id, userId);
+    }
 
     const data = buildOrganizationWriteData(persistable);
 
@@ -817,8 +862,35 @@ export const OrganizationService = {
     return organisation ? buildFHIRResponseFromPrisma(organisation) : null;
   },
 
-  async listAll() {
+  /**
+   * The organisations the caller actually belongs to.
+   *
+   * This replaces an unfiltered `findMany` that handed every authenticated web
+   * session the whole tenant table. Membership is read from the same
+   * `userOrganization` mappings RBAC authorises against, so the list can never
+   * be wider than what the caller could already open individually.
+   */
+  async listForUser(userId: string) {
+    const trimmed = userId.trim();
+    if (!trimmed) return [];
+
+    const memberships = await prisma.userOrganization.findMany({
+      where: { practitionerReference: trimmed, active: true },
+      select: { organizationReference: true },
+    });
+    // Mappings are stored either bare or as a FHIR `Organization/<id>`
+    // reference, exactly as `rbac.ts` matches them.
+    const organisationIds = [
+      ...new Set(
+        memberships.map((row) =>
+          row.organizationReference.replace(/^Organization\//, ""),
+        ),
+      ),
+    ];
+    if (organisationIds.length === 0) return [];
+
     const organisations = await prisma.organization.findMany({
+      where: { id: { in: organisationIds } },
       include: { address: true },
     });
     return organisations.map((org) => buildFHIRResponseFromPrisma(org));

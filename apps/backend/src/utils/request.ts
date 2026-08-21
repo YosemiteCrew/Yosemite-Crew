@@ -25,22 +25,19 @@ export const resolveVerifiedOrganisationId = (
   return organisationId.trim() || undefined;
 };
 
-export const resolveUserIdFromRequest = (req: Request): string | undefined => {
-  const authRequest = req as AuthenticatedRequest;
-  const userId = authRequest.userId;
-  if (typeof userId === "string") {
-    const trimmedUserId = userId.trim();
-    return trimmedUserId || undefined;
-  }
-
-  const headerUserId = req.headers?.["x-user-id"];
-  if (typeof headerUserId === "string") {
-    const trimmedHeader = headerUserId.trim();
-    if (trimmedHeader) return trimmedHeader;
-  }
-
-  return undefined;
-};
+/**
+ * @deprecated Use {@link resolveVerifiedUserId}. Kept as an alias so the many
+ * existing call sites keep compiling; it no longer has a distinct behaviour.
+ *
+ * This used to fall back to the client-supplied `x-user-id` header when no
+ * session had been established. On an authenticated route that fallback was
+ * unreachable, but on a public or optional-session route it let any caller
+ * name any user - and the same helper was being used for authorization
+ * decisions, not just attribution. The header is now ignored everywhere;
+ * routes that want a signed-in caller's id on an otherwise public path attach
+ * `attachSessionIfPresent` and read the verified session instead.
+ */
+export const resolveUserIdFromRequest = resolveVerifiedUserId;
 
 /**
  * Resolve the acting organisation for a request from the route params, the `x-org-id`

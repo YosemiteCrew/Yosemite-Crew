@@ -354,6 +354,65 @@ export function withRoomUnitGroupOrgPermissions(paramName = "id") {
   );
 }
 
+/**
+ * Scopes a route addressed by a `UserOrganization` mapping id to the
+ * organisation that mapping grants access to.
+ *
+ * Role mappings ARE the permission system, so a route that edits one must be
+ * authorised against the organisation the mapping belongs to - not against an
+ * organisation the caller happens to name.
+ */
+export function withUserOrganizationOrgPermissions(paramName = "id") {
+  return withResourceOrgPermissions(
+    paramName,
+    "Mapping not found",
+    async (mappingId) => {
+      const mapping = await prisma.userOrganization.findUnique({
+        where: { id: mappingId },
+        select: { organizationReference: true },
+      });
+      return (
+        mapping?.organizationReference.replace(/^Organization\//, "") ?? null
+      );
+    },
+  );
+}
+
+/**
+ * Scopes a route whose organisation arrives in a FHIR `PractitionerRole` body
+ * (`organization.reference`) rather than in the path.
+ *
+ * `withOrgPermissions` reads params / `x-org-id` / query / body, and the body
+ * form it understands is a flat `organisationId`. A PractitionerRole nests the
+ * reference, so without this the membership check would silently fall back to
+ * whatever other org id the request carried.
+ */
+export function withPractitionerRoleOrgPermissions() {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const body = req.body as
+      | {
+          organization?: { reference?: unknown };
+          organizationReference?: unknown;
+        }
+      | undefined;
+    const nested = body?.organization?.reference;
+    const flat = body?.organizationReference;
+    const reference =
+      (typeof nested === "string" && nested.trim() ? nested : undefined) ??
+      (typeof flat === "string" && flat.trim() ? flat : undefined);
+
+    if (!reference) {
+      return res
+        .status(400)
+        .json({ message: "Missing organisation reference" });
+    }
+
+    req.params.organisationId = reference.trim().replace(/^Organization\//, "");
+
+    return withOrgPermissions()(req, res, next);
+  };
+}
+
 export function requirePermission(required: Permission | Permission[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     const typedReq = req as OrgRequest;

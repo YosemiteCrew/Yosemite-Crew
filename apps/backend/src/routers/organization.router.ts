@@ -2,7 +2,11 @@ import { Router } from "express";
 import { OrganizationController } from "../controllers/web/organization.controller";
 import { SpecialityController } from "src/controllers/web/speciality.controller";
 import { OrganisationInviteController } from "../controllers/web/organisation-invite.controller";
-import { requireWebAuth, requireMobileAuth } from "src/middlewares/auth";
+import {
+  requireWebAuth,
+  requireMobileAuth,
+  attachSessionIfPresent,
+} from "src/middlewares/auth";
 import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
 import { CatalogController } from "src/controllers/web/catalog.controller";
 
@@ -14,7 +18,15 @@ const router = Router();
 
 router.post("/check", OrganizationController.checkIsPMSOrganistaion);
 
-router.get("/getNearby", OrganizationController.getNearbyPaginated);
+// Public discovery. `attachSessionIfPresent` never rejects; it just makes the
+// session available so a signed-in caller can fall back to their saved address
+// when no lat/lng is supplied, without that fallback being reachable by anyone
+// who can set an `x-user-id` header.
+router.get(
+  "/getNearby",
+  attachSessionIfPresent,
+  OrganizationController.getNearbyPaginated,
+);
 
 router.get(
   "/mobile/getNearby",

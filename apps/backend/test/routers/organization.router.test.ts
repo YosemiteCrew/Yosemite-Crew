@@ -3,6 +3,7 @@ import type { Router } from "express";
 
 const requireWebAuth = jest.fn((_req, _res, next) => next());
 const requireMobileAuth = jest.fn((_req, _res, next) => next());
+const attachSessionIfPresent = jest.fn((_req, _res, next) => next());
 const withOrgPermissionsMiddleware = jest.fn((_req, _res, next) => next());
 const requirePermissionMiddleware = jest.fn((_req, _res, next) => next());
 
@@ -33,6 +34,7 @@ const CatalogController = {
 jest.mock("../../src/middlewares/auth", () => ({
   requireWebAuth,
   requireMobileAuth,
+  attachSessionIfPresent,
 }));
 
 jest.mock("../../src/middlewares/rbac", () => ({
@@ -84,10 +86,14 @@ describe("organization.router", () => {
     ]);
   });
 
-  it("keeps the non-mobile nearby route on the organization controller", () => {
+  it("keeps the non-mobile nearby route public but session-aware", () => {
     const route = findRoute("/getNearby", "get");
 
+    // `attachSessionIfPresent` never rejects, so the route stays reachable
+    // signed-out; it exists so the saved-address fallback reads a VERIFIED
+    // session instead of the `x-user-id` header.
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
+      attachSessionIfPresent,
       OrganizationController.getNearbyPaginated,
     ]);
   });

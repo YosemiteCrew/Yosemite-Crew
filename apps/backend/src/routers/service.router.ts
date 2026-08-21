@@ -32,9 +32,15 @@ router.post(
   requirePermission("specialities:edit:any"),
   ServiceController.createMany,
 );
+// Signed-out browsing, but a signed-in caller may omit lat/lng and fall back to
+// their own saved address. `attachSessionIfPresent` supplies the verified id for
+// that fallback without rejecting anonymous callers - previously the id came
+// from the client-supplied `x-user-id` header, so anyone could resolve another
+// account's saved location.
 router.get(
   "/organisation/search",
   publicServiceReadLimiter,
+  attachSessionIfPresent,
   ServiceController.listOrganisationByServiceName,
 );
 router.get(

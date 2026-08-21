@@ -37,7 +37,30 @@ const CTX_EMAIL = 'ycEmail';
 const CTX_PROFILE = 'ycAuthProfile';
 const DEMO_LOGIN_EMAIL = (process.env.DEMO_LOGIN_EMAIL ?? '').trim().toLowerCase();
 const DEMO_LOGIN_PASSWORD = process.env.DEMO_LOGIN_PASSWORD ?? '';
-const DEMO_LOGIN_ENABLED = DEMO_LOGIN_EMAIL !== '' && DEMO_LOGIN_PASSWORD !== '';
+
+/**
+ * The review-login shortcut swaps the emailed one-time code for a static
+ * password so app-store reviewers can sign in without a mailbox. That is a
+ * deliberate bypass of the possession factor, so it must never be reachable in
+ * production: `USER_INPUT_CODE` flows hand the device/pre-auth state straight
+ * back to whoever created the code, meaning anyone holding the shared password
+ * could mint a real session for the configured account.
+ *
+ * Environment - not just configuration - is the gate. Leaking the two env vars
+ * into a production deployment would otherwise be a silent, permanent backdoor.
+ */
+const DEMO_LOGIN_ENABLED =
+  DEMO_LOGIN_EMAIL !== '' && DEMO_LOGIN_PASSWORD !== '' && process.env.NODE_ENV !== 'production';
+
+if (
+  DEMO_LOGIN_EMAIL !== '' &&
+  DEMO_LOGIN_PASSWORD !== '' &&
+  process.env.NODE_ENV === 'production'
+) {
+  console.error(
+    '[auth] DEMO_LOGIN_EMAIL/DEMO_LOGIN_PASSWORD are set in production and have been IGNORED. Remove them from the production environment.'
+  );
+}
 
 type MutableContext = Record<string, unknown>;
 

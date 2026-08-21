@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { z } from "zod";
 import { AuthenticatedRequest } from "src/middlewares/auth";
+import { resolveVerifiedUserId } from "src/utils/request";
 import { OrgRequest } from "src/middlewares/rbac";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import {
@@ -32,15 +33,10 @@ const handleError = (error: unknown, res: Response) => {
     .json({ message: "Internal Server Error", error: errorMessage });
 };
 
-const resolveUserId = (req: Request): string | undefined => {
-  const authReq = req as AuthenticatedRequest;
-  if (authReq.userId) return authReq.userId;
-
-  const headerUser = req.headers["x-user-id"];
-  if (headerUser && typeof headerUser === "string") return headerUser;
-
-  return undefined;
-};
+// Verified session only - the `x-user-id` header fallback this used to carry
+// let an unauthenticated or optional-session caller name any user.
+const resolveUserId = (req: Request): string | undefined =>
+  resolveVerifiedUserId(req);
 
 const CreateAppointmentSubmissionSchema = z.object({
   toolId: z.string().min(1),

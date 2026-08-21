@@ -13,18 +13,15 @@ import {
   getURLForKey,
   isAllowedMimeType,
 } from "src/middlewares/upload";
-import { AuthenticatedRequest } from "src/middlewares/auth";
+import { resolveVerifiedUserId } from "src/utils/request";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { type ContactType, type ContactStatus } from "src/models/contect-us";
 import { SuperadminContactService } from "src/services/superadmin-contact.service";
 
-const resolveMobileUserId = (req: Request): string | undefined => {
-  const authReq = req as AuthenticatedRequest;
-  const headerUserId = req.headers?.["x-user-id"];
-  if (typeof headerUserId === "string") return headerUserId;
-
-  return authReq.userId;
-};
+// Verified session only. The previous form let the client-supplied `x-user-id`
+// header OVERRIDE an established session, so any caller could act as any user.
+const resolveMobileUserId = (req: Request): string | undefined =>
+  resolveVerifiedUserId(req);
 
 const CONTACT_STATUSES = new Set<ContactStatus>([
   "OPEN",
