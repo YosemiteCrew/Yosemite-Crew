@@ -3,7 +3,7 @@
 // is what decides whether an unmet peer reds the build.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyPeer } from './check-peer-deps.mjs';
+import { classifyPeer, PACKAGE_NAME } from './check-peer-deps.mjs';
 
 test('the mobile 1.6.0 launch crash is caught', () => {
   // react-native@0.81.6 declares peerDependencies.react: ^19.1.4 and
@@ -36,4 +36,37 @@ test('prereleases are compared rather than silently excluded', () => {
 
 test('a wildcard range accepts anything', () => {
   assert.equal(classifyPeer('1.0.0', '*'), 'ok');
+});
+
+// The dependency names come from workspace manifests, but PEER names come from
+// whatever a published package declares. That is the one input to the module
+// resolution here that is not under repo review.
+test('the npm name grammar accepts real package names', () => {
+  for (const name of [
+    'react',
+    'react-native',
+    '@types/react',
+    '@react-native-async-storage/async-storage',
+    '@babel/preset-env',
+    'lodash.merge',
+    'semver',
+  ]) {
+    assert.equal(PACKAGE_NAME.test(name), true, name);
+  }
+});
+
+test('a hostile peer name cannot become a path segment', () => {
+  for (const name of [
+    '../../../../etc/passwd',
+    '/etc/passwd',
+    '..',
+    './x',
+    'a/../../b',
+    '$(whoami)',
+    'UPPERCASE',
+    '.hidden',
+    '_leading-underscore',
+  ]) {
+    assert.equal(PACKAGE_NAME.test(name), false, name);
+  }
 });

@@ -89,8 +89,17 @@ const workspaces = () => {
 const problems = [];
 const unparseable = [];
 
+/**
+ * The npm package name grammar. Dependency names come from workspace
+ * manifests, but PEER names come from whatever a published package declares,
+ * which is the one input here not under repo review. Validating against the
+ * grammar means a hostile `peerDependencies` key cannot become a path segment.
+ */
+export const PACKAGE_NAME = /^(?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/;
+
 /** Resolves an installed package's manifest from a given directory, or null. */
 const resolveManifest = (name, fromDir) => {
+  if (!PACKAGE_NAME.test(name)) return null;
   try {
     // resolve() normalises what Node's resolver returns before it is loaded.
     return readManifest(resolve(require.resolve(`${name}/package.json`, { paths: [fromDir] })));
