@@ -1451,13 +1451,6 @@ const createAppointment = async (
     );
   }
 
-  await CompanionOrganisationService.linkByParent({
-    parentId: input.patient.parent.id,
-    patientId: input.patient.id,
-    organisationId: input.organisationId,
-    organisationType: organisation.type,
-  });
-
   const created = await prisma.$transaction(async (tx) => {
     const patientId = getPatientId(input.patient);
     const resolvedCaseId = await resolveCaseContext({
@@ -1530,6 +1523,18 @@ const createAppointment = async (
     }
 
     return appointment;
+  });
+
+  // Linking the companion to the organisation happens only once the booking has
+  // actually been persisted. It used to run BEFORE the transaction, so a payload
+  // that failed appointment validation still left an ACTIVE patient-organisation
+  // link behind - and that link is what authorises PMS access to the companion's
+  // records and surfaces its primary parent on the organisation's list.
+  await CompanionOrganisationService.linkByParent({
+    parentId: input.patient.parent.id,
+    patientId: input.patient.id,
+    organisationId: input.organisationId,
+    organisationType: organisation.type,
   });
 
   return toResponse(created);

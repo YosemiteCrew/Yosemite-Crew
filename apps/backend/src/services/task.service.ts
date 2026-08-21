@@ -630,6 +630,36 @@ const resolveTaskReassignmentFlags = (
   return { isReassigningUser, isReassigningGroup };
 };
 
+/**
+ * The same question, asked of every row a series scope will actually write.
+ *
+ * `resolveTaskReassignmentFlags` compares the requested assignee against the
+ * ONE occurrence named in the URL. Under scope ALL / THIS_AND_FOLLOWING the
+ * update is then applied to the whole series, so a value that is a no-op for the
+ * selected occurrence - and therefore skipped the creator-only check and emitted
+ * no TASK_REASSIGNED audit - could still overwrite the assignee or group on
+ * every other occurrence.
+ */
+const resolveSeriesReassignmentFlags = (
+  rows: TaskRow[],
+  updates: TaskUpdateInput,
+  isCreator: boolean,
+) => {
+  const isReassigningUser =
+    updates.assignedTo !== undefined &&
+    rows.some((row) => updates.assignedTo !== row.assignedTo);
+
+  const isReassigningGroup =
+    updates.assignedGroupId !== undefined &&
+    rows.some((row) => updates.assignedGroupId !== row.assignedGroupId);
+
+  if ((isReassigningUser || isReassigningGroup) && !isCreator) {
+    throw new TaskServiceError("Only task creator can reassign task", 403);
+  }
+
+  return { isReassigningUser, isReassigningGroup };
+};
+
 const recordTaskReassignedAudit = async (
   previous: TaskRow,
   mapped: TaskLike,
@@ -1813,18 +1843,28 @@ export const TaskService = {
       normalizedScope,
     );
 
-    assertActorOwnsSeriesRows(
+    const affectedRows =
       normalizedScope === "ALL"
         ? seriesRows
-        : [seriesContext.master, ...seriesContext.futureRows],
-      actorId,
+        : [seriesContext.master, ...seriesContext.futureRows];
+
+    assertActorOwnsSeriesRows(affectedRows, actorId);
+
+    // Re-ask against every row this scope will write, not just the one named in
+    // the URL, and audit on that answer.
+    const seriesFlags = resolveSeriesReassignmentFlags(
+      affectedRows,
+      updates,
+      isCreator,
     );
+    const isReassigningSeries =
+      seriesFlags.isReassigningUser || seriesFlags.isReassigningGroup;
 
     const updatedRows = await applySeriesUpdates(seriesContext);
 
     const mapped = toTaskLike(updatedRows[0]);
 
-    if (isReassigning) {
+    if (isReassigningSeries) {
       await recordTaskReassignedAudit(task, mapped, actorId);
     }
 
