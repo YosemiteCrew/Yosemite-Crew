@@ -109,6 +109,10 @@ export const useSocialAuth = ({
         if (isAccountExists) {
           throw new Error(message || DEFAULT_ACCOUNT_EXISTS_MESSAGE);
         }
+        // The user-facing copy stays generic, but discarding the underlying
+        // error made social sign-in failures undiagnosable: the Apple `aud`
+        // mismatch surfaced only as "something went wrong", with nothing in
+        // the logs naming the real cause.
         console.error('[useSocialAuth] Social sign-in failed', rawError);
         capturePostHogEvent('social_sign_in_failed', {
           provider,

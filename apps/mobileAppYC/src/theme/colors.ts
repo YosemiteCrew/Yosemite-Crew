@@ -50,6 +50,12 @@ const palette = {
   fieldBg: ['#FAFAFA', '#241F18'],
   hairline: ['#E5DCCF', '#40362B'],
   hairlineHover: ['#D6D1CD', '#4A4033'],
+  // Border on a selected segment. The hairline is too faint to mark selection
+  // on its own (1.06:1 light, 1.23:1 dark against the track), and the card
+  // shadow that used to carry it contributes nothing on a dark ground. Tuned
+  // to clear the 3:1 WCAG 1.4.11 bar for a UI component boundary in both
+  // themes without reading as a heavy outline.
+  segmentSelectedBorder: ['#837D76', '#88725B'],
   divider: ['#D6D1CD', '#3A3128'],
 
   // --- Ink (text) ---

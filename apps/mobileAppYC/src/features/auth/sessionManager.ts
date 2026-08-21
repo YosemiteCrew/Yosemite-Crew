@@ -9,6 +9,7 @@ import {
 } from '@/config/variables';
 import {
   clearStoredTokens,
+  loadSecureStorageTokensOnly,
   loadStoredTokens,
   storeTokens,
   type StoredAuthTokens,
@@ -137,6 +138,13 @@ export const persistSessionData = async (
 
   try {
     await storeTokens({...normalizedTokens, email: user.email});
+    // A Keychain that accepts the write but cannot read it back leaves the app
+    // with no usable token at all, so only drop the fallback copy once the
+    // record has actually been read back.
+    const readBack = await loadSecureStorageTokensOnly();
+    if (!readBack?.accessToken) {
+      throw new Error('Secure storage accepted the write but returned nothing');
+    }
     await AsyncStorage.removeItem(LEGACY_AUTH_TOKEN_KEY);
   } catch (error) {
     console.error('Failed to persist auth tokens securely', error);

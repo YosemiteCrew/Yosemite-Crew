@@ -82,7 +82,7 @@ describe('MyAppointmentsEmptyScreen', () => {
     jest.spyOn(Redux, 'useDispatch').mockReturnValue(mockDispatch as any);
   });
 
-  it('renders the empty state without a companion selector or add button when there are no companions', () => {
+  it('points at the companion prerequisite when there are no companions', () => {
     jest
       .spyOn(Redux, 'useSelector')
       .mockImplementation((selectorFn: any) =>
@@ -91,12 +91,12 @@ describe('MyAppointmentsEmptyScreen', () => {
 
     const {getByText, queryByTestId} = render(<MyAppointmentsEmptyScreen />);
 
-    expect(getByText('No visits booked yet')).toBeTruthy();
+    expect(getByText('Add a companion to get started')).toBeTruthy();
     expect(queryByTestId('companion-selector')).toBeNull();
     expect(queryByTestId('header-add-btn')).toBeNull();
   });
 
-  it('shows the empty description and hides the CTA when there are no companions', () => {
+  it('offers a way forward rather than a dead end when there are no companions', () => {
     jest
       .spyOn(Redux, 'useSelector')
       .mockImplementation((selectorFn: any) =>
@@ -107,10 +107,12 @@ describe('MyAppointmentsEmptyScreen', () => {
 
     expect(
       getByText(
-        'Your upcoming veterinary visits will appear here once scheduled.',
+        'Visits are booked for a companion. Add one first to start booking.',
       ),
     ).toBeTruthy();
+    // Booking needs a companion, so the CTA points there instead of vanishing.
     expect(queryByText('Book an appointment')).toBeNull();
+    expect(getByText('Add a companion')).toBeTruthy();
   });
 
   it('renders the companion selector and add button when companions exist', () => {

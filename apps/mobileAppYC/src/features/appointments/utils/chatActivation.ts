@@ -6,9 +6,13 @@
  */
 
 import {Alert} from 'react-native';
-import {isChatActive, getTimeUntilChatActivation, formatAppointmentTime} from '@/shared/services/chatTiming';
+import i18next from 'i18next';
+import {
+  isChatActive,
+  getTimeUntilChatActivation,
+  formatAppointmentTime,
+} from '@/shared/services/chatTiming';
 import {getAppointmentTimeAsIso} from '@/shared/utils/timezoneUtils';
-import {AUTH_FEATURE_FLAGS} from '@/config/variables';
 
 export interface ChatActivationConfig {
   appointment: any;
@@ -20,6 +24,15 @@ export interface ChatActivationConfig {
 }
 
 /**
+ * Minutes before the appointment that chat opens.
+ *
+ * Must match PRE_WINDOW_MINUTES in apps/backend/src/services/chat.service.ts.
+ * The client used to allow 5 minutes while the backend allowed 24 hours, so
+ * the app locked users out of a chat the server was happy to serve.
+ */
+export const CHAT_ACTIVATION_MINUTES = 60 * 24;
+
+/**
  * Handle chat activation logic with proper time validation
  * Shows alerts if chat is locked or unavailable
  *
@@ -28,54 +41,38 @@ export interface ChatActivationConfig {
 export const handleChatActivation = (config: ChatActivationConfig): void => {
   const {appointment, onOpenChat} = config;
 
-  // Allow bypass in review builds
-  if (AUTH_FEATURE_FLAGS.enableReviewLogin) {
-    console.log('[Chat] Review mode enabled; skipping chat time constraint');
-    onOpenChat();
-    return;
-  }
-
   // Convert UTC date/time to ISO format with Z suffix
   const appointmentDateTime = getAppointmentTimeAsIso(
     appointment.date,
     appointment.time,
   );
-  const activationMinutes = 5;
-  const chatIsActive = isChatActive(appointmentDateTime, activationMinutes);
+  const chatIsActive = isChatActive(
+    appointmentDateTime,
+    CHAT_ACTIVATION_MINUTES,
+  );
 
   if (!chatIsActive) {
-    const timeRemaining = getTimeUntilChatActivation(appointmentDateTime, activationMinutes);
+    const timeRemaining = getTimeUntilChatActivation(
+      appointmentDateTime,
+      CHAT_ACTIVATION_MINUTES,
+    );
 
     if (timeRemaining) {
-      const formattedTime = formatAppointmentTime(appointmentDateTime);
-
       Alert.alert(
-        'Chat Locked 🔒',
-        `Chat will be available ${activationMinutes} minutes before your appointment.\n\n` +
-          `Appointment: ${formattedTime}\n` +
-          `Unlocks in: ${timeRemaining.minutes}m ${timeRemaining.seconds}s\n\n` +
-          `(This restriction comes from your clinic's settings)`,
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
-          {
-            text: 'Mock Chat (Testing)',
-            style: 'default',
-            onPress: () => {
-              console.log('[MOCK] Bypassing chat time restriction for testing');
-              onOpenChat();
-            },
-          },
-        ],
+        i18next.t('appointments.chatLockedTitle'),
+        i18next.t('appointments.chatLockedBody', {
+          appointmentTime: formatAppointmentTime(appointmentDateTime),
+          hours: timeRemaining.hours ?? 0,
+          minutes: timeRemaining.minutes,
+        }),
+        [{text: i18next.t('common.ok')}],
         {cancelable: true},
       );
     } else {
       Alert.alert(
-        'Chat Unavailable',
-        'This appointment has ended and chat is no longer available.',
-        [{text: 'OK'}],
+        i18next.t('appointments.chatUnavailableTitle'),
+        i18next.t('appointments.chatUnavailableBody'),
+        [{text: i18next.t('common.ok')}],
       );
     }
     return;

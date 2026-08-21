@@ -35,10 +35,26 @@ jest.mock('@/hooks', () => ({
 
 const TASKS_TRANSLATIONS: Record<string, string> = {
   'tasks.addTaskAccessibilityLabel': 'Add task',
+  'tasks.emptyCategoryTitle': 'No {{category}} tasks yet',
+  'tasks.emptyCategoryDescription':
+    'Add one to keep this part of their care on track.',
+  'tasks.emptyNoCompanionTitle': 'Add a companion to get started',
+  'tasks.emptyNoCompanionDescription':
+    'Tasks are tied to a companion. Add one first to start creating tasks.',
+  'tasks.addTask': 'Add task',
+  'tasks.addCompanion': 'Add a companion',
 };
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => TASKS_TRANSLATIONS[key] ?? key,
+    t: (key: string, vars?: Record<string, unknown>) => {
+      const template = TASKS_TRANSLATIONS[key] ?? key;
+      return vars
+        ? Object.entries(vars).reduce(
+            (acc, [name, value]) => acc.replace(`{{${name}}}`, String(value)),
+            template,
+          )
+        : template;
+    },
   }),
 }));
 
@@ -356,6 +372,22 @@ describe('TasksListScreen', () => {
 
     const {getByText} = render(<TasksListScreen />);
     expect(getByText('No health tasks yet')).toBeTruthy();
+    // The screen used to describe the absence and offer nothing to do about it.
+    expect(getByText('Add task')).toBeTruthy();
+  });
+
+  it('points at the companion prerequisite when there are no companions', () => {
+    mockUseSelector.mockImplementation((cb: any) =>
+      cb({
+        ...mockState,
+        mockTasks: [],
+        companion: {companions: [], selectedCompanionId: null},
+      }),
+    );
+
+    const {getByText} = render(<TasksListScreen />);
+    expect(getByText('Add a companion to get started')).toBeTruthy();
+    expect(getByText('Add a companion')).toBeTruthy();
   });
 
   it('handles navigation back', () => {

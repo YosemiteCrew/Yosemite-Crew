@@ -83,7 +83,7 @@ describe('EmergencyBottomSheet', () => {
   // 1. Rendering States
   // ===========================================================================
 
-  it('renders empty state when no linked hospitals exist', () => {
+  it('still offers adverse event reporting when no hospital is linked', () => {
     mockSelectLinkedHospitalsForCompanion.mockReturnValue([]);
 
     const ref = React.createRef<EmergencyBottomSheetRef>();
@@ -95,10 +95,16 @@ describe('EmergencyBottomSheet', () => {
       ref.current?.open();
     });
 
+    // Adverse event reporting needs no hospital, so hiding it alongside
+    // 'call vet' left the Emergency button with nothing to offer at all.
+    expect(getByText('Is this an emergency?')).toBeTruthy();
+    expect(getByText(/Adverse event/)).toBeTruthy();
+    expect(queryByText('Call vet/ Practice')).toBeNull();
     expect(
-      getByText('Please link a hospital to use this feature.'),
+      getByText(
+        'Link a hospital to your companion to call your vet straight from here.',
+      ),
     ).toBeTruthy();
-    expect(queryByText('Is this an emergency?')).toBeNull();
   });
 
   it('renders options when linked hospitals exist', () => {
