@@ -31,6 +31,7 @@ const prismaMock = {
     upsert: jest.fn(),
     update: jest.fn(),
     deleteMany: jest.fn(),
+    findFirst: jest.fn(),
   },
   aPFollowing: {
     updateMany: jest.fn(),
@@ -639,7 +640,36 @@ describe("handleUndo", () => {
 });
 
 describe("handleOffer", () => {
-  beforeEach(resetAll);
+  beforeEach(() => {
+    resetAll();
+    // Inbound referrals now require a licensed sender with an approved follow
+    // link, so the happy-path tests have to satisfy both gates.
+    isLicenseTokenValid.mockResolvedValue(true);
+    prismaMock.aPFollower.findFirst.mockResolvedValue({ id: "link-1" });
+  });
+
+  it("rejects a referral from an unlicensed sender", async () => {
+    isLicenseTokenValid.mockResolvedValue(false);
+    await dispatch({
+      id: "urn:o:unlicensed",
+      type: "Offer",
+      actor: "https://remote.example/actor",
+      object: { type: "yc:VetReferral", "yc:patientSummary": { name: "Rex" } },
+    });
+    expect(prismaMock.aPReferral.upsert).not.toHaveBeenCalled();
+  });
+
+  it("rejects a referral from a sender with no approved follow link", async () => {
+    // A valid signature proves who sent it, not that they may send it.
+    prismaMock.aPFollower.findFirst.mockResolvedValue(null);
+    await dispatch({
+      id: "urn:o:nolink",
+      type: "Offer",
+      actor: "https://remote.example/actor",
+      object: { type: "yc:VetReferral", "yc:patientSummary": { name: "Rex" } },
+    });
+    expect(prismaMock.aPReferral.upsert).not.toHaveBeenCalled();
+  });
 
   it("creates a referral for a yc:VetReferral offer", async () => {
     await dispatch({

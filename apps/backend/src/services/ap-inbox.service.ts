@@ -392,6 +392,42 @@ async function handleOffer(targetOrgId: string, activity: AnyActivity) {
 
 async function handleReferralOffer(targetOrgId: string, activity: AnyActivity) {
   const localActor = await getOrCreateActor(targetOrgId);
+
+  // A valid HTTP signature proves who sent this, not that they are allowed to.
+  // sendReferral gates outbound referrals on an accepted follow link, but that
+  // only binds cooperative local senders: without these two checks any signed
+  // remote actor, including one whose licence was revoked or who was never
+  // followed, could post a handcrafted Offer straight to a clinic inbox and
+  // create an inbound referral carrying clinical data.
+  const remote = await fetchRemoteActor(activity.actor);
+  const licensed = await isLicenseTokenValid(
+    remote.licenseToken,
+    activity.actor,
+  );
+  if (!licensed) {
+    logger.warn("[AP inbox] rejected referral from unlicensed instance", {
+      remoteActorUri: activity.actor,
+    });
+    return;
+  }
+
+  // Mirror of the outbound consent gate: they must be an approved follower of
+  // this clinic before clinical data is accepted from them.
+  const link = await prisma.aPFollower.findFirst({
+    where: {
+      localActorId: localActor.id,
+      remoteActorUri: activity.actor,
+      state: APFollowerState.APPROVED,
+    },
+    select: { id: true },
+  });
+  if (!link) {
+    logger.warn("[AP inbox] rejected referral with no approved follow link", {
+      remoteActorUri: activity.actor,
+    });
+    return;
+  }
+
   const obj = activity.object as {
     "yc:urgency"?: string;
     "yc:patientSummary"?: unknown;

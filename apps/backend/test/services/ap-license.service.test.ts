@@ -262,4 +262,45 @@ describe("ap-license.service", () => {
       );
     });
   });
+
+  describe("actor identity binding", () => {
+    // Actor documents publish their licence token, and several clinics can
+    // share one instance domain, so a domain-only check let a neighbour on the
+    // same host present a copied token and pass as its owner.
+    it("rejects a token issued to a different org on the same domain", async () => {
+      await expect(
+        verifyLicenseToken(
+          makeToken({ orgId: "org-victim" }),
+          "https://clinic.example.com/ap/organizations/org-attacker",
+        ),
+      ).rejects.toThrow(/orgId mismatch/);
+    });
+
+    it("accepts the token for the actor it was issued to", async () => {
+      const claims = await verifyLicenseToken(
+        makeToken({ orgId: "org-1" }),
+        "https://clinic.example.com/ap/organizations/org-1",
+      );
+      expect(claims.orgId).toBe("org-1");
+    });
+
+    it("still accepts a bare instance base URL, which names no organisation", async () => {
+      // Local self-verification passes apBaseUrl(), which has nothing to bind
+      // to; the domain comparison is the whole check there.
+      const claims = await verifyLicenseToken(
+        makeToken(),
+        "https://clinic.example.com",
+      );
+      expect(claims.orgId).toBe("org-1");
+    });
+
+    it("isLicenseTokenValid reports false for a mismatched actor", async () => {
+      await expect(
+        isLicenseTokenValid(
+          makeToken({ orgId: "org-victim" }),
+          "https://clinic.example.com/ap/organizations/org-attacker",
+        ),
+      ).resolves.toBe(false);
+    });
+  });
 });

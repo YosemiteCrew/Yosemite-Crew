@@ -3,6 +3,12 @@ import logger from "src/utils/logger";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
+// Revocations are deliberately NOT cached for the signing-key TTL. A signing key
+// changes only on rotation, but a revoked licence must stop working promptly:
+// at 24 hours a revoked instance could keep opening follows and running agent
+// tasks for a full day after the authority pulled it.
+const REVOCATION_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 interface JWK {
   kty: string;
   kid: string;
@@ -59,7 +65,10 @@ async function getJwks(): Promise<JWK[]> {
 }
 
 async function getRevokedJtis(): Promise<string[]> {
-  if (revokedCache && Date.now() - revokedCache.fetchedAt < CACHE_TTL_MS) {
+  if (
+    revokedCache &&
+    Date.now() - revokedCache.fetchedAt < REVOCATION_CACHE_TTL_MS
+  ) {
     return revokedCache.value;
   }
   const data = await fetchJson<{ revokedJtis: string[] }>(
@@ -80,6 +89,40 @@ function jwkToPublicKey(jwk: JWK): crypto.KeyObject {
   // old double assertion resolved to `error` and merely silenced the checker.
   // createPublicKey accepts this shape directly.
   return crypto.createPublicKey({ key: jwk, format: "jwk" });
+}
+
+/**
+ * Binds a licence to the actor presenting it, not merely to its domain.
+ *
+ * Actor documents publish their licence token, and several clinics can share
+ * one instance domain. Checking `instanceDomain` alone therefore let an
+ * unverified actor on a multi-tenant host copy a neighbour's token, sign with
+ * its own key, and pass the Follow and AgentTask gates as that neighbour.
+ *
+ * Only enforced when the caller passes a full actor URI. Local self-checks pass
+ * the bare instance base URL, which carries no organisation to bind to, and for
+ * those the domain comparison is the whole check.
+ */
+function assertActorIdentityBinding(claims: LicenseClaims, expected: string) {
+  let pathname: string;
+  try {
+    pathname = new URL(
+      expected.includes("://") ? expected : `https://${expected}`,
+    ).pathname;
+  } catch {
+    return;
+  }
+
+  const parts = pathname.split("/").filter(Boolean);
+  const idx = parts.indexOf("organizations");
+  if (idx === -1 || idx + 1 >= parts.length) return;
+
+  const actorOrgId = parts[idx + 1];
+  if (actorOrgId !== claims.orgId) {
+    throw new Error(
+      `License token orgId mismatch: token=${claims.orgId} actor=${actorOrgId}`,
+    );
+  }
 }
 
 export async function verifyLicenseToken(
@@ -136,6 +179,8 @@ export async function verifyLicenseToken(
       `Domain mismatch: token=${tokenDomain} actor=${actorDomain}`,
     );
   }
+
+  assertActorIdentityBinding(claims, expectedDomain);
 
   const revoked = await getRevokedJtis();
   if (revoked.includes(claims.jti))

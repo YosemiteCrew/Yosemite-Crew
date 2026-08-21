@@ -314,3 +314,34 @@ describe("ap-url-guard internal guards", () => {
     });
   });
 });
+
+describe("non-global IPv4 ranges beyond RFC 1918", () => {
+  const { isBlockedIpv4 } = __testables;
+
+  // These are not private in the RFC 1918 sense but are equally non-global, and
+  // several route internally in real deployments.
+  it.each([
+    ["100.64.0.1", "carrier-grade NAT lower bound"],
+    ["100.127.255.254", "carrier-grade NAT upper bound"],
+    ["192.0.0.1", "IETF protocol assignments"],
+    ["192.0.2.5", "TEST-NET-1"],
+    ["198.18.0.1", "benchmarking lower half"],
+    ["198.19.255.254", "benchmarking upper half"],
+    ["198.51.100.7", "TEST-NET-2"],
+    ["203.0.113.7", "TEST-NET-3"],
+  ])("blocks %s (%s)", (ip) => {
+    expect(isBlockedIpv4(ip)).toBe(true);
+  });
+
+  it.each([
+    ["100.63.255.255", "just below carrier-grade NAT"],
+    ["100.128.0.0", "just above carrier-grade NAT"],
+    ["192.0.1.1", "between the two 192.0.x blocks"],
+    ["198.17.255.255", "just below benchmarking"],
+    ["198.20.0.0", "just above benchmarking"],
+    ["203.0.114.1", "just above TEST-NET-3"],
+    ["93.184.216.34", "an ordinary public address"],
+  ])("still allows %s (%s)", (ip) => {
+    expect(isBlockedIpv4(ip)).toBe(false);
+  });
+});
