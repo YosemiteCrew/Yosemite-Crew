@@ -24,6 +24,7 @@ const svc = {
   respondToReferral: jest.fn(),
   updateActorProfile: jest.fn(),
   getActorSettingsData: jest.fn(),
+  listFollowerOrgIdsFor: jest.fn(),
   setDirectoryListing: jest.fn(),
   listDirectory: jest.fn(),
 };
@@ -351,6 +352,55 @@ describe("ActivityPubController.postSharedInbox", () => {
       (c) => (c[1] as { targetOrgId: string }).targetOrgId,
     );
     expect(targets).toEqual(expect.arrayContaining(["org-a", "org-b"]));
+  });
+
+  it("resolves recipients from the follow graph for a public broadcast", async () => {
+    // Emergency announcements are addressed to Public with the SENDER's
+    // followers collection in cc, so nothing in the addressing names a local
+    // organisation. Before this the shared inbox queued nothing and returned
+    // 202, and approved followers on a shared inbox never got the broadcast.
+    inboxAdd.mockResolvedValue({ id: "j" });
+    svc.listFollowerOrgIdsFor.mockResolvedValue(["org-follower"]);
+    const res = makeRes();
+    const body = JSON.stringify({
+      actor: "https://remote.example/ap/organizations/org-sender",
+      type: "Announce",
+      to: ["https://www.w3.org/ns/activitystreams#Public"],
+      cc: ["https://remote.example/ap/organizations/org-sender/followers"],
+    });
+
+    await ActivityPubController.postSharedInbox(
+      makeReq({ method: "POST", body, originalUrl: "/ap/shared-inbox" }),
+      res,
+    );
+
+    expect(svc.listFollowerOrgIdsFor).toHaveBeenCalledWith(
+      "https://remote.example/ap/organizations/org-sender",
+    );
+    expect(inboxAdd).toHaveBeenCalledTimes(1);
+    expect(
+      (inboxAdd.mock.calls[0][1] as { targetOrgId: string }).targetOrgId,
+    ).toBe("org-follower");
+  });
+
+  it("prefers explicit addressing over the follow graph", async () => {
+    inboxAdd.mockResolvedValue({ id: "j" });
+    svc.listFollowerOrgIdsFor.mockResolvedValue(["org-follower"]);
+    const res = makeRes();
+    const body = JSON.stringify({
+      actor: "https://remote.example/ap/organizations/org-sender",
+      to: ["https://local.example/ap/organizations/org-addressed"],
+    });
+
+    await ActivityPubController.postSharedInbox(
+      makeReq({ method: "POST", body, originalUrl: "/ap/shared-inbox" }),
+      res,
+    );
+
+    expect(svc.listFollowerOrgIdsFor).not.toHaveBeenCalled();
+    expect(
+      (inboxAdd.mock.calls[0][1] as { targetOrgId: string }).targetOrgId,
+    ).toBe("org-addressed");
   });
 
   it("collects array-valued and empty-array headers (first element / fallback)", async () => {
@@ -902,16 +952,65 @@ describe("list handlers", () => {
 describe("ActivityPubController.sendReferral", () => {
   const patientSummary = { species: "dog", chiefComplaint: "limp" };
 
-  it("400 when toActorUri or patientSummary missing", async () => {
+  it("400 when the payload fails validation", async () => {
     const res = makeRes();
     await ActivityPubController.sendReferral(
       withOrg({ body: { toActorUri: "x" } }),
       res,
     );
     expect(res.statusCode).toBe(400);
-    expect(res.body).toEqual({
-      error: "toActorUri and patientSummary required",
-    });
+    expect((res.body as { error: string }).error).toBe(
+      "Invalid referral payload",
+    );
+    expect(svc.sendReferral).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      "a non-string patientSummary",
+      { toActorUri: "https://r.example/a", patientSummary: "dog" },
+    ],
+    [
+      "an unknown urgency",
+      {
+        toActorUri: "https://r.example/a",
+        patientSummary: { species: "dog", chiefComplaint: "limp" },
+        urgency: "WHENEVER",
+      },
+    ],
+    [
+      "non-string medication entries",
+      {
+        toActorUri: "https://r.example/a",
+        patientSummary: {
+          species: "dog",
+          chiefComplaint: "limp",
+          currentMedications: [{ name: "x" }],
+        },
+      },
+    ],
+    [
+      "a toActorUri that is not a URL",
+      {
+        toActorUri: "not-a-url",
+        patientSummary: { species: "dog", chiefComplaint: "limp" },
+      },
+    ],
+    [
+      "oversized clinical context",
+      {
+        toActorUri: "https://r.example/a",
+        patientSummary: { species: "dog", chiefComplaint: "limp" },
+        clinicalContext: "x".repeat(5001),
+      },
+    ],
+  ])("400 for %s, without reaching the service", async (_label, body) => {
+    // These used to be cast straight through to Prisma and the payload
+    // builder, producing 500s or malformed clinical messages on the wire.
+    const res = makeRes();
+    await ActivityPubController.sendReferral(withOrg({ body }), res);
+    expect(res.statusCode).toBe(400);
+    expect(svc.sendReferral).not.toHaveBeenCalled();
   });
 
   it("202 with default urgency ROUTINE", async () => {

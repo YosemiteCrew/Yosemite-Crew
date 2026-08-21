@@ -8,7 +8,8 @@ const getOrgCapabilities = jest.fn();
 const isLicenseTokenValid = jest.fn();
 
 jest.mock("src/services/activitypub.service", () => ({
-  fetchRemoteActor: (uri: string) => fetchRemoteActor(uri),
+  fetchRemoteActor: (uri: string, opts?: { forceRefresh?: boolean }) =>
+    fetchRemoteActor(uri, opts),
   getActorByOrgId: (orgId: string) => getActorByOrgId(orgId),
   getOrCreateActor: (orgId: string) => getOrCreateActor(orgId),
   getOrgCapabilities: (orgId: string) => getOrgCapabilities(orgId),
@@ -124,7 +125,65 @@ describe("verifyInboundRequest", () => {
       uri: ACTOR_URI,
       publicKeyPem: keys.publicKey,
       publicKeyId: KEY_ID,
+      // Old enough that the stale-key refresh is allowed.
+      fetchedAt: new Date(Date.now() - 60 * 60 * 1000),
     });
+  });
+
+  it("refreshes a stale cached key once when verification fails", async () => {
+    // A remote that rotates its signing key would otherwise have every signed
+    // request rejected until the 24h cache expired.
+    const rotated = makeKeys();
+    fetchRemoteActor.mockReset();
+    fetchRemoteActor
+      .mockResolvedValueOnce({
+        uri: ACTOR_URI,
+        publicKeyPem: keys.publicKey,
+        publicKeyId: KEY_ID,
+        fetchedAt: new Date(Date.now() - 60 * 60 * 1000),
+      })
+      .mockResolvedValueOnce({
+        uri: ACTOR_URI,
+        publicKeyPem: rotated.publicKey,
+        publicKeyId: KEY_ID,
+        fetchedAt: new Date(),
+      });
+
+    const result = await verifyInboundRequest({
+      method: "POST",
+      url: URL,
+      headers: signedHeaders(rotated.privateKey),
+      body: BODY,
+    });
+
+    expect(result).toEqual({ ok: true, signerUri: ACTOR_URI });
+    expect(fetchRemoteActor).toHaveBeenCalledTimes(2);
+    expect(fetchRemoteActor).toHaveBeenLastCalledWith(expect.any(String), {
+      forceRefresh: true,
+    });
+  });
+
+  it("does not refetch when the cached actor was just fetched", async () => {
+    // Otherwise a flood of forged signatures would make this instance hammer
+    // the remote host.
+    const other = makeKeys();
+    fetchRemoteActor.mockReset();
+    fetchRemoteActor.mockResolvedValue({
+      uri: ACTOR_URI,
+      publicKeyPem: keys.publicKey,
+      publicKeyId: KEY_ID,
+      fetchedAt: new Date(),
+    });
+
+    const result = await verifyInboundRequest({
+      method: "POST",
+      url: URL,
+      headers: signedHeaders(other.privateKey),
+      body: BODY,
+    });
+
+    expect(result).toEqual({ ok: false });
+    expect(fetchRemoteActor).toHaveBeenCalledTimes(1);
   });
 
   it("returns { ok: true, signerUri } on a valid signed request", async () => {

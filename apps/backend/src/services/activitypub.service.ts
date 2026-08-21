@@ -56,7 +56,17 @@ export async function getOrCreateActor(orgId: string): Promise<APActor> {
   });
   const { publicKeyPem, privateKeyPem } = generateRsaKeyPair();
   const encryptedPrivate = encryptPrivateKey(privateKeyPem);
-  const username = org.name.toLowerCase().replace(/[^a-z0-9]/g, "_");
+  // preferredUsername is globally unique, but organisation names are not.
+  // Deriving it from the name alone meant two clinics called "Happy Paws",
+  // names differing only in punctuation, or any name with no Latin characters
+  // (which normalises to nothing) collided, and actor creation for the second
+  // clinic failed on the unique constraint. A stable slice of the organisation
+  // id disambiguates, and "clinic" covers an empty normalisation.
+  const base = org.name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  const username = `${base || "clinic"}_${orgId.replaceAll("-", "").slice(0, 8)}`;
   const uri = actorUri(orgId);
 
   return prisma.aPActor.create({
@@ -129,8 +139,18 @@ export async function resolveWebFinger(resource: string) {
 
 // ─── Remote actor fetching ────────────────────────────────────────────────────
 
-export async function fetchRemoteActor(uri: string) {
-  const cached = await prisma.aPRemoteActor.findUnique({ where: { uri } });
+/**
+ * `forceRefresh` bypasses the 24h cache. Needed because a remote instance that
+ * rotates its ActivityPub signing key would otherwise have every signed request
+ * rejected until the cached copy expired - see the retry in verifyInboundRequest.
+ */
+export async function fetchRemoteActor(
+  uri: string,
+  opts?: { forceRefresh?: boolean },
+) {
+  const cached = opts?.forceRefresh
+    ? null
+    : await prisma.aPRemoteActor.findUnique({ where: { uri } });
   const staleAfterMs = 24 * 60 * 60 * 1000;
   if (cached && Date.now() - cached.fetchedAt.getTime() < staleAfterMs) {
     return cached;
@@ -262,6 +282,31 @@ const OUTBOX_PAGE_SIZE = 20;
 // Read a wider window than we serve: filtering after a `take: 20` would let a
 // burst of directed activities push every public one out of the page.
 const OUTBOX_SCAN_LIMIT = 200;
+
+/**
+ * Local organisations that follow `remoteActorUri` with an accepted link.
+ *
+ * The shared inbox cannot resolve recipients from addressing alone. A broadcast
+ * is addressed `to: Public` with the SENDER's followers collection in `cc`, so
+ * neither field names a local organisation - the shared inbox found nothing to
+ * queue and silently answered 202, and approved followers on a shared inbox
+ * never received emergency announcements. The follow graph is the answer.
+ */
+export async function listFollowerOrgIdsFor(
+  remoteActorUri: string,
+): Promise<string[]> {
+  const rows = await prisma.aPFollowing.findMany({
+    where: {
+      remoteActorUri,
+      state: APFollowingState.ACCEPTED,
+    },
+    select: { localActor: { select: { organisationId: true } } },
+  });
+
+  return rows
+    .map((row) => row.localActor?.organisationId)
+    .filter((id): id is string => Boolean(id));
+}
 
 export async function getOutboxCollection(orgId: string) {
   const actor = await getOrCreateActor(orgId);
@@ -795,15 +840,12 @@ export async function respondToReferral(
   const newState = action === "accept" ? "ACCEPTED" : "DECLINED";
   const now = new Date();
 
-  await prisma.aPReferral.update({
-    where: { id: referralId },
-    data: {
-      state: newState,
-      ...(action === "accept" ? { acceptedAt: now } : { declinedAt: now }),
-    },
-  });
-
-  // Send Accept or Reject activity back to the sender
+  // The state change is deliberately LAST. It used to happen first, so a
+  // failure in the remote actor fetch, the activity insert or the delivery
+  // queue left the referral no longer PENDING while the sender never heard the
+  // decision - and the guard above then refused every retry. Recording the
+  // outbound response durably before flipping the state keeps the operation
+  // retryable: a failure here leaves the referral exactly as it was.
   const remote = await fetchRemoteActor(referral.fromActorUri);
   const id = generateActivityId();
   const referralActivityUri = referral.activityUri;
@@ -849,6 +891,14 @@ export async function respondToReferral(
     actorId: actor.id,
     inboxUri: remote.sharedInboxUri ?? remote.inboxUri,
     activity: responseActivity,
+  });
+
+  await prisma.aPReferral.update({
+    where: { id: referralId },
+    data: {
+      state: newState,
+      ...(action === "accept" ? { acceptedAt: now } : { declinedAt: now }),
+    },
   });
 
   return { id: referralId, state: newState };

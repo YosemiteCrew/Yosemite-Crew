@@ -165,11 +165,60 @@ describe("getOrCreateActor", () => {
     expect(encryptPrivateKey).toHaveBeenCalledWith("PRIV");
     const arg = prisma.aPActor.create.mock.calls[0][0];
     expect(arg.data.organisationId).toBe("org-1");
-    expect(arg.data.preferredUsername).toBe("happy_paws_");
+    // Suffixed with a stable slice of the org id: organisation names are not
+    // unique but preferredUsername is, and the trailing punctuation is trimmed.
+    expect(arg.data.preferredUsername).toBe("happy_paws_org1");
     expect(arg.data.publicKeyPem).toBe("PUB");
     expect(arg.data.privateKeyPem).toBe("ENCRYPTED");
     expect(arg.data.iconUrl).toBe("https://cdn.example/logo.png");
     expect(arg.data.summary).toBe("Happy Paws! — Yosemite Crew");
+  });
+
+  it.each([
+    ["org-a", "happy_paws_orga"],
+    ["org-b", "happy_paws_orgb"],
+  ])(
+    "gives two identically named clinics distinct usernames (%s)",
+    async (orgId, expected) => {
+      prisma.aPActor.findUnique.mockResolvedValue(null);
+      prisma.organization.findUniqueOrThrow.mockResolvedValue({
+        id: orgId,
+        name: "Happy Paws!",
+        imageUrl: null,
+      });
+      generateRsaKeyPair.mockReturnValue({
+        publicKeyPem: "PUB",
+        privateKeyPem: "PRIV",
+      });
+      encryptPrivateKey.mockReturnValue("ENCRYPTED");
+      prisma.aPActor.create.mockResolvedValue(makeActor());
+
+      await svc.getOrCreateActor(orgId);
+
+      const arg = prisma.aPActor.create.mock.calls[0][0];
+      expect(arg.data.preferredUsername).toBe(expected);
+    },
+  );
+
+  it("falls back to a usable username when the name normalises to nothing", async () => {
+    // A name with no Latin characters used to normalise to an empty string.
+    prisma.aPActor.findUnique.mockResolvedValue(null);
+    prisma.organization.findUniqueOrThrow.mockResolvedValue({
+      id: "org-9",
+      name: "\u732b\u306e\u75c5\u9662",
+      imageUrl: null,
+    });
+    generateRsaKeyPair.mockReturnValue({
+      publicKeyPem: "PUB",
+      privateKeyPem: "PRIV",
+    });
+    encryptPrivateKey.mockReturnValue("ENCRYPTED");
+    prisma.aPActor.create.mockResolvedValue(makeActor());
+
+    await svc.getOrCreateActor("org-9");
+
+    const arg = prisma.aPActor.create.mock.calls[0][0];
+    expect(arg.data.preferredUsername).toBe("clinic_org9");
   });
 
   it("creates an actor with undefined icon when org has no imageUrl", async () => {
@@ -1026,6 +1075,30 @@ describe("respondToReferral", () => {
       ...overrides,
     };
   }
+
+  it("leaves the referral PENDING when delivery fails, so it can be retried", async () => {
+    // The state change used to happen first, so a failure here left the
+    // referral no longer PENDING while the sender never heard the decision -
+    // and the "already accepted" guard then refused every retry.
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPReferral.findUniqueOrThrow.mockResolvedValue(makeReferral());
+    prisma.aPRemoteActor.findUnique.mockResolvedValue({
+      uri: "https://remote.example/actor",
+      fetchedAt: new Date(),
+      inboxUri: "https://remote.example/inbox",
+      sharedInboxUri: null,
+      publicKeyPem: "k",
+      publicKeyId: "k#main",
+      preferredUsername: "remote",
+    });
+    queueAdd.mockRejectedValueOnce(new Error("redis down"));
+
+    await expect(
+      svc.respondToReferral("org-1", "ref-1", "accept"),
+    ).rejects.toThrow(/redis down/);
+
+    expect(prisma.aPReferral.update).not.toHaveBeenCalled();
+  });
 
   it("throws when the referral does not belong to this org", async () => {
     prisma.aPActor.findUnique.mockResolvedValue(makeActor());

@@ -78,8 +78,20 @@ export async function verifyInboundRequest(opts: {
 
   const keyOwnerUri = components.keyId.split("#")[0];
 
-  try {
-    const remote = await fetchRemoteActor(keyOwnerUri);
+  // A cached actor key is reused for 24 hours. When a legitimate remote rotates
+  // its signing key, every signed request it sends is rejected until that
+  // expires, so one forced refresh is attempted before giving up.
+  //
+  // Guarded on the record's age so a flood of forged signatures cannot be used
+  // to make this instance hammer a remote host: once refreshed, fetchedAt is
+  // recent and further failures skip the retry.
+  const REFRESH_MIN_AGE_MS = 60 * 1000;
+
+  const attempt = (remote: {
+    publicKeyPem: string;
+    publicKeyId: string;
+    uri: string;
+  }) => {
     const signatureValid = verifySignature({
       publicKeyPem: remote.publicKeyPem,
       method: opts.method,
@@ -88,10 +100,22 @@ export async function verifyInboundRequest(opts: {
       sigComponents: components,
     });
     // The keyId must be the actor's advertised key — no key confusion.
-    if (!signatureValid || remote.publicKeyId !== components.keyId) {
+    return signatureValid && remote.publicKeyId === components.keyId;
+  };
+
+  try {
+    const remote = await fetchRemoteActor(keyOwnerUri);
+    if (attempt(remote)) return { ok: true, signerUri: remote.uri };
+
+    if (Date.now() - remote.fetchedAt.getTime() < REFRESH_MIN_AGE_MS) {
       return { ok: false };
     }
-    return { ok: true, signerUri: remote.uri };
+
+    const refreshed = await fetchRemoteActor(keyOwnerUri, {
+      forceRefresh: true,
+    });
+    if (attempt(refreshed)) return { ok: true, signerUri: refreshed.uri };
+    return { ok: false };
   } catch {
     return { ok: false };
   }

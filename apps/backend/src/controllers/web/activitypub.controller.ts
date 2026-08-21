@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { Request, Response } from "express";
 import logger from "src/utils/logger";
 import { AP_CONTENT_TYPE } from "src/utils/activitypub-builder";
@@ -23,6 +24,7 @@ import {
   respondToReferral,
   updateActorProfile,
   getActorSettingsData,
+  listFollowerOrgIdsFor,
   setDirectoryListing,
   listDirectory,
 } from "src/services/activitypub.service";
@@ -85,6 +87,31 @@ export const WellKnownController = {
 
 // ─── Actor ────────────────────────────────────────────────────────────────────
 
+/**
+ * Referral payloads arrive from the settings panel but are still untrusted
+ * input. They were cast rather than validated, so a string patientSummary, an
+ * unknown urgency, oversized free text or non-string medication entries reached
+ * Prisma and the federation payload builder, producing 500s or malformed
+ * clinical messages on the wire.
+ */
+const ReferralUrgencySchema = z.enum(["ROUTINE", "URGENT", "EMERGENCY"]);
+
+const PatientSummarySchema = z.object({
+  species: z.string().trim().min(1).max(120),
+  breed: z.string().trim().max(120).optional(),
+  age: z.string().trim().max(60).optional(),
+  chiefComplaint: z.string().trim().min(1).max(2000),
+  currentMedications: z.array(z.string().trim().max(200)).max(50).optional(),
+  allergies: z.array(z.string().trim().max(200)).max(50).optional(),
+});
+
+const SendReferralBodySchema = z.object({
+  toActorUri: z.string().url().max(512),
+  patientSummary: PatientSummarySchema,
+  urgency: ReferralUrgencySchema.optional(),
+  clinicalContext: z.string().max(5000).optional(),
+});
+
 export const ActivityPubController = {
   getActor: async (req: Request, res: Response) => {
     try {
@@ -127,15 +154,14 @@ export const ActivityPubController = {
   postSharedInbox: async (req: Request, res: Response) => {
     try {
       const rawBody = extractRawBody(req);
-      let parsed: {
+      type SharedInboxBody = {
+        actor?: string;
         object?: { to?: string | string[] };
         to?: string | string[];
       };
+      let parsed: SharedInboxBody;
       try {
-        parsed = JSON.parse(rawBody) as {
-          object?: { to?: string | string[] };
-          to?: string | string[];
-        };
+        parsed = JSON.parse(rawBody) as SharedInboxBody;
       } catch {
         return res.status(400).json({ error: "Invalid JSON body" });
       }
@@ -148,13 +174,24 @@ export const ActivityPubController = {
       ].filter((v): v is string => Boolean(v));
 
       const headers = collectHeaders(req);
-      const orgIds = toAddresses
+      const addressedOrgIds = toAddresses
         .map((uri) =>
           uri.includes("/ap/organizations/")
             ? uri.split("/ap/organizations/")[1]
             : null,
         )
         .filter((v): v is string => Boolean(v));
+
+      // A broadcast is addressed `to: Public` with the sender's followers
+      // collection in `cc`, so nothing in the addressing names a local
+      // organisation. Without this fallback the shared inbox queued nothing and
+      // answered 202, and approved followers delivered to via a shared inbox
+      // never saw emergency announcements.
+      const orgIds = addressedOrgIds.length
+        ? addressedOrgIds
+        : parsed.actor
+          ? await listFollowerOrgIdsFor(parsed.actor)
+          : [];
 
       const actors = await Promise.allSettled(
         orgIds.map((orgId) =>
@@ -346,25 +383,14 @@ export const ActivityPubController = {
     try {
       const orgId = requireOrgId(req, res);
       if (!orgId) return;
-      const body = req.body as {
-        toActorUri: string;
-        patientSummary: {
-          species: string;
-          breed?: string;
-          age?: string;
-          chiefComplaint: string;
-          currentMedications?: string[];
-          allergies?: string[];
-        };
-        urgency?: "ROUTINE" | "URGENT" | "EMERGENCY";
-        clinicalContext?: string;
-      };
-
-      if (!body.toActorUri || !body.patientSummary) {
-        return res
-          .status(400)
-          .json({ error: "toActorUri and patientSummary required" });
+      const parsed = SendReferralBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: "Invalid referral payload",
+          details: parsed.error.flatten().fieldErrors,
+        });
       }
+      const body = parsed.data;
 
       const activity = await sendReferral({
         fromOrgId: orgId,
