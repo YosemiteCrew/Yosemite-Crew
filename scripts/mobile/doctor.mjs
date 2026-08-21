@@ -13,7 +13,7 @@
  */
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 // Resolved from the script path rather than cwd, so these run correctly
 // whether invoked from the repo root or the mobile workspace.
@@ -184,8 +184,10 @@ const PLIST_PATHS = {
 };
 
 const uiAppFonts = (which) => {
-  const plistPath = join(root, PLIST_PATHS[which]);
-  if (!existsSync(plistPath)) return null;
+  // resolve() over join(): the key indexes a fixed table, and normalising here
+  // means the path cannot climb out of the workspace even if that table grows.
+  const plistPath = resolve(root, PLIST_PATHS[which]);
+  if (!existsSync(plistPath) || !plistPath.startsWith(resolve(root))) return null;
   try {
     const xml = readFileSync(plistPath, 'utf8');
     const block = /<key>UIAppFonts<\/key>\s*<array>([\s\S]*?)<\/array>/.exec(xml);

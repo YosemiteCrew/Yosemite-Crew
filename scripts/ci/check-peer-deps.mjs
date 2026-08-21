@@ -18,7 +18,7 @@
  * Exits non-zero if any peer range is unsatisfied.
  */
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
@@ -92,7 +92,8 @@ const unparseable = [];
 /** Resolves an installed package's manifest from a given directory, or null. */
 const resolveManifest = (name, fromDir) => {
   try {
-    return readManifest(require.resolve(`${name}/package.json`, { paths: [fromDir] }));
+    // resolve() normalises what Node's resolver returns before it is loaded.
+    return readManifest(resolve(require.resolve(`${name}/package.json`, { paths: [fromDir] })));
   } catch {
     // Not resolvable from here: optional, or a types-only package.
     return null;
