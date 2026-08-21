@@ -121,7 +121,10 @@ describe('security headers', () => {
     expect(directives.get('connect-src')).toContain('https://connect-js.stripe.com');
     expect(directives.get('connect-src')).toContain('https://places.googleapis.com');
     expect(directives.get('connect-src')).toContain('https://raw.githubusercontent.com');
-    expect(directives.get('connect-src')).toContain('https://discord.com');
+    // Deliberately absent: the Discord member count is fetched server-side by
+    // /api/community/discord-members, so the browser never connects to
+    // discord.com and granting the origin was an unused exfiltration channel.
+    expect(directives.get('connect-src')).not.toContain('https://discord.com');
     expect(directives.get('connect-src')).toContain('http:');
     expect(directives.get('connect-src')).toContain('ws:');
     expect(directives.get('media-src')).toContain("'self'");

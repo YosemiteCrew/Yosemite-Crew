@@ -157,7 +157,11 @@ export const buildContentSecurityPolicy = ({
       ...postHogConnectHosts,
       'https://api.github.com',
       'https://raw.githubusercontent.com',
-      'https://discord.com',
+      // No `https://discord.com` here on purpose: the member count is fetched
+      // server-side by /api/community/discord-members, where CSP does not apply,
+      // and the only other Discord references are plain `href` links (governed
+      // by navigation, not connect-src). Granting the whole origin as a
+      // connect-src destination was therefore an unused exfiltration channel.
       isDevelopment ? 'http:' : undefined,
       isDevelopment ? 'ws:' : undefined,
     ]
