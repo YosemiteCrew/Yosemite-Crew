@@ -196,7 +196,10 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
                   <Text style={styles.skipText}>{t('onboarding.skip')}</Text>
                 </PressableOpacity>
               ) : (
-                <View style={styles.glassCircle} />
+                <View
+                  style={styles.topBarSpacer}
+                  testID="onboarding-topbar-spacer"
+                />
               )}
             </View>
           </SafeAreaView>
@@ -239,8 +242,10 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
                 </View>
 
                 <Text style={styles.subtitle}>{item.subtitle}</Text>
+              </View>
 
-                <View style={styles.dots}>
+              <View style={styles.contentBottom}>
+                <View style={styles.dots} testID="onboarding-dots">
                   {SLIDES.map((slide, dotIndex) => (
                     <View
                       key={slide.id}
@@ -253,9 +258,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
                     />
                   ))}
                 </View>
-              </View>
 
-              <View style={styles.contentBottom}>
                 <PressableOpacity
                   style={styles.ctaButton}
                   onPress={() => goNext(index)}
@@ -268,9 +271,15 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
                   <Text style={styles.signInMuted}>
                     {t('onboarding.alreadyHaveAccount')}
                   </Text>
-                  <Text style={styles.signInLink} onPress={onComplete}>
-                    {t('onboarding.signIn')}
-                  </Text>
+                  <PressableOpacity
+                    onPress={onComplete}
+                    hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('onboarding.signIn')}>
+                    <Text style={styles.signInLink}>
+                      {t('onboarding.signIn')}
+                    </Text>
+                  </PressableOpacity>
                 </View>
               </View>
             </ScrollView>
@@ -353,6 +362,7 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
+    topBarSpacer: {width: 40, height: 40},
     chevron: {
       fontSize: 26,
       lineHeight: 28,
@@ -430,7 +440,7 @@ const createStyles = (theme: Theme) =>
     dots: {
       flexDirection: 'row',
       gap: theme.spacing['2'],
-      marginTop: theme.spacing['5'],
+      marginBottom: theme.spacing['5'],
     },
     dot: {height: 7, borderRadius: theme.borderRadius.full},
     dotActive: {width: 22, backgroundColor: theme.colors.blue},
