@@ -176,10 +176,15 @@ checkFile('ios/mobileAppYC/Info.plist', 'ask a maintainer', bad);
 // louder for icon fonts (every glyph becomes a "?" box). The real Info.plist is
 // gitignored and restored from a CI secret, so it drifts from the template
 // without anything noticing. Compare the two.
-const uiAppFonts = (relativePath) => {
-  // Callers pass a fixed, repo-relative path; joining it here rather than
-  // accepting an arbitrary one keeps the read provably inside the workspace.
-  const plistPath = join(root, relativePath);
+// The only two plists this compares, so the reader takes a key rather than a
+// path and no caller can widen it.
+const PLIST_PATHS = {
+  build: 'ios/mobileAppYC/Info.plist',
+  template: 'config-templates/ios/Info.plist.example',
+};
+
+const uiAppFonts = (which) => {
+  const plistPath = join(root, PLIST_PATHS[which]);
   if (!existsSync(plistPath)) return null;
   try {
     const xml = readFileSync(plistPath, 'utf8');
@@ -191,8 +196,8 @@ const uiAppFonts = (relativePath) => {
   }
 };
 
-const declaredFonts = uiAppFonts('ios/mobileAppYC/Info.plist');
-const templateFonts = uiAppFonts('config-templates/ios/Info.plist.example');
+const declaredFonts = uiAppFonts('build');
+const templateFonts = uiAppFonts('template');
 
 if (declaredFonts && templateFonts) {
   const missing = templateFonts.filter((f) => !declaredFonts.includes(f));

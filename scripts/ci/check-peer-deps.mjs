@@ -56,19 +56,22 @@ export const classifyPeer = (installed, range) => {
 };
 
 /**
- * Reads a package manifest. Every caller passes a path built from `repoRoot`
- * or from Node's own module resolution, never from user input.
+ * Loads a package manifest. `require` parses JSON directly and caches it,
+ * which suits a single pass over a dependency tree, and keeps this off the
+ * raw file-read path entirely.
  */
 const readManifest = (manifestPath) => {
   try {
-    return JSON.parse(readFileSync(manifestPath, 'utf8'));
+    return require(manifestPath);
   } catch {
     return null;
   }
 };
 
+const WORKSPACE_MANIFEST = join(repoRoot, 'pnpm-workspace.yaml');
+
 const workspaces = () => {
-  const yaml = readFileSync(join(repoRoot, 'pnpm-workspace.yaml'), 'utf8');
+  const yaml = readFileSync(WORKSPACE_MANIFEST, 'utf8');
   const globs = [...yaml.matchAll(/^\s*-\s*['"]?([^'"\n]+)['"]?\s*$/gm)].map((m) => m[1].trim());
   const dirs = [];
   for (const glob of globs) {
