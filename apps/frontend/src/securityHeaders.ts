@@ -3,6 +3,18 @@ export type SecurityHeader = {
   value: string;
 };
 
+/**
+ * `sha256-` of the theme pre-paint script in `app/ui/theme/prePaintScript.ts`,
+ * as a CSP source expression.
+ *
+ * Declared here rather than imported, because `next.config.ts` loads this module
+ * through plain Node, outside webpack's path-alias resolution - any `@/` import
+ * added here breaks the config load. `__tests__/ui/theme/prePaintScript.test.ts`
+ * recomputes the digest from the actual script and fails if the two drift, so
+ * the duplication cannot rot silently.
+ */
+export const PRE_PAINT_SCRIPT_CSP_HASH = "'sha256-XyPqeG9vavwdIhaDFng+KuhYQvKDNsRmr3Xyy6ISj5E='";
+
 export const DEFAULT_DOCUMENSO_HOST = 'https://ds.yosemitecrew.com';
 
 // Single source of truth for the MSD/Merck manual hosts: isAllowedMerckUrl gates
@@ -87,6 +99,15 @@ export const buildContentSecurityPolicy = ({
       "script-src 'self'",
       nonceSource,
       allowInlineScripts ? "'unsafe-inline'" : undefined,
+      // The theme pre-paint script is inlined by the public layout with no
+      // nonce, because public pages are statically prerendered. On the handful
+      // of public routes that opt into the strict CSP it was blocked outright,
+      // so authorise it by hash there.
+      //
+      // Strict variant ONLY. Per the CSP spec a hash makes the browser ignore
+      // 'unsafe-inline', so adding this to the permissive variant would disable
+      // inline scripts across the static marketing pages and break hydration.
+      allowInlineScripts ? undefined : PRE_PAINT_SCRIPT_CSP_HASH,
       isDevelopment ? "'unsafe-eval'" : undefined,
       'https://js.stripe.com',
       'https://*.js.stripe.com',
