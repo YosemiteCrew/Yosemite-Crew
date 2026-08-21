@@ -4,6 +4,7 @@ import {
   ContactServiceError,
 } from "../../src/services/contact-us.service";
 import { AuthUserMobileService } from "../../src/services/authUserMobile.service";
+import { SuperadminContactService } from "../../src/services/superadmin-contact.service";
 import {
   ATTACHMENT_MIME_TYPES,
   generatePresignedUrl,
@@ -23,6 +24,12 @@ jest.mock("../../src/services/contact-us.service", () => {
     },
   };
 });
+
+jest.mock("../../src/services/superadmin-contact.service", () => ({
+  SuperadminContactService: {
+    forwardWebContact: jest.fn(),
+  },
+}));
 
 jest.mock("../../src/services/authUserMobile.service", () => ({
   AuthUserMobileService: {
@@ -194,6 +201,9 @@ describe("ContactController", () => {
   });
 
   describe("createWeb", () => {
+    const mockedForward =
+      SuperadminContactService.forwardWebContact as jest.Mock;
+
     it("creates a web contact request", async () => {
       mockedContactService.createWebRequest.mockResolvedValueOnce({
         id: "contact-web-1",
@@ -224,6 +234,49 @@ describe("ContactController", () => {
       );
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith({ id: "contact-web-1" });
+    });
+
+    it("mirrors the submission to the SuperAdmin panel", async () => {
+      mockedContactService.createWebRequest.mockResolvedValueOnce({
+        id: "contact-web-2",
+      });
+      const body = {
+        type: "GENERAL_ENQUIRY",
+        source: "PMS_WEB",
+        message: "Help",
+        fullName: "Web User",
+        email: "web@user.com",
+        phone: "1234567890",
+      };
+      const res = createResponse();
+
+      await ContactController.createWeb({ body } as any, res as any);
+
+      expect(mockedForward).toHaveBeenCalledWith(expect.objectContaining(body));
+    });
+
+    it("does not mirror a submission that was never stored", async () => {
+      mockedContactService.createWebRequest.mockRejectedValueOnce(
+        new ContactServiceError("invalid", 422),
+      );
+      const res = createResponse();
+
+      await ContactController.createWeb(
+        {
+          body: {
+            type: "GENERAL_ENQUIRY",
+            source: "PMS_WEB",
+            message: "Help",
+            email: "web@user.com",
+          },
+        } as any,
+        res as any,
+      );
+
+      // Our database is the source of truth: if the write failed there is
+      // nothing to mirror, and forwarding anyway would put a record in the
+      // panel that exists nowhere else.
+      expect(mockedForward).not.toHaveBeenCalled();
     });
 
     it("handles ContactServiceError responses", async () => {
