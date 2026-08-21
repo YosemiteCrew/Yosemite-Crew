@@ -1,5 +1,7 @@
 import { headers } from 'next/headers';
 
+import { PRE_PAINT_SCRIPT } from '@/app/ui/theme/prePaintScript';
+
 const NONCE_HEADER = 'x-nonce';
 
 /**
@@ -11,9 +13,6 @@ const NONCE_HEADER = 'x-nonce';
  * inline script is tagged with that request's nonce rather than relying on
  * 'unsafe-inline'. Marketing/public routes use their own inline variant.
  */
-const PRE_PAINT_SCRIPT =
-  "(function(){try{var s=localStorage.getItem('yc-theme');var d=s?s==='dark':matchMedia('(prefers-color-scheme:dark)').matches;document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}})();";
-
 export default async function ThemeScript() {
   const nonce = (await headers()).get(NONCE_HEADER) ?? undefined;
   // The browser strips the nonce attribute from the DOM after applying the CSP,
