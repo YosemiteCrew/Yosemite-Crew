@@ -22,7 +22,6 @@ import {
   buildAcceptActivity,
   buildActivity,
   buildAgentTaskResultObject,
-  buildFollowActivity,
   generateActivityId,
 } from "src/utils/activitypub-builder";
 import { ApDeliveryQueue } from "src/queues/ap-delivery.queue";
@@ -153,8 +152,16 @@ export async function dispatchInboundActivity(
         },
       });
     } catch (err) {
-      // A concurrent delivery of the same id may have created it first.
       if ((err as { code?: string }).code !== "P2002") throw err;
+      // Lost the insert race. Continuing here ran the handler in BOTH callers,
+      // which could enqueue two auto-approval Accepts or two AgentTask results
+      // despite the replay defence above. The winner owns this activity; if it
+      // dies before marking it processed the row is left unprocessed, and the
+      // queue's retry picks it up through the `existing` branch above.
+      logger.info("[AP inbox] concurrent delivery won the insert, skipping", {
+        uri: activity.id,
+      });
+      return;
     }
   }
 
@@ -242,16 +249,14 @@ async function handleFollow(targetOrgId: string, activity: AnyActivity) {
         data: { state: APFollowerState.APPROVED, approvedAt: new Date() },
       });
 
-      const acceptId = generateActivityId();
-      const followObj = buildFollowActivity({
-        id: generateActivityId(),
-        fromActorUri: remoteActorUri,
-        toActorUri: localActor.uri,
-      });
+      // Echo the Follow we are accepting, not a freshly minted one. A
+      // conforming server correlates an Accept with its outstanding Follow by
+      // that object, so a synthetic id left the remote permanently pending
+      // while this instance recorded the follower as approved.
       const acceptActivity = buildAcceptActivity({
-        id: acceptId,
+        id: generateActivityId(),
         actorUri: localActor.uri,
-        followActivity: followObj,
+        followActivity: activity,
       });
 
       await ApDeliveryQueue.add("deliver", {
@@ -261,7 +266,14 @@ async function handleFollow(targetOrgId: string, activity: AnyActivity) {
       });
     }
   } catch (err) {
+    // Rethrow. Everything inside the try is transient - remote actor lookup,
+    // the licence authority, the database, the delivery queue - and the only
+    // terminal outcome (an unverified instance) returns rather than throws.
+    // Swallowing meant dispatchInboundActivity marked the activity processed
+    // and BullMQ dropped the job, so the retry policy could never recover and
+    // a legitimate follow was lost for good.
     logger.error("[AP inbox] handleFollow error", { err, remoteActorUri });
+    throw err;
   }
 }
 

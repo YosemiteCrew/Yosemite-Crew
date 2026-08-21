@@ -875,6 +875,59 @@ describe("approveFollower", () => {
     );
   });
 
+  it("echoes the stored inbound Follow in the Accept", async () => {
+    // A conforming server correlates the Accept with its outstanding Follow, so
+    // a synthetic object left the remote pending forever.
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPFollower.findUnique.mockResolvedValue({ id: "fl1" });
+    prisma.aPFollower.update.mockResolvedValue({});
+    prisma.aPRemoteActor.findUnique.mockResolvedValue({
+      inboxUri: "https://remote.example/inbox",
+      sharedInboxUri: null,
+    });
+    prisma.aPActivity.findMany.mockResolvedValue([
+      {
+        rawJson: {
+          id: "urn:f:original",
+          type: "Follow",
+          actor: "https://remote.example/a",
+        },
+      },
+      {
+        rawJson: {
+          id: "urn:f:other",
+          type: "Follow",
+          actor: "https://other/a",
+        },
+      },
+    ]);
+
+    await svc.approveFollower("org-1", "https://remote.example/a");
+
+    const queued = queueAdd.mock.calls[0][1] as {
+      activity: { object: { id: string } };
+    };
+    expect(queued.activity.object.id).toBe("urn:f:original");
+  });
+
+  it("falls back to a synthetic Follow when the original was pruned", async () => {
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    prisma.aPFollower.findUnique.mockResolvedValue({ id: "fl1" });
+    prisma.aPFollower.update.mockResolvedValue({});
+    prisma.aPRemoteActor.findUnique.mockResolvedValue({
+      inboxUri: "https://remote.example/inbox",
+      sharedInboxUri: null,
+    });
+    prisma.aPActivity.findMany.mockResolvedValue([]);
+
+    await svc.approveFollower("org-1", "https://remote.example/a");
+
+    const queued = queueAdd.mock.calls[0][1] as {
+      activity: { object: { type: string } };
+    };
+    expect(queued.activity.object.type).toBe("Follow");
+  });
+
   it("approves without enqueueing when remote is unknown", async () => {
     prisma.aPActor.findUnique.mockResolvedValue(makeActor());
     prisma.aPFollower.findUnique.mockResolvedValue({ id: "fl1" });

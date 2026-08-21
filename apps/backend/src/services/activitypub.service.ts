@@ -431,14 +431,36 @@ export async function approveFollower(orgId: string, remoteActorUri: string) {
     data: { state: APFollowerState.APPROVED, approvedAt: new Date() },
   });
 
-  const id = generateActivityId();
-  const followActivity = buildFollowActivity({
-    id: generateActivityId(),
-    fromActorUri: remoteActorUri,
-    toActorUri: actor.uri,
+  // Echo the Follow being approved. A conforming server correlates an Accept
+  // with its outstanding Follow by that object, so a freshly minted one with a
+  // new id left the remote permanently pending while this instance recorded the
+  // follower as approved. The inbound activity is not passed in here, so it is
+  // recovered from the stored inbound activities; if it has been pruned we fall
+  // back to a synthetic Follow, which is no worse than the previous behaviour.
+  const recentFollows = await prisma.aPActivity.findMany({
+    where: {
+      localActorId: actor.id,
+      direction: APDirection.INBOUND,
+      type: "Follow",
+    },
+    orderBy: { published: "desc" },
+    take: 50,
+    select: { rawJson: true },
   });
+  const originalFollow = recentFollows.find(
+    (row) =>
+      (row.rawJson as { actor?: string } | null)?.actor === remoteActorUri,
+  )?.rawJson;
+
+  const followActivity =
+    originalFollow ??
+    buildFollowActivity({
+      id: generateActivityId(),
+      fromActorUri: remoteActorUri,
+      toActorUri: actor.uri,
+    });
   const activity = buildAcceptActivity({
-    id,
+    id: generateActivityId(),
     actorUri: actor.uri,
     followActivity,
   });

@@ -47,8 +47,13 @@ jest.mock("@yosemite-crew/database", () => ({
   Prisma: {},
 }));
 
+const buildAcceptActivityMock = jest.fn(
+  (_opts: { followActivity: { id?: string } }) => ({ type: "Accept" }),
+);
+
 jest.mock("src/utils/activitypub-builder", () => ({
-  buildAcceptActivity: jest.fn(() => ({ type: "Accept" })),
+  buildAcceptActivity: (opts: { followActivity: { id?: string } }) =>
+    buildAcceptActivityMock(opts),
   buildFollowActivity: jest.fn(() => ({ type: "Follow" })),
   buildActivity: jest.fn((opts: { type: string; object: unknown }) => ({
     type: opts.type,
@@ -375,14 +380,16 @@ describe("dispatchInboundActivity", () => {
     });
   });
 
-  it("swallows a P2002 race on create and still marks processed", async () => {
+  it("stops after losing the P2002 insert race, leaving the winner to handle it", async () => {
+    // Previously this swallowed the conflict and carried on, so both callers
+    // ran the handler and could enqueue duplicate side effects.
     prismaMock.aPActivity.create.mockRejectedValue({ code: "P2002" });
     await dispatchInboundActivity(ORG_ID, {
       id: "urn:a:4",
       type: "Announce",
       actor: "https://remote.example/actor",
     });
-    expect(prismaMock.aPActivity.update).toHaveBeenCalledTimes(1);
+    expect(prismaMock.aPActivity.update).not.toHaveBeenCalled();
   });
 
   it("rethrows a non-P2002 create error", async () => {
@@ -444,6 +451,22 @@ describe("handleFollow", () => {
     expect(prismaMock.aPFollower.upsert).not.toHaveBeenCalled();
   });
 
+  it("echoes the inbound Follow in the Accept rather than a synthetic one", async () => {
+    // A conforming server correlates an Accept with its outstanding Follow by
+    // that object. A freshly minted Follow with a new id left the remote
+    // permanently pending while this instance recorded the follower approved.
+    process.env.AP_AUTO_APPROVE_FOLLOWS = "true";
+    const inbound = {
+      id: "urn:f:echo",
+      type: "Follow",
+      actor: "https://remote.example/actor",
+    };
+    await dispatch(inbound);
+
+    const lastCall = buildAcceptActivityMock.mock.calls.at(-1);
+    expect(lastCall?.[0].followActivity.id).toBe("urn:f:echo");
+  });
+
   it("auto-approves and enqueues an Accept when AP_AUTO_APPROVE_FOLLOWS=true", async () => {
     process.env.AP_AUTO_APPROVE_FOLLOWS = "true";
     isLicenseTokenValid.mockResolvedValue(true);
@@ -481,7 +504,10 @@ describe("handleFollow", () => {
     );
   });
 
-  it("swallows errors thrown while handling a Follow", async () => {
+  it("rethrows a transient Follow failure so the queue can retry", async () => {
+    // Swallowing marked the activity processed and let BullMQ drop the job, so
+    // a remote-lookup, authority, database or queue outage lost the follow for
+    // good instead of being retried.
     fetchRemoteActor.mockRejectedValue(new Error("network down"));
     await expect(
       dispatch({
@@ -489,10 +515,10 @@ describe("handleFollow", () => {
         type: "Follow",
         actor: "https://remote.example/actor",
       }),
-    ).resolves.toBeUndefined();
+    ).rejects.toThrow(/network down/);
     expect(prismaMock.aPFollower.upsert).not.toHaveBeenCalled();
-    // handler swallowed the error, so the activity is still marked processed
-    expect(prismaMock.aPActivity.update).toHaveBeenCalledTimes(1);
+    // Not marked processed, so the retry re-runs the handler.
+    expect(prismaMock.aPActivity.update).not.toHaveBeenCalled();
   });
 });
 
