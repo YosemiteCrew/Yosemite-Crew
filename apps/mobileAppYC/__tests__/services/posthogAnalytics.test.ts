@@ -2,9 +2,11 @@ const mockScreen = jest.fn().mockResolvedValue(undefined);
 const mockOptIn = jest.fn().mockResolvedValue(undefined);
 const mockOptOut = jest.fn().mockResolvedValue(undefined);
 const mockReset = jest.fn();
+const mockCapture = jest.fn();
 
 jest.mock('posthog-react-native', () =>
   jest.fn().mockImplementation(() => ({
+    capture: mockCapture,
     optIn: mockOptIn,
     optOut: mockOptOut,
     reset: mockReset,
@@ -211,6 +213,43 @@ describe('posthogAnalytics', () => {
 
     expect(() => resetPostHog()).not.toThrow();
     expect(mockReset).not.toHaveBeenCalled();
+  });
+
+  it('captures an event with properties through PostHog', () => {
+    const {
+      capturePostHogEvent,
+    } = require('../../src/shared/services/posthogAnalytics');
+
+    capturePostHogEvent('social_sign_in_failed', {
+      provider: 'google',
+      code: 'unknown',
+    });
+
+    expect(mockCapture).toHaveBeenCalledWith('social_sign_in_failed', {
+      provider: 'google',
+      code: 'unknown',
+    });
+  });
+
+  it('captures an event without properties through PostHog', () => {
+    const {
+      capturePostHogEvent,
+    } = require('../../src/shared/services/posthogAnalytics');
+
+    capturePostHogEvent('app_opened');
+
+    expect(mockCapture).toHaveBeenCalledWith('app_opened', undefined);
+  });
+
+  it('capturePostHogEvent does nothing when client is null', () => {
+    mockEnabled = false;
+    const {
+      capturePostHogEvent,
+    } = require('../../src/shared/services/posthogAnalytics');
+
+    capturePostHogEvent('social_sign_in_failed', {provider: 'google'});
+
+    expect(mockCapture).not.toHaveBeenCalled();
   });
 
   it('getPostHogClient initializes and returns the client', () => {

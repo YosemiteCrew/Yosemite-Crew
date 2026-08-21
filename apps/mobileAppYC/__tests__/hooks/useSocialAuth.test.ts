@@ -3,6 +3,7 @@ import {DeviceEventEmitter} from 'react-native'; // Import comes first
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useSocialAuth} from '@/features/auth/hooks/useSocialAuth';
 import {signInWithSocialProvider} from '@/features/auth/services/socialAuth';
+import {capturePostHogEvent} from '@/shared/services/posthogAnalytics';
 import {
   PENDING_PROFILE_STORAGE_KEY,
   PENDING_PROFILE_UPDATED_EVENT,
@@ -35,6 +36,14 @@ jest.mock('react-native', () => ({
 }));
 const mockedDeviceEventEmitter = DeviceEventEmitter as jest.Mocked<
   typeof DeviceEventEmitter
+>;
+
+// Mock PostHog analytics
+jest.mock('@/shared/services/posthogAnalytics', () => ({
+  capturePostHogEvent: jest.fn(),
+}));
+const mockedCapturePostHogEvent = capturePostHogEvent as jest.MockedFunction<
+  typeof capturePostHogEvent
 >;
 
 // --- Mock Data ---
@@ -251,21 +260,42 @@ describe('useSocialAuth', () => {
   it('should throw generic error message on a generic error', async () => {
     const error = new Error('Generic fail');
     mockedSignInWithSocialProvider.mockRejectedValue(error);
+    const consoleErrorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
     const {result} = renderHook(() => useSocialAuth(defaultProps));
 
-    await expect(
-      act(async () => {
+    let thrown: unknown;
+    try {
+      await act(async () => {
         await result.current.handleSocialAuth('google');
-      }),
-    ).rejects.toThrow(genericErrorMessage);
+      });
+    } catch (caught) {
+      thrown = caught;
+    }
 
+    // Still surfaces the generic message to the caller
+    expect((thrown as Error).message).toBe(genericErrorMessage);
     expect(mockOnStart).toHaveBeenCalledTimes(1);
     expect(mockOnNewProfile).not.toHaveBeenCalled();
     expect(mockOnExistingProfile).not.toHaveBeenCalled();
 
+    // Underlying error is preserved for debugging
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '[useSocialAuth] Social sign-in failed',
+      error,
+    );
+    expect(mockedCapturePostHogEvent).toHaveBeenCalledWith(
+      'social_sign_in_failed',
+      expect.objectContaining({provider: 'google', code: 'unknown'}),
+    );
+    expect((thrown as Error & {cause?: unknown}).cause).toBe(error);
+
     // Check final state
     expect(result.current.activeProvider).toBeNull();
     expect(result.current.isSocialLoading).toBe(false);
+
+    consoleErrorSpy.mockRestore();
   });
 
   it('should throw cancelled error message if error code is "auth/cancelled"', async () => {

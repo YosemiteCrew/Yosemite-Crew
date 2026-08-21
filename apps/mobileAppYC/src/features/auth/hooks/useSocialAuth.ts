@@ -9,6 +9,7 @@ import {
   signInWithSocialProvider,
   type SocialProvider,
 } from '@/features/auth/services/socialAuth';
+import {capturePostHogEvent} from '@/shared/services/posthogAnalytics';
 import type {AuthStackParamList} from '@/navigation/AuthNavigator';
 
 type SocialAuthResult = Awaited<ReturnType<typeof signInWithSocialProvider>>;
@@ -108,7 +109,14 @@ export const useSocialAuth = ({
         if (isAccountExists) {
           throw new Error(message || DEFAULT_ACCOUNT_EXISTS_MESSAGE);
         }
-        throw new Error(genericErrorMessage);
+        console.error('[useSocialAuth] Social sign-in failed', rawError);
+        capturePostHogEvent('social_sign_in_failed', {
+          provider,
+          code: error?.code ?? 'unknown',
+        });
+        const wrapped = new Error(genericErrorMessage);
+        (wrapped as Error & {cause?: unknown}).cause = rawError;
+        throw wrapped;
       } finally {
         updateActiveProvider(null);
       }
