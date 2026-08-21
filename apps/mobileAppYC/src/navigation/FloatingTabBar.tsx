@@ -184,7 +184,7 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
           <LiquidGlassView
             style={styles.pillGlass}
             effect="clear"
-            tintColor={theme.colors.blue}
+            tintColor={theme.colors.navActiveBg}
             colorScheme="light"
             interactive
           />
