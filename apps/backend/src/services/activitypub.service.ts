@@ -231,19 +231,53 @@ export async function getFollowingCollection(orgId: string) {
   });
 }
 
+const AS_PUBLIC = "https://www.w3.org/ns/activitystreams#Public";
+
+/**
+ * True only when an activity is explicitly addressed to the ActivityStreams
+ * public collection.
+ *
+ * The outbox endpoint is unauthenticated by design, and it used to serve the
+ * raw JSON of every recent outbound activity. Referral Offers carry patient
+ * species, medications, allergies, chief complaint and clinical context, and
+ * Notes carry private messages, so anyone who knew an organisation id could
+ * read them. Only Announce (the emergency broadcast) is addressed to Public;
+ * everything else is directed and must never appear here.
+ */
+function isPubliclyAddressed(raw: unknown): boolean {
+  if (typeof raw !== "object" || raw === null) return false;
+  const { to, cc } = raw as { to?: unknown; cc?: unknown };
+  // Array.isArray narrows `unknown` to `any[]`, so the branch is annotated to
+  // keep the result typed rather than leaking `any` out of the helper.
+  const audience: unknown[] = [to, cc].flatMap((field): unknown[] =>
+    Array.isArray(field) ? (field as unknown[]) : field == null ? [] : [field],
+  );
+  return audience.some((entry) => entry === AS_PUBLIC);
+}
+
+const OUTBOX_PAGE_SIZE = 20;
+// Read a wider window than we serve: filtering after a `take: 20` would let a
+// burst of directed activities push every public one out of the page.
+const OUTBOX_SCAN_LIMIT = 200;
+
 export async function getOutboxCollection(orgId: string) {
   const actor = await getOrCreateActor(orgId);
   const rows = await prisma.aPActivity.findMany({
     where: { localActorId: actor.id, direction: APDirection.OUTBOUND },
     orderBy: { published: "desc" },
-    take: 20,
+    take: OUTBOX_SCAN_LIMIT,
     select: { rawJson: true, published: true },
   });
 
+  const publicItems = rows
+    .filter((r) => isPubliclyAddressed(r.rawJson))
+    .slice(0, OUTBOX_PAGE_SIZE)
+    .map((r) => r.rawJson);
+
   return buildOrderedCollection({
     id: outboxUri(orgId),
-    totalItems: rows.length,
-    items: rows.map((r) => r.rawJson),
+    totalItems: publicItems.length,
+    items: publicItems,
   });
 }
 

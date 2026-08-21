@@ -662,7 +662,10 @@ const buildOrganizationWriteData = (persistable: OrganizationMongo) => ({
   website: persistable.website ?? undefined,
   documensoTeamId: persistable.documensoTeamId ?? undefined,
   documensoApiKey: persistable.documensoApiKey ?? undefined,
-  isVerified: persistable.isVerified ?? false,
+  // isVerified is deliberately absent: it is derived from Stripe Connect status
+  // and compliance certificates via recomputeOrganizationVerification, and it
+  // gates federation directory listing. Writing it from the client payload let
+  // any caller with teams:edit:any mark their own organisation verified.
   isActive: persistable.isActive ?? true,
   typeCoding: (persistable.typeCoding ??
     undefined) as unknown as Prisma.InputJsonValue,
@@ -863,6 +866,10 @@ export const OrganizationService = {
       where: { id: organisation.id },
       data: buildOrganizationWriteData(persistable),
     });
+
+    // The upsert path already did this; this one did not, so an authenticated
+    // update could leave a stale or client-forced verification state behind.
+    await recomputeOrganizationVerification(organisation.id);
 
     const updated = await prisma.organization.findUniqueOrThrow({
       where: { id: organisation.id },

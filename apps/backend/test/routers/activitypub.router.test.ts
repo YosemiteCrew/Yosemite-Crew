@@ -39,10 +39,18 @@ jest.mock("src/controllers/web/activitypub.controller", () => ({
 jest.mock("src/middlewares/auth", () => ({
   requireWebAuth: (_req: Request, _res: Response, next: NextFunction) => next(),
 }));
+// Recorded rather than a bare pass-through: the guards are applied at module
+// load, so capturing the arguments is the only way to prove every management
+// route is gated instead of merely reachable.
+const requirePermissionCalls: unknown[] = [];
 jest.mock("src/middlewares/rbac", () => ({
   withOrgPermissions:
     () => (_req: Request, _res: Response, next: NextFunction) =>
       next(),
+  requirePermission: (perm: unknown) => {
+    requirePermissionCalls.push(perm);
+    return (_req: Request, _res: Response, next: NextFunction) => next();
+  },
 }));
 
 const errorLog = jest.fn();
@@ -195,5 +203,35 @@ describe("activitypub.router dispatch when AP_ENABLED=true", () => {
     await new Promise((r) => setImmediate(r));
     expect(res.statusCode).toBe(200);
     expect(res.body).toEqual({ ok: true });
+  });
+});
+
+describe("federation management routes are permission-gated", () => {
+  // withOrgPermissions only proves org membership. Before this, every /manage
+  // route sat behind it alone, so any role could read clinical referrals,
+  // replace the licence, approve followers or broadcast an emergency.
+  it("builds a guard for each management route from the integrations permissions", () => {
+    // One requirePermission per management route, matching integration.router
+    // and the route-authz invariant, which wants a permission loader
+    // immediately before each gate rather than hoisted shared guards.
+    expect(requirePermissionCalls.length).toBe(17);
+    expect(new Set(requirePermissionCalls)).toEqual(
+      new Set(["integrations:view:any", "integrations:edit:any"]),
+    );
+  });
+
+  it("gates every /manage route in the router stack", () => {
+    const layers = (
+      router as unknown as {
+        stack: { route?: { path: string; stack: { name: string }[] } }[];
+      }
+    ).stack;
+    const manage = layers.filter((l) => l.route?.path.startsWith("/manage"));
+    expect(manage.length).toBeGreaterThan(0);
+    // auth + loader + gate + handler
+    const ungated = manage
+      .filter((l) => l.route!.stack.length < 4)
+      .map((l) => l.route!.path);
+    expect(ungated).toEqual([]);
   });
 });

@@ -416,10 +416,13 @@ describe("collections", () => {
     );
   });
 
-  it("getOutboxCollection returns recent outbound activities", async () => {
+  const AS_PUBLIC = "https://www.w3.org/ns/activitystreams#Public";
+
+  it("getOutboxCollection serves activities addressed to the public collection", async () => {
     prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    const announce = { type: "Announce", to: [AS_PUBLIC], cc: ["followers"] };
     prisma.aPActivity.findMany.mockResolvedValue([
-      { rawJson: { type: "Note" }, published: new Date() },
+      { rawJson: announce, published: new Date() },
     ]);
 
     const result = (await svc.getOutboxCollection("org-1")) as {
@@ -428,9 +431,63 @@ describe("collections", () => {
     };
 
     expect(result.totalItems).toBe(1);
-    expect(result.orderedItems).toEqual([{ type: "Note" }]);
+    expect(result.orderedItems).toEqual([announce]);
     expect(prisma.aPActivity.findMany.mock.calls[0][0].where.direction).toBe(
       APDirection.OUTBOUND,
+    );
+  });
+
+  it("getOutboxCollection never exposes directed clinical activities", async () => {
+    // The outbox is unauthenticated. A referral Offer carries the patient
+    // summary, so it must not be reachable by anyone who knows an org id.
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    const referral = {
+      type: "Offer",
+      to: ["https://remote.example/actor"],
+      object: {
+        type: "Note",
+        content: "species: dog, allergies: penicillin, complaint: limp",
+      },
+    };
+    prisma.aPActivity.findMany.mockResolvedValue([
+      { rawJson: referral, published: new Date() },
+      {
+        rawJson: { type: "Create", to: ["https://remote.example/actor"] },
+        published: new Date(),
+      },
+      { rawJson: { type: "Follow" }, published: new Date() },
+    ]);
+
+    const result = (await svc.getOutboxCollection("org-1")) as {
+      totalItems: number;
+      orderedItems: unknown[];
+    };
+
+    expect(result.totalItems).toBe(0);
+    expect(result.orderedItems).toEqual([]);
+    expect(JSON.stringify(result)).not.toContain("penicillin");
+  });
+
+  it("getOutboxCollection scans past directed activities to find public ones", async () => {
+    // Filtering after a take:20 would let a burst of directed activities push
+    // every public one off the page.
+    prisma.aPActor.findUnique.mockResolvedValue(makeActor());
+    const directed = Array.from({ length: 50 }, () => ({
+      rawJson: { type: "Offer", to: ["https://remote.example/actor"] },
+      published: new Date(),
+    }));
+    prisma.aPActivity.findMany.mockResolvedValue([
+      ...directed,
+      { rawJson: { type: "Announce", to: [AS_PUBLIC] }, published: new Date() },
+    ]);
+
+    const result = (await svc.getOutboxCollection("org-1")) as {
+      totalItems: number;
+    };
+
+    expect(result.totalItems).toBe(1);
+    expect(prisma.aPActivity.findMany.mock.calls[0][0].take).toBeGreaterThan(
+      20,
     );
   });
 });

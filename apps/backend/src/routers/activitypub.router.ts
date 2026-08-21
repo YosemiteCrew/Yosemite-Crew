@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { ActivityPubController } from "src/controllers/web/activitypub.controller";
 import { requireWebAuth } from "src/middlewares/auth";
-import { withOrgPermissions } from "src/middlewares/rbac";
+import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 import logger from "src/utils/logger";
 
 const router = Router();
@@ -57,79 +57,136 @@ router.post(
 // The management API is reached from the web settings panel. This branch
 // predates the SuperTokens migration, which retired `authorizeCognito`;
 // `requireWebAuth` is its replacement for browser-session routes.
-router.use(requireWebAuth, withOrgPermissions());
+// Every management route carries the full chain inline, matching
+// integration.router and the route-authz invariant: auth, then the permission
+// loader, then the gate. withOrgPermissions alone only proves the caller
+// belongs to the organisation and grants nothing, so without the gate any role
+// could read clinical referrals, replace the federation licence, approve
+// followers or broadcast an emergency. Federation is an integration surface, so
+// it uses the integrations permissions.
 
 router.get(
   "/manage/actor",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("integrations:view:any"),
   h((req, res) => ActivityPubController.getActorSettings(req, res)),
 );
 
 router.post(
   "/manage/follow",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("integrations:edit:any"),
   h((req, res) => ActivityPubController.follow(req, res)),
 );
 router.post(
   "/manage/unfollow",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("integrations:edit:any"),
   h((req, res) => ActivityPubController.unfollow(req, res)),
 );
 router.post(
   "/manage/followers/approve",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("integrations:edit:any"),
   h((req, res) => ActivityPubController.approveFollower(req, res)),
 );
 router.post(
   "/manage/followers/reject",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("integrations:edit:any"),
   h((req, res) => ActivityPubController.rejectFollower(req, res)),
 );
 router.get(
   "/manage/followers",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("integrations:view:any"),
   h((req, res) => ActivityPubController.listFollowers(req, res)),
 );
 router.get(
   "/manage/following",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("integrations:view:any"),
   h((req, res) => ActivityPubController.listFollowing(req, res)),
 );
 
 router.post(
   "/manage/referrals",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("integrations:edit:any"),
   h((req, res) => ActivityPubController.sendReferral(req, res)),
 );
 router.get(
   "/manage/referrals/inbound",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("integrations:view:any"),
   h((req, res) => ActivityPubController.listInboundReferrals(req, res)),
 );
 router.get(
   "/manage/referrals/outbound",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("integrations:view:any"),
   h((req, res) => ActivityPubController.listOutboundReferrals(req, res)),
 );
 
 router.put(
   "/manage/license-token",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("integrations:edit:any"),
   h((req, res) => ActivityPubController.updateLicenseToken(req, res)),
 );
 
 router.put(
   "/manage/directory-listing",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("integrations:edit:any"),
   h((req, res) => ActivityPubController.toggleDirectoryListing(req, res)),
 );
 router.get(
   "/manage/directory",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("integrations:view:any"),
   h((req, res) => ActivityPubController.getDirectory(req, res)),
 );
 router.patch(
   "/manage/referrals/:referralId",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("integrations:edit:any"),
   h((req, res) => ActivityPubController.respondToReferral(req, res)),
 );
 router.put(
   "/manage/actor",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("integrations:edit:any"),
   h((req, res) => ActivityPubController.updateActorProfile(req, res)),
 );
 
 router.post(
   "/manage/notes",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("integrations:edit:any"),
   h((req, res) => ActivityPubController.sendNote(req, res)),
 );
 router.post(
   "/manage/announce",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("integrations:edit:any"),
   h((req, res) => ActivityPubController.announceEmergency(req, res)),
 );
 

@@ -888,6 +888,44 @@ describe("OrganizationService", () => {
     });
   });
 
+  describe("verification cannot be set by the client", () => {
+    // isVerified gates federation directory listing. Before this, update()
+    // wrote the client-supplied FHIR verification extension straight through,
+    // so a caller with teams:edit:any could self-verify and satisfy the
+    // federation trust gate without Stripe Connect or a compliance cert.
+    it("update never persists a client-supplied isVerified", async () => {
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValue({
+        id: orgId,
+      });
+      (prisma.organization.findUniqueOrThrow as jest.Mock).mockResolvedValue({
+        id: orgId,
+        address: null,
+      });
+
+      await OrganizationService.update(orgId, {
+        ...baseDto,
+        isVerified: true,
+      } as typeof baseDto);
+
+      const writes = (prisma.organization.update as jest.Mock).mock.calls;
+      expect(writes.length).toBeGreaterThan(0);
+      for (const [args] of writes) {
+        expect(args.data).not.toHaveProperty("isVerified");
+      }
+    });
+
+    it("upsert never persists a client-supplied isVerified either", async () => {
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.organization.create as jest.Mock)?.mockResolvedValue?.({
+        id: orgId,
+      });
+      const writes = (prisma.organization.update as jest.Mock).mock.calls;
+      for (const [args] of writes) {
+        expect(args.data).not.toHaveProperty("isVerified");
+      }
+    });
+  });
+
   describe("null-organisation early returns", () => {
     it("update returns null when org not found", async () => {
       (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(null);
