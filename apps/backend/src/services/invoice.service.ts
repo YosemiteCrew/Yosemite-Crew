@@ -1834,9 +1834,21 @@ export const InvoiceService = {
     );
   },
 
+  /**
+   * Resolve (or create) the open invoice for an appointment.
+   *
+   * `expectedOrganisationId` is how a caller that already knows which tenant it
+   * is acting for binds this to that tenant. The appointment id often arrives in
+   * a request body while the route authorises a *different* id, so resolving the
+   * invoice from the appointment alone let a caller in one organisation
+   * bootstrap and then mutate another organisation's invoice. Callers that
+   * genuinely have no organisation context (a parent's own mobile flow, which
+   * has already been scoped by parent ownership) omit it.
+   */
   async bootstrapForAppointment(
     appointmentId: string,
     paymentCollectionMethod: CreateInvoiceInput["paymentCollectionMethod"] = "PAYMENT_LINK",
+    expectedOrganisationId?: string,
   ) {
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
@@ -1850,6 +1862,12 @@ export const InvoiceService = {
       },
     });
     if (!appointment) {
+      throw new InvoiceServiceError("Appointment not found", 404);
+    }
+    const expectedOrg = expectedOrganisationId?.trim();
+    if (expectedOrg && appointment.organisationId !== expectedOrg) {
+      // Same 404 as a missing appointment so this cannot be used to probe which
+      // appointment ids exist in other tenants.
       throw new InvoiceServiceError("Appointment not found", 404);
     }
 
@@ -2045,14 +2063,19 @@ export const InvoiceService = {
       },
     });
 
-    // Re-opening a finalized-but-unpaid invoice invalidates any in-flight Stripe
-    // payment attempt so a fresh checkout link is generated for the new total.
-    if (wasFinalized) {
-      await prisma.paymentAttempt.updateMany({
-        where: { invoiceId, status: { notIn: ["SUCCEEDED", "CANCELED"] } },
-        data: { status: "CANCELED" },
-      });
-    }
+    // Adding charges invalidates any in-flight Stripe payment attempt, so a
+    // fresh checkout link is generated for the new total.
+    //
+    // This used to be conditional on `wasFinalized`. Online collection now
+    // issues a checkout URL for an invoice left deliberately OPEN, so the
+    // unfinalized case is exactly the one that matters: the original session
+    // stayed live, `createCheckoutSessionForInvoice` kept handing it back, and
+    // completing it wrote the old, lower total onto the invoice and marked it
+    // settled - underpaying an invoice that had since grown.
+    await prisma.paymentAttempt.updateMany({
+      where: { invoiceId, status: { notIn: ["SUCCEEDED", "CANCELED"] } },
+      data: { status: "CANCELED" },
+    });
 
     const targets = await resolveAuditTargetsForInvoiceRow(updated);
     await recordInvoiceAuditEvent(targets, {
@@ -2185,8 +2208,11 @@ export const InvoiceService = {
       organisationId,
     );
     if (!invoice) {
-      const bootstrappedInvoice =
-        await this.bootstrapForAppointment(appointmentId);
+      const bootstrappedInvoice = await this.bootstrapForAppointment(
+        appointmentId,
+        undefined,
+        organisationId,
+      );
 
       if (
         !bootstrappedInvoice.id ||

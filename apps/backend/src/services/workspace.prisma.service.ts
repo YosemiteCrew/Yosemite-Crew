@@ -1042,8 +1042,14 @@ const syncTreatmentItemInvoice = async (row: TreatmentItemRow) => {
     );
   if (!invoice) {
     try {
+      // Bind the bootstrap to the treatment item's own organisation. The
+      // appointment id comes from the request body while the route authorises
+      // the organisation in the URL, so without this a caller in one tenant
+      // could bootstrap - and then add charges to - another tenant's invoice.
       const bootstrappedInvoice = await InvoiceService.bootstrapForAppointment(
         row.appointmentId,
+        undefined,
+        row.organisationId,
       );
       if (
         bootstrappedInvoice &&

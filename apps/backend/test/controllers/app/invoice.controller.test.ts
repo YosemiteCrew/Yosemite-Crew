@@ -692,6 +692,8 @@ describe("InvoiceController", () => {
 
       expect(mockedInvoiceService.bootstrapForAppointment).toHaveBeenCalledWith(
         "apt1",
+        undefined,
+        undefined,
       );
       expect(statusMock).toHaveBeenCalledWith(200);
       expectFinanceEnvelope({ id: "inv1" });

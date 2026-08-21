@@ -1036,8 +1036,12 @@ describe("WorkspaceService", () => {
     expect(
       mockedInvoiceService.findOpenInvoiceForAppointment,
     ).toHaveBeenCalledWith("appt-1", "org-1");
+    // Bound to the treatment item's own organisation, so a body-supplied
+    // appointment id from another tenant cannot bootstrap that tenant's invoice.
     expect(mockedInvoiceService.bootstrapForAppointment).toHaveBeenCalledWith(
       "appt-1",
+      undefined,
+      "org-1",
     );
     expect(mockedInvoiceService.addItemsToInvoice).toHaveBeenCalledWith(
       "invoice-bootstrap",

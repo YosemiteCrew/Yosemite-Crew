@@ -600,7 +600,11 @@ describe("InvoiceService", () => {
       },
     ]);
 
-    expect(bootstrapSpy).toHaveBeenCalledWith(appointmentId);
+    expect(bootstrapSpy).toHaveBeenCalledWith(
+      appointmentId,
+      undefined,
+      undefined,
+    );
     expect(addItemsSpy).toHaveBeenCalledWith("inv_draft", [
       {
         name: "Medication",
@@ -667,7 +671,11 @@ describe("InvoiceService", () => {
       items,
     );
 
-    expect(bootstrapSpy).toHaveBeenCalledWith(appointmentId);
+    expect(bootstrapSpy).toHaveBeenCalledWith(
+      appointmentId,
+      undefined,
+      undefined,
+    );
     expect(addItemsSpy).toHaveBeenCalledWith("inv_paid", items);
     expect(result.status).toBe("AWAITING_PAYMENT");
 
