@@ -379,10 +379,19 @@ if (process.argv.includes('--self-test')) {
   }
   // Real config must not be condemned: that is the opposite failure and would
   // tell someone their working setup is broken.
+  //
+  // The value halves are low-entropy and assembled here rather than written as
+  // credential-shaped literals. A previous version spelled out a Google-shaped
+  // Maps key, which GitHub secret scanning could not tell from a live one and
+  // reported as alert #5. PLACEHOLDER only matches template markers, so the
+  // realism of the value bought this check nothing; the KEY=value and JSON
+  // shapes below are what it actually exercises. Same treatment as the IDEXX
+  // fixture in apps/backend/test/services/integration.service.test.ts.
+  const setByDeveloper = ['set', 'by', 'the', 'developer'].join('-');
   const filled = [
-    '{"project_info":{"project_id":"yosemite-crew"},"api_key":"AIzaSyReal"}',
+    `{"project_info":{"project_id":"yosemite-crew"},"api_key":"${setByDeveloper}"}`,
     '<resources><string name="app_name">Yosemite Crew</string></resources>',
-    'MAPS_API_KEY=AIzaSyRealLookingKey123',
+    `MAPS_API_KEY=${setByDeveloper}`,
   ];
   // The app-config vocabulary is pinned the same way: it must catch the
   // variables.ts templates and must not condemn the real values.

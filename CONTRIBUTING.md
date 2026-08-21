@@ -151,6 +151,7 @@ git branch -D your-branch-name
 - Staged changes are scanned locally in `pre-commit` with Secretlint and the repo staged-secret scanner. If `gitleaks` is installed locally, the hook also runs `gitleaks protect --staged --redact`.
 - GitHub Actions also scans for secrets using Gitleaks.
 - If you accidentally commit a secret, rotate it immediately and open a security report per [SECURITY.md](./SECURITY.md).
+- Keep test and example fixtures low-entropy and obviously fake (`abcdef1234567890`, `not-a-real-key`, `Bearer YOUR_JWT_TOKEN`). A fixture written to look like a live credential is indistinguishable from one to a scanner, and this repo is public: readers and their tooling see the value, not the comment next to it. Assemble the value from parts if a realistic shape is genuinely needed.
 
 ## Need Help
 
