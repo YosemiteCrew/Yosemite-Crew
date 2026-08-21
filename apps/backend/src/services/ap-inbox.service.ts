@@ -225,24 +225,41 @@ async function runInboundHandler(
 
 // ─── Follow ───────────────────────────────────────────────────────────────────
 
+/**
+ * The federation trust gate, in one place.
+ *
+ * Follow, referral Offer and AgentTask each need the same decision: resolve the
+ * remote actor, then confirm its licence is still valid for that actor URI.
+ * Three copies meant a change to federation policy had to be applied in three
+ * places to take effect. Returns the resolved actor, or null when the caller
+ * should stop.
+ */
+async function resolveLicensedRemote(
+  remoteActorUri: string,
+  activityLabel: string,
+) {
+  const remote = await fetchRemoteActor(remoteActorUri);
+  const licensed = await isLicenseTokenValid(
+    remote.licenseToken,
+    remoteActorUri,
+  );
+  if (!licensed) {
+    logger.warn(
+      `[AP inbox] rejected ${activityLabel} from unlicensed instance`,
+      { remoteActorUri },
+    );
+    return null;
+  }
+  return remote;
+}
+
 async function handleFollow(targetOrgId: string, activity: AnyActivity) {
   const localActor = await getOrCreateActor(targetOrgId);
   const remoteActorUri = activity.actor;
 
   try {
-    const remote = await fetchRemoteActor(remoteActorUri);
-
-    // Reject follows from unverified instances — only verified businesses may federate
-    const verified = await isLicenseTokenValid(
-      remote.licenseToken,
-      remoteActorUri,
-    );
-    if (!verified) {
-      logger.warn("[AP inbox] rejected Follow from unverified instance", {
-        remoteActorUri,
-      });
-      return;
-    }
+    const remote = await resolveLicensedRemote(remoteActorUri, "Follow");
+    if (!remote) return;
 
     await prisma.aPFollower.upsert({
       where: {
@@ -435,17 +452,8 @@ async function handleReferralOffer(targetOrgId: string, activity: AnyActivity) {
   // remote actor, including one whose licence was revoked or who was never
   // followed, could post a handcrafted Offer straight to a clinic inbox and
   // create an inbound referral carrying clinical data.
-  const remote = await fetchRemoteActor(activity.actor);
-  const licensed = await isLicenseTokenValid(
-    remote.licenseToken,
-    activity.actor,
-  );
-  if (!licensed) {
-    logger.warn("[AP inbox] rejected referral from unlicensed instance", {
-      remoteActorUri: activity.actor,
-    });
-    return;
-  }
+  const remote = await resolveLicensedRemote(activity.actor, "referral");
+  if (!remote) return;
 
   // Mirror of the outbound consent gate: they must be an approved follower of
   // this clinic before clinical data is accepted from them.
@@ -506,17 +514,8 @@ async function handleAgentTask(targetOrgId: string, activity: AnyActivity) {
   const requesterUri = activity.actor;
 
   try {
-    const remote = await fetchRemoteActor(requesterUri);
-
-    // Only answer verified instances — same trust gate as inbound follows.
-    const verified = await isLicenseTokenValid(
-      remote.licenseToken,
-      requesterUri,
-    );
-    if (!verified) {
-      logger.warn("[AP inbox] rejected AgentTask from unverified instance", {
-        requesterUri,
-      });
+    const remote = await resolveLicensedRemote(requesterUri, "AgentTask");
+    if (!remote) {
       return;
     }
 

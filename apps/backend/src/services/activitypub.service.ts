@@ -139,6 +139,8 @@ export async function resolveWebFinger(resource: string) {
 
 // ─── Remote actor fetching ────────────────────────────────────────────────────
 
+const MAX_ACTOR_DOCUMENT_BYTES = 256 * 1024;
+
 /**
  * `forceRefresh` bypasses the 24h cache. Needed because a remote instance that
  * rotates its ActivityPub signing key would otherwise have every signed request
@@ -170,6 +172,12 @@ export async function fetchRemoteActor(
     timeout: 10_000,
     maxRedirects: 0,
     httpsAgent: guardedHttpsAgent,
+    // Axios defaults both of these to unlimited. The URL is remote-controlled,
+    // so without a cap a host could stream a very large JSON body inside the
+    // timeout and exhaust worker memory before parsing finished. An actor
+    // document is a few kilobytes; 256 KiB is already generous.
+    maxContentLength: MAX_ACTOR_DOCUMENT_BYTES,
+    maxBodyLength: MAX_ACTOR_DOCUMENT_BYTES,
   });
 
   const data = resp.data;

@@ -384,6 +384,20 @@ describe("fetchRemoteActor", () => {
       "https://remote.example/ap/shared-inbox",
     );
     expect(arg.create.licenseToken).toBe("remote-lic");
+
+    // Axios defaults these to unlimited, so a remote-controlled URL could
+    // stream a huge body inside the timeout and exhaust worker memory.
+    const [, opts] = mockAxios.get.mock.calls[0] as [
+      string,
+      {
+        maxContentLength?: number;
+        maxBodyLength?: number;
+        maxRedirects?: number;
+      },
+    ];
+    expect(opts.maxContentLength).toBe(256 * 1024);
+    expect(opts.maxBodyLength).toBe(256 * 1024);
+    expect(opts.maxRedirects).toBe(0);
   });
 
   it("fetches fresh when there is no cache entry, handles missing sharedInbox/license", async () => {
