@@ -88,6 +88,12 @@ const createStyles = (theme: Theme) =>
     },
     segmentActive: {
       backgroundColor: theme.colors.screen,
+      // screen and inset are near-identical in the espresso theme (1.01:1), so
+      // the card shadow was doing all the work, and a dark shadow on a dark
+      // ground shows nothing. This border carries the selected state in both
+      // themes at the 3:1 WCAG 1.4.11 bar.
+      borderWidth: 1,
+      borderColor: theme.colors.segmentSelectedBorder,
       ...theme.shadows.card,
     },
     label: {

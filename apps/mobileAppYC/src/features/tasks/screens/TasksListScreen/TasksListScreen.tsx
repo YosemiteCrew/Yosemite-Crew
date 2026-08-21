@@ -1,5 +1,5 @@
 import React, {useMemo} from 'react';
-import {FlatList, StyleSheet, Text, View} from 'react-native';
+import {FlatList, StyleSheet, View} from 'react-native';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
@@ -18,6 +18,7 @@ import type {AppDispatch, RootState} from '@/app/store';
 import type {TaskStackParamList} from '@/navigation/types';
 import type {Task} from '@/features/tasks/types';
 import {resolveCategoryLabel} from '@/features/tasks/utils/taskLabels';
+import {EmptyState} from '@/shared/components/common/EmptyState/EmptyState';
 import {createEmptyStateStyles} from '@/shared/utils/screenStyles';
 import {formatDateToISODate} from '@/shared/utils/dateHelpers';
 import {useTaskDateSelection} from '@/features/tasks/hooks/useTaskDateSelection';
@@ -99,6 +100,13 @@ export const TasksListScreen: React.FC = () => {
     });
   };
 
+  // Tasks hang off a companion, so with none there is nothing to add a task to.
+  // The screen used to just say the list was empty and offer no way forward.
+  const handleAddCompanion = () =>
+    navigation.getParent<any>()?.navigate('HomeStack', {
+      screen: 'AddCompanion',
+    });
+
   const renderTask = ({item}: {item: Task}) => {
     const companion = companions.find(c => c.id === item.companionId);
     const {
@@ -141,9 +149,24 @@ export const TasksListScreen: React.FC = () => {
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
-      <Text style={styles.emptyText}>
-        No {resolveCategoryLabel(category).toLowerCase()} tasks yet
-      </Text>
+      <EmptyState
+        title={
+          hasCompanions
+            ? t('tasks.emptyCategoryTitle', {
+                category: resolveCategoryLabel(category).toLowerCase(),
+              })
+            : t('tasks.emptyNoCompanionTitle')
+        }
+        description={
+          hasCompanions
+            ? t('tasks.emptyCategoryDescription')
+            : t('tasks.emptyNoCompanionDescription')
+        }
+        actionLabel={
+          hasCompanions ? t('tasks.addTask') : t('tasks.addCompanion')
+        }
+        onAction={hasCompanions ? handleAddTask : handleAddCompanion}
+      />
     </View>
   );
 

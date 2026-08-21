@@ -21,6 +21,7 @@ import {Buffer} from 'node:buffer';
 import {fetchProfileStatus} from '../../../src/features/account/services/profileService';
 import {
   clearStoredTokens,
+  loadSecureStorageTokensOnly,
   loadStoredTokens,
   storeTokens,
 } from '../../../src/features/auth/services/tokenStorage';
@@ -61,6 +62,7 @@ jest.mock('@/features/account/services/profileService', () => ({
 
 jest.mock('@/features/auth/services/tokenStorage', () => ({
   clearStoredTokens: jest.fn(),
+  loadSecureStorageTokensOnly: jest.fn(),
   loadStoredTokens: jest.fn(),
   storeTokens: jest.fn(),
 }));
@@ -211,6 +213,12 @@ describe('sessionManager', () => {
   // ===========================================================================
 
   describe('persistSessionData', () => {
+    beforeEach(() => {
+      // The legacy AsyncStorage copy is only dropped once the Keychain write
+      // has been read back, so the happy path needs the readback to succeed.
+      (loadSecureStorageTokensOnly as jest.Mock).mockResolvedValue(mockTokens);
+    });
+
     it('saves user to AsyncStorage and tokens to SecureStore', async () => {
       await persistSessionData(mockUser, mockTokens);
 
@@ -227,6 +235,24 @@ describe('sessionManager', () => {
         }),
       );
       expect(AsyncStorage.removeItem).toHaveBeenCalledWith('@auth_tokens');
+    });
+
+    it('keeps the legacy copy when the Keychain write cannot be read back', async () => {
+      // A Keychain that accepts the write and then returns nothing used to
+      // leave the app with no readable token at all, because the fallback copy
+      // had already been deleted.
+      (loadSecureStorageTokensOnly as jest.Mock).mockResolvedValue(null);
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      await persistSessionData(mockUser, mockTokens);
+
+      expect(AsyncStorage.removeItem).not.toHaveBeenCalledWith('@auth_tokens');
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        '@auth_tokens',
+        expect.stringContaining(mockTokens.idToken),
+      );
+
+      consoleSpy.mockRestore();
     });
 
     it('falls back to legacy storage if secure storage fails', async () => {

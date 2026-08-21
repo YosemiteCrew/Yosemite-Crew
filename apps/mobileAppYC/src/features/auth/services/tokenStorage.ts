@@ -1,8 +1,17 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Keychain from 'react-native-keychain';
 
 const KEYCHAIN_SERVICE = 'yosemite-crew-session';
 const KEYCHAIN_SERVICE_LEGACY = 'yosemite-crew-auth-tokens';
 const KEYCHAIN_ACCOUNT = 'yosemite-crew';
+
+/**
+ * Mirror of the AsyncStorage key `persistSessionData` falls back to when the
+ * Keychain write fails. Reading it here keeps every API call working on a
+ * device where secure storage is unavailable, instead of only the session
+ * recovery path that runs at launch.
+ */
+const ASYNC_STORAGE_FALLBACK_KEY = '@auth_tokens';
 
 export type AuthProviderName = 'supertokens';
 
@@ -72,16 +81,45 @@ const parsedTokensOrNull = (password: string): StoredAuthTokens | null => {
   }
 };
 
+/**
+ * Reads only the Keychain, with no AsyncStorage fallback. Callers verifying
+ * that a write actually landed need this, because the fallback would otherwise
+ * report success for a record secure storage never stored.
+ */
+export const loadSecureStorageTokensOnly =
+  async (): Promise<StoredAuthTokens | null> => {
+    try {
+      const credentials = await Keychain.getGenericPassword(keychainOptions);
+      return credentials ? parsedTokensOrNull(credentials.password) : null;
+    } catch (error) {
+      console.warn('Unable to read tokens back from secure storage', error);
+      return null;
+    }
+  };
+
+const loadAsyncStorageFallbackTokens =
+  async (): Promise<StoredAuthTokens | null> => {
+    try {
+      const raw = await AsyncStorage.getItem(ASYNC_STORAGE_FALLBACK_KEY);
+      return raw ? parsedTokensOrNull(raw) : null;
+    } catch (error) {
+      console.warn('Unable to read fallback auth tokens', error);
+      return null;
+    }
+  };
+
 export const loadStoredTokens = async (): Promise<StoredAuthTokens | null> => {
   try {
     const credentials = await Keychain.getGenericPassword(keychainOptions);
     if (credentials) {
       const tokens = parsedTokensOrNull(credentials.password);
-      if (!tokens) {
-        // Clear unreadable/legacy records so the user is prompted to sign in.
-        await clearStoredTokens().catch(() => undefined);
+      if (tokens) {
+        return tokens;
       }
-      return tokens;
+      // Unreadable or pre-cutover record. Drop it, but only fall back to a
+      // signed-out state once the AsyncStorage fallback is ruled out too.
+      await clearStoredTokens().catch(() => undefined);
+      return loadAsyncStorageFallbackTokens();
     }
 
     // Records stored under the previous service name predate SuperTokens —
@@ -89,14 +127,14 @@ export const loadStoredTokens = async (): Promise<StoredAuthTokens | null> => {
     const legacy = await Keychain.getGenericPassword({
       service: KEYCHAIN_SERVICE_LEGACY,
     });
-    if (!legacy) {
-      return null;
+    if (legacy) {
+      await Keychain.resetGenericPassword({service: KEYCHAIN_SERVICE_LEGACY});
     }
-    await Keychain.resetGenericPassword({service: KEYCHAIN_SERVICE_LEGACY});
-    return null;
+
+    return loadAsyncStorageFallbackTokens();
   } catch (error) {
     console.error('Unable to read tokens from secure storage', error);
-    return null;
+    return loadAsyncStorageFallbackTokens();
   }
 };
 

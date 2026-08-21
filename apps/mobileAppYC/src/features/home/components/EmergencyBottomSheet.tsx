@@ -50,10 +50,11 @@ export const EmergencyBottomSheet = ({
     selectLinkedHospitalsForCompanion(state, companionId ?? null),
   );
 
-  const hasLinkedHospital = linkedHospitals && linkedHospitals.length > 0;
-  const canShowOptions = hasLinkedHospital;
+  const hasLinkedHospital = Boolean(
+    linkedHospitals && linkedHospitals.length > 0,
+  );
 
-  const emergencyOptions: EmergencyOption[] = [
+  const allEmergencyOptions: EmergencyOption[] = [
     {
       id: 'call-vet',
       title: 'Call vet/ Practice',
@@ -72,6 +73,10 @@ export const EmergencyBottomSheet = ({
       iconBackgroundColor: theme.colors.lightBlueBackground,
     },
   ];
+
+  const emergencyOptions = hasLinkedHospital
+    ? allEmergencyOptions
+    : allEmergencyOptions.filter(option => option.id !== 'call-vet');
 
   useImperativeHandle(ref, () => ({
     open: () => {
@@ -101,17 +106,6 @@ export const EmergencyBottomSheet = ({
     }
   };
 
-  const renderEmptyState = () => {
-    const message = 'Please link a hospital to use this feature.';
-
-    return (
-      <View style={styles.emptyStateContainer}>
-        <Image source={Images.catEmergency} style={styles.catImage} />
-        <Text style={styles.emptyStateText}>{message}</Text>
-      </View>
-    );
-  };
-
   const renderOptions = () => (
     <View style={styles.optionsContainer}>
       <Image source={Images.catEmergency} style={styles.catImage} />
@@ -119,6 +113,11 @@ export const EmergencyBottomSheet = ({
       <Text style={styles.subtitleText}>
         Choose an option, and we'll help you take the next steps for your pet.
       </Text>
+      {!hasLinkedHospital && (
+        <Text style={styles.subtitleText}>
+          Link a hospital to your companion to call your vet straight from here.
+        </Text>
+      )}
 
       <View style={styles.optionsGrid}>
         {emergencyOptions.map(option => (
@@ -190,7 +189,7 @@ export const EmergencyBottomSheet = ({
             resizeMode="contain"
           />
         </LiquidGlassIconButton>
-        {canShowOptions ? renderOptions() : renderEmptyState()}
+        {renderOptions()}
       </View>
     </CustomBottomSheet>
   );
@@ -295,16 +294,6 @@ const createStyles = (theme: any) =>
       ...theme.typography.tabLabel,
       color: theme.colors.text,
       textAlign: 'left',
-    },
-    emptyStateContainer: {
-      width: '100%',
-      alignItems: 'center',
-      paddingVertical: theme.spacing['8'],
-    },
-    emptyStateText: {
-      ...theme.typography.subtitleRegular14,
-      color: theme.colors.textSecondary,
-      textAlign: 'center',
     },
     closeButton: {
       justifyContent: 'center',

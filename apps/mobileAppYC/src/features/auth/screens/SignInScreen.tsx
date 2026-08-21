@@ -27,10 +27,27 @@ import {useAuth} from '@/features/auth/context/AuthContext';
 import {isValidEmail} from '@/shared/constants/constants';
 import type {Theme} from '@/theme';
 
+// The Facebook and Apple marks ship as white glyphs, which measured ~1.06:1
+// on the cream button. Both brands permit a solid mark on a light ground:
+// Apple in black, Facebook in its brand blue. Google's is multicolour and must
+// never be tinted.
+const FACEBOOK_BRAND_BLUE = '#1877F2';
+const APPLE_MARK_BLACK = '#000000';
+
 const socialIconStyles = StyleSheet.create({
   icon: {
     width: 22,
     height: 22,
+  },
+  facebookIcon: {
+    width: 22,
+    height: 22,
+    tintColor: FACEBOOK_BRAND_BLUE,
+  },
+  appleIcon: {
+    width: 22,
+    height: 22,
+    tintColor: APPLE_MARK_BLACK,
   },
 });
 
@@ -45,7 +62,7 @@ const GoogleIcon = () => (
 const FacebookIcon = () => (
   <Image
     source={Images.facebookIcon}
-    style={socialIconStyles.icon}
+    style={socialIconStyles.facebookIcon}
     resizeMode="contain"
   />
 );
@@ -53,7 +70,7 @@ const FacebookIcon = () => (
 const AppleIcon = () => (
   <Image
     source={Images.appleIcon}
-    style={socialIconStyles.icon}
+    style={socialIconStyles.appleIcon}
     resizeMode="contain"
   />
 );

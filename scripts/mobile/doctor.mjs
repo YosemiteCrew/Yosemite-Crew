@@ -13,7 +13,7 @@
  */
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 // Resolved from the script path rather than cwd, so these run correctly
 // whether invoked from the repo root or the mobile workspace.
@@ -170,6 +170,64 @@ for (const [rel, how] of [
 }
 // Its absence makes an iOS build impossible, so it blocks rather than warns.
 checkFile('ios/mobileAppYC/Info.plist', 'ask a maintainer', bad);
+
+// iOS ignores a bundled font that is not listed in UIAppFonts, and the failure
+// is silent for text (it falls back to the system face) and only slightly
+// louder for icon fonts (every glyph becomes a "?" box). The real Info.plist is
+// gitignored and restored from a CI secret, so it drifts from the template
+// without anything noticing. Compare the two.
+// The only two plists this compares, so the reader takes a key rather than a
+// path and no caller can widen it.
+const PLIST_PATHS = {
+  build: 'ios/mobileAppYC/Info.plist',
+  template: 'config-templates/ios/Info.plist.example',
+};
+
+const uiAppFonts = (which) => {
+  // resolve() over join(): the key indexes a fixed table, and normalising here
+  // means the path cannot climb out of the workspace even if that table grows.
+  const plistPath = resolve(root, PLIST_PATHS[which]);
+  if (!existsSync(plistPath) || !plistPath.startsWith(resolve(root))) return null;
+  try {
+    const xml = readFileSync(plistPath, 'utf8');
+    const block = /<key>UIAppFonts<\/key>\s*<array>([\s\S]*?)<\/array>/.exec(xml);
+    if (!block) return [];
+    return [...block[1].matchAll(/<string>([^<]+)<\/string>/g)].map((m) => m[1]);
+  } catch {
+    return null;
+  }
+};
+
+const declaredFonts = uiAppFonts('build');
+const templateFonts = uiAppFonts('template');
+
+if (declaredFonts && templateFonts) {
+  const missing = templateFonts.filter((f) => !declaredFonts.includes(f));
+  if (missing.length > 0) {
+    bad(
+      'UIAppFonts',
+      `Info.plist is missing ${missing.length} font(s) the template registers: ${missing.join(', ')}. ` +
+        'Icon fonts render as "?" boxes and text fonts fall back silently. Update the IOS_INFO_PLIST secret from config-templates/ios/Info.plist.example.'
+    );
+  } else {
+    ok('UIAppFonts', `${declaredFonts.length} fonts registered, matching the template`);
+  }
+
+  // A font shipped in assets/fonts but never registered is the same failure,
+  // just one the template has not caught up with yet.
+  const fontsDir = join(root, 'assets/fonts');
+  if (existsSync(fontsDir)) {
+    const unregistered = readdirSync(fontsDir)
+      .filter((f) => /\.(ttf|otf)$/i.test(f))
+      .filter((f) => !declaredFonts.includes(f));
+    if (unregistered.length > 0) {
+      warn(
+        'UIAppFonts coverage',
+        `assets/fonts ships ${unregistered.length} font(s) iOS will not load: ${unregistered.join(', ')}`
+      );
+    }
+  }
+}
 
 // Android Maps silently renders a blank map with no key, and this one is empty
 // even on machines that have every other file.

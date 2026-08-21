@@ -97,6 +97,9 @@ import {deriveHomeGreetingName} from './HomeScreen.helpers';
 
 const EMPTY_ACCESS_MAP: Record<string, ParentCompanionAccess> = {};
 
+/** Ceiling on the opaque first-load overlay, which has no dismiss control. */
+const HOME_LOADER_TIMEOUT_MS = 12_000;
+
 type Props = NativeStackScreenProps<HomeStackParamList, 'Home'>;
 
 type HomeQuickActionId = TaskCategory | 'merck_manuals';
@@ -311,7 +314,12 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         return true;
       }
       if (!permissions) {
-        return false;
+        // Access rules absent means "not loaded yet", not "denied". Treating
+        // the two the same locks the account owner out of their own app when
+        // the co-parent fetch fails, and tells them to ask themselves for
+        // permission. The backend is the real authority, so defer to it rather
+        // than blocking here on state we never received.
+        return !role;
       }
       return Boolean(permissions[permission]);
     },
@@ -683,9 +691,20 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     if (initialLoadCompleteRef.current || isHomeDataReady) {
       initialLoadCompleteRef.current = true;
       hideLoader();
-    } else {
-      showLoader();
+      return;
     }
+
+    showLoader();
+    // The loader is an opaque full-screen modal with no dismiss control, and
+    // the readiness gate waits on six requests with no failure branch. Without
+    // a ceiling, one request that never settles leaves the user with no way
+    // out but force quitting. Render Home with whatever arrived instead.
+    const timeout = setTimeout(() => {
+      initialLoadCompleteRef.current = true;
+      hideLoader();
+    }, HOME_LOADER_TIMEOUT_MS);
+
+    return () => clearTimeout(timeout);
   }, [hideLoader, initialLoadStarted, isHomeDataReady, showLoader]);
 
   React.useEffect(() => {
