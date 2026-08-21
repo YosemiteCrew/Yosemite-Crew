@@ -1,0 +1,25 @@
+diff --git a/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm b/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm
+index 2a677974ca8a929849109f294bddcb239bb202d0..d7da2f952e2452f7bb7c89c4c1aa13bcc5785c6c 100644
+--- a/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm
++++ b/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm
+@@ -435,7 +435,19 @@ TraceSection s(
+     @try {
+       [inv invokeWithTarget:strongModule];
+     } @catch (NSException *exception) {
+-      throw convertNSExceptionToJSError(runtime, exception, std::string{moduleName}, methodNameStr);
++      // Converting an NSException to a JSError touches the JS runtime, and that
++      // is only safe on the JS thread. Unless void methods are configured to run
++      // synchronously this block is on the module's method queue, so converting
++      // here races the JS thread inside a single threaded, unlocked Hermes and
++      // corrupts its heap: the process then dies with EXC_BAD_ACCESS at a
++      // different address every launch, nowhere near the real error. Rethrow
++      // instead, matching the async branch of performMethodInvocation above and
++      // the fix on react-native main.
++      // https://github.com/facebook/react-native/issues/54859
++      if (shouldVoidMethodsExecuteSync_) {
++        throw convertNSExceptionToJSError(runtime, exception, std::string{moduleName}, methodNameStr);
++      }
++      @throw exception;
+     } @finally {
+       [retainedObjectsForInvocation removeAllObjects];
+     }

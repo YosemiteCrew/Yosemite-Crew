@@ -145,6 +145,9 @@
       "sharp": "0.35.3",
       "adm-zip": "0.6.0",
       "http-proxy-middleware": "2.0.10"
+    },
+    "patchedDependencies": {
+      "react-native@0.81.6": "patches/react-native@0.81.6.patch"
     }
   }
 }
