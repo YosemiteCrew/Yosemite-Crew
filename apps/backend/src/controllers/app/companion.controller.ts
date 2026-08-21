@@ -145,7 +145,9 @@ export const CompanionController = {
             .json({ message: "Organisation not found for provided orgId." });
         }
 
-        await CompanionOrganisationService.linkByPmsUser({
+        // The practice created this companion, so the link is ACTIVE - there is
+        // no parent to approve a record the practice itself just entered.
+        await CompanionOrganisationService.linkOnCompanionCreatedByPms({
           pmsUserId: authUser,
           organisationId: orgId.trim(),
           organisationType: organisation.type,

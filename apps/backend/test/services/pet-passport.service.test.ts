@@ -23,7 +23,7 @@ jest.mock("src/config/prisma", () => ({
     clinicalExamination: { findMany: jest.fn() },
     petPassport: { create: jest.fn(), findFirst: jest.fn(), update: jest.fn() },
     organization: { findUnique: jest.fn() },
-    parentPatient: { findFirst: jest.fn() },
+    parentPatient: { findFirst: jest.fn(), findMany: jest.fn() },
     parent: { findUnique: jest.fn(), findFirst: jest.fn() },
   },
 }));
@@ -43,7 +43,7 @@ const prismaMock = prisma as unknown as {
   clinicalExamination: { findMany: jest.Mock };
   petPassport: { create: jest.Mock; findFirst: jest.Mock; update: jest.Mock };
   organization: { findUnique: jest.Mock };
-  parentPatient: { findFirst: jest.Mock };
+  parentPatient: { findFirst: jest.Mock; findMany: jest.Mock };
   parent: { findUnique: jest.Mock; findFirst: jest.Mock };
 };
 const auditMock = AuditTrailService.recordSafely as jest.Mock;
@@ -345,6 +345,10 @@ describe("PetPassportService.getPassport", () => {
       { id: "pat-1" },
       { id: "pat-1b" },
     ]);
+    // Same owner on both chip rows, so both are the same physical pet.
+    prismaMock.parentPatient.findMany
+      .mockResolvedValueOnce([{ parentId: "par-1" }])
+      .mockResolvedValueOnce([{ patientId: "pat-1" }, { patientId: "pat-1b" }]);
     await PetPassportService.getPassport("pat-1", "org-1");
     expect(prismaMock.encounter.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -352,6 +356,43 @@ describe("PetPassportService.getPassport", () => {
           patientId: { in: ["pat-1", "pat-1b"] },
           organisationId: { in: ["org-1", "org-2"] },
         }),
+      }),
+    );
+  });
+
+  // `microchipNumber` is caller-supplied and not unique, so a row that merely
+  // shares the number - with a different owner - must not pull the real pet's
+  // records into the passport.
+  it("ignores chip-matched patients that share no owner with the authorised one", async () => {
+    prismaMock.patient.findMany.mockResolvedValue([
+      { id: "pat-1" },
+      { id: "spoofed-1" },
+    ]);
+    prismaMock.parentPatient.findMany
+      .mockResolvedValueOnce([{ parentId: "par-1" }])
+      .mockResolvedValueOnce([{ patientId: "pat-1" }]);
+
+    await PetPassportService.getPassport("pat-1", "org-1");
+
+    expect(prismaMock.encounter.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ patientId: { in: ["pat-1"] } }),
+      }),
+    );
+  });
+
+  it("falls back to the authorised patient when it has no active parent", async () => {
+    prismaMock.patient.findMany.mockResolvedValue([
+      { id: "pat-1" },
+      { id: "spoofed-1" },
+    ]);
+    prismaMock.parentPatient.findMany.mockResolvedValueOnce([]);
+
+    await PetPassportService.getPassport("pat-1", "org-1");
+
+    expect(prismaMock.encounter.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ patientId: { in: ["pat-1"] } }),
       }),
     );
   });

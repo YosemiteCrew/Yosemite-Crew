@@ -39,6 +39,7 @@ jest.mock("../../src/services/companion-organisation.service", () => ({
   __esModule: true,
   CompanionOrganisationService: {
     linkByPmsUser: jest.fn(),
+    linkOnCompanionCreatedByPms: jest.fn(),
   },
 }));
 
@@ -209,7 +210,9 @@ describe("CompanionController", () => {
       });
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith({ id: "c1" });
-      expect(CompanionOrganisationService.linkByPmsUser).not.toHaveBeenCalled();
+      expect(
+        CompanionOrganisationService.linkOnCompanionCreatedByPms,
+      ).not.toHaveBeenCalled();
     });
 
     it("should return 404 if orgId is invalid", async () => {
@@ -262,7 +265,9 @@ describe("CompanionController", () => {
 
       await CompanionController.createCompanionPMS(req, res);
 
-      expect(CompanionOrganisationService.linkByPmsUser).toHaveBeenCalledWith({
+      expect(
+        CompanionOrganisationService.linkOnCompanionCreatedByPms,
+      ).toHaveBeenCalledWith({
         pmsUserId: "auth_user_123",
         organisationId: validObjectId,
         organisationType: "HOSPITAL",

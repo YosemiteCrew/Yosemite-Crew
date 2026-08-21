@@ -335,7 +335,13 @@ export const WorkspaceDocumentPacketService = {
       input.encounterId,
     );
     if (existingPacket && hasActiveOrCompletedSigning(existingPacket)) {
-      return mapPacket(existingPacket);
+      // Same redaction the read path applies. This create route is open to
+      // `document:edit:any`, a far wider audience than the signer, and
+      // `signing.signingUrl` is a Documenso recipient token - a bearer link that
+      // completes the signature as the intended recipient. Returning the packet
+      // unredacted here let any colleague with document rights sign in the
+      // recipient's name.
+      return toReadOnlyPacket(mapPacket(existingPacket));
     }
 
     const bootstrap = await WorkspaceService.getEncounterBootstrap(
