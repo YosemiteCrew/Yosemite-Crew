@@ -37,6 +37,7 @@ const prismaMock = {
   },
   aPReferral: {
     upsert: jest.fn(),
+    updateMany: jest.fn(),
   },
 };
 
@@ -510,6 +511,57 @@ describe("handleAccept / handleReject", () => {
       },
       data: { state: "ACCEPTED" },
     });
+  });
+
+  it("routes an Accept referencing an Offer to the referral, not the follow", async () => {
+    // respondToReferral sends Accept/Reject for referral Offers too. Treating
+    // every one as a follow response left accepted referrals stuck PENDING for
+    // the sender and let a decline flip an unrelated follow-link.
+    await dispatch({
+      id: "urn:ac:offer",
+      type: "Accept",
+      actor: "https://remote.example/actor",
+      object: {
+        id: "urn:offer:1",
+        type: "Offer",
+        actor: LOCAL_ACTOR.uri,
+      },
+    });
+
+    expect(prismaMock.aPFollowing.updateMany).not.toHaveBeenCalled();
+    const [args] = prismaMock.aPReferral.updateMany.mock.calls[0];
+    expect(args.where).toMatchObject({
+      activityUri: "urn:offer:1",
+      fromActorUri: LOCAL_ACTOR.uri,
+      toActorUri: "https://remote.example/actor",
+      state: "PENDING",
+    });
+    expect(args.data.state).toBe("ACCEPTED");
+  });
+
+  it("routes a Reject referencing an Offer to the referral as DECLINED", async () => {
+    await dispatch({
+      id: "urn:rj:offer",
+      type: "Reject",
+      actor: "https://remote.example/actor",
+      object: { id: "urn:offer:2", type: "Offer", actor: LOCAL_ACTOR.uri },
+    });
+
+    expect(prismaMock.aPFollowing.updateMany).not.toHaveBeenCalled();
+    const [args] = prismaMock.aPReferral.updateMany.mock.calls[0];
+    expect(args.data.state).toBe("DECLINED");
+    expect(args.data.declinedAt).toBeInstanceOf(Date);
+  });
+
+  it("ignores an Offer response with no referenced activity id", async () => {
+    await dispatch({
+      id: "urn:ac:offer-noid",
+      type: "Accept",
+      actor: "https://remote.example/actor",
+      object: { type: "Offer" },
+    });
+    expect(prismaMock.aPReferral.updateMany).not.toHaveBeenCalled();
+    expect(prismaMock.aPFollowing.updateMany).not.toHaveBeenCalled();
   });
 
   it("Accept is a no-op when the local actor is unknown", async () => {

@@ -247,12 +247,15 @@ const AS_PUBLIC = "https://www.w3.org/ns/activitystreams#Public";
 function isPubliclyAddressed(raw: unknown): boolean {
   if (typeof raw !== "object" || raw === null) return false;
   const { to, cc } = raw as { to?: unknown; cc?: unknown };
-  // Array.isArray narrows `unknown` to `any[]`, so the branch is annotated to
-  // keep the result typed rather than leaking `any` out of the helper.
-  const audience: unknown[] = [to, cc].flatMap((field): unknown[] =>
-    Array.isArray(field) ? (field as unknown[]) : field == null ? [] : [field],
-  );
-  return audience.some((entry) => entry === AS_PUBLIC);
+  // Built with a loop rather than a flatMap of nested ternaries: `to` and `cc`
+  // may each be absent, a single value, or an array, and Array.isArray narrows
+  // `unknown` to `any[]`, which would leak `any` out of the helper.
+  const audience: unknown[] = [];
+  for (const field of [to, cc]) {
+    if (Array.isArray(field)) audience.push(...(field as unknown[]));
+    else if (field != null) audience.push(field);
+  }
+  return audience.includes(AS_PUBLIC);
 }
 
 const OUTBOX_PAGE_SIZE = 20;

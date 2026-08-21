@@ -1,5 +1,10 @@
 import { prisma, Prisma } from "@yosemite-crew/database";
-import { APFollowerState, APFollowingState, APDirection } from "@prisma/client";
+import {
+  APFollowerState,
+  APFollowingState,
+  APReferralState,
+  APDirection,
+} from "@prisma/client";
 import { isLicenseTokenValid } from "./ap-license.service";
 import logger from "src/utils/logger";
 import {
@@ -260,32 +265,102 @@ async function handleFollow(targetOrgId: string, activity: AnyActivity) {
   }
 }
 
-// ─── Accept ───────────────────────────────────────────────────────────────────
+// ─── Accept / Reject ──────────────────────────────────────────────────────────
 
-async function handleAccept(targetOrgId: string, activity: AnyActivity) {
+/**
+ * Accept and Reject are sent for two different things: a Follow request, and a
+ * referral Offer (see respondToReferral). Treating every one as a follow
+ * response left an accepted referral stuck PENDING for the sender, and let a
+ * declined referral flip an unrelated federation follow-link to REJECTED. The
+ * embedded object says which it is.
+ */
+function referencedObject(activity: AnyActivity): {
+  type?: string;
+  id?: string;
+} {
+  const inner: unknown = activity.object;
+  if (typeof inner === "object" && inner !== null) {
+    const { type, id } = inner as { type?: unknown; id?: unknown };
+    return {
+      type: typeof type === "string" ? type : undefined,
+      id: typeof id === "string" ? id : undefined,
+    };
+  }
+  return {};
+}
+
+/**
+ * Applies a follow-state transition. The responder is the activity's actor,
+ * which the worker has already bound to the verified signer. Never trust the
+ * inner object.actor: a verified peer could otherwise name a third party and
+ * flip our follow-link to them.
+ */
+async function applyFollowResponse(
+  targetOrgId: string,
+  activity: AnyActivity,
+  state: APFollowingState,
+) {
   const localActor = await getActorByOrgId(targetOrgId);
   if (!localActor) return;
 
-  // The acceptor is the activity's actor, which the worker has already bound to
-  // the verified signer. Never trust the inner object.actor: a verified peer
-  // could otherwise name a third party and flip our follow-link to them.
   await prisma.aPFollowing.updateMany({
     where: { localActorId: localActor.id, remoteActorUri: activity.actor },
-    data: { state: APFollowingState.ACCEPTED },
+    data: { state },
   });
 }
 
-// ─── Reject ───────────────────────────────────────────────────────────────────
-
-async function handleReject(targetOrgId: string, activity: AnyActivity) {
+/**
+ * Applies a referral decision to the Offer we sent. Scoped to a referral this
+ * instance originated (fromActorUri) and addressed to the responder, so a
+ * verified peer cannot decide someone else's referral.
+ */
+async function applyReferralResponse(
+  targetOrgId: string,
+  activity: AnyActivity,
+  state: APReferralState,
+) {
   const localActor = await getActorByOrgId(targetOrgId);
   if (!localActor) return;
 
-  // Same rule as Accept: trust only the verified signer (activity.actor).
-  await prisma.aPFollowing.updateMany({
-    where: { localActorId: localActor.id, remoteActorUri: activity.actor },
-    data: { state: APFollowingState.REJECTED },
+  const offerUri = referencedObject(activity).id;
+  if (!offerUri) return;
+
+  await prisma.aPReferral.updateMany({
+    where: {
+      activityUri: offerUri,
+      fromActorUri: localActor.uri,
+      toActorUri: activity.actor,
+      state: APReferralState.PENDING,
+    },
+    data:
+      state === APReferralState.ACCEPTED
+        ? { state, acceptedAt: new Date() }
+        : { state, declinedAt: new Date() },
   });
+}
+
+async function handleAccept(targetOrgId: string, activity: AnyActivity) {
+  if (referencedObject(activity).type === "Offer") {
+    await applyReferralResponse(
+      targetOrgId,
+      activity,
+      APReferralState.ACCEPTED,
+    );
+    return;
+  }
+  await applyFollowResponse(targetOrgId, activity, APFollowingState.ACCEPTED);
+}
+
+async function handleReject(targetOrgId: string, activity: AnyActivity) {
+  if (referencedObject(activity).type === "Offer") {
+    await applyReferralResponse(
+      targetOrgId,
+      activity,
+      APReferralState.DECLINED,
+    );
+    return;
+  }
+  await applyFollowResponse(targetOrgId, activity, APFollowingState.REJECTED);
 }
 
 // ─── Undo ─────────────────────────────────────────────────────────────────────

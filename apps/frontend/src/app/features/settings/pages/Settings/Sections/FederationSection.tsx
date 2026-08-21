@@ -515,16 +515,51 @@ const ReferralInboxCard = () => {
   );
 };
 
-const SendReferralCard = () => {
-  const { notify } = useNotify();
+const REFERRAL_INPUT_CLS =
+  'w-full text-body-4 border border-card-border rounded-lg px-3 py-2 bg-transparent text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-primary';
+
+const EMPTY_REFERRAL: SendReferralPayload = {
+  toActorUri: '',
+  patientSummary: { species: '', chiefComplaint: '' },
+  urgency: 'ROUTINE',
+};
+
+/** One labelled text input. Five near-identical blocks collapsed into one. */
+const ReferralField = ({
+  id,
+  label,
+  placeholder,
+  value,
+  onChange,
+  wide,
+}: {
+  id: string;
+  label: string;
+  placeholder: string;
+  value: string;
+  onChange: (value: string) => void;
+  wide?: boolean;
+}) => (
+  <div className={wide ? 'md:col-span-2' : undefined}>
+    <label htmlFor={id} className={FIELD_LABEL_CLS}>
+      {label}
+    </label>
+    <input
+      id={id}
+      className={REFERRAL_INPUT_CLS}
+      placeholder={placeholder}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  </div>
+);
+
+/** Form state and submission, kept out of the rendering component. */
+const useReferralForm = (notify: ReturnType<typeof useNotify>['notify']) => {
   const [outbound, setOutbound] = useState<APReferral[]>([]);
   const [loadingOutbound, setLoadingOutbound] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState<SendReferralPayload>({
-    toActorUri: '',
-    patientSummary: { species: '', chiefComplaint: '' },
-    urgency: 'ROUTINE',
-  });
+  const [form, setForm] = useState<SendReferralPayload>(EMPTY_REFERRAL);
 
   useEffect(() => {
     listOutboundReferrals().then((data) => {
@@ -542,18 +577,16 @@ const SendReferralCard = () => {
       patientSummary: { ...prev.patientSummary, [key]: value },
     }));
 
+  const incomplete =
+    !form.toActorUri || !form.patientSummary.species || !form.patientSummary.chiefComplaint;
+
   const handleSubmit = async () => {
-    if (!form.toActorUri || !form.patientSummary.species || !form.patientSummary.chiefComplaint)
-      return;
+    if (incomplete) return;
     setSubmitting(true);
     try {
       await sendReferral(form);
       notify('success', { title: 'Referral sent', text: 'Referral queued for delivery.' });
-      setForm({
-        toActorUri: '',
-        patientSummary: { species: '', chiefComplaint: '' },
-        urgency: 'ROUTINE',
-      });
+      setForm(EMPTY_REFERRAL);
       const data = await listOutboundReferrals();
       if (data) setOutbound(data);
     } catch {
@@ -563,122 +596,130 @@ const SendReferralCard = () => {
     }
   };
 
-  const inputCls =
-    'w-full text-body-4 border border-card-border rounded-lg px-3 py-2 bg-transparent text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-primary';
+  return {
+    form,
+    update,
+    updateSummary,
+    submitting,
+    incomplete,
+    handleSubmit,
+    outbound,
+    loadingOutbound,
+  };
+};
+
+const ReferralFormFields = ({
+  form,
+  update,
+  updateSummary,
+}: {
+  form: SendReferralPayload;
+  update: (key: keyof SendReferralPayload, value: unknown) => void;
+  updateSummary: (key: string, value: string) => void;
+}) => (
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+    <ReferralField
+      id="referral-to-actor-uri"
+      label="Recipient actor URI *"
+      placeholder="Recipient actor URI"
+      value={form.toActorUri}
+      onChange={(v) => update('toActorUri', v)}
+      wide
+    />
+    <ReferralField
+      id="referral-species"
+      label="Species *"
+      placeholder="e.g. Canine"
+      value={form.patientSummary.species}
+      onChange={(v) => updateSummary('species', v)}
+    />
+    <ReferralField
+      id="referral-breed"
+      label="Breed"
+      placeholder="e.g. Labrador"
+      value={form.patientSummary.breed ?? ''}
+      onChange={(v) => updateSummary('breed', v)}
+    />
+    <ReferralField
+      id="referral-age"
+      label="Age"
+      placeholder="e.g. 3 years"
+      value={form.patientSummary.age ?? ''}
+      onChange={(v) => updateSummary('age', v)}
+    />
+    <div>
+      <label htmlFor="referral-urgency" className={FIELD_LABEL_CLS}>
+        Urgency
+      </label>
+      <select
+        id="referral-urgency"
+        className={REFERRAL_INPUT_CLS}
+        value={form.urgency}
+        onChange={(e) => update('urgency', e.target.value as APReferralUrgency)}
+      >
+        <option value="ROUTINE">Routine</option>
+        <option value="URGENT">Urgent</option>
+        <option value="EMERGENCY">Emergency</option>
+      </select>
+    </div>
+    <ReferralField
+      id="referral-chief-complaint"
+      label="Chief complaint *"
+      placeholder="Primary reason for referral"
+      value={form.patientSummary.chiefComplaint}
+      onChange={(v) => updateSummary('chiefComplaint', v)}
+      wide
+    />
+    <div className="md:col-span-2">
+      <label htmlFor="referral-clinical-context" className={FIELD_LABEL_CLS}>
+        Clinical context
+      </label>
+      <textarea
+        id="referral-clinical-context"
+        className={`${REFERRAL_INPUT_CLS} resize-none`}
+        rows={3}
+        placeholder="History, diagnostics, current treatment..."
+        value={form.clinicalContext ?? ''}
+        onChange={(e) => update('clinicalContext', e.target.value)}
+      />
+    </div>
+  </div>
+);
+
+const SentReferralsList = ({ outbound }: { outbound: APReferral[] }) => (
+  <div className="border-t border-card-border pt-4">
+    <div className={`${TEXT_MUTED} mb-3`}>Sent referrals</div>
+    {outbound.map((r) => (
+      <ReferralRow key={r.id} referral={r} direction="out" />
+    ))}
+  </div>
+);
+
+const SendReferralCard = () => {
+  const { notify } = useNotify();
+  const {
+    form,
+    update,
+    updateSummary,
+    submitting,
+    incomplete,
+    handleSubmit,
+    outbound,
+    loadingOutbound,
+  } = useReferralForm(notify);
 
   return (
     <SectionCard title="Send referral">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div className="md:col-span-2">
-          <label htmlFor="referral-to-actor-uri" className={FIELD_LABEL_CLS}>
-            Recipient actor URI *
-          </label>
-          <input
-            id="referral-to-actor-uri"
-            className={inputCls}
-            placeholder="Recipient actor URI"
-            value={form.toActorUri}
-            onChange={(e) => update('toActorUri', e.target.value)}
-          />
-        </div>
-        <div>
-          <label htmlFor="referral-species" className={FIELD_LABEL_CLS}>
-            Species *
-          </label>
-          <input
-            id="referral-species"
-            className={inputCls}
-            placeholder="e.g. Canine"
-            value={form.patientSummary.species}
-            onChange={(e) => updateSummary('species', e.target.value)}
-          />
-        </div>
-        <div>
-          <label htmlFor="referral-breed" className={FIELD_LABEL_CLS}>
-            Breed
-          </label>
-          <input
-            id="referral-breed"
-            className={inputCls}
-            placeholder="e.g. Labrador"
-            value={form.patientSummary.breed ?? ''}
-            onChange={(e) => updateSummary('breed', e.target.value)}
-          />
-        </div>
-        <div>
-          <label htmlFor="referral-age" className={FIELD_LABEL_CLS}>
-            Age
-          </label>
-          <input
-            id="referral-age"
-            className={inputCls}
-            placeholder="e.g. 3 years"
-            value={form.patientSummary.age ?? ''}
-            onChange={(e) => updateSummary('age', e.target.value)}
-          />
-        </div>
-        <div>
-          <label htmlFor="referral-urgency" className={FIELD_LABEL_CLS}>
-            Urgency
-          </label>
-          <select
-            id="referral-urgency"
-            className={inputCls}
-            value={form.urgency}
-            onChange={(e) => update('urgency', e.target.value as APReferralUrgency)}
-          >
-            <option value="ROUTINE">Routine</option>
-            <option value="URGENT">Urgent</option>
-            <option value="EMERGENCY">Emergency</option>
-          </select>
-        </div>
-        <div className="md:col-span-2">
-          <label htmlFor="referral-chief-complaint" className={FIELD_LABEL_CLS}>
-            Chief complaint *
-          </label>
-          <input
-            id="referral-chief-complaint"
-            className={inputCls}
-            placeholder="Primary reason for referral"
-            value={form.patientSummary.chiefComplaint}
-            onChange={(e) => updateSummary('chiefComplaint', e.target.value)}
-          />
-        </div>
-        <div className="md:col-span-2">
-          <label htmlFor="referral-clinical-context" className={FIELD_LABEL_CLS}>
-            Clinical context
-          </label>
-          <textarea
-            id="referral-clinical-context"
-            className={`${inputCls} resize-none`}
-            rows={3}
-            placeholder="History, diagnostics, current treatment..."
-            value={form.clinicalContext ?? ''}
-            onChange={(e) => update('clinicalContext', e.target.value)}
-          />
-        </div>
-      </div>
+      <ReferralFormFields form={form} update={update} updateSummary={updateSummary} />
       <div className="flex justify-end">
         <Primary
           href="#"
           text={submitting ? 'Sending...' : 'Send referral'}
           onClick={handleSubmit}
-          isDisabled={
-            submitting ||
-            !form.toActorUri ||
-            !form.patientSummary.species ||
-            !form.patientSummary.chiefComplaint
-          }
+          isDisabled={submitting || incomplete}
         />
       </div>
-      {!loadingOutbound && outbound.length > 0 && (
-        <div className="border-t border-card-border pt-4">
-          <div className={`${TEXT_MUTED} mb-3`}>Sent referrals</div>
-          {outbound.map((r) => (
-            <ReferralRow key={r.id} referral={r} direction="out" />
-          ))}
-        </div>
-      )}
+      {!loadingOutbound && outbound.length > 0 && <SentReferralsList outbound={outbound} />}
     </SectionCard>
   );
 };
