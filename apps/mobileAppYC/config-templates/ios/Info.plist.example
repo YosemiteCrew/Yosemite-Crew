@@ -1,16 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!--
-  Copy this file to ios/mobileAppYC/Info.plist
-  Replace every YOUR_* placeholder with real values from your Firebase / Facebook / Google consoles.
-
-  Placeholder guide:
-    YOUR_FACEBOOK_APP_ID         → Facebook Developer console → App ID  (e.g. 761593156487643)
-    YOUR_FACEBOOK_CLIENT_TOKEN   → Facebook Developer console → Settings → Advanced → Client Token
-    YOUR_REVERSED_CLIENT_ID      → From ios/GoogleService-Info.plist → REVERSED_CLIENT_ID value
-                                   (looks like: com.googleusercontent.apps.PROJECT_NUMBER-CLIENT_HASH)
-    GOOGLE_MAPS_API_KEY          → Supplied by ios/mobileAppYC/Secrets.xcconfig, do not hardcode it here
--->
 <plist version="1.0">
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
@@ -33,14 +22,12 @@
 	<string>????</string>
 	<key>CFBundleURLTypes</key>
 	<array>
-		<!-- Facebook URL scheme: fb + YOUR_FACEBOOK_APP_ID -->
 		<dict>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>fbYOUR_FACEBOOK_APP_ID</string>
 			</array>
 		</dict>
-		<!-- Google Sign-In reverse client ID (from GoogleService-Info.plist → REVERSED_CLIENT_ID) -->
 		<dict>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
@@ -49,7 +36,6 @@
 				<string>YOUR_REVERSED_CLIENT_ID</string>
 			</array>
 		</dict>
-		<!-- Yosemite Crew deep-link schemes — keep as-is -->
 		<dict>
 			<key>CFBundleURLName</key>
 			<string>yc</string>
@@ -69,19 +55,16 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
-	<!-- Facebook SDK — replace with your app values -->
 	<key>FacebookAppID</key>
 	<string>YOUR_FACEBOOK_APP_ID</string>
 	<key>FacebookClientToken</key>
 	<string>YOUR_FACEBOOK_CLIENT_TOKEN</string>
 	<key>FacebookDisplayName</key>
 	<string>Yosemite Crew</string>
-	<!-- Google Maps SDK for iOS key from Secrets.xcconfig -->
 	<key>GMSApiKey</key>
 	<string>$(GOOGLE_MAPS_API_KEY)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
-	<!-- Required for Facebook SDK queries — keep as-is -->
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>fbapi</string>
@@ -98,7 +81,6 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
-	<!-- Permission usage descriptions — keep as-is, edit only if you change the UX copy -->
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>We add your pet's tasks and appointments to your calendar so you never miss important care steps.</string>
 	<key>NSCalendarsUsageDescription</key>
@@ -115,10 +97,8 @@
 	<string>We save photos and receipts you create for pet profiles, appointments, and service history.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>We access your library so you can upload pet photos or documents when booking services and appointments.</string>
-	<!-- React Native New Architecture — keep as-is -->
 	<key>RCTNewArchEnabled</key>
 	<true/>
-	<!-- Custom fonts — keep as-is -->
 	<key>UIAppFonts</key>
 	<array>
 		<string>ClashDisplay-Bold.otf</string>
@@ -136,6 +116,8 @@
 		<string>Satoshi-Regular.otf</string>
 		<string>SFProText-semibold.ttf</string>
 		<string>SFProText-regular.ttf</string>
+		<string>Newsreader-Italic.ttf</string>
+		<string>Newsreader-Regular.ttf</string>
 		<string>Ionicons.ttf</string>
 		<string>MaterialIcons.ttf</string>
 	</array>
