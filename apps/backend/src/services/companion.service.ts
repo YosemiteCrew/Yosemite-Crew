@@ -555,7 +555,16 @@ export const CompanionService = {
     return { response: toFHIRFromPrisma(doc) };
   },
 
-  async getByName(name: string) {
+  /**
+   * Companion name search, scoped to one organisation.
+   *
+   * `organisationId` is REQUIRED. `Patient` rows are not org-scoped in the
+   * schema - the relationship lives on `PatientOrganisation` - so a bare name
+   * query returns every companion in the product. Requiring the organisation
+   * makes that a compile error rather than something a future caller can
+   * forget, and the results come from the practice's own linked companions.
+   */
+  async getByName(name: string, organisationId: string) {
     if (!name || typeof name !== "string") {
       throw new CompanionServiceError("Name is required for searching.", 400);
     }
@@ -565,9 +574,27 @@ export const CompanionService = {
       throw new CompanionServiceError("Name is required for searching.", 400);
     }
 
+    const org = organisationId?.trim();
+    if (!org) {
+      throw new CompanionServiceError(
+        "Organisation is required for searching.",
+        400,
+      );
+    }
+
     const safe = escapeLikePattern(trimmed);
     const documents = await prisma.patient.findMany({
-      where: { name: { contains: safe, mode: "insensitive" } },
+      where: {
+        name: { contains: safe, mode: "insensitive" },
+        id: {
+          in: (
+            await prisma.patientOrganisation.findMany({
+              where: { organisationId: org, status: "ACTIVE" },
+              select: { patientId: true },
+            })
+          ).map((link) => link.patientId),
+        },
+      },
     });
 
     return {

@@ -528,9 +528,20 @@ describe("CompanionService", () => {
   });
 
   it("rejects blank search terms", async () => {
-    await expect(CompanionService.getByName("   ")).rejects.toEqual(
+    await expect(CompanionService.getByName("   ", "org-1")).rejects.toEqual(
       expect.objectContaining({
         message: "Name is required for searching.",
+        statusCode: 400,
+      }),
+    );
+  });
+
+  // `Patient` rows are not org-scoped in the schema, so a search with no
+  // organisation would return every companion in the product.
+  it("rejects a search with no organisation context", async () => {
+    await expect(CompanionService.getByName("fido", "  ")).rejects.toEqual(
+      expect.objectContaining({
+        message: "Organisation is required for searching.",
         statusCode: 400,
       }),
     );

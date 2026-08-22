@@ -606,16 +606,22 @@ describe("CompanionController", () => {
         responses: [],
       } as any);
 
+      (req as { organisationId?: string }).organisationId = "org-1";
+
       await CompanionController.searchCompanionByName(
         req as Request,
         res as Response,
       );
-      expect(mockedCompanionService.getByName).toHaveBeenCalledWith("fido");
+      expect(mockedCompanionService.getByName).toHaveBeenCalledWith(
+        "fido",
+        "org-1",
+      );
       expect(statusMock).toHaveBeenCalledWith(200);
     });
 
     it("should handle service error", async () => {
       req.query = { name: "fido" };
+      (req as { organisationId?: string }).organisationId = "org-1";
       mockServiceError("getByName", 400);
       await CompanionController.searchCompanionByName(
         req as Request,
@@ -626,6 +632,7 @@ describe("CompanionController", () => {
 
     it("should handle generic error", async () => {
       req.query = { name: "fido" };
+      (req as { organisationId?: string }).organisationId = "org-1";
       mockGenericError("getByName");
       await CompanionController.searchCompanionByName(
         req as Request,

@@ -27,10 +27,14 @@ router.post(
    PMS ROUTES (RBAC ENABLED)
    ====================================================== */
 
-// PMS routes that are NOT org-scoped (search)
+// `withOrgPermissions` is not optional here, for two reasons: `requirePermission`
+// answers 500 when no permission set has been loaded, so this route could only
+// ever error; and `Patient` rows are not org-scoped in the schema, so the search
+// behind it would otherwise return every companion in the product.
 router.get(
   "/org/search",
   requireWebAuth,
+  withOrgPermissions(),
   requirePermission("companions:view:any"),
   CompanionController.searchCompanionByName,
 );

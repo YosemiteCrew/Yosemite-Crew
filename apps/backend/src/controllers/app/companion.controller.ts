@@ -251,7 +251,14 @@ export const CompanionController = {
           .json({ message: "A valid search name is required." });
       }
 
-      const result = await CompanionService.getByName(name);
+      const organisationId = resolveVerifiedOrganisationId(req);
+      if (!organisationId) {
+        return res
+          .status(400)
+          .json({ message: "Organisation context is required." });
+      }
+
+      const result = await CompanionService.getByName(name, organisationId);
 
       return res.status(200).json(result.responses);
     } catch (error) {

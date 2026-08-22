@@ -402,6 +402,23 @@ describe("CompanionController", () => {
   });
 
   describe("searchCompanionByName", () => {
+    // The route sits behind `withOrgPermissions`, which is what supplies this.
+    // Without an organisation the search would span every companion in the
+    // product, because `Patient` rows are not org-scoped in the schema.
+    beforeEach(() => {
+      (req as { organisationId?: string }).organisationId = "org-1";
+    });
+
+    it("returns 400 when no organisation context is present", async () => {
+      req.query.name = "Fido";
+      (req as { organisationId?: string }).organisationId = undefined;
+
+      await CompanionController.searchCompanionByName(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(CompanionService.getByName).not.toHaveBeenCalled();
+    });
+
     it("should return 400 if name is missing or not a string", async () => {
       await CompanionController.searchCompanionByName(req, res);
       expect(res.status).toHaveBeenCalledWith(400);
