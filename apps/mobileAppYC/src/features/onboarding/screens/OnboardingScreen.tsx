@@ -429,13 +429,28 @@ const createStyles = (theme: Theme) =>
       ...theme.typography.onboardingHeadline,
       color: theme.colors.ink,
       textAlign: 'center',
+      // React Native has no text-wrap: balance. At the full 345pt content width
+      // "Every companion has a story." breaks after "a", orphaning "story." on
+      // a line of its own. Constraining the measure moves the break onto the
+      // phrase boundary instead. The other two leads are short enough that this
+      // does not reach them.
+      maxWidth: 288,
     },
     subtitle: {
       ...theme.typography.body,
       color: theme.colors.inkMuted,
       textAlign: 'center',
       marginTop: theme.spacing['3'],
-      maxWidth: 300,
+      // Tuned against all three slides on an iPhone 15 Pro. 330 orphaned
+      // "thread." on slide 2; 262 and 272 orphaned "own." on slide 1. 288 is
+      // the one value that leaves no single-word last line on any slide.
+      //
+      // Slide 1 still breaks after the conjunction ("visits, doses and /
+      // documents"), which is the weakest point in that sentence. No width
+      // fixes it: line 2 without "and" is wider than line 1 with it, so any
+      // measure narrow enough to push "and" down also forces a third line.
+      // That one needs a copy edit, not a layout change.
+      maxWidth: 288,
     },
     dots: {
       flexDirection: 'row',

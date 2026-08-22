@@ -89,12 +89,19 @@ const polylineLength = (pts: number[][]): number => {
 };
 
 const buildCircle = (w: number, h: number): Geometry => {
-  const padX = Math.max(14, w * 0.09);
-  const padY = Math.max(11, h * 0.26);
+  // The ring has to clear the glyph box at its CORNERS, not just at the axes,
+  // and an ellipse is at its tightest exactly where descenders sit - below the
+  // baseline, off-centre. With the previous radii the corner test
+  // (w/2/rx)^2 + (h/2/ry)^2 came to ~1.41, comfortably outside 1, so the stroke
+  // cut through the descender of the "p" in "Keep it whole." These radii leave
+  // roughly 7pt of clearance there instead of 3pt, without the ring ballooning
+  // away from the word.
+  const padX = Math.max(16, w * 0.1);
+  const padY = Math.max(13, h * 0.3);
   const cx = padX + w / 2;
   const cy = padY + h / 2;
-  const rx = w / 2 + Math.max(9, w * 0.06);
-  const ry = h / 2 + Math.max(6, h * 0.14);
+  const rx = w / 2 + Math.max(12, w * 0.08);
+  const ry = h / 2 + Math.max(10, h * 0.24);
   const start = -Math.PI * 0.6; // begin upper-right
   const end = start + Math.PI * 2 * 1.09; // overshoot ~1.09 turns so it crosses over
   const N = 46;
