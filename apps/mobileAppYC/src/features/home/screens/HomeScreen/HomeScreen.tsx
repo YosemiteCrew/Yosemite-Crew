@@ -1635,7 +1635,7 @@ const createStyles = (theme: any) =>
     greetingName: {
       // Warm-bone greeting: Newsreader serif italic in the companion pink.
       ...theme.typography.greeting,
-      color: theme.colors.pink,
+      color: theme.colors.pinkDeep,
     },
     greetingTitle: {
       // Large Newsreader serif headline under the greeting.

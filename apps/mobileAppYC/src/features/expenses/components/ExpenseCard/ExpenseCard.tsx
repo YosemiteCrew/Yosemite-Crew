@@ -86,7 +86,7 @@ const resolveCategoryVisual = (
     return {
       icon: 'cut-outline',
       background: theme.colors.pinkGlow,
-      color: theme.colors.pink,
+      color: theme.colors.pinkDeep,
     };
   }
   if (
