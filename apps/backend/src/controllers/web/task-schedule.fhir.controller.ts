@@ -12,6 +12,7 @@ import {
 } from "src/services/task-schedule.fhir.mapper";
 import { createFhirErrorHandler } from "src/controllers/web/fhir-controller.shared";
 import type { OrgRequest } from "src/middlewares/rbac";
+import { resolveVerifiedUserId } from "src/utils/request";
 
 const parametersSchema = z
   .object({ resourceType: z.literal("Parameters") })
@@ -53,9 +54,15 @@ const buildScheduleBundle = (schedules: TaskScheduleLike[]): Bundle => ({
 export const TaskScheduleFhirController = {
   async listEncounterSchedules(req: Request, res: Response) {
     try {
+      // The route admits `tasks:view:any` OR `tasks:view:own`; only the wider
+      // permission may see the whole encounter's schedules.
+      const orgRequest = req as OrgRequest;
+      const canViewAny =
+        orgRequest.userPermissions?.includes("tasks:view:any") ?? false;
       const schedules = await TaskWorkflowService.listSchedulesForEncounter(
         req.params.organisationId,
         req.params.encounterId,
+        canViewAny ? undefined : { actorId: resolveVerifiedUserId(req) ?? "" },
       );
       return res.status(200).json(buildScheduleBundle(schedules));
     } catch (error) {

@@ -460,22 +460,39 @@ export const OrganizationDocumentService = {
       throw new OrgDocumentServiceError("Document not found", 404);
     }
 
+    // The acknowledgement records what the user actually saw, so the category and
+    // version come from the DOCUMENT, never from the request. Trusting the
+    // client's values let a mobile caller pre-acknowledge versions that did not
+    // exist yet: when the practice later published that version, the backend
+    // reported it as already accepted even though nobody had read it - and an
+    // unbounded version number let one caller poison many rows for one document.
+    //
+    // A client that names a different version is stale rather than malicious, so
+    // it gets a 409 telling it to re-fetch, instead of silently acknowledging
+    // content the user was never shown.
+    if (input.version !== document.version) {
+      throw new OrgDocumentServiceError(
+        "This document has changed since it was opened. Reload and review the current version.",
+        409,
+      );
+    }
+
     await prisma.organizationDocumentAcknowledgement.upsert({
       where: {
         userId_organisationId_documentId_category_version: {
           userId,
           organisationId,
           documentId,
-          category: input.category,
-          version: input.version,
+          category: document.category,
+          version: document.version,
         },
       },
       create: {
         userId,
         organisationId,
         documentId,
-        category: input.category,
-        version: input.version,
+        category: document.category,
+        version: document.version,
       },
       update: {},
     });

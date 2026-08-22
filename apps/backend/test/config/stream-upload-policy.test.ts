@@ -44,23 +44,50 @@ describe("configureStreamUploadPolicy", () => {
     expect(arg.file_upload_config.size_limit).toBe(MAX_UPLOAD_SIZE_BYTES);
   });
 
-  it("only blocks active-content (SVG) images so normal photos still upload", async () => {
+  // The image endpoint is directly callable by any Stream token holder, so it
+  // needs the same blocklist as the file endpoint - otherwise `.html`, `.js` and
+  // `.exe` upload here and become shareable CDN links.
+  it("applies the full block policy to image uploads too", async () => {
     await configureStreamUploadPolicy();
 
     const arg = mockUpdateAppSettings.mock.calls[0][0];
-    // Regression guard: reusing the full file policy on image_upload_config
-    // caused Stream to reject legitimate jpg/png/webp uploads.
-    expect(arg.image_upload_config.blocked_file_extensions).toEqual([
-      "svg",
-      "svgz",
-    ]);
-    expect(arg.image_upload_config.blocked_mime_types).toEqual([
-      "image/svg+xml",
-    ]);
-    expect(arg.image_upload_config.blocked_file_extensions).not.toContain(
-      "jpg",
+    expect(arg.image_upload_config.blocked_file_extensions).toEqual(
+      BLOCKED_UPLOAD_EXTENSIONS,
+    );
+    expect(arg.image_upload_config.blocked_mime_types).toEqual(
+      BLOCKED_UPLOAD_MIME_TYPES,
+    );
+    expect(arg.image_upload_config.blocked_file_extensions).toEqual(
+      expect.arrayContaining(["html", "js", "exe", "jar", "hta"]),
     );
     expect(arg.image_upload_config.size_limit).toBe(MAX_UPLOAD_SIZE_BYTES);
+  });
+
+  // An earlier version of this policy was narrowed to the SVG family because
+  // legitimate photos were being rejected. That cannot come from these lists:
+  // they contain no raster image type at all. Asserting it means a future edit
+  // that adds one fails here instead of silently blocking customer photos.
+  it("never blocks a raster image type", () => {
+    const rasterExtensions = [
+      "jpg",
+      "jpeg",
+      "png",
+      "webp",
+      "gif",
+      "heic",
+      "heif",
+      "bmp",
+      "tiff",
+      "avif",
+    ];
+    for (const extension of rasterExtensions) {
+      expect(BLOCKED_UPLOAD_EXTENSIONS).not.toContain(extension);
+      expect(BLOCKED_UPLOAD_MIME_TYPES).not.toContain(`image/${extension}`);
+    }
+    // `image/svg+xml` is the deliberate exception: SVG carries active content.
+    expect(
+      BLOCKED_UPLOAD_MIME_TYPES.filter((type) => type.startsWith("image/")),
+    ).toEqual(["image/svg+xml"]);
   });
 
   it("covers the obvious malware vectors", () => {

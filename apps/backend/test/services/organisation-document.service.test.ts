@@ -467,22 +467,26 @@ describe("OrganizationDocumentService", () => {
     ).toThrow("Invalid legal document type");
   });
 
-  it("persists document acknowledgements for the shown version", async () => {
-    mockedPrisma.organizationDocument.findFirst.mockResolvedValueOnce({
-      id: "doc-7",
-      organisationId: "org-1",
-      title: "Terms",
-      description: "",
-      category: "TERMS_AND_CONDITIONS",
-      fileUrl: null,
-      fileName: null,
-      fileType: null,
-      fileSize: null,
-      visibility: "PUBLIC",
-      version: 2,
-      createdAt: new Date("2026-03-01T00:00:00Z"),
-      updatedAt: new Date("2026-03-01T00:00:00Z"),
-    });
+  const termsDocument = (version: number) => ({
+    id: "doc-7",
+    organisationId: "org-1",
+    title: "Terms",
+    description: "",
+    category: "TERMS_AND_CONDITIONS",
+    fileUrl: null,
+    fileName: null,
+    fileType: null,
+    fileSize: null,
+    visibility: "PUBLIC",
+    version,
+    createdAt: new Date("2026-03-01T00:00:00Z"),
+    updatedAt: new Date("2026-03-01T00:00:00Z"),
+  });
+
+  it("persists document acknowledgements against the document's own version", async () => {
+    mockedPrisma.organizationDocument.findFirst.mockResolvedValueOnce(
+      termsDocument(2),
+    );
     mockedPrisma.organizationDocumentAcknowledgement.upsert.mockResolvedValueOnce(
       {
         id: "ack-1",
@@ -495,10 +499,11 @@ describe("OrganizationDocumentService", () => {
         documentId: "doc-7",
         userId: "user-1",
         category: "TERMS_AND_CONDITIONS",
-        version: 1,
+        version: 2,
       }),
     ).resolves.toBeUndefined();
 
+    // Category and version come off the DOCUMENT, not the request body.
     expect(
       mockedPrisma.organizationDocumentAcknowledgement.upsert,
     ).toHaveBeenCalledWith({
@@ -508,7 +513,7 @@ describe("OrganizationDocumentService", () => {
           organisationId: "org-1",
           documentId: "doc-7",
           category: "TERMS_AND_CONDITIONS",
-          version: 1,
+          version: 2,
         },
       },
       create: {
@@ -516,10 +521,33 @@ describe("OrganizationDocumentService", () => {
         organisationId: "org-1",
         documentId: "doc-7",
         category: "TERMS_AND_CONDITIONS",
-        version: 1,
+        version: 2,
       },
       update: {},
     });
+  });
+
+  // Trusting the client's version let a caller pre-acknowledge a version that
+  // did not exist yet; when the practice later published it, the backend
+  // reported it as already accepted even though nobody had read it.
+  it("refuses to acknowledge a version other than the document's current one", async () => {
+    mockedPrisma.organizationDocument.findFirst.mockResolvedValueOnce(
+      termsDocument(2),
+    );
+
+    await expect(
+      OrganizationDocumentService.acknowledgeDocument({
+        organisationId: "org-1",
+        documentId: "doc-7",
+        userId: "user-1",
+        category: "TERMS_AND_CONDITIONS",
+        version: 99,
+      }),
+    ).rejects.toMatchObject({ statusCode: 409 });
+
+    expect(
+      mockedPrisma.organizationDocumentAcknowledgement.upsert,
+    ).not.toHaveBeenCalled();
   });
 
   it("returns the current acknowledgement status for the document version", async () => {

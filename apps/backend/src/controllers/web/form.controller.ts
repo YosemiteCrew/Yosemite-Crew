@@ -464,8 +464,25 @@ export const FormController = {
       }
       const submissionId = rawSubmissionId;
 
-      const pdfBuffer =
-        await FormService.generatePDFForSubmission(submissionId);
+      // This route is mobile-authenticated only, so the caller's own parent
+      // record is the ownership boundary for the submission.
+      const authUserId = (req as AuthenticatedRequest).userId;
+      if (!authUserId) {
+        return res
+          .status(401)
+          .json({ message: "Unauthorized: User ID missing" });
+      }
+      const authUser =
+        await AuthUserMobileService.getByProviderUserId(authUserId);
+      const parentId = authUser?.parentId?.toString();
+      if (!parentId) {
+        return res.status(403).json({ message: "Parent account not found" });
+      }
+
+      const pdfBuffer = await FormService.generatePDFForSubmission(
+        submissionId,
+        parentId,
+      );
 
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader(

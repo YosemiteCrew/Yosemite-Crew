@@ -533,12 +533,23 @@ const assertTemplateSubmittableByParent = async (params: {
   }
 };
 
+/**
+ * Attach the submitted form to its appointment.
+ *
+ * `appointmentId` comes off the client's FHIR payload, so the write is
+ * constrained to the appointment belonging to the FORM's own organisation.
+ * Without that predicate a submission could push an arbitrary form id onto any
+ * tenant's appointment, where it then shows up in that appointment's form list
+ * as though the practice had assigned it. `updateMany` means a mismatch is a
+ * no-op rather than an error - the submission itself is still recorded.
+ */
 const pushAppointmentFormIdInPostgres = async (
   appointmentId: string,
   formId: string,
+  organisationId: string,
 ) => {
   await prisma.appointment.updateMany({
-    where: { id: appointmentId },
+    where: { id: appointmentId, organisationId },
     data: {
       formIds: {
         push: formId,
@@ -1303,6 +1314,7 @@ export const FormService = {
       await pushAppointmentFormIdInPostgres(
         submission.appointmentId,
         formIdString,
+        formOrganisation.orgId,
       );
     }
 
@@ -1600,13 +1612,29 @@ export const FormService = {
     return toFormResponseDTO(clientForm);
   },
 
-  async generatePDFForSubmission(submissionId: string): Promise<Buffer> {
+  /**
+   * Render a submitted form as a PDF.
+   *
+   * `parentId` is the owner the caller must be. The mobile route is only
+   * authenticated, and a submission id is a bare uuid, so fetching by id alone
+   * let any signed-in mobile user download any other owner's completed form -
+   * consent text, answers and all. The same uniform 404 covers "does not exist"
+   * and "not yours" so this cannot be used to probe which ids are real.
+   */
+  async generatePDFForSubmission(
+    submissionId: string,
+    parentId?: string,
+  ): Promise<Buffer> {
     const sid = ensureId(submissionId, "submissionId");
 
     const submission = await prisma.formSubmission.findUnique({
       where: { id: sid },
     });
     if (!submission) {
+      throw new FormServiceError("Submission not found", 404);
+    }
+    const owner = parentId?.trim();
+    if (owner && submission.parentId !== owner) {
       throw new FormServiceError("Submission not found", 404);
     }
 
