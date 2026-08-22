@@ -36,8 +36,15 @@ export const PARENT_MARKER_STYLE: MarkerStyle = {
   color: 'var(--ink)',
 };
 
-export const getTaskStatusColors = (status: string): MarkerStyle =>
-  TASK_STATUS_MARKER_STYLES[status.toUpperCase()] ?? TASK_STATUS_MARKER_STYLES.PENDING;
+/**
+ * A partial task, a legacy record or a malformed API response can arrive with no
+ * status. Calling toUpperCase on it threw while rendering the marker and the
+ * popover badge, taking the whole calendar down over one bad row, so an absent
+ * status falls back to PENDING like any unrecognised one.
+ */
+export const getTaskStatusColors = (status: string | null | undefined): MarkerStyle =>
+  TASK_STATUS_MARKER_STYLES[String(status ?? '').toUpperCase()] ??
+  TASK_STATUS_MARKER_STYLES.PENDING;
 
 export const getTaskMarkerStyle = (task: Pick<Task, 'status' | 'audience'>): MarkerStyle =>
   task.audience === 'PARENT_TASK' ? PARENT_MARKER_STYLE : getTaskStatusColors(task.status);

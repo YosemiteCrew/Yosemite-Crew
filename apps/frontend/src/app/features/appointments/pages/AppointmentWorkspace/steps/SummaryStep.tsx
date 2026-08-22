@@ -594,6 +594,10 @@ const useSummaryStepContent = ({
   ]);
 
   const handleTemplateSelect = (template: TemplateLike) => {
+    // A saved discharge summary is read-only until it is explicitly reopened.
+    // Applying a template wrote straight over it while the saved timestamp and
+    // byline stayed put, so the replaced text read as the saved content.
+    if (dischargeSaved) return;
     const snapshot = getTemplateSchemaSnapshot(template);
     setDischargeSummary(appointmentId, schemaSnapshotToDischargeHtml(snapshot));
     setDischargeTemplate({
@@ -787,7 +791,13 @@ const useSummaryStepContent = ({
           indicator (design micro-state) sits to its left, driven off the save. */}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <AutosaveIndicator status={saveState?.status ?? 'idle'} savedAt={saveState?.at} />
-            <div ref={templateSearchRef} className="relative w-full sm:max-w-90">
+            {/* Hidden once the summary is saved: the saved view is read-only,
+                and offering a control that cannot apply is worse than not
+                offering it. Reopening the summary brings it back. */}
+            <div
+              ref={templateSearchRef}
+              className={`relative w-full sm:max-w-90 ${dischargeSaved ? 'hidden' : ''}`}
+            >
               <Search
                 value={templateQuery}
                 setSearch={setTemplateQuery}

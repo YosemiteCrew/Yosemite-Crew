@@ -52,7 +52,11 @@ export const useChannelSessionActions = ({
   const { notify } = useNotify();
   const router = useRouter();
   const [closingSession, setClosingSession] = useState(false);
-  const [locallyClosed, setLocallyClosed] = useState(false);
+  // The channel WE closed, not a bare boolean. The header can stay mounted while
+  // the active channel changes, so an unkeyed flag made every later channel read
+  // as closed: closed status, no close button, and the close handler refusing to
+  // run.
+  const [locallyClosedCid, setLocallyClosedCid] = useState<string | null>(null);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [followUpOpen, setFollowUpOpen] = useState(false);
   const [completingAppointment, setCompletingAppointment] = useState(false);
@@ -65,7 +69,7 @@ export const useChannelSessionActions = ({
     (channel?.data as any)?.status === 'ended' ||
     (channel?.data as any)?.frozen === true ||
     backendStatus === 'ended' ||
-    locallyClosed;
+    (locallyClosedCid !== null && locallyClosedCid === channel?.cid);
 
   const handleCloseSession = async () => {
     if (!channel) {
@@ -100,7 +104,7 @@ export const useChannelSessionActions = ({
         }
         await endChatChannel(sessionId);
         refreshStatuses();
-        setLocallyClosed(true);
+        setLocallyClosedCid(channel.cid);
         notify('success', {
           title: 'Chat session closed',
           text: 'Chat session closed successfully',
