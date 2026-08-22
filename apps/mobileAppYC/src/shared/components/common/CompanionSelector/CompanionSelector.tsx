@@ -18,6 +18,7 @@ import {useLazyRef} from '@/shared/hooks/useLazyRef';
 import type {RootState} from '@/app/store';
 import type {CoParentPermissions} from '@/features/coParent';
 
+import i18next from 'i18next';
 export interface CompanionBase {
   id?: string;
   _id?: string;
@@ -141,7 +142,7 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
     if (Platform.OS === 'android') {
       ToastAndroid.show(message, ToastAndroid.SHORT);
     } else {
-      Alert.alert('Permission needed', message);
+      Alert.alert(i18next.t('alerts.shared.permissionNeeded'), message);
     }
   }, []);
 

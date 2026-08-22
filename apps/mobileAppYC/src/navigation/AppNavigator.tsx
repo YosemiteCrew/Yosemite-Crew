@@ -64,6 +64,7 @@ import {
   ONBOARDING_COMPLETED_KEY,
 } from './onboardingStore';
 
+import i18next from 'i18next';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const handleOnboardingComplete = async () => {
@@ -371,24 +372,24 @@ const AppNavigatorEmergencySheet: React.FC = () => {
   const handleCallVet = React.useCallback(async () => {
     if (!primaryHospital) {
       Alert.alert(
-        'Hospital not linked',
-        'Link a hospital to quickly call your vet.',
+        i18next.t('alerts.navigation.hospitalNotLinked'),
+        i18next.t('alerts.navigation.hospitalNotLinkedBody'),
       );
       return;
     }
     const phone = hospitalPhoneRef.current ?? (await fetchHospitalPhone());
     if (!phone) {
       Alert.alert(
-        'Contact unavailable',
-        'We could not find a phone number for your linked hospital.',
+        i18next.t('alerts.navigation.contactUnavailable'),
+        i18next.t('alerts.navigation.contactUnavailableBody'),
       );
       return;
     }
     const normalizedPhone = phone.replaceAll(/[^\d+]/g, '');
     if (!normalizedPhone) {
       Alert.alert(
-        'Contact unavailable',
-        'The hospital phone number seems invalid. Please update it and try again.',
+        i18next.t('alerts.navigation.contactUnavailable'),
+        i18next.t('alerts.navigation.contactUnavailableBody2'),
       );
       return;
     }
@@ -398,7 +399,7 @@ const AppNavigatorEmergencySheet: React.FC = () => {
       (await tryOpenDialer(telUrl)) || (await tryOpenDialer(telPromptUrl));
     if (!opened) {
       Alert.alert(
-        'Dialer unavailable',
+        i18next.t('alerts.navigation.dialerUnavailable'),
         `Please call this number manually: ${normalizedPhone}`,
       );
     }
@@ -506,7 +507,10 @@ const AppNavigatorCoParentInviteSheet: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to accept invite:', error);
-      Alert.alert('Error', 'Failed to accept invite');
+      Alert.alert(
+        i18next.t('alerts.shared.error'),
+        i18next.t('alerts.navigation.errorBody'),
+      );
     }
   }, [currentInviteIndex, dispatch, pendingInvites, user?.parentId]);
 
@@ -520,7 +524,10 @@ const AppNavigatorCoParentInviteSheet: React.FC = () => {
       dispatch(fetchPendingInvites());
     } catch (error) {
       console.error('Failed to decline invite:', error);
-      Alert.alert('Error', 'Failed to decline invite');
+      Alert.alert(
+        i18next.t('alerts.shared.error'),
+        i18next.t('alerts.navigation.errorBody2'),
+      );
     }
   }, [currentInviteIndex, dispatch, pendingInvites]);
 

@@ -41,6 +41,7 @@ import MapDiscoveryView from '../components/MapDiscovery/MapDiscoveryView';
 import {useLocationPermission} from '../hooks/useLocationPermission';
 import {useClinicMapDiscovery} from '../hooks/useClinicMapDiscovery';
 
+import i18next from 'i18next';
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
 type Fallbacks = Record<
@@ -138,7 +139,10 @@ export const BrowseBusinessesScreen: React.FC = () => {
   );
   const ensureCompanion = useCallback(() => {
     if (targetCompanionId && selectedCompanion) return true;
-    Alert.alert('Add a companion', 'Add a companion to notify a business.');
+    Alert.alert(
+      i18next.t('alerts.shared.addACompanion'),
+      i18next.t('alerts.appointments.addACompanionBody'),
+    );
     return false;
   }, [selectedCompanion, targetCompanionId]);
 

@@ -22,6 +22,7 @@ import {
   setSelectedCompanion,
 } from '@/features/companion';
 
+import i18next from 'i18next';
 type Props = NativeStackScreenProps<HomeStackParamList, 'CoParents'>;
 
 export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
@@ -92,8 +93,8 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
   const handleAdd = () => {
     if (!selectedCompanion?.id) {
       Alert.alert(
-        'Select companion',
-        'Please select a companion before adding a co-parent.',
+        i18next.t('alerts.shared.selectCompanion'),
+        i18next.t('alerts.coParent.selectCompanionBody'),
       );
       return;
     }

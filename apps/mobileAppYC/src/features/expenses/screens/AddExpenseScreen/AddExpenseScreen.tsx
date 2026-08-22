@@ -22,6 +22,7 @@ import {
   useFormFileOperations,
 } from '@/shared/hooks/useFormScreen';
 
+import i18next from 'i18next';
 export const AddExpenseScreen: React.FC = () => {
   const {
     theme,
@@ -86,7 +87,7 @@ export const AddExpenseScreen: React.FC = () => {
       );
     } catch (error) {
       Alert.alert(
-        'Unable to save expense',
+        i18next.t('alerts.expenses.unableToSaveExpense'),
         error instanceof Error ? error.message : 'Please try again.',
       );
     }

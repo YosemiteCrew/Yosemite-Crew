@@ -16,6 +16,7 @@ import {
   type ParentCompanionAccess,
 } from '@/features/coParent';
 
+import i18next from 'i18next';
 declare const require: <T>(moduleName: string) => T;
 
 const {createBottomTabNavigator} = require<
@@ -165,7 +166,7 @@ const TabNavigatorInner: React.FC = () => {
         if (Platform.OS === 'android') {
           ToastAndroid.show(message, ToastAndroid.SHORT);
         } else {
-          Alert.alert('Permission needed', message);
+          Alert.alert(i18next.t('alerts.shared.permissionNeeded'), message);
         }
         return false;
       }

@@ -2,6 +2,7 @@ import {Alert, Linking, Platform} from 'react-native';
 import RNCalendarEvents from 'react-native-calendar-events';
 import type {Task} from '@/features/tasks/types';
 
+import i18next from 'i18next';
 // Tasks created before calendar selection stored a provider name rather than a
 // device calendar id. Those values are not addressable, so let the OS pick the
 // default calendar instead of passing them through as an id.
@@ -29,8 +30,8 @@ const buildIsoDate = (date: string, time?: string) => {
 const ensureCalendarPermission = async (): Promise<boolean> => {
   const promptForSettings = () => {
     Alert.alert(
-      'Calendar permission needed',
-      'Enable calendar access to sync tasks with your calendar.',
+      i18next.t('alerts.tasks.calendarPermissionNeeded'),
+      i18next.t('alerts.tasks.calendarPermissionNeededBody'),
       [
         {text: 'Not now', style: 'cancel'},
         {
@@ -297,8 +298,8 @@ const createDosageCalendarEvents = async (
     // id recorded against the task, leaving them unreachable for later removal.
     await removeCalendarEvents(eventIds.join(','));
     Alert.alert(
-      'Calendar',
-      'Unable to add medication dosages to your calendar.',
+      i18next.t('alerts.tasks.calendar'),
+      i18next.t('alerts.tasks.calendarBody'),
     );
     return null;
   }
@@ -450,7 +451,10 @@ export const createCalendarEventForTask = async (
     return eventId ?? null;
   } catch (error) {
     console.error('[Calendar] Failed to create event:', error);
-    Alert.alert('Calendar', 'Unable to add this task to your calendar.');
+    Alert.alert(
+      i18next.t('alerts.tasks.calendar'),
+      i18next.t('alerts.tasks.calendarBody2'),
+    );
     return null;
   }
 };
@@ -526,15 +530,15 @@ export const openCalendarEvent = async (
       await Linking.openURL(url);
     } else {
       Alert.alert(
-        'Calendar',
-        'Event saved. Please open your calendar app to view it.',
+        i18next.t('alerts.tasks.calendar'),
+        i18next.t('alerts.tasks.calendarBody3'),
       );
     }
   } catch (error) {
     console.warn('[Calendar] Failed to open event', error);
     Alert.alert(
-      'Calendar',
-      'Event saved. Please open your calendar app to view it.',
+      i18next.t('alerts.tasks.calendar'),
+      i18next.t('alerts.tasks.calendarBody3'),
     );
   }
 };

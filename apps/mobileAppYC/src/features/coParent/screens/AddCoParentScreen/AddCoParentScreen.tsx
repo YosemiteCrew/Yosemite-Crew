@@ -29,6 +29,7 @@ import {
   selectSelectedCompanionId,
 } from '@/features/companion';
 
+import i18next from 'i18next';
 type Props = NativeStackScreenProps<CoParentStackParamList, 'AddCoParent'>;
 
 interface InviteFormData {
@@ -86,8 +87,8 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
       try {
         if (!selectedCompanion?.id) {
           Alert.alert(
-            'Select companion',
-            'Please select a companion to invite.',
+            i18next.t('alerts.shared.selectCompanion'),
+            i18next.t('alerts.coParent.selectCompanionBody5'),
           );
           return;
         }
@@ -117,7 +118,10 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
         reset();
       } catch (error) {
         console.error('Failed to add co-parent:', error);
-        Alert.alert('Error', 'Failed to send invite');
+        Alert.alert(
+          i18next.t('alerts.shared.error'),
+          i18next.t('alerts.coParent.errorBody7'),
+        );
       }
     },
     [dispatch, reset, selectedCompanion],

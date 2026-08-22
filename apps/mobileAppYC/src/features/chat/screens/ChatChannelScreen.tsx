@@ -38,6 +38,7 @@ import {
   createStreamChatTheme,
 } from '@/features/chat/streamChatTheme';
 
+import i18next from 'i18next';
 type RouteParams = {
   appointmentId: string;
   vetId: string;
@@ -146,9 +147,11 @@ export const ChatChannelScreen: React.FC = () => {
           'You must be signed in to chat with your vet. Please log in and try again.';
         setError(missingUserMessage);
         setLoading(false);
-        Alert.alert('Chat unavailable', missingUserMessage, [
-          {text: 'Go Back', onPress: () => navigation.goBack()},
-        ]);
+        Alert.alert(
+          i18next.t('alerts.shared.chatUnavailable'),
+          missingUserMessage,
+          [{text: 'Go Back', onPress: () => navigation.goBack()}],
+        );
         return;
       }
 
@@ -205,7 +208,7 @@ export const ChatChannelScreen: React.FC = () => {
       setLoading(false);
 
       // Show alert
-      Alert.alert('Chat Error', errorMessage, [
+      Alert.alert(i18next.t('alerts.chat.chatError'), errorMessage, [
         {
           text: 'Go Back',
           onPress: () => navigation.goBack(),

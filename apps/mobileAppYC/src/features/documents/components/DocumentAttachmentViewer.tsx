@@ -25,6 +25,7 @@ import {normalizeMimeType} from '@/shared/utils/mime';
 import {downloadDocumentToAppStorage} from '@/shared/utils/documentDownload';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 
+import i18next from 'i18next';
 const MIME_EXTENSION_MAP: Record<string, string> = {
   'application/pdf': 'pdf',
   'application/msword': 'doc',
@@ -153,8 +154,8 @@ const handleDownload = async (file: DocumentFile) => {
   const sourceUri = resolveSourceUri(file);
   if (!sourceUri) {
     Alert.alert(
-      'Unavailable',
-      'We could not find a download link for this file. Please try again later.',
+      i18next.t('alerts.shared.unavailable'),
+      i18next.t('alerts.documents.unavailableBody'),
     );
     return;
   }
@@ -173,12 +174,15 @@ const handleDownload = async (file: DocumentFile) => {
       sourceUri,
       fileName,
     );
-    Alert.alert('Download complete', `Saved to:\n${downloadPath}`);
+    Alert.alert(
+      i18next.t('alerts.shared.downloadComplete'),
+      `Saved to:\n${downloadPath}`,
+    );
   } catch (error) {
     console.warn('[DocumentAttachmentViewer] Download error', error);
     Alert.alert(
-      'Download failed',
-      'Unable to download the file. Please check your connection and try again.',
+      i18next.t('alerts.shared.downloadFailed'),
+      i18next.t('alerts.documents.downloadFailedBody'),
     );
   }
 };
@@ -235,7 +239,7 @@ export const DocumentAttachmentViewer: React.FC<
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Failed to share';
-      Alert.alert('Error', message);
+      Alert.alert(i18next.t('alerts.shared.error'), message);
     }
   };
 

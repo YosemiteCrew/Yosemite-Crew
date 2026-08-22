@@ -18,6 +18,7 @@ import {fetchGooglePlacesImage} from '../thunks';
 import type {LinkedBusiness} from '../types';
 import {openMapsToAddress} from '@/shared/utils/openMaps';
 
+import i18next from 'i18next';
 interface LinkedBusinessCardProps {
   business: LinkedBusiness;
   _onDelete?: (id: string) => void;
@@ -132,7 +133,10 @@ export const LinkedBusinessCard: React.FC<LinkedBusinessCardProps> = ({
 
   const handleGetDirections = useCallback(() => {
     if (!business.address) {
-      Alert.alert('No Address', 'Address not available for this business.');
+      Alert.alert(
+        i18next.t('alerts.linkedBusinesses.noAddress'),
+        i18next.t('alerts.linkedBusinesses.noAddressBody'),
+      );
       return;
     }
     openMapsToAddress(business.address);

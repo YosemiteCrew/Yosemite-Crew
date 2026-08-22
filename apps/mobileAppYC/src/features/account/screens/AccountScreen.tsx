@@ -49,6 +49,7 @@ import {normalizeImageUri} from '@/shared/utils/imageUri';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
 import {convertWeight} from '@/shared/utils/measurementSystem';
 
+import i18next from 'i18next';
 type Props = NativeStackScreenProps<HomeStackParamList, 'Account'>;
 
 type CompanionProfile = {
@@ -529,7 +530,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
     if (Platform.OS === 'android') {
       ToastAndroid.show(message, ToastAndroid.SHORT);
     } else {
-      Alert.alert('Permission needed', message);
+      Alert.alert(i18next.t('alerts.shared.permissionNeeded'), message);
     }
   }, []);
 
@@ -577,7 +578,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
       await logout();
     } catch (error) {
       const message = deriveDeletionErrorMessage(error);
-      Alert.alert('Delete Failed', message);
+      Alert.alert(i18next.t('alerts.account.deleteFailed'), message);
       throw new Error(message);
     } finally {
       setIsDeletingAccount(false);

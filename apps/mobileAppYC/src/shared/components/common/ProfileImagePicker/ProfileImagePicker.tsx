@@ -21,6 +21,7 @@ import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
 
+import i18next from 'i18next';
 interface ProfileImagePickerProps {
   imageUri?: string | null;
   onImageSelected: (uri: string) => void;
@@ -84,13 +85,13 @@ export const ProfileImagePicker = ({
           case RESULTS.UNAVAILABLE:
             if (type === 'camera') {
               Alert.alert(
-                'Camera Not Available',
-                'Camera is not available on this device. Please use a real device to test camera features.',
+                i18next.t('alerts.shared.cameraNotAvailable'),
+                i18next.t('alerts.shared.cameraNotAvailableBody'),
               );
             } else {
               Alert.alert(
-                'Not Available',
-                'Photo library is not available on this device.',
+                i18next.t('alerts.shared.notAvailable'),
+                i18next.t('alerts.shared.notAvailableBody'),
               );
             }
             return false;
@@ -117,7 +118,7 @@ export const ProfileImagePicker = ({
 
           case RESULTS.BLOCKED:
             Alert.alert(
-              'Permission Blocked',
+              i18next.t('alerts.shared.permissionBlocked'),
               `${type === 'camera' ? 'Camera' : 'Photo library'} permission is blocked. Please enable it in Settings.`,
               [
                 {text: 'Cancel', style: 'cancel'},
@@ -141,7 +142,10 @@ export const ProfileImagePicker = ({
         }
       } catch (error) {
         console.warn('Permission error:', error);
-        Alert.alert('Error', 'Failed to check permissions');
+        Alert.alert(
+          i18next.t('alerts.shared.error'),
+          i18next.t('alerts.shared.errorBody'),
+        );
         return false;
       }
     },
@@ -167,23 +171,23 @@ export const ProfileImagePicker = ({
         // Handle specific error codes as per documentation
         if (response.errorCode === 'camera_unavailable') {
           Alert.alert(
-            'Camera Not Available',
-            'Camera is not available. This is expected on iOS Simulator. Please test on a real device or select from gallery.',
+            i18next.t('alerts.shared.cameraNotAvailable'),
+            i18next.t('alerts.shared.cameraNotAvailableBody2'),
           );
           return;
         }
 
         if (response.errorCode === 'permission') {
           Alert.alert(
-            'Permission Denied',
-            'Permission was denied. Please check your app permissions in Settings.',
+            i18next.t('alerts.shared.permissionDenied'),
+            i18next.t('alerts.shared.permissionDeniedBody'),
           );
           return;
         }
 
         // Handle 'others' error code
         Alert.alert(
-          'Error',
+          i18next.t('alerts.shared.error'),
           response.errorMessage || 'An error occurred while picking the image',
         );
         return;
@@ -195,7 +199,10 @@ export const ProfileImagePicker = ({
           onImageSelected(asset.uri);
           console.log('Image selected successfully:', asset.fileName);
         } else {
-          Alert.alert('Error', 'Failed to get image URI');
+          Alert.alert(
+            i18next.t('alerts.shared.error'),
+            i18next.t('alerts.shared.errorBody2'),
+          );
         }
       }
     },
@@ -247,8 +254,8 @@ export const ProfileImagePicker = ({
       return;
     }
     Alert.alert(
-      'Select Profile Image',
-      'Choose how you want to select your profile image',
+      i18next.t('alerts.shared.selectProfileImage'),
+      i18next.t('alerts.shared.selectProfileImageBody'),
       [
         {
           text: 'Take Photo',

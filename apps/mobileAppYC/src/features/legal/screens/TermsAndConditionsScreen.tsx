@@ -17,6 +17,7 @@ import {createLegalStyles} from '../styles/legalStyles';
 import type {Theme} from '@/theme';
 import type {LegalStackParamList} from '@/navigation/types';
 
+import i18next from 'i18next';
 type TermsScreenProps = NativeStackScreenProps<
   LegalStackParamList,
   'TermsAndConditions'
@@ -335,8 +336,8 @@ export const TermsAndConditionsScreen: React.FC<TermsScreenProps> = props => {
       }
 
       Alert.alert(
-        'Withdrawal submitted',
-        'We have received your withdrawal request. You will be signed out now.',
+        i18next.t('alerts.legal.withdrawalSubmitted'),
+        i18next.t('alerts.legal.withdrawalSubmittedBody'),
         [
           {
             text: 'OK',
@@ -350,7 +351,7 @@ export const TermsAndConditionsScreen: React.FC<TermsScreenProps> = props => {
           ? error.message
           : 'Unable to submit withdrawal right now.';
       setFormErrors(prev => ({...prev, general: message}));
-      Alert.alert('Unable to submit', message);
+      Alert.alert(i18next.t('alerts.shared.unableToSubmit'), message);
     } finally {
       setIsSubmitting(false);
     }

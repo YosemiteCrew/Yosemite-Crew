@@ -40,6 +40,7 @@ import {useOrganisationDocumentNavigation} from '@/shared/hooks/useOrganisationD
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {observationToolApi} from '@/features/observationalTools/services/observationToolService';
 
+import i18next from 'i18next';
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type Route = RouteProp<AppointmentStackParamList, 'BookingForm'>;
 
@@ -234,7 +235,7 @@ export const BookingFormScreen: React.FC = () => {
     if (!selectedServiceName) missing.push('service');
     if (!agreeBusiness || !agreeApp) missing.push('agreements');
     Alert.alert(
-      'Complete booking details',
+      i18next.t('alerts.appointments.completeBookingDetails'),
       `Please select ${missing.join(', ')} to continue.`,
     );
     return false;
@@ -280,7 +281,10 @@ export const BookingFormScreen: React.FC = () => {
     }
     const resolvedServiceId = effectiveServiceId;
     if (!resolvedServiceId) {
-      Alert.alert('Select service', 'Please choose a service before booking.');
+      Alert.alert(
+        i18next.t('alerts.appointments.selectService'),
+        i18next.t('alerts.appointments.selectServiceBody'),
+      );
       return;
     }
     setSubmitting(true);
@@ -353,7 +357,7 @@ export const BookingFormScreen: React.FC = () => {
           (action.payload as string) ??
           action.error?.message ??
           'Unable to book appointment. Please try again.';
-        Alert.alert('Booking failed', message);
+        Alert.alert(i18next.t('alerts.appointments.bookingFailed'), message);
       }
     } catch (error) {
       console.warn('[Booking] Failed to book appointment', error);
@@ -361,7 +365,7 @@ export const BookingFormScreen: React.FC = () => {
         error instanceof Error
           ? error.message
           : 'Unable to book appointment. Please try again.';
-      Alert.alert('Booking failed', message);
+      Alert.alert(i18next.t('alerts.appointments.bookingFailed'), message);
     } finally {
       setSubmitting(false);
     }

@@ -41,6 +41,7 @@ import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHea
 import {TabParamList} from '@/navigation/types';
 import type {Theme} from '@/theme';
 
+import i18next from 'i18next';
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
 const resolveCompanionSpecies = (raw: string): string => {
@@ -176,7 +177,7 @@ export const BusinessDetailsScreen: React.FC = () => {
         const companionSpecies = resolveCompanionSpecies(raw);
         if (companionSpecies !== serviceSpecies) {
           Alert.alert(
-            'Species Mismatch',
+            i18next.t('alerts.appointments.speciesMismatch'),
             `This service is for ${speciesLabel[serviceSpecies] ?? serviceSpecies}.`,
             [{text: 'OK'}],
           );

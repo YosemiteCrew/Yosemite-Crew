@@ -73,6 +73,7 @@ import {
   uploadFileToPresignedUrl,
 } from '@/shared/services/uploadService';
 
+import i18next from 'i18next';
 // Props
 export type EditParentScreenProps = NativeStackScreenProps<
   HomeStackParamList,
@@ -429,7 +430,10 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
                         return;
                       }
                       Clipboard.setString(email);
-                      Alert.alert('Copied', 'Email Id copied to clipboard');
+                      Alert.alert(
+                        i18next.t('alerts.account.copied'),
+                        i18next.t('alerts.account.copiedBody'),
+                      );
                     }}>
                     <Image source={Images.copyIcon} style={styles.copyIcon} />
                   </PressableOpacity>

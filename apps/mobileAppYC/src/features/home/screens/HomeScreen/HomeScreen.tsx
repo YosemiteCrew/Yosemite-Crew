@@ -95,6 +95,7 @@ import {upsertBusiness} from '@/features/appointments/businessesSlice';
 import {BusinessSearchDropdown} from '@/features/linkedBusinesses/components/BusinessSearchDropdown';
 import {deriveHomeGreetingName} from './HomeScreen.helpers';
 
+import i18next from 'i18next';
 const EMPTY_ACCESS_MAP: Record<string, ParentCompanionAccess> = {};
 
 /** Ceiling on the opaque first-load overlay, which has no dismiss control. */
@@ -336,7 +337,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     if (Platform.OS === 'android') {
       ToastAndroid.show(message, ToastAndroid.SHORT);
     } else {
-      Alert.alert('Permission needed', message);
+      Alert.alert(i18next.t('alerts.shared.permissionNeeded'), message);
     }
   }, []);
 
@@ -365,7 +366,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     if (Platform.OS === 'android') {
       ToastAndroid.show(message, ToastAndroid.SHORT);
     } else {
-      Alert.alert('Add a companion', message);
+      Alert.alert(i18next.t('alerts.shared.addACompanion'), message);
     }
     return false;
   }, [hasCompanions]);
@@ -785,8 +786,8 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         }
         if (!merckOrganisationId) {
           Alert.alert(
-            'MSD Veterinary Manuals unavailable',
-            'Link a hospital for this companion to use MSD Veterinary Manual search.',
+            i18next.t('alerts.home.msdVeterinaryManualsUnavailable'),
+            i18next.t('alerts.home.msdVeterinaryManualsUnavailableBody'),
           );
           return;
         }
@@ -929,8 +930,8 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
       if (!appointment) {
         Alert.alert(
-          'Chat unavailable',
-          'Book an appointment with an assigned vet to access chat.',
+          i18next.t('alerts.shared.chatUnavailable'),
+          i18next.t('alerts.home.chatUnavailableBody'),
           [{text: 'OK'}],
         );
         return;
@@ -999,7 +1000,10 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       }
       const target = upcomingAppointments.find(a => a.id === appointmentId);
       if (!target) {
-        Alert.alert('Appointment not found', 'Please refresh and try again.');
+        Alert.alert(
+          i18next.t('alerts.home.appointmentNotFound'),
+          i18next.t('alerts.home.appointmentNotFoundBody'),
+        );
         return;
       }
 

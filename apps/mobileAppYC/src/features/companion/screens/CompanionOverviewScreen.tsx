@@ -210,8 +210,8 @@ export const CompanionOverviewScreen: React.FC<
       } catch (error) {
         console.error('[CompanionOverview] Failed to update profile:', error);
         Alert.alert(
-          'Update Failed',
-          'Failed to update companion profile. Please try again.',
+          i18next.t('alerts.companion.updateFailed'),
+          i18next.t('alerts.companion.updateFailedBody'),
           [{text: 'OK'}],
         );
       }
@@ -230,8 +230,8 @@ export const CompanionOverviewScreen: React.FC<
           error,
         );
         Alert.alert(
-          'Image Update Failed',
-          'Failed to update profile image. Please try again.',
+          i18next.t('alerts.companion.imageUpdateFailed'),
+          i18next.t('alerts.companion.imageUpdateFailedBody'),
           [{text: 'OK'}],
         );
       }
@@ -731,6 +731,7 @@ export const CompanionOverviewScreen: React.FC<
 
 import {createGlassCardStyles} from '@/shared/utils/screenStyles';
 
+import i18next from 'i18next';
 // Helper functions moved to @/shared/utils/commonHelpers:
 // - capitalize, displayNeutered, displayInsured, displayOrigin
 

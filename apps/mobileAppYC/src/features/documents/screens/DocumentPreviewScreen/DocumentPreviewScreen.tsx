@@ -21,6 +21,7 @@ import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHea
 import {DOCUMENT_CATEGORIES} from '@/features/documents/constants';
 import {parseISODate} from '@/shared/utils/dateHelpers';
 
+import i18next from 'i18next';
 const resolveCategoryLabel = (categoryId?: string | null): string =>
   DOCUMENT_CATEGORIES.find(c => c.id === categoryId)?.label ?? categoryId ?? '';
 
@@ -207,7 +208,7 @@ export const DocumentPreviewScreen: React.FC = () => {
       });
     } catch (error) {
       Alert.alert(
-        'Error',
+        i18next.t('alerts.shared.error'),
         error instanceof Error ? error.message : 'Failed to share',
       );
     }
@@ -216,8 +217,8 @@ export const DocumentPreviewScreen: React.FC = () => {
   const handleDownload = async () => {
     if (!primaryUri) {
       Alert.alert(
-        'Unavailable',
-        'We could not find a download link for this file. Please try again later.',
+        i18next.t('alerts.shared.unavailable'),
+        i18next.t('alerts.documents.unavailableBody'),
       );
       return;
     }
@@ -227,11 +228,14 @@ export const DocumentPreviewScreen: React.FC = () => {
         '_',
       );
       const target = await downloadDocumentToAppStorage(primaryUri, safeName);
-      Alert.alert('Download complete', `Saved to:\n${target}`);
+      Alert.alert(
+        i18next.t('alerts.shared.downloadComplete'),
+        `Saved to:\n${target}`,
+      );
     } catch {
       Alert.alert(
-        'Download failed',
-        'Unable to download the file. Please check your connection and try again.',
+        i18next.t('alerts.shared.downloadFailed'),
+        i18next.t('alerts.documents.downloadFailedBody'),
       );
     }
   };

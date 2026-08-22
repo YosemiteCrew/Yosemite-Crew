@@ -20,6 +20,7 @@ import {useCoParentInviteFlow} from '../../hooks/useCoParentInviteFlow';
 import {createCommonCoParentStyles} from '../../styles/commonStyles';
 import {selectCompanions} from '@/features/companion';
 
+import i18next from 'i18next';
 type Props = NativeStackScreenProps<CoParentStackParamList, 'CoParentProfile'>;
 
 export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
@@ -80,15 +81,18 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
     const companionId = targetCompanionId;
 
     if (!coParent || !companionId) {
-      Alert.alert('Error', 'Unable to send invite. Please select a companion.');
+      Alert.alert(
+        i18next.t('alerts.shared.error'),
+        i18next.t('alerts.coParent.errorBody8'),
+      );
       return;
     }
 
     const inviteEmail = coParent.email?.trim();
     if (!inviteEmail) {
       Alert.alert(
-        'Missing email',
-        'This co-parent does not have an email address on file.',
+        i18next.t('alerts.coParent.missingEmail'),
+        i18next.t('alerts.coParent.missingEmailBody'),
       );
       return;
     }
@@ -113,7 +117,10 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
       addCoParentSheetRef.current?.open();
     } catch (error) {
       console.error('Failed to send invite:', error);
-      Alert.alert('Error', 'Failed to send invite');
+      Alert.alert(
+        i18next.t('alerts.shared.error'),
+        i18next.t('alerts.coParent.errorBody7'),
+      );
     } finally {
       setSendingInvite(false);
     }

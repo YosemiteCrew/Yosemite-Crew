@@ -26,6 +26,7 @@ import {
 import type {AppointmentStackParamList} from '@/navigation/types';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
+import i18next from 'i18next';
 type Props = NativeStackScreenProps<
   AppointmentStackParamList,
   'OrganisationDocument'
@@ -126,8 +127,8 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({
   const handleDownload = React.useCallback(async () => {
     if (!primaryDocument?.pdfUrl || downloading) {
       Alert.alert(
-        'Unavailable',
-        'We could not find a download link for this document. Please try again later.',
+        i18next.t('alerts.shared.unavailable'),
+        i18next.t('alerts.legal.unavailableBody'),
       );
       return;
     }
@@ -142,12 +143,15 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({
         primaryDocument.pdfUrl,
         fileName,
       );
-      Alert.alert('Download complete', `Saved to:\n${downloadPath}`);
+      Alert.alert(
+        i18next.t('alerts.shared.downloadComplete'),
+        `Saved to:\n${downloadPath}`,
+      );
     } catch (err) {
       const message =
         (err as any)?.message ??
         'Unable to download the file. Please check your connection and try again.';
-      Alert.alert('Download failed', message);
+      Alert.alert(i18next.t('alerts.shared.downloadFailed'), message);
     } finally {
       setDownloading(false);
     }

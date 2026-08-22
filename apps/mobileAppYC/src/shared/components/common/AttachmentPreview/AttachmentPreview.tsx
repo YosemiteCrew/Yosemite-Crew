@@ -5,6 +5,7 @@ import {Images} from '@/assets/images';
 import {useTheme} from '@/hooks';
 import createAttachmentStyles from '@/shared/utils/attachmentStyles';
 
+import i18next from 'i18next';
 type AttachmentShape = {
   id: string;
   s3Url?: string;
@@ -25,7 +26,7 @@ const handleShare = async (fileUrl?: string) => {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to share';
-    Alert.alert('Error', message);
+    Alert.alert(i18next.t('alerts.shared.error'), message);
   }
 };
 
