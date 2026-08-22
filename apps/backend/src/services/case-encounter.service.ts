@@ -1529,8 +1529,16 @@ export const CaseEncounterService = {
           encounterId: updatedEncounter.id,
           overrideReason,
           finalizationGate: resolvedFinalizationGate,
+          // The clinically-recorded discharge time stays user-supplied and is
+          // preserved here as data; it is just not what the audit trail is
+          // ordered by.
+          dischargedAt: input?.dischargedAt?.toISOString?.() ?? undefined,
         },
-        occurredAt: input?.dischargedAt ?? new Date(),
+        // Server time, NOT the client's `dischargedAt`. The audit listing is
+        // ordered and paginated by `occurredAt`, so letting the caller choose it
+        // let a recent override be filed with an old timestamp and fall outside
+        // the default recent-activity view - hiding the very action the event
+        // exists to record.
       });
     }
 
@@ -1549,7 +1557,7 @@ export const CaseEncounterService = {
         overrideReason,
         finalizationGate: resolvedFinalizationGate,
       },
-      occurredAt: input?.dischargedAt ?? new Date(),
+      // Server time; see the override event above.
     });
 
     return (

@@ -603,8 +603,20 @@ const mergeVitalRecordMetadata = (
   return baseMetadata;
 };
 
+/**
+ * The display name for a vital record's `recordedBy`.
+ *
+ * `recordedBy` can be derived from an untrusted `Observation.performer.reference`
+ * on the FHIR create/update path, so resolving it to a name with a bare user
+ * lookup turned this into a directory: name a practitioner id from another
+ * tenant and read their first and last name back as `performer.display`. The
+ * lookup is therefore restricted to people who actually hold an active
+ * membership in the artifact's own organisation, and an id that does not
+ * resolve simply produces no display name.
+ */
 const resolveVitalRecordRecordedByDisplay = async (
   record: Pick<VitalRecordModel, "recordedBy" | "metadata">,
+  organisationId?: string | null,
 ): Promise<string | null> => {
   const metadataDisplay = readRecordedByDisplay(record.metadata);
   if (metadataDisplay) {
@@ -615,6 +627,26 @@ const resolveVitalRecordRecordedByDisplay = async (
     record.recordedBy,
   );
   if (!normalizedRecordedBy) {
+    return null;
+  }
+
+  const org = organisationId?.trim();
+  if (!org) {
+    return null;
+  }
+
+  const membership = await prisma.userOrganization.findFirst({
+    where: {
+      practitionerReference: normalizedRecordedBy,
+      active: true,
+      OR: [
+        { organizationReference: org },
+        { organizationReference: `Organization/${org}` },
+      ],
+    },
+    select: { id: true },
+  });
+  if (!membership) {
     return null;
   }
 
@@ -645,7 +677,10 @@ const resolveVitalRecordRecordedByDisplay = async (
 const hydrateVitalRecord = async (
   record: VitalRecordWithArtifact,
 ): Promise<VitalRecordRecord> => {
-  const recordedByDisplay = await resolveVitalRecordRecordedByDisplay(record);
+  const recordedByDisplay = await resolveVitalRecordRecordedByDisplay(
+    record,
+    record.artifact.organisationId,
+  );
 
   return buildVitalRecordRecord(record.artifact, {
     id: record.id,
@@ -1231,11 +1266,29 @@ const FINAL_CLINICAL_ARTIFACT_STATUSES = new Set<ClinicalArtifactStatus>([
 const isFinalClinicalArtifactStatus = (status: ClinicalArtifactStatus) =>
   FINAL_CLINICAL_ARTIFACT_STATUSES.has(status);
 
+/**
+ * Move the artifact's own appointment from CHECKED_IN to IN_PROGRESS.
+ *
+ * The appointment id arrives in the artifact payload, and these routes are
+ * authorised on clinical-artifact permissions (`forms:edit:any`,
+ * `prescription:edit:any`) rather than `appointments:edit:*`. Scoping the update
+ * to the organisation alone therefore let a caller create a throwaway artifact
+ * naming any colleague's checked-in appointment and force it into IN_PROGRESS.
+ *
+ * `encounterId` is the binding that makes this the artifact's OWN appointment.
+ * When the artifact carries no encounter there is nothing tying it to a
+ * particular visit, so the status is left alone rather than advanced on the
+ * strength of a body-supplied id.
+ */
 const advanceCheckedInAppointment = async (
   txPrisma: ClinicalPrisma,
-  input: { organisationId: string; appointmentId?: string },
+  input: {
+    organisationId: string;
+    appointmentId?: string;
+    encounterId?: string;
+  },
 ) => {
-  if (!input.appointmentId) {
+  if (!input.appointmentId || !input.encounterId) {
     return;
   }
 
@@ -1243,6 +1296,7 @@ const advanceCheckedInAppointment = async (
     where: {
       id: input.appointmentId,
       organisationId: input.organisationId,
+      encounterId: input.encounterId,
       status: "CHECKED_IN",
     },
     data: {
@@ -1363,6 +1417,7 @@ export const ClinicalArtifactService = {
       await advanceCheckedInAppointment(txPrisma, {
         organisationId,
         appointmentId: input.appointmentId,
+        encounterId: input.encounterId,
       });
 
       await createRenderedDocumentForArtifactInTx(createdArtifact, tx);
@@ -1526,6 +1581,7 @@ export const ClinicalArtifactService = {
       await advanceCheckedInAppointment(txPrisma, {
         organisationId,
         appointmentId: input.appointmentId,
+        encounterId: input.encounterId,
       });
 
       await createRenderedDocumentForArtifactInTx(createdArtifact, tx);
@@ -1910,6 +1966,7 @@ export const ClinicalArtifactService = {
       await advanceCheckedInAppointment(txPrisma, {
         organisationId,
         appointmentId: input.appointmentId,
+        encounterId: input.encounterId,
       });
 
       await createRenderedDocumentForArtifactInTx(createdArtifact, tx);
@@ -2082,6 +2139,7 @@ export const ClinicalArtifactService = {
       await advanceCheckedInAppointment(txPrisma, {
         organisationId,
         appointmentId: input.appointmentId,
+        encounterId: input.encounterId,
       });
 
       await createRenderedDocumentForArtifactInTx(createdArtifact, tx);
@@ -2424,17 +2482,27 @@ export const ClinicalArtifactService = {
     );
   },
 
+  /**
+   * An amendment is a NEW draft authored by whoever is amending.
+   *
+   * The `*InputFromRecord` helpers copy the source artifact wholesale, including
+   * `authorId`, so without `amendedBy` the new draft went out in FHIR attributed
+   * to the original practitioner - a colleague's name on a record they did not
+   * write. `?? undefined` keeps the copied author only when no actor is known.
+   */
   async amendSoapNote(
     soapNoteId: string,
     organisationId?: string,
+    amendedBy?: string,
   ): Promise<SoapNoteRecord> {
     const note = await ClinicalArtifactService.getSoapNote(
       soapNoteId,
       organisationId,
     );
-    return ClinicalArtifactService.createSoapNote(
-      soapNoteInputFromRecord(note),
-    );
+    return ClinicalArtifactService.createSoapNote({
+      ...soapNoteInputFromRecord(note),
+      ...(amendedBy?.trim() ? { authorId: amendedBy.trim() } : {}),
+    });
   },
 
   async finalizePrescription(
@@ -2477,9 +2545,11 @@ export const ClinicalArtifactService = {
       prescriptionId,
       organisationId,
     );
-    return ClinicalArtifactService.createPrescription(
-      prescriptionInputFromRecord(record),
-    );
+    return ClinicalArtifactService.createPrescription({
+      ...prescriptionInputFromRecord(record),
+      // The amending clinician owns the new draft; see `amendSoapNote`.
+      ...(actor.actorId.trim() ? { authorId: actor.actorId.trim() } : {}),
+    });
   },
 
   async finalizeDischargeSummary(
@@ -2507,14 +2577,16 @@ export const ClinicalArtifactService = {
   async amendDischargeSummary(
     dischargeSummaryId: string,
     organisationId?: string,
+    amendedBy?: string,
   ): Promise<DischargeSummaryRecord> {
     const record = await ClinicalArtifactService.getDischargeSummary(
       dischargeSummaryId,
       organisationId,
     );
-    return ClinicalArtifactService.createDischargeSummary(
-      dischargeSummaryInputFromRecord(record),
-    );
+    return ClinicalArtifactService.createDischargeSummary({
+      ...dischargeSummaryInputFromRecord(record),
+      ...(amendedBy?.trim() ? { authorId: amendedBy.trim() } : {}),
+    });
   },
 
   async finalizeVitalRecord(
@@ -2542,13 +2614,15 @@ export const ClinicalArtifactService = {
   async amendVitalRecord(
     vitalRecordId: string,
     organisationId?: string,
+    amendedBy?: string,
   ): Promise<VitalRecordRecord> {
     const record = await ClinicalArtifactService.getVitalRecord(
       vitalRecordId,
       organisationId,
     );
-    return ClinicalArtifactService.createVitalRecord(
-      vitalRecordInputFromRecord(record),
-    );
+    return ClinicalArtifactService.createVitalRecord({
+      ...vitalRecordInputFromRecord(record),
+      ...(amendedBy?.trim() ? { authorId: amendedBy.trim() } : {}),
+    });
   },
 };

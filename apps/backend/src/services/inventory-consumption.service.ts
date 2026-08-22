@@ -1634,6 +1634,7 @@ const buildPrescriptionDispenseRequestInclude = () =>
 const resolveDispenseRequestDisplayFields = async (
   db: Pick<typeof prisma, "appointment">,
   request: {
+    organisationId: string;
     prescription: {
       artifact: {
         appointmentId?: string | null;
@@ -1648,8 +1649,14 @@ const resolveDispenseRequestDisplayFields = async (
     return {};
   }
 
+  // Scoped to the dispense request's OWN organisation. `artifact.appointmentId`
+  // is stored from the prescription payload without proving the appointment
+  // belongs to the same tenant, so an unscoped lookup here hydrated the response
+  // with another practice's patient name, owner name, lead clinician and room.
+  // A mismatch simply yields no display fields rather than an error - these are
+  // decorations on a record the caller is already entitled to.
   const appointment = await db.appointment.findFirst({
-    where: { id: appointmentId },
+    where: { id: appointmentId, organisationId: request.organisationId },
     select: {
       patient: true,
       lead: true,
@@ -1692,6 +1699,7 @@ const hydrateDispenseRequest = async (
     | (NonNullable<
         Awaited<ReturnType<typeof prisma.prescriptionDispenseRequest.findFirst>>
       > & {
+        organisationId: string;
         prescription: {
           artifact: {
             appointmentId?: string | null;

@@ -1019,6 +1019,10 @@ describe("AppointmentPrismaService", () => {
         }),
       }),
     );
+    // `admittedBy` is the admission's non-repudiation record, and THIS upsert is
+    // the write that creates the row - the room-unit helper's create branch is
+    // unreachable once it exists, so omitting it here left the column null on
+    // every admission. Null in this case because the test passes no actor.
     expect(mockedPrisma.admission.upsert).toHaveBeenCalledWith({
       where: { encounterId: "enc_1" },
       update: {},
@@ -1027,6 +1031,7 @@ describe("AppointmentPrismaService", () => {
         organisationId: "org_1",
         patientId: "comp_1",
         admittedAt: new Date("2026-06-11T12:00:00.000Z"),
+        admittedBy: null,
         expectedStayDays: 5,
       },
     });

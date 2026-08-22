@@ -11,7 +11,10 @@ import {
 } from "src/services/clinical-artifact.service";
 import { clinicalArtifactFhirMapper } from "src/services/fhir-clinical-artifact.mapper";
 import { createFhirErrorHandler } from "src/controllers/web/fhir-controller.shared";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import {
+  resolveUserIdFromRequest,
+  resolveVerifiedUserId,
+} from "src/utils/request";
 import type { PrescriptionActor } from "src/services/clinical-artifact.service";
 import type { OrgRequest } from "src/middlewares/rbac";
 
@@ -522,6 +525,7 @@ export const ClinicalArtifactFhirController = {
       const record = await ClinicalArtifactService.amendSoapNote(
         req.params.soapNoteId,
         req.params.organisationId,
+        resolveVerifiedUserId(req),
       );
       return res
         .status(201)
@@ -645,6 +649,7 @@ export const ClinicalArtifactFhirController = {
       const record = await ClinicalArtifactService.amendDischargeSummary(
         req.params.dischargeSummaryId,
         req.params.organisationId,
+        resolveVerifiedUserId(req),
       );
       return res
         .status(201)
@@ -687,6 +692,7 @@ export const ClinicalArtifactFhirController = {
       const record = await ClinicalArtifactService.amendVitalRecord(
         req.params.vitalRecordId,
         req.params.organisationId,
+        resolveVerifiedUserId(req),
       );
       return res
         .status(201)

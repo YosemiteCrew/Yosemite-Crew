@@ -86,6 +86,7 @@ type AdmissionUpsertDelegate = {
     update: {
       unitId?: string | null;
       admittedAt?: Date;
+      admittedBy?: string | null;
       expectedStayDays?: number | null;
     };
     create: {
@@ -105,6 +106,7 @@ type AdmissionRow = {
   unitId: string | null;
   expectedStayDays: number | null;
   admittedAt: Date;
+  admittedBy: string | null;
   dischargedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -1939,14 +1941,25 @@ export const AppointmentPrismaService = {
         },
       });
 
+      // `admittedBy` is the non-repudiation record for the admission, and this
+      // is the write that actually creates it. It was omitted here and only
+      // present on `admitInpatientRoomUnit`'s create branch - which this upsert
+      // has already made unreachable, so the column stayed null on every
+      // admission and rendered packet headers fell back to `assignment.assignedBy`.
+      const admittedBy = normalizeOptionalString(input?.admittedBy) ?? null;
       await admissionDelegate.upsert({
         where: { encounterId },
-        update: {},
+        update: {
+          // Only fill a blank: a re-admission must not rewrite who admitted the
+          // patient the first time.
+          ...(admittedBy && !admission?.admittedBy ? { admittedBy } : {}),
+        },
         create: {
           encounterId,
           organisationId: row.organisationId,
           patientId: getPatientId(row.patient),
           admittedAt,
+          admittedBy,
           expectedStayDays: input?.expectedStayDays ?? null,
         },
       });

@@ -751,7 +751,7 @@ describe("ClinicalArtifactFhirController", () => {
         mapper: asSpy(mockedMapper.soapNoteToComposition),
         record: soapRecord,
         envelope: soapComposition,
-        args: ["soap-1", "org-1"],
+        args: ["soap-1", "org-1", undefined],
         status: 201,
       },
       {
@@ -835,7 +835,7 @@ describe("ClinicalArtifactFhirController", () => {
         mapper: asSpy(mockedMapper.dischargeSummaryToComposition),
         record: dischargeRecord,
         envelope: dischargeComposition,
-        args: ["ds-1", "org-1"],
+        args: ["ds-1", "org-1", undefined],
         status: 201,
       },
       {
@@ -877,7 +877,7 @@ describe("ClinicalArtifactFhirController", () => {
         mapper: asSpy(mockedMapper.vitalRecordToObservation),
         record: vitalRecord,
         envelope: observation,
-        args: ["vital-1", "org-1"],
+        args: ["vital-1", "org-1", undefined],
         status: 201,
       },
     ];

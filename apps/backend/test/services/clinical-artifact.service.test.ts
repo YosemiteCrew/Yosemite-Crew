@@ -72,6 +72,9 @@ jest.mock("src/config/prisma", () => ({
     user: {
       findFirst: jest.fn(),
     },
+    userOrganization: {
+      findFirst: jest.fn(),
+    },
     vitalRecord: {
       create: jest.fn(),
       update: jest.fn(),
@@ -145,6 +148,9 @@ describe("ClinicalArtifactService", () => {
     user: {
       findFirst: jest.Mock;
     };
+    userOrganization: {
+      findFirst: jest.Mock;
+    };
     vitalRecord: {
       create: jest.Mock;
       update: jest.Mock;
@@ -173,6 +179,12 @@ describe("ClinicalArtifactService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // A vital record's `recordedBy` only resolves to a name when that person is
+    // an active member of the artifact's organisation; default to "they are" so
+    // only the tests exercising the boundary need to say otherwise.
+    mockedPrisma.userOrganization.findFirst.mockResolvedValue({
+      id: "membership-1",
+    });
     mockedPrisma.$transaction.mockImplementation(async (callback: unknown) => {
       if (typeof callback === "function") {
         return callback(prisma);
@@ -770,6 +782,10 @@ describe("ClinicalArtifactService", () => {
         where: {
           id: "appt-1",
           organisationId,
+          // Bound to the artifact's own encounter: these routes run on
+          // clinical-artifact permissions, so without it a throwaway artifact
+          // could advance any colleague's checked-in appointment.
+          encounterId: "enc-1",
           status: "CHECKED_IN",
         },
         data: {
@@ -3645,6 +3661,10 @@ describe("ClinicalArtifactService", () => {
         where: {
           id: "appt-1",
           organisationId,
+          // Bound to the artifact's own encounter: these routes run on
+          // clinical-artifact permissions, so without it a throwaway artifact
+          // could advance any colleague's checked-in appointment.
+          encounterId: "enc-1",
           status: "CHECKED_IN",
         },
         data: { status: "IN_PROGRESS" },
@@ -4458,7 +4478,11 @@ describe("ClinicalArtifactService", () => {
           templateId: "tmpl-1",
           templateVersion: 3,
           templateVersionId: "tmpl-ver-1",
-          authorId: undefined,
+          // The amendment is a new draft authored by whoever amended it - the
+          // duplication helper copies the SOURCE artifact's authorId, so without
+          // this override a colleague's name went out on a record they did not
+          // write.
+          authorId: "supervisor",
           summary: "Rx",
         },
       });
