@@ -76,6 +76,35 @@ jobs:
           # compromised third-party action could read it. That matters more
           # in this workflow than most, since it also handles signing secrets.
           persist-credentials: false
+          # Full history so the main-ancestry check below can see origin/main.
+          fetch-depth: 0
+
+      # Releases are cut by merging dev into main and tagging there. The
+      # protected `release` environment gates the signing jobs, but approval is a
+      # human glancing at a run - it is not a check that the tag points at
+      # reviewed code. Without this, any `mobile-v*` tag pushed from any branch
+      # reaches a job holding the upload keys and the App Store Connect .p8,
+      # which the iOS build's own run-script phases can read. Mirrors the same
+      # gate in desktop-release.yml. Throwaway builds belong on
+      # workflow_dispatch, which skips this.
+      - name: Tag must be on main
+        if: github.event_name == 'push'
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if ! git rev-parse --verify --quiet origin/main >/dev/null; then
+            echo "::error::Could not resolve origin/main to check tag reachability."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Tag '${TAG}' points at ${GITHUB_SHA}, which is not reachable from main."
+            echo "::error::Merge the release commit into main and re-tag there, per RELEASING.md."
+            echo "::error::For a throwaway test build, run this workflow via workflow_dispatch instead."
+            exit 1
+          fi
+          echo "Tag ${TAG} is reachable from main."
+
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
