@@ -57,7 +57,7 @@ const CDN = "https://d2il6osz49gpup.cloudfront.net";
 export const renderEmailButton = (url: string, label: string): string => `
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:28px auto 8px auto;">
     <tr>
-      <td align="center" bgcolor="${T.ctaBg}" style="border-radius:999px;">
+      <td align="center" bgcolor="${T.ctaBg}" class="yc-btn-cell" style="background-color:${T.ctaBg}; border-radius:999px;">
         <a
           href="${url}"
           target="_blank"

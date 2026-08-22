@@ -453,3 +453,29 @@ describe("design system conformance", () => {
     expect(html).toContain("DE367920596");
   });
 });
+
+describe("email stylesheet integrity", () => {
+  it("emits every class its <style> block declares", () => {
+    const html = renderEmailTemplate("appointmentAssigned", {
+      employeeName: "Dr. Vallirani",
+      companionName: "Rex",
+      appointmentTime: "01 Sep 2026 10:00 GMT",
+      organisationName: "Mainz Tierklinik",
+      appointmentUrl: "http://appt",
+    }).htmlBody;
+
+    const style = html.slice(html.indexOf("<style>"), html.indexOf("</style>"));
+    const declared = new Set(
+      [...style.matchAll(/\.(yc-[a-z-]+)/g)].map((m) => m[1]),
+    );
+    const emitted = new Set(
+      [...html.matchAll(/class="([^"]+)"/g)]
+        .flatMap((m) => m[1].split(/\s+/))
+        .filter((c) => c.startsWith("yc-")),
+    );
+
+    // A declared-but-unused class means a dark-mode or responsive rule that
+    // silently never applies.
+    expect([...declared].filter((c) => !emitted.has(c))).toEqual([]);
+  });
+});
