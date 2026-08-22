@@ -129,6 +129,7 @@ type AppointmentTheme = {
     successSurface: string;
     warning: string;
     warningSurface: string;
+    dangerText: string;
     error: string;
     errorSurface: string;
   };
@@ -158,7 +159,7 @@ export const getAppointmentStatusBadgePalette = (
   if (isAppointmentPaymentFailed(status, paymentStatus)) {
     return {
       text: label,
-      textColor: theme.colors.error,
+      textColor: theme.colors.dangerText,
       backgroundColor: theme.colors.errorSurface,
     };
   }
@@ -209,7 +210,7 @@ export const getAppointmentStatusBadgePalette = (
     case 'NO_SHOW':
       return {
         text: label,
-        textColor: theme.colors.error,
+        textColor: theme.colors.dangerText,
         backgroundColor: theme.colors.errorSurface,
       };
     default:

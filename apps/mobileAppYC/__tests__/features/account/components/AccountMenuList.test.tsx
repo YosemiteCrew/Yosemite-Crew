@@ -70,7 +70,7 @@ describe('AccountMenuList', () => {
       ? dangerLabel.props.style
       : [dangerLabel.props.style];
     const hasDangerColor = labelStyles.some(
-      style => style?.color === lightTheme.colors.error,
+      style => style?.color === lightTheme.colors.dangerText,
     );
     expect(hasDangerColor).toBe(true);
 

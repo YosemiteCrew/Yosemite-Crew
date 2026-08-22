@@ -347,7 +347,7 @@ const createStyles = (theme: any) =>
     },
     errorText: {
       ...theme.typography.labelXxsBold,
-      color: theme.colors.danger,
+      color: theme.colors.dangerText,
       marginLeft: theme.spacing['1'],
     },
   });

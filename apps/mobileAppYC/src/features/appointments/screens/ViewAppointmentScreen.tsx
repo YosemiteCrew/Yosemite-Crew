@@ -1534,7 +1534,7 @@ const createStyles = (theme: Theme) =>
     },
     alertButtonText: {
       ...theme.typography.button,
-      color: theme.colors.danger,
+      color: theme.colors.dangerText,
       textAlign: 'center',
     },
     formCardShadowWrapper: {

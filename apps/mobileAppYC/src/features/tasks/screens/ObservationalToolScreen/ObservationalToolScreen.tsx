@@ -1273,7 +1273,7 @@ const createStyles = (theme: any) => {
     },
     errorText: {
       ...theme.typography.bodyMedium,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
     },
     introCard: {
       gap: theme.spacing['3'],
@@ -1439,7 +1439,7 @@ const createStyles = (theme: any) => {
     },
     validationText: {
       ...theme.typography.captionBoldSatoshi,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
     },
     emptyStateCard: {
       alignItems: 'center',

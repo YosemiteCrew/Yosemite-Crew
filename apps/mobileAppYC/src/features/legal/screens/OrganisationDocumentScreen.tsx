@@ -567,7 +567,7 @@ const createStyles = (theme: any) =>
     },
     acknowledgeErrorText: {
       ...theme.typography.subtitleRegular14,
-      color: theme.colors.danger,
+      color: theme.colors.dangerText,
       textAlign: 'center',
       paddingHorizontal: theme.spacing['5'],
       marginTop: -theme.spacing['3'],

@@ -602,7 +602,7 @@ const createStyles = (theme: Theme) =>
     },
     socialErrorText: {
       ...theme.typography.bodySmall,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
       textAlign: 'center',
       marginTop: theme.spacing['4'],
     },

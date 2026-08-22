@@ -18,7 +18,7 @@ export const createPassportStyles = (theme: any) =>
     },
     errorText: {
       ...theme.typography.bodyMedium,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
       textAlign: 'center',
     },
     emptyText: {

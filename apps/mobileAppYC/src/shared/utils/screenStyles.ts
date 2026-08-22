@@ -38,7 +38,7 @@ export const createErrorContainerStyles = (theme: any) => ({
   },
   errorText: {
     ...theme.typography.bodyLarge,
-    color: theme.colors.error,
+    color: theme.colors.dangerText,
     textAlign: 'center' as const,
   },
 });

@@ -149,7 +149,7 @@ export const OTPInput: React.FC<OTPInputProps> = ({
         })}
       </View>
       {error && (
-        <Text style={[styles.errorText, {color: theme.colors.error}]}>
+        <Text style={[styles.errorText, {color: theme.colors.dangerText}]}>
           {error}
         </Text>
       )}

@@ -1138,7 +1138,7 @@ const createStyles = (theme: any) => {
     // Error styles - matching DocumentForm
     errorText: {
       ...theme.typography.labelXxsBold,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
       marginTop: theme.spacing['1'],
       marginBottom: theme.spacing['3'],
       marginLeft: theme.spacing['1'],
@@ -1167,7 +1167,7 @@ const createStyles = (theme: any) => {
     },
     cancelledText: {
       ...theme.typography.bodyMedium,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
       fontWeight: '600',
     },
     completeButtonContainer: {
@@ -1204,7 +1204,7 @@ const createStyles = (theme: any) => {
     },
     errorContainerText: {
       ...theme.typography.bodyMedium,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
     },
   });
 };
