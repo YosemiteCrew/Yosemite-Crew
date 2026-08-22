@@ -41,9 +41,11 @@ jest.mock("src/config/prisma", () => ({
     },
     user: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
     },
     userOrganization: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
     },
     appointment: {
       updateMany: jest.fn(),
@@ -90,9 +92,11 @@ describe("ClinicalArtifactService clinical records", () => {
     };
     user: {
       findFirst: jest.Mock;
+      findMany: jest.Mock;
     };
     userOrganization: {
       findFirst: jest.Mock;
+      findMany: jest.Mock;
     };
     appointment: {
       updateMany: jest.Mock;

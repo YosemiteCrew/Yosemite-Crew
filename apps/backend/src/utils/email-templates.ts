@@ -290,19 +290,43 @@ export const escapeHtml = (value: string): string =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
-const escapeDeep = <T>(value: T): T => {
+// Template data is assembled from records, so nesting is shallow in practice -
+// but this recurses over whatever it is handed. A deeply nested value would
+// exhaust the stack, and a cyclic one would never terminate at all, so both are
+// bounded. Past the limit the value is returned unescaped-but-untouched, which
+// is safe: escaping applies to the strings it does reach, and a structure this
+// deep is not something a template renders.
+const MAX_ESCAPE_DEPTH = 100;
+
+const escapeDeepValue = <T>(
+  value: T,
+  depth: number,
+  seen: WeakSet<object>,
+): T => {
   if (typeof value === "string") return escapeHtml(value) as unknown as T;
-  if (Array.isArray(value)) return value.map(escapeDeep) as unknown as T;
+  if (depth >= MAX_ESCAPE_DEPTH) return value;
+  if (Array.isArray(value)) {
+    if (seen.has(value)) return value;
+    seen.add(value);
+    return value.map((item) =>
+      escapeDeepValue(item, depth + 1, seen),
+    ) as unknown as T;
+  }
   if (value && typeof value === "object" && !(value instanceof Date)) {
+    if (seen.has(value)) return value;
+    seen.add(value);
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>).map(([key, item]) => [
         key,
-        escapeDeep(item),
+        escapeDeepValue(item, depth + 1, seen),
       ]),
     ) as unknown as T;
   }
   return value;
 };
+
+const escapeDeep = <T>(value: T): T =>
+  escapeDeepValue(value, 0, new WeakSet<object>());
 
 /**
  * Builders are pure, so run each one twice: once over escaped data for the HTML

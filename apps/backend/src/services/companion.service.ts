@@ -583,16 +583,15 @@ export const CompanionService = {
     }
 
     const safe = escapeLikePattern(trimmed);
+    // Scoped with a relation filter rather than by fetching every active
+    // patient id first: the previous form materialised the organisation's whole
+    // patient list into memory and then sent it back as an IN clause, so both
+    // the work and the query size grew with the organisation.
     const documents = await prisma.patient.findMany({
       where: {
         name: { contains: safe, mode: "insensitive" },
-        id: {
-          in: (
-            await prisma.patientOrganisation.findMany({
-              where: { organisationId: org, status: "ACTIVE" },
-              select: { patientId: true },
-            })
-          ).map((link) => link.patientId),
+        organisations: {
+          some: { organisationId: org, status: "ACTIVE" },
         },
       },
     });

@@ -869,14 +869,13 @@ const ensureCreateBatchExpiryRules = (input: CreateInventoryItemInput) => {
       400,
     );
   }
-  // `instanceof Date` before `.getTime()`: the type says `Date | null`, but the
-  // value arrives from a JSON body, so an empty string, `false` or `0` reaches
-  // here as itself and calling `.getTime()` on it throws a TypeError - turning a
-  // plainly invalid expiry date into a 500 instead of the 400 below.
+  // `isValidDate` rather than an inline instanceof + getTime: the type says
+  // `Date | null`, but the value arrives from a JSON body, so an empty string,
+  // `false` or `0` reaches here as itself and calling `.getTime()` on it throws
+  // a TypeError - turning a plainly invalid expiry date into a 500 instead of
+  // the 400 below. The helper already encodes exactly that check.
   const missingExpiry = input.batches?.some(
-    (batch) =>
-      !(batch.expiryDate instanceof Date) ||
-      Number.isNaN(batch.expiryDate.getTime()),
+    (batch) => !isValidDate(batch.expiryDate),
   );
   if (missingExpiry) {
     throw new InventoryServiceError(

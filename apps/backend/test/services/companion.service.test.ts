@@ -547,6 +547,25 @@ describe("CompanionService", () => {
     );
   });
 
+  it("scopes the search with a relation filter, not a materialised id list", async () => {
+    // The previous form fetched every active patient id for the organisation
+    // and sent them back as an IN clause, so both the work and the query size
+    // grew with the organisation.
+    mockedPrisma.patient.findMany.mockResolvedValueOnce([createdPatient]);
+
+    await CompanionService.getByName("fido", "org-1");
+
+    expect(mockedPrisma.patient.findMany).toHaveBeenCalledWith({
+      where: {
+        name: { contains: "fido", mode: "insensitive" },
+        organisations: {
+          some: { organisationId: "org-1", status: "ACTIVE" },
+        },
+      },
+    });
+    expect(mockedPrisma.patientOrganisation.findMany).not.toHaveBeenCalled();
+  });
+
   it("rejects delete requests without authenticated parent context", async () => {
     await expect(CompanionService.delete("patient-1")).rejects.toEqual(
       expect.objectContaining({

@@ -2740,14 +2740,24 @@ export const CatalogService = {
             const packageItems =
               product.kind === "PACKAGE" && product.package?.items.length
                 ? product.package.items
-                    .filter(
-                      (item) =>
-                        (
-                          item as unknown as {
-                            childProductItem?: { isActive?: boolean };
-                          }
-                        ).childProductItem?.isActive !== false,
-                    )
+                    // A package child is either a product item or an
+                    // inventory item. Checking only the product side let an
+                    // archived inventory-backed child stay listed, which is
+                    // exactly what this filter exists to prevent.
+                    .filter((item) => {
+                      const child = item as unknown as {
+                        childProductItem?: { isActive?: boolean } | null;
+                        inventoryItem?: { status?: string } | null;
+                      };
+                      if (child.childProductItem?.isActive === false) {
+                        return false;
+                      }
+                      const inventoryStatus = child.inventoryItem?.status;
+                      return (
+                        inventoryStatus === undefined ||
+                        inventoryStatus === "ACTIVE"
+                      );
+                    })
                     .map(buildPackageBreakdownRow)
                     .map((item) => ({
                       id: item.id,

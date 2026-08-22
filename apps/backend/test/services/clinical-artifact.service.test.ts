@@ -71,9 +71,11 @@ jest.mock("src/config/prisma", () => ({
     },
     user: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
     },
     userOrganization: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
     },
     vitalRecord: {
       create: jest.fn(),
@@ -147,9 +149,11 @@ describe("ClinicalArtifactService", () => {
     };
     user: {
       findFirst: jest.Mock;
+      findMany: jest.Mock;
     };
     userOrganization: {
       findFirst: jest.Mock;
+      findMany: jest.Mock;
     };
     vitalRecord: {
       create: jest.Mock;
@@ -3227,10 +3231,23 @@ describe("ClinicalArtifactService", () => {
           vitalRow({ metadata: { recordedByDisplay: "Nurse Joy" } }),
           vitalRow({ id: "vital-2", recordedBy: "Practitioner/user-9" }),
         ]);
-        mockedPrisma.user.findFirst.mockResolvedValueOnce({
-          firstName: "Ada",
-          lastName: "Byron",
-        });
+        // Batched: one membership query and one user query for the whole list,
+        // rather than two per record.
+        // Stored normalized (the "Practitioner/" prefix is stripped before the
+        // query), so the fixtures use the normalized form the DB would return.
+        mockedPrisma.userOrganization.findMany.mockResolvedValueOnce([
+          {
+            organizationReference: organisationId,
+            practitionerReference: "user-9",
+          },
+        ] as never);
+        mockedPrisma.user.findMany.mockResolvedValueOnce([
+          {
+            userId: "user-9",
+            firstName: "Ada",
+            lastName: "Byron",
+          },
+        ] as never);
 
         const records = await call();
 
@@ -3249,7 +3266,10 @@ describe("ClinicalArtifactService", () => {
           "Nurse Joy",
           "Ada Byron",
         ]);
-        expect(mockedPrisma.user.findFirst).toHaveBeenCalledTimes(1);
+        // Two queries for the whole list, not two per record.
+        expect(mockedPrisma.userOrganization.findMany).toHaveBeenCalledTimes(1);
+        expect(mockedPrisma.user.findMany).toHaveBeenCalledTimes(1);
+        expect(mockedPrisma.user.findFirst).not.toHaveBeenCalled();
         expect(records[0].artifact.kind).toBe("VITAL_RECORD");
       },
     );

@@ -516,19 +516,17 @@ const resolveTemplateModeFromContext = async (
   // Only follow through to the admission for an encounter this organisation
   // actually owns: the caller-supplied `encounterId` fallback would otherwise
   // reintroduce the same cross-tenant read one level down.
-  const encounterId =
-    appointment?.encounterId ??
-    (input.encounterId
-      ? ((
-          await prisma.encounter.findFirst({
-            where: {
-              id: input.encounterId,
-              organisationId: input.organisationId,
-            },
-            select: { id: true },
-          })
-        )?.id ?? null)
-      : null);
+  let encounterId = appointment?.encounterId ?? null;
+  if (!encounterId && input.encounterId) {
+    const ownedEncounter = await prisma.encounter.findFirst({
+      where: {
+        id: input.encounterId,
+        organisationId: input.organisationId,
+      },
+      select: { id: true },
+    });
+    encounterId = ownedEncounter?.id ?? null;
+  }
   if (!encounterId) {
     return undefined;
   }

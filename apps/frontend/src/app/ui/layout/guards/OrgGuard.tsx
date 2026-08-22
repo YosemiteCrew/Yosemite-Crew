@@ -330,7 +330,7 @@ const OrgGuard = ({ children, skeleton = null }: OrgGuardProps) => {
   const readCachedPass = () =>
     cacheMayApply && (primaryOrgId ? readOrgGuardPassed(primaryOrgId) : readAnyOrgGuardPassed());
 
-  const [checked, setChecked] = useState(() => isLocalGuardBypassEnabled() || readCachedPass());
+  const [checked, setChecked] = useState(() => isAuthGuardDisabled || readCachedPass());
   useFullscreenLoader('org-guard', !isAuthGuardDisabled && !checked);
 
   // Render-phase adjustment: re-evaluate the cached guard pass whenever the

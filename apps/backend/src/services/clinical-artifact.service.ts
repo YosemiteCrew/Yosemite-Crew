@@ -674,6 +674,119 @@ const resolveVitalRecordRecordedByDisplay = async (
   return display.length > 0 ? display : null;
 };
 
+/**
+ * Resolve recorded-by display names for a WHOLE list in two queries.
+ *
+ * The single-record resolver runs a membership query and a user query each
+ * time, which is two round trips per row on a list endpoint. This batches both
+ * and returns a lookup, so the cost stops scaling with the number of records.
+ */
+const resolveRecordedByDisplayMap = async (
+  records: ReadonlyArray<
+    Pick<VitalRecordModel, "recordedBy" | "metadata"> & {
+      artifact: { organisationId: string | null };
+    }
+  >,
+): Promise<Map<string, string>> => {
+  const byOrg = new Map<string, Set<string>>();
+  for (const record of records) {
+    if (readRecordedByDisplay(record.metadata)) continue;
+    const recordedBy = normalizePractitionerReference(record.recordedBy);
+    const org = record.artifact.organisationId?.trim();
+    if (!recordedBy || !org) continue;
+    const bucket = byOrg.get(org) ?? new Set<string>();
+    bucket.add(recordedBy);
+    byOrg.set(org, bucket);
+  }
+
+  const display = new Map<string, string>();
+  if (byOrg.size === 0) return display;
+
+  const memberships = await prisma.userOrganization.findMany({
+    where: {
+      active: true,
+      OR: [...byOrg].flatMap(([org, references]) => [
+        {
+          organizationReference: org,
+          practitionerReference: { in: [...references] },
+        },
+        {
+          organizationReference: `Organization/${org}`,
+          practitionerReference: { in: [...references] },
+        },
+      ]),
+    },
+    select: { organizationReference: true, practitionerReference: true },
+  });
+
+  const memberOf = new Set<string>();
+  for (const membership of memberships ?? []) {
+    const org = membership.organizationReference.replace(/^Organization\//, "");
+    if (membership.practitionerReference) {
+      memberOf.add(`${org}|${membership.practitionerReference}`);
+    }
+  }
+
+  const referencesToLoad = [
+    ...new Set([...memberOf].map((key) => key.split("|")[1])),
+  ];
+  if (referencesToLoad.length === 0) return display;
+
+  const users = await prisma.user.findMany({
+    where: { userId: { in: referencesToLoad } },
+    select: { userId: true, firstName: true, lastName: true },
+  });
+
+  for (const user of users ?? []) {
+    const name = [user.firstName, user.lastName]
+      .filter(
+        (part): part is string => typeof part === "string" && part.length > 0,
+      )
+      .join(" ")
+      .trim();
+    if (!name) continue;
+    for (const key of memberOf) {
+      if (key.endsWith(`|${user.userId}`)) display.set(key, name);
+    }
+  }
+
+  return display;
+};
+
+/**
+ * Hydrate a whole list, resolving every recorded-by display name in two queries
+ * rather than two per record.
+ */
+const hydrateVitalRecords = async (
+  records: VitalRecordWithArtifact[],
+): Promise<VitalRecordRecord[]> => {
+  const display = await resolveRecordedByDisplayMap(records);
+
+  return records.map((record) => {
+    const metadataDisplay = readRecordedByDisplay(record.metadata);
+    const recordedBy = normalizePractitionerReference(record.recordedBy);
+    const org = record.artifact.organisationId?.trim();
+    const recordedByDisplay =
+      metadataDisplay ??
+      (recordedBy && org
+        ? (display.get(`${org}|${recordedBy}`) ?? null)
+        : null);
+
+    return buildVitalRecordRecord(record.artifact, {
+      id: record.id,
+      artifactId: record.artifactId,
+      measuredAt: record.measuredAt,
+      recordedBy: record.recordedBy,
+      recordedByDisplay,
+      vitals: record.vitals,
+      notes: record.notes,
+      metadata: record.metadata,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
+    });
+  });
+};
+
 const hydrateVitalRecord = async (
   record: VitalRecordWithArtifact,
 ): Promise<VitalRecordRecord> => {
@@ -2321,7 +2434,7 @@ export const ClinicalArtifactService = {
       orderBy: { measuredAt: "desc" },
     });
 
-    return Promise.all(records.map(toVitalRecordRecord));
+    return hydrateVitalRecords(records);
   },
 
   async listVitalRecordsForAppointment(
@@ -2340,7 +2453,7 @@ export const ClinicalArtifactService = {
       orderBy: { measuredAt: "desc" },
     });
 
-    return Promise.all(records.map(toVitalRecordRecord));
+    return hydrateVitalRecords(records);
   },
 
   // Passport clinical-record kinds (immunization, rabies titration, parasite
