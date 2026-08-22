@@ -1484,7 +1484,7 @@ const createStyles = (theme: any) => {
     },
     stepMeta: {
       ...theme.typography.labelXxsBold,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
       letterSpacing: 1,
     },
     stepHeading: {
@@ -1592,7 +1592,7 @@ const createStyles = (theme: any) => {
     },
     stepFooterNote: {
       ...theme.typography.body13,
-      color: theme.colors.inkFaint2,
+      color: theme.colors.inkMuted,
       textAlign: 'center',
     },
     stepActions: {

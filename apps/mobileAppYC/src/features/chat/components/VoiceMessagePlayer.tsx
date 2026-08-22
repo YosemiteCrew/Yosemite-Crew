@@ -185,7 +185,7 @@ const createStyles = (theme: any) =>
     },
     timeText: {
       ...theme.typography.labelSmall,
-      color: theme.colors.inkFaint2,
+      color: theme.colors.inkMuted,
     },
     stopButton: {
       width: theme.spacing['8'],

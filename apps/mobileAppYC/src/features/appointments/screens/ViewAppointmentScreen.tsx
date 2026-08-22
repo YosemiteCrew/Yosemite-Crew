@@ -1509,7 +1509,7 @@ const createStyles = (theme: Theme) =>
     },
     emptyDocsText: {
       ...theme.typography.body12,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     actionsContainer: {
       gap: theme.spacing['2.5'],
@@ -1588,7 +1588,7 @@ const createStyles = (theme: Theme) =>
     },
     formMeta: {
       ...theme.typography.body12,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     formStatusBadge: {
       paddingHorizontal: theme.spacing['3'],
@@ -1600,7 +1600,7 @@ const createStyles = (theme: Theme) =>
     },
     formDescription: {
       ...theme.typography.body12,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     formAnswers: {
       gap: theme.spacing['2'],
@@ -1617,7 +1617,7 @@ const createStyles = (theme: Theme) =>
     },
     answerLabel: {
       ...theme.typography.body12,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     answerValue: {
       ...theme.typography.body13,

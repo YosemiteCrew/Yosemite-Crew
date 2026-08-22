@@ -247,7 +247,7 @@ const createStyles = (theme: Theme) =>
     },
     dividerText: {
       ...theme.typography.bodySmall,
-      color: theme.colors.inkFaint2,
+      color: theme.colors.inkMuted,
     },
     socialButton: {
       flexDirection: 'row',
@@ -277,7 +277,7 @@ const createStyles = (theme: Theme) =>
     },
     terms: {
       ...theme.typography.bodySmall,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
       textAlign: 'center',
       paddingHorizontal: theme.spacing['6'],
       marginBottom: theme.spacing['4'],

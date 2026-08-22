@@ -146,7 +146,7 @@ const createStyles = (theme: any) =>
     arrow: {
       width: theme.spacing['4'],
       height: theme.spacing['4'],
-      tintColor: theme.colors.inkFaint2,
+      tintColor: theme.colors.inkFaint,
       resizeMode: 'contain',
     },
     arrowDanger: {

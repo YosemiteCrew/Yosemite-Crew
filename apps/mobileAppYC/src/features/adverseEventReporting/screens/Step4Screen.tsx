@@ -159,7 +159,7 @@ const createStyles = (theme: any) =>
     },
     summaryLabel: {
       ...theme.typography.body13,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
       flex: 1,
     },
     summaryValue: {

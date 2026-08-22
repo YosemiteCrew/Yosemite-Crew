@@ -289,7 +289,7 @@ const createStyles = (theme: any) =>
     },
     detailLabel: {
       ...theme.typography.body14,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
       flexShrink: 0,
     },
     detailValue: {
@@ -327,7 +327,7 @@ const createStyles = (theme: any) =>
       color: theme.colors.blueText,
     },
     receiptButtonTextDisabled: {
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
   });
 

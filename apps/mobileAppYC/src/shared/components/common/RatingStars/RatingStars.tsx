@@ -33,9 +33,7 @@ export const RatingStars: React.FC<{
                 {width: size, height: size},
                 // Pink = companion moment (hearts / ratings).
                 {
-                  tintColor: filled
-                    ? theme.colors.pink
-                    : theme.colors.inkFaint2,
+                  tintColor: filled ? theme.colors.pink : theme.colors.inkFaint,
                 },
               ]}
               resizeMode="contain"

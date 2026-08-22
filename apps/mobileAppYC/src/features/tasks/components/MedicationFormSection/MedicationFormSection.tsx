@@ -283,7 +283,7 @@ const createMedicationStyles = (theme: any) =>
     },
     doseMeta: {
       ...theme.typography.bodySmall,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
       fontVariant: ['tabular-nums'],
     },
     addDoseRow: {

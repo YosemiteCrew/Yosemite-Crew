@@ -95,7 +95,7 @@ const createStyles = (theme: Theme) =>
     },
     label: {
       ...theme.typography.bodySmall,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     value: {
       ...theme.typography.labelSmallBold,

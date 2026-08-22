@@ -409,7 +409,7 @@ const createStyles = (theme: Theme) =>
     },
     detailLabel: {
       ...theme.typography.bodySmall,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     detailValue: {
       ...theme.typography.labelSmallBold,
@@ -468,7 +468,7 @@ const createStyles = (theme: Theme) =>
     },
     companionBreed: {
       ...theme.typography.bodySmall,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     sendButtonContainer: {
       paddingHorizontal: theme.spacing['5'],
@@ -477,7 +477,7 @@ const createStyles = (theme: Theme) =>
     },
     errorText: {
       ...theme.typography.body,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
   });
 

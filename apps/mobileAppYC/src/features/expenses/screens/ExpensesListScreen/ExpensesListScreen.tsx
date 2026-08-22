@@ -241,7 +241,7 @@ const createStyles = (theme: any) =>
     },
     listHeading: {
       ...theme.typography.eyebrow,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
       marginTop: theme.spacing['4'],
       marginBottom: theme.spacing['2'],
     },

@@ -89,7 +89,7 @@ export const CategoryTile: React.FC<CategoryTileProps> = ({
       <Ionicons
         name="chevron-forward"
         size={16}
-        color={theme.colors.inkFaint2}
+        color={theme.colors.inkFaint}
       />
     </PressableOpacity>
   );
@@ -136,7 +136,7 @@ const createStyles = (theme: any) =>
     },
     subtitle: {
       fontSize: 12.5,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
       marginTop: 1,
     },
     countBadge: {

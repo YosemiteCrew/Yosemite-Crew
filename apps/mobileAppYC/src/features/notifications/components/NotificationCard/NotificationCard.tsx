@@ -230,7 +230,7 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
                   <Ionicons
                     name="checkmark-circle-outline"
                     size={15}
-                    color={theme.colors.inkFaint2}
+                    color={theme.colors.inkFaint}
                   />
                   <Text style={styles.actionButtonText}>Mark as read</Text>
                 </PressableOpacity>
@@ -244,7 +244,7 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
                   <Ionicons
                     name="archive-outline"
                     size={15}
-                    color={theme.colors.inkFaint2}
+                    color={theme.colors.inkFaint}
                   />
                   <Text style={styles.actionButtonText}>Archive</Text>
                 </PressableOpacity>
@@ -306,7 +306,7 @@ const createStyles = (theme: any) =>
     },
     actionButtonText: {
       ...theme.typography.body12,
-      color: theme.colors.inkFaint2,
+      color: theme.colors.inkMuted,
     },
     iconDragging: {
       opacity: 0.7,
@@ -341,7 +341,7 @@ const createStyles = (theme: any) =>
     },
     time: {
       ...theme.typography.body12,
-      color: theme.colors.inkFaint2,
+      color: theme.colors.inkMuted,
     },
     avatarContainer: {
       flexShrink: 0,

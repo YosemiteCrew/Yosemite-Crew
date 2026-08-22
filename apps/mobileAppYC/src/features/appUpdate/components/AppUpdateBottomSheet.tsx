@@ -240,7 +240,7 @@ const createStyles = (theme: Theme) =>
     versionLine: {
       ...theme.typography.body12,
       fontSize: 12.5,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
       fontVariant: ['tabular-nums'],
     },
     changelog: {

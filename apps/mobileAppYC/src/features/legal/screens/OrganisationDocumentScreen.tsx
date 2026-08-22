@@ -496,7 +496,7 @@ const createStyles = (theme: any) =>
     sheetPageIndicator: {
       fontFamily: theme.typography.SATOSHI_MEDIUM,
       fontSize: 10.5,
-      color: theme.colors.inkFaint2,
+      color: theme.colors.inkMuted,
     },
     sheetDocTitle: {
       fontFamily: theme.typography.SATOSHI_BOLD,

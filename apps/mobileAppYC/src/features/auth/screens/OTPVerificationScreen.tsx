@@ -526,7 +526,7 @@ const createStyles = (theme: Theme) =>
     },
     resendText: {
       ...theme.typography.bodySmall,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     resendButton: {
       paddingHorizontal: theme.spacing['2'],
@@ -538,7 +538,7 @@ const createStyles = (theme: Theme) =>
     },
     countdownText: {
       ...theme.typography.bodyMedium,
-      color: theme.colors.inkFaint2,
+      color: theme.colors.inkMuted,
     },
     demoInputContainer: {
       width: '100%',

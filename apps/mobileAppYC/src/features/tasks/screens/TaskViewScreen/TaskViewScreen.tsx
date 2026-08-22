@@ -1092,7 +1092,7 @@ const createStyles = (theme: any) => {
     },
     doseMeta: {
       ...theme.typography.body13,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
       fontVariant: ['tabular-nums'],
     },
     // Toggle rows (warm-bone overrides of the shared form styles)

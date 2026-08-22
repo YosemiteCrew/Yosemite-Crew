@@ -1330,7 +1330,7 @@ const createStyles = (theme: any) =>
     },
     speciesSubtitle: {
       ...theme.typography.body13,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
       marginTop: 1,
     },
     speciesCheck: {

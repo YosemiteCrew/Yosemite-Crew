@@ -1101,7 +1101,7 @@ const createStyles = (theme: any) => {
       ...theme.typography.subtitleBold12,
       fontSize: 12.5,
       fontWeight: '700',
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     progressWrap: {
       paddingHorizontal: theme.spacing['5'],

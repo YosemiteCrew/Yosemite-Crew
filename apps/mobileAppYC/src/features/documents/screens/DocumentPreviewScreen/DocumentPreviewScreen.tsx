@@ -479,7 +479,7 @@ const createStyles = (theme: any) => {
     },
     metaText: {
       ...theme.typography.body12,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     syncedPill: {
       flexDirection: 'row',

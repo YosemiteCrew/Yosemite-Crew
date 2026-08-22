@@ -750,7 +750,7 @@ const createStyles = (theme: any) => {
     },
     sectionTitle: {
       ...theme.typography.eyebrow,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
       marginBottom: theme.spacing['3'],
     },
     loadingContainer: {

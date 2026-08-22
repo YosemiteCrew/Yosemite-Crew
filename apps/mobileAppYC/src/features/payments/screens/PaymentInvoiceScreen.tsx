@@ -1986,7 +1986,7 @@ const createStyles = (theme: any) =>
     },
     breakdownNote: {
       ...theme.typography.body12,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
       marginTop: theme.spacing['2'],
     },
     termsCard: {
@@ -2024,7 +2024,7 @@ const createStyles = (theme: any) =>
     },
     securityNoteText: {
       ...theme.typography.body12,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
       textAlign: 'center',
       flexShrink: 1,
     },
@@ -2077,7 +2077,7 @@ const breakdownStyles = (theme: any) =>
       color: theme.colors.inkBody,
     },
     labelSubtle: {
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     labelHighlight: {
       ...theme.typography.titleSmall,

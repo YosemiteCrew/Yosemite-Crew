@@ -302,7 +302,7 @@ const createStyles = (theme: any) =>
     },
     meta: {
       ...theme.typography.body12,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     footer: {
       flexDirection: 'row',
@@ -316,7 +316,7 @@ const createStyles = (theme: any) =>
     },
     chipText: {
       ...theme.typography.body12,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     actionButtons: {
       flexDirection: 'column',
