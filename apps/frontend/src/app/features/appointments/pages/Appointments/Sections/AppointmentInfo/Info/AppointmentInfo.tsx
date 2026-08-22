@@ -545,12 +545,18 @@ const useAppointmentInfoView = ({
         if (cancelled) return;
         const currentStart = toIsoTimePart(activeAppointment.startTime);
         const currentEnd = toIsoTimePart(activeAppointment.endTime);
-        // Prefer the exact matching free slot; if the booked slot is no longer in the
-        // availability list (it's already occupied), synthesize one from the appointment's
-        // own times so the form always opens with the correct pre-booked values.
+        // The synthesized slot exists so the form opens on the appointment's OWN
+        // pre-booked time, which is missing from the availability list precisely
+        // because this appointment occupies it. It is only valid on that date:
+        // carrying it onto another date let a reschedule keep a time nobody had
+        // said was available there, and the downstream lead options and save
+        // validation both derive from the selected slot, so nothing else caught it.
+        // Compared by value: toUtcCalendarDate builds a fresh Date every call.
+        const isOriginalDate =
+          selectedDate.getTime() === toUtcCalendarDate(activeAppointment.appointmentDate).getTime();
         const matchingSlot =
           slots.find((slot) => slot.startTime === currentStart && slot.endTime === currentEnd) ??
-          (currentStart && currentEnd
+          (isOriginalDate && currentStart && currentEnd
             ? {
                 startTime: currentStart,
                 endTime: currentEnd,
@@ -575,6 +581,7 @@ const useAppointmentInfoView = ({
     selectedDate,
     activeAppointment.startTime,
     activeAppointment.endTime,
+    activeAppointment.appointmentDate,
     activeAppointment.lead?.id,
     patchFormState,
   ]);

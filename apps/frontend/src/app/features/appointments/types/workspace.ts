@@ -65,6 +65,14 @@ export type SoapNoteEntry = {
   signedByName?: string;
   signedAt?: string;
   signedOffline?: boolean;
+  /**
+   * `status` answers "does this belong in the notes history?", which every
+   * persisted note does. It is NOT the record's legal state: the backend keeps a
+   * saved note `preliminary` until `$finalize` runs. `isFinalized` carries that
+   * separate truth, so code deciding whether a note is still amendable in place
+   * does not read a UI grouping flag and conclude the record is signed.
+   */
+  isFinalized?: boolean;
   status: StepStatus;
   createdAt: string;
 };

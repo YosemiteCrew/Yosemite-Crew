@@ -183,6 +183,68 @@ describe('workspaceClinicalService', () => {
     expect(postDataMock).not.toHaveBeenCalled();
   });
 
+  it('still updates a reloaded draft that the UI groups as history', async () => {
+    // Every persisted note carries status COMPLETED, because that is how the UI
+    // groups the notes history. Reading that as "signed" made this branch
+    // unreachable, so each save of a note reloaded after a refresh created a
+    // duplicate artifact instead of updating the draft.
+    patchDataMock.mockResolvedValueOnce({ data: { resourceType: 'Composition', id: 'soap-3' } });
+
+    await saveSoapNote(
+      {
+        organisationId: 'org-1',
+        appointmentId: 'appt-1',
+        encounterId: 'enc-1',
+        authorId: 'user-1',
+      },
+      {
+        id: 'soap-3',
+        chiefComplaint: '',
+        subjective: '<p>S</p>',
+        objective: '<p>O</p>',
+        assessment: '<p>A</p>',
+        plan: '<p>P</p>',
+        status: 'COMPLETED',
+        isFinalized: false,
+        createdAt: '2026-04-20T09:00:00.000Z',
+      }
+    );
+
+    expect(patchDataMock).toHaveBeenCalledWith(
+      '/fhir/v1/clinical-artifact/organisation/org-1/soap-note/soap-3',
+      expect.objectContaining({ resourceType: 'Composition' })
+    );
+    expect(postDataMock).not.toHaveBeenCalled();
+  });
+
+  it('never PATCHes a finalized note', async () => {
+    // A finalized note is immutable; corrections go through the amendment path.
+    postDataMock.mockResolvedValueOnce({ data: { resourceType: 'Composition', id: 'soap-4' } });
+
+    await saveSoapNote(
+      {
+        organisationId: 'org-1',
+        appointmentId: 'appt-1',
+        encounterId: 'enc-1',
+        authorId: 'user-1',
+      },
+      {
+        id: 'soap-4',
+        chiefComplaint: '',
+        subjective: '<p>S</p>',
+        objective: '<p>O</p>',
+        assessment: '<p>A</p>',
+        plan: '<p>P</p>',
+        status: 'COMPLETED',
+        isFinalized: true,
+        createdAt: '2026-04-20T09:00:00.000Z',
+      }
+    );
+
+    expect(patchDataMock).not.toHaveBeenCalled();
+    expect(postDataMock).toHaveBeenCalled();
+  });
+
   const SOAP_METADATA_URL = 'https://yosemitecrew.com/fhir/StructureDefinition/soap-note-metadata';
   const customSchema = [{ id: 'gait', type: 'input' as const, label: 'Gait' }];
 

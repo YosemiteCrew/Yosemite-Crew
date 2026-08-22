@@ -287,6 +287,10 @@ const soapNoteFromComposition = (
     // `preliminary` (only `$finalize` flips it to `final`), so persisted id — not status —
     // is the signal that this is a past entry.
     status: resource.id ? 'COMPLETED' : 'IN_PROGRESS',
+    // The record's actual legal state, kept apart from the history grouping
+    // above. Only `final` is immutable; anything else is still an editable draft
+    // as far as the backend is concerned.
+    isFinalized: resource.status === 'final',
     signedByName,
     signedAt: resource.date,
     createdAt: resource.date ?? new Date().toISOString(),
@@ -436,10 +440,13 @@ export const saveSoapNote = async (context: ClinicalContext, note: SoapNoteEntry
     ])
   );
   const endpoint = `/fhir/v1/clinical-artifact/organisation/${context.organisationId}/soap-note`;
-  // SOAP notes are a legal medical record: a signed (COMPLETED/final) note is immutable and is
-  // never PATCHed — corrections go through a separate amendment ($amend). Only an unsigned draft
+  // SOAP notes are a legal medical record: a signed (final) note is immutable and is never
+  // PATCHed — corrections go through a separate amendment ($amend). Only an unsigned draft
   // that was already persisted may be PATCHed; everything else creates a new finalized note.
-  const canPatchDraft = isPersistedArtifactId(note.id) && note.status !== 'COMPLETED';
+  // This reads `isFinalized`, not `status`: `status` is COMPLETED for every persisted note
+  // because that is how the UI groups history, which made this branch unreachable and turned
+  // each save of a reloaded draft into a duplicate artifact.
+  const canPatchDraft = isPersistedArtifactId(note.id) && !note.isFinalized;
   const res = canPatchDraft
     ? await patchData<Composition>(`${endpoint}/${note.id}`, body)
     : await postData<Composition>(endpoint, body);
