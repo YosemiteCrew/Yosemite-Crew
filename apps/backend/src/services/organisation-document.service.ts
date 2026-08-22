@@ -332,10 +332,18 @@ export const OrganizationDocumentService = {
    * For mobile app: only PUBLIC documents for an org,
    * usually legal docs to show during onboarding / booking.
    */
+  /**
+   * The documents a practice publishes to pet owners.
+   *
+   * `visibility` is pinned to PUBLIC and is NOT a caller-supplied filter. It used
+   * to be one, and it was optional: a mobile caller who omitted it - or asked for
+   * INTERNAL outright - received every document the organisation holds, each with
+   * a resolved PDF URL attached. Category stays caller-selectable; it only
+   * narrows within what is already public.
+   */
   async listPublicDocumentsForOrganisation(filter: {
     organisationId: string;
     category?: string;
-    visibility?: string;
   }): Promise<OrganizationDocumentDocument[]> {
     if (!filter.organisationId) {
       throw new OrgDocumentServiceError("organisationId is required", 400);
@@ -344,17 +352,14 @@ export const OrganizationDocumentService = {
     const where: {
       organisationId: string;
       category?: PrismaOrgDocumentCategory;
-      visibility?: PrismaOrgDocumentVisibility;
+      visibility: PrismaOrgDocumentVisibility;
     } = {
       organisationId: filter.organisationId,
+      visibility: "PUBLIC",
     };
 
     if (filter.category) {
       where.category = filter.category as PrismaOrgDocumentCategory;
-    }
-
-    if (filter.visibility) {
-      where.visibility = filter.visibility as PrismaOrgDocumentVisibility;
     }
 
     const docs = await prisma.organizationDocument.findMany({

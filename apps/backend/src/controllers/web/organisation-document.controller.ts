@@ -183,20 +183,17 @@ export const OrganizationDocumentController = {
       const organisationId = req.params.orgId;
       const category =
         typeof req.query.category === "string" ? req.query.category : undefined;
-      const visibility =
-        typeof req.query.visibility === "string"
-          ? req.query.visibility
-          : undefined;
+      // `visibility` is deliberately NOT read from the query here - the service
+      // pins it to PUBLIC. Honouring the caller's value let a mobile client ask
+      // for the organisation's INTERNAL documents.
       const filter: {
         organisationId: string;
         category?: string;
-        visibility?: string;
       } = {
         organisationId,
       };
 
       if (category) filter.category = category;
-      if (visibility) filter.visibility = visibility;
 
       const docs =
         await OrganizationDocumentService.listPublicDocumentsForOrganisation(

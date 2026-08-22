@@ -1016,13 +1016,12 @@ describe("OrganizationDocumentService", () => {
       expect(mockedPrisma.organizationDocument.findMany).not.toHaveBeenCalled();
     });
 
-    it("applies the public category and visibility filters", async () => {
+    it("applies the caller's category and pins visibility to PUBLIC", async () => {
       mockedPrisma.organizationDocument.findMany.mockResolvedValueOnce([]);
 
       await OrganizationDocumentService.listPublicDocumentsForOrganisation({
         organisationId: "org-1",
         category: "PRIVACY_POLICY",
-        visibility: "PUBLIC",
       });
 
       expect(mockedPrisma.organizationDocument.findMany).toHaveBeenCalledWith({

@@ -679,13 +679,16 @@ describe("OrganizationDocumentController.listPublic", () => {
     jest.clearAllMocks();
   });
 
-  it("forwards the category and visibility filters when present", async () => {
+  // Category narrows within what is already public; `visibility` is pinned by the
+  // service. Forwarding the caller's value let a mobile client ask this route
+  // for the organisation's INTERNAL documents.
+  it("forwards the category filter and never the caller's visibility", async () => {
     mockedService.listPublicDocumentsForOrganisation.mockResolvedValueOnce([
       documentFixture,
     ]);
     const req = {
       params: { orgId: "org-1" },
-      query: { category: "PRIVACY_POLICY", visibility: "PUBLIC" },
+      query: { category: "PRIVACY_POLICY", visibility: "INTERNAL" },
     } as unknown as Request<{ orgId: string }>;
     const res = createResponse();
 
@@ -696,7 +699,6 @@ describe("OrganizationDocumentController.listPublic", () => {
     ).toHaveBeenCalledWith({
       organisationId: "org-1",
       category: "PRIVACY_POLICY",
-      visibility: "PUBLIC",
     });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ data: [documentFixture] });

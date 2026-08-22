@@ -1,4 +1,5 @@
 import { prisma } from "src/config/prisma";
+import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 import { AuditTrailService } from "./audit-trail.service";
 import type { Prisma } from "@prisma/client";
 
@@ -108,6 +109,34 @@ const protocolSelect = {
   updatedAt: true,
   steps: { select: stepSelect, orderBy: { stepOrder: "asc" } },
 } satisfies Prisma.TreatmentProtocolSelect;
+
+/**
+ * The companion and encounter a protocol is being applied TO.
+ *
+ * `assertProtocol` proves the protocol belongs to the caller's organisation, but
+ * `patientId` and `encounterId` arrive in the request body and were written
+ * straight through - so a caller could apply their own protocol against another
+ * tenant's companion and encounter, creating applied-protocol and task rows
+ * against records they have no relationship with. Same uniform 404 as elsewhere
+ * so this cannot be used to probe which ids exist.
+ */
+const assertApplyTargets = async (
+  patientId: string,
+  encounterId: string,
+  organisationId: string,
+) => {
+  await assertPatientOrgMembership(patientId, organisationId, () => {
+    throw new TreatmentProtocolError("Companion not found.", 404);
+  });
+
+  const encounter = await prisma.encounter.findFirst({
+    where: { id: encounterId, organisationId },
+    select: { id: true },
+  });
+  if (!encounter) {
+    throw new TreatmentProtocolError("Encounter not found.", 404);
+  }
+};
 
 const assertProtocol = async (id: string, organisationId: string) => {
   const protocol = await prisma.treatmentProtocol.findFirst({
@@ -263,6 +292,7 @@ export const TreatmentProtocolService = {
       appointmentDate,
     } = params;
     const protocol = await assertProtocol(protocolId, organisationId);
+    await assertApplyTargets(patientId, encounterId, organisationId);
 
     const application = await prisma.appliedTreatmentProtocol.create({
       data: {
