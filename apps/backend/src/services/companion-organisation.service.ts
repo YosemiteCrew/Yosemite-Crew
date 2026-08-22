@@ -208,6 +208,23 @@ const updateLink = async (
   });
 
 export const CompanionOrganisationService = {
+  /**
+   * Proves the caller's parent manages the companion, for callers that must
+   * establish that before they write anything. `linkByParent` asserts the same
+   * thing, but it runs after the booking is persisted so that a rejected
+   * payload cannot leave an ACTIVE link behind - too late to keep an
+   * unauthorised companion id out of the appointment table.
+   */
+  async assertParentManagesCompanion(
+    parentId: string,
+    patientId: string,
+  ): Promise<void> {
+    await assertParentOwnsCompanion(
+      requireId(parentId, "parentId"),
+      requireId(patientId, "patientId"),
+    );
+  },
+
   async linkByParent({
     parentId,
     patientId,

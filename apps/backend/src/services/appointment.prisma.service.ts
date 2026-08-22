@@ -1453,6 +1453,16 @@ const createAppointment = async (
     );
   }
 
+  // Ownership is proven BEFORE anything is written. The link itself is created
+  // after the transaction (see below), which means the assertion inside
+  // linkByParent lands too late to keep a companion the caller does not manage
+  // out of the appointment - and out of the clinical case an inpatient booking
+  // opens on the way.
+  await CompanionOrganisationService.assertParentManagesCompanion(
+    input.patient.parent.id,
+    getPatientId(input.patient),
+  );
+
   const created = await prisma.$transaction(async (tx) => {
     const patientId = getPatientId(input.patient);
     const resolvedCaseId = await resolveCaseContext({

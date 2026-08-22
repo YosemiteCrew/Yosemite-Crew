@@ -41,6 +41,7 @@ jest.mock("../../src/services/invoice.service", () => ({
 jest.mock("../../src/services/companion-organisation.service", () => ({
   CompanionOrganisationService: {
     linkByParent: jest.fn(),
+    assertParentManagesCompanion: jest.fn(),
   },
 }));
 
@@ -136,6 +137,9 @@ const mockedInvoiceService = InvoiceService as unknown as {
 };
 const mockedCompanionOrgService = CompanionOrganisationService as unknown as {
   linkByParent: jest.Mock;
+  assertParentManagesCompanion: jest.Mock<
+    (parentId: string, patientId: string) => Promise<void>
+  >;
 };
 const mockedFinancePaymentService = jest.requireMock(
   "../../src/services/finance/payment",
@@ -1561,6 +1565,29 @@ describe("AppointmentPrismaService", () => {
       });
       expect(mockedPrisma.appointment.create).not.toHaveBeenCalled();
       expect(mockedCompanionOrgService.linkByParent).not.toHaveBeenCalled();
+    });
+
+    it("writes nothing when the caller does not manage the companion", async () => {
+      // The parent id on the payload is the caller's own, so the caller check
+      // passes - it is the COMPANION that belongs to somebody else. That is
+      // proven by linkByParent, which runs after the booking is persisted, so
+      // without an up-front assertion the appointment (and the clinical case an
+      // inpatient booking opens) survive the 403.
+      mockedCompanionOrgService.assertParentManagesCompanion.mockRejectedValueOnce(
+        new Error("You are not authorized to manage this companion."),
+      );
+
+      await expect(
+        AppointmentPrismaService.createRequestedFromMobile(
+          { resourceType: "Appointment" } as any,
+          "parent_1",
+        ),
+      ).rejects.toMatchObject({
+        message: "You are not authorized to manage this companion.",
+      });
+
+      expect(mockedPrisma.appointment.create).not.toHaveBeenCalled();
+      expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
     });
 
     it("requires an authenticated parent for a mobile booking", async () => {
