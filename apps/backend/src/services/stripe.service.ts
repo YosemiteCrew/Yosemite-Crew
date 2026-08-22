@@ -535,6 +535,12 @@ export const StripeService = {
 
       // subscription lifecycle
       case "checkout.session.completed":
+      // Delayed payment methods (bank debits, bank transfers) complete the
+      // session before the funds settle, so Stripe reports the outcome later on
+      // these events. Without them a genuinely-paid invoice using one of those
+      // methods would never settle now that `_handleInvoiceCheckout` refuses to
+      // act on an unpaid session.
+      case "checkout.session.async_payment_succeeded":
         await this._handleCheckoutCompleted(
           event.data.object,
           connectedAccountId,
@@ -898,6 +904,23 @@ export const StripeService = {
   ) {
     const invoiceId = session.metadata?.invoiceId;
     if (!invoiceId) return;
+
+    // `checkout.session.completed` fires when the CHECKOUT finished, not when the
+    // money arrived: a delayed payment method leaves `payment_status` as
+    // `unpaid` and settles (or fails) asynchronously afterwards. Recording
+    // payment on the completion event alone marked such invoices paid before any
+    // funds existed. `no_payment_required` is a genuinely settled zero-total
+    // session and still counts.
+    if (
+      session.payment_status !== "paid" &&
+      session.payment_status !== "no_payment_required"
+    ) {
+      logger.info(
+        `Ignoring checkout session ${session.id} for invoice ${invoiceId}: payment_status=${session.payment_status}. Awaiting async settlement.`,
+      );
+      return;
+    }
+
     const result =
       await FinancePaymentService.handleInvoiceCheckoutSessionCompleted({
         invoiceId,

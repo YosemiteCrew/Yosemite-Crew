@@ -1420,6 +1420,7 @@ describe("StripeService", () => {
 
       await StripeService._handleInvoiceCheckout({
         id: "cs_1",
+        payment_status: "paid",
         metadata: { invoiceId: "inv_1" },
       } as any);
 
@@ -1602,6 +1603,7 @@ describe("StripeService", () => {
           object: {
             id: "cs_x",
             mode: "payment",
+            payment_status: "paid",
             metadata: { invoiceId: "inv_x" },
           },
         },
@@ -2053,6 +2055,43 @@ describe("StripeService", () => {
     });
   });
 
+  describe("_handleInvoiceCheckout payment status gate", () => {
+    // `checkout.session.completed` fires when the checkout finished, not when the
+    // money arrived. A delayed payment method leaves payment_status `unpaid` and
+    // settles later, so acting on the completion event alone marked the invoice
+    // paid before any funds existed.
+    it.each(["unpaid", undefined])(
+      "ignores a session whose payment_status is %s",
+      async (paymentStatus) => {
+        await StripeService._handleInvoiceCheckout({
+          id: "cs_pending",
+          payment_status: paymentStatus,
+          metadata: { invoiceId: "inv_1" },
+        } as never);
+
+        expect(
+          FinancePaymentService.handleInvoiceCheckoutSessionCompleted,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it("settles a zero-total session that needed no payment", async () => {
+      (
+        FinancePaymentService.handleInvoiceCheckoutSessionCompleted as jest.Mock
+      ).mockResolvedValueOnce({ action: "IGNORED", invoice: { id: "inv_1" } });
+
+      await StripeService._handleInvoiceCheckout({
+        id: "cs_free",
+        payment_status: "no_payment_required",
+        metadata: { invoiceId: "inv_1" },
+      } as never);
+
+      expect(
+        FinancePaymentService.handleInvoiceCheckoutSessionCompleted,
+      ).toHaveBeenCalled();
+    });
+  });
+
   describe("_handleInvoiceCheckout result branches", () => {
     it("ignores sessions without an invoiceId", async () => {
       await StripeService._handleInvoiceCheckout({
@@ -2075,6 +2114,7 @@ describe("StripeService", () => {
 
       await StripeService._handleInvoiceCheckout({
         id: "cs_1",
+        payment_status: "paid",
         metadata: { invoiceId: "inv_1" },
       } as any);
 
@@ -2096,6 +2136,7 @@ describe("StripeService", () => {
 
       await StripeService._handleInvoiceCheckout({
         id: "cs_1",
+        payment_status: "paid",
         metadata: { invoiceId: "inv_1" },
       } as any);
 
@@ -2118,6 +2159,7 @@ describe("StripeService", () => {
       await StripeService._handleInvoiceCheckout(
         {
           id: "cs_1",
+          payment_status: "paid",
           payment_intent: "pi_1",
           currency: "usd",
           amount_subtotal: 9000,
