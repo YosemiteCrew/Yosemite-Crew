@@ -1335,10 +1335,14 @@ export const TemplateService = {
             template,
             matched: {
               ...matched,
-              score:
-                (requireLinked ? 100 : 0) +
-                (matched.defaultForKind ? 10 : 0) +
-                matched.matchScore,
+              // Specificity decides; being a default only breaks a tie.
+              //
+              // `defaultForKind` used to add +10 while `matchScore` can only
+              // reach 4, so a broad default template outranked a template that
+              // actually matched the species, service and appointment kind -
+              // the opposite of what the scoring exists to do. Ties fall through
+              // to `compareResolverMatches`, which still prefers a default.
+              score: (requireLinked ? 100 : 0) + matched.matchScore,
             },
           });
         }
