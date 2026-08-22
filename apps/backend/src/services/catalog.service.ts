@@ -2717,26 +2717,36 @@ export const CatalogService = {
           .filter((s) => s.organisationId === org.id)
           .filter((product) => Boolean(product.bookable))
           .map((product) => {
+            // Discovery view of a package, NOT the internal breakdown.
+            //
+            // This endpoint returns OTHER organisations' catalogs, so the
+            // per-line economics - internal product codes, pricing modes,
+            // override prices, discount percentages and the computed
+            // gross/discount/final amounts - are another practice's commercial
+            // terms and have no business here. What a prospective client needs
+            // is what the package contains and how much of it. Archived children
+            // are dropped rather than advertised: `isActive` was selected but
+            // never filtered on, so inactive items retained inside an active
+            // package were listed as though they were on sale.
             const packageItems =
               product.kind === "PACKAGE" && product.package?.items.length
                 ? product.package.items
+                    .filter(
+                      (item) =>
+                        (
+                          item as unknown as {
+                            childProductItem?: { isActive?: boolean };
+                          }
+                        ).childProductItem?.isActive !== false,
+                    )
                     .map(buildPackageBreakdownRow)
                     .map((item) => ({
                       id: item.id,
-                      childProductItemId: item.childItemId,
                       childProductName: item.childItemName,
                       childProductKind: item.childItemKind,
-                      childProductCode: item.childItemCode ?? null,
                       quantity: item.quantity,
-                      pricingMode: item.pricingMode,
-                      overridePrice: item.overridePrice,
-                      discountPercent: item.discountPercent,
                       sortOrder: item.sortOrder,
                       isOptional: item.isOptional,
-                      currency: item.currency,
-                      grossAmount: item.grossAmount,
-                      discountAmount: item.discountAmount,
-                      finalAmount: item.finalAmount,
                     }))
                 : undefined;
 

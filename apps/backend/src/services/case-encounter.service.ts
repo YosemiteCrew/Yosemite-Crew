@@ -595,6 +595,18 @@ const buildPrescriptionMedicationRows = (
     sortOrder: index,
   }));
 
+/**
+ * The catalog selection behind an appointment, or null when it can no longer be
+ * resolved.
+ *
+ * Both 404 (deleted) and 400 (archived/inactive) degrade to null. Catalog state
+ * is editable independently of the appointments that reference it, so a product
+ * archived after booking would otherwise throw here and roll back the whole
+ * encounter-creation transaction - leaving the appointment permanently
+ * unopenable, and giving anyone with catalog edit rights a way to block clinical
+ * workflow for upcoming appointments without touching the encounters at all.
+ * The encounter is created either way; it simply carries no catalog selection.
+ */
 const resolveSelectionSafe = async (
   productItemId: string,
   organisationId: string,
@@ -602,7 +614,10 @@ const resolveSelectionSafe = async (
   try {
     return await CatalogService.resolveSelection(productItemId, organisationId);
   } catch (error) {
-    if (error instanceof CatalogServiceError && error.statusCode === 404) {
+    if (
+      error instanceof CatalogServiceError &&
+      (error.statusCode === 404 || error.statusCode === 400)
+    ) {
       return null;
     }
     throw error;

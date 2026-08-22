@@ -3584,18 +3584,18 @@ describe("CatalogService", () => {
                   kind: "PACKAGE",
                   appointmentKinds: ["OUTPATIENT", "INPATIENT"],
                   cost: 50,
+                  // Discovery view: this endpoint returns OTHER organisations'
+                  // catalogs, so a package shows WHAT it contains and how much
+                  // of it - never the per-line economics (internal codes,
+                  // pricing mode, override price, discount percent, computed
+                  // gross/discount/final), which are another practice's
+                  // commercial terms.
                   packageItems: [
                     expect.objectContaining({
                       id: "pkg_item_1",
-                      childProductItemId: "child_1",
                       childProductName: "Blood Test",
                       childProductKind: "LAB_TEST",
-                      childProductCode: "BT-1",
                       quantity: 2,
-                      pricingMode: "INCLUDED",
-                      grossAmount: 0,
-                      discountAmount: 0,
-                      finalAmount: 0,
                     }),
                   ],
                 }),
@@ -5517,12 +5517,30 @@ describe("CatalogService negative and edge paths", () => {
           appointmentKinds: ["INPATIENT"],
           packageItems: [
             expect.objectContaining({
-              childProductItemId: "child_1",
-              childProductCode: null,
+              childProductName: "Child Service",
             }),
           ],
         }),
       );
+
+      // This endpoint returns OTHER organisations' catalogs, so a package shows
+      // only WHAT it contains and how much of it. The per-line economics -
+      // internal codes, pricing mode, override price, discount percent and the
+      // computed gross/discount/final amounts - are another practice's
+      // commercial terms and must not appear here.
+      const [packageItem] = (
+        result[0].specialities[0].services[0] as unknown as {
+          packageItems: Array<Record<string, unknown>>;
+        }
+      ).packageItems;
+      expect(Object.keys(packageItem).sort()).toEqual([
+        "childProductKind",
+        "childProductName",
+        "id",
+        "isOptional",
+        "quantity",
+        "sortOrder",
+      ]);
     });
   });
 
