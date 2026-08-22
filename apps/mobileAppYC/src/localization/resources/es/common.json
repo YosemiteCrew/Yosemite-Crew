@@ -359,5 +359,9 @@
     "chatLockedBody": "El chat se abre un dia antes de tu cita.\n\nCita: {{appointmentTime}}\nSe abre en: {{hours}} h {{minutes}} min",
     "chatUnavailableTitle": "Chat cerrado",
     "chatUnavailableBody": "Esta cita ha terminado y el chat ya no esta disponible."
+  },
+  "account": {
+    "opensInBrowser": "Se abre en tu navegador, fuera de la aplicacion",
+    "opensInBrowserShort": "Abre el navegador"
   }
 }

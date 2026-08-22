@@ -17,7 +17,6 @@
 		4DAA6BFED3214D71813F0661 /* ClashDisplay-Medium.otf in Resources */ = {isa = PBXBuildFile; fileRef = B20BB11C225246958C33590A /* ClashDisplay-Medium.otf */; };
 		5177D14AF430420FB700DA73 /* ClashDisplay-Light.otf in Resources */ = {isa = PBXBuildFile; fileRef = 18B9690E26844ED3A138EAE4 /* ClashDisplay-Light.otf */; };
 		536176352E96F265005937AA /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 536176342E96F265005937AA /* GoogleService-Info.plist */; };
-		53B74F3B2EA2CDCF0004CD51 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 53B74F3A2EA2CDCF0004CD51 /* GoogleService-Info.plist */; };
 		604359F293D642278FF2C9F8 /* SFProText-semibold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 6635D2D3DB7B494180948B38 /* SFProText-semibold.ttf */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		791D4C612E8447EC88CEEB34 /* ClashDisplay-Semibold.otf in Resources */ = {isa = PBXBuildFile; fileRef = 0CD424F2734F483EB275E552 /* ClashDisplay-Semibold.otf */; };
@@ -54,7 +53,6 @@
 		471A248EB57E4E549A9FCD5B /* BootSplash.storyboard */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = BootSplash.storyboard; path = mobileAppYC/BootSplash.storyboard; sourceTree = "<group>"; };
 		536176342E96F265005937AA /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		5384E25E2E881C1D00342038 /* mobileAppYC.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = mobileAppYC.entitlements; path = mobileAppYC/mobileAppYC.entitlements; sourceTree = "<group>"; };
-		53B74F3A2EA2CDCF0004CD51 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		6635D2D3DB7B494180948B38 /* SFProText-semibold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "SFProText-semibold.ttf"; path = "../assets/fonts/SFProText-semibold.ttf"; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = mobileAppYC/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = mobileAppYC/LaunchScreen.storyboard; sourceTree = "<group>"; };
@@ -145,7 +143,6 @@
 			isa = PBXGroup;
 			children = (
 				536176342E96F265005937AA /* GoogleService-Info.plist */,
-				53B74F3A2EA2CDCF0004CD51 /* GoogleService-Info.plist */,
 				13B07FAE1A68108700A75B9A /* mobileAppYC */,
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
@@ -255,7 +252,6 @@
 				309DA876120A4DB0AB8EF960 /* Satoshi-Medium.otf in Resources */,
 				E606C93345D04B8A9337E586 /* Satoshi-Regular.otf in Resources */,
 				7FA6EE15257E4A089AF96CE8 /* ClashDisplay-Variable.ttf in Resources */,
-				53B74F3B2EA2CDCF0004CD51 /* GoogleService-Info.plist in Resources */,
 				8CDF7234D58144ABAB092E35 /* SFProText-regular.ttf in Resources */,
 				604359F293D642278FF2C9F8 /* SFProText-semibold.ttf in Resources */,
 				DE06AFB86A0F434485CA8DB9 /* Newsreader-Regular.ttf in Resources */,

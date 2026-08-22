@@ -67,6 +67,8 @@ type MenuItem = {
   onPress: () => void;
   danger?: boolean;
   tintIcon?: boolean;
+  /** Row leaves the app for a browser rather than opening an in-app screen. */
+  external?: boolean;
 };
 
 // Removed COMPANION_PLACEHOLDERS
@@ -131,6 +133,9 @@ const buildAccountMenuItems = (
     label: 'About us',
     icon: Images.aboutusIcon,
     tone: 'indigo',
+    // The only row here that leaves the app; every other one opens an in-app
+    // screen, so the row says so rather than surprising the user.
+    external: true,
     onPress: () => {
       Linking.openURL('https://www.yosemitecrew.com/about').catch(console.warn);
     },

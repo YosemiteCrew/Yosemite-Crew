@@ -359,5 +359,9 @@
     "chatLockedBody": "Chat opens a day before your appointment.\n\nAppointment: {{appointmentTime}}\nOpens in: {{hours}}h {{minutes}}m",
     "chatUnavailableTitle": "Chat closed",
     "chatUnavailableBody": "This appointment has ended and chat is no longer available."
+  },
+  "account": {
+    "opensInBrowser": "Opens in your browser, outside the app",
+    "opensInBrowserShort": "Opens in browser"
   }
 }
