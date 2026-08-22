@@ -120,6 +120,36 @@ describe('parseOverrideKey', () => {
     assert.deepEqual(splitOverrideKey('foo>2fa'), { name: '2fa', selector: null, parent: 'foo' });
   });
 
+  it('does not split a compound range on its second operator', () => {
+    // 'pkg@<1 || >2': the trailing '>' follows a SPACE, not '@'. Splitting
+    // there made the child '2', indexed the override under the package name
+    // '2', and left every advisory for pkg unmatched - a silent pass.
+    assert.deepEqual(splitOverrideKey('pkg@<1 || >2'), {
+      name: 'pkg',
+      selector: '<1 || >2',
+      parent: null,
+    });
+    assert.deepEqual(splitOverrideKey('pkg@1 || >2'), {
+      name: 'pkg',
+      selector: '1 || >2',
+      parent: null,
+    });
+    assert.equal(parseOverrideKey('pkg@<1 || >2'), 'pkg');
+  });
+
+  it('still splits a real parent>child key', () => {
+    assert.deepEqual(splitOverrideKey('parent>child'), {
+      name: 'child',
+      selector: null,
+      parent: 'parent',
+    });
+    assert.deepEqual(splitOverrideKey('a>b>c'), {
+      name: 'c',
+      selector: null,
+      parent: 'a>b',
+    });
+  });
+
   it('does not mistake >v or "> " spellings for a parent separator', () => {
     assert.equal(parseOverrideKey('pkg@>v1.2.3'), 'pkg');
     assert.equal(parseOverrideKey('pkg@> 1.2.3'), 'pkg');

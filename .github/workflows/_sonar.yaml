@@ -153,13 +153,28 @@ jobs:
         working-directory: ${{ matrix.dir }}
         env:
           SONAR_TOKEN: ${{ (matrix.app_key == 'frontend' && secrets.SONAR_TOKEN_FRONTEND) || (matrix.app_key == 'backend' && secrets.SONAR_TOKEN_API) || (matrix.app_key == 'mobile' && secrets.SONAR_TOKEN_MOBILE) || (matrix.app_key == 'desktop' && secrets.SONAR_TOKEN_DESKTOP) || '' }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
-          # On a pull_request event this workflow file resolves from the merge
-          # ref while the checkout above is the PR head, so a branch cut before
-          # the bar landed runs this step against a tree without the script.
-          # Fail with the actual fix rather than MODULE_NOT_FOUND.
+          # This step holds SONAR_TOKEN, so on a pull_request it runs the BASE
+          # copy of the script, never the PR's. The checkout above is the PR
+          # head, and a same-repository pull request can edit any file in it -
+          # including this script - which would hand an attacker-controlled
+          # program the project token. Reading it out of the base commit means
+          # the code that runs with the token is code that was already reviewed.
+          # (Log masking would not help: exfiltration is a network call.)
           SCRIPT="$GITHUB_WORKSPACE/scripts/ci/sonar-thresholds.mjs"
+          if [ -n "${BASE_SHA:-}" ]; then
+            TRUSTED="${RUNNER_TEMP}/sonar-thresholds.mjs"
+            if git cat-file -e "${BASE_SHA}:scripts/ci/sonar-thresholds.mjs" 2>/dev/null; then
+              git show "${BASE_SHA}:scripts/ci/sonar-thresholds.mjs" > "$TRUSTED"
+              SCRIPT="$TRUSTED"
+            else
+              echo "scripts/ci/sonar-thresholds.mjs is not in the base commit: the target branch" >&2
+              echo "predates the Sonar quality bar. Update the branch from dev (rebase)." >&2
+              exit 1
+            fi
+          fi
           if [ ! -f "$SCRIPT" ]; then
             echo "scripts/ci/sonar-thresholds.mjs is not in this checkout: the branch predates" >&2
             echo "the Sonar quality bar. Update the branch from dev (rebase) and push again." >&2

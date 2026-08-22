@@ -1306,12 +1306,22 @@ const setupIdleLock = (ses: Session): void => {
   // Drop the session and return to the sign-in page. This is what "Use password
   // instead" means here: the PIMS owns the password, so the fallback is to sign
   // in again. Also where an unlock lands when biometrics are unavailable.
-  const signOutToStartUrl = (): void => {
-    void ses.clearStorageData({ storages: ['cookies'] }).finally(() => {
-      persistAuthHint(false);
-      loadStartUrl();
-    });
-  };
+  /**
+   * Clear the session and return to the start URL.
+   *
+   * Returns the promise so a caller that is uncovering the workspace can wait
+   * for it: the tab contents stay rendered until the navigation lands, so
+   * hiding the lock overlay first leaves the previous page - patient records
+   * included - on screen for the duration.
+   */
+  const signOutToStartUrl = (): Promise<void> =>
+    ses
+      .clearStorageData({ storages: ['cookies'] })
+      .catch(() => undefined)
+      .then(() => {
+        persistAuthHint(false);
+        loadStartUrl();
+      });
 
   // Tell the lock page the prompt was refused so it can stop saying "Verifying".
   // Success needs no message: the overlay is removed outright.
@@ -1351,10 +1361,17 @@ const setupIdleLock = (ses: Session): void => {
     // Only meaningful while the lock screen is actually up.
     if (!lockOverlay.isVisible()) return;
     if (mode === 'password') {
-      locked = false;
-      lockOverlay.hide();
       logger.info('idle_lock_password_fallback');
-      signOutToStartUrl();
+      // The overlay comes down only AFTER the sign-out has landed. Hiding it
+      // first exposed the still-rendered workspace to whoever is standing at
+      // the locked machine for as long as clearing cookies and navigating took.
+      if (unlockInFlight) return;
+      unlockInFlight = true;
+      void signOutToStartUrl().finally(() => {
+        locked = false;
+        lockOverlay.hide();
+        unlockInFlight = false;
+      });
       return;
     }
     attemptBiometricUnlock();
@@ -1376,7 +1393,7 @@ const setupIdleLock = (ses: Session): void => {
         logger.info('biometric_lock_engaged');
         attemptBiometricUnlock();
       } else {
-        signOutToStartUrl();
+        void signOutToStartUrl();
       }
       // Activity alone must not clear the lock while the lock screen is still
       // up - only a real unlock does that.

@@ -13,7 +13,12 @@ permissions:
   # Dropping it silently disables the summary comment rather than failing, so it
   # stays until PR comments are deliberately turned off in the action's config.
   issues: write
-  statuses: write
+  # `statuses: write` is deliberately NOT granted. Nothing in this workflow
+  # creates a commit status, and the token is handed to a third-party action
+  # running against pull-request-controlled code - a scope that can write commit
+  # statuses is worth withholding where branch protection may consult legacy
+  # status contexts. Add it back only alongside a step that demonstrably needs
+  # it.
 
 concurrency:
   group: react-doctor-${{ github.event.pull_request.number || github.ref }}
