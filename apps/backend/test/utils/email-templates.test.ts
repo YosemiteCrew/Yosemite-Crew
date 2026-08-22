@@ -402,3 +402,80 @@ describe("Email Templates Utils", () => {
     });
   });
 });
+
+describe("design system conformance", () => {
+  const html = renderEmailTemplate("organisationInvite", {
+    inviteeName: "Sneha",
+    organisationName: "Mainz Tierklinik",
+    inviterName: "Ankit",
+    acceptUrl: "http://accept",
+    declineUrl: "http://decline",
+    expiresAt: new Date("2026-09-01T10:00:00Z"),
+  }).htmlBody;
+
+  it("paints the warm-bone page and card surfaces from the design system", () => {
+    expect(html).toContain("#efe8dc"); // --page
+    expect(html).toContain("#f7f3ec"); // --screen
+    expect(html).toContain("#e5dccf"); // --hairline
+    expect(html).toContain("#302f2e"); // --ink-body / --cta
+  });
+
+  it("uses the brand type stack, with serif reserved for the headline", () => {
+    expect(html).toContain("'Newsreader'");
+    expect(html).toContain("'Satoshi Variable'");
+    expect(html).toMatch(/<h1[^>]+Newsreader/);
+  });
+
+  it("renders pill call-to-action buttons", () => {
+    expect(html).toContain("border-radius:999px");
+  });
+
+  it("ships an inbox preheader and a dark-scheme block", () => {
+    expect(html).toContain("mso-hide:all");
+    expect(html).toContain("prefers-color-scheme: dark");
+  });
+
+  it("carries no pre-design-system palette values", () => {
+    for (const legacy of [
+      "#f4f8ff", // old cool-blue page
+      "#2563eb", // Tailwind blue button
+      "#007bff", // Bootstrap link blue
+      "#111827", // Tailwind gray-900
+      "#7d7d7d", // old divider
+    ]) {
+      expect(html).not.toContain(legacy);
+    }
+  });
+
+  it("keeps the Impressum disclosure required under German law", () => {
+    expect(html).toContain("DuneXploration UG");
+    expect(html).toContain("HRB 52778");
+    expect(html).toContain("DE367920596");
+  });
+});
+
+describe("email stylesheet integrity", () => {
+  it("emits every class its <style> block declares", () => {
+    const html = renderEmailTemplate("appointmentAssigned", {
+      employeeName: "Dr. Vallirani",
+      companionName: "Rex",
+      appointmentTime: "01 Sep 2026 10:00 GMT",
+      organisationName: "Mainz Tierklinik",
+      appointmentUrl: "http://appt",
+    }).htmlBody;
+
+    const style = html.slice(html.indexOf("<style>"), html.indexOf("</style>"));
+    const declared = new Set(
+      [...style.matchAll(/\.(yc-[a-z-]+)/g)].map((m) => m[1]),
+    );
+    const emitted = new Set(
+      [...html.matchAll(/class="([^"]+)"/g)]
+        .flatMap((m) => m[1].split(/\s+/))
+        .filter((c) => c.startsWith("yc-")),
+    );
+
+    // A declared-but-unused class means a dark-mode or responsive rule that
+    // silently never applies.
+    expect([...declared].filter((c) => !emitted.has(c))).toEqual([]);
+  });
+});
