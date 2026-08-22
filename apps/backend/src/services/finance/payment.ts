@@ -2043,7 +2043,7 @@ export const FinancePaymentService = {
         providerCheckoutSessionId: input.sessionId,
         status: { notIn: ["CANCELED", "FAILED"] },
       },
-      select: { id: true },
+      select: { id: true, collectionMode: true, isPartial: true },
     });
 
     // Guards the tax overwrite below: a stale session must never rewrite the
@@ -2063,20 +2063,35 @@ export const FinancePaymentService = {
       return { action: "MISSING_AMOUNT" as const, invoice };
     }
 
-    const invoiceWithTax = await applyCheckoutSessionTaxToInvoice(invoice, {
-      sessionId: input.sessionId,
-      amountSubtotal: input.amountSubtotal,
-      amountTotal: input.amountTotal,
-      amountTax: input.amountTax,
-      automaticTaxStatus: input.automaticTaxStatus,
-      rawProviderPayload: input.rawProviderPayload ?? undefined,
-    });
+    // A deposit session is billed for part of the invoice, so its totals
+    // describe the deposit and not the invoice. Writing them over the invoice
+    // would shrink the invoice total to the deposit, and the deposit would then
+    // settle it in full. The invoice keeps the tax it was raised with; only a
+    // session billed for the whole balance may restate it.
+    const isDepositAttempt =
+      paymentAttempt.collectionMode === "DEPOSIT_THEN_SETTLE" ||
+      paymentAttempt.isPartial;
+
+    const invoiceWithTax = isDepositAttempt
+      ? invoice
+      : await applyCheckoutSessionTaxToInvoice(invoice, {
+          sessionId: input.sessionId,
+          amountSubtotal: input.amountSubtotal,
+          amountTotal: input.amountTotal,
+          amountTax: input.amountTax,
+          automaticTaxStatus: input.automaticTaxStatus,
+          rawProviderPayload: input.rawProviderPayload ?? undefined,
+        });
 
     const applied = await this.recordInvoicePayment(invoice.id, {
       provider: "STRIPE",
       amount: capturedAmount,
       currency: input.currency ?? invoiceWithTax.currency,
       settlementChannel: "STRIPE",
+      // Without this the deposit is booked as an ordinary payment, so it never
+      // lands in depositCollectedAmount and the invoice loses the fact that a
+      // balance is still owed after it.
+      collectionMode: isDepositAttempt ? "DEPOSIT_THEN_SETTLE" : null,
       providerPaymentId: input.paymentIntentId ?? null,
       paymentAttemptId: paymentAttempt?.id ?? null,
       reference: input.receiptUrl ?? undefined,

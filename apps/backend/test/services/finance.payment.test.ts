@@ -1240,6 +1240,94 @@ describe("FinancePaymentService", () => {
     expect(result.action).toBe("PAID");
   });
 
+  it("keeps the invoice total when a deposit session completes", async () => {
+    // The session was billed for the deposit, so its amount_total describes the
+    // deposit and not the invoice. Restating the invoice from it shrinks the
+    // total to the deposit, after which the deposit clears the balance and the
+    // invoice reads fully paid while most of it is still owed.
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_deposit_1",
+      organisationId: "org_1",
+      totalAmount: 400,
+      currency: "usd",
+      status: "PENDING",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      metadata: {},
+      payments: [],
+    });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_deposit_1",
+      organisationId: "org_1",
+      totalAmount: 400,
+      depositCollectedAmount: 0,
+      depositTargetAmount: 100,
+      currency: "usd",
+      status: "PENDING",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      metadata: {},
+      payments: [],
+    });
+    (prisma.payment.findMany as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "pa_deposit_1",
+      collectionMode: "DEPOSIT_THEN_SETTLE",
+      isPartial: true,
+    });
+    (prisma.paymentAttempt.update as jest.Mock).mockResolvedValueOnce({
+      id: "pa_deposit_1",
+    });
+    (prisma.payment.create as jest.Mock).mockResolvedValueOnce({
+      id: "pay_deposit_1",
+      amount: 100,
+      status: "SUCCEEDED",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_deposit_1",
+      totalAmount: 400,
+      depositCollectedAmount: 100,
+      currency: "usd",
+      status: "PENDING",
+      payments: [],
+    });
+
+    const result =
+      await FinancePaymentService.handleInvoiceCheckoutSessionCompleted({
+        invoiceId: "inv_deposit_1",
+        sessionId: "cs_deposit_1",
+        paymentIntentId: "pi_deposit_1",
+        connectedAccountId: "acct_1",
+        currency: "usd",
+        amountSubtotal: 100,
+        amountTotal: 100,
+        amountTax: 0,
+        automaticTaxStatus: "complete",
+      });
+
+    // No call restates the invoice from the session: the only invoice write is
+    // the deposit bookkeeping one, and it leaves the total alone.
+    const invoiceWrites = (prisma.invoice.update as jest.Mock).mock.calls;
+    for (const [call] of invoiceWrites) {
+      expect(call.data).not.toHaveProperty("totalAmount");
+      expect(call.data).not.toHaveProperty("taxProvider");
+      expect(call.data.status).not.toBe("PAID");
+    }
+    expect(invoiceWrites).toContainEqual([
+      expect.objectContaining({
+        where: { id: "inv_deposit_1" },
+        data: expect.objectContaining({
+          depositCollectedAmount: 100,
+          billingCollectionMode: "DEPOSIT_THEN_SETTLE",
+        }),
+      }),
+    ]);
+    expect(result.action).toBe("PAID");
+  });
+
   it("normalizes a refund webhook into invoice refund rows", async () => {
     (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
       id: "inv_webhook_3",
