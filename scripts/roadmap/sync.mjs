@@ -191,23 +191,176 @@ const fieldValue = (item, name) => {
   return null;
 };
 
-async function main() {
+// Load the board and prove it still has the shape this script expects. Option
+// ids are resolved by NAME every run: updateProjectV2Field regenerates every
+// option id whenever the option set is edited, so a cached id is a time bomb.
+async function loadBoard() {
   const project = (await gql(PROJECT_QUERY, { owner: OWNER, number: PROJECT_NUMBER })).organization
     .projectV2;
   if (!project) throw new Error(`No project #${PROJECT_NUMBER} on ${OWNER}`);
 
   const fields = new Map(project.fields.nodes.filter(Boolean).map((f) => [f.name, f]));
-  const need = ['Status', 'Category', 'Priority', 'Start date', 'End date'];
-  const missing = need.filter((n) => !fields.has(n));
+  const missing = ['Status', 'Category', 'Priority', 'Start date', 'End date'].filter(
+    (n) => !fields.has(n)
+  );
   if (missing.length) throw new Error(`Board is missing fields: ${missing.join(', ')}`);
 
-  // Resolve option ids up front and fail loudly on a rename, rather than
-  // silently skipping every item that maps to the missing option.
-  const optionId = (fieldName, optionName) => {
-    const f = fields.get(fieldName);
-    const o = (f.options || []).find((x) => x.name === optionName);
-    return o ? o.id : null;
+  const optionId = (fieldName, optionName) =>
+    (fields.get(fieldName).options || []).find((x) => x.name === optionName)?.id ?? null;
+
+  return { project, fields, optionId };
+}
+
+// The two field writers, bound to one board and one action log. Both are no-ops
+// against the API under --dry-run but still record what they would have done, so
+// a dry run's report is directly comparable with the live run that follows it.
+function makeWriters({ project, fields, optionId, actions }) {
+  const setSelect = async (item, fieldName, optionName, ref) => {
+    const oid = optionId(fieldName, optionName);
+    if (!oid) {
+      actions.skipped.push(`${ref}: no "${optionName}" option on ${fieldName}`);
+      return;
+    }
+    if (!DRY_RUN) {
+      await gql(SET_SELECT, {
+        projectId: project.id,
+        itemId: item.id,
+        fieldId: fields.get(fieldName).id,
+        optionId: oid,
+      });
+    }
+    actions.updated.push(`${ref}: ${fieldName} -> ${optionName}`);
   };
+
+  const setDate = async (item, fieldName, isoDate, ref) => {
+    if (!DRY_RUN) {
+      await gql(SET_DATE, {
+        projectId: project.id,
+        itemId: item.id,
+        fieldId: fields.get(fieldName).id,
+        date: isoDate.slice(0, 10),
+      });
+    }
+    actions.updated.push(`${ref}: ${fieldName} -> ${isoDate.slice(0, 10)}`);
+  };
+
+  return { setSelect, setDate };
+}
+
+// Put every open issue on the board. Under --dry-run nothing is added, so the
+// caller's `live` array is left untouched and callers must not assume the new
+// items exist.
+async function addMissingIssues({ project, openIssues, byContentId, live, actions }) {
+  for (const issue of openIssues) {
+    if (byContentId.has(issue.id)) continue;
+    actions.added.push(`#${issue.number} ${issue.title}`);
+    if (DRY_RUN) continue;
+    const res = await gql(ADD_ITEM, { projectId: project.id, contentId: issue.id });
+    const item = {
+      id: res.addProjectV2ItemById.item.id,
+      fieldValues: { nodes: [] },
+      content: issue,
+    };
+    byContentId.set(issue.id, item);
+    live.push(item);
+  }
+}
+
+// Fill in what the board does not know about one open issue.
+//
+// Empty cells only, with one exception: an OPEN issue sitting in Completed is
+// corrected. That specific lie is the reason this script exists, so it outranks
+// the general rule that a human's edit is left alone.
+async function reconcileIssue({ issue, item, setSelect, setDate, actions }) {
+  const ref = `#${issue.number}`;
+  const labels = (issue.labels?.nodes || []).map((l) => l.name);
+
+  if (!fieldValue(item, 'Category')) {
+    const { category, reason } = classifyCategory({
+      title: issue.title,
+      body: issue.body,
+      labels,
+    });
+    if (category) await setSelect(item, 'Category', category, ref);
+    else actions.uncategorised.push(`${ref} ${issue.title.slice(0, 70)} (${reason})`);
+  }
+
+  if (!fieldValue(item, 'Priority')) {
+    await setSelect(item, 'Priority', classifyPriority({ labels, title: issue.title }), ref);
+  }
+
+  // The roadmap view is a timeline. Without a start date an item does not plot at
+  // all, which is why the board's ROADMAP_LAYOUT view had been rendering empty.
+  if (!fieldValue(item, 'Start date')) {
+    await setDate(item, 'Start date', issue.createdAt, ref);
+  }
+
+  const current = fieldValue(item, 'Status');
+  if (!current || current === STATUSES.COMPLETED) {
+    const derived = classifyStatus({
+      state: issue.state,
+      assignees: issue.assignees?.nodes || [],
+      linkedPrs: (issue.closedByPullRequestsReferences?.nodes || []).map((p) => ({
+        state: p.state,
+        isDraft: p.isDraft,
+      })),
+    });
+    await setSelect(item, 'Status', derived, ref);
+  }
+}
+
+// Retire finished work so the board stays a roadmap and not an archive. Recent
+// completions are stamped Completed with an end date and kept visible; older ones
+// are archived. GitHub retains archived items, so this loses nothing.
+async function retireCompleted({ project, live, cutoff, setSelect, setDate, actions }) {
+  for (const item of live) {
+    const c = item.content;
+    if (!c?.closedAt) continue;
+
+    if (Date.parse(c.closedAt) > cutoff) {
+      if (fieldValue(item, 'Status') !== STATUSES.COMPLETED) {
+        await setSelect(item, 'Status', STATUSES.COMPLETED, `#${c.number}`);
+      }
+      if (!fieldValue(item, 'End date')) {
+        await setDate(item, 'End date', c.closedAt, `#${c.number}`);
+      }
+      continue;
+    }
+
+    if (!DRY_RUN) await gql(ARCHIVE_ITEM, { projectId: project.id, itemId: item.id });
+    actions.archived.push(`#${c.number} (closed ${c.closedAt.slice(0, 10)})`);
+  }
+}
+
+function report({ summary, actions }) {
+  if (AS_JSON) {
+    stdout.write(`${JSON.stringify({ summary, actions }, null, 2)}\n`);
+    return;
+  }
+  log(`\nRoadmap sync ${DRY_RUN ? '(dry run)' : ''} -> ${summary.project}`);
+  log(
+    `  board items ${summary.boardItemsBefore} (${summary.liveItemsBefore} live)  open issues ${summary.openIssues}`
+  );
+  log(
+    `  added ${summary.added}  archived ${summary.archived}  field updates ${summary.fieldUpdates}`
+  );
+  for (const a of actions.added.slice(0, 100)) log(`    + ${a}`);
+  if (actions.archived.length) {
+    log(`  archived (closed over ${ARCHIVE_AFTER_DAYS}d ago): ${actions.archived.length}`);
+  }
+  if (actions.uncategorised.length) {
+    log(`\n  NEEDS A HUMAN - no category could be derived:`);
+    for (const u of actions.uncategorised) log(`    ? ${u}`);
+  }
+  if (actions.skipped.length) {
+    log(`\n  SKIPPED:`);
+    for (const s of actions.skipped) log(`    ! ${s}`);
+  }
+  log('');
+}
+
+async function main() {
+  const { project, fields, optionId } = await loadBoard();
 
   const [items, openIssues] = await Promise.all([
     paginate(
@@ -219,156 +372,47 @@ async function main() {
   ]);
 
   const live = items.filter((i) => !i.isArchived);
+  // Snapshot before anything mutates `live`. Deriving this afterwards by
+  // subtracting the added count is wrong under --dry-run, where the additions are
+  // counted but never pushed.
+  const liveItemsBefore = live.length;
   const byContentId = new Map(live.filter((i) => i.content?.id).map((i) => [i.content.id, i]));
 
   const actions = { added: [], archived: [], updated: [], uncategorised: [], skipped: [] };
-  const cutoff = Date.now() - ARCHIVE_AFTER_DAYS * 86400000;
+  const { setSelect, setDate } = makeWriters({ project, fields, optionId, actions });
 
-  const setSelect = async (item, fieldName, optionName, issueRef) => {
-    const oid = optionId(fieldName, optionName);
-    if (!oid) {
-      actions.skipped.push(`${issueRef}: no "${optionName}" option on ${fieldName}`);
-      return;
-    }
-    if (!DRY_RUN) {
-      await gql(SET_SELECT, {
-        projectId: project.id,
-        itemId: item.id,
-        fieldId: fields.get(fieldName).id,
-        optionId: oid,
-      });
-    }
-    actions.updated.push(`${issueRef}: ${fieldName} -> ${optionName}`);
-  };
+  await addMissingIssues({ project, openIssues, byContentId, live, actions });
 
-  const setDate = async (item, fieldName, isoDate, issueRef) => {
-    if (!DRY_RUN) {
-      await gql(SET_DATE, {
-        projectId: project.id,
-        itemId: item.id,
-        fieldId: fields.get(fieldName).id,
-        date: isoDate.slice(0, 10),
-      });
-    }
-    actions.updated.push(`${issueRef}: ${fieldName} -> ${isoDate.slice(0, 10)}`);
-  };
-
-  // 1. Add missing open issues.
-  for (const issue of openIssues) {
-    if (byContentId.has(issue.id)) continue;
-    if (DRY_RUN) {
-      actions.added.push(`#${issue.number} ${issue.title}`);
-      continue;
-    }
-    const res = await gql(ADD_ITEM, { projectId: project.id, contentId: issue.id });
-    const newItem = {
-      id: res.addProjectV2ItemById.item.id,
-      fieldValues: { nodes: [] },
-      content: issue,
-    };
-    byContentId.set(issue.id, newItem);
-    live.push(newItem);
-    actions.added.push(`#${issue.number} ${issue.title}`);
-  }
-
-  // 2 and 3. Reconcile fields for every open issue on the board.
   for (const issue of openIssues) {
     const item = byContentId.get(issue.id);
-    if (!item) continue;
-    const ref = `#${issue.number}`;
-    const labels = (issue.labels?.nodes || []).map((l) => l.name);
-
-    if (!fieldValue(item, 'Category')) {
-      const { category, reason } = classifyCategory({
-        title: issue.title,
-        body: issue.body,
-        labels,
-      });
-      if (category) await setSelect(item, 'Category', category, ref);
-      else actions.uncategorised.push(`${ref} ${issue.title.slice(0, 70)} (${reason})`);
-    }
-
-    if (!fieldValue(item, 'Priority')) {
-      await setSelect(item, 'Priority', classifyPriority({ labels, title: issue.title }), ref);
-    }
-
-    // The roadmap view is a timeline; without a start date an item does not plot
-    // at all, which is why the existing ROADMAP_LAYOUT view has been empty.
-    if (!fieldValue(item, 'Start date')) {
-      await setDate(item, 'Start date', issue.createdAt, ref);
-    }
-
-    const current = fieldValue(item, 'Status');
-    const derived = classifyStatus({
-      state: issue.state,
-      assignees: issue.assignees?.nodes || [],
-      linkedPrs: (issue.closedByPullRequestsReferences?.nodes || []).map((p) => ({
-        state: p.state,
-        isDraft: p.isDraft,
-      })),
-    });
-    // An open issue sitting in Completed is the exact lie this script exists to
-    // stop, so that one gets corrected even though it is a human-set value.
-    if (!current || current === STATUSES.COMPLETED) {
-      await setSelect(item, 'Status', derived, ref);
-    }
+    // Absent only under --dry-run, where the add above was not performed.
+    if (item) await reconcileIssue({ issue, item, setSelect, setDate, actions });
   }
 
-  // 4. Retire finished work so the board stays a roadmap and not an archive.
-  for (const item of live) {
-    const c = item.content;
-    if (!c || !c.closedAt) continue;
-    if (Date.parse(c.closedAt) > cutoff) {
-      // Recently finished: make sure it reads as done before it ages out.
-      if (fieldValue(item, 'Status') !== STATUSES.COMPLETED) {
-        await setSelect(item, 'Status', STATUSES.COMPLETED, `#${c.number}`);
-      }
-      if (!fieldValue(item, 'End date')) {
-        await setDate(item, 'End date', c.closedAt, `#${c.number}`);
-      }
-      continue;
-    }
-    if (!DRY_RUN) {
-      await gql(ARCHIVE_ITEM, { projectId: project.id, itemId: item.id });
-    }
-    actions.archived.push(`#${c.number} (closed ${c.closedAt.slice(0, 10)})`);
-  }
+  await retireCompleted({
+    project,
+    live,
+    cutoff: Date.now() - ARCHIVE_AFTER_DAYS * 86400000,
+    setSelect,
+    setDate,
+    actions,
+  });
 
-  const summary = {
-    project: project.url,
-    dryRun: DRY_RUN,
-    boardItemsBefore: items.length,
-    liveItemsBefore: live.length - actions.added.length,
-    openIssues: openIssues.length,
-    added: actions.added.length,
-    archived: actions.archived.length,
-    fieldUpdates: actions.updated.length,
-    uncategorised: actions.uncategorised.length,
-    skipped: actions.skipped.length,
-  };
-
-  if (AS_JSON) {
-    stdout.write(`${JSON.stringify({ summary, actions }, null, 2)}\n`);
-    return;
-  }
-
-  log(`\nRoadmap sync ${DRY_RUN ? '(dry run)' : ''} -> ${project.url}`);
-  log(`  board items ${items.length} (${live.length} live)  open issues ${openIssues.length}`);
-  log(
-    `  added ${actions.added.length}  archived ${actions.archived.length}  field updates ${actions.updated.length}`
-  );
-  for (const a of actions.added.slice(0, 100)) log(`    + ${a}`);
-  if (actions.archived.length)
-    log(`  archived (closed over ${ARCHIVE_AFTER_DAYS}d ago): ${actions.archived.length}`);
-  if (actions.uncategorised.length) {
-    log(`\n  NEEDS A HUMAN - no category could be derived:`);
-    for (const u of actions.uncategorised) log(`    ? ${u}`);
-  }
-  if (actions.skipped.length) {
-    log(`\n  SKIPPED:`);
-    for (const s of actions.skipped) log(`    ! ${s}`);
-  }
-  log('');
+  report({
+    summary: {
+      project: project.url,
+      dryRun: DRY_RUN,
+      boardItemsBefore: items.length,
+      liveItemsBefore,
+      openIssues: openIssues.length,
+      added: actions.added.length,
+      archived: actions.archived.length,
+      fieldUpdates: actions.updated.length,
+      uncategorised: actions.uncategorised.length,
+      skipped: actions.skipped.length,
+    },
+    actions,
+  });
 }
 
 main().catch((err) => {
