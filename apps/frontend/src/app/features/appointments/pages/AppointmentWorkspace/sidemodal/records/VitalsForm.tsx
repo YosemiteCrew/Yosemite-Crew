@@ -478,15 +478,23 @@ const VitalsForm = ({
       setSaveError('Please fix the highlighted vitals fields.');
       return;
     }
+    // Save exactly what was validated. `validateDraft` only checks the fields
+    // the active template renders, so submitting the whole draft let a value
+    // entered before a template switch reach the record without ever passing a
+    // range check - and the backend stores the vitals JSON as given.
+    const activeKeys = new Set(activeFields.map((field) => field.key));
+    const ifActive = <T,>(key: keyof DraftVitals, value: T): T | undefined =>
+      activeKeys.has(key) ? value : undefined;
+
     const nextVitals = {
-      weightLbs: parseNumber(draft.weightLbs),
-      tempF: parseNumber(draft.tempF),
-      heartRateBpm: parseNumber(draft.heartRateBpm),
-      respRateBpm: parseNumber(draft.respRateBpm),
-      crtSec: draft.crtSec || undefined,
-      mucousMembrane: draft.mucousMembrane || undefined,
-      painScore: parseNumber(draft.painScore),
-      bcs: parseNumber(draft.bcs),
+      weightLbs: ifActive('weightLbs', parseNumber(draft.weightLbs)),
+      tempF: ifActive('tempF', parseNumber(draft.tempF)),
+      heartRateBpm: ifActive('heartRateBpm', parseNumber(draft.heartRateBpm)),
+      respRateBpm: ifActive('respRateBpm', parseNumber(draft.respRateBpm)),
+      crtSec: ifActive('crtSec', draft.crtSec || undefined),
+      mucousMembrane: ifActive('mucousMembrane', draft.mucousMembrane || undefined),
+      painScore: ifActive('painScore', parseNumber(draft.painScore)),
+      bcs: ifActive('bcs', parseNumber(draft.bcs)),
       notes: notes || undefined,
       // The recorder is always the logged-in clinician — no manual selection.
       recordedByName: authorName?.trim() || 'Clinician',

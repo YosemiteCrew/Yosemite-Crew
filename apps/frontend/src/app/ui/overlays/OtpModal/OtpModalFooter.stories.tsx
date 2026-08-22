@@ -77,11 +77,12 @@ export const Verifying: Story = {
 };
 
 /**
- * The countdown has run out. The clock is replaced by the prompt to request a
- * new code and Verify is disabled even with six digits present, since the code
- * on screen is no longer accepted.
+ * The resend countdown has run out. The clock is replaced by the prompt to
+ * request a new code, but Verify stays enabled: the countdown governs when a NEW
+ * code may be requested, not how long the current one lasts, and the auth
+ * provider is the authority on whether the code on screen is still good.
  */
 export const Expired: Story = {
-  name: 'Timer expired',
+  name: 'Resend countdown elapsed',
   args: { code: FULL_CODE, timer: 0 },
 };

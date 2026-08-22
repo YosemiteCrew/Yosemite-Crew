@@ -820,11 +820,13 @@ describe('GoogleSearchDropDown Component', () => {
     );
 
     expect(mockSetFormData).toHaveBeenCalled();
-    const newState = mockSetFormData.mock.calls[0][0]({});
+    // Google returned no phone for this place, so the existing value survives
+    // rather than being blanked.
+    const newState = mockSetFormData.mock.calls[0][0]({ phoneNo: '+49 30 1234' });
     expect(newState).toEqual(
       expect.objectContaining({
         name: 'Thane Store',
-        phoneNo: '',
+        phoneNo: '+49 30 1234',
         googlePlacesId: 'p_thane',
         address: expect.objectContaining({
           addressLine: 'Thane Store',
@@ -889,11 +891,20 @@ describe('GoogleSearchDropDown Component', () => {
       {},
       'reject'
     );
-    // details stays undefined → autofill still runs without crashing
+    // details stays undefined → autofill still runs without crashing, and
+    // without blanking what the user had already typed. A transient Google
+    // failure must not clear the organisation form.
     expect(mockSetFormData).toHaveBeenCalled();
-    const newState = mockSetFormData.mock.calls[0][0]({});
-    expect(newState.name).toBe('');
-    expect(newState.googlePlacesId).toBeUndefined();
+    const newState = mockSetFormData.mock.calls[0][0]({
+      name: 'Alpenblick Clinic',
+      phoneNo: '+49 30 1234',
+      website: 'https://alpenblick.test',
+      googlePlacesId: 'existing-place',
+    });
+    expect(newState.name).toBe('Alpenblick Clinic');
+    expect(newState.phoneNo).toBe('+49 30 1234');
+    expect(newState.website).toBe('https://alpenblick.test');
+    expect(newState.googlePlacesId).toBe('existing-place');
     errorSpy.mockRestore();
   });
 

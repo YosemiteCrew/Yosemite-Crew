@@ -135,11 +135,39 @@ const HospitalizationModal = ({
     }
   }
 
-  const [prevRoomId, setPrevRoomId] = useState(roomId);
-  if (roomId !== prevRoomId) {
-    setPrevRoomId(roomId);
+  // The defaults are loaded asynchronously and can arrive AFTER the modal is
+  // already open. Only the open transition adopted them, so a modal opened
+  // before the load finished kept undefined room/unit/support - blocking the
+  // conversion on validation errors the user could not resolve. Adopt a default
+  // that turns up later, but only into an empty slot: a value the user has
+  // already picked is theirs.
+  const [prevDefaults, setPrevDefaults] = useState({
+    defaultRoomId,
+    defaultUnitId,
+    defaultSupportId,
+  });
+  if (
+    showModal &&
+    (prevDefaults.defaultRoomId !== defaultRoomId ||
+      prevDefaults.defaultUnitId !== defaultUnitId ||
+      prevDefaults.defaultSupportId !== defaultSupportId)
+  ) {
+    setPrevDefaults({ defaultRoomId, defaultUnitId, defaultSupportId });
+    if (defaultRoomId) setRoomId((current) => current ?? defaultRoomId);
+    if (defaultUnitId) setUnitId((current) => current ?? defaultUnitId);
+    if (defaultSupportId) setSupportStaffId((current) => current ?? defaultSupportId);
+  }
+
+  // Reconcile the unit against the options for the selected room. Keyed on the
+  // OPTIONS as well as the room, because the option map is loaded too: options
+  // arriving after the room was chosen used to leave a unit that room does not
+  // have selected.
+  const optionsForRoom = roomId ? (unitOptionsByRoomId?.[roomId] ?? []) : [];
+  const unitReconcileKey = `${roomId ?? ''}|${optionsForRoom.map((o) => o.value).join(',')}`;
+  const [prevUnitReconcileKey, setPrevUnitReconcileKey] = useState(unitReconcileKey);
+  if (unitReconcileKey !== prevUnitReconcileKey) {
+    setPrevUnitReconcileKey(unitReconcileKey);
     if (roomId && unitOptionsByRoomId) {
-      const optionsForRoom = unitOptionsByRoomId[roomId] ?? [];
       if (!optionsForRoom.length) {
         setUnitId(undefined);
       } else {

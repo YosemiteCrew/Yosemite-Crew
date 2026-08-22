@@ -25,7 +25,9 @@ const OtpModalFooter = ({
         text={isVerifying ? 'Verifying...' : 'Verify Code'}
         type="button"
         onClick={onVerify}
-        isDisabled={isVerifying || timer === 0 || code.includes('')}
+        // `timer` is the resend countdown, not the code's lifetime: a code that
+        // is still valid must remain submittable after it reaches zero.
+        isDisabled={isVerifying || code.includes('')}
         className="w-full"
       />
       <output aria-live="polite">
