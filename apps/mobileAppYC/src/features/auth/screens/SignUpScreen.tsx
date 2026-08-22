@@ -1,5 +1,5 @@
 import React, {useState, useMemo} from 'react';
-import {View, Text, StyleSheet, Image} from 'react-native';
+import {View, Text, StyleSheet, Image, type ImageStyle} from 'react-native';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {SafeArea} from '@/shared/components/common';
 import {useTheme, useSocialAuth, type SocialProvider} from '@/hooks';
@@ -16,6 +16,18 @@ const appleMarkStyles = StyleSheet.create({
   onLight: {tintColor: '#000000'},
   onDark: {tintColor: '#FFFFFF'},
 });
+
+/** Brand marks ship as white glyphs, so each needs a tint over the button. */
+const resolveMarkTint = (
+  themedTint: boolean | undefined,
+  tint: string | undefined,
+  isDark: boolean,
+): ImageStyle | null => {
+  if (themedTint) {
+    return isDark ? appleMarkStyles.onDark : appleMarkStyles.onLight;
+  }
+  return tint ? {tintColor: tint} : null;
+};
 const LOGO = require('../../../assets/images/yosemite-logo-1024.png');
 
 type SignUpScreenProps = NativeStackScreenProps<AuthStackParamList, 'SignUp'>;
@@ -40,9 +52,9 @@ const socialButtons: {
     provider: 'apple',
     label: 'Sign up with Apple',
     icon: Images.appleIcon,
-    // Resolved per theme below: black measures 18.99:1 on the cream button but
-    // only 1.43:1 on espresso, under the 3:1 bar for a meaningful graphic.
-    tint: undefined,
+    // No fixed tint: black measures 18.99:1 on the cream button but only
+    // 1.43:1 on espresso, under the 3:1 bar for a meaningful graphic, so this
+    // one resolves per theme via themedTint.
     themedTint: true,
   },
 ];
@@ -144,13 +156,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
                 source={icon}
                 style={[
                   styles.buttonIcon,
-                  themedTint
-                    ? isDark
-                      ? appleMarkStyles.onDark
-                      : appleMarkStyles.onLight
-                    : tint
-                      ? {tintColor: tint}
-                      : null,
+                  resolveMarkTint(themedTint, tint, isDark),
                 ]}
                 resizeMode="contain"
               />
