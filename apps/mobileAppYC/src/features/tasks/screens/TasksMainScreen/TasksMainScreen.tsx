@@ -524,7 +524,7 @@ const createTaskScreenStyles = (theme: Theme) => ({
   },
   categoryTitle: {
     ...theme.typography.eyebrow,
-    color: theme.colors.inkFaint,
+    color: theme.colors.inkMuted,
   },
   emptyCard: {
     backgroundColor: theme.colors.screen,
@@ -601,6 +601,6 @@ const createSummaryStyles = (theme: any) =>
     },
     summaryMeta: {
       ...theme.typography.caption,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
   });

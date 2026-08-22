@@ -587,7 +587,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
                         <Ionicons
                           name="chevron-forward"
                           size={15}
-                          color={theme.colors.inkFaint2}
+                          color={theme.colors.inkFaint}
                         />
                       </>
                     )}

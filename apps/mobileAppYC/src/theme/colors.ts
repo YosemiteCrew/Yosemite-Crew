@@ -75,6 +75,30 @@ const palette = {
   inkBody: ['#302F2E', '#E6DDD0'],
   inkSoft: ['#423F3C', '#CABFB0'],
   inkMuted: ['#5C5956', '#A89E90'],
+  /**
+   * INK RAMP CONTRAST RULE - read before using inkFaint or inkFaint2.
+   *
+   * Measured against `screen` (#F7F3EC light / #2F271E dark):
+   *
+   *   token        light            dark
+   *   inkMuted     6.29:1  passes   5.57:1  passes
+   *   inkFaint     3.12:1  FAILS    4.81:1  passes
+   *   inkFaint2    2.26:1  FAILS    3.84:1  FAILS
+   *
+   * So on the light ground `inkMuted` is the FAINTEST token that may carry body
+   * text. `inkFaint` clears the 3:1 bar, so it is fine for icons, borders and
+   * large display type (>=18pt, or >=14pt bold) but not for body copy.
+   * `inkFaint2` clears neither bar and must not carry text or a UI affordance;
+   * it is left for disabled controls, which WCAG 1.4.3 exempts, and for copy
+   * sitting over media rather than over a themed ground.
+   *
+   * Darkening the two faint tokens to pass is NOT the fix. Both would land near
+   * #75_6D_67, collapsing a five-step ramp into three - there is not enough
+   * luminance range between bone and black to fit five distinct steps that all
+   * clear 4.5:1. The ramp is fine; the usage rule is what was missing.
+   *
+   * Guarded by __tests__/theme/inkRampContrast.test.ts.
+   */
   inkFaint: ['#8F8984', '#9D9285'],
   inkFaint2: ['#A9A39E', '#8B8173'],
 

@@ -145,7 +145,7 @@ const createStyles = (theme: any) =>
     },
     progressCounter: {
       ...theme.typography.subtitleBold12,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     buttonContainer: {
       marginTop: theme.spacing['4'],

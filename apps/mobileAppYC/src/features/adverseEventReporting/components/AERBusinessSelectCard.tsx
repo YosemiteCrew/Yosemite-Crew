@@ -175,7 +175,7 @@ const createStyles = (theme: any) =>
     },
     meta: {
       ...theme.typography.caption,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
       marginTop: theme.spacing['1'],
     },
     checkChip: {

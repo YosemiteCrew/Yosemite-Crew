@@ -443,7 +443,7 @@ const createStyles = (theme: any, listBottomInset: number) =>
     },
     categoryHeader: {
       ...theme.typography.eyebrow,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     subcategoryGroup: {
       gap: theme.spacing['2'],
@@ -463,7 +463,7 @@ const createStyles = (theme: any, listBottomInset: number) =>
     },
     subsubcategoryHeader: {
       ...theme.typography.labelXxsBold,
-      color: theme.colors.inkFaint2,
+      color: theme.colors.inkMuted,
       textTransform: 'uppercase',
       letterSpacing: 0.5,
     },

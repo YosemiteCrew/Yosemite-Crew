@@ -582,7 +582,7 @@ const createStyles = (theme: Theme) =>
     dividerText: {
       marginHorizontal: theme.spacing['4'],
       ...theme.typography.bodySmall,
-      color: theme.colors.inkFaint2,
+      color: theme.colors.inkMuted,
     },
     socialButtons: {
       flexDirection: 'row',

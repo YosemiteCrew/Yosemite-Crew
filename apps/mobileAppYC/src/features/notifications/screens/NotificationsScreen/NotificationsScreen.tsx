@@ -353,7 +353,7 @@ const createStyles = (theme: any) => {
     },
     sectionHeader: {
       ...theme.typography.eyebrow,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
       marginTop: theme.spacing['2'],
       marginBottom: theme.spacing['2'],
     },

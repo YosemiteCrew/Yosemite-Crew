@@ -383,7 +383,7 @@ const createStyles = (theme: any) =>
     },
     footer: {
       ...theme.typography.caption,
-      color: theme.colors.inkFaint2,
+      color: theme.colors.inkMuted,
       textAlign: 'center',
       paddingTop: theme.spacing['1'],
       paddingBottom: theme.spacing['5'],

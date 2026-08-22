@@ -331,7 +331,7 @@ const createStyles = (theme: any) =>
     },
     sectionTitle: {
       ...theme.typography.eyebrow,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     cardsContainer: {
       gap: theme.spacing['3'],

@@ -431,7 +431,7 @@ const createHeaderStyles = (theme: any) =>
     },
     subtitle: {
       ...theme.typography.caption,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     typingStatus: {
       ...theme.typography.captionBold,

@@ -643,7 +643,7 @@ const createStyles = (theme: any) =>
     },
     heroDate: {
       ...theme.typography.body13,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
       textAlign: 'center',
     },
     badgeRow: {
@@ -682,7 +682,7 @@ const createStyles = (theme: any) =>
     },
     detailLabel: {
       ...theme.typography.body13,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     detailValue: {
       ...theme.typography.body14,

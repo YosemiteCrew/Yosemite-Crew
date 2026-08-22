@@ -785,7 +785,7 @@ const createStyles = (theme: any) => {
     },
     versionText: {
       ...theme.typography.body12,
-      color: theme.colors.inkFaint2,
+      color: theme.colors.inkMuted,
       textAlign: 'center',
       marginTop: theme.spacing['2'],
     },

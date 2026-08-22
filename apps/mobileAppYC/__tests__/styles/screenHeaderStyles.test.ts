@@ -43,7 +43,7 @@ describe('createScreenHeaderStyles', () => {
 
     expect(styles.headerSubtitle).toEqual({
       ...mockTheme.typography.body12,
-      color: mockTheme.colors.inkFaint,
+      color: mockTheme.colors.inkMuted,
       textAlign: 'center',
       marginTop: 1,
     });

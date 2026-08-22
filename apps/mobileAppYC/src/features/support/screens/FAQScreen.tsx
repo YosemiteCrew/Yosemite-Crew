@@ -446,7 +446,7 @@ const createStyles = (theme: any) => {
       height: theme.spacing['4'],
       marginLeft: theme.spacing['2'],
       resizeMode: 'contain',
-      tintColor: theme.colors.inkFaint2,
+      tintColor: theme.colors.inkFaint,
     },
     glassButtonDark: {
       minWidth: 100,

@@ -707,7 +707,7 @@ const createStyles = (theme: any) => {
     },
     businessMeta: {
       ...theme.typography.caption,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     businessWebsite: {
       ...theme.typography.caption,
@@ -728,7 +728,7 @@ const createStyles = (theme: any) => {
     },
     sectionLabel: {
       ...theme.typography.eyebrow,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     companionRow: {
       flexDirection: 'row',
