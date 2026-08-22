@@ -1486,6 +1486,19 @@ export const InvoiceService = {
       return toInvoiceRecord(doc);
     }
 
+    // Changing HOW an invoice is collected invalidates the artifacts of the old
+    // method. A parent still holding the previous checkout link or
+    // `client_secret` could otherwise complete it after the practice switched to
+    // PAYMENT_LINK or PAYMENT_AT_CLINIC, settling against an intent nobody
+    // expects to be live. The next collection attempt mints a fresh one.
+    await prisma.paymentAttempt.updateMany({
+      where: {
+        invoiceId: doc.id,
+        status: { notIn: ["SUCCEEDED", "CANCELED"] },
+      },
+      data: { status: "CANCELED" },
+    });
+
     const updated = await prisma.invoice.update({
       where: { id: doc.id },
       data: { paymentCollectionMethod: resolvedPaymentCollectionMethod },
@@ -1556,6 +1569,20 @@ export const InvoiceService = {
         409,
       );
     }
+
+    // A credit note lowers what is owed, but the Stripe artifacts already issued
+    // for this invoice still name the OLD amount: an outstanding checkout link or
+    // PaymentIntent would keep collecting the full sum. The local ledger caps the
+    // applied payment at the credited balance, so the difference would be
+    // captured at Stripe and never recorded here. Expire them; the next
+    // collection attempt mints one for the reduced balance.
+    await prisma.paymentAttempt.updateMany({
+      where: {
+        invoiceId: invoice.id,
+        status: { notIn: ["SUCCEEDED", "CANCELED"] },
+      },
+      data: { status: "CANCELED" },
+    });
 
     const creditNote = await prisma.creditNote.create({
       data: {
