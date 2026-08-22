@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { prisma, Prisma } from "@yosemite-crew/database";
 import {
   APFollowerState,
@@ -132,7 +133,7 @@ export async function dispatchInboundActivity(
   // Real ActivityPub activities always carry a stable id. Reject id-less
   // activities instead of synthesising a random one, which would let a
   // replayed request create a fresh row (and re-run its handler) every time.
-  if (typeof activity.id !== "string" || activity.id.length === 0) {
+  if (!hasActivityId(activity)) {
     logger.warn("[AP inbox] dropping activity without an id", {
       type: activity.type,
       actor: activity.actor,
@@ -197,9 +198,20 @@ export async function dispatchInboundActivity(
   });
 }
 
+/**
+ * An activity that has passed the id guard in dispatchInboundActivity. Encoding
+ * the invariant in the type is what lets the handlers use `activity.id` without
+ * a fallback that can never run.
+ */
+type IdentifiedActivity = AnyActivity & { id: string };
+
+function hasActivityId(activity: AnyActivity): activity is IdentifiedActivity {
+  return typeof activity.id === "string" && activity.id.length > 0;
+}
+
 async function runInboundHandler(
   targetOrgId: string,
-  activity: AnyActivity,
+  activity: IdentifiedActivity,
 ): Promise<void> {
   switch (activity.type) {
     case "Follow":
@@ -432,7 +444,7 @@ async function handleUndo(targetOrgId: string, activity: AnyActivity) {
 
 // ─── Offer (Referral) ─────────────────────────────────────────────────────────
 
-async function handleOffer(targetOrgId: string, activity: AnyActivity) {
+async function handleOffer(targetOrgId: string, activity: IdentifiedActivity) {
   const obj = activity.object as { type?: string } | undefined;
   if (obj?.type === "yc:VetReferral") {
     return handleReferralOffer(targetOrgId, activity);
@@ -443,7 +455,37 @@ async function handleOffer(targetOrgId: string, activity: AnyActivity) {
   // Unknown Offer object — ignore.
 }
 
-async function handleReferralOffer(targetOrgId: string, activity: AnyActivity) {
+/**
+ * Inbound referral payload, from a remote sender.
+ *
+ * The outbound path validates with Zod, but this one cast the patient summary
+ * and urgency and fell back to defaults, so a remote could persist malformed
+ * clinical data or an unknown urgency straight into the referral table. Same
+ * trust boundary, so the same treatment: unparseable payloads are dropped
+ * rather than coerced.
+ */
+const InboundReferralObjectSchema = z.object({
+  "yc:urgency": z.enum(["ROUTINE", "URGENT", "EMERGENCY"]).default("ROUTINE"),
+  "yc:patientSummary": z
+    .object({
+      species: z.string().trim().max(120).optional(),
+      breed: z.string().trim().max(120).optional(),
+      age: z.string().trim().max(60).optional(),
+      chiefComplaint: z.string().trim().max(2000).optional(),
+      currentMedications: z
+        .array(z.string().trim().max(200))
+        .max(50)
+        .optional(),
+      allergies: z.array(z.string().trim().max(200)).max(50).optional(),
+    })
+    .default({}),
+  "yc:clinicalContext": z.string().max(5000).optional(),
+});
+
+async function handleReferralOffer(
+  targetOrgId: string,
+  activity: IdentifiedActivity,
+) {
   const localActor = await getOrCreateActor(targetOrgId);
 
   // A valid HTTP signature proves who sent this, not that they are allowed to.
@@ -472,25 +514,28 @@ async function handleReferralOffer(targetOrgId: string, activity: AnyActivity) {
     return;
   }
 
-  const obj = activity.object as {
-    "yc:urgency"?: string;
-    "yc:patientSummary"?: unknown;
-    "yc:clinicalContext"?: string;
-  };
+  const parsed = InboundReferralObjectSchema.safeParse(activity.object);
+  if (!parsed.success) {
+    logger.warn("[AP inbox] rejected referral with a malformed payload", {
+      remoteActorUri: activity.actor,
+    });
+    return;
+  }
+  const obj = parsed.data;
 
+  // No `activity.id ?? ...` fallback: dispatchInboundActivity drops any
+  // activity without an id before a handler runs, so the branch was dead and
+  // contradicted that invariant.
   await prisma.aPReferral.upsert({
-    where: {
-      activityUri: activity.id ?? `urn:unknown:${generateActivityId()}`,
-    },
+    where: { activityUri: activity.id },
     create: {
-      activityUri: activity.id ?? `urn:unknown:${generateActivityId()}`,
+      activityUri: activity.id,
       fromActorUri: activity.actor,
       toActorUri: localActor.uri,
       toOrgId: targetOrgId,
-      patientSummary: (obj["yc:patientSummary"] as object) ?? {},
+      patientSummary: obj["yc:patientSummary"],
       clinicalContext: obj["yc:clinicalContext"],
-      urgency:
-        (obj["yc:urgency"] as "ROUTINE" | "URGENT" | "EMERGENCY") ?? "ROUTINE",
+      urgency: obj["yc:urgency"],
       state: "PENDING",
     },
     update: {},

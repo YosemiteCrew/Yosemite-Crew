@@ -764,7 +764,7 @@ describe("handleOffer", () => {
       object: {
         type: "yc:VetReferral",
         "yc:urgency": "URGENT",
-        "yc:patientSummary": { name: "Rex" },
+        "yc:patientSummary": { species: "dog", chiefComplaint: "limp" },
         "yc:clinicalContext": "limping",
       },
     });
@@ -772,7 +772,10 @@ describe("handleOffer", () => {
     const arg = prismaMock.aPReferral.upsert.mock.calls[0][0];
     expect(arg.where.activityUri).toBe("urn:o:1");
     expect(arg.create.urgency).toBe("URGENT");
-    expect(arg.create.patientSummary).toEqual({ name: "Rex" });
+    expect(arg.create.patientSummary).toEqual({
+      species: "dog",
+      chiefComplaint: "limp",
+    });
     expect(arg.create.clinicalContext).toBe("limping");
     expect(arg.create.state).toBe("PENDING");
   });
@@ -787,6 +790,41 @@ describe("handleOffer", () => {
     const arg = prismaMock.aPReferral.upsert.mock.calls[0][0];
     expect(arg.create.urgency).toBe("ROUTINE");
     expect(arg.create.patientSummary).toEqual({});
+  });
+
+  it("drops a referral whose payload does not validate", async () => {
+    // Remote-controlled clinical data used to be cast and defaulted straight
+    // into the referral table.
+    await dispatch({
+      id: "urn:o:bad",
+      type: "Offer",
+      actor: "https://remote.example/actor",
+      object: {
+        type: "yc:VetReferral",
+        "yc:urgency": "WHENEVER",
+        "yc:patientSummary": { species: "dog" },
+      },
+    });
+    expect(prismaMock.aPReferral.upsert).not.toHaveBeenCalled();
+  });
+
+  it("strips fields outside the referral contract", async () => {
+    // Only the agreed fields are persisted, so a remote cannot stuff arbitrary
+    // extra data into the record.
+    await dispatch({
+      id: "urn:o:extra",
+      type: "Offer",
+      actor: "https://remote.example/actor",
+      object: {
+        type: "yc:VetReferral",
+        "yc:patientSummary": {
+          species: "dog",
+          ownerNationalId: "should-not-persist",
+        },
+      },
+    });
+    const arg = prismaMock.aPReferral.upsert.mock.calls[0][0];
+    expect(arg.create.patientSummary).toEqual({ species: "dog" });
   });
 
   it("ignores an Offer whose object is not a yc:VetReferral", async () => {
