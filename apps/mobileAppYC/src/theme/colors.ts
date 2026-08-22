@@ -95,7 +95,7 @@ const palette = {
   screen: ['#F7F3EC', '#2F271E'],
   screen2: ['#F1EBE1', '#221D17'],
   surface: ['#F7F3EC', '#2F271E'],
-  fieldBg: ['#FAFAFA', '#241F18'],
+  fieldBg: ['#FBF8F2', '#241F18'],
   hairline: ['#E5DCCF', '#40362B'],
   hairlineHover: ['#D6D1CD', '#4A4033'],
   // Border on a selected segment. The hairline is too faint to mark selection
@@ -201,7 +201,7 @@ const palette = {
   borderSeparator: ['#D6D1CD', '#3A3128'],
   placeholder: ['#8F8984', '#9D9285'],
   cardBackground: ['#F7F3EC', '#2F271E'],
-  inputBackground: ['#FAFAFA', '#241F18'],
+  inputBackground: ['#FBF8F2', '#241F18'],
 } satisfies Record<string, ColorPair>;
 
 type PaletteKey = keyof typeof palette;

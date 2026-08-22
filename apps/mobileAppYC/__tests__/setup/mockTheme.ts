@@ -581,7 +581,7 @@ export const createMockTheme = () => ({
     black: '#000000',
     gray800: '#424242',
     lightBlueBackground: '#E9F2FD',
-    inputBackground: '#FAFAFA',
+    inputBackground: '#FBF8F2',
     neutralShadow: 'rgba(71, 56, 39, 0.15)',
     // Warm-bone tokens (additive; mirror src/theme/colors.ts light values).
     page: '#EFE8DC',
@@ -589,7 +589,7 @@ export const createMockTheme = () => ({
     inset: '#EAE2D5',
     screen: '#F7F3EC',
     screen2: '#F1EBE1',
-    fieldBg: '#FAFAFA',
+    fieldBg: '#FBF8F2',
     hairline: '#E5DCCF',
     hairlineHover: '#D6D1CD',
     divider: '#D6D1CD',
