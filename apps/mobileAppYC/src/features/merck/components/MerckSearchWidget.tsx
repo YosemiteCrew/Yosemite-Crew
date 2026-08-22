@@ -1418,7 +1418,7 @@ const createStyles = (theme: any) =>
       alignItems: 'center',
       justifyContent: 'center',
       gap: theme.spacing['2'],
-      backgroundColor: 'rgba(255, 255, 255, 0.96)',
+      backgroundColor: theme.colors.cardOverlay,
     },
     readerLoaderGif: {
       width: 88,

@@ -28,7 +28,7 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import type {VetBusiness, BusinessCategory} from '../../types';
 import type {UserLocation} from '../../hooks/useLocationPermission';
-import {YC_MAP_STYLE} from '../../utils/mapStyle';
+import {mapStyleFor} from '../../utils/mapStyle';
 import {clusterClinics} from '../../utils/clusterClinics';
 import {useTheme} from '@/hooks';
 import {Header} from '@/shared/components/common/Header/Header';
@@ -131,7 +131,8 @@ const MapDiscoveryView: React.FC<MapDiscoveryViewProps> = ({
   onSearchBarLayout,
 }) => {
   const {t} = useTranslation();
-  const {theme} = useTheme();
+  const {theme, isDark} = useTheme();
+  const mapStyle = useMemo(() => mapStyleFor(isDark), [isDark]);
   const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
 
@@ -282,7 +283,7 @@ const MapDiscoveryView: React.FC<MapDiscoveryViewProps> = ({
         style={StyleSheet.absoluteFill}
         provider={PROVIDER_GOOGLE}
         initialRegion={initialRegion}
-        customMapStyle={YC_MAP_STYLE}
+        customMapStyle={mapStyle}
         showsUserLocation={hasLocationPermission}
         showsMyLocationButton={false}
         showsCompass={false}
@@ -297,7 +298,7 @@ const MapDiscoveryView: React.FC<MapDiscoveryViewProps> = ({
                 key={item.id}
                 coordinate={{latitude: item.lat, longitude: item.lng}}
                 tracksViewChanges={false}>
-                <ClusterMapPin count={item.count} />
+                <ClusterMapPin count={item.count} palette={theme.colors} />
               </Marker>
             );
           }
@@ -311,6 +312,7 @@ const MapDiscoveryView: React.FC<MapDiscoveryViewProps> = ({
               onPress={() => handlePinPress(clinic.id)}>
               <ClinicMapPin
                 business={clinic}
+                palette={theme.colors}
                 isSelected={clinic.id === selectedClinicId}
               />
             </Marker>
