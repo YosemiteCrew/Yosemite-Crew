@@ -87,6 +87,24 @@ describe('chatActivation', () => {
       expect(body).toContain('"minutes":12');
     });
 
+    // `hours` is optional on the countdown shape, and the copy interpolates it
+    // directly. Without the ?? 0 fallback an absent value renders the body as
+    // "unlocks in undefined hours", so pin the fallback rather than the field.
+    it('renders zero hours when the countdown omits the hours field', () => {
+      (ChatTiming.isChatActive as jest.Mock).mockReturnValue(false);
+      (ChatTiming.getTimeUntilChatActivation as jest.Mock).mockReturnValue({
+        minutes: 4,
+        seconds: 10,
+      });
+
+      handleChatActivation(mockConfig);
+
+      const [, body] = (Alert.alert as jest.Mock).mock.calls[0];
+      expect(body).toContain('"hours":0');
+      expect(body).toContain('"minutes":4');
+      expect(body).not.toContain('undefined');
+    });
+
     it('offers no bypass button', () => {
       (ChatTiming.isChatActive as jest.Mock).mockReturnValue(false);
       (ChatTiming.getTimeUntilChatActivation as jest.Mock).mockReturnValue({

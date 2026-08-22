@@ -6,8 +6,14 @@ import MyAppointmentsEmptyScreen from '@/features/appointments/screens/MyAppoint
 import {setSelectedCompanion} from '@/features/companion';
 
 const mockNavigate = jest.fn();
+// The companion CTA hops to a sibling stack via getParent(), so the navigation
+// double needs it: without getParent the handler throws instead of navigating.
+const mockParentNavigate = jest.fn();
 jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({navigate: mockNavigate}),
+  useNavigation: () => ({
+    navigate: mockNavigate,
+    getParent: () => ({navigate: mockParentNavigate}),
+  }),
 }));
 
 jest.mock('@/hooks', () => ({
@@ -113,6 +119,25 @@ describe('MyAppointmentsEmptyScreen', () => {
     // Booking needs a companion, so the CTA points there instead of vanishing.
     expect(queryByText('Book an appointment')).toBeNull();
     expect(getByText('Add a companion')).toBeTruthy();
+  });
+
+  // Asserting the CTA renders is not enough: before this, the screen offered no
+  // action at all with no companion, so the value is in where pressing it goes.
+  it('sends the companion CTA to AddCompanion on the home stack', () => {
+    jest
+      .spyOn(Redux, 'useSelector')
+      .mockImplementation((selectorFn: any) =>
+        selectorFn({companion: {companions: [], selectedCompanionId: null}}),
+      );
+
+    const {getByText} = render(<MyAppointmentsEmptyScreen />);
+    fireEvent.press(getByText('Add a companion'));
+
+    expect(mockParentNavigate).toHaveBeenCalledWith('HomeStack', {
+      screen: 'AddCompanion',
+    });
+    // It must cross to the parent, not push onto the appointments stack.
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
   it('renders the companion selector and add button when companions exist', () => {
