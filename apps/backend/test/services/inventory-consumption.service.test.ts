@@ -1089,6 +1089,54 @@ describe("InventoryConsumptionService", () => {
     );
   });
 
+  // Enrichment derives the whole course when a line carries no quantity of its
+  // own, and writes it to `quantity`. `resolveDispenseTotalUnits` reads
+  // `quantity` as a PER-DOSE amount, so without the `totalUnits` marker the
+  // course was multiplied by frequency and duration a second time.
+  it("marks a derived course total so it is not multiplied out again", async () => {
+    mockedPrisma.inventoryItem.findMany.mockResolvedValueOnce([]);
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce(
+      null,
+    );
+    mockedPrisma.prescriptionDispenseRequest.create.mockResolvedValueOnce({
+      id: "request-derived",
+    });
+
+    await InventoryConsumptionService.createPrescriptionDispenseRequest({
+      organisationId: "org-1",
+      prescriptionId: "rx-derived",
+      medications: [
+        {
+          inventoryItemId: "item-derived",
+          // No quantity: the course has to be derived. 1 x BID x 3 days = 6.
+          dose: "1",
+          frequency: "BID",
+          duration: "3",
+          sourceLineKey: "line-derived",
+        },
+        {
+          inventoryItemId: "item-explicit",
+          // Carries its own per-dose quantity, so it stays multiplied later.
+          quantity: 2,
+          frequency: "BID",
+          duration: "3",
+          sourceLineKey: "line-explicit",
+        },
+      ],
+    });
+
+    const created = mockedPrisma.prescriptionDispenseRequest.create.mock
+      .calls[0][0] as {
+      data: { medications: Array<Record<string, unknown>> };
+    };
+    const byItem = new Map(
+      created.data.medications.map((med) => [med.inventoryItemId, med]),
+    );
+
+    expect(byItem.get("item-derived")?.totalUnits).toBe(6);
+    expect(byItem.get("item-explicit")?.totalUnits).toBeUndefined();
+  });
+
   it("matches the dispensary modal duration calculation when approving a created request", async () => {
     mockedPrisma.inventoryItem.findMany.mockResolvedValueOnce([
       {

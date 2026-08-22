@@ -457,6 +457,14 @@ const toDispenseUnits = (quantity: number, packSize?: number) => {
 const resolveDispenseTotalUnits = (
   record: Record<string, unknown>,
 ): number | undefined => {
+  // An already-resolved course total wins. Dispense-request enrichment computes
+  // one and stores it here; re-deriving from `quantity` would multiply the
+  // course out a second time.
+  const resolvedTotal = readPositiveNumber(record.totalUnits);
+  if (resolvedTotal !== undefined) {
+    return Math.max(1, Math.ceil(resolvedTotal));
+  }
+
   const perDose = readPositiveNumber(
     record.quantity ?? record.units ?? record.count ?? record.dispenseQuantity,
   );
@@ -877,15 +885,20 @@ const enrichDispenseRequestMedications = async (
     const frequencyPerDay =
       readPositiveInteger(item.frequencyPerDay) ??
       resolveFrequencyPerDay(frequency);
-    const baseQuantity =
-      readPositiveInteger(
-        item.quantity ?? item.units ?? item.count ?? item.dispenseQuantity,
-      ) ??
-      (doseQty !== undefined &&
+    const explicitQuantity = readPositiveInteger(
+      item.quantity ?? item.units ?? item.count ?? item.dispenseQuantity,
+    );
+    // Derived ONLY when the line carries no quantity of its own. In that case
+    // the value below is the whole COURSE, not a per-dose amount - which is the
+    // distinction `totalUnits` records.
+    const derivedCourseTotal =
+      explicitQuantity === undefined &&
+      doseQty !== undefined &&
       frequencyPerDay !== undefined &&
       durationInDays !== undefined
         ? Math.max(1, Math.ceil(doseQty * frequencyPerDay * durationInDays))
-        : undefined);
+        : undefined;
+    const baseQuantity = explicitQuantity ?? derivedCourseTotal;
 
     return {
       ...item,
@@ -917,6 +930,13 @@ const enrichDispenseRequestMedications = async (
       stockUnitQty,
       stockUnitQuantity: stockUnitQty,
       quantity: baseQuantity ?? item.quantity ?? undefined,
+      // Set only when the course total was DERIVED above, in which case
+      // `quantity` now holds that whole course rather than a per-dose amount.
+      // `resolveDispenseTotalUnits` reads `quantity` as per-dose and multiplies
+      // it by frequency and duration, so without this marker the derived course
+      // was multiplied out a second time at stock consumption. A line with its
+      // own explicit quantity leaves this unset and is multiplied as before.
+      totalUnits: derivedCourseTotal,
       priceCents:
         readPositiveInteger(item.priceCents) ??
         resolvePriceCents(inventoryItem ?? {}),
