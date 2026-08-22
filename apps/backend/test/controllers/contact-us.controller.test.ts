@@ -84,7 +84,8 @@ describe("ContactController", () => {
         null,
       );
       const req = {
-        headers: { "x-user-id": "user-1" },
+        userId: "user-1",
+        headers: {},
         body: {
           type: "GENERAL_ENQUIRY",
           source: "MOBILE_APP",
@@ -111,7 +112,8 @@ describe("ContactController", () => {
         id: "contact-1",
       });
       const req = {
-        headers: { "x-user-id": "user-1" },
+        userId: "user-1",
+        headers: {},
         body: {
           type: "GENERAL_ENQUIRY",
           source: "MOBILE_APP",

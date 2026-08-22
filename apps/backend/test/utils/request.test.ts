@@ -15,12 +15,16 @@ describe("resolveUserIdFromRequest", () => {
     expect(resolveUserIdFromRequest(req)).toBe("real-user");
   });
 
-  it("falls back to x-user-id when authenticated userId is not set", () => {
+  // The header fallback is gone: it was unreachable on authenticated routes and
+  // a spoof everywhere else, and the same helper was being used for
+  // authorization decisions. The name is kept as an alias of
+  // `resolveVerifiedUserId` so the existing call sites keep compiling.
+  it("no longer falls back to x-user-id when no session is set", () => {
     const req = {
       headers: { "x-user-id": "header-user" },
     } as unknown as Request;
 
-    expect(resolveUserIdFromRequest(req)).toBe("header-user");
+    expect(resolveUserIdFromRequest(req)).toBeUndefined();
   });
 });
 

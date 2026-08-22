@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { buildRateLimitKey } from "src/utils/rate-limit-key";
 import rateLimit from "express-rate-limit";
 import { requireWebAuth, requireMobileAuth } from "src/middlewares/auth";
 import {
@@ -18,16 +19,7 @@ const financeAppointmentLimiter = rateLimit({
   max: 120,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => {
-    const orgId =
-      (req.params.organisationId as string | undefined) ??
-      (req.headers["x-org-id"] as string | undefined) ??
-      "unknown-org";
-    const userId = (req as { userId?: string }).userId ?? "unknown-user";
-    const appointmentId = req.params.appointmentId ?? "unknown-appointment";
-
-    return `${orgId}:${userId}:${appointmentId}`;
-  },
+  keyGenerator: (req) => buildRateLimitKey(req, ["appointmentId"]),
 });
 
 router.get(

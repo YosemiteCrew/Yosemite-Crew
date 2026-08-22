@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { buildRateLimitKey } from "src/utils/rate-limit-key";
 import rateLimit from "express-rate-limit";
 import { InvoiceController } from "../controllers/app/invoice.controller";
 import { requireWebAuth, requireMobileAuth } from "src/middlewares/auth";
@@ -9,7 +10,6 @@ import {
   withInvoiceOrgPermissions,
   withPaymentIntentOrgPermissions,
 } from "src/middlewares/rbac";
-import type { OrgRequest } from "src/middlewares/rbac";
 
 const router = Router();
 
@@ -18,17 +18,7 @@ const invoiceActionLimiter = rateLimit({
   max: 120,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => {
-    const orgId =
-      (req as OrgRequest).organisationId ??
-      (req.headers["x-org-id"] as string | undefined) ??
-      "unknown-org";
-    const userId = (req as { userId?: string }).userId ?? "unknown-user";
-    const invoiceId = req.params.invoiceId ?? "unknown-invoice";
-    const appointmentId = req.params.appointmentId ?? "unknown-appointment";
-
-    return `${orgId}:${userId}:${invoiceId}:${appointmentId}`;
-  },
+  keyGenerator: (req) => buildRateLimitKey(req, ["invoiceId", "appointmentId"]),
 });
 
 // Routes for Mobile
