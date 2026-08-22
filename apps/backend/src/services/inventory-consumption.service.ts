@@ -337,7 +337,9 @@ const resolveFrequencyFromKeywords = (
   return undefined;
 };
 
-const dosesPerDayFromHours = (rawHours: string): number | undefined => {
+const dosesPerDayFromHours = (
+  rawHours: string | undefined,
+): number | undefined => {
   const hours = Number(rawHours);
   if (Number.isFinite(hours) && hours > 0) {
     return Math.max(1, Math.ceil(24 / hours));
@@ -345,68 +347,75 @@ const dosesPerDayFromHours = (rawHours: string): number | undefined => {
   return undefined;
 };
 
+/**
+ * Frequency patterns, as data rather than a chain of branches.
+ *
+ * Each entry pulls one capture out and turns it into doses per day; a rule that
+ * cannot produce a usable number falls through to the next, which is what the
+ * equivalent `if` chain did. Sub-daily schedules return a fraction so the
+ * `perDose x frequencyPerDay x durationInDays` formula still holds.
+ *
+ * Order matters: the more specific spellings come before the general ones.
+ */
+const FREQUENCY_PATTERN_RULES: ReadonlyArray<{
+  pattern: RegExp;
+  toDosesPerDay: (capture: string | undefined) => number | undefined;
+}> = [
+  { pattern: /EVERY (\d+) HOURS?/, toDosesPerDay: dosesPerDayFromHours },
+  { pattern: /^Q(\d+)H$/, toDosesPerDay: dosesPerDayFromHours },
+  {
+    pattern: /^(\d+) ?X(?: ?DAILY)?$/,
+    toDosesPerDay: (capture) => positiveNumber(capture),
+  },
+  // Plain "weekly" is handled by the keyword pass; these are the forms it does
+  // not cover. Without them a course on one of these schedules resolves to NO
+  // frequency and falls back to a single dose, so a long course consumes a
+  // fraction of the stock it actually issues.
+  {
+    pattern: /(\d+) ?(?:X|TIMES) ?(?:(?:A|PER) ?)?WEEK/,
+    toDosesPerDay: (capture) => {
+      const doses = positiveNumber(capture);
+      return doses === undefined ? undefined : doses / 7;
+    },
+  },
+  {
+    pattern: /EVERY (\d+) DAYS?/,
+    toDosesPerDay: (capture) => {
+      const days = positiveNumber(capture);
+      return days === undefined ? undefined : 1 / days;
+    },
+  },
+  {
+    pattern: /\bFORTNIGHTLY\b|\bEVERY (?:2|TWO) WEEKS?\b/,
+    toDosesPerDay: () => 1 / 14,
+  },
+  { pattern: /\bMONTHLY\b|\bEVERY MONTH\b/, toDosesPerDay: () => 1 / 30 },
+];
+
+const positiveNumber = (raw: string | undefined): number | undefined => {
+  const value = Number(raw);
+  return Number.isFinite(value) && value > 0 ? value : undefined;
+};
+
 const resolveFrequencyFromPatterns = (
   normalized: string,
 ): number | undefined => {
-  const everyHoursText = /EVERY\s+(\d+)\s+HOURS?/.exec(normalized);
-  if (everyHoursText) {
-    const fromText = dosesPerDayFromHours(everyHoursText[1]);
-    if (fromText !== undefined) {
-      return fromText;
-    }
+  for (const rule of FREQUENCY_PATTERN_RULES) {
+    const match = rule.pattern.exec(normalized);
+    if (!match) continue;
+    const dosesPerDay = rule.toDosesPerDay(match[1]);
+    if (dosesPerDay !== undefined) return dosesPerDay;
   }
-
-  const everyNhours = /^Q(\d+)H$/.exec(normalized);
-  if (everyNhours) {
-    const fromCode = dosesPerDayFromHours(everyNhours[1]);
-    if (fromCode !== undefined) {
-      return fromCode;
-    }
-  }
-
-  const timesPerDay = /^(\d+)\s*X(?:\s*DAILY)?$/.exec(normalized);
-  if (timesPerDay) {
-    const count = Number(timesPerDay[1]);
-    if (Number.isFinite(count) && count > 0) {
-      return count;
-    }
-  }
-
-  // Sub-daily schedules, expressed as a fraction of a dose per day so the
-  // `perDose x frequencyPerDay x durationInDays` formula still holds.
-  //
-  // Plain "weekly" is already handled by the keyword pass above; these are the
-  // forms it does not cover. Without them a course on one of these schedules
-  // resolves to NO frequency and falls back to dispensing a single dose, so a
-  // long course consumes a fraction of the stock it actually issues.
-  const perWeek = /(\d+)\s*(?:X|TIMES)\s*(?:A\s*|PER\s*)?WEEK/.exec(normalized);
-  if (perWeek) {
-    const doses = Number(perWeek[1]);
-    if (Number.isFinite(doses) && doses > 0) {
-      return doses / 7;
-    }
-  }
-
-  const everyNdays = /EVERY\s+(\d+)\s+DAYS?/.exec(normalized);
-  if (everyNdays) {
-    const days = Number(everyNdays[1]);
-    if (Number.isFinite(days) && days > 0) {
-      return 1 / days;
-    }
-  }
-
-  if (/\bFORTNIGHTLY\b|\bEVERY\s+(?:2|TWO)\s+WEEKS?\b/.test(normalized)) {
-    return 1 / 14;
-  }
-  if (/\bMONTHLY\b|\bEVERY\s+MONTH\b/.test(normalized)) {
-    return 1 / 30;
-  }
-
   return undefined;
 };
 
 const resolveFrequencyPerDay = (frequency?: string | null) => {
-  const normalized = frequency?.trim().toUpperCase();
+  // Whitespace runs are collapsed to a single space here, once. The patterns
+  // below pair `\s*` with optional groups, and on a value carrying a long run of
+  // spaces those alternatives can be split many ways - super-linear backtracking
+  // on a string that arrives from prescription data. With runs already collapsed
+  // there is nothing left to split.
+  const normalized = frequency?.trim().toUpperCase().replaceAll(/\s+/g, " ");
   if (!normalized) return undefined;
 
   if (Object.hasOwn(FREQUENCY_DIRECT_MAP, normalized)) {

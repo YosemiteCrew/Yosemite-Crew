@@ -6,10 +6,9 @@ import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 import { getInvoiceNumberLabel } from '@/app/lib/invoice';
 import { formatDateLabel } from '@/app/lib/forms';
-import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
+import { getSafeImageUrl, getSafePdfPreviewUrl, ImageType } from '@/app/lib/urls';
 import { getAppointmentCompanion, getAppointmentCompanionPhotoUrl } from '@/app/lib/appointments';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
-import { getSafePdfPreviewUrl } from '@/app/lib/urls';
 
 type InvoiceDetailHeaderProps = {
   titleId: string;

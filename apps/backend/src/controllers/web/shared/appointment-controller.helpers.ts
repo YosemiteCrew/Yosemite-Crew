@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import { resolveVerifiedUserId } from "src/utils/request";
 
 export type ErrorWithStatus = Error & { statusCode?: number };
 
@@ -39,7 +39,7 @@ export const resolveAuthedParentId = async (
   req: Request,
   res: Response,
 ): Promise<string | undefined> => {
-  const authUserId = resolveUserIdFromRequest(req);
+  const authUserId = resolveVerifiedUserId(req);
   if (!authUserId) {
     res.status(401).json({ message: "User not authenticated" });
     return undefined;

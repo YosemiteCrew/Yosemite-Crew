@@ -8,9 +8,8 @@ import type { CompanionRequestDTO } from "@yosemite-crew/types";
 import { CompanionOrganisationService } from "src/services/companion-organisation.service";
 import { prisma } from "src/config/prisma";
 import {
-  resolveUserIdFromRequest,
-  resolveVerifiedOrganisationId,
   resolveVerifiedUserId,
+  resolveVerifiedOrganisationId,
 } from "src/utils/request";
 import { getProfileUploadUrl } from "./profile-upload.handler";
 
@@ -79,7 +78,7 @@ export const CompanionController = {
     try {
       const payload = extractFHIRPayload(req);
 
-      const authUserId = resolveUserIdFromRequest(req);
+      const authUserId = resolveVerifiedUserId(req);
       if (!authUserId) {
         return res.status(401).json({
           message: "Authentication required for mobile companion creation.",
@@ -128,7 +127,7 @@ export const CompanionController = {
           });
         }
 
-        const authUser = resolveUserIdFromRequest(req);
+        const authUser = resolveVerifiedUserId(req);
         if (!authUser) {
           return res.status(401).json({
             message:

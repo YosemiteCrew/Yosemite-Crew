@@ -82,7 +82,7 @@ describe("FormController", () => {
     jest.restoreAllMocks();
   });
 
-  describe("Internal Helper (resolveUserIdFromRequest)", () => {
+  describe("Internal Helper (resolveVerifiedUserId)", () => {
     it("should prefer authReq.userId when header and auth userId are both present", async () => {
       req.headers["x-user-id"] = "header_user_id";
       req.params.orgId = "org1";

@@ -129,7 +129,7 @@ export const OrganizationController = {
       const payload = rawPayload;
       // Verified session id only: `upsert` uses this to decide whether the
       // caller may overwrite an existing organisation, and the header fallback
-      // in `resolveUserIdFromRequest` is client-controlled.
+      // in `resolveVerifiedUserId` is client-controlled.
       const userId = resolveVerifiedUserId(req);
 
       const { response, created } = await OrganizationService.upsert(

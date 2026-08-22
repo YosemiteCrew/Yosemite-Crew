@@ -91,14 +91,14 @@ describe("DocumentController", () => {
   });
 
   describe("Internal Helpers Testing via listForPms", () => {
-    it("resolveUserIdFromRequest: should use x-user-id header if present", async () => {
+    it("resolveVerifiedUserId: should use x-user-id header if present", async () => {
       req.headers["x-user-id"] = "header_id";
       req.params.patientId = "c1";
       await DocumentController.listForPms(req, res);
       expect(DocumentService.listForPms).toHaveBeenCalled(); // Means auth check passed with header_id
     });
 
-    it("resolveUserIdFromRequest: should handle missing headers gracefully", async () => {
+    it("resolveVerifiedUserId: should handle missing headers gracefully", async () => {
       req.headers = undefined;
       req.userId = "auth_id";
       req.params.patientId = "c1";

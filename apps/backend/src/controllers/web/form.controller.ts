@@ -5,7 +5,7 @@ import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import type { AuthenticatedRequest } from "src/middlewares/auth";
 import type { OrgRequest } from "src/middlewares/rbac";
 import logger from "src/utils/logger";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import { resolveVerifiedUserId } from "src/utils/request";
 
 const FORM_RESPONSE_PARENT_URL =
   "https://yosemitecrew.com/fhir/StructureDefinition/form-response-parent";
@@ -67,7 +67,7 @@ export const FormController = {
   createForm: async (req: Request, res: Response) => {
     try {
       const orgId = req.params.orgId;
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       if (!userId) {
         return res
           .status(401)
@@ -137,7 +137,7 @@ export const FormController = {
     try {
       const formId = req.params.formId;
       const orgId = req.params.orgId;
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       if (!userId) {
         return res
           .status(401)
@@ -160,7 +160,7 @@ export const FormController = {
   publishForm: async (req: Request, res: Response) => {
     try {
       const formId = req.params.formId;
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       if (!userId) {
         return res
           .status(401)
@@ -181,7 +181,7 @@ export const FormController = {
   unpublishForm: async (req: Request, res: Response) => {
     try {
       const formId = req.params.formId;
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       if (!userId) {
         return res
           .status(401)
@@ -202,7 +202,7 @@ export const FormController = {
   archiveForm: async (req: Request, res: Response) => {
     try {
       const formId = req.params.formId;
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       if (!userId) {
         return res
           .status(401)
@@ -270,7 +270,7 @@ export const FormController = {
       // never client-supplied. Persisting submittedBy lets the signing guard
       // confirm the initiator is the submitter; without it submittedBy is
       // undefined and the authenticated user is wrongly blocked from signing.
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       if (!userId) {
         return res
           .status(401)
@@ -341,7 +341,7 @@ export const FormController = {
 
       let requesterParentId: string | undefined;
       if (isMobileRequest) {
-        const authUserId = resolveUserIdFromRequest(req);
+        const authUserId = resolveVerifiedUserId(req);
         if (!authUserId) {
           return res
             .status(401)
@@ -413,7 +413,7 @@ export const FormController = {
       let viewerParentId: string | undefined;
       let requesterOrgId: string | undefined;
       if (isMobileRequest) {
-        const authUserId = resolveUserIdFromRequest(req);
+        const authUserId = resolveVerifiedUserId(req);
         if (!authUserId) {
           return res
             .status(401)

@@ -1,18 +1,17 @@
 import type { Request } from "express";
 import {
-  resolveUserIdFromRequest,
-  resolveVerifiedOrganisationId,
   resolveVerifiedUserId,
+  resolveVerifiedOrganisationId,
 } from "../../src/utils/request";
 
-describe("resolveUserIdFromRequest", () => {
+describe("resolveVerifiedUserId", () => {
   it("returns authenticated userId when both auth userId and x-user-id header are present", () => {
     const req = {
       headers: { "x-user-id": "spoofed-user" },
       userId: "real-user",
     } as unknown as Request;
 
-    expect(resolveUserIdFromRequest(req)).toBe("real-user");
+    expect(resolveVerifiedUserId(req)).toBe("real-user");
   });
 
   // The header fallback is gone: it was unreachable on authenticated routes and
@@ -24,7 +23,7 @@ describe("resolveUserIdFromRequest", () => {
       headers: { "x-user-id": "header-user" },
     } as unknown as Request;
 
-    expect(resolveUserIdFromRequest(req)).toBeUndefined();
+    expect(resolveVerifiedUserId(req)).toBeUndefined();
   });
 });
 

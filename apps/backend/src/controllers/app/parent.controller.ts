@@ -9,7 +9,7 @@ import type { AuthenticatedRequest } from "src/middlewares/auth";
 import { getProfileUploadUrl } from "./profile-upload.handler";
 import {
   resolveOrganisationIdFromRequest,
-  resolveUserIdFromRequest,
+  resolveVerifiedUserId,
 } from "src/utils/request";
 
 // Payload checker
@@ -241,7 +241,7 @@ export const ParentController = {
       const result = await ParentService.update(id, payload, {
         source: "pms",
         organisationId: resolveOrganisationIdFromRequest(req),
-        actorId: resolveUserIdFromRequest(req),
+        actorId: resolveVerifiedUserId(req),
       });
 
       if (!result) {

@@ -22,7 +22,14 @@ const VerifyEmail = () => {
   const router = useRouter();
   const [state, setState] = useState<VerifyState>('verifying');
   const [provisioningError, setProvisioningError] = useState<string | null>(null);
+
   const [isContinuing, setIsContinuing] = useState(false);
+
+  // Flattened out of the JSX: a nested ternary in an attribute is hard to read
+  // and the three states are worth naming.
+  let continueButtonLabel = 'Continue';
+  if (isContinuing) continueButtonLabel = 'Redirecting...';
+  else if (provisioningError) continueButtonLabel = 'Try again';
   const hasVerifiedRef = useRef(false);
 
   useEffect(() => {
@@ -117,7 +124,7 @@ const VerifyEmail = () => {
                 e.preventDefault();
                 if (!isContinuing) void handleContinue();
               }}
-              text={isContinuing ? 'Redirecting...' : provisioningError ? 'Try again' : 'Continue'}
+              text={continueButtonLabel}
               style={{ width: '100%' }}
             />
           </div>

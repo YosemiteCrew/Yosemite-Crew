@@ -11,9 +11,8 @@ import { generatePresignedUrl } from "src/middlewares/upload";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { OrgRequest } from "src/middlewares/rbac";
 import {
-  resolveUserIdFromRequest,
-  resolveVerifiedOrganisationId,
   resolveVerifiedUserId,
+  resolveVerifiedOrganisationId,
 } from "src/utils/request";
 import { prisma } from "src/config/prisma";
 
@@ -139,7 +138,7 @@ export const DocumentController = {
     res: Response,
   ) => {
     try {
-      const authUserId = resolveUserIdFromRequest(req);
+      const authUserId = resolveVerifiedUserId(req);
       const patientId = req.params.patientId;
 
       if (!patientId) {
@@ -193,7 +192,7 @@ export const DocumentController = {
     try {
       const orgReq = req as OrgRequest;
       const organisationId = orgReq.organisationId;
-      const pmsUserId = resolveUserIdFromRequest(req);
+      const pmsUserId = resolveVerifiedUserId(req);
       const { patientId } = req.params;
 
       if (!pmsUserId) {
@@ -242,7 +241,7 @@ export const DocumentController = {
     res: Response,
   ) => {
     try {
-      const authUserId = resolveUserIdFromRequest(req);
+      const authUserId = resolveVerifiedUserId(req);
       const { patientId } = req.params;
       const category = req.query.category;
       const subcategory = req.query.subcategory;
@@ -284,7 +283,7 @@ export const DocumentController = {
     res: Response,
   ) => {
     try {
-      const authUserId = resolveUserIdFromRequest(req);
+      const authUserId = resolveVerifiedUserId(req);
       const orgReq = req as OrgRequest;
       const organisationId = orgReq.organisationId;
       const { appointmentId } = req.params;
@@ -331,7 +330,7 @@ export const DocumentController = {
     try {
       const orgReq = req as OrgRequest;
       const organisationId = orgReq.organisationId;
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       const documentId = req.params.documentId ?? req.params.id;
       let context: DocumentCreateContext;
       const updates = req.body;
@@ -381,7 +380,7 @@ export const DocumentController = {
     try {
       const orgReq = req as OrgRequest;
       const organisationId = orgReq.organisationId;
-      const pmsUserId = resolveUserIdFromRequest(req);
+      const pmsUserId = resolveVerifiedUserId(req);
       if (!pmsUserId) {
         return res
           .status(401)
@@ -420,7 +419,7 @@ export const DocumentController = {
 
   getForParent: async (req: Request<{ id: string }>, res: Response) => {
     try {
-      const authUserId = resolveUserIdFromRequest(req);
+      const authUserId = resolveVerifiedUserId(req);
       const { id } = req.params;
 
       if (!authUserId) {
@@ -487,7 +486,7 @@ export const DocumentController = {
     res: Response,
   ) => {
     try {
-      const authId = resolveUserIdFromRequest(req);
+      const authId = resolveVerifiedUserId(req);
       if (!authId) {
         return res.status(401).json({ message: "User not authenticated." });
       }
@@ -518,7 +517,7 @@ export const DocumentController = {
     res: Response,
   ) => {
     try {
-      const authUserId = resolveUserIdFromRequest(req);
+      const authUserId = resolveVerifiedUserId(req);
       const orgReq = req as OrgRequest;
       const organisationId = orgReq.organisationId;
       const { key } = req.body;
@@ -567,7 +566,7 @@ export const DocumentController = {
     try {
       const orgReq = req as OrgRequest;
       const organisationId = orgReq.organisationId;
-      const authUserId = resolveUserIdFromRequest(req);
+      const authUserId = resolveVerifiedUserId(req);
       const { documentId } = req.params;
 
       if (!documentId) {
@@ -614,7 +613,7 @@ export const DocumentController = {
 
   searchDocument: async (req: Request, res: Response) => {
     try {
-      const authUserId = resolveUserIdFromRequest(req);
+      const authUserId = resolveVerifiedUserId(req);
       const { patientId } = req.params;
       const title = req.query.title;
 

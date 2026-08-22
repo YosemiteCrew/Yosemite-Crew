@@ -25,7 +25,7 @@ import {
   FinanceDiscountSettingsService,
 } from "../../../src/services/finance/discount-settings";
 import { StripeController } from "../../../src/controllers/web/stripe.controller";
-import { resolveUserIdFromRequest } from "../../../src/utils/request";
+import { resolveVerifiedUserId } from "../../../src/utils/request";
 import logger from "../../../src/utils/logger";
 
 jest.mock("../../../src/services/stripe.service", () => ({
@@ -135,7 +135,7 @@ jest.mock("../../../src/controllers/web/stripe.controller", () => ({
 }));
 
 jest.mock("../../../src/utils/request", () => ({
-  resolveUserIdFromRequest: jest.fn(),
+  resolveVerifiedUserId: jest.fn(),
 }));
 
 jest.mock("../../../src/utils/logger", () => ({
@@ -157,7 +157,7 @@ describe("FinanceController", () => {
   const mockedAuthUserMobileService = jest.mocked(AuthUserMobileService);
   const mockedAppointmentPrismaService = jest.mocked(AppointmentPrismaService);
   const mockedStripeController = jest.mocked(StripeController);
-  const mockedResolveUserIdFromRequest = jest.mocked(resolveUserIdFromRequest);
+  const mockedResolveUserIdFromRequest = jest.mocked(resolveVerifiedUserId);
   const mockedLogger = jest.mocked(logger);
 
   let req: Partial<Request>;

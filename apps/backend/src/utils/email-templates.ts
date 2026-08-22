@@ -284,11 +284,11 @@ type EmailTemplateBuilder<T> = (data: T) => {
  */
 export const escapeHtml = (value: string): string =>
   value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 
 // Template data is assembled from records, so nesting is shallow in practice -
 // but this recurses over whatever it is handed. A deeply nested value would

@@ -93,7 +93,7 @@ describe("CompanionOrganisationController", () => {
     };
   });
 
-  describe("resolveUserIdFromRequest & Payload Parsers (Implicitly Tested)", () => {
+  describe("resolveVerifiedUserId & Payload Parsers (Implicitly Tested)", () => {
     it("should ignore x-user-id and use authReq.userId", async () => {
       req.headers["x-user-id"] = "header_id";
       (

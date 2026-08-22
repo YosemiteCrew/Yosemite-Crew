@@ -7,7 +7,7 @@ import {
 } from "../../services/user-profile.service";
 import type { AuthenticatedRequest } from "src/middlewares/auth";
 import { generatePresignedUrl } from "src/middlewares/upload";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import { resolveVerifiedUserId } from "src/utils/request";
 
 function ensurePlainObjectBody(
   body: unknown,
@@ -122,7 +122,7 @@ export const UserProfileController = {
 
   getUserProfileById: async (req: Request, res: Response) => {
     try {
-      const requesterUserId = resolveUserIdFromRequest(req);
+      const requesterUserId = resolveVerifiedUserId(req);
       const userId = req.params.userId;
       const organizationId = req.params.organizationId;
 
@@ -155,7 +155,7 @@ export const UserProfileController = {
   getProfilePictureUploadUrl: async (req: Request, res: Response) => {
     try {
       const { organizationId } = req.params;
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       if (typeof organizationId !== "string" || !organizationId) {
         return res.status(400).json({
           message: "organizationId and userId are required in params",

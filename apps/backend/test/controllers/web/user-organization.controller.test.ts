@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import logger from "../../../src/utils/logger";
-import { resolveUserIdFromRequest } from "../../../src/utils/request";
+import { resolveVerifiedUserId } from "../../../src/utils/request";
 import { UserOrganizationController } from "../../../src/controllers/web/user-organization.controller";
 import {
   UserOrganizationService,
@@ -9,7 +9,7 @@ import {
 
 jest.mock("../../../src/utils/logger");
 jest.mock("../../../src/utils/request", () => ({
-  resolveUserIdFromRequest: jest.fn(),
+  resolveVerifiedUserId: jest.fn(),
 }));
 
 jest.mock("../../../src/services/user-organization.service", () => {
@@ -65,7 +65,7 @@ describe("UserOrganizationController", () => {
 
   describe("listMappings", () => {
     it("returns the current user's mappings", async () => {
-      (resolveUserIdFromRequest as jest.Mock).mockReturnValue("user-1");
+      (resolveVerifiedUserId as jest.Mock).mockReturnValue("user-1");
       (UserOrganizationService.listByUserId as jest.Mock).mockResolvedValue([
         { id: "mapping-1" },
       ]);
@@ -83,7 +83,7 @@ describe("UserOrganizationController", () => {
     });
 
     it("returns 401 when the token user id is missing", async () => {
-      (resolveUserIdFromRequest as jest.Mock).mockReturnValue(undefined);
+      (resolveVerifiedUserId as jest.Mock).mockReturnValue(undefined);
 
       await UserOrganizationController.listMappings(
         createMockReq(),
@@ -100,7 +100,7 @@ describe("UserOrganizationController", () => {
 
   describe("upsertMapping", () => {
     it("returns 401 when the token user id is missing", async () => {
-      (resolveUserIdFromRequest as jest.Mock).mockReturnValue(undefined);
+      (resolveVerifiedUserId as jest.Mock).mockReturnValue(undefined);
 
       await UserOrganizationController.upsertMapping(
         createMockReq({
@@ -114,7 +114,7 @@ describe("UserOrganizationController", () => {
     });
 
     it("returns 400 for invalid payload", async () => {
-      (resolveUserIdFromRequest as jest.Mock).mockReturnValue("user-1");
+      (resolveVerifiedUserId as jest.Mock).mockReturnValue("user-1");
 
       await UserOrganizationController.upsertMapping(
         createMockReq({ body: {} }),
@@ -128,7 +128,7 @@ describe("UserOrganizationController", () => {
     });
 
     it("returns service data on success", async () => {
-      (resolveUserIdFromRequest as jest.Mock).mockReturnValue("user-1");
+      (resolveVerifiedUserId as jest.Mock).mockReturnValue("user-1");
       (
         UserOrganizationService.getMappingByUserAndOrganization as jest.Mock
       ).mockResolvedValue({
@@ -155,7 +155,7 @@ describe("UserOrganizationController", () => {
     });
 
     it("rejects an upsert whose payload carries no organisation reference", async () => {
-      (resolveUserIdFromRequest as jest.Mock).mockReturnValue("user-1");
+      (resolveVerifiedUserId as jest.Mock).mockReturnValue("user-1");
 
       await UserOrganizationController.upsertMapping(
         createMockReq({
@@ -171,7 +171,7 @@ describe("UserOrganizationController", () => {
 
   describe("getById", () => {
     it("returns 401 when the token user id is missing", async () => {
-      (resolveUserIdFromRequest as jest.Mock).mockReturnValue(undefined);
+      (resolveVerifiedUserId as jest.Mock).mockReturnValue(undefined);
 
       await UserOrganizationController.getMappingById(
         createMockReq({ params: { id: "mapping-1" } }),
@@ -183,7 +183,7 @@ describe("UserOrganizationController", () => {
     });
 
     it("returns the mapping on success", async () => {
-      (resolveUserIdFromRequest as jest.Mock).mockReturnValue("user-1");
+      (resolveVerifiedUserId as jest.Mock).mockReturnValue("user-1");
       (
         UserOrganizationService.getMappingByUserAndOrganization as jest.Mock
       ).mockResolvedValue({
@@ -204,7 +204,7 @@ describe("UserOrganizationController", () => {
     });
 
     it("returns 403 when the user is not linked to the organisation", async () => {
-      (resolveUserIdFromRequest as jest.Mock).mockReturnValue("user-1");
+      (resolveVerifiedUserId as jest.Mock).mockReturnValue("user-1");
       (UserOrganizationService.getById as jest.Mock).mockResolvedValue({
         id: "mapping-1",
         organizationReference: "Organization/org-1",
@@ -228,7 +228,7 @@ describe("UserOrganizationController", () => {
 
   describe("deleteMappingById", () => {
     it("returns 401 when the token user id is missing", async () => {
-      (resolveUserIdFromRequest as jest.Mock).mockReturnValue(undefined);
+      (resolveVerifiedUserId as jest.Mock).mockReturnValue(undefined);
 
       await UserOrganizationController.deleteMappingById(
         createMockReq({ params: { id: "mapping-1" } }),
@@ -242,7 +242,7 @@ describe("UserOrganizationController", () => {
 
   describe("updateMappingById", () => {
     it("returns 401 when the token user id is missing", async () => {
-      (resolveUserIdFromRequest as jest.Mock).mockReturnValue(undefined);
+      (resolveVerifiedUserId as jest.Mock).mockReturnValue(undefined);
 
       await UserOrganizationController.updateMappingById(
         createMockReq({
@@ -270,7 +270,7 @@ describe("UserOrganizationController", () => {
     };
 
     beforeEach(() => {
-      (resolveUserIdFromRequest as jest.Mock).mockReturnValue("user-1");
+      (resolveVerifiedUserId as jest.Mock).mockReturnValue("user-1");
       grantOnly("org-1");
     });
 
@@ -483,7 +483,7 @@ describe("UserOrganizationController", () => {
 
   describe("upsertMapping error handling", () => {
     beforeEach(() => {
-      (resolveUserIdFromRequest as jest.Mock).mockReturnValue("user-1");
+      (resolveVerifiedUserId as jest.Mock).mockReturnValue("user-1");
       (
         UserOrganizationService.getMappingByUserAndOrganization as jest.Mock
       ).mockResolvedValue({ id: "mapping-1" });
@@ -535,7 +535,7 @@ describe("UserOrganizationController", () => {
 
   describe("getMappingById edge cases", () => {
     beforeEach(() => {
-      (resolveUserIdFromRequest as jest.Mock).mockReturnValue("user-1");
+      (resolveVerifiedUserId as jest.Mock).mockReturnValue("user-1");
     });
 
     it("returns 400 when no mapping id is supplied", async () => {
@@ -614,7 +614,7 @@ describe("UserOrganizationController", () => {
 
   describe("listMappings failures", () => {
     it("returns 500 and logs when the listing fails", async () => {
-      (resolveUserIdFromRequest as jest.Mock).mockReturnValue("user-1");
+      (resolveVerifiedUserId as jest.Mock).mockReturnValue("user-1");
       const failure = new Error("db down");
       (UserOrganizationService.listByUserId as jest.Mock).mockRejectedValue(
         failure,
@@ -638,7 +638,7 @@ describe("UserOrganizationController", () => {
 
   describe("deleteMappingById", () => {
     beforeEach(() => {
-      (resolveUserIdFromRequest as jest.Mock).mockReturnValue("user-1");
+      (resolveVerifiedUserId as jest.Mock).mockReturnValue("user-1");
     });
 
     it("returns 400 when no mapping id is supplied", async () => {
@@ -780,7 +780,7 @@ describe("UserOrganizationController", () => {
     };
 
     beforeEach(() => {
-      (resolveUserIdFromRequest as jest.Mock).mockReturnValue("user-1");
+      (resolveVerifiedUserId as jest.Mock).mockReturnValue("user-1");
       (
         UserOrganizationService.getMappingByUserAndOrganization as jest.Mock
       ).mockImplementation(async (_userId: string, organisationId: string) =>
@@ -919,7 +919,7 @@ describe("UserOrganizationController", () => {
 
   describe("listMappingsForUser", () => {
     it("returns 401 when the session carries no user id", async () => {
-      (resolveUserIdFromRequest as jest.Mock).mockReturnValue(undefined);
+      (resolveVerifiedUserId as jest.Mock).mockReturnValue(undefined);
 
       await UserOrganizationController.listMappingsForUser(
         createMockReq(),
@@ -934,7 +934,7 @@ describe("UserOrganizationController", () => {
     });
 
     it("lists the mappings of the session user, never a client-named user", async () => {
-      (resolveUserIdFromRequest as jest.Mock).mockReturnValue("user-1");
+      (resolveVerifiedUserId as jest.Mock).mockReturnValue("user-1");
       (UserOrganizationService.listByUserId as jest.Mock).mockResolvedValue([
         { mapping: { id: "mapping-1" } },
       ]);
@@ -954,7 +954,7 @@ describe("UserOrganizationController", () => {
     });
 
     it("propagates the status code of a service error", async () => {
-      (resolveUserIdFromRequest as jest.Mock).mockReturnValue("user-1");
+      (resolveVerifiedUserId as jest.Mock).mockReturnValue("user-1");
       (UserOrganizationService.listByUserId as jest.Mock).mockRejectedValue(
         new UserOrganizationServiceError("User Id is required.", 400),
       );
@@ -971,7 +971,7 @@ describe("UserOrganizationController", () => {
     });
 
     it("returns 500 and logs an unexpected failure", async () => {
-      (resolveUserIdFromRequest as jest.Mock).mockReturnValue("user-1");
+      (resolveVerifiedUserId as jest.Mock).mockReturnValue("user-1");
       const failure = new Error("db down");
       (UserOrganizationService.listByUserId as jest.Mock).mockRejectedValue(
         failure,
@@ -995,7 +995,7 @@ describe("UserOrganizationController", () => {
 
   describe("listByOrganisationId", () => {
     beforeEach(() => {
-      (resolveUserIdFromRequest as jest.Mock).mockReturnValue("user-1");
+      (resolveVerifiedUserId as jest.Mock).mockReturnValue("user-1");
       (
         UserOrganizationService.getMappingByUserAndOrganization as jest.Mock
       ).mockImplementation(async (_userId: string, organisationId: string) =>
@@ -1004,7 +1004,7 @@ describe("UserOrganizationController", () => {
     });
 
     it("returns 401 when the session carries no user id", async () => {
-      (resolveUserIdFromRequest as jest.Mock).mockReturnValue(undefined);
+      (resolveVerifiedUserId as jest.Mock).mockReturnValue(undefined);
 
       await UserOrganizationController.listByOrganisationId(
         createMockReq({ params: { organisationId: "org-1" } }),

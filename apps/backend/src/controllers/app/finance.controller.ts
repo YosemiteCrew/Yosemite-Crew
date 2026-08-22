@@ -27,7 +27,7 @@ import {
 import logger from "src/utils/logger";
 import { OrgRequest } from "src/middlewares/rbac";
 import { AuthenticatedRequest } from "src/middlewares/auth";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import { resolveVerifiedUserId } from "src/utils/request";
 
 const CreateInvoicePaymentSessionBodySchema = z.object({
   provider: z.string().trim().min(1).optional(),
@@ -1055,7 +1055,7 @@ export const FinanceController = {
         return res.status(400).json({ message: "Organisation Id is required" });
       }
 
-      const actorUserId = resolveUserIdFromRequest(req);
+      const actorUserId = resolveVerifiedUserId(req);
       const invoice = await InvoiceService.markAppointmentReadyForBilling(
         appointmentId,
         { organisationId, actorUserId },
@@ -1114,7 +1114,7 @@ export const FinanceController = {
 
       const invoice = await InvoiceService.reverseAppointmentReadyForBilling(
         appointmentId,
-        { organisationId, actorUserId: resolveUserIdFromRequest(req) },
+        { organisationId, actorUserId: resolveVerifiedUserId(req) },
       );
       if (!invoice) {
         return res.status(404).json({ message: "Invoice not found" });

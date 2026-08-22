@@ -4,7 +4,7 @@ import logger from "src/utils/logger";
 import { AvailabilitySlotMongo, DayOfWeek } from "src/models/base-availability";
 import { WeeklyOverrideDay } from "src/models/weekly-availablity-override";
 import type { OccupancyMongo } from "src/models/occupancy";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import { resolveVerifiedUserId } from "src/utils/request";
 
 type NormalizedOccupancy = {
   startTime: Date;
@@ -77,7 +77,7 @@ export const AvailabilityController = {
       return await saveBaseAvailability(
         {
           orgId: req.params.orgId,
-          userId: resolveUserIdFromRequest(req),
+          userId: resolveVerifiedUserId(req),
           availabilities: req.body.availabilities,
         },
         res,
@@ -90,7 +90,7 @@ export const AvailabilityController = {
   async getBaseAvailability(req: Request<{ orgId: string }>, res: Response) {
     try {
       const orgId = req.params.orgId;
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
 
       if (!orgId || !userId) {
         return res.status(400).json({ message: "Missing orgId or userId" });
@@ -129,7 +129,7 @@ export const AvailabilityController = {
   async deleteBaseAvailability(req: Request<{ orgId: string }>, res: Response) {
     try {
       const orgId = req.params.orgId;
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
 
       if (!orgId || !userId) {
         return res.status(400).json({ message: "Missing orgId or userId" });
@@ -184,7 +184,7 @@ export const AvailabilityController = {
   ) {
     try {
       const orgId = req.params.orgId;
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       const { weekStartDate, overrides } = req.body;
 
       if (!orgId || !userId || !weekStartDate || !overrides) {
@@ -222,7 +222,7 @@ export const AvailabilityController = {
   ) {
     try {
       const orgId = req.params.orgId;
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       const parsed = safeDate(req.query.weekStartDate);
 
       if (!orgId || !userId || !parsed) {
@@ -257,7 +257,7 @@ export const AvailabilityController = {
   ) {
     try {
       const orgId = req.params.orgId;
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       const parsed = safeDate(req.query.weekStartDate);
 
       if (!orgId || !userId || !parsed) {
@@ -299,7 +299,7 @@ export const AvailabilityController = {
   ) {
     try {
       const orgId = req.params.orgId;
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       const { startTime, endTime, sourceType, referenceId } = req.body;
 
       const start = safeDate(startTime);
@@ -390,7 +390,7 @@ export const AvailabilityController = {
   ) {
     try {
       const orgId = req.params.orgId;
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
 
       const start = safeDate(req.query.startDate);
       const end = safeDate(req.query.endDate);
@@ -426,7 +426,7 @@ export const AvailabilityController = {
   ) {
     try {
       const orgId = req.params.orgId;
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       const parsed = safeDate(req.query.referenceDate);
 
       if (!orgId || !userId || !parsed) {
@@ -448,7 +448,7 @@ export const AvailabilityController = {
   async getCurrentStatus(req: Request<{ orgId: string }>, res: Response) {
     try {
       const orgId = req.params.orgId;
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
 
       if (!orgId || !userId) {
         return res.status(400).json({ message: "Missing parameters" });

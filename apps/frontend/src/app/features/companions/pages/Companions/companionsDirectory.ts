@@ -44,8 +44,8 @@ const NAMED_SPECIES = ['dog', 'cat', 'horse'] as const;
  * to the type exactly - so the Exotics tab could show a non-zero count and then
  * render an empty list.
  */
-export const resolveSpeciesBucket = (type: unknown): SpeciesTabKey => {
-  const normalized = String(type ?? '').toLowerCase();
+export const resolveSpeciesBucket = (type: string | null | undefined): SpeciesTabKey => {
+  const normalized = (type ?? '').toLowerCase();
   return (NAMED_SPECIES as readonly string[]).includes(normalized)
     ? (normalized as SpeciesTabKey)
     : 'other';

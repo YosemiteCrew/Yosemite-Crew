@@ -26,14 +26,14 @@ export const POSTHOG_PROPERTY_DENYLIST = [...SENSITIVE_PROPERTY_NAMES];
  * browser inside an analytics event. Stripping the query string is not enough
  * here, because the secret is in the path.
  */
-const CREDENTIAL_PATH_PREFIXES = ['card', 'passport'];
+const CREDENTIAL_PATH_PREFIXES = new Set(['card', 'passport']);
 const REDACTED_PATH_SEGMENT = '[redacted]';
 
 const redactCredentialSegments = (pathname: string): string => {
   const segments = pathname.split('/');
   // segments[0] is the empty string before the leading slash.
   for (let i = 1; i < segments.length; i++) {
-    if (CREDENTIAL_PATH_PREFIXES.includes(segments[i]) && segments[i + 1]) {
+    if (CREDENTIAL_PATH_PREFIXES.has(segments[i]) && segments[i + 1]) {
       segments[i + 1] = REDACTED_PATH_SEGMENT;
     }
   }

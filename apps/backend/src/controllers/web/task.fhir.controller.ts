@@ -5,7 +5,7 @@ import { z } from "zod";
 import { TaskService, TaskServiceError } from "src/services/task.service";
 import { taskFhirMapper } from "src/services/fhir-task.mapper";
 import { createFhirErrorHandler } from "src/controllers/web/fhir-controller.shared";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import { resolveVerifiedUserId } from "src/utils/request";
 import type { OrgRequest } from "src/middlewares/rbac";
 
 const taskResourceSchema = z
@@ -68,7 +68,7 @@ export const TaskFhirController = {
   async listEmployeeTasks(req: Request, res: Response) {
     try {
       const query = listQuerySchema.parse(req.query);
-      const actorId = resolveUserIdFromRequest(req);
+      const actorId = resolveVerifiedUserId(req);
       const canViewAny =
         (req as OrgRequest).userPermissions?.includes("tasks:view:any") ??
         false;
@@ -112,7 +112,7 @@ export const TaskFhirController = {
   ) {
     try {
       const body = taskResourceSchema.parse(req.body) as unknown as FhirTask;
-      const userId = resolveUserIdFromRequest(req) ?? "";
+      const userId = resolveVerifiedUserId(req) ?? "";
       const input = taskFhirMapper.fromFhirTask(body, {
         organisationId: req.params.organisationId,
         createdBy: userId,
@@ -134,7 +134,7 @@ export const TaskFhirController = {
 
   async getById(req: Request, res: Response) {
     try {
-      const actorId = resolveUserIdFromRequest(req);
+      const actorId = resolveVerifiedUserId(req);
       const canViewAny =
         (req as OrgRequest).userPermissions?.includes("tasks:view:any") ??
         false;
@@ -156,7 +156,7 @@ export const TaskFhirController = {
   ) {
     try {
       const body = taskResourceSchema.parse(req.body) as unknown as FhirTask;
-      const userId = resolveUserIdFromRequest(req) ?? "";
+      const userId = resolveVerifiedUserId(req) ?? "";
       const canViewAny =
         (req as OrgRequest).userPermissions?.includes("tasks:view:any") ??
         false;
@@ -189,7 +189,7 @@ export const TaskFhirController = {
     try {
       const body = taskResourceSchema.parse(req.body) as unknown as FhirTask;
       const nextStatus = taskFhirMapper.fromTaskStatus(body.status);
-      const userId = resolveUserIdFromRequest(req) ?? "";
+      const userId = resolveVerifiedUserId(req) ?? "";
       const canViewAny =
         (req as OrgRequest).userPermissions?.includes("tasks:view:any") ??
         false;

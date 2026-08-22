@@ -990,6 +990,49 @@ const getStripeClient = (): StripeCheckoutSessionClient => {
   return stripeClient;
 };
 
+/**
+ * Load the invoice a checkout session is being opened for, rejecting every state
+ * in which one must not be created. Split out so the session builder itself
+ * reads as the sequence of steps it is, rather than guards interleaved with work.
+ */
+const loadCheckoutEligibleInvoice = async (
+  invoiceId: string,
+  provider?: PrismaPaymentProvider | null,
+) => {
+  if (provider && provider !== "STRIPE") {
+    throw new FinancePaymentError("Unsupported payment provider", 400);
+  }
+
+  const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+  if (!invoice) {
+    throw new FinancePaymentError("Invoice not found", 404);
+  }
+  if (!["AWAITING_PAYMENT", "PENDING"].includes(invoice.status)) {
+    throw new FinancePaymentError("Invoice is not payable", 409);
+  }
+  if (invoice.paymentCollectionMethod === "PAYMENT_AT_CLINIC") {
+    throw new FinancePaymentError(
+      "Invoice is marked for in-clinic payment",
+      409,
+    );
+  }
+
+  const existingPaymentIntentAttempt = await prisma.paymentAttempt.findFirst({
+    where: {
+      invoiceId,
+      provider: "STRIPE",
+      providerPaymentIntentId: { not: null },
+      status: { not: "CANCELED" },
+    },
+    select: { id: true },
+  });
+  if (existingPaymentIntentAttempt) {
+    throw new FinancePaymentError("Invoice already has a PaymentIntent", 409);
+  }
+
+  return invoice;
+};
+
 export const FinancePaymentService = {
   async createPaymentAttempt(invoiceId: string, input: PaymentAttemptInput) {
     const invoice = await prisma.invoice.findUnique({
@@ -1014,41 +1057,7 @@ export const FinancePaymentService = {
      */
     requestedDepositAmount?: number | null,
   ): Promise<CheckoutSessionResult> {
-    if (provider && provider !== "STRIPE") {
-      throw new FinancePaymentError("Unsupported payment provider", 400);
-    }
-
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
-    });
-
-    if (!invoice) {
-      throw new FinancePaymentError("Invoice not found", 404);
-    }
-
-    if (!["AWAITING_PAYMENT", "PENDING"].includes(invoice.status)) {
-      throw new FinancePaymentError("Invoice is not payable", 409);
-    }
-
-    if (invoice.paymentCollectionMethod === "PAYMENT_AT_CLINIC") {
-      throw new FinancePaymentError(
-        "Invoice is marked for in-clinic payment",
-        409,
-      );
-    }
-
-    const existingPaymentIntentAttempt = await prisma.paymentAttempt.findFirst({
-      where: {
-        invoiceId,
-        provider: "STRIPE",
-        providerPaymentIntentId: { not: null },
-        status: { not: "CANCELED" },
-      },
-      select: { id: true },
-    });
-    if (existingPaymentIntentAttempt) {
-      throw new FinancePaymentError("Invoice already has a PaymentIntent", 409);
-    }
+    const invoice = await loadCheckoutEligibleInvoice(invoiceId, provider);
 
     const existingCheckoutAttempt = await prisma.paymentAttempt.findFirst({
       where: {

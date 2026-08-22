@@ -681,13 +681,18 @@ const resolveVitalRecordRecordedByDisplay = async (
  * time, which is two round trips per row on a list endpoint. This batches both
  * and returns a lookup, so the cost stops scaling with the number of records.
  */
-const resolveRecordedByDisplayMap = async (
-  records: ReadonlyArray<
-    Pick<VitalRecordModel, "recordedBy" | "metadata"> & {
-      artifact: { organisationId: string | null };
-    }
-  >,
-): Promise<Map<string, string>> => {
+type RecordedByLookupSource = Pick<
+  VitalRecordModel,
+  "recordedBy" | "metadata"
+> & { artifact: { organisationId: string | null } };
+
+/** The organisation-scoped key a display name is stored under. */
+const recordedByKey = (org: string, reference: string) => `${org}|${reference}`;
+
+/** Which practitioner references need looking up, grouped by organisation. */
+const collectRecordedByReferences = (
+  records: ReadonlyArray<RecordedByLookupSource>,
+): Map<string, Set<string>> => {
   const byOrg = new Map<string, Set<string>>();
   for (const record of records) {
     if (readRecordedByDisplay(record.metadata)) continue;
@@ -698,10 +703,13 @@ const resolveRecordedByDisplayMap = async (
     bucket.add(recordedBy);
     byOrg.set(org, bucket);
   }
+  return byOrg;
+};
 
-  const display = new Map<string, string>();
-  if (byOrg.size === 0) return display;
-
+/** The (organisation, practitioner) pairs that are actually active members. */
+const loadActiveMemberKeys = async (
+  byOrg: Map<string, Set<string>>,
+): Promise<Set<string>> => {
   const memberships = await prisma.userOrganization.findMany({
     where: {
       active: true,
@@ -719,35 +727,61 @@ const resolveRecordedByDisplayMap = async (
     select: { organizationReference: true, practitionerReference: true },
   });
 
-  const memberOf = new Set<string>();
+  const keys = new Set<string>();
   for (const membership of memberships ?? []) {
+    if (!membership.practitionerReference) continue;
     const org = membership.organizationReference.replace(/^Organization\//, "");
-    if (membership.practitionerReference) {
-      memberOf.add(`${org}|${membership.practitionerReference}`);
-    }
+    keys.add(recordedByKey(org, membership.practitionerReference));
   }
+  return keys;
+};
 
-  const referencesToLoad = [
-    ...new Set([...memberOf].map((key) => key.split("|")[1])),
+const buildUserDisplayName = (user: {
+  firstName: string | null;
+  lastName: string | null;
+}): string =>
+  [user.firstName, user.lastName]
+    .filter(
+      (part): part is string => typeof part === "string" && part.length > 0,
+    )
+    .join(" ")
+    .trim();
+
+/**
+ * Resolve recorded-by display names for a WHOLE list in two queries.
+ *
+ * The single-record resolver runs a membership query and a user query each
+ * time, which is two round trips per row on a list endpoint. This batches both
+ * and returns a lookup, so the cost stops scaling with the number of records.
+ */
+const resolveRecordedByDisplayMap = async (
+  records: ReadonlyArray<RecordedByLookupSource>,
+): Promise<Map<string, string>> => {
+  const display = new Map<string, string>();
+
+  const byOrg = collectRecordedByReferences(records);
+  if (byOrg.size === 0) return display;
+
+  const memberKeys = await loadActiveMemberKeys(byOrg);
+  const references = [
+    ...new Set([...memberKeys].map((key) => key.split("|")[1])),
   ];
-  if (referencesToLoad.length === 0) return display;
+  if (references.length === 0) return display;
 
   const users = await prisma.user.findMany({
-    where: { userId: { in: referencesToLoad } },
+    where: { userId: { in: references } },
     select: { userId: true, firstName: true, lastName: true },
   });
 
+  const nameByReference = new Map<string, string>();
   for (const user of users ?? []) {
-    const name = [user.firstName, user.lastName]
-      .filter(
-        (part): part is string => typeof part === "string" && part.length > 0,
-      )
-      .join(" ")
-      .trim();
-    if (!name) continue;
-    for (const key of memberOf) {
-      if (key.endsWith(`|${user.userId}`)) display.set(key, name);
-    }
+    const name = buildUserDisplayName(user);
+    if (name) nameByReference.set(user.userId, name);
+  }
+
+  for (const key of memberKeys) {
+    const name = nameByReference.get(key.split("|")[1]);
+    if (name) display.set(key, name);
   }
 
   return display;
@@ -769,7 +803,7 @@ const hydrateVitalRecords = async (
     const recordedByDisplay =
       metadataDisplay ??
       (recordedBy && org
-        ? (display.get(`${org}|${recordedBy}`) ?? null)
+        ? (display.get(recordedByKey(org, recordedBy)) ?? null)
         : null);
 
     return buildVitalRecordRecord(record.artifact, {

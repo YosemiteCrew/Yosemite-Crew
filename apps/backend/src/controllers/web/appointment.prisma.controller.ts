@@ -5,7 +5,7 @@ import { AppointmentPrismaService } from "src/services/appointment.prisma.servic
 import { InvoiceService } from "src/services/invoice.service";
 import logger from "src/utils/logger";
 import { generatePresignedUrl } from "src/middlewares/upload";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import { resolveVerifiedUserId } from "src/utils/request";
 import type { OrgRequest } from "src/middlewares/rbac";
 import {
   resolveAuthedParentId,
@@ -298,7 +298,7 @@ export const AppointmentController = {
         req.params.appointmentId,
         {
           organisationId: req.params.organisationId,
-          actorUserId: resolveUserIdFromRequest(req),
+          actorUserId: resolveVerifiedUserId(req),
         },
       );
       return res
@@ -323,7 +323,7 @@ export const AppointmentController = {
         req.params.appointmentId,
         {
           organisationId: req.params.organisationId,
-          actorUserId: resolveUserIdFromRequest(req),
+          actorUserId: resolveVerifiedUserId(req),
         },
       );
       if (!invoice) {
@@ -428,7 +428,7 @@ export const AppointmentController = {
         return res.status(400).json({ message: "Missing organisationId" });
       }
 
-      const actorId = resolveUserIdFromRequest(req);
+      const actorId = resolveVerifiedUserId(req);
       const canViewAny =
         orgReq.userPermissions?.includes("appointments:view:any") ?? false;
 
@@ -568,7 +568,7 @@ export const AppointmentController = {
   ) => {
     try {
       const { patientId, mimeType } = req.body;
-      const authUserId = resolveUserIdFromRequest(req);
+      const authUserId = resolveVerifiedUserId(req);
       if (!authUserId) {
         return res.status(401).json({ message: "User not authenticated" });
       }

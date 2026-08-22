@@ -335,6 +335,54 @@ export const AllDocumentsTable = ({
   );
 };
 
+type PacketSignedArgs = {
+  encounterId?: string;
+  documents: Array<{ signingStatus?: string | null }>;
+  packetSigned: boolean;
+  signedForEncounterId?: string;
+  setPacketSigned: React.Dispatch<React.SetStateAction<boolean>>;
+  setSignedForEncounterId: React.Dispatch<React.SetStateAction<string | undefined>>;
+};
+
+/**
+ * Whether the clinical packet for the CURRENT encounter is signed.
+ *
+ * Two sources, and the reason for the bookkeeping: the documents read-model is
+ * authoritative but lags, so a reconcile response is captured locally to make
+ * the Sign to Download Signed swap immediate. That captured flag belongs to the
+ * encounter it was observed for. This step can stay mounted across a route
+ * change, and an unscoped flag then claimed the NEXT encounter was signed -
+ * hiding its Sign action and offering a "signed" download for a packet the
+ * backend would build unsigned.
+ *
+ * The reset is render-phase (React's documented setState-during-render pattern)
+ * so nothing reads a stale flag first.
+ */
+const usePacketSignedForEncounter = ({
+  encounterId,
+  documents,
+  packetSigned,
+  signedForEncounterId,
+  setPacketSigned,
+  setSignedForEncounterId,
+}: PacketSignedArgs): boolean => {
+  const [syncedEncounterId, setSyncedEncounterId] = useState<string | undefined>(encounterId);
+  if (syncedEncounterId !== encounterId) {
+    setSyncedEncounterId(encounterId);
+    if (signedForEncounterId !== encounterId) {
+      setPacketSigned(false);
+      setSignedForEncounterId(undefined);
+    }
+  }
+
+  return useMemo(
+    () =>
+      (packetSigned && signedForEncounterId === encounterId) ||
+      documents.some((document) => document.signingStatus?.toUpperCase() === 'SIGNED'),
+    [documents, packetSigned, signedForEncounterId, encounterId]
+  );
+};
+
 const useSummaryStepContent = ({
   appointmentId,
   appointment,
@@ -724,23 +772,14 @@ const useSummaryStepContent = ({
   // reports a SIGNED signing status — Documenso marks the bundled documents signed
   // against the one signed packet PDF. Drives the Sign→Download Signed swap and the
   // "print the signed copy" behaviour.
-  // Render-phase reset: drop the captured flag as soon as the encounter changes,
-  // before anything reads it.
-  const [syncedEncounterId, setSyncedEncounterId] = useState<string | undefined>(encounterId);
-  if (syncedEncounterId !== encounterId) {
-    setSyncedEncounterId(encounterId);
-    if (signedForEncounterId !== encounterId) {
-      setPacketSigned(false);
-      setSignedForEncounterId(undefined);
-    }
-  }
-
-  const isPacketSigned = useMemo(
-    () =>
-      (packetSigned && signedForEncounterId === encounterId) ||
-      documents.some((document) => document.signingStatus?.toUpperCase() === 'SIGNED'),
-    [documents, packetSigned, signedForEncounterId, encounterId]
-  );
+  const isPacketSigned = usePacketSignedForEncounter({
+    encounterId,
+    documents,
+    packetSigned,
+    signedForEncounterId,
+    setPacketSigned,
+    setSignedForEncounterId,
+  });
 
   // Signing may only begin while the appointment is actively in progress; before
   // that (e.g. checked-in/upcoming) or after completion the action is disabled and
