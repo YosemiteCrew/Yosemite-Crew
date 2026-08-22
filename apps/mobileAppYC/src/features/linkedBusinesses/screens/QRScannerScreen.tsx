@@ -24,6 +24,7 @@ import {PressableOpacity} from '@/shared/components/common/PressableOpacity/Pres
 import {selectLinkedBusinessesLoading} from '../selectors';
 import type {LinkedBusinessStackParamList} from '@/navigation/types';
 
+import {colors} from '@/theme';
 type Props = NativeStackScreenProps<LinkedBusinessStackParamList, 'QRScanner'>;
 
 // Bespoke dark camera palette - the QR scanner intentionally breaks the light
@@ -34,7 +35,7 @@ const CAMERA = {
   feedMid: '#1A1512',
   feedBottom: '#100D0A',
   glow: 'rgba(58, 47, 36, 0.55)',
-  ink: '#F4EFE6',
+  ink: colors.textDark,
   inkMuted: 'rgba(244, 239, 230, 0.6)',
   inkFaint: 'rgba(244, 239, 230, 0.45)',
   glass: 'rgba(244, 239, 230, 0.12)',

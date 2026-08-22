@@ -103,6 +103,7 @@ import {
   getAppointmentFormAnswerRows,
 } from './ViewAppointmentScreen.helpers';
 
+import i18next from 'i18next';
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
 const useAppointmentInvoicesData = ({
@@ -498,7 +499,7 @@ const useCheckInFlow = ({
     if (isWithinCheckInWindow) return true;
     const startLabel = formatLocalStartTime();
     Alert.alert(
-      'Too early to check in',
+      i18next.t('alerts.appointments.tooEarlyToCheckIn'),
       `You can check in starting ${CHECKIN_BUFFER_MINUTES} ${minuteUnit} before your appointment at ${startLabel}.`,
     );
     return false;
@@ -513,8 +514,8 @@ const useCheckInFlow = ({
     React.useCallback(async (): Promise<boolean> => {
       if (!businessCoords.lat || !businessCoords.lng) {
         Alert.alert(
-          'Location unavailable',
-          'Provider location is missing. Please try again later.',
+          i18next.t('alerts.appointments.locationUnavailable'),
+          i18next.t('alerts.appointments.locationUnavailableBody'),
         );
         return false;
       }
@@ -529,14 +530,14 @@ const useCheckInFlow = ({
       );
       if (distance === null) {
         Alert.alert(
-          'Location unavailable',
-          'Unable to determine distance for check-in.',
+          i18next.t('alerts.appointments.locationUnavailable'),
+          i18next.t('alerts.appointments.locationUnavailableBody2'),
         );
         return false;
       }
       if (distance > CHECKIN_RADIUS_METERS) {
         Alert.alert(
-          'Too far to check in',
+          i18next.t('alerts.appointments.tooFarToCheckIn'),
           `Move closer to the service location to check in. You are ~${Math.round(distance)}m away.`,
         );
         return false;
@@ -561,8 +562,8 @@ const useCheckInFlow = ({
     } catch (error) {
       console.warn('[Appointment] Check-in failed', error);
       Alert.alert(
-        'Check-in failed',
-        'Unable to check in right now. Please try again.',
+        i18next.t('alerts.appointments.checkInFailed'),
+        i18next.t('alerts.appointments.checkInFailedBody'),
       );
     } finally {
       setCheckingIn(false);

@@ -43,6 +43,7 @@ import {useOrganisationDocumentNavigation} from '@/shared/hooks/useOrganisationD
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
+import i18next from 'i18next';
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
 const isAppointmentCancellable = (status?: string | null) => {
@@ -409,8 +410,8 @@ export const EditAppointmentScreen: React.FC = () => {
     const isoTimes = getRescheduleIsoTimes(availability, date, time);
     if (!isoTimes) {
       Alert.alert(
-        'Select a time',
-        'Please choose a valid appointment time before saving.',
+        i18next.t('alerts.appointments.selectATime'),
+        i18next.t('alerts.appointments.selectATimeBody'),
       );
       return;
     }
@@ -433,7 +434,7 @@ export const EditAppointmentScreen: React.FC = () => {
           ? error
           : ((error as Error)?.message ??
             'Unable to reschedule this appointment. Please try again.');
-      Alert.alert('Reschedule failed', message);
+      Alert.alert(i18next.t('alerts.appointments.rescheduleFailed'), message);
     } finally {
       setSaving(false);
     }

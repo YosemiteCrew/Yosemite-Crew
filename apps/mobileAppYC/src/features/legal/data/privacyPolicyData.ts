@@ -2,7 +2,6 @@ import type {LegalSection} from './legalContentTypes';
 import {p, seg, b, u, ol, oli} from './legalContentHelpers';
 import {
   createControllerSection,
-  createRecipientsList,
   createLegitimateInterestBasis,
   createLogStoragePeriod,
   createMobileRecipientsList,
@@ -13,7 +12,6 @@ import {
   createObjectionSection,
   createObligationProvideData,
   createSocialMediaSection,
-  createWebRecipientsList,
   createGoogleOnlyRecipient,
   createBookingRecipientsList,
   createHealthRecipientsList,
@@ -38,7 +36,7 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
     blocks: [
       p(
         seg(
-          'The protection and security of your personal information is important to us. This privacy policy describes how we collect, process, and store personal data through our open-source practice management software (hereinafter referred to as “PMS” or “the Software”). Our Software is available as a web application and as a mobile application. Unless stated otherwise, the information provided applies equally to both versions. This policy helps you to understand what information we collect, why we collect it, how we use it, and how long we store it.',
+          'The protection and security of your personal information is important to us. This privacy policy describes how we collect, process, and store personal data in the Yosemite Crew mobile app for pet parents. It explains what information we collect, why we collect it, how we use it, and how long we keep it. Our veterinary practice software is covered by a separate policy, available on our website.',
         ),
       ),
     ],
@@ -51,7 +49,7 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
     blocks: [
       p(
         seg(
-          'This repository may reference or include integrations, plugins, names, logos, or trademarks of third-party companies (including but not limited to IDEXX, MSD Veterinary Manual, and other partners). Such trademarks and logos are the property of their respective owners and are used solely for identification or interoperability purposes. Nothing in this repository grants any right or license to use any third-party trademarks, logos, or branding except as permitted by the respective owners.',
+          'The app may reference or include integrations, plugins, names, logos, or trademarks of third-party companies (including but not limited to IDEXX, MSD Veterinary Manual, and other partners). Such trademarks and logos are the property of their respective owners and are used solely for identification or interoperability purposes. Nothing in the app grants any right or license to use any third-party trademarks, logos, or branding except as permitted by the respective owners.',
         ),
       ),
     ],
@@ -102,132 +100,10 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
   },
 
   {
-    id: 'web-app',
-    title: '3.1. Web Application',
-    blocks: [
-      p(
-        seg(
-          'Our web application is offered to business owners and web developers.',
-        ),
-      ),
-    ],
-  },
-
-  {
-    id: 'web-hosting',
-    title: '3.1.1. Server Provision and Hosting',
-    blocks: [
-      p(
-        b('Purpose: '),
-        seg(
-          'The web application can be self-hosted or hosted in the cloud. If you choose our cloud, we collect and temporarily store certain data to ensure the operation, availability, stability and security of the application.',
-        ),
-      ),
-      p(
-        b('Categories of data: '),
-        seg(
-          'IP address, time and date of access, browser type and version, operating system.',
-        ),
-      ),
-      p(b('Recipients:')),
-      createRecipientsList(),
-      createLegitimateInterestBasis(),
-      createLogStoragePeriod(),
-    ],
-  },
-
-  {
-    id: 'web-signup',
-    title: '3.1.2. Signing up and setting up a profile',
-    blocks: [
-      p(
-        b('Purpose: '),
-        seg(
-          "To register and onboard veterinary businesses, create accounts, and establish secure access for managing their practice's information and activities, thus allowing them to provide services through the platform.",
-        ),
-      ),
-      p(
-        b('Categories of data: '),
-        seg(
-          'In particular, work email, business name, business type (veterinary business, breeding facility, pet sitter, groomer shop), registration number, address, specialised department, provided services, professional background (specialisation, qualification, medical license number), appointment duration (consultation mode, consultation fee, username).',
-        ),
-      ),
-      p(b('Recipients:')),
-      createWebRecipientsList(),
-      p(
-        b('Legal basis: '),
-        seg(
-          'Establishment of the user relationship, Art. 6 para. 1 lit. b) GDPR. By providing voluntary profile information, you consent to the processing of this data, Art. 6 para. 1 lit. a) GDPR.',
-        ),
-      ),
-      createActiveAccountStorageWithRetention(),
-    ],
-  },
-
-  {
-    id: 'web-general-use',
-    title: '3.1.3. General Use of the Application',
-    blocks: [
-      p(
-        b('Purpose: '),
-        seg(
-          'To allow businesses to use the application and all its core functions (such as creating appointments, adding prescriptions, generating bills, creating appointments), we process the information you enter, and data generated during use.',
-        ),
-      ),
-      p(
-        b('Categories of data: '),
-        seg(
-          'In particular, name, e-mail address, phone number, doctor’s name, prescription notes, billing details, payment information.',
-        ),
-      ),
-      p(b('Recipients:')),
-      createRecipientsList(),
-      createContractBasis(),
-      createActiveAccountStorage(),
-    ],
-  },
-
-  {
-    id: 'web-communications',
-    title: '3.1.4. Contacting Clients and Communications',
-    blocks: [
-      p(
-        b('Purpose: '),
-        seg(
-          'The application allows communication with clients and within teams. This can include sending messages, images and videos related to the pet’s condition, treatment, or general care questions.',
-        ),
-      ),
-      p(
-        b('Categories of data: '),
-        seg(
-          'Messages, attachments (photos, videos), pet-related context (e.g. symptoms, recent treatments), metadata (timestamps, sender/ recipient).',
-        ),
-      ),
-      p(b('Recipients:')),
-      createRecipientsList(),
-      p(b('Recipients:'), seg(' Selected clients.')),
-      createContractBasis(),
-      createConversationStorage(),
-    ],
-  },
-
-  {
-    id: 'web-payment',
-    title: '3.1.5. Payment',
-    blocks: [
-      p(
-        seg(
-          'Business owners and developers can implement their preferred payment options and payment services directly in the web application. The payment is directly performed over these payment providers. DuneXploration does not process any personal data in connection with the payment.',
-        ),
-      ),
-    ],
-  },
-
-  {
     id: 'mobile-hosting',
-    title: '3.2. Mobile Application',
+    title: '3.1. Mobile Application',
     blocks: [
-      p(b('3.2.1. Server Provision and Hosting')),
+      p(b('3.1.1. Server Provision and Hosting')),
       p(
         b('Purpose: '),
         seg(
@@ -237,7 +113,7 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
       p(
         b('Categories of data: '),
         seg(
-          'IP address, time and date of access, browser type and version, operating system.',
+          'IP address, time and date of access, app version, device type and operating system.',
         ),
       ),
       p(b('Recipients:')),
@@ -249,7 +125,7 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
 
   {
     id: 'mobile-signup',
-    title: '3.2.2. Signing up and setting up a profile',
+    title: '3.1.2. Signing up and setting up a profile',
     blocks: [
       p(
         b('Purpose: '),
@@ -289,7 +165,7 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
 
   {
     id: 'mobile-general-use',
-    title: '3.2.3. General Use of the Application',
+    title: '3.1.3. General Use of the Application',
     blocks: [
       p(
         b('Purpose: '),
@@ -312,7 +188,7 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
 
   {
     id: 'mobile-booking',
-    title: '3.2.4. Booking Appointments',
+    title: '3.1.4. Booking Appointments',
     blocks: [
       p(
         b('Purpose: '),
@@ -335,7 +211,7 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
 
   {
     id: 'mobile-communications',
-    title: '3.2.5. Contacting Veterinarians and Communications',
+    title: '3.1.5. Contacting Veterinarians and Communications',
     blocks: [
       p(
         b('Purpose: '),
@@ -358,7 +234,7 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
 
   {
     id: 'mobile-reviews',
-    title: '3.2.6. Review and Ratings',
+    title: '3.1.6. Review and Ratings',
     blocks: [
       p(
         b('Purpose: '),
@@ -379,7 +255,7 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
 
   {
     id: 'mobile-payment',
-    title: '3.2.7. Payment',
+    title: '3.1.7. Payment',
     blocks: [
       p(
         seg(
@@ -391,7 +267,7 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
 
   {
     id: 'mobile-health',
-    title: '3.2.8. Pet Medical Records and Health Features',
+    title: '3.1.8. Pet Medical Records and Health Features',
     blocks: [
       p(
         b('Purpose: '),
@@ -419,7 +295,7 @@ export const PRIVACY_POLICY_SECTIONS: LegalSection[] = [
 
   {
     id: 'mobile-contact-us',
-    title: '3.2.9. Contacting Us',
+    title: '3.1.9. Contacting Us',
     blocks: [
       p(
         b('Purpose: '),

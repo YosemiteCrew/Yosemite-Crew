@@ -32,6 +32,7 @@ import {fetchBusinesses} from '@/features/appointments/businessesSlice';
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
+import i18next from 'i18next';
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
 const formatVisitDate = (value?: string | null): string => {
@@ -135,7 +136,7 @@ export const ReviewScreen: React.FC = () => {
         error instanceof Error
           ? error.message
           : 'Unable to submit your review. Please try again.';
-      Alert.alert('Review not submitted', message);
+      Alert.alert(i18next.t('alerts.appointments.reviewNotSubmitted'), message);
     } finally {
       setSubmitting(false);
     }

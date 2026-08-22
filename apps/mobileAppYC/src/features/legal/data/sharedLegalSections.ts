@@ -33,19 +33,6 @@ export const createControllerSection = (): LegalSection => ({
 });
 
 // Common recipients list for privacy
-export const createRecipientsList = (): OrderedListBlock =>
-  ol(
-    oli('•', SUPABASE_RECIPIENT),
-    oli(
-      '•',
-      ' Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxemburg.',
-    ),
-    oli(
-      '•',
-      ' Google Cloud EMEA Ltd., 70 Sir John Rogerson’s Quay, Dublin 2, Ireland.',
-    ),
-  );
-
 // Common legal basis for legitimate interest
 export const createLegitimateInterestBasis = (): ParagraphBlock =>
   p(
@@ -256,19 +243,6 @@ export const createEstablishmentBasis = (customText?: string): ParagraphBlock =>
   );
 
 // Recipient list variations
-export const createWebRecipientsList = (): OrderedListBlock =>
-  ol(
-    oli(
-      '•',
-      ' Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxemburg.',
-    ),
-    oli(
-      '•',
-      " Google Cloud EMEA Ltd., 70 Sir John Rogerson's Quay, Dublin 2, Ireland.",
-    ),
-    oli('•', SUPABASE_RECIPIENT),
-  );
-
 export const createGoogleOnlyRecipient = (): OrderedListBlock =>
   ol(
     oli(

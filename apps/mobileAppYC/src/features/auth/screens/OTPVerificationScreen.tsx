@@ -23,7 +23,6 @@ import {
   formatAuthError,
   requestPasswordlessEmailCode,
   signOutEverywhere,
-  DEMO_LOGIN_PASSWORD,
   DEMO_LOGIN_EMAIL,
 } from '@/features/auth/services/passwordlessAuth';
 import {mergeUserWithParentProfile} from '@/features/auth/utils/parentProfileMapper';
@@ -89,9 +88,10 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
   const isDemoLogin =
     allowReviewLogin &&
     (challengeType === 'demoPassword' || email === DEMO_LOGIN_EMAIL);
+  // Never derived from an embedded password: the app cannot know how long the
+  // real one is, and guessing drove a premature auto-submit.
   const expectedLength =
-    challengeLength ??
-    (isDemoLogin ? DEMO_LOGIN_PASSWORD.length : DEFAULT_OTP_LENGTH);
+    challengeLength ?? (isDemoLogin ? 0 : DEFAULT_OTP_LENGTH);
 
   const [otpCode, setOtpCode] = useState('');
   const [otpError, setOtpError] = useState('');
@@ -133,8 +133,10 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
       setOtpError('');
     }
 
-    // Auto-verify when all digits are filled
-    if (value.length === expectedLength && !isVerifying) {
+    // Auto-verify only for the fixed-length OTP. A password has no known
+    // length, and firing at the length of the app's embedded copy submitted a
+    // truncated prefix of anything longer.
+    if (!isDemoLogin && value.length === expectedLength && !isVerifying) {
       verifyOtpCode(value);
     }
   };
@@ -386,15 +388,6 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
                     containerStyle={styles.demoInputContainer}
                     error={otpError}
                   />
-                  <PressableOpacity
-                    onPress={() => setOtpCode(DEMO_LOGIN_PASSWORD)}
-                    style={styles.prefillButton}
-                    accessibilityRole="button"
-                    accessibilityLabel="Use provided password">
-                    <Text style={styles.prefillText}>
-                      Use provided password
-                    </Text>
-                  </PressableOpacity>
                 </>
               ) : (
                 <>
@@ -549,15 +542,5 @@ const createStyles = (theme: Theme) =>
     },
     demoInputContainer: {
       width: '100%',
-    },
-    prefillButton: {
-      marginTop: theme.spacing['2'],
-      paddingVertical: theme.spacing['2'],
-      paddingHorizontal: theme.spacing['3'],
-    },
-    prefillText: {
-      ...theme.typography.bodyMedium,
-      color: theme.colors.blueText,
-      textAlign: 'center',
     },
   });

@@ -42,6 +42,7 @@ import DeleteCoParentBottomSheet, {
 } from '../../components/DeleteCoParentBottomSheet/DeleteCoParentBottomSheet';
 import {createCommonCoParentStyles} from '../../styles/commonStyles';
 
+import i18next from 'i18next';
 type Props = NativeStackScreenProps<HomeStackParamList, 'EditCoParent'>;
 
 const defaultPermissions: CoParentPermissions = {
@@ -173,8 +174,8 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
       currentCoParent?.parentId === authUser?.parentId;
     if (isSelfPrimary) {
       Alert.alert(
-        'Not available',
-        'Primary parents cannot edit their own permissions.',
+        i18next.t('alerts.coParent.notAvailable'),
+        i18next.t('alerts.coParent.notAvailableBody'),
       );
       navigation.goBack();
     }
@@ -222,21 +223,24 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
     }
     if (!canEditPermissions) {
       Alert.alert(
-        'Not allowed',
-        'Only the primary parent can transfer ownership.',
+        i18next.t('alerts.coParent.notAllowed'),
+        i18next.t('alerts.coParent.notAllowedBody'),
       );
       return;
     }
     if (!selectedCompanionId || !currentCoParent) {
-      Alert.alert('Select companion', 'Please select a companion first.');
+      Alert.alert(
+        i18next.t('alerts.shared.selectCompanion'),
+        i18next.t('alerts.coParent.selectCompanionBody2'),
+      );
       return;
     }
     const targetCoParentId =
       currentCoParent.parentId || currentCoParent.id || coParentId;
     if (!targetCoParentId) {
       Alert.alert(
-        'Error',
-        'Unable to determine co-parent details. Please try again.',
+        i18next.t('alerts.shared.error'),
+        i18next.t('alerts.coParent.errorBody'),
       );
       return;
     }
@@ -275,7 +279,10 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
       });
     } catch (error) {
       console.error('Failed to promote co-parent:', error);
-      Alert.alert('Error', 'Failed to transfer ownership. Please try again.');
+      Alert.alert(
+        i18next.t('alerts.shared.error'),
+        i18next.t('alerts.coParent.errorBody2'),
+      );
     } finally {
       setIsPromoting(false);
     }
@@ -284,18 +291,21 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
   const requestOwnershipTransfer = () => {
     if (!canEditPermissions) {
       Alert.alert(
-        'Not allowed',
-        'Only the primary parent can transfer ownership.',
+        i18next.t('alerts.coParent.notAllowed'),
+        i18next.t('alerts.coParent.notAllowedBody'),
       );
       return;
     }
     if (!selectedCompanionId) {
-      Alert.alert('Select companion', 'Please select a companion first.');
+      Alert.alert(
+        i18next.t('alerts.shared.selectCompanion'),
+        i18next.t('alerts.coParent.selectCompanionBody2'),
+      );
       return;
     }
     Alert.alert(
-      'Transfer primary parent role?',
-      'This will make this co-parent the new primary parent for the selected companion. You will lose owner permissions immediately.',
+      i18next.t('alerts.coParent.transferPrimaryParentRole'),
+      i18next.t('alerts.coParent.transferPrimaryParentRoleBody'),
       [
         {text: 'Cancel', style: 'cancel'},
         {
@@ -318,7 +328,10 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
       return;
     }
     if (!selectedCompanionId) {
-      Alert.alert('Select companion', 'Please select a companion first.');
+      Alert.alert(
+        i18next.t('alerts.shared.selectCompanion'),
+        i18next.t('alerts.coParent.selectCompanionBody2'),
+      );
       return;
     }
     setPermissions(prev => ({
@@ -334,14 +347,17 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
   const handleSavePermissions = async () => {
     if (!canEditPermissions) {
       Alert.alert(
-        'Not allowed',
-        'Only the primary parent can update permissions.',
+        i18next.t('alerts.coParent.notAllowed'),
+        i18next.t('alerts.coParent.notAllowedBody3'),
       );
       return;
     }
     try {
       if (!selectedCompanionId || !currentCoParent) {
-        Alert.alert('Error', 'Please select a companion and try again');
+        Alert.alert(
+          i18next.t('alerts.shared.error'),
+          i18next.t('alerts.coParent.errorBody3'),
+        );
         return;
       }
 
@@ -357,7 +373,10 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
       navigation.goBack();
     } catch (error) {
       console.error('Failed to update permissions:', error);
-      Alert.alert('Error', 'Failed to save permissions');
+      Alert.alert(
+        i18next.t('alerts.shared.error'),
+        i18next.t('alerts.coParent.errorBody4'),
+      );
     }
   };
 
@@ -368,7 +387,10 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
   const handleDeleteConfirm = async () => {
     try {
       if (!selectedCompanionId) {
-        Alert.alert('Error', 'Please select a companion and try again');
+        Alert.alert(
+          i18next.t('alerts.shared.error'),
+          i18next.t('alerts.coParent.errorBody3'),
+        );
         return;
       }
       const targetCoParentId =
@@ -382,7 +404,10 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
       navigation.goBack();
     } catch (error) {
       console.error('Failed to delete:', error);
-      Alert.alert('Error', 'Failed to delete co-parent');
+      Alert.alert(
+        i18next.t('alerts.shared.error'),
+        i18next.t('alerts.coParent.errorBody6'),
+      );
     }
   };
 

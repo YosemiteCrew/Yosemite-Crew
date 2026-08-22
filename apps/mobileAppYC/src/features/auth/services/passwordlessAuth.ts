@@ -15,7 +15,6 @@ import {
 export const DEMO_LOGIN_EMAIL = (DEMO_LOGIN_CONFIG.email ?? '')
   .trim()
   .toLowerCase();
-export const DEMO_LOGIN_PASSWORD = DEMO_LOGIN_CONFIG.password ?? '';
 // SuperTokens USER_INPUT_CODE emails deliver a 6-digit code.
 const DEFAULT_OTP_LENGTH = 6;
 
@@ -23,7 +22,8 @@ export type PasswordlessSignInRequestResult = {
   destination: string;
   isNewUser: boolean;
   challengeType: 'otp' | 'demoPassword';
-  challengeLength: number;
+  /** Fixed only for the OTP; a typed review password has no known length. */
+  challengeLength?: number;
   isDemoLogin: boolean;
 };
 
@@ -155,9 +155,9 @@ export const requestPasswordlessEmailCode = async (
     // Unknown until the code is consumed — SuperTokens reports it then.
     isNewUser: false,
     challengeType: isDemoLogin ? 'demoPassword' : 'otp',
-    challengeLength: isDemoLogin
-      ? DEMO_LOGIN_PASSWORD.length
-      : DEFAULT_OTP_LENGTH,
+    // The review password is typed from the App Store Connect notes, so its
+    // length is not knowable here. Only the OTP has a fixed one.
+    challengeLength: isDemoLogin ? undefined : DEFAULT_OTP_LENGTH,
     isDemoLogin,
   };
 };

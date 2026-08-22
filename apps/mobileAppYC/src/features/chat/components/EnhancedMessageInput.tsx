@@ -35,6 +35,7 @@ import type {Theme} from '@/theme';
 import {ALLOWED_FILE_TYPES} from '@/features/documents/constants';
 import {normalizeMimeType} from '@/shared/utils/mime';
 
+import i18next from 'i18next';
 // Request audio recording permission (Android)
 const requestAudioPermission = async () => {
   if (Platform.OS === 'android') {
@@ -73,8 +74,8 @@ export const EnhancedMessageInput: React.FC = () => {
     const hasPermission = await requestAudioPermission();
     if (!hasPermission) {
       Alert.alert(
-        'Permission Denied',
-        'Please grant microphone permission to record voice messages.',
+        i18next.t('alerts.shared.permissionDenied'),
+        i18next.t('alerts.chat.permissionDeniedBody'),
       );
       return;
     }
@@ -93,7 +94,10 @@ export const EnhancedMessageInput: React.FC = () => {
       ReactNativeHapticFeedback.trigger('notificationSuccess');
     } catch (error) {
       console.error('Failed to start recording:', error);
-      Alert.alert('Error', 'Failed to start recording. Please try again.');
+      Alert.alert(
+        i18next.t('alerts.shared.error'),
+        i18next.t('alerts.chat.errorBody'),
+      );
     } finally {
       setIsRecordingLoading(false);
     }
@@ -135,7 +139,10 @@ export const EnhancedMessageInput: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to stop recording:', error);
-      Alert.alert('Error', 'Failed to send voice message. Please try again.');
+      Alert.alert(
+        i18next.t('alerts.shared.error'),
+        i18next.t('alerts.chat.errorBody2'),
+      );
     } finally {
       setIsRecordingLoading(false);
     }
@@ -181,7 +188,10 @@ export const EnhancedMessageInput: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to pick image:', error);
-      Alert.alert('Error', 'Failed to pick image. Please try again.');
+      Alert.alert(
+        i18next.t('alerts.shared.error'),
+        i18next.t('alerts.chat.errorBody3'),
+      );
     }
   };
 
@@ -203,7 +213,10 @@ export const EnhancedMessageInput: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to take photo:', error);
-      Alert.alert('Error', 'Failed to take photo. Please try again.');
+      Alert.alert(
+        i18next.t('alerts.shared.error'),
+        i18next.t('alerts.chat.errorBody4'),
+      );
     }
   };
 
@@ -226,8 +239,8 @@ export const EnhancedMessageInput: React.FC = () => {
 
         if (allowedFiles.length === 0) {
           Alert.alert(
-            'Unsupported file',
-            'That file type is not supported. Please choose a photo or document instead.',
+            i18next.t('alerts.shared.unsupportedFile'),
+            i18next.t('alerts.chat.unsupportedFileBody'),
           );
           return;
         }
@@ -274,7 +287,10 @@ export const EnhancedMessageInput: React.FC = () => {
       }
 
       console.error('Failed to pick document:', error);
-      Alert.alert('Error', 'Failed to pick document. Please try again.');
+      Alert.alert(
+        i18next.t('alerts.shared.error'),
+        i18next.t('alerts.chat.errorBody5'),
+      );
     }
   };
 
@@ -283,8 +299,8 @@ export const EnhancedMessageInput: React.FC = () => {
     ReactNativeHapticFeedback.trigger('impactLight');
 
     Alert.alert(
-      'Send Attachment',
-      'Choose an option',
+      i18next.t('alerts.chat.sendAttachment'),
+      i18next.t('alerts.chat.sendAttachmentBody'),
       [
         {
           text: 'Photo from Gallery',

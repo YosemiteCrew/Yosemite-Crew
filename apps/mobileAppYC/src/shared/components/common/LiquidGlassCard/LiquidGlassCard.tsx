@@ -5,11 +5,12 @@ import {BlurView} from '@react-native-community/blur';
 import {useTheme} from '@/hooks';
 import {UI_FEATURE_FLAGS} from '@/config/variables';
 
+import {colors} from '@/theme';
 // Flip to true to force a consistent outline everywhere.
 const FORCE_CARD_BORDER = UI_FEATURE_FLAGS.forceLiquidGlassBorder;
 // Warm-bone hairline (light value of theme.colors.hairline); this module-level
 // forced outline cannot read useTheme(), so it mirrors the token literal.
-const FORCED_BORDER_COLOR = '#E5DCCF';
+const FORCED_BORDER_COLOR = colors.hairline;
 const FORCED_BORDER_WIDTH = 1;
 // Set to true to fall back to static styling on iOS if native glass misbehaves.
 const LOCK_IOS_GLASS_APPEARANCE = false;

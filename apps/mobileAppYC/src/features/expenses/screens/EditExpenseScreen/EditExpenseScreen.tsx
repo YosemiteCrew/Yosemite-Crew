@@ -30,6 +30,7 @@ import {
   useFormFileOperations,
 } from '@/shared/hooks/useFormScreen';
 
+import i18next from 'i18next';
 type Route = RouteProp<ExpenseStackParamList, 'EditExpense'>;
 
 export const EditExpenseScreen: React.FC = () => {
@@ -72,8 +73,8 @@ export const EditExpenseScreen: React.FC = () => {
 
     if (expense.source !== 'external') {
       Alert.alert(
-        'Non editable',
-        'Only expenses added from the app can be edited.',
+        i18next.t('alerts.expenses.nonEditable'),
+        i18next.t('alerts.expenses.nonEditableBody'),
       );
       navigation.goBack();
       return;
@@ -144,7 +145,7 @@ export const EditExpenseScreen: React.FC = () => {
       );
     } catch (error) {
       Alert.alert(
-        'Unable to update expense',
+        i18next.t('alerts.expenses.unableToUpdateExpense'),
         error instanceof Error ? error.message : 'Please try again.',
       );
     }
@@ -176,7 +177,7 @@ export const EditExpenseScreen: React.FC = () => {
     } catch (error) {
       isDeleteSheetOpenRef.current = false;
       Alert.alert(
-        'Unable to delete expense',
+        i18next.t('alerts.expenses.unableToDeleteExpense'),
         error instanceof Error ? error.message : 'Please try again.',
       );
     }

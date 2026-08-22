@@ -1,5 +1,6 @@
 import React from 'react';
 import {View, Text, StyleSheet} from 'react-native';
+import {colors} from '@/theme';
 
 interface ClusterMapPinProps {
   count: number;
@@ -26,15 +27,15 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#247AED',
+    backgroundColor: colors.blue,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: colors.white,
     boxShadow: '0px 2px 6px rgba(36,122,237,0.4)',
   },
   label: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 16,

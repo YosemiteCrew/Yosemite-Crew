@@ -5,6 +5,7 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import type {OrganisationDocumentCategory} from '@/features/legal/services/organisationDocumentService';
 
+import i18next from 'i18next';
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
 export const useOrganisationDocumentNavigation = ({
@@ -20,8 +21,8 @@ export const useOrganisationDocumentNavigation = ({
     (category: OrganisationDocumentCategory) => {
       if (!organisationId) {
         Alert.alert(
-          'Unavailable',
-          'We could not find this business right now. Please try again.',
+          i18next.t('alerts.shared.unavailable'),
+          i18next.t('alerts.shared.unavailableBody'),
         );
         return;
       }

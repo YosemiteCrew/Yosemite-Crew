@@ -1,7 +1,11 @@
 import {useState} from 'react';
 import {Alert} from 'react-native';
-import type {ExpenseFormData, ExpenseFormErrors} from '@/features/expenses/components';
+import type {
+  ExpenseFormData,
+  ExpenseFormErrors,
+} from '@/features/expenses/components';
 
+import i18next from 'i18next';
 export const DEFAULT_FORM: ExpenseFormData = {
   category: null,
   subcategory: null,
@@ -13,11 +17,19 @@ export const DEFAULT_FORM: ExpenseFormData = {
   providerName: '',
 };
 
-export function useExpenseForm(initial?: ExpenseFormData | null, requireCompanion = true) {
-  const [formData, setFormData] = useState<ExpenseFormData | null>(initial ?? DEFAULT_FORM);
+export function useExpenseForm(
+  initial?: ExpenseFormData | null,
+  requireCompanion = true,
+) {
+  const [formData, setFormData] = useState<ExpenseFormData | null>(
+    initial ?? DEFAULT_FORM,
+  );
   const [errors, setErrors] = useState<ExpenseFormErrors>({});
 
-  const handleChange = <K extends keyof ExpenseFormData>(field: K, value: ExpenseFormData[K]) => {
+  const handleChange = <K extends keyof ExpenseFormData>(
+    field: K,
+    value: ExpenseFormData[K],
+  ) => {
     setFormData(prev => (prev ? {...prev, [field]: value} : prev));
   };
 
@@ -27,7 +39,10 @@ export function useExpenseForm(initial?: ExpenseFormData | null, requireCompanio
 
   const validate = (selectedCompanionId?: string | null): boolean => {
     if (requireCompanion && !selectedCompanionId) {
-      Alert.alert('Select companion', 'Please select a companion before saving the expense.');
+      Alert.alert(
+        i18next.t('alerts.shared.selectCompanion'),
+        i18next.t('alerts.expenses.selectCompanionBody'),
+      );
       return false;
     }
 

@@ -49,6 +49,7 @@ import {normalizeImageUri} from '@/shared/utils/imageUri';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
 import {convertWeight} from '@/shared/utils/measurementSystem';
 
+import i18next from 'i18next';
 type Props = NativeStackScreenProps<HomeStackParamList, 'Account'>;
 
 type CompanionProfile = {
@@ -67,6 +68,8 @@ type MenuItem = {
   onPress: () => void;
   danger?: boolean;
   tintIcon?: boolean;
+  /** Row leaves the app for a browser rather than opening an in-app screen. */
+  external?: boolean;
 };
 
 // Removed COMPANION_PLACEHOLDERS
@@ -131,6 +134,9 @@ const buildAccountMenuItems = (
     label: 'About us',
     icon: Images.aboutusIcon,
     tone: 'indigo',
+    // The only row here that leaves the app; every other one opens an in-app
+    // screen, so the row says so rather than surprising the user.
+    external: true,
     onPress: () => {
       Linking.openURL('https://www.yosemitecrew.com/about').catch(console.warn);
     },
@@ -524,7 +530,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
     if (Platform.OS === 'android') {
       ToastAndroid.show(message, ToastAndroid.SHORT);
     } else {
-      Alert.alert('Permission needed', message);
+      Alert.alert(i18next.t('alerts.shared.permissionNeeded'), message);
     }
   }, []);
 
@@ -572,7 +578,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
       await logout();
     } catch (error) {
       const message = deriveDeletionErrorMessage(error);
-      Alert.alert('Delete Failed', message);
+      Alert.alert(i18next.t('alerts.account.deleteFailed'), message);
       throw new Error(message);
     } finally {
       setIsDeletingAccount(false);

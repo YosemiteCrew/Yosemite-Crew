@@ -1,5 +1,6 @@
 import React, {useMemo} from 'react';
 import {View, Text, StyleSheet} from 'react-native';
+import {colors} from '@/theme';
 import type {VetBusiness, BusinessCategory} from '../../types';
 
 export interface ClinicMapPinProps {
@@ -7,12 +8,15 @@ export interface ClinicMapPinProps {
   isSelected: boolean;
 }
 
+// Pins are drawn on the light map style, so the light palette is the right
+// one. These used the stale #247AED from the unbuilt design-tokens package
+// plus three stock Material swatches with no relationship to warm bone.
 const CATEGORY_COLORS: Record<BusinessCategory, string> = {
-  hospital: '#247AED',
-  groomer: '#008F5D',
-  breeder: '#FF9800',
-  boarder: '#9C27B0',
-  pet_center: '#00BCD4',
+  hospital: colors.blue,
+  groomer: colors.success,
+  breeder: colors.warning,
+  boarder: colors.violet,
+  pet_center: colors.cyanText,
 };
 
 const CATEGORY_SYMBOLS: Record<BusinessCategory, string> = {
@@ -36,7 +40,7 @@ const buildRatingLabel = (business: VetBusiness): string => {
 };
 
 const ClinicMapPin: React.FC<ClinicMapPinProps> = ({business, isSelected}) => {
-  const pinColor = CATEGORY_COLORS[business.category] ?? '#247AED';
+  const pinColor = CATEGORY_COLORS[business.category] ?? colors.blue;
   const ratingLabel = useMemo(() => buildRatingLabel(business), [business]);
   const displayName = useMemo(
     () => truncateName(business.name),
@@ -82,12 +86,12 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.35)',
   },
   bubbleSelected: {
-    borderColor: '#FFFFFF',
+    borderColor: colors.white,
     borderWidth: 2,
     boxShadow: '0px 2px 4px rgba(0,0,0,0.4)',
   },
   name: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: -0.2,

@@ -55,7 +55,6 @@ jest.mock('@/features/auth/services/passwordlessAuth', () => ({
   requestPasswordlessEmailCode: jest.fn(),
   signOutEverywhere: jest.fn().mockResolvedValue(undefined),
   DEMO_LOGIN_EMAIL: 'demo@yosemitecrew.com',
-  DEMO_LOGIN_PASSWORD: 'demoPass123',
 }));
 
 jest.mock('@/shared/hooks/useTheme', () => ({
@@ -753,24 +752,24 @@ describe('OTPVerificationScreen', () => {
 
       expect(getByText(/This is the App Review login/)).toBeTruthy();
       expect(getByTestId('mock-demo-input')).toBeTruthy();
-      expect(getByText('Use provided password')).toBeTruthy();
       expect(getByText('Sign in with password')).toBeTruthy();
+      // The prefill button handed over a password compiled into the bundle.
+      // It drifted from the backend and shipped a plaintext credential.
+      expect(queryByText('Use provided password')).toBeNull();
       expect(queryByTestId('mock-otp-input')).toBeNull();
       expect(queryByText(/sec/)).toBeNull();
     });
 
-    it('prefills the review password when the helper button is pressed', () => {
-      const {getByText, getByTestId} = renderDemoComponent();
+    it('does not auto-submit part-way through a typed password', () => {
+      // Auto-verify used to fire the moment the typed length matched the
+      // app's embedded copy, submitting a truncated prefix of anything longer.
+      const {getByTestId} = renderDemoComponent();
+      const input = getByTestId('mock-demo-input');
 
-      fireEvent.press(getByText('Use provided password'));
+      fireEvent.changeText(input, 'demoPass');
+      fireEvent.changeText(input, 'demoPass123456');
 
-      expect(getByTestId('mock-demo-input').props.value).toBe('demoPass123');
-    });
-
-    it('exposes a button role and label on the prefill-password helper button', () => {
-      const {getByLabelText} = renderDemoComponent();
-      const prefillButton = getByLabelText('Use provided password');
-      expect(prefillButton.props.accessibilityRole).toBe('button');
+      expect(mockedCompleteSignIn).not.toHaveBeenCalled();
     });
 
     it('updates the password field and clears a previous error as the user types', async () => {

@@ -1,5 +1,6 @@
 import {Alert, Platform, ToastAndroid} from 'react-native';
 
+import i18next from 'i18next';
 /**
  * Display permission denied toast/alert
  * Uses platform-appropriate UI (Toast on Android, Alert on iOS)
@@ -9,6 +10,6 @@ export const showPermissionDeniedToast = (label: string): void => {
   if (Platform.OS === 'android') {
     ToastAndroid.show(message, ToastAndroid.SHORT);
   } else {
-    Alert.alert('Permission needed', message);
+    Alert.alert(i18next.t('alerts.shared.permissionNeeded'), message);
   }
 };

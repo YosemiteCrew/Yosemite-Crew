@@ -8,6 +8,7 @@ import CustomBottomSheet, {
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 
+import {colors} from '@/theme';
 export interface NetworkStatusBottomSheetRef {
   open: () => void;
   close: () => void;
@@ -20,8 +21,8 @@ interface NetworkStatusBottomSheetProps {
 // The offline inline banner is a dark chip that reads the same in both themes,
 // so it uses a fixed dark-surface palette (warm-white ink, soft blue retry,
 // red-tinted status glyph) rather than theme tokens.
-const BANNER_INK = '#F4EFE6';
-const BANNER_RETRY = '#8FB6F5';
+const BANNER_INK = colors.textDark;
+const BANNER_RETRY = colors.primaryLight;
 const BANNER_ICON_BG = 'rgba(234, 55, 41, 0.22)';
 const BANNER_ICON_INK = '#F28B81';
 

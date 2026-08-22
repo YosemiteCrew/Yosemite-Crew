@@ -315,18 +315,42 @@ jobs:
       # next. Retrying costs a couple of minutes; not retrying costs a whole
       # tagged release, because the tag has to be deleted and re-cut.
       # Podfile.lock is left alone so resolution stays reproducible.
+      #
+      # On mobile-v1.6.1 all three attempts lost inside about five minutes and
+      # the job died. Because GitHub refuses `gh run rerun --failed` while any
+      # job in the run is still going, the retry could not even be queued until
+      # the Android job finished ~40 minutes later. The re-run then passed on
+      # the first attempt, which is the signature of a flake given a wider
+      # reset rather than a repo problem.
+      #
+      # So: five attempts, an exponential backoff, and a reset that also clears
+      # the CocoaPods caches. The stack points at Pathname#realdirpath walking
+      # pnpm's symlinked layout, and the stale entries the resolver trips over
+      # live in those caches, not in Pods/.
       - name: Install pods
         working-directory: apps/mobileAppYC/ios
         run: |
-          for attempt in 1 2 3; do
+          attempts=5
+          for attempt in $(seq 1 "$attempts"); do
             if pod install; then
+              if [ "$attempt" -gt 1 ]; then
+                echo "::notice::pod install recovered on attempt ${attempt}"
+              fi
               exit 0
             fi
-            echo "::warning::pod install failed on attempt ${attempt}, retrying"
-            rm -rf Pods
-            sleep 10
+            if [ "$attempt" -eq "$attempts" ]; then
+              break
+            fi
+            backoff=$((attempt * 15))
+            echo "::warning::pod install failed on attempt ${attempt}/${attempts}, resetting and retrying in ${backoff}s"
+            # Podfile.lock is deliberately left alone so resolution stays
+            # reproducible; everything derived from it is fair game.
+            rm -rf Pods build
+            rm -rf ~/Library/Caches/CocoaPods
+            rm -rf ~/.cocoapods/repos/trunk/.git/index.lock
+            sleep "$backoff"
           done
-          echo "pod install failed three times; this is no longer the known flake." >&2
+          echo "pod install failed ${attempts} times; this is no longer the known flake." >&2
           exit 1
 
       # altool authenticates with this key on the upload. It is written here,

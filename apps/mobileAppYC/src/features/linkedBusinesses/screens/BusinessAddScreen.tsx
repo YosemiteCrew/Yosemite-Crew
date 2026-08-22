@@ -33,6 +33,7 @@ import {
   type NotifyBusinessBottomSheetRef,
 } from '../components/NotifyBusinessBottomSheet';
 
+import i18next from 'i18next';
 type Props = NativeStackScreenProps<
   LinkedBusinessStackParamList,
   'BusinessAdd'
@@ -230,7 +231,10 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
       addBusinessSheetRef.current?.open();
     } catch (error) {
       console.error('Failed to add business:', error);
-      Alert.alert('Error', 'Failed to add business. Please try again.');
+      Alert.alert(
+        i18next.t('alerts.shared.error'),
+        i18next.t('alerts.linkedBusinesses.errorBody'),
+      );
     }
   }, [
     dispatch,
@@ -295,8 +299,8 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
   const handleNotifyPress = useCallback(async () => {
     if (!email) {
       Alert.alert(
-        'Email required',
-        'This business does not have an email on file, so we cannot send an invite.',
+        i18next.t('alerts.linkedBusinesses.emailRequired'),
+        i18next.t('alerts.linkedBusinesses.emailRequiredBody'),
       );
       return;
     }
@@ -319,7 +323,10 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
       console.log('[BusinessAddScreen] Invite sent successfully');
     } catch (error) {
       console.error('[BusinessAddScreen] Failed to send invite:', error);
-      Alert.alert('Error', 'Failed to send invite. Please try again.');
+      Alert.alert(
+        i18next.t('alerts.shared.error'),
+        i18next.t('alerts.linkedBusinesses.errorBody2'),
+      );
     }
   }, [dispatch, companionId, category, businessName, email]);
 
