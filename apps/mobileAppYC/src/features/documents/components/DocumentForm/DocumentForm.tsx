@@ -532,7 +532,7 @@ const createStyles = (theme: any) =>
       textAlign: 'justify',
     },
     noteLabel: {
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
     },
     noteMessage: {
       color: theme.colors.placeholder,

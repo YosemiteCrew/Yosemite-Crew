@@ -317,7 +317,7 @@ const createStyles = (theme: any) =>
     },
     companionAvatarInitial: {
       ...theme.typography.titleMedium,
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
       fontWeight: '700',
     },
     companionName: {
@@ -328,7 +328,7 @@ const createStyles = (theme: any) =>
     },
     companionMeta: {
       ...theme.typography.labelXxsBold,
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
     },
     addCompanionItem: {
       alignItems: 'center',
@@ -356,7 +356,7 @@ const createStyles = (theme: any) =>
     },
     addCompanionLabel: {
       ...theme.typography.labelXxsBold,
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
       textAlign: 'center',
     },
   });

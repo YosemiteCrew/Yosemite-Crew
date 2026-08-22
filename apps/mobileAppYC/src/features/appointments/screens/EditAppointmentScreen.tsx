@@ -460,7 +460,7 @@ export const EditAppointmentScreen: React.FC = () => {
   const agreements = useMemo(() => {
     const linkStyle = {
       ...theme.typography.paragraphBold,
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
     };
     return buildAgreements({
       businessDisplayName,
@@ -479,7 +479,7 @@ export const EditAppointmentScreen: React.FC = () => {
     openBusinessPrivacy,
     openBusinessTerms,
     theme.typography.paragraphBold,
-    theme.colors.primary,
+    theme.colors.blueText,
   ]);
   const submitLabel = getRescheduleButtonLabel();
   const submitState = getRescheduleButtonState({

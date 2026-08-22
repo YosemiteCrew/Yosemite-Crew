@@ -92,7 +92,7 @@ export const BookingFormScreen: React.FC = () => {
     (business?.name ?? '').trim().length > 0 ? business?.name : 'the clinic';
   const linkStyle = {
     ...theme.typography.paragraphBold,
-    color: theme.colors.primary,
+    color: theme.colors.blueText,
   };
   const {
     handleOpenTerms: handleOpenAppTerms,

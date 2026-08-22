@@ -1818,7 +1818,7 @@ const createStyles = (theme: any) =>
 
     viewMoreText: {
       ...theme.typography.labelXxsBold,
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
     },
     viewMoreButton: {
       alignSelf: 'flex-start',
@@ -1873,6 +1873,6 @@ const createStyles = (theme: any) =>
     },
     requestedBadgeText: {
       ...theme.typography.labelSmallBold,
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
     },
   });

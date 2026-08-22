@@ -125,6 +125,7 @@ type AppointmentTheme = {
     secondary: string;
     primary: string;
     primaryTint: string;
+    blueText: string;
     success: string;
     successSurface: string;
     warning: string;
@@ -195,7 +196,7 @@ export const getAppointmentStatusBadgePalette = (
     case 'REQUESTED':
       return {
         text: label,
-        textColor: theme.colors.primary,
+        textColor: theme.colors.blueText,
         backgroundColor: theme.colors.primaryTint,
       };
     case 'RESCHEDULED':

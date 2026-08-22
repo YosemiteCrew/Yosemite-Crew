@@ -55,6 +55,6 @@ const createStyles = (theme: any) =>
     },
     text: {
       ...theme.typography.labelXxsBold,
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
     },
   });

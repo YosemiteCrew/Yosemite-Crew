@@ -78,7 +78,7 @@ export const createFormStyles = (theme: Theme) => ({
 
   // Reminder pill text when selected
   reminderPillTextSelected: {
-    color: theme.colors.primary,
+    color: theme.colors.blueText,
     fontWeight: '600',
   } as TextStyle,
 

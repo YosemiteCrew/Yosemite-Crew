@@ -208,7 +208,7 @@ const createStyles = (theme: any) =>
     },
     badgeText: {
       ...theme.typography.subtitleBold14,
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
     },
   });
 

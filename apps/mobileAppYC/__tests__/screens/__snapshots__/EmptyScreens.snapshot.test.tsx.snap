@@ -146,7 +146,7 @@ exports[`Empty Screen Snapshots EmptyDocumentsScreen should render correctly 1`]
       >
         <Text
           accessibilityLabel="folder-open-outline"
-          color="#257BED"
+          color="#1162CE"
           size={44}
           testID="icon-folder-open-outline"
         >

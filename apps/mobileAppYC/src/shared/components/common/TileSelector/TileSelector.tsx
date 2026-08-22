@@ -92,7 +92,7 @@ const createStyles = (theme: any) =>
       fontWeight: '500',
     },
     labelSelected: {
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
       fontWeight: '600',
     },
   });

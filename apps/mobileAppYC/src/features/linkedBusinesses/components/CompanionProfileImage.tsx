@@ -96,7 +96,7 @@ const createStyles = (theme: any) =>
     },
     avatarInitial: {
       ...theme.typography.h4,
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
     },
     profileName: {
       ...theme.typography.h4,

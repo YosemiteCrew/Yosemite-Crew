@@ -546,7 +546,7 @@ export const createMockTheme = () => ({
   },
   colors: {
     // Matches the actual theme colors from src/theme/colors.ts
-    primary: '#247AED',
+    primary: '#257BED',
     primaryDark: '#E55A2B',
     primaryLight: '#FF8A65',
     primaryGlass: 'rgba(36, 122, 237, 0.92)',
@@ -561,7 +561,7 @@ export const createMockTheme = () => ({
     surface: '#FFFFFF',
     text: '#302F2E',
     textSecondary: '#747473',
-    textTertiary: '#247AED',
+    textTertiary: '#257BED',
     onPrimary: '#FEF8F4',
     border: '#EAEAEA',
     borderMuted: 'rgba(234, 234, 234, 0.9)',

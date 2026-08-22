@@ -269,7 +269,7 @@ const createStyles = (theme: any) =>
       textAlign: 'center',
     },
     dayNameSelected: {
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
       fontWeight: '500',
     },
     dayNameToday: {
@@ -284,12 +284,12 @@ const createStyles = (theme: any) =>
       textAlign: 'center',
     },
     dayNumberSelected: {
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
       fontWeight: '500',
     },
     dayNumberToday: {
       fontWeight: '500',
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
     },
     dayNumberDisabled: {
       color: theme.colors.textSecondary,
