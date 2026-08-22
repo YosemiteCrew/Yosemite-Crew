@@ -15,44 +15,54 @@ function ipv4ToOctets(ip: string): number[] | null {
   return octets;
 }
 
+/**
+ * Every IPv4 range this guard refuses, as a table.
+ *
+ * Written as predicates rather than a chain of ifs so adding a range does not
+ * push the checking function past the cognitive-complexity bar, and so the list
+ * reads as the policy it is.
+ */
+const BLOCKED_IPV4_RANGES: ReadonlyArray<
+  (a: number, b: number, c: number) => boolean
+> = [
+  // 0.0.0.0/8 "this network"
+  (a) => a === 0,
+  // 127.0.0.0/8 loopback
+  (a) => a === 127,
+  // 10.0.0.0/8 private
+  (a) => a === 10,
+  // 169.254.0.0/16 link-local (incl. 169.254.169.254 metadata)
+  (a, b) => a === 169 && b === 254,
+  // 172.16.0.0/12 private
+  (a, b) => a === 172 && b >= 16 && b <= 31,
+  // 192.168.0.0/16 private
+  (a, b) => a === 192 && b === 168,
+  // >= 224.0.0.0 multicast / reserved
+  (a) => a >= 224,
+
+  // Not RFC 1918, but equally non-global. Several route internally in real
+  // deployments, so an actor or inbox hostname resolving there would reach
+  // infrastructure this guard promises to exclude.
+  //
+  // 100.64.0.0/10 carrier-grade NAT (RFC 6598)
+  (a, b) => a === 100 && b >= 64 && b <= 127,
+  // 192.0.0.0/24 IETF protocol assignments (RFC 6890)
+  (a, b, c) => a === 192 && b === 0 && c === 0,
+  // 192.0.2.0/24 TEST-NET-1
+  (a, b, c) => a === 192 && b === 0 && c === 2,
+  // 198.18.0.0/15 benchmarking (RFC 2544)
+  (a, b) => a === 198 && (b === 18 || b === 19),
+  // 198.51.100.0/24 TEST-NET-2
+  (a, b, c) => a === 198 && b === 51 && c === 100,
+  // 203.0.113.0/24 TEST-NET-3
+  (a, b, c) => a === 203 && b === 0 && c === 113,
+];
+
 function isBlockedIpv4(ip: string): boolean {
   const octets = ipv4ToOctets(ip);
   if (!octets) return false;
-  const [a, b] = octets;
-
-  // 0.0.0.0 and 0.0.0.0/8 ("this network")
-  if (a === 0) return true;
-  // 127.0.0.0/8 loopback
-  if (a === 127) return true;
-  // 10.0.0.0/8 private
-  if (a === 10) return true;
-  // 169.254.0.0/16 link-local (incl. 169.254.169.254 metadata)
-  if (a === 169 && b === 254) return true;
-  // 172.16.0.0/12 private
-  if (a === 172 && b >= 16 && b <= 31) return true;
-  // 192.168.0.0/16 private
-  if (a === 192 && b === 168) return true;
-  // >= 224.0.0.0 multicast / reserved
-  if (a >= 224) return true;
-
-  // The ranges below are not RFC 1918 but are equally non-global. Several route
-  // internally in real deployments, so an actor or inbox hostname resolving
-  // there would reach infrastructure this guard promises to exclude.
-  //
-  // 100.64.0.0/10 carrier-grade NAT (RFC 6598)
-  if (a === 100 && b >= 64 && b <= 127) return true;
-  // 192.0.0.0/24 IETF protocol assignments (RFC 6890)
-  if (a === 192 && b === 0 && octets[2] === 0) return true;
-  // 192.0.2.0/24 TEST-NET-1
-  if (a === 192 && b === 0 && octets[2] === 2) return true;
-  // 198.18.0.0/15 benchmarking (RFC 2544)
-  if (a === 198 && (b === 18 || b === 19)) return true;
-  // 198.51.100.0/24 TEST-NET-2
-  if (a === 198 && b === 51 && octets[2] === 100) return true;
-  // 203.0.113.0/24 TEST-NET-3
-  if (a === 203 && b === 0 && octets[2] === 113) return true;
-
-  return false;
+  const [a, b, c] = octets;
+  return BLOCKED_IPV4_RANGES.some((inRange) => inRange(a, b, c));
 }
 
 function isBlockedIpv4Bits(hi: number, lo: number): boolean {

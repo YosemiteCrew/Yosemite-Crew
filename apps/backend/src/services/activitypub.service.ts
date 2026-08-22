@@ -62,10 +62,14 @@ export async function getOrCreateActor(orgId: string): Promise<APActor> {
   // (which normalises to nothing) collided, and actor creation for the second
   // clinic failed on the unique constraint. A stable slice of the organisation
   // id disambiguates, and "clinic" covers an empty normalisation.
+  // Split/filter/join rather than a trim regex: `/^_+|_+$/` is super-linear on
+  // a long run of separators, and this says the same thing without backtracking.
   const base = org.name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
+    .split("_")
+    .filter(Boolean)
+    .join("_");
   const username = `${base || "clinic"}_${orgId.replaceAll("-", "").slice(0, 8)}`;
   const uri = actorUri(orgId);
 

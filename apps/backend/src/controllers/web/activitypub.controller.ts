@@ -187,11 +187,10 @@ export const ActivityPubController = {
       // organisation. Without this fallback the shared inbox queued nothing and
       // answered 202, and approved followers delivered to via a shared inbox
       // never saw emergency announcements.
-      const orgIds = addressedOrgIds.length
-        ? addressedOrgIds
-        : parsed.actor
-          ? await listFollowerOrgIdsFor(parsed.actor)
-          : [];
+      let orgIds = addressedOrgIds;
+      if (orgIds.length === 0 && parsed.actor) {
+        orgIds = await listFollowerOrgIdsFor(parsed.actor);
+      }
 
       const actors = await Promise.allSettled(
         orgIds.map((orgId) =>
