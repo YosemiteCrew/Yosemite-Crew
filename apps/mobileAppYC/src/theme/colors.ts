@@ -20,6 +20,11 @@ const palette = {
   navActive: ['#1657C9', '#8FB6F5'],
   navActiveBg: ['rgba(37, 123, 237, 0.11)', 'rgba(143, 182, 245, 0.13)'],
   pink: ['#FF90D4', '#FF90D4'],
+  // Solid pink for UI components on the light ground. The brand pink measures
+  // only 1.86:1 against `screen` (#F7F3EC), well under the 3:1 WCAG 1.4.11 bar
+  // for a state indicator, so a light surface needs this deepened rose (3.47:1)
+  // while the espresso theme can use the true brand pink (7.13:1) as-is.
+  pinkDeep: ['#DB4A9B', '#FF90D4'],
   pinkGlow: ['rgba(244, 121, 190, 0.12)', 'rgba(244, 121, 190, 0.22)'],
   cyan: ['#5CE1E6', '#5CE1E6'],
   cyanText: ['#38CCD8', '#5CE1E6'],
