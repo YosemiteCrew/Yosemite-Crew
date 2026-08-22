@@ -434,7 +434,13 @@ export const FormController = {
         }
       }
 
+      // Materialising linked-template assignments is a `forms:edit:any` action,
+      // so the listing only does it for callers who hold that permission.
+      const canManageForms =
+        (req as OrgRequest).userPermissions?.includes("forms:edit:any") ??
+        false;
       const result = await FormService.getFormsForAppointment({
+        canManageForms,
         appointmentId,
         serviceId,
         species,

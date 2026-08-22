@@ -1449,6 +1449,7 @@ const buildContext = async (
 const loadForms = async (
   organisationId: string,
   appointmentId: string | undefined,
+  canManageForms: boolean,
 ) => {
   if (!appointmentId) {
     return {
@@ -1457,9 +1458,13 @@ const loadForms = async (
     };
   }
 
+  // The bootstrap is a READ, reached with `appointments:view:*` and delegated to
+  // by the documents route on `document:view:any`. Creating assignments is a
+  // `forms:edit:any` action, so only a caller holding that materialises them.
   await FormAssignmentService.syncLinkedTemplateAssignmentsForAppointment({
     organisationId,
     appointmentId,
+    canManageForms,
   });
 
   const items = await FormAssignmentService.listAppointmentFormSummaries(
@@ -2034,7 +2039,12 @@ const buildBootstrapAggregate = async (
     admission,
     pendingDispenseRequests,
   ] = await Promise.all([
-    loadForms(input.organisationId, appointmentId),
+    loadForms(
+      input.organisationId,
+      appointmentId,
+      options?.systemAccess === true ||
+        (permissions?.includes("forms:edit:any") ?? false),
+    ),
     loadClinicalArtifacts({
       organisationId: input.organisationId,
       appointmentId,

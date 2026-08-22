@@ -813,6 +813,9 @@ describe("FormController", () => {
       await FormController.getFormsForAppointment(req, res);
 
       expect(FormService.getFormsForAppointment).toHaveBeenCalledWith({
+        // Read-only listing: materialising linked-template
+        // assignments needs `forms:edit:any`.
+        canManageForms: false,
         appointmentId: "a1",
         serviceId: "s1",
         species: "CAT",
@@ -842,6 +845,9 @@ describe("FormController", () => {
       await FormController.getFormsForAppointment(req, res);
 
       expect(FormService.getFormsForAppointment).toHaveBeenCalledWith({
+        // Read-only listing: materialising linked-template
+        // assignments needs `forms:edit:any`.
+        canManageForms: false,
         appointmentId: "a1",
         serviceId: undefined,
         species: undefined,
@@ -863,6 +869,9 @@ describe("FormController", () => {
       await FormController.getFormsForAppointment(req, res);
 
       expect(FormService.getFormsForAppointment).toHaveBeenCalledWith({
+        // Read-only listing: materialising linked-template
+        // assignments needs `forms:edit:any`.
+        canManageForms: false,
         appointmentId: "a1",
         serviceId: undefined,
         species: undefined,

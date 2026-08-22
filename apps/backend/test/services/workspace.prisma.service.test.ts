@@ -534,11 +534,15 @@ describe("WorkspaceService", () => {
       "org-1",
       "appt-1",
     );
+    // The bootstrap is a READ. Materialising linked-template assignments is a
+    // `forms:edit:any` action, so a viewer without it syncs nothing - opening an
+    // appointment used to persist client-visible consent requests on their behalf.
     expect(
       mockedFormService.syncLinkedTemplateAssignmentsForAppointment,
     ).toHaveBeenCalledWith({
       organisationId: "org-1",
       appointmentId: "appt-1",
+      canManageForms: false,
     });
     // #1910: the rendered-document query must include an INVOICE sourceId condition built from the
     // appointment's invoice ids, so the invoice PDF is surfaced in All Documents.
@@ -1551,6 +1555,7 @@ describe("WorkspaceService", () => {
     ).toHaveBeenCalledWith({
       organisationId: "org-2",
       appointmentId: "appt-enc-1",
+      canManageForms: false,
     });
   });
 

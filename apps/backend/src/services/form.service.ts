@@ -760,10 +760,14 @@ const buildTemplateAppointmentFormItems = async (params: {
   appointmentId: string;
   organisationId: string;
   isPMS?: boolean;
+  canManageForms?: boolean;
 }) => {
+  // Only a caller who may EDIT forms materialises linked-template assignments;
+  // for everyone else this listing is read-only.
   await FormAssignmentService.syncLinkedTemplateAssignmentsForAppointment({
     organisationId: params.organisationId,
     appointmentId: params.appointmentId,
+    canManageForms: params.canManageForms ?? false,
   });
 
   const assignments = await FormAssignmentService.listForAppointment(
@@ -1668,6 +1672,7 @@ export const FormService = {
     isPMS?: boolean;
     viewerParentId?: string;
     requesterOrgId?: string;
+    canManageForms?: boolean;
   }) {
     const appointmentLookup = await loadAppointmentForFormsRecord(
       params.appointmentId,
@@ -1716,6 +1721,7 @@ export const FormService = {
       appointmentId,
       organisationId: appointment.organisationId,
       isPMS: params.isPMS,
+      canManageForms: params.canManageForms,
     });
 
     if (templateBackedForms) {

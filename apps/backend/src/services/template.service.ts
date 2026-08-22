@@ -1209,16 +1209,41 @@ export const TemplateService = {
     return items.map(withCatalogItemIds);
   },
 
+  /**
+   * The shared YC library.
+   *
+   * `allowedKinds` is the caller's permission expressed as data. The library
+   * mixes form-family and task-family templates and its route admits either
+   * view permission, so the reader has to be narrowed to what they may see; an
+   * explicit `kind` filter can only narrow further, never widen.
+   */
   async listLibrary(filters?: {
     kind?: TemplateKind | TemplateContractKind;
     status?: TemplateStatus;
     scope?: TemplateScope;
     search?: string;
+    allowedKinds?: readonly TemplateKind[];
   }) {
+    const requestedKind = filters?.kind
+      ? toStorageTemplateKind(filters.kind)
+      : undefined;
+    const allowedKinds = filters?.allowedKinds;
+
+    let kindFilter: Prisma.TemplateWhereInput["kind"];
+    if (requestedKind && allowedKinds) {
+      kindFilter = allowedKinds.includes(requestedKind)
+        ? requestedKind
+        : { in: [] };
+    } else if (requestedKind) {
+      kindFilter = requestedKind;
+    } else if (allowedKinds) {
+      kindFilter = { in: [...allowedKinds] };
+    }
+
     const items = await prisma.template.findMany({
       where: {
         ownership: "YC_LIBRARY",
-        kind: filters?.kind ? toStorageTemplateKind(filters.kind) : undefined,
+        kind: kindFilter,
         status: filters?.status,
         scope: filters?.scope,
         ...buildTemplateSearchFilter(filters?.search),
