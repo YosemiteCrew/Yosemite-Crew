@@ -26,6 +26,10 @@ const ORG_STORE_STORAGE_KEY = 'org-store';
 // inherits the previous user's "already passed" fast path.
 const ORG_GUARD_PASSED_KEY_PREFIX = 'yc_org_guard_passed:';
 const DEFAULT_LANDING_APPLIED_KEY_PREFIX = 'yc_default_landing_applied:';
+// Universal-search recents hold record titles (companion names, appointment
+// concerns, invoice ids), so they are tenant data and must not outlive the
+// session on a shared browser profile.
+const SEARCH_RECENTS_KEY_PREFIX = 'yc_universal_search_recents:';
 
 export const clearSessionScopedStores = () => {
   useOrgStore.getState().clearOrgs();
@@ -52,4 +56,5 @@ export const clearSessionScopedStores = () => {
   removeStorageItem('local', ORG_STORE_STORAGE_KEY);
   removeStorageItemsByPrefix('session', ORG_GUARD_PASSED_KEY_PREFIX);
   removeStorageItemsByPrefix('session', DEFAULT_LANDING_APPLIED_KEY_PREFIX);
+  removeStorageItemsByPrefix('local', SEARCH_RECENTS_KEY_PREFIX);
 };

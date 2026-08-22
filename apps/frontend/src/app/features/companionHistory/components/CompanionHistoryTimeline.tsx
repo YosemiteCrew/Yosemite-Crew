@@ -1418,6 +1418,11 @@ const useCompanionHistoryTimelineView = ({
     setQuery('');
     setExpandedId(null);
     setStatusOverrides({});
+    // The open record drawer belongs to the companion/organisation it was
+    // opened from. Left behind, it keeps showing that record's title, summary,
+    // lab values and linked appointment in the new context - and its Download /
+    // Open actions still target the old record.
+    setSelectedEntry(null);
   }
 
   // Phone action-bar upload trigger: when the signal advances, jump to Medical

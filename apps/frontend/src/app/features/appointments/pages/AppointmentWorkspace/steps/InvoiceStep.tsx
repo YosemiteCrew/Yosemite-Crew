@@ -183,6 +183,7 @@ const runManualCollection = async ({
   encounter,
   financeCurrency,
   method,
+  dueCents,
   persistCurrentInvoice,
   reloadBilling,
   recordInvoicePayment,
@@ -196,13 +197,18 @@ const runManualCollection = async ({
   | 'recordInvoicePayment'
 > & {
   method: PaymentMethod;
+  /** What the Collect button showed - the total less any deposit being applied. */
+  dueCents: number;
 }): Promise<void> => {
   const invoice = await persistCurrentInvoice({ finalize: true });
   if (invoice?.id) {
     await recordManualInvoicePayment(invoice.id, {
       provider: 'MANUAL',
       settlementChannel: 'CASH',
-      amount: centsToMajor(computeInvoiceTotalCents(encounter)),
+      // The amount the button offered to collect, not the invoice total. When a
+      // deposit is being applied the two differ, and recording the total meant
+      // staff collected one figure while the payment record claimed another.
+      amount: centsToMajor(dueCents),
       currency: financeCurrency,
       receivedAt: new Date().toISOString(),
     });
@@ -1170,6 +1176,7 @@ const useInvoiceStepContent = ({
           encounter,
           financeCurrency,
           method,
+          dueCents,
           persistCurrentInvoice,
           reloadBilling,
           recordInvoicePayment,

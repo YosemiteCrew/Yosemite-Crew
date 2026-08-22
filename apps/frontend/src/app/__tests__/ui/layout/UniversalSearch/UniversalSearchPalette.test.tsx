@@ -233,9 +233,27 @@ describe('UniversalSearchPalette', () => {
 
     // Selecting the recent row again re-records it rather than duplicating it.
     fireEvent.click(recentRow as HTMLButtonElement);
+    // Namespaced per organisation: these titles are record names, so another
+    // organisation's palette must never read them back.
     expect(
-      JSON.parse(globalThis.window.localStorage.getItem('yc_universal_search_recents') ?? '[]')
+      JSON.parse(
+        globalThis.window.localStorage.getItem('yc_universal_search_recents:org-1') ?? '[]'
+      )
     ).toEqual([{ title: 'Give meds', href: '/tasks?taskId=task-1' }]);
+
+    globalThis.window.localStorage.clear();
+  });
+
+  it("does not show another organisation's recents", async () => {
+    globalThis.window.localStorage.setItem(
+      'yc_universal_search_recents:org-other',
+      JSON.stringify([{ title: 'Другой pet', href: '/companions?companionId=c-9' }])
+    );
+
+    render(<UniversalSearchPalette />);
+
+    expect(screen.queryByText('Recent')).not.toBeInTheDocument();
+    expect(screen.queryByText('Другой pet')).not.toBeInTheDocument();
 
     globalThis.window.localStorage.clear();
   });

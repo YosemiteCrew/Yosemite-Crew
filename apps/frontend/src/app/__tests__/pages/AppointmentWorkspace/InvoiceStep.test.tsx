@@ -1376,6 +1376,31 @@ describe('<InvoiceStep /> component', () => {
     expect(screen.getByRole('button', { name: 'Collect $6' })).toBeInTheDocument();
   });
 
+  it('records the amount the Collect button offered, not the invoice total', async () => {
+    // The button showed 6 while the payment record claimed 10, so applying a
+    // deposit overstated what had been collected.
+    invoiceServiceMock.createFinanceInvoice.mockResolvedValue({ id: 'inv-due' });
+    renderInvoiceStep({
+      invoiceLineItems: [invoiceLine('Consultation')],
+      withdrawDeposit: true,
+      depositCents: 400,
+    });
+    await screen.findByTestId('total-bill-container');
+
+    // Cash is the manual path, which is where the recorded amount comes from.
+    await userEvent.click(screen.getByRole('button', { name: 'Cash' }));
+    await act(async () => {
+      await userEvent.click(screen.getByRole('button', { name: 'Collect $6' }));
+    });
+
+    await waitFor(() =>
+      expect(invoiceServiceMock.recordManualInvoicePayment).toHaveBeenCalledWith(
+        'inv-due',
+        expect.objectContaining({ amount: 6 })
+      )
+    );
+  });
+
   describe('invoice download and share', () => {
     const settledInvoice = (overrides: Partial<PastInvoice> = {}): PastInvoice =>
       ({

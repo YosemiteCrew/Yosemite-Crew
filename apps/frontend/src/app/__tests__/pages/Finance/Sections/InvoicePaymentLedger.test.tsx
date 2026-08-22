@@ -47,7 +47,7 @@ describe('InvoicePaymentLedger', () => {
   it('renders a payment row with caption, amount, receipt and receipt-sent strip', () => {
     render(
       <InvoicePaymentLedger
-        invoice={makeInvoice({ stripeReceiptUrl: 'https://stripe.test/r/1' })}
+        invoice={makeInvoice({ stripeReceiptUrl: 'https://pay.stripe.com/receipts/r_1' })}
         currency="USD"
         payerName="Lena Hartmann"
         payerEmail="lena@example.com"
@@ -61,7 +61,7 @@ describe('InvoicePaymentLedger', () => {
     expect(screen.getByText('$86')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Receipt' })).toHaveAttribute(
       'href',
-      'https://stripe.test/r/1'
+      'https://pay.stripe.com/receipts/r_1'
     );
     expect(screen.getByText('Receipt sent to lena@example.com')).toBeInTheDocument();
   });
@@ -128,7 +128,7 @@ describe('InvoicePaymentLedger', () => {
   it('has no axe accessibility violations', async () => {
     const { container } = render(
       <InvoicePaymentLedger
-        invoice={makeInvoice({ stripeReceiptUrl: 'https://stripe.test/r/1' })}
+        invoice={makeInvoice({ stripeReceiptUrl: 'https://pay.stripe.com/receipts/r_1' })}
         currency="USD"
         payerName="Lena Hartmann"
         payerEmail="lena@example.com"
@@ -136,5 +136,18 @@ describe('InvoicePaymentLedger', () => {
     );
     const results = await axe(container);
     expect(results).toHaveNoViolations();
+  });
+
+  it('drops a receipt link that is not a Stripe https URL', () => {
+    // React does not sanitize href protocols, so an invoice record carrying a
+    // javascript: URL would execute on click.
+    render(
+      <InvoicePaymentLedger
+        invoice={makeInvoice({ stripeReceiptUrl: 'javascript:alert(1)' })}
+        currency="USD"
+      />
+    );
+
+    expect(screen.queryByRole('link', { name: 'Receipt' })).not.toBeInTheDocument();
   });
 });
