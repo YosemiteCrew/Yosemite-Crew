@@ -154,6 +154,7 @@ jest.mock("src/config/prisma", () => ({
     },
     organization: { findUnique: jest.fn(), findMany: jest.fn() },
     user: { findMany: jest.fn() },
+    userOrganization: { findMany: jest.fn() },
     parent: { findUnique: jest.fn() },
     userProfile: { findFirst: jest.fn() },
     organizationUsageCounter: {
@@ -194,6 +195,14 @@ const createPrismaAppointment = (overrides: Partial<any> = {}) => ({
 describe("AppointmentService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Assignment emails only reach staff who hold a membership in the
+    // appointment's own organisation; the lead/support ids come off the payload.
+    (prisma.userOrganization.findMany as jest.Mock).mockImplementation(
+      async (args: { where?: { practitionerReference?: { in?: string[] } } }) =>
+        (args?.where?.practitionerReference?.in ?? []).map(
+          (practitionerReference: string) => ({ practitionerReference }),
+        ),
+    );
     (CatalogService.resolveSelection as jest.Mock).mockResolvedValue(null);
     (prisma.$transaction as jest.Mock).mockImplementation(
       async (cb: (tx: typeof prisma) => Promise<unknown>) => cb(prisma),
@@ -1751,6 +1760,14 @@ describe("AppointmentService conditional paths", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // Assignment emails only reach staff who hold a membership in the
+    // appointment's own organisation; the lead/support ids come off the payload.
+    (prisma.userOrganization.findMany as jest.Mock).mockImplementation(
+      async (args: { where?: { practitionerReference?: { in?: string[] } } }) =>
+        (args?.where?.practitionerReference?.in ?? []).map(
+          (practitionerReference: string) => ({ practitionerReference }),
+        ),
+    );
 
     (prisma.$transaction as jest.Mock).mockImplementation(
       async (cb: (tx: typeof prisma) => Promise<unknown>) => cb(prisma),

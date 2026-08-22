@@ -7,6 +7,7 @@ import {
 import { isTaskCategory } from "@yosemite-crew/types";
 import { prisma } from "src/config/prisma";
 import { assertPatientOrgMembership } from "./shared/patient-org-membership";
+import { filterUserIdsInOrganisation } from "./shared/organisation-membership";
 import { AuditTrailService } from "./audit-trail.service";
 import type { TaskWorkflowSeed } from "./task-workflow-materializer";
 import { sendEmailTemplate } from "../utils/email";
@@ -146,6 +147,7 @@ const buildDisplayName = (
 
 type TaskAssignmentEmailTask = {
   audience: TaskAudience;
+  organisationId?: string | null;
   assignedTo?: string | null;
   assignedGroupId?: string | null;
   assignedBy?: string | null;
@@ -162,6 +164,20 @@ const sendTaskAssignmentEmail = async (task: TaskAssignmentEmailTask) => {
   if (!task.assignedTo) return;
   logger.info("Sending task assigned email");
   try {
+    // `assignedTo` comes off the task payload, so the recipient must be proved
+    // to work at the task's own organisation before it is emailed the task name,
+    // notes and companion name.
+    const members = await filterUserIdsInOrganisation(
+      [task.assignedTo],
+      task.organisationId,
+    );
+    if (!members.has(task.assignedTo)) {
+      logger.warn(
+        "Skipping task assignment email: assignee is not a member of the task organisation",
+      );
+      return;
+    }
+
     const [assignee, assigner, companion] = await Promise.all([
       prisma.user.findFirst({
         where: { userId: task.assignedTo },

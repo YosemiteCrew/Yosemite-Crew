@@ -1,4 +1,5 @@
 import { prisma } from "src/config/prisma";
+import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 import { escapeHtml } from "src/utils/email-templates";
 import { AuditTrailService } from "./audit-trail.service";
 import { sendEmail } from "src/utils/email";
@@ -133,6 +134,14 @@ export const ReferralLetterService = {
       currentMedications,
       additionalNotes,
     } = params;
+
+    // `patientId` arrives in the request body while RBAC only authorised the
+    // organisation, so a caller could file a referral letter against another
+    // tenant's companion. Same uniform 404 as elsewhere so this cannot be used
+    // to probe which companion ids exist.
+    await assertPatientOrgMembership(patientId, organisationId, () => {
+      throw new ReferralLetterError("Companion not found.", 404);
+    });
 
     const letter = await prisma.referralLetter.create({
       data: {

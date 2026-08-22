@@ -47,6 +47,9 @@ jest.mock("src/config/prisma", () => ({
     patientOrganisation: {
       findFirst: jest.fn(),
     },
+    userOrganization: {
+      findMany: jest.fn(),
+    },
   },
 }));
 
@@ -97,6 +100,9 @@ const mockedPrisma = prisma as unknown as {
   patientOrganisation: {
     findFirst: jest.Mock;
   };
+  userOrganization: {
+    findMany: jest.Mock;
+  };
 };
 const mockedAuditTrailService = AuditTrailService as unknown as {
   recordSafely: jest.Mock;
@@ -119,6 +125,17 @@ describe("TaskService", () => {
     mockedPrisma.patientOrganisation.findFirst.mockResolvedValue({
       id: "patient-org-link",
     });
+    // Assignment emails only reach staff who work at the task's organisation.
+    mockedPrisma.userOrganization.findMany.mockImplementation(
+      async (args: {
+        where?: { practitionerReference?: { in?: string[] } };
+      }) => {
+        const wanted = args?.where?.practitionerReference?.in ?? [];
+        return wanted.map((practitionerReference: string) => ({
+          practitionerReference,
+        }));
+      },
+    );
   });
 
   // `patientId` arrives in the request body alongside `organisationId`, and RBAC

@@ -1,4 +1,5 @@
 import { prisma } from "src/config/prisma";
+import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 import { AuditTrailService } from "./audit-trail.service";
 import type { Prisma } from "@prisma/client";
 
@@ -191,6 +192,14 @@ export const InsuranceClaimService = {
       notes,
       createdBy,
     } = params;
+
+    // `patientId` arrives in the request body while RBAC only authorised the
+    // organisation, so a caller could file a insurance claim against another
+    // tenant's companion. Same uniform 404 as elsewhere so this cannot be used
+    // to probe which companion ids exist.
+    await assertPatientOrgMembership(patientId, organisationId, () => {
+      throw new InsuranceClaimError("Companion not found.", 404);
+    });
 
     const claim = await prisma.insuranceClaim.create({
       data: {
