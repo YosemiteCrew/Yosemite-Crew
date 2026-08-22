@@ -239,7 +239,11 @@
     "emptyNoCompanionTitle": "Add a companion to get started",
     "emptyNoCompanionDescription": "Tasks like doses, grooming and feeding plans are tied to a companion. Add one first to start creating tasks.",
     "emptyNoCompanionAction": "Add a companion",
-    "addTaskAccessibilityLabel": "Add task"
+    "addTaskAccessibilityLabel": "Add task",
+    "emptyCategoryTitle": "No {{category}} tasks yet",
+    "emptyCategoryDescription": "Add one to keep this part of their care on track.",
+    "addTask": "Add task",
+    "addCompanion": "Add a companion"
   },
   "observationalTool": {
     "headerTitleFallback": "Observational Tool",
@@ -345,5 +349,15 @@
     "dateLabel": "Date",
     "clinicLabel": "Clinic",
     "pendingReview": "Pending review"
+  },
+  "companion": {
+    "breedLoadFailed": "Breeds could not be loaded. Check your connection and try again.",
+    "breedNoneAvailable": "No breeds available"
+  },
+  "appointments": {
+    "chatLockedTitle": "Chat not open yet",
+    "chatLockedBody": "Chat opens a day before your appointment.\n\nAppointment: {{appointmentTime}}\nOpens in: {{hours}}h {{minutes}}m",
+    "chatUnavailableTitle": "Chat closed",
+    "chatUnavailableBody": "This appointment has ended and chat is no longer available."
   }
 }

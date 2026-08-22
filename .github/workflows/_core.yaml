@@ -176,6 +176,13 @@ jobs:
           restore-keys: |
             next-build-${{ runner.os }}-
 
+      # auto-install-peers makes pnpm resolve peers quietly, and an explicit
+      # pin in a workspace overrides the peer range with only a warning. That
+      # combination shipped mobile 1.6.0 with react 19.1.0 against a renderer
+      # built for 19.1.4, and every Release build died on launch.
+      - name: Check peer dependencies
+        run: node scripts/ci/check-peer-deps.mjs
+
       # The database package's build compiles against the generated client, so
       # this has to precede the package build rather than sit with the app jobs.
       - name: Generate Prisma client

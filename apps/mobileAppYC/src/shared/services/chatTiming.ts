@@ -50,7 +50,10 @@ export const formatAppointmentTime = (appointmentTime: string): string => {
   const date = new Date(isoTime);
 
   if (Number.isNaN(date.getTime())) {
-    console.warn('[ChatTiming] Invalid appointment time for formatting:', appointmentTime);
+    console.warn(
+      '[ChatTiming] Invalid appointment time for formatting:',
+      appointmentTime,
+    );
     return appointmentTime;
   }
 
@@ -82,7 +85,7 @@ export const formatAppointmentTime = (appointmentTime: string): string => {
 export const getTimeUntilChatActivation = (
   appointmentTime: string,
   activationMinutes: number = 5,
-): {minutes: number; seconds: number} | null => {
+): {hours: number; minutes: number; seconds: number} | null => {
   const now = new Date();
 
   const isoTime = appointmentTime.endsWith('Z')
@@ -92,7 +95,10 @@ export const getTimeUntilChatActivation = (
   const appointment = new Date(isoTime);
 
   if (Number.isNaN(appointment.getTime())) {
-    console.warn('[ChatTiming] Invalid appointment time for countdown:', appointmentTime);
+    console.warn(
+      '[ChatTiming] Invalid appointment time for countdown:',
+      appointmentTime,
+    );
     return null;
   }
 
@@ -105,8 +111,11 @@ export const getTimeUntilChatActivation = (
   }
 
   const diffMs = activationTime.getTime() - now.getTime();
-  const minutes = Math.floor(diffMs / 60000);
+  // The activation window is a day wide, so a flat minute count reads as
+  // "unlocks in 1439m". Split the hours out and keep minutes as the remainder.
+  const hours = Math.floor(diffMs / 3600000);
+  const minutes = Math.floor((diffMs % 3600000) / 60000);
   const seconds = Math.floor((diffMs % 60000) / 1000);
 
-  return {minutes, seconds};
+  return {hours, minutes, seconds};
 };

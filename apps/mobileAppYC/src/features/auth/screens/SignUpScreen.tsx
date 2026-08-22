@@ -17,14 +17,23 @@ const socialButtons: {
   provider: SocialProvider;
   label: string;
   icon: number;
+  tint?: string;
 }[] = [
   {provider: 'google', label: 'Sign up with Google', icon: Images.googleIcon},
   {
     provider: 'facebook',
     label: 'Sign up with Facebook',
     icon: Images.facebookIcon,
+    // White glyph on a cream button measured ~1.06:1. Facebook permits its
+    // brand blue on a light ground; Google's mark is multicolour and untinted.
+    tint: '#1877F2',
   },
-  {provider: 'apple', label: 'Sign up with Apple', icon: Images.appleIcon},
+  {
+    provider: 'apple',
+    label: 'Sign up with Apple',
+    icon: Images.appleIcon,
+    tint: '#000000',
+  },
 ];
 
 export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
@@ -111,7 +120,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
             <View style={styles.dividerLine} />
           </View>
 
-          {socialButtons.map(({provider, label, icon}) => (
+          {socialButtons.map(({provider, label, icon, tint}) => (
             <PressableOpacity
               key={provider}
               onPress={() => attemptSocialAuth(provider)}
@@ -122,7 +131,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
               accessibilityState={{disabled: isSocialLoading}}>
               <Image
                 source={icon}
-                style={styles.buttonIcon}
+                style={[styles.buttonIcon, tint ? {tintColor: tint} : null]}
                 resizeMode="contain"
               />
               <Text style={styles.socialButtonText}>

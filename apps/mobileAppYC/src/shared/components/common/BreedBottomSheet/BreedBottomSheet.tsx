@@ -4,6 +4,8 @@ import {
   GenericSelectBottomSheet,
   type SelectItem,
 } from '../GenericSelectBottomSheet/GenericSelectBottomSheet';
+import {useTranslation} from 'react-i18next';
+
 import type {Breed} from '@/features/companion/types';
 
 export interface BreedBottomSheetRef {
@@ -15,14 +17,18 @@ interface BreedBottomSheetProps {
   breeds: Breed[];
   selectedBreed: Breed | null;
   onSave: (breed: Breed | null) => void;
+  /** The lookup failed rather than returning an empty list. */
+  loadFailed?: boolean;
 }
 
 export const BreedBottomSheet = ({
   breeds,
   selectedBreed,
   onSave,
+  loadFailed = false,
   ref,
 }: BreedBottomSheetProps & {ref?: React.Ref<BreedBottomSheetRef>}) => {
+  const {t} = useTranslation();
   const bottomSheetRef = useRef<any>(null);
 
   const breedItems: SelectItem[] = useMemo(
@@ -67,7 +73,11 @@ export const BreedBottomSheet = ({
       selectedItem={selectedItem}
       onSave={handleSave}
       searchPlaceholder="Search from 200+ breeds"
-      emptyMessage="No breeds available"
+      emptyMessage={
+        loadFailed
+          ? t('companion.breedLoadFailed')
+          : t('companion.breedNoneAvailable')
+      }
       mode="select"
       maxListHeight={600}
       snapPoints={['90%', '95%']}

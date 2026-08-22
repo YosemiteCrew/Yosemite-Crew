@@ -150,6 +150,21 @@ updates:
       # unnoticed on 2026-08-09). Unfreeze alongside @babel/core.
       - dependency-name: '@babel/runtime'
         update-types: ['version-update:semver-major']
+      # @babel/preset-env 8 is blocked by the same Babel-8-too-early constraint
+      # and is the one that actually slipped through. The two entries above name
+      # @babel/core and @babel/runtime, so preset-env was free to move: it went
+      # to ^8.0.2 in a bulk bump on 2026-07-15 and sat in apps/mobileAppYC until
+      # #2379 pulled it back to ^7.29.6 on 2026-08-22. The constraint is "nothing
+      # from Babel 8 while the app is on React Native 0.81", not "these two
+      # packages", so guard the family rather than the package that broke first.
+      # Unfreeze alongside @babel/core.
+      #
+      # Not listed here: @babel/plugin-transform-modules-systemjs. It is a
+      # pnpm.overrides entry rather than a declared dependency, and dependabot
+      # does not raise updates for overridden packages, so an ignore for it would
+      # never match anything.
+      - dependency-name: '@babel/preset-env'
+        update-types: ['version-update:semver-major']
       # eslint 10 is blocked in two workspaces at once (#2180), so the repo
       # stays on 9 until both clear:
       #   frontend - eslint-config-next 15.x loads @rushstack/eslint-patch,

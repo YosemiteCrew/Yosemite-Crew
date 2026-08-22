@@ -1,4 +1,8 @@
 import React from 'react';
+
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({t: (key: string) => key}),
+}));
 import {render, fireEvent} from '@testing-library/react-native';
 import {
   BreedBottomSheet,
@@ -24,25 +28,27 @@ jest.mock(
     const {View: RNView} = jest.requireActual('react-native');
 
     return {
-      GenericSelectBottomSheet: ReactActual.forwardRef((props: any, ref: any) => {
-        // Expose mock methods for useImperativeHandle
-        ReactActual.useImperativeHandle(ref, () => ({
-          open: mockOpen,
-          close: mockClose,
-        }));
+      GenericSelectBottomSheet: ReactActual.forwardRef(
+        (props: any, ref: any) => {
+          // Expose mock methods for useImperativeHandle
+          ReactActual.useImperativeHandle(ref, () => ({
+            open: mockOpen,
+            close: mockClose,
+          }));
 
-        // Call our spy function with the received props
-        mockGenericSelectBottomSheet(props);
+          // Call our spy function with the received props
+          mockGenericSelectBottomSheet(props);
 
-        // Render a placeholder we can interact with
-        return (
-          <RNView
-            testID="mock-generic-bottom-sheet"
-            // Helper to simulate the onSave prop being called
-            save={(item: any) => props.onSave(item)}
-          />
-        );
-      }),
+          // Render a placeholder we can interact with
+          return (
+            <RNView
+              testID="mock-generic-bottom-sheet"
+              // Helper to simulate the onSave prop being called
+              save={(item: any) => props.onSave(item)}
+            />
+          );
+        },
+      ),
     };
   },
 );
@@ -91,10 +97,29 @@ describe('BreedBottomSheet', () => {
       expect.objectContaining({
         title: 'Select breed',
         searchPlaceholder: 'Search from 200+ breeds',
-        emptyMessage: 'No breeds available',
+        emptyMessage: 'companion.breedNoneAvailable',
         mode: 'select',
         maxListHeight: 600,
         snapPoints: ['90%', '95%'],
+      }),
+    );
+  });
+
+  it('distinguishes a failed lookup from a species with no breeds', () => {
+    render(
+      <BreedBottomSheet
+        breeds={[]}
+        loadFailed
+        selectedBreed={null}
+        onSave={mockOnSave}
+      />,
+    );
+
+    // Breed is a required field, so an empty picker caused by a failed lookup
+    // used to block companion creation with nothing explaining why.
+    expect(mockGenericSelectBottomSheet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        emptyMessage: 'companion.breedLoadFailed',
       }),
     );
   });

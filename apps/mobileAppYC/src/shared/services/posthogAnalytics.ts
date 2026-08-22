@@ -76,6 +76,18 @@ export const setPostHogTrackingEnabled = async (enabled: boolean) => {
   await client.optOut();
 };
 
+export const capturePostHogEvent = (
+  event: string,
+  properties?: Record<string, unknown>,
+) => {
+  const client = getPostHogClient();
+  if (!client) {
+    return;
+  }
+
+  client.capture(event, properties as Parameters<typeof client.capture>[1]);
+};
+
 export const resetPostHog = () => {
   posthogClient?.reset();
 };

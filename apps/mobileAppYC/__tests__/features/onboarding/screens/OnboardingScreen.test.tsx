@@ -1,6 +1,12 @@
 import React from 'react';
 import {mockTheme} from '../setup/mockTheme';
-import {render, fireEvent, screen, act} from '@testing-library/react-native';
+import {
+  render,
+  fireEvent,
+  screen,
+  act,
+  within,
+} from '@testing-library/react-native';
 import {OnboardingScreen} from '../../../../src/features/onboarding/screens/OnboardingScreen';
 import {AccessibilityInfo, FlatList, StyleSheet} from 'react-native';
 
@@ -84,6 +90,69 @@ describe('OnboardingScreen', () => {
     render(<OnboardingScreen onComplete={onComplete} />);
     fireEvent.press(screen.getAllByText('Sign in')[0]);
     expect(onComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the last-slide top-bar spacer as an invisible layout placeholder', () => {
+    render(<OnboardingScreen onComplete={jest.fn()} />);
+    const spacerStyle = StyleSheet.flatten(
+      screen.getByTestId('onboarding-topbar-spacer').props.style,
+    );
+    // Same 40x40 footprint as the glass button but with no fill or border, so
+    // it holds the back chevron left-anchored without painting a blob.
+    expect(spacerStyle.backgroundColor).toBeUndefined();
+    expect(spacerStyle.borderWidth).toBeUndefined();
+  });
+
+  it('exposes "Sign in" as a pressable button with a hit slop that finishes onboarding', () => {
+    const onComplete = jest.fn();
+    render(<OnboardingScreen onComplete={onComplete} />);
+    const signIn = screen.getAllByLabelText('Sign in')[0];
+    expect(signIn.props.accessibilityRole).toBe('button');
+    expect(signIn.props.hitSlop).toBeDefined();
+    fireEvent.press(signIn);
+    expect(onComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it('anchors the page dots in the bottom block alongside the "Get started" CTA', () => {
+    render(<OnboardingScreen onComplete={jest.fn()} />);
+
+    // The dots now live in the fixed-height bottom block next to "Get started".
+    // Their nearest shared ancestor with that CTA is that bottom block, which -
+    // unlike the old layout where the dots hung under the variable-height top
+    // block - must NOT contain the slide's subtitle. That exclusion proves the
+    // dots moved down and stop shifting between swipes.
+    const cta = screen.getByLabelText('Get started');
+    const ctaAncestors = new Set<unknown>();
+    for (let node = cta.parent; node; node = node.parent) {
+      ctaAncestors.add(node);
+    }
+
+    // For each slide's dots, the nearest ancestor it shares with the final CTA.
+    // Only the final slide's dots share the tight bottom block; the others share
+    // just the outer list container.
+    const sharedBlocks = screen.getAllByTestId('onboarding-dots').map(dots => {
+      for (let node = dots.parent; node; node = node.parent) {
+        if (ctaAncestors.has(node)) {
+          return node;
+        }
+      }
+      return null;
+    });
+
+    const coLocated = sharedBlocks.some(block => {
+      if (!block) {
+        return false;
+      }
+      const scoped = within(block);
+      return (
+        scoped.queryByLabelText('Get started') !== null &&
+        scoped.queryByText(
+          'Real openings at your linked clinic, records that travel with you, bills settled in two taps.',
+        ) === null
+      );
+    });
+
+    expect(coLocated).toBe(true);
   });
 
   it('calls onComplete when "Get started" (last slide) is pressed', () => {

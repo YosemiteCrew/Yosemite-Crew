@@ -239,7 +239,11 @@
     "emptyNoCompanionTitle": "Añade un compañero para empezar",
     "emptyNoCompanionDescription": "Tareas como dosis, aseo y planes de alimentación están vinculadas a un compañero. Añade uno primero para empezar a crear tareas.",
     "emptyNoCompanionAction": "Añadir un compañero",
-    "addTaskAccessibilityLabel": "Añadir tarea"
+    "addTaskAccessibilityLabel": "Añadir tarea",
+    "emptyCategoryTitle": "Aun no hay tareas de {{category}}",
+    "emptyCategoryDescription": "Anade una para mantener al dia esta parte de sus cuidados.",
+    "addTask": "Anadir tarea",
+    "addCompanion": "Anadir companero"
   },
   "observationalTool": {
     "headerTitleFallback": "Herramienta de observación",
@@ -345,5 +349,15 @@
     "dateLabel": "Fecha",
     "clinicLabel": "Clínica",
     "pendingReview": "Pendiente de revisión"
+  },
+  "companion": {
+    "breedLoadFailed": "No se pudieron cargar las razas. Comprueba tu conexion e intentalo de nuevo.",
+    "breedNoneAvailable": "No hay razas disponibles"
+  },
+  "appointments": {
+    "chatLockedTitle": "El chat aun no esta abierto",
+    "chatLockedBody": "El chat se abre un dia antes de tu cita.\n\nCita: {{appointmentTime}}\nSe abre en: {{hours}} h {{minutes}} min",
+    "chatUnavailableTitle": "Chat cerrado",
+    "chatUnavailableBody": "Esta cita ha terminado y el chat ya no esta disponible."
   }
 }

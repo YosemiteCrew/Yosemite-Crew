@@ -167,6 +167,10 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
     Partial<Record<CompanionCategory, SpeciesCodeEntry>>
   >({});
   const [breedOptions, setBreedOptions] = useState<Breed[]>([]);
+  // An empty picker caused by a failed lookup used to look identical to a
+  // species that genuinely has no breeds. Breed is required, so that dead end
+  // blocked companion creation entirely with nothing explaining why.
+  const [breedLoadFailed, setBreedLoadFailed] = useState(false);
 
   // Track which bottom sheet is currently open
   const openBottomSheetRef = useRef<'breed' | 'bloodGroup' | 'country' | null>(
@@ -342,6 +346,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
     (async () => {
       if (!category) {
         setBreedOptions([]);
+        setBreedLoadFailed(false);
         setValue('speciesCode', null, {shouldValidate: false});
         setValue('breed', null, {shouldValidate: false});
         setValue('breedCode', null, {shouldValidate: false});
@@ -361,6 +366,9 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
       try {
         const tokens = await getFreshStoredTokens();
         if (!tokens?.accessToken) {
+          if (mounted) {
+            setBreedLoadFailed(true);
+          }
           return;
         }
         const entries = await fetchBreedCodeEntries(
@@ -384,8 +392,10 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
           }),
         );
         setBreedOptions(mappedBreeds);
+        setBreedLoadFailed(false);
       } catch (error) {
         setBreedOptions([]);
+        setBreedLoadFailed(true);
         console.warn('[Companion] Unable to load breed code entries', error);
       }
     })();
@@ -1200,6 +1210,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
       <BreedBottomSheet
         ref={breedSheetRef}
         breeds={breedOptions}
+        loadFailed={breedLoadFailed}
         selectedBreed={breed}
         onSave={handleBreedSave}
       />

@@ -184,7 +184,10 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
           <LiquidGlassView
             style={styles.pillGlass}
             effect="clear"
-            tintColor={theme.colors.blue}
+            // navActiveBg, not the full-strength brand blue. The label uses
+            // navActive, an ink picked for this pale wash; tinting with solid
+            // blue put dark blue on blue and measured 1.52:1.
+            tintColor={theme.colors.navActiveBg}
             colorScheme="light"
             interactive
           />
@@ -335,7 +338,9 @@ const createStyles = (theme: any) =>
       overflow: 'hidden',
     },
     barGlass: {
-      backgroundColor: 'transparent',
+      // The non-glass path backs its blur with glassSurfaceStrong; the glass
+      // path had nothing, so scrolled content stayed legible through the bar.
+      backgroundColor: theme.colors.glassSurfaceStrong,
     },
     barSolid: {
       backgroundColor: 'transparent',
@@ -386,7 +391,7 @@ const createStyles = (theme: any) =>
     label: {
       ...theme.typography.tabLabel,
       textAlign: 'center',
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
       maxWidth: '100%',
     },
     labelActive: {
@@ -395,7 +400,7 @@ const createStyles = (theme: any) =>
     },
     labelInactive: {
       ...theme.typography.tabLabel,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     iconImage: {
       width: theme.spacing['5'],

@@ -30,6 +30,13 @@ export const MyAppointmentsEmptyScreen: React.FC = () => {
   const hasCompanions = companions.length > 0;
 
   const handleAdd = () => navigation.navigate('BrowseBusinesses');
+  // Without a companion there is nothing to book against, so the screen used
+  // to offer no action at all. Point at the prerequisite instead, the way
+  // Documents and Tasks already do.
+  const handleAddCompanion = () =>
+    navigation.getParent<any>()?.navigate('HomeStack', {
+      screen: 'AddCompanion',
+    });
 
   return (
     <LiquidGlassHeaderScreen
@@ -67,15 +74,23 @@ export const MyAppointmentsEmptyScreen: React.FC = () => {
             icon={
               <Image source={Images.calendarIcon} style={styles.ringIcon} />
             }
-            title="No visits booked yet"
-            description="Your upcoming veterinary visits will appear here once scheduled."
-            actionLabel={hasCompanions ? 'Book an appointment' : undefined}
-            actionIcon={
-              hasCompanions ? (
-                <Image source={Images.addIconWhite} style={styles.ctaIcon} />
-              ) : undefined
+            title={
+              hasCompanions
+                ? 'No visits booked yet'
+                : 'Add a companion to get started'
             }
-            onAction={hasCompanions ? handleAdd : undefined}
+            description={
+              hasCompanions
+                ? 'Your upcoming veterinary visits will appear here once scheduled.'
+                : 'Visits are booked for a companion. Add one first to start booking.'
+            }
+            actionLabel={
+              hasCompanions ? 'Book an appointment' : 'Add a companion'
+            }
+            actionIcon={
+              <Image source={Images.addIconWhite} style={styles.ctaIcon} />
+            }
+            onAction={hasCompanions ? handleAdd : handleAddCompanion}
           />
         </View>
       )}

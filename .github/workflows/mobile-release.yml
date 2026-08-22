@@ -408,6 +408,63 @@ jobs:
             -exportOptionsPlist "$EXPORT_PLIST" \
             -exportPath "${RUNNER_TEMP}/export"
 
+      # 1.6.0 shipped an app that died on launch for every user, and CI was
+      # green throughout, because nothing ever ran the Release binary. A Debug
+      # build would not have caught it either: Debug shows a redbox where
+      # Release calls RCTFatal.
+      #
+      # This builds the same Release configuration for the simulator, launches
+      # it, and fails if the process is gone a few seconds later. It runs before
+      # the TestFlight upload so a dead build cannot reach a store.
+      - name: Smoke test the Release build on a simulator
+        working-directory: apps/mobileAppYC/ios
+        run: |
+          set -euo pipefail
+          DD="${RUNNER_TEMP}/smoke-dd"
+
+          xcodebuild -workspace mobileAppYC.xcworkspace \
+            -scheme mobileAppYC \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -derivedDataPath "$DD" \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+          APP="$DD/Build/Products/Release-iphonesimulator/mobileAppYC.app"
+          test -d "$APP" || { echo "Release simulator build produced no .app" >&2; exit 1; }
+
+          # Every bundled font must be registered in UIAppFonts or iOS ignores
+          # it: icon fonts draw "?" boxes and text fonts fall back silently.
+          node "${GITHUB_WORKSPACE}/scripts/mobile/doctor.mjs" || true
+
+          UDID=$(xcrun simctl create smoke com.apple.CoreSimulator.SimDeviceType.iPhone-16 || true)
+          if [ -z "$UDID" ]; then
+            UDID=$(xcrun simctl list devices available -j \
+              | python3 -c "import json,sys;d=json.load(sys.stdin)['devices'];print(next(x['udid'] for v in d.values() for x in v if x.get('isAvailable')))")
+          fi
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+
+          xcrun simctl install "$UDID" "$APP"
+          xcrun simctl launch "$UDID" com.yosemitecrew.mobile
+
+          # RCTFatal kills the process within the first render, so a few seconds
+          # is enough to tell a launch crash from a slow start.
+          sleep 20
+
+          if ! xcrun simctl spawn "$UDID" launchctl list 2>/dev/null | grep -q "com.yosemitecrew.mobile"; then
+            echo "::error::The Release build is not running 20s after launch. It crashed on startup." >&2
+            find ~/Library/Logs/DiagnosticReports -name "mobileAppYC*" -newermt '-5 minutes' \
+              -exec echo "--- {} ---" \; -exec head -60 {} \; 2>/dev/null || true
+            xcrun simctl shutdown "$UDID" || true
+            exit 1
+          fi
+
+          echo "Release build survived launch."
+          xcrun simctl shutdown "$UDID" || true
+          xcrun simctl delete "$UDID" || true
+
       # altool reports an authentication failure as "Failed to authenticate for
       # session" and nothing else, which does not say whether the key is
       # revoked, the issuer id is wrong, or the role cannot upload builds. This

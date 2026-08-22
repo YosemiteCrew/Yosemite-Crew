@@ -488,6 +488,40 @@ describe('FloatingTabBar', () => {
       ).not.toThrow();
     });
 
+    it('tints the sliding pill glass with the pale nav wash, not the solid blue', () => {
+      const props: any = createProps(0);
+      const {getAllByRole, queryAllByTestId} = render(
+        <Provider store={store}>
+          <FloatingTabBar {...props} />
+        </Provider>,
+      );
+
+      const tabs = getAllByRole('button');
+      fireEvent(tabs[0], 'layout', {
+        nativeEvent: {layout: {x: 0, width: 100}},
+      });
+      fireEvent(tabs[1], 'layout', {
+        nativeEvent: {layout: {x: 100, width: 100}},
+      });
+
+      const glassViews = queryAllByTestId('liquid-glass-view');
+      expect(glassViews).toHaveLength(2);
+
+      // The sliding pill must use the pale navActiveBg wash the active
+      // #1657C9 label/icon were tuned against for contrast.
+      expect(
+        glassViews.some(
+          v => v.props.tintColor === mockTheme.colors.navActiveBg,
+        ),
+      ).toBe(true);
+
+      // Regression guard: no glass view may fall back to the low-contrast
+      // solid blue (#257BED) pill.
+      expect(
+        glassViews.some(v => v.props.tintColor === mockTheme.colors.blue),
+      ).toBe(false);
+    });
+
     it('falls back to a width of 0 when the active tab has no recorded layout', () => {
       const routes = [
         {key: 'r0', name: 'HomeStack'},

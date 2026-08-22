@@ -1,20 +1,10 @@
 import '@/app/features/marketing/site/marketing.css';
 
+import { PRE_PAINT_SCRIPT } from '@/app/ui/theme/prePaintScript';
+
 interface PublicLayoutProps {
   children: React.ReactNode;
 }
-
-/**
- * Resolve the theme before the marketing content paints so dark mode never
- * flashes. Reads the explicit choice (localStorage 'yc-theme') else the OS
- * preference and stamps `data-theme` on <html>.
- *
- * Public routes use a non-strict CSP (unsafe-inline allowed), so this inline
- * script needs no nonce; it lives here rather than the root layout to stay off
- * the nonce-CSP app routes, which use ThemeScript instead.
- */
-const PRE_PAINT_SCRIPT =
-  "(function(){try{var s=localStorage.getItem('yc-theme');var d=s?s==='dark':matchMedia('(prefers-color-scheme:dark)').matches;document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){}})();";
 
 /**
  * The public surface renders its own chrome per page: marketing pages use

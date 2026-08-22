@@ -16,6 +16,7 @@ import {
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { type ContactType, type ContactStatus } from "src/models/contect-us";
+import { SuperadminContactService } from "src/services/superadmin-contact.service";
 
 const resolveMobileUserId = (req: Request): string | undefined => {
   const authReq = req as AuthenticatedRequest;
@@ -158,6 +159,12 @@ export const ContactController = {
       };
 
       const doc = await ContactService.createWebRequest(payload);
+
+      // Mirror the stored submission into the SuperAdmin panel's CRM.
+      // Fire-and-forget: the panel being down or unconfigured must never
+      // fail the visitor's submission - our database already holds it.
+      void SuperadminContactService.forwardWebContact(payload);
+
       const id = doc.id;
       res.status(201).json({ id });
     } catch (err) {
