@@ -280,6 +280,7 @@ const prescriptionLinesFromEnvelope = (item: Record<string, unknown>): Prescript
     return [
       {
         id: baseId,
+        labelPrescriptionId: baseId,
         finalized,
         medicineName: fallbackName,
         strength: asString(item.strength) ?? asString(item.dosage),
@@ -310,6 +311,9 @@ const prescriptionLinesFromEnvelope = (item: Record<string, unknown>): Prescript
     };
     return {
       id: asString(line.id) ?? `${baseId}-${lineIndex + 1}`,
+      // The row id is the LINE id once a multi-line prescription is expanded;
+      // the prescription itself is what a label PDF is addressed to.
+      labelPrescriptionId: baseId,
       finalized,
       medicineName: asString(line.medication) ?? metaStr('medicineName') ?? fallbackName,
       brand: metaStr('brand'),
@@ -855,12 +859,25 @@ export const deleteEncounterTreatmentItem = async (organisationId: string, itemI
   await deleteData(`/v1/workspace/organisations/${organisationId}/treatment-items/${itemId}`);
 };
 
-/** True when a treatment-item row is billed/paid and therefore must not be deleted. */
+const BILLED_TREATMENT_STATUSES = new Set(['BILLED', 'PAID', 'INVOICED', 'SETTLED']);
+
+/**
+ * True when a treatment-item row is billed/paid and therefore must not be deleted.
+ *
+ * `billingStatus` is the field the workspace read path actually returns; the
+ * earlier version checked only `billed`/`isBilled`/`status`, none of which the
+ * backend sets, so every billed row read as deletable.
+ */
 const isBilledTreatmentRow = (row: Record<string, unknown>): boolean => {
+  if (row.settled === true) return true;
+  if (asString(row.settledInvoiceId)) return true;
+  if (asString(row.invoiceRowId)) return true;
   const billed = row.billed ?? row.isBilled;
-  if (typeof billed === 'boolean') return billed;
+  if (typeof billed === 'boolean' && billed) return true;
+  const billingStatus = asString(row.billingStatus)?.toUpperCase();
+  if (billingStatus && BILLED_TREATMENT_STATUSES.has(billingStatus)) return true;
   const status = asString(row.status)?.toUpperCase();
-  return status === 'BILLED' || status === 'PAID' || status === 'INVOICED';
+  return Boolean(status && BILLED_TREATMENT_STATUSES.has(status));
 };
 
 /**
@@ -883,18 +900,22 @@ export const deletePrescriptionTreatmentItem = async (
   if (targetIds.size === 0) return false;
 
   const rows = await listEncounterTreatmentItems(organisationId, encounterId);
-  const match = rows.find((rawRow) => {
+  const deletable = rows.filter((rawRow) => !isBilledTreatmentRow(isRecord(rawRow) ? rawRow : {}));
+
+  const matchesOn = (rawRow: unknown, fields: string[]): boolean => {
     const row = isRecord(rawRow) ? rawRow : {};
-    if (isBilledTreatmentRow(row)) return false;
-    const candidateIds = [
-      asString(row.id),
-      asString(row.prescriptionId),
-      asString(row.artifactId),
-      asString(row.inventoryItemId),
-      asString(row.productId),
-    ].filter((value): value is string => Boolean(value));
-    return candidateIds.some((id) => targetIds.has(id));
-  });
+    return fields
+      .map((field) => asString(row[field]))
+      .some((id) => Boolean(id) && targetIds.has(id as string));
+  };
+
+  // Identity first. `inventoryItemId`/`productId` identify a MEDICATION, not a
+  // particular prescription, so matching on them alongside the identity fields
+  // could pick a different row that happens to dispense the same drug. They are
+  // only consulted when nothing is linked to this prescription directly.
+  const match =
+    deletable.find((row) => matchesOn(row, ['id', 'prescriptionId', 'artifactId'])) ??
+    deletable.find((row) => matchesOn(row, ['inventoryItemId', 'productId']));
 
   const matchId = match && isRecord(match) ? asString(match.id) : undefined;
   if (!matchId) return false;

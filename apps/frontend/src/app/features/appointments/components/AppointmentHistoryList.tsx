@@ -13,7 +13,7 @@ const AppointmentHistoryList = ({ companionId }: AppointmentHistoryListProps) =>
   const appointments = useAppointmentsForCompanionInPrimaryOrg(companionId);
 
   const sortedAppointments = useMemo(() => {
-    return appointments.toSorted((a, b) => b.startTime.getTime() - a.startTime.getTime());
+    return [...appointments].sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
   }, [appointments]);
 
   return (

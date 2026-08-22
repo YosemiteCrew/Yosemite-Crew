@@ -59,17 +59,21 @@ export const discountCentsFromPercent = (grossCents: number, percent: number): n
 
 export const toInvoiceCandidate = (
   name: string,
-  amountCents: number,
-  kind: BillableKind
-): BillableCandidate => ({
-  name,
-  unitPriceCents: amountCents,
-  qty: 1,
-  grossCents: amountCents,
-  discountCents: 0,
-  amountCents,
-  kind,
-});
+  unitPriceCents: number,
+  kind: BillableKind,
+  qty = 1
+): BillableCandidate => {
+  const grossCents = unitPriceCents * qty;
+  return {
+    name,
+    unitPriceCents,
+    qty,
+    grossCents,
+    discountCents: 0,
+    amountCents: grossCents,
+    kind,
+  };
+};
 
 export const breakdownToInvoiceBreakdown = (item: PackageBreakdownItem) => {
   const { gross, discountAmt, net } = computePackageBreakdownItem(item);
@@ -219,8 +223,11 @@ const buildPrescriptionCandidates = (
     .map((item) =>
       toInvoiceCandidate(
         item.medicineName,
+        // priceCents is the UNIT price. Without the quantity a package-expanded
+        // medication of 5 at 10 each billed as a single 10 line.
         Math.max(0, item.priceCents ?? 0),
-        'IN_HOUSE_PRESCRIPTION'
+        'IN_HOUSE_PRESCRIPTION',
+        Math.max(1, Number.parseInt(item.qty ?? '1', 10) || 1)
       )
     );
 

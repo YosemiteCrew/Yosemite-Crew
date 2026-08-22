@@ -357,10 +357,22 @@ export const BaseAvailabilityService = {
     return sortByDayOrder(domain);
   },
 
-  async getByUserId(userId: unknown): Promise<UserAvailability[]> {
+  /**
+   * A user's working hours, optionally narrowed to one organisation.
+   *
+   * `BaseAvailability` rows are keyed by `(userId, organisationId, dayOfWeek)`,
+   * so an unfiltered read returns the person's schedule at EVERY practice they
+   * work for. Callers rendering a per-organisation view must pass their
+   * organisation or they publish the others alongside it.
+   */
+  async getByUserId(
+    userId: unknown,
+    organisationId?: string,
+  ): Promise<UserAvailability[]> {
     const identifier = requireUserId(userId);
+    const org = organisationId?.trim();
     const rows = await prisma.baseAvailability.findMany({
-      where: { userId: identifier },
+      where: { userId: identifier, ...(org ? { organisationId: org } : {}) },
       orderBy: { dayOfWeek: "asc" },
     });
     return rows.map(buildDomainAvailabilityFromPrisma);

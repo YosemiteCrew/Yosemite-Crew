@@ -7,6 +7,7 @@ import logger from "src/utils/logger";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    patientOrganisation: { findFirst: jest.fn() },
     waitlistEntry: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -68,6 +69,11 @@ const makeEntry = (over: Record<string, unknown> = {}) => ({
 });
 
 beforeEach(() => {
+  // Every create here files a record against a companion, which must belong
+  // to the organisation the record is filed under.
+  (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue({
+    id: "patient-org-link",
+  });
   jest.clearAllMocks();
   (AuditTrailService.recordSafely as jest.Mock).mockResolvedValue(undefined);
   (NotificationService.sendToUser as jest.Mock).mockResolvedValue(undefined);
@@ -91,6 +97,20 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("WaitlistService.add", () => {
+  // `patientId` comes from the request body while RBAC only authorised the
+  // organisation, so without this a caller could file a waitlist entry against
+  // another tenant's companion.
+  it("rejects a companion outside the caller's organisation", async () => {
+    (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue(null);
+
+    await expect(
+      WaitlistService.add({
+        organisationId: "org-1",
+        patientId: "pat-other",
+      } as never),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
   it("creates a waitlist entry with WAITING status", async () => {
     const result = await WaitlistService.add({
       organisationId: "org-1",

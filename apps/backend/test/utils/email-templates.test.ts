@@ -479,3 +479,55 @@ describe("email stylesheet integrity", () => {
     expect([...declared].filter((c) => !emitted.has(c))).toEqual([]);
   });
 });
+
+describe("Untrusted data in rendered templates", () => {
+  // Organisation names, invitee names and support addresses are free text that
+  // people typed. Every template interpolates them straight into the markup, so
+  // the escaping has to happen once at the shared choke point rather than in
+  // each template.
+  const hostile = '<img src=x onerror="alert(1)">';
+  const expiresAt = new Date("2025-01-01T12:00:00Z");
+
+  const render = () =>
+    renderOrganisationInviteTemplate({
+      organisationName: hostile,
+      inviteeName: hostile,
+      inviterName: hostile,
+      acceptUrl: "https://example.test/accept?token=a&next=/b",
+      expiresAt,
+    });
+
+  it("delivers typed-in names as text, not as markup", () => {
+    const { htmlBody } = render();
+
+    expect(htmlBody).not.toContain("<img src=x");
+    expect(htmlBody).toContain(
+      "&lt;img src=x onerror=&quot;alert(1)&quot;&gt;",
+    );
+  });
+
+  it("encodes ampersands inside link attributes", () => {
+    const { htmlBody } = render();
+
+    expect(htmlBody).toContain(
+      'href="https://example.test/accept?token=a&amp;next=/b"',
+    );
+  });
+
+  it("leaves the subject line and plaintext body unescaped", () => {
+    const { subject, textBody } = render();
+
+    // These are not markup: a mail client renders the subject and the text
+    // part literally, so entities there would be shown to the reader.
+    expect(subject).toContain(hostile);
+    expect(textBody).toContain(hostile);
+    expect(subject).not.toContain("&lt;");
+    expect(textBody).not.toContain("&amp;");
+  });
+
+  it("escapes the subject where it is reused as the document title", () => {
+    const { htmlBody } = render();
+
+    expect(htmlBody).toMatch(/<title>[^<]*&lt;img src=x/);
+  });
+});

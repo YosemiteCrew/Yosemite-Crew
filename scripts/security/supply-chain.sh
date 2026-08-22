@@ -238,7 +238,15 @@ _undated_exception_entries() {
       if ($0 ~ /Re-review by: [0-9]{4}-[0-9]{2}-[0-9]{2}/) have = 1
       prev = "comment"; next
     }
-    /^[[:space:]]*$/ { next }
+    # A blank line ends the comment block a date belongs to, exactly as a
+    # comment following an item does. Skipping it outright kept have=1 across
+    # the gap, so an item separated from the last dated entry by nothing but a
+    # blank line inherited that date and passed the gate undated.
+    /^[[:space:]]*$/ {
+      if (prev == "item") have = 0
+      prev = "blank"
+      next
+    }
     /^[[:space:]]*-([[:space:]]|$)/ {
       ind = index($0, "-")
       if (!itemind) itemind = ind

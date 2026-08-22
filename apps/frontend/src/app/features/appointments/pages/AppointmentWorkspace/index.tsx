@@ -85,6 +85,7 @@ import {
   getFirstAssignableRoomUnitId,
   toAssignableRoomOptions,
 } from '@/app/features/appointments/lib/roomUnitAvailability';
+import type { RecordTab } from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/panels/RecordPanel';
 
 type AppointmentWorkspaceProps = {
   appointment: Appointment;
@@ -422,6 +423,9 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
   const setActiveStep = useAppointmentWorkspaceStore((s) => s.setActiveStep);
   const activeSideAction = useAppointmentWorkspaceStore((s) => s.activeSideAction);
   const setActiveSideAction = useAppointmentWorkspaceStore((s) => s.setActiveSideAction);
+  // Which Record tab the side panel should open on. Local, not stored: it is a
+  // property of the click that opened the panel, not of the encounter.
+  const [recordTab, setRecordTab] = useState<RecordTab>('VITALS');
   const setEncounterMode = useAppointmentWorkspaceStore((s) => s.setEncounterMode);
   const setRoomUnit = useAppointmentWorkspaceStore((s) => s.setRoomUnit);
   const addLineItem = useAppointmentWorkspaceStore((s) => s.addLineItem);
@@ -1568,7 +1572,17 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
           appointmentSpeciality={appointment.appointmentType?.speciality?.name}
           encounter={effectiveEncounter}
           visitStarted={hasVisitStarted(appointment.status)}
-          onRecordVitals={() => setActiveSideAction('RECORD')}
+          onRecordVitals={() => {
+            setRecordTab('VITALS');
+            setActiveSideAction('RECORD');
+          }}
+          // The observation rail's "+ New" opens the observation tool, not the
+          // vitals form. Passing onRecordVitals for both landed the user on the
+          // wrong tab and made them navigate there by hand.
+          onOpenObservations={() => {
+            setRecordTab('OBSERVATION');
+            setActiveSideAction('RECORD');
+          }}
           onSaveAndNext={handleSaveAndNext}
         />
       )}
@@ -1649,6 +1663,7 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
         encounterId={appointment.encounterId}
         authorId={actor.id}
         activeAction={activeSideAction}
+        recordTab={recordTab}
         onChangeAction={setActiveSideAction}
         onClose={() => setActiveSideAction(null)}
       />

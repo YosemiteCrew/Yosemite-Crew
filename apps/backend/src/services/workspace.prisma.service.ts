@@ -932,6 +932,15 @@ type ProductItemRow = {
   } | null;
 };
 
+// Billing states that put a treatment item on an invoice. Anything here is part
+// of the financial record and is not deletable.
+const BILLED_TREATMENT_ITEM_STATUSES = new Set([
+  "BILLED",
+  "INVOICED",
+  "PAID",
+  "SETTLED",
+]);
+
 const normalizeLockState = (
   lockState: unknown,
 ): string | Record<string, unknown> | null => {
@@ -1042,8 +1051,14 @@ const syncTreatmentItemInvoice = async (row: TreatmentItemRow) => {
     );
   if (!invoice) {
     try {
+      // Bind the bootstrap to the treatment item's own organisation. The
+      // appointment id comes from the request body while the route authorises
+      // the organisation in the URL, so without this a caller in one tenant
+      // could bootstrap - and then add charges to - another tenant's invoice.
       const bootstrappedInvoice = await InvoiceService.bootstrapForAppointment(
         row.appointmentId,
+        undefined,
+        row.organisationId,
       );
       if (
         bootstrappedInvoice &&
@@ -1122,7 +1137,7 @@ export const dedupeTreatmentItemsByPrescription = <
 const buildTreatmentItemsFromPrescriptions = (
   prescriptions: Array<{
     artifact: { id: string; status: string; createdAt: Date; updatedAt: Date };
-    prescription: { medications: unknown };
+    prescription: { id: string; medications: unknown };
   }>,
   locked = false,
 ): WorkspaceTreatmentItem[] =>
@@ -1166,7 +1181,11 @@ const buildTreatmentItemsFromPrescriptions = (
       billingStatus: "UNBILLED",
       invoiceRowId: null,
       lockState: { locked },
-      prescriptionId: record.artifact.id,
+      // Must be the Prescription row id, not the artifact id: the persisted
+      // workspaceTreatmentItem.prescriptionId column stores the row id, and the
+      // dedupe below compares the two. Using the artifact id here made every
+      // comparison miss, so package-expanded medications were listed twice.
+      prescriptionId: record.prescription.id,
       name: medications.length ? "Treatment items" : "Prescription",
       medicationCount: medications.length,
       status: record.artifact.status,
@@ -1443,6 +1462,7 @@ const buildContext = async (
 const loadForms = async (
   organisationId: string,
   appointmentId: string | undefined,
+  canManageForms: boolean,
 ) => {
   if (!appointmentId) {
     return {
@@ -1451,9 +1471,13 @@ const loadForms = async (
     };
   }
 
+  // The bootstrap is a READ, reached with `appointments:view:*` and delegated to
+  // by the documents route on `document:view:any`. Creating assignments is a
+  // `forms:edit:any` action, so only a caller holding that materialises them.
   await FormAssignmentService.syncLinkedTemplateAssignmentsForAppointment({
     organisationId,
     appointmentId,
+    canManageForms,
   });
 
   const items = await FormAssignmentService.listAppointmentFormSummaries(
@@ -2028,7 +2052,12 @@ const buildBootstrapAggregate = async (
     admission,
     pendingDispenseRequests,
   ] = await Promise.all([
-    loadForms(input.organisationId, appointmentId),
+    loadForms(
+      input.organisationId,
+      appointmentId,
+      options?.systemAccess === true ||
+        (permissions?.includes("forms:edit:any") ?? false),
+    ),
     loadClinicalArtifacts({
       organisationId: input.organisationId,
       appointmentId,
@@ -2162,7 +2191,7 @@ const buildBootstrapAggregate = async (
     treatmentItems: access.treatmentItems
       ? dedupeTreatmentItemsByPrescription(
           buildTreatmentItemsFromPrescriptions(
-            clinical.prescriptions as never,
+            clinical.prescriptions,
             locked,
           ).map((item) => ({
             ...item,
@@ -2207,6 +2236,76 @@ const buildBootstrapAggregate = async (
       permissions: permissionsSnapshot,
     }),
   } as WorkspaceBootstrapResponse;
+};
+
+/**
+ * Refuse a treatment-item mutation once the appointment's billing window has
+ * closed.
+ *
+ * The lock window is surfaced to clients as `locks.treatmentItems`, but it was
+ * only ever advisory: the mutation endpoints checked `billing:edit:any` and
+ * nothing else, so a caller ignoring the UI could POST/PATCH/DELETE charges long
+ * after the window shut. The window exists to freeze an appointment's billing,
+ * which only holds if the server enforces it.
+ */
+const assertTreatmentItemsUnlocked = async (params: {
+  organisationId: string;
+  encounterId?: string | null;
+  appointmentId?: string | null;
+}): Promise<void> => {
+  const encounterId = params.encounterId?.trim();
+  const appointmentId = params.appointmentId?.trim();
+  if (!encounterId && !appointmentId) {
+    return;
+  }
+
+  const [organisation, appointment, encounter] = await Promise.all([
+    prisma.organization.findUnique({
+      where: { id: params.organisationId },
+      select: {
+        appointmentLockWindowOutpatientMinutes: true,
+        appointmentLockWindowInpatientMinutes: true,
+      },
+    }),
+    appointmentId
+      ? prisma.appointment.findFirst({
+          where: { id: appointmentId, organisationId: params.organisationId },
+          select: { startTime: true, appointmentKind: true },
+        })
+      : null,
+    encounterId
+      ? prisma.encounter.findFirst({
+          where: { id: encounterId, organisationId: params.organisationId },
+          select: { periodStart: true, appointmentKind: true },
+        })
+      : null,
+  ]);
+
+  const locked = resolveWorkspaceLock({
+    appointment: appointment as AppointmentRow | null,
+    encounter: encounter as Encounter | null,
+    organisation,
+  });
+
+  if (locked) {
+    throw new WorkspaceServiceError(
+      "This appointment's billing window has closed.",
+      409,
+    );
+  }
+};
+
+/**
+ * Map an optional lock state onto what Prisma accepts for a nullable Json
+ * column: leave the column untouched when nothing was supplied, and clear it
+ * with `DbNull` when the caller explicitly sent null.
+ */
+const resolveLockStateWrite = (
+  lockState: string | Record<string, unknown> | null | undefined,
+): Prisma.InputJsonValue | typeof Prisma.DbNull | undefined => {
+  if (lockState === undefined) return undefined;
+  if (lockState === null) return Prisma.DbNull;
+  return lockState as unknown as Prisma.InputJsonValue;
 };
 
 export const WorkspaceService = {
@@ -2309,6 +2408,12 @@ export const WorkspaceService = {
       throw new WorkspaceServiceError("Encounter is required", 400);
     }
 
+    await assertTreatmentItemsUnlocked({
+      organisationId: input.organisationId,
+      encounterId,
+      appointmentId: input.appointmentId,
+    });
+
     const created = (await prisma.workspaceTreatmentItem.create({
       data: {
         organisationId: input.organisationId,
@@ -2322,10 +2427,12 @@ export const WorkspaceService = {
         priceSnapshot: input.priceSnapshot as Prisma.InputJsonValue,
         billingStatus: input.billingStatus ?? "UNBILLED",
         invoiceRowId: input.invoiceRowId ?? undefined,
-        lockState:
-          input.lockState === undefined
-            ? undefined
-            : (input.lockState as Prisma.InputJsonValue),
+        // Prisma will not accept a bare `null` for a nullable Json column - it
+        // wants `DbNull` for "no value" and reserves `JsonNull` for a stored
+        // JSON null. The controller sends `body.lockState ?? null`, so omitting
+        // the field entirely used to reach Prisma as `null` and reject the
+        // whole create.
+        lockState: resolveLockStateWrite(input.lockState),
       },
     })) as TreatmentItemRow;
 
@@ -2344,6 +2451,12 @@ export const WorkspaceService = {
     if (!existing) {
       throw new WorkspaceServiceError("Treatment item not found", 404);
     }
+
+    await assertTreatmentItemsUnlocked({
+      organisationId,
+      encounterId: existing.encounterId,
+      appointmentId: existing.appointmentId,
+    });
 
     const updated = (await prisma.workspaceTreatmentItem.update({
       where: { id: itemId },
@@ -2368,10 +2481,12 @@ export const WorkspaceService = {
         billingStatus: input.billingStatus ?? undefined,
         invoiceRowId:
           input.invoiceRowId === undefined ? undefined : input.invoiceRowId,
-        lockState:
-          input.lockState === undefined
-            ? undefined
-            : (input.lockState as Prisma.InputJsonValue),
+        // Prisma will not accept a bare `null` for a nullable Json column - it
+        // wants `DbNull` for "no value" and reserves `JsonNull` for a stored
+        // JSON null. The controller sends `body.lockState ?? null`, so omitting
+        // the field entirely used to reach Prisma as `null` and reject the
+        // whole create.
+        lockState: resolveLockStateWrite(input.lockState),
       },
     })) as TreatmentItemRow;
 
@@ -2384,12 +2499,40 @@ export const WorkspaceService = {
   ): Promise<void> {
     const existing = await prisma.workspaceTreatmentItem.findFirst({
       where: { id: itemId, organisationId },
-      select: { id: true },
+      select: {
+        id: true,
+        encounterId: true,
+        appointmentId: true,
+        billingStatus: true,
+        invoiceRowId: true,
+        settledInvoiceId: true,
+      },
     });
 
     if (!existing) {
       throw new WorkspaceServiceError("Treatment item not found", 404);
     }
+
+    // A row that has reached an invoice is part of the financial record. The
+    // caller decided what to delete, so this cannot be left to the client: a
+    // client-side billing check that read the wrong field would otherwise
+    // remove billed lines and leave the invoice and the audit trail disagreeing.
+    if (
+      existing.settledInvoiceId ||
+      existing.invoiceRowId ||
+      BILLED_TREATMENT_ITEM_STATUSES.has(existing.billingStatus)
+    ) {
+      throw new WorkspaceServiceError(
+        "This treatment item is billed and cannot be deleted.",
+        409,
+      );
+    }
+
+    await assertTreatmentItemsUnlocked({
+      organisationId,
+      encounterId: existing.encounterId,
+      appointmentId: existing.appointmentId,
+    });
 
     await prisma.workspaceTreatmentItem.delete({ where: { id: itemId } });
   },

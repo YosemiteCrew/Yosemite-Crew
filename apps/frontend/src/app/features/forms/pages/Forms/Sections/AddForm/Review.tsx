@@ -14,6 +14,7 @@ import { Organisation } from '@yosemite-crew/types';
 import { buildInitialValues } from '@/app/features/forms/pages/Forms/Sections/AddForm/reviewUtils';
 import { TaskTemplateSummary } from '@/app/features/forms/pages/Forms/Sections/taskTemplateSummary';
 import { baseDetailsFields } from '@/app/features/forms/pages/Forms/Sections/taskTemplateSummary.helpers';
+import { normalizeServiceGroups } from '@/app/features/forms/pages/Forms/Sections/AddForm/serviceGroupHelpers';
 
 type ReviewProps = {
   formData: FormsProps;
@@ -38,6 +39,16 @@ const Review = ({
   const orgTypeOverride = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE as
     Organisation['type'] | undefined;
   const effectiveOrgType = orgTypeOverride || orgType;
+  // Preview the schema the way it will be SAVED. Legacy service groups predate
+  // the service-selection checkbox and carry an empty fields array; the builder
+  // panel normalizes them on the fly and save/publish normalize before
+  // persisting, but the preview read formData.schema raw - so the checkbox the
+  // builder showed was missing from the preview of the very same form.
+  const previewSchema = React.useMemo(
+    () => normalizeServiceGroups(formData.schema ?? [], serviceOptions),
+    [formData.schema, serviceOptions]
+  );
+
   const detailsFields = React.useMemo(() => {
     const fields = [
       baseDetailsFields[0],
@@ -82,13 +93,13 @@ const Review = ({
   );
 
   const [values, setValues] = React.useState<Record<string, any>>(() =>
-    buildInitialValues(formData.schema ?? [])
+    buildInitialValues(normalizeServiceGroups(formData.schema ?? [], serviceOptions))
   );
-  const schemaKey = JSON.stringify(formData.schema ?? []);
+  const schemaKey = JSON.stringify(previewSchema);
   const [prevSchemaKey, setPrevSchemaKey] = React.useState(schemaKey);
   if (prevSchemaKey !== schemaKey) {
     setPrevSchemaKey(schemaKey);
-    setValues(buildInitialValues(formData.schema ?? []));
+    setValues(buildInitialValues(previewSchema));
   }
 
   const handleValueChange = (id: string, value: any) => {
@@ -119,13 +130,13 @@ const Review = ({
         />
         {formData.category === 'Task Template' ? (
           <Accordion title="Tasks" defaultOpen showEditIcon={false} isEditing={true}>
-            <TaskTemplateSummary schema={formData.schema ?? []} />
+            <TaskTemplateSummary schema={previewSchema} />
           </Accordion>
         ) : (
-          (formData.schema?.length ?? 0) > 0 && (
+          previewSchema.length > 0 && (
             <Accordion title="Form" defaultOpen showEditIcon={false} isEditing={true}>
               <FormRenderer
-                fields={formData.schema ?? []}
+                fields={previewSchema}
                 values={values}
                 onChange={handleValueChange}
                 readOnly

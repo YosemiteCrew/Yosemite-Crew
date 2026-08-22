@@ -17,11 +17,11 @@ This document is the implementation handover for the mobile engineer. Backend au
 
 Relevant files:
 
-- [`apps/mobileAppYC/src/features/auth/services/passwordlessAuth.ts`](/Users/harshvardhan/Yosemite-Crew/apps/mobileAppYC/src/features/auth/services/passwordlessAuth.ts)
-- [`apps/mobileAppYC/src/features/auth/services/socialAuth.ts`](/Users/harshvardhan/Yosemite-Crew/apps/mobileAppYC/src/features/auth/services/socialAuth.ts)
-- [`apps/mobileAppYC/src/config/variables.ts`](/Users/harshvardhan/Yosemite-Crew/apps/mobileAppYC/src/config/variables.ts)
-- [`apps/mobileAppYC/src/features/auth/thunks.ts`](/Users/harshvardhan/Yosemite-Crew/apps/mobileAppYC/src/features/auth/thunks.ts)
-- [`apps/mobileAppYC/src/store/`](/Users/harshvardhan/Yosemite-Crew/apps/mobileAppYC/src/store/)
+- [`apps/mobileAppYC/src/features/auth/services/passwordlessAuth.ts`](../../apps/mobileAppYC/src/features/auth/services/passwordlessAuth.ts)
+- [`apps/mobileAppYC/src/features/auth/services/socialAuth.ts`](../../apps/mobileAppYC/src/features/auth/services/socialAuth.ts)
+- [`apps/mobileAppYC/src/config/variables.ts`](../../apps/mobileAppYC/src/config/variables.ts)
+- [`apps/mobileAppYC/src/features/auth/thunks.ts`](../../apps/mobileAppYC/src/features/auth/thunks.ts)
+- [`apps/mobileAppYC/src/store/`](../../apps/mobileAppYC/src/store/)
 
 ## 3. Intended mobile auth flow
 

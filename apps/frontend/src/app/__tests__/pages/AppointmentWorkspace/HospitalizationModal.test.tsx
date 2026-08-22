@@ -443,4 +443,23 @@ describe('HospitalizationModal', () => {
     fireEvent.click(screen.getByTestId('shell-close'));
     expect(setShowModal).toHaveBeenCalledWith(false);
   });
+
+  it('adopts defaults that arrive after the modal is already open', async () => {
+    // Room, unit and support defaults are loaded asynchronously. Only the open
+    // transition adopted them, so a modal opened before the load finished kept
+    // undefined selections and blocked the conversion on errors the user could
+    // not clear.
+    const { rerender } = render(
+      <HospitalizationModal
+        {...makeProps({ defaultRoomId: undefined, defaultUnitId: undefined })}
+      />
+    );
+    await flush();
+
+    rerender(<HospitalizationModal {...makeProps({ defaultRoomId: 'r1', defaultUnitId: 'u1' })} />);
+    await flush();
+
+    expect(screen.getByTestId('label-dropdown-Room')).toHaveAttribute('data-default-option', 'r1');
+    expect(screen.getByTestId('label-dropdown-Unit')).toHaveAttribute('data-default-option', 'u1');
+  });
 });

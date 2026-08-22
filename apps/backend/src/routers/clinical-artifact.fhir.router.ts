@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { buildRateLimitKey } from "src/utils/rate-limit-key";
 import rateLimit from "express-rate-limit";
 import { ClinicalArtifactFhirController } from "src/controllers/web/clinical-artifact.fhir.controller";
 import { requireWebAuth } from "src/middlewares/auth";
@@ -11,14 +12,7 @@ const dischargeSummaryLimiter = rateLimit({
   max: 120,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => {
-    const orgId =
-      (req.params.organisationId as string | undefined) ??
-      (req.headers["x-org-id"] as string | undefined) ??
-      "unknown-org";
-    const userId = (req as { userId?: string }).userId ?? "unknown-user";
-    return `${orgId}:${userId}`;
-  },
+  keyGenerator: (req) => buildRateLimitKey(req),
 });
 
 router.post(

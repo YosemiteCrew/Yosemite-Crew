@@ -448,6 +448,19 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
     setFormValuesErrors({});
   }
 
+  // Turning readOnly on ends editing outright rather than only hiding the
+  // editor. Leaving isEditing set meant the section silently re-entered edit
+  // mode - with the old draft - as soon as readOnly went away again.
+  const [prevReadOnly, setPrevReadOnly] = useState(readOnly);
+  if (readOnly !== prevReadOnly) {
+    setPrevReadOnly(readOnly);
+    if (readOnly && isEditing) {
+      setIsEditing(false);
+      setFormValues(buildInitialValues(fields, data));
+      setFormValuesErrors({});
+    }
+  }
+
   const setEditingState = useCallback(
     (nextEditing: boolean) => {
       if (readOnly && nextEditing) {

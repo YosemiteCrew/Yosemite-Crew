@@ -6,7 +6,7 @@ import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import StatusPill, { type StatusTone } from '@/app/ui/primitives/StatusPill/StatusPill';
 import { getInvoiceNumberLabel } from '@/app/lib/invoice';
 import { formatDateLabel } from '@/app/lib/forms';
-import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
+import { getSafeImageUrl, getSafePdfPreviewUrl, ImageType } from '@/app/lib/urls';
 import { getAppointmentCompanion, getAppointmentCompanionPhotoUrl } from '@/app/lib/appointments';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 
@@ -50,7 +50,11 @@ const InvoiceDetailHeader = ({
     getAppointmentCompanionPhotoUrl(companion),
     (companion?.species as ImageType) ?? 'other'
   );
-  const pdfUrl = invoice.pdfUrl;
+  // React does not sanitize href protocols, so an invoice record carrying a
+  // `javascript:` or `data:` URL would run on click. The same helper the PDF
+  // preview overlay uses accepts only https (and localhost over http in dev)
+  // and returns '' for anything else.
+  const pdfUrl = getSafePdfPreviewUrl(invoice.pdfUrl);
 
   return (
     <ModalHeader

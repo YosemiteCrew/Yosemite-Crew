@@ -293,7 +293,34 @@ describe("FinanceController", () => {
 
     expect(
       FinancePaymentService.createCheckoutSessionForInvoice,
-    ).toHaveBeenCalledWith("inv_1", "STRIPE");
+    ).toHaveBeenCalledWith("inv_1", "STRIPE", null);
+  });
+
+  it("forwards a requested deposit amount to the payment service", async () => {
+    // Without this the session is built for the full outstanding balance, so a
+    // deposit link bills the whole invoice.
+    (
+      FinancePaymentService.createCheckoutSessionForInvoice as jest.Mock
+    ).mockResolvedValueOnce({
+      sessionId: "cs_2",
+      url: "https://checkout",
+      paymentAttemptId: "pa_2",
+    });
+
+    const req = {
+      params: { invoiceId: "inv_1" },
+      body: { provider: "stripe", depositAmount: 25 },
+    } as unknown as Request;
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    } as unknown as Response;
+
+    await FinanceController.createInvoicePaymentSession(req, res);
+
+    expect(
+      FinancePaymentService.createCheckoutSessionForInvoice,
+    ).toHaveBeenCalledWith("inv_1", "STRIPE", 25);
   });
 
   it("rejects unsupported payment providers", async () => {

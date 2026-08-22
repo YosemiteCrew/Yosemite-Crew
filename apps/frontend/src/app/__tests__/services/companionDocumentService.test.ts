@@ -32,7 +32,7 @@ describe('companionDocumentService', () => {
       const document = {
         title: 'Test Doc',
         category: 'HEALTH' as const,
-        subcategory: 'SURGERY_PROCEDURE' as const,
+        subcategory: 'SURGERY_OR_PROCEDURE' as const,
         attachments: [],
       };
 
@@ -51,7 +51,7 @@ describe('companionDocumentService', () => {
       const document = {
         title: 'Test Doc',
         category: 'HEALTH' as const,
-        subcategory: 'SURGERY_PROCEDURE' as const,
+        subcategory: 'SURGERY_OR_PROCEDURE' as const,
         attachments: [],
       };
 
@@ -64,7 +64,7 @@ describe('companionDocumentService', () => {
       const document = {
         title: 'Test Doc',
         category: 'HEALTH' as const,
-        subcategory: 'SURGERY_PROCEDURE' as const,
+        subcategory: 'SURGERY_OR_PROCEDURE' as const,
         attachments: [],
       };
 

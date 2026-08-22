@@ -14,7 +14,7 @@ import {
 } from "src/services/case-encounter.service";
 import type { OrgRequest } from "src/middlewares/rbac";
 import logger from "src/utils/logger";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import { resolveVerifiedUserId } from "src/utils/request";
 
 const caseResourceSchema = z
   .object({ resourceType: z.literal("EpisodeOfCare") })
@@ -309,7 +309,7 @@ export const EncounterController = {
       const overrideReason = payload.parameter?.find(
         (parameter) => parameter.name === "overrideReason",
       )?.valueString;
-      const actorUserId = resolveUserIdFromRequest(req);
+      const actorUserId = resolveVerifiedUserId(req);
 
       const updated = await CaseEncounterService.dischargeEncounter(
         req.params.id,
@@ -428,7 +428,7 @@ export const EncounterController = {
       const updated = await CaseEncounterService.markEncounterReadyForDischarge(
         req.params.id,
         resolveAuthorizedOrganisationId(req),
-        resolveUserIdFromRequest(req),
+        resolveVerifiedUserId(req),
       );
 
       return res.status(200).json(toEncounterResponseDTO(updated));

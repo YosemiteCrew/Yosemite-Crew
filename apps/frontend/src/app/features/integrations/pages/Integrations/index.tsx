@@ -553,7 +553,10 @@ const useIntegrationsPage = () => {
         // Recent orders feed the settings modal's activity section. They are secondary to the
         // devices load, so a failure here is swallowed rather than surfaced as an error.
         try {
-          const orders = await listIdexxOrders({ organisationId: primaryOrgId });
+          // Only three rows are rendered; ask for three. Without a limit the
+          // search returns every lab order the organisation has, which is a lot
+          // of patient and result data to move for a footer list.
+          const orders = await listIdexxOrders({ organisationId: primaryOrgId, limit: 3 });
           setRecentOrders(orders);
         } catch {
           setRecentOrders([]);

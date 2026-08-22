@@ -204,6 +204,11 @@ describe("createApp", () => {
     expect(response.getHeader("x-content-type-options")).toBe("nosniff");
     expect(response.getHeader("x-frame-options")).toBe("SAMEORIGIN");
     expect(response.getHeader("ratelimit-limit")).toBe("500");
+    // API responses are tenant-scoped and served from stable URLs, so nothing
+    // between the server and the user may store them: a shared browser or an
+    // intermediary cache would otherwise hand one user's invoices or records to
+    // the next.
+    expect(response.getHeader("cache-control")).toBe("no-store");
     expect(mockRegisterRoutes).toHaveBeenCalledWith(app);
     expect(mockInitSuperTokens).not.toHaveBeenCalled();
     expect(mockRegisterSuperTokensBeforeRoutes).not.toHaveBeenCalled();

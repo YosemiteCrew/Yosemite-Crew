@@ -187,9 +187,10 @@ describe("AuthUserMobileController", () => {
       });
     });
 
-    it("links parent using header user id", async () => {
+    it("links parent using the verified session user id", async () => {
       const req = {
-        headers: { "x-user-id": "user-1" },
+        userId: "user-1",
+        headers: {},
         body: { parentId: "parent-1" },
       } as any;
       const res = createResponse();
@@ -208,7 +209,8 @@ describe("AuthUserMobileController", () => {
 
     it("handles errors", async () => {
       const req = {
-        headers: { "x-user-id": "user-1" },
+        userId: "user-1",
+        headers: {},
         body: { parentId: "parent-1" },
       } as any;
       const res = createResponse();

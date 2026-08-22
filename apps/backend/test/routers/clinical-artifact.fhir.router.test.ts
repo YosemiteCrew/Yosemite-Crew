@@ -341,13 +341,16 @@ describe("clinical-artifact.fhir.router", () => {
         userId: "user-1",
       }),
     ).toBe("org-1:user-1");
+    // The `x-org-id` header is deliberately NOT part of the key. The limiter
+    // runs before any org validation, so a client-settable header let one
+    // session mint a fresh bucket per value and sail past the limit.
     expect(
       keyGenerator?.({
         params: {},
         headers: { "x-org-id": "org-2" },
         userId: "user-2",
       }),
-    ).toBe("org-2:user-2");
+    ).toBe("unknown-org:user-2");
     expect(keyGenerator?.({ params: {}, headers: {} })).toBe(
       "unknown-org:unknown-user",
     );

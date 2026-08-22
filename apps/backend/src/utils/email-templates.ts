@@ -270,14 +270,91 @@ type EmailTemplateBuilder<T> = (data: T) => {
   preheader?: string;
 };
 
+/**
+ * Escape a value for interpolation into email HTML.
+ *
+ * Template data carries free text people typed - companion and staff names,
+ * task notes, organisation names - straight into the markup below. Without this
+ * a name like `<img src=x onerror=...>` is delivered as live markup in the
+ * recipient's mail client.
+ *
+ * Applied to URLs too: `&` -> `&amp;` is the correct encoding inside an `href`
+ * attribute and mail clients decode it, while `"` -> `&quot;` is what stops a
+ * crafted URL from breaking out of the attribute.
+ */
+export const escapeHtml = (value: string): string =>
+  value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+
+// Template data is assembled from records, so nesting is shallow in practice -
+// but this recurses over whatever it is handed. A deeply nested value would
+// exhaust the stack, and a cyclic one would never terminate at all, so both are
+// bounded. Past the limit the value is returned unescaped-but-untouched, which
+// is safe: escaping applies to the strings it does reach, and a structure this
+// deep is not something a template renders.
+const MAX_ESCAPE_DEPTH = 100;
+
+const escapeDeepValue = <T>(
+  value: T,
+  depth: number,
+  seen: WeakSet<object>,
+): T => {
+  if (typeof value === "string") return escapeHtml(value) as unknown as T;
+  if (depth >= MAX_ESCAPE_DEPTH) return value;
+  if (Array.isArray(value)) {
+    if (seen.has(value)) return value;
+    seen.add(value);
+    return value.map((item) =>
+      escapeDeepValue(item, depth + 1, seen),
+    ) as unknown as T;
+  }
+  if (value && typeof value === "object" && !(value instanceof Date)) {
+    if (seen.has(value)) return value;
+    seen.add(value);
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, item]) => [
+        key,
+        escapeDeepValue(item, depth + 1, seen),
+      ]),
+    ) as unknown as T;
+  }
+  return value;
+};
+
+const escapeDeep = <T>(value: T): T =>
+  escapeDeepValue(value, 0, new WeakSet<object>());
+
+/**
+ * Builders are pure, so run each one twice: once over escaped data for the HTML
+ * body, once over the raw data for the subject and plaintext body (which must
+ * NOT carry entities). This escapes every template at one choke point instead of
+ * relying on each of them to remember.
+ */
 const createEmailTemplate =
   <T>(builder: EmailTemplateBuilder<T>) =>
   (data: T): RenderedEmailTemplate => {
-    const { subject, contentHtml, textBody, title, preheader } = builder(data);
+    // Raw for the subject line and the plaintext body, which must NOT carry
+    // entities. Everything that lands in the HTML - the content, the preheader,
+    // the document title - comes from the escaped pass instead.
+    const { subject, textBody } = builder(data);
+    const {
+      contentHtml,
+      title: escapedTitle,
+      preheader: escapedPreheader,
+    } = builder(escapeDeep(data));
 
     return {
       subject,
-      htmlBody: renderBaseEmail(subject, contentHtml, preheader, title),
+      htmlBody: renderBaseEmail(
+        escapeHtml(subject),
+        contentHtml,
+        escapedPreheader,
+        escapedTitle,
+      ),
       textBody,
     };
   };

@@ -431,4 +431,58 @@ describe('OrgGuard', () => {
       expect(redirect).toHaveBeenCalledWith('/dashboard');
     });
   });
+
+  it('does not render a permission-gated route from the cached org pass', async () => {
+    // The cache is keyed by organisation only. A previous pass on some other
+    // path must not stand in for the permission check on this one, or the
+    // protected page mounts and loads its data during the window before the
+    // membership resolves.
+    const orgId = 'org-4';
+    globalThis.sessionStorage.setItem(`yc_org_guard_passed:${orgId}`, '1');
+    mockPathname = '/integrations';
+    (usePathname as jest.Mock).mockReturnValue(mockPathname);
+
+    useOrgStoreMock.mockImplementation((selector: any) =>
+      selector({
+        ...baseOrgState,
+        // Still loading: no membership is available to check against yet.
+        status: 'loading',
+        primaryOrgId: orgId,
+      })
+    );
+
+    render(
+      <OrgGuard skeleton={<div data-testid="skeleton">Loading</div>}>
+        <div data-testid="child">Child</div>
+      </OrgGuard>
+    );
+
+    expect(screen.queryByTestId('child')).not.toBeInTheDocument();
+    expect(screen.getByTestId('skeleton')).toBeInTheDocument();
+    globalThis.sessionStorage.clear();
+  });
+
+  it('still uses the cached org pass for a route with no permission requirement', async () => {
+    const orgId = 'org-5';
+    globalThis.sessionStorage.setItem(`yc_org_guard_passed:${orgId}`, '1');
+    mockPathname = '/organizations';
+    (usePathname as jest.Mock).mockReturnValue(mockPathname);
+
+    useOrgStoreMock.mockImplementation((selector: any) =>
+      selector({
+        ...baseOrgState,
+        status: 'loading',
+        primaryOrgId: orgId,
+      })
+    );
+
+    render(
+      <OrgGuard skeleton={<div data-testid="skeleton">Loading</div>}>
+        <div data-testid="child">Child</div>
+      </OrgGuard>
+    );
+
+    expect(screen.getByTestId('child')).toBeInTheDocument();
+    globalThis.sessionStorage.clear();
+  });
 });

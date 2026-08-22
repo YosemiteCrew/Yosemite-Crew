@@ -71,6 +71,11 @@ jest.mock("src/config/prisma", () => ({
     },
     user: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
+    userOrganization: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
     },
     vitalRecord: {
       create: jest.fn(),
@@ -144,6 +149,11 @@ describe("ClinicalArtifactService", () => {
     };
     user: {
       findFirst: jest.Mock;
+      findMany: jest.Mock;
+    };
+    userOrganization: {
+      findFirst: jest.Mock;
+      findMany: jest.Mock;
     };
     vitalRecord: {
       create: jest.Mock;
@@ -173,6 +183,12 @@ describe("ClinicalArtifactService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // A vital record's `recordedBy` only resolves to a name when that person is
+    // an active member of the artifact's organisation; default to "they are" so
+    // only the tests exercising the boundary need to say otherwise.
+    mockedPrisma.userOrganization.findFirst.mockResolvedValue({
+      id: "membership-1",
+    });
     mockedPrisma.$transaction.mockImplementation(async (callback: unknown) => {
       if (typeof callback === "function") {
         return callback(prisma);
@@ -770,6 +786,10 @@ describe("ClinicalArtifactService", () => {
         where: {
           id: "appt-1",
           organisationId,
+          // Bound to the artifact's own encounter: these routes run on
+          // clinical-artifact permissions, so without it a throwaway artifact
+          // could advance any colleague's checked-in appointment.
+          encounterId: "enc-1",
           status: "CHECKED_IN",
         },
         data: {
@@ -2133,6 +2153,52 @@ describe("ClinicalArtifactService", () => {
     expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
   });
 
+  // The FHIR status mapper defaults an omitted or unrecognised
+  // `Composition.status` to DRAFT, so a plain PATCH arrives carrying DRAFT
+  // rather than undefined. Without DRAFT in the guard, one request both edited a
+  // finalised record and silently reopened it.
+  it("refuses to reopen a final SOAP note by editing it as a DRAFT", async () => {
+    mockedPrisma.soapNote.findUnique.mockResolvedValueOnce({
+      id: soapNoteId,
+      artifactId,
+      subjective: null,
+      objective: null,
+      assessment: null,
+      plan: null,
+      diagnoses: null,
+      metadata: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      artifact: {
+        id: artifactId,
+        organisationId,
+        kind: "SOAP_NOTE",
+        status: "SIGNED",
+        appointmentId: null,
+        caseId: null,
+        encounterId: null,
+        templateId: null,
+        templateVersion: null,
+        templateVersionId: null,
+        authorId: null,
+        signedBy: null,
+        signedAt: null,
+        summary: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+    });
+
+    await expect(
+      ClinicalArtifactService.updateSoapNote(
+        soapNoteId,
+        { summary: "edited while signed", status: "DRAFT" },
+        organisationId,
+      ),
+    ).rejects.toThrow("Artifact is final. Reopen or amend it before editing.");
+    expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
+  });
+
   it("finalizes and reopens SOAP notes through explicit lifecycle helpers", async () => {
     mockedPrisma.clinicalArtifact.update.mockReset();
     mockedPrisma.soapNote.update.mockReset();
@@ -2367,11 +2433,11 @@ describe("ClinicalArtifactService", () => {
         updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       },
     } as never);
-    mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValueOnce({
-      id: "treatment-item-1",
-      billingStatus: "UNBILLED",
-      invoiceRowId: null,
-    });
+    // The guard now asks directly for a BILLED row rather than loading one row
+    // and inspecting it, so "nothing billed" is null. The old shape - one
+    // unbilled row - was the bug: the delete below removes EVERY row for the
+    // prescription, and package expansion routinely creates several.
+    mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValue(null);
     mockedPrisma.workspaceTreatmentItem.deleteMany.mockResolvedValueOnce({
       count: 1,
     });
@@ -2400,11 +2466,19 @@ describe("ClinicalArtifactService", () => {
       { actorId: "actor-1", canEditAny: true },
     );
 
+    // The guard asks the database for a BILLED row rather than loading one row
+    // and inspecting it. That difference is the fix: `deleteMany` below removes
+    // EVERY row for the prescription, so a check that only saw one of several
+    // could pass while a billed, invoice-linked row was deleted with the rest.
     expect(mockedPrisma.workspaceTreatmentItem.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
           organisationId,
           prescriptionId: "prescription-1",
+          OR: [
+            { billingStatus: { not: "UNBILLED" } },
+            { invoiceRowId: { not: null } },
+          ],
         },
       }),
     );
@@ -2502,11 +2576,11 @@ describe("ClinicalArtifactService", () => {
     mockedPrisma.prescription.findFirst.mockResolvedValueOnce(
       prescription as never,
     );
-    mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValueOnce({
-      id: "treatment-item-1",
-      billingStatus: "UNBILLED",
-      invoiceRowId: null,
-    });
+    // The guard now asks directly for a BILLED row rather than loading one row
+    // and inspecting it, so "nothing billed" is null. The old shape - one
+    // unbilled row - was the bug: the delete below removes EVERY row for the
+    // prescription, and package expansion routinely creates several.
+    mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValue(null);
     mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce({
       id: "dispense-1",
       status: "DISPENSED",
@@ -2956,18 +3030,31 @@ describe("ClinicalArtifactService", () => {
         orderBy: { createdAt: "desc" },
       });
       expect(mockedPrisma.inventoryItem.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id: { in: ["inv-1"] } } }),
+        expect.objectContaining({
+          where: {
+            id: { in: ["inv-1"] },
+            organisationId: { in: ["org-1"] },
+          },
+        }),
       );
 
       const fromItems = records[0].prescription.medications as Array<
         Record<string, unknown>
       >;
+      // Row-backed prescriptions must be hydrated too. The record builder
+      // derives `medications` from the item rows, so hydrating the raw column
+      // before the record was built silently dropped the inventory fields for
+      // exactly the prescriptions the item rows were added for.
       expect(fromItems).toEqual([
         expect.objectContaining({
           medication: "Amoxicillin",
           quantity: 2,
           inventoryItemId: "inv-1",
           expiryDate: D2.toISOString(),
+          genericName: "Amoxicillin",
+          strength: "500mg",
+          dosageForm: "Capsule",
+          controlledItem: true,
         }),
       ]);
 
@@ -3016,7 +3103,12 @@ describe("ClinicalArtifactService", () => {
         );
 
       expect(mockedPrisma.inventoryItem.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id: { in: ["inv-1"] } } }),
+        expect.objectContaining({
+          where: {
+            id: { in: ["inv-1"] },
+            organisationId: { in: ["org-1"] },
+          },
+        }),
       );
       const meds = records[0].prescription.medications as unknown[];
       expect(meds[0]).toBe("free-text line");
@@ -3139,10 +3231,23 @@ describe("ClinicalArtifactService", () => {
           vitalRow({ metadata: { recordedByDisplay: "Nurse Joy" } }),
           vitalRow({ id: "vital-2", recordedBy: "Practitioner/user-9" }),
         ]);
-        mockedPrisma.user.findFirst.mockResolvedValueOnce({
-          firstName: "Ada",
-          lastName: "Byron",
-        });
+        // Batched: one membership query and one user query for the whole list,
+        // rather than two per record.
+        // Stored normalized (the "Practitioner/" prefix is stripped before the
+        // query), so the fixtures use the normalized form the DB would return.
+        mockedPrisma.userOrganization.findMany.mockResolvedValueOnce([
+          {
+            organizationReference: organisationId,
+            practitionerReference: "user-9",
+          },
+        ] as never);
+        mockedPrisma.user.findMany.mockResolvedValueOnce([
+          {
+            userId: "user-9",
+            firstName: "Ada",
+            lastName: "Byron",
+          },
+        ] as never);
 
         const records = await call();
 
@@ -3161,7 +3266,10 @@ describe("ClinicalArtifactService", () => {
           "Nurse Joy",
           "Ada Byron",
         ]);
-        expect(mockedPrisma.user.findFirst).toHaveBeenCalledTimes(1);
+        // Two queries for the whole list, not two per record.
+        expect(mockedPrisma.userOrganization.findMany).toHaveBeenCalledTimes(1);
+        expect(mockedPrisma.user.findMany).toHaveBeenCalledTimes(1);
+        expect(mockedPrisma.user.findFirst).not.toHaveBeenCalled();
         expect(records[0].artifact.kind).toBe("VITAL_RECORD");
       },
     );
@@ -3645,6 +3753,10 @@ describe("ClinicalArtifactService", () => {
         where: {
           id: "appt-1",
           organisationId,
+          // Bound to the artifact's own encounter: these routes run on
+          // clinical-artifact permissions, so without it a throwaway artifact
+          // could advance any colleague's checked-in appointment.
+          encounterId: "enc-1",
           status: "CHECKED_IN",
         },
         data: { status: "IN_PROGRESS" },
@@ -4458,7 +4570,11 @@ describe("ClinicalArtifactService", () => {
           templateId: "tmpl-1",
           templateVersion: 3,
           templateVersionId: "tmpl-ver-1",
-          authorId: undefined,
+          // The amendment is a new draft authored by whoever amended it - the
+          // duplication helper copies the SOURCE artifact's authorId, so without
+          // this override a colleague's name went out on a record they did not
+          // write.
+          authorId: "supervisor",
           summary: "Rx",
         },
       });
@@ -4775,8 +4891,16 @@ describe("ClinicalArtifactService.listPrescriptionsForEncounter hydration", () =
       Record<string, unknown>
     >;
     expect(meds[0].medication).toBe("Amoxicillin 500mg");
+    // Scoped to the prescribing organisation: `inventoryItemId` reaches the
+    // medication JSON from a client FHIR extension, so an unscoped lookup
+    // hydrated another tenant's item name, strength and controlled flag.
     expect(mocked.inventoryItem.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: { in: ["item-1"] } } }),
+      expect.objectContaining({
+        where: {
+          id: { in: ["item-1"] },
+          organisationId: { in: ["org-1"] },
+        },
+      }),
     );
   });
 
@@ -5034,7 +5158,10 @@ describe("ClinicalArtifactService.listPrescriptionsForEncounter hydration", () =
     // item-1 into the shared set.
     expect(mocked.inventoryItem.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: { in: ["item-1", "item-2"] } },
+        where: {
+          id: { in: ["item-1", "item-2"] },
+          organisationId: { in: ["org-1"] },
+        },
       }),
     );
   });

@@ -26,7 +26,7 @@ type CalendarPrefillPayload = {
   serviceIds: string[];
 };
 import helpers from "src/utils/helper";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import { resolveVerifiedUserId } from "src/utils/request";
 import { getParentAddressForAuthUser } from "src/utils/location";
 import {
   calendarPrefillBaseSchema,
@@ -168,7 +168,7 @@ const resolveServiceSearchContext = async (
     };
   }
 
-  const authUserId = resolveUserIdFromRequest(req);
+  const authUserId = resolveVerifiedUserId(req);
   if (!authUserId) {
     return {
       lat: null,

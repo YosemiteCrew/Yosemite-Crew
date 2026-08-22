@@ -86,6 +86,7 @@ type AdmissionUpsertDelegate = {
     update: {
       unitId?: string | null;
       admittedAt?: Date;
+      admittedBy?: string | null;
       expectedStayDays?: number | null;
     };
     create: {
@@ -105,6 +106,7 @@ type AdmissionRow = {
   unitId: string | null;
   expectedStayDays: number | null;
   admittedAt: Date;
+  admittedBy: string | null;
   dischargedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -1451,12 +1453,15 @@ const createAppointment = async (
     );
   }
 
-  await CompanionOrganisationService.linkByParent({
-    parentId: input.patient.parent.id,
-    patientId: input.patient.id,
-    organisationId: input.organisationId,
-    organisationType: organisation.type,
-  });
+  // Ownership is proven BEFORE anything is written. The link itself is created
+  // after the transaction (see below), which means the assertion inside
+  // linkByParent lands too late to keep a companion the caller does not manage
+  // out of the appointment - and out of the clinical case an inpatient booking
+  // opens on the way.
+  await CompanionOrganisationService.assertParentManagesCompanion(
+    input.patient.parent.id,
+    getPatientId(input.patient),
+  );
 
   const created = await prisma.$transaction(async (tx) => {
     const patientId = getPatientId(input.patient);
@@ -1530,6 +1535,18 @@ const createAppointment = async (
     }
 
     return appointment;
+  });
+
+  // Linking the companion to the organisation happens only once the booking has
+  // actually been persisted. It used to run BEFORE the transaction, so a payload
+  // that failed appointment validation still left an ACTIVE patient-organisation
+  // link behind - and that link is what authorises PMS access to the companion's
+  // records and surfaces its primary parent on the organisation's list.
+  await CompanionOrganisationService.linkByParent({
+    parentId: input.patient.parent.id,
+    patientId: input.patient.id,
+    organisationId: input.organisationId,
+    organisationType: organisation.type,
   });
 
   return toResponse(created);
@@ -1934,14 +1951,25 @@ export const AppointmentPrismaService = {
         },
       });
 
+      // `admittedBy` is the non-repudiation record for the admission, and this
+      // is the write that actually creates it. It was omitted here and only
+      // present on `admitInpatientRoomUnit`'s create branch - which this upsert
+      // has already made unreachable, so the column stayed null on every
+      // admission and rendered packet headers fell back to `assignment.assignedBy`.
+      const admittedBy = normalizeOptionalString(input?.admittedBy) ?? null;
       await admissionDelegate.upsert({
         where: { encounterId },
-        update: {},
+        update: {
+          // Only fill a blank: a re-admission must not rewrite who admitted the
+          // patient the first time.
+          ...(admittedBy && !admission?.admittedBy ? { admittedBy } : {}),
+        },
         create: {
           encounterId,
           organisationId: row.organisationId,
           patientId: getPatientId(row.patient),
           admittedAt,
+          admittedBy,
           expectedStayDays: input?.expectedStayDays ?? null,
         },
       });

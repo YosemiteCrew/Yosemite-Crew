@@ -41,8 +41,10 @@ describe("AppointmentController", () => {
     res = mockResponse();
   });
 
-  describe("Internal Helper Coverage: resolveUserIdFromRequest & parseError", () => {
-    it("resolves user id from headers if present", async () => {
+  describe("Internal Helper Coverage: resolveVerifiedUserId & parseError", () => {
+    // The `x-user-id` header used to stand in for a session here, which let any
+    // caller act as any mobile user on the parent-scoped appointment routes.
+    it("ignores the x-user-id header and refuses the request", async () => {
       req = mockRequest({ headers: { "x-user-id": "header-user" } });
       (
         AuthUserMobileService.getByProviderUserId as jest.Mock
@@ -50,9 +52,8 @@ describe("AppointmentController", () => {
 
       await AppointmentController.rescheduleFromMobile(req as any, res as any);
 
-      expect(AuthUserMobileService.getByProviderUserId).toHaveBeenCalledWith(
-        "header-user",
-      );
+      expect(AuthUserMobileService.getByProviderUserId).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(401);
     });
 
     it("resolves user id from auth context if header missing", async () => {
@@ -130,7 +131,7 @@ describe("AppointmentController", () => {
   describe("rescheduleFromMobile", () => {
     beforeEach(() => {
       req = mockRequest({
-        headers: { "x-user-id": "user-123" },
+        userId: "user-123",
         params: { appointmentId: "app-123" },
         body: { startTime: "2026-01-01", endTime: "2026-01-02" },
       });
@@ -285,7 +286,7 @@ describe("AppointmentController", () => {
   describe("checkInAppointment", () => {
     beforeEach(() => {
       req = mockRequest({
-        headers: { "x-user-id": "user-123" },
+        userId: "user-123",
         params: { appointmentId: "app-123" },
       });
     });
@@ -357,7 +358,7 @@ describe("AppointmentController", () => {
   describe("cancelFromMobile", () => {
     beforeEach(() => {
       req = mockRequest({
-        headers: { "x-user-id": "user-123" },
+        userId: "user-123",
         params: { appointmentId: "app-123" },
         body: { reason: "Sick" },
       });

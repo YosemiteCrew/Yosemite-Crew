@@ -92,7 +92,7 @@ const meta = {
           'Two things the stories make visible that reading the code does not.\n\n' +
           '`handleSave` writes four validation messages and only two of them are reachable. ' +
           '`emptyCompanionRecord` ships with `category: HEALTH` and ' +
-          '`subcategory: SURGERY_PROCEDURE` already set, and the dropdowns can only replace a ' +
+          '`subcategory: SURGERY_OR_PROCEDURE` already set, and the dropdowns can only replace a ' +
           'selection, never clear one, so "Category is required" and "Sub-category is required" ' +
           'cannot be produced through the UI. The reachable pair is title and file.\n\n' +
           '"File is required" renders once, not twice. The form passes ' +

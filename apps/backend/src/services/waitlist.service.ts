@@ -1,4 +1,5 @@
 import { prisma } from "src/config/prisma";
+import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 import { AuditTrailService } from "./audit-trail.service";
 import type { Prisma } from "@prisma/client";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
@@ -83,6 +84,14 @@ export const WaitlistService = {
       notes,
       expiresAt,
     } = params;
+
+    // `patientId` arrives in the request body while RBAC only authorised the
+    // organisation, so a caller could file a waitlist entry against another
+    // tenant's companion. Same uniform 404 as elsewhere so this cannot be used
+    // to probe which companion ids exist.
+    await assertPatientOrgMembership(patientId, organisationId, () => {
+      throw new WaitlistError("Companion not found.", 404);
+    });
 
     const entry = await prisma.waitlistEntry.create({
       data: {

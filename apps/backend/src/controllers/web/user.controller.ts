@@ -7,7 +7,7 @@ import {
   resolveCanonicalUserId,
 } from "../../services/user.service";
 import { AuthenticatedRequest } from "src/middlewares/auth";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import { resolveVerifiedUserId } from "src/utils/request";
 
 type GetUserRequest = Request<{ id: string }>;
 type UpdateUserNameRequest = Request<
@@ -100,7 +100,7 @@ export const UserController = {
 
   getById: async (req: GetUserRequest, res: Response) => {
     try {
-      const requesterId = resolveUserIdFromRequest(req);
+      const requesterId = resolveVerifiedUserId(req);
       const { id } = req.params;
 
       if (!id) {

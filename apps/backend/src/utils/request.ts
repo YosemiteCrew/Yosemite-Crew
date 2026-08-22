@@ -4,7 +4,16 @@ import type { OrgRequest } from "src/middlewares/rbac";
 
 /**
  * The caller identity as established by the auth middleware, with no header fallback.
- * Use this — never `resolveUserIdFromRequest` — for any authorization decision.
+ * Use this for any authorization decision.
+ *
+ * This replaced `resolveUserIdFromRequest`, which fell back to the
+ * client-supplied `x-user-id` header when no session had been established. On
+ * an authenticated route that fallback was unreachable, but on a public or
+ * optional-session route it let any caller name any user - and the same helper
+ * was being used for authorization decisions, not just attribution. The header
+ * is ignored everywhere now; a route that wants a signed-in caller's id on an
+ * otherwise public path attaches `attachSessionIfPresent` and reads the
+ * verified session instead.
  */
 export const resolveVerifiedUserId = (req: Request): string | undefined => {
   const userId = (req as AuthenticatedRequest).userId;
@@ -23,23 +32,6 @@ export const resolveVerifiedOrganisationId = (
   const organisationId = (req as OrgRequest).organisationId;
   if (typeof organisationId !== "string") return undefined;
   return organisationId.trim() || undefined;
-};
-
-export const resolveUserIdFromRequest = (req: Request): string | undefined => {
-  const authRequest = req as AuthenticatedRequest;
-  const userId = authRequest.userId;
-  if (typeof userId === "string") {
-    const trimmedUserId = userId.trim();
-    return trimmedUserId || undefined;
-  }
-
-  const headerUserId = req.headers?.["x-user-id"];
-  if (typeof headerUserId === "string") {
-    const trimmedHeader = headerUserId.trim();
-    if (trimmedHeader) return trimmedHeader;
-  }
-
-  return undefined;
 };
 
 /**

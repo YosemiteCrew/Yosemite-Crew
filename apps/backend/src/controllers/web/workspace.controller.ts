@@ -7,7 +7,7 @@ import {
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { WorkspaceDocumentPacketService } from "src/services/workspace-document-packet.service";
 import logger from "src/utils/logger";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import { resolveVerifiedUserId } from "src/utils/request";
 import type { OrgRequest } from "src/middlewares/rbac";
 
 const appointmentParamsSchema = z.object({
@@ -214,7 +214,7 @@ export const WorkspaceController = {
   async getMobileEncounterDocumentPacketPdf(req: Request, res: Response) {
     try {
       const params = mobileEncounterParamsSchema.parse(req.params);
-      const authUserId = resolveUserIdFromRequest(req);
+      const authUserId = resolveVerifiedUserId(req);
 
       if (!authUserId) {
         return res.status(401).json({ message: "User not authenticated." });

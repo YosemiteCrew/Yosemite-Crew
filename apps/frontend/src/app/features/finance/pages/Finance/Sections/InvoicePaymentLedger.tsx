@@ -5,6 +5,7 @@ import { formatMoney } from '@/app/lib/money';
 import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
 import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
 import { getLedgerChannel } from '@/app/features/finance/pages/Finance/Sections/ledgerChannel';
+import { getSafeStripeRedirectUrl } from '@/app/lib/urls';
 
 type InvoicePaymentLedgerProps = {
   invoice: Invoice;
@@ -39,7 +40,10 @@ const InvoicePaymentLedger = ({
 
   const caption = buildLedgerCaption(invoice, payerName);
   const { Icon: ChannelIcon, title: channelTitle } = getLedgerChannel(invoice);
-  const receiptUrl = invoice.stripeReceiptUrl;
+  // Validated rather than rendered straight into an href: React does not
+  // sanitize link protocols, and a receipt URL is invoice data. The helper keeps
+  // this to real Stripe receipt hosts over https.
+  const receiptUrl = getSafeStripeRedirectUrl(invoice.stripeReceiptUrl);
   const email = payerEmail?.trim();
 
   return (

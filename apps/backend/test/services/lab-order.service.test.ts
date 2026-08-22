@@ -1189,7 +1189,7 @@ describe("LabOrderService", () => {
       });
     });
 
-    it("omits absent filters and an unusable limit", async () => {
+    it("omits absent filters and falls back to the default page on an unusable limit", async () => {
       prismaMock.labOrder.findMany.mockResolvedValue([]);
 
       await LabOrderService.listOrders({
@@ -1198,11 +1198,37 @@ describe("LabOrderService", () => {
         limit: Number.NaN,
       });
 
+      // An unusable limit must not mean "no limit". Lab orders carry patient
+      // names, test names, notes and result URLs, so an unfiltered search
+      // returns a page rather than the organisation's entire history.
       expect(prismaMock.labOrder.findMany).toHaveBeenCalledWith({
         where: { organisationId: "org-1" },
         orderBy: { createdAt: "desc" },
-        take: undefined,
+        take: 50,
       });
+    });
+
+    it("caps an oversized caller-supplied limit", async () => {
+      prismaMock.labOrder.findMany.mockResolvedValue([]);
+
+      await LabOrderService.listOrders({
+        organisationId: "org-1",
+        limit: 100_000,
+      });
+
+      expect(prismaMock.labOrder.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 200 }),
+      );
+    });
+
+    it("honours a small caller-supplied limit", async () => {
+      prismaMock.labOrder.findMany.mockResolvedValue([]);
+
+      await LabOrderService.listOrders({ organisationId: "org-1", limit: 3 });
+
+      expect(prismaMock.labOrder.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 3 }),
+      );
     });
   });
 });

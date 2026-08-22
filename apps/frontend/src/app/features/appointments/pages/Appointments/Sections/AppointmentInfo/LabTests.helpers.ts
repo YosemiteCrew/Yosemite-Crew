@@ -54,7 +54,7 @@ export const getOrderResultProgressFromResults = (
 export const orderSortDate = (order: LabOrder) => order.updatedAt ?? order.createdAt ?? '';
 
 export const normalizeOrders = (orders: LabOrder[]): LabOrder[] =>
-  orders.toSorted((a, b) => {
+  [...orders].sort((a, b) => {
     const aDate = new Date(orderSortDate(a)).getTime();
     const bDate = new Date(orderSortDate(b)).getTime();
     return bDate - aDate;

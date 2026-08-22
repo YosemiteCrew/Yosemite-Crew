@@ -278,28 +278,51 @@ const ensureUploadedAttachments = async ({
     return [];
   }
 
-  return Promise.all(
-    attachments.map(async file => {
-      if (file.key) {
-        return {...file, status: 'ready'} as ExpenseAttachment;
-      }
-      if (!file.uri) {
-        throw new Error(
-          `File path missing for upload: ${file.name || file.id}`,
-        );
-      }
-      const uploadedFile = await documentApi.uploadAttachment({
-        file,
-        companionId,
-        accessToken,
-      });
-      return {
-        ...file,
-        ...uploadedFile,
-        status: 'ready',
-      } as ExpenseAttachment;
-    }),
-  );
+  // Validate everything BEFORE uploading anything. A missing uri used to be
+  // discovered mid-flight, after other uploads had already started, and those
+  // kept running to completion behind the rejected promise - leaving objects in
+  // storage that no expense record would ever reference.
+  for (const file of attachments) {
+    if (!file.key && !file.uri) {
+      throw new Error(`File path missing for upload: ${file.name || file.id}`);
+    }
+  }
+
+  // Bounded concurrency. The uploader reads each file fully into base64 before
+  // sending, so starting every attachment at once multiplies peak memory by the
+  // number of attachments and can take the app down on a large selection.
+  const MAX_CONCURRENT_UPLOADS = 3;
+  const results: ExpenseAttachment[] = new Array(attachments.length);
+
+  for (
+    let offset = 0;
+    offset < attachments.length;
+    offset += MAX_CONCURRENT_UPLOADS
+  ) {
+    const batch = attachments.slice(offset, offset + MAX_CONCURRENT_UPLOADS);
+    const uploaded = await Promise.all(
+      batch.map(async file => {
+        if (file.key) {
+          return {...file, status: 'ready'} as ExpenseAttachment;
+        }
+        const uploadedFile = await documentApi.uploadAttachment({
+          file,
+          companionId,
+          accessToken,
+        });
+        return {
+          ...file,
+          ...uploadedFile,
+          status: 'ready',
+        } as ExpenseAttachment;
+      }),
+    );
+    for (const [index, value] of uploaded.entries()) {
+      results[offset + index] = value;
+    }
+  }
+
+  return results;
 };
 
 const toApiPayload = (input: ExpenseInputPayload) => {

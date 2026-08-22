@@ -1,3 +1,10 @@
+jest.mock("@yosemite-crew/lib", () => ({
+  ...jest.requireActual("@yosemite-crew/lib"),
+  resolveLogoSource: jest.fn(),
+}));
+
+import { resolveLogoSource } from "@yosemite-crew/lib";
+
 import { createHash } from "node:crypto";
 import AdmZip from "adm-zip";
 import forge from "node-forge";
@@ -264,17 +271,19 @@ describe("buildApplePassJson", () => {
 
 describe("WalletPassService.buildApplePass", () => {
   // The logo now defaults to the committed brand asset, so every build fetches
-  // it. Mock fetch so the suite stays offline + deterministic.
-  const validPng = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
-  let fetchSpy: jest.SpyInstance;
+  // it. Images go through `resolveLogoSource` - the shared outbound fetcher that
+  // refuses private addresses, declines redirects and caps the response - rather
+  // than a bare `fetch`, so that is what the suite mocks to stay offline and
+  // deterministic. A null return is how that helper reports a refused or failed
+  // fetch, which is also the fallback path exercised below.
+  const validPng = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  let fetchSpy: jest.MockedFunction<typeof resolveLogoSource>;
   beforeEach(() => {
-    fetchSpy = jest.spyOn(globalThis, "fetch").mockResolvedValue({
-      ok: true,
-      arrayBuffer: async () => validPng.buffer,
-    } as Response);
-  });
-  afterEach(() => {
-    fetchSpy.mockRestore();
+    fetchSpy = resolveLogoSource as jest.MockedFunction<
+      typeof resolveLogoSource
+    >;
+    fetchSpy.mockReset();
+    fetchSpy.mockResolvedValue(validPng);
   });
 
   it("throws WalletNotConfiguredError (501) when no certificate is set", async () => {
@@ -406,7 +415,7 @@ describe("WalletPassService.buildApplePass", () => {
 
   it("falls back to the generated icon when the logo response is not ok", async () => {
     configure({ PUBLIC_WALLET_LOGO_URL: "https://cdn.example.com/logo.png" });
-    fetchSpy.mockResolvedValue({ ok: false } as Response);
+    fetchSpy.mockResolvedValue(null);
     const buffer = await WalletPassService.buildApplePass(
       PASSPORT,
       SHARE_TOKEN,

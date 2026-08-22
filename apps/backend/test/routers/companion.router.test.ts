@@ -57,11 +57,16 @@ describe("companion.router", () => {
     ]);
   });
 
-  it("requires auth and RBAC for companion name search", () => {
+  // `withOrgPermissions` is load bearing twice over: `requirePermission` answers
+  // 500 when no permission set has been loaded, so this route could only ever
+  // error without it; and `Patient` rows are not org-scoped in the schema, so
+  // the search behind it would otherwise span every companion in the product.
+  it("requires auth, org scope and RBAC for companion name search", () => {
     const route = findRoute("/org/search", "get");
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
       requireWebAuth,
+      withOrgPermissionsMiddleware,
       requirePermissionMiddleware,
       CompanionController.searchCompanionByName,
     ]);

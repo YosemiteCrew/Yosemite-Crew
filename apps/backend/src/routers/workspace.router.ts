@@ -1,7 +1,11 @@
 import { Router } from "express";
 import { WorkspaceController } from "src/controllers/web/workspace.controller";
 import { requireWebAuth, requireMobileAuth } from "src/middlewares/auth";
-import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
+import {
+  requirePermission,
+  requireAllPermissions,
+  withOrgPermissions,
+} from "src/middlewares/rbac";
 
 const router = Router();
 
@@ -108,11 +112,20 @@ router.post(
   (req, res) => WorkspaceController.createDocumentPacket(req, res),
 );
 
+// ALL of these, not any: the packet merges rendered forms and prescriptions
+// into one PDF, so `document:view:any` on its own would hand the aggregate to a
+// caller whose form or prescription visibility had been revoked individually.
+// Roles grant all three together, but `revokedPermissions` is per-user and
+// overrides the role.
 router.get(
   "/organisations/:organisationId/encounters/:encounterId/document-packet/pdf",
   requireWebAuth,
   withOrgPermissions(),
-  requirePermission("document:view:any"),
+  requireAllPermissions([
+    "document:view:any",
+    "forms:view:any",
+    "prescription:view:any",
+  ]),
   (req, res) => WorkspaceController.getEncounterDocumentPacketPdf(req, res),
 );
 

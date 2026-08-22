@@ -41,7 +41,12 @@ export const useOrganisationDiscountCap = (organisationId?: string): Organisatio
       setError(null);
       setMaxOverallDiscountPercent(null);
     } else {
+      // No organisation to read a cap for. The previous organisation's cap has
+      // to go with it, or the input keeps enforcing a limit that belongs to an
+      // organisation the user is no longer in.
       setLoading(false);
+      setError(null);
+      setMaxOverallDiscountPercent(null);
     }
   }
 

@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import GuestHeader from '@/app/ui/layout/Header/GuestHeader/GuestHeader';
 import UserHeader from '@/app/ui/layout/Header/UserHeader/UserHeader';
 import './Header.css';
@@ -12,13 +12,25 @@ import './Header.css';
 // becomes a usable trigger), keeping the transform consistent across routes.
 const getHeaderDockThreshold = () => Math.round(globalThis.window.innerHeight * 0.6);
 
+// `hasMounted` never changes after hydration, so the store has nothing to emit.
+const subscribeToNothing = () => () => {};
+
 const Header = ({ user = false }: { user?: boolean }) => {
-  const [dockPublicHeader, setDockPublicHeader] = useState(() =>
-    globalThis.window === undefined
-      ? false
-      : Math.max(globalThis.window.scrollY, 0) >= getHeaderDockThreshold()
+  // Both seeded to the SERVER's view, not the window's. Reading window.scrollY
+  // in the initializer made the first client render disagree with the server
+  // HTML - a hydration mismatch, and a docked class the server never emitted.
+  // The real value is read once the effect runs, which is also what makes a
+  // restored-scroll or deep-link load correct without waiting for a scroll.
+  const [dockPublicHeader, setDockPublicHeader] = useState(false);
+  // useSyncExternalStore is the sanctioned way to render differently on the
+  // client without a hydration mismatch: the server snapshot is false, the
+  // client snapshot true, and React swaps them at hydration rather than during
+  // the first render.
+  const hasMounted = useSyncExternalStore(
+    subscribeToNothing,
+    () => true,
+    () => false
   );
-  const [hasMounted] = useState(true);
   const tickingRef = useRef(false);
 
   useEffect(() => {
@@ -29,6 +41,11 @@ const Header = ({ user = false }: { user?: boolean }) => {
       setDockPublicHeader(currentScrollY >= getHeaderDockThreshold());
       tickingRef.current = false;
     };
+
+    // Read the real scroll position on mount: the state starts at the server's
+    // value, so without this a page restored mid-scroll renders undocked until
+    // the user scrolls or resizes.
+    updateHeaderState();
 
     const handleScroll = () => {
       if (tickingRef.current) return;

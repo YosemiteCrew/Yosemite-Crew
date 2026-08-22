@@ -362,6 +362,8 @@ describe("AppointmentController", () => {
     });
 
     it("should success (200)", async () => {
+      // Identity comes from the verified session; the header is inert.
+      (req as any).userId = "sessionUser";
       req.headers = { "x-user-id": "headerUser" };
       req.params = { appointmentId: "a1" };
       mockedAuthService.getByProviderUserId.mockResolvedValue({
@@ -377,7 +379,7 @@ describe("AppointmentController", () => {
       );
 
       expect(mockedAuthService.getByProviderUserId).toHaveBeenCalledWith(
-        "headerUser",
+        "sessionUser",
       );
       expect(
         mockedAppointmentService.checkInAppointmentParent,

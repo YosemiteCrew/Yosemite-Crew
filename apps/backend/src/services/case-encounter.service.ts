@@ -595,6 +595,18 @@ const buildPrescriptionMedicationRows = (
     sortOrder: index,
   }));
 
+/**
+ * The catalog selection behind an appointment, or null when it can no longer be
+ * resolved.
+ *
+ * Both 404 (deleted) and 400 (archived/inactive) degrade to null. Catalog state
+ * is editable independently of the appointments that reference it, so a product
+ * archived after booking would otherwise throw here and roll back the whole
+ * encounter-creation transaction - leaving the appointment permanently
+ * unopenable, and giving anyone with catalog edit rights a way to block clinical
+ * workflow for upcoming appointments without touching the encounters at all.
+ * The encounter is created either way; it simply carries no catalog selection.
+ */
 const resolveSelectionSafe = async (
   productItemId: string,
   organisationId: string,
@@ -602,7 +614,10 @@ const resolveSelectionSafe = async (
   try {
     return await CatalogService.resolveSelection(productItemId, organisationId);
   } catch (error) {
-    if (error instanceof CatalogServiceError && error.statusCode === 404) {
+    if (
+      error instanceof CatalogServiceError &&
+      (error.statusCode === 404 || error.statusCode === 400)
+    ) {
       return null;
     }
     throw error;
@@ -1529,8 +1544,16 @@ export const CaseEncounterService = {
           encounterId: updatedEncounter.id,
           overrideReason,
           finalizationGate: resolvedFinalizationGate,
+          // The clinically-recorded discharge time stays user-supplied and is
+          // preserved here as data; it is just not what the audit trail is
+          // ordered by.
+          dischargedAt: input?.dischargedAt?.toISOString?.() ?? undefined,
         },
-        occurredAt: input?.dischargedAt ?? new Date(),
+        // Server time, NOT the client's `dischargedAt`. The audit listing is
+        // ordered and paginated by `occurredAt`, so letting the caller choose it
+        // let a recent override be filed with an old timestamp and fall outside
+        // the default recent-activity view - hiding the very action the event
+        // exists to record.
       });
     }
 
@@ -1549,7 +1572,7 @@ export const CaseEncounterService = {
         overrideReason,
         finalizationGate: resolvedFinalizationGate,
       },
-      occurredAt: input?.dischargedAt ?? new Date(),
+      // Server time; see the override event above.
     });
 
     return (

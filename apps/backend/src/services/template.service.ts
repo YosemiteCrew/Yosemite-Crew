@@ -494,8 +494,13 @@ const resolveTemplateModeFromContext = async (
     return undefined;
   }
 
+  // `appointmentId` / `encounterId` arrive as free-form resolver context while
+  // RBAC only authorised `organisationId`, so this read has to be constrained to
+  // that organisation - otherwise naming another tenant's appointment made the
+  // resolver read it.
   const appointment = await prisma.appointment.findFirst({
     where: {
+      organisationId: input.organisationId,
       OR: contextClauses,
     },
     select: {
@@ -508,7 +513,20 @@ const resolveTemplateModeFromContext = async (
     return "INPATIENT";
   }
 
-  const encounterId = appointment?.encounterId ?? input.encounterId;
+  // Only follow through to the admission for an encounter this organisation
+  // actually owns: the caller-supplied `encounterId` fallback would otherwise
+  // reintroduce the same cross-tenant read one level down.
+  let encounterId = appointment?.encounterId ?? null;
+  if (!encounterId && input.encounterId) {
+    const ownedEncounter = await prisma.encounter.findFirst({
+      where: {
+        id: input.encounterId,
+        organisationId: input.organisationId,
+      },
+      select: { id: true },
+    });
+    encounterId = ownedEncounter?.id ?? null;
+  }
   if (!encounterId) {
     return undefined;
   }
@@ -995,10 +1013,12 @@ export const TemplateService = {
       await prisma.templateVersion.update({
         where: { id: currentVersion.id },
         data: {
+          // Persist the NORMALIZED snapshot, exactly as the new-version branch
+          // does. Writing parsed.schemaSnapshot here stored a draft that had
+          // not been through normalizeClinicalTemplateSchemaSnapshot, so the
+          // sections validation ran against differed from what was saved.
           schemaSnapshot: toJsonInput(
-            parsed.schemaSnapshot === undefined
-              ? currentVersion.schemaSnapshot
-              : parsed.schemaSnapshot,
+            nextSchemaSnapshot ?? currentVersion.schemaSnapshot,
           ),
           renderConfigSnapshot: toJsonInput(
             parsed.renderConfigSnapshot === undefined
@@ -1189,16 +1209,41 @@ export const TemplateService = {
     return items.map(withCatalogItemIds);
   },
 
+  /**
+   * The shared YC library.
+   *
+   * `allowedKinds` is the caller's permission expressed as data. The library
+   * mixes form-family and task-family templates and its route admits either
+   * view permission, so the reader has to be narrowed to what they may see; an
+   * explicit `kind` filter can only narrow further, never widen.
+   */
   async listLibrary(filters?: {
     kind?: TemplateKind | TemplateContractKind;
     status?: TemplateStatus;
     scope?: TemplateScope;
     search?: string;
+    allowedKinds?: readonly TemplateKind[];
   }) {
+    const requestedKind = filters?.kind
+      ? toStorageTemplateKind(filters.kind)
+      : undefined;
+    const allowedKinds = filters?.allowedKinds;
+
+    let kindFilter: Prisma.TemplateWhereInput["kind"];
+    if (requestedKind && allowedKinds) {
+      kindFilter = allowedKinds.includes(requestedKind)
+        ? requestedKind
+        : { in: [] };
+    } else if (requestedKind) {
+      kindFilter = requestedKind;
+    } else if (allowedKinds) {
+      kindFilter = { in: [...allowedKinds] };
+    }
+
     const items = await prisma.template.findMany({
       where: {
         ownership: "YC_LIBRARY",
-        kind: filters?.kind ? toStorageTemplateKind(filters.kind) : undefined,
+        kind: kindFilter,
         status: filters?.status,
         scope: filters?.scope,
         ...buildTemplateSearchFilter(filters?.search),
@@ -1290,10 +1335,14 @@ export const TemplateService = {
             template,
             matched: {
               ...matched,
-              score:
-                (requireLinked ? 100 : 0) +
-                (matched.defaultForKind ? 10 : 0) +
-                matched.matchScore,
+              // Specificity decides; being a default only breaks a tie.
+              //
+              // `defaultForKind` used to add +10 while `matchScore` can only
+              // reach 4, so a broad default template outranked a template that
+              // actually matched the species, service and appointment kind -
+              // the opposite of what the scoring exists to do. Ties fall through
+              // to `compareResolverMatches`, which still prefers a default.
+              score: (requireLinked ? 100 : 0) + matched.matchScore,
             },
           });
         }

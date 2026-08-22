@@ -33,12 +33,12 @@ describe('companionDocuments types', () => {
   describe('HealthCategoryOptions', () => {
     it('matches the approved health subcategory list', () => {
       expect(HealthCategoryOptions).toEqual([
-        { label: 'Surgery/ Procedure', value: 'SURGERY_PROCEDURE' },
+        { label: 'Surgery/ Procedure', value: 'SURGERY_OR_PROCEDURE' },
         { label: 'Prescription', value: 'PRESCRIPTION' },
         { label: 'Vaccination', value: 'VACCINATION' },
         { label: 'Discharge summary', value: 'DISCHARGE_SUMMARY' },
         { label: 'Lab test', value: 'LAB_TEST' },
-        { label: 'Imaging/ Diagnostic', value: 'IMAGING_DIAGNOSTIC' },
+        { label: 'Imaging/ Diagnostic', value: 'IMAGING_OR_DIAGNOSTIC' },
         { label: 'Parasite prevention', value: 'PARASITE_PREVENTION' },
         { label: 'Medical condition', value: 'MEDICAL_CONDITION' },
         { label: 'Other', value: 'OTHER' },
@@ -83,8 +83,8 @@ describe('companionDocuments types', () => {
       expect(emptyCompanionRecord.category).toBe('HEALTH');
     });
 
-    it('has SURGERY_PROCEDURE subcategory by default', () => {
-      expect(emptyCompanionRecord.subcategory).toBe('SURGERY_PROCEDURE');
+    it('has SURGERY_OR_PROCEDURE subcategory by default', () => {
+      expect(emptyCompanionRecord.subcategory).toBe('SURGERY_OR_PROCEDURE');
     });
 
     it('has empty attachments array', () => {
@@ -117,9 +117,9 @@ describe('companionDocuments types', () => {
     });
 
     it('allows valid Subcategory types', () => {
-      const surgeryProcedure: Subcategory = 'SURGERY_PROCEDURE';
+      const surgeryProcedure: Subcategory = 'SURGERY_OR_PROCEDURE';
       const bathing: Subcategory = 'BATHING';
-      expect(surgeryProcedure).toBe('SURGERY_PROCEDURE');
+      expect(surgeryProcedure).toBe('SURGERY_OR_PROCEDURE');
       expect(bathing).toBe('BATHING');
     });
 

@@ -60,6 +60,84 @@ const addDays = (date: Date, days: number): Date => {
  * components (Datepicker / Timepicker / LabelDropdown), matching the Add
  * Appointment central modal theme.
  */
+type SyncedRoomDefaultsArgs = {
+  showModal: boolean;
+  defaultRoomId?: string;
+  defaultUnitId?: string;
+  defaultSupportId?: string;
+  roomId?: string;
+  unitOptionsByRoomId?: Record<string, DropdownItem[]>;
+  setRoomId: React.Dispatch<React.SetStateAction<string | undefined>>;
+  setUnitId: React.Dispatch<React.SetStateAction<string | undefined>>;
+  setSupportStaffId: React.Dispatch<React.SetStateAction<string | undefined>>;
+};
+
+/**
+ * Keep room, unit and support in step with data that loads after the modal opens.
+ *
+ * Two reconciliations, both render-phase (React's documented
+ * setState-during-render pattern), extracted so the component body stays a list
+ * of state and handlers rather than state interleaved with reconciliation:
+ *
+ * 1. Defaults that arrive late. Only the open transition adopted them, so a
+ *    modal opened before the load finished kept empty selections and blocked
+ *    the conversion on errors the user could not clear. A late default fills an
+ *    EMPTY slot only - a value the user picked is theirs.
+ * 2. The unit against the selected room's options. Keyed on the options as well
+ *    as the room, because the option map loads too: options arriving after the
+ *    room was chosen used to leave a unit that room does not have selected.
+ */
+const useSyncedRoomDefaults = ({
+  showModal,
+  defaultRoomId,
+  defaultUnitId,
+  defaultSupportId,
+  roomId,
+  unitOptionsByRoomId,
+  setRoomId,
+  setUnitId,
+  setSupportStaffId,
+}: SyncedRoomDefaultsArgs) => {
+  const [prevDefaults, setPrevDefaults] = useState({
+    defaultRoomId,
+    defaultUnitId,
+    defaultSupportId,
+  });
+  const defaultsChanged =
+    prevDefaults.defaultRoomId !== defaultRoomId ||
+    prevDefaults.defaultUnitId !== defaultUnitId ||
+    prevDefaults.defaultSupportId !== defaultSupportId;
+
+  if (showModal && defaultsChanged) {
+    setPrevDefaults({ defaultRoomId, defaultUnitId, defaultSupportId });
+    if (defaultRoomId) setRoomId((current) => current ?? defaultRoomId);
+    if (defaultUnitId) setUnitId((current) => current ?? defaultUnitId);
+    if (defaultSupportId) setSupportStaffId((current) => current ?? defaultSupportId);
+  }
+
+  const optionsForRoom = roomId ? (unitOptionsByRoomId?.[roomId] ?? []) : [];
+  const unitReconcileKey = `${roomId ?? ''}|${optionsForRoom.map((o) => o.value).join(',')}`;
+  const [prevUnitReconcileKey, setPrevUnitReconcileKey] = useState(unitReconcileKey);
+
+  if (unitReconcileKey !== prevUnitReconcileKey) {
+    setPrevUnitReconcileKey(unitReconcileKey);
+    if (roomId && unitOptionsByRoomId) {
+      setUnitId((current) => resolveUnitForRoom(current, optionsForRoom));
+    }
+  }
+};
+
+/** The unit to keep for a room: the current one if it is still offered, else the first. */
+const resolveUnitForRoom = (
+  current: string | undefined,
+  optionsForRoom: DropdownItem[]
+): string | undefined => {
+  if (optionsForRoom.length === 0) return undefined;
+  return current && optionsForRoom.some((option) => option.value === current)
+    ? current
+    : optionsForRoom[0].value;
+};
+
 const HospitalizationModal = ({
   showModal,
   setShowModal,
@@ -135,22 +213,17 @@ const HospitalizationModal = ({
     }
   }
 
-  const [prevRoomId, setPrevRoomId] = useState(roomId);
-  if (roomId !== prevRoomId) {
-    setPrevRoomId(roomId);
-    if (roomId && unitOptionsByRoomId) {
-      const optionsForRoom = unitOptionsByRoomId[roomId] ?? [];
-      if (!optionsForRoom.length) {
-        setUnitId(undefined);
-      } else {
-        setUnitId((current) =>
-          current && optionsForRoom.some((option) => option.value === current)
-            ? current
-            : optionsForRoom[0].value
-        );
-      }
-    }
-  }
+  useSyncedRoomDefaults({
+    showModal,
+    defaultRoomId,
+    defaultUnitId,
+    defaultSupportId,
+    roomId,
+    unitOptionsByRoomId,
+    setRoomId,
+    setUnitId,
+    setSupportStaffId,
+  });
 
   const validationErrors = useMemo(() => {
     const errors: Record<string, string> = {};

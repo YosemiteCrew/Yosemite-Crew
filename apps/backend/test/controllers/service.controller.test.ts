@@ -120,15 +120,18 @@ describe("ServiceController", () => {
       expect(res.json).toHaveBeenCalledWith({ message: "Custom Error" });
     });
 
-    it("resolves userId from headers", async () => {
+    // This route is public, so the saved-address fallback resolves ANOTHER
+    // account's location. Driving it from a request header let any caller pick
+    // whose address to geocode.
+    it("ignores an x-user-id header on the public search route", async () => {
       req = mockRequest({
         query: { serviceName: "Vet" },
         headers: { "x-user-id": "header-user" },
       });
-      (getParentAddressForAuthUser as jest.Mock).mockResolvedValueOnce(null);
 
       await ServiceController.listOrganisationByServiceName(req, res);
-      expect(getParentAddressForAuthUser).toHaveBeenCalledWith("header-user");
+      expect(getParentAddressForAuthUser).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
     });
 
     it("resolves userId from auth object if headers are missing", async () => {

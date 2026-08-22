@@ -8,6 +8,7 @@ import {
   getLastVisitStart,
   getMonogram,
   getSpeciesCounts,
+  resolveSpeciesBucket,
   getTodaysAppointments,
   hasCoParent,
   isToday,
@@ -178,5 +179,18 @@ describe('companionsDirectory helpers', () => {
     ];
     const sorted = sortByLastVisit([a, b, c], appts, now);
     expect(sorted.map((item) => item.companion.id)).toEqual(['b', 'a', 'c']);
+  });
+});
+
+describe('resolveSpeciesBucket', () => {
+  // The counts and the list filter share this. When they did not, the Exotics
+  // tab counted every unrecognised species but only listed a literal "other",
+  // so the tab showed a number over an empty list.
+  it.each(['dog', 'Cat', 'HORSE'])('keeps the named species %s', (type) => {
+    expect(resolveSpeciesBucket(type)).toBe(type.toLowerCase());
+  });
+
+  it.each(['rabbit', 'bird', 'other', '', null, undefined])('buckets %s into exotics', (type) => {
+    expect(resolveSpeciesBucket(type)).toBe('other');
   });
 });

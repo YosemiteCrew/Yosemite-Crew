@@ -162,7 +162,7 @@ const TaskSlot = ({
   ]);
 
   const laidOutEvents = useMemo(() => {
-    const sorted = slotEvents.toSorted(
+    const sorted = [...slotEvents].sort(
       (a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime()
     );
     const laneEnds: number[] = [];

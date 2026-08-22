@@ -751,7 +751,7 @@ describe("ClinicalArtifactFhirController", () => {
         mapper: asSpy(mockedMapper.soapNoteToComposition),
         record: soapRecord,
         envelope: soapComposition,
-        args: ["soap-1", "org-1"],
+        args: ["soap-1", "org-1", undefined],
         status: 201,
       },
       {
@@ -835,7 +835,7 @@ describe("ClinicalArtifactFhirController", () => {
         mapper: asSpy(mockedMapper.dischargeSummaryToComposition),
         record: dischargeRecord,
         envelope: dischargeComposition,
-        args: ["ds-1", "org-1"],
+        args: ["ds-1", "org-1", undefined],
         status: 201,
       },
       {
@@ -877,7 +877,7 @@ describe("ClinicalArtifactFhirController", () => {
         mapper: asSpy(mockedMapper.vitalRecordToObservation),
         record: vitalRecord,
         envelope: observation,
-        args: ["vital-1", "org-1"],
+        args: ["vital-1", "org-1", undefined],
         status: 201,
       },
     ];
@@ -1304,7 +1304,7 @@ describe("ClinicalArtifactFhirController", () => {
       });
     });
 
-    it("falls back to the request user id when the payload names no author", async () => {
+    it("falls back to the verified session user when the payload names no author", async () => {
       asSpy(mockedService.createSoapNote).mockResolvedValueOnce({
         artifact: { id: "artifact-1" },
         soapNote: { id: "soap-1" },
@@ -1313,6 +1313,9 @@ describe("ClinicalArtifactFhirController", () => {
       await ClinicalArtifactFhirController.createSoapNote(
         {
           ...req,
+          userId: "session-user",
+          // Present but inert: authorship on a clinical record must not be
+          // settable by a request header.
           headers: { "x-user-id": "header-user" },
           body: { resourceType: "Composition", templateVersion: "9" },
         } as unknown as Request,
@@ -1321,7 +1324,7 @@ describe("ClinicalArtifactFhirController", () => {
 
       const [, context] = mockedMapper.compositionToSoapNoteInput.mock
         .calls[0] as [unknown, Record<string, unknown>];
-      expect(context.authorId).toBe("header-user");
+      expect(context.authorId).toBe("session-user");
       expect(context.templateVersion).toBeUndefined();
     });
 

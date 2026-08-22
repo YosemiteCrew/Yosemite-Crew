@@ -95,6 +95,15 @@ updates:
       # the lowest version a range allows via Socket, and every 1.4x range so
       # far scores below the 50 minimum (1.413.x scored 31/100 on #2088 and
       # #2096). Re-bump deliberately once the Socket score recovers.
+      #
+      # An entry with no update-types ignores EVERY update, security ones
+      # included, and this is a production frontend dependency - so dependabot
+      # will not open a remediation PR if an advisory lands against it. The
+      # compensating control is the supply-chain scan
+      # (scripts/security/supply-chain.sh), which greps the SBOM of what is
+      # actually installed and fails the merge gate on a critical finding
+      # regardless of what dependabot is or is not proposing. If that scan
+      # flags posthog-js, bump it by hand rather than waiting for a PR.
       - dependency-name: 'posthog-js'
       # google-auth-library 11 requires node >=22 at runtime; the backend image
       # runs node 18 - unfreeze together with the runtime upgrade (#2125).

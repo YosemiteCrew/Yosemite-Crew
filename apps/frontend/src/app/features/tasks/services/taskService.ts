@@ -237,6 +237,45 @@ export const updateTask = async (payload: Task, scope?: RecurrenceScope) => {
 };
 
 /**
+ * Move a task to a new time. For a recurring series, `scope` selects which
+ * occurrences move.
+ *
+ * Deliberately a MINIMAL patch rather than the whole task: the backend applies
+ * every defined field in a scoped update to each matching occurrence, so
+ * rescheduling with the full task copied the selected occurrence's name,
+ * description, assignee, medication, reminders and attachments over the rest of
+ * the series.
+ */
+export const rescheduleTask = async (
+  taskId: string,
+  dueAt: Date,
+  timezone: string,
+  scope?: RecurrenceScope
+) => {
+  const { upsertTask } = useTaskStore.getState();
+  const { primaryOrgId } = useOrgStore.getState();
+  if (!primaryOrgId) {
+    console.warn('No primary organization selected. Cannot reschedule task.');
+    return;
+  }
+  if (!taskId) {
+    console.warn('rescheduleTask: missing id');
+    return;
+  }
+  try {
+    const res = await patchData<Task>(
+      '/v1/task/pms/' + taskId,
+      { _id: taskId, dueAt, timezone },
+      scope ? { params: { scope } } : undefined
+    );
+    upsertTask(res.data);
+  } catch (err) {
+    console.error('Failed to reschedule task:', err);
+    throw err;
+  }
+};
+
+/**
  * Delete a task. For a recurring series, `scope` selects which occurrences to
  * remove (sent as a `scope` query param); omitting it defaults the backend to
  * THIS.

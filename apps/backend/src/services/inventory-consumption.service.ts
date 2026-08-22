@@ -337,7 +337,9 @@ const resolveFrequencyFromKeywords = (
   return undefined;
 };
 
-const dosesPerDayFromHours = (rawHours: string): number | undefined => {
+const dosesPerDayFromHours = (
+  rawHours: string | undefined,
+): number | undefined => {
   const hours = Number(rawHours);
   if (Number.isFinite(hours) && hours > 0) {
     return Math.max(1, Math.ceil(24 / hours));
@@ -345,38 +347,78 @@ const dosesPerDayFromHours = (rawHours: string): number | undefined => {
   return undefined;
 };
 
+/**
+ * Frequency patterns, as data rather than a chain of branches.
+ *
+ * Each entry pulls one capture out and turns it into doses per day; a rule that
+ * cannot produce a usable number falls through to the next, which is what the
+ * equivalent `if` chain did. Sub-daily schedules return a fraction so the
+ * `perDose x frequencyPerDay x durationInDays` formula still holds.
+ *
+ * Order matters: the more specific spellings come before the general ones.
+ */
+const FREQUENCY_PATTERN_RULES: ReadonlyArray<{
+  pattern: RegExp;
+  toDosesPerDay: (capture: string | undefined) => number | undefined;
+}> = [
+  { pattern: /EVERY (\d+) HOURS?/, toDosesPerDay: dosesPerDayFromHours },
+  { pattern: /^Q(\d+)H$/, toDosesPerDay: dosesPerDayFromHours },
+  {
+    pattern: /^(\d+) ?X(?: ?DAILY)?$/,
+    toDosesPerDay: (capture) => positiveNumber(capture),
+  },
+  // Plain "weekly" is handled by the keyword pass; these are the forms it does
+  // not cover. Without them a course on one of these schedules resolves to NO
+  // frequency and falls back to a single dose, so a long course consumes a
+  // fraction of the stock it actually issues.
+  {
+    // \b keeps the search from restarting inside a run of digits: without it
+    // a long numeric string that never reaches WEEK is rescanned from every
+    // position in the run.
+    pattern: /\b(\d+) ?(?:X|TIMES)(?: (?:A|PER))? ?WEEK/,
+    toDosesPerDay: (capture) => {
+      const doses = positiveNumber(capture);
+      return doses === undefined ? undefined : doses / 7;
+    },
+  },
+  {
+    pattern: /EVERY (\d+) DAYS?/,
+    toDosesPerDay: (capture) => {
+      const days = positiveNumber(capture);
+      return days === undefined ? undefined : 1 / days;
+    },
+  },
+  {
+    pattern: /\bFORTNIGHTLY\b|\bEVERY (?:2|TWO) WEEKS?\b/,
+    toDosesPerDay: () => 1 / 14,
+  },
+  { pattern: /\bMONTHLY\b|\bEVERY MONTH\b/, toDosesPerDay: () => 1 / 30 },
+];
+
+const positiveNumber = (raw: string | undefined): number | undefined => {
+  const value = Number(raw);
+  return Number.isFinite(value) && value > 0 ? value : undefined;
+};
+
 const resolveFrequencyFromPatterns = (
   normalized: string,
 ): number | undefined => {
-  const everyHoursText = /EVERY\s+(\d+)\s+HOURS?/.exec(normalized);
-  if (everyHoursText) {
-    const fromText = dosesPerDayFromHours(everyHoursText[1]);
-    if (fromText !== undefined) {
-      return fromText;
-    }
+  for (const rule of FREQUENCY_PATTERN_RULES) {
+    const match = rule.pattern.exec(normalized);
+    if (!match) continue;
+    const dosesPerDay = rule.toDosesPerDay(match[1]);
+    if (dosesPerDay !== undefined) return dosesPerDay;
   }
-
-  const everyNhours = /^Q(\d+)H$/.exec(normalized);
-  if (everyNhours) {
-    const fromCode = dosesPerDayFromHours(everyNhours[1]);
-    if (fromCode !== undefined) {
-      return fromCode;
-    }
-  }
-
-  const timesPerDay = /^(\d+)\s*X(?:\s*DAILY)?$/.exec(normalized);
-  if (timesPerDay) {
-    const count = Number(timesPerDay[1]);
-    if (Number.isFinite(count) && count > 0) {
-      return count;
-    }
-  }
-
   return undefined;
 };
 
 const resolveFrequencyPerDay = (frequency?: string | null) => {
-  const normalized = frequency?.trim().toUpperCase();
+  // Whitespace runs are collapsed to a single space here, once. The patterns
+  // below pair `\s*` with optional groups, and on a value carrying a long run of
+  // spaces those alternatives can be split many ways - super-linear backtracking
+  // on a string that arrives from prescription data. With runs already collapsed
+  // there is nothing left to split.
+  const normalized = frequency?.trim().toUpperCase().replaceAll(/\s+/g, " ");
   if (!normalized) return undefined;
 
   if (Object.hasOwn(FREQUENCY_DIRECT_MAP, normalized)) {
@@ -427,6 +469,14 @@ const toDispenseUnits = (quantity: number, packSize?: number) => {
 const resolveDispenseTotalUnits = (
   record: Record<string, unknown>,
 ): number | undefined => {
+  // An already-resolved course total wins. Dispense-request enrichment computes
+  // one and stores it here; re-deriving from `quantity` would multiply the
+  // course out a second time.
+  const resolvedTotal = readPositiveNumber(record.totalUnits);
+  if (resolvedTotal !== undefined) {
+    return Math.max(1, Math.ceil(resolvedTotal));
+  }
+
   const perDose = readPositiveNumber(
     record.quantity ?? record.units ?? record.count ?? record.dispenseQuantity,
   );
@@ -847,15 +897,20 @@ const enrichDispenseRequestMedications = async (
     const frequencyPerDay =
       readPositiveInteger(item.frequencyPerDay) ??
       resolveFrequencyPerDay(frequency);
-    const baseQuantity =
-      readPositiveInteger(
-        item.quantity ?? item.units ?? item.count ?? item.dispenseQuantity,
-      ) ??
-      (doseQty !== undefined &&
+    const explicitQuantity = readPositiveInteger(
+      item.quantity ?? item.units ?? item.count ?? item.dispenseQuantity,
+    );
+    // Derived ONLY when the line carries no quantity of its own. In that case
+    // the value below is the whole COURSE, not a per-dose amount - which is the
+    // distinction `totalUnits` records.
+    const derivedCourseTotal =
+      explicitQuantity === undefined &&
+      doseQty !== undefined &&
       frequencyPerDay !== undefined &&
       durationInDays !== undefined
         ? Math.max(1, Math.ceil(doseQty * frequencyPerDay * durationInDays))
-        : undefined);
+        : undefined;
+    const baseQuantity = explicitQuantity ?? derivedCourseTotal;
 
     return {
       ...item,
@@ -887,6 +942,13 @@ const enrichDispenseRequestMedications = async (
       stockUnitQty,
       stockUnitQuantity: stockUnitQty,
       quantity: baseQuantity ?? item.quantity ?? undefined,
+      // Set only when the course total was DERIVED above, in which case
+      // `quantity` now holds that whole course rather than a per-dose amount.
+      // `resolveDispenseTotalUnits` reads `quantity` as per-dose and multiplies
+      // it by frequency and duration, so without this marker the derived course
+      // was multiplied out a second time at stock consumption. A line with its
+      // own explicit quantity leaves this unset and is multiplied as before.
+      totalUnits: derivedCourseTotal,
       priceCents:
         readPositiveInteger(item.priceCents) ??
         resolvePriceCents(inventoryItem ?? {}),
@@ -1634,6 +1696,7 @@ const buildPrescriptionDispenseRequestInclude = () =>
 const resolveDispenseRequestDisplayFields = async (
   db: Pick<typeof prisma, "appointment">,
   request: {
+    organisationId: string;
     prescription: {
       artifact: {
         appointmentId?: string | null;
@@ -1648,8 +1711,14 @@ const resolveDispenseRequestDisplayFields = async (
     return {};
   }
 
+  // Scoped to the dispense request's OWN organisation. `artifact.appointmentId`
+  // is stored from the prescription payload without proving the appointment
+  // belongs to the same tenant, so an unscoped lookup here hydrated the response
+  // with another practice's patient name, owner name, lead clinician and room.
+  // A mismatch simply yields no display fields rather than an error - these are
+  // decorations on a record the caller is already entitled to.
   const appointment = await db.appointment.findFirst({
-    where: { id: appointmentId },
+    where: { id: appointmentId, organisationId: request.organisationId },
     select: {
       patient: true,
       lead: true,
@@ -1692,6 +1761,7 @@ const hydrateDispenseRequest = async (
     | (NonNullable<
         Awaited<ReturnType<typeof prisma.prescriptionDispenseRequest.findFirst>>
       > & {
+        organisationId: string;
         prescription: {
           artifact: {
             appointmentId?: string | null;

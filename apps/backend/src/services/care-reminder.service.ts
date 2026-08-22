@@ -1,4 +1,5 @@
 import { prisma } from "src/config/prisma";
+import { escapeHtml } from "src/utils/email-templates";
 import { AuditTrailService } from "./audit-trail.service";
 import { NotificationService } from "./notification.service";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
@@ -129,7 +130,9 @@ const dispatchNotification = async (
     await sendEmail({
       to: ownerEmail,
       subject: `Care reminder for ${patientName}`,
-      htmlBody: `<p>${body}</p><p>Book an appointment through the app or contact your clinic directly.</p>`,
+      // `body` carries the companion name and the reminder's free-text custom
+      // message, so it must be escaped before it lands in email markup.
+      htmlBody: `<p>${escapeHtml(body)}</p><p>Book an appointment through the app or contact your clinic directly.</p>`,
     }).catch((err: unknown) => {
       logger.error("Care reminder email failed", {
         reminderId: reminder.id,

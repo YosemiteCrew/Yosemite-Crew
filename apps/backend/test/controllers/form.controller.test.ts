@@ -82,7 +82,7 @@ describe("FormController", () => {
     jest.restoreAllMocks();
   });
 
-  describe("Internal Helper (resolveUserIdFromRequest)", () => {
+  describe("Internal Helper (resolveVerifiedUserId)", () => {
     it("should prefer authReq.userId when header and auth userId are both present", async () => {
       req.headers["x-user-id"] = "header_user_id";
       req.params.orgId = "org1";
@@ -813,6 +813,9 @@ describe("FormController", () => {
       await FormController.getFormsForAppointment(req, res);
 
       expect(FormService.getFormsForAppointment).toHaveBeenCalledWith({
+        // Read-only listing: materialising linked-template
+        // assignments needs `forms:edit:any`.
+        canManageForms: false,
         appointmentId: "a1",
         serviceId: "s1",
         species: "CAT",
@@ -842,6 +845,9 @@ describe("FormController", () => {
       await FormController.getFormsForAppointment(req, res);
 
       expect(FormService.getFormsForAppointment).toHaveBeenCalledWith({
+        // Read-only listing: materialising linked-template
+        // assignments needs `forms:edit:any`.
+        canManageForms: false,
         appointmentId: "a1",
         serviceId: undefined,
         species: undefined,
@@ -863,6 +869,9 @@ describe("FormController", () => {
       await FormController.getFormsForAppointment(req, res);
 
       expect(FormService.getFormsForAppointment).toHaveBeenCalledWith({
+        // Read-only listing: materialising linked-template
+        // assignments needs `forms:edit:any`.
+        canManageForms: false,
         appointmentId: "a1",
         serviceId: undefined,
         species: undefined,
@@ -906,6 +915,28 @@ describe("FormController", () => {
   });
 
   describe("getFormSubmissionPDF", () => {
+    // The route is mobile-authenticated only and a submission id is a bare
+    // uuid, so the caller's own parent record is the ownership boundary.
+    const authenticateAsParent = () => {
+      (req as { userId?: string }).userId = "auth-user-1";
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue({ parentId: "parent-1" });
+    };
+
+    it("rejects a caller with no linked parent account", async () => {
+      req.params.submissionId = "sub1";
+      (req as { userId?: string }).userId = "auth-user-1";
+      (
+        AuthUserMobileService.getByProviderUserId as jest.Mock
+      ).mockResolvedValue(null);
+
+      await FormController.getFormSubmissionPDF(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(FormService.generatePDFForSubmission).not.toHaveBeenCalled();
+    });
+
     it("should return 400 if submissionId is missing or not a string", async () => {
       req.params.submissionId = undefined;
       await FormController.getFormSubmissionPDF(req, res);
@@ -918,6 +949,7 @@ describe("FormController", () => {
 
     it("should set headers and send PDF buffer on success", async () => {
       req.params.submissionId = "sub1";
+      authenticateAsParent();
       const mockBuffer = Buffer.from("pdf-data");
       (FormService.generatePDFForSubmission as jest.Mock).mockResolvedValue(
         mockBuffer,
@@ -925,7 +957,10 @@ describe("FormController", () => {
 
       await FormController.getFormSubmissionPDF(req, res);
 
-      expect(FormService.generatePDFForSubmission).toHaveBeenCalledWith("sub1");
+      expect(FormService.generatePDFForSubmission).toHaveBeenCalledWith(
+        "sub1",
+        "parent-1",
+      );
       expect(res.setHeader).toHaveBeenCalledWith(
         "Content-Type",
         "application/pdf",
@@ -939,6 +974,7 @@ describe("FormController", () => {
 
     it("should handle FormServiceError and generic errors", async () => {
       req.params.submissionId = "sub1";
+      authenticateAsParent();
 
       (FormService.generatePDFForSubmission as jest.Mock).mockRejectedValue(
         new FormServiceError("Not found", 404),

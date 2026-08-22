@@ -335,6 +335,405 @@ export const AllDocumentsTable = ({
   );
 };
 
+type PacketSignedArgs = {
+  encounterId?: string;
+  documents: Array<{ signingStatus?: string | null }>;
+  packetSigned: boolean;
+  signedForEncounterId?: string;
+  setPacketSigned: React.Dispatch<React.SetStateAction<boolean>>;
+  setSignedForEncounterId: React.Dispatch<React.SetStateAction<string | undefined>>;
+};
+
+/**
+ * Whether the clinical packet for the CURRENT encounter is signed.
+ *
+ * Two sources, and the reason for the bookkeeping: the documents read-model is
+ * authoritative but lags, so a reconcile response is captured locally to make
+ * the Sign to Download Signed swap immediate. That captured flag belongs to the
+ * encounter it was observed for. This step can stay mounted across a route
+ * change, and an unscoped flag then claimed the NEXT encounter was signed -
+ * hiding its Sign action and offering a "signed" download for a packet the
+ * backend would build unsigned.
+ *
+ * The reset is render-phase (React's documented setState-during-render pattern)
+ * so nothing reads a stale flag first.
+ */
+const usePacketSignedForEncounter = ({
+  encounterId,
+  documents,
+  packetSigned,
+  signedForEncounterId,
+  setPacketSigned,
+  setSignedForEncounterId,
+}: PacketSignedArgs): boolean => {
+  const [syncedEncounterId, setSyncedEncounterId] = useState<string | undefined>(encounterId);
+  if (syncedEncounterId !== encounterId) {
+    setSyncedEncounterId(encounterId);
+    if (signedForEncounterId !== encounterId) {
+      setPacketSigned(false);
+      setSignedForEncounterId(undefined);
+    }
+  }
+
+  return useMemo(
+    () =>
+      (packetSigned && signedForEncounterId === encounterId) ||
+      documents.some((document) => document.signingStatus?.toUpperCase() === 'SIGNED'),
+    [documents, packetSigned, signedForEncounterId, encounterId]
+  );
+};
+
+type PacketPdfActionsArgs = {
+  organisationId?: string;
+  encounterId?: string;
+  isPrinting: boolean;
+  setIsPrinting: React.Dispatch<React.SetStateAction<boolean>>;
+  setPacketPreviewUrl: React.Dispatch<React.SetStateAction<string | null>>;
+  setSignError: React.Dispatch<React.SetStateAction<string | null>>;
+};
+
+/**
+ * The three things a user can do with the clinical packet PDF: preview it,
+ * close that preview, and download the signed copy.
+ *
+ * Grouped out of the step body because they share the same guards, the same
+ * in-flight flag and the same object-URL lifecycle. Note that print falls back
+ * to the browser's own print dialog whenever the packet cannot be fetched -
+ * losing the packet should not lose the ability to print what is on screen.
+ */
+const usePacketPdfActions = ({
+  organisationId,
+  encounterId,
+  isPrinting,
+  setIsPrinting,
+  setPacketPreviewUrl,
+  setSignError,
+}: PacketPdfActionsArgs) => {
+  const handlePrint = async () => {
+    if (isPrinting) return;
+    if (!organisationId || !encounterId) {
+      globalThis.window.print();
+      return;
+    }
+    setIsPrinting(true);
+    try {
+      const url = await getEncounterDocumentPacketPdfUrl(organisationId, encounterId);
+      setPacketPreviewUrl(url);
+    } catch {
+      globalThis.window.print();
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
+  const closePacketPreview = () => {
+    setPacketPreviewUrl((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return null;
+    });
+  };
+
+  const handleDownloadSigned = async () => {
+    if (isPrinting) return;
+    if (!organisationId || !encounterId) return;
+    setIsPrinting(true);
+    try {
+      const url = await getEncounterDocumentPacketPdfUrl(organisationId, encounterId);
+      downloadDocumentUrl(url);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setSignError(
+        error instanceof Error ? error.message : 'Unable to download the signed document.'
+      );
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
+  return { handlePrint, closePacketPreview, handleDownloadSigned };
+};
+
+type AutoResolvedDischargeTemplateArgs = {
+  organisationId?: string;
+  appointmentId: string;
+  encounterId?: string;
+  companionId?: string;
+  companionSpecies?: string;
+  encounterMode?: AppointmentEncounter['mode'];
+  encounterServices?: AppointmentEncounter['services'];
+  dischargeSaved: boolean;
+  dischargeSummary: string;
+  dischargeTemplate?: unknown;
+  dischargeResolveKey: string;
+  resolvedDischargeEncounterRef: React.RefObject<string | null>;
+  setDischargeSummary: (appointmentId: string, html: string) => void;
+  setDischargeTemplate: React.Dispatch<
+    React.SetStateAction<{
+      templateId: string;
+      templateVersion: number;
+      templateVersionId?: string;
+    } | null>
+  >;
+  applyTemplateFollowUpDays: (snapshot: TemplateSchemaSnapshot | undefined) => void;
+};
+
+/**
+ * Seed an empty discharge summary from the template the backend resolves for
+ * this visit, once.
+ *
+ * Extracted whole because it is one decision with several preconditions: only
+ * for an unsaved summary, only when the editor is still empty and no template
+ * has been chosen, and only once per encounter (the ref, not the effect deps,
+ * is what makes it once - the deps include values the resolve itself changes).
+ */
+const useAutoResolvedDischargeTemplate = ({
+  organisationId,
+  appointmentId,
+  encounterId,
+  companionId,
+  companionSpecies,
+  encounterMode,
+  encounterServices,
+  dischargeSaved,
+  dischargeSummary,
+  dischargeTemplate,
+  dischargeResolveKey,
+  resolvedDischargeEncounterRef,
+  setDischargeSummary,
+  setDischargeTemplate,
+  applyTemplateFollowUpDays,
+}: AutoResolvedDischargeTemplateArgs) => {
+  useEffect(() => {
+    if (!organisationId || dischargeSaved) return;
+    if (resolvedDischargeEncounterRef.current === dischargeResolveKey) return;
+    if (!isRichTextEmpty(dischargeSummary) || dischargeTemplate) return;
+    resolvedDischargeEncounterRef.current = dischargeResolveKey;
+    let cancelled = false;
+    const serviceLine = encounterServices?.find((item) => item.kind === 'SERVICE');
+    const packageLine = encounterServices?.find((item) => item.kind === 'PACKAGE');
+    resolveDischargeTemplate({
+      organisationId,
+      appointmentId,
+      encounterId,
+      companionId,
+      species: companionSpecies,
+      serviceId: serviceLine?.refId,
+      packageId: packageLine?.refId,
+      mode: encounterMode,
+    })
+      .then((resolved) => {
+        if (cancelled || !resolved) return;
+        const html = schemaSnapshotToDischargeHtml(resolved.schemaSnapshot);
+        if (html) setDischargeSummary(appointmentId, html);
+        setDischargeTemplate({
+          templateId: resolved.templateId,
+          templateVersion: resolved.templateVersion,
+          templateVersionId: resolved.templateVersionId,
+        });
+        // The discharge template defines "follow up in N days"; prefill the follow-up date as
+        // (today + N days) when the clinician has not already set one. It stays editable below.
+        applyTemplateFollowUpDays(resolved.schemaSnapshot);
+      })
+      .catch((error) => {
+        console.error('Unable to resolve discharge template:', error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    appointmentId,
+    companionId,
+    companionSpecies,
+    dischargeResolveKey,
+    dischargeSaved,
+    dischargeSummary,
+    dischargeTemplate,
+    encounterId,
+    encounterMode,
+    encounterServices,
+    organisationId,
+    resolvedDischargeEncounterRef,
+    setDischargeSummary,
+    setDischargeTemplate,
+    applyTemplateFollowUpDays,
+  ]);
+};
+
+type StartPacketSigningArgs = {
+  organisationId?: string;
+  encounterId?: string;
+  appointmentId: string;
+  isSigning: boolean;
+  leadName?: string | null;
+  signingPacketIdRef: React.RefObject<string | null>;
+  signingInitiatedRef: React.RefObject<boolean>;
+  setIsSigning: React.Dispatch<React.SetStateAction<boolean>>;
+  setSignError: React.Dispatch<React.SetStateAction<string | null>>;
+  setSigningUrl: (url: string) => void;
+  setStepStatus: (appointmentId: string, step: 'SUMMARY', status: 'COMPLETED') => void;
+  openSigningOverlay: (key: string) => void;
+  closeSigningOverlay: () => void;
+};
+
+/**
+ * Build the merged clinical packet for this encounter and start signing it as a
+ * single document via Documenso.
+ *
+ * The packet stays DRAFT until the Documenso webhook confirms completion, at
+ * which point every bundled document is marked signed against the one signed
+ * packet PDF. Any failure closes the overlay again, so a half-started signing
+ * never leaves the user staring at a modal that will not resolve.
+ */
+const useStartPacketSigning = ({
+  organisationId,
+  encounterId,
+  appointmentId,
+  isSigning,
+  leadName,
+  signingPacketIdRef,
+  signingInitiatedRef,
+  setIsSigning,
+  setSignError,
+  setSigningUrl,
+  setStepStatus,
+  openSigningOverlay,
+  closeSigningOverlay,
+}: StartPacketSigningArgs) => {
+  return async () => {
+    if (isSigning) return;
+    if (!organisationId || !encounterId) {
+      setSignError('Missing organisation or encounter for signing.');
+      return;
+    }
+
+    setSignError(null);
+    setIsSigning(true);
+    openSigningOverlay(`packet-${encounterId}`);
+    try {
+      const packet = await createEncounterDocumentPacket(organisationId, encounterId);
+      const packetId = packet?.packetId;
+      if (!packetId) {
+        throw new Error('Document packet could not be created.');
+      }
+      // Remember the packet so the post-close reconcile can resolve its signing
+      // state against Documenso directly.
+      signingPacketIdRef.current = packetId;
+      const signed = await signWorkspaceDocumentPacket(organisationId, packetId, {
+        signerName: leadName ?? undefined,
+      });
+      const signingUrl = signed?.signing?.signingUrl;
+      if (!signingUrl) {
+        throw new Error('Signing link is not available yet.');
+      }
+      setSigningUrl(signingUrl);
+      // Arm the post-sign refresh: when the overlay closes we refetch documents,
+      // discharge status, and the finalization gate.
+      signingInitiatedRef.current = true;
+      setStepStatus(appointmentId, 'SUMMARY', 'COMPLETED');
+    } catch (error) {
+      setSignError(error instanceof Error ? error.message : 'Unable to start signing.');
+      closeSigningOverlay();
+    } finally {
+      setIsSigning(false);
+    }
+  };
+};
+
+type DischargeActionBarProps = {
+  signError: string | null;
+  showDocumentActions: boolean;
+  isPacketSigned: boolean;
+  dischargeSaved: boolean;
+  isPrinting: boolean;
+  isSaving: boolean;
+  isSigning: boolean;
+  signDisabled: boolean;
+  signDisabledReason?: string;
+  viewOnly?: boolean;
+  onPrint: () => void;
+  onSave: () => void;
+  onDownloadSigned: () => void;
+  onSign: () => void;
+};
+
+/**
+ * The discharge step's action row: print, save, and sign or download the signed
+ * packet.
+ *
+ * Its own component because which buttons appear is genuinely conditional -
+ * document actions only once the summary is saved, sign only while the packet
+ * is unsigned, and a tooltip variant when signing is blocked - and that belongs
+ * next to the buttons rather than inflating the step that renders them.
+ */
+const DischargeActionBar = ({
+  signError,
+  showDocumentActions,
+  isPacketSigned,
+  dischargeSaved,
+  isPrinting,
+  isSaving,
+  isSigning,
+  signDisabled,
+  signDisabledReason,
+  viewOnly,
+  onPrint,
+  onSave,
+  onDownloadSigned,
+  onSign,
+}: DischargeActionBarProps) => (
+  <div className="flex flex-col items-end gap-2">
+    {signError && (
+      <p role="alert" className="text-body-4 text-text-error">
+        {signError}
+      </p>
+    )}
+    <div className="flex flex-wrap items-center justify-end gap-3">
+      {showDocumentActions && (
+        <Secondary
+          text={isPrinting ? 'Preparing…' : 'Print All'}
+          icon={<IoPrintOutline aria-hidden="true" />}
+          onClick={onPrint}
+          isDisabled={isPrinting}
+        />
+      )}
+      {!dischargeSaved && (
+        <Secondary
+          text="Save"
+          icon={<IoSaveOutline aria-hidden="true" />}
+          onClick={onSave}
+          isDisabled={viewOnly || isSaving}
+        />
+      )}
+      {showDocumentActions && isPacketSigned && (
+        <Secondary
+          text="Download Signed"
+          icon={<IoDownloadOutline aria-hidden="true" />}
+          onClick={onDownloadSigned}
+          isDisabled={isPrinting}
+        />
+      )}
+      {showDocumentActions && !isPacketSigned && signDisabledReason && (
+        <GlassTooltip content={signDisabledReason} side="top">
+          <Secondary
+            text={isSigning ? 'Signing…' : 'Sign'}
+            icon={<IoDocumentTextOutline aria-hidden="true" />}
+            onClick={onSign}
+            isDisabled={signDisabled}
+          />
+        </GlassTooltip>
+      )}
+      {showDocumentActions && !isPacketSigned && !signDisabledReason && (
+        <Secondary
+          text={isSigning ? 'Signing…' : 'Sign'}
+          icon={<IoDocumentTextOutline aria-hidden="true" />}
+          onClick={onSign}
+          isDisabled={signDisabled}
+        />
+      )}
+    </div>
+  </div>
+);
+
 const useSummaryStepContent = ({
   appointmentId,
   appointment,
@@ -392,6 +791,11 @@ const useSummaryStepContent = ({
   // alongside the documents-derived signal so the Sign→Download Signed swap fires
   // even before the per-document SIGNED status has propagated into the read-model.
   const [packetSigned, setPacketSigned] = useState(false);
+  // Which encounter that flag was observed for. This step can stay mounted across
+  // a route/prop change, and an unscoped flag then claimed the NEXT encounter was
+  // signed - hiding its Sign action and offering "Download Signed" for a packet
+  // the backend would build unsigned on the fly.
+  const [signedForEncounterId, setSignedForEncounterId] = useState<string | undefined>();
 
   const templateSearchRef = useRef<HTMLDivElement>(null);
   const templateMatches = useMemo(() => {
@@ -494,6 +898,9 @@ const useSummaryStepContent = ({
         const reconciled = await reconcileWorkspaceDocumentPacket(organisationId, packetId);
         if (reconciled?.signing?.status?.toUpperCase() === 'SIGNED') {
           setPacketSigned(true);
+          // Stamp the encounter this answer belongs to, so the flag cannot
+          // outlive it.
+          setSignedForEncounterId(encounterId);
         }
       } catch (error) {
         console.error('Unable to reconcile packet signing:', error);
@@ -506,7 +913,7 @@ const useSummaryStepContent = ({
       console.error('Unable to refresh encounter after signing:', error);
     }
     await refreshDocuments();
-  }, [organisationId, appointmentId, mergeEncounterData, refreshDocuments]);
+  }, [organisationId, appointmentId, encounterId, mergeEncounterData, refreshDocuments]);
 
   const resolvedDischargeEncounterRef = useRef<string | null>(null);
   const dischargeResolveKey = encounterId ?? appointmentId;
@@ -532,60 +939,29 @@ const useSummaryStepContent = ({
     void refreshAfterSigning();
   }, [signingOverlayOpen, refreshAfterSigning]);
 
-  useEffect(() => {
-    if (!organisationId || dischargeSaved) return;
-    if (resolvedDischargeEncounterRef.current === dischargeResolveKey) return;
-    if (!isRichTextEmpty(dischargeSummary) || dischargeTemplate) return;
-    resolvedDischargeEncounterRef.current = dischargeResolveKey;
-    let cancelled = false;
-    const serviceLine = encounterServices?.find((item) => item.kind === 'SERVICE');
-    const packageLine = encounterServices?.find((item) => item.kind === 'PACKAGE');
-    resolveDischargeTemplate({
-      organisationId,
-      appointmentId,
-      encounterId,
-      companionId,
-      species: companionSpecies,
-      serviceId: serviceLine?.refId,
-      packageId: packageLine?.refId,
-      mode: encounterMode,
-    })
-      .then((resolved) => {
-        if (cancelled || !resolved) return;
-        const html = schemaSnapshotToDischargeHtml(resolved.schemaSnapshot);
-        if (html) setDischargeSummary(appointmentId, html);
-        setDischargeTemplate({
-          templateId: resolved.templateId,
-          templateVersion: resolved.templateVersion,
-          templateVersionId: resolved.templateVersionId,
-        });
-        // The discharge template defines "follow up in N days"; prefill the follow-up date as
-        // (today + N days) when the clinician has not already set one. It stays editable below.
-        applyTemplateFollowUpDays(resolved.schemaSnapshot);
-      })
-      .catch((error) => {
-        console.error('Unable to resolve discharge template:', error);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [
+  useAutoResolvedDischargeTemplate({
+    organisationId,
     appointmentId,
+    encounterId,
     companionId,
     companionSpecies,
-    dischargeResolveKey,
+    encounterMode,
+    encounterServices,
     dischargeSaved,
     dischargeSummary,
     dischargeTemplate,
-    encounterId,
-    encounterMode,
-    encounterServices,
-    organisationId,
-    applyTemplateFollowUpDays,
+    dischargeResolveKey,
+    resolvedDischargeEncounterRef,
     setDischargeSummary,
-  ]);
+    setDischargeTemplate,
+    applyTemplateFollowUpDays,
+  });
 
   const handleTemplateSelect = (template: TemplateLike) => {
+    // A saved discharge summary is read-only until it is explicitly reopened.
+    // Applying a template wrote straight over it while the saved timestamp and
+    // byline stayed put, so the replaced text read as the saved content.
+    if (dischargeSaved) return;
     const snapshot = getTemplateSchemaSnapshot(template);
     setDischargeSummary(appointmentId, schemaSnapshotToDischargeHtml(snapshot));
     setDischargeTemplate({
@@ -596,76 +972,38 @@ const useSummaryStepContent = ({
     setTemplateQuery('');
   };
 
+  const { handlePrint, closePacketPreview, handleDownloadSigned } = usePacketPdfActions({
+    organisationId,
+    encounterId,
+    isPrinting,
+    setIsPrinting,
+    setPacketPreviewUrl,
+    setSignError,
+  });
+
   // Build the merged clinical packet for this encounter and start signing it as
   // a single document via Documenso. The packet stays DRAFT until the Documenso
   // webhook confirms completion, at which point every bundled document is marked
   // signed against the one signed packet PDF.
-  const handleSign = async () => {
-    if (isSigning) return;
-    if (!organisationId || !encounterId) {
-      setSignError('Missing organisation or encounter for signing.');
-      return;
-    }
-
-    setSignError(null);
-    setIsSigning(true);
-    openSigningOverlay(`packet-${encounterId}`);
-    try {
-      const packet = await createEncounterDocumentPacket(organisationId, encounterId);
-      const packetId = packet?.packetId;
-      if (!packetId) {
-        throw new Error('Document packet could not be created.');
-      }
-      // Remember the packet so the post-close reconcile can resolve its signing
-      // state against Documenso directly.
-      signingPacketIdRef.current = packetId;
-      const signed = await signWorkspaceDocumentPacket(organisationId, packetId, {
-        signerName: encounter.leadName ?? undefined,
-      });
-      const signingUrl = signed?.signing?.signingUrl;
-      if (!signingUrl) {
-        throw new Error('Signing link is not available yet.');
-      }
-      setSigningUrl(signingUrl);
-      // Arm the post-sign refresh: when the overlay closes we refetch documents,
-      // discharge status, and the finalization gate.
-      signingInitiatedRef.current = true;
-      setStepStatus(appointmentId, 'SUMMARY', 'COMPLETED');
-    } catch (error) {
-      setSignError(error instanceof Error ? error.message : 'Unable to start signing.');
-      closeSigningOverlay();
-    } finally {
-      setIsSigning(false);
-    }
-  };
+  const handleSign = useStartPacketSigning({
+    organisationId,
+    encounterId,
+    appointmentId,
+    isSigning,
+    leadName: encounter.leadName,
+    signingPacketIdRef,
+    signingInitiatedRef,
+    setIsSigning,
+    setSignError,
+    setSigningUrl,
+    setStepStatus,
+    openSigningOverlay,
+    closeSigningOverlay,
+  });
 
   // Open the merged clinical packet (SOAP + Prescription + Discharge) as one PDF.
   // Falls back to the browser print dialog if the combined PDF isn't available
   // (e.g. documents not yet rendered, or no org/encounter context).
-  const handlePrint = async () => {
-    if (isPrinting) return;
-    if (!organisationId || !encounterId) {
-      globalThis.window.print();
-      return;
-    }
-    setIsPrinting(true);
-    try {
-      const url = await getEncounterDocumentPacketPdfUrl(organisationId, encounterId);
-      setPacketPreviewUrl(url);
-    } catch {
-      globalThis.window.print();
-    } finally {
-      setIsPrinting(false);
-    }
-  };
-
-  const closePacketPreview = () => {
-    setPacketPreviewUrl((current) => {
-      if (current) URL.revokeObjectURL(current);
-      return null;
-    });
-  };
-
   const handleSave = async () => {
     if (isSaving) return;
     setIsSaving(true);
@@ -712,12 +1050,14 @@ const useSummaryStepContent = ({
   // reports a SIGNED signing status — Documenso marks the bundled documents signed
   // against the one signed packet PDF. Drives the Sign→Download Signed swap and the
   // "print the signed copy" behaviour.
-  const isPacketSigned = useMemo(
-    () =>
-      packetSigned ||
-      documents.some((document) => document.signingStatus?.toUpperCase() === 'SIGNED'),
-    [documents, packetSigned]
-  );
+  const isPacketSigned = usePacketSignedForEncounter({
+    encounterId,
+    documents,
+    packetSigned,
+    signedForEncounterId,
+    setPacketSigned,
+    setSignedForEncounterId,
+  });
 
   // Signing may only begin while the appointment is actively in progress; before
   // that (e.g. checked-in/upcoming) or after completion the action is disabled and
@@ -730,23 +1070,6 @@ const useSummaryStepContent = ({
 
   // Download the signed packet PDF (the packet endpoint returns the signed copy
   // server-side once signing has completed).
-  const handleDownloadSigned = async () => {
-    if (isPrinting) return;
-    if (!organisationId || !encounterId) return;
-    setIsPrinting(true);
-    try {
-      const url = await getEncounterDocumentPacketPdfUrl(organisationId, encounterId);
-      downloadDocumentUrl(url);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      setSignError(
-        error instanceof Error ? error.message : 'Unable to download the signed document.'
-      );
-    } finally {
-      setIsPrinting(false);
-    }
-  };
-
   return (
     <div className="flex flex-col gap-5">
       <SigningOverlay />
@@ -768,7 +1091,13 @@ const useSummaryStepContent = ({
           indicator (design micro-state) sits to its left, driven off the save. */}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <AutosaveIndicator status={saveState?.status ?? 'idle'} savedAt={saveState?.at} />
-            <div ref={templateSearchRef} className="relative w-full sm:max-w-90">
+            {/* Hidden once the summary is saved: the saved view is read-only,
+                and offering a control that cannot apply is worse than not
+                offering it. Reopening the summary brings it back. */}
+            <div
+              ref={templateSearchRef}
+              className={`relative w-full sm:max-w-90 ${dischargeSaved ? 'hidden' : ''}`}
+            >
               <Search
                 value={templateQuery}
                 setSearch={setTemplateQuery}
@@ -882,58 +1211,22 @@ const useSummaryStepContent = ({
               </>
             )}
           </SectionContainer>
-
-          <div className="flex flex-col items-end gap-2">
-            {signError && (
-              <p role="alert" className="text-body-4 text-text-error">
-                {signError}
-              </p>
-            )}
-            <div className="flex flex-wrap items-center justify-end gap-3">
-              {showDocumentActions && (
-                <Secondary
-                  text={isPrinting ? 'Preparing…' : 'Print All'}
-                  icon={<IoPrintOutline aria-hidden="true" />}
-                  onClick={handlePrint}
-                  isDisabled={isPrinting}
-                />
-              )}
-              {!dischargeSaved && (
-                <Secondary
-                  text="Save"
-                  icon={<IoSaveOutline aria-hidden="true" />}
-                  onClick={handleSave}
-                  isDisabled={encounter.viewOnly || isSaving}
-                />
-              )}
-              {showDocumentActions && isPacketSigned && (
-                <Secondary
-                  text="Download Signed"
-                  icon={<IoDownloadOutline aria-hidden="true" />}
-                  onClick={handleDownloadSigned}
-                  isDisabled={isPrinting}
-                />
-              )}
-              {showDocumentActions && !isPacketSigned && signDisabledReason && (
-                <GlassTooltip content={signDisabledReason} side="top">
-                  <Secondary
-                    text={isSigning ? 'Signing…' : 'Sign'}
-                    icon={<IoDocumentTextOutline aria-hidden="true" />}
-                    onClick={handleSign}
-                    isDisabled={signDisabled}
-                  />
-                </GlassTooltip>
-              )}
-              {showDocumentActions && !isPacketSigned && !signDisabledReason && (
-                <Secondary
-                  text={isSigning ? 'Signing…' : 'Sign'}
-                  icon={<IoDocumentTextOutline aria-hidden="true" />}
-                  onClick={handleSign}
-                  isDisabled={signDisabled}
-                />
-              )}
-            </div>
-          </div>
+          <DischargeActionBar
+            signError={signError}
+            showDocumentActions={showDocumentActions}
+            isPacketSigned={isPacketSigned}
+            dischargeSaved={dischargeSaved}
+            isPrinting={isPrinting}
+            isSaving={isSaving}
+            isSigning={isSigning}
+            signDisabled={signDisabled}
+            signDisabledReason={signDisabledReason}
+            viewOnly={encounter.viewOnly}
+            onPrint={handlePrint}
+            onSave={handleSave}
+            onDownloadSigned={handleDownloadSigned}
+            onSign={handleSign}
+          />
         </div>
         <aside className="w-full lg:w-[400px] lg:shrink-0">
           <AllDocumentsTable

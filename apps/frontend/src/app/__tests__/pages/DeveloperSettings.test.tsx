@@ -52,7 +52,11 @@ describe('DeveloperSettings', () => {
     expect(screen.getByText('Timm Devices GmbH')).toBeInTheDocument();
     expect(screen.getByText('Verified')).toBeInTheDocument();
     expect(screen.getByText('JT')).toBeInTheDocument();
-    expect(screen.getByText('200 OK')).toBeInTheDocument();
+    // No endpoint is configured, so the page says so rather than displaying a
+    // real receiver baked into the client bundle alongside a health status
+    // nothing had actually measured.
+    expect(screen.getByText('Not configured')).toBeInTheDocument();
+    expect(screen.queryByText('200 OK')).not.toBeInTheDocument();
   });
 
   it('accepts email_verified as a string flag', () => {

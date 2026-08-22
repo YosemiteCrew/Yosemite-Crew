@@ -919,6 +919,53 @@ describe('workspaceAggregateService', () => {
       expect(deleteData).not.toHaveBeenCalled();
     });
 
+    it('never deletes a row billed via billingStatus', async () => {
+      // billingStatus is the field the workspace read path actually returns.
+      // Checking only billed/isBilled/status let every billed row read as
+      // deletable, so deleting an unbilled prescription could remove a billed
+      // line for the same medication.
+      (getData as jest.Mock).mockResolvedValue({
+        data: [{ id: 'ti-billed', prescriptionId: 'rx-1', billingStatus: 'BILLED' }],
+      });
+
+      const deleted = await deletePrescriptionTreatmentItem('org-1', 'enc-1', { id: 'rx-1' });
+      expect(deleted).toBe(false);
+      expect(deleteData).not.toHaveBeenCalled();
+    });
+
+    it.each(['settledInvoiceId', 'invoiceRowId'])(
+      'never deletes a row carrying %s',
+      async (field) => {
+        (getData as jest.Mock).mockResolvedValue({
+          data: [{ id: 'ti-inv', prescriptionId: 'rx-1', [field]: 'inv-1' }],
+        });
+
+        const deleted = await deletePrescriptionTreatmentItem('org-1', 'enc-1', { id: 'rx-1' });
+        expect(deleted).toBe(false);
+        expect(deleteData).not.toHaveBeenCalled();
+      }
+    );
+
+    it('prefers an identity match over another row dispensing the same drug', async () => {
+      // inventoryItemId identifies a medication, not a prescription. Given both,
+      // the row actually linked to this prescription is the one to remove.
+      (getData as jest.Mock).mockResolvedValue({
+        data: [
+          { id: 'ti-other', inventoryItemId: 'inv-9' },
+          { id: 'ti-mine', prescriptionId: 'rx-1', inventoryItemId: 'inv-9' },
+        ],
+      });
+
+      const deleted = await deletePrescriptionTreatmentItem('org-1', 'enc-1', {
+        id: 'rx-1',
+        inventoryItemId: 'inv-9',
+      });
+      expect(deleted).toBe(true);
+      expect(deleteData).toHaveBeenCalledWith(
+        '/v1/workspace/organisations/org-1/treatment-items/ti-mine'
+      );
+    });
+
     it('returns false when the matched row has no backend id', async () => {
       (getData as jest.Mock).mockResolvedValue({
         data: [{ prescriptionId: 'rx-1' }],

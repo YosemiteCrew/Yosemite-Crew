@@ -46,8 +46,10 @@ const PERMISSION_LOADER = /with[A-Za-z]*OrgPermissions\s*\(/;
  * every request.
  */
 const KNOWN_PREEXISTING_VIOLATIONS = new Map<string, number>([
-  // GET /companions/org/search - global search, not scoped to one organisation
-  ["companion.router.ts", 1],
+  // companion.router.ts is no longer listed: GET /companions/org/search was the
+  // one entry, and it now loads permissions before checking them. It had to -
+  // `requirePermission` answers 500 without a loaded permission set, so the
+  // route could only ever error, and the search behind it was unscoped.
   ["inventory.router.ts", 1],
   ["prescription.router.ts", 1],
 ]);

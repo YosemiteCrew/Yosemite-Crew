@@ -180,6 +180,7 @@ type SoapStepProps = {
    */
   visitStarted: boolean;
   onRecordVitals: () => void;
+  onOpenObservations: () => void;
   onSaveAndNext: () => void;
 };
 
@@ -201,6 +202,7 @@ const SoapStep = ({
   encounter,
   visitStarted,
   onRecordVitals,
+  onOpenObservations,
   onSaveAndNext,
 }: SoapStepProps) => {
   const terminologyText = useCompanionTerminologyText();
@@ -466,7 +468,7 @@ const SoapStep = ({
             vitals={encounter.vitals}
             observations={encounter.observations}
             onRecordVitals={onRecordVitals}
-            onOpenObservations={onRecordVitals}
+            onOpenObservations={onOpenObservations}
             canRecord={!readOnly}
           />
         </aside>

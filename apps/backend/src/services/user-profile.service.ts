@@ -839,7 +839,10 @@ export const UserProfileService = {
     let availability: UserAvailability[] = [];
 
     try {
-      availability = await BaseAvailabilityService.getByUserId(userId);
+      availability = await BaseAvailabilityService.getByUserId(
+        userId,
+        organizationId,
+      );
     } catch (error: unknown) {
       if (error instanceof BaseAvailabilityServiceError) {
         throw new UserProfileServiceError(error.message, error.statusCode);
@@ -971,7 +974,10 @@ export const UserProfileService = {
     let availability: UserAvailability[] = [];
 
     try {
-      availability = await BaseAvailabilityService.getByUserId(identifier);
+      availability = await BaseAvailabilityService.getByUserId(
+        identifier,
+        organizationIdentifier,
+      );
     } catch (error: unknown) {
       if (error instanceof BaseAvailabilityServiceError) {
         throw new UserProfileServiceError(error.message, error.statusCode);

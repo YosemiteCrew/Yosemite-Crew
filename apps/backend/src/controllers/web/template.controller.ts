@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import type { OrgRequest } from "src/middlewares/rbac";
 import { ParamsDictionary } from "express-serve-static-core";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import {
@@ -27,6 +28,18 @@ const templateKindQuerySchema = z.union([
     "TASK_ASSIGNMENT",
   ]),
 ]);
+
+// Which library kinds each view permission covers. Clinical document templates
+// travel with forms; scheduling templates travel with tasks.
+const FORM_TEMPLATE_KINDS = [
+  "FORM",
+  "SOAP_NOTE",
+  "VITAL_RECORD",
+  "PRESCRIPTION",
+  "DISCHARGE_SUMMARY",
+  "INVOICE",
+] as const;
+const TASK_TEMPLATE_KINDS = ["TASK_TEMPLATE", "CARE_PATHWAY"] as const;
 
 const listQuerySchema = z.object({
   kind: templateKindQuerySchema.optional(),
@@ -171,10 +184,33 @@ export const TemplateController = {
     }
   },
 
+  /**
+   * The shared template library, narrowed to the kinds the caller may see.
+   *
+   * The route admits `forms:view:any` OR `tasks:view:any` because the library
+   * holds both, and `requirePermission` treats an array as any-of - so a
+   * task-only role could read every FORM template in it (and vice versa). The
+   * permission the caller actually holds decides which kinds come back, and a
+   * caller asking for a kind they may not see gets an empty list rather than an
+   * error, because the mixed listing legitimately returns nothing for them.
+   */
   async listLibrary(req: Request, res: Response) {
     try {
       const query = listQuerySchema.parse(req.query);
-      const templates = await TemplateService.listLibrary(query);
+      const permissions = (req as OrgRequest).userPermissions ?? [];
+      const allowedKinds = [
+        ...(permissions.includes("forms:view:any") ? FORM_TEMPLATE_KINDS : []),
+        ...(permissions.includes("tasks:view:any") ? TASK_TEMPLATE_KINDS : []),
+      ];
+
+      if (allowedKinds.length === 0) {
+        return res.json([]);
+      }
+
+      const templates = await TemplateService.listLibrary({
+        ...query,
+        allowedKinds,
+      });
       return res.json(templates);
     } catch (error) {
       return handleError(error, res);

@@ -68,7 +68,7 @@ describe("ParentController", () => {
   });
 
   describe("Internal Helpers & Payload Parsing", () => {
-    it("resolveUserIdFromRequest: should prefer authenticated userId over x-user-id", async () => {
+    it("resolveVerifiedUserId: should prefer authenticated userId over x-user-id", async () => {
       req.headers["x-user-id"] = "header_id";
       req.body = validFHIR;
       (ParentService.create as jest.Mock).mockResolvedValue({ response: "ok" });

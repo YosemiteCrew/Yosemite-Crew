@@ -364,7 +364,7 @@ export const SearchController = {
   async searchTemplates(req: Request, res: Response) {
     try {
       const query = scopedSearchQuerySchema.parse(req.query);
-      // Read from the verified session only: `resolveUserIdFromRequest` falls
+      // Read from the verified session only: `resolveVerifiedUserId` falls
       // back to the client-supplied `x-user-id` header, which would let a
       // caller name any owner they like.
       const callerUserId = (req as OrgRequest).userId;

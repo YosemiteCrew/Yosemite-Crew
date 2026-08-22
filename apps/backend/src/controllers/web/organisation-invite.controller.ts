@@ -7,7 +7,7 @@ import {
   type CreateInvitePayload,
 } from "../../services/organisation-invite.service";
 import type { AuthenticatedRequest } from "../../middlewares/auth";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import { resolveVerifiedUserId } from "src/utils/request";
 
 type CreateInviteBody = Omit<
   CreateInvitePayload,
@@ -50,7 +50,7 @@ export const OrganisationInviteController = {
   createInvite: async (req: Request, res: Response) => {
     try {
       const { organisationId } = req.params;
-      const invitedByUserId = resolveUserIdFromRequest(req);
+      const invitedByUserId = resolveVerifiedUserId(req);
 
       if (!organisationId) {
         res

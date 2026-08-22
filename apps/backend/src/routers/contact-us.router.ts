@@ -1,7 +1,8 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { ContactController } from "src/controllers/app/contact-us.controller";
-import { requireWebAuth, requireMobileAuth } from "src/middlewares/auth";
+import { requireAnyAuth, requireMobileAuth } from "src/middlewares/auth";
+import { requireSuperAdmin } from "src/middlewares/super-admin";
 
 const router = Router();
 
@@ -24,14 +25,18 @@ router.post(
   ContactController.getAttachmentUploadUrl,
 );
 
-// Internal admin / support tools
-// router.use(requireAdminAuth);
-router.get("/requests", requireWebAuth, ContactController.list);
-router.get("/requests/:id", requireWebAuth, ContactController.getById);
-router.patch(
-  "/requests/:id/status",
-  requireWebAuth,
-  ContactController.updateStatus,
-);
+// Internal admin / support tools.
+//
+// These read and triage submissions to the PUBLIC contact form - names, email
+// addresses, phone numbers, message bodies and attachments belonging to people
+// who have no relationship with any practice. The admin gate here was commented
+// out, leaving `requireWebAuth` as the only control, so every staff account in
+// every organisation could enumerate that whole queue. It is not tenant data and
+// there is no organisation to scope it to; it belongs to the operator, which is
+// what `requireSuperAdmin` expresses.
+router.use("/requests", requireAnyAuth, requireSuperAdmin);
+router.get("/requests", ContactController.list);
+router.get("/requests/:id", ContactController.getById);
+router.patch("/requests/:id/status", ContactController.updateStatus);
 
 export default router;

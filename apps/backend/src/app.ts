@@ -161,7 +161,19 @@ export function createApp() {
   app.use(mongoSanitize());
 
   // ActivityPub well-known discovery (must be at root domain, before API routes)
+  // Deliberately ahead of the no-store middleware below: federation discovery
+  // documents are public and meant to be cached.
   app.use("/.well-known", wellKnownRouter);
+
+  // Every API response is tenant-scoped and authenticated. The URLs are stable
+  // (`/v1/finance/invoices?organisationId=...`), so without an explicit
+  // directive a browser or intermediary cache is free to store one user's
+  // invoices, records or audit trail and serve them to the next user of the
+  // same browser after a logout/login.
+  app.use((_req, res, next) => {
+    res.setHeader("Cache-Control", "no-store");
+    next();
+  });
 
   registerRoutes(app); // all routes in 1 place
 

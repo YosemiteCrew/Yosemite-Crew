@@ -5,7 +5,7 @@ import {
   UserOrganizationServiceError,
   type UserOrganizationFHIRPayload,
 } from "../../services/user-organization.service";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import { resolveVerifiedUserId } from "src/utils/request";
 
 const normalizeOrganisationReference = (value: string): string => {
   const trimmed = value.trim();
@@ -92,7 +92,7 @@ const hasOrgAccess = async (userId: string, organisationReference: string) => {
 export const UserOrganizationController = {
   upsertMapping: async (req: Request, res: Response) => {
     try {
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       if (!userId) {
         res.status(401).json({ message: "Unauthorized: missing user id." });
         return;
@@ -137,7 +137,7 @@ export const UserOrganizationController = {
 
   getMappingById: async (req: Request, res: Response) => {
     try {
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       if (!userId) {
         res.status(401).json({ message: "Unauthorized: missing user id." });
         return;
@@ -184,7 +184,7 @@ export const UserOrganizationController = {
 
   listMappings: async (req: Request, res: Response) => {
     try {
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       if (!userId) {
         res.status(401).json({ message: "Unauthorized: missing user id." });
         return;
@@ -202,7 +202,7 @@ export const UserOrganizationController = {
 
   deleteMappingById: async (req: Request, res: Response) => {
     try {
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       if (!userId) {
         res.status(401).json({ message: "Unauthorized: missing user id." });
         return;
@@ -254,7 +254,7 @@ export const UserOrganizationController = {
 
   updateMappingById: async (req: Request, res: Response) => {
     try {
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       if (!userId) {
         res.status(401).json({ message: "Unauthorized: missing user id." });
         return;
@@ -310,7 +310,7 @@ export const UserOrganizationController = {
 
   listMappingsForUser: async (req: Request, res: Response) => {
     try {
-      const userId = resolveUserIdFromRequest(req); // stable app user id from the verified session
+      const userId = resolveVerifiedUserId(req); // stable app user id from the verified session
 
       if (!userId) {
         res.status(401).json({ message: "Unauthorized: missing user id." });
@@ -338,7 +338,7 @@ export const UserOrganizationController = {
 
   listByOrganisationId: async (req: Request, res: Response) => {
     try {
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       if (!userId) {
         return res
           .status(401)

@@ -11,13 +11,13 @@ import {
 } from "src/services/clinical-artifact.service";
 import { clinicalArtifactFhirMapper } from "src/services/fhir-clinical-artifact.mapper";
 import { createFhirErrorHandler } from "src/controllers/web/fhir-controller.shared";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import { resolveVerifiedUserId } from "src/utils/request";
 import type { PrescriptionActor } from "src/services/clinical-artifact.service";
 import type { OrgRequest } from "src/middlewares/rbac";
 
 /**
  * Read the actor straight off the verified session rather than via
- * `resolveUserIdFromRequest`, which falls back to the client-supplied
+ * `resolveVerifiedUserId`, which falls back to the client-supplied
  * `x-user-id` header. That fallback is acceptable for attribution but must
  * never decide an authorization outcome.
  */
@@ -155,7 +155,7 @@ export const ClinicalArtifactFhirController = {
       const body = compositionSchema.parse(req.body) as unknown as Composition;
       const context = readContext(
         req.body as Record<string, unknown>,
-        resolveUserIdFromRequest(req) ?? "",
+        resolveVerifiedUserId(req) ?? "",
       );
       const record = await ClinicalArtifactService.createSoapNote(
         clinicalArtifactFhirMapper.compositionToSoapNoteInput(body, {
@@ -190,7 +190,7 @@ export const ClinicalArtifactFhirController = {
       const body = compositionSchema.parse(req.body) as unknown as Composition;
       const context = readContext(
         req.body as Record<string, unknown>,
-        resolveUserIdFromRequest(req) ?? "",
+        resolveVerifiedUserId(req) ?? "",
       );
       const record = await ClinicalArtifactService.updateSoapNote(
         req.params.soapNoteId,
@@ -246,7 +246,7 @@ export const ClinicalArtifactFhirController = {
       const actor = resolvePrescriptionActor(req);
       const context = readContext(
         req.body as Record<string, unknown>,
-        resolveUserIdFromRequest(req) ?? "",
+        resolveVerifiedUserId(req) ?? "",
       );
       // A caller with only own-scope edit cannot attribute the prescription to
       // another author: the author is forced to the verified acting user, so a
@@ -292,7 +292,7 @@ export const ClinicalArtifactFhirController = {
       ) as unknown as MedicationRequest;
       const context = readContext(
         req.body as Record<string, unknown>,
-        resolveUserIdFromRequest(req) ?? "",
+        resolveVerifiedUserId(req) ?? "",
       );
       const record = await ClinicalArtifactService.updatePrescription(
         req.params.prescriptionId,
@@ -348,7 +348,7 @@ export const ClinicalArtifactFhirController = {
       const body = compositionSchema.parse(req.body) as unknown as Composition;
       const context = readContext(
         req.body as Record<string, unknown>,
-        resolveUserIdFromRequest(req) ?? "",
+        resolveVerifiedUserId(req) ?? "",
       );
       const record = await ClinicalArtifactService.createDischargeSummary(
         clinicalArtifactFhirMapper.compositionToDischargeSummaryInput(body, {
@@ -383,7 +383,7 @@ export const ClinicalArtifactFhirController = {
       const body = compositionSchema.parse(req.body) as unknown as Composition;
       const context = readContext(
         req.body as Record<string, unknown>,
-        resolveUserIdFromRequest(req) ?? "",
+        resolveVerifiedUserId(req) ?? "",
       );
       const record = await ClinicalArtifactService.updateDischargeSummary(
         req.params.dischargeSummaryId,
@@ -436,7 +436,7 @@ export const ClinicalArtifactFhirController = {
       const body = observationSchema.parse(req.body) as unknown as Observation;
       const context = readContext(
         req.body as Record<string, unknown>,
-        resolveUserIdFromRequest(req) ?? "",
+        resolveVerifiedUserId(req) ?? "",
       );
       const record = await ClinicalArtifactService.createVitalRecord(
         clinicalArtifactFhirMapper.observationToVitalRecordInput(body, {
@@ -471,7 +471,7 @@ export const ClinicalArtifactFhirController = {
       const body = observationSchema.parse(req.body) as unknown as Observation;
       const context = readContext(
         req.body as Record<string, unknown>,
-        resolveUserIdFromRequest(req) ?? "",
+        resolveVerifiedUserId(req) ?? "",
       );
       const record = await ClinicalArtifactService.updateVitalRecord(
         req.params.vitalRecordId,
@@ -522,6 +522,7 @@ export const ClinicalArtifactFhirController = {
       const record = await ClinicalArtifactService.amendSoapNote(
         req.params.soapNoteId,
         req.params.organisationId,
+        resolveVerifiedUserId(req),
       );
       return res
         .status(201)
@@ -645,6 +646,7 @@ export const ClinicalArtifactFhirController = {
       const record = await ClinicalArtifactService.amendDischargeSummary(
         req.params.dischargeSummaryId,
         req.params.organisationId,
+        resolveVerifiedUserId(req),
       );
       return res
         .status(201)
@@ -687,6 +689,7 @@ export const ClinicalArtifactFhirController = {
       const record = await ClinicalArtifactService.amendVitalRecord(
         req.params.vitalRecordId,
         req.params.organisationId,
+        resolveVerifiedUserId(req),
       );
       return res
         .status(201)

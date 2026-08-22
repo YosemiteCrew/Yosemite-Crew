@@ -3,12 +3,14 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import PhoneFab from '@/app/ui/layout/PhoneShell/PhoneFab';
 import type { FabAction } from '@/app/ui/layout/PhoneShell/phoneShellConfig';
+import { PERMISSIONS } from '@/app/lib/permissions';
 
 const action: FabAction = {
   key: 'appointment',
   label: 'New appointment',
   ariaLabel: 'New appointment',
   routeName: 'Appointments',
+  createAnyOf: [PERMISSIONS.APPOINTMENTS_EDIT_ANY],
   matchHref: '/appointments',
 };
 

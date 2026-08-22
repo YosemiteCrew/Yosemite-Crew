@@ -280,7 +280,8 @@ describe("TemplateFhirController", () => {
   describe("createQuestionnaire", () => {
     it("creates a questionnaire template and echoes the FHIR resource", async () => {
       req.body = questionnaireBody();
-      req.headers = { "x-user-id": "header-user" };
+      // Authorship comes from the verified session, never the header.
+      (req as { userId?: string }).userId = "session-user";
       mockedService.create.mockResolvedValue(templateRow());
 
       await TemplateFhirController.createQuestionnaire(req as Request, res);
@@ -289,8 +290,8 @@ describe("TemplateFhirController", () => {
         expect.objectContaining({
           kind: "FORM",
           name: "Intake Form",
-          createdBy: "header-user",
-          updatedBy: "header-user",
+          createdBy: "session-user",
+          updatedBy: "session-user",
         }),
       );
       expect(statusMock).toHaveBeenCalledWith(201);
@@ -769,14 +770,14 @@ describe("TemplateFhirController", () => {
 
     it("scopes a user plan definition listing to the acting user", async () => {
       req.params = { organisationId: "org-3" };
-      req.headers = { "x-user-id": "header-user" };
+      (req as { userId?: string }).userId = "session-user";
       mockedService.listForUser.mockResolvedValue([planRow()]);
 
       await TemplateFhirController.listUserPlanDefinitions(req as Request, res);
 
       expect(mockedService.listForUser).toHaveBeenCalledWith(
         "org-3",
-        "header-user",
+        "session-user",
         {},
       );
     });

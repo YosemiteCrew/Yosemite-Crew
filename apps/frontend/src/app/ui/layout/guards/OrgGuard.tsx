@@ -30,22 +30,16 @@ import { useLoadSpecialitiesForPrimaryOrg } from '@/app/hooks/useSpecialities';
 import { getStorage, getStorageItem, setStorageItem } from '@/app/lib/browserStorage';
 import {
   canAccessPathByPermissions,
+  pathRequiresPermissions,
   resolveFirstAccessibleAppRoute,
   resolveMembershipPermissions,
 } from '@/app/lib/routePermissions';
 import { appRoutes } from '@/app/constants/routes';
+import { isLocalGuardBypassEnabled } from '@/app/lib/localGuardBypass';
 
 type OrgGuardProps = {
   children: React.ReactNode;
   skeleton?: React.ReactNode;
-};
-
-const isLocalGuardBypassEnabled = () => {
-  if (process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD !== 'true') return false;
-  const hostname = (
-    process.env.YC_TEST_HOSTNAME ?? globalThis.window?.location?.hostname
-  )?.toLowerCase();
-  return hostname === 'localhost' || hostname === '127.0.0.1';
 };
 
 const isStatusPending = (status?: string) => status === 'idle' || status === 'loading';
@@ -326,20 +320,28 @@ const OrgGuard = ({ children, skeleton = null }: OrgGuardProps) => {
     getAvailabilitiesByOrgId,
   });
 
-  const [checked, setChecked] = useState(
-    () =>
-      isLocalGuardBypassEnabled() ||
-      (primaryOrgId ? readOrgGuardPassed(primaryOrgId) : readAnyOrgGuardPassed())
-  );
+  // The cached pass is keyed by organisation only. It carries no information
+  // about the current path, the permission set, or which user recorded it, and
+  // sessionStorage is writable by anything running on the origin - so it is
+  // only ever consulted for paths that declare no permission requirement.
+  // A permission-gated path always waits for the real check below, which needs
+  // the membership to have loaded.
+  const cacheMayApply = !pathRequiresPermissions(pathname);
+  const readCachedPass = () =>
+    cacheMayApply && (primaryOrgId ? readOrgGuardPassed(primaryOrgId) : readAnyOrgGuardPassed());
+
+  const [checked, setChecked] = useState(() => isAuthGuardDisabled || readCachedPass());
   useFullscreenLoader('org-guard', !isAuthGuardDisabled && !checked);
 
   // Render-phase adjustment: re-evaluate the cached guard pass whenever the
   // primary org changes (sentinel forces one evaluation on first render, matching
   // the previous mount-time effect).
   const [syncedOrgId, setSyncedOrgId] = useState<string | null | undefined>('__unsynced__');
-  if (syncedOrgId !== primaryOrgId) {
+  const [syncedPath, setSyncedPath] = useState<string | null>(null);
+  if (syncedOrgId !== primaryOrgId || syncedPath !== pathname) {
     setSyncedOrgId(primaryOrgId);
-    setChecked(Boolean(primaryOrgId && readOrgGuardPassed(primaryOrgId)));
+    setSyncedPath(pathname);
+    setChecked(Boolean(cacheMayApply && primaryOrgId && readOrgGuardPassed(primaryOrgId)));
   }
 
   // The guard passes when the bypass is on, when there is no org to check, or

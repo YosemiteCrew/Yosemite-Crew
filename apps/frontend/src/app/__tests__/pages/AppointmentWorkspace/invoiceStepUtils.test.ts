@@ -388,3 +388,42 @@ describe('buildBillableItems', () => {
     expect(items[0].name).toBe('Duplicate');
   });
 });
+
+describe('in-house prescription quantity', () => {
+  it('bills the prescribed quantity, not one unit', () => {
+    // priceCents is the UNIT price. Ignoring qty meant a package-expanded
+    // medication of 5 at 4.50 each appeared on the bill as a single 4.50 line.
+    const items = buildBillableItems(
+      encounter({
+        prescription: [prescriptionItem('Amoxicillin', { qty: '5' })],
+      }),
+      [],
+      [],
+      [],
+      'org-1'
+    );
+
+    const line = items.find((item) => item.name === 'Amoxicillin');
+    expect(line).toMatchObject({
+      qty: 5,
+      unitPriceCents: 450,
+      grossCents: 2250,
+      amountCents: 2250,
+    });
+  });
+
+  it('falls back to a single unit when no quantity is recorded', () => {
+    const items = buildBillableItems(
+      encounter({ prescription: [prescriptionItem('Metacam')] }),
+      [],
+      [],
+      [],
+      'org-1'
+    );
+
+    expect(items.find((item) => item.name === 'Metacam')).toMatchObject({
+      qty: 1,
+      amountCents: 450,
+    });
+  });
+});

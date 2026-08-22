@@ -114,22 +114,31 @@ const GROUP_LABELS: Record<SearchGroupKey, string> = {
 // Empty-query state. "Recent" lists the last few records actually opened from
 // the palette (persisted locally); the "Jump to" entries below it are all real
 // routes. Dashboard + Appointments carry the spec's G-D / G-A keycaps.
-const RECENTS_STORAGE_KEY = 'yc_universal_search_recents';
+// Recents hold record TITLES - companion and patient names, appointment
+// concerns, task and form names, invoice ids - so they are tenant data, not a UI
+// preference. The key is namespaced per organisation so switching organisation
+// cannot surface the previous one's records, and `resetSessionStores` clears the
+// whole prefix on sign-out so the next user of this browser profile starts empty.
+export const RECENTS_STORAGE_KEY_PREFIX = 'yc_universal_search_recents:';
 const RECENTS_LIMIT = 3;
+
+const recentsStorageKey = (orgId: string) => `${RECENTS_STORAGE_KEY_PREFIX}${orgId}`;
 
 type RecentEntry = { title: string; href: string };
 
-const readRecents = (): RecentEntry[] => {
-  const stored = getJsonStorageItem<RecentEntry[]>('local', RECENTS_STORAGE_KEY);
+const readRecents = (orgId: string | null): RecentEntry[] => {
+  if (!orgId) return [];
+  const stored = getJsonStorageItem<RecentEntry[]>('local', recentsStorageKey(orgId));
   return Array.isArray(stored) ? stored.slice(0, RECENTS_LIMIT) : [];
 };
 
-const writeRecent = (entry: RecentEntry): RecentEntry[] => {
-  const next = [entry, ...readRecents().filter((item) => item.href !== entry.href)].slice(
+const writeRecent = (orgId: string | null, entry: RecentEntry): RecentEntry[] => {
+  if (!orgId) return [];
+  const next = [entry, ...readRecents(orgId).filter((item) => item.href !== entry.href)].slice(
     0,
     RECENTS_LIMIT
   );
-  setJsonStorageItem('local', RECENTS_STORAGE_KEY, next);
+  setJsonStorageItem('local', recentsStorageKey(orgId), next);
   return next;
 };
 
@@ -585,14 +594,14 @@ const UniversalSearchPalette = () => {
       // "Jump to" rows are nav shortcuts, not records — only opened records (and
       // re-opened recents) feed the design's "Recent" list.
       if (item.groupKey !== 'jump') {
-        setRecents(writeRecent({ title: item.title, href: item.href }));
+        setRecents(writeRecent(primaryOrgId, { title: item.title, href: item.href }));
       }
       close();
       setQuery('');
       startRouteLoader();
       router.push(item.href);
     },
-    [close, router]
+    [close, router, primaryOrgId]
   );
 
   const isOpenRef = useRef(isOpen);
@@ -668,7 +677,7 @@ const UniversalSearchPalette = () => {
     setPrevIsOpen(isOpen);
     if (isOpen) {
       setActiveIndex(0);
-      setRecents(readRecents());
+      setRecents(readRecents(primaryOrgId));
     }
   }
 

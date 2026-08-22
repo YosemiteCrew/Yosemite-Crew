@@ -128,6 +128,33 @@ describe('computePackageTotals', () => {
     expect(totalCost).toBe(0);
   });
 
+  it('reports zero for a loaded breakdown that genuinely totals zero', () => {
+    // A zero total is not the same signal as an unloaded breakdown. Keying the
+    // fallback off the total meant a package whose components were all removed
+    // (or all included) kept showing the amount the server last calculated.
+    const pkg: PackageRevamp = {
+      id: 'p4',
+      code: 'PK-0004',
+      name: 'Everything included',
+      description: '',
+      specialityId: 'spec-1',
+      organisationId: 'org-1',
+      durationText: 'Approx. 30 mins',
+      isBookable: false,
+      isInpatientPreferred: false,
+      leadCount: 1,
+      supportCount: 0,
+      additionalDiscount: 0,
+      breakdown: [
+        { id: 'b1', type: 'CONSULTATION', name: 'A', unitPrice: 0, quantity: 1, discount: 0 },
+      ],
+      serverFinalAmount: 250,
+      status: 'ACTIVE',
+      createdAt: '2025-01-01T00:00:00Z',
+    };
+    expect(computePackageTotals(pkg).totalCost).toBe(0);
+  });
+
   it('falls back to serverFinalAmount when breakdown is not loaded', () => {
     const pkg: PackageRevamp = {
       id: 'p3',

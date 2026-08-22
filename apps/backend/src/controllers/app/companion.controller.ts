@@ -8,9 +8,8 @@ import type { CompanionRequestDTO } from "@yosemite-crew/types";
 import { CompanionOrganisationService } from "src/services/companion-organisation.service";
 import { prisma } from "src/config/prisma";
 import {
-  resolveUserIdFromRequest,
-  resolveVerifiedOrganisationId,
   resolveVerifiedUserId,
+  resolveVerifiedOrganisationId,
 } from "src/utils/request";
 import { getProfileUploadUrl } from "./profile-upload.handler";
 
@@ -79,7 +78,7 @@ export const CompanionController = {
     try {
       const payload = extractFHIRPayload(req);
 
-      const authUserId = resolveUserIdFromRequest(req);
+      const authUserId = resolveVerifiedUserId(req);
       if (!authUserId) {
         return res.status(401).json({
           message: "Authentication required for mobile companion creation.",
@@ -128,7 +127,7 @@ export const CompanionController = {
           });
         }
 
-        const authUser = resolveUserIdFromRequest(req);
+        const authUser = resolveVerifiedUserId(req);
         if (!authUser) {
           return res.status(401).json({
             message:
@@ -145,7 +144,9 @@ export const CompanionController = {
             .json({ message: "Organisation not found for provided orgId." });
         }
 
-        await CompanionOrganisationService.linkByPmsUser({
+        // The practice created this companion, so the link is ACTIVE - there is
+        // no parent to approve a record the practice itself just entered.
+        await CompanionOrganisationService.linkOnCompanionCreatedByPms({
           pmsUserId: authUser,
           organisationId: orgId.trim(),
           organisationType: organisation.type,
@@ -249,7 +250,14 @@ export const CompanionController = {
           .json({ message: "A valid search name is required." });
       }
 
-      const result = await CompanionService.getByName(name);
+      const organisationId = resolveVerifiedOrganisationId(req);
+      if (!organisationId) {
+        return res
+          .status(400)
+          .json({ message: "Organisation context is required." });
+      }
+
+      const result = await CompanionService.getByName(name, organisationId);
 
       return res.status(200).json(result.responses);
     } catch (error) {

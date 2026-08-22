@@ -8,6 +8,7 @@ import {
   generatePresignedUrl,
 } from "src/middlewares/upload";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
+import { prisma } from "src/config/prisma";
 import logger from "../../src/utils/logger";
 
 // --- Global Mocks Setup ---
@@ -44,6 +45,13 @@ jest.mock("../../src/services/document.service", () => {
 jest.mock("src/middlewares/upload", () => ({
   generatePresignedUrl: jest.fn(),
   generatePresignedDownloadUrl: jest.fn(),
+}));
+
+jest.mock("src/config/prisma", () => ({
+  prisma: {
+    patientOrganisation: { findFirst: jest.fn() },
+    parentPatient: { findFirst: jest.fn() },
+  },
 }));
 
 jest.mock("src/services/authUserMobile.service", () => ({
@@ -83,14 +91,14 @@ describe("DocumentController", () => {
   });
 
   describe("Internal Helpers Testing via listForPms", () => {
-    it("resolveUserIdFromRequest: should use x-user-id header if present", async () => {
+    it("resolveVerifiedUserId: should use x-user-id header if present", async () => {
       req.headers["x-user-id"] = "header_id";
       req.params.patientId = "c1";
       await DocumentController.listForPms(req, res);
       expect(DocumentService.listForPms).toHaveBeenCalled(); // Means auth check passed with header_id
     });
 
-    it("resolveUserIdFromRequest: should handle missing headers gracefully", async () => {
+    it("resolveVerifiedUserId: should handle missing headers gracefully", async () => {
       req.headers = undefined;
       req.userId = "auth_id";
       req.params.patientId = "c1";
@@ -120,6 +128,29 @@ describe("DocumentController", () => {
   });
 
   describe("getUploadUrl", () => {
+    // The presigned key is derived from the supplied companion id, so the caller
+    // has to be entitled to that companion. On the PMS route that is an active
+    // patient-organisation link; on the mobile route it is an active parent link.
+    const authoriseAsOrgMember = () => {
+      (req as { organisationId?: string }).organisationId = "org-1";
+      (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue({
+        id: "link-1",
+      });
+    };
+
+    it("rejects a companion outside the caller's organisation", async () => {
+      req.body = { patientId: "c-other", mimeType: "image/png" };
+      (req as { organisationId?: string }).organisationId = "org-1";
+      (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue(
+        null,
+      );
+
+      await DocumentController.getUploadUrl(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(generatePresignedUrl).not.toHaveBeenCalled();
+    });
+
     it("should return 400 if patientId or mimeType are missing", async () => {
       req.body = { patientId: "c1" };
       await DocumentController.getUploadUrl(req, res);
@@ -132,6 +163,7 @@ describe("DocumentController", () => {
 
     it("should return 200 with url and key on success", async () => {
       req.body = { patientId: "c1", mimeType: "image/png" };
+      authoriseAsOrgMember();
       (generatePresignedUrl as jest.Mock).mockResolvedValue({
         url: "http://url",
         key: "key1",
@@ -149,6 +181,7 @@ describe("DocumentController", () => {
     });
 
     it("should handle generic errors", async () => {
+      authoriseAsOrgMember();
       req.body = { patientId: "c1", mimeType: "image/png" };
       (generatePresignedUrl as jest.Mock).mockRejectedValue(
         new Error("Test error"),

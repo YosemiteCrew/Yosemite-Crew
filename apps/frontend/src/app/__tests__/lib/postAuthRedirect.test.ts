@@ -1,4 +1,4 @@
-import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
+import { resolvePostAuthRedirect, sanitizeNextPath } from '@/app/lib/postAuthRedirect';
 import { loadOrgs } from '@/app/features/organization/services/orgService';
 import { loadProfiles } from '@/app/features/organization/services/profileService';
 import { loadAvailability } from '@/app/features/organization/services/availabilityService';
@@ -136,5 +136,33 @@ describe('resolvePostAuthRedirect', () => {
     await expect(resolvePostAuthRedirect({ fallbackRole: 'member' })).resolves.toBe(
       '/appointments'
     );
+  });
+});
+
+describe('sanitizeNextPath', () => {
+  it.each([
+    ['/dashboard', '/dashboard'],
+    ['/dashboard?tab=1#top', '/dashboard?tab=1#top'],
+    ['/a/../b', '/b'],
+  ])('keeps the same-origin path %s', (input, expected) => {
+    expect(sanitizeNextPath(input)).toBe(expected);
+  });
+
+  // Each of these reaches a foreign origin once the browser normalises it, and
+  // every one of them survived the previous `startsWith` check.
+  it.each([
+    ['//evil.example'],
+    ['/\\evil.example'],
+    ['/\t/evil.example'],
+    ['/\n/evil.example'],
+    ['/\r\n//evil.example'],
+    ['/..//evil.example'],
+    ['/../..//evil.example'],
+    ['https://evil.example'],
+    ['javascript:alert(1)'],
+    [''],
+    [null],
+  ])('drops the off-origin destination %j', (input) => {
+    expect(sanitizeNextPath(input as string | null)).toBeUndefined();
   });
 });

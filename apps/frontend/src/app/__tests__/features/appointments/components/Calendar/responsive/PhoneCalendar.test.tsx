@@ -291,7 +291,12 @@ describe('PhoneCalendar', () => {
 
       await userEvent.click(screen.getAllByRole('button', { name: /TUE/ })[0]);
 
-      expect(setCurrentDate).toHaveBeenCalledWith(new Date(2026, 6, 7));
+      // Asserted as a DAY in the preferred timezone, not as an exact instant.
+      // The row emits a noon instant in that zone rather than the device's local
+      // midnight, so that a device far enough ahead of the clinic still selects
+      // the day the user pressed.
+      const [selected] = setCurrentDate.mock.calls[0];
+      expect(getDateKeyInPreferredTimeZone(selected)).toBe('2026-07-07');
       expect(setActiveCalendar).toHaveBeenCalledWith('day');
     });
   });

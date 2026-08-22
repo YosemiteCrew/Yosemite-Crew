@@ -60,24 +60,81 @@ const loadAuthorisedSession = async (channelId: string, userId: string) => {
   return session;
 };
 
+type ShareScope = {
+  organisationId: string;
+  /** Set on a client-facing chat; null for staff-only chats. */
+  parentId: string | null;
+  patientId: string | null;
+  appointmentId: string | null;
+};
+
+const notInOrg = () =>
+  new ChatServiceError("Entity does not belong to this organisation", 403);
+
+const notForThisClient = () =>
+  new ChatServiceError("Entity does not belong to this chat", 403);
+
 /**
- * Verify the entity being shared actually belongs to the session's organisation,
- * so a member of one clinic's chat cannot plant a reference to (or a forged card
- * for) another clinic's record. Only the entity types the product surfaces for
- * sharing are accepted; anything else is rejected rather than stored unverified.
+ * A client-facing chat is about one client. Belonging to the organisation is
+ * not enough there: without this, a staff member in a client's chat could share
+ * a DIFFERENT client's pet, appointment or invoice into it. Staff-only chats
+ * (no parent on the session) legitimately discuss any of the org's records, so
+ * the organisation check remains the boundary for them.
  */
-const assertEntityBelongsToOrg = async (
+const assertEntityBelongsToClient = async (
+  entityType: SharedChatEntityType,
+  id: string,
+  scope: ShareScope & { parentId: string },
+): Promise<void> => {
+  switch (entityType) {
+    case SharedChatEntityType.COMPANION: {
+      if (scope.patientId && scope.patientId === id) return;
+      const link = await prisma.parentPatient.findFirst({
+        where: { parentId: scope.parentId, patientId: id, status: "ACTIVE" },
+        select: { id: true },
+      });
+      if (!link) throw notForThisClient();
+      return;
+    }
+    case SharedChatEntityType.INVOICE: {
+      const invoice = await prisma.invoice.findFirst({
+        where: { id, organisationId: scope.organisationId },
+        select: { parentId: true },
+      });
+      if (invoice?.parentId !== scope.parentId) throw notForThisClient();
+      return;
+    }
+    case SharedChatEntityType.APPOINTMENT: {
+      // The appointment's client lives in a JSON column, so there is no cheap
+      // parent predicate. A client chat that names its appointment can only
+      // share that one; one that does not falls back to the organisation check.
+      if (scope.appointmentId && scope.appointmentId !== id) {
+        throw notForThisClient();
+      }
+      return;
+    }
+    default:
+      return;
+  }
+};
+
+/**
+ * Verify the entity being shared actually belongs where it is being shared: to
+ * the session's organisation always, and to the session's client when the chat
+ * has one. Only the entity types the product surfaces for sharing are accepted;
+ * anything else is rejected rather than stored unverified.
+ */
+const assertEntityIsShareable = async (
   entityType: SharedChatEntityType,
   entityId: string,
-  organisationId: string,
+  scope: ShareScope,
 ): Promise<void> => {
   const id = entityId.trim();
   if (!id) {
     throw new ChatServiceError("Invalid entity id", 400);
   }
 
-  const notInOrg = () =>
-    new ChatServiceError("Entity does not belong to this organisation", 403);
+  const { organisationId } = scope;
 
   switch (entityType) {
     case SharedChatEntityType.APPOINTMENT: {
@@ -86,7 +143,7 @@ const assertEntityBelongsToOrg = async (
         select: { id: true },
       });
       if (!found) throw notInOrg();
-      return;
+      break;
     }
     case SharedChatEntityType.INVOICE: {
       const found = await prisma.invoice.findFirst({
@@ -94,7 +151,7 @@ const assertEntityBelongsToOrg = async (
         select: { id: true },
       });
       if (!found) throw notInOrg();
-      return;
+      break;
     }
     case SharedChatEntityType.COMPANION: {
       const link = await prisma.patientOrganisation.findFirst({
@@ -106,7 +163,7 @@ const assertEntityBelongsToOrg = async (
         select: { id: true },
       });
       if (!link) throw notInOrg();
-      return;
+      break;
     }
     default:
       throw new ChatServiceError(
@@ -114,17 +171,25 @@ const assertEntityBelongsToOrg = async (
         400,
       );
   }
+
+  if (scope.parentId) {
+    await assertEntityBelongsToClient(entityType, id, {
+      ...scope,
+      parentId: scope.parentId,
+    });
+  }
 };
 
 export const SharedChatEntityService = {
   async shareEntity(input: ShareEntityInput) {
     const { channelId, userId, entityType, entityId, title, snapshot } = input;
     const session = await loadAuthorisedSession(channelId, userId);
-    await assertEntityBelongsToOrg(
-      entityType,
-      entityId,
-      session.organisationId,
-    );
+    await assertEntityIsShareable(entityType, entityId, {
+      organisationId: session.organisationId,
+      parentId: session.parentId,
+      patientId: session.patientId,
+      appointmentId: session.appointmentId,
+    });
 
     const channel = streamServer.channel(
       channelTypeForSession(session.type),

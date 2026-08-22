@@ -208,6 +208,23 @@ const updateLink = async (
   });
 
 export const CompanionOrganisationService = {
+  /**
+   * Proves the caller's parent manages the companion, for callers that must
+   * establish that before they write anything. `linkByParent` asserts the same
+   * thing, but it runs after the booking is persisted so that a rejected
+   * payload cannot leave an ACTIVE link behind - too late to keep an
+   * unauthorised companion id out of the appointment table.
+   */
+  async assertParentManagesCompanion(
+    parentId: string,
+    patientId: string,
+  ): Promise<void> {
+    await assertParentOwnsCompanion(
+      requireId(parentId, "parentId"),
+      requireId(patientId, "patientId"),
+    );
+  },
+
   async linkByParent({
     parentId,
     patientId,
@@ -312,16 +329,29 @@ export const CompanionOrganisationService = {
     }
   },
 
+  /**
+   * Raise a link between a companion and a PMS organisation.
+   *
+   * Defaults to PENDING: the organisation is *requesting* a relationship with a
+   * companion it did not create, and the parent has to approve it. PENDING
+   * therefore means "no clinical access yet", which is what the membership
+   * checks now enforce.
+   *
+   * `status` exists for the one case where there is nothing to approve - see
+   * `linkOnCompanionCreatedByPms`.
+   */
   async linkByPmsUser({
     pmsUserId,
     patientId,
     organisationId,
     organisationType,
+    status = PatientOrganisationStatus.PENDING,
   }: {
     pmsUserId: string;
     patientId: string;
     organisationId: string;
     organisationType: BusinessType;
+    status?: PatientOrganisationStatus;
   }): Promise<PatientOrganisationRecord> {
     const companion = requireId(patientId, "patientId");
     const org = requireId(organisationId, "organisationId");
@@ -339,7 +369,7 @@ export const CompanionOrganisationService = {
       organisationId: org,
       linkedByPmsUserId: pmsUserId,
       organisationType,
-      status: PatientOrganisationStatus.PENDING,
+      status,
     });
 
     await AuditTrailService.recordSafely({
@@ -506,6 +536,16 @@ export const CompanionOrganisationService = {
     });
   },
 
+  /**
+   * The practice just created this companion record itself, so there is no
+   * parent consent to wait for and the link starts ACTIVE.
+   *
+   * The distinction matters now that PENDING withholds clinical access: leaving
+   * a practice's own new patients PENDING would lock the practice out of the
+   * record it had just entered, while treating every PENDING link as ownership
+   * (the previous behaviour) handed that same access to practices that had only
+   * *requested* a link to someone else's companion.
+   */
   async linkOnCompanionCreatedByPms({
     patientId,
     organisationId,
@@ -522,6 +562,7 @@ export const CompanionOrganisationService = {
       patientId,
       organisationId,
       organisationType,
+      status: PatientOrganisationStatus.ACTIVE,
     });
   },
 

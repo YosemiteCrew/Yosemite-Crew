@@ -341,12 +341,18 @@ const GoogleSearchDropDown = ({
         },
       }));
     } else {
+      // The details request can fail, return non-OK, or be skipped entirely for
+      // a query prediction, leaving every derived field empty. Overwriting
+      // unconditionally then blanked whatever the user had already entered, so
+      // an empty derivation now leaves the existing value alone. The address
+      // still comes from the prediction text, which is present either way.
+      const normalizedPhone = normalizeGooglePhoneNumber(phone);
       setFormData?.((prev: Organisation) => ({
         ...prev,
-        name,
-        phoneNo: normalizeGooglePhoneNumber(phone),
-        website,
-        googlePlacesId: details?.id,
+        name: name || prev.name,
+        phoneNo: normalizedPhone || prev.phoneNo,
+        website: website || prev.website,
+        googlePlacesId: details?.id ?? prev.googlePlacesId,
         address: {
           ...normalizedAddress,
         },

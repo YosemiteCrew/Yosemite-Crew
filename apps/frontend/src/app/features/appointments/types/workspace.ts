@@ -65,6 +65,14 @@ export type SoapNoteEntry = {
   signedByName?: string;
   signedAt?: string;
   signedOffline?: boolean;
+  /**
+   * `status` answers "does this belong in the notes history?", which every
+   * persisted note does. It is NOT the record's legal state: the backend keeps a
+   * saved note `preliminary` until `$finalize` runs. `isFinalized` carries that
+   * separate truth, so code deciding whether a note is still amendable in place
+   * does not read a UI grouping flag and conclude the record is signed.
+   */
+  isFinalized?: boolean;
   status: StepStatus;
   createdAt: string;
 };
@@ -226,6 +234,13 @@ export type LineItem = {
 export type PrescriptionFulfillment = 'IN_HOUSE' | 'PRESCRIPTION_ONLY';
 
 export type PrescriptionItem = {
+  /**
+   * The prescription artifact this row belongs to. A backend prescription with
+   * several lines becomes one row per line, and each row's `id` is then the LINE
+   * id - which the label endpoint does not resolve. Anything addressing the
+   * prescription itself (label PDFs) must use this.
+   */
+  labelPrescriptionId?: string;
   id: string;
   medicineName: string;
   /** Brand/trade name from inventory (e.g. "Calpol"), shown beside the generic. */
@@ -367,6 +382,16 @@ export type InvoiceLineItem = {
    * service/consultation. Undefined/true means the line can be removed. Display-only.
    */
   removable?: boolean;
+  /**
+   * The finance invoice this line was seeded FROM, when the bill builder was
+   * populated out of an already-persisted open invoice.
+   *
+   * The add-items endpoint can only append, so re-sending such a line charges it
+   * twice. Editing one changes its content key, which is what made the
+   * duplicate filter stop recognising it. Anything already on an invoice is
+   * therefore never re-sent, edited or not.
+   */
+  seededFromInvoiceId?: string;
 };
 
 export type PastInvoice = {

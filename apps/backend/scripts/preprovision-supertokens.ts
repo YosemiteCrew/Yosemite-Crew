@@ -64,7 +64,29 @@ type LegacyPoolUser = {
   Username: string;
   Attributes?: Array<{ Name: string; Value: string }>;
   UserStatus?: string;
+  Enabled?: boolean;
 };
+
+/**
+ * Lifecycle states that mean "this account must not be able to sign in".
+ *
+ * The export carries both `Enabled` (an administrator switched the account off)
+ * and `UserStatus`. Importing either as a usable SuperTokens account would
+ * resurrect it: the row is mapped back to the same stable app user id, so every
+ * surviving user-organization mapping and permission applies again the moment
+ * the holder of that mailbox completes the OTP first-login path.
+ */
+const DISABLED_USER_STATUSES = new Set([
+  "ARCHIVED",
+  "COMPROMISED",
+  "DISABLED",
+  "RESET_REQUIRED",
+  "UNKNOWN",
+]);
+
+const isDisabledLegacyUser = (legacy: LegacyPoolUser): boolean =>
+  legacy.Enabled === false ||
+  DISABLED_USER_STATUSES.has((legacy.UserStatus ?? "").toUpperCase());
 
 type ImportCounters = {
   created: number;
@@ -179,6 +201,16 @@ async function importStaff(
     const email = attr(legacy, "email")?.toLowerCase();
     if (!email || !sub) {
       counters.skipped += 1;
+      continue;
+    }
+
+    if (isDisabledLegacyUser(legacy)) {
+      counters.skipped += 1;
+      console.log(
+        `[staff] skipping disabled account ${maskEmail(email)} (Enabled=${String(
+          legacy.Enabled,
+        )}, UserStatus=${legacy.UserStatus ?? "unset"})`,
+      );
       continue;
     }
 

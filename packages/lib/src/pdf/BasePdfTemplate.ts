@@ -39,8 +39,17 @@ export class BasePdfTemplate {
     this.ctx.cursorY = Math.max(this.ctx.cursorY, this.ctx.bodyStartY);
   }
 
+  /**
+   * Begin body content below whatever has already been drawn.
+   *
+   * `Math.max`, not an assignment: `titleY` and `bodyStartY` are the same
+   * coordinate, so assigning rewound the cursor to where the title was just
+   * rendered and a document with no metadata groups drew its first section on
+   * top of its own title. `drawMetadata` already ends the same way; this is the
+   * no-metadata path catching up.
+   */
   startBody(): void {
-    this.ctx.cursorY = this.ctx.bodyStartY;
+    this.ctx.cursorY = Math.max(this.ctx.cursorY, this.ctx.bodyStartY);
   }
 
   drawSectionTitle(title: string): void {

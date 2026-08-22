@@ -46,6 +46,25 @@ const client: AxiosInstance = axios.create({
   },
 });
 
+const REDACTED = '[REDACTED]';
+
+/**
+ * Remove the bearer token from an axios error's retained request config.
+ *
+ * Exported for testing: the interceptor that calls it runs inside axios.
+ */
+export const redactAuthorizationHeader = (error: unknown): void => {
+  const headers = (
+    error as {config?: {headers?: Record<string, unknown>}} | null
+  )?.config?.headers;
+  if (!headers || typeof headers !== 'object') return;
+  for (const key of Object.keys(headers)) {
+    if (key.toLowerCase() === 'authorization') {
+      headers[key] = REDACTED;
+    }
+  }
+};
+
 client.interceptors.request.use(config => {
   if (shouldLogNetworkActivity) {
     console.log('[API] Request', {
@@ -71,6 +90,14 @@ client.interceptors.response.use(
     return response;
   },
   error => {
+    // Strip the credential from the error BEFORE it reaches any caller. Axios
+    // keeps the request config on the rejected error, and these requests carry
+    // `Authorization: Bearer <accessToken>`; a screen that logs the raw error -
+    // and many do - would otherwise write an access token into the device log
+    // and into whatever collects it. Doing it here means no call site has to
+    // remember.
+    redactAuthorizationHeader(error);
+
     if (shouldLogNetworkActivity) {
       if (error.response) {
         console.log('[API] Error Response', {

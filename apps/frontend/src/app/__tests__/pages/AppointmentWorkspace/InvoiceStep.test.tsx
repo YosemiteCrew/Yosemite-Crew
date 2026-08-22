@@ -963,7 +963,9 @@ describe('<InvoiceStep /> component', () => {
     expect(await screen.findByText(/invoice prepared for online payment/i)).toBeInTheDocument();
   });
 
-  it('records an online deposit even when no checkout link is generated', async () => {
+  it('does not record an online deposit when no checkout link is generated', async () => {
+    // The customer has not been asked for anything yet. Recording the deposit
+    // up front showed a deposit balance for money that was never requested.
     invoiceServiceMock.getPaymentLink.mockResolvedValueOnce('');
     renderInvoiceStep({ invoiceLineItems: [invoiceLine('Consultation')] });
     await screen.findByTestId('total-bill-container');
@@ -978,6 +980,29 @@ describe('<InvoiceStep /> component', () => {
     });
 
     await waitFor(() => expect(invoiceServiceMock.getPaymentLink).toHaveBeenCalled());
+    expect(workspaceStoreMock.recordDepositCollection).not.toHaveBeenCalled();
+  });
+
+  it('asks for a link covering the deposit, not the whole invoice', async () => {
+    // Without the amount, the backend builds a session for the full outstanding
+    // balance, so a deposit link billed the entire invoice.
+    invoiceServiceMock.getPaymentLink.mockResolvedValueOnce('https://checkout');
+    renderInvoiceStep({ invoiceLineItems: [invoiceLine('Consultation')] });
+    await screen.findByTestId('total-bill-container');
+
+    await openDepositModal();
+    await userEvent.click(await screen.findByRole('button', { name: /online link/i }));
+    const generateLink = screen
+      .getAllByRole('button')
+      .find((btn) => btn.textContent === 'Generate link');
+    await act(async () => {
+      await userEvent.click(generateLink as HTMLElement);
+    });
+
+    await waitFor(() => expect(invoiceServiceMock.getPaymentLink).toHaveBeenCalled());
+    const [, depositAmount] = invoiceServiceMock.getPaymentLink.mock.calls[0];
+    expect(typeof depositAmount).toBe('number');
+    expect(depositAmount).toBeGreaterThan(0);
     expect(workspaceStoreMock.recordDepositCollection).toHaveBeenCalledWith(
       'appt-1',
       expect.objectContaining({ method: 'ONLINE' })
@@ -1351,6 +1376,31 @@ describe('<InvoiceStep /> component', () => {
     expect(screen.getByRole('button', { name: 'Collect $6' })).toBeInTheDocument();
   });
 
+  it('records the amount the Collect button offered, not the invoice total', async () => {
+    // The button showed 6 while the payment record claimed 10, so applying a
+    // deposit overstated what had been collected.
+    invoiceServiceMock.createFinanceInvoice.mockResolvedValue({ id: 'inv-due' });
+    renderInvoiceStep({
+      invoiceLineItems: [invoiceLine('Consultation')],
+      withdrawDeposit: true,
+      depositCents: 400,
+    });
+    await screen.findByTestId('total-bill-container');
+
+    // Cash is the manual path, which is where the recorded amount comes from.
+    await userEvent.click(screen.getByRole('button', { name: 'Cash' }));
+    await act(async () => {
+      await userEvent.click(screen.getByRole('button', { name: 'Collect $6' }));
+    });
+
+    await waitFor(() =>
+      expect(invoiceServiceMock.recordManualInvoicePayment).toHaveBeenCalledWith(
+        'inv-due',
+        expect.objectContaining({ amount: 6 })
+      )
+    );
+  });
+
   describe('invoice download and share', () => {
     const settledInvoice = (overrides: Partial<PastInvoice> = {}): PastInvoice =>
       ({
@@ -1672,5 +1722,30 @@ describe('<InvoiceStep /> component', () => {
         expect(screen.getByTestId('bill-discount-cap')).toHaveTextContent('no-cap')
       );
     });
+  });
+
+  it('never re-sends a line that is already on the invoice', async () => {
+    // The add-items endpoint only appends. Editing a seeded line changed its
+    // content key, which is what made the duplicate filter stop recognising it
+    // and charge the same work twice.
+    invoiceServiceMock.createFinanceInvoice.mockResolvedValue({ id: 'inv-open' });
+    renderInvoiceStep({
+      invoiceLineItems: [
+        { ...invoiceLine('Consultation'), seededFromInvoiceId: 'inv-open' },
+        invoiceLine('New item'),
+      ],
+    });
+    await screen.findByTestId('total-bill-container');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cash' }));
+    await act(async () => {
+      await userEvent.click(screen.getByRole('button', { name: /^Collect \$/ }));
+    });
+
+    await waitFor(() => expect(invoiceServiceMock.createFinanceInvoice).toHaveBeenCalled());
+    const [payload] = invoiceServiceMock.createFinanceInvoice.mock.calls[0];
+    const names = (payload.items ?? []).map((item: { name: string }) => item.name);
+    expect(names).toContain('New item');
+    expect(names).not.toContain('Consultation');
   });
 });

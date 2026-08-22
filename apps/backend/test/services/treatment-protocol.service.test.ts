@@ -25,6 +25,12 @@ jest.mock("src/config/prisma", () => ({
     task: {
       create: jest.fn(),
     },
+    patientOrganisation: {
+      findFirst: jest.fn(),
+    },
+    encounter: {
+      findFirst: jest.fn(),
+    },
   },
 }));
 
@@ -47,6 +53,8 @@ const pm = prisma as unknown as {
   };
   appliedTreatmentProtocol: { create: jest.Mock };
   task: { create: jest.Mock };
+  patientOrganisation: { findFirst: jest.Mock };
+  encounter: { findFirst: jest.Mock };
 };
 
 const protocol = (over: Record<string, unknown> = {}) => ({
@@ -313,6 +321,32 @@ describe("TreatmentProtocolService.apply", () => {
     organisationId: "org-1",
     appliedById: "vet-1",
   };
+
+  beforeEach(() => {
+    // The companion and encounter being applied TO belong to the caller's org.
+    pm.patientOrganisation.findFirst.mockResolvedValue({ id: "link-1" });
+    pm.encounter.findFirst.mockResolvedValue({ id: "enc-1" });
+  });
+
+  // `patientId` and `encounterId` come from the request body while RBAC only
+  // authorised the organisation, so they have to be proved to belong to it.
+  it("rejects a companion outside the caller's organisation", async () => {
+    pm.patientOrganisation.findFirst.mockResolvedValue(null);
+
+    await expect(TreatmentProtocolService.apply(base)).rejects.toMatchObject({
+      statusCode: 404,
+    });
+    expect(pm.appliedTreatmentProtocol.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects an encounter outside the caller's organisation", async () => {
+    pm.encounter.findFirst.mockResolvedValue(null);
+
+    await expect(TreatmentProtocolService.apply(base)).rejects.toMatchObject({
+      statusCode: 404,
+    });
+    expect(pm.appliedTreatmentProtocol.create).not.toHaveBeenCalled();
+  });
 
   it("creates an AppliedTreatmentProtocol record", async () => {
     const result = await TreatmentProtocolService.apply(base);

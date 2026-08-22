@@ -82,6 +82,11 @@ export const BrowseBusinessesScreen: React.FC = () => {
     userLocation,
     userCoords,
     hasPermission,
+    // Set when a geolocation lookup was attempted and failed. Without it,
+    // "permission granted, no coordinates" meant both "still waiting" and
+    // "GPS unavailable", so the guards below waited forever after a timeout
+    // instead of falling back to a search without a location.
+    locationFailed,
     isLoading: locationLoading,
   } = location;
   const initialQuery = route.params?.serviceName ?? '';
@@ -205,7 +210,8 @@ export const BrowseBusinessesScreen: React.FC = () => {
     placesSearch;
   const performSearch = useCallback(
     (term?: string) => {
-      const waitingForGrantedLocation = hasPermission && userCoords == null;
+      const waitingForGrantedLocation =
+        hasPermission && userCoords == null && !locationFailed;
       if (waitingForGrantedLocation) {
         return;
       }
@@ -235,7 +241,7 @@ export const BrowseBusinessesScreen: React.FC = () => {
         ),
       );
     },
-    [dispatch, hasPermission, searchQuery, userCoords],
+    [dispatch, hasPermission, locationFailed, searchQuery, userCoords],
   );
   const discovery = useClinicMapDiscovery(
     searchQuery,
@@ -262,10 +268,17 @@ export const BrowseBusinessesScreen: React.FC = () => {
 
   useEffect(() => {
     if (locationLoading || hasInitialSearched.current) return;
-    if (hasPermission && userCoords == null) return;
+    if (hasPermission && userCoords == null && !locationFailed) return;
     hasInitialSearched.current = true;
     performSearch(initialQuery);
-  }, [hasPermission, locationLoading, initialQuery, performSearch, userCoords]);
+  }, [
+    hasPermission,
+    locationFailed,
+    locationLoading,
+    initialQuery,
+    performSearch,
+    userCoords,
+  ]);
 
   useEffect(() => {
     if (!userLocation || hasLocationSearched.current) return;
@@ -282,9 +295,16 @@ export const BrowseBusinessesScreen: React.FC = () => {
     prevPermissionRef.current = hasPermission;
     if (!changed) return;
     hasLocationSearched.current = false;
-    if (hasPermission && userCoords == null) return;
+    if (hasPermission && userCoords == null && !locationFailed) return;
     performSearch(initialQuery);
-  }, [hasPermission, locationLoading, initialQuery, performSearch, userCoords]);
+  }, [
+    hasPermission,
+    locationFailed,
+    locationLoading,
+    initialQuery,
+    performSearch,
+    userCoords,
+  ]);
 
   const reduxBusinesses = useSelector(
     (state: RootState) => state.businesses?.businesses ?? [],

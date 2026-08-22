@@ -5,7 +5,7 @@ import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import Datepicker from '@/app/ui/inputs/Datepicker';
 import Timepicker from '@/app/ui/inputs/Timepicker';
 import { Task } from '@/app/features/tasks/types/task';
-import { updateTask } from '@/app/features/tasks/services/taskService';
+import { rescheduleTask } from '@/app/features/tasks/services/taskService';
 import { buildDateInPreferredTimeZone, getPreferredTimeZone } from '@/app/lib/timezone';
 import { getPreferredTimeValue } from '@/app/lib/date';
 import { canRescheduleTask } from '@/app/lib/tasks';
@@ -75,12 +75,13 @@ const RescheduleTask = ({ showModal, setShowModal, activeTask }: RescheduleTaskP
   const commitReschedule = async (nextDueAt: Date, scope?: RecurrenceScope) => {
     try {
       setSaving(true);
-      await updateTask(
-        {
-          ...activeTask,
-          dueAt: nextDueAt,
-          timezone: activeTask.timezone || getPreferredTimeZone(),
-        },
+      // Minimal patch: a scoped update applies every field it is given to every
+      // occurrence, so sending the whole task copied this occurrence's name,
+      // assignee, medication and reminders across the series.
+      await rescheduleTask(
+        activeTask._id,
+        nextDueAt,
+        activeTask.timezone || getPreferredTimeZone(),
         scope
       );
       setScopeModalOpen(false);

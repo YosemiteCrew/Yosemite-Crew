@@ -1462,17 +1462,25 @@ describe("WorkspaceDocumentPacketService.buildEncounterPacketPdf", () => {
 });
 
 describe("WorkspaceDocumentPacketService.buildEncounterPacketPdfForParent", () => {
-  it("resolves the encounter organisation after verifying parent ownership", async () => {
+  it("serves the signed packet after verifying parent ownership", async () => {
     mockedPrisma.encounter.findFirst.mockResolvedValue({
       organisationId: "org-1",
     });
-    mockedWorkspaceService.getEncounterBootstrap.mockResolvedValue({
-      appointment: null,
-      encounter: { id: "enc-1" },
-      companion: null,
-      documents: [{ ...docRow("d1"), pdfUrl: "https://cdn/d1.pdf" }],
+    mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(
+      basePacket({
+        status: "FINAL",
+        signing: {
+          status: "SIGNED",
+          documentId: "123",
+          pdf: { url: "https://signed.example/packet.pdf" },
+        },
+      }),
+    );
+    mockedDocumenso.resolveOrganisationApiKey.mockResolvedValue("api-key");
+    mockedDocumenso.downloadSignedDocument.mockResolvedValue({
+      downloadUrl: "https://signed.example/packet.pdf",
     });
-    mockedRenderCombinedPacketPdf.mockResolvedValue(combinedPdfResult());
+    mockedAxios.get.mockResolvedValue({ data: pdfBytes("signed") });
 
     const pdf =
       await WorkspaceDocumentPacketService.buildEncounterPacketPdfForParent(
@@ -1490,14 +1498,25 @@ describe("WorkspaceDocumentPacketService.buildEncounterPacketPdfForParent", () =
         organisationId: true,
       },
     });
-    expect(mockedWorkspaceService.getEncounterBootstrap).toHaveBeenCalledWith(
-      {
-        organisationId: "org-1",
-        encounterId: "enc-1",
-      },
-      undefined,
-      { systemAccess: true },
-    );
+  });
+
+  // The staff builder merges whatever documents exist right now when nothing is
+  // signed. That working copy must never reach the owner.
+  it("refuses to assemble an unsigned packet for the parent", async () => {
+    mockedPrisma.encounter.findFirst.mockResolvedValue({
+      organisationId: "org-1",
+    });
+    mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(null);
+
+    await expect(
+      WorkspaceDocumentPacketService.buildEncounterPacketPdfForParent(
+        "parent-1",
+        "enc-1",
+      ),
+    ).rejects.toMatchObject({ statusCode: 404 });
+
+    expect(mockedWorkspaceService.getEncounterBootstrap).not.toHaveBeenCalled();
+    expect(mockedRenderCombinedPacketPdf).not.toHaveBeenCalled();
   });
 
   it("rejects when the encounter does not belong to the parent", async () => {

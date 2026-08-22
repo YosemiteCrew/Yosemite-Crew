@@ -306,6 +306,9 @@ describe("CatalogService", () => {
       "SOAP_NOTE",
       "DISCHARGE_SUMMARY",
     ]);
+    // The package's own price (250) is its LIST price - what its components add
+    // up to. Billing it alongside the components charged the package twice, so
+    // only the priced components are billable here: 2 x 40 = 80 gross.
     expect(resolved).toEqual(
       expect.objectContaining({
         name: "Dental Bundle",
@@ -313,31 +316,13 @@ describe("CatalogService", () => {
         leadCount: 2,
         supportCount: 1,
         additionalDiscountPercent: 10,
-        grossAmount: 330,
+        grossAmount: 80,
         itemDiscountAmount: 0,
-        additionalDiscountAmount: 33,
-        finalAmount: 297,
+        additionalDiscountAmount: 8,
+        finalAmount: 72,
       }),
     );
     expect(resolved.billingItems).toEqual([
-      expect.objectContaining({
-        productItemId: "pkg_dental",
-        code: null,
-        name: "Dental Bundle",
-        kind: "PACKAGE",
-        quantity: 1,
-        currency: "USD",
-        unitPrice: 250,
-        grossAmount: 250,
-        discountAmount: 0,
-        finalAmount: 250,
-        referenceUnitPrice: null,
-        defaultDiscountPercent: null,
-        maxDiscountPercent: 15,
-        discountPercent: 0,
-        isPackageComponent: false,
-        packageProductItemId: null,
-      }),
       expect.objectContaining({
         productItemId: "prod_xray",
         code: "DX-XRAY",
@@ -377,6 +362,77 @@ describe("CatalogService", () => {
         packageProductItemId: "pkg_dental",
       }),
     ]);
+  });
+
+  it("bills the package price itself when every component is included", () => {
+    // With nothing else billable, the package price IS the charge - dropping it
+    // here would make an all-inclusive package free.
+    const resolved = resolveCatalogSelectionFromRecord({
+      id: "pkg_wellness",
+      version: 1,
+      organisationId: "org_1",
+      name: "Wellness Bundle",
+      description: null,
+      code: null,
+      kind: "PACKAGE",
+      specialityId: null,
+      legacyServiceId: null,
+      isActive: true,
+      prices: [
+        {
+          unitPrice: 150,
+          currency: "USD",
+          defaultDiscountPercent: null,
+          maxDiscountPercent: 20,
+          isDefault: true,
+        },
+      ],
+      bookable: null,
+      package: {
+        leadCount: 1,
+        supportCount: 0,
+        additionalDiscountPercent: 0,
+        items: [
+          {
+            id: "pkg_item_exam",
+            childProductItemId: "prod_exam",
+            quantity: 1,
+            pricingMode: "INCLUDED",
+            overridePrice: null,
+            discountPercent: null,
+            sortOrder: 0,
+            isOptional: false,
+            childProductItem: {
+              id: "prod_exam",
+              name: "Wellness Exam",
+              code: "WE-EXAM",
+              kind: "CONSULTATION",
+              isActive: true,
+              prices: [
+                {
+                  unitPrice: 150,
+                  currency: "USD",
+                  defaultDiscountPercent: null,
+                  maxDiscountPercent: 10,
+                  isDefault: true,
+                },
+              ],
+            },
+          },
+        ],
+      },
+    });
+
+    expect(resolved.billingItems).toHaveLength(1);
+    expect(resolved.billingItems[0]).toEqual(
+      expect.objectContaining({
+        productItemId: "pkg_wellness",
+        unitPrice: 150,
+        isPackageComponent: false,
+      }),
+    );
+    expect(resolved.finalAmount).toBe(150);
+    expect(resolved.includedItems).toHaveLength(1);
   });
 
   it("builds organisation speciality summary counts from product items", async () => {
@@ -3584,18 +3640,18 @@ describe("CatalogService", () => {
                   kind: "PACKAGE",
                   appointmentKinds: ["OUTPATIENT", "INPATIENT"],
                   cost: 50,
+                  // Discovery view: this endpoint returns OTHER organisations'
+                  // catalogs, so a package shows WHAT it contains and how much
+                  // of it - never the per-line economics (internal codes,
+                  // pricing mode, override price, discount percent, computed
+                  // gross/discount/final), which are another practice's
+                  // commercial terms.
                   packageItems: [
                     expect.objectContaining({
                       id: "pkg_item_1",
-                      childProductItemId: "child_1",
                       childProductName: "Blood Test",
                       childProductKind: "LAB_TEST",
-                      childProductCode: "BT-1",
                       quantity: 2,
-                      pricingMode: "INCLUDED",
-                      grossAmount: 0,
-                      discountAmount: 0,
-                      finalAmount: 0,
                     }),
                   ],
                 }),
@@ -4460,7 +4516,9 @@ describe("CatalogService negative and edge paths", () => {
       );
 
       expect(resolved.currency).toBe("GBP");
-      expect(resolved.billingItems[1]).toEqual(
+      // Index 0 now: the package's own list price is no longer emitted as an
+      // extra billable line on top of the components it prices.
+      expect(resolved.billingItems[0]).toEqual(
         expect.objectContaining({
           unitPrice: 40,
           referenceUnitPrice: 100,
@@ -5517,12 +5575,30 @@ describe("CatalogService negative and edge paths", () => {
           appointmentKinds: ["INPATIENT"],
           packageItems: [
             expect.objectContaining({
-              childProductItemId: "child_1",
-              childProductCode: null,
+              childProductName: "Child Service",
             }),
           ],
         }),
       );
+
+      // This endpoint returns OTHER organisations' catalogs, so a package shows
+      // only WHAT it contains and how much of it. The per-line economics -
+      // internal codes, pricing mode, override price, discount percent and the
+      // computed gross/discount/final amounts - are another practice's
+      // commercial terms and must not appear here.
+      const [packageItem] = (
+        result[0].specialities[0].services[0] as unknown as {
+          packageItems: Array<Record<string, unknown>>;
+        }
+      ).packageItems;
+      expect(Object.keys(packageItem).sort()).toEqual([
+        "childProductKind",
+        "childProductName",
+        "id",
+        "isOptional",
+        "quantity",
+        "sortOrder",
+      ]);
     });
   });
 
@@ -5655,7 +5731,7 @@ describe("CatalogService negative and edge paths", () => {
         }) as never,
       );
 
-      expect(resolved.billingItems[1]).toEqual(
+      expect(resolved.billingItems[0]).toEqual(
         expect.objectContaining({
           unitPrice: 30,
           currency: null,

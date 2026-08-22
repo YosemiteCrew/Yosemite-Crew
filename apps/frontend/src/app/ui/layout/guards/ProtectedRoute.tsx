@@ -5,6 +5,7 @@ import { redirect, usePathname } from 'next/navigation';
 import { removeStorageItem, setStorageItem } from '@/app/lib/browserStorage';
 import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
 import { useAuthStore } from '@/app/stores/authStore';
+import { isLocalGuardBypassEnabled } from '@/app/lib/localGuardBypass';
 
 type ProtectedRouteProps = {
   children: React.ReactNode;
@@ -14,14 +15,6 @@ type ProtectedRouteProps = {
 const AUTH_SESSION_KEY = 'yc_auth_passed';
 const writeAuthPassed = () => setStorageItem('session', AUTH_SESSION_KEY, '1');
 const clearAuthPassed = () => removeStorageItem('session', AUTH_SESSION_KEY);
-
-const isLocalGuardBypassEnabled = () => {
-  if (process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD !== 'true') return false;
-  const hostname = (
-    process.env.YC_TEST_HOSTNAME ?? globalThis.window?.location?.hostname
-  )?.toLowerCase();
-  return hostname === 'localhost' || hostname === '127.0.0.1';
-};
 
 const ProtectedRoute = ({ children, skeleton = null }: ProtectedRouteProps) => {
   const status = useAuthStore((s) => s.status);

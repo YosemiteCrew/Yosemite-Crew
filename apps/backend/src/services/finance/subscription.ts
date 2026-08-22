@@ -1070,6 +1070,23 @@ export const FinanceSubscriptionService = {
               },
             },
           }),
+          // Mirror the cancellation onto OrganizationBilling.
+          //
+          // Free-plan enforcement does NOT read the entitlement rows above: both
+          // `isFreePlan` helpers (appointment limits, member seats) read
+          // `OrganizationBilling.plan`. Leaving that column saying "business"
+          // after a Stripe cancellation meant the organisation kept bypassing
+          // every free-plan limit indefinitely. `updateMany` so an org with no
+          // billing row is a no-op rather than an error.
+          prisma.organizationBilling.updateMany({
+            where: { orgId: row.orgId },
+            data: {
+              plan: "free",
+              subscriptionStatus: "canceled",
+              cancelAtPeriodEnd: false,
+              canceledAt: new Date(),
+            },
+          }),
           this.captureUsageSnapshot({
             orgId: row.orgId,
             snapshotType: "SUBSCRIPTION_TERMINATED",

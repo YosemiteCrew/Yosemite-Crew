@@ -619,7 +619,12 @@ describe('Integrations settings', () => {
     await screen.findByRole('button', { name: 'Manage credentials' });
     // Orders load on mount; open the modal to read them.
     await waitFor(() =>
-      expect(listIdexxOrdersMock).toHaveBeenCalledWith({ organisationId: 'org-1' })
+      expect(listIdexxOrdersMock).toHaveBeenCalledWith({
+        organisationId: 'org-1',
+        // Only three rows render; without a limit the search returns every lab
+        // order the organisation has.
+        limit: 3,
+      })
     );
     openSettings();
 

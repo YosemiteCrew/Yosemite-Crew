@@ -52,7 +52,7 @@ describe("AvailabilityController", () => {
   });
 
   describe("Internal Helpers (Implicitly Tested)", () => {
-    it("resolveUserIdFromRequest: should prefer auth userId over x-user-id header", async () => {
+    it("resolveVerifiedUserId: should prefer auth userId over x-user-id header", async () => {
       req.headers["x-user-id"] = "header_user_id";
       req.params.orgId = "org1";
 

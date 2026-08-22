@@ -615,23 +615,43 @@ const usePrescriptionActions = ({
   // Only persisted items (with an id) have a printable label.
   const handlePrintPrescriptionLabels = async () => {
     if (printingLabels || !organisationId) return;
-    const printable = encounter.prescription.filter((rx) => rx.id);
-    if (printable.length === 0) {
+    // A label is addressed to the PRESCRIPTION, and once a multi-line
+    // prescription is rehydrated each row's `id` is the LINE id - which the
+    // endpoint does not resolve, so those requests 404. Address the owning
+    // prescription, and de-duplicate: several lines share one label.
+    const labelIds = [
+      ...new Set(
+        encounter.prescription
+          .map((rx) => rx.labelPrescriptionId ?? rx.id)
+          .filter((id): id is string => Boolean(id))
+      ),
+    ];
+    if (labelIds.length === 0) {
       setPrescriptionError('Save the treatment before printing prescription labels.');
       return;
     }
     setPrescriptionError(null);
     setPrintingLabels(true);
     try {
-      const blobs = await Promise.all(
-        printable.map((rx) => fetchPrescriptionLabelPdf(organisationId, rx.id))
+      // allSettled, not all: one label that cannot be produced should not throw
+      // away every other label in the batch.
+      const results = await Promise.allSettled(
+        labelIds.map((id) => fetchPrescriptionLabelPdf(organisationId, id))
       );
+      const blobs = results
+        .filter((result): result is PromiseFulfilledResult<Blob> => result.status === 'fulfilled')
+        .map((result) => result.value);
       blobs.forEach((blob) => {
         const url = URL.createObjectURL(blob);
         const win = globalThis.window.open(url, '_blank');
         win?.focus();
         globalThis.window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
       });
+      if (blobs.length === 0) {
+        setPrescriptionError('Unable to print prescription labels. Please try again.');
+      } else if (blobs.length < labelIds.length) {
+        setPrescriptionError('Some prescription labels could not be printed.');
+      }
     } catch (error) {
       console.error('Failed to print prescription labels:', error);
       setPrescriptionError('Unable to print prescription labels. Please try again.');
@@ -873,8 +893,20 @@ const TreatmentStep = ({
     onOpenInvoice();
   };
 
-  const treatmentCents = encounter.services.reduce((sum, item) => sum + (item.amountCents ?? 0), 0);
-  const prescriptionCents = prescriptionItems.reduce(
+  // Count and total only what the invoice step will ACTUALLY offer as a
+  // candidate: it excludes rows that are already billed, and excludes
+  // prescriptions unless they are unbilled and dispensed in house. Summing the
+  // raw arrays told the clinician that billed items and external-pharmacy
+  // prescriptions would be carried to the invoice, and added their prices to
+  // the running total.
+  const carriedTreatments = encounter.services.filter(
+    (item) => !item.billed && (item.amountCents ?? 0) > 0
+  );
+  const carriedPrescriptions = prescriptionItems.filter(
+    (item) => !item.billed && item.fulfillment === 'IN_HOUSE'
+  );
+  const treatmentCents = carriedTreatments.reduce((sum, item) => sum + (item.amountCents ?? 0), 0);
+  const prescriptionCents = carriedPrescriptions.reduce(
     (sum, item) => sum + (item.priceCents ?? 0),
     0
   );
@@ -961,9 +993,9 @@ const TreatmentStep = ({
       </div>
       <aside className="w-full lg:w-[340px] lg:shrink-0">
         <WorkspaceTreatmentSummary
-          treatmentCount={encounter.services.length}
+          treatmentCount={carriedTreatments.length}
           treatmentCents={treatmentCents}
-          prescriptionCount={encounter.prescription.length}
+          prescriptionCount={carriedPrescriptions.length}
           prescriptionCents={prescriptionCents}
           currency={encounter.currency}
         />

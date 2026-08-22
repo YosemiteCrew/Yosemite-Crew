@@ -26,6 +26,7 @@ jest.mock("src/config/prisma", () => ({
     },
     appointment: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
     },
     admission: {
       findUnique: jest.fn(),
@@ -99,7 +100,7 @@ describe("rendered-document-renderer service", () => {
   const mockedPrisma = prisma as unknown as {
     organization: { findUnique: jest.Mock };
     invoice: { findUnique: jest.Mock };
-    appointment: { findUnique: jest.Mock };
+    appointment: { findUnique: jest.Mock; findFirst: jest.Mock };
     admission: { findUnique: jest.Mock };
     roomUnit: { findUnique: jest.Mock };
     organisationRoom: { findUnique: jest.Mock };
@@ -132,7 +133,7 @@ describe("rendered-document-renderer service", () => {
     mockedRenderPdf.mockResolvedValue(Buffer.from("pdf"));
     mockedGenerateClinicalPdf.mockResolvedValue(Buffer.from("label-pdf"));
     mockedGeneratePdf.mockResolvedValue(Buffer.from("schedule-pdf"));
-    mockedPrisma.appointment.findUnique.mockResolvedValue(null);
+    mockedPrisma.appointment.findFirst.mockResolvedValue(null);
     mockedPrisma.admission.findUnique.mockResolvedValue(null);
     mockedPrisma.roomUnit.findUnique.mockResolvedValue(null);
     mockedPrisma.organisationRoom.findUnique.mockResolvedValue(null);
@@ -409,7 +410,7 @@ describe("rendered-document-renderer service", () => {
         country: "IN",
       },
     });
-    mockedPrisma.appointment.findUnique.mockResolvedValueOnce({
+    mockedPrisma.appointment.findFirst.mockResolvedValueOnce({
       patient: {
         name: "Bella Hadid",
         species: "Canine",
@@ -623,7 +624,7 @@ describe("rendered-document-renderer service", () => {
       website: "https://medicare.example",
       address: null,
     });
-    mockedPrisma.appointment.findUnique.mockResolvedValueOnce({
+    mockedPrisma.appointment.findFirst.mockResolvedValueOnce({
       patient: {
         name: "Bella Hadid",
         species: "Canine",
@@ -1203,7 +1204,7 @@ describe("rendered-document-renderer service", () => {
       mockedPrisma.organization.findUnique.mockResolvedValueOnce(
         labelOrganization,
       );
-      mockedPrisma.appointment.findUnique.mockResolvedValueOnce({
+      mockedPrisma.appointment.findFirst.mockResolvedValueOnce({
         patient: {
           name: "Bella Hadid",
           parent: { id: "CL-1001", name: "Yasmin Hadid" },
@@ -1467,7 +1468,7 @@ describe("rendered-document-renderer service", () => {
       );
       // Appointment is read by each section builder AND once for the shared
       // header — keep the same record for every call.
-      mockedPrisma.appointment.findUnique.mockResolvedValue({
+      mockedPrisma.appointment.findFirst.mockResolvedValue({
         patient: {
           name: "Bella Hadid",
           species: "Canine",
@@ -1547,7 +1548,7 @@ describe("rendered-document-renderer service", () => {
       mockedPrisma.organization.findUnique.mockResolvedValueOnce(
         baseOrganization,
       );
-      mockedPrisma.appointment.findUnique.mockResolvedValue({
+      mockedPrisma.appointment.findFirst.mockResolvedValue({
         patient: { name: "Milo", parent: { id: "CL-2", name: "Owner" } },
         lead: { name: "Dr. Vet" },
         room: { id: "room-2", name: "Ward A" },
@@ -1593,7 +1594,7 @@ describe("rendered-document-renderer service", () => {
       );
       // First call (per-section header) returns the patient/lead; the shared
       // location lookup re-reads with the inpatient kind + encounter id.
-      mockedPrisma.appointment.findUnique.mockResolvedValue({
+      mockedPrisma.appointment.findFirst.mockResolvedValue({
         appointmentKind: "INPATIENT",
         encounterId: "enc-inpatient",
         patient: {
@@ -1694,7 +1695,7 @@ describe("rendered-document-renderer service", () => {
       mockedPrisma.organization.findUnique.mockResolvedValueOnce(
         baseOrganization,
       );
-      mockedPrisma.appointment.findUnique.mockResolvedValue({
+      mockedPrisma.appointment.findFirst.mockResolvedValue({
         appointmentKind: "OUTPATIENT",
         encounterId: null,
         patient: { name: "Milo", parent: { id: "CL-2", name: "Owner" } },
@@ -1820,7 +1821,7 @@ describe("rendered-document-renderer service", () => {
       mockedPrisma.organization.findUnique.mockResolvedValueOnce(
         baseOrganization,
       );
-      mockedPrisma.appointment.findUnique.mockResolvedValueOnce({
+      mockedPrisma.appointment.findFirst.mockResolvedValueOnce({
         patient: { name: "Milo", parent: { id: "CL-2", name: "Owner" } },
         lead: { name: "Dr. Vet" },
         room: { name: "Exam 1" },
@@ -1979,6 +1980,71 @@ describe("rendered-document-renderer service", () => {
       );
     });
 
+    it("renders a TEMPLATED discharge summary through the blob renderer", async () => {
+      // The saved content is a single `summary` blob whatever template seeded
+      // the editor. The field-keyed resolved-template engine looks up
+      // data[field.key], finds nothing, and emits a PDF of empty fields with
+      // the clinician's discharge instructions missing - including in signed
+      // packets. The template id is provenance, not a rendering instruction.
+      mockedPrisma.organization.findUnique.mockResolvedValueOnce({
+        name: "MediCare Hospital",
+        imageUrl: null,
+        phoneNo: null,
+        website: null,
+        address: null,
+      } as never);
+      // A REAL template version, so the resolved-template path is genuinely
+      // available: without this the test would pass for the wrong reason.
+      mockedPrisma.templateVersion.findUnique.mockResolvedValue({
+        id: "template-version-discharge",
+        version: 2,
+        schemaSnapshot: {
+          sections: [
+            {
+              id: "care",
+              title: "Care",
+              fields: [{ key: "care", label: "Home care", type: "textarea" }],
+            },
+          ],
+        },
+        renderConfigSnapshot: {},
+        validationSnapshot: {},
+      } as never);
+      mockedPrisma.dischargeSummary.findFirst.mockResolvedValueOnce({
+        id: "discharge-templated",
+        summary: "Rest and recheck in 7 days.",
+        diagnoses: [],
+        medications: [],
+        followUp: "",
+        instructions: "",
+        metadata: {},
+        artifact: dischargeArtifact({
+          id: "artifact-discharge-templated",
+          templateId: "tpl-discharge-1",
+          templateVersion: 2,
+        }),
+      });
+
+      await renderRenderedDocumentPdf({
+        title: "Discharge Summary",
+        source: {
+          sourceKind: "CLINICAL_ARTIFACT",
+          sourceId: "artifact-discharge-templated",
+          organisationId: "org-1",
+          templateKind: "DISCHARGE_SUMMARY",
+        },
+      });
+
+      // The blob renderer, NOT the field-keyed resolved-template engine.
+      expect(mockedGenerateClinicalPdfWithMetadata).toHaveBeenCalledWith(
+        expect.objectContaining({ documentType: "DISCHARGE_SUMMARY" }),
+      );
+      expect(
+        mockedGenerateResolvedTemplatePdfWithMetadata,
+      ).not.toHaveBeenCalled();
+      mockedPrisma.templateVersion.findUnique.mockReset();
+    });
+
     it("rejects a discharge summary outside the organisation", async () => {
       mockedPrisma.dischargeSummary.findUnique.mockResolvedValueOnce({
         id: "discharge-3",
@@ -2109,7 +2175,7 @@ describe("rendered-document-renderer service", () => {
       );
       // No appointment lookup match — exercises loadAppointmentLocationContext
       // and loadAppointmentClinicalHeader null-appointment branches.
-      mockedPrisma.appointment.findUnique.mockResolvedValue(null);
+      mockedPrisma.appointment.findFirst.mockResolvedValue(null);
       mockedPrisma.dischargeSummary.findUnique.mockResolvedValueOnce({
         id: "discharge-combined",
         summary: "Discharged stable",
@@ -2202,7 +2268,7 @@ describe("rendered-document-renderer service", () => {
       mockedPrisma.organization.findUnique.mockResolvedValueOnce(
         baseOrganization,
       );
-      mockedPrisma.appointment.findUnique.mockResolvedValue(null);
+      mockedPrisma.appointment.findFirst.mockResolvedValue(null);
       mockedPrisma.prescription.findUnique.mockResolvedValueOnce({
         id: "rx-lead",
         items: [],
@@ -2238,7 +2304,7 @@ describe("rendered-document-renderer service", () => {
       mockedPrisma.organization.findUnique.mockResolvedValueOnce(
         baseOrganization,
       );
-      mockedPrisma.appointment.findUnique.mockResolvedValue(null);
+      mockedPrisma.appointment.findFirst.mockResolvedValue(null);
       mockedPrisma.vitalRecord.findUnique.mockResolvedValueOnce({
         id: "vital-lead",
         measuredAt: new Date("2026-06-14T00:00:00.000Z"),
@@ -2302,7 +2368,7 @@ describe("rendered-document-renderer service", () => {
       mockedPrisma.organization.findUnique.mockResolvedValueOnce(
         baseOrganization,
       );
-      mockedPrisma.appointment.findUnique.mockResolvedValue({
+      mockedPrisma.appointment.findFirst.mockResolvedValue({
         appointmentKind: "INPATIENT",
         encounterId: "enc-no-unit-row",
         patient: { name: "Bella", parent: { id: "CL-1", name: "Owner" } },
@@ -2361,7 +2427,7 @@ describe("rendered-document-renderer service", () => {
       mockedPrisma.organization.findUnique.mockResolvedValueOnce(
         baseOrganization,
       );
-      mockedPrisma.appointment.findUnique.mockResolvedValue({
+      mockedPrisma.appointment.findFirst.mockResolvedValue({
         appointmentKind: "INPATIENT",
         encounterId: "enc-no-room",
         patient: { name: "Bella", parent: { id: "CL-1", name: "Owner" } },
@@ -2423,7 +2489,7 @@ describe("rendered-document-renderer service", () => {
       mockedPrisma.organization.findUnique.mockResolvedValueOnce(
         baseOrganization,
       );
-      mockedPrisma.appointment.findUnique.mockResolvedValue({
+      mockedPrisma.appointment.findFirst.mockResolvedValue({
         appointmentKind: "INPATIENT",
         encounterId: "enc-assignment",
         patient: { name: "Bella", parent: { id: "CL-1", name: "Owner" } },
@@ -2507,7 +2573,7 @@ describe("rendered-document-renderer service", () => {
       mockedPrisma.organization.findUnique.mockResolvedValueOnce(
         baseOrganization,
       );
-      mockedPrisma.appointment.findUnique.mockResolvedValue({
+      mockedPrisma.appointment.findFirst.mockResolvedValue({
         appointmentKind: "OUTPATIENT",
         encounterId: "enc-admission-only",
         patient: { name: "Bella", parent: { id: "CL-1", name: "Owner" } },
@@ -2573,7 +2639,7 @@ describe("rendered-document-renderer service", () => {
       // No appointmentId on the artifact, but the encounterId drives the
       // admission/assignment lookups directly (loadAppointmentLocationContext
       // short-circuits on the missing appointment).
-      mockedPrisma.appointment.findUnique.mockResolvedValue(null);
+      mockedPrisma.appointment.findFirst.mockResolvedValue(null);
       mockedPrisma.admission.findUnique.mockResolvedValueOnce({
         encounterId: "enc-direct",
         unitId: "unit-3",
@@ -3442,7 +3508,7 @@ describe("rendered-document-renderer service", () => {
       mockedPrisma.organization.findUnique.mockResolvedValueOnce(
         baseOrganization,
       );
-      mockedPrisma.appointment.findUnique.mockResolvedValue({
+      mockedPrisma.appointment.findFirst.mockResolvedValue({
         appointmentKind: "INPATIENT",
         encounterId: "enc-code-unit",
         patient: { name: "Bella", parent: { id: "CL-1", name: "Owner" } },
@@ -3506,7 +3572,7 @@ describe("rendered-document-renderer service", () => {
         baseOrganization,
       );
       // room is a string (non-record) → loadAppointmentLocationContext uses {}.
-      mockedPrisma.appointment.findUnique.mockResolvedValue({
+      mockedPrisma.appointment.findFirst.mockResolvedValue({
         appointmentKind: "OUTPATIENT",
         encounterId: null,
         patient: { name: "Bella", parent: { id: "CL-1", name: "Owner" } },

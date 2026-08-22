@@ -332,10 +332,18 @@ export const OrganizationDocumentService = {
    * For mobile app: only PUBLIC documents for an org,
    * usually legal docs to show during onboarding / booking.
    */
+  /**
+   * The documents a practice publishes to pet owners.
+   *
+   * `visibility` is pinned to PUBLIC and is NOT a caller-supplied filter. It used
+   * to be one, and it was optional: a mobile caller who omitted it - or asked for
+   * INTERNAL outright - received every document the organisation holds, each with
+   * a resolved PDF URL attached. Category stays caller-selectable; it only
+   * narrows within what is already public.
+   */
   async listPublicDocumentsForOrganisation(filter: {
     organisationId: string;
     category?: string;
-    visibility?: string;
   }): Promise<OrganizationDocumentDocument[]> {
     if (!filter.organisationId) {
       throw new OrgDocumentServiceError("organisationId is required", 400);
@@ -344,17 +352,14 @@ export const OrganizationDocumentService = {
     const where: {
       organisationId: string;
       category?: PrismaOrgDocumentCategory;
-      visibility?: PrismaOrgDocumentVisibility;
+      visibility: PrismaOrgDocumentVisibility;
     } = {
       organisationId: filter.organisationId,
+      visibility: "PUBLIC",
     };
 
     if (filter.category) {
       where.category = filter.category as PrismaOrgDocumentCategory;
-    }
-
-    if (filter.visibility) {
-      where.visibility = filter.visibility as PrismaOrgDocumentVisibility;
     }
 
     const docs = await prisma.organizationDocument.findMany({
@@ -455,22 +460,39 @@ export const OrganizationDocumentService = {
       throw new OrgDocumentServiceError("Document not found", 404);
     }
 
+    // The acknowledgement records what the user actually saw, so the category and
+    // version come from the DOCUMENT, never from the request. Trusting the
+    // client's values let a mobile caller pre-acknowledge versions that did not
+    // exist yet: when the practice later published that version, the backend
+    // reported it as already accepted even though nobody had read it - and an
+    // unbounded version number let one caller poison many rows for one document.
+    //
+    // A client that names a different version is stale rather than malicious, so
+    // it gets a 409 telling it to re-fetch, instead of silently acknowledging
+    // content the user was never shown.
+    if (input.version !== document.version) {
+      throw new OrgDocumentServiceError(
+        "This document has changed since it was opened. Reload and review the current version.",
+        409,
+      );
+    }
+
     await prisma.organizationDocumentAcknowledgement.upsert({
       where: {
         userId_organisationId_documentId_category_version: {
           userId,
           organisationId,
           documentId,
-          category: input.category,
-          version: input.version,
+          category: document.category,
+          version: document.version,
         },
       },
       create: {
         userId,
         organisationId,
         documentId,
-        category: input.category,
-        version: input.version,
+        category: document.category,
+        version: document.version,
       },
       update: {},
     });

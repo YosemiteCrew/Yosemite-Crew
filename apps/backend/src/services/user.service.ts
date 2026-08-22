@@ -243,12 +243,21 @@ export const UserService = {
       return false;
     }
 
+    // Match BOTH the id that was supplied and the canonical one it resolved to.
+    // A migrated account has two: the provider alias the client calls with, and
+    // the legacy app user id its `userOrganization` rows are stored under.
+    // Querying only the supplied alias found no mappings, so deletion removed no
+    // organisation roles and reported success while the still-authenticated
+    // session kept every permission those mappings grant.
+    const practitionerIds = [
+      ...new Set([userId, resolvedUserId].filter(Boolean)),
+    ];
     const mappings = await prisma.userOrganization.findMany({
       where: {
-        OR: [
-          { practitionerReference: userId },
-          { practitionerReference: `Practitioner/${userId}` },
-        ],
+        OR: practitionerIds.flatMap((practitionerId) => [
+          { practitionerReference: practitionerId },
+          { practitionerReference: `Practitioner/${practitionerId}` },
+        ]),
       },
       select: { id: true, roleCode: true, organizationReference: true },
     });

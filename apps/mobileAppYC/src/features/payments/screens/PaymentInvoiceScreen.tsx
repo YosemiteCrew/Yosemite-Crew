@@ -414,23 +414,32 @@ const resolveInvoicePaymentStatusLabel = (invoice: Invoice | null) => {
   return toFriendlyInvoiceStatus(invoice.status);
 };
 
+/**
+ * Derived from the invoice's own status, never from its display label.
+ *
+ * The label is translated, and matching English words ("paid", "refund",
+ * "cancel") inside it meant every non-English locale fell through to Due - so a
+ * paid, refunded or cancelled invoice was shown as outstanding to anyone not
+ * using English.
+ */
 const resolveInvoiceStatusBadge = (
-  paymentStatusLabel: string,
+  invoice: Invoice | null,
 ): {label: string; tone: BadgeTone} => {
-  const normalized = paymentStatusLabel.toLowerCase();
-  if (/\bpaid\b/.test(normalized)) {
+  const normalizedStatus = normalizeStatusToken(invoice?.status);
+
+  if (isInvoicePaid(invoice)) {
     return {
       label: getLocalizedText('payments.statusPaid', 'Paid'),
       tone: 'success',
     };
   }
-  if (normalized.includes('refund')) {
+  if (normalizedStatus.includes('REFUND')) {
     return {
       label: getLocalizedText('payments.statusRefunded', 'Refunded'),
       tone: 'info',
     };
   }
-  if (normalized.includes('cancel')) {
+  if (normalizedStatus.includes('CANCEL') || normalizedStatus === 'VOID') {
     return {
       label: getLocalizedText('payments.statusCancelled', 'Cancelled'),
       tone: 'danger',
@@ -512,8 +521,8 @@ const InvoiceDetailsCard = ({
             )}
           </Text>
           <Badge
-            label={resolveInvoiceStatusBadge(paymentStatusLabel).label}
-            tone={resolveInvoiceStatusBadge(paymentStatusLabel).tone}
+            label={resolveInvoiceStatusBadge(effectiveInvoice).label}
+            tone={resolveInvoiceStatusBadge(effectiveInvoice).tone}
             size="sm"
           />
         </View>

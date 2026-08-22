@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import logger from "src/utils/logger";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import { resolveVerifiedUserId } from "src/utils/request";
 
 // Resolve UserID
 
@@ -59,7 +59,7 @@ export const AuthUserMobileController = {
           .status(400)
           .json({ success: false, message: "Parent ID is required" });
       }
-      const authUserId = resolveUserIdFromRequest(req);
+      const authUserId = resolveVerifiedUserId(req);
       const updatedUser = await AuthUserMobileService.linkParent(
         authUserId!,
         parentId,

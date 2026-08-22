@@ -251,17 +251,14 @@ const useStatusDisplay = (theme: any) => {
   return getStatusDisplay;
 };
 
-const useStatusFlags = (
-  status: string,
-  paymentStatus?: string | null,
-  bookingPaymentStatus?: string | null,
-) => {
+/**
+ * Deliberately does not take the booking payment status: a paid booking is a
+ * deposit taken at booking time, not settlement of the appointment's invoice.
+ * Consulting it here hid an outstanding invoice and removed the Pay Now action.
+ */
+const useStatusFlags = (status: string, paymentStatus?: string | null) => {
   return useMemo(() => {
-    const isPaymentPending = isAppointmentPaymentPending(
-      status,
-      paymentStatus,
-      bookingPaymentStatus,
-    );
+    const isPaymentPending = isAppointmentPaymentPending(status, paymentStatus);
     const isPaymentFailed = isAppointmentPaymentFailed(status, paymentStatus);
     const requiresPayment = isPaymentPending || isPaymentFailed;
     const isRequested = status === 'REQUESTED';
@@ -280,7 +277,7 @@ const useStatusFlags = (
       showInvoice: !requiresPayment,
       showCancel: !isTerminal && !requiresPayment,
     };
-  }, [paymentStatus, bookingPaymentStatus, status]);
+  }, [paymentStatus, status]);
 };
 
 const useAppointmentDisplayData = (params: {
@@ -885,11 +882,7 @@ export const ViewAppointmentScreen: React.FC = () => {
 
   const status = apt?.status ?? 'REQUESTED';
   const getStatusDisplay = useStatusDisplay(theme);
-  const statusFlags = useStatusFlags(
-    status,
-    apt?.paymentStatus,
-    apt?.bookingPaymentStatus,
-  );
+  const statusFlags = useStatusFlags(status, apt?.paymentStatus);
   const {isRequested, isTerminal, showPayNow, showInvoice, showCancel} =
     statusFlags;
   const statusInfo = getStatusDisplay(
