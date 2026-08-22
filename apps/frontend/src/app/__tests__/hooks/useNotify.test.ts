@@ -1,10 +1,10 @@
-import { renderHook } from "@testing-library/react";
-import { toast } from "react-toastify";
-import { useNotify } from "@/app/hooks/useNotify";
-import Success from "@/app/ui/widgets/Toast/Success";
-import ErrorToast from "@/app/ui/widgets/Toast/ErrorToast";
+import { renderHook } from '@testing-library/react';
+import { toast } from 'react-toastify';
+import { useNotify } from '@/app/hooks/useNotify';
+import Success from '@/app/ui/widgets/Toast/Success';
+import ErrorToast from '@/app/ui/widgets/Toast/ErrorToast';
 
-jest.mock("react-toastify", () => ({
+jest.mock('react-toastify', () => ({
   toast: {
     success: jest.fn(),
     error: jest.fn(),
@@ -13,17 +13,17 @@ jest.mock("react-toastify", () => ({
   },
 }));
 
-describe("useNotify", () => {
+describe('useNotify', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it("routes success notifications to toast.success with base options", () => {
+  it('routes success notifications to toast.success with base options', () => {
     const { result } = renderHook(() => useNotify());
 
-    const data = { title: "Saved", text: "Appointment updated" };
+    const data = { title: 'Saved', text: 'Appointment updated' };
 
-    result.current.notify("success", data);
+    result.current.notify('success', data);
 
     expect(toast.success).toHaveBeenCalledWith(
       Success,
@@ -32,17 +32,17 @@ describe("useNotify", () => {
         closeButton: false,
         icon: false,
         hideProgressBar: true,
-        className: expect.stringContaining("w-[400px]"),
+        className: expect.stringContaining('w-[400px]'),
       })
     );
   });
 
-  it("merges overrides when showing an error toast", () => {
+  it('merges overrides when showing an error toast', () => {
     const { result } = renderHook(() => useNotify());
 
-    const data = { title: "Error", text: "Something went wrong" };
+    const data = { title: 'Error', text: 'Something went wrong' };
 
-    result.current.notify("error", data, { autoClose: 1200 });
+    result.current.notify('error', data, { autoClose: 1200 });
 
     expect(toast.error).toHaveBeenCalledWith(
       ErrorToast,
@@ -51,5 +51,16 @@ describe("useNotify", () => {
         autoClose: 1200,
       })
     );
+  });
+
+  it('returns the same notify function across re-renders', () => {
+    // Identity matters: components list `notify` in useCallback deps and then
+    // depend on that callback in an effect. An unstable notify recreated the
+    // callback every render, so the effect re-ran forever.
+    const { result, rerender } = renderHook(() => useNotify());
+    const first = result.current.notify;
+    rerender();
+    rerender();
+    expect(result.current.notify).toBe(first);
   });
 });

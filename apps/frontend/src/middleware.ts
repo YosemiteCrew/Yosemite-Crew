@@ -32,6 +32,7 @@ const STRICT_CSP_PATH_PREFIXES = [
   '/guides',
   '/integrations',
   '/inventory',
+  '/network',
   '/organization',
   '/organizations',
   '/payment-status',

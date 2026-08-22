@@ -28,6 +28,8 @@ export const scheduledQueues = [
   TaskReminderQueue,
   VaccineReminderQueue,
 ] as unknown as SchedulerCapableQueue[];
+import "./ap-delivery.queue";
+import "./ap-inbox.queue";
 
 export async function initQueues() {
   // Must run before the upserts: bullmq 5 keyed its repeatables by an md5 of

@@ -17,6 +17,7 @@ import { NotificationService } from "./notification.service";
 
 import { prisma } from "src/config/prisma";
 import { getOrgBillingCurrency } from "src/utils/billing";
+import { recomputeOrganizationVerification } from "./organization-verification.service";
 import { Prisma } from "@prisma/client";
 
 let stripeClient: Stripe | null = null;
@@ -587,6 +588,16 @@ export const StripeService = {
         } as unknown as Prisma.InputJsonValue,
       },
     });
+
+    // Connect status affects verification: recompute isVerified for every org
+    // on this account (honours a manual override inside the helper).
+    const affected = await prisma.organizationBilling.findMany({
+      where: { connectAccountId: account.id },
+      select: { orgId: true },
+    });
+    for (const { orgId } of affected) {
+      await recomputeOrganizationVerification(orgId);
+    }
   },
 
   // ----------------------------
