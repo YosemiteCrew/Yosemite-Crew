@@ -230,6 +230,7 @@ const SocialAuthSection: React.FC<{
   onFacebookPress: () => void;
   onApplePress: () => void;
   onCreateAccountPress: () => void;
+  isSignUpIntent: boolean;
 }> = ({
   theme,
   isDark,
@@ -241,6 +242,7 @@ const SocialAuthSection: React.FC<{
   onFacebookPress,
   onApplePress,
   onCreateAccountPress,
+  isSignUpIntent,
 }) => (
   <View style={styles.bottomSection}>
     <View style={styles.divider}>
@@ -292,12 +294,16 @@ const SocialAuthSection: React.FC<{
     ) : null}
 
     <View style={styles.footerContainer}>
-      <Text style={styles.footerText}>New here? </Text>
+      <Text style={styles.footerText}>
+        {isSignUpIntent ? 'Already have an account? ' : 'New here? '}
+      </Text>
       <PressableOpacity
         onPress={onCreateAccountPress}
         accessibilityRole="button"
-        accessibilityLabel="Create an account">
-        <Text style={styles.signUpLink}>Create an account</Text>
+        accessibilityLabel={isSignUpIntent ? 'Sign in' : 'Create an account'}>
+        <Text style={styles.signUpLink}>
+          {isSignUpIntent ? 'Sign in' : 'Create an account'}
+        </Text>
       </PressableOpacity>
     </View>
   </View>
@@ -318,6 +324,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [socialError, setSocialError] = useState('');
   const isKeyboardVisible = useKeyboardVisibility();
+  const isSignUpIntent = route.params?.intent === 'signUp';
 
   const clearAllErrors = React.useCallback(() => {
     setEmailError('');
@@ -371,9 +378,15 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
     [handleSocialAuth],
   );
 
-  const navigateToSignUp = React.useCallback(() => {
+  const toggleAuthIntent = React.useCallback(() => {
+    // The form is the same either way, so flip the copy in place instead of
+    // pushing another screen the user would have to back out of.
+    if (isSignUpIntent) {
+      navigation.setParams({intent: 'signIn'});
+      return;
+    }
     navigation.navigate('SignUp');
-  }, [navigation]);
+  }, [isSignUpIntent, navigation]);
 
   const handleGoBack = React.useCallback(() => {
     navigation.goBack();
@@ -431,9 +444,13 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
           ]}>
           <View style={styles.content}>
             <View style={styles.titleBlock}>
-              <Text style={styles.title}>Welcome back</Text>
+              <Text style={styles.title}>
+                {isSignUpIntent ? 'Create your account' : 'Welcome back'}
+              </Text>
               <Text style={styles.subtitle}>
-                We'll email you a login code. No password to remember.
+                {isSignUpIntent
+                  ? "We'll email you a code to get started. No password to remember."
+                  : "We'll email you a login code. No password to remember."}
               </Text>
             </View>
 
@@ -480,7 +497,8 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
             onGooglePress={handleGoogleSignIn}
             onFacebookPress={handleFacebookSignIn}
             onApplePress={handleAppleSignIn}
-            onCreateAccountPress={navigateToSignUp}
+            onCreateAccountPress={toggleAuthIntent}
+            isSignUpIntent={isSignUpIntent}
           />
         )}
       </KeyboardAvoidingView>
