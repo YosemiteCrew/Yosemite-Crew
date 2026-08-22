@@ -873,9 +873,27 @@ export const WorkspaceDocumentPacketService = {
       throw new WorkspaceServiceError("Encounter not found", 404);
     }
 
-    return WorkspaceDocumentPacketService.buildEncounterPacketPdf(
-      encounter.organisationId,
-      normalizedEncounterId,
-    );
+    // Owners get the SIGNED packet only.
+    //
+    // `buildEncounterPacketPdf` falls back to merging whatever documents exist
+    // right now when nothing has been signed yet, which is the correct
+    // behaviour for staff printing a working copy - and the wrong one here: it
+    // handed the owner unfinalised clinical content before a clinician had
+    // signed off on it. No signed packet means the record is not released yet,
+    // not that it should be assembled on demand.
+    const signedPdf =
+      await WorkspaceDocumentPacketService.fetchSignedEncounterPacketPdf(
+        encounter.organisationId,
+        normalizedEncounterId,
+      );
+
+    if (!signedPdf) {
+      throw new WorkspaceServiceError(
+        "This clinical record has not been finalised yet.",
+        404,
+      );
+    }
+
+    return signedPdf;
   },
 };
