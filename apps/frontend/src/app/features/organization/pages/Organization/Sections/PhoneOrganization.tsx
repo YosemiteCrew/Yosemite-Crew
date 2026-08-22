@@ -250,6 +250,12 @@ const PhoneOrganization = ({ primaryOrg }: PhoneOrganizationProps) => {
   const subscription = useSubscriptionForPrimaryOrg();
   const { can } = usePermissions();
   const canEditTeam = can(PERMISSIONS.TEAMS_EDIT_ANY);
+  // The desktop Team section wraps the same list and detail modal in a
+  // PermissionGate allOf=[TEAMS_VIEW_ANY]. The phone layout has to apply the
+  // identical gate: the backing list endpoint only checks organisation
+  // membership, so without this an org member who cannot view the team on
+  // desktop could read names, roles and specialities on a phone viewport.
+  const canViewTeam = can(PERMISSIONS.TEAMS_VIEW_ANY);
   const canEditOrg = can(PERMISSIONS.ORG_EDIT);
   const canManageStripe = can({
     allOf: [PERMISSIONS.ORG_EDIT, PERMISSIONS.SUBSCRIPTION_EDIT_ANY],
@@ -332,28 +338,32 @@ const PhoneOrganization = ({ primaryOrg }: PhoneOrganizationProps) => {
           <>
             <ProfileCardCompact org={form.formData} />
 
-            <Eyebrow>Team · {teams.length}</Eyebrow>
-            <div className="overflow-hidden rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)]">
-              {teams.length === 0 ? (
-                <div className="px-[14px]! py-[14px]! text-[12px] text-[var(--ink-faint)]">
-                  No team members yet.
+            {canViewTeam && (
+              <>
+                <Eyebrow>Team · {teams.length}</Eyebrow>
+                <div className="overflow-hidden rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)]">
+                  {teams.length === 0 ? (
+                    <div className="px-[14px]! py-[14px]! text-[12px] text-[var(--ink-faint)]">
+                      No team members yet.
+                    </div>
+                  ) : (
+                    teams.map((team) => (
+                      <TeamListRow key={team._id} team={team} onOpen={handleOpenTeam} />
+                    ))
+                  )}
+                  {canEditTeam && (
+                    <button
+                      type="button"
+                      onClick={() => setAddPopup(true)}
+                      className="flex w-full items-center justify-center gap-[5px] border-t border-[var(--hairline)] px-[14px]! py-[11px]! text-[12px] font-semibold text-[var(--blue-text)] cursor-pointer"
+                    >
+                      <IoAdd size={13} aria-hidden="true" />
+                      Invite team member
+                    </button>
+                  )}
                 </div>
-              ) : (
-                teams.map((team) => (
-                  <TeamListRow key={team._id} team={team} onOpen={handleOpenTeam} />
-                ))
-              )}
-              {canEditTeam && (
-                <button
-                  type="button"
-                  onClick={() => setAddPopup(true)}
-                  className="flex w-full items-center justify-center gap-[5px] border-t border-[var(--hairline)] px-[14px]! py-[11px]! text-[12px] font-semibold text-[var(--blue-text)] cursor-pointer"
-                >
-                  <IoAdd size={13} aria-hidden="true" />
-                  Invite team member
-                </button>
-              )}
-            </div>
+              </>
+            )}
 
             <Eyebrow>Specialities &amp; services</Eyebrow>
             <SpecialityAccordion specialities={specialities} />
@@ -382,7 +392,7 @@ const PhoneOrganization = ({ primaryOrg }: PhoneOrganizationProps) => {
       </div>
 
       <AddTeam showModal={addPopup} setShowModal={setAddPopup} />
-      {activeTeam && (
+      {canViewTeam && activeTeam && (
         <TeamInfo
           showModal={viewPopup}
           setShowModal={setViewPopup}

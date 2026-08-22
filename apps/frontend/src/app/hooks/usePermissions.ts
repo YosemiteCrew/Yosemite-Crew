@@ -34,7 +34,10 @@ export const usePermissions = (explicitOrgId?: string | null): PermissionCheckRe
     // stale set and every PermissionGate silently hides features the role owns
     // (audit trail, analytics). The backend already recomputes from the role on
     // each request, so deriving here keeps the two sides in agreement.
-    return resolveMembershipPermissions(membershipsByOrgId[activeOrgId]);
+    // Optional chained: the store can be mid-hydration (or a test can supply a
+    // partial slice), and a permission hook that throws would take down every
+    // shell component that only wanted to hide a button.
+    return resolveMembershipPermissions(membershipsByOrgId?.[activeOrgId]);
   }, [activeOrgId, membershipsByOrgId]);
 
   const hasPermission = useCallback(

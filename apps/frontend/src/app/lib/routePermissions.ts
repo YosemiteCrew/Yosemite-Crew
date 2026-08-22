@@ -109,6 +109,19 @@ const resolveRouteAccessRequirements = (
   return { any: route?.requiredAnyPermissions };
 };
 
+/**
+ * Whether a route declares any permission requirement at all.
+ *
+ * Callers that hold a cached "this user already passed the guard" flag use this
+ * to decide whether the cache is safe to act on: a permission-free route can be
+ * rendered from the cache, a permission-gated one cannot, because the cache is
+ * keyed by organisation and says nothing about the current path.
+ */
+export const pathRequiresPermissions = (pathname: string): boolean => {
+  const { any, all } = resolveRouteAccessRequirements(normalizePath(pathname));
+  return Boolean(any?.length) || Boolean(all?.length);
+};
+
 export const canAccessPathByPermissions = (
   pathname: string,
   effectivePermissions: string[] | undefined

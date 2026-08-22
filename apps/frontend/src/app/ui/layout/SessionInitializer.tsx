@@ -18,6 +18,7 @@ import { loadInvoicesForOrgPrimaryOrg } from '@/app/features/billing/services/in
 import { loadTasksForPrimaryOrg } from '@/app/features/tasks/services/taskService';
 import { loadTeam } from '@/app/features/organization/services/teamService';
 import { loadRoomsForOrgPrimaryOrg } from '@/app/features/organization/services/roomService';
+import { isLocalGuardBypassEnabled } from '@/app/lib/localGuardBypass';
 import { loadDocumentsForOrgPrimaryOrg } from '@/app/features/documents/services/documentService';
 import { loadForms } from '@/app/features/forms/services/formService';
 import { loadIntegrationsForPrimaryOrg } from '@/app/hooks/useIntegrations';
@@ -218,8 +219,10 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
 
   // On localhost with NEXT_PUBLIC_DISABLE_AUTH_GUARD, render the app shell without a
   // real session so UI/styling work needs no login (matches the guards, which also
-  // short-circuit on this flag). Has no effect on deployed environments.
-  const authGuardDisabled = process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD === 'true';
+  // short-circuit on this flag). The shared helper is what makes the "localhost"
+  // part true: reading the env var directly let a build that set the flag by
+  // accident render the private shell on a deployed host.
+  const authGuardDisabled = isLocalGuardBypassEnabled();
   const isChecking = !authGuardDisabled && (status === 'idle' || status === 'checking');
   useFullscreenLoader('session-initializer', isChecking);
 

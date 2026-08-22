@@ -1,4 +1,5 @@
 import type { IconType } from 'react-icons';
+import { PERMISSIONS, type Permission } from '@/app/lib/permissions';
 import {
   IoBookOutline,
   IoBusinessOutline,
@@ -123,6 +124,13 @@ export type FabAction = {
   ariaLabel: string;
   /** Route that must be enabled for the action to appear. */
   routeName: string;
+  /**
+   * Permissions that let the user actually create the thing. `routeName` only
+   * covers the VIEW permission for the list route, so without this the FAB
+   * offered a create flow the desktop create button hides - any one of these
+   * grants is enough, matching the desktop checks.
+   */
+  createAnyOf: Permission[];
   /** Exact pathname the action belongs to (index/list route only). */
   matchHref: string;
 };
@@ -133,6 +141,7 @@ export const PHONE_FAB_ACTIONS: FabAction[] = [
     label: 'New appointment',
     ariaLabel: 'New appointment',
     routeName: 'Appointments',
+    createAnyOf: [PERMISSIONS.APPOINTMENTS_EDIT_ANY, PERMISSIONS.APPOINTMENTS_EDIT_OWN],
     matchHref: '/appointments',
   },
   {
@@ -140,6 +149,7 @@ export const PHONE_FAB_ACTIONS: FabAction[] = [
     label: 'New task',
     ariaLabel: 'New task',
     routeName: 'Tasks',
+    createAnyOf: [PERMISSIONS.TASKS_EDIT_ANY],
     matchHref: '/tasks',
   },
   {
@@ -147,6 +157,7 @@ export const PHONE_FAB_ACTIONS: FabAction[] = [
     label: 'New companion',
     ariaLabel: 'New companion',
     routeName: 'Companions',
+    createAnyOf: [PERMISSIONS.COMPANIONS_EDIT_ANY],
     matchHref: '/companions',
   },
   {
@@ -154,6 +165,7 @@ export const PHONE_FAB_ACTIONS: FabAction[] = [
     label: 'New product',
     ariaLabel: 'New product',
     routeName: 'Inventory',
+    createAnyOf: [PERMISSIONS.INVENTORY_EDIT_ANY],
     matchHref: '/inventory',
   },
 ];

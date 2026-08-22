@@ -11,6 +11,7 @@ import { useIsPhone } from './useIsPhone';
 import { usePhoneNavGate } from './usePhoneNavGate';
 import { usePhoneShellStore } from './phoneShellStore';
 import { useSignOut } from '@/app/hooks/useAuth';
+import { usePermissions } from '@/app/hooks/usePermissions';
 import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
 import {
   PHONE_MORE_LINKS,
@@ -43,6 +44,7 @@ const PhoneShell = () => {
   const isPhone = useIsPhone();
   const router = useRouter();
   const { signOut } = useSignOut();
+  const { canAny } = usePermissions();
   const [moreOpen, setMoreOpen] = useState(false);
   const { pathname, isRouteEnabled, isActive, navigate } = usePhoneNavGate();
   const chatUnread = usePhoneShellStore((s) => s.chatUnread);
@@ -83,7 +85,13 @@ const PhoneShell = () => {
   }));
 
   const candidateFab = resolveFabAction(pathname);
-  const fabAction = candidateFab && isRouteEnabled(candidateFab.routeName) ? candidateFab : null;
+  // The route being enabled only means the user can VIEW the list. Creating
+  // needs the same edit grant the desktop create button checks, otherwise a
+  // view-only user gets a create flow on a phone that is hidden on desktop.
+  const fabAction =
+    candidateFab && isRouteEnabled(candidateFab.routeName) && canAny(candidateFab.createAnyOf)
+      ? candidateFab
+      : null;
 
   const moreSections: PhoneMoreSection[] = PHONE_MORE_SECTIONS.map((section) => ({
     key: section.key,
