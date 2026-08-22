@@ -885,6 +885,32 @@ describe("WorkspaceService", () => {
     );
     expect(updated.billingStatus).toBe("BILLED");
 
+    // A billed row is part of the financial record and cannot be deleted, no
+    // matter what the caller asks for. The client-side billing check is not the
+    // control here: it read the wrong field for a while and every billed row
+    // looked deletable.
+    mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValueOnce({
+      id: "ti-2",
+      encounterId: "enc-1",
+      appointmentId: null,
+      billingStatus: "BILLED",
+      invoiceRowId: "invoice-row-1",
+      settledInvoiceId: null,
+    } as never);
+    await expect(
+      WorkspaceService.deleteTreatmentItem("ti-2", "org-1"),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    expect(mockedPrisma.workspaceTreatmentItem.delete).not.toHaveBeenCalled();
+
+    // The same row unbilled deletes normally.
+    mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValueOnce({
+      id: "ti-2",
+      encounterId: "enc-1",
+      appointmentId: null,
+      billingStatus: "UNBILLED",
+      invoiceRowId: null,
+      settledInvoiceId: null,
+    } as never);
     await WorkspaceService.deleteTreatmentItem("ti-2", "org-1");
     expect(mockedPrisma.workspaceTreatmentItem.delete).toHaveBeenCalledWith({
       where: { id: "ti-2" },

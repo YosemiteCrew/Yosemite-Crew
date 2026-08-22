@@ -963,7 +963,9 @@ describe('<InvoiceStep /> component', () => {
     expect(await screen.findByText(/invoice prepared for online payment/i)).toBeInTheDocument();
   });
 
-  it('records an online deposit even when no checkout link is generated', async () => {
+  it('does not record an online deposit when no checkout link is generated', async () => {
+    // The customer has not been asked for anything yet. Recording the deposit
+    // up front showed a deposit balance for money that was never requested.
     invoiceServiceMock.getPaymentLink.mockResolvedValueOnce('');
     renderInvoiceStep({ invoiceLineItems: [invoiceLine('Consultation')] });
     await screen.findByTestId('total-bill-container');
@@ -978,6 +980,29 @@ describe('<InvoiceStep /> component', () => {
     });
 
     await waitFor(() => expect(invoiceServiceMock.getPaymentLink).toHaveBeenCalled());
+    expect(workspaceStoreMock.recordDepositCollection).not.toHaveBeenCalled();
+  });
+
+  it('asks for a link covering the deposit, not the whole invoice', async () => {
+    // Without the amount, the backend builds a session for the full outstanding
+    // balance, so a deposit link billed the entire invoice.
+    invoiceServiceMock.getPaymentLink.mockResolvedValueOnce('https://checkout');
+    renderInvoiceStep({ invoiceLineItems: [invoiceLine('Consultation')] });
+    await screen.findByTestId('total-bill-container');
+
+    await openDepositModal();
+    await userEvent.click(await screen.findByRole('button', { name: /online link/i }));
+    const generateLink = screen
+      .getAllByRole('button')
+      .find((btn) => btn.textContent === 'Generate link');
+    await act(async () => {
+      await userEvent.click(generateLink as HTMLElement);
+    });
+
+    await waitFor(() => expect(invoiceServiceMock.getPaymentLink).toHaveBeenCalled());
+    const [, depositAmount] = invoiceServiceMock.getPaymentLink.mock.calls[0];
+    expect(typeof depositAmount).toBe('number');
+    expect(depositAmount).toBeGreaterThan(0);
     expect(workspaceStoreMock.recordDepositCollection).toHaveBeenCalledWith(
       'appt-1',
       expect.objectContaining({ method: 'ONLINE' })

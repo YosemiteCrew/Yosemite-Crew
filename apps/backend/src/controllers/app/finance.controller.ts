@@ -31,6 +31,9 @@ import { resolveUserIdFromRequest } from "src/utils/request";
 
 const CreateInvoicePaymentSessionBodySchema = z.object({
   provider: z.string().trim().min(1).optional(),
+  // Major units. Present when the caller is collecting a deposit rather than
+  // the whole outstanding balance.
+  depositAmount: z.number().finite().positive().optional(),
 });
 
 const InvoiceItemBodySchema = z.object({
@@ -1585,6 +1588,7 @@ export const FinanceController = {
         await FinancePaymentService.createCheckoutSessionForInvoice(
           invoiceId,
           provider,
+          body.depositAmount ?? null,
         );
 
       return res.status(201).json({

@@ -1676,22 +1676,7 @@ const resolvePackageCatalogSelection = (params: {
     );
   }
 
-  const billingItems: ResolvedCatalogItem[] = [
-    buildResolvedItem({
-      productItemId: params.product.id,
-      code: params.product.code,
-      name: params.product.name,
-      kind: params.product.kind,
-      quantity: 1,
-      unitPrice: params.parentPrice?.unitPrice ?? 0,
-      currency: params.parentPrice?.currency ?? null,
-      defaultDiscountPercent:
-        params.parentPrice?.defaultDiscountPercent ?? null,
-      maxDiscountPercent: params.parentPrice?.maxDiscountPercent ?? null,
-      discountPercent: params.parentPrice?.defaultDiscountPercent ?? 0,
-      isPackageComponent: false,
-    }),
-  ];
+  const billingItems: ResolvedCatalogItem[] = [];
   const includedItems: ResolvedCatalogItem[] = [];
 
   for (const item of params.product.package.items) {
@@ -1752,6 +1737,30 @@ const resolvePackageCatalogSelection = (params: {
           item.discountPercent ?? childPrice?.defaultDiscountPercent ?? 0,
         isPackageComponent: true,
         packageProductItemId: params.product.id,
+      }),
+    );
+  }
+
+  // The package's own price is its list price - the sum of what its components
+  // cost - so charging it ALONGSIDE those components bills the package twice.
+  // It becomes a billable line only when there is nothing else to bill: a
+  // package whose components are all INCLUDED has no component lines, and then
+  // the parent price is the charge.
+  if (billingItems.length === 0) {
+    billingItems.push(
+      buildResolvedItem({
+        productItemId: params.product.id,
+        code: params.product.code,
+        name: params.product.name,
+        kind: params.product.kind,
+        quantity: 1,
+        unitPrice: params.parentPrice?.unitPrice ?? 0,
+        currency: params.parentPrice?.currency ?? null,
+        defaultDiscountPercent:
+          params.parentPrice?.defaultDiscountPercent ?? null,
+        maxDiscountPercent: params.parentPrice?.maxDiscountPercent ?? null,
+        discountPercent: params.parentPrice?.defaultDiscountPercent ?? 0,
+        isPackageComponent: false,
       }),
     );
   }

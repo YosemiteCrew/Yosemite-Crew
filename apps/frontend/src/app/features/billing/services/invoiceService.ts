@@ -582,7 +582,16 @@ export const addLineItemsToAppointments = async (
   }
 };
 
-export const getPaymentLink = async (invoiceId: string): Promise<string | undefined> => {
+/**
+ * @param depositAmountMajor Deposit in major units. Supply it when collecting a
+ * deposit rather than the full balance - the backend charges the whole
+ * outstanding balance when it is absent, which made "deposit" links bill the
+ * entire invoice.
+ */
+export const getPaymentLink = async (
+  invoiceId: string,
+  depositAmountMajor?: number
+): Promise<string | undefined> => {
   const primaryOrgId = useOrgStore.getState().primaryOrgId;
   if (!primaryOrgId) {
     console.warn('No primary organization selected. Cannot get.');
@@ -594,7 +603,9 @@ export const getPaymentLink = async (invoiceId: string): Promise<string | undefi
     }
     const res = await postData<FinanceEnvelope<PaymentSessionResponse> | PaymentSessionResponse>(
       `${FINANCE_BASE_PATH}/invoices/${invoiceId}/payments/sessions`,
-      { provider: 'STRIPE' }
+      depositAmountMajor && depositAmountMajor > 0
+        ? { provider: 'STRIPE', depositAmount: depositAmountMajor }
+        : { provider: 'STRIPE' }
     );
     const paymentSession = unwrapFinanceData(res.data);
     const url = paymentSession.url ?? paymentSession.checkoutUrl;

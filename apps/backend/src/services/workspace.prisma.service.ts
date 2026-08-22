@@ -932,6 +932,15 @@ type ProductItemRow = {
   } | null;
 };
 
+// Billing states that put a treatment item on an invoice. Anything here is part
+// of the financial record and is not deletable.
+const BILLED_TREATMENT_ITEM_STATUSES = new Set([
+  "BILLED",
+  "INVOICED",
+  "PAID",
+  "SETTLED",
+]);
+
 const normalizeLockState = (
   lockState: unknown,
 ): string | Record<string, unknown> | null => {
@@ -2490,11 +2499,33 @@ export const WorkspaceService = {
   ): Promise<void> {
     const existing = await prisma.workspaceTreatmentItem.findFirst({
       where: { id: itemId, organisationId },
-      select: { id: true, encounterId: true, appointmentId: true },
+      select: {
+        id: true,
+        encounterId: true,
+        appointmentId: true,
+        billingStatus: true,
+        invoiceRowId: true,
+        settledInvoiceId: true,
+      },
     });
 
     if (!existing) {
       throw new WorkspaceServiceError("Treatment item not found", 404);
+    }
+
+    // A row that has reached an invoice is part of the financial record. The
+    // caller decided what to delete, so this cannot be left to the client: a
+    // client-side billing check that read the wrong field would otherwise
+    // remove billed lines and leave the invoice and the audit trail disagreeing.
+    if (
+      existing.settledInvoiceId ||
+      existing.invoiceRowId ||
+      BILLED_TREATMENT_ITEM_STATUSES.has(existing.billingStatus)
+    ) {
+      throw new WorkspaceServiceError(
+        "This treatment item is billed and cannot be deleted.",
+        409,
+      );
     }
 
     await assertTreatmentItemsUnlocked({

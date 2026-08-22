@@ -2956,9 +2956,10 @@ describe("FinanceController", () => {
 
       await run(FinanceController.createInvoicePaymentSession);
 
+      // No deposit in the body means charge the whole balance.
       expect(
         mockedPaymentService.createCheckoutSessionForInvoice,
-      ).toHaveBeenCalledWith("inv-1", "STRIPE");
+      ).toHaveBeenCalledWith("inv-1", "STRIPE", null);
       expect(statusMock).toHaveBeenCalledWith(201);
       expect(jsonMock).toHaveBeenCalledWith({
         data: { url: "https://checkout" },

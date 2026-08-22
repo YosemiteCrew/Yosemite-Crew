@@ -238,21 +238,28 @@ const handleDepositOnlineCollection = async ({
   const invoiceToCollectAgainst = await persistCurrentInvoice({ finalize: false });
   if (!invoiceToCollectAgainst?.id) return;
 
-  const checkoutUrl = await getPaymentLink(invoiceToCollectAgainst.id);
+  // Pass the requested deposit through. Without it the link is for the whole
+  // outstanding balance, so a $25 deposit on a $500 invoice produced a $500
+  // checkout that the UI labelled a deposit link.
+  const checkoutUrl = await getPaymentLink(invoiceToCollectAgainst.id, centsToMajor(amountCents));
   setDepositPaymentLink(checkoutUrl ?? null);
   if (checkoutUrl) {
     startPaymentProgress(invoiceToCollectAgainst.id, checkoutUrl);
     openCheckoutUrl(checkoutUrl);
   }
-  recordDepositCollection(appointmentId, {
-    amountCents,
-    method: 'ONLINE',
-    byName: encounter.leadName ?? 'Front desk',
-  });
+  // Only record the deposit once the link exists. Recording it up front showed
+  // a deposit balance for money the customer had not been asked for yet.
+  if (checkoutUrl) {
+    recordDepositCollection(appointmentId, {
+      amountCents,
+      method: 'ONLINE',
+      byName: encounter.leadName ?? 'Front desk',
+    });
+  }
   setConfirmation(
     checkoutUrl
-      ? `Payment link generated for the appointment invoice: ${checkoutUrl}`
-      : 'Payment link generated for the appointment invoice'
+      ? `Deposit payment link generated: ${checkoutUrl}`
+      : 'Deposit payment link generated'
   );
   if (!checkoutUrl) await reloadBilling();
 };

@@ -530,7 +530,12 @@ describe('IntegrationsPage — enabled render', () => {
     renderPage();
     await waitForPage();
     await waitFor(() =>
-      expect(listIdexxOrdersMock).toHaveBeenCalledWith({ organisationId: 'org-1' })
+      expect(listIdexxOrdersMock).toHaveBeenCalledWith({
+        organisationId: 'org-1',
+        // Only three rows render; without a limit the search returns every lab
+        // order the organisation has.
+        limit: 3,
+      })
     );
     await openSettings();
 

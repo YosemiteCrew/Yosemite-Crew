@@ -566,6 +566,96 @@ describe("FinancePaymentService", () => {
     expect(result.paymentAttemptId).toBe("pa_dep");
   });
 
+  it("charges only the requested deposit, not the whole balance", async () => {
+    // A deposit link used to be built from the full invoice, so asking for a
+    // 25 deposit on a 500 invoice produced a 500 checkout labelled "deposit".
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_partial",
+      totalAmount: 500,
+      taxTotal: 0,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      organisationId: "org_1",
+      appointmentId: "appt_1",
+      parentId: "parent_1",
+      items: [
+        {
+          name: "Surgery",
+          description: "Surgery",
+          unitPrice: 500,
+          quantity: 1,
+        },
+      ],
+    });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (stripeClient.checkout.sessions.create as jest.Mock).mockResolvedValueOnce({
+      id: "cs_partial",
+      url: "https://checkout",
+    });
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_partial",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({ count: 1 });
+
+    await FinancePaymentService.createCheckoutSessionForInvoice(
+      "inv_partial",
+      "STRIPE",
+      25,
+    );
+
+    expect(stripeClient.checkout.sessions.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        line_items: [
+          expect.objectContaining({
+            quantity: 1,
+            price_data: expect.objectContaining({ unit_amount: 2500 }),
+          }),
+        ],
+      }),
+      { stripeAccount: "acct_1" },
+    );
+    expect(prisma.paymentAttempt.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          amountRequested: 25,
+          isPartial: true,
+          collectionMode: "DEPOSIT_THEN_SETTLE",
+        }),
+      }),
+    );
+  });
+
+  it("rejects a deposit larger than the outstanding balance", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_over",
+      totalAmount: 100,
+      taxTotal: 0,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      organisationId: "org_1",
+      items: [{ name: "Consult", unitPrice: 100, quantity: 1 }],
+    });
+
+    await expect(
+      FinancePaymentService.createCheckoutSessionForInvoice(
+        "inv_over",
+        "STRIPE",
+        1000,
+      ),
+    ).rejects.toThrow("Deposit amount exceeds the outstanding balance");
+    expect(prisma.paymentAttempt.create).not.toHaveBeenCalled();
+  });
+
   it("itemises every line (discount-adjusted) with automatic tax for a fresh, unsettled invoice", async () => {
     (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
       id: "inv_multi",

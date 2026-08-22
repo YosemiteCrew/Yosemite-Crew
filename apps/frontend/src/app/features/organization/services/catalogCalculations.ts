@@ -48,10 +48,14 @@ export const computePackageTotals = (pkg: PackageRevamp) => {
   }, 0);
   const additionalDiscountAmt = (afterItemDiscounts * pkg.additionalDiscount) / 100;
   const computedTotal = afterItemDiscounts - additionalDiscountAmt;
-  // List rows can arrive without a loaded breakdown (totals collapse to 0). Fall back to the
-  // backend-computed final amount so the package cost still renders correctly everywhere.
+  // List rows can arrive without a loaded breakdown, and an unloaded breakdown
+  // computes to 0. The fallback keys off the breakdown being ABSENT rather than
+  // off a zero total: a package whose loaded breakdown genuinely totals 0 (every
+  // component included, or all of them removed) has to report 0, not the stale
+  // amount the server last calculated.
+  const hasLoadedBreakdown = pkg.breakdown.length > 0;
   const totalCost =
-    computedTotal > 0 || pkg.serverFinalAmount === undefined
+    hasLoadedBreakdown || pkg.serverFinalAmount === undefined
       ? computedTotal
       : pkg.serverFinalAmount;
   return { grossTotal, afterItemDiscounts, additionalDiscountAmt, totalCost };

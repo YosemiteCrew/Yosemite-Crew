@@ -806,6 +806,63 @@ const buildCheckoutSessionLineItems = (params: {
   };
 };
 
+/**
+ * Normalizes a caller-supplied deposit amount against the invoice balance.
+ * Returns null when no deposit was asked for (charge the full balance), and
+ * rejects an amount that is not a positive number or exceeds what is owed --
+ * a "deposit" larger than the balance is a mistake, not a deposit.
+ */
+const resolveRequestedDepositAmount = (
+  requested: number | null | undefined,
+  balance: number,
+): number | null => {
+  if (requested === null || requested === undefined) return null;
+  if (typeof requested !== "number" || !Number.isFinite(requested)) {
+    throw new FinancePaymentError("Invalid deposit amount", 400);
+  }
+  const rounded = roundMoney(requested);
+  if (rounded <= 0) {
+    throw new FinancePaymentError("Deposit amount must be positive", 400);
+  }
+  if (rounded > balance) {
+    throw new FinancePaymentError(
+      "Deposit amount exceeds the outstanding balance",
+      400,
+    );
+  }
+  return rounded;
+};
+
+/**
+ * A deposit is a part payment towards the invoice, not a sale of the invoice's
+ * line items, so it is charged as a single line for the requested amount. Tax
+ * stays with the final settlement, where the full taxable total is known --
+ * calculating it again on the deposit would tax the same money twice.
+ */
+const buildDepositLineItem = (params: {
+  invoice: { id: string };
+  depositAmount: number;
+  invoiceCurrency: string;
+}) => ({
+  useBalanceLine: true,
+  disableAutomaticTax: true,
+  lineItems: [
+    {
+      price_data: {
+        currency: params.invoiceCurrency,
+        product_data: {
+          name: `Deposit for invoice ${params.invoice.id}`,
+        },
+        unit_amount: toStripeMinorUnits(
+          params.depositAmount,
+          params.invoiceCurrency,
+        ),
+      },
+      quantity: 1,
+    },
+  ],
+});
+
 // A PAYMENT_LINK invoice switching to an in-app PaymentIntent must first
 // retire its open Checkout Sessions so the same balance cannot be paid twice.
 const cancelOpenCheckoutSessionAttempts = async (invoiceId: string) => {
@@ -949,6 +1006,13 @@ export const FinancePaymentService = {
   async createCheckoutSessionForInvoice(
     invoiceId: string,
     provider?: PrismaPaymentProvider | null,
+    /**
+     * Deposit amount in major units. When supplied, the session charges this
+     * amount instead of the full outstanding balance. Without it a "collect a
+     * deposit" flow produced a link for the whole invoice while the UI called
+     * it a deposit link.
+     */
+    requestedDepositAmount?: number | null,
   ): Promise<CheckoutSessionResult> {
     if (provider && provider !== "STRIPE") {
       throw new FinancePaymentError("Unsupported payment provider", 400);
@@ -1015,11 +1079,19 @@ export const FinancePaymentService = {
       throw new FinancePaymentError("Invoice has no outstanding balance", 409);
     }
 
+    const depositAmount = resolveRequestedDepositAmount(
+      requestedDepositAmount,
+      summary.balance,
+    );
+    // What this session will actually charge: the deposit when one was asked
+    // for, the whole balance otherwise.
+    const amountToCharge = depositAmount ?? summary.balance;
+
     if (existingCheckoutAttempt?.providerCheckoutSessionId) {
       const requestedAmount = roundMoney(
         existingCheckoutAttempt.amountRequested ?? 0,
       );
-      if (requestedAmount === summary.balance) {
+      if (requestedAmount === amountToCharge) {
         return {
           sessionId: existingCheckoutAttempt.providerCheckoutSessionId,
           url: getCheckoutSessionUrl(existingCheckoutAttempt),
@@ -1059,12 +1131,19 @@ export const FinancePaymentService = {
       throw new FinancePaymentError("Invoice items are missing", 400);
     }
 
-    const { disableAutomaticTax, lineItems } = buildCheckoutSessionLineItems({
-      invoice,
-      items,
-      summary,
-      invoiceCurrency,
-    });
+    const { disableAutomaticTax, lineItems } =
+      depositAmount === null
+        ? buildCheckoutSessionLineItems({
+            invoice,
+            items,
+            summary,
+            invoiceCurrency,
+          })
+        : buildDepositLineItem({
+            invoice,
+            depositAmount,
+            invoiceCurrency,
+          });
 
     const stripe = getStripeClient();
     const expiresAt = Math.floor((Date.now() + 24 * 60 * 60 * 1000) / 1000);
@@ -1108,13 +1187,13 @@ export const FinancePaymentService = {
         settlementChannel: "STRIPE",
         providerCheckoutSessionId: session.id,
         status: "REQUIRES_ACTION",
-        amountRequested: summary.balance,
+        amountRequested: amountToCharge,
         amountCaptured: 0,
         amountApplied: 0,
         currency: invoiceCurrency,
-        collectionMode: null,
+        collectionMode: depositAmount === null ? null : "DEPOSIT_THEN_SETTLE",
         isOffline: false,
-        isPartial: false,
+        isPartial: depositAmount !== null && depositAmount < summary.balance,
         rawProviderPayload: {
           sessionId: session.id,
           url: session.url ?? null,
