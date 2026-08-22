@@ -19,7 +19,7 @@ jest.mock('supertokens-react-native', () => ({
 jest.mock('@/config/variables', () => ({
   API_CONFIG: {baseUrl: 'https://api.test', timeoutMs: 15000},
   AUTH_FEATURE_FLAGS: {enableReviewLogin: true},
-  DEMO_LOGIN_CONFIG: {email: 'demo@example.com', password: 'test-review-pass'},
+  DEMO_LOGIN_CONFIG: {email: 'demo@example.com'},
   DEVELOPMENT_API_BASE_URL: 'https://devapi.test',
 }));
 
@@ -147,7 +147,10 @@ describe('passwordlessAuth', () => {
         destination: 'demo@example.com',
         isNewUser: false,
         challengeType: 'demoPassword',
-        challengeLength: 'test-review-pass'.length,
+        // The review password is typed from the App Store Connect notes, so
+        // the app cannot know its length. Deriving it from an embedded copy
+        // made the OTP screen auto-submit a truncated prefix.
+        challengeLength: undefined,
         isDemoLogin: true,
       });
       expect(mockFetch).toHaveBeenCalledWith(

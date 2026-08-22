@@ -57,7 +57,9 @@ export interface AuthFeatureFlags {
 
 export interface DemoLoginConfig {
   email?: string;
-  password?: string;
+  // No password field on purpose. Embedding the review credential shipped it
+  // as a plaintext string in the JS bundle, and it drifted from the backend,
+  // so the reviewer types it from the App Store Connect notes instead.
 }
 
 export interface UiFeatureFlags {
@@ -194,7 +196,6 @@ const DEFAULT_AUTH_FEATURE_FLAGS: AuthFeatureFlags = {
 
 const DEFAULT_DEMO_LOGIN_CONFIG: DemoLoginConfig = {
   email: '',
-  password: '',
 };
 
 const DEFAULT_UI_FEATURE_FLAGS: UiFeatureFlags = {
