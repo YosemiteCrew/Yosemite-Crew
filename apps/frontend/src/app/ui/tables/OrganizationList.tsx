@@ -6,7 +6,7 @@ import OrgCard from '@/app/ui/cards/OrgCard/OrgCard';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { OrgWithMembership } from '@/app/features/organization/types/org';
 import { resolveOrgScopedRedirect } from '@/app/lib/postAuthRedirect';
-import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
+import { isCurrentRoute, startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
 import { useFullscreenLoaderStore } from '@/app/stores/fullscreenLoaderStore';
 
 type OrganizationListProps = {
@@ -27,6 +27,10 @@ const OrganizationList = ({ orgs }: OrganizationListProps) => {
       const role = org.membership?.roleDisplay ?? org.membership?.roleCode;
       const nextRoute = await resolveOrgScopedRedirect({ orgId: id, fallbackRole: role });
       router.push(nextRoute);
+      if (isCurrentRoute(nextRoute)) {
+        hide('org-switch');
+        stopRouteLoader();
+      }
     } catch {
       hide('org-switch');
       stopRouteLoader();

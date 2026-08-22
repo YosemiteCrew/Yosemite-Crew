@@ -66,6 +66,7 @@ const RouteLoaderOverlay = () => {
     if (!isLoading) return;
     const timeout = globalThis.window.setTimeout(() => {
       stopRouteLoader();
+      useFullscreenLoaderStore.getState().hide('org-switch');
     }, 15000);
 
     return () => {

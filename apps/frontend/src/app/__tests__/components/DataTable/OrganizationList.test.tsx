@@ -5,7 +5,7 @@ import OrganizationList from '@/app/ui/tables/OrganizationList';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useRouter } from 'next/navigation';
 import { resolveOrgScopedRedirect } from '@/app/lib/postAuthRedirect';
-import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
+import { isCurrentRoute, startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
 import { OrgWithMembership } from '@/app/features/organization/types/org';
 
 jest.mock('next/navigation', () => ({
@@ -23,6 +23,7 @@ jest.mock('@/app/lib/postAuthRedirect', () => ({
 jest.mock('@/app/lib/routeLoader', () => ({
   startRouteLoader: jest.fn(),
   stopRouteLoader: jest.fn(),
+  isCurrentRoute: jest.fn(),
 }));
 
 const mockShow = jest.fn();
@@ -107,5 +108,29 @@ describe('OrganizationList', () => {
     await waitFor(() => expect(mockHide).toHaveBeenCalledWith('org-switch'));
     expect(stopRouteLoader).toHaveBeenCalled();
     expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it('leaves both loaders running when the redirect navigates away', async () => {
+    (resolveOrgScopedRedirect as jest.Mock).mockResolvedValue('/appointments');
+    (isCurrentRoute as jest.Mock).mockReturnValue(false);
+    render(<OrganizationList orgs={[verifiedOrg]} />);
+
+    fireEvent.click(screen.getByTestId('org-card-Verified Corp'));
+
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/appointments'));
+    expect(mockHide).not.toHaveBeenCalled();
+    expect(stopRouteLoader).not.toHaveBeenCalled();
+  });
+
+  it('releases both loaders when the redirect targets the current route', async () => {
+    (resolveOrgScopedRedirect as jest.Mock).mockResolvedValue('/organizations');
+    (isCurrentRoute as jest.Mock).mockReturnValue(true);
+    render(<OrganizationList orgs={[verifiedOrg]} />);
+
+    fireEvent.click(screen.getByTestId('org-card-Verified Corp'));
+
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/organizations'));
+    expect(mockHide).toHaveBeenCalledWith('org-switch');
+    expect(stopRouteLoader).toHaveBeenCalled();
   });
 });

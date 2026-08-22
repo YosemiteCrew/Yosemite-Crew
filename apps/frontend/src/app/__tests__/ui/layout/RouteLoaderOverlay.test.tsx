@@ -21,6 +21,13 @@ jest.mock('@/app/stores/routeLoaderStore', () => ({
   useRouteLoaderStore: jest.fn(),
 }));
 
+const mockHide = jest.fn();
+jest.mock('@/app/stores/fullscreenLoaderStore', () => ({
+  useFullscreenLoaderStore: {
+    getState: jest.fn(() => ({ hide: mockHide })),
+  },
+}));
+
 describe('RouteLoaderOverlay', () => {
   const store = { isLoading: false };
 
@@ -79,6 +86,7 @@ describe('RouteLoaderOverlay', () => {
     });
 
     expect(stopRouteLoader).toHaveBeenCalled();
+    expect(mockHide).toHaveBeenCalledWith('org-switch');
     store.isLoading = false;
   });
 });
