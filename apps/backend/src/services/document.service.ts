@@ -25,6 +25,9 @@ const COMPANION_DOCUMENT_CATEGORIES = new Set([
   "OTHERS",
 ]);
 
+// Must stay in step with the web and mobile pickers. Both offer an "Other"
+// subcategory under HEALTH and HYGIENE_MAINTENANCE, so both are accepted here;
+// omitting them rejected a value the UI let the user choose.
 const VALID_CATEGORY_SUBCATEGORIES: Record<string, Set<string>> = {
   ADMIN: new Set(["PASSPORT", "CERTIFICATES", "INSURANCE"]),
   HEALTH: new Set([
@@ -36,6 +39,7 @@ const VALID_CATEGORY_SUBCATEGORIES: Record<string, Set<string>> = {
     "IMAGING_OR_DIAGNOSTIC",
     "PARASITE_PREVENTION",
     "MEDICAL_CONDITION",
+    "OTHER",
   ]),
   HYGIENE_MAINTENANCE: new Set([
     "BATHING",
@@ -45,6 +49,7 @@ const VALID_CATEGORY_SUBCATEGORIES: Record<string, Set<string>> = {
     "DENTAL_CLEANING",
     "SKIN_CARE",
     "ANAL_GLAND_EXPRESSION",
+    "OTHER",
   ]),
   DIETARY_PLANS: new Set(["NUTRITION_PLANS"]),
   OTHERS: new Set(),

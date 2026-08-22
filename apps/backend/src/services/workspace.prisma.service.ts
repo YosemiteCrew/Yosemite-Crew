@@ -1128,7 +1128,7 @@ export const dedupeTreatmentItemsByPrescription = <
 const buildTreatmentItemsFromPrescriptions = (
   prescriptions: Array<{
     artifact: { id: string; status: string; createdAt: Date; updatedAt: Date };
-    prescription: { medications: unknown };
+    prescription: { id: string; medications: unknown };
   }>,
   locked = false,
 ): WorkspaceTreatmentItem[] =>
@@ -1172,7 +1172,11 @@ const buildTreatmentItemsFromPrescriptions = (
       billingStatus: "UNBILLED",
       invoiceRowId: null,
       lockState: { locked },
-      prescriptionId: record.artifact.id,
+      // Must be the Prescription row id, not the artifact id: the persisted
+      // workspaceTreatmentItem.prescriptionId column stores the row id, and the
+      // dedupe below compares the two. Using the artifact id here made every
+      // comparison miss, so package-expanded medications were listed twice.
+      prescriptionId: record.prescription.id,
       name: medications.length ? "Treatment items" : "Prescription",
       medicationCount: medications.length,
       status: record.artifact.status,
@@ -2178,7 +2182,7 @@ const buildBootstrapAggregate = async (
     treatmentItems: access.treatmentItems
       ? dedupeTreatmentItemsByPrescription(
           buildTreatmentItemsFromPrescriptions(
-            clinical.prescriptions as never,
+            clinical.prescriptions,
             locked,
           ).map((item) => ({
             ...item,

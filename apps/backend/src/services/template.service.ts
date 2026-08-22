@@ -1015,10 +1015,12 @@ export const TemplateService = {
       await prisma.templateVersion.update({
         where: { id: currentVersion.id },
         data: {
+          // Persist the NORMALIZED snapshot, exactly as the new-version branch
+          // does. Writing parsed.schemaSnapshot here stored a draft that had
+          // not been through normalizeClinicalTemplateSchemaSnapshot, so the
+          // sections validation ran against differed from what was saved.
           schemaSnapshot: toJsonInput(
-            parsed.schemaSnapshot === undefined
-              ? currentVersion.schemaSnapshot
-              : parsed.schemaSnapshot,
+            nextSchemaSnapshot ?? currentVersion.schemaSnapshot,
           ),
           renderConfigSnapshot: toJsonInput(
             parsed.renderConfigSnapshot === undefined

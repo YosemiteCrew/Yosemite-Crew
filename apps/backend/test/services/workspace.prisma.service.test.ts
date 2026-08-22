@@ -3779,6 +3779,61 @@ describe("WorkspaceService aggregate edge cases", () => {
       ]);
     });
 
+    it("collapses the virtual row against a persisted row keyed by prescription id", async () => {
+      db.appointment.findFirst.mockResolvedValue(
+        appointmentRow({ id: "appt-dedupe" }),
+      );
+      artifactService.listPrescriptionsForAppointment.mockResolvedValue([
+        {
+          artifact: {
+            id: "artifact-1",
+            status: "SIGNED",
+            createdAt: DAY,
+            updatedAt: DAY,
+          },
+          // The artifact id and the prescription row id are different values.
+          // workspaceTreatmentItem.prescriptionId stores the ROW id, so the
+          // virtual item has to carry the row id for the dedupe to match.
+          prescription: { id: "rx-row-1", medications: [{ quantity: 1 }] },
+        },
+      ]);
+      db.workspaceTreatmentItem.findMany.mockResolvedValue([
+        {
+          id: "ti-persisted",
+          organisationId: ORG,
+          appointmentId: "appt-dedupe",
+          encounterId: "appt-dedupe",
+          productId: "prod-1",
+          productVersion: null,
+          productSnapshot: {},
+          servicePackageKind: "MEDICATION",
+          quantity: 1,
+          priceSnapshot: {},
+          billingStatus: "UNBILLED",
+          invoiceRowId: null,
+          settledInvoiceId: null,
+          settledAt: null,
+          lockState: null,
+          prescriptionId: "rx-row-1",
+          createdAt: DAY,
+          updatedAt: DAY,
+        },
+      ]);
+
+      const result = await WorkspaceService.getAppointmentBootstrap(
+        { organisationId: ORG, appointmentId: "appt-dedupe" },
+        FULL_PERMISSIONS,
+      );
+
+      // Exactly one line, and it is the persisted row -- not the persisted row
+      // plus a duplicate virtual copy of the same medication.
+      expect(result.treatmentItems).toHaveLength(1);
+      expect(result.treatmentItems[0]).toMatchObject({
+        id: "ti-persisted",
+        prescriptionId: "rx-row-1",
+      });
+    });
+
     it("scopes encounter-only virtual rows to the encounter", async () => {
       db.encounter.findFirst.mockResolvedValue(
         encounterRow({ id: "enc-only", caseId: null }),

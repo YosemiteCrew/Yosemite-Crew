@@ -1072,12 +1072,23 @@ const hydratePrescriptionRecords = async (
     organisationIds,
   );
 
-  return records.map((record) =>
-    toPrescriptionRecord({
-      ...record,
-      medications: hydrateMedications(record.medications, inventoryById),
-    }),
-  );
+  // Hydrate AFTER the record is built. The builder derives `medications` from
+  // the item rows whenever a prescription has them, so hydrating the raw
+  // `record.medications` first would be discarded for every row-backed
+  // prescription -- exactly the records the item rows were introduced for.
+  return records.map((record) => {
+    const built = toPrescriptionRecord(record);
+    return {
+      ...built,
+      prescription: {
+        ...built.prescription,
+        medications: hydrateMedications(
+          built.prescription.medications,
+          inventoryById,
+        ),
+      },
+    };
+  });
 };
 
 const buildDischargeSummaryRecord = (

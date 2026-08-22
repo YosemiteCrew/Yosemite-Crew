@@ -3037,12 +3037,20 @@ describe("ClinicalArtifactService", () => {
       const fromItems = records[0].prescription.medications as Array<
         Record<string, unknown>
       >;
+      // Row-backed prescriptions must be hydrated too. The record builder
+      // derives `medications` from the item rows, so hydrating the raw column
+      // before the record was built silently dropped the inventory fields for
+      // exactly the prescriptions the item rows were added for.
       expect(fromItems).toEqual([
         expect.objectContaining({
           medication: "Amoxicillin",
           quantity: 2,
           inventoryItemId: "inv-1",
           expiryDate: D2.toISOString(),
+          genericName: "Amoxicillin",
+          strength: "500mg",
+          dosageForm: "Capsule",
+          controlledItem: true,
         }),
       ]);
 
