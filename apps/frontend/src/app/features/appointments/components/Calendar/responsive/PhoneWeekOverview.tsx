@@ -5,8 +5,6 @@ import clsx from 'clsx';
 import { IoChevronBackOutline, IoChevronForwardOutline, IoWarning } from 'react-icons/io5';
 import type { Appointment } from '@yosemite-crew/types';
 
-import { getDateKeyInPreferredTimeZone } from '@/app/lib/timezone';
-
 import {
   buildPhoneWeekOverview,
   SEGMENT_COLORS,
@@ -15,6 +13,7 @@ import {
 } from './phoneWeekLoad';
 
 import './PhoneWeekOverview.css';
+import { toDateKey } from '@/app/features/appointments/components/Calendar/responsive/phoneWeekLoad';
 
 export type PhoneCalendarView = 'day' | 'week' | 'month';
 
@@ -145,7 +144,10 @@ const PhoneWeekOverview = ({
   // appointments the same way), so the selection must be keyed in that zone too. Using the
   // device-local day here highlighted the wrong row when the preferred zone crossed a local
   // midnight relative to the selected instant.
-  const selectedKey = selectedDate ? getDateKeyInPreferredTimeZone(selectedDate) : null;
+  // The same key function the ROWS use. Deriving this in the preferred timezone
+  // while rows were keyed device-locally produced two different keys for one day
+  // on a device ahead of that zone, so the highlight moved or vanished.
+  const selectedKey = selectedDate ? toDateKey(selectedDate) : null;
 
   return (
     <section className="yc-pwo" aria-label={`${overview.weekLabel}, ${overview.rangeLabel}`}>

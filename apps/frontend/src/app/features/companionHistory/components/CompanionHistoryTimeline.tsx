@@ -75,6 +75,7 @@ import {
   resolveHistoryDocumentId,
 } from '@/app/features/companionHistory/utils/historyFormatters';
 import '@/app/ui/tables/GenericTable/Generictable.css';
+import { logger } from '@/app/lib/logger';
 
 type CompanionHistoryTimelineProps = {
   companionId: string;
@@ -1579,7 +1580,7 @@ const useCompanionHistoryTimelineView = ({
         // The drawer calls this straight from a click handler, so a rejection
         // here escaped as an unhandled promise rejection and the user saw the
         // spinner stop with no explanation.
-        console.error('Failed to download the record PDF:', error);
+        logger.error('Failed to download the record PDF:', error);
         notify('error', {
           title: 'Download failed',
           text: 'The document could not be downloaded. Please try again.',

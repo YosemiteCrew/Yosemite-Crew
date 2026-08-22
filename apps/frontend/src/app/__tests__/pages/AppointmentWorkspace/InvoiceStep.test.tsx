@@ -1723,4 +1723,29 @@ describe('<InvoiceStep /> component', () => {
       );
     });
   });
+
+  it('never re-sends a line that is already on the invoice', async () => {
+    // The add-items endpoint only appends. Editing a seeded line changed its
+    // content key, which is what made the duplicate filter stop recognising it
+    // and charge the same work twice.
+    invoiceServiceMock.createFinanceInvoice.mockResolvedValue({ id: 'inv-open' });
+    renderInvoiceStep({
+      invoiceLineItems: [
+        { ...invoiceLine('Consultation'), seededFromInvoiceId: 'inv-open' },
+        invoiceLine('New item'),
+      ],
+    });
+    await screen.findByTestId('total-bill-container');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cash' }));
+    await act(async () => {
+      await userEvent.click(screen.getByRole('button', { name: /^Collect \$/ }));
+    });
+
+    await waitFor(() => expect(invoiceServiceMock.createFinanceInvoice).toHaveBeenCalled());
+    const [payload] = invoiceServiceMock.createFinanceInvoice.mock.calls[0];
+    const names = (payload.items ?? []).map((item: { name: string }) => item.name);
+    expect(names).toContain('New item');
+    expect(names).not.toContain('Consultation');
+  });
 });

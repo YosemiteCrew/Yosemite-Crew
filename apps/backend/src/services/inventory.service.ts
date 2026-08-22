@@ -1502,8 +1502,18 @@ export const InventoryService = {
     }
 
     const nextCategory = input.category ?? existing.category ?? undefined;
+    // An ABSENT subCategory keeps the stored one; an explicitly blank one clears
+    // it. Collapsing both to "absent" meant changing an item's category while
+    // leaving the subcategory blank validated the OLD subcategory against the
+    // NEW category, and the edit was rejected with nothing the user could fix.
+    // An ABSENT subCategory keeps the stored one; an explicitly blank one clears
+    // it. Collapsing both to "absent" meant changing an item's category while
+    // leaving the subcategory blank validated the OLD subcategory against the
+    // NEW category, and the edit was rejected with nothing the user could fix.
     const nextSubCategory =
-      asNonEmptyString(input.subCategory) ?? existing.subCategory ?? undefined;
+      input.subCategory === undefined
+        ? (existing.subCategory ?? undefined)
+        : asNonEmptyString(input.subCategory);
     if (nextCategory) {
       ensureValidCategorySelection(nextCategory, nextSubCategory);
     }

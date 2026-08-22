@@ -1092,7 +1092,14 @@ const useInvoiceStepContent = ({
   // explicit end-of-visit settlement.
   const persistCurrentInvoice = async ({ finalize = false }: { finalize?: boolean } = {}) => {
     if (!organisationId) return undefined;
-    const lineItems = toFinanceLineItems(encounter.invoiceLineItems);
+    // Lines seeded out of an already-persisted invoice are ALREADY charged, and
+    // the add-items endpoint only appends. Re-sending one charges it twice, and
+    // editing one changed its content key so the duplicate filter stopped
+    // recognising it - so they are excluded here rather than relying on that
+    // filter to catch them.
+    const lineItems = toFinanceLineItems(
+      encounter.invoiceLineItems.filter((item) => !item.seededFromInvoiceId)
+    );
     // Prefer an existing OPEN invoice for this appointment and append new lines to
     // it (web /lines). When none exists, create one via the web POST /invoices —
     // never the mobile /seed route, which requires a mobile session on web

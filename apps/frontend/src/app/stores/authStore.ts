@@ -7,7 +7,11 @@ import Session from 'supertokens-web-js/recipe/session';
 import TOTP from 'supertokens-web-js/recipe/totp';
 
 import { initAuthClient } from '@/app/lib/authClient';
-import { removeStorageItem } from '@/app/lib/browserStorage';
+import {
+  getJsonStorageItem,
+  removeStorageItem,
+  setJsonStorageItem,
+} from '@/app/lib/browserStorage';
 import { logger } from '@/app/lib/logger';
 import { clearSessionScopedStores } from '@/app/lib/resetSessionStores';
 import { getData, postData } from '@/app/services/axios';
@@ -45,6 +49,30 @@ export type PendingSignUp = {
   firstName: string;
   lastName: string;
   role: string;
+};
+
+/**
+ * Where the pending sign-up survives a reload or a new tab.
+ *
+ * The verification email is routinely opened outside the tab that started the
+ * sign-up, and the provisioning call needs the name and role from it. Held in
+ * localStorage rather than sessionStorage so a link opened in a NEW tab still
+ * finds it; cleared as soon as provisioning succeeds (or the server says the
+ * user already exists).
+ */
+const PENDING_SIGN_UP_STORAGE_KEY = 'yc_pending_sign_up';
+
+const readPendingSignUp = (): PendingSignUp | null => {
+  const stored = getJsonStorageItem<PendingSignUp>('local', PENDING_SIGN_UP_STORAGE_KEY);
+  return stored && typeof stored.email === 'string' ? stored : null;
+};
+
+const writePendingSignUp = (pending: PendingSignUp) => {
+  setJsonStorageItem('local', PENDING_SIGN_UP_STORAGE_KEY, pending);
+};
+
+const clearStoredPendingSignUp = () => {
+  removeStorageItem('local', PENDING_SIGN_UP_STORAGE_KEY);
 };
 
 type AuthError = Error & { code: string };
@@ -219,7 +247,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   error: null,
   role: null,
   mfaChallenge: null,
-  pendingSignUp: null,
+  // Seeded from storage so a verification link opened in a new tab still knows
+  // the name and role to provision with.
+  pendingSignUp: readPendingSignUp(),
 
   signUp: async (email, password, firstName, lastName, role = 'member') => {
     set({ loading: true, error: null });
@@ -242,7 +272,13 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       if (response.status === 'SIGN_UP_NOT_ALLOWED') {
         throw makeAuthError(response.reason, 'SIGN_UP_NOT_ALLOWED');
       }
-      set({ loading: false, pendingSignUp: { email, firstName, lastName, role } });
+      const pending = { email, firstName, lastName, role };
+      set({ loading: false, pendingSignUp: pending });
+      // Also persisted: verification links are routinely opened in a new tab or
+      // after a reload, and the in-memory copy does not survive either. Without
+      // it provisioning silently no-ops and the account ends up verified with no
+      // application user, name or role behind it.
+      writePendingSignUp(pending);
       try {
         await EmailVerification.sendVerificationEmail();
       } catch (error) {
@@ -277,6 +313,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   clearPendingSignUp: () => {
     set({ pendingSignUp: null });
+    clearStoredPendingSignUp();
   },
 
   signIn: async (email, password) => {

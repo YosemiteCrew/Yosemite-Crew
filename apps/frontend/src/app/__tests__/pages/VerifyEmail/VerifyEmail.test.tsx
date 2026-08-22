@@ -107,16 +107,23 @@ describe('VerifyEmail landing page', () => {
     expect(mockRouterReplace).toHaveBeenCalledWith('/dashboard');
   });
 
-  it('continues to the app even when provisioning fails', async () => {
+  it('stops and offers a retry when provisioning fails', async () => {
+    // Continuing anyway left a verified provider account with no application
+    // user, name or role behind it - and a later sign-in cannot repair that,
+    // because the pending sign-up is gone by then.
     mockCheckSession.mockResolvedValue({ userId: 'user-1' });
-    (provisionPendingSignUpUser as jest.Mock).mockRejectedValue(new Error('409ish'));
+    (provisionPendingSignUpUser as jest.Mock).mockRejectedValue(new Error('boom'));
     await renderVerified();
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     });
 
-    expect(mockRouterReplace).toHaveBeenCalledWith('/dashboard');
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent('could not finish setting up')
+    );
+    expect(mockRouterReplace).not.toHaveBeenCalledWith('/dashboard');
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
 
   it('sends the user to sign in when no session exists', async () => {

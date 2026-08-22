@@ -27,23 +27,27 @@ const getRequiredEnv = (name: 'YC_E2E_EMAIL' | 'YC_E2E_PASSWORD') => {
 const skipUnlessAuthSurfaceDeployed = async () => {
   const base = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, '');
   if (!base) return;
-  let deployed = false;
-  try {
-    const response = await fetch(`${base}/auth/signinup/code`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', rid: 'passwordless' },
-      body: JSON.stringify({}),
-    });
-    // The provider surface answers (even to a bad request) with a non-404;
-    // a legacy backend has no such route.
-    deployed = response.status !== 404 && response.status < 500;
-  } catch {
-    deployed = false;
-  }
+  // Only a 404 means "this environment has not cut over yet" and justifies a
+  // skip. A 5xx means the auth surface IS deployed and broken, and a failed
+  // probe means we do not know - treating either as "not deployed" silently
+  // skipped the core sign-in test through exactly the outages it exists to
+  // catch.
+  const response = await fetch(`${base}/auth/signinup/code`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', rid: 'passwordless' },
+    body: JSON.stringify({}),
+  });
+
   test.skip(
-    !deployed,
+    response.status === 404,
     'Target API does not serve the SuperTokens auth surface yet (pre-cutover environment)'
   );
+
+  if (response.status >= 500) {
+    throw new Error(
+      `Auth surface is deployed but failing: ${base}/auth/signinup/code returned ${response.status}`
+    );
+  }
 };
 
 const waitForAppRoute = async (page: Page) => {

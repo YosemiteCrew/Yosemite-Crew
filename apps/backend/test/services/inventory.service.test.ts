@@ -251,6 +251,50 @@ describe("Inventory service", () => {
     ).rejects.toThrow("sku must be unique within the organisation");
   });
 
+  it("clears the subcategory when a category change sends it blank", async () => {
+    // An explicitly blank subcategory used to collapse to "absent" and fall back
+    // to the STORED one, which was then validated against the NEW category - so
+    // changing an item's category was rejected with nothing the user could fix.
+    // The catalog validator is stubbed permissive for the suite. Make it behave
+    // like the real one for this pair: "Antibiotic" belongs to "Medicine", not
+    // to "IV / Fluid therapy".
+    (validateInventoryCategorySelection as jest.Mock).mockImplementation(
+      (category: string, subCategory?: string | null) => ({
+        categoryExists: true,
+        subcategoryValid: !(
+          category === "IV / Fluid therapy" && subCategory === "Antibiotic"
+        ),
+      }),
+    );
+    (prisma.inventoryItem.findFirst as jest.Mock).mockReset();
+    (prisma.inventoryItem.findFirst as jest.Mock).mockResolvedValue({
+      id: "item-1",
+      organisationId: "org-1",
+      // Real catalog values: "Antibiotic" belongs to "Medicine", NOT to
+      // "IV / Fluid therapy", so the stale fallback is genuinely invalid here.
+      category: "Medicine",
+      subCategory: "Antibiotic",
+      businessType: "HOSPITAL",
+      itemType: "NON_MEDICAL",
+    });
+    (prisma.inventoryItem.update as jest.Mock).mockResolvedValueOnce({
+      id: "item-1",
+      organisationId: "org-1",
+      name: "Item",
+      category: "IV / Fluid therapy",
+      subCategory: null,
+      businessType: "HOSPITAL",
+    });
+
+    await expect(
+      InventoryService.updateItem(
+        "item-1",
+        { category: "IV / Fluid therapy", subCategory: "" },
+        "org-1",
+      ),
+    ).resolves.toBeDefined();
+  });
+
   it("updates an item", async () => {
     (prisma.inventoryItem.findFirst as jest.Mock).mockResolvedValueOnce({
       id: "item-1",

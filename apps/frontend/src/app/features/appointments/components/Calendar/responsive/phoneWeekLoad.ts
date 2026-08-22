@@ -135,7 +135,17 @@ export type PhoneWeekOverviewData = {
   vetCount: number;
 };
 
-/** Local (not UTC) ISO day key, so a day boundary means the user's midnight. */
+/**
+ * Local (not UTC) ISO day key, so a day boundary means the user's midnight.
+ *
+ * The week's row dates are built as local midnights, so their keys are local
+ * too. Anything comparing against a row key has to use THIS function: deriving
+ * the selection key in the preferred timezone instead produced a different key
+ * for the same row on a device far enough ahead of that zone, moving the
+ * highlight to the wrong row or clearing it. (Appointment bucketing is
+ * different and deliberately uses the clinic's zone - an appointment's instant
+ * belongs to the clinic's calendar day, not the device's.)
+ */
 export const toDateKey = (date: Date): string => {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');

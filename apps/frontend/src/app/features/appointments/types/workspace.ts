@@ -382,6 +382,16 @@ export type InvoiceLineItem = {
    * service/consultation. Undefined/true means the line can be removed. Display-only.
    */
   removable?: boolean;
+  /**
+   * The finance invoice this line was seeded FROM, when the bill builder was
+   * populated out of an already-persisted open invoice.
+   *
+   * The add-items endpoint can only append, so re-sending such a line charges it
+   * twice. Editing one changes its content key, which is what made the
+   * duplicate filter stop recognising it. Anything already on an invoice is
+   * therefore never re-sent, edited or not.
+   */
+  seededFromInvoiceId?: string;
 };
 
 export type PastInvoice = {
