@@ -9,264 +9,254 @@ export interface RenderedEmailTemplate {
 const formatDate = (date: DateLike): string =>
   date instanceof Date ? date.toUTCString() : new Date(date).toUTCString();
 
+/**
+ * Design tokens, resolved to literal values.
+ *
+ * Email HTML cannot use CSS custom properties, so each value below is the
+ * concrete hex for the matching token in the Yosemite Crew design system
+ * (tokens/colors.css). Keep this table in sync when the design system moves;
+ * the token name in the comment is the source of truth.
+ */
+const T = {
+  page: "#efe8dc", // --page          app background (warm bone)
+  screen: "#f7f3ec", // --screen        card / panel surface
+  screen2: "#f1ebe1", // --screen-2      secondary surface inside a card
+  hairline: "#e5dccf", // --hairline      1px borders
+  inkBody: "#302f2e", // --ink-body      body copy
+  inkMuted: "#5c5956", // --ink-muted     labels, secondary copy
+  inkFaint: "#8f8984", // --ink-faint     legal / fine print
+  blue: "#257bed", // --blue          links
+  ctaBg: "#302f2e", // --cta           primary button fill
+  ctaText: "#ffffff", // --cta-text      primary button label
+  // Dark scheme counterparts (progressive enhancement - see the <style> block).
+  darkPage: "#201c18",
+  darkScreen: "#2f271e",
+  darkHairline: "#40362b",
+  darkInkBody: "#e6ddd0",
+  darkInkMuted: "#a89e90",
+  darkBlue: "#8fb6f5",
+  darkCtaBg: "#f2ece1",
+  darkCtaText: "#201c18",
+} as const;
+
+/** --font-serif. Newsreader is not loadable in most mail clients; Georgia is the fallback that ships. */
+const FONT_SERIF = "'Newsreader', Georgia, 'Times New Roman', serif";
+/** --font-sans. Satoshi rarely loads in mail clients, so fall through to the system stack. */
+const FONT_SANS =
+  "'Satoshi Variable', 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif";
+
+const CDN = "https://d2il6osz49gpup.cloudfront.net";
+
+/**
+ * Primary call to action.
+ *
+ * Rendered as a padded table cell rather than a styled anchor so that Outlook
+ * desktop still shows a filled block. Outlook ignores border-radius, so the
+ * pill degrades to a rectangle there - deliberate, not a bug.
+ */
+export const renderEmailButton = (url: string, label: string): string => `
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:28px auto 8px auto;">
+    <tr>
+      <td align="center" bgcolor="${T.ctaBg}" style="border-radius:999px;">
+        <a
+          href="${url}"
+          target="_blank"
+          class="yc-btn"
+          style="display:inline-block; padding:14px 32px; font-family:${FONT_SANS}; font-size:16px; font-weight:600; line-height:1; letter-spacing:-0.01em; color:${T.ctaText}; text-decoration:none; border-radius:999px;"
+        >${label}</a>
+      </td>
+    </tr>
+  </table>
+`;
+
+/** Secondary action. Outlined rather than filled so it never competes with the primary. */
+export const renderEmailSecondaryButton = (
+  url: string,
+  label: string,
+): string => `
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:12px auto 0 auto;">
+    <tr>
+      <td align="center" style="border:1px solid ${T.hairline}; border-radius:999px;" class="yc-rule">
+        <a
+          href="${url}"
+          target="_blank"
+          class="yc-muted"
+          style="display:inline-block; padding:12px 28px; font-family:${FONT_SANS}; font-size:15px; font-weight:500; line-height:1; color:${T.inkMuted}; text-decoration:none; border-radius:999px;"
+        >${label}</a>
+      </td>
+    </tr>
+  </table>
+`;
+
+const footerLink = (href: string, label: string): string => `
+  <p style="margin:0 0 8px 0; font-family:${FONT_SANS}; font-size:14px; line-height:1.4;">
+    <a href="${href}" target="_blank" style="color:${T.inkMuted}; text-decoration:none;" class="yc-muted">${label}</a>
+  </p>
+`;
+
+const complianceBadge = (
+  file: string,
+  alt: string,
+  w: number,
+  h: number,
+): string => `
+  <td style="padding:0 6px 0 0;">
+    <img src="${CDN}/footer/${file}" alt="${alt}" width="${w}" height="${h}" style="display:block; border:0; outline:none; text-decoration:none;" />
+  </td>
+`;
+
 const renderBaseEmail = (
   subject: string,
   contentHtml: string,
+  preheader?: string,
+  title?: string,
 ): string => `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="supported-color-schemes" content="light dark" />
     <title>${subject}</title>
+    <style>
+      /* Fluid down to phone widths. Clients that ignore <style> keep the 600px table. */
+      @media only screen and (max-width: 620px) {
+        .yc-shell { width: 100% !important; }
+        .yc-pad { padding-left: 20px !important; padding-right: 20px !important; }
+        .yc-title { font-size: 26px !important; }
+        .yc-col { display: block !important; width: 100% !important; padding-bottom: 20px !important; }
+      }
+      /* Dark scheme. Apple Mail and iOS honour this; Gmail largely ignores it and keeps the light palette, which is why every colour is also inlined. */
+      @media (prefers-color-scheme: dark) {
+        .yc-page { background-color: ${T.darkPage} !important; }
+        .yc-card { background-color: ${T.darkScreen} !important; border-color: ${T.darkHairline} !important; }
+        .yc-body, .yc-body p, .yc-body li, .yc-body strong { color: ${T.darkInkBody} !important; }
+        .yc-title { color: ${T.darkInkBody} !important; }
+        .yc-muted { color: ${T.darkInkMuted} !important; }
+        .yc-rule { border-color: ${T.darkHairline} !important; }
+        .yc-link { color: ${T.darkBlue} !important; }
+        .yc-btn { background-color: ${T.darkCtaBg} !important; color: ${T.darkCtaText} !important; }
+        .yc-btn-cell { background-color: ${T.darkCtaBg} !important; }
+      }
+    </style>
   </head>
-  <body style="margin:0; padding:0; background-color:#f4f8ff;">
-    <center style="width:100%; background-color:#f4f8ff;">
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-        <tr>
-          <td align="center">
-            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="width:600px; max-width:100%; background-color:#ffffff;">
-              <tr>
-                <td align="center" style="padding:0; border-bottom:2px solid #7d7d7d; background-color:#ffffff;">
-                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-                    <tr>
-                      <td align="center" style="padding:16px 24px;">
-                        <a href="https://www.yosemitecrew.com/" style="text-decoration:none;">
-                          <img
-                            src="https://d2il6osz49gpup.cloudfront.net/Logo.png"
-                            alt="Yosemite Crew Logo"
-                            width="110"
-                            height="100"
-                            style="display:block; border:0; outline:none; text-decoration:none;"
-                          />
-                        </a>
-                      </td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
+  <body class="yc-page" style="margin:0; padding:0; background-color:${T.page}; -webkit-font-smoothing:antialiased;">
+    <!-- Preview text shown in the inbox list before the mail is opened. -->
+    <div style="display:none; max-height:0; overflow:hidden; opacity:0; mso-hide:all;">
+      ${preheader ?? subject}
+    </div>
 
-              <tr>
-                <td align="left" style="padding:32px 16px 32px 16px; font-family:Arial, sans-serif; font-size:18px; line-height:1.5; color:#595958;">
-                  ${contentHtml}
-                </td>
-              </tr>
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" class="yc-page" style="background-color:${T.page};">
+      <tr>
+        <td align="center" style="padding:32px 16px;">
 
-              <tr>
-                <td align="center" style="padding:0; margin:0;">
-                  <img
-                    src="https://d2il6osz49gpup.cloudfront.net/Images/landingbg1.jpg"
-                    alt=""
-                    width="600"
-                    style="display:block; width:100%; max-width:600px; height:auto; border:0; outline:none; text-decoration:none;"
-                  />
-                </td>
-              </tr>
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" class="yc-shell" style="width:600px; max-width:100%;">
 
-              <tr>
-                <td align="center" style="background-color:#f4f8ff; padding-top:24px;">
-                  <img
-                    src="https://d2il6osz49gpup.cloudfront.net/Images/ftafter.png"
-                    alt=""
-                    width="60"
-                    height="60"
-                    style="display:block; margin:0 auto; border:0; outline:none; text-decoration:none;"
-                  />
-                </td>
-              </tr>
+            <!-- Logo, sitting on the page ground above the card -->
+            <tr>
+              <td align="center" style="padding:0 0 24px 0;">
+                <a href="https://www.yosemitecrew.com/" target="_blank" style="text-decoration:none;">
+                  <img src="${CDN}/Logo.png" alt="Yosemite Crew" width="96" height="87" style="display:block; border:0; outline:none; text-decoration:none;" />
+                </a>
+              </td>
+            </tr>
 
-              <tr>
-                <td align="center" style="background-color:#f4f8ff; padding:24px 16px 30px 16px;">
-                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:600px;">
-                    <tr>
-                      <td valign="top" width="50%" style="padding:8px; font-family:Arial, sans-serif;">
-                        <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                          <tr>
-                            <td style="padding-bottom:16px;">
-                              <a href="https://www.yosemitecrew.com/" style="text-decoration:none;">
-                                <img
-                                  src="https://d2il6osz49gpup.cloudfront.net/Logo.png"
-                                  alt="Yosemite Crew Logo"
-                                  width="90"
-                                  height="83"
-                                  style="display:block; border:0; outline:none; text-decoration:none;"
-                                />
-                              </a>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td>
-                              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                                <tr>
-                                  <td style="padding-right:8px; padding-bottom:8px;">
-                                    <img
-                                      src="https://d2il6osz49gpup.cloudfront.net/footer/gdpr.png"
-                                      alt="GDPR"
-                                      width="55"
-                                      height="56"
-                                      style="display:block; border:0; outline:none; text-decoration:none;"
-                                    />
-                                  </td>
-                                  <td style="padding-right:8px; padding-bottom:8px;">
-                                    <img
-                                      src="https://d2il6osz49gpup.cloudfront.net/footer/soc-2.png"
-                                      alt="SOC2"
-                                      width="56"
-                                      height="56"
-                                      style="display:block; border:0; outline:none; text-decoration:none;"
-                                    />
-                                  </td>
-                                  <td style="padding-right:8px; padding-bottom:8px;">
-                                    <img
-                                      src="https://d2il6osz49gpup.cloudfront.net/footer/iso.png"
-                                      alt="ISO"
-                                      width="54"
-                                      height="60"
-                                      style="display:block; border:0; outline:none; text-decoration:none;"
-                                    />
-                                  </td>
-                                  <td style="padding-bottom:8px;">
-                                    <img
-                                      src="https://d2il6osz49gpup.cloudfront.net/footer/fhir.png"
-                                      alt="FHIR"
-                                      width="117"
-                                      height="28"
-                                      style="display:block; border:0; outline:none; text-decoration:none;"
-                                    />
-                                  </td>
-                                </tr>
-                              </table>
-                            </td>
-                          </tr>
-                        </table>
-                      </td>
+            <!-- Message card -->
+            <tr>
+              <td class="yc-card" style="background-color:${T.screen}; border:1px solid ${T.hairline}; border-radius:20px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                  <tr>
+                    <td class="yc-pad yc-body" style="padding:40px; font-family:${FONT_SANS}; font-size:16px; line-height:1.5; letter-spacing:-0.02em; color:${T.inkBody};">
+                      <h1 class="yc-title" style="margin:0 0 24px 0; font-family:${FONT_SERIF}; font-size:32px; font-weight:400; line-height:1.2; letter-spacing:-0.02em; color:${T.inkBody};">${title ?? subject}</h1>
+                      ${contentHtml}
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
 
-                      <td valign="top" width="50%" style="padding:8px; font-family:Arial, sans-serif;">
-                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
-                          <tr>
-                            <td valign="top" style="padding:4px 8px;">
-                              <p style="margin:0 0 8px 0; font-size:16px; font-weight:600; color:#2b2b2b;">
-                                Developers
-                              </p>
-                              <p style="margin:0 0 6px 0; font-size:14px;">
-                                <a
-                                  href="https://www.yosemitecrew.com/developers/signup"
-                                  target="_blank"
-                                  style="color:#2b2b2b; text-decoration:none;"
-                                >
-                                  Developer portal
-                                </a>
-                              </p>
-                              <p style="margin:0; font-size:14px;">
-                                <a
-                                  href="https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md"
-                                  target="_blank"
-                                  style="color:#2b2b2b; text-decoration:none;"
-                                >
-                                  Contributing
-                                </a>
-                              </p>
-                            </td>
+            <!-- Compliance marks. The badge PNGs are dark ink, so they sit on a
+                 permanently light chip - it must NOT invert in dark mode or they vanish. -->
+            <tr>
+              <td align="center" style="padding:32px 0 0 0;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" bgcolor="${T.screen2}" style="background-color:${T.screen2}; border-radius:999px;">
+                  <tr>
+                    <td style="padding:10px 20px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center">
+                  <tr>
+                    ${complianceBadge("gdpr.png", "GDPR", 46, 47)}
+                    ${complianceBadge("soc-2.png", "SOC 2", 47, 47)}
+                    ${complianceBadge("iso.png", "ISO", 45, 50)}
+                    <td style="padding:0;">
+                      <img src="${CDN}/footer/fhir.png" alt="FHIR" width="98" height="23" style="display:block; border:0; outline:none; text-decoration:none;" />
+                    </td>
+                  </tr>
+                </table>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
 
-                            <td valign="top" style="padding:4px 8px;">
-                              <p style="margin:0 0 8px 0; font-size:16px; font-weight:600; color:#2b2b2b;">
-                                Community
-                              </p>
-                              <p style="margin:0 0 6px 0; font-size:14px;">
-                                <a
-                                  href="https://discord.gg/SwM6mX85KD"
-                                  target="_blank"
-                                  style="color:#2b2b2b; text-decoration:none;"
-                                >
-                                  Discord
-                                </a>
-                              </p>
-                              <p style="margin:0; font-size:14px;">
-                                <a
-                                  href="https://github.com/YosemiteCrew/Yosemite-Crew"
-                                  target="_blank"
-                                  style="color:#2b2b2b; text-decoration:none;"
-                                >
-                                  GitHub
-                                </a>
-                              </p>
-                            </td>
+            <tr>
+              <td style="padding:28px 8px 0 8px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                  <tr>
+                    <td class="yc-rule" style="border-top:1px solid ${T.hairline}; font-size:0; line-height:0;">&nbsp;</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
 
-                            <td valign="top" style="padding:4px 8px;">
-                              <p style="margin:0 0 8px 0; font-size:16px; font-weight:600; color:#2b2b2b;">
-                                Company
-                              </p>
-                              <p style="margin:0 0 6px 0; font-size:14px;">
-                                <a
-                                  href="https://www.yosemitecrew.com/about"
-                                  style="color:#2b2b2b; text-decoration:none;"
-                                >
-                                  About us
-                                </a>
-                              </p>
-                              <p style="margin:0 0 6px 0; font-size:14px;">
-                                <a
-                                  href="https://www.yosemitecrew.com/terms-and-conditions"
-                                  style="color:#2b2b2b; text-decoration:none;"
-                                >
-                                  Terms and conditions
-                                </a>
-                              </p>
-                              <p style="margin:0 0 6px 0; font-size:14px;">
-                                <a
-                                  href="https://www.yosemitecrew.com/privacy-policy"
-                                  style="color:#2b2b2b; text-decoration:none;"
-                                >
-                                  Privacy policy
-                                </a>
-                              </p>
-                              <p style="margin:0; font-size:14px;">
-                                <a
-                                  href="https://www.yosemitecrew.com/pricing"
-                                  style="color:#2b2b2b; text-decoration:none;"
-                                >
-                                  Pricing
-                                </a>
-                              </p>
-                            </td>
-                          </tr>
-                        </table>
-                      </td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
+            <!-- Footer links -->
+            <tr>
+              <td class="yc-pad" style="padding:24px 8px 0 8px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                  <tr>
+                    <td class="yc-col" valign="top" width="33%" style="padding:0 8px 0 0;">
+                      <p style="margin:0 0 10px 0; font-family:${FONT_SANS}; font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:${T.inkFaint};" class="yc-muted">Developers</p>
+                      ${footerLink("https://www.yosemitecrew.com/developers/signup", "Developer portal")}
+                      ${footerLink("https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md", "Contributing")}
+                    </td>
+                    <td class="yc-col" valign="top" width="33%" style="padding:0 8px;">
+                      <p style="margin:0 0 10px 0; font-family:${FONT_SANS}; font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:${T.inkFaint};" class="yc-muted">Community</p>
+                      ${footerLink("https://discord.gg/SwM6mX85KD", "Discord")}
+                      ${footerLink("https://github.com/YosemiteCrew/Yosemite-Crew", "GitHub")}
+                    </td>
+                    <td class="yc-col" valign="top" width="33%" style="padding:0 0 0 8px;">
+                      <p style="margin:0 0 10px 0; font-family:${FONT_SANS}; font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:${T.inkFaint};" class="yc-muted">Company</p>
+                      ${footerLink("https://www.yosemitecrew.com/about", "About us")}
+                      ${footerLink("https://www.yosemitecrew.com/pricing", "Pricing")}
+                      ${footerLink("https://www.yosemitecrew.com/terms-and-conditions", "Terms and conditions")}
+                      ${footerLink("https://www.yosemitecrew.com/privacy-policy", "Privacy policy")}
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
 
-              <tr>
-                <td align="center" style="background-color:#f4f8ff; padding:8px 16px 24px 16px;">
-                  <p style="margin:0 0 4px 0; font-family:Arial, sans-serif; font-size:15px; font-weight:bold; line-height:1.2; color:#2b2b2b; text-align:center;">
-                    Copyright &copy; 2025 DuneXploration
-                  </p>
-                  <p style="margin:0 0 4px 0; font-family:Arial, sans-serif; font-size:15px; line-height:1.4; color:#2b2b2b; text-align:center;">
-                    DuneXploration UG (haftungsbeschraenkt), Am Finther Weg 7, 55127 Mainz<br />
-                    email:
-                    <a
-                      href="mailto:support@yosemitecrew.com"
-                      style="color:#007bff; font-weight:700; text-decoration:none;"
-                    >
-                      support@yosemitecrew.com
-                    </a>,
-                    phone:
-                    <a
-                      href="tel:+4915227763275"
-                      style="color:#007bff; font-weight:700; text-decoration:none;"
-                    >
-                      +49 152 277 63275
-                    </a>
-                  </p>
-                  <p style="margin:4px 0 0 0; font-family:Arial, sans-serif; font-size:15px; line-height:1.4; color:#2b2b2b; text-align:center;">
-                    Geschaeftsfuehrer: Ankit Upadhyay -- Amtsgericht Mainz unter HRB 52778, VAT: DE367920596
-                  </p>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-      </table>
-    </center>
+            <!-- Impressum. Required disclosure under German law - do not trim. -->
+            <tr>
+              <td class="yc-pad" align="center" style="padding:24px 8px 8px 8px;">
+                <p style="margin:0 0 6px 0; font-family:${FONT_SANS}; font-size:12px; line-height:1.5; color:${T.inkFaint}; text-align:center;" class="yc-muted">
+                  Copyright &copy; 2026 DuneXploration
+                </p>
+                <p style="margin:0 0 6px 0; font-family:${FONT_SANS}; font-size:12px; line-height:1.5; color:${T.inkFaint}; text-align:center;" class="yc-muted">
+                  DuneXploration UG (haftungsbeschraenkt), Am Finther Weg 7, 55127 Mainz<br />
+                  <a href="mailto:support@yosemitecrew.com" style="color:${T.blue}; text-decoration:none;" class="yc-link">support@yosemitecrew.com</a>
+                  &nbsp;&middot;&nbsp;
+                  <a href="tel:+4915227763275" style="color:${T.blue}; text-decoration:none;" class="yc-link">+49 152 277 63275</a>
+                </p>
+                <p style="margin:0; font-family:${FONT_SANS}; font-size:12px; line-height:1.5; color:${T.inkFaint}; text-align:center;" class="yc-muted">
+                  Geschaeftsfuehrer: Ankit Upadhyay &middot; Amtsgericht Mainz HRB 52778 &middot; VAT DE367920596
+                </p>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
   </body>
 </html>`;
 
@@ -274,16 +264,20 @@ type EmailTemplateBuilder<T> = (data: T) => {
   subject: string;
   contentHtml: string;
   textBody: string;
+  /** Serif headline inside the card. Falls back to the subject line. */
+  title?: string;
+  /** Inbox preview snippet. Falls back to the subject line. */
+  preheader?: string;
 };
 
 const createEmailTemplate =
   <T>(builder: EmailTemplateBuilder<T>) =>
   (data: T): RenderedEmailTemplate => {
-    const { subject, contentHtml, textBody } = builder(data);
+    const { subject, contentHtml, textBody, title, preheader } = builder(data);
 
     return {
       subject,
-      htmlBody: renderBaseEmail(subject, contentHtml),
+      htmlBody: renderBaseEmail(subject, contentHtml, preheader, title),
       textBody,
     };
   };
@@ -310,15 +304,7 @@ const buildOrganisationInviteTemplate =
 
     const declineHtml = data.declineUrl
       ? `
-          <table align="center" style="margin:8px auto 0;">
-            <tr>
-              <td bgcolor="#e5e7eb" style="border-radius:6px;">
-                <a href="${data.declineUrl}" style="padding:12px 24px; color:#111827; font-weight:bold;">
-                  Decline Invitation
-                </a>
-              </td>
-            </tr>
-          </table>
+          ${renderEmailSecondaryButton(data.declineUrl, "Decline Invitation")}
         `
       : "";
     const declineText = data.declineUrl ? `Decline: ${data.declineUrl}` : "";
@@ -333,19 +319,11 @@ const buildOrganisationInviteTemplate =
         <strong>${organisationName}</strong>.
       </p>
 
-      <table align="center" style="margin:24px auto;">
-        <tr>
-          <td bgcolor="#2563eb" style="border-radius:6px;">
-            <a href="${data.acceptUrl}" style="padding:14px 28px; color:#fff; font-weight:bold;">
-              Accept Invitation
-            </a>
-          </td>
-        </tr>
-      </table>
+      ${renderEmailButton(data.acceptUrl, "Accept Invitation")}
       ${declineHtml}
 
       <p>Expires on <strong>${expiry}</strong></p>
-      <p>Need help? <a href="mailto:${supportEmail}">${supportEmail}</a></p>
+      <p>Need help? <a href="mailto:${supportEmail}" style="color:#257bed; text-decoration:none;" class="yc-link">${supportEmail}</a></p>
     `,
       textBody: `
 Hi ${inviteeName},
@@ -399,20 +377,7 @@ const buildPetParentOrganisationInviteTemplate =
           <li>Track care, tasks, and communication in one place</li>
         </ul>
 
-        <table align="center" style="margin:32px auto;">
-          <tr>
-            <td bgcolor="#2563eb" style="border-radius:6px;">
-              <a
-                href="${data.acceptUrl}"
-                target="_blank"
-                rel="noopener"
-                style="padding:14px 32px; color:#ffffff; font-weight:bold; text-decoration:none; display:inline-block;"
-              >
-                Join PMS
-              </a>
-            </td>
-          </tr>
-        </table>
+        ${renderEmailButton(data.acceptUrl, "Join PMS")}
 
         <p style="margin-top:24px;">
           This invitation expires on <strong>${expiry}</strong>.
@@ -421,7 +386,7 @@ const buildPetParentOrganisationInviteTemplate =
         <p style="font-size:16px;">
           If you weren’t expecting this invitation, you can safely ignore this email.
           For assistance, contact
-          <a href="mailto:${supportEmail}">${supportEmail}</a>.
+          <a href="mailto:${supportEmail}" style="color:#257bed; text-decoration:none;" class="yc-link">${supportEmail}</a>.
         </p>
 
         <p style="margin-top:24px;">
@@ -476,15 +441,7 @@ const buildAppointmentAssignedTemplate =
     const actionLabel = data.ctaLabel?.trim() || "View Appointment";
     const actionHtml = actionUrl
       ? `
-          <table align="center" style="margin:24px auto;">
-            <tr>
-              <td bgcolor="#2563eb" style="border-radius:6px;">
-                <a href="${actionUrl}" style="padding:14px 28px; color:#fff; font-weight:bold;">
-                  ${actionLabel}
-                </a>
-              </td>
-            </tr>
-          </table>
+          ${renderEmailButton(actionUrl, actionLabel)}
         `
       : "";
     const actionText = actionUrl ? `${actionLabel}: ${actionUrl}` : "";
@@ -497,7 +454,7 @@ const buildAppointmentAssignedTemplate =
       <p><strong>When:</strong> ${data.appointmentTime}</p>
       ${locationName ? `<p><strong>Where:</strong> ${locationName}</p>` : ""}
       ${actionHtml}
-      <p>If you need help, reach out at <a href="mailto:${supportEmail}">${supportEmail}</a>.</p>
+      <p>If you need help, reach out at <a href="mailto:${supportEmail}" style="color:#257bed; text-decoration:none;" class="yc-link">${supportEmail}</a>.</p>
     `,
       textBody: `
 Hi ${employeeName},
@@ -539,15 +496,7 @@ const buildTaskAssignedTemplate = createEmailTemplate<TaskAssignedTemplateData>(
     const actionLabel = data.ctaLabel?.trim() || "View Task";
     const actionHtml = actionUrl
       ? `
-          <table align="center" style="margin:24px auto;">
-            <tr>
-              <td bgcolor="#2563eb" style="border-radius:6px;">
-                <a href="${actionUrl}" style="padding:14px 28px; color:#fff; font-weight:bold;">
-                  ${actionLabel}
-                </a>
-              </td>
-            </tr>
-          </table>
+          ${renderEmailButton(actionUrl, actionLabel)}
         `
       : "";
     const actionText = actionUrl ? `${actionLabel}: ${actionUrl}` : "";
@@ -562,7 +511,7 @@ const buildTaskAssignedTemplate = createEmailTemplate<TaskAssignedTemplateData>(
       <p><strong>Due:</strong> ${data.dueTime}</p>
       ${data.additionalNotes ? `<p><strong>Notes:</strong> ${data.additionalNotes}</p>` : ""}
       ${actionHtml}
-      <p>If you need help, reach out at <a href="mailto:${supportEmail}">${supportEmail}</a>.</p>
+      <p>If you need help, reach out at <a href="mailto:${supportEmail}" style="color:#257bed; text-decoration:none;" class="yc-link">${supportEmail}</a>.</p>
     `,
       textBody: `
 Hi ${employeeName},
@@ -604,15 +553,7 @@ const buildTaskReminderTemplate = createEmailTemplate<TaskReminderTemplateData>(
     const actionLabel = data.ctaLabel?.trim() || "View Task";
     const actionHtml = actionUrl
       ? `
-          <table align="center" style="margin:24px auto;">
-            <tr>
-              <td bgcolor="#2563eb" style="border-radius:6px;">
-                <a href="${actionUrl}" style="padding:14px 28px; color:#fff; font-weight:bold;">
-                  ${actionLabel}
-                </a>
-              </td>
-            </tr>
-          </table>
+          ${renderEmailButton(actionUrl, actionLabel)}
         `
       : "";
     const actionText = actionUrl ? `${actionLabel}: ${actionUrl}` : "";
@@ -626,7 +567,7 @@ const buildTaskReminderTemplate = createEmailTemplate<TaskReminderTemplateData>(
       ${data.companionName ? `<p><strong>Companion:</strong> ${data.companionName}</p>` : ""}
       <p><strong>Due:</strong> ${data.dueTime}</p>
       ${actionHtml}
-      <p>If you need help, reach out at <a href="mailto:${supportEmail}">${supportEmail}</a>.</p>
+      <p>If you need help, reach out at <a href="mailto:${supportEmail}" style="color:#257bed; text-decoration:none;" class="yc-link">${supportEmail}</a>.</p>
     `,
       textBody: `
 Hi ${employeeName},
@@ -664,15 +605,7 @@ const buildSpecialityHeadAssignedTemplate =
     const actionLabel = data.ctaLabel?.trim() || "Open PMS";
     const actionHtml = actionUrl
       ? `
-          <table align="center" style="margin:24px auto;">
-            <tr>
-              <td bgcolor="#2563eb" style="border-radius:6px;">
-                <a href="${actionUrl}" style="padding:14px 28px; color:#fff; font-weight:bold;">
-                  ${actionLabel}
-                </a>
-              </td>
-            </tr>
-          </table>
+          ${renderEmailButton(actionUrl, actionLabel)}
         `
       : "";
     const actionText = actionUrl ? `${actionLabel}: ${actionUrl}` : "";
@@ -685,7 +618,7 @@ const buildSpecialityHeadAssignedTemplate =
         You’ve been assigned as the <strong>${data.specialityName}</strong> head${orgLine}.
       </p>
       ${actionHtml}
-      <p>If you need help, reach out at <a href="mailto:${supportEmail}">${supportEmail}</a>.</p>
+      <p>If you need help, reach out at <a href="mailto:${supportEmail}" style="color:#257bed; text-decoration:none;" class="yc-link">${supportEmail}</a>.</p>
     `,
       textBody: `
 Hi ${employeeName},
@@ -723,15 +656,7 @@ const buildFreePlanLimitReachedTemplate =
       .join("\n");
     const actionHtml = actionUrl
       ? `
-          <table align="center" style="margin:24px auto;">
-            <tr>
-              <td bgcolor="#2563eb" style="border-radius:6px;">
-                <a href="${actionUrl}" style="padding:14px 28px; color:#fff; font-weight:bold;">
-                  ${actionLabel}
-                </a>
-              </td>
-            </tr>
-          </table>
+          ${renderEmailButton(actionUrl, actionLabel)}
         `
       : "";
     const actionText = actionUrl ? `${actionLabel}: ${actionUrl}` : "";
@@ -747,7 +672,7 @@ const buildFreePlanLimitReachedTemplate =
         ${limitsHtml}
       </ul>
       ${actionHtml}
-      <p>If you need help, reach out at <a href="mailto:${supportEmail}">${supportEmail}</a>.</p>
+      <p>If you need help, reach out at <a href="mailto:${supportEmail}" style="color:#257bed; text-decoration:none;" class="yc-link">${supportEmail}</a>.</p>
     `,
       textBody: `
 Hi ${ownerName},
@@ -784,15 +709,7 @@ const buildAppointmentPaymentCheckoutTemplate =
     const actionLabel = data.ctaLabel?.trim() || "Complete Payment";
     const actionHtml = actionUrl
       ? `
-          <table align="center" style="margin:24px auto;">
-            <tr>
-              <td bgcolor="#2563eb" style="border-radius:6px;">
-                <a href="${actionUrl}" style="padding:14px 28px; color:#fff; font-weight:bold;">
-                  ${actionLabel}
-                </a>
-              </td>
-            </tr>
-          </table>
+          ${renderEmailButton(actionUrl, actionLabel)}
         `
       : "";
     const actionText = actionUrl ? `${actionLabel}: ${actionUrl}` : "";
@@ -818,7 +735,7 @@ const buildAppointmentPaymentCheckoutTemplate =
       ${appointmentLine}
       ${amountLine}
       ${actionHtml}
-      <p>If you need help, reach out at <a href="mailto:${supportEmail}">${supportEmail}</a>.</p>
+      <p>If you need help, reach out at <a href="mailto:${supportEmail}" style="color:#257bed; text-decoration:none;" class="yc-link">${supportEmail}</a>.</p>
     `,
       textBody: `
 Hi ${parentName},
@@ -856,15 +773,7 @@ const buildInvoicePaymentCheckoutTemplate =
     const actionLabel = data.ctaLabel?.trim() || "Pay Invoice";
     const actionHtml = actionUrl
       ? `
-          <table align="center" style="margin:24px auto;">
-            <tr>
-              <td bgcolor="#2563eb" style="border-radius:6px;">
-                <a href="${actionUrl}" style="padding:14px 28px; color:#fff; font-weight:bold;">
-                  ${actionLabel}
-                </a>
-              </td>
-            </tr>
-          </table>
+          ${renderEmailButton(actionUrl, actionLabel)}
         `
       : "";
     const actionText = actionUrl ? `${actionLabel}: ${actionUrl}` : "";
@@ -886,7 +795,7 @@ const buildInvoicePaymentCheckoutTemplate =
       ${invoiceLine}
       ${amountLine}
       ${actionHtml}
-      <p>If you need help, reach out at <a href="mailto:${supportEmail}">${supportEmail}</a>.</p>
+      <p>If you need help, reach out at <a href="mailto:${supportEmail}" style="color:#257bed; text-decoration:none;" class="yc-link">${supportEmail}</a>.</p>
     `,
       textBody: `
 Hi ${parentName},
@@ -921,15 +830,7 @@ const buildPermissionsUpdatedTemplate =
     const actionLabel = data.ctaLabel?.trim() || "Review Access";
     const actionHtml = actionUrl
       ? `
-          <table align="center" style="margin:24px auto;">
-            <tr>
-              <td bgcolor="#2563eb" style="border-radius:6px;">
-                <a href="${actionUrl}" style="padding:14px 28px; color:#fff; font-weight:bold;">
-                  ${actionLabel}
-                </a>
-              </td>
-            </tr>
-          </table>
+          ${renderEmailButton(actionUrl, actionLabel)}
         `
       : "";
     const actionText = actionUrl ? `${actionLabel}: ${actionUrl}` : "";
@@ -944,7 +845,7 @@ const buildPermissionsUpdatedTemplate =
       </p>
       ${roleLine ? `<p>${roleLine}</p>` : ""}
       ${actionHtml}
-      <p>If you need help, reach out at <a href="mailto:${supportEmail}">${supportEmail}</a>.</p>
+      <p>If you need help, reach out at <a href="mailto:${supportEmail}" style="color:#257bed; text-decoration:none;" class="yc-link">${supportEmail}</a>.</p>
     `,
       textBody: `
 Hi ${employeeName},
