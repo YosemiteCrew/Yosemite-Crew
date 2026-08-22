@@ -26,6 +26,13 @@ const palette = {
   // while the espresso theme can use the true brand pink (7.13:1) as-is.
   pinkDeep: ['#DB4A9B', '#FF90D4'],
   pinkGlow: ['rgba(244, 121, 190, 0.12)', 'rgba(244, 121, 190, 0.22)'],
+  // rgba forms of `blue` (#257BED = 37,123,237). These exist as tokens because
+  // the map cluster pin previously hard-coded rgba(36,122,237,...) - the stale
+  // #247AED from the unbuilt design-tokens package - for its halo and shadow.
+  // A hex sweep does not match an rgba() literal, so the pin kept rendering
+  // two different blues at once after the rest of the drift was cleaned up.
+  blueGlow: ['rgba(37, 123, 237, 0.18)', 'rgba(37, 123, 237, 0.26)'],
+  blueShadow: ['rgba(37, 123, 237, 0.40)', 'rgba(37, 123, 237, 0.50)'],
   cyan: ['#5CE1E6', '#5CE1E6'],
   cyanText: ['#38CCD8', '#5CE1E6'],
 

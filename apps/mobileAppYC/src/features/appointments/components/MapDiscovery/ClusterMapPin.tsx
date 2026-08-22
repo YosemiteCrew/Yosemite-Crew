@@ -19,7 +19,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(36, 122, 237, 0.18)',
+    backgroundColor: colors.blueGlow,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -32,7 +32,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: colors.white,
-    boxShadow: '0px 2px 6px rgba(36,122,237,0.4)',
+    boxShadow: `0px 2px 6px ${colors.blueShadow}`,
   },
   label: {
     color: colors.white,
