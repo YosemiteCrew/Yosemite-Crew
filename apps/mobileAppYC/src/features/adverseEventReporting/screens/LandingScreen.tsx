@@ -69,7 +69,7 @@ export const LandingScreen: React.FC<Props> = ({navigation}) => {
           <Ionicons
             name="alert-circle-outline"
             size={17}
-            color={theme.colors.danger}
+            color={theme.colors.dangerText}
             style={styles.dangerIcon}
           />
           <Text style={styles.dangerText}>

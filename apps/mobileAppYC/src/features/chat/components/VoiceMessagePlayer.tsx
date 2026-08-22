@@ -142,7 +142,7 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
           style={styles.stopButton}
           accessibilityRole="button"
           accessibilityLabel="Stop">
-          <Icon name="stop" size={20} color={theme.colors.danger} />
+          <Icon name="stop" size={20} color={theme.colors.dangerText} />
         </PressableOpacity>
       )}
     </View>

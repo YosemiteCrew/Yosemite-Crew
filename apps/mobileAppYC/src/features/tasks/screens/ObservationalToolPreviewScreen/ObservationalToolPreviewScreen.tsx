@@ -394,7 +394,7 @@ const createStyles = (theme: any) =>
     },
     errorText: {
       ...theme.typography.body14,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
     },
     glassFallback: {
       backgroundColor: theme.colors.screen,

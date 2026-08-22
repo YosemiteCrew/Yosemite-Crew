@@ -28,7 +28,7 @@ export const getInputLabelStyle = (theme: Theme): TextStyle => ({
 
 export const getInputErrorStyle = (theme: Theme): TextStyle => ({
   ...theme.typography.labelXxsBold,
-  color: theme.colors.error,
+  color: theme.colors.dangerText,
   marginTop: theme.spacing['1'],
   marginBottom: theme.spacing['3'],
   marginLeft: theme.spacing['1'],

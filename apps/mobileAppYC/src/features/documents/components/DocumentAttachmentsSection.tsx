@@ -289,7 +289,7 @@ const createStyles = (theme: any) =>
     errorText: {
       marginTop: theme.spacing['2'],
       ...theme.typography.labelXxsBold,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
     },
   });
 

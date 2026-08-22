@@ -8,7 +8,6 @@ import {mockTheme} from '../setup/mockTheme';
 
 // Define a mock theme
 
-
 describe('screenStyles', () => {
   describe('createScreenContainerStyles', () => {
     it('should create correct container styles', () => {
@@ -45,7 +44,7 @@ describe('screenStyles', () => {
           fontWeight: '400',
           lineHeight: 29.25,
           fontFamily: 'Satoshi-Regular',
-          color: '#F44336',
+          color: '#EA3729',
         }),
       });
     });

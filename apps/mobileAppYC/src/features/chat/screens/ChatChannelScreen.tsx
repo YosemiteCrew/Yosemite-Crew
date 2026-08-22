@@ -460,7 +460,7 @@ const createStyles = (theme: any) =>
     },
     errorText: {
       ...theme.typography.body,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
       textAlign: 'center',
       marginBottom: theme.spacing['2'],
     },

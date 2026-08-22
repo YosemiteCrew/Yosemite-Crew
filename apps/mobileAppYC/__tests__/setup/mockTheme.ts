@@ -613,6 +613,7 @@ export const createMockTheme = () => ({
     cyan: '#5CE1E6',
     cyanText: '#38CCD8',
     danger: '#EA3729',
+    dangerText: '#EA3729',
     dangerSurface: '#FDEBEA',
     indigo: '#4F46E5',
     indigoSurface: '#E0E7FF',

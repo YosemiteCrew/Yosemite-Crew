@@ -17,6 +17,7 @@ const mockTheme = {
     successSurface: '#successSurface',
     warning: '#warning',
     warningSurface: '#warningSurface',
+    dangerText: '#dangerText',
     error: '#error',
     errorSurface: '#errorSurface',
   },
@@ -249,7 +250,7 @@ describe('getAppointmentStatusBadgePalette', () => {
       'PAYMENT_FAILED',
       null,
     );
-    expect(result.textColor).toBe('#error');
+    expect(result.textColor).toBe('#dangerText');
     expect(result.backgroundColor).toBe('#errorSurface');
     expect(result.text).toBe('Payment failed');
   });
@@ -338,7 +339,7 @@ describe('getAppointmentStatusBadgePalette', () => {
       'CANCELLED',
       null,
     );
-    expect(result.textColor).toBe('#error');
+    expect(result.textColor).toBe('#dangerText');
     expect(result.backgroundColor).toBe('#errorSurface');
   });
 
@@ -349,7 +350,7 @@ describe('getAppointmentStatusBadgePalette', () => {
       'AWAITING_PAYMENT',
     );
     expect(result.text).toBe('Cancelled');
-    expect(result.textColor).toBe('#error');
+    expect(result.textColor).toBe('#dangerText');
     expect(result.backgroundColor).toBe('#errorSurface');
   });
 
@@ -360,7 +361,7 @@ describe('getAppointmentStatusBadgePalette', () => {
       'PAYMENT_FAILED',
     );
     expect(result.text).toBe('Cancelled');
-    expect(result.textColor).toBe('#error');
+    expect(result.textColor).toBe('#dangerText');
   });
 
   it('returns error palette for REJECTED', () => {
@@ -369,13 +370,13 @@ describe('getAppointmentStatusBadgePalette', () => {
       'REJECTED',
       null,
     );
-    expect(result.textColor).toBe('#error');
+    expect(result.textColor).toBe('#dangerText');
     expect(result.backgroundColor).toBe('#errorSurface');
   });
 
   it('returns error palette for NO_SHOW', () => {
     const result = getAppointmentStatusBadgePalette(mockTheme, 'NO_SHOW', null);
-    expect(result.textColor).toBe('#error');
+    expect(result.textColor).toBe('#dangerText');
     expect(result.backgroundColor).toBe('#errorSurface');
   });
 

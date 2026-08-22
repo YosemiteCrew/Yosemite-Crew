@@ -39,7 +39,7 @@ describe('floatingLabelStyles', () => {
   it('returns the red error message style below the field', () => {
     expect(getInputErrorStyle(mockTheme)).toEqual({
       ...mockTheme.typography.labelXxsBold,
-      color: mockTheme.colors.error,
+      color: mockTheme.colors.dangerText,
       marginTop: mockTheme.spacing['1'],
       marginBottom: mockTheme.spacing['3'],
       marginLeft: mockTheme.spacing['1'],

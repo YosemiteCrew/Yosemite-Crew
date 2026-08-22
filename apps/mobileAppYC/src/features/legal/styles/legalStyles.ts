@@ -143,7 +143,7 @@ export const createLegalStyles = (theme: any) =>
     },
     formErrorText: {
       ...theme.typography.labelXxsBold,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
       marginTop: theme.spacing['1'],
       marginBottom: theme.spacing['1'],
     },

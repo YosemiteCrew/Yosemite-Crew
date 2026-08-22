@@ -41,7 +41,18 @@ const palette = {
   successSurface: ['rgba(0, 143, 93, 0.12)', 'rgba(74, 205, 155, 0.16)'],
   warning: ['#FF9800', '#FF9800'],
   warningSurface: ['rgba(255, 152, 0, 0.12)', 'rgba(255, 152, 0, 0.18)'],
+  /**
+   * `danger` is the FILL: destructive button backgrounds and the error border,
+   * where white sits on top of it. Do not use it for text - #EA3729 measures
+   * 3.74:1 on bone and 3.55:1 on espresso, under the 4.5:1 body-text bar in
+   * BOTH themes, so error copy was failing everywhere and not only in dark.
+   *
+   * Use `dangerText` for error copy. One value cannot serve both roles: making
+   * the red light enough to read on espresso drops white-on-red below 3.1:1 on
+   * the destructive button, so the roles are split rather than the value moved.
+   */
   danger: ['#EA3729', '#EA3729'],
+  dangerText: ['#D52315', '#EF6257'],
   dangerSurface: ['#FDEBEA', 'rgba(234, 55, 41, 0.16)'],
   error: ['#EA3729', '#EA3729'],
   errorSurface: ['#FDEBEA', 'rgba(234, 55, 41, 0.16)'],

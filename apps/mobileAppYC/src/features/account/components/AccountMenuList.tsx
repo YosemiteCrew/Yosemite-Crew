@@ -136,7 +136,7 @@ const createStyles = (theme: any) =>
       color: theme.colors.inkBody,
     },
     labelDanger: {
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
     },
     externalHint: {
       ...theme.typography.labelSmall,

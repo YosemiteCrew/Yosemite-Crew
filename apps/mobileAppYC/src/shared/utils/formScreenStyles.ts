@@ -68,14 +68,14 @@ export const createFormScreenStyles = (theme: Theme) =>
     },
     errorText: {
       ...theme.typography.labelXxsBold,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
       marginTop: theme.spacing['1'],
       marginBottom: theme.spacing['3'],
       marginLeft: theme.spacing['1'],
     },
     submissionError: {
       ...theme.typography.paragraphBold,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
       textAlign: 'center',
       paddingHorizontal: theme.spacing['5'],
       marginBottom: theme.spacing['2'],

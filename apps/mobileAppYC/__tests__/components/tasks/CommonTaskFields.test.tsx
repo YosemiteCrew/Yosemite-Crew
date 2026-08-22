@@ -226,7 +226,7 @@ describe('CommonTaskFields', () => {
       expect(errorText).toBeTruthy();
       expect(errorText.props.style).toEqual(
         expect.objectContaining({
-          color: mockTheme.colors.error,
+          color: mockTheme.colors.dangerText,
           fontSize: 12,
         }),
       );

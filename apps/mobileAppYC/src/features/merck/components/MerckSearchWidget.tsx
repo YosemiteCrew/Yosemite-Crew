@@ -1186,7 +1186,7 @@ const createStyles = (theme: any) =>
     },
     errorText: {
       ...theme.typography.body12,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
       marginTop: theme.spacing['1'],
     },
     emptyText: {

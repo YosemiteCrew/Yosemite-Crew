@@ -150,12 +150,12 @@ const createStyles = (theme: any) =>
     },
     errorTitle: {
       ...theme.typography.labelSmBold,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
       marginBottom: theme.spacing['2'],
     },
     errorText: {
       ...theme.typography.labelXs,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
       marginBottom: theme.spacing['2'],
     },
     stackText: {
