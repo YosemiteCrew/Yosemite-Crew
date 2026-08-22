@@ -15,15 +15,32 @@ const companionsById: Record<string, unknown> = {
 const appointmentsById: Record<string, unknown> = {
   a1: { startTime: new Date('2026-06-25T15:00:00Z'), patient: { name: 'Bella' } },
 };
+// Which ids the ACTIVE organisation owns. Deliberately separate from the by-id
+// maps above, which hold every record the tab has loaded across organisations.
+let companionIdsForOrg: string[] = ['c1'];
+let appointmentIdsForOrg: string[] = ['a1'];
 
+// The picker reads the per-organisation index, not the whole store, so a record
+// loaded for another tenant is never offered.
 jest.mock('@/app/stores/companionStore', () => ({
-  useCompanionStore: (sel: (s: { companionsById: Record<string, unknown> }) => unknown) =>
-    sel({ companionsById }),
+  useCompanionStore: (sel: (s: Record<string, unknown>) => unknown) =>
+    sel({
+      companionsById,
+      companionsIdsByOrgId: { 'org-1': companionIdsForOrg },
+    }),
 }));
 
 jest.mock('@/app/stores/appointmentStore', () => ({
-  useAppointmentStore: (sel: (s: { appointmentsById: Record<string, unknown> }) => unknown) =>
-    sel({ appointmentsById }),
+  useAppointmentStore: (sel: (s: Record<string, unknown>) => unknown) =>
+    sel({
+      appointmentsById,
+      appointmentIdsByOrgId: { 'org-1': appointmentIdsForOrg },
+    }),
+}));
+
+jest.mock('@/app/stores/orgStore', () => ({
+  useOrgStore: (sel: (s: { primaryOrgId: string | null }) => unknown) =>
+    sel({ primaryOrgId: 'org-1' }),
 }));
 
 jest.mock('@/app/hooks/useCompanionTerminologyText', () => ({
@@ -36,14 +53,16 @@ jest.mock('@/app/features/chat/services/chatService', () => ({
 
 const mockedShare = shareEntityToChannel as jest.Mock;
 
-function setCompanions(next: Record<string, unknown>) {
+function setCompanions(next: Record<string, unknown>, orgIds?: string[]) {
   for (const key of Object.keys(companionsById)) delete companionsById[key];
   Object.assign(companionsById, next);
+  companionIdsForOrg = orgIds ?? Object.keys(next);
 }
 
-function setAppointments(next: Record<string, unknown>) {
+function setAppointments(next: Record<string, unknown>, orgIds?: string[]) {
   for (const key of Object.keys(appointmentsById)) delete appointmentsById[key];
   Object.assign(appointmentsById, next);
+  appointmentIdsForOrg = orgIds ?? Object.keys(next);
 }
 
 beforeEach(() => {
@@ -233,5 +252,22 @@ describe('ShareEntityModal', () => {
     });
 
     expect(screen.getByText('Appointment')).toBeInTheDocument();
+  });
+
+  it('never offers a record loaded for another organisation', () => {
+    // The stores are keyed by id across every organisation the tab has visited.
+    // Only the active organisation's index may reach the picker.
+    setCompanions(
+      {
+        c1: { name: 'Bella', species: 'Dog', breed: 'Lab' },
+        cOther: { name: 'Rex', species: 'Dog', breed: 'GSD' },
+      },
+      // Only c1 belongs to the active organisation.
+      ['c1']
+    );
+    render(<ShareEntityModal channelId="ch1" onClose={jest.fn()} />);
+
+    expect(screen.getByText('Bella')).toBeInTheDocument();
+    expect(screen.queryByText('Rex')).not.toBeInTheDocument();
   });
 });

@@ -42,4 +42,38 @@ describe('sanitizePostHogEvent', () => {
     expect(event?.properties?.$current_url).toBe('https://app.yosemitecrew.com/dashboard');
     expect(event?.properties?.$referrer).toBe('https://example.com/path');
   });
+
+  it('redacts share tokens carried in the path', () => {
+    // A share link IS the credential - holding /card/<token> reads the record
+    // without signing in - and stripping the query string does not touch it.
+    const event = sanitizePostHogEvent({
+      event: '$pageview',
+      properties: {
+        $current_url: 'https://app.yosemitecrew.com/card/s3cr3t-share-token',
+        $pathname: '/card/s3cr3t-share-token',
+      },
+    } as any);
+
+    expect(event?.properties?.$current_url).toBe('https://app.yosemitecrew.com/card/[redacted]');
+    expect(event?.properties?.$pathname).toBe('/card/[redacted]');
+    expect(JSON.stringify(event)).not.toContain('s3cr3t-share-token');
+  });
+
+  it('redacts passport share ids too', () => {
+    const event = sanitizePostHogEvent({
+      event: '$pageview',
+      properties: { $pathname: '/passport/abc123' },
+    } as any);
+
+    expect(event?.properties?.$pathname).toBe('/passport/[redacted]');
+  });
+
+  it('leaves ordinary app paths alone', () => {
+    const event = sanitizePostHogEvent({
+      event: '$pageview',
+      properties: { $pathname: '/appointments/appt-1' },
+    } as any);
+
+    expect(event?.properties?.$pathname).toBe('/appointments/appt-1');
+  });
 });

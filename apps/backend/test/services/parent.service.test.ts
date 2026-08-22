@@ -319,6 +319,43 @@ describe("ParentService", () => {
     expect(result?.response.id).toBe("parent-1");
   });
 
+  it("keeps staff-authored client alerts out of the mobile read", async () => {
+    // Alerts are internal notes clinic staff write ABOUT this client. Writing
+    // them is already PMS-only; a parent reading their own profile must not get
+    // them back either.
+    mockedPrisma.authUserMobile.findFirst.mockReset();
+    mockedPrisma.authUserMobile.findFirst.mockResolvedValue({
+      parentId: "parent-1",
+    } as never);
+    mockedPrisma.parent.findUnique.mockResolvedValue({
+      ...mockParent,
+      alerts: [{ label: "Outstanding balance" }],
+    } as never);
+
+    const result = await ParentService.get("parent-1", {
+      source: "mobile",
+      authUserId: "auth-1",
+    });
+
+    // Guard the assertion: a null result would make the alerts check vacuous.
+    expect(result).not.toBeNull();
+    expect(result?.response.id).toBe("parent-1");
+    expect((result?.response as { alerts?: unknown }).alerts).toBeUndefined();
+  });
+
+  it("still returns client alerts on the PMS read", async () => {
+    mockedPrisma.parent.findUnique.mockResolvedValue({
+      ...mockParent,
+      alerts: [{ label: "VIP" }],
+    } as never);
+
+    const result = await ParentService.get("parent-1");
+
+    expect((result?.response as { alerts?: unknown }).alerts).toEqual([
+      { label: "VIP" },
+    ]);
+  });
+
   it("updates a parent and normalizes timezone", async () => {
     mockedPrisma.parent.update.mockResolvedValueOnce(mockParent);
     // findUnique is called for the pre-update alert snapshot and twice via resolveParentRecord.

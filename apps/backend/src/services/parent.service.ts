@@ -487,8 +487,17 @@ export const ParentService = {
     const doc = await resolveParentRecord(id);
     if (!doc) return null;
 
+    // Client alerts ("Outstanding balance", "VIP", ...) are staff-authored
+    // internal notes about this client. Writing them is already restricted to
+    // the PMS path; reading has to be too, or a pet owner can fetch the notes
+    // clinic staff wrote about them straight from their own profile endpoint.
+    const response = buildParentResponse(doc);
+    if (ctx?.source === "mobile") {
+      response.alerts = undefined;
+    }
+
     return {
-      response: toParentResponseDTO(buildParentResponse(doc)),
+      response: toParentResponseDTO(response),
       isProfileComplete: doc.isProfileComplete ?? false,
     };
   },

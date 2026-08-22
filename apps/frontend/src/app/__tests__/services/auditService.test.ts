@@ -5,6 +5,7 @@ import {
 
 import { http } from '@/app/services/http';
 import { logger } from '@/app/lib/logger';
+import { useOrgStore } from '@/app/stores/orgStore';
 
 jest.mock('@/app/services/http', () => ({
   http: {
@@ -82,6 +83,46 @@ describe('audit service', () => {
 
       await expect(getCompanionAuditTrail('companion-456')).rejects.toThrow('API error');
       expect(logger.error).toHaveBeenCalled();
+    });
+  });
+
+  describe('in-flight dedupe scope', () => {
+    // The interceptor decides the tenant from the CURRENT session and active
+    // organisation. Keying the shared promise on the resource id alone meant a
+    // tab that switched organisation mid-flight received the previous tenant's
+    // audit trail.
+    it('does not share an in-flight promise across organisations', async () => {
+      useOrgStore.setState({ primaryOrgId: 'org-a' } as never);
+      let resolveFirst: (value: unknown) => void = () => {};
+      postMock.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveFirst = resolve;
+        })
+      );
+      const first = getAppointmentAuditTrail('appt-1');
+
+      useOrgStore.setState({ primaryOrgId: 'org-b' } as never);
+      postMock.mockResolvedValueOnce({ data: { entries: [{ id: 'b' }] } });
+      const second = await getAppointmentAuditTrail('appt-1');
+
+      expect(postMock).toHaveBeenCalledTimes(2);
+      expect(second).toEqual([{ id: 'b' }]);
+
+      resolveFirst({ data: { entries: [{ id: 'a' }] } });
+      expect(await first).toEqual([{ id: 'a' }]);
+    });
+
+    it('still shares an in-flight promise within one organisation', async () => {
+      useOrgStore.setState({ primaryOrgId: 'org-a' } as never);
+      postMock.mockResolvedValueOnce({ data: { entries: [{ id: 'a' }] } });
+
+      const [first, second] = await Promise.all([
+        getAppointmentAuditTrail('appt-1'),
+        getAppointmentAuditTrail('appt-1'),
+      ]);
+
+      expect(postMock).toHaveBeenCalledTimes(1);
+      expect(first).toBe(second);
     });
   });
 });

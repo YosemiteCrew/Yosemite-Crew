@@ -17,6 +17,7 @@ jest.mock("src/config/prisma", () => ({
     appointment: { findFirst: jest.fn() },
     invoice: { findFirst: jest.fn() },
     patientOrganisation: { findFirst: jest.fn() },
+    parentPatient: { findFirst: jest.fn() },
     sharedChatEntity: {
       create: jest.fn(),
       findMany: jest.fn(),
@@ -49,6 +50,7 @@ const mockedPrisma = prisma as unknown as {
   appointment: { findFirst: jest.Mock };
   invoice: { findFirst: jest.Mock };
   patientOrganisation: { findFirst: jest.Mock };
+  parentPatient: { findFirst: jest.Mock };
   sharedChatEntity: {
     create: jest.Mock;
     findMany: jest.Mock;
@@ -69,6 +71,104 @@ const openSession = {
 beforeEach(() => {
   jest.clearAllMocks();
   mockSendMessage.mockResolvedValue({ message: { id: "msg1" } });
+});
+
+describe("SharedChatEntityService.shareEntity client scoping", () => {
+  // A client-facing chat is about ONE client. Belonging to the organisation is
+  // not enough there: without this a staff member in a client's chat could
+  // share another client's pet, invoice or appointment into it.
+  const clientSession = {
+    ...openSession,
+    parentId: "parent-1",
+    patientId: "pet-1",
+    appointmentId: "a1",
+  };
+
+  it("rejects a companion belonging to a different client", async () => {
+    mockedPrisma.chatSession.findFirst.mockResolvedValue(clientSession);
+    mockedPrisma.patientOrganisation.findFirst.mockResolvedValue({ id: "po1" });
+    mockedPrisma.parentPatient.findFirst.mockResolvedValue(null);
+
+    await expect(
+      SharedChatEntityService.shareEntity({
+        channelId: "ch1",
+        userId: "u1",
+        entityType: SharedChatEntityType.COMPANION,
+        entityId: "pet-other",
+      }),
+    ).rejects.toMatchObject({ statusCode: 403 });
+    expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+
+  it("allows the chat's own companion", async () => {
+    mockedPrisma.chatSession.findFirst.mockResolvedValue(clientSession);
+    mockedPrisma.patientOrganisation.findFirst.mockResolvedValue({ id: "po1" });
+    mockedPrisma.sharedChatEntity.create.mockResolvedValue({ id: "share1" });
+
+    await SharedChatEntityService.shareEntity({
+      channelId: "ch1",
+      userId: "u1",
+      entityType: SharedChatEntityType.COMPANION,
+      entityId: "pet-1",
+    });
+
+    expect(mockSendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects another client's invoice", async () => {
+    mockedPrisma.chatSession.findFirst.mockResolvedValue(clientSession);
+    mockedPrisma.invoice.findFirst
+      .mockResolvedValueOnce({ id: "inv-1" })
+      .mockResolvedValueOnce({ parentId: "parent-2" });
+
+    await expect(
+      SharedChatEntityService.shareEntity({
+        channelId: "ch1",
+        userId: "u1",
+        entityType: SharedChatEntityType.INVOICE,
+        entityId: "inv-1",
+      }),
+    ).rejects.toMatchObject({ statusCode: 403 });
+    expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+
+  it("rejects an appointment other than the one the chat is about", async () => {
+    mockedPrisma.chatSession.findFirst.mockResolvedValue(clientSession);
+    mockedPrisma.appointment.findFirst.mockResolvedValue({ id: "a2" });
+
+    await expect(
+      SharedChatEntityService.shareEntity({
+        channelId: "ch1",
+        userId: "u1",
+        entityType: SharedChatEntityType.APPOINTMENT,
+        entityId: "a2",
+      }),
+    ).rejects.toMatchObject({ statusCode: 403 });
+    expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+
+  it("leaves staff-only chats scoped to the organisation only", async () => {
+    // No parent on the session: an org group legitimately discusses any of the
+    // organisation's records.
+    mockedPrisma.chatSession.findFirst.mockResolvedValue({
+      ...openSession,
+      type: "ORG_GROUP",
+      parentId: null,
+      patientId: null,
+      appointmentId: null,
+    });
+    mockedPrisma.appointment.findFirst.mockResolvedValue({ id: "a9" });
+    mockedPrisma.sharedChatEntity.create.mockResolvedValue({ id: "share9" });
+
+    await SharedChatEntityService.shareEntity({
+      channelId: "ch1",
+      userId: "u1",
+      entityType: SharedChatEntityType.APPOINTMENT,
+      entityId: "a9",
+    });
+
+    expect(mockSendMessage).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("SharedChatEntityService.shareEntity", () => {

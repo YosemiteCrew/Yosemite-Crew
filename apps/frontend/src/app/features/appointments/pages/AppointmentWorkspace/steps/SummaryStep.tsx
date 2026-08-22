@@ -392,6 +392,11 @@ const useSummaryStepContent = ({
   // alongside the documents-derived signal so the Sign→Download Signed swap fires
   // even before the per-document SIGNED status has propagated into the read-model.
   const [packetSigned, setPacketSigned] = useState(false);
+  // Which encounter that flag was observed for. This step can stay mounted across
+  // a route/prop change, and an unscoped flag then claimed the NEXT encounter was
+  // signed - hiding its Sign action and offering "Download Signed" for a packet
+  // the backend would build unsigned on the fly.
+  const [signedForEncounterId, setSignedForEncounterId] = useState<string | undefined>();
 
   const templateSearchRef = useRef<HTMLDivElement>(null);
   const templateMatches = useMemo(() => {
@@ -494,6 +499,9 @@ const useSummaryStepContent = ({
         const reconciled = await reconcileWorkspaceDocumentPacket(organisationId, packetId);
         if (reconciled?.signing?.status?.toUpperCase() === 'SIGNED') {
           setPacketSigned(true);
+          // Stamp the encounter this answer belongs to, so the flag cannot
+          // outlive it.
+          setSignedForEncounterId(encounterId);
         }
       } catch (error) {
         console.error('Unable to reconcile packet signing:', error);
@@ -506,7 +514,7 @@ const useSummaryStepContent = ({
       console.error('Unable to refresh encounter after signing:', error);
     }
     await refreshDocuments();
-  }, [organisationId, appointmentId, mergeEncounterData, refreshDocuments]);
+  }, [organisationId, appointmentId, encounterId, mergeEncounterData, refreshDocuments]);
 
   const resolvedDischargeEncounterRef = useRef<string | null>(null);
   const dischargeResolveKey = encounterId ?? appointmentId;
@@ -712,11 +720,22 @@ const useSummaryStepContent = ({
   // reports a SIGNED signing status — Documenso marks the bundled documents signed
   // against the one signed packet PDF. Drives the Sign→Download Signed swap and the
   // "print the signed copy" behaviour.
+  // Render-phase reset: drop the captured flag as soon as the encounter changes,
+  // before anything reads it.
+  const [syncedEncounterId, setSyncedEncounterId] = useState<string | undefined>(encounterId);
+  if (syncedEncounterId !== encounterId) {
+    setSyncedEncounterId(encounterId);
+    if (signedForEncounterId !== encounterId) {
+      setPacketSigned(false);
+      setSignedForEncounterId(undefined);
+    }
+  }
+
   const isPacketSigned = useMemo(
     () =>
-      packetSigned ||
+      (packetSigned && signedForEncounterId === encounterId) ||
       documents.some((document) => document.signingStatus?.toUpperCase() === 'SIGNED'),
-    [documents, packetSigned]
+    [documents, packetSigned, signedForEncounterId, encounterId]
   );
 
   // Signing may only begin while the appointment is actively in progress; before
