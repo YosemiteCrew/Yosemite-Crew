@@ -256,7 +256,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     control,
     handleSubmit,
     register,
-    formState: {errors},
+    formState: {errors, touchedFields},
     trigger,
     setValue,
     setError,
@@ -276,7 +276,12 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
       country: defaultAddressValues.country,
       acceptTerms: false,
     },
-    mode: 'onChange',
+    // onTouched, not onChange: validating every keystroke told people their
+    // own name "must be at least 2 characters" after the first letter. The
+    // field is judged when they leave it, and only then re-checked as they
+    // type, so a correction still updates live.
+    mode: 'onTouched',
+    reValidateMode: 'onChange',
   });
 
   useReactEffect(() => {
@@ -557,15 +562,19 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
   const handleStep1FieldChange = useCallback(
     (field: keyof typeof step1Data, value: any) => {
       setStep1Data(prev => ({...prev, [field]: value}));
-      setValue(field, value, {shouldValidate: true});
+      // Only re-validate a field the user has already left once. An
+      // unconditional shouldValidate re-introduces validate-on-every-keystroke
+      // and silently overrides the form's onTouched mode, which is what made
+      // the first letter of a name show "must be at least 2 characters".
+      setValue(field, value, {shouldValidate: Boolean(touchedFields[field])});
     },
-    [setValue],
+    [setValue, touchedFields],
   );
 
   const handleStep2FieldChange = useCallback(
     (field: keyof typeof step2Data, value: any) => {
       setStep2Data(prev => ({...prev, [field]: value}));
-      setValue(field, value, {shouldValidate: true});
+      setValue(field, value, {shouldValidate: Boolean(touchedFields[field])});
       if (
         field === 'address' ||
         field === 'stateProvince' ||
@@ -576,7 +585,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
         clearErrors(field);
       }
     },
-    [clearErrors, setValue],
+    [clearErrors, setValue, touchedFields],
   );
 
   const handleAddressFieldChange = useCallback(
