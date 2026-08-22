@@ -397,6 +397,33 @@ describe('tokenStorage', () => {
       await expect(loadStoredTokens()).resolves.toBeNull();
     });
 
+    // The fallback read is the last thing standing between a signed-in user and
+    // a signed-out state, so it must not throw its own failure up the stack: a
+    // rejected read has to degrade to "no tokens", not crash the caller.
+    it('returns null and warns when the fallback read itself throws', async () => {
+      (Keychain.getGenericPassword as jest.Mock).mockResolvedValue(false);
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      // Swap the implementation by hand rather than with spyOn: AsyncStorage's
+      // jest mock backs getItem with an in-memory store, and mockRestore leaves
+      // a bare stub behind that returns undefined for every later test.
+      const originalGetItem = AsyncStorage.getItem;
+      (AsyncStorage as unknown as {getItem: unknown}).getItem = jest
+        .fn()
+        .mockRejectedValue(new Error('storage unavailable'));
+
+      try {
+        await expect(loadStoredTokens()).resolves.toBeNull();
+        expect(warnSpy).toHaveBeenCalledWith(
+          'Unable to read fallback auth tokens',
+          expect.any(Error),
+        );
+      } finally {
+        (AsyncStorage as unknown as {getItem: unknown}).getItem =
+          originalGetItem;
+        warnSpy.mockRestore();
+      }
+    });
+
     it('falls back when the Keychain record cannot be parsed', async () => {
       (Keychain.getGenericPassword as jest.Mock).mockResolvedValue(
         keychainRecord('not-json'),
