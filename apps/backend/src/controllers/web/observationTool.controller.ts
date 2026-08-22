@@ -220,10 +220,16 @@ export const ObservationToolSubmissionController = {
         enforceSingleSubmissionPerAppointment: enforceSingle === true,
       });
 
-      await TaskService.linkToAppointment({
-        taskId: updated.taskId!,
-        appointmentId,
-      });
+      // Observation-tool submissions can exist without a task - the PMS
+      // appointment flow creates them directly - so the task link only happens
+      // when there is a task to link. The `!` here asserted otherwise and made
+      // an ordinary taskless submission fail to link at all.
+      if (updated.taskId) {
+        await TaskService.linkToAppointment({
+          taskId: updated.taskId,
+          appointmentId,
+        });
+      }
 
       res.json(updated);
     } catch (error) {

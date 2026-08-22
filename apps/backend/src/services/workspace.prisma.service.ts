@@ -2282,6 +2282,19 @@ const assertTreatmentItemsUnlocked = async (params: {
   }
 };
 
+/**
+ * Map an optional lock state onto what Prisma accepts for a nullable Json
+ * column: leave the column untouched when nothing was supplied, and clear it
+ * with `DbNull` when the caller explicitly sent null.
+ */
+const resolveLockStateWrite = (
+  lockState: string | Record<string, unknown> | null | undefined,
+): Prisma.InputJsonValue | typeof Prisma.DbNull | undefined => {
+  if (lockState === undefined) return undefined;
+  if (lockState === null) return Prisma.DbNull;
+  return lockState as unknown as Prisma.InputJsonValue;
+};
+
 export const WorkspaceService = {
   async getAppointmentBootstrap(
     input: WorkspaceBootstrapInput,
@@ -2401,10 +2414,12 @@ export const WorkspaceService = {
         priceSnapshot: input.priceSnapshot as Prisma.InputJsonValue,
         billingStatus: input.billingStatus ?? "UNBILLED",
         invoiceRowId: input.invoiceRowId ?? undefined,
-        lockState:
-          input.lockState === undefined
-            ? undefined
-            : (input.lockState as Prisma.InputJsonValue),
+        // Prisma will not accept a bare `null` for a nullable Json column - it
+        // wants `DbNull` for "no value" and reserves `JsonNull` for a stored
+        // JSON null. The controller sends `body.lockState ?? null`, so omitting
+        // the field entirely used to reach Prisma as `null` and reject the
+        // whole create.
+        lockState: resolveLockStateWrite(input.lockState),
       },
     })) as TreatmentItemRow;
 
@@ -2453,10 +2468,12 @@ export const WorkspaceService = {
         billingStatus: input.billingStatus ?? undefined,
         invoiceRowId:
           input.invoiceRowId === undefined ? undefined : input.invoiceRowId,
-        lockState:
-          input.lockState === undefined
-            ? undefined
-            : (input.lockState as Prisma.InputJsonValue),
+        // Prisma will not accept a bare `null` for a nullable Json column - it
+        // wants `DbNull` for "no value" and reserves `JsonNull` for a stored
+        // JSON null. The controller sends `body.lockState ?? null`, so omitting
+        // the field entirely used to reach Prisma as `null` and reject the
+        // whole create.
+        lockState: resolveLockStateWrite(input.lockState),
       },
     })) as TreatmentItemRow;
 

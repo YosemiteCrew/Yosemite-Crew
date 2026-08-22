@@ -1,4 +1,5 @@
 import { prisma } from "src/config/prisma";
+import { Prisma } from "@prisma/client";
 import { FormAssignmentService } from "src/services/form-assignment.service";
 import { ClinicalArtifactService } from "src/services/clinical-artifact.service";
 import {
@@ -3204,6 +3205,10 @@ describe("WorkspaceService aggregate edge cases", () => {
       expect(db.workspaceTreatmentItem.update).toHaveBeenCalledWith({
         where: { id: "ti-patch" },
         data: {
+          // Prisma rejects a bare `null` for a nullable Json column: `DbNull`
+          // clears it, `JsonNull` stores a JSON null. The controller sends
+          // `body.lockState ?? null`, so omitting the field used to reach
+          // Prisma as `null` and reject the whole write.
           appointmentId: null,
           productId: undefined,
           productVersion: null,
@@ -3213,7 +3218,7 @@ describe("WorkspaceService aggregate edge cases", () => {
           priceSnapshot: { finalAmount: 8 },
           billingStatus: undefined,
           invoiceRowId: null,
-          lockState: null,
+          lockState: Prisma.DbNull,
         },
       });
     });
