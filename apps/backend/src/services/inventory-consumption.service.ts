@@ -372,7 +372,7 @@ const FREQUENCY_PATTERN_RULES: ReadonlyArray<{
   // frequency and falls back to a single dose, so a long course consumes a
   // fraction of the stock it actually issues.
   {
-    pattern: /(\d+) ?(?:X|TIMES) ?(?:(?:A|PER) ?)?WEEK/,
+    pattern: /(\d+) ?(?:X|TIMES)(?: (?:A|PER))? ?WEEK/,
     toDosesPerDay: (capture) => {
       const doses = positiveNumber(capture);
       return doses === undefined ? undefined : doses / 7;

@@ -383,6 +383,76 @@ const usePacketSignedForEncounter = ({
   );
 };
 
+type PacketPdfActionsArgs = {
+  organisationId?: string;
+  encounterId?: string;
+  isPrinting: boolean;
+  setIsPrinting: React.Dispatch<React.SetStateAction<boolean>>;
+  setPacketPreviewUrl: React.Dispatch<React.SetStateAction<string | null>>;
+  setSignError: React.Dispatch<React.SetStateAction<string | null>>;
+};
+
+/**
+ * The three things a user can do with the clinical packet PDF: preview it,
+ * close that preview, and download the signed copy.
+ *
+ * Grouped out of the step body because they share the same guards, the same
+ * in-flight flag and the same object-URL lifecycle. Note that print falls back
+ * to the browser's own print dialog whenever the packet cannot be fetched -
+ * losing the packet should not lose the ability to print what is on screen.
+ */
+const usePacketPdfActions = ({
+  organisationId,
+  encounterId,
+  isPrinting,
+  setIsPrinting,
+  setPacketPreviewUrl,
+  setSignError,
+}: PacketPdfActionsArgs) => {
+  const handlePrint = async () => {
+    if (isPrinting) return;
+    if (!organisationId || !encounterId) {
+      globalThis.window.print();
+      return;
+    }
+    setIsPrinting(true);
+    try {
+      const url = await getEncounterDocumentPacketPdfUrl(organisationId, encounterId);
+      setPacketPreviewUrl(url);
+    } catch {
+      globalThis.window.print();
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
+  const closePacketPreview = () => {
+    setPacketPreviewUrl((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return null;
+    });
+  };
+
+  const handleDownloadSigned = async () => {
+    if (isPrinting) return;
+    if (!organisationId || !encounterId) return;
+    setIsPrinting(true);
+    try {
+      const url = await getEncounterDocumentPacketPdfUrl(organisationId, encounterId);
+      downloadDocumentUrl(url);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setSignError(
+        error instanceof Error ? error.message : 'Unable to download the signed document.'
+      );
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
+  return { handlePrint, closePacketPreview, handleDownloadSigned };
+};
+
 const useSummaryStepContent = ({
   appointmentId,
   appointment,
@@ -656,6 +726,15 @@ const useSummaryStepContent = ({
     setTemplateQuery('');
   };
 
+  const { handlePrint, closePacketPreview, handleDownloadSigned } = usePacketPdfActions({
+    organisationId,
+    encounterId,
+    isPrinting,
+    setIsPrinting,
+    setPacketPreviewUrl,
+    setSignError,
+  });
+
   // Build the merged clinical packet for this encounter and start signing it as
   // a single document via Documenso. The packet stays DRAFT until the Documenso
   // webhook confirms completion, at which point every bundled document is marked
@@ -702,30 +781,6 @@ const useSummaryStepContent = ({
   // Open the merged clinical packet (SOAP + Prescription + Discharge) as one PDF.
   // Falls back to the browser print dialog if the combined PDF isn't available
   // (e.g. documents not yet rendered, or no org/encounter context).
-  const handlePrint = async () => {
-    if (isPrinting) return;
-    if (!organisationId || !encounterId) {
-      globalThis.window.print();
-      return;
-    }
-    setIsPrinting(true);
-    try {
-      const url = await getEncounterDocumentPacketPdfUrl(organisationId, encounterId);
-      setPacketPreviewUrl(url);
-    } catch {
-      globalThis.window.print();
-    } finally {
-      setIsPrinting(false);
-    }
-  };
-
-  const closePacketPreview = () => {
-    setPacketPreviewUrl((current) => {
-      if (current) URL.revokeObjectURL(current);
-      return null;
-    });
-  };
-
   const handleSave = async () => {
     if (isSaving) return;
     setIsSaving(true);
@@ -792,23 +847,6 @@ const useSummaryStepContent = ({
 
   // Download the signed packet PDF (the packet endpoint returns the signed copy
   // server-side once signing has completed).
-  const handleDownloadSigned = async () => {
-    if (isPrinting) return;
-    if (!organisationId || !encounterId) return;
-    setIsPrinting(true);
-    try {
-      const url = await getEncounterDocumentPacketPdfUrl(organisationId, encounterId);
-      downloadDocumentUrl(url);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      setSignError(
-        error instanceof Error ? error.message : 'Unable to download the signed document.'
-      );
-    } finally {
-      setIsPrinting(false);
-    }
-  };
-
   return (
     <div className="flex flex-col gap-5">
       <SigningOverlay />
