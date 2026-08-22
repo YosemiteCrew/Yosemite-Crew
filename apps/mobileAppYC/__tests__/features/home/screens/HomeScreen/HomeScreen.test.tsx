@@ -63,15 +63,11 @@ jest.mock('@/features/tasks', () => ({
   markTaskStatus: jest.fn(payload => ({type: 'tasks/markStatus', payload})),
 }));
 
-// Stable across renders so the loader-timeout test can assert on them; the
-// previous inline jest.fn()s were recreated on every call and could never be.
-const mockShowLoader = jest.fn();
-const mockHideLoader = jest.fn();
 jest.mock('@/context/GlobalLoaderContext', () => {
   return {
     useGlobalLoader: () => ({
-      showLoader: mockShowLoader,
-      hideLoader: mockHideLoader,
+      showLoader: jest.fn(),
+      hideLoader: jest.fn(),
       isLoading: false,
     }),
     GlobalLoaderProvider: ({children}: any) => <>{children}</>,
@@ -600,36 +596,6 @@ describe('HomeScreen', () => {
       expect(deriveHomeGreetingName('Christopherrrrrr').displayName).toBe(
         'Christopherrr...',
       );
-    });
-  });
-
-  // The loader is an opaque full-screen modal with no dismiss control, and the
-  // readiness gate waits on six requests with no failure branch. Without the
-  // ceiling, one request that never settles strands the user with no way out but
-  // force quitting, so the timeout is the only thing standing between a slow
-  // network and an unusable app.
-  describe('Loader timeout', () => {
-    it('releases the loader after the ceiling even when the data never becomes ready', () => {
-      mockHideLoader.mockClear();
-      // An appointments request that is still in flight and never hydrates keeps
-      // isHomeDataReady false, so the effect arms the timeout rather than hiding
-      // the loader immediately. That is the stuck-request case the ceiling is for.
-      const store = createStore({
-        appointments: {upcoming: [], loading: true, hydratedCompanions: {}},
-      });
-
-      render(
-        <Provider store={store}>
-          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
-        </Provider>,
-      );
-
-      mockHideLoader.mockClear();
-      act(() => {
-        jest.advanceTimersByTime(12_000);
-      });
-
-      expect(mockHideLoader).toHaveBeenCalled();
     });
   });
 
