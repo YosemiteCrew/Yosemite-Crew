@@ -201,7 +201,7 @@ const createStyles = (theme: any) =>
     },
     warning: {
       ...theme.typography.inputLabel,
-      color: theme.colors.dangerText ?? theme.colors.secondary,
+      color: theme.colors.dangerText,
       textAlign: 'left',
     },
     actionsRow: {
