@@ -31,19 +31,23 @@ export const LiquidGlassIconButton: React.FC<LiquidGlassIconButtonProps> = ({
   style,
   glassEffect = 'clear',
   tintColor,
-  colorScheme = 'light',
+  colorScheme = 'system',
   shadow = 'sm',
   disabled = false,
   accessibilityLabel,
 }) => {
-  const {theme} = useTheme();
+  const {theme, isDark} = useTheme();
   const useNativeGlass = Platform.OS === 'ios' && isLiquidGlassSupported;
   const resolvedColorScheme = React.useMemo(() => {
+    // 'system' used to resolve to 'light' unconditionally, so in dark mode
+    // these buttons still picked the white glass tint: rgba(255,255,255,0.65)
+    // over the espresso header composites to #B2B0AE, a bright grey disc.
+    // Follow the app's own theme instead of the OS-level scheme.
     if (colorScheme === 'system') {
-      return 'light';
+      return isDark ? 'dark' : 'light';
     }
     return colorScheme;
-  }, [colorScheme]);
+  }, [colorScheme, isDark]);
   const resolvedTintColor = React.useMemo(() => {
     if (tintColor) {
       return tintColor;

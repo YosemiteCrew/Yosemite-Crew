@@ -360,7 +360,7 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
   glassEffect = 'regular',
   interactive = true,
   tintColor,
-  colorScheme = 'light',
+  colorScheme = 'system',
   width,
   height,
   minWidth,
@@ -386,11 +386,14 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
     isLiquidGlassSupported &&
     !LOCK_IOS_GLASS_APPEARANCE;
   const resolvedColorScheme = React.useMemo(() => {
+    // See LiquidGlassIconButton: resolving 'system' to 'light' hands dark mode
+    // the white glass tint. Only untinted buttons hit this path, but they hit
+    // it on every dark screen.
     if (colorScheme === 'system') {
-      return 'light';
+      return isDark ? 'dark' : 'light';
     }
     return colorScheme;
-  }, [colorScheme]);
+  }, [colorScheme, isDark]);
   const resolvedTintColor = React.useMemo(() => {
     if (tintColor) {
       return tintColor;

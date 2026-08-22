@@ -1373,6 +1373,10 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
                 onPress={handleEmergencyPress}
                 size={actionIconSize}
                 style={styles.actionIcon}
+                // The red badge's cross is a knockout, so it needs a light
+                // disc behind it in both themes - and an emergency control
+                // is the one place a high-visibility disc is wanted.
+                tintColor={theme.colors.white}
                 accessibilityLabel="Emergency">
                 <Image
                   source={Images.emergencyIcon}
@@ -1393,7 +1397,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
                 <View style={styles.notificationIconWrapper}>
                   <Image
                     source={Images.notificationIcon}
-                    style={styles.actionImage}
+                    style={styles.notificationImage}
                   />
                   {hasUnreadNotifications ? (
                     <View style={styles.notificationDot} />
@@ -1662,6 +1666,14 @@ const createStyles = (theme: any) =>
       width: theme.spacing['6'] + 1,
       height: theme.spacing['6'] + 1,
       resizeMode: 'contain',
+    },
+    notificationImage: {
+      width: theme.spacing['6'] + 1,
+      height: theme.spacing['6'] + 1,
+      resizeMode: 'contain',
+      // Flat dark artwork: without a tint the bell disappears into the dark
+      // glass disc once the button stops forcing a light tint.
+      tintColor: theme.colors.ink,
     },
     notificationIconWrapper: {
       position: 'relative',
