@@ -671,6 +671,41 @@ type CheckoutLineItemSource = {
   discountPercent?: number;
 };
 
+/**
+ * Currencies Stripe treats as ZERO-DECIMAL: the API takes the amount in the
+ * currency's own units, not in hundredths.
+ *
+ * Multiplying by 100 unconditionally overcharges every one of them by 100x -
+ * a 1,000 JPY invoice would be submitted as 100,000 JPY. The currency became
+ * configurable per invoice, so this is no longer hypothetical.
+ *
+ * https://docs.stripe.com/currencies#zero-decimal
+ */
+const ZERO_DECIMAL_CURRENCIES = new Set([
+  "bif",
+  "clp",
+  "djf",
+  "gnf",
+  "jpy",
+  "kmf",
+  "krw",
+  "mga",
+  "pyg",
+  "rwf",
+  "ugx",
+  "vnd",
+  "vuv",
+  "xaf",
+  "xof",
+  "xpf",
+]);
+
+/** An amount in the smallest unit Stripe accepts for `currency`. */
+const toStripeMinorUnits = (amount: number, currency: string): number =>
+  ZERO_DECIMAL_CURRENCIES.has(currency.trim().toLowerCase())
+    ? Math.round(amount)
+    : Math.round(amount * 100);
+
 // Charge the full bill as itemised, pre-tax lines (letting Stripe apply tax)
 // UNLESS we must charge a remaining/adjusted balance instead: when a prior
 // payment or credit has been applied, or when an invoice-level adjustment makes
@@ -732,7 +767,7 @@ const buildCheckoutSessionLineItems = (params: {
             product_data: {
               name: `Outstanding balance for invoice ${invoice.id}`,
             },
-            unit_amount: Math.round(summary.balance * 100),
+            unit_amount: toStripeMinorUnits(summary.balance, invoiceCurrency),
           },
           quantity: 1,
         },
@@ -749,8 +784,9 @@ const buildCheckoutSessionLineItems = (params: {
         typeof typed.unitPrice === "number" ? typed.unitPrice : 0;
       const discountPercent =
         typeof typed.discountPercent === "number" ? typed.discountPercent : 0;
-      const effectiveUnitAmount = Math.round(
-        roundMoney(unitPrice * (1 - discountPercent / 100)) * 100,
+      const effectiveUnitAmount = toStripeMinorUnits(
+        roundMoney(unitPrice * (1 - discountPercent / 100)),
+        invoiceCurrency,
       );
       return {
         price_data: {
@@ -1166,7 +1202,7 @@ export const FinancePaymentService = {
     const stripe = getStripeClient();
     const paymentIntent = await stripe.paymentIntents.create(
       {
-        amount: Math.round(summary.balance * 100),
+        amount: toStripeMinorUnits(summary.balance, invoice.currency || "usd"),
         currency: invoice.currency || "usd",
         metadata: {
           type: "INVOICE_PAYMENT",
@@ -1533,7 +1569,10 @@ export const FinancePaymentService = {
       const refund = await stripe.refunds.create(
         {
           charge: chargeId,
-          amount: Math.round(refundAmount * 100),
+          amount: toStripeMinorUnits(
+            refundAmount,
+            payment.currency ?? payment.invoice.currency ?? "usd",
+          ),
         },
         requestOptions,
       );

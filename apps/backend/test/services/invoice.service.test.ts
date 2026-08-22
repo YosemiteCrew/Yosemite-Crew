@@ -1332,6 +1332,61 @@ describe("InvoiceService", () => {
     expect(persistedItems).toHaveLength(1);
   });
 
+  // The content-key fallback exists so a client that sends no line ids can still
+  // UPDATE an existing line. It must not also collapse two genuinely separate
+  // lines in one payload: an invoice can legitimately carry the same consumable
+  // twice, and the second match used to land on the line the first had added.
+  it("keeps two identical new lines as two lines", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_repeat",
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      organisationId,
+      patientId,
+      parentId,
+      items: [],
+      subtotal: 0,
+      discountTotal: 0,
+      invoiceDiscountType: null,
+      invoiceDiscountValue: null,
+      invoiceDiscountTotal: 0,
+      taxTotal: 0,
+      taxPercent: 0,
+      totalAmount: 0,
+      taxSnapshot: { provider: "STRIPE", taxBehavior: "EXCLUSIVE" },
+      finalizedAt: null,
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_repeat",
+      organisationId,
+      items: [],
+      totalAmount: 20,
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const line = {
+      description: "Syringe",
+      name: "Syringe",
+      quantity: 1,
+      unitPrice: 10,
+      total: 10,
+    };
+    await InvoiceService.addItemsToInvoice("inv_repeat", [
+      { ...line },
+      { ...line },
+    ]);
+
+    const updateArg = (prisma.invoice.update as jest.Mock).mock.calls.at(
+      -1,
+    )![0];
+    expect(updateArg.data.items).toHaveLength(2);
+  });
+
   it("finalizes tax snapshots and re-opens a finalized-but-unpaid invoice when edited", async () => {
     (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
       id: "inv_final",

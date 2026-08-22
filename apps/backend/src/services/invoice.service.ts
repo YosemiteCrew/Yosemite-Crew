@@ -394,23 +394,36 @@ const mergeInvoiceLineItems = (
   newItems: DraftInvoiceItemInput[],
 ) => {
   const merged = [...existingItems];
+  // Each existing line may absorb at most ONE incoming line. The content-key
+  // fallback exists so a client that sends no line ids can still update an
+  // existing line, but without this an invoice legitimately carrying the same
+  // item twice - two identical consumables added as separate lines - collapsed
+  // to one: the second match landed on the line the first had just added.
+  const claimed = new Set<number>();
 
   for (const item of newItems) {
     const lineId = item.id?.trim();
     let index = -1;
     if (lineId) {
-      index = merged.findIndex((existing) => existing.id?.trim() === lineId);
+      index = merged.findIndex(
+        (existing, position) =>
+          !claimed.has(position) && existing.id?.trim() === lineId,
+      );
     }
     if (index === -1) {
       const contentKey = invoiceLineContentKey(item);
       index = merged.findIndex(
-        (existing) => invoiceLineContentKey(existing) === contentKey,
+        (existing, position) =>
+          !claimed.has(position) &&
+          invoiceLineContentKey(existing) === contentKey,
       );
     }
 
     if (index === -1) {
+      claimed.add(merged.length);
       merged.push(item);
     } else {
+      claimed.add(index);
       merged[index] = item;
     }
   }

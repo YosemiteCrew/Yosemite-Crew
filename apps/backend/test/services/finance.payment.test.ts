@@ -1571,6 +1571,55 @@ describe("FinancePaymentService", () => {
     });
   });
 
+  // Stripe takes zero-decimal currencies in their own units, not hundredths, so
+  // multiplying by 100 unconditionally submitted a 1,000 JPY invoice as 100,000.
+  it("submits a zero-decimal currency without scaling it to hundredths", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_jpy",
+      totalAmount: 1000,
+      currency: "jpy",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      organisationId: "org_1",
+      appointmentId: "",
+      parentId: "",
+      items: [{ name: "Consult", quantity: 1, unitPrice: 900, total: 900 }],
+      taxTotal: 0,
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_jpy",
+    });
+    (prisma.creditNote.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValue(null);
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_jpy",
+    });
+    stripeClient.checkout.sessions.create.mockResolvedValueOnce({
+      id: "cs_jpy",
+      url: "https://checkout.test/jpy",
+    });
+
+    await FinancePaymentService.createCheckoutSessionForInvoice("inv_jpy");
+
+    const [sessionArgs] = stripeClient.checkout.sessions.create.mock
+      .calls[0] as [
+      { line_items: Array<{ price_data: { unit_amount: number } }> },
+    ];
+    expect(sessionArgs.line_items[0].price_data.unit_amount).toBe(1000);
+  });
+
   it("charges the current invoice balance when discounts change the raw item total", async () => {
     const stripeClient = {
       checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
