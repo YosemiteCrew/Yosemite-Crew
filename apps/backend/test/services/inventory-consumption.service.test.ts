@@ -3615,6 +3615,29 @@ describe("InventoryConsumptionService", () => {
           frequency: "EVERY 0 HOURS",
           sourceLineKey: "line-freq-invalid",
         },
+        // Sub-daily schedules the keyword pass does not cover. Without these a
+        // course on one of them resolves to NO frequency and falls back to a
+        // single dose, so stock consumption issues a fraction of the course.
+        {
+          inventoryItemId: "item-freq-three-a-week",
+          frequency: "3 TIMES A WEEK",
+          sourceLineKey: "line-freq-three-a-week",
+        },
+        {
+          inventoryItemId: "item-freq-every-3-days",
+          frequency: "EVERY 3 DAYS",
+          sourceLineKey: "line-freq-every-3-days",
+        },
+        {
+          inventoryItemId: "item-freq-fortnightly",
+          frequency: "FORTNIGHTLY",
+          sourceLineKey: "line-freq-fortnightly",
+        },
+        {
+          inventoryItemId: "item-freq-monthly",
+          frequency: "MONTHLY",
+          sourceLineKey: "line-freq-monthly",
+        },
       ],
     });
 
@@ -3639,6 +3662,18 @@ describe("InventoryConsumptionService", () => {
     expect(byItemId.get("item-freq-meals")?.frequencyPerDay).toBe(3);
     expect(byItemId.get("item-freq-hours")?.frequencyPerDay).toBe(4);
     expect(byItemId.get("item-freq-invalid")?.frequencyPerDay).toBeUndefined();
+    expect(byItemId.get("item-freq-three-a-week")?.frequencyPerDay).toBeCloseTo(
+      3 / 7,
+    );
+    expect(byItemId.get("item-freq-every-3-days")?.frequencyPerDay).toBeCloseTo(
+      1 / 3,
+    );
+    expect(byItemId.get("item-freq-fortnightly")?.frequencyPerDay).toBeCloseTo(
+      1 / 14,
+    );
+    expect(byItemId.get("item-freq-monthly")?.frequencyPerDay).toBeCloseTo(
+      1 / 30,
+    );
   });
 
   it("falls back to the encounter snapshot when the appointment is missing", async () => {

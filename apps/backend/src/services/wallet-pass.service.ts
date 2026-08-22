@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { resolveLogoSource } from "@yosemite-crew/lib";
 import { deflateSync } from "node:zlib";
 import AdmZip from "adm-zip";
 import forge from "node-forge";
@@ -52,13 +53,31 @@ const walletImageUrl = (
   return key === "PUBLIC_WALLET_LOGO_URL" ? DEFAULT_WALLET_LOGO_URL : undefined;
 };
 
+/**
+ * Fetch a wallet-pass image over the network.
+ *
+ * The URLs come from `PUBLIC_WALLET_LOGO_URL` / `PUBLIC_WALLET_HERO_URL`, which
+ * are operator-supplied rather than hard-coded, so a bare `fetch` here made the
+ * pass builder a way to reach whatever those values point at - including a
+ * loopback or link-local address such as a cloud metadata endpoint - and to
+ * stream an unbounded response into memory.
+ *
+ * `resolveLogoSource` is the implementation the PDF renderer and the outbound
+ * document fetcher already share for exactly this: it resolves the host, refuses
+ * anything that maps to a private address, pins the connection to the addresses
+ * it checked, declines redirects, caps the response, and confirms the content
+ * type is an image. Reusing it keeps one set of rules rather than a second,
+ * weaker copy here.
+ */
 const fetchImage = async (url?: string): Promise<Buffer | null> => {
   if (!url) return null;
   try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    return Buffer.from(await res.arrayBuffer());
+    const resolved = await resolveLogoSource(url);
+    return Buffer.isBuffer(resolved) ? resolved : null;
   } catch {
+    // `resolveLogoSource` reports every refusal and failure as null rather than
+    // throwing, so this is belt and braces: a pass must still build without its
+    // brand logo rather than fail outright.
     return null;
   }
 };

@@ -372,6 +372,36 @@ const resolveFrequencyFromPatterns = (
     }
   }
 
+  // Sub-daily schedules, expressed as a fraction of a dose per day so the
+  // `perDose x frequencyPerDay x durationInDays` formula still holds.
+  //
+  // Plain "weekly" is already handled by the keyword pass above; these are the
+  // forms it does not cover. Without them a course on one of these schedules
+  // resolves to NO frequency and falls back to dispensing a single dose, so a
+  // long course consumes a fraction of the stock it actually issues.
+  const perWeek = /(\d+)\s*(?:X|TIMES)\s*(?:A\s*|PER\s*)?WEEK/.exec(normalized);
+  if (perWeek) {
+    const doses = Number(perWeek[1]);
+    if (Number.isFinite(doses) && doses > 0) {
+      return doses / 7;
+    }
+  }
+
+  const everyNdays = /EVERY\s+(\d+)\s+DAYS?/.exec(normalized);
+  if (everyNdays) {
+    const days = Number(everyNdays[1]);
+    if (Number.isFinite(days) && days > 0) {
+      return 1 / days;
+    }
+  }
+
+  if (/\bFORTNIGHTLY\b|\bEVERY\s+(?:2|TWO)\s+WEEKS?\b/.test(normalized)) {
+    return 1 / 14;
+  }
+  if (/\bMONTHLY\b|\bEVERY\s+MONTH\b/.test(normalized)) {
+    return 1 / 30;
+  }
+
   return undefined;
 };
 
