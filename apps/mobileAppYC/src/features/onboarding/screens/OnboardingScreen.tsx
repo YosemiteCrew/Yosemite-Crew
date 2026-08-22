@@ -443,7 +443,13 @@ const createStyles = (theme: Theme) =>
       marginBottom: theme.spacing['5'],
     },
     dot: {height: 7, borderRadius: theme.borderRadius.full},
-    dotActive: {width: 22, backgroundColor: theme.colors.blue},
+    // Pink is the pet-parent audience accent (design system: "Pet parents
+    // only. Not for clinic chrome."). Blue is the structural accent for links,
+    // focus rings and active nav - this dot is neither, it is brand expression
+    // on the most expressive surface in the app, directly under the pink
+    // script line, so blue was fighting the composition. pinkDeep rather than
+    // pink because the brand pink is only 1.86:1 on the bone ground.
+    dotActive: {width: 22, backgroundColor: theme.colors.pinkDeep},
     dotIdle: {width: 7, backgroundColor: theme.colors.divider},
     ctaButton: {
       width: '100%',
