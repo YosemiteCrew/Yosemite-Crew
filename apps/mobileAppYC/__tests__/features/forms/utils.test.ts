@@ -430,3 +430,29 @@ describe('Form Utils', () => {
     });
   });
 });
+
+describe('stripHtmlToPlainText input bounds', () => {
+  it('finishes promptly on adversarial nested brackets', () => {
+    // "<<<<...>>>>" removes one innermost pair per pass, so the unbounded loop
+    // was quadratic: a ~50k answer took seconds, which on a phone's JS thread
+    // is a frozen app. Rich-text answers come from appointment form data.
+    const hostile = '<'.repeat(25_000) + '>'.repeat(25_000);
+
+    const startedAt = process.hrtime.bigint();
+    const result = stripHtmlToPlainText(hostile);
+    const elapsedMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+
+    expect(elapsedMs).toBeLessThan(1_000);
+    // Fails closed: nothing tag-shaped survives.
+    expect(result).not.toContain('<');
+    expect(result).not.toContain('>');
+  });
+
+  it('still strips ordinary nested markup exactly', () => {
+    expect(stripHtmlToPlainText('<p>Hello <b>world</b></p>')).toBe(
+      'Hello world',
+    );
+    // The reconstituting case the fixed-point loop exists for.
+    expect(stripHtmlToPlainText('<scr<script>ipt>alert(1)')).toBe('alert(1)');
+  });
+});

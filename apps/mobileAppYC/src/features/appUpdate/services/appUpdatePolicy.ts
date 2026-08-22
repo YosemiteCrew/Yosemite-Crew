@@ -19,6 +19,8 @@ export type AppUpdatePrompt = {
 
 const OPTIONAL_PROMPT_DEFAULT_HOURS = 24;
 const IOS_APP_STORE_URL_PREFIX = 'itms-apps://itunes.apple.com/app/id';
+// Already covered by the trusted-URL allowlist below (apps.apple.com over https).
+const IOS_APP_STORE_SEARCH_PREFIX = 'https://apps.apple.com/search?term=';
 
 // storeUrl can come straight from the remotely-fetched MobileConfig, so it
 // must be checked against a fixed allowlist before ever being handed to
@@ -104,7 +106,12 @@ const resolveStoreUrl = (
       return `${IOS_APP_STORE_URL_PREFIX}${appStoreId.trim()}`;
     }
 
-    return null;
+    // Always-constructible last resort, mirroring Android's market:// fallback.
+    // Returning null here degraded a FORCED update to a dismissible one - the
+    // force-update mechanism is how a vulnerable build is retired, so a missing
+    // iOS store URL in the remote config must not be able to switch it off. An
+    // App Store search still gets the user somewhere they can update.
+    return `${IOS_APP_STORE_SEARCH_PREFIX}${encodeURIComponent(bundleId)}`;
   }
 
   if (Platform.OS === 'android') {

@@ -25,9 +25,15 @@ jest.mock("src/config/prisma", () => ({
     },
     authUserMobile: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
       updateMany: jest.fn(),
     },
   },
+}));
+
+const mockDeleteAuthUser = jest.fn();
+jest.mock("@yosemite-crew/auth", () => ({
+  getAuthService: jest.fn(() => ({ deleteUser: mockDeleteAuthUser })),
 }));
 
 jest.mock("../../src/services/authUserMobile.service", () => ({
@@ -65,6 +71,7 @@ const mockedPrisma = prisma as unknown as {
   };
   authUserMobile: {
     findFirst: jest.Mock;
+    findMany: jest.Mock;
     updateMany: jest.Mock;
   };
 };
@@ -465,6 +472,46 @@ describe("ParentService", () => {
     expect(mockedPrisma.parentPatient.deleteMany).toHaveBeenCalledWith({
       where: { parentId: "parent-1" },
     });
+  });
+
+  it("deletes the upstream identity, not just the local profile", async () => {
+    // Unlinking the mapping and removing the profile left the provider account,
+    // its login methods and every other session for it alive - so a session on
+    // a second or stolen device stayed authenticated after the user believed
+    // the account was gone, and the same identity could sign in again.
+    mockDeleteAuthUser.mockClear();
+    mockedPrisma.parent.findUnique.mockResolvedValueOnce(mockParent);
+    mockedPrisma.authUserMobile.findMany.mockResolvedValueOnce([
+      { id: "auth-row-1", providerUserId: "st-user-1" },
+    ] as never);
+    mockedPrisma.parentPatient.deleteMany.mockResolvedValueOnce({ count: 1 });
+    mockedPrisma.authUserMobile.updateMany.mockResolvedValueOnce({ count: 1 });
+    mockedPrisma.parentAddress.deleteMany.mockResolvedValueOnce({ count: 1 });
+    mockedPrisma.parent.deleteMany.mockResolvedValueOnce({ count: 1 });
+
+    await ParentService.delete("parent-1", { source: "pms" });
+
+    expect(mockDeleteAuthUser).toHaveBeenCalledWith("st-user-1");
+  });
+
+  it("still deletes the local data when the identity delete fails", async () => {
+    mockDeleteAuthUser.mockClear();
+    mockDeleteAuthUser.mockRejectedValueOnce(new Error("provider down"));
+    mockedPrisma.parent.findUnique.mockResolvedValueOnce(mockParent);
+    mockedPrisma.authUserMobile.findMany.mockResolvedValueOnce([
+      { id: "auth-row-1", providerUserId: "st-user-1" },
+    ] as never);
+    mockedPrisma.parentPatient.deleteMany.mockResolvedValueOnce({ count: 1 });
+    mockedPrisma.authUserMobile.updateMany.mockResolvedValueOnce({ count: 1 });
+    mockedPrisma.parentAddress.deleteMany.mockResolvedValueOnce({ count: 1 });
+    mockedPrisma.parent.deleteMany.mockResolvedValueOnce({ count: 1 });
+
+    // The local data is already gone by this point; failing the request would
+    // leave the caller unable to tell what happened.
+    await expect(
+      ParentService.delete("parent-1", { source: "pms" }),
+    ).resolves.toBeDefined();
+    expect(mockedPrisma.parent.deleteMany).toHaveBeenCalled();
   });
 
   it("returns null when linked user mapping is missing", async () => {

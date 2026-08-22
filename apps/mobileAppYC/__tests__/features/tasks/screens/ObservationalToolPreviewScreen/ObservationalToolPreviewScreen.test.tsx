@@ -297,10 +297,16 @@ describe('ObservationalToolPreviewScreen', () => {
         await findByText('Unable to load submission. Please try again.'),
       ).toBeTruthy();
       expect(queryByText('Network Error')).toBeNull();
+      // A SANITIZED description, never the raw error: axios keeps the request
+      // config on it, and these calls carry an Authorization bearer token that
+      // would otherwise be written into the device log.
       expect(spy).toHaveBeenCalledWith(
         '[OT Preview] Failed to load submission',
-        rawError,
+        expect.stringContaining('Network Error'),
       );
+      const [, logged] = spy.mock.calls[0];
+      expect(typeof logged).toBe('string');
+      expect(logged).not.toContain('Bearer');
 
       spy.mockRestore();
     });

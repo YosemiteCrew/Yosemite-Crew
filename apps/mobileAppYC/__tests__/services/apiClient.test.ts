@@ -596,3 +596,32 @@ describe('apiClient', () => {
     });
   });
 });
+
+describe('error redaction', () => {
+  it('removes the bearer token from a rejected request config', async () => {
+    // Axios keeps the request config on the error, and many screens log the raw
+    // error - which would write the access token into the device log.
+    const error: {
+      config: {headers: Record<string, unknown>};
+      response?: unknown;
+      message: string;
+    } = {
+      config: {
+        headers: {
+          Authorization: 'Bearer super-secret-token',
+          Accept: 'application/json',
+        },
+      },
+      message: 'Request failed',
+    };
+
+    const {
+      redactAuthorizationHeader,
+    } = require('../../src/shared/services/apiClient');
+
+    redactAuthorizationHeader(error);
+
+    expect(error.config.headers.Authorization).toBe('[REDACTED]');
+    expect(error.config.headers.Accept).toBe('application/json');
+  });
+});

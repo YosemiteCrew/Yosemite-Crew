@@ -167,10 +167,20 @@ describe('isActionableUpcomingStatus', () => {
 });
 
 describe('getAppointmentStatusLabel', () => {
-  it('returns "Booking paid" when bookingPaymentStatus is PAID, regardless of status', () => {
-    expect(getAppointmentStatusLabel('UPCOMING', 'UNPAID', 'PAID')).toBe(
+  it('returns "Booking paid" once the appointment itself owes nothing', () => {
+    expect(getAppointmentStatusLabel('UPCOMING', 'PAID', 'PAID')).toBe(
       'Booking paid',
     );
+  });
+
+  it('does not let a paid booking mask an unpaid appointment invoice', () => {
+    // A paid booking is a deposit taken at booking time, not settlement of the
+    // appointment's invoice. Showing "Booking paid" over an unpaid invoice
+    // reads as settled and removed the Pay Now action.
+    expect(getAppointmentStatusLabel('UPCOMING', 'UNPAID', 'PAID')).toBe(
+      'Payment pending',
+    );
+    expect(isAppointmentPaymentPending('UPCOMING', 'UNPAID')).toBe(true);
   });
 
   it('returns "Payment failed" when payment failed', () => {
@@ -210,16 +220,27 @@ describe('getAppointmentStatusLabel', () => {
 });
 
 describe('getAppointmentStatusBadgePalette', () => {
-  it('returns success palette with "Booking paid" label when bookingPaymentStatus is PAID', () => {
+  it('returns success palette with "Booking paid" once nothing is outstanding', () => {
+    const result = getAppointmentStatusBadgePalette(
+      mockTheme,
+      'UPCOMING',
+      'PAID',
+      'PAID',
+    );
+    expect(result.text).toBe('Booking paid');
+    expect(result.textColor).toBe('#success');
+    expect(result.backgroundColor).toBe('#successSurface');
+  });
+
+  it('does not show a green booking badge over an unpaid invoice', () => {
     const result = getAppointmentStatusBadgePalette(
       mockTheme,
       'UPCOMING',
       'UNPAID',
       'PAID',
     );
-    expect(result.text).toBe('Booking paid');
-    expect(result.textColor).toBe('#success');
-    expect(result.backgroundColor).toBe('#successSurface');
+    expect(result.text).toBe('Payment pending');
+    expect(result.textColor).not.toBe('#success');
   });
 
   it('returns error palette for payment failed', () => {
