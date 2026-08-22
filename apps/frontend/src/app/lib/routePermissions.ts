@@ -91,7 +91,14 @@ export const resolveMembershipPermissions = (
   // revokedPermissions; folding those in would re-grant access the API now
   // denies. Deriving purely from role plus extras minus revocations is exactly
   // what the backend recomputes on every request.
-  const baseline = ROLE_PERMISSIONS[roleCode as RoleCode] ?? [];
+  // Own-property lookup: ROLE_PERMISSIONS is a plain object, so a roleCode of
+  // "__proto__", "constructor" or "toString" resolves to an inherited non-array
+  // value that is nonetheless truthy. Spreading it throws, and this helper runs
+  // during render in the sidebar and phone nav, so one malformed membership row
+  // would take the navigation down.
+  const baseline = Object.hasOwn(ROLE_PERMISSIONS, roleCode)
+    ? ROLE_PERMISSIONS[roleCode as RoleCode]
+    : [];
   const granted = new Set<string>([...baseline, ...extras]);
   for (const permission of membership?.revokedPermissions ?? []) granted.delete(permission);
   return [...granted];

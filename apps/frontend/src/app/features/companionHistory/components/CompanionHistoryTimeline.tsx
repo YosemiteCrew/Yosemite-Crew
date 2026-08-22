@@ -1500,7 +1500,7 @@ const useCompanionHistoryTimelineView = ({
     const byStatus = withStatusOverrides.filter((entry) =>
       matchesStatusFilter(entry, activeFilter, statusFilter)
     );
-    const sorted = byStatus.toSorted((a, b) => {
+    const sorted = [...byStatus].sort((a, b) => {
       const delta = new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime();
       return sortKey === 'newest' ? delta : -delta;
     });

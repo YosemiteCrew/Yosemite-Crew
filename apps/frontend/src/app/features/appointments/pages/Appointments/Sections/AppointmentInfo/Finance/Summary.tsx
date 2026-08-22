@@ -45,7 +45,7 @@ const Summary = ({ activeAppointment, formData }: SummaryProps) => {
 
   const latestInvoice = useMemo(() => {
     if (!invoices.length) return undefined;
-    return invoices.toSorted((a, b) => {
+    return [...invoices].sort((a, b) => {
       const aTime = new Date(a.createdAt ?? 0).getTime();
       const bTime = new Date(b.createdAt ?? 0).getTime();
       return bTime - aTime;
@@ -54,10 +54,8 @@ const Summary = ({ activeAppointment, formData }: SummaryProps) => {
 
   const payableInvoice = useMemo(
     () =>
-      invoices
-        .toSorted(
-          (a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()
-        )
+      [...invoices]
+        .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime())
         .find((inv) => PAYABLE_INVOICE_STATUSES.has(inv.status)),
     [invoices]
   );

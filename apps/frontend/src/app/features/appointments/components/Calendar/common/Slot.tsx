@@ -162,7 +162,7 @@ const SlotComponent: React.FC<SlotProps> = ({
   const appointmentPopoverId = useId();
 
   const sortedSlotEvents = useMemo(
-    () => slotEvents.toSorted((a, b) => a.startTime.getTime() - b.startTime.getTime()),
+    () => [...slotEvents].sort((a, b) => a.startTime.getTime() - b.startTime.getTime()),
     [slotEvents]
   );
 

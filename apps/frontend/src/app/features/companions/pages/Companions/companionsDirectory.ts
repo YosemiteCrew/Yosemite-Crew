@@ -33,15 +33,28 @@ export type SpeciesCounts = {
   other: number;
 };
 
-// Exotics === everything that is not a dog / cat / horse.
+const NAMED_SPECIES = ['dog', 'cat', 'horse'] as const;
+
+/**
+ * Which species tab a companion belongs to. Exotics ("other") is the catch-all:
+ * rabbit, bird, a value we do not recognise, or no type at all.
+ *
+ * Shared by the counts and the list filter on purpose. They used to disagree -
+ * the count treated Exotics as a catch-all while the filter compared the tab key
+ * to the type exactly - so the Exotics tab could show a non-zero count and then
+ * render an empty list.
+ */
+export const resolveSpeciesBucket = (type: unknown): SpeciesTabKey => {
+  const normalized = String(type ?? '').toLowerCase();
+  return (NAMED_SPECIES as readonly string[]).includes(normalized)
+    ? (normalized as SpeciesTabKey)
+    : 'other';
+};
+
 export const getSpeciesCounts = (companions: CompanionParent[]): SpeciesCounts => {
   const counts: SpeciesCounts = { all: companions.length, dog: 0, cat: 0, horse: 0, other: 0 };
   for (const item of companions) {
-    const type = String(item.companion.type ?? '').toLowerCase();
-    if (type === 'dog') counts.dog += 1;
-    else if (type === 'cat') counts.cat += 1;
-    else if (type === 'horse') counts.horse += 1;
-    else counts.other += 1;
+    counts[resolveSpeciesBucket(item.companion.type)] += 1;
   }
   return counts;
 };
@@ -50,8 +63,10 @@ export const getActiveCount = (companions: CompanionParent[]): number =>
   companions.filter((item) => String(item.companion.status ?? '').toLowerCase() === 'active')
     .length;
 
+export type SpeciesTabKey = 'dog' | 'cat' | 'horse' | 'other';
+
 export type SpeciesTab = {
-  key: 'all' | 'dog' | 'cat' | 'horse' | 'other';
+  key: 'all' | SpeciesTabKey;
   label: string;
   countKey: keyof SpeciesCounts;
 };

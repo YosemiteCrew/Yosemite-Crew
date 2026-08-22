@@ -657,4 +657,48 @@ describe('DispensaryDetailModal', () => {
       expect(setShowModal).toHaveBeenCalledWith(false);
     });
   });
+
+  it('renders dose and route in the fallback path', () => {
+    // These are the instructions a pharmacist reads before dispensing; a record
+    // without the enriched numeric fields still has to show them.
+    render(
+      <DispensaryDetailModal
+        {...defaultProps}
+        record={{
+          ...baseRecord,
+          items: [
+            {
+              name: 'Amoxicillin',
+              quantity: 1,
+              priceCents: 1000,
+              prescription: {
+                dose: '250 mg',
+                freq: 'Twice daily',
+                duration: '7 days',
+                refill: '1',
+                route: 'Oral',
+              },
+            },
+          ],
+        }}
+      />
+    );
+
+    expect(screen.getByText('250 mg')).toBeInTheDocument();
+    expect(screen.getByText('Oral')).toBeInTheDocument();
+  });
+
+  it('gives identical lines distinct keys', () => {
+    // Two identical prescription lines are legitimate; a content-only key made
+    // them collide, and React does not support duplicate sibling keys.
+    const line = { name: 'Metacam', quantity: 1, priceCents: 500 };
+    render(
+      <DispensaryDetailModal
+        {...defaultProps}
+        record={{ ...baseRecord, items: [{ ...line }, { ...line }] }}
+      />
+    );
+
+    expect(screen.getAllByText('Metacam')).toHaveLength(2);
+  });
 });

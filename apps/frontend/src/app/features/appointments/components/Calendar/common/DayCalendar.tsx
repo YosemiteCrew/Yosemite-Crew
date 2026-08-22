@@ -74,7 +74,7 @@ const computeUnavailableSegments = (
     return availabilityLoaded ? [{ startMinute: windowStart, endMinute: windowEnd }] : [];
   }
   const segments: { startMinute: number; endMinute: number }[] = [];
-  const sorted = visible.toSorted((a, b) => a.startMinute - b.startMinute);
+  const sorted = [...visible].sort((a, b) => a.startMinute - b.startMinute);
   if (sorted[0].startMinute > windowStart) {
     segments.push({ startMinute: windowStart, endMinute: sorted[0].startMinute });
   }

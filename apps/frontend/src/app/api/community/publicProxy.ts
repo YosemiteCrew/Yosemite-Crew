@@ -74,7 +74,7 @@ export const rejectUnexpectedParams = (
   const error =
     rejectedKeys.size > 0
       ? `Unsupported query parameter: ${[...rejectedKeys]
-          .toSorted((a, b) => a.localeCompare(b))
+          .sort((a, b) => a.localeCompare(b))
           .join(', ')}`
       : 'Unsupported query string';
 

@@ -232,4 +232,26 @@ describe('routePermissions', () => {
       expect(resolved).not.toContain(PERMISSIONS.TASKS_VIEW_ANY);
     });
   });
+
+  it.each(['__proto__', 'constructor', 'toString'])(
+    'treats the inherited key %s as an unrecognised role',
+    (roleCode) => {
+      // ROLE_PERMISSIONS is a plain object, so these names resolve to truthy
+      // non-array values. This helper runs during render in the sidebar and the
+      // phone nav, so spreading one would take the navigation down.
+      expect(() =>
+        resolveMembershipPermissions({
+          roleCode,
+          extraPermissions: ['appointments:view:any'],
+        } as never)
+      ).not.toThrow();
+
+      expect(
+        resolveMembershipPermissions({
+          roleCode,
+          extraPermissions: ['appointments:view:any'],
+        } as never)
+      ).toEqual(['appointments:view:any']);
+    }
+  );
 });

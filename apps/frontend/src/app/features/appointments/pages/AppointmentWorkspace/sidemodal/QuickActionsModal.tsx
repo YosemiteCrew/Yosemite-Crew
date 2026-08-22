@@ -24,6 +24,8 @@ const PanelSkeleton = () => (
   <div className="h-full min-h-50 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />
 );
 
+import type { RecordTab } from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/panels/RecordPanel';
+
 const RecordPanel = dynamic(
   () =>
     import('@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/panels/RecordPanel'),
@@ -65,6 +67,8 @@ type QuickActionsModalProps = {
   encounterId?: string;
   authorId?: string;
   activeAction: SideAction | null;
+  /** Which Record tab to open on when activeAction is RECORD. */
+  recordTab?: RecordTab;
   onChangeAction: (action: SideAction) => void;
   onClose: () => void;
 };
@@ -140,6 +144,7 @@ const QuickActionsModal = ({
   encounterId,
   authorId,
   activeAction,
+  recordTab,
   onChangeAction,
   onClose,
 }: QuickActionsModalProps) => {
@@ -216,6 +221,7 @@ const QuickActionsModal = ({
               authorId={authorId}
               authorName={appointment.lead?.name}
               companionId={companion.id}
+              initialTab={recordTab}
             />
           )}
           {activeAction === 'TASKS' && (

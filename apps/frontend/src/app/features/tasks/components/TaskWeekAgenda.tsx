@@ -129,7 +129,7 @@ const TaskWeekAgenda = ({
       buckets[dayIndex].push(task);
     });
     return buckets.map((bucket) =>
-      bucket.toSorted((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime())
+      [...bucket].sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime())
     );
   }, [days, filteredList]);
 
