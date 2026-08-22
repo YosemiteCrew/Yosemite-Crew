@@ -1,5 +1,5 @@
 import React, {useState, useMemo} from 'react';
-import {View, Text, StyleSheet, Image} from 'react-native';
+import {View, Text, StyleSheet, Image, type ImageStyle} from 'react-native';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {SafeArea} from '@/shared/components/common';
 import {useTheme, useSocialAuth, type SocialProvider} from '@/hooks';
@@ -9,6 +9,25 @@ import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {AuthStackParamList} from '@/navigation/AuthNavigator';
 import type {Theme} from '@/theme';
 
+// Apple's mark cannot use one fixed colour: black measures 18.99:1 on the
+// cream button but 1.43:1 on espresso, under the 3:1 bar for a meaningful
+// graphic. Apple's own guidelines call for black on light and white on dark.
+const appleMarkStyles = StyleSheet.create({
+  onLight: {tintColor: '#000000'},
+  onDark: {tintColor: '#FFFFFF'},
+});
+
+/** Brand marks ship as white glyphs, so each needs a tint over the button. */
+const resolveMarkTint = (
+  themedTint: boolean | undefined,
+  tint: string | undefined,
+  isDark: boolean,
+): ImageStyle | null => {
+  if (themedTint) {
+    return isDark ? appleMarkStyles.onDark : appleMarkStyles.onLight;
+  }
+  return tint ? {tintColor: tint} : null;
+};
 const LOGO = require('../../../assets/images/yosemite-logo-1024.png');
 
 type SignUpScreenProps = NativeStackScreenProps<AuthStackParamList, 'SignUp'>;
@@ -18,6 +37,7 @@ const socialButtons: {
   label: string;
   icon: number;
   tint?: string;
+  themedTint?: boolean;
 }[] = [
   {provider: 'google', label: 'Sign up with Google', icon: Images.googleIcon},
   {
@@ -32,12 +52,15 @@ const socialButtons: {
     provider: 'apple',
     label: 'Sign up with Apple',
     icon: Images.appleIcon,
-    tint: '#000000',
+    // No fixed tint: black measures 18.99:1 on the cream button but only
+    // 1.43:1 on espresso, under the 3:1 bar for a meaningful graphic, so this
+    // one resolves per theme via themedTint.
+    themedTint: true,
   },
 ];
 
 export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
-  const {theme} = useTheme();
+  const {theme, isDark} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const {login} = useAuth();
   const [socialError, setSocialError] = useState('');
@@ -120,7 +143,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
             <View style={styles.dividerLine} />
           </View>
 
-          {socialButtons.map(({provider, label, icon, tint}) => (
+          {socialButtons.map(({provider, label, icon, tint, themedTint}) => (
             <PressableOpacity
               key={provider}
               onPress={() => attemptSocialAuth(provider)}
@@ -131,7 +154,10 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
               accessibilityState={{disabled: isSocialLoading}}>
               <Image
                 source={icon}
-                style={[styles.buttonIcon, tint ? {tintColor: tint} : null]}
+                style={[
+                  styles.buttonIcon,
+                  resolveMarkTint(themedTint, tint, isDark),
+                ]}
                 resizeMode="contain"
               />
               <Text style={styles.socialButtonText}>

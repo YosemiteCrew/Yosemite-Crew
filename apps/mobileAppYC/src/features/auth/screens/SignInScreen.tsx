@@ -28,11 +28,18 @@ import {isValidEmail} from '@/shared/constants/constants';
 import type {Theme} from '@/theme';
 
 // The Facebook and Apple marks ship as white glyphs, which measured ~1.06:1
-// on the cream button. Both brands permit a solid mark on a light ground:
-// Apple in black, Facebook in its brand blue. Google's is multicolour and must
+// on the cream button, so both are tinted. Google's is multicolour and must
 // never be tinted.
+//
+// Facebook's brand blue clears the 3:1 bar on BOTH grounds (3.83:1 cream,
+// 3.47:1 espresso) so it is fixed. Apple's cannot be: black measures 18.99:1
+// on cream but 1.43:1 on espresso, well under the 3:1 bar for a meaningful
+// graphic - the mark was effectively invisible in dark mode. Apple's own Sign
+// in with Apple guidelines call for the black mark on light backgrounds and
+// the white one on dark, which is what this does.
 const FACEBOOK_BRAND_BLUE = '#1877F2';
-const APPLE_MARK_BLACK = '#000000';
+const APPLE_MARK_ON_LIGHT = '#000000';
+const APPLE_MARK_ON_DARK = '#FFFFFF';
 
 const socialIconStyles = StyleSheet.create({
   icon: {
@@ -44,11 +51,8 @@ const socialIconStyles = StyleSheet.create({
     height: 22,
     tintColor: FACEBOOK_BRAND_BLUE,
   },
-  appleIcon: {
-    width: 22,
-    height: 22,
-    tintColor: APPLE_MARK_BLACK,
-  },
+  appleIconLight: {width: 22, height: 22, tintColor: APPLE_MARK_ON_LIGHT},
+  appleIconDark: {width: 22, height: 22, tintColor: APPLE_MARK_ON_DARK},
 });
 
 const GoogleIcon = () => (
@@ -67,10 +71,12 @@ const FacebookIcon = () => (
   />
 );
 
-const AppleIcon = () => (
+const AppleIcon = ({isDark}: {isDark: boolean}) => (
   <Image
     source={Images.appleIcon}
-    style={socialIconStyles.appleIcon}
+    style={
+      isDark ? socialIconStyles.appleIconDark : socialIconStyles.appleIconLight
+    }
     resizeMode="contain"
   />
 );
@@ -215,6 +221,7 @@ const useOTPHandler = (
 
 const SocialAuthSection: React.FC<{
   theme: Theme;
+  isDark: boolean;
   styles: any;
   isSocialLoading: boolean;
   activeProvider: SocialProvider | null;
@@ -225,6 +232,7 @@ const SocialAuthSection: React.FC<{
   onCreateAccountPress: () => void;
 }> = ({
   theme,
+  isDark,
   styles,
   isSocialLoading,
   activeProvider,
@@ -275,7 +283,7 @@ const SocialAuthSection: React.FC<{
         {activeProvider === 'apple' ? (
           <ActivityIndicator size="small" color={theme.colors.inkMuted} />
         ) : (
-          <AppleIcon />
+          <AppleIcon isDark={isDark} />
         )}
       </PressableOpacity>
     </View>
@@ -299,7 +307,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
   navigation,
   route,
 }) => {
-  const {theme} = useTheme();
+  const {theme, isDark} = useTheme();
   const styles = createStyles(theme);
   const {login} = useAuth();
   const allowReviewLogin = AUTH_FEATURE_FLAGS.enableReviewLogin === true;
@@ -464,6 +472,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
         {!isKeyboardVisible && (
           <SocialAuthSection
             theme={theme}
+            isDark={isDark}
             styles={styles}
             isSocialLoading={isSocialLoading}
             activeProvider={activeProvider}
