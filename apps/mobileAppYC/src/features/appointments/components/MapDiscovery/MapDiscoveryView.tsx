@@ -298,7 +298,7 @@ const MapDiscoveryView: React.FC<MapDiscoveryViewProps> = ({
                 key={item.id}
                 coordinate={{latitude: item.lat, longitude: item.lng}}
                 tracksViewChanges={false}>
-                <ClusterMapPin count={item.count} />
+                <ClusterMapPin count={item.count} palette={theme.colors} />
               </Marker>
             );
           }
@@ -312,6 +312,7 @@ const MapDiscoveryView: React.FC<MapDiscoveryViewProps> = ({
               onPress={() => handlePinPress(clinic.id)}>
               <ClinicMapPin
                 business={clinic}
+                palette={theme.colors}
                 isSelected={clinic.id === selectedClinicId}
               />
             </Marker>
