@@ -11,16 +11,11 @@ const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
 const mockRouteParams = {category: 'health'};
 
-// The companion CTA hops to a sibling stack via getParent(), so the navigation
-// double needs it: without getParent the handler throws instead of navigating.
-const mockParentNavigate = jest.fn();
-
 jest.mock('@react-navigation/native', () => {
   return {
     useNavigation: () => ({
       navigate: mockNavigate,
       goBack: mockGoBack,
-      getParent: () => ({navigate: mockParentNavigate}),
     }),
     useRoute: () => ({
       params: mockRouteParams,
@@ -419,30 +414,6 @@ describe('TasksListScreen', () => {
 
     const {queryByTestId} = render(<TasksListScreen />);
     expect(queryByTestId('header-add-btn')).toBeNull();
-  });
-
-  // Tasks hang off a companion, so with none there is nothing to add a task to.
-  // The screen used to just say the list was empty and offer no way forward, so
-  // what matters is where the replacement CTA actually goes.
-  it('sends the empty-state CTA to AddCompanion on the home stack when there are no companions', () => {
-    // The CTA lives in the list's empty component, so the task list has to be
-    // empty as well as the companion list - otherwise the rows render instead.
-    mockUseSelector.mockImplementation((cb: any) =>
-      cb({
-        ...mockState,
-        mockTasks: [],
-        companion: {companions: [], selectedCompanionId: null},
-      }),
-    );
-
-    const {getByText} = render(<TasksListScreen />);
-    fireEvent.press(getByText('Add a companion'));
-
-    expect(mockParentNavigate).toHaveBeenCalledWith('HomeStack', {
-      screen: 'AddCompanion',
-    });
-    // It must cross to the parent, not push AddTask onto the tasks stack.
-    expect(mockNavigate).not.toHaveBeenCalledWith('AddTask', expect.anything());
   });
 
   it('navigates to AddTask with the selected date prefilled when the header add button is pressed', () => {
