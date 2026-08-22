@@ -2149,6 +2149,52 @@ describe("ClinicalArtifactService", () => {
     expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
   });
 
+  // The FHIR status mapper defaults an omitted or unrecognised
+  // `Composition.status` to DRAFT, so a plain PATCH arrives carrying DRAFT
+  // rather than undefined. Without DRAFT in the guard, one request both edited a
+  // finalised record and silently reopened it.
+  it("refuses to reopen a final SOAP note by editing it as a DRAFT", async () => {
+    mockedPrisma.soapNote.findUnique.mockResolvedValueOnce({
+      id: soapNoteId,
+      artifactId,
+      subjective: null,
+      objective: null,
+      assessment: null,
+      plan: null,
+      diagnoses: null,
+      metadata: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      artifact: {
+        id: artifactId,
+        organisationId,
+        kind: "SOAP_NOTE",
+        status: "SIGNED",
+        appointmentId: null,
+        caseId: null,
+        encounterId: null,
+        templateId: null,
+        templateVersion: null,
+        templateVersionId: null,
+        authorId: null,
+        signedBy: null,
+        signedAt: null,
+        summary: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+    });
+
+    await expect(
+      ClinicalArtifactService.updateSoapNote(
+        soapNoteId,
+        { summary: "edited while signed", status: "DRAFT" },
+        organisationId,
+      ),
+    ).rejects.toThrow("Artifact is final. Reopen or amend it before editing.");
+    expect(mockedPrisma.clinicalArtifact.update).not.toHaveBeenCalled();
+  });
+
   it("finalizes and reopens SOAP notes through explicit lifecycle helpers", async () => {
     mockedPrisma.clinicalArtifact.update.mockReset();
     mockedPrisma.soapNote.update.mockReset();

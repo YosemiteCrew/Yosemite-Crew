@@ -1376,13 +1376,26 @@ const createRenderedDocumentForArtifactInTx = async (
   );
 };
 
+/**
+ * A COMPLETED or SIGNED artifact may only leave that state through a deliberate
+ * lifecycle operation - `$reopen` sends IN_PROGRESS, `$cancel` sends VOID.
+ *
+ * DRAFT is included on purpose. The FHIR status mapper defaults an omitted or
+ * unrecognised `Composition.status` to DRAFT, so a plain PATCH that names no
+ * status arrives here as DRAFT rather than undefined - which let one request
+ * both edit a finalised clinical record AND silently reopen it. Nothing
+ * legitimately moves final -> DRAFT; `updatePrescription` already spelled this
+ * out and the other three artifact kinds share this guard.
+ */
 const assertArtifactEditable = (
   artifact: { status: ClinicalArtifactStatus },
   nextStatus: ClinicalArtifactStatus | undefined,
 ) => {
   if (
     isFinalClinicalArtifactStatus(artifact.status) &&
-    (nextStatus === undefined || isFinalClinicalArtifactStatus(nextStatus))
+    (nextStatus === undefined ||
+      isFinalClinicalArtifactStatus(nextStatus) ||
+      nextStatus === "DRAFT")
   ) {
     throw new ClinicalArtifactServiceError(
       "Artifact is final. Reopen or amend it before editing.",

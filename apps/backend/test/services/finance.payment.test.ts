@@ -392,6 +392,10 @@ describe("FinancePaymentService", () => {
     (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
       id: "inv_6",
       totalAmount: 100,
+      // Load-bearing: the balance line is only charged tax-free when the balance
+      // ALREADY includes tax. Without this the invoice reads as never-taxed and
+      // Stripe must calculate tax on the balance instead.
+      taxTotal: 10,
       currency: "usd",
       status: "AWAITING_PAYMENT",
       paymentCollectionMethod: "PAYMENT_INTENT",
@@ -492,6 +496,9 @@ describe("FinancePaymentService", () => {
     (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
       id: "inv_dep",
       totalAmount: 100,
+      // The deposit already carried tax, so the remaining balance is
+      // tax-inclusive and Stripe must not tax it again.
+      taxTotal: 10,
       currency: "usd",
       status: "AWAITING_PAYMENT",
       paymentCollectionMethod: "PAYMENT_INTENT",
@@ -1476,6 +1483,7 @@ describe("FinancePaymentService", () => {
     (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
       id: "inv_repriced",
       totalAmount: 114,
+      taxTotal: 14,
       currency: "usd",
       status: "AWAITING_PAYMENT",
       paymentCollectionMethod: "PAYMENT_LINK",
@@ -1605,10 +1613,14 @@ describe("FinancePaymentService", () => {
 
     expect(stripeClient.checkout.sessions.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        // An invoice-level discount makes the item sum differ from the balance, so we
-        // charge the tax-inclusive balance as one line with automatic tax disabled.
+        // An invoice-level discount makes the item sum differ from the pre-tax
+        // total, so the balance is charged as one line - but this invoice's tax
+        // was never calculated (`taxTotal` is absent, so `totalAmount` is the
+        // discounted PRE-tax subtotal). Disabling automatic tax here charged the
+        // customer a pre-tax amount and then recorded the invoice paid at that
+        // under-taxed total, so Stripe keeps calculating tax on the balance.
         automatic_tax: {
-          enabled: false,
+          enabled: true,
         },
         line_items: [
           expect.objectContaining({

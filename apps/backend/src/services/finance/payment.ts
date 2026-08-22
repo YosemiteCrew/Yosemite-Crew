@@ -709,9 +709,22 @@ const buildCheckoutSessionLineItems = (params: {
     summary.credited > 0 ||
     discountedItemSum !== preTaxInvoiceTotal;
 
+  // Disabling automatic tax is only safe when the balance we are about to charge
+  // ALREADY includes tax. An invoice whose tax was never calculated - drafts are
+  // created with `skipTaxCalculation`, leaving `taxTotal` at 0 and `totalAmount`
+  // at the discounted PRE-tax subtotal - takes the balance-line path as soon as
+  // an invoice-level discount exists, and switching tax off there charges the
+  // customer a pre-tax amount and then records the invoice paid at that
+  // under-taxed total. So the balance line stays (it is what is actually owed),
+  // but Stripe keeps calculating tax on it unless the invoice carries some.
+  const balanceIncludesTax =
+    typeof invoice.taxTotal === "number" && invoice.taxTotal > 0;
+  const disableAutomaticTax = useBalanceLine && balanceIncludesTax;
+
   if (useBalanceLine) {
     return {
       useBalanceLine,
+      disableAutomaticTax,
       lineItems: [
         {
           price_data: {
@@ -729,6 +742,7 @@ const buildCheckoutSessionLineItems = (params: {
 
   return {
     useBalanceLine,
+    disableAutomaticTax,
     lineItems: items.map((item) => {
       const typed = item as CheckoutLineItemSource;
       const unitPrice =
@@ -1009,7 +1023,7 @@ export const FinancePaymentService = {
       throw new FinancePaymentError("Invoice items are missing", 400);
     }
 
-    const { useBalanceLine, lineItems } = buildCheckoutSessionLineItems({
+    const { disableAutomaticTax, lineItems } = buildCheckoutSessionLineItems({
       invoice,
       items,
       summary,
@@ -1023,7 +1037,7 @@ export const FinancePaymentService = {
       {
         mode: "payment",
         automatic_tax: {
-          enabled: !useBalanceLine,
+          enabled: !disableAutomaticTax,
         },
         line_items: lineItems,
         metadata: {
