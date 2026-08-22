@@ -247,20 +247,24 @@ function makeWriters({ project, fields, optionId, actions }) {
   return { setSelect, setDate };
 }
 
-// Put every open issue on the board. Under --dry-run nothing is added, so the
-// caller's `live` array is left untouched and callers must not assume the new
-// items exist.
+// Put every open issue on the board.
+//
+// Under --dry-run no item is created on GitHub, but one is still tracked in
+// memory with no field values, so the reconcile pass that follows reports the
+// writes a live run would make. Skipping that bookkeeping would make a dry run
+// silently omit field updates for exactly the issues it is about to add, which
+// is the opposite of what a dry run is for.
 async function addMissingIssues({ project, openIssues, byContentId, live, actions }) {
   for (const issue of openIssues) {
     if (byContentId.has(issue.id)) continue;
     actions.added.push(`#${issue.number} ${issue.title}`);
-    if (DRY_RUN) continue;
-    const res = await gql(ADD_ITEM, { projectId: project.id, contentId: issue.id });
-    const item = {
-      id: res.addProjectV2ItemById.item.id,
-      fieldValues: { nodes: [] },
-      content: issue,
-    };
+
+    const id = DRY_RUN
+      ? `dry-run:${issue.number}`
+      : (await gql(ADD_ITEM, { projectId: project.id, contentId: issue.id })).addProjectV2ItemById
+          .item.id;
+
+    const item = { id, fieldValues: { nodes: [] }, content: issue };
     byContentId.set(issue.id, item);
     live.push(item);
   }
@@ -384,9 +388,13 @@ async function main() {
   await addMissingIssues({ project, openIssues, byContentId, live, actions });
 
   for (const issue of openIssues) {
-    const item = byContentId.get(issue.id);
-    // Absent only under --dry-run, where the add above was not performed.
-    if (item) await reconcileIssue({ issue, item, setSelect, setDate, actions });
+    await reconcileIssue({
+      issue,
+      item: byContentId.get(issue.id),
+      setSelect,
+      setDate,
+      actions,
+    });
   }
 
   await retireCompleted({
