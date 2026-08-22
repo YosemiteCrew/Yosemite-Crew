@@ -10,7 +10,12 @@ import {
 import { generatePresignedUrl } from "src/middlewares/upload";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { OrgRequest } from "src/middlewares/rbac";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import {
+  resolveUserIdFromRequest,
+  resolveVerifiedOrganisationId,
+  resolveVerifiedUserId,
+} from "src/utils/request";
+import { prisma } from "src/config/prisma";
 
 type MobileUploadUrlBody = {
   patientId?: string;
@@ -71,6 +76,46 @@ export const DocumentController = {
         return res.status(400).json({
           message: "patientId/companionId and mimeType are required.",
         });
+      }
+
+      // The presigned key is derived from the supplied companion id, so minting
+      // one without an ownership check let a caller write into any companion's
+      // storage prefix - including another tenant's - and later reference those
+      // keys from documents. This handler serves BOTH the PMS and mobile routes,
+      // so the applicable boundary depends on which one ran: an organisation
+      // context is present only on the org-scoped PMS route.
+      const organisationId = resolveVerifiedOrganisationId(req);
+      if (organisationId) {
+        const membership = await prisma.patientOrganisation.findFirst({
+          where: {
+            patientId: resolvedPatientId,
+            organisationId,
+            status: "ACTIVE",
+          },
+          select: { id: true },
+        });
+        if (!membership) {
+          return res.status(404).json({ message: "Companion not found." });
+        }
+      } else {
+        const authUserId = resolveVerifiedUserId(req);
+        const authUserMobile = authUserId
+          ? await AuthUserMobileService.getByProviderUserId(authUserId)
+          : null;
+        if (!authUserMobile?.parentId) {
+          return res.status(403).json({ message: "Parent account not found." });
+        }
+        const link = await prisma.parentPatient.findFirst({
+          where: {
+            patientId: resolvedPatientId,
+            parentId: authUserMobile.parentId.toString(),
+            status: "ACTIVE",
+          },
+          select: { id: true },
+        });
+        if (!link) {
+          return res.status(404).json({ message: "Companion not found." });
+        }
       }
 
       const { url, key } = await generatePresignedUrl(

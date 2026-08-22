@@ -1014,16 +1014,31 @@ const collectPrescriptionInventoryItemIds = (
   }
 };
 
+/**
+ * Medication fields for the inventory items a prescription references.
+ *
+ * `inventoryItemId` reaches the medication JSON from a client-controlled FHIR
+ * extension and is stored without proving the item belongs to the prescribing
+ * organisation, so this lookup has to carry the tenant itself. Without it,
+ * naming another practice's item id in an otherwise local prescription and then
+ * listing prescriptions returned that item's name, generic name, strength,
+ * dosage form and controlled-substance flag. An id from another tenant simply
+ * does not hydrate.
+ */
 const loadInventoryMedicationFieldsById = async (
   inventoryItemIds: Set<string>,
+  organisationIds: Set<string>,
 ): Promise<Map<string, InventoryMedicationFields>> => {
   const inventoryById = new Map<string, InventoryMedicationFields>();
-  if (inventoryItemIds.size === 0) {
+  if (inventoryItemIds.size === 0 || organisationIds.size === 0) {
     return inventoryById;
   }
 
   const items = await prisma.inventoryItem.findMany({
-    where: { id: { in: [...inventoryItemIds] } },
+    where: {
+      id: { in: [...inventoryItemIds] },
+      organisationId: { in: [...organisationIds] },
+    },
     select: {
       id: true,
       name: true,
@@ -1044,12 +1059,18 @@ const hydratePrescriptionRecords = async (
   records: PrescriptionWithArtifact[],
 ): Promise<PrescriptionRecord[]> => {
   const inventoryItemIds = new Set<string>();
+  const organisationIds = new Set<string>();
   for (const record of records) {
     collectPrescriptionInventoryItemIds(record, inventoryItemIds);
+    if (record.artifact.organisationId) {
+      organisationIds.add(record.artifact.organisationId);
+    }
   }
 
-  const inventoryById =
-    await loadInventoryMedicationFieldsById(inventoryItemIds);
+  const inventoryById = await loadInventoryMedicationFieldsById(
+    inventoryItemIds,
+    organisationIds,
+  );
 
   return records.map((record) =>
     toPrescriptionRecord({

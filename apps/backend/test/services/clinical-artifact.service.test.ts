@@ -2972,7 +2972,12 @@ describe("ClinicalArtifactService", () => {
         orderBy: { createdAt: "desc" },
       });
       expect(mockedPrisma.inventoryItem.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id: { in: ["inv-1"] } } }),
+        expect.objectContaining({
+          where: {
+            id: { in: ["inv-1"] },
+            organisationId: { in: ["org-1"] },
+          },
+        }),
       );
 
       const fromItems = records[0].prescription.medications as Array<
@@ -3032,7 +3037,12 @@ describe("ClinicalArtifactService", () => {
         );
 
       expect(mockedPrisma.inventoryItem.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id: { in: ["inv-1"] } } }),
+        expect.objectContaining({
+          where: {
+            id: { in: ["inv-1"] },
+            organisationId: { in: ["org-1"] },
+          },
+        }),
       );
       const meds = records[0].prescription.medications as unknown[];
       expect(meds[0]).toBe("free-text line");
@@ -4799,8 +4809,16 @@ describe("ClinicalArtifactService.listPrescriptionsForEncounter hydration", () =
       Record<string, unknown>
     >;
     expect(meds[0].medication).toBe("Amoxicillin 500mg");
+    // Scoped to the prescribing organisation: `inventoryItemId` reaches the
+    // medication JSON from a client FHIR extension, so an unscoped lookup
+    // hydrated another tenant's item name, strength and controlled flag.
     expect(mocked.inventoryItem.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: { in: ["item-1"] } } }),
+      expect.objectContaining({
+        where: {
+          id: { in: ["item-1"] },
+          organisationId: { in: ["org-1"] },
+        },
+      }),
     );
   });
 
@@ -5058,7 +5076,10 @@ describe("ClinicalArtifactService.listPrescriptionsForEncounter hydration", () =
     // item-1 into the shared set.
     expect(mocked.inventoryItem.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: { in: ["item-1", "item-2"] } },
+        where: {
+          id: { in: ["item-1", "item-2"] },
+          organisationId: { in: ["org-1"] },
+        },
       }),
     );
   });
