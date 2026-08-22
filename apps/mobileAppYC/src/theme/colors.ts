@@ -32,7 +32,24 @@ const palette = {
   // only 1.86:1 against `screen` (#F7F3EC), well under the 3:1 WCAG 1.4.11 bar
   // for a state indicator, so a light surface needs this deepened rose (3.47:1)
   // while the espresso theme can use the true brand pink (7.13:1) as-is.
-  pinkDeep: ['#DB4A9B', '#FF90D4'],
+  /**
+   * Pink for anything that must be READ - text and state indicators.
+   *
+   * The brand pink measures 1.86:1 on bone, so the "Hello, <name>" greeting on
+   * Home was rendering real user-facing copy at 1.74:1 as measured on device.
+   *
+   * #C30077 is set against the DARKEST light ground this can land on, not
+   * against `screen`. Measuring only against `screen` gives 4.68:1 and looks
+   * fine, but the Home header sits on its own slightly darker fill and the
+   * on-device reading came back 4.37:1 - under the bar. Against `inset` it
+   * would have been 4.03:1. So: screen 5.29:1, header 4.94:1, inset 4.55:1.
+   *
+   * This also covers the 3:1 bar the token was introduced for (the onboarding
+   * progress dot). Espresso keeps the true brand pink, already 7.13:1 there.
+   *
+   * `pink` stays the decorative fill: icons, the ink-annotation ring, washes.
+   */
+  pinkDeep: ['#C30077', '#FF90D4'],
   pinkGlow: ['rgba(244, 121, 190, 0.12)', 'rgba(244, 121, 190, 0.22)'],
   // rgba forms of `blue` (#257BED = 37,123,237). These exist as tokens because
   // the map cluster pin previously hard-coded rgba(36,122,237,...) - the stale
