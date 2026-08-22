@@ -211,7 +211,12 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
       origin: null,
       profileImage: null,
     },
-    mode: 'onChange',
+    // onTouched, not onChange: validating every keystroke told people their
+    // own name "must be at least 2 characters" after the first letter. The
+    // field is judged when they leave it, and only then re-checked as they
+    // type, so a correction still updates live.
+    mode: 'onTouched',
+    reValidateMode: 'onChange',
   });
 
   const getFieldError = (field: keyof FormData) => errors[field]?.message;
