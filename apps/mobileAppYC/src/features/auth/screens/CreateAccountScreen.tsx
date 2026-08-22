@@ -1481,7 +1481,11 @@ const createStyles = (theme: Theme) =>
       width: 92,
       height: 92,
       borderRadius: 46,
-      backgroundColor: theme.colors.avatarVioletBg,
+      // The parent's own photo control, not a category chip: blue is the
+      // interaction accent (see colors.ts), and it matches the "Add photo"
+      // label underneath. avatarViolet* stays reserved for the categorical
+      // avatar/icon chips in tasks, expenses, chat and documents.
+      backgroundColor: theme.colors.blueSoft,
       alignItems: 'center',
       justifyContent: 'center',
       overflow: 'hidden',
@@ -1493,13 +1497,13 @@ const createStyles = (theme: Theme) =>
     },
     avatarInitials: {
       ...theme.typography.serifTitle,
-      color: theme.colors.avatarVioletInk,
+      color: theme.colors.blueText,
     },
     avatarPlaceholderIcon: {
       width: theme.spacing['8'],
       height: theme.spacing['8'],
       resizeMode: 'contain',
-      tintColor: theme.colors.avatarVioletInk,
+      tintColor: theme.colors.blueText,
     },
     avatarBadge: {
       position: 'absolute',
