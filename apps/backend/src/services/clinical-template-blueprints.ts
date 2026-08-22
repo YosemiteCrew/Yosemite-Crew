@@ -256,11 +256,17 @@ const VITALS_BLUEPRINT: ClinicalTemplateSchemaSnapshot = {
       order: 1,
       fields: [
         {
+          // `lbs`, matching the field KEY, the canonical vitals structure in
+          // `@yosemite-crew/types`, and the frontend, which renders this value
+          // with a "lbs" suffix and converts it to kg for the dose calculators.
+          // Declaring it as kg here labelled a pounds figure as kilograms on
+          // generated vital templates - a clinical mislabelling, and the two
+          // sides also disagreed on the same field.
           key: "weightLbs",
           label: "Weight",
           type: "number",
           order: 1,
-          rules: { unit: "kg" },
+          rules: { unit: "lbs" },
         },
         {
           key: "tempF",
