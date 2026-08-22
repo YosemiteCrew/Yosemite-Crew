@@ -1,8 +1,6 @@
-import React from 'react';
+import React, {useMemo} from 'react';
 import {View, Text, StyleSheet} from 'react-native';
-import {useMemo} from 'react';
-import {colors} from '@/theme';
-import type {ColorTokens} from '@/theme';
+import {colors, type ColorTokens} from '@/theme';
 
 interface ClusterMapPinProps {
   count: number;
