@@ -4,6 +4,9 @@ const requireWebAuth = jest.fn((_req, _res, next) => next());
 const requireMobileAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
+const requireAllPermissions = jest.fn(() =>
+  jest.fn((_req, _res, next) => next()),
+);
 
 const WorkspaceController = {
   getAppointmentBootstrap: jest.fn(),
@@ -32,6 +35,7 @@ jest.mock("src/middlewares/auth", () => ({
 jest.mock("src/middlewares/rbac", () => ({
   withOrgPermissions,
   requirePermission,
+  requireAllPermissions,
 }));
 
 jest.mock("src/controllers/web/workspace.controller", () => ({

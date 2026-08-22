@@ -46,6 +46,7 @@ jest.mock("../../src/config/prisma", () => ({
 import { prisma } from "../../src/config/prisma";
 import {
   requirePermission,
+  requireAllPermissions,
   type OrgRequest,
   withAppointmentOrgPermissions,
   withCaseOrgPermissions,
@@ -956,6 +957,64 @@ describe("rbac middleware", () => {
       "tasks:edit:any",
     ]);
     expect(middlewareNext).toHaveBeenCalled();
+  });
+});
+
+describe("rbac requireAllPermissions", () => {
+  it("returns 500 if permissions not loaded", () => {
+    const middleware = requireAllPermissions(["document:view:any"]);
+    const res = mockRes();
+
+    middleware({} as Request, res, next());
+
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  it("allows only when every listed permission is held", () => {
+    const middleware = requireAllPermissions([
+      "document:view:any",
+      "forms:view:any",
+      "prescription:view:any",
+    ]);
+    const allowNext = next();
+
+    middleware(
+      {
+        userPermissions: [
+          "document:view:any",
+          "forms:view:any",
+          "prescription:view:any",
+        ],
+      } as never,
+      mockRes(),
+      allowNext,
+    );
+
+    expect(allowNext).toHaveBeenCalled();
+  });
+
+  // This is the difference from `requirePermission`, which is any-of: an
+  // aggregate endpoint must not be reachable on one of the kinds it merges.
+  // Roles grant these three together, but `revokedPermissions` is per-user.
+  it("rejects when one of the listed permissions has been revoked", () => {
+    const middleware = requireAllPermissions([
+      "document:view:any",
+      "forms:view:any",
+      "prescription:view:any",
+    ]);
+    const denyRes = mockRes();
+    const denyNext = next();
+
+    middleware(
+      {
+        userPermissions: ["document:view:any", "forms:view:any"],
+      } as never,
+      denyRes,
+      denyNext,
+    );
+
+    expect(denyNext).not.toHaveBeenCalled();
+    expect(denyRes.status).toHaveBeenCalledWith(403);
   });
 });
 

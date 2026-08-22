@@ -413,6 +413,42 @@ export function withPractitionerRoleOrgPermissions() {
   };
 }
 
+/**
+ * Every listed permission, not any of them.
+ *
+ * `requirePermission` treats an array as ANY-OF, which is the right idiom for
+ * `:any`/`:own` pairs of one resource. An endpoint that AGGREGATES several
+ * resource kinds needs the opposite: a combined clinical packet merges rendered
+ * forms and prescriptions into one PDF, so `document:view:any` alone would hand
+ * it to someone whose prescription or form visibility had been revoked
+ * individually (roles grant all three together, but `revokedPermissions` is
+ * per-user and overrides the role).
+ */
+export function requireAllPermissions(required: Permission[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const typedReq = req as OrgRequest;
+    const perms = typedReq.userPermissions;
+
+    if (!perms) {
+      return res.status(500).json({
+        message:
+          "Permissions not loaded. Include withOrgPermissions before requireAllPermissions.",
+      });
+    }
+
+    const missing = required.filter(
+      (permission) => !perms.includes(permission),
+    );
+    if (missing.length > 0) {
+      return res.status(403).json({
+        message: "Forbidden: missing required permissions",
+      });
+    }
+
+    return next();
+  };
+}
+
 export function requirePermission(required: Permission | Permission[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     const typedReq = req as OrgRequest;
