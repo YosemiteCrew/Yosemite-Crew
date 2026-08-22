@@ -90,9 +90,8 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
     (challengeType === 'demoPassword' || email === DEMO_LOGIN_EMAIL);
   // Never derived from an embedded password: the app cannot know how long the
   // real one is, and guessing drove a premature auto-submit.
-  const expectedLength = isDemoLogin
-    ? (challengeLength ?? 0)
-    : (challengeLength ?? DEFAULT_OTP_LENGTH);
+  const expectedLength =
+    challengeLength ?? (isDemoLogin ? 0 : DEFAULT_OTP_LENGTH);
 
   const [otpCode, setOtpCode] = useState('');
   const [otpError, setOtpError] = useState('');
