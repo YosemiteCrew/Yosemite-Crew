@@ -2225,6 +2225,63 @@ const buildBootstrapAggregate = async (
   } as WorkspaceBootstrapResponse;
 };
 
+/**
+ * Refuse a treatment-item mutation once the appointment's billing window has
+ * closed.
+ *
+ * The lock window is surfaced to clients as `locks.treatmentItems`, but it was
+ * only ever advisory: the mutation endpoints checked `billing:edit:any` and
+ * nothing else, so a caller ignoring the UI could POST/PATCH/DELETE charges long
+ * after the window shut. The window exists to freeze an appointment's billing,
+ * which only holds if the server enforces it.
+ */
+const assertTreatmentItemsUnlocked = async (params: {
+  organisationId: string;
+  encounterId?: string | null;
+  appointmentId?: string | null;
+}): Promise<void> => {
+  const encounterId = params.encounterId?.trim();
+  const appointmentId = params.appointmentId?.trim();
+  if (!encounterId && !appointmentId) {
+    return;
+  }
+
+  const [organisation, appointment, encounter] = await Promise.all([
+    prisma.organization.findUnique({
+      where: { id: params.organisationId },
+      select: {
+        appointmentLockWindowOutpatientMinutes: true,
+        appointmentLockWindowInpatientMinutes: true,
+      },
+    }),
+    appointmentId
+      ? prisma.appointment.findFirst({
+          where: { id: appointmentId, organisationId: params.organisationId },
+          select: { startTime: true, appointmentKind: true },
+        })
+      : null,
+    encounterId
+      ? prisma.encounter.findFirst({
+          where: { id: encounterId, organisationId: params.organisationId },
+          select: { periodStart: true, appointmentKind: true },
+        })
+      : null,
+  ]);
+
+  const locked = resolveWorkspaceLock({
+    appointment: appointment as AppointmentRow | null,
+    encounter: encounter as Encounter | null,
+    organisation,
+  });
+
+  if (locked) {
+    throw new WorkspaceServiceError(
+      "This appointment's billing window has closed.",
+      409,
+    );
+  }
+};
+
 export const WorkspaceService = {
   async getAppointmentBootstrap(
     input: WorkspaceBootstrapInput,
@@ -2325,6 +2382,12 @@ export const WorkspaceService = {
       throw new WorkspaceServiceError("Encounter is required", 400);
     }
 
+    await assertTreatmentItemsUnlocked({
+      organisationId: input.organisationId,
+      encounterId,
+      appointmentId: input.appointmentId,
+    });
+
     const created = (await prisma.workspaceTreatmentItem.create({
       data: {
         organisationId: input.organisationId,
@@ -2360,6 +2423,12 @@ export const WorkspaceService = {
     if (!existing) {
       throw new WorkspaceServiceError("Treatment item not found", 404);
     }
+
+    await assertTreatmentItemsUnlocked({
+      organisationId,
+      encounterId: existing.encounterId,
+      appointmentId: existing.appointmentId,
+    });
 
     const updated = (await prisma.workspaceTreatmentItem.update({
       where: { id: itemId },
@@ -2400,12 +2469,18 @@ export const WorkspaceService = {
   ): Promise<void> {
     const existing = await prisma.workspaceTreatmentItem.findFirst({
       where: { id: itemId, organisationId },
-      select: { id: true },
+      select: { id: true, encounterId: true, appointmentId: true },
     });
 
     if (!existing) {
       throw new WorkspaceServiceError("Treatment item not found", 404);
     }
+
+    await assertTreatmentItemsUnlocked({
+      organisationId,
+      encounterId: existing.encounterId,
+      appointmentId: existing.appointmentId,
+    });
 
     await prisma.workspaceTreatmentItem.delete({ where: { id: itemId } });
   },

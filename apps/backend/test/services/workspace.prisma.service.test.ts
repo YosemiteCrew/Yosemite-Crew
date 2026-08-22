@@ -844,6 +844,34 @@ describe("WorkspaceService", () => {
     });
     expect(created.productId).toBe("prod-2");
 
+    // The lock window is surfaced to clients as `locks.treatmentItems`, but it
+    // has to be enforced here too - a caller ignoring the UI could otherwise add
+    // charges long after an appointment's billing window closed.
+    mockedPrisma.organization.findUnique.mockResolvedValue({
+      appointmentLockWindowOutpatientMinutes: 0,
+      appointmentLockWindowInpatientMinutes: 0,
+    });
+    mockedPrisma.appointment.findFirst.mockResolvedValue({
+      startTime: new Date("2020-01-01T00:00:00.000Z"),
+      appointmentKind: "OUTPATIENT",
+    });
+
+    await expect(
+      WorkspaceService.createEncounterTreatmentItem({
+        organisationId: "org-1",
+        encounterId: "enc-1",
+        appointmentId: "appt-1",
+        productId: "prod-3",
+        productSnapshot: { name: "Late charge" },
+        servicePackageKind: "PROCEDURE",
+        quantity: 1,
+        priceSnapshot: { totalAmount: 10 },
+      }),
+    ).rejects.toMatchObject({ statusCode: 409 });
+
+    mockedPrisma.organization.findUnique.mockResolvedValue(null);
+    mockedPrisma.appointment.findFirst.mockResolvedValue(null);
+
     const updated = await WorkspaceService.updateTreatmentItem(
       "ti-2",
       "org-1",
