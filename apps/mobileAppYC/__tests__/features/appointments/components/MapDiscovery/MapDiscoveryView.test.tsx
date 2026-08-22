@@ -514,6 +514,26 @@ describe('MapDiscoveryView', () => {
   });
 });
 
+describe('coordinate validation', () => {
+  it('does not map a clinic whose coordinates are out of range', () => {
+    // lat/lng come from organisation ADDRESS data, so anyone able to influence
+    // a business address controls them - and the native map throws on a value
+    // like latitude 999, taking discovery down for whoever opens it.
+    mockClusterClinics.mockClear();
+    renderView({
+      clinics: [
+        {...baseClinics[0], id: 'ok', lat: 47.37, lng: 8.54},
+        {...baseClinics[0], id: 'bad-lat', lat: 999, lng: 8.54},
+        {...baseClinics[0], id: 'bad-lng', lat: 47.37, lng: -999},
+        {...baseClinics[0], id: 'nan', lat: Number.NaN, lng: 8.54},
+      ] as never,
+    });
+
+    const mapped = mockClusterClinics.mock.calls[0][0] as Array<{id: string}>;
+    expect(mapped.map(c => c.id)).toEqual(['ok']);
+  });
+});
+
 // Small helper component for overlay test
 function Overlay() {
   const {View} = require('react-native');

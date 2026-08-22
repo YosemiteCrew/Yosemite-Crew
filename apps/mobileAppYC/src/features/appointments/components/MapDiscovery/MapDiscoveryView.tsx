@@ -86,6 +86,27 @@ const buildInitialRegion = (
   };
 };
 
+/**
+ * Whether a clinic carries a coordinate the native map can actually plot.
+ *
+ * Latitude and longitude come from organisation address data, so anyone who can
+ * influence a business address controls them. A non-finite or out-of-range pair
+ * (latitude 999) makes the native map component throw when a victim opens
+ * discovery, taking the feature down - so such an entry is simply not mapped.
+ */
+const hasPlottableCoordinates = (clinic: {
+  lat?: number | null;
+  lng?: number | null;
+}): clinic is {lat: number; lng: number} =>
+  typeof clinic.lat === 'number' &&
+  typeof clinic.lng === 'number' &&
+  Number.isFinite(clinic.lat) &&
+  Number.isFinite(clinic.lng) &&
+  clinic.lat >= -90 &&
+  clinic.lat <= 90 &&
+  clinic.lng >= -180 &&
+  clinic.lng <= 180;
+
 const MapDiscoveryView: React.FC<MapDiscoveryViewProps> = ({
   clinics,
   selectedClinicId,
@@ -113,6 +134,14 @@ const MapDiscoveryView: React.FC<MapDiscoveryViewProps> = ({
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
+
+  // Only the MAP is restricted to plottable clinics. A clinic with a bad or
+  // missing coordinate still belongs in the list and the sheet - it just cannot
+  // be given to the native map, which throws on an out-of-range value.
+  const mappableClinics = useMemo(
+    () => clinics.filter(clinic => hasPlottableCoordinates(clinic)),
+    [clinics],
+  );
 
   const categories = useMemo(
     () => [
@@ -154,16 +183,17 @@ const MapDiscoveryView: React.FC<MapDiscoveryViewProps> = ({
   }, [userLocation]);
 
   useEffect(() => {
-    if (userLocation || clinics.length === 0) return;
-    const coords = clinics
-      .filter(c => c.lat != null && c.lng != null)
-      .map(c => ({latitude: c.lat as number, longitude: c.lng as number}));
+    if (userLocation || mappableClinics.length === 0) return;
+    const coords = mappableClinics.map(c => ({
+      latitude: c.lat as number,
+      longitude: c.lng as number,
+    }));
     if (coords.length === 0) return;
     mapRef.current?.fitToCoordinates(coords, {
       edgePadding: {top: 80, right: 40, bottom: 220, left: 40},
       animated: true,
     });
-  }, [clinics, userLocation]);
+  }, [mappableClinics, userLocation]);
 
   const selectedClinic = useMemo(
     () => clinics.find(c => c.id === selectedClinicId) ?? null,
@@ -225,8 +255,8 @@ const MapDiscoveryView: React.FC<MapDiscoveryViewProps> = ({
   );
 
   const mapItems = useMemo(
-    () => clusterClinics(clinics, mapRegion?.latitudeDelta ?? 0),
-    [clinics, mapRegion],
+    () => clusterClinics(mappableClinics, mapRegion?.latitudeDelta ?? 0),
+    [mappableClinics, mapRegion],
   );
 
   const filterHeader = useMemo(

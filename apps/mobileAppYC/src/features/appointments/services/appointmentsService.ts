@@ -1290,9 +1290,9 @@ export const appointmentApi = {
     services: VetService[];
     packages: VetPackage[];
   }> {
-    const qs = new URLSearchParams({
-      serviceName: encodeURIComponent(serviceName),
-    });
+    // URLSearchParams encodes its values, so pre-encoding turned a space into
+    // "%2520" and a search for "Dental Clean" never matched anything.
+    const qs = new URLSearchParams({serviceName});
     if (lat != null) qs.set('lat', String(lat));
     if (lng != null) qs.set('lng', String(lng));
     const url = buildUrl(

@@ -97,7 +97,10 @@ describe('RatingStars Component', () => {
     const star3 = getByLabelText('Rate 3 stars');
     const star4 = getByLabelText('Rate 4 stars');
     expect(star1.props.accessibilityRole).toBe('radio');
-    expect(star1.props.accessibilityState).toEqual({selected: true});
+    // Radio controls are mutually exclusive: only the star that IS the current
+    // rating is selected. Marking every filled star selected announced "1, 2
+    // and 3 selected" for a rating of 3.
+    expect(star1.props.accessibilityState).toEqual({selected: false});
     expect(star3.props.accessibilityState).toEqual({selected: true});
     expect(star4.props.accessibilityState).toEqual({selected: false});
   });

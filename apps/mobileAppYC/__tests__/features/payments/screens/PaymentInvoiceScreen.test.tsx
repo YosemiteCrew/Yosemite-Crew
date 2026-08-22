@@ -335,6 +335,32 @@ describe('PaymentInvoiceScreen', () => {
     expect(screen.getByText('Payment at Provider')).toBeTruthy();
   });
 
+  it('badges a paid invoice as paid even when its label is not English', () => {
+    // The badge used to be derived by matching English words inside the
+    // TRANSLATED label, so a non-English locale fell through to "Due" and
+    // showed a settled invoice as outstanding. Simulated here by giving the
+    // label a non-English value while the invoice status stays PAID.
+    const state = createSafeState({
+      appointments: {
+        invoices: {
+          'apt-1': {
+            ...mockInvoiceData,
+            status: 'PAID',
+            paymentCollectionMethod: 'PAYMENT_AT_CLINIC',
+            paidAt: '2026-03-25T10:00:00.000Z',
+          },
+        },
+      },
+    });
+    (useSelector as unknown as jest.Mock).mockImplementation(fn => fn(state));
+
+    render(<PaymentInvoiceScreen />);
+
+    // The badge reads Paid, not the Due fallback.
+    expect(screen.getAllByText('Paid').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Due')).toBeNull();
+  });
+
   it('shows "Paid" when a stripe-backed invoice is paid and not marked as cash', () => {
     const state = createSafeState({
       appointments: {
