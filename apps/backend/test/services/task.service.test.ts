@@ -44,6 +44,9 @@ jest.mock("src/config/prisma", () => ({
     patient: {
       findFirst: jest.fn(),
     },
+    patientOrganisation: {
+      findFirst: jest.fn(),
+    },
   },
 }));
 
@@ -91,6 +94,9 @@ const mockedPrisma = prisma as unknown as {
   patient: {
     findFirst: jest.Mock;
   };
+  patientOrganisation: {
+    findFirst: jest.Mock;
+  };
 };
 const mockedAuditTrailService = AuditTrailService as unknown as {
   recordSafely: jest.Mock;
@@ -107,6 +113,35 @@ describe("TaskService", () => {
     // Nothing here sets a base implementation outside a test, so dropping
     // implementations costs nothing.
     jest.resetAllMocks();
+    // A task's companion must belong to the organisation the task is filed
+    // under; default to "it does" so only the tests that exercise the check
+    // need to say otherwise.
+    mockedPrisma.patientOrganisation.findFirst.mockResolvedValue({
+      id: "patient-org-link",
+    });
+  });
+
+  // `patientId` arrives in the request body alongside `organisationId`, and RBAC
+  // only validates the organisation - so without this a caller could file a task
+  // in their own organisation against another tenant's companion.
+  it("refuses a companion that does not belong to the task's organisation", async () => {
+    mockedPrisma.patientOrganisation.findFirst.mockResolvedValue(null);
+
+    await expect(
+      TaskService.createCustom({
+        category: "Care",
+        name: "Check vitals",
+        createdBy: "user-1",
+        assignedBy: "user-1",
+        assignedTo: "user-2",
+        dueAt,
+        audience: "EMPLOYEE_TASK",
+        organisationId: "org-1",
+        patientId: "comp-other",
+      }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+
+    expect(mockedPrisma.task.create).not.toHaveBeenCalled();
   });
 
   it("creates a custom task and sends an assignment email", async () => {

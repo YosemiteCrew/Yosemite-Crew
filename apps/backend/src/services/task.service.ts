@@ -6,6 +6,7 @@ import {
 } from "@prisma/client";
 import { isTaskCategory } from "@yosemite-crew/types";
 import { prisma } from "src/config/prisma";
+import { assertPatientOrgMembership } from "./shared/patient-org-membership";
 import { AuditTrailService } from "./audit-trail.service";
 import type { TaskWorkflowSeed } from "./task-workflow-materializer";
 import { sendEmailTemplate } from "../utils/email";
@@ -380,6 +381,26 @@ const sanitizeMedication = (input?: MedicationInput | null) => {
     frequency,
     doses: doses?.length ? doses : undefined,
   };
+};
+
+/**
+ * A task's companion must belong to the organisation the task is filed under.
+ *
+ * `patientId` arrives in the request body next to `organisationId`, and RBAC
+ * only validates the organisation - so a caller could file a task in their own
+ * organisation against another tenant's companion, which then surfaces that
+ * companion on their task views.
+ */
+const assertCompanionInOrganisation = async (
+  patientId: string | undefined,
+  organisationId: string | undefined,
+): Promise<void> => {
+  // No companion, or no organisation to scope it to (these inputs carry
+  // `organisationId` optionally), leaves nothing to check.
+  if (!patientId || !organisationId) return;
+  await assertPatientOrgMembership(patientId, organisationId, () => {
+    throw new TaskServiceError("Companion not found", 404);
+  });
 };
 
 const assertCompanionRequirement = (input: {
@@ -1531,6 +1552,7 @@ export const TaskService = {
       medication: input.medication,
       observationToolId: input.observationToolId,
     });
+    await assertCompanionInOrganisation(input.patientId, input.organisationId);
 
     const doc = await prisma.task.create({
       data: buildCreateTaskData({
@@ -1690,6 +1712,7 @@ export const TaskService = {
       medication: input.medication,
       observationToolId: input.observationToolId,
     });
+    await assertCompanionInOrganisation(input.patientId, input.organisationId);
 
     const doc = await prisma.task.create({
       data: buildCreateTaskData({
@@ -1735,6 +1758,7 @@ export const TaskService = {
       medication: input.medication,
       observationToolId: input.observationToolId,
     });
+    await assertCompanionInOrganisation(input.patientId, input.organisationId);
 
     const mapped = await createTaskRow(options?.client ?? prisma, {
       organisationId: input.organisationId,

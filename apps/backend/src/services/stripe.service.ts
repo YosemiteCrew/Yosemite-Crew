@@ -533,13 +533,15 @@ export const StripeService = {
         await this._handleAccountUpdated(event.data.object);
         break;
 
-      // subscription lifecycle
+      // Subscription lifecycle, plus invoice checkout.
+      //
+      // `async_payment_succeeded` is handled alongside `completed` because
+      // delayed payment methods (bank debits, bank transfers) finish the session
+      // before the funds settle and report the outcome on that later event.
+      // Without it, a genuinely-paid invoice using one of those methods would
+      // never settle now that `_handleInvoiceCheckout` refuses to act on a
+      // session whose payment_status is not yet `paid`.
       case "checkout.session.completed":
-      // Delayed payment methods (bank debits, bank transfers) complete the
-      // session before the funds settle, so Stripe reports the outcome later on
-      // these events. Without them a genuinely-paid invoice using one of those
-      // methods would never settle now that `_handleInvoiceCheckout` refuses to
-      // act on an unpaid session.
       case "checkout.session.async_payment_succeeded":
         await this._handleCheckoutCompleted(
           event.data.object,

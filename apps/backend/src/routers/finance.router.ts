@@ -30,11 +30,17 @@ router.get(
   FinanceController.getDiscountSettings,
 );
 
+// `org:edit`, not `billing:edit:any`. The cap is a policy limit ON the people
+// who apply discounts, and every role holds `billing:edit:any` - so gating the
+// cap on that permission let anyone bound by it raise or remove it before
+// discounting an invoice. `org:edit` is held by OWNER and ADMIN only, and the
+// value lives on the organisation record, so it is the right bar in both senses.
+// Reading the cap stays open to billing staff, who need it to work within it.
 router.put(
   "/organisation/:organisationId/discount-settings",
   requireWebAuth,
   withOrgPermissions(),
-  requirePermission("billing:edit:any"),
+  requirePermission("org:edit"),
   FinanceController.updateDiscountSettings,
 );
 
