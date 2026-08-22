@@ -2012,7 +2012,6 @@ export const InvoiceService = {
     // A finalized or previously paid invoice can receive new charges. Re-open it
     // so existing payments remain recorded while the new balance is collectible.
     const wasFinalized = Boolean(invoice.finalizedAt);
-    const wasPaid = invoice.status === "PAID";
 
     const existingItems = Array.isArray(invoice.items)
       ? (invoice.items as unknown as DraftInvoiceItemInput[])
@@ -2038,6 +2037,18 @@ export const InvoiceService = {
       mode: "preview",
       taxContext,
     });
+
+    // Re-open a settled invoice only when the charges actually GREW.
+    //
+    // `mergeInvoiceLineItems` can replace a line by id or by content key, and
+    // the charge endpoints do not strip an `id` from the payload, so a duplicate
+    // or replacement submission produced no new money owed - yet the invoice was
+    // unconditionally flipped back to AWAITING_PAYMENT with `paidAt` cleared and
+    // the billing stage reset to DRAFT. That let a settled invoice, and its
+    // payment/audit state, be reopened without a legitimate new charge.
+    const previousTotal = invoice.totalAmount ?? 0;
+    const wasPaid =
+      invoice.status === "PAID" && totals.totalAmount > previousTotal;
 
     const updated = await prisma.invoice.update({
       where: { id: invoiceId },

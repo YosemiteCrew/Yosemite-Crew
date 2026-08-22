@@ -2383,11 +2383,11 @@ describe("ClinicalArtifactService", () => {
         updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       },
     } as never);
-    mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValueOnce({
-      id: "treatment-item-1",
-      billingStatus: "UNBILLED",
-      invoiceRowId: null,
-    });
+    // The guard now asks directly for a BILLED row rather than loading one row
+    // and inspecting it, so "nothing billed" is null. The old shape - one
+    // unbilled row - was the bug: the delete below removes EVERY row for the
+    // prescription, and package expansion routinely creates several.
+    mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValue(null);
     mockedPrisma.workspaceTreatmentItem.deleteMany.mockResolvedValueOnce({
       count: 1,
     });
@@ -2416,11 +2416,19 @@ describe("ClinicalArtifactService", () => {
       { actorId: "actor-1", canEditAny: true },
     );
 
+    // The guard asks the database for a BILLED row rather than loading one row
+    // and inspecting it. That difference is the fix: `deleteMany` below removes
+    // EVERY row for the prescription, so a check that only saw one of several
+    // could pass while a billed, invoice-linked row was deleted with the rest.
     expect(mockedPrisma.workspaceTreatmentItem.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
           organisationId,
           prescriptionId: "prescription-1",
+          OR: [
+            { billingStatus: { not: "UNBILLED" } },
+            { invoiceRowId: { not: null } },
+          ],
         },
       }),
     );
@@ -2518,11 +2526,11 @@ describe("ClinicalArtifactService", () => {
     mockedPrisma.prescription.findFirst.mockResolvedValueOnce(
       prescription as never,
     );
-    mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValueOnce({
-      id: "treatment-item-1",
-      billingStatus: "UNBILLED",
-      invoiceRowId: null,
-    });
+    // The guard now asks directly for a BILLED row rather than loading one row
+    // and inspecting it, so "nothing billed" is null. The old shape - one
+    // unbilled row - was the bug: the delete below removes EVERY row for the
+    // prescription, and package expansion routinely creates several.
+    mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValue(null);
     mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce({
       id: "dispense-1",
       status: "DISPENSED",

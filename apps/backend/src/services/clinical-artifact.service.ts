@@ -1411,6 +1411,42 @@ const updateArtifactStatusAndSummaryInTx = (
     },
   });
 
+/**
+ * Refuse when ANY treatment item for this prescription has been billed.
+ *
+ * The previous form loaded ONE row with `findFirst` and inspected that, while
+ * the delete below removes EVERY row sharing the prescription id - and package
+ * expansion routinely creates several. If the single row it happened to load was
+ * unbilled, the guard passed and billed, invoice-linked rows were deleted with
+ * the rest. Asking directly for a billed row is both correct and cheaper.
+ *
+ * Takes the transaction client so callers can run it inside their transaction,
+ * closing the window where a concurrent billing update lands between the check
+ * and the delete.
+ */
+const assertNoBilledTreatmentItems = async (
+  db: ClinicalPrisma,
+  organisationId: string,
+  prescriptionId: string,
+  message = "Prescription has already been billed.",
+): Promise<void> => {
+  const billedItem = await db.workspaceTreatmentItem.findFirst({
+    where: {
+      organisationId,
+      prescriptionId,
+      OR: [
+        { billingStatus: { not: "UNBILLED" } },
+        { invoiceRowId: { not: null } },
+      ],
+    },
+    select: { id: true },
+  });
+
+  if (billedItem) {
+    throw new ClinicalArtifactServiceError(message, 409);
+  }
+};
+
 export const ClinicalArtifactService = {
   async createSoapNote(input: SoapNoteInput): Promise<SoapNoteRecord> {
     const organisationId = ensureId(input.organisationId, "organisationId");
@@ -1763,33 +1799,17 @@ export const ClinicalArtifactService = {
       );
     }
 
-    const treatmentItem = await clinicalPrisma.workspaceTreatmentItem.findFirst(
-      {
-        where: {
-          organisationId: record.artifact.organisationId,
-          prescriptionId: record.id,
-        },
-        select: {
-          id: true,
-          billingStatus: true,
-          invoiceRowId: true,
-        },
-      },
-    );
-
-    if (
-      treatmentItem &&
-      (treatmentItem.billingStatus !== "UNBILLED" ||
-        treatmentItem.invoiceRowId != null)
-    ) {
-      throw new ClinicalArtifactServiceError(
-        "Prescription has already been billed.",
-        409,
-      );
-    }
-
     await prisma.$transaction(async (tx) => {
       const txPrisma = tx as ClinicalPrisma;
+      // Inside the transaction: checking outside it left a window where a
+      // concurrent billing update could land between the guard and the delete,
+      // and the billed row would be removed anyway.
+      await assertNoBilledTreatmentItems(
+        txPrisma,
+        record.artifact.organisationId,
+        record.id,
+      );
+
       await txPrisma.workspaceTreatmentItem.deleteMany({
         where: {
           organisationId: record.artifact.organisationId,
@@ -1834,30 +1854,12 @@ export const ClinicalArtifactService = {
       );
     }
 
-    const treatmentItem = await clinicalPrisma.workspaceTreatmentItem.findFirst(
-      {
-        where: {
-          organisationId: record.artifact.organisationId,
-          prescriptionId: record.id,
-        },
-        select: {
-          id: true,
-          billingStatus: true,
-          invoiceRowId: true,
-        },
-      },
+    await assertNoBilledTreatmentItems(
+      clinicalPrisma,
+      record.artifact.organisationId,
+      record.id,
+      "Prescription has already been billed or paid.",
     );
-
-    if (
-      treatmentItem &&
-      (treatmentItem.billingStatus !== "UNBILLED" ||
-        treatmentItem.invoiceRowId != null)
-    ) {
-      throw new ClinicalArtifactServiceError(
-        "Prescription has already been billed or paid.",
-        409,
-      );
-    }
 
     const dispenseRequest =
       await clinicalPrisma.prescriptionDispenseRequest.findFirst({
@@ -1888,6 +1890,14 @@ export const ClinicalArtifactService = {
 
     const artifact = await prisma.$transaction(async (tx) => {
       const txPrisma = tx as ClinicalPrisma;
+      // Re-checked inside the transaction; see `deletePrescription`.
+      await assertNoBilledTreatmentItems(
+        txPrisma,
+        record.artifact.organisationId,
+        record.id,
+        "Prescription has already been billed or paid.",
+      );
+
       await txPrisma.workspaceTreatmentItem.deleteMany({
         where: {
           organisationId: record.artifact.organisationId,

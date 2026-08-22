@@ -1540,6 +1540,74 @@ describe("InvoiceService", () => {
     );
   });
 
+  // `mergeInvoiceLineItems` can replace a line by id or content key, and the
+  // charge endpoints do not strip an `id` from the payload - so a duplicate or
+  // replacement submission owes no new money. Reopening on that would let a
+  // settled invoice, and its payment and audit state, be reset without a
+  // legitimate new charge.
+  it("keeps a paid invoice settled when the resubmitted items owe no more", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_paid_same",
+      appointmentId,
+      organisationId,
+      patientId,
+      parentId,
+      currency: "usd",
+      status: "PAID",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      items: [
+        {
+          name: "Consult",
+          description: "Consult",
+          quantity: 1,
+          unitPrice: 100,
+          total: 100,
+        },
+      ],
+      subtotal: 100,
+      discountTotal: 0,
+      invoiceDiscountType: null,
+      invoiceDiscountValue: null,
+      invoiceDiscountTotal: 0,
+      taxTotal: 0,
+      taxPercent: 0,
+      totalAmount: 100,
+      taxSnapshot: { provider: "STRIPE", taxBehavior: "EXCLUSIVE" },
+      finalizedAt: null,
+      paidAt: new Date("2026-06-26T06:30:00.000Z"),
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_paid_same",
+      organisationId,
+      status: "PAID",
+      items: [],
+      totalAmount: 100,
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await InvoiceService.addItemsToInvoice("inv_paid_same", [
+      {
+        name: "Consult",
+        description: "Consult",
+        quantity: 1,
+        unitPrice: 100,
+        total: 100,
+      },
+    ]);
+
+    const updateArg = (prisma.invoice.update as jest.Mock).mock.calls.at(
+      -1,
+    )![0];
+    expect(updateArg.data.status).toBeUndefined();
+    expect(updateArg.data.paidAt).toBeUndefined();
+    expect(updateArg.data.visitBillingStage).toBeUndefined();
+  });
+
   it("moves paid invoices back to awaiting payment when new items are added", async () => {
     (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
       id: "inv_paid_extra",
@@ -1566,6 +1634,10 @@ describe("InvoiceService", () => {
       invoiceDiscountTotal: 0,
       taxTotal: 0,
       taxPercent: 0,
+      // Load-bearing: reopening is now conditional on the total actually
+      // growing, so the settled total has to be present for this to be a real
+      // increase rather than a comparison against an absent value.
+      totalAmount: 100,
       taxSnapshot: {
         provider: "STRIPE",
         taxBehavior: "EXCLUSIVE",
