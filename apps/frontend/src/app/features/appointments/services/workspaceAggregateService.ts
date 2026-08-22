@@ -280,6 +280,7 @@ const prescriptionLinesFromEnvelope = (item: Record<string, unknown>): Prescript
     return [
       {
         id: baseId,
+        labelPrescriptionId: baseId,
         finalized,
         medicineName: fallbackName,
         strength: asString(item.strength) ?? asString(item.dosage),
@@ -310,6 +311,9 @@ const prescriptionLinesFromEnvelope = (item: Record<string, unknown>): Prescript
     };
     return {
       id: asString(line.id) ?? `${baseId}-${lineIndex + 1}`,
+      // The row id is the LINE id once a multi-line prescription is expanded;
+      // the prescription itself is what a label PDF is addressed to.
+      labelPrescriptionId: baseId,
       finalized,
       medicineName: asString(line.medication) ?? metaStr('medicineName') ?? fallbackName,
       brand: metaStr('brand'),

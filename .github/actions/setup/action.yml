@@ -6,9 +6,13 @@ description: >
 
 inputs:
   node-version:
-    description: Node.js version to install.
+    description: >
+      Node.js version to install. Keep at or above 22: @testing-library/jest-dom
+      declares `engines.node >= 22`, so a Node 20 runner either fails the install
+      where engines are enforced or runs Jest on a version the dependency does
+      not support. Matches `.nvmrc`.
     required: false
-    default: '20'
+    default: '22'
   install:
     description: Run `pnpm install --frozen-lockfile` as part of setup.
     required: false

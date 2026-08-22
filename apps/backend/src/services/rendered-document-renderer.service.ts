@@ -1744,11 +1744,28 @@ const renderTemplateFreeClinicalArtifactPdf = async (
   }
 };
 
+/**
+ * Artifact kinds whose saved content is a single rich-text blob rather than a
+ * value per template field.
+ *
+ * A discharge summary records the clinician's text under `summary`, whatever
+ * template seeded the editor; the template id is provenance, not a rendering
+ * instruction. Sending it down the resolved-template path made the field-keyed
+ * engine look up `data[field.key]` for meds, care, instructions and so on, find
+ * nothing, and emit a PDF of empty fields with the clinician's actual discharge
+ * instructions omitted - in signed packets too.
+ */
+const BLOB_CONTENT_TEMPLATE_KINDS = new Set(["DISCHARGE_SUMMARY"]);
+
 const buildClinicalArtifactResolvedTemplate = async (
   input: RenderedDocumentPdfSource,
   record: ClinicalArtifactDocumentSource,
 ) => {
   if (record.artifact.templateId === null) {
+    return undefined;
+  }
+
+  if (BLOB_CONTENT_TEMPLATE_KINDS.has(String(input.source.templateKind))) {
     return undefined;
   }
 

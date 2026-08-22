@@ -1575,6 +1575,15 @@ const useCompanionHistoryTimelineView = ({
         document.body.appendChild(anchor);
         anchor.click();
         anchor.remove();
+      } catch (error) {
+        // The drawer calls this straight from a click handler, so a rejection
+        // here escaped as an unhandled promise rejection and the user saw the
+        // spinner stop with no explanation.
+        console.error('Failed to download the record PDF:', error);
+        notify('error', {
+          title: 'Download failed',
+          text: 'The document could not be downloaded. Please try again.',
+        });
       } finally {
         setPdfLoadingId((current) => (current === entry.id ? null : current));
       }

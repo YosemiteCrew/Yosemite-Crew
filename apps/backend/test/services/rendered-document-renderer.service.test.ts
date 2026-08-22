@@ -1980,6 +1980,71 @@ describe("rendered-document-renderer service", () => {
       );
     });
 
+    it("renders a TEMPLATED discharge summary through the blob renderer", async () => {
+      // The saved content is a single `summary` blob whatever template seeded
+      // the editor. The field-keyed resolved-template engine looks up
+      // data[field.key], finds nothing, and emits a PDF of empty fields with
+      // the clinician's discharge instructions missing - including in signed
+      // packets. The template id is provenance, not a rendering instruction.
+      mockedPrisma.organization.findUnique.mockResolvedValueOnce({
+        name: "MediCare Hospital",
+        imageUrl: null,
+        phoneNo: null,
+        website: null,
+        address: null,
+      } as never);
+      // A REAL template version, so the resolved-template path is genuinely
+      // available: without this the test would pass for the wrong reason.
+      mockedPrisma.templateVersion.findUnique.mockResolvedValue({
+        id: "template-version-discharge",
+        version: 2,
+        schemaSnapshot: {
+          sections: [
+            {
+              id: "care",
+              title: "Care",
+              fields: [{ key: "care", label: "Home care", type: "textarea" }],
+            },
+          ],
+        },
+        renderConfigSnapshot: {},
+        validationSnapshot: {},
+      } as never);
+      mockedPrisma.dischargeSummary.findFirst.mockResolvedValueOnce({
+        id: "discharge-templated",
+        summary: "Rest and recheck in 7 days.",
+        diagnoses: [],
+        medications: [],
+        followUp: "",
+        instructions: "",
+        metadata: {},
+        artifact: dischargeArtifact({
+          id: "artifact-discharge-templated",
+          templateId: "tpl-discharge-1",
+          templateVersion: 2,
+        }),
+      });
+
+      await renderRenderedDocumentPdf({
+        title: "Discharge Summary",
+        source: {
+          sourceKind: "CLINICAL_ARTIFACT",
+          sourceId: "artifact-discharge-templated",
+          organisationId: "org-1",
+          templateKind: "DISCHARGE_SUMMARY",
+        },
+      });
+
+      // The blob renderer, NOT the field-keyed resolved-template engine.
+      expect(mockedGenerateClinicalPdfWithMetadata).toHaveBeenCalledWith(
+        expect.objectContaining({ documentType: "DISCHARGE_SUMMARY" }),
+      );
+      expect(
+        mockedGenerateResolvedTemplatePdfWithMetadata,
+      ).not.toHaveBeenCalled();
+      mockedPrisma.templateVersion.findUnique.mockReset();
+    });
+
     it("rejects a discharge summary outside the organisation", async () => {
       mockedPrisma.dischargeSummary.findUnique.mockResolvedValueOnce({
         id: "discharge-3",

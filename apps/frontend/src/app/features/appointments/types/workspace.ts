@@ -234,6 +234,13 @@ export type LineItem = {
 export type PrescriptionFulfillment = 'IN_HOUSE' | 'PRESCRIPTION_ONLY';
 
 export type PrescriptionItem = {
+  /**
+   * The prescription artifact this row belongs to. A backend prescription with
+   * several lines becomes one row per line, and each row's `id` is then the LINE
+   * id - which the label endpoint does not resolve. Anything addressing the
+   * prescription itself (label PDFs) must use this.
+   */
+  labelPrescriptionId?: string;
   id: string;
   medicineName: string;
   /** Brand/trade name from inventory (e.g. "Calpol"), shown beside the generic. */

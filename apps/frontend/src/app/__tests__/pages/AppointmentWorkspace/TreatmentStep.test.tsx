@@ -2087,4 +2087,33 @@ describe('TreatmentStep', () => {
 
     expect(await axe(container)).toHaveNoViolations();
   });
+
+  it('counts only the rows the invoice step will actually offer', async () => {
+    // The invoice candidate builder skips billed rows and skips prescriptions
+    // that are not dispensed in house, so counting the raw arrays promised the
+    // clinician a carry-forward that would not happen - and priced it.
+    const enc = {
+      ...seedAndGet(),
+      services: [
+        { id: 's1', name: 'Consult', amountCents: 2000, billed: false },
+        { id: 's2', name: 'Billed already', amountCents: 5000, billed: true },
+      ],
+      prescription: [
+        { id: 'rx1', medicineName: 'Amoxicillin', fulfillment: 'IN_HOUSE', priceCents: 450 },
+        {
+          id: 'rx2',
+          medicineName: 'External script',
+          fulfillment: 'OUTSIDE_PHARMACY',
+          priceCents: 9900,
+        },
+      ],
+    } as never;
+    render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
+
+    expect(
+      await screen.findByText(
+        '1 treatment item + 1 prescription will be carried to the invoice step.'
+      )
+    ).toBeInTheDocument();
+  });
 });
