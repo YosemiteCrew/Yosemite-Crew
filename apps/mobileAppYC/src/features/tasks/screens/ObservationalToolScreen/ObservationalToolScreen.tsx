@@ -1411,7 +1411,7 @@ const createStyles = (theme: any) => {
       borderRadius: theme.borderRadius.full,
       backgroundColor: theme.colors.primaryTint,
       ...theme.typography.labelXxsBold,
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
     },
     providerSubtitle: {
       ...theme.typography.body12,

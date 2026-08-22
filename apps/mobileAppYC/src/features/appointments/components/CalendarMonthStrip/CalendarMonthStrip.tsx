@@ -226,13 +226,13 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing['1'],
       textAlign: 'center',
     },
-    dateDaySelected: {color: theme.colors.primary, fontWeight: '500'},
+    dateDaySelected: {color: theme.colors.blueText, fontWeight: '500'},
     dateNumber: {
       ...theme.typography.h6Clash,
       color: theme.colors.textSecondary,
       textAlign: 'center',
     },
-    dateNumberSelected: {color: theme.colors.primary, fontWeight: '500'},
+    dateNumberSelected: {color: theme.colors.blueText, fontWeight: '500'},
     marker: {
       position: 'absolute',
       bottom: 6,

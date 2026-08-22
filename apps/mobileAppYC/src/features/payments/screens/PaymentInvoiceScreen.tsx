@@ -1294,7 +1294,7 @@ const buildInvoiceContent = ({
   if (shouldShowLoadingNotice) {
     return (
       <View style={styles.loadingBox}>
-        <ActivityIndicator size="small" color={theme.colors.primary} />
+        <ActivityIndicator size="small" color={theme.colors.blueText} />
         <Text style={styles.loadingText}>
           {getLocalizedText(
             'payments.preparingPaymentDetails',
@@ -1907,7 +1907,7 @@ const createStyles = (theme: any) =>
     },
     missingBadgeText: {
       ...theme.typography.labelXxsBold,
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
     },
     missingTitle: {
       ...theme.typography.h4,

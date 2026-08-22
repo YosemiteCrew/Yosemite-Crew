@@ -1319,7 +1319,7 @@ const createStyles = (theme: any) =>
     },
     uploadLabel: {
       ...theme.typography.labelSmall,
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
     },
     button: {
       width: '100%',

@@ -199,7 +199,7 @@ exports[`Placeholder Screens Snapshots TasksMainScreen should render correctly 1
       >
         <Text
           accessibilityLabel="checkbox-outline"
-          color="#257BED"
+          color="#1162CE"
           size={42}
           testID="icon-checkbox-outline"
         >

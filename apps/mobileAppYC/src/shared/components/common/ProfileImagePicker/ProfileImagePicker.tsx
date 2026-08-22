@@ -331,7 +331,7 @@ export const ProfileImagePicker = ({
           <View style={styles.placeholderContainer}>
             {fallbackText ? (
               <Text
-                style={[styles.fallbackText, {color: theme.colors.primary}]}>
+                style={[styles.fallbackText, {color: theme.colors.blueText}]}>
                 {fallbackText}
               </Text>
             ) : (

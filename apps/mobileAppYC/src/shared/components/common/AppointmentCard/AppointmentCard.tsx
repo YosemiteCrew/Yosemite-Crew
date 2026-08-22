@@ -276,7 +276,7 @@ const createStyles = (theme: any) =>
     note: {...theme.typography.labelSmall, color: theme.colors.placeholder},
     noteLabel: {
       ...theme.typography.labelSmallBold,
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
     },
     buttonContainer: {gap: theme.spacing['4']}, // Reduced gap to bring sections closer
     inlineButtons: {

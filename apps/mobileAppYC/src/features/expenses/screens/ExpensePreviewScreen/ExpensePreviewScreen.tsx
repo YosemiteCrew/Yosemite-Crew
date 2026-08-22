@@ -118,7 +118,7 @@ const PaymentActions = ({
     <View style={styles.paymentButtonContainer}>
       {loadingPayment ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color={theme.colors.primary} />
+          <ActivityIndicator size="small" color={theme.colors.blueText} />
         </View>
       ) : (
         <LiquidGlassButton
@@ -411,7 +411,7 @@ export const ExpensePreviewScreen: React.FC = () => {
     badges.push({
       text: 'External expense',
       backgroundColor: theme.colors.infoSurface,
-      textColor: theme.colors.primary,
+      textColor: theme.colors.blueText,
     });
   } else if (isPendingPayment) {
     badges.push({

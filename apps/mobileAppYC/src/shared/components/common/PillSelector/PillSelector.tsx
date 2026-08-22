@@ -212,7 +212,7 @@ const createStyles = (theme: any, pillSpacing?: number) =>
       textAlign: 'center',
     },
     pillTextActive: {
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
     },
     badge: {
       minWidth: 20,

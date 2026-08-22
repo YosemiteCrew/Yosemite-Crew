@@ -238,7 +238,7 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({
   if (loading) {
     stateContent = (
       <View style={[styles.statusCard, styles.centerContent]}>
-        <ActivityIndicator size="small" color={theme.colors.primary} />
+        <ActivityIndicator size="small" color={theme.colors.blueText} />
         <Text style={styles.statusTitle}>
           Loading {baseTitle.toLowerCase()}…
         </Text>

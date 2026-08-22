@@ -15,7 +15,15 @@ type ColorPair = readonly [light: string, dark: string];
 const palette = {
   // --- Interactive accents (blue = interaction, pink = companion) ---
   blue: ['#257BED', '#257BED'],
-  blueText: ['#257BED', '#8FB6F5'],
+  /**
+   * Blue as TEXT. `blue` / `primary` are the FILL - links, focus rings and
+   * active nav painted as a surface - and at #257BED they measure only 3.70:1
+   * on bone, under the 4.5:1 body-text bar. The espresso value was already
+   * fine (7.12:1); it was the light one that had been left equal to the fill.
+   *
+   * Do not use `blue` or `primary` for text. Use this.
+   */
+  blueText: ['#1162CE', '#8FB6F5'],
   blueSoft: ['#E6F2FF', 'rgba(143, 182, 245, 0.16)'],
   navActive: ['#1657C9', '#8FB6F5'],
   navActiveBg: ['rgba(37, 123, 237, 0.11)', 'rgba(143, 182, 245, 0.13)'],

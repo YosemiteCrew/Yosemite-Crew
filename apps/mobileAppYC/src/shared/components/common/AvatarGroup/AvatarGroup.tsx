@@ -169,7 +169,7 @@ const createStyles = (
     },
     avatarInitial: {
       ...theme.typography.titleSmall,
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
       fontWeight: '700',
     },
     avatarFirst: {

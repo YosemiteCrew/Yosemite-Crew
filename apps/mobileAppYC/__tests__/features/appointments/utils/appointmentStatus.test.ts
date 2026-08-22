@@ -12,6 +12,7 @@ const mockTheme = {
   colors: {
     secondary: '#secondary',
     primary: '#primary',
+    blueText: '#blueText',
     primaryTint: '#primaryTint',
     success: '#success',
     successSurface: '#successSurface',
@@ -318,7 +319,7 @@ describe('getAppointmentStatusBadgePalette', () => {
       'REQUESTED',
       null,
     );
-    expect(result.textColor).toBe('#primary');
+    expect(result.textColor).toBe('#blueText');
     expect(result.backgroundColor).toBe('#primaryTint');
   });
 
