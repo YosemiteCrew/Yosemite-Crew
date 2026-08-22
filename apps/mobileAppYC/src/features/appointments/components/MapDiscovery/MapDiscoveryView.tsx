@@ -42,6 +42,7 @@ import ClinicBottomSheet, {
 } from './ClinicBottomSheet';
 import BusinessCard from '../BusinessCard/BusinessCard';
 
+import {colors} from '@/theme';
 const AnimatedView = createAnimatedComponent(
   View,
 ) as unknown as React.ComponentType<any>;
@@ -463,7 +464,7 @@ const createStyles = (theme: any) =>
       borderTopRightRadius: 0,
       borderBottomLeftRadius: theme.borderRadius['2xl'],
       borderBottomRightRadius: theme.borderRadius['2xl'],
-      boxShadow: `0px 12px 18px ${theme.colors.neutralShadow ?? '#000000'}`,
+      boxShadow: `0px 12px 18px ${theme.colors.neutralShadow ?? colors.black}`,
       backgroundColor: 'transparent',
     },
     headerCard: {

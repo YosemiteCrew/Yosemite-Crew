@@ -17,6 +17,7 @@ import {LiquidGlassView, isLiquidGlassSupported} from '@callstack/liquid-glass';
 import {useTheme} from '@/hooks';
 import {UI_FEATURE_FLAGS} from '@/config/variables';
 
+import {colors} from '@/theme';
 // Crystal clear glass defaults - minimal tint for maximum clarity
 const IOS_LIGHT_GLASS_TINT = 'rgba(255, 255, 255, 0.5)';
 const IOS_DARK_GLASS_TINT = 'rgba(28, 28, 30, 0.55)';
@@ -172,12 +173,12 @@ const buildFallbackSurfaceStyle = ({
   // For white-ish buttons, use pure white (not translucent)
   let backgroundColor: string;
   if (isWhiteOrLightColor(tintColor)) {
-    backgroundColor = '#FFFFFF';
+    backgroundColor = colors.white;
   } else if (tintColor) {
     backgroundColor = tintColor;
   } else {
     /* istanbul ignore next -- resolvedTintColor is always defined; else is unreachable */
-    backgroundColor = isDark ? 'rgba(255, 255, 255, 0.1)' : '#FFFFFF';
+    backgroundColor = isDark ? 'rgba(255, 255, 255, 0.1)' : colors.white;
   }
 
   // Warm-bone buttons are flat: no border unless the caller explicitly asks

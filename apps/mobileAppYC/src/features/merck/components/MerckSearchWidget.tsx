@@ -25,6 +25,7 @@ import {
 } from '@/features/merck/services/merckService';
 import type {MerckEntry, MerckLanguage} from '@/features/merck/types';
 
+import {colors as palette} from '@/theme';
 type MerckSearchWidgetProps = {
   organisationId?: string | null;
   title?: string;
@@ -51,8 +52,8 @@ type MerckPillColors = {
 
 const MERCK_PILL_COLORS = {
   fullSummary: {
-    backgroundColor: '#247AED',
-    borderColor: '#247AED',
+    backgroundColor: palette.blue,
+    borderColor: palette.blue,
     color: '#EAF3FF',
   },
   etiology: {

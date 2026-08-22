@@ -1,3 +1,4 @@
+import {colors as palette} from '@/theme';
 import type {Theme} from '@/theme/themes';
 
 /**
@@ -48,15 +49,15 @@ export const createGlassCardStyles = (
     card: {
       borderRadius: finalConfig.borderRadius,
       borderWidth: finalConfig.borderWidth,
-      borderColor: colors.borderMuted ?? '#E5DCCF',
+      borderColor: colors.borderMuted ?? palette.hairline,
       overflow: 'hidden' as const,
-      backgroundColor: colors.cardBackground ?? '#FFFFFF',
+      backgroundColor: colors.cardBackground ?? palette.white,
       padding: finalConfig.padding,
     },
     fallback: {
       borderRadius: finalConfig.borderRadius,
-      backgroundColor: colors.cardBackground ?? '#FFFFFF',
-      borderColor: colors.border ?? '#E5DCCF',
+      backgroundColor: colors.cardBackground ?? palette.white,
+      borderColor: colors.border ?? palette.hairline,
       overflow: 'hidden' as const,
     },
   };
@@ -86,7 +87,7 @@ export const createIconContainerStyles = (
     height: size,
     borderRadius:
       borderRadius ?? (theme as any)?.borderRadius?.base ?? size / 2,
-    backgroundColor: (theme as any)?.colors?.surface ?? '#FFFFFF',
+    backgroundColor: (theme as any)?.colors?.surface ?? palette.white,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
   },

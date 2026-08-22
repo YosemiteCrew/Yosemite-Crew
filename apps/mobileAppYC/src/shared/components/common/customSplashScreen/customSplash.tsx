@@ -15,6 +15,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import Video from 'react-native-video';
 import {useReducedMotion} from '@/shared/components/common/Skeleton/useReducedMotion';
 
+import {colors} from '@/theme';
 type Props = {
   onAnimationEnd: () => void;
 };
@@ -33,17 +34,20 @@ const COMPLIANCE_LOGOS = [
   {name: 'fda', source: require('../../../../assets/splash/fda.png')},
 ];
 
-// Warm-bone + over-video values (splash renders before the theme resolves).
+// The splash paints before the theme provider mounts, so it cannot use the
+// useTheme hook — but `colors` is a plain exported constant, so the light
+// palette is available directly. These were hand-copied hex values that
+// silently drifted from the tokens they were copied from.
 const C = {
-  screen: '#F7F3EC',
-  inset: '#EAE2D5',
-  ink: '#1D1C1B',
-  inkMuted: '#5C5956',
-  inkFaint2: '#A9A39E',
-  pink: '#FF90D4',
-  blue: '#257BED',
-  hairline: '#E5DCCF',
-  onVideo: '#F7F3EC',
+  screen: colors.screen,
+  inset: colors.inset,
+  ink: colors.ink,
+  inkMuted: colors.inkMuted,
+  inkFaint2: colors.inkFaint2,
+  pink: colors.pink,
+  blue: colors.blue,
+  hairline: colors.hairline,
+  onVideo: colors.screen,
 };
 
 // Cinematic scrim over the video: dark enough for the white lockup up top,
@@ -55,7 +59,7 @@ const SCRIM_COLORS = [
   'rgba(29,28,27,0.12)',
   'rgba(29,28,27,0.32)',
   'rgba(29,28,27,0.46)',
-  '#F7F3EC',
+  C.screen,
 ];
 const SCRIM_LOCATIONS = [0, 0.14, 0.28, 0.44, 0.6, 0.74, 0.98];
 

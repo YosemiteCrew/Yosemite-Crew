@@ -1,8 +1,20 @@
 /**
  * Mobile semantic token mapping.
  *
- * This file bridges the shared @yosemite-crew/design-tokens semantic contract
- * and the mobile app's platform-specific theme API.
+ * STATUS: currently unused by application code. Nothing imports this module
+ * except its own test. Keep that in mind before treating it as authoritative.
+ *
+ * This is a HAND-MAINTAINED mapping. `apps/mobileAppYC` does not depend on
+ * `@yosemite-crew/design-tokens` — the package is not in this app's
+ * package.json, it publishes only from `dist/` (never built), and Metro is not
+ * configured to resolve it. Nothing here is derived from that package or
+ * checked against it, so the two drift silently.
+ *
+ * The naming is a deliberate approximation of that package's vocabulary, not a
+ * match: the shared contract nests three levels (`status.success.surface`)
+ * while React Native needs flat string keys, so this file flattens to
+ * `status.successSurface`. Twelve contract keys have no entry here and six
+ * entries here have no contract counterpart.
  *
  * Rules:
  * - Do NOT use raw hex values here. All values come from `colors.ts`.
@@ -11,16 +23,13 @@
  *   concerns and are NOT represented in the shared token contract.
  * - Light maps to the warm-bone palette (`colors`); dark maps to the espresso
  *   palette (`colorsDark`). The two objects always share the same keys.
- *
- * Token naming convention mirrors @yosemite-crew/design-tokens/src/color.ts
- * so that web and mobile engineers read the same semantic vocabulary.
  */
 
 import {colors, colorsDark} from './colors';
 
 /**
  * Semantic color mapping for the **light** (default) theme - warm bone.
- * Keys match the shared token contract from design-tokens/src/color.ts.
+ * Key names approximate design-tokens/src/color.ts; see the note above.
  */
 export const semanticColorsLight = {
   // --- Text ---
