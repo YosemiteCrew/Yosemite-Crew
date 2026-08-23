@@ -4,6 +4,10 @@ import { AuditTrailService } from "./audit-trail.service";
 import { NotificationService } from "./notification.service";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
 import { sendEmail } from "src/utils/email";
+import {
+  buildCareReminderUnsubscribeUrl,
+  isOptedOutOfCareReminders,
+} from "./care-reminder-opt-out.service";
 import logger from "src/utils/logger";
 import type { Prisma } from "@prisma/client";
 import {
@@ -127,12 +131,59 @@ const dispatchNotification = async (
   }
 
   if (ownerEmail) {
+    // Suppression and the unsubscribe link are both required before this mail can
+    // legally go out (GDPR Art. 21 objection, CAN-SPAM unsubscribe). Both failure
+    // modes below therefore skip the send rather than mailing anyway: a missed
+    // reminder is a service gap, mailing someone who objected is a breach.
+    let optedOut: boolean;
+    try {
+      optedOut = await isOptedOutOfCareReminders({
+        organisationId: reminder.organisationId,
+        email: ownerEmail,
+        channel: "EMAIL",
+      });
+    } catch (err: unknown) {
+      logger.error(
+        "Care reminder email skipped: opt-out lookup failed, cannot prove consent",
+        { reminderId: reminder.id, err },
+      );
+      return;
+    }
+
+    if (optedOut) {
+      logger.info("Care reminder email suppressed: recipient opted out", {
+        reminderId: reminder.id,
+        organisationId: reminder.organisationId,
+      });
+      return;
+    }
+
+    let unsubscribeUrl: string;
+    try {
+      unsubscribeUrl = buildCareReminderUnsubscribeUrl({
+        organisationId: reminder.organisationId,
+        email: ownerEmail,
+      });
+    } catch (err: unknown) {
+      logger.error(
+        "Care reminder email skipped: unsubscribe link could not be built (check PUBLIC_API_URL and MARKETING_UNSUBSCRIBE_SECRET)",
+        { reminderId: reminder.id, err },
+      );
+      return;
+    }
+
     await sendEmail({
       to: ownerEmail,
       subject: `Care reminder for ${patientName}`,
       // `body` carries the companion name and the reminder's free-text custom
       // message, so it must be escaped before it lands in email markup.
-      htmlBody: `<p>${escapeHtml(body)}</p><p>Book an appointment through the app or contact your clinic directly.</p>`,
+      htmlBody:
+        `<p>${escapeHtml(body)}</p>` +
+        `<p>Book an appointment through the app or contact your clinic directly.</p>` +
+        `<hr /><p style="font-size:12px;color:#5c5956">` +
+        `You are receiving this because your companion is registered with this practice. ` +
+        `<a href="${escapeHtml(unsubscribeUrl)}">Stop receiving care reminders from this practice</a>.` +
+        `</p>`,
     }).catch((err: unknown) => {
       logger.error("Care reminder email failed", {
         reminderId: reminder.id,

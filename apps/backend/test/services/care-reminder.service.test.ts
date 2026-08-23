@@ -20,6 +20,7 @@ jest.mock("src/config/prisma", () => ({
     patient: { findUnique: jest.fn() },
     parentPatient: { findFirst: jest.fn() },
     parent: { findUnique: jest.fn() },
+    careReminderOptOut: { findFirst: jest.fn(), upsert: jest.fn() },
   },
 }));
 
@@ -50,6 +51,7 @@ const pm = prisma as unknown as {
   patient: { findUnique: jest.Mock };
   parentPatient: { findFirst: jest.Mock };
   parent: { findUnique: jest.Mock };
+  careReminderOptOut: { findFirst: jest.Mock; upsert: jest.Mock };
 };
 
 const DUE = new Date("2026-07-15T10:00:00Z");
@@ -88,6 +90,10 @@ beforeEach(() => {
   (AuditTrailService.recordSafely as jest.Mock).mockResolvedValue(undefined);
   (NotificationService.sendToUser as jest.Mock).mockResolvedValue(undefined);
   (sendEmail as jest.Mock).mockResolvedValue(undefined);
+  // No opt-out by default, and the unsubscribe link needs both of these to build.
+  pm.careReminderOptOut.findFirst.mockResolvedValue(null);
+  process.env.MARKETING_UNSUBSCRIBE_SECRET = "test-secret";
+  process.env.PUBLIC_API_URL = "https://api.example.com";
   pm.careReminder.findFirst.mockResolvedValue(makeReminder());
   pm.careReminder.create.mockResolvedValue(makeReminder());
   pm.careReminder.createMany.mockResolvedValue({ count: 3 });
@@ -292,6 +298,46 @@ describe("CareReminderService.send", () => {
     await CareReminderService.send("reminder-1", "org-1");
     expect(sendEmail).not.toHaveBeenCalled();
     expect(NotificationService.sendToUser).toHaveBeenCalled();
+  });
+
+  it("includes an unsubscribe link in the email body", async () => {
+    await CareReminderService.send("reminder-1", "org-1");
+    const body = (sendEmail as jest.Mock).mock.calls[0][0].htmlBody as string;
+    expect(body).toContain("/v1/reminder-preferences/unsubscribe");
+    expect(body).toContain("Stop receiving care reminders");
+  });
+
+  it("suppresses the email when the recipient has opted out, but still pushes", async () => {
+    pm.careReminderOptOut.findFirst.mockResolvedValue({ id: "optout-1" });
+    await CareReminderService.send("reminder-1", "org-1");
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(NotificationService.sendToUser).toHaveBeenCalled();
+  });
+
+  it("scopes the opt-out lookup to the sending practice and the email channel", async () => {
+    await CareReminderService.send("reminder-1", "org-1");
+    expect(pm.careReminderOptOut.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          organisationId: "org-1",
+          email: "owner@example.com",
+          channel: { in: ["EMAIL", "ALL"] },
+        },
+      }),
+    );
+  });
+
+  it("fails closed: skips the email when the opt-out lookup errors", async () => {
+    // Mailing someone who may have objected is worse than missing a reminder.
+    pm.careReminderOptOut.findFirst.mockRejectedValue(new Error("db down"));
+    await CareReminderService.send("reminder-1", "org-1");
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("fails closed: skips the email when no unsubscribe link can be built", async () => {
+    delete process.env.PUBLIC_API_URL;
+    await CareReminderService.send("reminder-1", "org-1");
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 
   it("still transitions to SENT when no parent found", async () => {
