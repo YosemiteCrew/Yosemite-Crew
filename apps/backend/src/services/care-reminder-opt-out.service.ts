@@ -108,8 +108,8 @@ export const readCareReminderOptOutToken = (
     if (sealed.length <= 16) {
       throw new InvalidCareReminderOptOutTokenError();
     }
-    const tag = sealed.subarray(sealed.length - 16);
-    const ciphertext = sealed.subarray(0, sealed.length - 16);
+    const tag = sealed.subarray(-16);
+    const ciphertext = sealed.subarray(0, -16);
     const decipher = createDecipheriv("aes-256-gcm", deriveTokenKey(), iv);
     decipher.setAuthTag(tag);
     decoded = Buffer.concat([
