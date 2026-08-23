@@ -146,24 +146,38 @@ export const buildCareReminderUnsubscribeUrl = (
   return `${apiUrl}/v1/reminder-preferences/unsubscribe?token=${encodeURIComponent(token)}`;
 };
 
+export interface CareReminderSuppression {
+  email: boolean;
+  push: boolean;
+}
+
 /**
- * True when this address has objected to reminders on `channel` for this practice.
- * An `ALL` row suppresses every channel.
+ * Which channels this address has objected to for this practice. An `ALL` row
+ * suppresses every channel.
+ *
+ * Resolved for every channel in one query, and deliberately called before any
+ * channel is delivered: the unsubscribe flow stores `ALL` and tells the recipient
+ * that reminders from the practice have stopped, so checking only the email
+ * channel would keep pushing at someone who was promised silence.
  */
-export const isOptedOutOfCareReminders = async (params: {
+export const resolveCareReminderSuppression = async (params: {
   organisationId: string;
   email: string;
-  channel: Exclude<CareReminderOptOutChannel, "ALL">;
-}): Promise<boolean> => {
-  const match = await prisma.careReminderOptOut.findFirst({
+}): Promise<CareReminderSuppression> => {
+  const rows = await prisma.careReminderOptOut.findMany({
     where: {
       organisationId: params.organisationId,
       email: normalizeOptOutEmail(params.email),
-      channel: { in: [params.channel, "ALL"] },
     },
-    select: { id: true },
+    select: { channel: true },
   });
-  return match !== null;
+
+  const channels = new Set(rows.map((row) => row.channel));
+  const all = channels.has("ALL");
+  return {
+    email: all || channels.has("EMAIL"),
+    push: all || channels.has("PUSH"),
+  };
 };
 
 export const recordCareReminderOptOut = async (params: {

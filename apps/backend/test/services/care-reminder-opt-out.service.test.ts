@@ -3,7 +3,7 @@ import {
   createCareReminderOptOutToken,
   CareReminderOptOutConfigError,
   InvalidCareReminderOptOutTokenError,
-  isOptedOutOfCareReminders,
+  resolveCareReminderSuppression,
   normalizeOptOutEmail,
   readCareReminderOptOutToken,
   recordCareReminderOptOut,
@@ -14,14 +14,14 @@ import { prisma } from "src/config/prisma";
 jest.mock("src/config/prisma", () => ({
   prisma: {
     careReminderOptOut: {
-      findFirst: jest.fn(),
+      findMany: jest.fn(),
       upsert: jest.fn(),
     },
   },
 }));
 
 const pm = prisma as unknown as {
-  careReminderOptOut: { findFirst: jest.Mock; upsert: jest.Mock };
+  careReminderOptOut: { findMany: jest.Mock; upsert: jest.Mock };
 };
 
 describe("care-reminder-opt-out.service", () => {
@@ -29,7 +29,7 @@ describe("care-reminder-opt-out.service", () => {
     jest.clearAllMocks();
     process.env.MARKETING_UNSUBSCRIBE_SECRET = "test-secret";
     process.env.PUBLIC_API_URL = "https://api.example.com/";
-    pm.careReminderOptOut.findFirst.mockResolvedValue(null);
+    pm.careReminderOptOut.findMany.mockResolvedValue([]);
     pm.careReminderOptOut.upsert.mockResolvedValue({});
   });
 
@@ -128,35 +128,44 @@ describe("care-reminder-opt-out.service", () => {
     });
   });
 
-  describe("isOptedOutOfCareReminders", () => {
-    it("is false when no row matches", async () => {
+  describe("resolveCareReminderSuppression", () => {
+    it("suppresses nothing when there are no rows", async () => {
       await expect(
-        isOptedOutOfCareReminders({
+        resolveCareReminderSuppression({
           organisationId: "org-1",
           email: "person@example.com",
-          channel: "EMAIL",
         }),
-      ).resolves.toBe(false);
+      ).resolves.toEqual({ email: false, push: false });
     });
 
-    it("matches the requested channel or an ALL row, scoped to the practice", async () => {
-      pm.careReminderOptOut.findFirst.mockResolvedValue({ id: "row-1" });
-
+    it("an ALL row suppresses every channel", async () => {
+      pm.careReminderOptOut.findMany.mockResolvedValue([{ channel: "ALL" }]);
       await expect(
-        isOptedOutOfCareReminders({
+        resolveCareReminderSuppression({
           organisationId: "org-1",
-          email: " Person@Example.com ",
-          channel: "EMAIL",
+          email: "person@example.com",
         }),
-      ).resolves.toBe(true);
+      ).resolves.toEqual({ email: true, push: true });
+    });
 
-      expect(pm.careReminderOptOut.findFirst).toHaveBeenCalledWith(
+    it("a channel row suppresses only that channel", async () => {
+      pm.careReminderOptOut.findMany.mockResolvedValue([{ channel: "EMAIL" }]);
+      await expect(
+        resolveCareReminderSuppression({
+          organisationId: "org-1",
+          email: "person@example.com",
+        }),
+      ).resolves.toEqual({ email: true, push: false });
+    });
+
+    it("scopes the lookup to the practice and normalises the address", async () => {
+      await resolveCareReminderSuppression({
+        organisationId: "org-1",
+        email: " Person@Example.com ",
+      });
+      expect(pm.careReminderOptOut.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: {
-            organisationId: "org-1",
-            email: "person@example.com",
-            channel: { in: ["EMAIL", "ALL"] },
-          },
+          where: { organisationId: "org-1", email: "person@example.com" },
         }),
       );
     });

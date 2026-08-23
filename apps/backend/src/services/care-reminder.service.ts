@@ -6,7 +6,8 @@ import { NotificationTemplates } from "src/utils/notificationTemplates";
 import { sendEmail } from "src/utils/email";
 import {
   buildCareReminderUnsubscribeUrl,
-  isOptedOutOfCareReminders,
+  resolveCareReminderSuppression,
+  type CareReminderSuppression,
 } from "./care-reminder-opt-out.service";
 import logger from "src/utils/logger";
 import type { Prisma } from "@prisma/client";
@@ -115,7 +116,55 @@ const dispatchNotification = async (
     reminder.customMessage ??
     `${patientName} is due for ${typeLabel}. Please book an appointment at your earliest convenience.`;
 
-  if (ownerUserId) {
+  // Everything that can refuse the send is resolved BEFORE any channel is
+  // delivered, so an operational failure cannot leave one channel sent and the
+  // reminder half-delivered. Both checks throw rather than skipping quietly:
+  // `send` marks the reminder SENT on return, and only a PENDING reminder can be
+  // sent again, so returning here would burn the reminder permanently on what is
+  // really a transient config or database problem.
+  let suppression: CareReminderSuppression = { email: false, push: false };
+  let unsubscribeUrl: string | null = null;
+
+  if (ownerEmail) {
+    try {
+      suppression = await resolveCareReminderSuppression({
+        organisationId: reminder.organisationId,
+        email: ownerEmail,
+      });
+    } catch (err: unknown) {
+      logger.error(
+        "Care reminder not sent: opt-out lookup failed, cannot prove consent",
+        { reminderId: reminder.id, err },
+      );
+      throw new CareReminderError(
+        "Unable to verify reminder preferences right now.",
+        503,
+      );
+    }
+
+    if (!suppression.email) {
+      try {
+        unsubscribeUrl = buildCareReminderUnsubscribeUrl({
+          organisationId: reminder.organisationId,
+          email: ownerEmail,
+        });
+      } catch (err: unknown) {
+        logger.error(
+          "Care reminder not sent: unsubscribe link could not be built (check PUBLIC_API_URL and MARKETING_UNSUBSCRIBE_SECRET)",
+          { reminderId: reminder.id, err },
+        );
+        throw new CareReminderError(
+          "Reminder delivery is not configured correctly.",
+          503,
+        );
+      }
+    }
+  }
+
+  // With no address on file there is no key to look an objection up by, so push
+  // is the only channel and it proceeds. Worth knowing when reading suppression
+  // numbers: an opt-out is recorded against an email address.
+  if (ownerUserId && !suppression.push) {
     const payload = NotificationTemplates.Care.CARE_REMINDER(
       patientName,
       typeLabel,
@@ -128,50 +177,14 @@ const dispatchNotification = async (
         });
       },
     );
+  } else if (ownerUserId) {
+    logger.info("Care reminder push suppressed: recipient opted out", {
+      reminderId: reminder.id,
+      organisationId: reminder.organisationId,
+    });
   }
 
-  if (ownerEmail) {
-    // Suppression and the unsubscribe link are both required before this mail can
-    // legally go out (GDPR Art. 21 objection, CAN-SPAM unsubscribe). Both failure
-    // modes below therefore skip the send rather than mailing anyway: a missed
-    // reminder is a service gap, mailing someone who objected is a breach.
-    let optedOut: boolean;
-    try {
-      optedOut = await isOptedOutOfCareReminders({
-        organisationId: reminder.organisationId,
-        email: ownerEmail,
-        channel: "EMAIL",
-      });
-    } catch (err: unknown) {
-      logger.error(
-        "Care reminder email skipped: opt-out lookup failed, cannot prove consent",
-        { reminderId: reminder.id, err },
-      );
-      return;
-    }
-
-    if (optedOut) {
-      logger.info("Care reminder email suppressed: recipient opted out", {
-        reminderId: reminder.id,
-        organisationId: reminder.organisationId,
-      });
-      return;
-    }
-
-    let unsubscribeUrl: string;
-    try {
-      unsubscribeUrl = buildCareReminderUnsubscribeUrl({
-        organisationId: reminder.organisationId,
-        email: ownerEmail,
-      });
-    } catch (err: unknown) {
-      logger.error(
-        "Care reminder email skipped: unsubscribe link could not be built (check PUBLIC_API_URL and MARKETING_UNSUBSCRIBE_SECRET)",
-        { reminderId: reminder.id, err },
-      );
-      return;
-    }
-
+  if (ownerEmail && !suppression.email && unsubscribeUrl) {
     await sendEmail({
       to: ownerEmail,
       subject: `Care reminder for ${patientName}`,
@@ -189,6 +202,11 @@ const dispatchNotification = async (
         reminderId: reminder.id,
         err,
       });
+    });
+  } else if (ownerEmail) {
+    logger.info("Care reminder email suppressed: recipient opted out", {
+      reminderId: reminder.id,
+      organisationId: reminder.organisationId,
     });
   }
 };
