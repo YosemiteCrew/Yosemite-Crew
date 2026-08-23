@@ -458,7 +458,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 
                 {/* Currency – Bottom sheet */}
                 <RowButton
-                  label="Currency"
+                  label="Account currency"
                   value={safeUser.currency ?? resolvedCurrency}
                   onPress={() => {
                     openBottomSheetRef.current = 'currency';

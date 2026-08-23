@@ -38,9 +38,7 @@ export const AddExpenseScreen: React.FC = () => {
   } = useCompanionFormScreen();
 
   const resolvedCurrency = useResolvedUserCurrency();
-  const currencyCode = useSelector(
-    (state: RootState) => state.auth.user?.currency ?? resolvedCurrency,
-  );
+  const currencyCode = resolvedCurrency;
   const loading = useSelector((state: RootState) => state.expenses.loading);
 
   const {formData, errors, handleChange, handleErrorClear, validate} =

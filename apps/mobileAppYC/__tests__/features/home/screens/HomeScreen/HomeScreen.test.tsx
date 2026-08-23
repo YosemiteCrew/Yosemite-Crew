@@ -11,6 +11,11 @@ import {Alert, ToastAndroid, Platform} from 'react-native';
 // --- Mocks ---
 
 // Mock navigation hooks to avoid loops and provide stable references
+let mockResolvedCurrency = 'USD';
+jest.mock('@/shared/hooks/useResolvedUserCurrency', () => ({
+  useResolvedUserCurrency: () => mockResolvedCurrency,
+}));
+
 jest.mock('@react-navigation/native', () => {
   const actual = jest.requireActual('@react-navigation/native');
   const ReactLib = require('react');
@@ -1513,7 +1518,11 @@ describe('HomeScreen', () => {
       expect(fetchExpenseSummary).toHaveBeenCalledWith({companionId: 'c1'});
     });
 
-    it('refreshes expenses when the user currency changes', () => {
+    it('refreshes expenses when the resolved currency changes', () => {
+      // The screen no longer reads auth.user.currency directly: precedence
+      // (device override > profile > country) is decided once in
+      // PreferencesContext and delivered by this hook, so the hook's answer
+      // changing is what must trigger the refetch.
       const {fetchExpenseSummary} = require('@/features/expenses');
       const store = createStore();
       const rendered = renderAndWait(
@@ -1523,16 +1532,17 @@ describe('HomeScreen', () => {
       );
       jest.clearAllMocks();
 
-      const nextStore = createStore({
-        auth: {user: {...mockUser, currency: 'EUR'}},
-      });
-      rendered.rerender(
-        <Provider store={nextStore}>
-          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
-        </Provider>,
-      );
-
-      expect(fetchExpenseSummary).toHaveBeenCalledWith({companionId: 'c1'});
+      mockResolvedCurrency = 'EUR';
+      try {
+        rendered.rerender(
+          <Provider store={store}>
+            <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+          </Provider>,
+        );
+        expect(fetchExpenseSummary).toHaveBeenCalledWith({companionId: 'c1'});
+      } finally {
+        mockResolvedCurrency = 'USD';
+      }
     });
 
     it('renders while expense and linked business requests are pending', () => {

@@ -5851,3 +5851,55 @@ describe("CatalogService negative and edge paths", () => {
     });
   });
 });
+
+describe("CatalogService.listOrganisationsProvidingServiceNearby pricing", () => {
+  const prismaMock = prisma as unknown as Record<string, any>;
+
+  const arrange = (defaultDiscountPercent: number | undefined) => {
+    prismaMock.organization.findMany.mockResolvedValue([
+      { id: "org-1", name: "Vet", address: { city: "Mainz" } },
+    ]);
+    prismaMock.speciality.findMany.mockResolvedValue([
+      { id: "spec-1", name: "General Practice", organisationId: "org-1" },
+    ]);
+    prismaMock.productItem.findMany.mockResolvedValue([
+      {
+        id: "prod-1",
+        name: "General Consultation",
+        kind: "SERVICE",
+        specialityId: "spec-1",
+        organisationId: "org-1",
+        bookable: { supportsOutpatient: true, supportsInpatient: false },
+        prices: [{ unitPrice: 240, defaultDiscountPercent }],
+      },
+    ]);
+  };
+
+  it("quotes the discounted amount, and selects the field it needs to do so", async () => {
+    // The select is asserted because omitting defaultDiscountPercent does not
+    // fail: the field comes back undefined, the discount computes as zero and
+    // the quote silently reverts to the gross price. That is exactly how this
+    // shipped broken the first time.
+    arrange(5);
+
+    const result =
+      await CatalogService.listOrganisationsProvidingServiceNearby();
+
+    const select = prismaMock.productItem.findMany.mock.calls.at(-1)[0].select;
+    expect(select.prices.select.defaultDiscountPercent).toBe(true);
+
+    const service = result[0].specialities[0].services[0];
+    expect(service.cost).toBe(240);
+    expect(service.finalAmount).toBe(228);
+    expect(service.defaultDiscountPercent).toBe(5);
+  });
+
+  it("quotes the gross price when the practice sets no default discount", async () => {
+    arrange(0);
+
+    const result =
+      await CatalogService.listOrganisationsProvidingServiceNearby();
+
+    expect(result[0].specialities[0].services[0].finalAmount).toBe(240);
+  });
+});

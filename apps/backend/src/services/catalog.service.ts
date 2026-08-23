@@ -2662,6 +2662,11 @@ export const CatalogService = {
           orderBy: [{ isDefault: "desc" as const }],
           select: {
             unitPrice: true,
+            // Selected because the parent-facing quote is computed from it. A
+            // select that omits it does not fail - the field is simply
+            // undefined and the discount silently computes as zero, so the
+            // quote quietly reverts to the gross price.
+            defaultDiscountPercent: true,
           },
           take: 1,
         },
@@ -2769,12 +2774,28 @@ export const CatalogService = {
                     }))
                 : undefined;
 
+            // The parent-facing quote has to be the amount that will actually
+            // be billed. `cost` is the GROSS unit price, and the practice's
+            // standing discount is applied when the invoice is drafted - so
+            // sending cost alone quoted a pet parent 240 for a visit their
+            // invoice then charged 228 for. `cost` stays for existing callers;
+            // the discounted amounts are additive.
+            const listPrice = product.prices?.[0];
+            const listAmounts = computeLineAmounts({
+              unitPrice: listPrice?.unitPrice ?? 0,
+              quantity: 1,
+              discountPercent: listPrice?.defaultDiscountPercent ?? 0,
+            });
+
             return {
               id: product.id,
               name: product.name,
               kind: product.kind,
               appointmentKinds: toAppointmentKinds(product.bookable),
-              cost: product.prices?.[0]?.unitPrice ?? 0,
+              cost: listPrice?.unitPrice ?? 0,
+              grossAmount: listAmounts.grossAmount,
+              defaultDiscountPercent: listPrice?.defaultDiscountPercent ?? 0,
+              finalAmount: listAmounts.finalAmount,
               specialityId: product.specialityId,
               organisationId: product.organisationId,
               ...(packageItems ? { packageItems } : {}),

@@ -93,6 +93,14 @@ const createStyles = (theme: Theme) =>
       height: 29,
       borderRadius: theme.borderRadius.pill,
       justifyContent: 'center',
+      // The off-track measures 1.20:1 against the surface behind it and the
+      // white knob 1.33:1 against the track, so the control's extent was not
+      // identifiable at the 3:1 WCAG 1.4.11 asks. Darkening the fill enough to
+      // clear 3:1 would need a mid-brown - nothing like a switch - and a
+      // hairlineWidth border renders at 1.24:1, i.e. does nothing. A full pixel
+      // of controlBorder is what actually draws the boundary.
+      borderWidth: 1,
+      borderColor: theme.colors.controlBorder,
     },
     knob: {
       width: KNOB_SIZE,

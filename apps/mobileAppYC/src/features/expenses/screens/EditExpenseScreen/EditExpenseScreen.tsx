@@ -51,9 +51,7 @@ export const EditExpenseScreen: React.FC = () => {
   const {expenseId} = route.params;
   const expense = useSelector(selectExpenseById(expenseId));
   const resolvedCurrency = useResolvedUserCurrency();
-  const currencyCode = useSelector(
-    (state: RootState) => state.auth.user?.currency ?? resolvedCurrency,
-  );
+  const currencyCode = resolvedCurrency;
   const loading = useSelector((state: RootState) => state.expenses.loading);
 
   const {

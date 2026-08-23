@@ -118,7 +118,7 @@
     "weight_kg": "Kilogramos",
     "weight_lbs": "Libras",
     "currency": "Moneda",
-    "currency_caption": "Se usa para gastos y facturas. Las entradas existentes no se convierten.",
+    "currency_caption": "Se usa para gastos y facturas y anula la moneda de tu cuenta en este dispositivo. Las entradas existentes no se convierten.",
     "appearance": "Apariencia",
     "appearance_system": "Sistema",
     "appearance_light": "Claro",

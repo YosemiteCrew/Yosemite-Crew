@@ -19,6 +19,7 @@ jest.mock("src/config/prisma", () => ({
     },
     parentPatient: { findFirst: jest.fn() },
     parent: { findUnique: jest.fn() },
+    authUserMobile: { findFirst: jest.fn() },
   },
 }));
 
@@ -56,6 +57,7 @@ const prismaMock = prisma as unknown as {
   };
   parentPatient: { findFirst: jest.Mock };
   parent: { findUnique: jest.Mock };
+  authUserMobile: { findFirst: jest.Mock };
 };
 
 const consentRow = (over: Record<string, unknown> = {}) => ({
@@ -83,6 +85,7 @@ beforeEach(() => {
   prismaMock.patientOrganisation.findFirst.mockResolvedValue({ id: "link-1" });
   prismaMock.parentPatient.findFirst.mockResolvedValue(null);
   prismaMock.parent.findUnique.mockResolvedValue(null);
+  prismaMock.authUserMobile.findFirst.mockResolvedValue(null);
   prismaMock.patient.findUnique.mockResolvedValue({
     microchipNumber: "985141000123456",
   });
@@ -218,12 +221,15 @@ describe("PassportConsentService.requestConsent", () => {
 describe("PassportConsentService.grantConsent", () => {
   // Consent to share clinical records across practices belongs to the pet's
   // owner, so every granted case must be authenticated AS that owner.
-  const asPrimaryParent = (linkedUserId: string | null = "user-1") => {
+  // The caller presents an auth PROVIDER id, so ownership is established by
+  // resolving that id to a parent through AuthUser - not by comparing it to
+  // Parent.linkedUserId, which holds an AuthUser primary key. `callerParentId`
+  // is what that resolution returns for the granting user.
+  const asPrimaryParent = (callerParentId: string | null = "par-1") => {
     prismaMock.parentPatient.findFirst.mockResolvedValue({ parentId: "par-1" });
-    prismaMock.parent.findUnique.mockResolvedValue({
-      id: "par-1",
-      linkedUserId,
-    });
+    prismaMock.authUserMobile.findFirst.mockResolvedValue(
+      callerParentId ? { parentId: callerParentId } : null,
+    );
   };
 
   it("grants when the caller is the pet's primary parent", async () => {
@@ -252,7 +258,7 @@ describe("PassportConsentService.grantConsent", () => {
   });
 
   it("refuses a staff session that is not the pet's parent", async () => {
-    asPrimaryParent("someone-else");
+    asPrimaryParent("par-someone-else");
     await expect(
       PassportConsentService.grantConsent({
         consentId: "con-1",

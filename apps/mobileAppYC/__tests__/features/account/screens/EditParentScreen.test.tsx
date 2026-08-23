@@ -441,7 +441,7 @@ describe('EditParentScreen', () => {
       // actually resolves, not a hardcoded 'USD'. PreferencesContext derives
       // EUR for an account with no imperial country, and this row used to
       // disagree with the Preferences screen for exactly that user.
-      expect(getByTestId('mock-row-Currency').props.value).toBe('EUR'); // Test safeUser.address?. ... ?? ''
+      expect(getByTestId('mock-row-Account currency').props.value).toBe('EUR'); // Test safeUser.address?. ... ?? ''
       expect(getByTestId('mock-row-Address').props.value).toBe('');
       expect(getByTestId('mock-row-State/Province').props.value).toBe('');
       expect(getByTestId('mock-row-City').props.value).toBe('');
@@ -453,7 +453,7 @@ describe('EditParentScreen', () => {
       setupMockState(minimalUser, false);
       const {getByTestId} = renderComponent(); // Test currency sheet prop
 
-      fireEvent.press(getByTestId('mock-row-Currency'));
+      fireEvent.press(getByTestId('mock-row-Account currency'));
       // Same fallback as the row, so the sheet opens on what is displayed.
       expect(getByTestId('mock-currency-sheet').props.selectedCurrency).toBe(
         'EUR',
@@ -502,7 +502,7 @@ describe('EditParentScreen', () => {
       expect(getByTestId('mock-row-Date of birth').props.value).toBe(
         new Date(mockUser.dateOfBirth!).toLocaleDateString('en-US'),
       );
-      expect(getByTestId('mock-row-Currency').props.value).toBe('USD');
+      expect(getByTestId('mock-row-Account currency').props.value).toBe('USD');
       expect(getByTestId('mock-row-Address').props.value).toBe('123 Main St');
       expect(getByTestId('mock-row-State/Province').props.value).toBe('CA');
       expect(getByTestId('mock-row-City').props.value).toBe('Anytown');
@@ -615,7 +615,7 @@ describe('EditParentScreen', () => {
       const {getByTestId} = renderComponent();
       const sheet = getByTestId('mock-currency-sheet');
 
-      fireEvent.press(getByTestId('mock-row-Currency'));
+      fireEvent.press(getByTestId('mock-row-Account currency'));
       expect(mockCurrencySheetRef.current.open).toHaveBeenCalledTimes(1);
 
       act(() => {
@@ -743,7 +743,7 @@ describe('EditParentScreen', () => {
 
     it('handles back press when currency sheet is open', () => {
       const {getByTestId} = renderComponent();
-      fireEvent.press(getByTestId('mock-row-Currency'));
+      fireEvent.press(getByTestId('mock-row-Account currency'));
 
       const handled = fireBackPress();
 

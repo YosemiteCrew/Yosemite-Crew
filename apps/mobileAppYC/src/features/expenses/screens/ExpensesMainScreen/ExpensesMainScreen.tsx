@@ -61,9 +61,7 @@ export const ExpensesMainScreen: React.FC = () => {
     (state: RootState) => state.companion.selectedCompanionId,
   );
   const resolvedCurrency = useResolvedUserCurrency();
-  const userCurrencyCode = useSelector(
-    (state: RootState) => state.auth.user?.currency ?? resolvedCurrency,
-  );
+  const userCurrencyCode = resolvedCurrency;
 
   const hasHydrated = useSelector(
     selectHasHydratedCompanion(selectedCompanionId ?? null),

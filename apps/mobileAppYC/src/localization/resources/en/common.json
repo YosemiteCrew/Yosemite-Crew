@@ -118,7 +118,7 @@
     "weight_kg": "Kilograms",
     "weight_lbs": "Pounds",
     "currency": "Currency",
-    "currency_caption": "Used for expenses and invoices. Existing entries are not converted.",
+    "currency_caption": "Used for expenses and invoices, overriding your account currency on this device. Existing entries are not converted.",
     "appearance": "Appearance",
     "appearance_system": "System",
     "appearance_light": "Light",
