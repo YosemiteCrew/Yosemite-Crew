@@ -36,7 +36,7 @@ describe("configureStreamUploadPolicy", () => {
     expect(mockUpdateAppSettings).toHaveBeenCalledTimes(1);
     const arg = mockUpdateAppSettings.mock.calls[0][0];
     expect(arg.file_upload_config.blocked_file_extensions).toEqual(
-      BLOCKED_UPLOAD_EXTENSIONS,
+      BLOCKED_UPLOAD_EXTENSIONS.map((extension) => `.${extension}`),
     );
     expect(arg.file_upload_config.blocked_mime_types).toEqual(
       BLOCKED_UPLOAD_MIME_TYPES,
@@ -52,13 +52,13 @@ describe("configureStreamUploadPolicy", () => {
 
     const arg = mockUpdateAppSettings.mock.calls[0][0];
     expect(arg.image_upload_config.blocked_file_extensions).toEqual(
-      BLOCKED_UPLOAD_EXTENSIONS,
+      BLOCKED_UPLOAD_EXTENSIONS.map((extension) => `.${extension}`),
     );
     expect(arg.image_upload_config.blocked_mime_types).toEqual(
       BLOCKED_UPLOAD_MIME_TYPES,
     );
     expect(arg.image_upload_config.blocked_file_extensions).toEqual(
-      expect.arrayContaining(["html", "js", "exe", "jar", "hta"]),
+      expect.arrayContaining([".html", ".js", ".exe", ".jar", ".hta"]),
     );
     expect(arg.image_upload_config.size_limit).toBe(MAX_UPLOAD_SIZE_BYTES);
   });
@@ -97,6 +97,25 @@ describe("configureStreamUploadPolicy", () => {
     expect(BLOCKED_UPLOAD_MIME_TYPES).toEqual(
       expect.arrayContaining(["application/x-msdownload", "image/svg+xml"]),
     );
+  });
+
+  // Stream validates every entry with a `startswith` tag, so ONE bare
+  // extension rejects the entire updateAppSettings call - and the failure is
+  // caught and logged, not thrown. That is how a bare list shipped and the
+  // policy silently never applied on any environment while the code called it
+  // the authoritative control. Verified live: ["exe"] rejected, [".exe"] accepted.
+  it("sends every blocked extension with the leading dot Stream requires", async () => {
+    await configureStreamUploadPolicy();
+
+    const arg = mockUpdateAppSettings.mock.calls[0][0];
+    for (const config of [arg.file_upload_config, arg.image_upload_config]) {
+      expect(config.blocked_file_extensions.length).toBe(
+        BLOCKED_UPLOAD_EXTENSIONS.length,
+      );
+      for (const extension of config.blocked_file_extensions) {
+        expect(extension.startsWith(".")).toBe(true);
+      }
+    }
   });
 
   it("skips when Stream credentials are missing", async () => {
