@@ -407,7 +407,7 @@ describe("DocumentService", () => {
     } as any);
     mockedPrisma.document.update.mockResolvedValueOnce({
       ...baseRow,
-      category: "ADMIN",
+      category: "HEALTH",
       subcategory: "PASSPORT",
       syncedFromPms: true,
       attachments: baseRow.attachments,
@@ -416,7 +416,7 @@ describe("DocumentService", () => {
     const updated = await DocumentService.update(
       uuidDocumentId,
       {
-        category: "admin",
+        category: "health",
         subcategory: "passport",
         attachments: [{ key: "k-2", mimeType: "application/pdf", size: 5 }],
       },
@@ -426,7 +426,7 @@ describe("DocumentService", () => {
     expect(mockedPrisma.document.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          category: "ADMIN",
+          category: "HEALTH",
           subcategory: "PASSPORT",
           pmsVisible: true,
         }),
@@ -449,7 +449,7 @@ describe("DocumentService", () => {
         actorId: "pms-1",
       }),
     );
-    expect(updated.category).toBe("ADMIN");
+    expect(updated.category).toBe("HEALTH");
   });
 
   it("clears the subcategory when the update sets it to null", async () => {
@@ -639,7 +639,7 @@ describe("DocumentService", () => {
   // server-side set stopped accepting one, the upload failed with a 400 on a
   // choice the UI had offered the user.
   it.each([
-    ["ADMIN", "PASSPORT"],
+    ["HEALTH", "PASSPORT"],
     ["ADMIN", "CERTIFICATES"],
     ["ADMIN", "INSURANCE"],
     ["HEALTH", "SURGERY_OR_PROCEDURE"],
@@ -677,6 +677,26 @@ describe("DocumentService", () => {
       ).resolves.toBeDefined();
     },
   );
+
+  it("no longer accepts a passport under ADMIN", async () => {
+    // A passport is a health record - it carries the vaccination, parasite
+    // treatment and rabies titration history a vet signs - not paperwork like
+    // insurance. Filing it under ADMIN also put it out of PIMS's reach
+    // entirely: the web picker only ever offers HEALTH and
+    // HYGIENE_MAINTENANCE, so no clinic could file or find one.
+    await expect(
+      DocumentService.create(
+        {
+          patientId: uuidPatientId,
+          category: "ADMIN",
+          subcategory: "PASSPORT",
+          title: "Doc",
+          attachments: [{ key: "k-1", mimeType: "image/png" }],
+        },
+        { parentId: uuidParentId },
+      ),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
 
   it("rejects invalid inputs", async () => {
     await expect(

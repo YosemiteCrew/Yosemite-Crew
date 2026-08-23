@@ -1,9 +1,9 @@
 export const SUBCATEGORY_IDS = {
   // admin
-  PASSPORT: 'passport',
   CERTIFICATES: 'certificates',
   INSURANCE: 'insurance',
   // health
+  PASSPORT: 'passport',
   SURGERY_PROCEDURE: 'surgery-procedure',
   PRESCRIPTION: 'prescription',
   VACCINATION: 'vaccination',

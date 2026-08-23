@@ -12,6 +12,7 @@ export const CategoryOptions: Option[] = makeOptions([
 ]);
 
 export const HealthCategoryOptions: Option[] = makeOptions([
+  ['Passport', 'PASSPORT'],
   ['Surgery/ Procedure', 'SURGERY_OR_PROCEDURE'],
   ['Prescription', 'PRESCRIPTION'],
   ['Vaccination', 'VACCINATION'],
@@ -54,6 +55,7 @@ export type VisitType = 'HOSPITAL' | 'GROOMER' | 'BOARDER' | 'BREEDER' | 'SHOP' 
 export type Category = 'HEALTH' | 'HYGIENE_MAINTENANCE';
 
 export type HealthSubcategory =
+  | 'PASSPORT'
   | 'SURGERY_OR_PROCEDURE'
   | 'PRESCRIPTION'
   | 'VACCINATION'

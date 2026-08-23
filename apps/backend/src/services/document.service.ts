@@ -29,8 +29,14 @@ const COMPANION_DOCUMENT_CATEGORIES = new Set([
 // subcategory under HEALTH and HYGIENE_MAINTENANCE, so both are accepted here;
 // omitting them rejected a value the UI let the user choose.
 const VALID_CATEGORY_SUBCATEGORIES: Record<string, Set<string>> = {
-  ADMIN: new Set(["PASSPORT", "CERTIFICATES", "INSURANCE"]),
+  ADMIN: new Set(["CERTIFICATES", "INSURANCE"]),
   HEALTH: new Set([
+    // A pet passport is a health record, not paperwork: it carries the
+    // vaccination, parasite-treatment and rabies-titration history a vet
+    // signs. It sat under ADMIN beside insurance, which is also where PIMS
+    // could never reach it - the web picker only ever offers HEALTH and
+    // HYGIENE_MAINTENANCE.
+    "PASSPORT",
     "SURGERY_OR_PROCEDURE",
     "PRESCRIPTION",
     "VACCINATION",

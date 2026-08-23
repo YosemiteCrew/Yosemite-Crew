@@ -33,6 +33,9 @@ describe('companionDocuments types', () => {
   describe('HealthCategoryOptions', () => {
     it('matches the approved health subcategory list', () => {
       expect(HealthCategoryOptions).toEqual([
+        // A passport is a health record, not admin paperwork. It used to sit
+        // under ADMIN, which PIMS never offers, so no clinic could file one.
+        { label: 'Passport', value: 'PASSPORT' },
         { label: 'Surgery/ Procedure', value: 'SURGERY_OR_PROCEDURE' },
         { label: 'Prescription', value: 'PRESCRIPTION' },
         { label: 'Vaccination', value: 'VACCINATION' },
