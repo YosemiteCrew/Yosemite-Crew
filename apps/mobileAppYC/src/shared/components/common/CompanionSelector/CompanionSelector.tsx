@@ -282,7 +282,7 @@ const createStyles = (theme: any) =>
     },
     // Pink = companion moment: the selected tile gets a pink border + soft glow.
     companionItemSelected: {
-      borderColor: theme.colors.pink,
+      borderColor: theme.colors.pinkDeep,
       backgroundColor: theme.colors.screen,
       ...theme.shadows.companion,
     },
@@ -299,7 +299,7 @@ const createStyles = (theme: any) =>
       borderColor: theme.colors.transparent,
     },
     companionAvatarRingSelected: {
-      borderColor: theme.colors.pink,
+      borderColor: theme.colors.pinkDeep,
     },
     companionAvatar: {
       width: 48,

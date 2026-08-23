@@ -436,8 +436,12 @@ describe('EditParentScreen', () => {
 
       expect(getByTestId('mock-inline-edit-First name').props.value).toBe('');
       expect(getByTestId('mock-inline-edit-Last name').props.value).toBe(''); // Test safeUser.phone ? ... : '' (memo default)
-      expect(getByTestId('mock-row-Date of birth').props.value).toBe(''); // Test safeUser.currency ?? 'USD'
-      expect(getByTestId('mock-row-Currency').props.value).toBe('USD'); // Test safeUser.address?. ... ?? ''
+      expect(getByTestId('mock-row-Date of birth').props.value).toBe('');
+      // With no profile currency the row falls back to the value the app
+      // actually resolves, not a hardcoded 'USD'. PreferencesContext derives
+      // EUR for an account with no imperial country, and this row used to
+      // disagree with the Preferences screen for exactly that user.
+      expect(getByTestId('mock-row-Currency').props.value).toBe('EUR'); // Test safeUser.address?. ... ?? ''
       expect(getByTestId('mock-row-Address').props.value).toBe('');
       expect(getByTestId('mock-row-State/Province').props.value).toBe('');
       expect(getByTestId('mock-row-City').props.value).toBe('');
@@ -450,8 +454,9 @@ describe('EditParentScreen', () => {
       const {getByTestId} = renderComponent(); // Test currency sheet prop
 
       fireEvent.press(getByTestId('mock-row-Currency'));
+      // Same fallback as the row, so the sheet opens on what is displayed.
       expect(getByTestId('mock-currency-sheet').props.selectedCurrency).toBe(
-        'USD',
+        'EUR',
       ); // Test address sheet prop
 
       fireEvent.press(getByTestId('mock-row-Address'));

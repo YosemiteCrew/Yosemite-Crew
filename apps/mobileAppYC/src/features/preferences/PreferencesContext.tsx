@@ -9,6 +9,7 @@ import {
   type WeightUnit,
   type DistanceUnit,
 } from '@/shared/utils/measurementSystem';
+import {resolveUserCurrency} from '@/shared/utils/currency';
 import type {CurrencyCode} from '@/shared/utils/currency';
 import {
   setWeightOverride,
@@ -75,14 +76,13 @@ export const PreferencesProvider: React.FC<{children: React.ReactNode}> = ({
     const measurementSystem = getMeasurementSystemFromCountryName(countryName);
     const weightUnit = getWeightUnit(measurementSystem);
     const distanceUnit = getDistanceUnit(measurementSystem);
-    const currency: CurrencyCode =
-      measurementSystem === 'imperial' ? 'USD' : 'EUR';
+    const currency = resolveUserCurrency(countryName, currencyOverride);
 
     return {
       measurementSystem,
       weightUnit: weightOverride ?? weightUnit,
       distanceUnit: distanceOverride ?? distanceUnit,
-      currency: currencyOverride ?? currency,
+      currency,
       setWeightUnit,
       setDistanceUnit,
       setCurrency,

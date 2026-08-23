@@ -474,10 +474,10 @@ describe('AddExpenseScreen', () => {
     expect(mockNavDispatch).not.toHaveBeenCalled();
   });
 
-  it('uses default currency code "USD" if user currency is not available', () => {
+  it('falls back to the resolved currency when the user has none set', () => {
     mockState.auth.user = null;
     const {getByTestId} = renderComponent();
     const form = getByTestId('mock-expense-form');
-    expect(form.props.currencyCode).toBe('USD');
+    expect(form.props.currencyCode).toBe('EUR');
   });
 });

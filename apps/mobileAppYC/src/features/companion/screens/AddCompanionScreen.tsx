@@ -60,6 +60,7 @@ import {useAuth} from '@/features/auth/context/AuthContext';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
 import {convertWeight} from '@/shared/utils/measurementSystem';
 import {getFreshStoredTokens} from '@/features/auth/sessionManager';
+import {neuterTerm} from '@/features/companion/utils/neuterTerm';
 import {
   fetchBreedCodeEntries,
   fetchSpeciesCodeEntries,
@@ -122,7 +123,7 @@ const GENDER_OPTIONS = [
 ];
 
 const getNeuteredOptions = (gender?: string | null) => {
-  const term = gender === 'female' ? 'Spayed' : 'Neutered';
+  const term = neuterTerm(gender);
   return [
     {value: 'neutered', label: term},
     {value: 'not-neutered', label: `Not ${term.toLowerCase()}`},
@@ -587,7 +588,10 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
     if (!watch('neuteredStatus')) {
       setError('neuteredStatus', {
         type: 'manual',
-        message: 'Neutered status is required',
+        // The field's own rule already words this by gender, but this manual
+        // setError runs first on Next and overrode it, so a female companion
+        // was labelled "Spayed status" and told "Neutered status is required".
+        message: `${neuterTerm(gender)} status is required`,
       });
       return;
     }
@@ -859,6 +863,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
         />
 
         <View style={styles.fieldGroup}>
+          <Text style={styles.fieldLabel}>Gender</Text>
           <Controller
             control={control}
             name="gender"
@@ -901,13 +906,13 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
 
         <View style={styles.fieldGroup}>
           <Text style={styles.fieldLabel}>
-            {gender === 'female' ? 'Spayed status' : 'Neutered status'}
+            {`${neuterTerm(gender)} status`}
           </Text>
           <Controller
             control={control}
             name="neuteredStatus"
             rules={{
-              required: `${gender === 'female' ? 'Spayed' : 'Neutered'} status is required`,
+              required: `${neuterTerm(gender)} status is required`,
             }}
             render={() => (
               <TileSelector
@@ -1000,6 +1005,10 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
         })}
 
         <View style={styles.fieldGroup}>
+          {/* Every other tile group on this screen is labelled. Without this
+              one the user picks between two bare tiles and only learns what
+              they were choosing from the "Insurance status is required" error. */}
+          <Text style={styles.fieldLabel}>Insurance status</Text>
           <Controller
             control={control}
             name="insuredStatus"
@@ -1063,7 +1072,9 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
           <Controller
             control={control}
             name="origin"
-            rules={{required: 'Origin is required'}}
+            // Every other error on this screen names the label the user is
+            // looking at. This one said "Origin" under "My pet comes from:".
+            rules={{required: 'Please choose where your pet comes from'}}
             render={() => (
               <TileSelector
                 options={ORIGIN_OPTIONS}
@@ -1297,7 +1308,7 @@ const createStyles = (theme: any) =>
     },
     speciesCardSelected: {
       borderWidth: 1.5,
-      borderColor: theme.colors.pink,
+      borderColor: theme.colors.pinkDeep,
       ...theme.shadows.companion,
     },
     speciesAvatar: {

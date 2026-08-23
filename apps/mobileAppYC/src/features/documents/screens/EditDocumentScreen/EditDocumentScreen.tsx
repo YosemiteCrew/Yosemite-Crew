@@ -294,6 +294,7 @@ export const EditDocumentScreen: React.FC = () => {
             onBack={handleBack}
             onRightPress={handleDelete}
             rightIcon={Images.deleteIconRed}
+            rightIconTint={theme.colors.dangerText}
             glass={false}
           />
         }

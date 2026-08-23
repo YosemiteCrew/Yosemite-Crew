@@ -35,6 +35,7 @@ import {InlineEditRow} from '@/shared/components/common/InlineEditRow/InlineEdit
 import COUNTRIES from '@/shared/utils/countryList.json';
 
 // Bottom sheets
+import {useResolvedUserCurrency} from '@/shared/hooks/useResolvedUserCurrency';
 import {
   CurrencyBottomSheet,
   type CurrencyBottomSheetRef,
@@ -95,7 +96,8 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
   const [showDobPicker, setShowDobPicker] = useState(false);
   const accessTokenRef = useRef<string | null>(null);
 
-  // Bottom sheet refs
+  const resolvedCurrency = useResolvedUserCurrency();
+
   const currencySheetRef = useRef<CurrencyBottomSheetRef>(null);
   const addressSheetRef = useRef<AddressBottomSheetRef>(null);
   const phoneSheetRef = useRef<CountryMobileBottomSheetRef>(null);
@@ -457,7 +459,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
                 {/* Currency – Bottom sheet */}
                 <RowButton
                   label="Currency"
-                  value={safeUser.currency ?? 'USD'}
+                  value={safeUser.currency ?? resolvedCurrency}
                   onPress={() => {
                     openBottomSheetRef.current = 'currency';
                     currencySheetRef.current?.open();
@@ -551,7 +553,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
       {/* ====== Bottom Sheets ====== */}
       <CurrencyBottomSheet
         ref={currencySheetRef}
-        selectedCurrency={safeUser.currency ?? 'USD'}
+        selectedCurrency={safeUser.currency ?? resolvedCurrency}
         onSave={(currency: string) => {
           applyPatch({currency});
           openBottomSheetRef.current = null;

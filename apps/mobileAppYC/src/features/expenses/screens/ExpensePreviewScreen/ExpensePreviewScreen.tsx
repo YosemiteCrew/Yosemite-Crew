@@ -45,6 +45,7 @@ import type {
   DetailBadge,
 } from '@/shared/components/common/DetailsCard';
 import type {ExpenseAttachment} from '@/features/expenses/types';
+import {useResolvedUserCurrency} from '@/shared/hooks/useResolvedUserCurrency';
 
 type Navigation = NativeStackNavigationProp<
   ExpenseStackParamList,
@@ -255,8 +256,9 @@ export const ExpensePreviewScreen: React.FC = () => {
 
   const expenseId = (route.params as any)?.expenseId ?? '';
   const expense = useSelector(selectExpenseById(expenseId));
+  const resolvedCurrency = useResolvedUserCurrency();
   const userCurrencyCode = useSelector(
-    (state: RootState) => state.auth.user?.currency ?? 'USD',
+    (state: RootState) => state.auth.user?.currency ?? resolvedCurrency,
   );
   const companion = useSelector((state: RootState) =>
     expense?.companionId

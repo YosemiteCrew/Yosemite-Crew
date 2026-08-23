@@ -87,7 +87,7 @@ export const InlineEditRow: React.FC<InlineEditRowProps> = ({
           onPress={cancelEdit}
           style={styles.cancelButton}
           textStyle={styles.cancelButtonText}
-          tintColor={theme.colors.white}
+          tintColor={theme.colors.fieldBg}
           shadowIntensity="light"
           forceBorder
           borderColor={theme.colors.borderMuted}

@@ -96,6 +96,7 @@ import {BusinessSearchDropdown} from '@/features/linkedBusinesses/components/Bus
 import {deriveHomeGreetingName} from './HomeScreen.helpers';
 
 import i18next from 'i18next';
+import {useResolvedUserCurrency} from '@/shared/hooks/useResolvedUserCurrency';
 const EMPTY_ACCESS_MAP: Record<string, ParentCompanionAccess> = {};
 
 /** Ceiling on the opaque first-load overlay, which has no dismiss control. */
@@ -161,7 +162,8 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const hasCompanions = companions.length > 0;
   const unreadNotifications = useSelector(selectUnreadCount);
   const notificationsLoading = useSelector(selectNotificationsLoading);
-  const userCurrencyCode = authUser?.currency ?? 'USD';
+  const resolvedCurrency = useResolvedUserCurrency();
+  const userCurrencyCode = authUser?.currency ?? resolvedCurrency;
   const {businessMap, employeeMap, serviceMap} = useAppointmentDataMaps();
   const upcomingAppointmentsSelector = React.useMemo(
     () => createSelectUpcomingAppointments(),

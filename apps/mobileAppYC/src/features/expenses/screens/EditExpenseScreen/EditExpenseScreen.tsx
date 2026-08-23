@@ -31,6 +31,7 @@ import {
 } from '@/shared/hooks/useFormScreen';
 
 import i18next from 'i18next';
+import {useResolvedUserCurrency} from '@/shared/hooks/useResolvedUserCurrency';
 type Route = RouteProp<ExpenseStackParamList, 'EditExpense'>;
 
 export const EditExpenseScreen: React.FC = () => {
@@ -49,8 +50,9 @@ export const EditExpenseScreen: React.FC = () => {
 
   const {expenseId} = route.params;
   const expense = useSelector(selectExpenseById(expenseId));
+  const resolvedCurrency = useResolvedUserCurrency();
   const currencyCode = useSelector(
-    (state: RootState) => state.auth.user?.currency ?? 'USD',
+    (state: RootState) => state.auth.user?.currency ?? resolvedCurrency,
   );
   const loading = useSelector((state: RootState) => state.expenses.loading);
 
@@ -214,6 +216,7 @@ export const EditExpenseScreen: React.FC = () => {
             showBackButton
             onBack={handleGoBack}
             rightIcon={Images.deleteIconRed}
+            rightIconTint={theme.colors.dangerText}
             onRightPress={handleDelete}
             glass={false}
           />

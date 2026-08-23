@@ -69,7 +69,7 @@ const createStyles = (theme: any, variant: CardActionButtonVariant) => {
     primary: {
       borderWidth: 1,
       borderColor: theme.colors.secondary,
-      backgroundColor: theme.colors.white,
+      backgroundColor: theme.colors.fieldBg,
     },
     success: {
       borderWidth: 0,

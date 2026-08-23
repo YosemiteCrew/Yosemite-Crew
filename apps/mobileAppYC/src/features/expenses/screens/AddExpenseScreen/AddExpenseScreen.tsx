@@ -23,6 +23,7 @@ import {
 } from '@/shared/hooks/useFormScreen';
 
 import i18next from 'i18next';
+import {useResolvedUserCurrency} from '@/shared/hooks/useResolvedUserCurrency';
 export const AddExpenseScreen: React.FC = () => {
   const {
     theme,
@@ -36,8 +37,9 @@ export const AddExpenseScreen: React.FC = () => {
     selectedCompanionId,
   } = useCompanionFormScreen();
 
+  const resolvedCurrency = useResolvedUserCurrency();
   const currencyCode = useSelector(
-    (state: RootState) => state.auth.user?.currency ?? 'USD',
+    (state: RootState) => state.auth.user?.currency ?? resolvedCurrency,
   );
   const loading = useSelector((state: RootState) => state.expenses.loading);
 
