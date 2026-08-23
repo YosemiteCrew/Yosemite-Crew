@@ -2,7 +2,6 @@ import type {
   EmployeeAvailability,
   SlotWindow,
 } from '@/features/appointments/types';
-import {} from '@/shared/utils/dateHelpers';
 
 const sortIsoDates = (a: string, b: string) => a.localeCompare(b);
 const deviceTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
