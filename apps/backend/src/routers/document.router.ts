@@ -6,6 +6,7 @@ import {
   withOrgPermissions,
   requirePermission,
 } from "src/middlewares/rbac";
+import { requireCompanionPermission } from "src/middlewares/companion-access";
 
 const router = Router();
 
@@ -22,18 +23,21 @@ router.post(
 router.get(
   "/mobile/search/:patientId",
   requireMobileAuth,
+  requireCompanionPermission("documents", "patientId"),
   DocumentController.searchDocumentMobile,
 );
 
 router.post(
   "/mobile/:patientId",
   requireMobileAuth,
+  requireCompanionPermission("documents", "patientId"),
   DocumentController.createDocument,
 );
 
 router.get(
   "/mobile/:patientId",
   requireMobileAuth,
+  requireCompanionPermission("documents", "patientId"),
   DocumentController.listDocumentsForParent,
 );
 
@@ -70,6 +74,7 @@ router.delete(
 router.get(
   "/search/:patientId",
   requireMobileAuth,
+  requireCompanionPermission("documents", "patientId"),
   DocumentController.searchDocument,
 );
 

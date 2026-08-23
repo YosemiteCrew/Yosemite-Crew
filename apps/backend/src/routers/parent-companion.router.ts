@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { ParentCompanionController } from "src/controllers/app/parent-companion.controller";
+import { requireCompanionPermission } from "src/middlewares/companion-access";
 import { requireMobileAuth } from "../middlewares/auth"; // for parents
 
 export const router = Router();
@@ -12,6 +13,7 @@ router.get(
 router.get(
   "/companion/:patientId",
   requireMobileAuth,
+  requireCompanionPermission("companionProfile", "patientId"),
   ParentCompanionController.getLinksForCompanion,
 );
 router.patch(
