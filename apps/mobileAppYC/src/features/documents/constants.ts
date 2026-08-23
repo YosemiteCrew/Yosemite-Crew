@@ -6,13 +6,12 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
   {
     id: 'admin',
     label: 'Admin',
-    description: 'Passport, certificates, insurance',
+    description: 'Certificates, insurance',
     icon: Images.adminIcon,
     iconTint: 'avatarVioletBg',
     isSynced: false,
     fileCount: 0,
     subcategories: [
-      {id: S.PASSPORT, label: 'Passport', fileCount: 0},
       {
         id: S.CERTIFICATES,
         label:
@@ -25,12 +24,13 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
   {
     id: 'health',
     label: 'Health',
-    description: 'Prescriptions, labs, vaccinations',
+    description: 'Passport, prescriptions, labs, vaccinations',
     icon: Images.healthIconCategory,
     iconTint: 'blueSoft',
     isSynced: true,
     fileCount: 0,
     subcategories: [
+      {id: S.PASSPORT, label: 'Passport', fileCount: 0},
       {id: S.SURGERY_PROCEDURE, label: 'Surgery/ Procedure', fileCount: 0},
       {id: S.PRESCRIPTION, label: 'Prescription', fileCount: 0},
       {id: S.VACCINATION, label: 'Vaccination', fileCount: 0},
