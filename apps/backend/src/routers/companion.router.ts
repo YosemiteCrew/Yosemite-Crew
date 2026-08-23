@@ -2,6 +2,7 @@ import { Router } from "express";
 import { CompanionController } from "../controllers/app/companion.controller";
 import { requireMobileAuth, requireWebAuth } from "src/middlewares/auth";
 import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
+import { requireCompanionPermission } from "src/middlewares/companion-access";
 
 const router = Router();
 
@@ -11,9 +12,19 @@ const router = Router();
 
 router.post("/", requireMobileAuth, CompanionController.createCompanionMobile);
 
-router.get("/:id", requireMobileAuth, CompanionController.getCompanionById);
+router.get(
+  "/:id",
+  requireMobileAuth,
+  requireCompanionPermission("companionProfile", "id"),
+  CompanionController.getCompanionById,
+);
 
-router.put("/:id", requireMobileAuth, CompanionController.updateCompanion);
+router.put(
+  "/:id",
+  requireMobileAuth,
+  requireCompanionPermission("companionProfile", "id"),
+  CompanionController.updateCompanion,
+);
 
 router.delete("/:id", requireMobileAuth, CompanionController.deleteCompanion);
 

@@ -1,7 +1,11 @@
 import type { NextFunction, Request, Response } from "express";
 
 jest.mock("src/config/prisma", () => ({
-  prisma: { parentPatient: { findFirst: jest.fn() } },
+  prisma: {
+    parentPatient: { findFirst: jest.fn() },
+    externalExpense: { findUnique: jest.fn() },
+    invoice: { findUnique: jest.fn() },
+  },
 }));
 jest.mock("src/services/shared/parent-identity", () => ({
   findParentIdForAuthUser: jest.fn(),
@@ -9,7 +13,11 @@ jest.mock("src/services/shared/parent-identity", () => ({
 
 import { prisma } from "src/config/prisma";
 import { findParentIdForAuthUser } from "src/services/shared/parent-identity";
-import { requireCompanionPermission } from "src/middlewares/companion-access";
+import {
+  requireCompanionPermission,
+  requireCompanionPermissionForResource,
+  resolveExpenseCompanion,
+} from "src/middlewares/companion-access";
 
 const findFirst = (
   prisma as unknown as {
@@ -17,6 +25,27 @@ const findFirst = (
   }
 ).parentPatient.findFirst;
 const findParent = findParentIdForAuthUser as jest.Mock;
+const expenseFindUnique = (
+  prisma as unknown as { externalExpense: { findUnique: jest.Mock } }
+).externalExpense.findUnique;
+const invoiceFindUnique = (
+  prisma as unknown as { invoice: { findUnique: jest.Mock } }
+).invoice.findUnique;
+
+const runExpenseMiddleware = async ({
+  expenseId = "exp-1",
+  userId = "provider-user-1",
+} = {}) => {
+  const req = { params: { expenseId }, userId } as unknown as Request;
+  const json = jest.fn();
+  const res = { status: jest.fn(() => ({ json })) } as unknown as Response;
+  const next = jest.fn() as NextFunction;
+  await requireCompanionPermissionForResource(
+    "expenses",
+    resolveExpenseCompanion,
+  )(req, res, next);
+  return { res, json, next };
+};
 
 const runMiddleware = async (
   feature: Parameters<typeof requireCompanionPermission>[0] = "documents",
@@ -180,5 +209,120 @@ describe("requireCompanionPermission", () => {
         }),
       }),
     );
+  });
+});
+
+describe("requireCompanionPermissionForResource (expenses)", () => {
+  beforeEach(() => {
+    expenseFindUnique.mockResolvedValue(null);
+    invoiceFindUnique.mockResolvedValue(null);
+  });
+
+  it("closes the cross-parent read: an expense on someone else's companion is a 404", async () => {
+    // The regression this guard exists for. Before it, `GET /expense/:id`
+    // resolved the row by id alone and handed it back to any signed-in parent.
+    // The caller here holds a session but no link to the expense's companion,
+    // so the link lookup finds nothing and the answer must be a bare 404 -
+    // never a 403, which would confirm the id belongs to someone.
+    expenseFindUnique.mockResolvedValue({ patientId: "someone-elses-pet" });
+    findFirst.mockResolvedValue(null);
+
+    const { next, res, json } = await runExpenseMiddleware();
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(json).toHaveBeenCalledWith({ message: "Companion not found." });
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          patientId: "someone-elses-pet",
+          parentId: "par-1",
+        }),
+      }),
+    );
+  });
+
+  it("checks the permission against the companion named on the expense", async () => {
+    expenseFindUnique.mockResolvedValue({ patientId: "pat-9" });
+    findFirst.mockResolvedValue({
+      role: "CO_PARENT",
+      permissions: { ...ALL_FALSE, expenses: true },
+    });
+
+    const { next, res } = await runExpenseMiddleware();
+
+    expect(next).toHaveBeenCalled();
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it("denies a co-parent whose expenses switch is off", async () => {
+    expenseFindUnique.mockResolvedValue({ patientId: "pat-9" });
+    findFirst.mockResolvedValue({ role: "CO_PARENT", permissions: ALL_FALSE });
+
+    const { next, res } = await runExpenseMiddleware();
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
+  });
+
+  it("falls through to the invoice table, since the route serves both", async () => {
+    // `getExpenseById` reads ExternalExpense first and Invoice second. If the
+    // resolver stopped at the first table the fall-through would be the bypass.
+    invoiceFindUnique.mockResolvedValue({
+      patientId: "pat-7",
+      parentId: "par-1",
+    });
+    findFirst.mockResolvedValue({ role: "PRIMARY", permissions: ALL_FALSE });
+
+    const { next } = await runExpenseMiddleware();
+
+    expect(invoiceFindUnique).toHaveBeenCalled();
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ patientId: "pat-7" }),
+      }),
+    );
+    expect(next).toHaveBeenCalled();
+  });
+
+  it("allows an invoice raised against the parent with no companion on it", async () => {
+    // Nothing to check a companion permission against, so ownership is the
+    // whole decision and the resolver proves it before saying yes.
+    invoiceFindUnique.mockResolvedValue({ patientId: null, parentId: "par-1" });
+
+    const { next, res } = await runExpenseMiddleware();
+
+    expect(next).toHaveBeenCalled();
+    expect(res.status).not.toHaveBeenCalled();
+    expect(findFirst).not.toHaveBeenCalled();
+  });
+
+  it("denies a companion-less invoice belonging to another parent", async () => {
+    invoiceFindUnique.mockResolvedValue({
+      patientId: null,
+      parentId: "another-parent",
+    });
+
+    const { next, res } = await runExpenseMiddleware();
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(findFirst).not.toHaveBeenCalled();
+  });
+
+  it("denies an id that matches no row, without querying permissions", async () => {
+    const { next, res } = await runExpenseMiddleware({ expenseId: "nope" });
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(findFirst).not.toHaveBeenCalled();
+  });
+
+  it("denies a blank expense id", async () => {
+    const { next, res } = await runExpenseMiddleware({ expenseId: "   " });
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(expenseFindUnique).not.toHaveBeenCalled();
   });
 });
