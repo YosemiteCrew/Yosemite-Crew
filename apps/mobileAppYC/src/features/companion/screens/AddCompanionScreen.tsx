@@ -868,6 +868,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
         />
 
         <View style={styles.fieldGroup}>
+          <Text style={styles.fieldLabel}>Gender</Text>
           <Controller
             control={control}
             name="gender"
@@ -1076,7 +1077,9 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
           <Controller
             control={control}
             name="origin"
-            rules={{required: 'Origin is required'}}
+            // Every other error on this screen names the label the user is
+            // looking at. This one said "Origin" under "My pet comes from:".
+            rules={{required: 'Please choose where your pet comes from'}}
             render={() => (
               <TileSelector
                 options={ORIGIN_OPTIONS}
