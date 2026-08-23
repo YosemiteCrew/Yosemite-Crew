@@ -212,9 +212,22 @@ const ProfileAvatar: React.FC<ProfileAvatarProps> = ({
 
   const initial = isUserProfile ? userInitials : getInitial(profile.name, 'C');
 
+  // The parent's own avatar is blue everywhere else in the app - Home, Edit
+  // parent, Create account. This row rendered it in the companion category
+  // violet, so the same person appeared in two colours depending on screen.
   return (
-    <View style={styles.companionAvatarInitials}>
-      <Text style={styles.avatarInitialsText}>{initial}</Text>
+    <View
+      style={[
+        styles.companionAvatarInitials,
+        isUserProfile && styles.parentAvatarInitials,
+      ]}>
+      <Text
+        style={[
+          styles.avatarInitialsText,
+          isUserProfile && styles.parentAvatarInitialsText,
+        ]}>
+        {initial}
+      </Text>
     </View>
   );
 };
@@ -725,6 +738,12 @@ const createStyles = (theme: any) => {
     avatarInitialsText: {
       ...theme.typography.h4,
       color: theme.colors.avatarVioletInk,
+    },
+    parentAvatarInitials: {
+      backgroundColor: theme.colors.blueSoft,
+    },
+    parentAvatarInitialsText: {
+      color: theme.colors.blueText,
     },
     companionName: {
       ...theme.typography.titleSmall,
