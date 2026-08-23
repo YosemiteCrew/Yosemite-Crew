@@ -115,6 +115,25 @@ export const MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024;
  * best-effort: a failure is logged but never blocks server startup, since the
  * app can still run (uploads simply fall back to Stream's default policy).
  */
+/**
+ * Stream requires each blocked extension to carry a leading dot.
+ *
+ * Its API validates `blocked_file_extensions` with a `startswith` tag, so a
+ * bare "exe" fails and - because every entry is validated - the WHOLE
+ * updateAppSettings call is rejected. The failure is caught and logged rather
+ * than thrown, so for as long as this was wrong the policy silently never
+ * applied on any environment: chat uploads were unrestricted at the Stream
+ * level while the code described this as the authoritative control.
+ *
+ * Verified against the live Stream app: ["exe","dll"] is rejected,
+ * [".exe",".dll"] is accepted.
+ *
+ * The dot is added HERE rather than in BLOCKED_UPLOAD_EXTENSIONS because that
+ * list is mirrored by the web composer (features/chat/lib/uploadSafety.ts),
+ * which matches against a bare extension parsed from the filename.
+ */
+const toStreamExtension = (extension: string): string => `.${extension}`;
+
 export const configureStreamUploadPolicy = async (): Promise<void> => {
   const key = process.env.STREAM_API_KEY;
   const secret = process.env.STREAM_API_SECRET;
@@ -124,7 +143,7 @@ export const configureStreamUploadPolicy = async (): Promise<void> => {
   }
 
   const uploadConfig = {
-    blocked_file_extensions: BLOCKED_UPLOAD_EXTENSIONS,
+    blocked_file_extensions: BLOCKED_UPLOAD_EXTENSIONS.map(toStreamExtension),
     blocked_mime_types: BLOCKED_UPLOAD_MIME_TYPES,
     size_limit: MAX_UPLOAD_SIZE_BYTES,
   };
@@ -146,7 +165,7 @@ export const configureStreamUploadPolicy = async (): Promise<void> => {
   // that, so a future edit that smuggles one in fails the suite rather than
   // silently blocking customer photos again.
   const imageUploadConfig = {
-    blocked_file_extensions: BLOCKED_UPLOAD_EXTENSIONS,
+    blocked_file_extensions: BLOCKED_UPLOAD_EXTENSIONS.map(toStreamExtension),
     blocked_mime_types: BLOCKED_UPLOAD_MIME_TYPES,
     size_limit: MAX_UPLOAD_SIZE_BYTES,
   };
