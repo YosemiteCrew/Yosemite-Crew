@@ -602,7 +602,7 @@ describe('ExpensesListScreen', () => {
       const summaryCard = getByTestId('mock-YearlySpendCard');
 
       expect(summaryCard.props.amount).toBe(0);
-      expect(summaryCard.props.currencyCode).toBe('USD');
+      expect(summaryCard.props.currencyCode).toBe('EUR');
     });
   });
 });
