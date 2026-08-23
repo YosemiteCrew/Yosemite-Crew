@@ -1,0 +1,129 @@
+name: Deploy API
+
+# The two API hosts are hand-provisioned and NOTHING deployed them: no workflow
+# in this repo touched api.yosemitecrew.com or devapi.yosemitecrew.com, so a
+# green main said nothing about what was running. On 2026-08-23 the dev box was
+# found 254 commits and six migrations behind while main had been green for days,
+# and every production fix that week needed a hand-deploy from someone's laptop.
+#
+# Deliberately manual (workflow_dispatch, not push). These hosts run migrations
+# against the live database and there is no blue/green, so a deploy is a decision
+# someone makes, not a side effect of merging. What this removes is the drift and
+# the laptop, not the judgement.
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Which API host to deploy.
+        required: true
+        type: choice
+        options: [dev, production]
+      ref:
+        description: Git ref to deploy. Defaults to the branch this is run from.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+# One deploy per host at a time. Two concurrent runs would race the same repo
+# checkout and pm2 process; never cancel a running one, because a deploy killed
+# between `git checkout` and `pm2 restart` leaves the box on new source with an
+# old bundle.
+concurrency:
+  group: deploy-api-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy API (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Resolve target
+        id: target
+        shell: bash
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+          INPUT_REF: ${{ inputs.ref }}
+        run: |
+          set -euo pipefail
+          if [ "$ENVIRONMENT" = "production" ]; then
+            echo "host=63.181.54.147"                       >> "$GITHUB_OUTPUT"
+            echo "repo=/home/ubuntu/Yosemite-Crew"          >> "$GITHUB_OUTPUT"
+            echo "pm2=yosemite-backend"                     >> "$GITHUB_OUTPUT"
+            echo "default_ref=main"                         >> "$GITHUB_OUTPUT"
+          else
+            echo "host=63.179.216.42"                       >> "$GITHUB_OUTPUT"
+            echo "repo=/home/ubuntu/fix/Yosemite-Crew"      >> "$GITHUB_OUTPUT"
+            echo "pm2=1"                                    >> "$GITHUB_OUTPUT"
+            echo "default_ref=dev"                          >> "$GITHUB_OUTPUT"
+          fi
+          echo "ref=${INPUT_REF:-}" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy over SSH
+        shell: bash
+        env:
+          SSH_KEY: ${{ secrets.API_DEPLOY_SSH_KEY }}
+          HOST: ${{ steps.target.outputs.host }}
+          REPO: ${{ steps.target.outputs.repo }}
+          PM2_TARGET: ${{ steps.target.outputs.pm2 }}
+          REF: ${{ steps.target.outputs.ref }}
+          DEFAULT_REF: ${{ steps.target.outputs.default_ref }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SSH_KEY:-}" ]; then
+            echo "API_DEPLOY_SSH_KEY is not set for the '${{ inputs.environment }}' environment." >&2
+            echo "Add it as an environment secret before using this workflow." >&2
+            exit 1
+          fi
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+          TARGET_REF="${REF:-$DEFAULT_REF}"
+          echo "Deploying $TARGET_REF to $HOST ($REPO)"
+
+          # Ship the script from THIS checkout rather than trusting whatever
+          # version happens to be on the box.
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            scripts/deploy/api-deploy.sh "ubuntu@$HOST:/tmp/api-deploy.sh"
+
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            -o ServerAliveInterval=30 "ubuntu@$HOST" \
+            "chmod +x /tmp/api-deploy.sh && /tmp/api-deploy.sh '$REPO' '$PM2_TARGET' '$TARGET_REF'"
+
+      - name: Verify from outside
+        shell: bash
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          set -euo pipefail
+          if [ "$ENVIRONMENT" = "production" ]; then
+            BASE="https://api.yosemitecrew.com"
+          else
+            BASE="https://devapi.yosemitecrew.com"
+          fi
+          code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$BASE/health")"
+          echo "$BASE/health -> $code"
+          [ "$code" = "200" ] || { echo "health check failed after deploy" >&2; exit 1; }
+
+          # Status alone proves little: Express answers 404 for a route that was
+          # never mounted AND for one that ran and found nothing. The body is
+          # what distinguishes them - JSON means a real handler ran.
+          body="$(curl -s --max-time 20 "$BASE/v1/pet-passport/mobile/companion/probe" | head -c 80)"
+          echo "auth-gated route -> $body"
+          case "$body" in
+            \{*) echo "route mounted ✅" ;;
+            *) echo "expected a JSON body from a mounted route, got HTML" >&2; exit 1 ;;
+          esac
+      - name: Always clean up the key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
