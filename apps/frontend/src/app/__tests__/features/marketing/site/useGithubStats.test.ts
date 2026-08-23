@@ -614,6 +614,23 @@ describe('useReleaseLanes', () => {
     expect(renderToString(createElement(Probe))).toContain('-,-,-,-');
   });
 
+  it('still renders the lanes when session storage cannot be written', async () => {
+    // Safari private browsing, a blocked third-party context, an exhausted quota.
+    // The response already arrived; a failed cache write must not swallow it.
+    const setItem = jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('QuotaExceededError');
+    });
+    try {
+      globalThis.fetch = lanesFetch(RELEASES) as unknown as FetchLike;
+      const { result } = renderHook(() => useReleaseLanes());
+      await waitFor(() => expect(byKey(result.current, 'pims').tag).toBe('v2.3.0-beta'));
+      expect(byKey(result.current, 'desktop').tag).toBe('v0.1.0-beta.4');
+      expect(sessionStorage.getItem('yc_marketing_release_lanes_v1')).toBeNull();
+    } finally {
+      setItem.mockRestore();
+    }
+  });
+
   it('fetches the releases list once for all four lanes', async () => {
     const spy = lanesFetch(RELEASES);
     globalThis.fetch = spy as unknown as FetchLike;

@@ -378,22 +378,36 @@ const toLanes = (list: RawRelease[]): ReleaseLane[] =>
  * presented as a live release is worse than an empty slot, and it would poison the shared cache.
  */
 export function useReleaseLanes(): ReleaseLane[] {
-  const lanes = useSyncExternalStore(subscribeToSessionCache, getLanesSnapshot, getServerLanes);
+  const cached = useSyncExternalStore(subscribeToSessionCache, getLanesSnapshot, getServerLanes);
+
+  // What THIS instance fetched, used only when the cache could not take it.
+  // Writing to session storage can fail - Safari private browsing, a blocked
+  // third-party context, an exhausted quota - and the store is the only path
+  // from response to screen, so without this a successful fetch would render
+  // placeholders forever. Component state rather than a module variable, so a
+  // failed write in one place cannot leak a stale value into another.
+  const [fetched, setFetched] = useState<ReleaseLane[] | null>(null);
 
   useEffect(() => {
     let active = true;
     void (async () => {
       const list = (await fetchJson(`${GITHUB_RELEASES_ENDPOINT}?list=1`)) as RawRelease[] | null;
       if (!active || !Array.isArray(list) || list.length === 0) return;
-      setJsonStorageItem('session', LANES_CACHE_KEY, toLanes(list));
+      const resolved = toLanes(list);
+      setJsonStorageItem('session', LANES_CACHE_KEY, resolved);
       emitSessionCacheChange();
+      setFetched(resolved);
     })();
     return () => {
       active = false;
     };
   }, []);
 
-  return lanes;
+  // The store wins whenever it holds anything: it is shared, so it stays correct
+  // across instances. EMPTY_LANES is a module constant, so this is an identity
+  // check for "nothing cached", not a deep comparison.
+  if (cached !== EMPTY_LANES) return cached;
+  return fetched ?? cached;
 }
 
 /**

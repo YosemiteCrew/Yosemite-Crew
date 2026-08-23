@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import type { ReleaseLane } from '@/app/features/marketing/site/useGithubStats';
 
@@ -117,6 +118,43 @@ describe('ReleaseLanes', () => {
       screen.getByRole('link', { name: 'PIMS v2.3.0-beta, released recently' })
     ).toBeInTheDocument();
     expect(screen.queryByText('19 Aug')).not.toBeInTheDocument();
+  });
+
+  it('reaches every lane by keyboard, in the order they are read', async () => {
+    // Four links in a row is the whole interaction surface. Tab order has to
+    // match reading order, and each lane has to take focus - the hairlines and
+    // the dot between them are decorative and must not be stops.
+    const user = userEvent.setup();
+    render(<ReleaseLanes />);
+
+    const seen: string[] = [];
+    for (let i = 0; i < 4; i += 1) {
+      await user.tab();
+      const active = document.activeElement as HTMLElement;
+      expect(active.tagName).toBe('A');
+      seen.push(active.getAttribute('aria-label') ?? '');
+    }
+    expect(seen.map((name) => name.split(' ')[0])).toEqual([
+      'PIMS',
+      'Desktop',
+      'Mobile',
+      'Backend',
+    ]);
+  });
+
+  it('activates a lane, opening that release in a new tab', async () => {
+    const user = userEvent.setup();
+    render(<ReleaseLanes />);
+
+    const mobile = screen.getByRole('link', { name: /^Mobile/ });
+    const onClick = jest.fn((event: Event) => event.preventDefault());
+    mobile.addEventListener('click', onClick);
+
+    await user.click(mobile);
+
+    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(mobile).toHaveAttribute('href', RESOLVED[2].url);
+    expect(mobile).toHaveAttribute('target', '_blank');
   });
 
   it('separates the lanes without adding them to the accessible names', () => {
