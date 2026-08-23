@@ -2662,6 +2662,11 @@ export const CatalogService = {
           orderBy: [{ isDefault: "desc" as const }],
           select: {
             unitPrice: true,
+            // Selected because the parent-facing quote is computed from it. A
+            // select that omits it does not fail - the field is simply
+            // undefined and the discount silently computes as zero, so the
+            // quote quietly reverts to the gross price.
+            defaultDiscountPercent: true,
           },
           take: 1,
         },
