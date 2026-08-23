@@ -20,6 +20,7 @@ jest.mock("src/config/prisma", () => ({
     patient: { findUnique: jest.fn() },
     parentPatient: { findFirst: jest.fn() },
     parent: { findUnique: jest.fn() },
+    careReminderOptOut: { findMany: jest.fn(), upsert: jest.fn() },
   },
 }));
 
@@ -50,6 +51,7 @@ const pm = prisma as unknown as {
   patient: { findUnique: jest.Mock };
   parentPatient: { findFirst: jest.Mock };
   parent: { findUnique: jest.Mock };
+  careReminderOptOut: { findMany: jest.Mock; upsert: jest.Mock };
 };
 
 const DUE = new Date("2026-07-15T10:00:00Z");
@@ -88,6 +90,10 @@ beforeEach(() => {
   (AuditTrailService.recordSafely as jest.Mock).mockResolvedValue(undefined);
   (NotificationService.sendToUser as jest.Mock).mockResolvedValue(undefined);
   (sendEmail as jest.Mock).mockResolvedValue(undefined);
+  // No opt-out by default, and the unsubscribe link needs both of these to build.
+  pm.careReminderOptOut.findMany.mockResolvedValue([]);
+  process.env.MARKETING_UNSUBSCRIBE_SECRET = "test-secret";
+  process.env.PUBLIC_API_URL = "https://api.example.com";
   pm.careReminder.findFirst.mockResolvedValue(makeReminder());
   pm.careReminder.create.mockResolvedValue(makeReminder());
   pm.careReminder.createMany.mockResolvedValue({ count: 3 });
@@ -292,6 +298,70 @@ describe("CareReminderService.send", () => {
     await CareReminderService.send("reminder-1", "org-1");
     expect(sendEmail).not.toHaveBeenCalled();
     expect(NotificationService.sendToUser).toHaveBeenCalled();
+  });
+
+  it("includes an unsubscribe link in the email body", async () => {
+    await CareReminderService.send("reminder-1", "org-1");
+    const body = (sendEmail as jest.Mock).mock.calls[0][0].htmlBody as string;
+    expect(body).toContain("/v1/reminder-preferences/unsubscribe");
+    expect(body).toContain("Stop receiving care reminders");
+  });
+
+  it("suppresses the email when the recipient opted out of email, but still pushes", async () => {
+    pm.careReminderOptOut.findMany.mockResolvedValue([{ channel: "EMAIL" }]);
+    await CareReminderService.send("reminder-1", "org-1");
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(NotificationService.sendToUser).toHaveBeenCalled();
+  });
+
+  it("an ALL opt-out suppresses the push as well as the email", async () => {
+    // The unsubscribe flow stores ALL and tells the recipient reminders have
+    // stopped, so continuing to push would break that promise.
+    pm.careReminderOptOut.findMany.mockResolvedValue([{ channel: "ALL" }]);
+    await CareReminderService.send("reminder-1", "org-1");
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(NotificationService.sendToUser).not.toHaveBeenCalled();
+  });
+
+  it("scopes the suppression lookup to the sending practice", async () => {
+    await CareReminderService.send("reminder-1", "org-1");
+    expect(pm.careReminderOptOut.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { organisationId: "org-1", email: "owner@example.com" },
+      }),
+    );
+  });
+
+  it("stays retryable when the opt-out lookup errors: nothing sent, not marked SENT", async () => {
+    // Returning quietly here would let `send` mark the reminder SENT, and only a
+    // PENDING reminder can be sent again, so a transient database problem would
+    // burn the reminder permanently.
+    pm.careReminderOptOut.findMany.mockRejectedValue(new Error("db down"));
+    await expect(
+      CareReminderService.send("reminder-1", "org-1"),
+    ).rejects.toBeInstanceOf(CareReminderError);
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(NotificationService.sendToUser).not.toHaveBeenCalled();
+    expect(pm.careReminder.update).not.toHaveBeenCalled();
+  });
+
+  it("stays retryable when no unsubscribe link can be built", async () => {
+    delete process.env.PUBLIC_API_URL;
+    await expect(
+      CareReminderService.send("reminder-1", "org-1"),
+    ).rejects.toBeInstanceOf(CareReminderError);
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(pm.careReminder.update).not.toHaveBeenCalled();
+  });
+
+  it("does not send the push before the suppression check resolves", async () => {
+    // Ordering matters: if push went first, a failed lookup would leave the
+    // reminder half-delivered and a retry would duplicate the push.
+    pm.careReminderOptOut.findMany.mockRejectedValue(new Error("db down"));
+    await CareReminderService.send("reminder-1", "org-1").catch(
+      () => undefined,
+    );
+    expect(NotificationService.sendToUser).not.toHaveBeenCalled();
   });
 
   it("still transitions to SENT when no parent found", async () => {

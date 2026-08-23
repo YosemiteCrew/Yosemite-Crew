@@ -4,6 +4,11 @@ import { AuditTrailService } from "./audit-trail.service";
 import { NotificationService } from "./notification.service";
 import { NotificationTemplates } from "src/utils/notificationTemplates";
 import { sendEmail } from "src/utils/email";
+import {
+  buildCareReminderUnsubscribeUrl,
+  resolveCareReminderSuppression,
+  type CareReminderSuppression,
+} from "./care-reminder-opt-out.service";
 import logger from "src/utils/logger";
 import type { Prisma } from "@prisma/client";
 import {
@@ -100,6 +105,81 @@ const assertReminder = async (id: string, organisationId: string) => {
   return reminder;
 };
 
+/**
+ * Everything that can refuse the send, resolved before any channel is delivered.
+ *
+ * Kept separate from delivery for two reasons: it is the only part that can
+ * legally block the send, and doing it first means an operational failure cannot
+ * leave one channel delivered and the other not. Both failures throw rather than
+ * returning quietly, because `send` marks the reminder SENT on return and only a
+ * PENDING reminder can be sent again, so a transient problem would otherwise
+ * consume a reminder that was never delivered.
+ */
+const resolveDeliveryPlan = async (
+  reminder: Awaited<ReturnType<typeof assertReminder>>,
+  ownerEmail: string | null,
+): Promise<{
+  suppression: CareReminderSuppression;
+  unsubscribeUrl: string | null;
+}> => {
+  // With no address on file there is no key to look an objection up by, so push
+  // is the only channel and it proceeds. Worth knowing when reading suppression
+  // numbers: an opt-out is recorded against an email address.
+  if (!ownerEmail) {
+    return { suppression: { email: false, push: false }, unsubscribeUrl: null };
+  }
+
+  let suppression: CareReminderSuppression;
+  try {
+    suppression = await resolveCareReminderSuppression({
+      organisationId: reminder.organisationId,
+      email: ownerEmail,
+    });
+  } catch (err: unknown) {
+    logger.error(
+      "Care reminder not sent: opt-out lookup failed, cannot prove consent",
+      { reminderId: reminder.id, err },
+    );
+    throw new CareReminderError(
+      "Unable to verify reminder preferences right now.",
+      503,
+    );
+  }
+
+  if (suppression.email) {
+    return { suppression, unsubscribeUrl: null };
+  }
+
+  try {
+    return {
+      suppression,
+      unsubscribeUrl: buildCareReminderUnsubscribeUrl({
+        organisationId: reminder.organisationId,
+        email: ownerEmail,
+      }),
+    };
+  } catch (err: unknown) {
+    logger.error(
+      "Care reminder not sent: unsubscribe link could not be built (check PUBLIC_API_URL and MARKETING_UNSUBSCRIBE_SECRET)",
+      { reminderId: reminder.id, err },
+    );
+    throw new CareReminderError(
+      "Reminder delivery is not configured correctly.",
+      503,
+    );
+  }
+};
+
+const buildReminderEmailBody = (body: string, unsubscribeUrl: string) =>
+  // `body` carries the companion name and the reminder's free-text custom
+  // message, so it must be escaped before it lands in email markup.
+  `<p>${escapeHtml(body)}</p>` +
+  `<p>Book an appointment through the app or contact your clinic directly.</p>` +
+  `<hr /><p style="font-size:12px;color:#5c5956">` +
+  `You are receiving this because your companion is registered with this practice. ` +
+  `<a href="${escapeHtml(unsubscribeUrl)}">Stop receiving care reminders from this practice</a>.` +
+  `</p>`;
+
 const dispatchNotification = async (
   reminder: Awaited<ReturnType<typeof assertReminder>>,
   patientName: string,
@@ -111,34 +191,48 @@ const dispatchNotification = async (
     reminder.customMessage ??
     `${patientName} is due for ${typeLabel}. Please book an appointment at your earliest convenience.`;
 
+  const { suppression, unsubscribeUrl } = await resolveDeliveryPlan(
+    reminder,
+    ownerEmail,
+  );
+
+  const suppressed = (channel: "push" | "email") =>
+    logger.info(`Care reminder ${channel} suppressed: recipient opted out`, {
+      reminderId: reminder.id,
+      organisationId: reminder.organisationId,
+    });
+
   if (ownerUserId) {
-    const payload = NotificationTemplates.Care.CARE_REMINDER(
-      patientName,
-      typeLabel,
-    );
-    await NotificationService.sendToUser(ownerUserId, payload).catch(
-      (err: unknown) => {
+    if (suppression.push) {
+      suppressed("push");
+    } else {
+      await NotificationService.sendToUser(
+        ownerUserId,
+        NotificationTemplates.Care.CARE_REMINDER(patientName, typeLabel),
+      ).catch((err: unknown) => {
         logger.error("Care reminder push notification failed", {
           reminderId: reminder.id,
           err,
         });
-      },
-    );
+      });
+    }
   }
 
   if (ownerEmail) {
-    await sendEmail({
-      to: ownerEmail,
-      subject: `Care reminder for ${patientName}`,
-      // `body` carries the companion name and the reminder's free-text custom
-      // message, so it must be escaped before it lands in email markup.
-      htmlBody: `<p>${escapeHtml(body)}</p><p>Book an appointment through the app or contact your clinic directly.</p>`,
-    }).catch((err: unknown) => {
-      logger.error("Care reminder email failed", {
-        reminderId: reminder.id,
-        err,
+    if (suppression.email || !unsubscribeUrl) {
+      suppressed("email");
+    } else {
+      await sendEmail({
+        to: ownerEmail,
+        subject: `Care reminder for ${patientName}`,
+        htmlBody: buildReminderEmailBody(body, unsubscribeUrl),
+      }).catch((err: unknown) => {
+        logger.error("Care reminder email failed", {
+          reminderId: reminder.id,
+          err,
+        });
       });
-    });
+    }
   }
 };
 

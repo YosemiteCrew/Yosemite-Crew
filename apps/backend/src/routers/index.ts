@@ -127,6 +127,7 @@ import { medicalCertificateRouter } from "./medical-certificate.router";
 import { patientFlagRouter } from "./patient-flag.router";
 import { inventoryCountRouter } from "./inventory-count.router";
 import { clinicNoteRouter } from "./clinic-note.router";
+import careReminderOptOutRouter from "./care-reminder-opt-out.router";
 import marketingUnsubscribeRouter from "./marketing-unsubscribe.router";
 import marketingRouter from "./marketing.router";
 import activityPubRouter from "./activitypub.router";
@@ -265,5 +266,6 @@ export function registerRoutes(app: Express) {
   app.use(`/v1/super-admin`, superAdminRouter);
   app.use(`/v1/catalog`, catalogRouter);
   app.use(`/v1/email-preferences`, marketingUnsubscribeRouter);
+  app.use(`/v1/reminder-preferences`, careReminderOptOutRouter);
   app.use(`/ap`, activityPubRouter);
 }

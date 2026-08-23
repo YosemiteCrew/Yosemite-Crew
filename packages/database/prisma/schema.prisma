@@ -3691,6 +3691,38 @@ model CareReminder {
   @@map("CareReminder")
 }
 
+/// Suppression list for care-reminder sends. A pet parent can object to further
+/// reminders (GDPR Art. 21) from a specific practice without affecting the other
+/// practices that care for the same animal, so the list is scoped by organisation
+/// and keyed by the address the reminder is actually delivered to.
+///
+/// `channel` is granular rather than a single boolean because the delivery layer
+/// grows: opting out of email must not silently mute an in-app push the parent
+/// still wants. `ALL` suppresses every channel.
+enum CareReminderOptOutChannel {
+  EMAIL
+  PUSH
+  ALL
+}
+
+model CareReminderOptOut {
+  id             String                    @id @default(uuid())
+  organisationId String
+  /// Lower-cased and trimmed before write. The recipient is identified by address
+  /// because that is what the send path resolves, and a parent may have no user row.
+  email          String
+  channel        CareReminderOptOutChannel @default(ALL)
+  parentId       String?
+  /// How the opt-out was captured, e.g. "unsubscribe-link" or "staff".
+  source         String?
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  @@unique([organisationId, email, channel])
+  @@index([organisationId, email])
+  @@map("CareReminderOptOut")
+}
+
 enum ProblemStatus {
   ACTIVE
   INACTIVE
