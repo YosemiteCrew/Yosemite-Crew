@@ -63,6 +63,19 @@ export const requireCompanionPermission =
       ];
       const userId = (req as Request & { userId?: string | null }).userId;
 
+      // Load-bearing, and it must stay BEFORE the query.
+      //
+      // Prisma omits an `undefined` field from `where` rather than matching
+      // nothing, so `{ patientId: undefined, parentId }` silently becomes
+      // `{ parentId }` - a filter that matches this parent's link to ANY
+      // patient and would hand back a link, and therefore access. A route
+      // mounted with the wrong param name would do exactly that.
+      //
+      // CodeQL flags this as js/user-controlled-bypass because a user-supplied
+      // value guards an authorisation decision. The direction is inverted: the
+      // falsy branch DENIES, and the value is used to look the permission up,
+      // never to decide whether to check it. Removing this guard is the
+      // vulnerability; having it is the fix.
       if (!patientId || !userId) {
         return res.status(404).json({ message: "Companion not found." });
       }

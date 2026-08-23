@@ -126,6 +126,21 @@ describe("requireCompanionPermission", () => {
     expect(findParent).not.toHaveBeenCalled();
   });
 
+  // Prisma omits an undefined `where` field rather than matching nothing, so
+  // `{ patientId: undefined, parentId }` would match this parent's link to ANY
+  // patient and grant access. The guard must therefore run BEFORE the query,
+  // not merely produce a 404 afterwards.
+  it("denies a missing patient id without ever reaching the database", async () => {
+    const { res, next } = await runMiddleware("documents", {
+      patientId: null as unknown as string,
+    });
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(findParent).not.toHaveBeenCalled();
+    expect(findFirst).not.toHaveBeenCalled();
+  });
+
   it("only considers ACTIVE links in a parent role", async () => {
     findFirst.mockResolvedValue({ role: "PRIMARY", permissions: ALL_FALSE });
     await runMiddleware("tasks");
