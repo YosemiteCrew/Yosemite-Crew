@@ -64,7 +64,13 @@ export const createPassportStyles = (theme: any) =>
     },
     walletButtonText: {
       ...theme.typography.buttonSmall,
-      color: theme.colors.white,
+      // ctaText, not white. These buttons are tinted `secondary`, which flips
+      // with the theme - near-black in light, bone in dark - so a fixed white
+      // label reads 13.36:1 in light and 1.18:1 in dark, i.e. invisible. Nobody
+      // caught it because the passport screen was unreachable until the parent
+      // scope lookup was fixed. ctaText flips with `secondary` and pairs at
+      // 13.36:1 / 14.40:1.
+      color: theme.colors.ctaText,
     },
     identityName: {
       ...theme.typography.h4,
