@@ -677,7 +677,11 @@ select.yc-field {
     padding: 4px !important;
     gap: 2px;
   }
-  [data-yc-lanes] > svg {
+  /* The live dot and the github mark are chrome, not content - at 342px they would each
+     take a grid cell and break the 2x2. Every lane is a github link anyway, and each one
+     says so in its accessible name. */
+  [data-yc-lanes] > svg,
+  [data-yc-lanes] > span[aria-hidden='true'] {
     display: none !important;
   }
   [data-yc-lanes] > span > span[aria-hidden='true'] {

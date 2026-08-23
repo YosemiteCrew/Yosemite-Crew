@@ -59,6 +59,21 @@ const PLACEHOLDER = '·';
 
 const Separator = () => <span style={SEPARATOR_STYLE} aria-hidden="true" />;
 
+/** The live dot every release pill on the site leads with. Same token, same size. */
+const Dot = () => (
+  <span
+    style={{
+      width: 7,
+      height: 7,
+      borderRadius: 9999,
+      background: 'var(--success)',
+      flex: 'none',
+      margin: '0 7px 0 8px',
+    }}
+    aria-hidden="true"
+  />
+);
+
 function LaneSegment({ lane }: Readonly<{ lane: ReleaseLane }>) {
   // No release resolved yet (or none on the fetched page): the segment still links somewhere
   // useful, and shows a placeholder rather than a stale or invented version.
@@ -100,16 +115,17 @@ export function ReleaseLanes() {
 
   return (
     <div style={BAR_STYLE} data-yc-lanes>
-      <IoLogoGithub
-        style={{ fontSize: 14, color: 'var(--ink-faint)', flex: 'none', margin: '0 4px 0 6px' }}
-        aria-hidden="true"
-      />
+      <Dot />
       {lanes.map((lane, index) => (
         <span key={lane.key} style={{ display: 'inline-flex', alignItems: 'center' }}>
           {index > 0 ? <Separator /> : null}
           <LaneSegment lane={lane} />
         </span>
       ))}
+      <IoLogoGithub
+        style={{ fontSize: 14, color: 'var(--ink-faint)', flex: 'none', margin: '0 8px 0 6px' }}
+        aria-hidden="true"
+      />
     </div>
   );
 }
