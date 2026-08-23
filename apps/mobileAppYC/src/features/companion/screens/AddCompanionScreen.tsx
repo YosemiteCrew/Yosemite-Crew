@@ -1009,6 +1009,10 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
         })}
 
         <View style={styles.fieldGroup}>
+          {/* Every other tile group on this screen is labelled. Without this
+              one the user picks between two bare tiles and only learns what
+              they were choosing from the "Insurance status is required" error. */}
+          <Text style={styles.fieldLabel}>Insurance status</Text>
           <Controller
             control={control}
             name="insuredStatus"
