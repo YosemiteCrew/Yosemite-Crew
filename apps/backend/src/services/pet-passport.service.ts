@@ -556,7 +556,33 @@ export const PetPassportService = {
     userId: string | null,
   ): Promise<PetPassportDTO> {
     const organisationId = await assertParentOfPatient(patientId, userId);
-    return assemblePassport(patientId, organisationId, true, "owner");
+    const passport = await assemblePassport(
+      patientId,
+      organisationId,
+      true,
+      "owner",
+    );
+
+    // Who saw the clinical record, and when.
+    //
+    // Issuance was already audited; the READ was not, so there was no record of
+    // who had looked at a pet's signed vaccination, titration and clinical-exam
+    // history. For attested medical records the access itself is the event
+    // worth keeping - recorded at the time of access and attributable to the
+    // caller. recordSafely, so an audit failure never denies a parent their own
+    // record.
+    await AuditTrailService.recordSafely({
+      organisationId,
+      patientId,
+      eventType: "PASSPORT_VIEWED",
+      actorType: "PARENT",
+      actorId: userId,
+      entityType: "COMPANION",
+      entityId: patientId,
+      metadata: { scope: "owner" },
+    });
+
+    return passport;
   },
 
   // Public, unauthenticated verification. Only formally-issued passports are

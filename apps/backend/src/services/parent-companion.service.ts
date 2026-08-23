@@ -52,6 +52,7 @@ const BASE_PERMISSIONS: ParentCompanionPermissions = {
   expenses: false,
   tasks: false,
   chatWithVet: false,
+  medicalRecords: false,
 };
 
 const PRIMARY_PARENT_PERMISSIONS: ParentCompanionPermissions = {
@@ -63,6 +64,7 @@ const PRIMARY_PARENT_PERMISSIONS: ParentCompanionPermissions = {
   expenses: true,
   tasks: true,
   chatWithVet: true,
+  medicalRecords: true,
 };
 
 const buildPermissions = (

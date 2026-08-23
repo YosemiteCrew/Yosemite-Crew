@@ -40,6 +40,7 @@ const normalizePermissions = (
   expenses: Boolean(permissions?.expenses),
   tasks: Boolean(permissions?.tasks),
   chatWithVet: Boolean(permissions?.chatWithVet),
+  medicalRecords: Boolean(permissions?.medicalRecords),
 });
 
 const normalizeStatus = (status?: string | null): string => {

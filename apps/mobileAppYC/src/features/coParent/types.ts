@@ -36,6 +36,7 @@ export interface CoParentPermissions {
   expenses: boolean;
   tasks: boolean;
   chatWithVet: boolean;
+  medicalRecords: boolean;
 }
 
 export interface CoParentInviteRequest {
