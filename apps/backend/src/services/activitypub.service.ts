@@ -146,6 +146,33 @@ export async function resolveWebFinger(resource: string) {
 const MAX_ACTOR_DOCUMENT_BYTES = 256 * 1024;
 
 /**
+ * Validate and normalise a remote actor URL before it is fetched or used to
+ * bind the fetched document's origin. Rejects anything that is not a plain
+ * http(s) URL and rejects path traversal sequences.
+ */
+function buildValidatedActorUrl(rawUrl: string): string {
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    throw new Error(`Invalid actor URL: ${rawUrl}`);
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error(`Invalid actor URL protocol: ${rawUrl}`);
+  }
+  // new URL() collapses path dot-segments (e.g. `/a/../b` becomes `/b`), so the
+  // normalised href would never expose a traversal sequence - we must inspect
+  // the raw pre-query string to reject it. The check is scoped to the path only:
+  // `/../` or a `%2e%2e` inside a query or fragment value is legitimate opaque
+  // data (e.g. `?next=/../page`) and must not cause an over-rejection.
+  const rawPath = rawUrl.split(/[?#]/, 1)[0];
+  if (rawPath.includes("/../") || /\/%2e%2e\//i.test(rawPath)) {
+    throw new Error(`Invalid actor URL path: ${rawUrl}`);
+  }
+  return url.href;
+}
+
+/**
  * `forceRefresh` bypasses the 24h cache. Needed because a remote instance that
  * rotates its ActivityPub signing key would otherwise have every signed request
  * rejected until the cached copy expired - see the retry in verifyInboundRequest.
@@ -162,7 +189,8 @@ export async function fetchRemoteActor(
     return cached;
   }
 
-  await assertPublicHttpsUrl(uri);
+  const validatedUri = buildValidatedActorUrl(uri);
+  await assertPublicHttpsUrl(validatedUri);
 
   const resp = await axios.get<{
     id: string;
@@ -171,7 +199,7 @@ export async function fetchRemoteActor(
     endpoints?: { sharedInbox?: string };
     publicKey: { id: string; publicKeyPem: string };
     "yc:licenseToken"?: string;
-  }>(uri, {
+  }>(validatedUri, {
     headers: { Accept: AP_CONTENT_TYPE },
     timeout: 10_000,
     maxRedirects: 0,
@@ -190,7 +218,7 @@ export async function fetchRemoteActor(
   // declare an id and key hosted on the same origin it is served from.
   // Without this, any public host could serve a document claiming another
   // instance's actor id (with its own key) and impersonate that instance.
-  const fetchedOrigin = new URL(uri).origin;
+  const fetchedOrigin = new URL(validatedUri).origin;
   let declaredActorOrigin: string;
   let declaredKeyOrigin: string;
   try {
@@ -208,7 +236,7 @@ export async function fetchRemoteActor(
     );
   }
 
-  const instanceHost = new URL(uri).host;
+  const instanceHost = new URL(validatedUri).host;
   const now = new Date();
 
   const remote = {

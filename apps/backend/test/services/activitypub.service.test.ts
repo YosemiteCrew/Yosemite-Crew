@@ -439,6 +439,52 @@ describe("fetchRemoteActor", () => {
       /malformed id or key/,
     );
   });
+
+  it("rejects dot-segments in the path before any network call", async () => {
+    prisma.aPRemoteActor.findUnique.mockResolvedValue(null);
+
+    await expect(
+      svc.fetchRemoteActor("https://remote.example/ap/../secret"),
+    ).rejects.toThrow(/Invalid actor URL path/);
+    await expect(
+      svc.fetchRemoteActor("https://remote.example/ap/%2e%2e/secret"),
+    ).rejects.toThrow(/Invalid actor URL path/);
+
+    expect(assertPublicHttpsUrl).not.toHaveBeenCalled();
+    expect(mockAxios.get).not.toHaveBeenCalled();
+  });
+
+  it("accepts dot-segments inside the query and fetches", async () => {
+    prisma.aPRemoteActor.findUnique.mockResolvedValue(null);
+    mockAxios.get.mockResolvedValue({ data: remoteDoc() });
+    prisma.aPRemoteActor.upsert.mockResolvedValue({ uri: REMOTE });
+
+    const withQuery = `${REMOTE}?next=/../page`;
+    await svc.fetchRemoteActor(withQuery);
+
+    expect(assertPublicHttpsUrl).toHaveBeenCalledWith(withQuery);
+    expect(mockAxios.get).toHaveBeenCalledWith(withQuery, expect.anything());
+  });
+
+  it("rejects a malformed actor URL", async () => {
+    prisma.aPRemoteActor.findUnique.mockResolvedValue(null);
+
+    await expect(svc.fetchRemoteActor("not a valid url")).rejects.toThrow(
+      /Invalid actor URL/,
+    );
+    expect(assertPublicHttpsUrl).not.toHaveBeenCalled();
+    expect(mockAxios.get).not.toHaveBeenCalled();
+  });
+
+  it("rejects a non-http(s) protocol", async () => {
+    prisma.aPRemoteActor.findUnique.mockResolvedValue(null);
+
+    await expect(
+      svc.fetchRemoteActor("ftp://remote.example/actor"),
+    ).rejects.toThrow(/Invalid actor URL protocol/);
+    expect(assertPublicHttpsUrl).not.toHaveBeenCalled();
+    expect(mockAxios.get).not.toHaveBeenCalled();
+  });
 });
 
 // ─── Collections ──────────────────────────────────────────────────────────────
