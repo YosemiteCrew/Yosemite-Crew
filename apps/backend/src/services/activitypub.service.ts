@@ -145,6 +145,26 @@ export async function resolveWebFinger(resource: string) {
 
 const MAX_ACTOR_DOCUMENT_BYTES = 256 * 1024;
 
+function buildValidatedActorUrl(baseUrl: string): string {
+  try {
+    // Minimal path validation (Do this before new URL(baseUrl), as URL() resolves dot-segments.)
+    if (baseUrl.includes('/../') || /\/%2e%2e\//i.test(baseUrl)) {
+      throw new Error('Invalid path');
+    }
+    
+    const url = new URL(baseUrl);
+    
+    // Protocol check
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      throw new Error('Invalid protocol');
+    }
+    
+    return url.href;
+  } catch {
+    throw new Error('Invalid URL');
+  }
+}
+
 /**
  * `forceRefresh` bypasses the 24h cache. Needed because a remote instance that
  * rotates its ActivityPub signing key would otherwise have every signed request
@@ -162,7 +182,8 @@ export async function fetchRemoteActor(
     return cached;
   }
 
-  await assertPublicHttpsUrl(uri);
+  const validatedUri = buildValidatedActorUrl(uri);
+  await assertPublicHttpsUrl(validatedUri);
 
   const resp = await axios.get<{
     id: string;
@@ -171,7 +192,7 @@ export async function fetchRemoteActor(
     endpoints?: { sharedInbox?: string };
     publicKey: { id: string; publicKeyPem: string };
     "yc:licenseToken"?: string;
-  }>(uri, {
+  }>(validatedUri, {
     headers: { Accept: AP_CONTENT_TYPE },
     timeout: 10_000,
     maxRedirects: 0,
