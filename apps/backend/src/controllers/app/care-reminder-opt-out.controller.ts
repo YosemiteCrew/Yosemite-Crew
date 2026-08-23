@@ -86,10 +86,8 @@ export const CareReminderOptOutController = {
     try {
       // The token arrives in the form body when the confirmation page posts it,
       // and in the query string for a direct API call.
-      const source =
-        typeof (req.body as { token?: unknown } | undefined)?.token === "string"
-          ? (req.body as { token: string })
-          : req.query;
+      const body = req.body as { token?: unknown } | undefined;
+      const source = typeof body?.token === "string" ? body : req.query;
       const { token } = UnsubscribeQuerySchema.parse(source);
       await unsubscribeFromCareReminders(token);
 
