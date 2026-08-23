@@ -1122,7 +1122,12 @@ const mapBusinessFromApi = (
             specialityId: specId ?? null,
             name: svc?.name ?? svc?.display ?? 'Service',
             description: svc?.description,
-            basePrice: svc?.cost ?? svc?.price ?? undefined,
+            // Prefer the amount that will be billed. `cost` is the gross unit
+            // price; the practice's standing discount is applied when the
+            // invoice is drafted, so quoting cost told a parent 240 for a
+            // visit they were then charged 228 for. Packages already resolve
+            // finalAmount first for the same reason.
+            basePrice: svc?.finalAmount ?? svc?.cost ?? svc?.price ?? undefined,
             currency: svc?.currency,
             defaultEmployeeId: undefined,
             appointmentKinds: Array.isArray(svc?.appointmentKinds)

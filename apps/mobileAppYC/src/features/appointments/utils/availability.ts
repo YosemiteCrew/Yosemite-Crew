@@ -2,14 +2,9 @@ import type {
   EmployeeAvailability,
   SlotWindow,
 } from '@/features/appointments/types';
-import {
-  addDays,
-  formatDateToISODate,
-  parseISODate,
-} from '@/shared/utils/dateHelpers';
+import {} from '@/shared/utils/dateHelpers';
 
 const sortIsoDates = (a: string, b: string) => a.localeCompare(b);
-const DEFAULT_MARKER_WINDOW_DAYS = 30;
 const deviceTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 const normalizeTimeString = (value?: string | null): string | undefined => {
@@ -132,18 +127,20 @@ export const getSlotsForDate = (
   return [];
 };
 
+/**
+ * The days the calendar puts an availability dot on.
+ *
+ * Only days that actually hold a bookable slot. This used to seed the next 30
+ * days unconditionally and then add real availability on top, so every day in
+ * the window wore a dot whether or not anything could be booked - a practice
+ * with no practitioner assigned to a speciality showed a month of green dots
+ * and then "No future slots available" on each one.
+ */
 export const getFutureAvailabilityMarkers = (
   availability: EmployeeAvailability | null | undefined,
   todayISO: string,
 ) => {
   const markers = new Set<string>();
-  const baseDate = parseISODate(todayISO);
-
-  if (!Number.isNaN(baseDate.getTime())) {
-    for (let i = 0; i < DEFAULT_MARKER_WINDOW_DAYS; i++) {
-      markers.add(formatDateToISODate(addDays(baseDate, i)));
-    }
-  }
 
   if (availability) {
     for (const [key, slots] of Object.entries(availability.slotsByDate)) {
