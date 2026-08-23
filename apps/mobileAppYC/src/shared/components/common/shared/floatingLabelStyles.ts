@@ -8,7 +8,7 @@ import type {Theme} from '@/theme/themes';
 
 export const getInputContainerBaseStyle = (theme: Theme, error?: string) => ({
   borderWidth: 1.5,
-  borderColor: error ? theme.colors.error : theme.colors.hairline,
+  borderColor: error ? theme.colors.error : theme.colors.controlBorder,
   borderRadius: theme.borderRadius.field,
   backgroundColor: theme.colors.fieldBg,
   paddingHorizontal: theme.spacing['5'],

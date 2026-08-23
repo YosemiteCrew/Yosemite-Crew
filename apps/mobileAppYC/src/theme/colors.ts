@@ -95,8 +95,26 @@ const palette = {
   screen: ['#F7F3EC', '#2F271E'],
   screen2: ['#F1EBE1', '#221D17'],
   surface: ['#F7F3EC', '#2F271E'],
-  fieldBg: ['#FAFAFA', '#241F18'],
+  fieldBg: ['#FBF8F2', '#241F18'],
   hairline: ['#E5DCCF', '#40362B'],
+  /**
+   * The boundary of an interactive control - text fields, selects, anything
+   * whose edge is the only thing telling you where the control is.
+   *
+   * `hairline` measures 1.28:1 against the field fill and 1.23:1 against the
+   * page, which is right for a decorative rule and well short of the 3:1 that
+   * WCAG 1.4.11 asks of a control boundary. The field fill only differs from
+   * the ground by 1.06:1, so the border really is carrying that job alone.
+   *
+   * Darkening `hairline` itself would drag every divider, card edge and list
+   * separator in ~70 files down with it and turn warm bone into hard outline.
+   * So it splits by role, the same way danger/dangerText and pink/pinkDeep do:
+   * `hairline` stays the soft rule, `controlBorder` delimits controls.
+   *
+   * Measured: light 3.58:1 on the field fill and 3.43:1 on the page ground;
+   * dark 3.84:1 and 3.45:1.
+   */
+  controlBorder: ['#977F62', '#8A7860'],
   hairlineHover: ['#D6D1CD', '#4A4033'],
   // Border on a selected segment. The hairline is too faint to mark selection
   // on its own (1.06:1 light, 1.23:1 dark against the track), and the card
@@ -201,7 +219,7 @@ const palette = {
   borderSeparator: ['#D6D1CD', '#3A3128'],
   placeholder: ['#8F8984', '#9D9285'],
   cardBackground: ['#F7F3EC', '#2F271E'],
-  inputBackground: ['#FAFAFA', '#241F18'],
+  inputBackground: ['#FBF8F2', '#241F18'],
 } satisfies Record<string, ColorPair>;
 
 type PaletteKey = keyof typeof palette;

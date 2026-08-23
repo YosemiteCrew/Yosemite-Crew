@@ -277,7 +277,7 @@ const createStyles = (theme: Theme) => {
       width: '100%',
       backgroundColor: theme.colors.fieldBg,
       borderWidth: 1.5,
-      borderColor: theme.colors.hairline,
+      borderColor: theme.colors.controlBorder,
       borderRadius: theme.borderRadius.field,
       paddingTop: theme.spacing['3.5'],
       paddingHorizontal: theme.spacing['4'],

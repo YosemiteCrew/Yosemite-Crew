@@ -81,7 +81,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
   });
 
   const handleEmailSignUp = () => {
-    navigation.navigate('SignIn');
+    navigation.navigate('SignIn', {intent: 'signUp'});
   };
 
   const handleSignIn = () => {

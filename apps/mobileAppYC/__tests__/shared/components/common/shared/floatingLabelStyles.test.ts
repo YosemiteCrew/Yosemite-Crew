@@ -20,10 +20,15 @@ describe('floatingLabelStyles', () => {
       }),
     );
 
+    // A field's edge is the only thing marking where the control is, so it
+    // takes controlBorder (3:1) rather than the decorative hairline (1.28:1).
     expect(getInputContainerBaseStyle(mockTheme)).toEqual(
       expect.objectContaining({
-        borderColor: mockTheme.colors.hairline,
+        borderColor: mockTheme.colors.controlBorder,
       }),
+    );
+    expect(getInputContainerBaseStyle(mockTheme).borderColor).not.toBe(
+      mockTheme.colors.hairline,
     );
   });
 
