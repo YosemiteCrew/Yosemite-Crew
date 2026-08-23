@@ -1,4 +1,4 @@
-import {neuterTerm} from '@/features/companion/screens/AddCompanionScreen';
+import {neuterTerm} from '@/features/companion/utils/neuterTerm';
 
 /**
  * The word was spelled out at four call sites and drifted: the Next handler

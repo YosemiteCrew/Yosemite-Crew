@@ -60,6 +60,7 @@ import {useAuth} from '@/features/auth/context/AuthContext';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
 import {convertWeight} from '@/shared/utils/measurementSystem';
 import {getFreshStoredTokens} from '@/features/auth/sessionManager';
+import {neuterTerm} from '@/features/companion/utils/neuterTerm';
 import {
   fetchBreedCodeEntries,
   fetchSpeciesCodeEntries,
@@ -120,12 +121,6 @@ const GENDER_OPTIONS = [
   {value: 'male', label: 'Male'},
   {value: 'female', label: 'Female'},
 ];
-
-// One source for the word. It used to be written out at each site, which is
-// how the Next handler ended up telling a female companion's owner that
-// "Neutered status is required" under a field labelled "Spayed status".
-export const neuterTerm = (gender?: string | null) =>
-  gender === 'female' ? 'Spayed' : 'Neutered';
 
 const getNeuteredOptions = (gender?: string | null) => {
   const term = neuterTerm(gender);
