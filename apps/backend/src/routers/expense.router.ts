@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { ExpenseController } from "../controllers/app/expense.controller";
 import { requireMobileAuth } from "src/middlewares/auth";
+import { requireCompanionPermission } from "src/middlewares/companion-access";
 
 const router = Router();
 
@@ -19,12 +20,14 @@ router.get("/:expenseId", requireMobileAuth, ExpenseController.getExpenseById);
 router.get(
   "/companion/:patientId/list",
   requireMobileAuth,
+  requireCompanionPermission("expenses", "patientId"),
   ExpenseController.getExpensesByCompanion,
 );
 
 router.get(
   "/companion/:patientId/summary",
   requireMobileAuth,
+  requireCompanionPermission("expenses", "patientId"),
   ExpenseController.getExpenseSummary,
 );
 

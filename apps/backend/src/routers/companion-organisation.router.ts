@@ -2,6 +2,7 @@ import { Router } from "express";
 import { CompanionOrganisationController } from "../controllers/app/companion-organisation.controller";
 import { requireWebAuth, requireMobileAuth } from "src/middlewares/auth";
 import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
+import { requireCompanionPermission } from "src/middlewares/companion-access";
 
 const router = Router();
 
@@ -42,6 +43,7 @@ router.delete(
 router.get(
   "/:patientId",
   requireMobileAuth,
+  requireCompanionPermission("appointments", "patientId"),
   CompanionOrganisationController.getLinksForCompanionByOrganisationType,
 );
 

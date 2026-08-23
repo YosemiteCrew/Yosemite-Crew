@@ -134,14 +134,19 @@ describe("pet-passport.router", () => {
     expect(requirePermission).toHaveBeenCalledWith("passport:attest:any");
   });
 
-  it("exposes the pet-parent passport + wallet routes behind mobile auth only", () => {
+  it("exposes the pet-parent passport + wallet routes behind mobile auth and the co-parent gate", () => {
+    // Three handlers now: mobile auth, the co-parent permission check, and the
+    // controller. The point of the original assertion still holds and is what
+    // is checked below - no staff session, no ORG permission gate on a parent's
+    // own view. requireCompanionPermission is neither of those; it enforces the
+    // delegation the primary parent already set, which until it existed was
+    // read only by the mobile client.
     const MOB = "/mobile/companion/:patientId";
     for (const path of [MOB, `${MOB}/wallet/apple`, `${MOB}/wallet/google`]) {
       const route = findRoute(path, "get");
-      expect(route?.stack).toHaveLength(2);
+      expect(route?.stack).toHaveLength(3);
       const handles = route?.stack.map((l) => l.handle);
       expect(handles).toContain(requireMobileAuth);
-      // No staff session and no org permission gate on the parent's own view.
       expect(handles).not.toContain(requireWebAuth);
     }
   });
