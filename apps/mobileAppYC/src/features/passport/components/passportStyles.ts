@@ -123,6 +123,10 @@ export const createPassportStyles = (theme: any) =>
       width: 24,
       height: 24,
       resizeMode: 'contain',
+      // addIconDark is a dark glyph. Header tints its right icon for exactly
+      // this reason; this one sits inside a card and was missed, so the upload
+      // action rendered #302F2E on a #25211E disc - 1.20:1 - in dark mode.
+      tintColor: theme.colors.text,
     },
     uploadsHint: {
       ...theme.typography.bodySmall,
