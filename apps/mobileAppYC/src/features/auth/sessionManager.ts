@@ -498,10 +498,35 @@ export const getFreshStoredTokens =
     }
 
     try {
-      // The SuperTokens SDK refreshes the session automatically when the
-      // access token has expired.
+      // Ask for a refresh explicitly rather than hoping getAccessToken() does
+      // one. When the refresh token is also dead this resolves false, which is
+      // the difference between "renewed" and "handed back the same corpse".
+      await SuperTokens.attemptRefreshingSession();
+
       const accessToken = await SuperTokens.getAccessToken();
       if (!accessToken) {
+        return null;
+      }
+
+      const refreshedExpiry = resolveExpiration({accessToken});
+
+      // The bug this guards: getAccessToken() returns the CURRENT token, and on
+      // a fully expired session that is the same expired token we just
+      // rejected. The old code stored it as "refreshed", recomputed the same
+      // past expiry, and returned it - so the caller sent a dead credential and
+      // the screen showed a raw "Request failed with status code 401" instead
+      // of the friendly copy this file already has.
+      //
+      // Identity, not expiry, is the reliable test. A refresh that handed back
+      // the byte-identical token achieved nothing, and that holds whether or
+      // not the token is a parseable JWT. Expiry is only a secondary check, and
+      // deliberately not `!refreshedExpiry` - an unparseable expiry means we
+      // cannot tell, and locking every such user out is worse than the bug.
+      const unchanged = accessToken === storedTokens.accessToken;
+      if (unchanged || isTokenExpired(refreshedExpiry)) {
+        console.warn(
+          '[Auth] Refresh did not renew the session; treating it as ended',
+        );
         return null;
       }
 
@@ -510,7 +535,7 @@ export const getFreshStoredTokens =
         idToken: accessToken,
         accessToken,
         refreshToken: undefined,
-        expiresAt: resolveExpiration({accessToken}),
+        expiresAt: refreshedExpiry,
         provider: 'supertokens',
       };
 
@@ -526,7 +551,10 @@ export const getFreshStoredTokens =
         '[Auth] Unable to refresh SuperTokens session tokens',
         error,
       );
-      return normalized;
+      // Returning the stale token here would send a known-dead credential and
+      // surface the raw axios 401. Null routes callers to their
+      // "please sign in again" path instead.
+      return null;
     }
   };
 
