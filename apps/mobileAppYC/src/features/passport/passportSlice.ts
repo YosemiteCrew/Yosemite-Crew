@@ -10,6 +10,7 @@ import {
   isTokenExpired,
 } from '@/features/auth/sessionManager';
 import {passportApi} from '@/features/passport/services/passportService';
+import {toErrorMessage} from '@/shared/utils/serviceHelpers';
 
 // The screen renders one companion at a time while several fetches can be in
 // flight (backing out of pet A straight into pet B), so the request flags are
@@ -68,9 +69,11 @@ export const fetchPassport = createAsyncThunk<
       return {companionId, passport: null};
     }
 
-    return rejectWithValue(
-      error instanceof Error ? error.message : 'Failed to load passport',
-    );
+    // Via toErrorMessage, not error.message: an axios rejection's own
+    // message is "Request failed with status code 401", and that is exactly
+    // what a pet parent was shown on this screen after leaving the app idle
+    // overnight. The helper turns a 401 into something they can act on.
+    return rejectWithValue(toErrorMessage(error, 'Failed to load passport'));
   }
 });
 
