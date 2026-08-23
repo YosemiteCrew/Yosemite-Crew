@@ -1,0 +1,11 @@
+-- Record that a pet passport was READ, not only that it was issued.
+--
+-- Issuance was already audited; the read was not, so nothing recorded who had
+-- looked at a pet's signed vaccination, parasite-treatment, rabies-titration
+-- and clinical-exam history. For attested clinical records the access itself is
+-- the event worth keeping, attributable to the caller and recorded at the time
+-- it happened.
+--
+-- Additive: a new enum value only. Existing rows and readers are unaffected,
+-- and nothing that currently writes the enum changes behaviour.
+ALTER TYPE "AuditEventType" ADD VALUE IF NOT EXISTS 'PASSPORT_VIEWED';

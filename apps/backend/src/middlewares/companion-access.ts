@@ -34,6 +34,7 @@ export type CompanionFeature =
   | "documents"
   | "emergencyBasedPermissions"
   | "expenses"
+  | "medicalRecords"
   | "tasks";
 
 const FEATURE_LABELS: Record<CompanionFeature, string> = {
@@ -43,6 +44,7 @@ const FEATURE_LABELS: Record<CompanionFeature, string> = {
   documents: "documents",
   emergencyBasedPermissions: "emergency actions",
   expenses: "expenses",
+  medicalRecords: "medical records",
   tasks: "tasks",
 };
 

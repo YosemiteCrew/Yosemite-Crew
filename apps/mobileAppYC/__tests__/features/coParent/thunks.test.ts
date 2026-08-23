@@ -256,6 +256,9 @@ describe('Co-Parent Thunks', () => {
         expenses: true,
         tasks: true,
         chatWithVet: true,
+        // Absent from this payload, so the normaliser defaults it false:
+        // clinical-record access is granted explicitly, never inferred.
+        medicalRecords: false,
       });
       expect(payload[1]).toEqual(
         expect.objectContaining({

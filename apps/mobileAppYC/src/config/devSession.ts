@@ -95,6 +95,7 @@ const MOCK_ACCESS: ParentCompanionAccess = {
     expenses: true,
     tasks: true,
     chatWithVet: true,
+    medicalRecords: true,
   },
 };
 

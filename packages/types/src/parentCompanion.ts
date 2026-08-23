@@ -1,6 +1,6 @@
-export type ParentCompanionRole = "PRIMARY" | "CO_PARENT";
+export type ParentCompanionRole = 'PRIMARY' | 'CO_PARENT';
 
-export type ParentCompanionStatus = "ACTIVE" | "PENDING" | "REVOKED";
+export type ParentCompanionStatus = 'ACTIVE' | 'PENDING' | 'REVOKED';
 
 export interface ParentCompanionPermissions {
   assignAsPrimaryParent: boolean;
@@ -11,10 +11,21 @@ export interface ParentCompanionPermissions {
   expenses: boolean;
   tasks: boolean;
   chatWithVet: boolean;
+  /**
+   * Attested clinical records - the pet passport and the vaccination,
+   * parasite-treatment, rabies-titration and clinical-exam history a vet has
+   * signed.
+   *
+   * Deliberately its own key rather than riding on `companionProfile`. These
+   * are signed medical records, so access is granted explicitly and never
+   * inherited from a broader permission; a primary parent who shares profile
+   * details has not thereby shared the medical history.
+   */
+  medicalRecords: boolean;
 }
 
 export interface CompanionParentLink {
-  parent?: ParenDetailsForLink
+  parent?: ParenDetailsForLink;
   parentId: string;
   role: ParentCompanionRole;
   status: ParentCompanionStatus;

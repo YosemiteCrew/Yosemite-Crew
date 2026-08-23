@@ -23,6 +23,8 @@ const CO_PARENT_PERMISSIONS = {
   expenses: false,
   tasks: false,
   chatWithVet: false,
+  // Explicitly false. Clinical records are granted, never defaulted.
+  medicalRecords: false,
 };
 
 type ParentSummary = {

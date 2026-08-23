@@ -94,21 +94,21 @@ router.get(
 router.get(
   "/mobile/companion/:patientId",
   requireMobileAuth,
-  requireCompanionPermission("companionProfile", "patientId"),
+  requireCompanionPermission("medicalRecords", "patientId"),
   PetPassportController.getPassportForParent,
 );
 
 router.get(
   "/mobile/companion/:patientId/wallet/apple",
   requireMobileAuth,
-  requireCompanionPermission("companionProfile", "patientId"),
+  requireCompanionPermission("medicalRecords", "patientId"),
   PetPassportController.getApplePassForParent,
 );
 
 router.get(
   "/mobile/companion/:patientId/wallet/google",
   requireMobileAuth,
-  requireCompanionPermission("companionProfile", "patientId"),
+  requireCompanionPermission("medicalRecords", "patientId"),
   PetPassportController.getGooglePassForParent,
 );
 
@@ -117,7 +117,7 @@ router.get(
 router.delete(
   "/mobile/companion/:patientId/share-link",
   requireMobileAuth,
-  requireCompanionPermission("companionProfile", "patientId"),
+  requireCompanionPermission("medicalRecords", "patientId"),
   PetPassportController.revokePublicToken,
 );
 
