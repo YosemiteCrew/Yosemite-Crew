@@ -54,6 +54,7 @@ const defaultPermissions: CoParentPermissions = {
   expenses: false,
   tasks: false,
   chatWithVet: false,
+  medicalRecords: false,
 };
 
 export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
@@ -656,6 +657,24 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
               <Switch
                 value={permissions.chatWithVet}
                 onValueChange={() => handlePermissionChange('chatWithVet')}
+                trackColor={{
+                  false: theme.colors.border,
+                  true: theme.colors.primary,
+                }}
+                thumbColor={theme.colors.white}
+                disabled={disableControls}
+              />
+            </View>
+            <View style={styles.divider} />
+
+            {/* Medical records - its own switch, not folded into the companion
+                profile. These are the clinical records a vet has signed, so
+                sharing profile details must not share them by implication. */}
+            <View style={styles.permissionRow}>
+              <Text style={styles.permissionLabel}>Medical records</Text>
+              <Switch
+                value={permissions.medicalRecords}
+                onValueChange={() => handlePermissionChange('medicalRecords')}
                 trackColor={{
                   false: theme.colors.border,
                   true: theme.colors.primary,

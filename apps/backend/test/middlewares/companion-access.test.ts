@@ -32,6 +32,7 @@ const runMiddleware = async (
 
 const ALL_FALSE = {
   appointments: false,
+  medicalRecords: false,
   chatWithVet: false,
   companionProfile: false,
   documents: false,
@@ -102,6 +103,33 @@ describe("requireCompanionPermission", () => {
   // 404 rather than 403 for these: the existing parent-facing convention is a
   // uniform "not found" so the endpoint cannot be used to discover which
   // patient ids exist.
+  // Clinical records get their own grant rather than riding on
+  // companionProfile. A primary parent who shared profile details has not
+  // thereby shared the pet's signed vaccination, titration and clinical-exam
+  // history, so the two must be independently revocable.
+  it("does not let companionProfile imply access to medical records", async () => {
+    findFirst.mockResolvedValue({
+      role: "CO_PARENT",
+      permissions: { ...ALL_FALSE, companionProfile: true },
+    });
+
+    const { res, next } = await runMiddleware("medicalRecords");
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
+  });
+
+  it("grants medical records only on its own key", async () => {
+    findFirst.mockResolvedValue({
+      role: "CO_PARENT",
+      permissions: { ...ALL_FALSE, medicalRecords: true },
+    });
+
+    const { next } = await runMiddleware("medicalRecords");
+
+    expect(next).toHaveBeenCalled();
+  });
+
   it("404s when there is no link at all", async () => {
     findFirst.mockResolvedValue(null);
     const { res, json } = await runMiddleware();
