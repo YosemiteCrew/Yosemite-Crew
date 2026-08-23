@@ -1614,9 +1614,21 @@ const createStyles = (theme: any) =>
       gap: theme.spacing['3.5'],
       flex: 1,
       flexShrink: 1,
+      // Same reason as greetingTextBlock: without this the row cannot give
+      // way to the action buttons beside it.
+      minWidth: 0,
     },
     greetingTextBlock: {
       flexShrink: 1,
+      // minWidth: 0 is what actually lets this shrink.
+      //
+      // A flex item defaults to min-width:auto - its CONTENT width - so
+      // flexShrink alone cannot take it below the width of "Your companions".
+      // The block kept its intrinsic width and the headline ran underneath the
+      // emergency and notification buttons, which are flexShrink: 0.
+      // adjustsFontSizeToFit did not save it either: nothing was asking the
+      // text to fit a narrower box, so it had nothing to shrink to.
+      minWidth: 0,
     },
     avatar: {
       width: theme.spacing['12'],
