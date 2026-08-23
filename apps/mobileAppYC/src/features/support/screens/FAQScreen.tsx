@@ -99,7 +99,7 @@ const FAQItem: React.FC<{
               interactive
               borderRadius="xl"
               forceBorder
-              tintColor={theme.colors.white}
+              tintColor={theme.colors.fieldBg}
               borderColor={theme.colors.secondary}
               style={styles.glassButtonLight}
               textStyle={styles.glassButtonLightText}

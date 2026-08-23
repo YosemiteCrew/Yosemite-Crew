@@ -120,7 +120,7 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.white,
+      backgroundColor: theme.colors.screen,
     },
     scrollContent: {
       flex: 1,
