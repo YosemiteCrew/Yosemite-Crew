@@ -1,6 +1,7 @@
 import express from "express";
 import rateLimit from "express-rate-limit";
 import fileUpload from "express-fileupload";
+import { getControlReports, hasFailedControl } from "./config/startup-controls";
 import { registerRoutes } from "./routers";
 import { StripeController } from "./controllers/web/stripe.controller";
 import { FinanceController } from "./controllers/app/finance.controller";
@@ -178,6 +179,25 @@ export function createApp() {
   registerRoutes(app); // all routes in 1 place
 
   app.get("/health", (_, res) => res.status(200).json({ status: "ok" }));
+
+  // Startup controls, reported separately from liveness.
+  //
+  // /health answers 200 for a process that booted with a security control
+  // silently absent - which is exactly what happened with the Stream upload
+  // blocklist, on every environment, for as long as its format was wrong. This
+  // route makes "failed to apply" visible from outside without anyone reading a
+  // log, and returns 503 so a monitor can alarm on it.
+  //
+  // Deliberately unauthenticated and deliberately thin: control NAMES and
+  // states only, never configuration values, so it is safe for an external
+  // uptime check to poll.
+  app.get("/health/controls", (_, res) => {
+    const degraded = hasFailedControl();
+    return res.status(degraded ? 503 : 200).json({
+      status: degraded ? "degraded" : "ok",
+      controls: getControlReports(),
+    });
+  });
 
   if (superTokensEnabled) {
     registerSuperTokensErrorHandler(app);

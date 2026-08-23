@@ -1,6 +1,7 @@
 // src/config/stream-upload-policy.ts
 import { StreamChat } from "stream-chat";
 import logger from "src/utils/logger";
+import { recordControl } from "./startup-controls";
 
 /**
  * File extensions that can carry executable or browser-active content. These are
@@ -139,6 +140,7 @@ export const configureStreamUploadPolicy = async (): Promise<void> => {
   const secret = process.env.STREAM_API_SECRET;
   if (!key || !secret) {
     logger.warn("Skipping Stream upload policy: credentials missing");
+    recordControl("stream-upload-policy", "skipped", "credentials missing");
     return;
   }
 
@@ -187,7 +189,15 @@ export const configureStreamUploadPolicy = async (): Promise<void> => {
         ? "Stream chat upload policy + malware-scan webhook configured"
         : "Stream chat upload policy applied: malware-prone types blocked",
     );
+    recordControl("stream-upload-policy", "applied");
   } catch (err) {
     logger.error("Failed to apply Stream chat upload policy", err);
+    // Recorded, not rethrown: a Stream outage should not stop the API booting.
+    // But it must stop being invisible - see startup-controls.ts.
+    recordControl(
+      "stream-upload-policy",
+      "failed",
+      "updateAppSettings rejected",
+    );
   }
 };
