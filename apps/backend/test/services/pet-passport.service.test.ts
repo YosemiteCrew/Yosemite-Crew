@@ -25,6 +25,7 @@ jest.mock("src/config/prisma", () => ({
     organization: { findUnique: jest.fn() },
     parentPatient: { findFirst: jest.fn(), findMany: jest.fn() },
     parent: { findUnique: jest.fn(), findFirst: jest.fn() },
+    authUserMobile: { findFirst: jest.fn() },
   },
 }));
 jest.mock("src/services/audit-trail.service", () => ({
@@ -45,6 +46,7 @@ const prismaMock = prisma as unknown as {
   organization: { findUnique: jest.Mock };
   parentPatient: { findFirst: jest.Mock; findMany: jest.Mock };
   parent: { findUnique: jest.Mock; findFirst: jest.Mock };
+  authUserMobile: { findFirst: jest.Mock };
 };
 const auditMock = AuditTrailService.recordSafely as jest.Mock;
 
@@ -87,6 +89,7 @@ beforeEach(() => {
   });
   prismaMock.parentPatient.findFirst.mockResolvedValue(null);
   prismaMock.parent.findFirst.mockResolvedValue(null);
+  prismaMock.authUserMobile.findFirst.mockResolvedValue(null);
   prismaMock.patient.update.mockResolvedValue(PATIENT);
   // issuePassport writes the PetPassport row and mirrors the number onto the
   // canonical Patient column in one transaction.
@@ -603,7 +606,9 @@ describe("PetPassportService.revokePublicToken", () => {
   });
 
   it("clears the token for the pet's parent", async () => {
-    prismaMock.parent.findFirst.mockResolvedValue({ id: "par-1" });
+    prismaMock.authUserMobile.findFirst.mockResolvedValue({
+      parentId: "par-1",
+    });
     prismaMock.parentPatient.findFirst.mockResolvedValue({ id: "pp-link-1" });
     prismaMock.patientOrganisation.findFirst.mockResolvedValue({
       organisationId: "org-1",
@@ -644,7 +649,9 @@ describe("PetPassportService co-parent access", () => {
   it("lets an active CO_PARENT read the passport", async () => {
     // Resolving the link by PRIMARY role 404'd every co-parent, which the
     // mobile app renders as the misleading "no passport issued" empty state.
-    prismaMock.parent.findFirst.mockResolvedValue({ id: "par-2" });
+    prismaMock.authUserMobile.findFirst.mockResolvedValue({
+      parentId: "par-2",
+    });
     prismaMock.parentPatient.findFirst.mockResolvedValue({ id: "pp-link-2" });
     prismaMock.patientOrganisation.findFirst.mockResolvedValue({
       organisationId: "org-1",
@@ -664,7 +671,9 @@ describe("PetPassportService co-parent access", () => {
   });
 
   it("restricts share-link revocation to the primary parent", async () => {
-    prismaMock.parent.findFirst.mockResolvedValue({ id: "par-2" });
+    prismaMock.authUserMobile.findFirst.mockResolvedValue({
+      parentId: "par-2",
+    });
     prismaMock.parentPatient.findFirst.mockResolvedValue({ id: "pp-link-2" });
     prismaMock.patientOrganisation.findFirst.mockResolvedValue({
       organisationId: "org-1",
@@ -726,8 +735,14 @@ describe("PetPassportService.getExistingPublicToken", () => {
 });
 
 describe("PetPassportService.getPassportForParent", () => {
+  // The caller's id is a PROVIDER id, so the parent is resolved through
+  // AuthUser. Fixtures that put the provider id straight on
+  // Parent.linkedUserId encoded the id-space bug and passed while every real
+  // caller 404ed.
   const asParent = () => {
-    prismaMock.parent.findFirst.mockResolvedValue({ id: "par-1" });
+    prismaMock.authUserMobile.findFirst.mockResolvedValue({
+      parentId: "par-1",
+    });
     prismaMock.parentPatient.findFirst.mockResolvedValue({ id: "pp-link-1" });
   };
 
@@ -738,19 +753,40 @@ describe("PetPassportService.getPassportForParent", () => {
   });
 
   it("404s a caller who is not the pet's parent", async () => {
-    prismaMock.parent.findFirst.mockResolvedValue({ id: "par-1" });
+    prismaMock.authUserMobile.findFirst.mockResolvedValue({
+      parentId: "par-1",
+    });
     prismaMock.parentPatient.findFirst.mockResolvedValue(null);
     await expect(
       PetPassportService.getPassportForParent("pat-1", "user-1"),
     ).rejects.toMatchObject({ statusCode: 404 });
   });
 
-  it("404s when the pet has no linked parent account", async () => {
-    prismaMock.parent.findFirst.mockResolvedValue(null);
+  it("404s when the caller has no parent account", async () => {
+    prismaMock.authUserMobile.findFirst.mockResolvedValue(null);
     prismaMock.parentPatient.findFirst.mockResolvedValue(null);
     await expect(
       PetPassportService.getPassportForParent("pat-1", "user-1"),
     ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("resolves the parent by provider id, never by Parent.linkedUserId", async () => {
+    // Parent.linkedUserId holds the AuthUser row's own primary key, while the
+    // caller presents the auth provider's id. Filtering one by the other
+    // compares two id spaces and matched nothing for any of the 42 linked
+    // parents in production - an issued passport simply never reached its
+    // owner. Pin the lookup so it cannot drift back.
+    asParent();
+    prismaMock.patientOrganisation.findFirst.mockResolvedValue({
+      organisationId: "org-1",
+    });
+
+    await PetPassportService.getPassportForParent("pat-1", "user-1");
+
+    expect(prismaMock.authUserMobile.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { providerUserId: "user-1" } }),
+    );
+    expect(prismaMock.parent.findFirst).not.toHaveBeenCalled();
   });
 
   it("assembles the owner view for the pet's parent", async () => {

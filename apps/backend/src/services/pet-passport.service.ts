@@ -3,6 +3,7 @@ import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
 import { PassportConsentService } from "./passport-consent.service";
 import { assertPatientOrgMembership } from "./shared/patient-org-membership";
+import { findParentIdForAuthUser } from "./shared/parent-identity";
 import type { AuditActorType } from "../models/audit-trail";
 import type {
   ClinicalExamDTO,
@@ -409,15 +410,12 @@ const assertParentOfPatient = async (
   if (!userId) {
     throw new PetPassportServiceError("Companion not found.", 404);
   }
-  const parent = await prisma.parent.findFirst({
-    where: { linkedUserId: userId },
-    select: { id: true },
-  });
-  const link = parent
+  const parentId = await findParentIdForAuthUser(userId);
+  const link = parentId
     ? await prisma.parentPatient.findFirst({
         where: {
           patientId,
-          parentId: parent.id,
+          parentId,
           role: { in: roles },
           status: "ACTIVE",
         },
