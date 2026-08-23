@@ -253,6 +253,7 @@ export const EditTaskScreen: React.FC = () => {
             showBackButton
             onBack={handleSmartBack}
             rightIcon={Images.deleteIconRed}
+            rightIconTint={theme.colors.dangerText}
             onRightPress={handleDeletePress}
             glass={false}
           />

@@ -235,4 +235,36 @@ describe('Header', () => {
       expect.objectContaining({width: 40, height: 40}),
     );
   });
+
+  it('tints the right icon so a monochrome glyph follows the theme', () => {
+    // Regression: only the back chevron was tinted. addIconDark is a dark
+    // glyph, so on the dark header the add action rendered at 1.27:1 and was
+    // invisible on eight screens.
+    const {UNSAFE_getAllByType} = render(
+      <Header title="My Title" rightIcon={456} onRightPress={jest.fn()} />,
+    );
+    const {Image} = require('react-native');
+    const images = UNSAFE_getAllByType(Image);
+    const right = images.find((img: any) => img.props.source === 456);
+    expect(StyleSheet.flatten(right.props.style)).toEqual(
+      expect.objectContaining({tintColor: mockTheme.colors.text}),
+    );
+  });
+
+  it('lets a caller keep a meaningful hue on the right icon', () => {
+    const {UNSAFE_getAllByType} = render(
+      <Header
+        title="My Title"
+        rightIcon={456}
+        rightIconTint="#EF6257"
+        onRightPress={jest.fn()}
+      />,
+    );
+    const {Image} = require('react-native');
+    const images = UNSAFE_getAllByType(Image);
+    const right = images.find((img: any) => img.props.source === 456);
+    expect(StyleSheet.flatten(right.props.style)).toEqual(
+      expect.objectContaining({tintColor: '#EF6257'}),
+    );
+  });
 });

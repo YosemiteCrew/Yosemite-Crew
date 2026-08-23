@@ -430,6 +430,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
         showBackButton
         onBack={() => navigation.goBack()}
         rightIcon={canEditPermissions ? Images.deleteIconRed : undefined}
+        rightIconTint={theme.colors.dangerText}
         onRightPress={canEditPermissions ? handleDeletePress : undefined}
       />
 

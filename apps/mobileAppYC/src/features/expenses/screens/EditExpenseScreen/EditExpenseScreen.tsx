@@ -214,6 +214,7 @@ export const EditExpenseScreen: React.FC = () => {
             showBackButton
             onBack={handleGoBack}
             rightIcon={Images.deleteIconRed}
+            rightIconTint={theme.colors.dangerText}
             onRightPress={handleDelete}
             glass={false}
           />

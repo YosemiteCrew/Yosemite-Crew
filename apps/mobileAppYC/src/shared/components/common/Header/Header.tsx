@@ -12,6 +12,13 @@ interface HeaderProps {
   showBackButton?: boolean;
   onBack?: () => void;
   rightIcon?: any;
+  /**
+   * Tint for the right icon. Defaults to `theme.colors.text`, matching how the
+   * back chevron is already tinted. Pass an explicit colour for an icon that
+   * carries meaning in its own hue - the red delete glyphs - so it follows the
+   * theme rather than staying a baked light-mode red.
+   */
+  rightIconTint?: string;
   onRightPress?: () => void;
   rightAccessibilityLabel?: string;
   style?: object;
@@ -28,6 +35,7 @@ export const Header: React.FC<HeaderProps> = ({
   showBackButton = false,
   onBack,
   rightIcon,
+  rightIconTint,
   onRightPress,
   rightAccessibilityLabel = 'More options',
   style,
@@ -74,7 +82,16 @@ export const Header: React.FC<HeaderProps> = ({
             size={iconButtonSize}
             style={styles.iconButton}
             accessibilityLabel={rightAccessibilityLabel}>
-            <Image source={rightIcon} style={styles.icon} />
+            {/* The back chevron has always been tinted; the right icon was
+                not, so addIconDark - a dark glyph - rendered at 1.27:1 on the
+                dark header and the add action was invisible. */}
+            <Image
+              source={rightIcon}
+              style={[
+                styles.icon,
+                {tintColor: rightIconTint ?? theme.colors.text},
+              ]}
+            />
           </LiquidGlassIconButton>
         </View>
       ) : (

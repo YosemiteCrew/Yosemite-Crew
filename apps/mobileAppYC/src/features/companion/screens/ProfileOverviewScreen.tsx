@@ -510,6 +510,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
             showBackButton
             onBack={handleBackPress}
             rightIcon={isPrimaryParent ? Images.deleteIconRed : undefined}
+            rightIconTint={theme.colors.dangerText}
             onRightPress={isPrimaryParent ? handleDeletePress : undefined}
             glass={false}
           />
