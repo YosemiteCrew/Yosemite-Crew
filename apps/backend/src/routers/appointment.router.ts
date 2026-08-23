@@ -6,6 +6,7 @@ import {
   withAppointmentOrgPermissions,
   withOrgPermissions,
 } from "src/middlewares/rbac";
+import { requireCompanionPermission } from "src/middlewares/companion-access";
 
 const router = Router();
 
@@ -34,6 +35,7 @@ router.post(
 router.get(
   "/mobile/companion/:patientId",
   requireMobileAuth,
+  requireCompanionPermission("appointments", "patientId"),
   AppointmentController.listByCompanion,
 );
 

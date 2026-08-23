@@ -3,6 +3,7 @@ import { requireWebAuth, requireMobileAuth } from "src/middlewares/auth";
 import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
 import { PetPassportController } from "src/controllers/web/pet-passport.controller";
 import { PassportConsentController } from "src/controllers/web/passport-consent.controller";
+import { requireCompanionPermission } from "src/middlewares/companion-access";
 
 const router = Router();
 
@@ -93,18 +94,21 @@ router.get(
 router.get(
   "/mobile/companion/:patientId",
   requireMobileAuth,
+  requireCompanionPermission("companionProfile", "patientId"),
   PetPassportController.getPassportForParent,
 );
 
 router.get(
   "/mobile/companion/:patientId/wallet/apple",
   requireMobileAuth,
+  requireCompanionPermission("companionProfile", "patientId"),
   PetPassportController.getApplePassForParent,
 );
 
 router.get(
   "/mobile/companion/:patientId/wallet/google",
   requireMobileAuth,
+  requireCompanionPermission("companionProfile", "patientId"),
   PetPassportController.getGooglePassForParent,
 );
 
@@ -113,6 +117,7 @@ router.get(
 router.delete(
   "/mobile/companion/:patientId/share-link",
   requireMobileAuth,
+  requireCompanionPermission("companionProfile", "patientId"),
   PetPassportController.revokePublicToken,
 );
 
