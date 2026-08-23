@@ -23,7 +23,7 @@ import {
 } from '@/shared/hooks/useFormScreen';
 
 import i18next from 'i18next';
-import {usePreferences} from '@/features/preferences/PreferencesContext';
+import {useResolvedUserCurrency} from '@/shared/hooks/useResolvedUserCurrency';
 export const AddExpenseScreen: React.FC = () => {
   const {
     theme,
@@ -37,9 +37,7 @@ export const AddExpenseScreen: React.FC = () => {
     selectedCompanionId,
   } = useCompanionFormScreen();
 
-  // The user's own currency, not an entity's. Falls back to what
-  // PreferencesContext resolves rather than a hardcoded 'USD'.
-  const {currency: resolvedCurrency} = usePreferences();
+  const resolvedCurrency = useResolvedUserCurrency();
   const currencyCode = useSelector(
     (state: RootState) => state.auth.user?.currency ?? resolvedCurrency,
   );

@@ -31,7 +31,7 @@ import {
 } from '@/shared/hooks/useFormScreen';
 
 import i18next from 'i18next';
-import {usePreferences} from '@/features/preferences/PreferencesContext';
+import {useResolvedUserCurrency} from '@/shared/hooks/useResolvedUserCurrency';
 type Route = RouteProp<ExpenseStackParamList, 'EditExpense'>;
 
 export const EditExpenseScreen: React.FC = () => {
@@ -50,10 +50,7 @@ export const EditExpenseScreen: React.FC = () => {
 
   const {expenseId} = route.params;
   const expense = useSelector(selectExpenseById(expenseId));
-  // The user's own currency, not an entity's. When the profile has none set,
-  // defer to what PreferencesContext resolves rather than a hardcoded 'USD',
-  // which disagreed with the Preferences screen for non-imperial accounts.
-  const {currency: resolvedCurrency} = usePreferences();
+  const resolvedCurrency = useResolvedUserCurrency();
   const currencyCode = useSelector(
     (state: RootState) => state.auth.user?.currency ?? resolvedCurrency,
   );

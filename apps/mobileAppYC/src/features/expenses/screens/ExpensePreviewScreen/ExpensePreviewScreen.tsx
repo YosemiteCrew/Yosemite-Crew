@@ -45,7 +45,7 @@ import type {
   DetailBadge,
 } from '@/shared/components/common/DetailsCard';
 import type {ExpenseAttachment} from '@/features/expenses/types';
-import {usePreferences} from '@/features/preferences/PreferencesContext';
+import {useResolvedUserCurrency} from '@/shared/hooks/useResolvedUserCurrency';
 
 type Navigation = NativeStackNavigationProp<
   ExpenseStackParamList,
@@ -256,9 +256,7 @@ export const ExpensePreviewScreen: React.FC = () => {
 
   const expenseId = (route.params as any)?.expenseId ?? '';
   const expense = useSelector(selectExpenseById(expenseId));
-  // The user's own currency, not an entity's. Falls back to what
-  // PreferencesContext resolves rather than a hardcoded 'USD'.
-  const {currency: resolvedCurrency} = usePreferences();
+  const resolvedCurrency = useResolvedUserCurrency();
   const userCurrencyCode = useSelector(
     (state: RootState) => state.auth.user?.currency ?? resolvedCurrency,
   );
