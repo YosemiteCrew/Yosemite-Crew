@@ -1,5 +1,4 @@
-import {readFileSync, readdirSync, statSync} from 'fs';
-import {join} from 'path';
+import {findSourceFilesMatching} from '../setup/sourceScan';
 import {colors, colorsDark} from '@/theme';
 
 /**
@@ -32,40 +31,19 @@ const ALLOWED = new Set([
   'features/coParent/screens/EditCoParentScreen/EditCoParentScreen.tsx',
 ]);
 
-const SRC = join(__dirname, '..', '..', 'src');
-
-const walk = (dir: string, out: string[] = []): string[] => {
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) {
-      walk(full, out);
-    } else if (/\.tsx?$/.test(entry)) {
-      out.push(full);
-    }
-  }
-  return out;
-};
-
 describe('fixed-white surfaces', () => {
   it('keeps `white` identical in both themes so it is never mistaken for a surface', () => {
     expect(colors.white).toBe(colorsDark.white);
   });
 
   it('does not fill a themed surface with `white`', () => {
-    const offenders: string[] = [];
-    for (const file of walk(SRC)) {
-      const rel = file.slice(SRC.length + 1);
-      if (ALLOWED.has(rel)) {
-        continue;
-      }
-      const body = readFileSync(file, 'utf8');
-      if (
-        /backgroundColor:\s*(theme\.)?colors\.white\b/.test(body) ||
-        /tintColor=\{(theme\.)?colors\.white\}/.test(body)
-      ) {
-        offenders.push(rel);
-      }
-    }
+    const offenders = findSourceFilesMatching(
+      [
+        /backgroundColor:\s*(theme\.)?colors\.white\b/,
+        /tintColor=\{(theme\.)?colors\.white\}/,
+      ],
+      ALLOWED,
+    );
     expect(offenders).toEqual([]);
   });
 });

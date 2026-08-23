@@ -1,5 +1,4 @@
-import {readFileSync, readdirSync, statSync} from 'fs';
-import {join} from 'path';
+import {findSourceFilesMatching} from '../setup/sourceScan';
 import {colors, colorsDark} from '@/theme';
 
 /**
@@ -19,20 +18,6 @@ const ALLOWED = new Set([
   'features/linkedBusinesses/screens/BusinessAddScreen.tsx',
 ]);
 
-const SRC = join(__dirname, '..', '..', 'src');
-
-const walk = (dir: string, out: string[] = []): string[] => {
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) {
-      walk(full, out);
-    } else if (/\.tsx?$/.test(entry)) {
-      out.push(full);
-    }
-  }
-  return out;
-};
-
 describe('pink as a state indicator', () => {
   it('keeps pinkDeep readable on light and brand pink on espresso', () => {
     expect(colors.pinkDeep).not.toBe(colors.pink);
@@ -40,20 +25,10 @@ describe('pink as a state indicator', () => {
   });
 
   it('does not draw a border with the decorative pink', () => {
-    const offenders: string[] = [];
-    for (const file of walk(SRC)) {
-      const rel = file.slice(SRC.length + 1);
-      if (ALLOWED.has(rel)) {
-        continue;
-      }
-      if (
-        /borderColor:\s*(theme\.)?colors\.pink\b/.test(
-          readFileSync(file, 'utf8'),
-        )
-      ) {
-        offenders.push(rel);
-      }
-    }
+    const offenders = findSourceFilesMatching(
+      [/borderColor:\s*(theme\.)?colors\.pink\b/],
+      ALLOWED,
+    );
     expect(offenders).toEqual([]);
   });
 });
