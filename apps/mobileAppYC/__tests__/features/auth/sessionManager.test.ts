@@ -901,7 +901,11 @@ describe('sessionManager', () => {
       expect(result).toBeNull();
     });
 
-    it('returns the stale tokens if refresh fails', async () => {
+    // Was: "returns the stale tokens if refresh fails". Handing a known-dead
+    // credential back to the caller is the bug - it gets sent, the server
+    // answers 401, and the screen renders axios's own "Request failed with
+    // status code 401". Null routes the caller to its sign-in-again path.
+    it('returns null if refresh fails, never the dead token', async () => {
       (loadStoredTokens as jest.Mock).mockResolvedValue({
         ...mockTokens,
         expiresAt: Date.now() - 1000,
@@ -913,12 +917,29 @@ describe('sessionManager', () => {
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
       const result = await getFreshStoredTokens();
 
-      // Returns the old tokens (normalized) if refresh fails
-      expect(result?.accessToken).toBe('access-token');
+      expect(result).toBeNull();
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining('Unable to refresh'),
         expect.any(Error),
       );
+      consoleSpy.mockRestore();
+    });
+
+    // The exact shape of the reported bug: the session is fully dead, so
+    // getAccessToken() hands back the SAME expired token rather than throwing.
+    // The old code stored that as "refreshed" and returned it.
+    it('returns null when refresh hands back the same token', async () => {
+      (loadStoredTokens as jest.Mock).mockResolvedValue({
+        ...mockTokens,
+        expiresAt: Date.now() - 1000,
+      });
+      mockSuperTokens.getAccessToken.mockResolvedValue('access-token');
+
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const result = await getFreshStoredTokens();
+
+      expect(result).toBeNull();
+      expect(storeTokens).not.toHaveBeenCalled();
       consoleSpy.mockRestore();
     });
   });
