@@ -10,6 +10,7 @@ import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/Liquid
 import {RowButton} from '@/shared/components/common/RowButton';
 import {Separator} from '@/shared/components/common/Separator';
 import type {AdverseEventStackParamList} from '@/navigation/types';
+import {usePreferences} from '@/features/preferences/PreferencesContext';
 
 type Props = NativeStackScreenProps<AdverseEventStackParamList, 'Step2'>;
 
@@ -25,12 +26,17 @@ export const Step2Screen: React.FC<Props> = ({navigation}) => {
     });
   };
 
+  // The user's own currency, not an entity's. When the profile has none set,
+  // defer to what PreferencesContext resolves rather than a hardcoded 'USD',
+  // which disagreed with the Preferences screen for non-imperial accounts.
+  const {currency: resolvedCurrency} = usePreferences();
+
   const rows = [
     {label: 'First name', value: authUser?.firstName ?? ''},
     {label: 'Last name', value: authUser?.lastName ?? ''},
     {label: 'Phone number', value: authUser?.phone ?? ''},
     {label: 'Email address', value: authUser?.email ?? ''},
-    {label: 'Currency', value: authUser?.currency ?? 'USD'},
+    {label: 'Currency', value: authUser?.currency ?? resolvedCurrency},
     {
       label: 'Date of birth',
       value: authUser?.dateOfBirth

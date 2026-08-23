@@ -96,6 +96,7 @@ import {BusinessSearchDropdown} from '@/features/linkedBusinesses/components/Bus
 import {deriveHomeGreetingName} from './HomeScreen.helpers';
 
 import i18next from 'i18next';
+import {usePreferences} from '@/features/preferences/PreferencesContext';
 const EMPTY_ACCESS_MAP: Record<string, ParentCompanionAccess> = {};
 
 /** Ceiling on the opaque first-load overlay, which has no dismiss control. */
@@ -161,7 +162,12 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const hasCompanions = companions.length > 0;
   const unreadNotifications = useSelector(selectUnreadCount);
   const notificationsLoading = useSelector(selectNotificationsLoading);
-  const userCurrencyCode = authUser?.currency ?? 'USD';
+  // The user's own currency, not an entity's. When the profile has none
+  // set, defer to the value PreferencesContext resolves rather than a
+  // hardcoded 'USD' - otherwise this disagrees with the Preferences
+  // screen for any account that is not in an imperial country.
+  const {currency: resolvedCurrency} = usePreferences();
+  const userCurrencyCode = authUser?.currency ?? resolvedCurrency;
   const {businessMap, employeeMap, serviceMap} = useAppointmentDataMaps();
   const upcomingAppointmentsSelector = React.useMemo(
     () => createSelectUpcomingAppointments(),

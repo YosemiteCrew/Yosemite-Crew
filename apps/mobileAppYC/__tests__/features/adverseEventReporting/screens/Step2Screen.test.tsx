@@ -158,7 +158,7 @@ describe('Step2Screen', () => {
     expect(getAllByTestId('separator')).toHaveLength(10);
   });
 
-  it('falls back to empty strings and USD when the user is null', () => {
+  it('falls back to empty strings and the resolved currency when the user is null', () => {
     setupState(null);
     const utils = renderScreen();
 
@@ -166,7 +166,10 @@ describe('Step2Screen', () => {
     expect(rowValue(utils, 'Last name')).toBe('');
     expect(rowValue(utils, 'Phone number')).toBe('');
     expect(rowValue(utils, 'Email address')).toBe('');
-    expect(rowValue(utils, 'Currency')).toBe('USD');
+    // With no profile currency and no address, PreferencesContext resolves
+    // EUR. This row used to print a hardcoded 'USD' and disagree with the
+    // Preferences screen for the same user.
+    expect(rowValue(utils, 'Currency')).toBe('EUR');
     expect(rowValue(utils, 'Date of birth')).toBe('');
     expect(rowValue(utils, 'Address')).toBe('');
     expect(rowValue(utils, 'City')).toBe('');
@@ -181,7 +184,10 @@ describe('Step2Screen', () => {
     const utils = renderScreen();
 
     expect(rowValue(utils, 'First name')).toBe('Jane');
-    expect(rowValue(utils, 'Currency')).toBe('USD');
+    // With no profile currency and no address, PreferencesContext resolves
+    // EUR. This row used to print a hardcoded 'USD' and disagree with the
+    // Preferences screen for the same user.
+    expect(rowValue(utils, 'Currency')).toBe('EUR');
     expect(rowValue(utils, 'Date of birth')).toBe('');
     expect(rowValue(utils, 'Address')).toBe('');
     expect(rowValue(utils, 'City')).toBe('');
