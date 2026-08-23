@@ -257,9 +257,7 @@ export const ExpensePreviewScreen: React.FC = () => {
   const expenseId = (route.params as any)?.expenseId ?? '';
   const expense = useSelector(selectExpenseById(expenseId));
   const resolvedCurrency = useResolvedUserCurrency();
-  const userCurrencyCode = useSelector(
-    (state: RootState) => state.auth.user?.currency ?? resolvedCurrency,
-  );
+  const userCurrencyCode = resolvedCurrency;
   const companion = useSelector((state: RootState) =>
     expense?.companionId
       ? state.companion.companions.find(c => c.id === expense.companionId)

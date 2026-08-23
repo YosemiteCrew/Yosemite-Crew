@@ -163,7 +163,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const unreadNotifications = useSelector(selectUnreadCount);
   const notificationsLoading = useSelector(selectNotificationsLoading);
   const resolvedCurrency = useResolvedUserCurrency();
-  const userCurrencyCode = authUser?.currency ?? resolvedCurrency;
+  const userCurrencyCode = resolvedCurrency;
   const {businessMap, employeeMap, serviceMap} = useAppointmentDataMaps();
   const upcomingAppointmentsSelector = React.useMemo(
     () => createSelectUpcomingAppointments(),

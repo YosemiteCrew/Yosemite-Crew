@@ -29,6 +29,17 @@ const createStoreWithoutAddress = () =>
     },
   });
 
+const createStoreWithProfileCurrency = (
+  currency: string | null,
+  country = 'Germany',
+) =>
+  configureStore({
+    reducer: {
+      auth: (state = {user: {address: {country}, currency}}) => state,
+      preferences: preferencesReducer,
+    },
+  });
+
 const Consumer: React.FC = () => {
   const {measurementSystem, weightUnit, distanceUnit} = usePreferences();
   return (
@@ -194,5 +205,55 @@ describe('PreferencesContext', () => {
     expect(getByTestId('prefs').props.children.join('')).toBe(
       'metric|kg|km|EUR',
     );
+  });
+
+  describe('currency precedence', () => {
+    // Screens used to write `user.currency ?? resolved`, which put the stored
+    // profile field ahead of the Preferences picker and left that picker inert
+    // for anyone who had ever set one - while its caption promised it drove
+    // expenses and invoices. Precedence now lives here alone.
+    it('prefers the profile currency over the country default', () => {
+      const {getByTestId} = render(
+        <Provider store={createStoreWithProfileCurrency('USD')}>
+          <PreferencesProvider>
+            <OverrideConsumer />
+          </PreferencesProvider>
+        </Provider>,
+      );
+
+      // Germany would otherwise resolve to EUR.
+      expect(getByTestId('prefs').props.children.join('')).toContain('USD');
+    });
+
+    it('prefers an explicit override over the profile currency', () => {
+      const {getByTestId} = render(
+        <Provider store={createStoreWithProfileCurrency('EUR')}>
+          <PreferencesProvider>
+            <OverrideConsumer />
+          </PreferencesProvider>
+        </Provider>,
+      );
+      expect(getByTestId('prefs').props.children.join('')).toContain('EUR');
+
+      fireEvent.press(getByTestId('set-currency'));
+
+      expect(getByTestId('prefs').props.children.join('')).toContain('USD');
+    });
+
+    it('ignores a profile currency this app cannot render', () => {
+      const {getByTestId} = render(
+        <Provider store={createStoreWithProfileCurrency('GBP')}>
+          <PreferencesProvider>
+            <OverrideConsumer />
+          </PreferencesProvider>
+        </Provider>,
+      );
+
+      // Falls through to the country default rather than handing 'GBP' to
+      // anything typed CurrencyCode.
+      const rendered = getByTestId('prefs').props.children.join('');
+      expect(rendered).toContain('EUR');
+      expect(rendered).not.toContain('GBP');
+    });
   });
 });

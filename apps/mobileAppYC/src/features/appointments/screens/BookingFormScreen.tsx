@@ -508,7 +508,10 @@ export const BookingFormScreen: React.FC = () => {
                   value: agreeApp,
                   label: (
                     <Text>
-                      I agree to Yosemite Crew's{' '}
+                      {/* Names the app, not just the brand: a clinic can be
+                          called "Yosemite Crew" too, and then this consent and
+                          the business one above it read identically. */}
+                      I agree to the Yosemite Crew app's{' '}
                       <Text style={linkStyle} onPress={handleOpenAppTerms}>
                         terms and conditions
                       </Text>{' '}
