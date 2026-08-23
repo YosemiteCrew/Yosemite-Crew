@@ -59,6 +59,10 @@ jobs:
     # the unit-test job; without this guard it would also start a real deploy, with
     # an empty `environment` input, on every PR that touches scripts/deploy.
     if: github.event_name == 'workflow_dispatch'
+    # The tests gate the deploy rather than running beside it. Without this the two
+    # jobs start together on a dispatch, and a broken ref-sync change could reach a
+    # live host while its own suite was still going red in parallel.
+    needs: git-sync-tests
     name: Deploy API (${{ inputs.environment }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
