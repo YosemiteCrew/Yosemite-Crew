@@ -591,6 +591,7 @@ export const createMockTheme = () => ({
     screen2: '#F1EBE1',
     fieldBg: '#FBF8F2',
     hairline: '#E5DCCF',
+    controlBorder: '#977F62',
     hairlineHover: '#D6D1CD',
     divider: '#D6D1CD',
     ink: '#1D1C1B',

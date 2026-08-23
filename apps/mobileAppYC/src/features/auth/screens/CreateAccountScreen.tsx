@@ -1583,7 +1583,7 @@ const createStyles = (theme: Theme) =>
     termsCheckboxUnchecked: {
       backgroundColor: theme.colors.fieldBg,
       borderWidth: 1.5,
-      borderColor: theme.colors.hairline,
+      borderColor: theme.colors.controlBorder,
     },
     termsCheckmark: {
       width: 6,

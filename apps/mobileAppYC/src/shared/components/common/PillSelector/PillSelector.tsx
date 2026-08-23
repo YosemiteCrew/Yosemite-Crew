@@ -195,7 +195,10 @@ const createStyles = (theme: any, pillSpacing?: number) =>
       borderRadius: theme.borderRadius.md,
       paddingHorizontal: theme.spacing['4'],
       paddingVertical: theme.spacing['1.25'],
-      backgroundColor: theme.colors.white,
+      // `white` is #FFFFFF in BOTH themes while `text` inverts, so a resting
+      // pill in dark mode rendered #E6DDD0 on #FFFFFF - 1.34:1. fieldBg is the
+      // control fill and follows the theme: 12.60:1 light, 12.16:1 dark.
+      backgroundColor: theme.colors.fieldBg,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',

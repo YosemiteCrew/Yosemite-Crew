@@ -140,10 +140,14 @@ describe('SignUpScreen', () => {
     expect(getByText('Sign in')).toBeTruthy();
   });
 
-  it('navigates to SignIn when "Sign up with email" is pressed', () => {
+  it('navigates to SignIn with the sign-up intent when "Sign up with email" is pressed', () => {
     const {getByText} = renderComponent();
     fireEvent.press(getByText('Sign up with email'));
-    expect(mockNavigation.navigate).toHaveBeenCalledWith('SignIn');
+    // Both directions share the passwordless screen; the intent is what stops
+    // a brand new user being greeted with "Welcome back".
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('SignIn', {
+      intent: 'signUp',
+    });
   });
 
   it('navigates to SignIn when "Sign in" link is pressed', () => {

@@ -1255,7 +1255,7 @@ const createStyles = (theme: any) =>
     },
     optionsBox: {
       borderWidth: 1.5,
-      borderColor: theme.colors.hairline,
+      borderColor: theme.colors.controlBorder,
       borderRadius: theme.borderRadius.field,
       overflow: 'hidden',
       backgroundColor: theme.colors.fieldBg,
