@@ -12,6 +12,10 @@ import {
   BLOCKED_UPLOAD_MIME_TYPES,
   MAX_UPLOAD_SIZE_BYTES,
 } from "src/config/stream-upload-policy";
+import {
+  getControlReports,
+  resetControlsForTest,
+} from "src/config/startup-controls";
 import { StreamChat } from "stream-chat";
 
 const origKey = process.env.STREAM_API_KEY;
@@ -116,6 +120,46 @@ describe("configureStreamUploadPolicy", () => {
         expect(extension.startsWith(".")).toBe(true);
       }
     }
+  });
+
+  // The whole point of the registry: these three outcomes must be
+  // distinguishable from outside the process. Before it existed, a rejected
+  // updateAppSettings and a successfully applied policy both left /health
+  // answering 200.
+  describe("reports its outcome to the startup control registry", () => {
+    beforeEach(() => resetControlsForTest());
+
+    it("records applied on success", async () => {
+      await configureStreamUploadPolicy();
+      expect(getControlReports()).toEqual([
+        expect.objectContaining({
+          name: "stream-upload-policy",
+          state: "applied",
+        }),
+      ]);
+    });
+
+    it("records failed when Stream rejects the update", async () => {
+      mockUpdateAppSettings.mockRejectedValue(new Error("rejected"));
+      await configureStreamUploadPolicy();
+      expect(getControlReports()).toEqual([
+        expect.objectContaining({
+          name: "stream-upload-policy",
+          state: "failed",
+        }),
+      ]);
+    });
+
+    it("records skipped, not failed, when credentials are absent", async () => {
+      delete process.env.STREAM_API_KEY;
+      await configureStreamUploadPolicy();
+      expect(getControlReports()).toEqual([
+        expect.objectContaining({
+          name: "stream-upload-policy",
+          state: "skipped",
+        }),
+      ]);
+    });
   });
 
   it("skips when Stream credentials are missing", async () => {
