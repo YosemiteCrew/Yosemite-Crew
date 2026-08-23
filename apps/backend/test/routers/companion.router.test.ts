@@ -4,6 +4,8 @@ const requireWebAuth = jest.fn((_req, _res, next) => next());
 const requireMobileAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissionsMiddleware = jest.fn((_req, _res, next) => next());
 const requirePermissionMiddleware = jest.fn((_req, _res, next) => next());
+const companionGuard = jest.fn((_req, _res, next) => next());
+const requireCompanionPermission = jest.fn();
 
 const CompanionController = {
   createCompanionMobile: jest.fn(),
@@ -24,6 +26,13 @@ jest.mock("../../src/middlewares/auth", () => ({
 jest.mock("../../src/middlewares/rbac", () => ({
   withOrgPermissions: () => withOrgPermissionsMiddleware,
   requirePermission: () => requirePermissionMiddleware,
+}));
+
+jest.mock("../../src/middlewares/companion-access", () => ({
+  requireCompanionPermission: (...args: unknown[]) => {
+    requireCompanionPermission(...args);
+    return companionGuard;
+  },
 }));
 
 jest.mock("../../src/controllers/app/companion.controller", () => ({
@@ -83,6 +92,46 @@ describe("companion.router", () => {
   it("keeps the mobile routes on mobile auth", () => {
     expect(
       findRoute("/:id", "get")?.stack.map((layer) => layer.handle),
-    ).toEqual([requireMobileAuth, CompanionController.getCompanionById]);
+    ).toEqual([
+      requireMobileAuth,
+      companionGuard,
+      CompanionController.getCompanionById,
+    ]);
+  });
+
+  /**
+   * `Patient` rows are not scoped to a parent in the schema, and the handlers
+   * behind these two routes look the row up by id alone - `getById` runs a bare
+   * `findUnique`, and `update` writes with a bare `where: { id }`. Mobile auth
+   * on its own therefore let any signed-in parent read, and overwrite, any of
+   * the companions in the product. The guard is what supplies the ownership
+   * test, so its presence is the assertion.
+   */
+  it.each([
+    ["get", "read"],
+    ["put", "overwrite"],
+  ] as const)(
+    "gates %s /:id so a parent cannot %s another's companion",
+    (method) => {
+      const handles = findRoute("/:id", method)?.stack.map((l) => l.handle);
+      expect(handles).toContain(requireMobileAuth);
+      expect(handles).toContain(companionGuard);
+      expect(requireCompanionPermission).toHaveBeenCalledWith(
+        "companionProfile",
+        "id",
+      );
+    },
+  );
+
+  it("leaves delete to the service, which resolves the link itself", () => {
+    // CompanionService.delete already resolves the parent, finds the link and
+    // rejects a non-PRIMARY caller, including the role-specific behaviour the
+    // permission blob does not describe. Adding the blanket guard here would
+    // second-guess that with a coarser rule.
+    const handles = findRoute("/:id", "delete")?.stack.map((l) => l.handle);
+    expect(handles).toEqual([
+      requireMobileAuth,
+      CompanionController.deleteCompanion,
+    ]);
   });
 });
