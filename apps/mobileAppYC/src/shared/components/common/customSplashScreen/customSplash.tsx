@@ -45,6 +45,7 @@ const C = {
   inkMuted: colors.inkMuted,
   inkFaint2: colors.inkFaint2,
   pink: colors.pink,
+  pinkDeep: colors.pinkDeep,
   blue: colors.blue,
   hairline: colors.hairline,
   onVideo: colors.screen,
@@ -203,25 +204,32 @@ const styles = StyleSheet.create({
     fontSize: 34,
     letterSpacing: -0.6,
     color: C.onVideo,
-    textShadowColor: 'rgba(0,0,0,0.45)',
-    textShadowOffset: {width: 0, height: 2},
-    textShadowRadius: 22,
+    // Was radius 22, which spreads into a grey haze around the letters rather
+    // than lifting them off the video. Tighter and slightly stronger reads as
+    // a crisp edge.
+    textShadowColor: 'rgba(0,0,0,0.55)',
+    textShadowOffset: {width: 0, height: 1},
+    textShadowRadius: 6,
   },
   betaPill: {
     marginLeft: 11,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 9999,
-    backgroundColor: 'rgba(29,28,27,0.32)',
-    borderWidth: 1,
-    borderColor: 'rgba(247,243,236,0.28)',
+    // A translucent black fill takes the hue of whatever frame is behind it.
+    // Over the warm splash footage rgba(29,28,27,0.32) composited to #705C3E -
+    // a muddy brown patch 5.77:1 darker than the frame around it, with the
+    // pink label sitting on it at 3.10:1. A solid bone pill is the same shape
+    // but reads as a deliberate chip whatever the video is doing, and takes
+    // pinkDeep at 5.29:1.
+    backgroundColor: C.screen,
     transform: [{translateY: -6}],
   },
   betaText: {
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1.2,
-    color: C.pink,
+    color: C.pinkDeep,
   },
   tagline: {
     fontFamily: NEWSREADER_ITALIC,
@@ -230,9 +238,9 @@ const styles = StyleSheet.create({
     letterSpacing: -0.1,
     color: C.pink,
     marginTop: 10,
-    textShadowColor: 'rgba(0,0,0,0.4)',
+    textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: {width: 0, height: 1},
-    textShadowRadius: 16,
+    textShadowRadius: 5,
   },
   bottom: {
     position: 'absolute',
