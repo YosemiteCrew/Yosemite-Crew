@@ -121,8 +121,14 @@ const GENDER_OPTIONS = [
   {value: 'female', label: 'Female'},
 ];
 
+// One source for the word. It used to be written out at each site, which is
+// how the Next handler ended up telling a female companion's owner that
+// "Neutered status is required" under a field labelled "Spayed status".
+export const neuterTerm = (gender?: string | null) =>
+  gender === 'female' ? 'Spayed' : 'Neutered';
+
 const getNeuteredOptions = (gender?: string | null) => {
-  const term = gender === 'female' ? 'Spayed' : 'Neutered';
+  const term = neuterTerm(gender);
   return [
     {value: 'neutered', label: term},
     {value: 'not-neutered', label: `Not ${term.toLowerCase()}`},
@@ -587,7 +593,10 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
     if (!watch('neuteredStatus')) {
       setError('neuteredStatus', {
         type: 'manual',
-        message: 'Neutered status is required',
+        // The field's own rule already words this by gender, but this manual
+        // setError runs first on Next and overrode it, so a female companion
+        // was labelled "Spayed status" and told "Neutered status is required".
+        message: `${neuterTerm(gender)} status is required`,
       });
       return;
     }
@@ -901,13 +910,13 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
 
         <View style={styles.fieldGroup}>
           <Text style={styles.fieldLabel}>
-            {gender === 'female' ? 'Spayed status' : 'Neutered status'}
+            {`${neuterTerm(gender)} status`}
           </Text>
           <Controller
             control={control}
             name="neuteredStatus"
             rules={{
-              required: `${gender === 'female' ? 'Spayed' : 'Neutered'} status is required`,
+              required: `${neuterTerm(gender)} status is required`,
             }}
             render={() => (
               <TileSelector
