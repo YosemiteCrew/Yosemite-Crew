@@ -1,6 +1,9 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
-import { validateClinicalTemplateBlueprint } from "src/services/clinical-template-blueprints";
+import {
+  normalizeClinicalTemplateSchemaSnapshot,
+  validateClinicalTemplateBlueprint,
+} from "src/services/clinical-template-blueprints";
 import { createRenderedDocumentRecord } from "src/services/rendered-document.service";
 import { validateTaskWorkflowTemplateBlueprint } from "src/services/task-workflow-blueprints";
 import { TaskWorkflowService } from "src/services/task-workflow.service";
@@ -37,6 +40,9 @@ jest.mock("src/config/prisma", () => ({
       findMany: jest.fn(),
     },
     appointment: {
+      findFirst: jest.fn(),
+    },
+    encounter: {
       findFirst: jest.fn(),
     },
     admission: {
@@ -950,6 +956,55 @@ describe("TemplateService.update version handling", () => {
         }),
       }),
     );
+  });
+
+  it("persists the normalized schema on the in-place draft update", async () => {
+    // The normalizer adds the sections a kind requires. The new-version path
+    // always stored its output; the in-place path stored the caller's raw
+    // snapshot instead, so a draft could be saved in a shape that would never
+    // have passed validation on its own.
+    (
+      normalizeClinicalTemplateSchemaSnapshot as jest.Mock
+    ).mockImplementationOnce((_kind, snapshot) => ({
+      ...(snapshot as Record<string, unknown>),
+      sections: [
+        { id: "instructions", title: "Instructions" },
+        { id: "notes", title: "Notes" },
+      ],
+    }));
+    (prisma.template.findUnique as jest.Mock).mockResolvedValue({
+      ...baseTemplate,
+      latestVersion: 2,
+      publishedVersion: 1,
+    });
+    (prisma.templateVersion.findUnique as jest.Mock).mockResolvedValue({
+      id: "v2",
+      schemaSnapshot: { sections: [] },
+      renderConfigSnapshot: { r: 1 },
+      validationSnapshot: { v: 1 },
+    });
+
+    await TemplateService.update(
+      "tpl-1",
+      {
+        schemaSnapshot: {
+          sections: [{ id: "medications", title: "Medications", fields: [] }],
+        },
+      },
+      "org-1",
+    );
+
+    expect(prisma.templateVersion.update).toHaveBeenCalledWith({
+      where: { id: "v2" },
+      data: expect.objectContaining({
+        schemaSnapshot: {
+          sections: [
+            { id: "instructions", title: "Instructions" },
+            { id: "notes", title: "Notes" },
+          ],
+        },
+      }),
+    });
   });
 
   it("forks a new version reusing the current schema when only render/validation change", async () => {
@@ -1951,9 +2006,11 @@ describe("TemplateService.resolve", () => {
         }),
       ).rejects.toMatchObject({ statusCode: 404 });
 
+      // Scoped to the authorised organisation - a caller may not name another
+      // tenant's appointment as resolver context.
       expect(prisma.appointment.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { OR: [{ id: "apt-1" }] },
+          where: { organisationId: "org-1", OR: [{ id: "apt-1" }] },
         }),
       );
       expect(prisma.admission.findUnique).not.toHaveBeenCalled();
@@ -1961,6 +2018,11 @@ describe("TemplateService.resolve", () => {
 
     it("infers INPATIENT from an admission on the encounter", async () => {
       (prisma.appointment.findFirst as jest.Mock).mockResolvedValue(null);
+      // The caller-supplied encounter must belong to the authorised org before
+      // its admission is read.
+      (prisma.encounter.findFirst as jest.Mock).mockResolvedValue({
+        id: "enc-1",
+      });
       (prisma.admission.findUnique as jest.Mock).mockResolvedValue({
         admittedAt: new Date("2026-04-04T00:00:00.000Z"),
       });

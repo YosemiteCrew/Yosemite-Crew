@@ -32,6 +32,7 @@ const APPOINTMENT_SERVICE = 'Orthopaedic consult';
 const APPOINTMENT_SPECIALITY = 'Surgery';
 
 const onRecordVitals = jest.fn();
+const openObservationsMock = jest.fn();
 const onSaveAndNext = jest.fn();
 
 const reset = () =>
@@ -83,6 +84,7 @@ describe('SoapStep', () => {
         encounter={encounter}
         visitStarted={visitStarted}
         onRecordVitals={onRecordVitals}
+        onOpenObservations={openObservationsMock}
         onSaveAndNext={onSaveAndNext}
       />
     );
@@ -262,6 +264,7 @@ describe('SoapStep', () => {
         encounter={enc}
         visitStarted
         onRecordVitals={onRecordVitals}
+        onOpenObservations={openObservationsMock}
         onSaveAndNext={onSaveAndNext}
       />
     );
@@ -283,6 +286,7 @@ describe('SoapStep', () => {
         encounter={enc}
         visitStarted
         onRecordVitals={onRecordVitals}
+        onOpenObservations={openObservationsMock}
         onSaveAndNext={onSaveAndNext}
       />
     );
@@ -298,6 +302,7 @@ describe('SoapStep', () => {
         encounter={updated}
         visitStarted
         onRecordVitals={onRecordVitals}
+        onOpenObservations={openObservationsMock}
         onSaveAndNext={onSaveAndNext}
       />
     );
@@ -323,6 +328,7 @@ describe('SoapStep', () => {
         authorName="Dr Current User"
         visitStarted
         onRecordVitals={onRecordVitals}
+        onOpenObservations={openObservationsMock}
         onSaveAndNext={onSaveAndNext}
       />
     );
@@ -341,6 +347,7 @@ describe('SoapStep', () => {
         authorName="Dr Current User"
         visitStarted
         onRecordVitals={onRecordVitals}
+        onOpenObservations={openObservationsMock}
         onSaveAndNext={onSaveAndNext}
       />
     );
@@ -442,6 +449,7 @@ describe('SoapStep', () => {
         encounter={enc}
         visitStarted
         onRecordVitals={onRecordVitals}
+        onOpenObservations={openObservationsMock}
         onSaveAndNext={onSaveAndNext}
       />
     );
@@ -481,6 +489,7 @@ describe('SoapStep', () => {
         encounter={enc}
         visitStarted
         onRecordVitals={onRecordVitals}
+        onOpenObservations={openObservationsMock}
         onSaveAndNext={onSaveAndNext}
       />
     );
@@ -519,5 +528,18 @@ describe('SoapStep', () => {
   it('has no axe accessibility violations', async () => {
     const { container } = renderSoapStep();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('routes the observation rail to the observation flow, not vitals', async () => {
+    // Both callbacks used to be onRecordVitals, so "+ New" in the observation
+    // tools rail opened the vitals form and the user had to navigate by hand.
+    renderSoapStep();
+
+    const newButtons = screen.getAllByRole('button', { name: /new/i });
+    for (const button of newButtons) {
+      fireEvent.click(button);
+    }
+
+    expect(openObservationsMock).toHaveBeenCalled();
   });
 });

@@ -17,6 +17,7 @@ import { NotificationService } from "./notification.service";
 
 import { prisma } from "src/config/prisma";
 import { getOrgBillingCurrency } from "src/utils/billing";
+import { recomputeOrganizationVerification } from "./organization-verification.service";
 import { Prisma } from "@prisma/client";
 
 let stripeClient: Stripe | null = null;
@@ -532,8 +533,16 @@ export const StripeService = {
         await this._handleAccountUpdated(event.data.object);
         break;
 
-      // subscription lifecycle
+      // Subscription lifecycle, plus invoice checkout.
+      //
+      // `async_payment_succeeded` is handled alongside `completed` because
+      // delayed payment methods (bank debits, bank transfers) finish the session
+      // before the funds settle and report the outcome on that later event.
+      // Without it, a genuinely-paid invoice using one of those methods would
+      // never settle now that `_handleInvoiceCheckout` refuses to act on a
+      // session whose payment_status is not yet `paid`.
       case "checkout.session.completed":
+      case "checkout.session.async_payment_succeeded":
         await this._handleCheckoutCompleted(
           event.data.object,
           connectedAccountId,
@@ -587,6 +596,16 @@ export const StripeService = {
         } as unknown as Prisma.InputJsonValue,
       },
     });
+
+    // Connect status affects verification: recompute isVerified for every org
+    // on this account (honours a manual override inside the helper).
+    const affected = await prisma.organizationBilling.findMany({
+      where: { connectAccountId: account.id },
+      select: { orgId: true },
+    });
+    for (const { orgId } of affected) {
+      await recomputeOrganizationVerification(orgId);
+    }
   },
 
   // ----------------------------
@@ -887,6 +906,23 @@ export const StripeService = {
   ) {
     const invoiceId = session.metadata?.invoiceId;
     if (!invoiceId) return;
+
+    // `checkout.session.completed` fires when the CHECKOUT finished, not when the
+    // money arrived: a delayed payment method leaves `payment_status` as
+    // `unpaid` and settles (or fails) asynchronously afterwards. Recording
+    // payment on the completion event alone marked such invoices paid before any
+    // funds existed. `no_payment_required` is a genuinely settled zero-total
+    // session and still counts.
+    if (
+      session.payment_status !== "paid" &&
+      session.payment_status !== "no_payment_required"
+    ) {
+      logger.info(
+        `Ignoring checkout session ${session.id} for invoice ${invoiceId}: payment_status=${session.payment_status}. Awaiting async settlement.`,
+      );
+      return;
+    }
+
     const result =
       await FinancePaymentService.handleInvoiceCheckoutSessionCompleted({
         invoiceId,

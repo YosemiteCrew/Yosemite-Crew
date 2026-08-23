@@ -29,6 +29,7 @@ import {
 import {generateId} from '@/shared/utils/helpers';
 import {normalizeMimeType} from '@/shared/utils/mime';
 
+import i18next from 'i18next';
 type FileUploadMode = 'mixed' | 'images-only' | 'documents-only';
 
 export interface DocumentFileHandlerOptions {
@@ -66,15 +67,15 @@ const requestCameraAccess = async () => {
     }
     if (status === RESULTS.BLOCKED) {
       Alert.alert(
-        'Camera permission blocked',
-        'Enable camera access in Settings to take photos.',
+        i18next.t('alerts.shared.cameraPermissionBlocked'),
+        i18next.t('alerts.shared.cameraPermissionBlockedBody'),
       );
       return false;
     }
     if (status === RESULTS.UNAVAILABLE) {
       Alert.alert(
-        'Camera unavailable',
-        'Camera is not available on this device.',
+        i18next.t('alerts.shared.cameraUnavailable'),
+        i18next.t('alerts.shared.cameraUnavailableBody'),
       );
       return false;
     }
@@ -83,13 +84,16 @@ const requestCameraAccess = async () => {
       return true;
     }
     Alert.alert(
-      'Permission required',
-      'Camera access is needed to take photos. Please grant permission.',
+      i18next.t('alerts.shared.permissionRequired'),
+      i18next.t('alerts.shared.permissionRequiredBody'),
     );
     return false;
   } catch (error) {
     console.warn('[useDocumentFileHandlers] Camera permission error', error);
-    Alert.alert('Permission error', 'We were unable to request camera access.');
+    Alert.alert(
+      i18next.t('alerts.shared.permissionError'),
+      i18next.t('alerts.shared.permissionErrorBody'),
+    );
     return false;
   }
 };
@@ -375,34 +379,34 @@ const ensureFileSize = async (
 const showUnsupportedTypeAlert = (mode: FileUploadMode) => {
   if (mode === 'images-only') {
     Alert.alert(
-      'Images only',
-      'This section only accepts image files (PNG, JPG, JPEG, HEIC).',
+      i18next.t('alerts.shared.imagesOnly'),
+      i18next.t('alerts.shared.imagesOnlyBody'),
     );
     return;
   }
   if (mode === 'documents-only') {
     Alert.alert(
-      'Documents only',
-      'Please upload a document such as PDF, DOC, XLS, or PPT.',
+      i18next.t('alerts.shared.documentsOnly'),
+      i18next.t('alerts.shared.documentsOnlyBody'),
     );
     return;
   }
   Alert.alert(
-    'Unsupported file',
-    'Allowed formats are PDF, DOC, XLS, PPT, PNG, JPG, JPEG, or HEIC.',
+    i18next.t('alerts.shared.unsupportedFile'),
+    i18next.t('alerts.shared.unsupportedFileBody'),
   );
 };
 
 const showUnreadableFileAlert = () => {
   Alert.alert(
-    'Unable to read file',
-    'We could not read the selected file. Please try picking it again.',
+    i18next.t('alerts.shared.unableToReadFile'),
+    i18next.t('alerts.shared.unableToReadFileBody'),
   );
 };
 
 const showFileTooLargeAlert = (maxBytes: number) => {
   Alert.alert(
-    'File too large',
+    i18next.t('alerts.shared.fileTooLarge'),
     `Each file must be ${formatLimitLabel(maxBytes)} or smaller.`,
   );
 };
@@ -555,20 +559,23 @@ const handlePickerException = (error: unknown) => {
         return;
       case errorCodes.UNABLE_TO_OPEN_FILE_TYPE:
         Alert.alert(
-          'Unsupported file',
-          'Unable to open this file on your device.',
+          i18next.t('alerts.shared.unsupportedFile'),
+          i18next.t('alerts.shared.unsupportedFileBody2'),
         );
         return;
       case errorCodes.IN_PROGRESS:
-        Alert.alert('Please wait', 'File selection is already in progress.');
+        Alert.alert(
+          i18next.t('alerts.shared.pleaseWait'),
+          i18next.t('alerts.shared.pleaseWaitBody'),
+        );
         return;
       default:
         break;
     }
   }
   Alert.alert(
-    'Upload failed',
-    'We were unable to process the selected file. Please try again.',
+    i18next.t('alerts.shared.uploadFailed'),
+    i18next.t('alerts.shared.uploadFailedBody'),
   );
 };
 
@@ -706,8 +713,8 @@ export const useDocumentFileHandlers = <T extends DocumentFile>({
     } catch (error) {
       console.warn('[useDocumentFileHandlers] Camera error', error);
       Alert.alert(
-        'Camera unavailable',
-        'We were unable to open the camera. Please try again or pick from gallery.',
+        i18next.t('alerts.shared.cameraUnavailable'),
+        i18next.t('alerts.shared.cameraUnavailableBody2'),
       );
     }
   }, [appendFiles, maxFileSizeInBytes, selectedMode]);
@@ -735,8 +742,8 @@ export const useDocumentFileHandlers = <T extends DocumentFile>({
     } catch (error) {
       console.warn('[useDocumentFileHandlers] Gallery error', error);
       Alert.alert(
-        'Unable to open gallery',
-        'We were unable to open your photo library. Please try again.',
+        i18next.t('alerts.shared.unableToOpenGallery'),
+        i18next.t('alerts.shared.unableToOpenGalleryBody'),
       );
     }
   }, [appendFiles, maxFileSizeInBytes, selectedMode]);

@@ -45,6 +45,7 @@ import type {
   DetailBadge,
 } from '@/shared/components/common/DetailsCard';
 import type {ExpenseAttachment} from '@/features/expenses/types';
+import {useResolvedUserCurrency} from '@/shared/hooks/useResolvedUserCurrency';
 
 type Navigation = NativeStackNavigationProp<
   ExpenseStackParamList,
@@ -118,7 +119,7 @@ const PaymentActions = ({
     <View style={styles.paymentButtonContainer}>
       {loadingPayment ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color={theme.colors.primary} />
+          <ActivityIndicator size="small" color={theme.colors.blueText} />
         </View>
       ) : (
         <LiquidGlassButton
@@ -255,9 +256,8 @@ export const ExpensePreviewScreen: React.FC = () => {
 
   const expenseId = (route.params as any)?.expenseId ?? '';
   const expense = useSelector(selectExpenseById(expenseId));
-  const userCurrencyCode = useSelector(
-    (state: RootState) => state.auth.user?.currency ?? 'USD',
-  );
+  const resolvedCurrency = useResolvedUserCurrency();
+  const userCurrencyCode = resolvedCurrency;
   const companion = useSelector((state: RootState) =>
     expense?.companionId
       ? state.companion.companions.find(c => c.id === expense.companionId)
@@ -411,7 +411,7 @@ export const ExpensePreviewScreen: React.FC = () => {
     badges.push({
       text: 'External expense',
       backgroundColor: theme.colors.infoSurface,
-      textColor: theme.colors.primary,
+      textColor: theme.colors.blueText,
     });
   } else if (isPendingPayment) {
     badges.push({
@@ -643,7 +643,7 @@ const createStyles = (theme: any) =>
     },
     heroDate: {
       ...theme.typography.body13,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
       textAlign: 'center',
     },
     badgeRow: {
@@ -682,7 +682,7 @@ const createStyles = (theme: any) =>
     },
     detailLabel: {
       ...theme.typography.body13,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     detailValue: {
       ...theme.typography.body14,

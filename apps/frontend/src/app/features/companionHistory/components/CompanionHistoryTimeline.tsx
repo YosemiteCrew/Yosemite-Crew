@@ -75,6 +75,7 @@ import {
   resolveHistoryDocumentId,
 } from '@/app/features/companionHistory/utils/historyFormatters';
 import '@/app/ui/tables/GenericTable/Generictable.css';
+import { logger } from '@/app/lib/logger';
 
 type CompanionHistoryTimelineProps = {
   companionId: string;
@@ -1418,6 +1419,11 @@ const useCompanionHistoryTimelineView = ({
     setQuery('');
     setExpandedId(null);
     setStatusOverrides({});
+    // The open record drawer belongs to the companion/organisation it was
+    // opened from. Left behind, it keeps showing that record's title, summary,
+    // lab values and linked appointment in the new context - and its Download /
+    // Open actions still target the old record.
+    setSelectedEntry(null);
   }
 
   // Phone action-bar upload trigger: when the signal advances, jump to Medical
@@ -1495,7 +1501,7 @@ const useCompanionHistoryTimelineView = ({
     const byStatus = withStatusOverrides.filter((entry) =>
       matchesStatusFilter(entry, activeFilter, statusFilter)
     );
-    const sorted = byStatus.toSorted((a, b) => {
+    const sorted = [...byStatus].sort((a, b) => {
       const delta = new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime();
       return sortKey === 'newest' ? delta : -delta;
     });
@@ -1570,6 +1576,15 @@ const useCompanionHistoryTimelineView = ({
         document.body.appendChild(anchor);
         anchor.click();
         anchor.remove();
+      } catch (error) {
+        // The drawer calls this straight from a click handler, so a rejection
+        // here escaped as an unhandled promise rejection and the user saw the
+        // spinner stop with no explanation.
+        logger.error('Failed to download the record PDF:', error);
+        notify('error', {
+          title: 'Download failed',
+          text: 'The document could not be downloaded. Please try again.',
+        });
       } finally {
         setPdfLoadingId((current) => (current === entry.id ? null : current));
       }

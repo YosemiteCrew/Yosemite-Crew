@@ -41,6 +41,7 @@ import SpeciesTabs from '@/app/features/companions/pages/Companions/SpeciesTabs'
 import {
   getActiveCount,
   getSpeciesCounts,
+  resolveSpeciesBucket,
   sortByLastVisit,
 } from '@/app/features/companions/pages/Companions/companionsDirectory';
 
@@ -153,7 +154,11 @@ const Companions = () => {
 
     const matched = companions.filter((item) => {
       const status = item.companion.status?.toLowerCase() ?? 'inactive';
-      const filter = item.companion.type?.toLowerCase() ?? '';
+      // The same bucket resolver the tab COUNTS use. Comparing the tab key to
+      // the raw type meant "Exotics" only matched a literal type of "other",
+      // while its count included every unrecognised species - so the tab showed
+      // a number and then an empty list.
+      const filter = resolveSpeciesBucket(item.companion.type);
 
       const matchesStatus = statusWanted === 'all' || status === statusWanted;
       const matchesFilter = filterWanted === 'all' || filter === filterWanted;

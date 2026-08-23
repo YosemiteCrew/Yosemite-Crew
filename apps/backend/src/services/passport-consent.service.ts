@@ -1,4 +1,5 @@
 import { prisma } from "src/config/prisma";
+import { findParentIdForAuthUser } from "./shared/parent-identity";
 import { AuditTrailService } from "./audit-trail.service";
 import { NotificationTemplates } from "../utils/notificationTemplates";
 import {
@@ -109,17 +110,17 @@ const resolveConsentingParentId = async (
       403,
     );
   }
-  const parent = await prisma.parent.findUnique({
-    where: { id: link.parentId },
-    select: { id: true, linkedUserId: true },
-  });
-  if (!parent?.linkedUserId || parent.linkedUserId !== grantingUserId) {
+  // Same id-space trap as the passport read: the caller's id is a provider id,
+  // so it has to be resolved to a parent through AuthUser rather than compared
+  // against Parent.linkedUserId, which holds an AuthUser primary key.
+  const callerParentId = await findParentIdForAuthUser(grantingUserId);
+  if (!callerParentId || callerParentId !== link.parentId) {
     throw new PassportConsentError(
       "Only the pet's owner can grant this consent.",
       403,
     );
   }
-  return parent.id;
+  return callerParentId;
 };
 
 const notifyOwnerOfConsentRequest = (patientId: string): Promise<void> =>

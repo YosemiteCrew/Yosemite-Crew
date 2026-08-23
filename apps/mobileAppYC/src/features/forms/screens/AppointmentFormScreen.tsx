@@ -44,6 +44,7 @@ import {formatDateToISODate} from '@/shared/utils/dateHelpers';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import type {Appointment} from '@/features/appointments/types';
 
+import i18next from 'i18next';
 type Route = RouteProp<AppointmentStackParamList, 'AppointmentForm'>;
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -300,8 +301,8 @@ export const AppointmentFormScreen: React.FC = () => {
       }
       e.preventDefault();
       Alert.alert(
-        'Discard changes?',
-        'Your answers have not been saved yet. If you leave now, they will be lost.',
+        i18next.t('alerts.forms.discardChanges'),
+        i18next.t('alerts.forms.discardChangesBody'),
         [
           {text: 'Keep Editing', style: 'cancel'},
           {
@@ -456,8 +457,8 @@ export const AppointmentFormScreen: React.FC = () => {
       if (activeEntry.signingRequired) {
         if (!result.submission?._id) {
           Alert.alert(
-            'Signing not started',
-            'Your answers were saved, but we could not start the signing process. Please try again from the appointment.',
+            i18next.t('alerts.forms.signingNotStarted'),
+            i18next.t('alerts.forms.signingNotStartedBody'),
           );
           navigation.goBack();
           return;
@@ -480,15 +481,15 @@ export const AppointmentFormScreen: React.FC = () => {
             return;
           }
           Alert.alert(
-            'Signing not started',
-            'Your answers were saved, but we could not start the signing process. Please try again from the appointment.',
+            i18next.t('alerts.forms.signingNotStarted'),
+            i18next.t('alerts.forms.signingNotStartedBody'),
           );
         } catch (error: any) {
           const message =
             typeof error === 'string'
               ? error
               : (error?.message ?? 'Unable to start signing.');
-          Alert.alert('Signing not started', message);
+          Alert.alert(i18next.t('alerts.forms.signingNotStarted'), message);
         }
       }
 
@@ -498,7 +499,7 @@ export const AppointmentFormScreen: React.FC = () => {
         typeof error === 'string'
           ? error
           : (error?.message ?? 'Unable to submit form. Please try again.');
-      Alert.alert('Submit failed', message);
+      Alert.alert(i18next.t('alerts.forms.submitFailed'), message);
     }
   };
 
@@ -522,8 +523,8 @@ export const AppointmentFormScreen: React.FC = () => {
         });
       } else {
         Alert.alert(
-          'Signing started',
-          'Signing link is not available yet. Please check again shortly from the appointment.',
+          i18next.t('alerts.forms.signingStarted'),
+          i18next.t('alerts.forms.signingStartedBody'),
         );
       }
     } catch (error: any) {
@@ -531,13 +532,16 @@ export const AppointmentFormScreen: React.FC = () => {
         typeof error === 'string'
           ? error
           : (error?.message ?? 'Unable to start signing. Please try again.');
-      Alert.alert('Signing failed', message);
+      Alert.alert(i18next.t('alerts.forms.signingFailed'), message);
     }
   };
 
   const handleOpenSignedPdf = React.useCallback(() => {
     Linking.openURL(signedPdfUrl as string).catch(() => {
-      Alert.alert('Unable to open PDF', 'Please try again in a moment.');
+      Alert.alert(
+        i18next.t('alerts.forms.unableToOpenPdf'),
+        i18next.t('alerts.forms.unableToOpenPdfBody'),
+      );
     });
   }, [signedPdfUrl]);
 
@@ -1097,7 +1101,7 @@ const createStyles = (theme: any) => {
       ...theme.typography.subtitleBold12,
       fontSize: 12.5,
       fontWeight: '700',
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     progressWrap: {
       paddingHorizontal: theme.spacing['5'],

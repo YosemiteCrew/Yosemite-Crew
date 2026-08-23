@@ -190,7 +190,7 @@ const createStyles = (theme: any) =>
     },
     noteLabel: {
       ...theme.typography.inputLabel,
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
       textAlign: 'left',
     },
     noteBody: {
@@ -201,7 +201,7 @@ const createStyles = (theme: any) =>
     },
     warning: {
       ...theme.typography.inputLabel,
-      color: theme.colors.error ?? theme.colors.secondary,
+      color: theme.colors.dangerText,
       textAlign: 'left',
     },
     actionsRow: {

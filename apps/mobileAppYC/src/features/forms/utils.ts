@@ -44,12 +44,39 @@ export const stripHtmlToPlainText = (html?: string | null): string => {
   // Strip to a fixed point rather than a single pass: one replace can leave
   // a reconstituted tag behind for malformed/nested markup like
   // "<scr<script>ipt>" (CodeQL: incomplete multi-character sanitization).
+  //
+  // Bounded on both length and passes. Input shaped like "<<<<...>>>>" removes
+  // only one innermost pair per pass, so an unbounded loop is quadratic: a ~50k
+  // character answer took seconds on a laptop, which on the JS thread of a phone
+  // is a frozen app. Rich-text answers arrive from appointment form data, so the
+  // input is not ours to trust. Over the cap, fail closed - drop every angle
+  // bracket rather than render markup that was never stripped.
+  const MAX_INPUT_LENGTH = 20_000;
+  const MAX_STRIP_PASSES = 20;
+
+  if (withNewlines.length > MAX_INPUT_LENGTH) {
+    return withNewlines
+      .slice(0, MAX_INPUT_LENGTH)
+      .replaceAll('<', '')
+      .replaceAll('>', '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
   let stripped = withNewlines;
   let previous: string;
+  let passes = 0;
   do {
     previous = stripped;
     stripped = stripped.replace(/<[^<>]*>/g, '');
-  } while (stripped !== previous);
+    passes += 1;
+  } while (stripped !== previous && passes < MAX_STRIP_PASSES);
+
+  if (stripped !== previous) {
+    // Still changing at the cap: pathological input. Remove the brackets
+    // outright so nothing tag-shaped survives.
+    stripped = stripped.replaceAll('<', '').replaceAll('>', '');
+  }
 
   return stripped
     .replace(

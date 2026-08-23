@@ -76,6 +76,35 @@ jobs:
           # compromised third-party action could read it. That matters more
           # in this workflow than most, since it also handles signing secrets.
           persist-credentials: false
+          # Full history so the main-ancestry check below can see origin/main.
+          fetch-depth: 0
+
+      # Releases are cut by merging dev into main and tagging there. The
+      # protected `release` environment gates the signing jobs, but approval is a
+      # human glancing at a run - it is not a check that the tag points at
+      # reviewed code. Without this, any `mobile-v*` tag pushed from any branch
+      # reaches a job holding the upload keys and the App Store Connect .p8,
+      # which the iOS build's own run-script phases can read. Mirrors the same
+      # gate in desktop-release.yml. Throwaway builds belong on
+      # workflow_dispatch, which skips this.
+      - name: Tag must be on main
+        if: github.event_name == 'push'
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if ! git rev-parse --verify --quiet origin/main >/dev/null; then
+            echo "::error::Could not resolve origin/main to check tag reachability."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Tag '${TAG}' points at ${GITHUB_SHA}, which is not reachable from main."
+            echo "::error::Merge the release commit into main and re-tag there, per RELEASING.md."
+            echo "::error::For a throwaway test build, run this workflow via workflow_dispatch instead."
+            exit 1
+          fi
+          echo "Tag ${TAG} is reachable from main."
+
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
@@ -167,10 +196,17 @@ jobs:
 
       - name: Remove restored secrets
         if: always()
-        run: rm -f "${RUNNER_TEMP}/release.keystore" \
-          apps/mobileAppYC/android/app/google-services.json \
-          apps/mobileAppYC/android/app/src/main/res/values/strings.xml \
-          apps/mobileAppYC/src/config/variables.local.ts
+        # Block scalar (`run: |`), not a folded one. Folded, YAML turns each
+        # newline into a space, so the trailing backslashes ended up escaping
+        # those spaces rather than continuing the line - and every path after
+        # the first was passed to rm with a leading space, matching nothing.
+        # The restored config files were left on the runner.
+        run: |
+          rm -f \
+            "${RUNNER_TEMP}/release.keystore" \
+            apps/mobileAppYC/android/app/google-services.json \
+            apps/mobileAppYC/android/app/src/main/res/values/strings.xml \
+            apps/mobileAppYC/src/config/variables.local.ts
 
   ios:
     name: iOS (TestFlight)
@@ -315,54 +351,46 @@ jobs:
       # next. Retrying costs a couple of minutes; not retrying costs a whole
       # tagged release, because the tag has to be deleted and re-cut.
       # Podfile.lock is left alone so resolution stays reproducible.
+      #
+      # On mobile-v1.6.1 all three attempts lost inside about five minutes and
+      # the job died. Because GitHub refuses `gh run rerun --failed` while any
+      # job in the run is still going, the retry could not even be queued until
+      # the Android job finished ~40 minutes later. The re-run then passed on
+      # the first attempt, which is the signature of a flake given a wider
+      # reset rather than a repo problem.
+      #
+      # So: five attempts, an exponential backoff, and a reset that also clears
+      # the CocoaPods caches. The stack points at Pathname#realdirpath walking
+      # pnpm's symlinked layout, and the stale entries the resolver trips over
+      # live in those caches, not in Pods/.
       - name: Install pods
         working-directory: apps/mobileAppYC/ios
         run: |
-          for attempt in 1 2 3; do
+          attempts=5
+          for attempt in $(seq 1 "$attempts"); do
             if pod install; then
+              if [ "$attempt" -gt 1 ]; then
+                echo "::notice::pod install recovered on attempt ${attempt}"
+              fi
               exit 0
             fi
-            echo "::warning::pod install failed on attempt ${attempt}, retrying"
-            rm -rf Pods
-            sleep 10
+            if [ "$attempt" -eq "$attempts" ]; then
+              break
+            fi
+            backoff=$((attempt * 15))
+            echo "::warning::pod install failed on attempt ${attempt}/${attempts}, resetting and retrying in ${backoff}s"
+            # Podfile.lock is deliberately left alone so resolution stays
+            # reproducible; everything derived from it is fair game.
+            rm -rf Pods build
+            rm -rf ~/Library/Caches/CocoaPods
+            rm -rf ~/.cocoapods/repos/trunk/.git/index.lock
+            sleep "$backoff"
           done
-          echo "pod install failed three times; this is no longer the known flake." >&2
+          echo "pod install failed ${attempts} times; this is no longer the known flake." >&2
           exit 1
 
       # altool authenticates with this key on the upload. It is written here,
       # ahead of the archive, because the archive used to sign automatically and
-      # `-allowProvisioningUpdates` needs an authenticated App Store Connect
-      # session to fetch a profile; without one it failed with "No Accounts: Add
-      # a new account in Accounts settings". The archive now signs manually and
-      # no longer needs the session, but the ordering is kept so the key is in
-      # place for every step that follows.
-      - name: Provide the App Store Connect API key
-        env:
-          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_KEY_BASE64 }}
-        run: |
-          # A secret pasted with a trailing newline is invisible in the log,
-          # because Actions masks the value either way. It reaches the key
-          # filename and the JWT that altool signs, and comes back as nothing
-          # more specific than "Failed to authenticate for session".
-          KEY_ID=$(printf '%s' "$KEY_ID" | LC_ALL=C tr -d '[:space:]')
-          if [ -z "$KEY_ID" ]; then
-            echo "APP_STORE_CONNECT_KEY_ID is empty." >&2
-            exit 1
-          fi
-
-          mkdir -p ~/.appstoreconnect/private_keys
-          KEY_PATH=~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
-          echo "$KEY_BASE64" | base64 -d > "$KEY_PATH"
-          # A truncated or mis-encoded secret otherwise surfaces as an opaque
-          # signing failure several minutes into the archive.
-          if ! grep -q "BEGIN PRIVATE KEY" "$KEY_PATH"; then
-            echo "APP_STORE_CONNECT_KEY_BASE64 did not decode to a PEM private key." >&2
-            exit 1
-          fi
-          echo "ASC_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
-          echo "ASC_KEY_ID=$KEY_ID" >> "$GITHUB_ENV"
-
       # Manual signing, deliberately. Automatic signing asks App Store Connect to
       # resolve a profile, which returned 401 on listTeams.action and then hunted
       # for an "iOS App Development" profile that a distribution archive should
@@ -464,6 +492,39 @@ jobs:
           echo "Release build survived launch."
           xcrun simctl shutdown "$UDID" || true
           xcrun simctl delete "$UDID" || true
+
+      # Deliberately AFTER the archive and export. `-allowProvisioningUpdates`
+      # once needed an authenticated App Store Connect session, but the archive
+      # signs manually now and does not. Writing the .p8 before the build put a
+      # publishing key on disk while xcodebuild ran app and CocoaPods build
+      # phases as the same user - any one of which could have read it. Only the
+      # upload needs the key, so only the upload runs with it present.
+      - name: Provide the App Store Connect API key
+        env:
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_KEY_BASE64 }}
+        run: |
+          # A secret pasted with a trailing newline is invisible in the log,
+          # because Actions masks the value either way. It reaches the key
+          # filename and the JWT that altool signs, and comes back as nothing
+          # more specific than "Failed to authenticate for session".
+          KEY_ID=$(printf '%s' "$KEY_ID" | LC_ALL=C tr -d '[:space:]')
+          if [ -z "$KEY_ID" ]; then
+            echo "APP_STORE_CONNECT_KEY_ID is empty." >&2
+            exit 1
+          fi
+
+          mkdir -p ~/.appstoreconnect/private_keys
+          KEY_PATH=~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
+          echo "$KEY_BASE64" | base64 -d > "$KEY_PATH"
+          # A truncated or mis-encoded secret otherwise surfaces as an opaque
+          # signing failure several minutes into the archive.
+          if ! grep -q "BEGIN PRIVATE KEY" "$KEY_PATH"; then
+            echo "APP_STORE_CONNECT_KEY_BASE64 did not decode to a PEM private key." >&2
+            exit 1
+          fi
+          echo "ASC_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+          echo "ASC_KEY_ID=$KEY_ID" >> "$GITHUB_ENV"
 
       # altool reports an authentication failure as "Failed to authenticate for
       # session" and nothing else, which does not say whether the key is

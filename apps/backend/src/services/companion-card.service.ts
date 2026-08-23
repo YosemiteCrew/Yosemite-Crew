@@ -374,6 +374,11 @@ const loadSource = async (
 
 // CompanionService.getById is NOT org-scoped, so a STAFF card request must
 // confirm the companion belongs to the caller's org or it leaks across tenants.
+//
+// ACTIVE only: the STAFF card carries owner contact, medical data, passport/DOB,
+// insurance summary and alerts, and the same check gates minting PUBLIC and
+// REFERRAL_CLINIC share tokens. A PENDING link is an unapproved request, not a
+// relationship, so it must not open any of that.
 const assertOrgMembership = async (
   patientId: string,
   organisationId: string,
@@ -382,7 +387,7 @@ const assertOrgMembership = async (
     where: {
       patientId,
       organisationId,
-      status: { in: ["ACTIVE", "PENDING"] },
+      status: "ACTIVE",
     },
     select: { id: true },
   });

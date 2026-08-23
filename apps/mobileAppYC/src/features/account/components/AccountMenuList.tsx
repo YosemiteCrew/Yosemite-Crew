@@ -1,5 +1,6 @@
 import {useTheme} from '@/hooks';
 import React from 'react';
+import {useTranslation} from 'react-i18next';
 import {Image, ImageSourcePropType, StyleSheet, Text, View} from 'react-native';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {
@@ -20,6 +21,11 @@ export interface AccountMenuItem {
    * tintColor would flatten the whole glyph into a solid block. Defaults to true.
    */
   tintIcon?: boolean;
+  /**
+   * Row leaves the app for a browser. Every other row in this list opens an
+   * in-app screen, so the jump needs to be visible before it is tapped.
+   */
+  external?: boolean;
 }
 
 export interface AccountMenuListProps {
@@ -57,6 +63,7 @@ export const AccountMenuList: React.FC<AccountMenuListProps> = ({
   rightArrowIcon,
 }) => {
   const {theme} = useTheme();
+  const {t} = useTranslation();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   return (
     <View style={styles.container}>
@@ -69,7 +76,10 @@ export const AccountMenuList: React.FC<AccountMenuListProps> = ({
             activeOpacity={0.85}
             onPress={() => onItemPress(item.id)}
             accessibilityRole="button"
-            accessibilityLabel={item.label}>
+            accessibilityLabel={item.label}
+            accessibilityHint={
+              item.external ? t('account.opensInBrowser') : undefined
+            }>
             <IconTile
               icon={item.icon}
               tone={tone}
@@ -84,6 +94,11 @@ export const AccountMenuList: React.FC<AccountMenuListProps> = ({
             <Text style={[styles.label, item.danger && styles.labelDanger]}>
               {item.label}
             </Text>
+            {item.external ? (
+              <Text style={styles.externalHint}>
+                {t('account.opensInBrowserShort')}
+              </Text>
+            ) : null}
             {rightArrowIcon ? (
               <Image
                 source={rightArrowIcon}
@@ -121,12 +136,17 @@ const createStyles = (theme: any) =>
       color: theme.colors.inkBody,
     },
     labelDanger: {
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
+    },
+    externalHint: {
+      ...theme.typography.labelSmall,
+      color: theme.colors.inkMuted,
+      marginRight: theme.spacing['2'],
     },
     arrow: {
       width: theme.spacing['4'],
       height: theme.spacing['4'],
-      tintColor: theme.colors.inkFaint2,
+      tintColor: theme.colors.inkFaint,
       resizeMode: 'contain',
     },
     arrowDanger: {

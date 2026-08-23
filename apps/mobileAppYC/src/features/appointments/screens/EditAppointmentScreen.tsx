@@ -43,6 +43,7 @@ import {useOrganisationDocumentNavigation} from '@/shared/hooks/useOrganisationD
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
+import i18next from 'i18next';
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
 const isAppointmentCancellable = (status?: string | null) => {
@@ -280,7 +281,10 @@ const buildAgreements = ({
     value: true,
     label: (
       <Text>
-        I agree to Yosemite Crew's{' '}
+        {/* Names the app, not just the brand: a clinic can be called
+            "Yosemite Crew" too, and then this consent and the business one
+            above it read identically. */}
+        I agree to the Yosemite Crew app's{' '}
         <Text style={linkStyle} onPress={handleOpenAppTerms}>
           terms and conditions
         </Text>{' '}
@@ -409,8 +413,8 @@ export const EditAppointmentScreen: React.FC = () => {
     const isoTimes = getRescheduleIsoTimes(availability, date, time);
     if (!isoTimes) {
       Alert.alert(
-        'Select a time',
-        'Please choose a valid appointment time before saving.',
+        i18next.t('alerts.appointments.selectATime'),
+        i18next.t('alerts.appointments.selectATimeBody'),
       );
       return;
     }
@@ -433,7 +437,7 @@ export const EditAppointmentScreen: React.FC = () => {
           ? error
           : ((error as Error)?.message ??
             'Unable to reschedule this appointment. Please try again.');
-      Alert.alert('Reschedule failed', message);
+      Alert.alert(i18next.t('alerts.appointments.rescheduleFailed'), message);
     } finally {
       setSaving(false);
     }
@@ -459,7 +463,7 @@ export const EditAppointmentScreen: React.FC = () => {
   const agreements = useMemo(() => {
     const linkStyle = {
       ...theme.typography.paragraphBold,
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
     };
     return buildAgreements({
       businessDisplayName,
@@ -478,7 +482,7 @@ export const EditAppointmentScreen: React.FC = () => {
     openBusinessPrivacy,
     openBusinessTerms,
     theme.typography.paragraphBold,
-    theme.colors.primary,
+    theme.colors.blueText,
   ]);
   const submitLabel = getRescheduleButtonLabel();
   const submitState = getRescheduleButtonState({

@@ -33,7 +33,7 @@ exports[`ClinicMapPin snapshot matches for selected state 1`] = `
           "paddingVertical": 5,
         },
         {
-          "backgroundColor": "#247AED",
+          "backgroundColor": "#257BED",
         },
         {
           "borderColor": "#FFFFFF",
@@ -82,7 +82,7 @@ exports[`ClinicMapPin snapshot matches for selected state 1`] = `
           "width": 0,
         },
         {
-          "borderTopColor": "#247AED",
+          "borderTopColor": "#257BED",
         },
       ]
     }
@@ -116,7 +116,7 @@ exports[`ClinicMapPin snapshot matches for unselected state 1`] = `
           "paddingVertical": 5,
         },
         {
-          "backgroundColor": "#247AED",
+          "backgroundColor": "#257BED",
         },
         false,
       ]
@@ -161,7 +161,7 @@ exports[`ClinicMapPin snapshot matches for unselected state 1`] = `
           "width": 0,
         },
         {
-          "borderTopColor": "#247AED",
+          "borderTopColor": "#257BED",
         },
       ]
     }

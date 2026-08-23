@@ -35,6 +35,7 @@ import type {DocumentFile} from '@/features/documents/types';
 import type {Companion} from '@/features/companion/types';
 import {DOCUMENT_CATEGORIES} from '@/features/documents/constants';
 
+import i18next from 'i18next';
 export interface DocumentFormData {
   category: string | null;
   subcategory: string | null;
@@ -152,7 +153,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
       const message = 'You can upload up to 5 documents only.';
       onFormChange('files', formData.files);
       onErrorClear('files');
-      Alert.alert('Limit reached', message);
+      Alert.alert(i18next.t('alerts.documents.limitReached'), message);
       return;
     }
     resolvedOpenSheet('upload');
@@ -517,7 +518,7 @@ const createStyles = (theme: any) =>
     },
     errorText: {
       ...theme.typography.labelXxsBold,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
       marginTop: 3,
       marginBottom: theme.spacing['3'],
       marginLeft: theme.spacing['1'],
@@ -531,7 +532,7 @@ const createStyles = (theme: any) =>
       textAlign: 'justify',
     },
     noteLabel: {
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
     },
     noteMessage: {
       color: theme.colors.placeholder,

@@ -198,7 +198,7 @@ export const CalendarSyncBottomSheet = ({
     };
     const statusTextStyle = {
       ...theme.typography.labelSmall,
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
       fontStyle: 'italic' as const,
       marginTop: theme.spacing['1'],
     };

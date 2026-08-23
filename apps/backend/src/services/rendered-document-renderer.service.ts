@@ -809,6 +809,7 @@ const buildInvoicePdf = async (
 ) => {
   const appointmentHeader = await loadAppointmentClinicalHeader(
     record.invoice.appointmentId,
+    record.invoice.organisationId,
   );
   const metadata = readMetadata(record.invoice.metadata);
   const paymentsTotal = roundMoneyValue(
@@ -1200,15 +1201,27 @@ const readAppointmentHeader = (
   };
 };
 
+/**
+ * Patient, client and lead names for a document header, read off the linked
+ * appointment.
+ *
+ * `organisationId` is REQUIRED, not optional. Clinical artifacts persist a
+ * client-supplied `appointmentId` without proving the appointment belongs to
+ * the prescribing organisation, so a local record referencing another tenant's
+ * appointment rendered that tenant's patient name, client name and prescriber
+ * into the PDF. Making the tenant a required argument turns that from a runtime
+ * leak into a compile error at every call site.
+ */
 const loadAppointmentClinicalHeader = async (
   appointmentId: string | null | undefined,
+  organisationId: string | null | undefined,
 ): Promise<AppointmentClinicalHeader> => {
-  if (!appointmentId) {
+  if (!appointmentId || !organisationId) {
     return {};
   }
 
-  const appointment = await prisma.appointment.findUnique({
-    where: { id: appointmentId },
+  const appointment = await prisma.appointment.findFirst({
+    where: { id: appointmentId, organisationId },
     select: { patient: true, lead: true, room: true },
   });
 
@@ -1481,6 +1494,7 @@ const buildTemplateFreeSoapNotePdfInput = async (
   const metadata = readMetadata(record.data.metadata);
   const header = await loadAppointmentClinicalHeader(
     record.artifact.appointmentId,
+    record.artifact.organisationId,
   );
   const signature = await buildArtifactSignature(record);
 
@@ -1521,6 +1535,7 @@ const buildTemplateFreePrescriptionPdfInput = async (
   const metadata = readMetadata(record.data.metadata);
   const header = await loadAppointmentClinicalHeader(
     record.artifact.appointmentId,
+    record.artifact.organisationId,
   );
   const notes = readRecordNotes(record, metadata);
   const signature = await buildArtifactSignature(record);
@@ -1571,6 +1586,7 @@ const buildTemplateFreeDischargeSummaryPdfInput = async (
   const metadata = readMetadata(record.data.metadata);
   const header = await loadAppointmentClinicalHeader(
     record.artifact.appointmentId,
+    record.artifact.organisationId,
   );
   const summaryText = (record.data.summary ??
     metadata.summary ??
@@ -1639,6 +1655,7 @@ const buildTemplateFreeVitalRecordPdfInput = async (
   const metadata = readMetadata(record.data.metadata);
   const header = await loadAppointmentClinicalHeader(
     record.artifact.appointmentId,
+    record.artifact.organisationId,
   );
   const notes = readRecordNotes(record, metadata);
   const signature = await buildArtifactSignature(record);
@@ -1727,11 +1744,28 @@ const renderTemplateFreeClinicalArtifactPdf = async (
   }
 };
 
+/**
+ * Artifact kinds whose saved content is a single rich-text blob rather than a
+ * value per template field.
+ *
+ * A discharge summary records the clinician's text under `summary`, whatever
+ * template seeded the editor; the template id is provenance, not a rendering
+ * instruction. Sending it down the resolved-template path made the field-keyed
+ * engine look up `data[field.key]` for meds, care, instructions and so on, find
+ * nothing, and emit a PDF of empty fields with the clinician's actual discharge
+ * instructions omitted - in signed packets too.
+ */
+const BLOB_CONTENT_TEMPLATE_KINDS = new Set(["DISCHARGE_SUMMARY"]);
+
 const buildClinicalArtifactResolvedTemplate = async (
   input: RenderedDocumentPdfSource,
   record: ClinicalArtifactDocumentSource,
 ) => {
   if (record.artifact.templateId === null) {
+    return undefined;
+  }
+
+  if (BLOB_CONTENT_TEMPLATE_KINDS.has(String(input.source.templateKind))) {
     return undefined;
   }
 
@@ -2064,6 +2098,7 @@ export const renderRenderedDocumentPdfWithMetadata = async (
 
       const appointmentHeader = await loadAppointmentClinicalHeader(
         record.artifact.appointmentId,
+        record.artifact.organisationId,
       );
 
       return generateResolvedTemplatePdfWithMetadata(
@@ -2290,8 +2325,10 @@ export const renderCombinedClinicalPacketPdf = async (
   // Resolve the shared patient/encounter values (incl. room/unit and a reliable
   // client contact) from the appointment once, so they don't depend on the first
   // section's document type (e.g. a leading SOAP note carries no client contact).
-  const appointmentHeader =
-    await loadAppointmentClinicalHeader(headerAppointmentId);
+  const appointmentHeader = await loadAppointmentClinicalHeader(
+    headerAppointmentId,
+    input.organisationId,
+  );
 
   // Resolve the encounter's physical location (inpatient room/unit + admission
   // details, or the outpatient room). These authoritative values override the
@@ -2468,7 +2505,10 @@ export const buildPrescriptionLabelPdfInput = async (
   const organizationBrand = await loadOrganizationBrand(input.organisationId);
   const organization = buildSharedOrganizationBranding(organizationBrand);
   const metadata = readMetadata(record.metadata);
-  const header = await loadAppointmentClinicalHeader(record.appointmentId);
+  const header = await loadAppointmentClinicalHeader(
+    record.appointmentId,
+    input.organisationId,
+  );
 
   const inventoryIdsByIndex = collectMedicationInventoryIds(
     record.items,

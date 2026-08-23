@@ -15,6 +15,7 @@ import {
   getCheckInConstants,
 } from '@/features/appointments/utils/checkInUtils';
 
+import i18next from 'i18next';
 export interface CheckInHandlerConfig {
   appointment: {
     id: string;
@@ -69,7 +70,7 @@ export const useCheckInHandler = () => {
           appointment.time,
         );
         Alert.alert(
-          'Too early to check in',
+          i18next.t('alerts.appointments.tooEarlyToCheckIn'),
           `You can check in starting ${CHECKIN_BUFFER_MINUTES} ${minuteUnit} before your appointment at ${startLabel}.`,
         );
         return;
@@ -78,8 +79,8 @@ export const useCheckInHandler = () => {
       const {lat, lng} = businessCoordinates;
       if (!lat || !lng) {
         Alert.alert(
-          'Location unavailable',
-          'Business location is missing. Please try again later.',
+          i18next.t('alerts.appointments.locationUnavailable'),
+          i18next.t('alerts.appointments.locationUnavailableBody3'),
         );
         return;
       }
@@ -98,15 +99,15 @@ export const useCheckInHandler = () => {
 
       if (distance === null) {
         Alert.alert(
-          'Location unavailable',
-          'Unable to determine distance for check-in.',
+          i18next.t('alerts.appointments.locationUnavailable'),
+          i18next.t('alerts.appointments.locationUnavailableBody2'),
         );
         return;
       }
 
       if (distance > CHECKIN_RADIUS_METERS) {
         Alert.alert(
-          'Too far to check in',
+          i18next.t('alerts.appointments.tooFarToCheckIn'),
           `Move closer to the business to check in. You are ~${Math.round(distance)}m away.`,
         );
         return;
@@ -133,8 +134,8 @@ export const useCheckInHandler = () => {
       } catch (error) {
         console.warn('[Appointment] Check-in failed', error);
         Alert.alert(
-          'Check-in failed',
-          'Unable to check in right now. Please try again.',
+          i18next.t('alerts.appointments.checkInFailed'),
+          i18next.t('alerts.appointments.checkInFailedBody'),
         );
       } finally {
         onCheckingInChange(appointment.id, false);

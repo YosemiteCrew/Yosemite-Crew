@@ -1,4 +1,5 @@
 import { prisma } from "src/config/prisma";
+import { Prisma } from "@prisma/client";
 import { FormAssignmentService } from "src/services/form-assignment.service";
 import { ClinicalArtifactService } from "src/services/clinical-artifact.service";
 import {
@@ -534,11 +535,15 @@ describe("WorkspaceService", () => {
       "org-1",
       "appt-1",
     );
+    // The bootstrap is a READ. Materialising linked-template assignments is a
+    // `forms:edit:any` action, so a viewer without it syncs nothing - opening an
+    // appointment used to persist client-visible consent requests on their behalf.
     expect(
       mockedFormService.syncLinkedTemplateAssignmentsForAppointment,
     ).toHaveBeenCalledWith({
       organisationId: "org-1",
       appointmentId: "appt-1",
+      canManageForms: false,
     });
     // #1910: the rendered-document query must include an INVOICE sourceId condition built from the
     // appointment's invoice ids, so the invoice PDF is surfaced in All Documents.
@@ -840,6 +845,34 @@ describe("WorkspaceService", () => {
     });
     expect(created.productId).toBe("prod-2");
 
+    // The lock window is surfaced to clients as `locks.treatmentItems`, but it
+    // has to be enforced here too - a caller ignoring the UI could otherwise add
+    // charges long after an appointment's billing window closed.
+    mockedPrisma.organization.findUnique.mockResolvedValue({
+      appointmentLockWindowOutpatientMinutes: 0,
+      appointmentLockWindowInpatientMinutes: 0,
+    });
+    mockedPrisma.appointment.findFirst.mockResolvedValue({
+      startTime: new Date("2020-01-01T00:00:00.000Z"),
+      appointmentKind: "OUTPATIENT",
+    });
+
+    await expect(
+      WorkspaceService.createEncounterTreatmentItem({
+        organisationId: "org-1",
+        encounterId: "enc-1",
+        appointmentId: "appt-1",
+        productId: "prod-3",
+        productSnapshot: { name: "Late charge" },
+        servicePackageKind: "PROCEDURE",
+        quantity: 1,
+        priceSnapshot: { totalAmount: 10 },
+      }),
+    ).rejects.toMatchObject({ statusCode: 409 });
+
+    mockedPrisma.organization.findUnique.mockResolvedValue(null);
+    mockedPrisma.appointment.findFirst.mockResolvedValue(null);
+
     const updated = await WorkspaceService.updateTreatmentItem(
       "ti-2",
       "org-1",
@@ -852,6 +885,32 @@ describe("WorkspaceService", () => {
     );
     expect(updated.billingStatus).toBe("BILLED");
 
+    // A billed row is part of the financial record and cannot be deleted, no
+    // matter what the caller asks for. The client-side billing check is not the
+    // control here: it read the wrong field for a while and every billed row
+    // looked deletable.
+    mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValueOnce({
+      id: "ti-2",
+      encounterId: "enc-1",
+      appointmentId: null,
+      billingStatus: "BILLED",
+      invoiceRowId: "invoice-row-1",
+      settledInvoiceId: null,
+    } as never);
+    await expect(
+      WorkspaceService.deleteTreatmentItem("ti-2", "org-1"),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    expect(mockedPrisma.workspaceTreatmentItem.delete).not.toHaveBeenCalled();
+
+    // The same row unbilled deletes normally.
+    mockedPrisma.workspaceTreatmentItem.findFirst.mockResolvedValueOnce({
+      id: "ti-2",
+      encounterId: "enc-1",
+      appointmentId: null,
+      billingStatus: "UNBILLED",
+      invoiceRowId: null,
+      settledInvoiceId: null,
+    } as never);
     await WorkspaceService.deleteTreatmentItem("ti-2", "org-1");
     expect(mockedPrisma.workspaceTreatmentItem.delete).toHaveBeenCalledWith({
       where: { id: "ti-2" },
@@ -1036,8 +1095,12 @@ describe("WorkspaceService", () => {
     expect(
       mockedInvoiceService.findOpenInvoiceForAppointment,
     ).toHaveBeenCalledWith("appt-1", "org-1");
+    // Bound to the treatment item's own organisation, so a body-supplied
+    // appointment id from another tenant cannot bootstrap that tenant's invoice.
     expect(mockedInvoiceService.bootstrapForAppointment).toHaveBeenCalledWith(
       "appt-1",
+      undefined,
+      "org-1",
     );
     expect(mockedInvoiceService.addItemsToInvoice).toHaveBeenCalledWith(
       "invoice-bootstrap",
@@ -1547,6 +1610,7 @@ describe("WorkspaceService", () => {
     ).toHaveBeenCalledWith({
       organisationId: "org-2",
       appointmentId: "appt-enc-1",
+      canManageForms: false,
     });
   });
 
@@ -3167,6 +3231,10 @@ describe("WorkspaceService aggregate edge cases", () => {
       expect(db.workspaceTreatmentItem.update).toHaveBeenCalledWith({
         where: { id: "ti-patch" },
         data: {
+          // Prisma rejects a bare `null` for a nullable Json column: `DbNull`
+          // clears it, `JsonNull` stores a JSON null. The controller sends
+          // `body.lockState ?? null`, so omitting the field used to reach
+          // Prisma as `null` and reject the whole write.
           appointmentId: null,
           productId: undefined,
           productVersion: null,
@@ -3176,7 +3244,7 @@ describe("WorkspaceService aggregate edge cases", () => {
           priceSnapshot: { finalAmount: 8 },
           billingStatus: undefined,
           invoiceRowId: null,
-          lockState: null,
+          lockState: Prisma.DbNull,
         },
       });
     });
@@ -3735,6 +3803,61 @@ describe("WorkspaceService aggregate edge cases", () => {
           name: "Prescription",
         }),
       ]);
+    });
+
+    it("collapses the virtual row against a persisted row keyed by prescription id", async () => {
+      db.appointment.findFirst.mockResolvedValue(
+        appointmentRow({ id: "appt-dedupe" }),
+      );
+      artifactService.listPrescriptionsForAppointment.mockResolvedValue([
+        {
+          artifact: {
+            id: "artifact-1",
+            status: "SIGNED",
+            createdAt: DAY,
+            updatedAt: DAY,
+          },
+          // The artifact id and the prescription row id are different values.
+          // workspaceTreatmentItem.prescriptionId stores the ROW id, so the
+          // virtual item has to carry the row id for the dedupe to match.
+          prescription: { id: "rx-row-1", medications: [{ quantity: 1 }] },
+        },
+      ]);
+      db.workspaceTreatmentItem.findMany.mockResolvedValue([
+        {
+          id: "ti-persisted",
+          organisationId: ORG,
+          appointmentId: "appt-dedupe",
+          encounterId: "appt-dedupe",
+          productId: "prod-1",
+          productVersion: null,
+          productSnapshot: {},
+          servicePackageKind: "MEDICATION",
+          quantity: 1,
+          priceSnapshot: {},
+          billingStatus: "UNBILLED",
+          invoiceRowId: null,
+          settledInvoiceId: null,
+          settledAt: null,
+          lockState: null,
+          prescriptionId: "rx-row-1",
+          createdAt: DAY,
+          updatedAt: DAY,
+        },
+      ]);
+
+      const result = await WorkspaceService.getAppointmentBootstrap(
+        { organisationId: ORG, appointmentId: "appt-dedupe" },
+        FULL_PERMISSIONS,
+      );
+
+      // Exactly one line, and it is the persisted row -- not the persisted row
+      // plus a duplicate virtual copy of the same medication.
+      expect(result.treatmentItems).toHaveLength(1);
+      expect(result.treatmentItems[0]).toMatchObject({
+        id: "ti-persisted",
+        prescriptionId: "rx-row-1",
+      });
     });
 
     it("scopes encounter-only virtual rows to the encounter", async () => {

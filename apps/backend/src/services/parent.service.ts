@@ -7,6 +7,7 @@ import {
 import { ParentCreatedFrom, Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
+import { getAuthService } from "@yosemite-crew/auth";
 import { AuthUserMobileService } from "./authUserMobile.service";
 import { buildS3Key, moveFile } from "src/middlewares/upload";
 import logger from "src/utils/logger";
@@ -487,8 +488,17 @@ export const ParentService = {
     const doc = await resolveParentRecord(id);
     if (!doc) return null;
 
+    // Client alerts ("Outstanding balance", "VIP", ...) are staff-authored
+    // internal notes about this client. Writing them is already restricted to
+    // the PMS path; reading has to be too, or a pet owner can fetch the notes
+    // clinic staff wrote about them straight from their own profile endpoint.
+    const response = buildParentResponse(doc);
+    if (ctx?.source === "mobile") {
+      response.alerts = undefined;
+    }
+
     return {
-      response: toParentResponseDTO(buildParentResponse(doc)),
+      response: toParentResponseDTO(response),
       isProfileComplete: doc.isProfileComplete ?? false,
     };
   },
@@ -603,6 +613,13 @@ export const ParentService = {
     const existing = await resolveParentRecord(id);
     if (!existing) return null;
 
+    // Collected BEFORE the mapping is cleared: this is the only link back to the
+    // upstream identity.
+    const linkedAuthUsers = await prisma.authUserMobile.findMany({
+      where: { parentId: id },
+      select: { id: true, providerUserId: true },
+    });
+
     await prisma.parentPatient.deleteMany({ where: { parentId: id } });
     await prisma.authUserMobile.updateMany({
       where: { parentId: id },
@@ -610,6 +627,28 @@ export const ParentService = {
     });
     await deleteParentAddress(id);
     await prisma.parent.deleteMany({ where: { id } });
+
+    // Delete the upstream identity too. Unlinking the mapping and removing the
+    // profile left the provider account, its login methods and every other
+    // session for it intact - so a session on a second (or stolen) device stayed
+    // authenticated after the user believed the account was gone, and the same
+    // identity could sign in again. Best-effort: the local data IS deleted at
+    // this point, and failing the request would leave the caller unable to tell
+    // what happened.
+    const authService = getAuthService();
+    if (authService) {
+      for (const authUser of linkedAuthUsers ?? []) {
+        if (!authUser.providerUserId) continue;
+        try {
+          await authService.deleteUser(authUser.providerUserId);
+        } catch (error) {
+          logger.error(
+            `Failed to delete the auth identity for a deleted parent (authUser ${authUser.id}).`,
+            error,
+          );
+        }
+      }
+    }
 
     return toParentResponseDTO(buildParentResponse(existing));
   },

@@ -9,6 +9,7 @@ import {
 import { FinanceSubscriptionService } from "../../src/services/finance/subscription";
 import { NotificationService } from "../../src/services/notification.service";
 import logger from "../../src/utils/logger";
+import { recomputeOrganizationVerification } from "../../src/services/organization-verification.service";
 import { prisma } from "src/config/prisma";
 
 // --- MOCKING SETUP ---
@@ -89,6 +90,10 @@ jest.mock("../../src/services/notification.service", () => ({
   NotificationService: { sendToUser: jest.fn() },
 }));
 
+jest.mock("../../src/services/organization-verification.service", () => ({
+  recomputeOrganizationVerification: jest.fn(),
+}));
+
 jest.mock("../../src/utils/notificationTemplates", () => ({
   NotificationTemplates: {
     Payment: {
@@ -111,6 +116,7 @@ jest.mock("src/config/prisma", () => ({
     organizationBilling: {
       upsert: jest.fn(),
       findUnique: jest.fn(),
+      findMany: jest.fn(),
       update: jest.fn(),
       updateMany: jest.fn(),
     },
@@ -149,6 +155,11 @@ describe("StripeService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.restoreAllMocks(); // CRITICAL: Fixes the blackhole coverage bug caused by mockImplementation(jest.fn())
+
+    // `account.updated` now recomputes org verification, which lists the orgs on
+    // the Connect account. Prisma always returns an array here, so default to
+    // one; without it every unrelated account.updated test throws "not iterable".
+    (prisma.organizationBilling.findMany as jest.Mock).mockResolvedValue([]);
 
     process.env = {
       ...originalEnv,
@@ -1012,6 +1023,9 @@ describe("StripeService", () => {
       (
         FinanceSubscriptionService.recordSubscriptionInvoiceFailed as jest.Mock
       ).mockResolvedValueOnce(undefined);
+      (prisma.organizationBilling.findMany as jest.Mock).mockResolvedValueOnce([
+        { orgId: "org_1" },
+      ]);
 
       await StripeService._handleAccountUpdated({
         id: "acct_1",
@@ -1078,6 +1092,48 @@ describe("StripeService", () => {
         subscriptionId: "sub_1",
         invoiceId: "in_1",
       });
+    });
+
+    it("recomputes verification for every org on the connected account", async () => {
+      (prisma.organizationBilling.findMany as jest.Mock).mockResolvedValueOnce([
+        { orgId: "org_1" },
+        { orgId: "org_2" },
+      ]);
+
+      await StripeService._handleAccountUpdated({
+        id: "acct_multi",
+        charges_enabled: true,
+        payouts_enabled: true,
+        default_currency: "usd",
+        requirements: {
+          currently_due: [],
+          eventually_due: [],
+          past_due: [],
+          pending_verification: [],
+          errors: [],
+          disabled_reason: null,
+        },
+      } as any);
+
+      expect(prisma.organizationBilling.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { connectAccountId: "acct_multi" },
+          data: expect.objectContaining({ canAcceptPayments: true }),
+        }),
+      );
+      expect(prisma.organizationBilling.findMany).toHaveBeenCalledWith({
+        where: { connectAccountId: "acct_multi" },
+        select: { orgId: true },
+      });
+      expect(recomputeOrganizationVerification).toHaveBeenCalledTimes(2);
+      expect(recomputeOrganizationVerification).toHaveBeenNthCalledWith(
+        1,
+        "org_1",
+      );
+      expect(recomputeOrganizationVerification).toHaveBeenNthCalledWith(
+        2,
+        "org_2",
+      );
     });
 
     it("handles appointment booking payment", async () => {
@@ -1364,6 +1420,7 @@ describe("StripeService", () => {
 
       await StripeService._handleInvoiceCheckout({
         id: "cs_1",
+        payment_status: "paid",
         metadata: { invoiceId: "inv_1" },
       } as any);
 
@@ -1546,6 +1603,7 @@ describe("StripeService", () => {
           object: {
             id: "cs_x",
             mode: "payment",
+            payment_status: "paid",
             metadata: { invoiceId: "inv_x" },
           },
         },
@@ -1997,6 +2055,43 @@ describe("StripeService", () => {
     });
   });
 
+  describe("_handleInvoiceCheckout payment status gate", () => {
+    // `checkout.session.completed` fires when the checkout finished, not when the
+    // money arrived. A delayed payment method leaves payment_status `unpaid` and
+    // settles later, so acting on the completion event alone marked the invoice
+    // paid before any funds existed.
+    it.each(["unpaid", undefined])(
+      "ignores a session whose payment_status is %s",
+      async (paymentStatus) => {
+        await StripeService._handleInvoiceCheckout({
+          id: "cs_pending",
+          payment_status: paymentStatus,
+          metadata: { invoiceId: "inv_1" },
+        } as never);
+
+        expect(
+          FinancePaymentService.handleInvoiceCheckoutSessionCompleted,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it("settles a zero-total session that needed no payment", async () => {
+      (
+        FinancePaymentService.handleInvoiceCheckoutSessionCompleted as jest.Mock
+      ).mockResolvedValueOnce({ action: "IGNORED", invoice: { id: "inv_1" } });
+
+      await StripeService._handleInvoiceCheckout({
+        id: "cs_free",
+        payment_status: "no_payment_required",
+        metadata: { invoiceId: "inv_1" },
+      } as never);
+
+      expect(
+        FinancePaymentService.handleInvoiceCheckoutSessionCompleted,
+      ).toHaveBeenCalled();
+    });
+  });
+
   describe("_handleInvoiceCheckout result branches", () => {
     it("ignores sessions without an invoiceId", async () => {
       await StripeService._handleInvoiceCheckout({
@@ -2019,6 +2114,7 @@ describe("StripeService", () => {
 
       await StripeService._handleInvoiceCheckout({
         id: "cs_1",
+        payment_status: "paid",
         metadata: { invoiceId: "inv_1" },
       } as any);
 
@@ -2040,6 +2136,7 @@ describe("StripeService", () => {
 
       await StripeService._handleInvoiceCheckout({
         id: "cs_1",
+        payment_status: "paid",
         metadata: { invoiceId: "inv_1" },
       } as any);
 
@@ -2062,6 +2159,7 @@ describe("StripeService", () => {
       await StripeService._handleInvoiceCheckout(
         {
           id: "cs_1",
+          payment_status: "paid",
           payment_intent: "pi_1",
           currency: "usd",
           amount_subtotal: 9000,

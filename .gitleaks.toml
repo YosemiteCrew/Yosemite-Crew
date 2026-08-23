@@ -10,24 +10,36 @@ useDefault = true
 # hashes plus one PODFILE CHECKSUM, all 40 character hex. Their entropy trips
 # the generic-api-key rule, which blocked committing the lockfile at all.
 #
-# Deliberately NOT scoped with `paths`. An allowlist combines its conditions
-# with OR, so adding a path exempts the whole file: an AWS key injected into a
-# non-checksum line of the lockfile was verified to go completely undetected.
-# Matching on the value shape instead keeps every other rule live everywhere,
-# including inside this file.
+# Scoped with BOTH `paths` and `regexes` under `condition = "AND"`. By default an
+# allowlist ORs its conditions, so `paths` alone exempts the whole file - an AWS
+# key injected into a non-checksum line of the lockfile was verified to go
+# completely undetected. But `regexes` alone was not safe either: `<name>: <40
+# hex>` is exactly how an API key appears in a YAML or config file, so the global
+# value-shape allowlist hid real 40-hex secrets ANYWHERE in the repo. Verified:
+# with the old config a `some_api_key: <40 hex>` line in a config file produced
+# ZERO findings; under `condition = "AND"` it is reported while the lockfile
+# hashes stay exempt.
+#
+# `condition` requires gitleaks >= 8.30.x. 8.24.2 parses the key and SILENTLY
+# IGNORES it, falling back to OR - verified by running both binaries against the
+# same fixture - which is why the CI pin in .github/workflows/secret-scan.yml is
+# bumped alongside this. Do not lower that pin without re-testing this file.
 #
 # `regexTarget = "match"` because the default target is the bare secret, and the
 # match gitleaks reports here is "<PodName>: <40 hex>" with no leading
 # whitespace. Line pinned fingerprints in .gitleaksignore were rejected as the
 # alternative: a pod bump changes the hashes, so the set of lines that trips the
 # entropy check changes too, and the entries would go stale on every upgrade.
-# Singular [allowlist], not [[allowlists]]. CI pins gitleaks 8.24.2, which
-# ignores the plural array-of-tables form entirely and reported all 6 findings
-# despite the config being present. The singular table is honoured by both
-# 8.24.2 and current releases.
+# Singular [allowlist], not [[allowlists]]. An earlier CI pin (8.24.2) ignored
+# the plural array-of-tables form entirely and reported all 6 findings despite
+# the config being present. The singular table is honoured by every version.
 [allowlist]
 description = "CocoaPods podspec content hashes (name: 40-hex digest)"
+condition = "AND"
 regexTarget = "match"
+paths = [
+  '''apps/mobileAppYC/ios/Podfile\.lock$''',
+]
 regexes = [
   '''^[A-Za-z0-9_+.-]+: [a-f0-9]{40}$''',
 ]

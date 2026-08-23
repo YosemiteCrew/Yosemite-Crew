@@ -13,6 +13,7 @@ import type {BottomSheetRef} from '@/shared/components/common/BottomSheet/Bottom
 import {BottomSheetHeader} from '@/shared/components/common/BottomSheetHeader/BottomSheetHeader';
 import {Input} from '@/shared/components/common/Input/Input';
 import {BottomSheetActions} from '@/shared/components/common/BottomSheetActions/BottomSheetActions';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useTheme, useKeyboardVisible} from '@/hooks';
 import {Images} from '@/assets/images';
 
@@ -131,7 +132,8 @@ export const GenericSelectBottomSheet = ({
   const [tempItem, setTempItem] = useState<SelectItem | null>(selectedItem);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const styles = createStyles(theme, maxListHeight);
+  const insets = useSafeAreaInsets();
+  const styles = createStyles(theme, maxListHeight, insets.bottom);
   const searchIconSource = Images?.searchIcon ?? null;
 
   // Dynamic snap points based on keyboard visibility
@@ -342,7 +344,7 @@ export const GenericSelectBottomSheet = ({
 
 GenericSelectBottomSheet.displayName = 'GenericSelectBottomSheet';
 
-const createStyles = (theme: any, maxListHeight: number) =>
+const createStyles = (theme: any, maxListHeight: number, bottomInset: number) =>
   StyleSheet.create({
     container: {
       flex: 1,
@@ -372,8 +374,13 @@ const createStyles = (theme: any, maxListHeight: number) =>
       textAlign: 'center',
     },
     listWrapper: {
-      maxHeight: maxListHeight,
-      minHeight: maxListHeight,
+      // Give back the bottom safe area: the sheet's content view is
+      // top-anchored and sizes to its content, so shortening the list is what
+      // lifts the action row clear of the home indicator. Do NOT convert this
+      // to flexGrow/flexShrink - inside a content-sized parent the list
+      // collapses to nothing and the sheet title gets clipped.
+      maxHeight: Math.max(0, maxListHeight - bottomInset),
+      minHeight: Math.max(0, maxListHeight - bottomInset),
       flexShrink: 0,
       marginBottom: theme.spacing['2'],
     },

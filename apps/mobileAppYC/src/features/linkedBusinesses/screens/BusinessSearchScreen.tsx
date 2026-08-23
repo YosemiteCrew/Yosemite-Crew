@@ -45,6 +45,7 @@ import {InviteCard} from '../components/InviteCard';
 import {useLocationStore} from '@/shared/stores/locationStore';
 import {SearchDropdownOverlay} from '@/shared/components/common/SearchDropdownOverlay/SearchDropdownOverlay';
 
+import i18next from 'i18next';
 type Props = NativeStackScreenProps<
   LinkedBusinessStackParamList,
   'BusinessSearch'
@@ -286,7 +287,7 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
         );
         if (alreadyLinked) {
           Alert.alert(
-            'Already Linked',
+            i18next.t('alerts.linkedBusinesses.alreadyLinked'),
             `${business.name} is already linked to ${companionName}`,
           );
           return;
@@ -428,7 +429,10 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
         }
       } catch (error) {
         console.error('[BusinessSearch] Error in handleSelectBusiness:', error);
-        Alert.alert('Error', 'Failed to process business. Please try again.');
+        Alert.alert(
+          i18next.t('alerts.shared.error'),
+          i18next.t('alerts.linkedBusinesses.errorBody3'),
+        );
       }
     },
     [
@@ -487,10 +491,16 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
       console.log('[BusinessSearch] ===== DELETE END =====');
 
       selectedBusinessForDeleteRef.current = null;
-      Alert.alert('Success', 'Business connection has been removed.');
+      Alert.alert(
+        i18next.t('alerts.linkedBusinesses.success'),
+        i18next.t('alerts.linkedBusinesses.successBody'),
+      );
     } catch (error) {
       console.error('[BusinessSearch] Failed to delete business:', error);
-      Alert.alert('Error', 'Failed to delete business. Please try again.');
+      Alert.alert(
+        i18next.t('alerts.shared.error'),
+        i18next.t('alerts.linkedBusinesses.errorBody4'),
+      );
     } finally {
       setDeleteLoading(false);
     }
@@ -506,7 +516,10 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
       try {
         console.log('[BusinessSearch] Accepting invite for:', linkId);
         await dispatch(acceptBusinessInvite(linkId)).unwrap();
-        Alert.alert('Success', 'Invite accepted!');
+        Alert.alert(
+          i18next.t('alerts.linkedBusinesses.success'),
+          i18next.t('alerts.linkedBusinesses.successBody2'),
+        );
         // Refresh the linked businesses list to get the latest state from the API
         // This ensures the accepted invite is properly updated and next invite is shown
         console.log(
@@ -515,7 +528,10 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
         await dispatch(fetchLinkedBusinesses({companionId, category})).unwrap();
       } catch (error) {
         console.error('[BusinessSearch] Failed to accept invite:', error);
-        Alert.alert('Error', 'Failed to accept invite. Please try again.');
+        Alert.alert(
+          i18next.t('alerts.shared.error'),
+          i18next.t('alerts.linkedBusinesses.errorBody5'),
+        );
       }
     },
     [dispatch, companionId, category],
@@ -526,7 +542,10 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
       try {
         console.log('[BusinessSearch] Declining invite for:', linkId);
         await dispatch(declineBusinessInvite(linkId)).unwrap();
-        Alert.alert('Success', 'Invite declined!');
+        Alert.alert(
+          i18next.t('alerts.linkedBusinesses.success'),
+          i18next.t('alerts.linkedBusinesses.successBody3'),
+        );
         // Refresh the linked businesses list to get the latest state from the API
         // This ensures the declined invite is completely removed
         console.log(
@@ -535,7 +554,10 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
         await dispatch(fetchLinkedBusinesses({companionId, category})).unwrap();
       } catch (error) {
         console.error('[BusinessSearch] Failed to decline invite:', error);
-        Alert.alert('Error', 'Failed to decline invite. Please try again.');
+        Alert.alert(
+          i18next.t('alerts.shared.error'),
+          i18next.t('alerts.linkedBusinesses.errorBody6'),
+        );
       }
     },
     [dispatch, companionId, category],
@@ -728,7 +750,7 @@ const createStyles = (theme: any) => {
     },
     sectionTitle: {
       ...theme.typography.eyebrow,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
       marginBottom: theme.spacing['3'],
     },
     loadingContainer: {

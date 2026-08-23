@@ -454,18 +454,59 @@ describe("TemplateController", () => {
   describe("listLibrary", () => {
     it("returns library templates for the parsed filters", async () => {
       req.query = { kind: "CONSENT" };
+      (req as { userPermissions?: string[] }).userPermissions = [
+        "forms:view:any",
+      ];
       mockedService.listLibrary.mockResolvedValue([templateRow()]);
 
       await TemplateController.listLibrary(req as Request, res);
 
+      // The library mixes form-family and task-family templates and its route
+      // admits either view permission, so the caller's permission decides which
+      // kinds the query may return.
       expect(mockedService.listLibrary).toHaveBeenCalledWith({
         kind: "CONSENT",
+        allowedKinds: [
+          "FORM",
+          "SOAP_NOTE",
+          "VITAL_RECORD",
+          "PRESCRIPTION",
+          "DISCHARGE_SUMMARY",
+          "INVOICE",
+        ],
       });
       expect(jsonMock).toHaveBeenCalledWith([templateRow()]);
     });
 
+    it("narrows the library to task kinds for a task-only viewer", async () => {
+      req.query = {};
+      (req as { userPermissions?: string[] }).userPermissions = [
+        "tasks:view:any",
+      ];
+      mockedService.listLibrary.mockResolvedValue([]);
+
+      await TemplateController.listLibrary(req as Request, res);
+
+      expect(mockedService.listLibrary).toHaveBeenCalledWith({
+        allowedKinds: ["TASK_TEMPLATE", "CARE_PATHWAY"],
+      });
+    });
+
+    it("returns nothing when the caller holds neither view permission", async () => {
+      req.query = {};
+      (req as { userPermissions?: string[] }).userPermissions = [];
+
+      await TemplateController.listLibrary(req as Request, res);
+
+      expect(mockedService.listLibrary).not.toHaveBeenCalled();
+      expect(jsonMock).toHaveBeenCalledWith([]);
+    });
+
     it("returns 400 for an unknown kind filter", async () => {
       req.query = { kind: "NOT_A_KIND" };
+      (req as { userPermissions?: string[] }).userPermissions = [
+        "forms:view:any",
+      ];
 
       await TemplateController.listLibrary(req as Request, res);
 

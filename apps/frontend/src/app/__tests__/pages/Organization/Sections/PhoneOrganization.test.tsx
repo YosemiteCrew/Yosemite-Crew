@@ -9,6 +9,8 @@ const mockBack = jest.fn();
 const useTeamMock = jest.fn();
 const useSpecialitiesMock = jest.fn();
 const useSubscriptionMock = jest.fn();
+import { PERMISSIONS } from '@/app/lib/permissions';
+
 const canMock = jest.fn();
 
 jest.mock('next/navigation', () => ({
@@ -248,7 +250,8 @@ describe('PhoneOrganization', () => {
   });
 
   it('renders the team empty state and hides the invite row without edit rights', () => {
-    canMock.mockReturnValue(false);
+    // Can view the team, cannot edit it: the list renders, the invite row does not.
+    canMock.mockImplementation((input: unknown) => input === PERMISSIONS.TEAMS_VIEW_ANY);
     useTeamMock.mockReturnValue([]);
     renderPhone();
 
@@ -256,5 +259,20 @@ describe('PhoneOrganization', () => {
     expect(screen.queryByRole('button', { name: /Invite team member/ })).not.toBeInTheDocument();
     // Edit + manage affordances are also gated off.
     expect(screen.queryByRole('button', { name: 'Edit organization' })).not.toBeInTheDocument();
+  });
+
+  it('hides the whole team section without the team view permission', () => {
+    // The desktop Team section is wrapped in PermissionGate allOf=[TEAMS_VIEW_ANY].
+    // The phone layout has to hide the same content, or a member without that
+    // grant reads team names and roles just by using a narrow viewport.
+    canMock.mockReturnValue(false);
+    useTeamMock.mockReturnValue([
+      { _id: 'team-1', name: 'Dr Vet', role: 'Vet', specialities: [], status: 'ACTIVE' },
+    ]);
+    renderPhone();
+
+    expect(screen.queryByText('Dr Vet')).not.toBeInTheDocument();
+    expect(screen.queryByText('No team members yet.')).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Team ·/)).not.toBeInTheDocument();
   });
 });

@@ -63,8 +63,13 @@ const pluralizeUnit = (unit: string, count: number): string => {
   return lower.endsWith('s') ? lower : `${lower}s`;
 };
 
-const getDispensaryItemKey = (item: DispensaryItem): string =>
+// Built from display fields alone, two identical prescription lines - or two
+// lines differing only in a field not listed here - collide. React treats
+// duplicate sibling keys as unsupported and may preserve, drop or duplicate rows
+// while reconciling, so the list position disambiguates the content key.
+const getDispensaryItemKey = (item: DispensaryItem, index: number): string =>
   [
+    index,
     item.name,
     item.quantity,
     item.priceCents,
@@ -195,6 +200,15 @@ const DispensaryItemRow = ({ item, idx }: Readonly<DispensaryItemRowProps>) => {
         {/* Fallback for items without enriched fields */}
         {!hasCalc && item.prescription && !item.frequency && !item.durationDays && (
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-caption-1">
+            {/* Dose and route are medication instructions a pharmacist reads
+                before dispensing; they must not be dropped just because this
+                record lacks the enriched numeric fields. */}
+            {item.prescription.dose && (
+              <>
+                <span className="text-text-secondary">Dose</span>
+                <span className="text-text-primary">{item.prescription.dose}</span>
+              </>
+            )}
             {item.prescription.freq && (
               <>
                 <span className="text-text-secondary">Freq.</span>
@@ -205,6 +219,12 @@ const DispensaryItemRow = ({ item, idx }: Readonly<DispensaryItemRowProps>) => {
               <>
                 <span className="text-text-secondary">Duration</span>
                 <span className="text-text-primary">{item.prescription.duration}</span>
+              </>
+            )}
+            {item.prescription.route && (
+              <>
+                <span className="text-text-secondary">Route</span>
+                <span className="text-text-primary">{item.prescription.route}</span>
               </>
             )}
             {item.prescription.refill && (
@@ -390,7 +410,7 @@ const DispensaryDetailModal = ({
           {items.length > 0 ? (
             <div className="flex flex-col gap-4">
               {items.map((item, idx) => (
-                <DispensaryItemRow key={getDispensaryItemKey(item)} item={item} idx={idx} />
+                <DispensaryItemRow key={getDispensaryItemKey(item, idx)} item={item} idx={idx} />
               ))}
             </div>
           ) : (

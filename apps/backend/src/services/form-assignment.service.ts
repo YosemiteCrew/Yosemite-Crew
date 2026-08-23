@@ -558,10 +558,28 @@ const AUTO_ASSIGN_TEMPLATE_KINDS: Array<"FORM" | "CONSENT"> = [
   "CONSENT",
 ];
 
+/**
+ * Materialise the form/consent assignments a linked template implies for an
+ * appointment.
+ *
+ * `canManageForms` is REQUIRED and gates the writes. This runs from read flows -
+ * workspace bootstrap, appointment document retrieval, the appointment form
+ * listing - which are authorised on `document:view:any` or the equivalent, while
+ * creating an assignment is a `forms:edit:any` action. Without the gate, merely
+ * OPENING an appointment persisted client-visible consent requests
+ * (`mobileVisible`, `signingRequired`, status SENT) on a viewer's behalf, and
+ * those can block finalisation. Read-only callers now see the assignments that
+ * exist without creating any.
+ */
 const syncLinkedTemplateAssignmentsForAppointment = async (params: {
   organisationId: string;
   appointmentId: string;
+  canManageForms: boolean;
 }) => {
+  if (!params.canManageForms) {
+    return;
+  }
+
   const appointment = await loadAppointment(
     params.organisationId,
     params.appointmentId,
@@ -587,6 +605,10 @@ const syncLinkedTemplateAssignmentsForAppointment = async (params: {
         kind,
       });
 
+      // Re-checked immediately before the create, and the create itself is
+      // wrapped: there is no unique constraint behind this pair, so two
+      // concurrent requests could both read "absent" and both insert. Losing
+      // that race is not an error - the other request created the row we wanted.
       const existing = await prisma.formAssignment.findFirst({
         where: {
           organisationId: params.organisationId,

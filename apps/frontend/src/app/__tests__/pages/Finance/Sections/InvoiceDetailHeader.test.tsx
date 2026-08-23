@@ -32,6 +32,9 @@ jest.mock('@/app/lib/forms', () => ({
 
 jest.mock('@/app/lib/urls', () => ({
   getSafeImageUrl: () => '/avatar.png',
+  // Real implementation: the point of the link change is that an unsafe
+  // protocol is dropped, so a pass-through stub would hide the behaviour.
+  getSafePdfPreviewUrl: jest.requireActual('@/app/lib/urls').getSafePdfPreviewUrl,
 }));
 
 jest.mock('@/app/lib/appointments', () => ({
@@ -186,5 +189,22 @@ describe('InvoiceDetailHeader', () => {
     );
     const results = await axe(container);
     expect(results).toHaveNoViolations();
+  });
+
+  it('drops a PDF link that is not an https URL', () => {
+    // React does not sanitize href protocols; an invoice record carrying a
+    // javascript: URL would run on click.
+    render(
+      <InvoiceDetailHeader
+        titleId="title"
+        invoice={makeInvoice({ pdfUrl: 'javascript:alert(1)' })}
+        appointment={appointment}
+        statusLabel="Paid"
+        statusStyle={statusStyle}
+        onClose={jest.fn()}
+      />
+    );
+
+    expect(screen.queryByRole('link', { name: /PDF/ })).not.toBeInTheDocument();
   });
 });

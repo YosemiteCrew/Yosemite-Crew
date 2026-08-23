@@ -13,6 +13,7 @@ import {
   type ReporterType,
 } from '@/features/adverseEventReporting/types';
 import {capitalize} from '@/shared/utils/commonHelpers';
+import {resolveUserCurrency} from '@/shared/utils/currency';
 
 const formatDate = (date: Date) => date.toISOString().split('T')[0];
 
@@ -46,7 +47,11 @@ const mapAdministrationRoute = (
   }
 };
 
-const mapReporter = (user: User, reporterType: ReporterType) => ({
+const mapReporter = (
+  user: User,
+  reporterType: ReporterType,
+  resolvedCurrency?: string,
+) => ({
   userId: user.parentId ?? user.id,
   type: reporterType === 'guardian' ? 'GUARDIAN' : 'PARENT',
   firstName: user.firstName ?? '',
@@ -59,7 +64,16 @@ const mapReporter = (user: User, reporterType: ReporterType) => ({
   state: user.address?.stateProvince ?? '',
   postalCode: user.address?.postalCode ?? '',
   country: user.address?.country ?? '',
-  currency: user.currency ?? 'USD',
+  // This lands in a submitted report, so it should say what the reporter's
+  // currency actually is. It used to fall back to a hardcoded 'USD', which put
+  // USD on a German reporter's report whenever their profile had no currency
+  // set. The caller passes the value it resolved from preferences; if it does
+  // not, derive from the reporter's own country rather than emitting
+  // undefined into the payload.
+  currency:
+    user.currency ??
+    resolvedCurrency ??
+    resolveUserCurrency(user.address?.country),
 });
 
 const mapCompanion = (companion: Companion) => ({
@@ -140,6 +154,12 @@ export interface SubmitAdverseEventParams {
   product: AdverseEventProductInfo;
   destinations: AdverseEventDestinations;
   consentToContact: boolean;
+  /**
+   * Resolved by the caller via usePreferences, since a service cannot use
+   * hooks. Optional: when absent the reporter's own country is used, so the
+   * payload never carries an undefined currency.
+   */
+  reporterCurrency?: string;
 }
 
 export const adverseEventService = {
@@ -162,7 +182,11 @@ export const adverseEventService = {
 
     const payload = {
       organisationId: params.organisationId,
-      reporter: mapReporter(params.reporter, params.reporterType),
+      reporter: mapReporter(
+        params.reporter,
+        params.reporterType,
+        params.reporterCurrency,
+      ),
       companion: mapCompanion(params.companion),
       patient: mapCompanion(params.companion),
       product: {

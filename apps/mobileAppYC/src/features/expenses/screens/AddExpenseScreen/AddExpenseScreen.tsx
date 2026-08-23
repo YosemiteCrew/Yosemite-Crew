@@ -22,6 +22,8 @@ import {
   useFormFileOperations,
 } from '@/shared/hooks/useFormScreen';
 
+import i18next from 'i18next';
+import {useResolvedUserCurrency} from '@/shared/hooks/useResolvedUserCurrency';
 export const AddExpenseScreen: React.FC = () => {
   const {
     theme,
@@ -35,9 +37,8 @@ export const AddExpenseScreen: React.FC = () => {
     selectedCompanionId,
   } = useCompanionFormScreen();
 
-  const currencyCode = useSelector(
-    (state: RootState) => state.auth.user?.currency ?? 'USD',
-  );
+  const resolvedCurrency = useResolvedUserCurrency();
+  const currencyCode = resolvedCurrency;
   const loading = useSelector((state: RootState) => state.expenses.loading);
 
   const {formData, errors, handleChange, handleErrorClear, validate} =
@@ -86,7 +87,7 @@ export const AddExpenseScreen: React.FC = () => {
       );
     } catch (error) {
       Alert.alert(
-        'Unable to save expense',
+        i18next.t('alerts.expenses.unableToSaveExpense'),
         error instanceof Error ? error.message : 'Please try again.',
       );
     }

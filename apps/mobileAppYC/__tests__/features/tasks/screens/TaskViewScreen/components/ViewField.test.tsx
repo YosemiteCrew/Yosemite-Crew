@@ -87,7 +87,7 @@ describe('ViewField Components', () => {
       const labelStyle = StyleSheet.flatten(
         getByText('Test Label').props.style,
       );
-      expect(labelStyle.color).toBe(mockTheme.colors.inkFaint);
+      expect(labelStyle.color).toBe(mockTheme.colors.inkMuted);
     });
   });
 

@@ -12,7 +12,7 @@ import {
 } from "src/services/inventory-consumption.service";
 import { renderPrescriptionLabelPdf } from "src/services/rendered-document-renderer.service";
 import { createFhirErrorHandler } from "src/controllers/web/fhir-controller.shared";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import { resolveVerifiedUserId } from "src/utils/request";
 import logger from "src/utils/logger";
 
 const actionBodySchema = z.object({
@@ -52,7 +52,7 @@ const buildMetadata = (
 ) => ({
   ...(body.metadata ?? undefined),
   action,
-  performedBy: resolveUserIdFromRequest(req),
+  performedBy: resolveVerifiedUserId(req),
   reason: body.reason ?? undefined,
   performedAt: new Date().toISOString(),
 });

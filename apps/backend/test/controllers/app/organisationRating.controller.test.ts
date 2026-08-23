@@ -137,7 +137,10 @@ describe("OrganisationRatingController", () => {
       expect(statusMock).toHaveBeenCalledWith(200);
     });
 
-    it("should success (200) with userId from header (x-user-id)", async () => {
+    // Ratings are attributed to the caller, so the actor comes from the verified
+    // session; the header used to stand in for it and is now inert.
+    it("should success (200) with userId from the verified session", async () => {
+      (req as { userId?: string }).userId = "sessionUser";
       req.headers = { "x-user-id": "headerUser" };
       req.params = { organisationId: "o1" };
       req.body = { rating: 4 };
@@ -155,7 +158,7 @@ describe("OrganisationRatingController", () => {
       );
 
       expect(mockedAuthService.getByProviderUserId).toHaveBeenCalledWith(
-        "headerUser",
+        "sessionUser",
       );
       expect(statusMock).toHaveBeenCalledWith(200);
     });

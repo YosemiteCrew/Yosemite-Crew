@@ -256,7 +256,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     control,
     handleSubmit,
     register,
-    formState: {errors},
+    formState: {errors, touchedFields},
     trigger,
     setValue,
     setError,
@@ -276,7 +276,12 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
       country: defaultAddressValues.country,
       acceptTerms: false,
     },
-    mode: 'onChange',
+    // onTouched, not onChange: validating every keystroke told people their
+    // own name "must be at least 2 characters" after the first letter. The
+    // field is judged when they leave it, and only then re-checked as they
+    // type, so a correction still updates live.
+    mode: 'onTouched',
+    reValidateMode: 'onChange',
   });
 
   useReactEffect(() => {
@@ -557,15 +562,19 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
   const handleStep1FieldChange = useCallback(
     (field: keyof typeof step1Data, value: any) => {
       setStep1Data(prev => ({...prev, [field]: value}));
-      setValue(field, value, {shouldValidate: true});
+      // Only re-validate a field the user has already left once. An
+      // unconditional shouldValidate re-introduces validate-on-every-keystroke
+      // and silently overrides the form's onTouched mode, which is what made
+      // the first letter of a name show "must be at least 2 characters".
+      setValue(field, value, {shouldValidate: Boolean(touchedFields[field])});
     },
-    [setValue],
+    [setValue, touchedFields],
   );
 
   const handleStep2FieldChange = useCallback(
     (field: keyof typeof step2Data, value: any) => {
       setStep2Data(prev => ({...prev, [field]: value}));
-      setValue(field, value, {shouldValidate: true});
+      setValue(field, value, {shouldValidate: Boolean(touchedFields[field])});
       if (
         field === 'address' ||
         field === 'stateProvince' ||
@@ -576,7 +585,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
         clearErrors(field);
       }
     },
-    [clearErrors, setValue],
+    [clearErrors, setValue, touchedFields],
   );
 
   const handleAddressFieldChange = useCallback(
@@ -1472,7 +1481,11 @@ const createStyles = (theme: Theme) =>
       width: 92,
       height: 92,
       borderRadius: 46,
-      backgroundColor: theme.colors.avatarVioletBg,
+      // The parent's own photo control, not a category chip: blue is the
+      // interaction accent (see colors.ts), and it matches the "Add photo"
+      // label underneath. avatarViolet* stays reserved for the categorical
+      // avatar/icon chips in tasks, expenses, chat and documents.
+      backgroundColor: theme.colors.blueSoft,
       alignItems: 'center',
       justifyContent: 'center',
       overflow: 'hidden',
@@ -1484,13 +1497,13 @@ const createStyles = (theme: Theme) =>
     },
     avatarInitials: {
       ...theme.typography.serifTitle,
-      color: theme.colors.avatarVioletInk,
+      color: theme.colors.blueText,
     },
     avatarPlaceholderIcon: {
       width: theme.spacing['8'],
       height: theme.spacing['8'],
       resizeMode: 'contain',
-      tintColor: theme.colors.avatarVioletInk,
+      tintColor: theme.colors.blueText,
     },
     avatarBadge: {
       position: 'absolute',
@@ -1570,7 +1583,7 @@ const createStyles = (theme: Theme) =>
     termsCheckboxUnchecked: {
       backgroundColor: theme.colors.fieldBg,
       borderWidth: 1.5,
-      borderColor: theme.colors.hairline,
+      borderColor: theme.colors.controlBorder,
     },
     termsCheckmark: {
       width: 6,
@@ -1587,7 +1600,7 @@ const createStyles = (theme: Theme) =>
     },
     errorText: {
       ...theme.typography.labelXxsBold,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
       marginTop: theme.spacing['2'],
       marginLeft: theme.spacing['8'],
     },

@@ -46,7 +46,8 @@ describe("OrganisationRatingController", () => {
   describe("rateOrganisation", () => {
     it("should return 400 if rating is missing in the body", async () => {
       const req = mockRequest({
-        headers: { "x-user-id": "auth-123" },
+        userId: "auth-123",
+        headers: {},
         body: { review: "Good place" }, // missing rating
       });
       const res = mockResponse();
@@ -62,7 +63,8 @@ describe("OrganisationRatingController", () => {
 
     it("should return 400 if parentId is not found for the user", async () => {
       const req = mockRequest({
-        headers: { "x-user-id": "auth-123" },
+        userId: "auth-123",
+        headers: {},
         params: { organisationId: "org-123" },
         body: { rating: 5 },
       });
@@ -84,9 +86,10 @@ describe("OrganisationRatingController", () => {
       });
     });
 
-    it("should successfully submit rating when using x-user-id header", async () => {
+    it("should successfully submit rating from the verified session", async () => {
       const req = mockRequest({
-        headers: { "x-user-id": "auth-123" },
+        userId: "auth-123",
+        headers: {},
         params: { organisationId: "org-123" },
         body: { rating: 4, review: "Great service" },
       });
@@ -146,7 +149,8 @@ describe("OrganisationRatingController", () => {
 
     it("should catch errors, log them, and return 500", async () => {
       const req = mockRequest({
-        headers: { "x-user-id": "auth-123" },
+        userId: "auth-123",
+        headers: {},
         params: { organisationId: "org-123" },
         body: { rating: 5 },
       });
@@ -171,7 +175,8 @@ describe("OrganisationRatingController", () => {
   describe("isUserRatedOrganisation", () => {
     it("should return 400 if parentId is not found for the user", async () => {
       const req = mockRequest({
-        headers: { "x-user-id": "auth-123" },
+        userId: "auth-123",
+        headers: {},
         params: { organisationId: "org-123" },
       });
       const res = mockResponse();
@@ -190,7 +195,8 @@ describe("OrganisationRatingController", () => {
 
     it("should return 200 with hasRated true if user has rated", async () => {
       const req = mockRequest({
-        headers: { "x-user-id": "auth-123" },
+        userId: "auth-123",
+        headers: {},
         params: { organisationId: "org-123" },
       });
       const res = mockResponse();
@@ -215,7 +221,8 @@ describe("OrganisationRatingController", () => {
 
     it("should return 200 with hasRated false if user has not rated", async () => {
       const req = mockRequest({
-        headers: { "x-user-id": "auth-123" },
+        userId: "auth-123",
+        headers: {},
         params: { organisationId: "org-123" },
       });
       const res = mockResponse();
@@ -237,7 +244,8 @@ describe("OrganisationRatingController", () => {
 
     it("should catch errors, log them, and return 500", async () => {
       const req = mockRequest({
-        headers: { "x-user-id": "auth-123" },
+        userId: "auth-123",
+        headers: {},
         params: { organisationId: "org-123" },
       });
       const res = mockResponse();

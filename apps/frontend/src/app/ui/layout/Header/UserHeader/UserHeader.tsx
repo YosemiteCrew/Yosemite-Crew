@@ -22,26 +22,13 @@ import { getSafeImageUrl } from '@/app/lib/urls';
 import Search from '@/app/ui/inputs/Search';
 import { useSearchStore } from '@/app/stores/searchStore';
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
-import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
+import { isCurrentRoute, startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
 import { useFullscreenLoaderStore } from '@/app/stores/fullscreenLoaderStore';
 import { resolveOrgScopedRedirect } from '@/app/lib/postAuthRedirect';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import { ThemeToggle } from '@/app/ui/theme';
 import NotificationsBell from '@/app/ui/layout/Notifications/NotificationsBell';
 import './UserHeader.css';
-
-/**
- * RouteLoaderOverlay releases the org-switch loader when the pathname or query
- * changes. Pushing the route we are already on fires neither, so callers have to
- * release it themselves.
- */
-const isCurrentRoute = (route: string) => {
-  const next = new URL(route, globalThis.window.location.origin);
-  return (
-    next.pathname === globalThis.window.location.pathname &&
-    next.search === globalThis.window.location.search
-  );
-};
 
 const shouldHideSearch = (pathname: string): boolean =>
   pathname.startsWith('/chat') ||

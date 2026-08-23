@@ -10,7 +10,7 @@ import {
   CatalogServiceError,
 } from "../../../src/services/catalog.service";
 import logger from "../../../src/utils/logger";
-import { resolveUserIdFromRequest } from "../../../src/utils/request";
+import { resolveVerifiedUserId } from "../../../src/utils/request";
 import { getParentAddressForAuthUser } from "../../../src/utils/location";
 import helpers from "../../../src/utils/helper";
 
@@ -48,7 +48,7 @@ jest.mock("../../../src/services/catalog.service", () => {
 });
 jest.mock("../../../src/utils/logger");
 jest.mock("../../../src/utils/request", () => ({
-  resolveUserIdFromRequest: jest.fn(),
+  resolveVerifiedUserId: jest.fn(),
 }));
 jest.mock("../../../src/utils/location", () => ({
   getParentAddressForAuthUser: jest.fn(),
@@ -63,7 +63,7 @@ jest.mock("../../../src/utils/helper", () => ({
 const mockedServiceService = jest.mocked(ServiceService);
 const mockedCatalogService = jest.mocked(CatalogService);
 const mockedLogger = jest.mocked(logger);
-const mockedResolveUserIdFromRequest = jest.mocked(resolveUserIdFromRequest);
+const mockedResolveVerifiedUserId = jest.mocked(resolveVerifiedUserId);
 const mockedGetParentAddressForAuthUser = jest.mocked(
   getParentAddressForAuthUser,
 );
@@ -344,7 +344,7 @@ describe("ServiceController", () => {
 
     it("returns 400 when unauthenticated and no coordinates are provided", async () => {
       req.query = { serviceName: "Vaccination" };
-      mockedResolveUserIdFromRequest.mockReturnValue(undefined);
+      mockedResolveVerifiedUserId.mockReturnValue(undefined);
 
       await ServiceController.listOrganisationByServiceName(
         req as Request,
@@ -359,7 +359,7 @@ describe("ServiceController", () => {
 
     it("returns 400 when the authenticated user has no saved address", async () => {
       req.query = { serviceName: "Vaccination" };
-      mockedResolveUserIdFromRequest.mockReturnValue("user-1");
+      mockedResolveVerifiedUserId.mockReturnValue("user-1");
       mockedGetParentAddressForAuthUser.mockResolvedValue(null as never);
 
       await ServiceController.listOrganisationByServiceName(
@@ -375,7 +375,7 @@ describe("ServiceController", () => {
 
     it("returns 400 when the saved address cannot be geocoded", async () => {
       req.query = { serviceName: "Vaccination" };
-      mockedResolveUserIdFromRequest.mockReturnValue("user-1");
+      mockedResolveVerifiedUserId.mockReturnValue("user-1");
       mockedGetParentAddressForAuthUser.mockResolvedValue({
         city: "Pune",
         postalCode: "411001",
@@ -418,7 +418,7 @@ describe("ServiceController", () => {
 
     it("resolves coordinates from the saved address for authenticated callers", async () => {
       req.query = { serviceName: "Vaccination" };
-      mockedResolveUserIdFromRequest.mockReturnValue("user-1");
+      mockedResolveVerifiedUserId.mockReturnValue("user-1");
       mockedGetParentAddressForAuthUser.mockResolvedValue({
         city: "Pune",
         postalCode: "411001",

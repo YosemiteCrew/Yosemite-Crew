@@ -96,10 +96,24 @@ const ensureNonEmpty = (value: string | undefined, field: string) => {
 const normalizeTrimmedValue = <T extends string>(value?: T) =>
   typeof value === "string" && value.trim() ? value : undefined;
 
-const normalizeLimit = (value?: number) =>
-  typeof value === "number" && Number.isFinite(value)
-    ? Math.floor(value)
-    : undefined;
+/**
+ * Hard ceiling on how many rows a single search may return, and on how many it
+ * may examine to find them.
+ *
+ * `CodeEntry` is a terminology table (SNOMED / LOINC and friends), so a
+ * text search that read every row before filtering turned one authenticated
+ * request into a full-table load. Synonyms live in a JSON column and cannot be
+ * matched in SQL, so the scan still happens in memory - it is simply bounded now.
+ */
+const MAX_CODE_SEARCH_RESULTS = 200;
+const MAX_CODE_SEARCH_SCAN = 2_000;
+
+const normalizeLimit = (value?: number) => {
+  if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
+  const floored = Math.floor(value);
+  if (floored <= 0) return undefined;
+  return Math.min(floored, MAX_CODE_SEARCH_RESULTS);
+};
 
 const isStringArray = (
   value: Prisma.JsonValue | null | undefined,
@@ -195,17 +209,30 @@ export const CodeService = {
       return prisma.codeEntry.findMany({
         where,
         orderBy: { display: "asc" },
-        take: safeLimit && safeLimit > 0 ? safeLimit : undefined,
+        take: safeLimit ?? MAX_CODE_SEARCH_RESULTS,
       });
     }
 
+    // Narrow in SQL on the two plain columns first, so the in-memory pass over
+    // the JSON `synonyms` column runs over a bounded slice instead of the whole
+    // table. Rows that only match on a synonym still surface: they are part of
+    // the same bounded scan, just not part of the SQL predicate.
+    const trimmedQuery = query.trim();
     const entries = await prisma.codeEntry.findMany({
-      where,
+      where: {
+        ...where,
+        OR: [
+          { code: { contains: trimmedQuery, mode: "insensitive" } },
+          { display: { contains: trimmedQuery, mode: "insensitive" } },
+          { synonyms: { not: Prisma.JsonNull } },
+        ],
+      },
       orderBy: { display: "asc" },
+      take: MAX_CODE_SEARCH_SCAN,
     });
     const filtered = entries.filter((entry) => matchesEntryQuery(entry, query));
 
-    return safeLimit && safeLimit > 0 ? filtered.slice(0, safeLimit) : filtered;
+    return filtered.slice(0, safeLimit ?? MAX_CODE_SEARCH_RESULTS);
   },
 
   async listMappings(params: {

@@ -8,7 +8,15 @@ import { useNotify } from '@/app/hooks/useNotify';
 
 import './DeveloperSettings.css';
 
-const WEBHOOK_ENDPOINT = 'https://api.timmdevices.de/yc/hooks';
+/**
+ * Shown on the developer settings page. This is a client component, so whatever
+ * sits here ships inside the route bundle and is readable by every developer
+ * account and anyone who can fetch the chunk - a real partner receiver hardcoded
+ * here would be handing out an integration target to probe. It stays empty
+ * unless an environment deliberately provides one; per-tenant endpoints belong
+ * behind an authenticated API, not in the bundle.
+ */
+const WEBHOOK_ENDPOINT = process.env.NEXT_PUBLIC_DEVELOPER_WEBHOOK_ENDPOINT ?? '';
 
 /** Read an ID-token claim as a string; non-string claims collapse to ''. */
 const claimString = (value: unknown): string => (typeof value === 'string' ? value : '');
@@ -172,10 +180,8 @@ const DeveloperSettings = () => {
               <span className="dev-settings-label">Webhooks &amp; notifications</span>
               <div className="dev-settings-field">
                 <span className="dev-settings-field-label">Webhook endpoint</span>
-                <span className="dev-settings-field-value mono">{WEBHOOK_ENDPOINT}</span>
-                <span className="dev-health">
-                  <span className="dev-health-dot" />
-                  {'200 OK'}
+                <span className="dev-settings-field-value mono">
+                  {WEBHOOK_ENDPOINT || 'Not configured'}
                 </span>
               </div>
 

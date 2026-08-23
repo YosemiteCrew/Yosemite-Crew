@@ -671,6 +671,41 @@ type CheckoutLineItemSource = {
   discountPercent?: number;
 };
 
+/**
+ * Currencies Stripe treats as ZERO-DECIMAL: the API takes the amount in the
+ * currency's own units, not in hundredths.
+ *
+ * Multiplying by 100 unconditionally overcharges every one of them by 100x -
+ * a 1,000 JPY invoice would be submitted as 100,000 JPY. The currency became
+ * configurable per invoice, so this is no longer hypothetical.
+ *
+ * https://docs.stripe.com/currencies#zero-decimal
+ */
+const ZERO_DECIMAL_CURRENCIES = new Set([
+  "bif",
+  "clp",
+  "djf",
+  "gnf",
+  "jpy",
+  "kmf",
+  "krw",
+  "mga",
+  "pyg",
+  "rwf",
+  "ugx",
+  "vnd",
+  "vuv",
+  "xaf",
+  "xof",
+  "xpf",
+]);
+
+/** An amount in the smallest unit Stripe accepts for `currency`. */
+const toStripeMinorUnits = (amount: number, currency: string): number =>
+  ZERO_DECIMAL_CURRENCIES.has(currency.trim().toLowerCase())
+    ? Math.round(amount)
+    : Math.round(amount * 100);
+
 // Charge the full bill as itemised, pre-tax lines (letting Stripe apply tax)
 // UNLESS we must charge a remaining/adjusted balance instead: when a prior
 // payment or credit has been applied, or when an invoice-level adjustment makes
@@ -709,9 +744,22 @@ const buildCheckoutSessionLineItems = (params: {
     summary.credited > 0 ||
     discountedItemSum !== preTaxInvoiceTotal;
 
+  // Disabling automatic tax is only safe when the balance we are about to charge
+  // ALREADY includes tax. An invoice whose tax was never calculated - drafts are
+  // created with `skipTaxCalculation`, leaving `taxTotal` at 0 and `totalAmount`
+  // at the discounted PRE-tax subtotal - takes the balance-line path as soon as
+  // an invoice-level discount exists, and switching tax off there charges the
+  // customer a pre-tax amount and then records the invoice paid at that
+  // under-taxed total. So the balance line stays (it is what is actually owed),
+  // but Stripe keeps calculating tax on it unless the invoice carries some.
+  const balanceIncludesTax =
+    typeof invoice.taxTotal === "number" && invoice.taxTotal > 0;
+  const disableAutomaticTax = useBalanceLine && balanceIncludesTax;
+
   if (useBalanceLine) {
     return {
       useBalanceLine,
+      disableAutomaticTax,
       lineItems: [
         {
           price_data: {
@@ -719,7 +767,7 @@ const buildCheckoutSessionLineItems = (params: {
             product_data: {
               name: `Outstanding balance for invoice ${invoice.id}`,
             },
-            unit_amount: Math.round(summary.balance * 100),
+            unit_amount: toStripeMinorUnits(summary.balance, invoiceCurrency),
           },
           quantity: 1,
         },
@@ -729,14 +777,16 @@ const buildCheckoutSessionLineItems = (params: {
 
   return {
     useBalanceLine,
+    disableAutomaticTax,
     lineItems: items.map((item) => {
       const typed = item as CheckoutLineItemSource;
       const unitPrice =
         typeof typed.unitPrice === "number" ? typed.unitPrice : 0;
       const discountPercent =
         typeof typed.discountPercent === "number" ? typed.discountPercent : 0;
-      const effectiveUnitAmount = Math.round(
-        roundMoney(unitPrice * (1 - discountPercent / 100)) * 100,
+      const effectiveUnitAmount = toStripeMinorUnits(
+        roundMoney(unitPrice * (1 - discountPercent / 100)),
+        invoiceCurrency,
       );
       return {
         price_data: {
@@ -755,6 +805,63 @@ const buildCheckoutSessionLineItems = (params: {
     }),
   };
 };
+
+/**
+ * Normalizes a caller-supplied deposit amount against the invoice balance.
+ * Returns null when no deposit was asked for (charge the full balance), and
+ * rejects an amount that is not a positive number or exceeds what is owed --
+ * a "deposit" larger than the balance is a mistake, not a deposit.
+ */
+const resolveRequestedDepositAmount = (
+  requested: number | null | undefined,
+  balance: number,
+): number | null => {
+  if (requested === null || requested === undefined) return null;
+  if (typeof requested !== "number" || !Number.isFinite(requested)) {
+    throw new FinancePaymentError("Invalid deposit amount", 400);
+  }
+  const rounded = roundMoney(requested);
+  if (rounded <= 0) {
+    throw new FinancePaymentError("Deposit amount must be positive", 400);
+  }
+  if (rounded > balance) {
+    throw new FinancePaymentError(
+      "Deposit amount exceeds the outstanding balance",
+      400,
+    );
+  }
+  return rounded;
+};
+
+/**
+ * A deposit is a part payment towards the invoice, not a sale of the invoice's
+ * line items, so it is charged as a single line for the requested amount. Tax
+ * stays with the final settlement, where the full taxable total is known --
+ * calculating it again on the deposit would tax the same money twice.
+ */
+const buildDepositLineItem = (params: {
+  invoice: { id: string };
+  depositAmount: number;
+  invoiceCurrency: string;
+}) => ({
+  useBalanceLine: true,
+  disableAutomaticTax: true,
+  lineItems: [
+    {
+      price_data: {
+        currency: params.invoiceCurrency,
+        product_data: {
+          name: `Deposit for invoice ${params.invoice.id}`,
+        },
+        unit_amount: toStripeMinorUnits(
+          params.depositAmount,
+          params.invoiceCurrency,
+        ),
+      },
+      quantity: 1,
+    },
+  ],
+});
 
 // A PAYMENT_LINK invoice switching to an in-app PaymentIntent must first
 // retire its open Checkout Sessions so the same balance cannot be paid twice.
@@ -883,6 +990,49 @@ const getStripeClient = (): StripeCheckoutSessionClient => {
   return stripeClient;
 };
 
+/**
+ * Load the invoice a checkout session is being opened for, rejecting every state
+ * in which one must not be created. Split out so the session builder itself
+ * reads as the sequence of steps it is, rather than guards interleaved with work.
+ */
+const loadCheckoutEligibleInvoice = async (
+  invoiceId: string,
+  provider?: PrismaPaymentProvider | null,
+) => {
+  if (provider && provider !== "STRIPE") {
+    throw new FinancePaymentError("Unsupported payment provider", 400);
+  }
+
+  const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+  if (!invoice) {
+    throw new FinancePaymentError("Invoice not found", 404);
+  }
+  if (!["AWAITING_PAYMENT", "PENDING"].includes(invoice.status)) {
+    throw new FinancePaymentError("Invoice is not payable", 409);
+  }
+  if (invoice.paymentCollectionMethod === "PAYMENT_AT_CLINIC") {
+    throw new FinancePaymentError(
+      "Invoice is marked for in-clinic payment",
+      409,
+    );
+  }
+
+  const existingPaymentIntentAttempt = await prisma.paymentAttempt.findFirst({
+    where: {
+      invoiceId,
+      provider: "STRIPE",
+      providerPaymentIntentId: { not: null },
+      status: { not: "CANCELED" },
+    },
+    select: { id: true },
+  });
+  if (existingPaymentIntentAttempt) {
+    throw new FinancePaymentError("Invoice already has a PaymentIntent", 409);
+  }
+
+  return invoice;
+};
+
 export const FinancePaymentService = {
   async createPaymentAttempt(invoiceId: string, input: PaymentAttemptInput) {
     const invoice = await prisma.invoice.findUnique({
@@ -899,42 +1049,15 @@ export const FinancePaymentService = {
   async createCheckoutSessionForInvoice(
     invoiceId: string,
     provider?: PrismaPaymentProvider | null,
+    /**
+     * Deposit amount in major units. When supplied, the session charges this
+     * amount instead of the full outstanding balance. Without it a "collect a
+     * deposit" flow produced a link for the whole invoice while the UI called
+     * it a deposit link.
+     */
+    requestedDepositAmount?: number | null,
   ): Promise<CheckoutSessionResult> {
-    if (provider && provider !== "STRIPE") {
-      throw new FinancePaymentError("Unsupported payment provider", 400);
-    }
-
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
-    });
-
-    if (!invoice) {
-      throw new FinancePaymentError("Invoice not found", 404);
-    }
-
-    if (!["AWAITING_PAYMENT", "PENDING"].includes(invoice.status)) {
-      throw new FinancePaymentError("Invoice is not payable", 409);
-    }
-
-    if (invoice.paymentCollectionMethod === "PAYMENT_AT_CLINIC") {
-      throw new FinancePaymentError(
-        "Invoice is marked for in-clinic payment",
-        409,
-      );
-    }
-
-    const existingPaymentIntentAttempt = await prisma.paymentAttempt.findFirst({
-      where: {
-        invoiceId,
-        provider: "STRIPE",
-        providerPaymentIntentId: { not: null },
-        status: { not: "CANCELED" },
-      },
-      select: { id: true },
-    });
-    if (existingPaymentIntentAttempt) {
-      throw new FinancePaymentError("Invoice already has a PaymentIntent", 409);
-    }
+    const invoice = await loadCheckoutEligibleInvoice(invoiceId, provider);
 
     const existingCheckoutAttempt = await prisma.paymentAttempt.findFirst({
       where: {
@@ -965,11 +1088,19 @@ export const FinancePaymentService = {
       throw new FinancePaymentError("Invoice has no outstanding balance", 409);
     }
 
+    const depositAmount = resolveRequestedDepositAmount(
+      requestedDepositAmount,
+      summary.balance,
+    );
+    // What this session will actually charge: the deposit when one was asked
+    // for, the whole balance otherwise.
+    const amountToCharge = depositAmount ?? summary.balance;
+
     if (existingCheckoutAttempt?.providerCheckoutSessionId) {
       const requestedAmount = roundMoney(
         existingCheckoutAttempt.amountRequested ?? 0,
       );
-      if (requestedAmount === summary.balance) {
+      if (requestedAmount === amountToCharge) {
         return {
           sessionId: existingCheckoutAttempt.providerCheckoutSessionId,
           url: getCheckoutSessionUrl(existingCheckoutAttempt),
@@ -1009,12 +1140,19 @@ export const FinancePaymentService = {
       throw new FinancePaymentError("Invoice items are missing", 400);
     }
 
-    const { useBalanceLine, lineItems } = buildCheckoutSessionLineItems({
-      invoice,
-      items,
-      summary,
-      invoiceCurrency,
-    });
+    const { disableAutomaticTax, lineItems } =
+      depositAmount === null
+        ? buildCheckoutSessionLineItems({
+            invoice,
+            items,
+            summary,
+            invoiceCurrency,
+          })
+        : buildDepositLineItem({
+            invoice,
+            depositAmount,
+            invoiceCurrency,
+          });
 
     const stripe = getStripeClient();
     const expiresAt = Math.floor((Date.now() + 24 * 60 * 60 * 1000) / 1000);
@@ -1023,7 +1161,7 @@ export const FinancePaymentService = {
       {
         mode: "payment",
         automatic_tax: {
-          enabled: !useBalanceLine,
+          enabled: !disableAutomaticTax,
         },
         line_items: lineItems,
         metadata: {
@@ -1058,13 +1196,13 @@ export const FinancePaymentService = {
         settlementChannel: "STRIPE",
         providerCheckoutSessionId: session.id,
         status: "REQUIRES_ACTION",
-        amountRequested: summary.balance,
+        amountRequested: amountToCharge,
         amountCaptured: 0,
         amountApplied: 0,
         currency: invoiceCurrency,
-        collectionMode: null,
+        collectionMode: depositAmount === null ? null : "DEPOSIT_THEN_SETTLE",
         isOffline: false,
-        isPartial: false,
+        isPartial: depositAmount !== null && depositAmount < summary.balance,
         rawProviderPayload: {
           sessionId: session.id,
           url: session.url ?? null,
@@ -1152,7 +1290,7 @@ export const FinancePaymentService = {
     const stripe = getStripeClient();
     const paymentIntent = await stripe.paymentIntents.create(
       {
-        amount: Math.round(summary.balance * 100),
+        amount: toStripeMinorUnits(summary.balance, invoice.currency || "usd"),
         currency: invoice.currency || "usd",
         metadata: {
           type: "INVOICE_PAYMENT",
@@ -1519,7 +1657,10 @@ export const FinancePaymentService = {
       const refund = await stripe.refunds.create(
         {
           charge: chargeId,
-          amount: Math.round(refundAmount * 100),
+          amount: toStripeMinorUnits(
+            refundAmount,
+            payment.currency ?? payment.invoice.currency ?? "usd",
+          ),
         },
         requestOptions,
       );
@@ -1902,7 +2043,7 @@ export const FinancePaymentService = {
         providerCheckoutSessionId: input.sessionId,
         status: { notIn: ["CANCELED", "FAILED"] },
       },
-      select: { id: true },
+      select: { id: true, collectionMode: true, isPartial: true },
     });
 
     // Guards the tax overwrite below: a stale session must never rewrite the
@@ -1922,20 +2063,35 @@ export const FinancePaymentService = {
       return { action: "MISSING_AMOUNT" as const, invoice };
     }
 
-    const invoiceWithTax = await applyCheckoutSessionTaxToInvoice(invoice, {
-      sessionId: input.sessionId,
-      amountSubtotal: input.amountSubtotal,
-      amountTotal: input.amountTotal,
-      amountTax: input.amountTax,
-      automaticTaxStatus: input.automaticTaxStatus,
-      rawProviderPayload: input.rawProviderPayload ?? undefined,
-    });
+    // A deposit session is billed for part of the invoice, so its totals
+    // describe the deposit and not the invoice. Writing them over the invoice
+    // would shrink the invoice total to the deposit, and the deposit would then
+    // settle it in full. The invoice keeps the tax it was raised with; only a
+    // session billed for the whole balance may restate it.
+    const isDepositAttempt =
+      paymentAttempt.collectionMode === "DEPOSIT_THEN_SETTLE" ||
+      paymentAttempt.isPartial;
+
+    const invoiceWithTax = isDepositAttempt
+      ? invoice
+      : await applyCheckoutSessionTaxToInvoice(invoice, {
+          sessionId: input.sessionId,
+          amountSubtotal: input.amountSubtotal,
+          amountTotal: input.amountTotal,
+          amountTax: input.amountTax,
+          automaticTaxStatus: input.automaticTaxStatus,
+          rawProviderPayload: input.rawProviderPayload ?? undefined,
+        });
 
     const applied = await this.recordInvoicePayment(invoice.id, {
       provider: "STRIPE",
       amount: capturedAmount,
       currency: input.currency ?? invoiceWithTax.currency,
       settlementChannel: "STRIPE",
+      // Without this the deposit is booked as an ordinary payment, so it never
+      // lands in depositCollectedAmount and the invoice loses the fact that a
+      // balance is still owed after it.
+      collectionMode: isDepositAttempt ? "DEPOSIT_THEN_SETTLE" : null,
       providerPaymentId: input.paymentIntentId ?? null,
       paymentAttemptId: paymentAttempt?.id ?? null,
       reference: input.receiptUrl ?? undefined,

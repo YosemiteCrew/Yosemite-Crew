@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { useAuthStore } from '@/app/stores/authStore';
+import { logger } from '@/app/lib/logger';
 import { provisionPendingSignUpUser } from '@/app/features/auth/services/provisioning';
 import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
@@ -20,7 +21,15 @@ type VerifyState = 'verifying' | 'success' | 'invalid';
 const VerifyEmail = () => {
   const router = useRouter();
   const [state, setState] = useState<VerifyState>('verifying');
+  const [provisioningError, setProvisioningError] = useState<string | null>(null);
+
   const [isContinuing, setIsContinuing] = useState(false);
+
+  // Flattened out of the JSX: a nested ternary in an attribute is hard to read
+  // and the three states are worth naming.
+  let continueButtonLabel = 'Continue';
+  if (isContinuing) continueButtonLabel = 'Redirecting...';
+  else if (provisioningError) continueButtonLabel = 'Try again';
   const hasVerifiedRef = useRef(false);
 
   useEffect(() => {
@@ -39,13 +48,27 @@ const VerifyEmail = () => {
 
   const handleContinue = async () => {
     setIsContinuing(true);
+    setProvisioningError(null);
     try {
       const user = await useAuthStore.getState().checkSession();
       if (!user) {
         router.replace('/signin');
         return;
       }
-      await provisionPendingSignUpUser().catch(() => undefined);
+      // Swallowing this left the user with a verified provider account and no
+      // application user behind it: onboarding then breaks in ways a later
+      // sign-in cannot repair, because the pending sign-up is gone by then.
+      // Surface it and keep them here so a retry is possible.
+      try {
+        await provisionPendingSignUpUser();
+      } catch (error) {
+        logger.error('Failed to provision the new user after verification:', error);
+        setProvisioningError(
+          'Your email is verified, but we could not finish setting up your account. Please try again.'
+        );
+        setIsContinuing(false);
+        return;
+      }
       const route = await resolvePostAuthRedirect({
         fallbackRole: useAuthStore.getState().role,
       });
@@ -90,13 +113,18 @@ const VerifyEmail = () => {
                 Your email address has been verified. You can now continue to your account.
               </div>
             </div>
+            {provisioningError && (
+              <p role="alert" className="text-body-4 text-text-error text-center">
+                {provisioningError}
+              </p>
+            )}
             <Primary
               href="#"
               onClick={(e) => {
                 e.preventDefault();
                 if (!isContinuing) void handleContinue();
               }}
-              text={isContinuing ? 'Redirecting...' : 'Continue'}
+              text={continueButtonLabel}
               style={{ width: '100%' }}
             />
           </div>

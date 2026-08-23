@@ -110,7 +110,7 @@ const createStyles = (theme: any) =>
     },
     dayToday: {},
     dayText: {...theme.typography.caption, color: theme.colors.textSecondary},
-    dayTextActive: {color: theme.colors.primary},
+    dayTextActive: {color: theme.colors.blueText},
     dayNum: {...theme.typography.labelXxsBold, color: theme.colors.text},
   });
 

@@ -936,8 +936,12 @@ export const useAppointmentWorkspaceStore = create<AppointmentWorkspaceState>((s
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
       const shouldSeedBill =
         !enc.viewOnly && enc.invoiceLineItems.length === 0 && openInvoice !== undefined;
+      // Stamped with the invoice they came from: these lines are already
+      // charged, and the add-items endpoint only appends, so they must never be
+      // re-sent. Editing one used to change its content key and slip past the
+      // duplicate filter, charging it a second time.
       const invoiceLineItems = shouldSeedBill
-        ? openInvoice.items.map((item) => ({ ...item }))
+        ? openInvoice.items.map((item) => ({ ...item, seededFromInvoiceId: openInvoice.id }))
         : enc.invoiceLineItems;
       return {
         ...enc,

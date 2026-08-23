@@ -56,6 +56,7 @@ import {selectCoParents} from '@/features/coParent/selectors';
 import {CompanionProfileHeader} from '@/features/companion/components/CompanionProfileHeader';
 import type {ProfileImagePickerRef} from '@/shared/components/common/ProfileImagePicker/ProfileImagePicker';
 
+import i18next from 'i18next';
 type ProfileSection = {
   id: string;
   title: string;
@@ -210,7 +211,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
     if (Platform.OS === 'android') {
       ToastAndroid.show(message, ToastAndroid.SHORT);
     } else {
-      Alert.alert('Permission needed', message);
+      Alert.alert(i18next.t('alerts.shared.permissionNeeded'), message);
     }
   }, []);
 
@@ -509,6 +510,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
             showBackButton
             onBack={handleBackPress}
             rightIcon={isPrimaryParent ? Images.deleteIconRed : undefined}
+            rightIconTint={theme.colors.dangerText}
             onRightPress={isPrimaryParent ? handleDeletePress : undefined}
             glass={false}
           />
@@ -586,7 +588,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
                         <Ionicons
                           name="chevron-forward"
                           size={15}
-                          color={theme.colors.inkFaint2}
+                          color={theme.colors.inkFaint}
                         />
                       </>
                     )}

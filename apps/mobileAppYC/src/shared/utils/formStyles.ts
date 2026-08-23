@@ -78,14 +78,14 @@ export const createFormStyles = (theme: Theme) => ({
 
   // Reminder pill text when selected
   reminderPillTextSelected: {
-    color: theme.colors.primary,
+    color: theme.colors.blueText,
     fontWeight: '600',
   } as TextStyle,
 
   // Error text styling
   errorText: {
     ...theme.typography.labelXxsBold,
-    color: theme.colors.error,
+    color: theme.colors.dangerText,
     marginTop: theme.spacing['1'],
     marginBottom: theme.spacing['3'],
     marginLeft: theme.spacing['1'],

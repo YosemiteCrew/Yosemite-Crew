@@ -600,7 +600,11 @@ describe("InvoiceService", () => {
       },
     ]);
 
-    expect(bootstrapSpy).toHaveBeenCalledWith(appointmentId);
+    expect(bootstrapSpy).toHaveBeenCalledWith(
+      appointmentId,
+      undefined,
+      undefined,
+    );
     expect(addItemsSpy).toHaveBeenCalledWith("inv_draft", [
       {
         name: "Medication",
@@ -667,7 +671,11 @@ describe("InvoiceService", () => {
       items,
     );
 
-    expect(bootstrapSpy).toHaveBeenCalledWith(appointmentId);
+    expect(bootstrapSpy).toHaveBeenCalledWith(
+      appointmentId,
+      undefined,
+      undefined,
+    );
     expect(addItemsSpy).toHaveBeenCalledWith("inv_paid", items);
     expect(result.status).toBe("AWAITING_PAYMENT");
 
@@ -1324,6 +1332,61 @@ describe("InvoiceService", () => {
     expect(persistedItems).toHaveLength(1);
   });
 
+  // The content-key fallback exists so a client that sends no line ids can still
+  // UPDATE an existing line. It must not also collapse two genuinely separate
+  // lines in one payload: an invoice can legitimately carry the same consumable
+  // twice, and the second match used to land on the line the first had added.
+  it("keeps two identical new lines as two lines", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_repeat",
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      organisationId,
+      patientId,
+      parentId,
+      items: [],
+      subtotal: 0,
+      discountTotal: 0,
+      invoiceDiscountType: null,
+      invoiceDiscountValue: null,
+      invoiceDiscountTotal: 0,
+      taxTotal: 0,
+      taxPercent: 0,
+      totalAmount: 0,
+      taxSnapshot: { provider: "STRIPE", taxBehavior: "EXCLUSIVE" },
+      finalizedAt: null,
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_repeat",
+      organisationId,
+      items: [],
+      totalAmount: 20,
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const line = {
+      description: "Syringe",
+      name: "Syringe",
+      quantity: 1,
+      unitPrice: 10,
+      total: 10,
+    };
+    await InvoiceService.addItemsToInvoice("inv_repeat", [
+      { ...line },
+      { ...line },
+    ]);
+
+    const updateArg = (prisma.invoice.update as jest.Mock).mock.calls.at(
+      -1,
+    )![0];
+    expect(updateArg.data.items).toHaveLength(2);
+  });
+
   it("finalizes tax snapshots and re-opens a finalized-but-unpaid invoice when edited", async () => {
     (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
       id: "inv_final",
@@ -1532,6 +1595,74 @@ describe("InvoiceService", () => {
     );
   });
 
+  // `mergeInvoiceLineItems` can replace a line by id or content key, and the
+  // charge endpoints do not strip an `id` from the payload - so a duplicate or
+  // replacement submission owes no new money. Reopening on that would let a
+  // settled invoice, and its payment and audit state, be reset without a
+  // legitimate new charge.
+  it("keeps a paid invoice settled when the resubmitted items owe no more", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_paid_same",
+      appointmentId,
+      organisationId,
+      patientId,
+      parentId,
+      currency: "usd",
+      status: "PAID",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      items: [
+        {
+          name: "Consult",
+          description: "Consult",
+          quantity: 1,
+          unitPrice: 100,
+          total: 100,
+        },
+      ],
+      subtotal: 100,
+      discountTotal: 0,
+      invoiceDiscountType: null,
+      invoiceDiscountValue: null,
+      invoiceDiscountTotal: 0,
+      taxTotal: 0,
+      taxPercent: 0,
+      totalAmount: 100,
+      taxSnapshot: { provider: "STRIPE", taxBehavior: "EXCLUSIVE" },
+      finalizedAt: null,
+      paidAt: new Date("2026-06-26T06:30:00.000Z"),
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_paid_same",
+      organisationId,
+      status: "PAID",
+      items: [],
+      totalAmount: 100,
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await InvoiceService.addItemsToInvoice("inv_paid_same", [
+      {
+        name: "Consult",
+        description: "Consult",
+        quantity: 1,
+        unitPrice: 100,
+        total: 100,
+      },
+    ]);
+
+    const updateArg = (prisma.invoice.update as jest.Mock).mock.calls.at(
+      -1,
+    )![0];
+    expect(updateArg.data.status).toBeUndefined();
+    expect(updateArg.data.paidAt).toBeUndefined();
+    expect(updateArg.data.visitBillingStage).toBeUndefined();
+  });
+
   it("moves paid invoices back to awaiting payment when new items are added", async () => {
     (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
       id: "inv_paid_extra",
@@ -1558,6 +1689,10 @@ describe("InvoiceService", () => {
       invoiceDiscountTotal: 0,
       taxTotal: 0,
       taxPercent: 0,
+      // Load-bearing: reopening is now conditional on the total actually
+      // growing, so the settled total has to be present for this to be a real
+      // increase rather than a comparison against an absent value.
+      totalAmount: 100,
       taxSnapshot: {
         provider: "STRIPE",
         taxBehavior: "EXCLUSIVE",

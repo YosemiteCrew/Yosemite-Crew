@@ -124,6 +124,27 @@ describe('LiquidGlassIconButton', () => {
       );
     });
 
+    it('resolves colorScheme="system" from the app theme when dark', () => {
+      // Regression: 'system' used to resolve to 'light' unconditionally, so in
+      // dark mode this button took the white glass tint and rendered a bright
+      // grey disc (#B2B0AE) on the espresso header.
+      const spy = jest
+        .spyOn(require('@/hooks'), 'useTheme')
+        .mockReturnValue({theme: mockTheme, isDark: true});
+      render(
+        <LiquidGlassIconButton
+          size={40}
+          onPress={jest.fn()}
+          colorScheme="system">
+          <Text>icon</Text>
+        </LiquidGlassIconButton>,
+      );
+      const glassView = screen.getByTestId('liquid-glass-view');
+      expect(glassView.props.colorScheme).toBe('dark');
+      expect(glassView.props.tintColor).toBe('rgba(28, 28, 30, 0.55)');
+      spy.mockRestore();
+    });
+
     it('resolves colorScheme="system" to "light"', () => {
       render(
         <LiquidGlassIconButton

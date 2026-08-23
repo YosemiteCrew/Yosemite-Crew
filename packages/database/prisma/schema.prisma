@@ -887,6 +887,7 @@ model Organization {
   documensoApiKey             String?
   address                     OrganizationAddress?
   isVerified                  Boolean          @default(false)
+  verificationOverride        Boolean?
   isActive                    Boolean          @default(true)
   typeCoding                  Json?
   healthAndSafetyCertNo       String?
@@ -3690,6 +3691,38 @@ model CareReminder {
   @@map("CareReminder")
 }
 
+/// Suppression list for care-reminder sends. A pet parent can object to further
+/// reminders (GDPR Art. 21) from a specific practice without affecting the other
+/// practices that care for the same animal, so the list is scoped by organisation
+/// and keyed by the address the reminder is actually delivered to.
+///
+/// `channel` is granular rather than a single boolean because the delivery layer
+/// grows: opting out of email must not silently mute an in-app push the parent
+/// still wants. `ALL` suppresses every channel.
+enum CareReminderOptOutChannel {
+  EMAIL
+  PUSH
+  ALL
+}
+
+model CareReminderOptOut {
+  id             String                    @id @default(uuid())
+  organisationId String
+  /// Lower-cased and trimmed before write. The recipient is identified by address
+  /// because that is what the send path resolves, and a parent may have no user row.
+  email          String
+  channel        CareReminderOptOutChannel @default(ALL)
+  parentId       String?
+  /// How the opt-out was captured, e.g. "unsubscribe-link" or "staff".
+  source         String?
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  @@unique([organisationId, email, channel])
+  @@index([organisationId, email])
+  @@map("CareReminderOptOut")
+}
+
 enum ProblemStatus {
   ACTIVE
   INACTIVE
@@ -6195,4 +6228,161 @@ model ClinicNote {
   @@index([organisationId, isPinned])
   @@index([organisationId, createdAt])
   @@map("ClinicNote")
+}
+
+// ─── ActivityPub Federation ───────────────────────────────────────────────────
+
+model APActor {
+  id                String       @id @default(uuid())
+  organisationId    String?      @unique
+  uri               String       @unique
+  preferredUsername String       @unique
+  publicKeyPem      String
+  privateKeyPem     String
+  publicKeyId       String       @unique
+  inboxUri          String
+  outboxUri         String
+  followersUri      String
+  followingUri      String
+  sharedInboxUri    String?
+  summary           String?
+  iconUrl           String?
+  licenseToken      String?
+  directoryListed   Boolean      @default(false)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  followers         APFollower[] @relation("LocalActorFollowers")
+  following         APFollowing[]
+  activities        APActivity[]
+}
+
+model APFollower {
+  id             String          @id @default(uuid())
+  localActorId   String
+  remoteActorUri String
+  remoteInboxUri String
+  sharedInboxUri String?
+  state          APFollowerState @default(PENDING)
+  approvedAt     DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  localActor     APActor         @relation("LocalActorFollowers", fields: [localActorId], references: [id])
+
+  @@unique([localActorId, remoteActorUri])
+  @@index([localActorId])
+  @@index([remoteActorUri])
+  @@index([state])
+}
+
+model APFollowing {
+  id             String           @id @default(uuid())
+  localActorId   String
+  remoteActorUri String
+  remoteInboxUri String
+  sharedInboxUri String?
+  state          APFollowingState @default(PENDING)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  localActor     APActor          @relation(fields: [localActorId], references: [id])
+
+  @@unique([localActorId, remoteActorUri])
+  @@index([localActorId])
+  @@index([remoteActorUri])
+}
+
+model APRemoteActor {
+  id                String    @id @default(uuid())
+  uri               String    @unique
+  preferredUsername String
+  publicKeyPem      String
+  publicKeyId       String    @unique
+  inboxUri          String
+  sharedInboxUri    String?
+  instanceHost      String
+  fetchedAt         DateTime
+  lastSeenAt        DateTime?
+  licenseToken      String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([instanceHost])
+}
+
+model APActivity {
+  id            String       @id @default(uuid())
+  uri           String       @unique
+  type          String
+  localActorId  String
+  objectUri     String?
+  objectJson    Json?
+  targetUri     String?
+  toAddresses   String[]
+  ccAddresses   String[]
+  published     DateTime
+  processed     Boolean      @default(false)
+  direction     APDirection  @default(OUTBOUND)
+  rawJson       Json
+  createdAt     DateTime     @default(now())
+
+  localActor    APActor      @relation(fields: [localActorId], references: [id])
+
+  @@index([localActorId])
+  @@index([type])
+  @@index([processed])
+  @@index([direction])
+}
+
+model APReferral {
+  id              String             @id @default(uuid())
+  activityUri     String             @unique
+  fromActorUri    String
+  toActorUri      String
+  fromOrgId       String?
+  toOrgId         String?
+  patientSummary  Json
+  clinicalContext String?
+  urgency         APReferralUrgency  @default(ROUTINE)
+  state           APReferralState    @default(PENDING)
+  acceptedAt      DateTime?
+  declinedAt      DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([fromActorUri])
+  @@index([toActorUri])
+  @@index([state])
+}
+
+enum APFollowerState {
+  PENDING
+  APPROVED
+  REJECTED
+  BLOCKED
+}
+
+enum APFollowingState {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum APDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum APReferralState {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
+enum APReferralUrgency {
+  ROUTINE
+  URGENT
+  EMERGENCY
 }

@@ -34,6 +34,7 @@ jest.mock("src/config/prisma", () => ({
     },
     organizationBilling: {
       findUnique: jest.fn(),
+      updateMany: jest.fn(),
     },
     userOrganization: {
       count: jest.fn(),
@@ -638,6 +639,19 @@ describe("FinanceSubscriptionService", () => {
     });
 
     await FinanceSubscriptionService.recordSubscriptionDeleted("sub_1");
+
+    // Free-plan enforcement reads OrganizationBilling.plan, not the entitlement
+    // rows, so a cancellation that only wrote entitlements left the org on
+    // "business" and bypassing every free-plan limit indefinitely.
+    expect(prisma.organizationBilling.updateMany).toHaveBeenCalledWith({
+      where: { orgId: "org_1" },
+      data: expect.objectContaining({
+        plan: "free",
+        subscriptionStatus: "canceled",
+        cancelAtPeriodEnd: false,
+      }),
+    });
+
     await FinanceSubscriptionService.recordSubscriptionInvoicePaid({
       subscriptionId: "sub_1",
       invoiceId: "inv_1",

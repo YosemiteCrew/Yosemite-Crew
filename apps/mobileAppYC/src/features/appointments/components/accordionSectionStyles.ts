@@ -49,7 +49,7 @@ export const createAccordionSectionStyles = (theme: any) => ({
   },
   chipText: {
     ...theme.typography.subtitleBold12,
-    color: theme.colors.primary,
+    color: theme.colors.blueText,
   },
   selectButton: {
     width: '100%' as const,

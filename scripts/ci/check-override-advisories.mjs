@@ -117,7 +117,14 @@ export function splitOverrideKey(key) {
     if (trimmed[i] !== '>') continue;
     const prev = trimmed[i - 1];
     if (prev === '@' || prev === '<' || prev === '>' || prev === '=') continue;
+    // A separator is written without spaces ('parent>child'), so whitespace on
+    // either side means this '>' is a range operator. Without this a compound
+    // range like 'pkg@<1 || >2' split at the second operator: the child became
+    // '2', the override was indexed under the package name '2', and every
+    // advisory for the real package went unmatched - silently, as a pass.
+    if (prev === undefined || /\s/.test(prev)) continue;
     if (i + 1 >= trimmed.length) continue;
+    if (/\s/.test(trimmed[i + 1])) continue;
     child = trimmed.slice(i + 1);
     parent = trimmed.slice(0, i);
     break;

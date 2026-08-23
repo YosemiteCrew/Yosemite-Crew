@@ -814,3 +814,22 @@ try {
     });
   }
 } catch {}
+
+// Initialise i18next with the real English catalogue.
+//
+// Alert copy moved from hardcoded strings to `i18next.t('alerts.*')` keys. On
+// an uninitialised instance `t()` returns undefined, so every alert assertion
+// compared against undefined instead of the user-visible text. Loading the
+// real catalogue means these tests now assert the shipped copy, and a key
+// deleted from common.json fails the suite instead of passing silently.
+const i18next = require('i18next');
+const enCommon = require('./src/localization/resources/en/common.json');
+
+i18next.init({
+  compatibilityJSON: 'v4',
+  resources: {en: {common: enCommon}},
+  lng: 'en',
+  fallbackLng: 'en',
+  defaultNS: 'common',
+  interpolation: {escapeValue: false},
+});

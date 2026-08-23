@@ -33,6 +33,10 @@ jest.mock('@/app/lib/resetSessionStores', () => ({
 
 jest.mock('@/app/lib/browserStorage', () => ({
   removeStorageItem: jest.fn(),
+  // The store persists the pending sign-up so a verification link opened in a
+  // new tab still knows the name and role to provision with.
+  getJsonStorageItem: jest.fn(() => null),
+  setJsonStorageItem: jest.fn(),
 }));
 
 jest.mock('@/app/services/axios', () => ({

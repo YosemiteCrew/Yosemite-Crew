@@ -12,12 +12,18 @@ const isCancelledOrRejected = (normalizedStatus: string): boolean =>
   normalizedStatus === 'DECLINED' ||
   normalizedStatus === 'NO_SHOW';
 
+/**
+ * Whether the APPOINTMENT still owes money.
+ *
+ * Deliberately does not consider the booking payment: a paid booking is a
+ * deposit taken at booking time, not settlement of the appointment's invoice.
+ * Short-circuiting on it hid an outstanding invoice behind a green badge and
+ * removed the Pay Now action.
+ */
 export const isAppointmentPaymentPending = (
   status?: string | null,
   paymentStatus?: string | null,
-  bookingPaymentStatus?: string | null,
 ): boolean => {
-  if (normalizeStatus(bookingPaymentStatus) === 'PAID') return false;
   const normalizedStatus = normalizeStatus(status);
   if (isCancelledOrRejected(normalizedStatus)) return false;
   const normalizedPaymentStatus = normalizeStatus(paymentStatus);
@@ -70,16 +76,18 @@ export const getAppointmentStatusLabel = (
   paymentStatus?: string | null,
   bookingPaymentStatus?: string | null,
 ): string => {
-  if (normalizeStatus(bookingPaymentStatus) === 'PAID') {
-    return 'Booking paid';
-  }
-
+  // Order matters: an outstanding or failed APPOINTMENT payment outranks a paid
+  // booking. "Booking paid" over an unpaid invoice reads as settled.
   if (isAppointmentPaymentFailed(status, paymentStatus)) {
     return 'Payment failed';
   }
 
   if (isAppointmentPaymentPending(status, paymentStatus)) {
     return 'Payment pending';
+  }
+
+  if (normalizeStatus(bookingPaymentStatus) === 'PAID') {
+    return 'Booking paid';
   }
 
   const normalized = normalizeStatus(status);
@@ -117,10 +125,12 @@ type AppointmentTheme = {
     secondary: string;
     primary: string;
     primaryTint: string;
+    blueText: string;
     success: string;
     successSurface: string;
     warning: string;
     warningSurface: string;
+    dangerText: string;
     error: string;
     errorSurface: string;
   };
@@ -145,18 +155,12 @@ export const getAppointmentStatusBadgePalette = (
   );
   const normalizedStatus = normalizeStatus(status);
 
-  if (normalizeStatus(bookingPaymentStatus) === 'PAID') {
-    return {
-      text: label,
-      textColor: theme.colors.success,
-      backgroundColor: theme.colors.successSurface,
-    };
-  }
-
+  // Same ordering as the label: an outstanding or failed APPOINTMENT payment
+  // outranks a paid booking, so a green badge never sits over an unpaid invoice.
   if (isAppointmentPaymentFailed(status, paymentStatus)) {
     return {
       text: label,
-      textColor: theme.colors.error,
+      textColor: theme.colors.dangerText,
       backgroundColor: theme.colors.errorSurface,
     };
   }
@@ -166,6 +170,14 @@ export const getAppointmentStatusBadgePalette = (
       text: label,
       textColor: theme.colors.warning,
       backgroundColor: theme.colors.warningSurface,
+    };
+  }
+
+  if (normalizeStatus(bookingPaymentStatus) === 'PAID') {
+    return {
+      text: label,
+      textColor: theme.colors.success,
+      backgroundColor: theme.colors.successSurface,
     };
   }
 
@@ -184,7 +196,7 @@ export const getAppointmentStatusBadgePalette = (
     case 'REQUESTED':
       return {
         text: label,
-        textColor: theme.colors.primary,
+        textColor: theme.colors.blueText,
         backgroundColor: theme.colors.primaryTint,
       };
     case 'RESCHEDULED':
@@ -199,7 +211,7 @@ export const getAppointmentStatusBadgePalette = (
     case 'NO_SHOW':
       return {
         text: label,
-        textColor: theme.colors.error,
+        textColor: theme.colors.dangerText,
         backgroundColor: theme.colors.errorSurface,
       };
     default:

@@ -19,7 +19,7 @@ jest.mock("../../../src/services/organization.service", () => {
       resolveOrganisation: jest.fn(),
       upsert: jest.fn(),
       getById: jest.fn(),
-      listAll: jest.fn(),
+      listForUser: jest.fn(),
       deleteById: jest.fn(),
       update: jest.fn(),
       listNearbyForAppointmentsPaginated: jest.fn(),
@@ -52,7 +52,7 @@ const mockedResolveOrganisation =
   OrganizationService.resolveOrganisation as jest.Mock;
 const mockedUpsert = OrganizationService.upsert as jest.Mock;
 const mockedGetById = OrganizationService.getById as jest.Mock;
-const mockedListAll = OrganizationService.listAll as jest.Mock;
+const mockedListForUser = OrganizationService.listForUser as jest.Mock;
 const mockedDeleteById = OrganizationService.deleteById as jest.Mock;
 const mockedUpdate = OrganizationService.update as jest.Mock;
 const mockedListNearby =
@@ -206,17 +206,33 @@ describe("OrganizationController.onboardBusiness", () => {
     });
     const req = {
       body: organizationPayload,
+      userId: "user-1",
+    } as unknown as Request;
+    const res = createResponse();
+
+    await OrganizationController.onboardBusiness(req, res);
+
+    expect(mockedUpsert).toHaveBeenCalledWith(organizationPayload, "user-1");
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  // The `x-user-id` header used to stand in for a session here, so a caller
+  // could name any actor while onboarding - and `upsert` uses that id to decide
+  // whether an existing organisation may be overwritten.
+  it("ignores the x-user-id header when no session is present", async () => {
+    mockedUpsert.mockResolvedValueOnce({
+      response: { id: "org-1" },
+      created: true,
+    });
+    const req = {
+      body: organizationPayload,
       headers: { "x-user-id": "header-user" },
     } as unknown as Request;
     const res = createResponse();
 
     await OrganizationController.onboardBusiness(req, res);
 
-    expect(mockedUpsert).toHaveBeenCalledWith(
-      organizationPayload,
-      "header-user",
-    );
-    expect(res.status).toHaveBeenCalledWith(200);
+    expect(mockedUpsert).toHaveBeenCalledWith(organizationPayload, undefined);
   });
 
   it("maps an OrganizationServiceError to its status code", async () => {
@@ -314,21 +330,36 @@ describe("OrganizationController.getBusinessById", () => {
 });
 
 describe("OrganizationController.getAllBusinesses", () => {
-  it("returns every organisation resource", async () => {
-    mockedListAll.mockResolvedValueOnce([{ id: "org-1" }, { id: "org-2" }]);
+  const authedRequest = () => ({ userId: "user-1" }) as unknown as Request;
+
+  it("returns only the organisations the caller belongs to", async () => {
+    mockedListForUser.mockResolvedValueOnce([{ id: "org-1" }, { id: "org-2" }]);
     const res = createResponse();
 
-    await OrganizationController.getAllBusinesses({} as Request, res);
+    await OrganizationController.getAllBusinesses(authedRequest(), res);
 
+    expect(mockedListForUser).toHaveBeenCalledWith("user-1");
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith([{ id: "org-1" }, { id: "org-2" }]);
   });
 
-  it("logs and returns 500 when the listing fails", async () => {
-    mockedListAll.mockRejectedValueOnce(new Error("boom"));
+  it("rejects a request with no verified session", async () => {
     const res = createResponse();
 
     await OrganizationController.getAllBusinesses({} as Request, res);
+
+    expect(mockedListForUser).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Authentication required.",
+    });
+  });
+
+  it("logs and returns 500 when the listing fails", async () => {
+    mockedListForUser.mockRejectedValueOnce(new Error("boom"));
+    const res = createResponse();
+
+    await OrganizationController.getAllBusinesses(authedRequest(), res);
 
     expect(mockedLogger.error).toHaveBeenCalledWith(
       "Failed to retrieve businesses",

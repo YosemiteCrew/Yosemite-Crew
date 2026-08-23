@@ -27,10 +27,13 @@ import {
 import logger from "src/utils/logger";
 import { OrgRequest } from "src/middlewares/rbac";
 import { AuthenticatedRequest } from "src/middlewares/auth";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import { resolveVerifiedUserId } from "src/utils/request";
 
 const CreateInvoicePaymentSessionBodySchema = z.object({
   provider: z.string().trim().min(1).optional(),
+  // Major units. Present when the caller is collecting a deposit rather than
+  // the whole outstanding balance.
+  depositAmount: z.number().finite().positive().optional(),
 });
 
 const InvoiceItemBodySchema = z.object({
@@ -1052,7 +1055,7 @@ export const FinanceController = {
         return res.status(400).json({ message: "Organisation Id is required" });
       }
 
-      const actorUserId = resolveUserIdFromRequest(req);
+      const actorUserId = resolveVerifiedUserId(req);
       const invoice = await InvoiceService.markAppointmentReadyForBilling(
         appointmentId,
         { organisationId, actorUserId },
@@ -1111,7 +1114,7 @@ export const FinanceController = {
 
       const invoice = await InvoiceService.reverseAppointmentReadyForBilling(
         appointmentId,
-        { organisationId, actorUserId: resolveUserIdFromRequest(req) },
+        { organisationId, actorUserId: resolveVerifiedUserId(req) },
       );
       if (!invoice) {
         return res.status(404).json({ message: "Invoice not found" });
@@ -1585,6 +1588,7 @@ export const FinanceController = {
         await FinancePaymentService.createCheckoutSessionForInvoice(
           invoiceId,
           provider,
+          body.depositAmount ?? null,
         );
 
       return res.status(201).json({

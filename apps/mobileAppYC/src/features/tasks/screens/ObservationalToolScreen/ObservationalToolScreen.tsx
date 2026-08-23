@@ -1273,7 +1273,7 @@ const createStyles = (theme: any) => {
     },
     errorText: {
       ...theme.typography.bodyMedium,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
     },
     introCard: {
       gap: theme.spacing['3'],
@@ -1411,7 +1411,7 @@ const createStyles = (theme: any) => {
       borderRadius: theme.borderRadius.full,
       backgroundColor: theme.colors.primaryTint,
       ...theme.typography.labelXxsBold,
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
     },
     providerSubtitle: {
       ...theme.typography.body12,
@@ -1439,7 +1439,7 @@ const createStyles = (theme: any) => {
     },
     validationText: {
       ...theme.typography.captionBoldSatoshi,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
     },
     emptyStateCard: {
       alignItems: 'center',
@@ -1484,7 +1484,7 @@ const createStyles = (theme: any) => {
     },
     stepMeta: {
       ...theme.typography.labelXxsBold,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
       letterSpacing: 1,
     },
     stepHeading: {
@@ -1592,7 +1592,7 @@ const createStyles = (theme: any) => {
     },
     stepFooterNote: {
       ...theme.typography.body13,
-      color: theme.colors.inkFaint2,
+      color: theme.colors.inkMuted,
       textAlign: 'center',
     },
     stepActions: {

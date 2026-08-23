@@ -115,8 +115,27 @@ describe("CompanionController", () => {
   // ----------------------------------------------------------------------
 
   describe("Helper: resolveMobileUserId", () => {
-    it("should resolve from x-user-id header", async () => {
+    // The header used to be trusted here - and took precedence over an
+    // established session - so any caller could create a companion as any user.
+    it("ignores the x-user-id header", async () => {
       req.headers = { "x-user-id": "header-user" };
+      req.body = validFhirPayload;
+      mockedCompanionService.create.mockResolvedValue({ response: {} } as any);
+
+      await CompanionController.createCompanionMobile(
+        req as Request,
+        res as Response,
+      );
+
+      expect(mockedCompanionService.create).not.toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ authUserId: "header-user" }),
+      );
+    });
+
+    it("prefers the verified session over a spoofed header", async () => {
+      req.headers = { "x-user-id": "header-user" };
+      (req as any).userId = "session-user";
       req.body = validFhirPayload;
       mockedCompanionService.create.mockResolvedValue({ response: {} } as any);
 
@@ -127,7 +146,7 @@ describe("CompanionController", () => {
 
       expect(mockedCompanionService.create).toHaveBeenCalledWith(
         expect.anything(),
-        expect.objectContaining({ authUserId: "header-user" }),
+        expect.objectContaining({ authUserId: "session-user" }),
       );
     });
 
@@ -321,14 +340,18 @@ describe("CompanionController", () => {
         response: { id: "c1" },
       } as any);
       mockedOrgFindFirst.mockResolvedValue({ type: "HOSPITAL" });
-      mockedCompOrgService.linkByPmsUser.mockResolvedValue({} as any);
+      mockedCompOrgService.linkOnCompanionCreatedByPms.mockResolvedValue(
+        {} as any,
+      );
 
       await CompanionController.createCompanionPMS(
         req as Request,
         res as Response,
       );
 
-      expect(mockedCompOrgService.linkByPmsUser).toHaveBeenCalledWith({
+      expect(
+        mockedCompOrgService.linkOnCompanionCreatedByPms,
+      ).toHaveBeenCalledWith({
         pmsUserId: "pmsUser",
         organisationId: "org-1",
         organisationType: "HOSPITAL",
@@ -583,16 +606,22 @@ describe("CompanionController", () => {
         responses: [],
       } as any);
 
+      (req as { organisationId?: string }).organisationId = "org-1";
+
       await CompanionController.searchCompanionByName(
         req as Request,
         res as Response,
       );
-      expect(mockedCompanionService.getByName).toHaveBeenCalledWith("fido");
+      expect(mockedCompanionService.getByName).toHaveBeenCalledWith(
+        "fido",
+        "org-1",
+      );
       expect(statusMock).toHaveBeenCalledWith(200);
     });
 
     it("should handle service error", async () => {
       req.query = { name: "fido" };
+      (req as { organisationId?: string }).organisationId = "org-1";
       mockServiceError("getByName", 400);
       await CompanionController.searchCompanionByName(
         req as Request,
@@ -603,6 +632,7 @@ describe("CompanionController", () => {
 
     it("should handle generic error", async () => {
       req.query = { name: "fido" };
+      (req as { organisationId?: string }).organisationId = "org-1";
       mockGenericError("getByName");
       await CompanionController.searchCompanionByName(
         req as Request,

@@ -19,6 +19,7 @@ import type {LegalSection, LegalDocumentMeta} from '../data/legalContentTypes';
 import type {LegalStackParamList} from '@/navigation/types';
 import {createLiquidGlassHeaderStyles} from '@/shared/utils/screenStyles';
 
+import i18next from 'i18next';
 type LegalScreenProps = NativeStackScreenProps<
   LegalStackParamList,
   'PrivacyPolicy' | 'TermsAndConditions'
@@ -64,12 +65,15 @@ export const LegalScreen: React.FC<LegalScreenProps> = ({
         doc.pdfUrl,
         fileName,
       );
-      Alert.alert('Download complete', `Saved to:\n${downloadPath}`);
+      Alert.alert(
+        i18next.t('alerts.shared.downloadComplete'),
+        `Saved to:\n${downloadPath}`,
+      );
     } catch (error) {
       const message =
         (error as any)?.message ??
         'Unable to download the file. Please check your connection and try again.';
-      Alert.alert('Download failed', message);
+      Alert.alert(i18next.t('alerts.shared.downloadFailed'), message);
     } finally {
       setDownloading(false);
     }

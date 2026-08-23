@@ -129,14 +129,25 @@ export const configureStreamUploadPolicy = async (): Promise<void> => {
     size_limit: MAX_UPLOAD_SIZE_BYTES,
   };
 
-  // The image upload path must NOT reuse the file policy: Stream validates image
-  // uploads against image_upload_config, and blocking the full document/script
-  // MIME + extension list there caused legitimate photos (jpg/png/webp/…) to be
-  // rejected. Only SVG-family images carry browser-active content, so those are
-  // the only image types we block here; everything else uploads normally.
+  // The image endpoint gets the SAME blocklist as the file endpoint.
+  //
+  // Stream validates image uploads against `image_upload_config`, and a token
+  // holder can call that endpoint directly - the client-side checks are UX, not
+  // a control. Narrowing this to the SVG family meant `.html`, `.js`, `.hta`,
+  // `.jar` and `.exe` were all accepted here and then shareable in chat from a
+  // trusted CDN URL, which is exactly the delivery path the file policy exists
+  // to close.
+  //
+  // A previous attempt at this was reverted because legitimate photos were being
+  // rejected. That cannot be these lists: neither `BLOCKED_UPLOAD_EXTENSIONS`
+  // (64 entries) nor `BLOCKED_UPLOAD_MIME_TYPES` (23) contains a single raster
+  // image type - no jpg/jpeg/png/webp/gif/heic/heif/bmp/tiff/avif, and no
+  // `image/*` beyond `image/svg+xml`. `stream-upload-policy.test.ts` asserts
+  // that, so a future edit that smuggles one in fails the suite rather than
+  // silently blocking customer photos again.
   const imageUploadConfig = {
-    blocked_file_extensions: ["svg", "svgz"],
-    blocked_mime_types: ["image/svg+xml"],
+    blocked_file_extensions: BLOCKED_UPLOAD_EXTENSIONS,
+    blocked_mime_types: BLOCKED_UPLOAD_MIME_TYPES,
     size_limit: MAX_UPLOAD_SIZE_BYTES,
   };
 

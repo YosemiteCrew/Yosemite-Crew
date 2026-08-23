@@ -1,8 +1,7 @@
-import { createFormStyles } from '@/shared/utils/formStyles';
+import {createFormStyles} from '@/shared/utils/formStyles';
 import {mockTheme} from '../setup/mockTheme';
 
 // Define a mock theme
-
 
 describe('createFormStyles', () => {
   it('should create the correct styles from the theme', () => {
@@ -64,7 +63,7 @@ describe('createFormStyles', () => {
       },
       errorText: {
         ...mockTheme.typography.labelXxsBold,
-        color: mockTheme.colors.error,
+        color: mockTheme.colors.dangerText,
         marginTop: mockTheme.spacing['1'],
         marginBottom: mockTheme.spacing['3'],
         marginLeft: mockTheme.spacing['1'],

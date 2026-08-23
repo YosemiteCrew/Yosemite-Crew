@@ -438,6 +438,27 @@ describe('SignInScreen', () => {
     expect(mockNavigation.navigate).toHaveBeenCalledWith('SignUp');
   });
 
+  describe('sign-up intent', () => {
+    it('shows sign-up copy instead of "Welcome back"', () => {
+      const {getByText, queryByText} = renderComponent({intent: 'signUp'});
+      expect(getByText('Create your account')).toBeTruthy();
+      expect(queryByText('Welcome back')).toBeNull();
+      expect(getByText('Already have an account?')).toBeTruthy();
+      expect(getByText('Sign in')).toBeTruthy();
+    });
+
+    it('flips the intent in place rather than pushing another screen', () => {
+      // The form is identical either way, so the footer link should swap the
+      // copy, not stack a duplicate screen the user has to back out of.
+      const {getByText} = renderComponent({intent: 'signUp'});
+      fireEvent.press(getByText('Sign in'));
+      expect(mockNavigation.setParams).toHaveBeenCalledWith({
+        intent: 'signIn',
+      });
+      expect(mockNavigation.navigate).not.toHaveBeenCalledWith('SignUp');
+    });
+  });
+
   it('exposes a button role and label on the create-account link', () => {
     const {getByLabelText} = renderComponent();
     const link = getByLabelText('Create an account');

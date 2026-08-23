@@ -115,14 +115,14 @@ describe('createFormScreenStyles', () => {
       },
       errorText: {
         ...mockTheme.typography.labelXxsBold,
-        color: mockTheme.colors.error,
+        color: mockTheme.colors.dangerText,
         marginTop: mockTheme.spacing['1'],
         marginBottom: mockTheme.spacing['3'],
         marginLeft: mockTheme.spacing['1'],
       },
       submissionError: {
         ...mockTheme.typography.paragraphBold,
-        color: mockTheme.colors.error,
+        color: mockTheme.colors.dangerText,
         textAlign: 'center',
         paddingHorizontal: mockTheme.spacing['5'],
         marginBottom: mockTheme.spacing['2'],

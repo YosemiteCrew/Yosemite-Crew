@@ -6,7 +6,7 @@ import OrgCard from '@/app/ui/cards/OrgCard/OrgCard';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { OrgWithMembership } from '@/app/features/organization/types/org';
 import { resolveOrgScopedRedirect } from '@/app/lib/postAuthRedirect';
-import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
+import { isCurrentRoute, startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
 import { useFullscreenLoaderStore } from '@/app/stores/fullscreenLoaderStore';
 
 type OrganizationListProps = {
@@ -27,6 +27,15 @@ const OrganizationList = ({ orgs }: OrganizationListProps) => {
       const role = org.membership?.roleDisplay ?? org.membership?.roleCode;
       const nextRoute = await resolveOrgScopedRedirect({ orgId: id, fallbackRole: role });
       router.push(nextRoute);
+      // resolveOrgScopedRedirect falls back to '/organizations' when the org or
+      // its membership is missing from the store - and this picker IS
+      // '/organizations'. Pushing the route we are already on changes neither
+      // pathname nor query, so RouteLoaderOverlay's effect never fires and the
+      // loader is never released. Release it here, as UserHeader's picker does.
+      if (isCurrentRoute(nextRoute)) {
+        hide('org-switch');
+        stopRouteLoader();
+      }
     } catch {
       hide('org-switch');
       stopRouteLoader();

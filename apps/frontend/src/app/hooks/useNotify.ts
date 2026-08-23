@@ -1,10 +1,11 @@
-import { toast, ToastOptions } from "react-toastify";
-import ErrorToast from "../ui/widgets/Toast/ErrorToast";
-import InfoToast from "../ui/widgets/Toast/Info";
-import WarningToast from "../ui/widgets/Toast/Warning";
-import Success from "../ui/widgets/Toast/Success";
+import { useCallback } from 'react';
+import { toast, ToastOptions } from 'react-toastify';
+import ErrorToast from '../ui/widgets/Toast/ErrorToast';
+import InfoToast from '../ui/widgets/Toast/Info';
+import WarningToast from '../ui/widgets/Toast/Warning';
+import Success from '../ui/widgets/Toast/Success';
 
-export type NotifyType = "success" | "error" | "info" | "warning";
+export type NotifyType = 'success' | 'error' | 'info' | 'warning';
 
 export type NotifyData = {
   title: string;
@@ -23,7 +24,7 @@ const BASE_OPTIONS: ToastOptions = {
   closeButton: false,
   icon: false,
   hideProgressBar: true,
-  className: "pl-5! pr-3! py-4! w-[400px]! rounded-2xl! shadow-0!",
+  className: 'pl-5! pr-3! py-4! w-[400px]! rounded-2xl! shadow-0!',
 };
 
 const TOAST_CONFIG: Record<NotifyType, ToastConfigItem> = {
@@ -46,11 +47,13 @@ const TOAST_CONFIG: Record<NotifyType, ToastConfigItem> = {
 };
 
 export const useNotify = () => {
-  const notify = (
-    type: NotifyType,
-    data: NotifyData,
-    overrides?: ToastOptions,
-  ) => {
+  // Memoised with no dependencies: `notify` closes over module constants only.
+  // It used to be a fresh function on every render, so any useCallback that
+  // listed it - and any effect depending on that callback - was recreated each
+  // render. A loader like `useEffect(() => { load(); }, [load])` with
+  // `load = useCallback(..., [notify])` therefore re-ran forever, hammering the
+  // API and flickering the loading state.
+  const notify = useCallback((type: NotifyType, data: NotifyData, overrides?: ToastOptions) => {
     const cfg = TOAST_CONFIG[type];
 
     cfg.show(cfg.Component, {
@@ -59,7 +62,7 @@ export const useNotify = () => {
       ...overrides,
       data,
     });
-  };
+  }, []);
 
   return { notify };
 };

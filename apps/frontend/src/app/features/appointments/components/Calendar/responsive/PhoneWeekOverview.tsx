@@ -4,8 +4,10 @@ import React, { useMemo } from 'react';
 import clsx from 'clsx';
 import { IoChevronBackOutline, IoChevronForwardOutline, IoWarning } from 'react-icons/io5';
 import type { Appointment } from '@yosemite-crew/types';
-
-import { getDateKeyInPreferredTimeZone } from '@/app/lib/timezone';
+import {
+  buildPreferredTimeZoneDayInstant,
+  getDateKeyInPreferredTimeZone,
+} from '@/app/lib/timezone';
 
 import {
   buildPhoneWeekOverview,
@@ -68,6 +70,18 @@ const LoadBar = ({ day }: { day: PhoneWeekDayRow }) => (
   </span>
 );
 
+/**
+ * The row's day as an instant in the PREFERRED timezone.
+ *
+ * Row keys are local ISO day strings, so parsing the key back out and rebuilding
+ * through the shared helper yields the same day in the clinic's zone rather than
+ * the device's.
+ */
+const preferredZoneInstantForRow = (dateKey: string): Date => {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  return buildPreferredTimeZoneDayInstant(year, month, day);
+};
+
 const DayRow = ({ day, isSelected, onSelectDay }: DayRowProps) => {
   const className = clsx('yc-pwo-row', `yc-pwo-row--${day.tone}`, {
     'yc-pwo-row--selected': isSelected,
@@ -98,7 +112,13 @@ const DayRow = ({ day, isSelected, onSelectDay }: DayRowProps) => {
         type="button"
         className={className}
         aria-current={isSelected ? 'date' : undefined}
-        onClick={() => onSelectDay?.(day.date)}
+        // Emit an instant that lands on THIS row's day in the preferred
+        // timezone, not the row's local midnight. `day.date` is built from
+        // local midnights, so on a device far enough ahead of the clinic it
+        // reads as the previous day there - the selection key then did not
+        // match the row that had just been pressed, and the highlight moved or
+        // vanished. Every other caller passes a preferred-zone instant too.
+        onClick={() => onSelectDay?.(preferredZoneInstantForRow(day.dateKey))}
       >
         {dateBlock}
         <span className="yc-pwo-load">
@@ -145,6 +165,11 @@ const PhoneWeekOverview = ({
   // appointments the same way), so the selection must be keyed in that zone too. Using the
   // device-local day here highlighted the wrong row when the preferred zone crossed a local
   // midnight relative to the selected instant.
+  // Keyed in the preferred timezone, matching how the model buckets each row's
+  // appointments and how every caller builds `selectedDate` (as a noon instant
+  // in that zone). DayRow now emits the same kind of value - see the comment on
+  // its onClick - so a row's key and the selection key agree even when the
+  // device is far enough ahead of the clinic that its local day differs.
   const selectedKey = selectedDate ? getDateKeyInPreferredTimeZone(selectedDate) : null;
 
   return (

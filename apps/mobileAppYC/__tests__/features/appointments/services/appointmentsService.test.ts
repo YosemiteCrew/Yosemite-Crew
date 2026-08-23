@@ -797,6 +797,48 @@ describe('appointmentsService', () => {
         expect(services[0].basePrice).toBe(50);
       });
 
+      it('quotes the amount that will be billed, not the gross price', () => {
+        const {mapBusinessFromResponse} = getModule();
+        // The practice's standing discount is applied when the invoice is
+        // drafted, so quoting the gross unit price told a parent 240 for a
+        // visit their invoice then charged 228 for.
+        const raw = {
+          org: {id: 'o1', name: 'Vet', address: [{text: '1 St'}]},
+          specialitiesWithServices: [
+            {
+              name: 'General Practice',
+              services: [
+                {
+                  name: 'General Consultation',
+                  cost: 240,
+                  grossAmount: 240,
+                  defaultDiscountPercent: 5,
+                  finalAmount: 228,
+                },
+              ],
+            },
+          ],
+        };
+
+        const {services} = mapBusinessFromResponse(raw);
+
+        expect(services[0].basePrice).toBe(228);
+      });
+
+      it('falls back to cost when no discounted amount is sent', () => {
+        const {mapBusinessFromResponse} = getModule();
+        const raw = {
+          org: {id: 'o1', name: 'Vet', address: [{text: '1 St'}]},
+          specialitiesWithServices: [
+            {name: 'GP', services: [{name: 'Consult', cost: 240}]},
+          ],
+        };
+
+        const {services} = mapBusinessFromResponse(raw);
+
+        expect(services[0].basePrice).toBe(240);
+      });
+
       it('should extract photo from extensions if top level fields missing', () => {
         const {mapBusinessFromResponse} = getModule();
         const raw = {

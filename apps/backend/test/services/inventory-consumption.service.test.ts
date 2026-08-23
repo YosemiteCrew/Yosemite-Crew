@@ -1089,6 +1089,54 @@ describe("InventoryConsumptionService", () => {
     );
   });
 
+  // Enrichment derives the whole course when a line carries no quantity of its
+  // own, and writes it to `quantity`. `resolveDispenseTotalUnits` reads
+  // `quantity` as a PER-DOSE amount, so without the `totalUnits` marker the
+  // course was multiplied by frequency and duration a second time.
+  it("marks a derived course total so it is not multiplied out again", async () => {
+    mockedPrisma.inventoryItem.findMany.mockResolvedValueOnce([]);
+    mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce(
+      null,
+    );
+    mockedPrisma.prescriptionDispenseRequest.create.mockResolvedValueOnce({
+      id: "request-derived",
+    });
+
+    await InventoryConsumptionService.createPrescriptionDispenseRequest({
+      organisationId: "org-1",
+      prescriptionId: "rx-derived",
+      medications: [
+        {
+          inventoryItemId: "item-derived",
+          // No quantity: the course has to be derived. 1 x BID x 3 days = 6.
+          dose: "1",
+          frequency: "BID",
+          duration: "3",
+          sourceLineKey: "line-derived",
+        },
+        {
+          inventoryItemId: "item-explicit",
+          // Carries its own per-dose quantity, so it stays multiplied later.
+          quantity: 2,
+          frequency: "BID",
+          duration: "3",
+          sourceLineKey: "line-explicit",
+        },
+      ],
+    });
+
+    const created = mockedPrisma.prescriptionDispenseRequest.create.mock
+      .calls[0][0] as {
+      data: { medications: Array<Record<string, unknown>> };
+    };
+    const byItem = new Map(
+      created.data.medications.map((med) => [med.inventoryItemId, med]),
+    );
+
+    expect(byItem.get("item-derived")?.totalUnits).toBe(6);
+    expect(byItem.get("item-explicit")?.totalUnits).toBeUndefined();
+  });
+
   it("matches the dispensary modal duration calculation when approving a created request", async () => {
     mockedPrisma.inventoryItem.findMany.mockResolvedValueOnce([
       {
@@ -3615,6 +3663,29 @@ describe("InventoryConsumptionService", () => {
           frequency: "EVERY 0 HOURS",
           sourceLineKey: "line-freq-invalid",
         },
+        // Sub-daily schedules the keyword pass does not cover. Without these a
+        // course on one of them resolves to NO frequency and falls back to a
+        // single dose, so stock consumption issues a fraction of the course.
+        {
+          inventoryItemId: "item-freq-three-a-week",
+          frequency: "3 TIMES A WEEK",
+          sourceLineKey: "line-freq-three-a-week",
+        },
+        {
+          inventoryItemId: "item-freq-every-3-days",
+          frequency: "EVERY 3 DAYS",
+          sourceLineKey: "line-freq-every-3-days",
+        },
+        {
+          inventoryItemId: "item-freq-fortnightly",
+          frequency: "FORTNIGHTLY",
+          sourceLineKey: "line-freq-fortnightly",
+        },
+        {
+          inventoryItemId: "item-freq-monthly",
+          frequency: "MONTHLY",
+          sourceLineKey: "line-freq-monthly",
+        },
       ],
     });
 
@@ -3639,6 +3710,18 @@ describe("InventoryConsumptionService", () => {
     expect(byItemId.get("item-freq-meals")?.frequencyPerDay).toBe(3);
     expect(byItemId.get("item-freq-hours")?.frequencyPerDay).toBe(4);
     expect(byItemId.get("item-freq-invalid")?.frequencyPerDay).toBeUndefined();
+    expect(byItemId.get("item-freq-three-a-week")?.frequencyPerDay).toBeCloseTo(
+      3 / 7,
+    );
+    expect(byItemId.get("item-freq-every-3-days")?.frequencyPerDay).toBeCloseTo(
+      1 / 3,
+    );
+    expect(byItemId.get("item-freq-fortnightly")?.frequencyPerDay).toBeCloseTo(
+      1 / 14,
+    );
+    expect(byItemId.get("item-freq-monthly")?.frequencyPerDay).toBeCloseTo(
+      1 / 30,
+    );
   });
 
   it("falls back to the encounter snapshot when the appointment is missing", async () => {

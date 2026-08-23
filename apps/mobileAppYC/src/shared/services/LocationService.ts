@@ -2,6 +2,7 @@ import Geolocation from '@react-native-community/geolocation';
 import {Platform, Alert} from 'react-native';
 import {check, request, PERMISSIONS, RESULTS} from 'react-native-permissions';
 
+import i18next from 'i18next';
 interface LocationCoords {
   latitude: number;
   longitude: number;
@@ -35,8 +36,8 @@ class LocationService {
 
     if (result === RESULTS.BLOCKED) {
       Alert.alert(
-        'Location Permission Required',
-        'Please enable location access in your device settings to use this feature.',
+        i18next.t('alerts.shared.locationPermissionRequired'),
+        i18next.t('alerts.shared.locationPermissionRequiredBody'),
         [{text: 'OK'}],
       );
       return false;
@@ -129,8 +130,8 @@ class LocationService {
 
         if (nextRetries === maxRetries) {
           Alert.alert(
-            'Location Error',
-            'Unable to get your location. Please check your GPS settings.',
+            i18next.t('alerts.shared.locationError'),
+            i18next.t('alerts.shared.locationErrorBody'),
             [{text: 'OK'}],
           );
           return null;

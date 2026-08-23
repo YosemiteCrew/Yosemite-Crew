@@ -154,10 +154,26 @@ describe('getInvoiceNumberLabel', () => {
         id: 'fb880f8d-aea7-47d9-8b3a-1c2d3e4f5a6b',
         metadata: {},
       } as unknown as Invoice)
-    ).toBe('#4F5A6B');
+    ).toBe('#2D3E4F5A6B');
     expect(
       getInvoiceNumberLabel({ id: '6970ca8262012cc3e1c93099', metadata: {} } as unknown as Invoice)
-    ).toBe('#C93099');
+    ).toBe('#C3E1C93099');
+  });
+
+  it('keeps two ids that share their last six characters distinguishable', () => {
+    // Six hex characters is 24 bits: at a few thousand invoices two of them
+    // showing the SAME label is more likely than not, and staff act on that
+    // label in finance workflows.
+    const a = getInvoiceNumberLabel({
+      id: '6970ca8262012cc3e1c93099',
+      metadata: {},
+    } as unknown as Invoice);
+    const b = getInvoiceNumberLabel({
+      id: '6970ca8262012aa4b2c93099',
+      metadata: {},
+    } as unknown as Invoice);
+
+    expect(a).not.toBe(b);
   });
 
   it('handles an invoice with no metadata at all', () => {

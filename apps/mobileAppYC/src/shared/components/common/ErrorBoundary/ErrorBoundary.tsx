@@ -120,7 +120,7 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.white,
+      backgroundColor: theme.colors.screen,
     },
     scrollContent: {
       flex: 1,
@@ -150,12 +150,12 @@ const createStyles = (theme: any) =>
     },
     errorTitle: {
       ...theme.typography.labelSmBold,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
       marginBottom: theme.spacing['2'],
     },
     errorText: {
       ...theme.typography.labelXs,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
       marginBottom: theme.spacing['2'],
     },
     stackText: {

@@ -19,6 +19,7 @@ import {
 } from '@/features/observationalTools/services/observationToolService';
 import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
 import {resolveObservationalToolLabel} from '@/features/tasks/utils/taskLabels';
+import {describeRequestError} from '../../../../shared/utils/safeErrorLog';
 
 type Navigation = NativeStackNavigationProp<
   TaskStackParamList,
@@ -59,7 +60,10 @@ export const ObservationalToolPreviewScreen: React.FC = () => {
           setDefinition(def);
         }
       } catch (defError) {
-        console.warn('[OT Preview] Failed to fetch tool definition', defError);
+        console.warn(
+          '[OT Preview] Failed to fetch tool definition',
+          describeRequestError(defError),
+        );
       }
     };
 
@@ -78,7 +82,12 @@ export const ObservationalToolPreviewScreen: React.FC = () => {
           await loadDefinition(toolKey);
         }
       } catch (err) {
-        console.warn('[OT Preview] Failed to load submission', err);
+        // Never the raw error: it carries the request config, including the
+        // Authorization header.
+        console.warn(
+          '[OT Preview] Failed to load submission',
+          describeRequestError(err),
+        );
         if (isMounted) {
           setError('Unable to load submission. Please try again.');
         }
@@ -374,7 +383,7 @@ const createStyles = (theme: any) =>
     },
     footer: {
       ...theme.typography.caption,
-      color: theme.colors.inkFaint2,
+      color: theme.colors.inkMuted,
       textAlign: 'center',
       paddingTop: theme.spacing['1'],
       paddingBottom: theme.spacing['5'],
@@ -385,7 +394,7 @@ const createStyles = (theme: any) =>
     },
     errorText: {
       ...theme.typography.body14,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
     },
     glassFallback: {
       backgroundColor: theme.colors.screen,

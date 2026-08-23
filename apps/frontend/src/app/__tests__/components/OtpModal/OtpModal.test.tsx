@@ -109,7 +109,10 @@ describe('OtpModal Component', () => {
     expect(screen.getByText('01:29 sec')).toBeInTheDocument();
   });
 
-  it('disables verify after the countdown ends and prompts for a resend', () => {
+  it('offers a resend after the countdown, without blocking verification', () => {
+    // The countdown governs when another code may be REQUESTED. It is not the
+    // code's lifetime, and treating it as such locked users out of a code the
+    // auth provider still accepted.
     render(<OtpModal {...defaultProps} />);
     fillCode();
 
@@ -118,7 +121,7 @@ describe('OtpModal Component', () => {
     });
 
     expect(screen.getByText('Didn’t get the code? Request a new one below.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Verify Code/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Verify Code/i })).toBeEnabled();
   });
 
   // --- 2. Input Handling Logic ---

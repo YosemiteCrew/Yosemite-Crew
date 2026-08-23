@@ -105,6 +105,21 @@ describe('useOrganisationDiscountCap', () => {
     expect(discountSettingsMock.getOrganisationDiscountSettings).toHaveBeenLastCalledWith('org-2');
   });
 
+  it('drops the cap when the organisation goes away entirely', async () => {
+    // Otherwise the discount input keeps enforcing a limit belonging to an
+    // organisation the user is no longer in.
+    const { result, rerender } = renderHook(({ orgId }) => useOrganisationDiscountCap(orgId), {
+      initialProps: { orgId: 'org-1' as string | undefined },
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.maxOverallDiscountPercent).not.toBeNull();
+
+    rerender({ orgId: undefined });
+
+    expect(result.current.maxOverallDiscountPercent).toBeNull();
+    expect(result.current.loading).toBe(false);
+  });
+
   it('drops the previous org cap when a new org lookup fails, rather than keeping it stale', async () => {
     discountSettingsMock.getOrganisationDiscountSettings.mockResolvedValue({
       organisationId: 'org-1',

@@ -14,6 +14,7 @@ import {isExpensePaymentPending} from '@/features/expenses/utils/status';
 import type {TabParamList} from '@/navigation/types';
 import type {Invoice, PaymentIntentInfo} from '@/features/appointments/types';
 
+import i18next from 'i18next';
 // Extract appointmentId from invoice extensions
 const extractAppointmentId = (invoice: Invoice): string | null => {
   if (invoice.appointmentId) {
@@ -145,7 +146,10 @@ export const useExpensePayment = () => {
 
       const validationError = validateExpenseForPayment(expense);
       if (validationError) {
-        Alert.alert('Payment unavailable', validationError);
+        Alert.alert(
+          i18next.t('alerts.shared.paymentUnavailable'),
+          validationError,
+        );
         return;
       }
 
@@ -159,8 +163,8 @@ export const useExpensePayment = () => {
 
         if (!invoice) {
           Alert.alert(
-            'Payment unavailable',
-            'Invoice data not found. Please try again.',
+            i18next.t('alerts.shared.paymentUnavailable'),
+            i18next.t('alerts.expenses.paymentUnavailableBody'),
           );
           return;
         }
@@ -171,8 +175,8 @@ export const useExpensePayment = () => {
 
         if (!appointmentId) {
           Alert.alert(
-            'Payment unavailable',
-            'Invoice does not contain appointment reference. Please try again.',
+            i18next.t('alerts.shared.paymentUnavailable'),
+            i18next.t('alerts.expenses.paymentUnavailableBody2'),
           );
           return;
         }
@@ -195,7 +199,7 @@ export const useExpensePayment = () => {
         );
       } catch (error) {
         Alert.alert(
-          'Payment unavailable',
+          i18next.t('alerts.shared.paymentUnavailable'),
           error instanceof Error
             ? error.message
             : 'Unable to start payment. Please try again.',

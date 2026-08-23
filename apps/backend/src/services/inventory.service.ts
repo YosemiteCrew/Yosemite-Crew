@@ -47,6 +47,21 @@ const readPositiveNumber = (value: unknown): number | undefined => {
   return undefined;
 };
 
+/**
+ * A whole, storable count read out of legacy free-form attributes.
+ *
+ * `packageQuantity` is an `Int?` column, so a decimal like "1.5" or an
+ * out-of-range value like 1e308 read by `readPositiveNumber` is rejected by the
+ * database at write time - turning a malformed legacy attribute into a 500
+ * instead of simply being ignored. Anything that is not a safe positive integer
+ * is treated as absent, and the caller falls through to its next source.
+ */
+const readPositiveStorableInteger = (value: unknown): number | undefined => {
+  const parsed = readPositiveNumber(value);
+  if (parsed === undefined) return undefined;
+  return Number.isSafeInteger(parsed) ? parsed : undefined;
+};
+
 type InventoryVendorMongo = Prisma.InventoryVendorGetPayload<
   Record<string, never>
 >;
@@ -854,9 +869,13 @@ const ensureCreateBatchExpiryRules = (input: CreateInventoryItemInput) => {
       400,
     );
   }
+  // `isValidDate` rather than an inline instanceof + getTime: the type says
+  // `Date | null`, but the value arrives from a JSON body, so an empty string,
+  // `false` or `0` reaches here as itself and calling `.getTime()` on it throws
+  // a TypeError - turning a plainly invalid expiry date into a 500 instead of
+  // the 400 below. The helper already encodes exactly that check.
   const missingExpiry = input.batches?.some(
-    (batch) =>
-      batch.expiryDate == null || Number.isNaN(batch.expiryDate.getTime()),
+    (batch) => !isValidDate(batch.expiryDate),
   );
   if (missingExpiry) {
     throw new InventoryServiceError(
@@ -963,8 +982,8 @@ const createInventoryItemInPostgres = async (
   const itemAllocated = input.allocated ?? input.initialAllocated ?? 0;
   const packageQuantity =
     resolveUnitQuantity(input.unitQuantity, input.packageQuantity) ??
-    readPositiveNumber(attributes.unitQnt) ??
-    readPositiveNumber(attributes.unitQuantity);
+    readPositiveStorableInteger(attributes.unitQnt) ??
+    readPositiveStorableInteger(attributes.unitQuantity);
 
   const item = await prisma.inventoryItem.create({
     data: {
@@ -1124,8 +1143,8 @@ const applyPackagingUpdates = (
     asNonEmptyString(attributes.stockUnitType);
   const packageQuantity =
     resolveUnitQuantity(input.unitQuantity, input.packageQuantity) ??
-    readPositiveNumber(attributes.unitQnt) ??
-    readPositiveNumber(attributes.unitQuantity);
+    readPositiveStorableInteger(attributes.unitQnt) ??
+    readPositiveStorableInteger(attributes.unitQuantity);
   if (stockUnitType !== undefined) {
     data.stockUnitType = stockUnitType;
   }
@@ -1482,8 +1501,18 @@ export const InventoryService = {
     }
 
     const nextCategory = input.category ?? existing.category ?? undefined;
+    // An ABSENT subCategory keeps the stored one; an explicitly blank one clears
+    // it. Collapsing both to "absent" meant changing an item's category while
+    // leaving the subcategory blank validated the OLD subcategory against the
+    // NEW category, and the edit was rejected with nothing the user could fix.
+    // An ABSENT subCategory keeps the stored one; an explicitly blank one clears
+    // it. Collapsing both to "absent" meant changing an item's category while
+    // leaving the subcategory blank validated the OLD subcategory against the
+    // NEW category, and the edit was rejected with nothing the user could fix.
     const nextSubCategory =
-      asNonEmptyString(input.subCategory) ?? existing.subCategory ?? undefined;
+      input.subCategory === undefined
+        ? (existing.subCategory ?? undefined)
+        : asNonEmptyString(input.subCategory);
     if (nextCategory) {
       ensureValidCategorySelection(nextCategory, nextSubCategory);
     }

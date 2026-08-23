@@ -22,6 +22,20 @@ describe('devSession', () => {
     expect(process.env.JEST_WORKER_ID).toBeDefined();
   });
 
+  it('stays disabled in a DEV build with jest out of the picture', () => {
+    // THE guard that matters. The assertions above both pass whatever ENABLE
+    // says: the first because JEST_WORKER_ID is set, the third because __DEV__
+    // is false - so neither would notice the flag being flipped back on. This
+    // reproduces the only condition in which the mock-auth harness can actually
+    // activate: a development build, no jest.
+    jest.resetModules();
+    delete process.env.JEST_WORKER_ID;
+    (global as any).__DEV__ = true;
+
+    const {DEV_MOCK_SESSION} = require('@/config/devSession');
+    expect(DEV_MOCK_SESSION).toBe(false);
+  });
+
   it('stays disabled outside of __DEV__ (production), proving the harness cannot activate in a release build', () => {
     jest.resetModules();
     delete process.env.JEST_WORKER_ID;

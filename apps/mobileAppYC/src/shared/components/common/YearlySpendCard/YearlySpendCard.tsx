@@ -149,7 +149,7 @@ const createStyles = (theme: any) =>
     },
     label: {
       ...theme.typography.caption,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     amount: {
       ...theme.typography.amountHero,

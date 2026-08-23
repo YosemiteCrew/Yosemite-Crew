@@ -392,6 +392,10 @@ describe("FinancePaymentService", () => {
     (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
       id: "inv_6",
       totalAmount: 100,
+      // Load-bearing: the balance line is only charged tax-free when the balance
+      // ALREADY includes tax. Without this the invoice reads as never-taxed and
+      // Stripe must calculate tax on the balance instead.
+      taxTotal: 10,
       currency: "usd",
       status: "AWAITING_PAYMENT",
       paymentCollectionMethod: "PAYMENT_INTENT",
@@ -492,6 +496,9 @@ describe("FinancePaymentService", () => {
     (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
       id: "inv_dep",
       totalAmount: 100,
+      // The deposit already carried tax, so the remaining balance is
+      // tax-inclusive and Stripe must not tax it again.
+      taxTotal: 10,
       currency: "usd",
       status: "AWAITING_PAYMENT",
       paymentCollectionMethod: "PAYMENT_INTENT",
@@ -557,6 +564,96 @@ describe("FinancePaymentService", () => {
       }),
     );
     expect(result.paymentAttemptId).toBe("pa_dep");
+  });
+
+  it("charges only the requested deposit, not the whole balance", async () => {
+    // A deposit link used to be built from the full invoice, so asking for a
+    // 25 deposit on a 500 invoice produced a 500 checkout labelled "deposit".
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_partial",
+      totalAmount: 500,
+      taxTotal: 0,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      organisationId: "org_1",
+      appointmentId: "appt_1",
+      parentId: "parent_1",
+      items: [
+        {
+          name: "Surgery",
+          description: "Surgery",
+          unitPrice: 500,
+          quantity: 1,
+        },
+      ],
+    });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (stripeClient.checkout.sessions.create as jest.Mock).mockResolvedValueOnce({
+      id: "cs_partial",
+      url: "https://checkout",
+    });
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_partial",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({ count: 1 });
+
+    await FinancePaymentService.createCheckoutSessionForInvoice(
+      "inv_partial",
+      "STRIPE",
+      25,
+    );
+
+    expect(stripeClient.checkout.sessions.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        line_items: [
+          expect.objectContaining({
+            quantity: 1,
+            price_data: expect.objectContaining({ unit_amount: 2500 }),
+          }),
+        ],
+      }),
+      { stripeAccount: "acct_1" },
+    );
+    expect(prisma.paymentAttempt.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          amountRequested: 25,
+          isPartial: true,
+          collectionMode: "DEPOSIT_THEN_SETTLE",
+        }),
+      }),
+    );
+  });
+
+  it("rejects a deposit larger than the outstanding balance", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_over",
+      totalAmount: 100,
+      taxTotal: 0,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_INTENT",
+      organisationId: "org_1",
+      items: [{ name: "Consult", unitPrice: 100, quantity: 1 }],
+    });
+
+    await expect(
+      FinancePaymentService.createCheckoutSessionForInvoice(
+        "inv_over",
+        "STRIPE",
+        1000,
+      ),
+    ).rejects.toThrow("Deposit amount exceeds the outstanding balance");
+    expect(prisma.paymentAttempt.create).not.toHaveBeenCalled();
   });
 
   it("itemises every line (discount-adjusted) with automatic tax for a fresh, unsettled invoice", async () => {
@@ -1143,6 +1240,94 @@ describe("FinancePaymentService", () => {
     expect(result.action).toBe("PAID");
   });
 
+  it("keeps the invoice total when a deposit session completes", async () => {
+    // The session was billed for the deposit, so its amount_total describes the
+    // deposit and not the invoice. Restating the invoice from it shrinks the
+    // total to the deposit, after which the deposit clears the balance and the
+    // invoice reads fully paid while most of it is still owed.
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "inv_deposit_1",
+      organisationId: "org_1",
+      totalAmount: 400,
+      currency: "usd",
+      status: "PENDING",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      metadata: {},
+      payments: [],
+    });
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_1",
+    });
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_deposit_1",
+      organisationId: "org_1",
+      totalAmount: 400,
+      depositCollectedAmount: 0,
+      depositTargetAmount: 100,
+      currency: "usd",
+      status: "PENDING",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      metadata: {},
+      payments: [],
+    });
+    (prisma.payment.findMany as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "pa_deposit_1",
+      collectionMode: "DEPOSIT_THEN_SETTLE",
+      isPartial: true,
+    });
+    (prisma.paymentAttempt.update as jest.Mock).mockResolvedValueOnce({
+      id: "pa_deposit_1",
+    });
+    (prisma.payment.create as jest.Mock).mockResolvedValueOnce({
+      id: "pay_deposit_1",
+      amount: 100,
+      status: "SUCCEEDED",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_deposit_1",
+      totalAmount: 400,
+      depositCollectedAmount: 100,
+      currency: "usd",
+      status: "PENDING",
+      payments: [],
+    });
+
+    const result =
+      await FinancePaymentService.handleInvoiceCheckoutSessionCompleted({
+        invoiceId: "inv_deposit_1",
+        sessionId: "cs_deposit_1",
+        paymentIntentId: "pi_deposit_1",
+        connectedAccountId: "acct_1",
+        currency: "usd",
+        amountSubtotal: 100,
+        amountTotal: 100,
+        amountTax: 0,
+        automaticTaxStatus: "complete",
+      });
+
+    // No call restates the invoice from the session: the only invoice write is
+    // the deposit bookkeeping one, and it leaves the total alone.
+    const invoiceWrites = (prisma.invoice.update as jest.Mock).mock.calls;
+    for (const [call] of invoiceWrites) {
+      expect(call.data).not.toHaveProperty("totalAmount");
+      expect(call.data).not.toHaveProperty("taxProvider");
+      expect(call.data.status).not.toBe("PAID");
+    }
+    expect(invoiceWrites).toContainEqual([
+      expect.objectContaining({
+        where: { id: "inv_deposit_1" },
+        data: expect.objectContaining({
+          depositCollectedAmount: 100,
+          billingCollectionMode: "DEPOSIT_THEN_SETTLE",
+        }),
+      }),
+    ]);
+    expect(result.action).toBe("PAID");
+  });
+
   it("normalizes a refund webhook into invoice refund rows", async () => {
     (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
       id: "inv_webhook_3",
@@ -1476,6 +1661,7 @@ describe("FinancePaymentService", () => {
     (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
       id: "inv_repriced",
       totalAmount: 114,
+      taxTotal: 14,
       currency: "usd",
       status: "AWAITING_PAYMENT",
       paymentCollectionMethod: "PAYMENT_LINK",
@@ -1563,6 +1749,55 @@ describe("FinancePaymentService", () => {
     });
   });
 
+  // Stripe takes zero-decimal currencies in their own units, not hundredths, so
+  // multiplying by 100 unconditionally submitted a 1,000 JPY invoice as 100,000.
+  it("submits a zero-decimal currency without scaling it to hundredths", async () => {
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_jpy",
+      totalAmount: 1000,
+      currency: "jpy",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_LINK",
+      organisationId: "org_1",
+      appointmentId: "",
+      parentId: "",
+      items: [{ name: "Consult", quantity: 1, unitPrice: 900, total: 900 }],
+      taxTotal: 0,
+      metadata: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    (prisma.organization.findUnique as jest.Mock).mockResolvedValueOnce({
+      stripeAccountId: "acct_jpy",
+    });
+    (prisma.creditNote.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([]);
+    (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValue(null);
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_jpy",
+    });
+    stripeClient.checkout.sessions.create.mockResolvedValueOnce({
+      id: "cs_jpy",
+      url: "https://checkout.test/jpy",
+    });
+
+    await FinancePaymentService.createCheckoutSessionForInvoice("inv_jpy");
+
+    const [sessionArgs] = stripeClient.checkout.sessions.create.mock
+      .calls[0] as [
+      { line_items: Array<{ price_data: { unit_amount: number } }> },
+    ];
+    expect(sessionArgs.line_items[0].price_data.unit_amount).toBe(1000);
+  });
+
   it("charges the current invoice balance when discounts change the raw item total", async () => {
     const stripeClient = {
       checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
@@ -1605,10 +1840,14 @@ describe("FinancePaymentService", () => {
 
     expect(stripeClient.checkout.sessions.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        // An invoice-level discount makes the item sum differ from the balance, so we
-        // charge the tax-inclusive balance as one line with automatic tax disabled.
+        // An invoice-level discount makes the item sum differ from the pre-tax
+        // total, so the balance is charged as one line - but this invoice's tax
+        // was never calculated (`taxTotal` is absent, so `totalAmount` is the
+        // discounted PRE-tax subtotal). Disabling automatic tax here charged the
+        // customer a pre-tax amount and then recorded the invoice paid at that
+        // under-taxed total, so Stripe keeps calculating tax on the balance.
         automatic_tax: {
-          enabled: false,
+          enabled: true,
         },
         line_items: [
           expect.objectContaining({

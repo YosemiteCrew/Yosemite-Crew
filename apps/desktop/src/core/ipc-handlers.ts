@@ -588,7 +588,14 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
   // records the URL it was captured from: a tab that has since navigated (or
   // whose id was reused for another page) must not be shown the previous page's
   // thumbnail. Entries are dropped when the tab goes away.
-  const tabPreviewCache = new Map<string, { url: string; dataUrl: string }>();
+  // A cached preview is a full screenshot of a page that may have shown patient
+  // records. It is keyed by tab and validated against the tab's current URL
+  // below, but a URL match alone does not mean the SESSION is still the same
+  // one - a sign-out or an idle lock leaves the tab on the same address with
+  // different (or no) content behind it. The timestamp bounds how long a
+  // capture can outlive the state it was taken in.
+  const TAB_PREVIEW_TTL_MS = 60_000;
+  const tabPreviewCache = new Map<string, { url: string; dataUrl: string; capturedAt: number }>();
 
   const attachTabView = (id: string): void => {
     if (!services.tabViewHost || !services.mainWindow || services.mainWindow.isDestroyed()) return;
@@ -843,7 +850,7 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     if (wc !== services.activeContents()) {
       const cached = tabPreviewCache.get(id);
       if (!cached) return { ok: false, error: 'no-preview' };
-      if (cached.url !== wc.getURL()) {
+      if (cached.url !== wc.getURL() || Date.now() - cached.capturedAt > TAB_PREVIEW_TTL_MS) {
         tabPreviewCache.delete(id);
         return { ok: false, error: 'no-preview' };
       }
@@ -852,7 +859,11 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     try {
       const image = await wc.capturePage();
       const dataUrl = image.toDataURL();
-      tabPreviewCache.set(id, { url: wc.getURL(), dataUrl });
+      tabPreviewCache.set(id, {
+        url: wc.getURL(),
+        dataUrl,
+        capturedAt: Date.now(),
+      });
       return { ok: true, dataUrl };
     } catch {
       return { ok: false, error: 'capture-failed' };

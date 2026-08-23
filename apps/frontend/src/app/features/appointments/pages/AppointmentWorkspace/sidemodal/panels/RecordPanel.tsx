@@ -12,9 +12,11 @@ type RecordPanelProps = {
   authorId?: string;
   authorName?: string;
   companionId?: string;
+  /** Which tab to open on. Defaults to Vitals. */
+  initialTab?: RecordTab;
 };
 
-type RecordTab = 'VITALS' | 'OBSERVATION';
+export type RecordTab = 'VITALS' | 'OBSERVATION';
 
 const TABS = [
   { key: 'VITALS', label: 'Vitals' },
@@ -29,8 +31,9 @@ const RecordPanel = ({
   authorId,
   authorName,
   companionId,
+  initialTab = 'VITALS',
 }: RecordPanelProps) => {
-  const [tab, setTab] = useState<RecordTab>('VITALS');
+  const [tab, setTab] = useState<RecordTab>(initialTab);
   const encounter = useAppointmentWorkspaceStore((s) => s.encountersById[appointmentId]);
 
   if (!encounter) return null;

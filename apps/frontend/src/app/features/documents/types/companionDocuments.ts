@@ -1,18 +1,23 @@
 import { Option } from '@/app/features/companions/types/companion';
 import { makeOptions } from '@/app/lib/options';
 
+/**
+ * The `value` of every option below goes on the wire unchanged --
+ * companionDocumentService posts `document.subcategory` straight to the API --
+ * so each one has to be a value the server's document taxonomy accepts.
+ */
 export const CategoryOptions: Option[] = makeOptions([
   ['Health', 'HEALTH'],
   ['Hygiene maintenance', 'HYGIENE_MAINTENANCE'],
 ]);
 
 export const HealthCategoryOptions: Option[] = makeOptions([
-  ['Surgery/ Procedure', 'SURGERY_PROCEDURE'],
+  ['Surgery/ Procedure', 'SURGERY_OR_PROCEDURE'],
   ['Prescription', 'PRESCRIPTION'],
   ['Vaccination', 'VACCINATION'],
   ['Discharge summary', 'DISCHARGE_SUMMARY'],
   ['Lab test', 'LAB_TEST'],
-  ['Imaging/ Diagnostic', 'IMAGING_DIAGNOSTIC'],
+  ['Imaging/ Diagnostic', 'IMAGING_OR_DIAGNOSTIC'],
   ['Parasite prevention', 'PARASITE_PREVENTION'],
   ['Medical condition', 'MEDICAL_CONDITION'],
   ['Other', 'OTHER'],
@@ -49,12 +54,12 @@ export type VisitType = 'HOSPITAL' | 'GROOMER' | 'BOARDER' | 'BREEDER' | 'SHOP' 
 export type Category = 'HEALTH' | 'HYGIENE_MAINTENANCE';
 
 export type HealthSubcategory =
-  | 'SURGERY_PROCEDURE'
+  | 'SURGERY_OR_PROCEDURE'
   | 'PRESCRIPTION'
   | 'VACCINATION'
   | 'DISCHARGE_SUMMARY'
   | 'LAB_TEST'
-  | 'IMAGING_DIAGNOSTIC'
+  | 'IMAGING_OR_DIAGNOSTIC'
   | 'PARASITE_PREVENTION'
   | 'MEDICAL_CONDITION'
   | 'OTHER';
@@ -148,7 +153,7 @@ export type CompanionRecord = {
 export const emptyCompanionRecord: CompanionRecord = {
   title: '',
   category: 'HEALTH',
-  subcategory: 'SURGERY_PROCEDURE',
+  subcategory: 'SURGERY_OR_PROCEDURE',
   attachments: [],
   appointmentId: undefined,
   visitType: 'HOSPITAL',

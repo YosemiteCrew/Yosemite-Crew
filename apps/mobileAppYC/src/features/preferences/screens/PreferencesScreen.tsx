@@ -226,13 +226,13 @@ const createStyles = (theme: Theme) =>
     },
     caption: {
       ...theme.typography.body12,
-      color: theme.colors.inkFaint2,
+      color: theme.colors.inkMuted,
       marginTop: theme.spacing['2'],
       marginLeft: theme.spacing['1'],
     },
     footnote: {
       ...theme.typography.body12,
-      color: theme.colors.inkFaint2,
+      color: theme.colors.inkMuted,
       textAlign: 'center',
       paddingHorizontal: theme.spacing['5'],
       paddingTop: theme.spacing['4'],

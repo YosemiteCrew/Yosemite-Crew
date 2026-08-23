@@ -17,6 +17,7 @@ import {LiquidGlassView, isLiquidGlassSupported} from '@callstack/liquid-glass';
 import {useTheme} from '@/hooks';
 import {UI_FEATURE_FLAGS} from '@/config/variables';
 
+import {colors} from '@/theme';
 // Crystal clear glass defaults - minimal tint for maximum clarity
 const IOS_LIGHT_GLASS_TINT = 'rgba(255, 255, 255, 0.5)';
 const IOS_DARK_GLASS_TINT = 'rgba(28, 28, 30, 0.55)';
@@ -169,15 +170,21 @@ const buildFallbackSurfaceStyle = ({
   shadowIntensity: GlassButtonProps['shadowIntensity'];
   themeShadows: any;
 }): ViewStyle => {
-  // For white-ish buttons, use pure white (not translucent)
+  // A light tint means "paint this opaque", not "paint this white". The old
+  // branch snapped any tint above 0.9 luminance to pure #FFFFFF, which threw
+  // the caller's colour away. The espresso theme's `cta` is #F2ECE1 - a warm
+  // cream measuring 0.928 - so every primary button in dark mode rendered as
+  // harsh pure white instead of the design system's cream. Light mode was
+  // unaffected because its `cta` is #302F2E, far below the threshold.
+  //
+  // isWhiteOrLightColor still decides the LABEL colour further down, where
+  // "is this background light enough to need dark text" is the right question.
   let backgroundColor: string;
-  if (isWhiteOrLightColor(tintColor)) {
-    backgroundColor = '#FFFFFF';
-  } else if (tintColor) {
+  if (tintColor) {
     backgroundColor = tintColor;
   } else {
     /* istanbul ignore next -- resolvedTintColor is always defined; else is unreachable */
-    backgroundColor = isDark ? 'rgba(255, 255, 255, 0.1)' : '#FFFFFF';
+    backgroundColor = isDark ? 'rgba(255, 255, 255, 0.1)' : colors.white;
   }
 
   // Warm-bone buttons are flat: no border unless the caller explicitly asks
@@ -353,7 +360,7 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
   glassEffect = 'regular',
   interactive = true,
   tintColor,
-  colorScheme = 'light',
+  colorScheme = 'system',
   width,
   height,
   minWidth,
@@ -379,11 +386,14 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
     isLiquidGlassSupported &&
     !LOCK_IOS_GLASS_APPEARANCE;
   const resolvedColorScheme = React.useMemo(() => {
+    // See LiquidGlassIconButton: resolving 'system' to 'light' hands dark mode
+    // the white glass tint. Only untinted buttons hit this path, but they hit
+    // it on every dark screen.
     if (colorScheme === 'system') {
-      return 'light';
+      return isDark ? 'dark' : 'light';
     }
     return colorScheme;
-  }, [colorScheme]);
+  }, [colorScheme, isDark]);
   const resolvedTintColor = React.useMemo(() => {
     if (tintColor) {
       return tintColor;

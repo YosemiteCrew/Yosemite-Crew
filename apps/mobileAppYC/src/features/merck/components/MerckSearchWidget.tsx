@@ -25,6 +25,7 @@ import {
 } from '@/features/merck/services/merckService';
 import type {MerckEntry, MerckLanguage} from '@/features/merck/types';
 
+import {colors as palette} from '@/theme';
 type MerckSearchWidgetProps = {
   organisationId?: string | null;
   title?: string;
@@ -51,8 +52,8 @@ type MerckPillColors = {
 
 const MERCK_PILL_COLORS = {
   fullSummary: {
-    backgroundColor: '#247AED',
-    borderColor: '#247AED',
+    backgroundColor: palette.blue,
+    borderColor: palette.blue,
     color: '#EAF3FF',
   },
   etiology: {
@@ -1185,7 +1186,7 @@ const createStyles = (theme: any) =>
     },
     errorText: {
       ...theme.typography.body12,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
       marginTop: theme.spacing['1'],
     },
     emptyText: {
@@ -1417,7 +1418,7 @@ const createStyles = (theme: any) =>
       alignItems: 'center',
       justifyContent: 'center',
       gap: theme.spacing['2'],
-      backgroundColor: 'rgba(255, 255, 255, 0.96)',
+      backgroundColor: theme.colors.cardOverlay,
     },
     readerLoaderGif: {
       width: 88,

@@ -41,6 +41,7 @@ import {
 } from '@/features/expenses/utils/status';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {useResolvedUserCurrency} from '@/shared/hooks/useResolvedUserCurrency';
 
 type Navigation = NativeStackNavigationProp<
   ExpenseStackParamList,
@@ -59,9 +60,8 @@ export const ExpensesMainScreen: React.FC = () => {
   const selectedCompanionId = useSelector(
     (state: RootState) => state.companion.selectedCompanionId,
   );
-  const userCurrencyCode = useSelector(
-    (state: RootState) => state.auth.user?.currency ?? 'USD',
-  );
+  const resolvedCurrency = useResolvedUserCurrency();
+  const userCurrencyCode = resolvedCurrency;
 
   const hasHydrated = useSelector(
     selectHasHydratedCompanion(selectedCompanionId ?? null),
@@ -331,7 +331,7 @@ const createStyles = (theme: any) =>
     },
     sectionTitle: {
       ...theme.typography.eyebrow,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     cardsContainer: {
       gap: theme.spacing['3'],

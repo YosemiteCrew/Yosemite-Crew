@@ -5,7 +5,7 @@ import { NetworkChatService } from "src/services/networkChat.service";
 import logger from "src/utils/logger";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { prisma } from "src/config/prisma";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import { resolveVerifiedUserId } from "src/utils/request";
 import { SharedChatEntityService } from "src/services/sharedChatEntity.service";
 import { z } from "zod";
 
@@ -67,7 +67,7 @@ const shareEntitySchema = z.object({
 export const ChatController = {
   async generateToken(req: Request, res: Response) {
     try {
-      const providerUserId = resolveUserIdFromRequest(req);
+      const providerUserId = resolveVerifiedUserId(req);
       if (!providerUserId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -92,7 +92,7 @@ export const ChatController = {
 
   generateTokenForPMS(req: Request, res: Response) {
     try {
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -106,7 +106,7 @@ export const ChatController = {
 
   async shareEntityToChannel(req: Request, res: Response) {
     try {
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -134,7 +134,7 @@ export const ChatController = {
 
   async listSharedEntities(req: Request, res: Response) {
     try {
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -162,7 +162,7 @@ export const ChatController = {
 
   async revokeSharedEntity(req: Request, res: Response) {
     try {
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -206,7 +206,7 @@ export const ChatController = {
 
   async createOrgDirectChat(req: Request, res: Response) {
     try {
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       const body = getObjectBody(req);
       const organisationId =
         typeof body.organisationId === "string"
@@ -237,7 +237,7 @@ export const ChatController = {
 
   async searchNetworkColleagues(req: Request, res: Response) {
     try {
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -273,7 +273,7 @@ export const ChatController = {
 
   async createNetworkDirectChat(req: Request, res: Response) {
     try {
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       const body = getObjectBody(req);
       const organisationId =
         typeof body.organisationId === "string"
@@ -309,7 +309,7 @@ export const ChatController = {
 
   async createOrgGroupChat(req: Request, res: Response) {
     try {
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       const body = getObjectBody(req);
       const organisationId =
         typeof body.organisationId === "string"
@@ -344,7 +344,7 @@ export const ChatController = {
 
   async openChat(req: Request, res: Response) {
     try {
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       const { sessionId } = req.params;
 
       if (!userId || !sessionId) {
@@ -365,7 +365,7 @@ export const ChatController = {
 
   async listMySessions(req: Request, res: Response) {
     try {
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -401,7 +401,7 @@ export const ChatController = {
 
   async closeSession(req: Request, res: Response) {
     try {
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       const { sessionId } = req.params;
       if (!userId || !sessionId) {
         return res.status(400).json({ message: "sessionId required" });
@@ -420,7 +420,7 @@ export const ChatController = {
 
   async addGroupMembers(req: Request, res: Response) {
     try {
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       const { sessionId } = req.params;
       const body = getObjectBody(req);
       const memberIds = getStringArray(body.memberIds);
@@ -447,7 +447,7 @@ export const ChatController = {
 
   async removeGroupMembers(req: Request, res: Response) {
     try {
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       const { sessionId } = req.params;
       const body = getObjectBody(req);
       const memberIds = getStringArray(body.memberIds);
@@ -474,7 +474,7 @@ export const ChatController = {
 
   async updateGroup(req: Request, res: Response) {
     try {
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       const { sessionId } = req.params;
       if (!userId || !sessionId) {
         return res.status(400).json({ message: "Invalid request" });
@@ -501,7 +501,7 @@ export const ChatController = {
 
   async deleteGroup(req: Request, res: Response) {
     try {
-      const userId = resolveUserIdFromRequest(req);
+      const userId = resolveVerifiedUserId(req);
       const { sessionId } = req.params;
 
       await ChatService.deleteGroup(sessionId, userId!);

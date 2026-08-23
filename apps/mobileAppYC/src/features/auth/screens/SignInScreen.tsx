@@ -28,11 +28,18 @@ import {isValidEmail} from '@/shared/constants/constants';
 import type {Theme} from '@/theme';
 
 // The Facebook and Apple marks ship as white glyphs, which measured ~1.06:1
-// on the cream button. Both brands permit a solid mark on a light ground:
-// Apple in black, Facebook in its brand blue. Google's is multicolour and must
+// on the cream button, so both are tinted. Google's is multicolour and must
 // never be tinted.
+//
+// Facebook's brand blue clears the 3:1 bar on BOTH grounds (3.83:1 cream,
+// 3.47:1 espresso) so it is fixed. Apple's cannot be: black measures 18.99:1
+// on cream but 1.43:1 on espresso, well under the 3:1 bar for a meaningful
+// graphic - the mark was effectively invisible in dark mode. Apple's own Sign
+// in with Apple guidelines call for the black mark on light backgrounds and
+// the white one on dark, which is what this does.
 const FACEBOOK_BRAND_BLUE = '#1877F2';
-const APPLE_MARK_BLACK = '#000000';
+const APPLE_MARK_ON_LIGHT = '#000000';
+const APPLE_MARK_ON_DARK = '#FFFFFF';
 
 const socialIconStyles = StyleSheet.create({
   icon: {
@@ -44,11 +51,8 @@ const socialIconStyles = StyleSheet.create({
     height: 22,
     tintColor: FACEBOOK_BRAND_BLUE,
   },
-  appleIcon: {
-    width: 22,
-    height: 22,
-    tintColor: APPLE_MARK_BLACK,
-  },
+  appleIconLight: {width: 22, height: 22, tintColor: APPLE_MARK_ON_LIGHT},
+  appleIconDark: {width: 22, height: 22, tintColor: APPLE_MARK_ON_DARK},
 });
 
 const GoogleIcon = () => (
@@ -67,10 +71,12 @@ const FacebookIcon = () => (
   />
 );
 
-const AppleIcon = () => (
+const AppleIcon = ({isDark}: {isDark: boolean}) => (
   <Image
     source={Images.appleIcon}
-    style={socialIconStyles.appleIcon}
+    style={
+      isDark ? socialIconStyles.appleIconDark : socialIconStyles.appleIconLight
+    }
     resizeMode="contain"
   />
 );
@@ -215,6 +221,7 @@ const useOTPHandler = (
 
 const SocialAuthSection: React.FC<{
   theme: Theme;
+  isDark: boolean;
   styles: any;
   isSocialLoading: boolean;
   activeProvider: SocialProvider | null;
@@ -223,8 +230,10 @@ const SocialAuthSection: React.FC<{
   onFacebookPress: () => void;
   onApplePress: () => void;
   onCreateAccountPress: () => void;
+  isSignUpIntent: boolean;
 }> = ({
   theme,
+  isDark,
   styles,
   isSocialLoading,
   activeProvider,
@@ -233,6 +242,7 @@ const SocialAuthSection: React.FC<{
   onFacebookPress,
   onApplePress,
   onCreateAccountPress,
+  isSignUpIntent,
 }) => (
   <View style={styles.bottomSection}>
     <View style={styles.divider}>
@@ -275,7 +285,7 @@ const SocialAuthSection: React.FC<{
         {activeProvider === 'apple' ? (
           <ActivityIndicator size="small" color={theme.colors.inkMuted} />
         ) : (
-          <AppleIcon />
+          <AppleIcon isDark={isDark} />
         )}
       </PressableOpacity>
     </View>
@@ -284,12 +294,16 @@ const SocialAuthSection: React.FC<{
     ) : null}
 
     <View style={styles.footerContainer}>
-      <Text style={styles.footerText}>New here? </Text>
+      <Text style={styles.footerText}>
+        {isSignUpIntent ? 'Already have an account? ' : 'New here? '}
+      </Text>
       <PressableOpacity
         onPress={onCreateAccountPress}
         accessibilityRole="button"
-        accessibilityLabel="Create an account">
-        <Text style={styles.signUpLink}>Create an account</Text>
+        accessibilityLabel={isSignUpIntent ? 'Sign in' : 'Create an account'}>
+        <Text style={styles.signUpLink}>
+          {isSignUpIntent ? 'Sign in' : 'Create an account'}
+        </Text>
       </PressableOpacity>
     </View>
   </View>
@@ -299,7 +313,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
   navigation,
   route,
 }) => {
-  const {theme} = useTheme();
+  const {theme, isDark} = useTheme();
   const styles = createStyles(theme);
   const {login} = useAuth();
   const allowReviewLogin = AUTH_FEATURE_FLAGS.enableReviewLogin === true;
@@ -310,6 +324,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [socialError, setSocialError] = useState('');
   const isKeyboardVisible = useKeyboardVisibility();
+  const isSignUpIntent = route.params?.intent === 'signUp';
 
   const clearAllErrors = React.useCallback(() => {
     setEmailError('');
@@ -363,9 +378,15 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
     [handleSocialAuth],
   );
 
-  const navigateToSignUp = React.useCallback(() => {
+  const toggleAuthIntent = React.useCallback(() => {
+    // The form is the same either way, so flip the copy in place instead of
+    // pushing another screen the user would have to back out of.
+    if (isSignUpIntent) {
+      navigation.setParams({intent: 'signIn'});
+      return;
+    }
     navigation.navigate('SignUp');
-  }, [navigation]);
+  }, [isSignUpIntent, navigation]);
 
   const handleGoBack = React.useCallback(() => {
     navigation.goBack();
@@ -423,9 +444,13 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
           ]}>
           <View style={styles.content}>
             <View style={styles.titleBlock}>
-              <Text style={styles.title}>Welcome back</Text>
+              <Text style={styles.title}>
+                {isSignUpIntent ? 'Create your account' : 'Welcome back'}
+              </Text>
               <Text style={styles.subtitle}>
-                We'll email you a login code. No password to remember.
+                {isSignUpIntent
+                  ? "We'll email you a code to get started. No password to remember."
+                  : "We'll email you a login code. No password to remember."}
               </Text>
             </View>
 
@@ -464,6 +489,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
         {!isKeyboardVisible && (
           <SocialAuthSection
             theme={theme}
+            isDark={isDark}
             styles={styles}
             isSocialLoading={isSocialLoading}
             activeProvider={activeProvider}
@@ -471,7 +497,8 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
             onGooglePress={handleGoogleSignIn}
             onFacebookPress={handleFacebookSignIn}
             onApplePress={handleAppleSignIn}
-            onCreateAccountPress={navigateToSignUp}
+            onCreateAccountPress={toggleAuthIntent}
+            isSignUpIntent={isSignUpIntent}
           />
         )}
       </KeyboardAvoidingView>
@@ -582,7 +609,7 @@ const createStyles = (theme: Theme) =>
     dividerText: {
       marginHorizontal: theme.spacing['4'],
       ...theme.typography.bodySmall,
-      color: theme.colors.inkFaint2,
+      color: theme.colors.inkMuted,
     },
     socialButtons: {
       flexDirection: 'row',
@@ -602,7 +629,7 @@ const createStyles = (theme: Theme) =>
     },
     socialErrorText: {
       ...theme.typography.bodySmall,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
       textAlign: 'center',
       marginTop: theme.spacing['4'],
     },

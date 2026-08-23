@@ -20,10 +20,15 @@ describe('floatingLabelStyles', () => {
       }),
     );
 
+    // A field's edge is the only thing marking where the control is, so it
+    // takes controlBorder (3:1) rather than the decorative hairline (1.28:1).
     expect(getInputContainerBaseStyle(mockTheme)).toEqual(
       expect.objectContaining({
-        borderColor: mockTheme.colors.hairline,
+        borderColor: mockTheme.colors.controlBorder,
       }),
+    );
+    expect(getInputContainerBaseStyle(mockTheme).borderColor).not.toBe(
+      mockTheme.colors.hairline,
     );
   });
 
@@ -39,7 +44,7 @@ describe('floatingLabelStyles', () => {
   it('returns the red error message style below the field', () => {
     expect(getInputErrorStyle(mockTheme)).toEqual({
       ...mockTheme.typography.labelXxsBold,
-      color: mockTheme.colors.error,
+      color: mockTheme.colors.dangerText,
       marginTop: mockTheme.spacing['1'],
       marginBottom: mockTheme.spacing['3'],
       marginLeft: mockTheme.spacing['1'],

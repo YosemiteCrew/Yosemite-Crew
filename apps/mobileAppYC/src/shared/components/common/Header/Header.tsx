@@ -6,11 +6,19 @@ import {Images} from '@/assets/images';
 import {LiquidGlassIconButton} from '@/shared/components/common/LiquidGlassIconButton/LiquidGlassIconButton';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 
+import {colors} from '@/theme';
 interface HeaderProps {
   title?: string;
   showBackButton?: boolean;
   onBack?: () => void;
   rightIcon?: any;
+  /**
+   * Tint for the right icon. Defaults to `theme.colors.text`, matching how the
+   * back chevron is already tinted. Pass an explicit colour for an icon that
+   * carries meaning in its own hue - the red delete glyphs - so it follows the
+   * theme rather than staying a baked light-mode red.
+   */
+  rightIconTint?: string;
   onRightPress?: () => void;
   rightAccessibilityLabel?: string;
   style?: object;
@@ -27,6 +35,7 @@ export const Header: React.FC<HeaderProps> = ({
   showBackButton = false,
   onBack,
   rightIcon,
+  rightIconTint,
   onRightPress,
   rightAccessibilityLabel = 'More options',
   style,
@@ -73,7 +82,16 @@ export const Header: React.FC<HeaderProps> = ({
             size={iconButtonSize}
             style={styles.iconButton}
             accessibilityLabel={rightAccessibilityLabel}>
-            <Image source={rightIcon} style={styles.icon} />
+            {/* The back chevron has always been tinted; the right icon was
+                not, so addIconDark - a dark glyph - rendered at 1.27:1 on the
+                dark header and the add action was invisible. */}
+            <Image
+              source={rightIcon}
+              style={[
+                styles.icon,
+                {tintColor: rightIconTint ?? theme.colors.text},
+              ]}
+            />
           </LiquidGlassIconButton>
         </View>
       ) : (
@@ -130,7 +148,7 @@ const createStyles = (theme: any) => {
       borderTopRightRadius: 0,
       borderBottomLeftRadius: theme.borderRadius['2xl'],
       borderBottomRightRadius: theme.borderRadius['2xl'],
-      boxShadow: `0px 12px 18px ${theme.colors.neutralShadow ?? '#000000'}`,
+      boxShadow: `0px 12px 18px ${theme.colors.neutralShadow ?? colors.black}`,
       backgroundColor: 'transparent',
     },
     glassFallback: {

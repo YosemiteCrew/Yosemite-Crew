@@ -603,8 +603,20 @@ const mergeVitalRecordMetadata = (
   return baseMetadata;
 };
 
+/**
+ * The display name for a vital record's `recordedBy`.
+ *
+ * `recordedBy` can be derived from an untrusted `Observation.performer.reference`
+ * on the FHIR create/update path, so resolving it to a name with a bare user
+ * lookup turned this into a directory: name a practitioner id from another
+ * tenant and read their first and last name back as `performer.display`. The
+ * lookup is therefore restricted to people who actually hold an active
+ * membership in the artifact's own organisation, and an id that does not
+ * resolve simply produces no display name.
+ */
 const resolveVitalRecordRecordedByDisplay = async (
   record: Pick<VitalRecordModel, "recordedBy" | "metadata">,
+  organisationId?: string | null,
 ): Promise<string | null> => {
   const metadataDisplay = readRecordedByDisplay(record.metadata);
   if (metadataDisplay) {
@@ -615,6 +627,26 @@ const resolveVitalRecordRecordedByDisplay = async (
     record.recordedBy,
   );
   if (!normalizedRecordedBy) {
+    return null;
+  }
+
+  const org = organisationId?.trim();
+  if (!org) {
+    return null;
+  }
+
+  const membership = await prisma.userOrganization.findFirst({
+    where: {
+      practitionerReference: normalizedRecordedBy,
+      active: true,
+      OR: [
+        { organizationReference: org },
+        { organizationReference: `Organization/${org}` },
+      ],
+    },
+    select: { id: true },
+  });
+  if (!membership) {
     return null;
   }
 
@@ -642,10 +674,160 @@ const resolveVitalRecordRecordedByDisplay = async (
   return display.length > 0 ? display : null;
 };
 
+/**
+ * Resolve recorded-by display names for a WHOLE list in two queries.
+ *
+ * The single-record resolver runs a membership query and a user query each
+ * time, which is two round trips per row on a list endpoint. This batches both
+ * and returns a lookup, so the cost stops scaling with the number of records.
+ */
+type RecordedByLookupSource = Pick<
+  VitalRecordModel,
+  "recordedBy" | "metadata"
+> & { artifact: { organisationId: string | null } };
+
+/** The organisation-scoped key a display name is stored under. */
+const recordedByKey = (org: string, reference: string) => `${org}|${reference}`;
+
+/** Which practitioner references need looking up, grouped by organisation. */
+const collectRecordedByReferences = (
+  records: ReadonlyArray<RecordedByLookupSource>,
+): Map<string, Set<string>> => {
+  const byOrg = new Map<string, Set<string>>();
+  for (const record of records) {
+    if (readRecordedByDisplay(record.metadata)) continue;
+    const recordedBy = normalizePractitionerReference(record.recordedBy);
+    const org = record.artifact.organisationId?.trim();
+    if (!recordedBy || !org) continue;
+    const bucket = byOrg.get(org) ?? new Set<string>();
+    bucket.add(recordedBy);
+    byOrg.set(org, bucket);
+  }
+  return byOrg;
+};
+
+/** The (organisation, practitioner) pairs that are actually active members. */
+const loadActiveMemberKeys = async (
+  byOrg: Map<string, Set<string>>,
+): Promise<Set<string>> => {
+  const memberships = await prisma.userOrganization.findMany({
+    where: {
+      active: true,
+      OR: [...byOrg].flatMap(([org, references]) => [
+        {
+          organizationReference: org,
+          practitionerReference: { in: [...references] },
+        },
+        {
+          organizationReference: `Organization/${org}`,
+          practitionerReference: { in: [...references] },
+        },
+      ]),
+    },
+    select: { organizationReference: true, practitionerReference: true },
+  });
+
+  const keys = new Set<string>();
+  for (const membership of memberships ?? []) {
+    if (!membership.practitionerReference) continue;
+    const org = membership.organizationReference.replace(/^Organization\//, "");
+    keys.add(recordedByKey(org, membership.practitionerReference));
+  }
+  return keys;
+};
+
+const buildUserDisplayName = (user: {
+  firstName: string | null;
+  lastName: string | null;
+}): string =>
+  [user.firstName, user.lastName]
+    .filter(
+      (part): part is string => typeof part === "string" && part.length > 0,
+    )
+    .join(" ")
+    .trim();
+
+/**
+ * Resolve recorded-by display names for a WHOLE list in two queries.
+ *
+ * The single-record resolver runs a membership query and a user query each
+ * time, which is two round trips per row on a list endpoint. This batches both
+ * and returns a lookup, so the cost stops scaling with the number of records.
+ */
+const resolveRecordedByDisplayMap = async (
+  records: ReadonlyArray<RecordedByLookupSource>,
+): Promise<Map<string, string>> => {
+  const display = new Map<string, string>();
+
+  const byOrg = collectRecordedByReferences(records);
+  if (byOrg.size === 0) return display;
+
+  const memberKeys = await loadActiveMemberKeys(byOrg);
+  const references = [
+    ...new Set([...memberKeys].map((key) => key.split("|")[1])),
+  ];
+  if (references.length === 0) return display;
+
+  const users = await prisma.user.findMany({
+    where: { userId: { in: references } },
+    select: { userId: true, firstName: true, lastName: true },
+  });
+
+  const nameByReference = new Map<string, string>();
+  for (const user of users ?? []) {
+    const name = buildUserDisplayName(user);
+    if (name) nameByReference.set(user.userId, name);
+  }
+
+  for (const key of memberKeys) {
+    const name = nameByReference.get(key.split("|")[1]);
+    if (name) display.set(key, name);
+  }
+
+  return display;
+};
+
+/**
+ * Hydrate a whole list, resolving every recorded-by display name in two queries
+ * rather than two per record.
+ */
+const hydrateVitalRecords = async (
+  records: VitalRecordWithArtifact[],
+): Promise<VitalRecordRecord[]> => {
+  const display = await resolveRecordedByDisplayMap(records);
+
+  return records.map((record) => {
+    const metadataDisplay = readRecordedByDisplay(record.metadata);
+    const recordedBy = normalizePractitionerReference(record.recordedBy);
+    const org = record.artifact.organisationId?.trim();
+    const recordedByDisplay =
+      metadataDisplay ??
+      (recordedBy && org
+        ? (display.get(recordedByKey(org, recordedBy)) ?? null)
+        : null);
+
+    return buildVitalRecordRecord(record.artifact, {
+      id: record.id,
+      artifactId: record.artifactId,
+      measuredAt: record.measuredAt,
+      recordedBy: record.recordedBy,
+      recordedByDisplay,
+      vitals: record.vitals,
+      notes: record.notes,
+      metadata: record.metadata,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
+    });
+  });
+};
+
 const hydrateVitalRecord = async (
   record: VitalRecordWithArtifact,
 ): Promise<VitalRecordRecord> => {
-  const recordedByDisplay = await resolveVitalRecordRecordedByDisplay(record);
+  const recordedByDisplay = await resolveVitalRecordRecordedByDisplay(
+    record,
+    record.artifact.organisationId,
+  );
 
   return buildVitalRecordRecord(record.artifact, {
     id: record.id,
@@ -979,16 +1161,31 @@ const collectPrescriptionInventoryItemIds = (
   }
 };
 
+/**
+ * Medication fields for the inventory items a prescription references.
+ *
+ * `inventoryItemId` reaches the medication JSON from a client-controlled FHIR
+ * extension and is stored without proving the item belongs to the prescribing
+ * organisation, so this lookup has to carry the tenant itself. Without it,
+ * naming another practice's item id in an otherwise local prescription and then
+ * listing prescriptions returned that item's name, generic name, strength,
+ * dosage form and controlled-substance flag. An id from another tenant simply
+ * does not hydrate.
+ */
 const loadInventoryMedicationFieldsById = async (
   inventoryItemIds: Set<string>,
+  organisationIds: Set<string>,
 ): Promise<Map<string, InventoryMedicationFields>> => {
   const inventoryById = new Map<string, InventoryMedicationFields>();
-  if (inventoryItemIds.size === 0) {
+  if (inventoryItemIds.size === 0 || organisationIds.size === 0) {
     return inventoryById;
   }
 
   const items = await prisma.inventoryItem.findMany({
-    where: { id: { in: [...inventoryItemIds] } },
+    where: {
+      id: { in: [...inventoryItemIds] },
+      organisationId: { in: [...organisationIds] },
+    },
     select: {
       id: true,
       name: true,
@@ -1009,19 +1206,36 @@ const hydratePrescriptionRecords = async (
   records: PrescriptionWithArtifact[],
 ): Promise<PrescriptionRecord[]> => {
   const inventoryItemIds = new Set<string>();
+  const organisationIds = new Set<string>();
   for (const record of records) {
     collectPrescriptionInventoryItemIds(record, inventoryItemIds);
+    if (record.artifact.organisationId) {
+      organisationIds.add(record.artifact.organisationId);
+    }
   }
 
-  const inventoryById =
-    await loadInventoryMedicationFieldsById(inventoryItemIds);
-
-  return records.map((record) =>
-    toPrescriptionRecord({
-      ...record,
-      medications: hydrateMedications(record.medications, inventoryById),
-    }),
+  const inventoryById = await loadInventoryMedicationFieldsById(
+    inventoryItemIds,
+    organisationIds,
   );
+
+  // Hydrate AFTER the record is built. The builder derives `medications` from
+  // the item rows whenever a prescription has them, so hydrating the raw
+  // `record.medications` first would be discarded for every row-backed
+  // prescription -- exactly the records the item rows were introduced for.
+  return records.map((record) => {
+    const built = toPrescriptionRecord(record);
+    return {
+      ...built,
+      prescription: {
+        ...built.prescription,
+        medications: hydrateMedications(
+          built.prescription.medications,
+          inventoryById,
+        ),
+      },
+    };
+  });
 };
 
 const buildDischargeSummaryRecord = (
@@ -1231,11 +1445,29 @@ const FINAL_CLINICAL_ARTIFACT_STATUSES = new Set<ClinicalArtifactStatus>([
 const isFinalClinicalArtifactStatus = (status: ClinicalArtifactStatus) =>
   FINAL_CLINICAL_ARTIFACT_STATUSES.has(status);
 
+/**
+ * Move the artifact's own appointment from CHECKED_IN to IN_PROGRESS.
+ *
+ * The appointment id arrives in the artifact payload, and these routes are
+ * authorised on clinical-artifact permissions (`forms:edit:any`,
+ * `prescription:edit:any`) rather than `appointments:edit:*`. Scoping the update
+ * to the organisation alone therefore let a caller create a throwaway artifact
+ * naming any colleague's checked-in appointment and force it into IN_PROGRESS.
+ *
+ * `encounterId` is the binding that makes this the artifact's OWN appointment.
+ * When the artifact carries no encounter there is nothing tying it to a
+ * particular visit, so the status is left alone rather than advanced on the
+ * strength of a body-supplied id.
+ */
 const advanceCheckedInAppointment = async (
   txPrisma: ClinicalPrisma,
-  input: { organisationId: string; appointmentId?: string },
+  input: {
+    organisationId: string;
+    appointmentId?: string;
+    encounterId?: string;
+  },
 ) => {
-  if (!input.appointmentId) {
+  if (!input.appointmentId || !input.encounterId) {
     return;
   }
 
@@ -1243,6 +1475,7 @@ const advanceCheckedInAppointment = async (
     where: {
       id: input.appointmentId,
       organisationId: input.organisationId,
+      encounterId: input.encounterId,
       status: "CHECKED_IN",
     },
     data: {
@@ -1301,13 +1534,26 @@ const createRenderedDocumentForArtifactInTx = async (
   );
 };
 
+/**
+ * A COMPLETED or SIGNED artifact may only leave that state through a deliberate
+ * lifecycle operation - `$reopen` sends IN_PROGRESS, `$cancel` sends VOID.
+ *
+ * DRAFT is included on purpose. The FHIR status mapper defaults an omitted or
+ * unrecognised `Composition.status` to DRAFT, so a plain PATCH that names no
+ * status arrives here as DRAFT rather than undefined - which let one request
+ * both edit a finalised clinical record AND silently reopen it. Nothing
+ * legitimately moves final -> DRAFT; `updatePrescription` already spelled this
+ * out and the other three artifact kinds share this guard.
+ */
 const assertArtifactEditable = (
   artifact: { status: ClinicalArtifactStatus },
   nextStatus: ClinicalArtifactStatus | undefined,
 ) => {
   if (
     isFinalClinicalArtifactStatus(artifact.status) &&
-    (nextStatus === undefined || isFinalClinicalArtifactStatus(nextStatus))
+    (nextStatus === undefined ||
+      isFinalClinicalArtifactStatus(nextStatus) ||
+      nextStatus === "DRAFT")
   ) {
     throw new ClinicalArtifactServiceError(
       "Artifact is final. Reopen or amend it before editing.",
@@ -1336,6 +1582,42 @@ const updateArtifactStatusAndSummaryInTx = (
     },
   });
 
+/**
+ * Refuse when ANY treatment item for this prescription has been billed.
+ *
+ * The previous form loaded ONE row with `findFirst` and inspected that, while
+ * the delete below removes EVERY row sharing the prescription id - and package
+ * expansion routinely creates several. If the single row it happened to load was
+ * unbilled, the guard passed and billed, invoice-linked rows were deleted with
+ * the rest. Asking directly for a billed row is both correct and cheaper.
+ *
+ * Takes the transaction client so callers can run it inside their transaction,
+ * closing the window where a concurrent billing update lands between the check
+ * and the delete.
+ */
+const assertNoBilledTreatmentItems = async (
+  db: ClinicalPrisma,
+  organisationId: string,
+  prescriptionId: string,
+  message = "Prescription has already been billed.",
+): Promise<void> => {
+  const billedItem = await db.workspaceTreatmentItem.findFirst({
+    where: {
+      organisationId,
+      prescriptionId,
+      OR: [
+        { billingStatus: { not: "UNBILLED" } },
+        { invoiceRowId: { not: null } },
+      ],
+    },
+    select: { id: true },
+  });
+
+  if (billedItem) {
+    throw new ClinicalArtifactServiceError(message, 409);
+  }
+};
+
 export const ClinicalArtifactService = {
   async createSoapNote(input: SoapNoteInput): Promise<SoapNoteRecord> {
     const organisationId = ensureId(input.organisationId, "organisationId");
@@ -1363,6 +1645,7 @@ export const ClinicalArtifactService = {
       await advanceCheckedInAppointment(txPrisma, {
         organisationId,
         appointmentId: input.appointmentId,
+        encounterId: input.encounterId,
       });
 
       await createRenderedDocumentForArtifactInTx(createdArtifact, tx);
@@ -1526,6 +1809,7 @@ export const ClinicalArtifactService = {
       await advanceCheckedInAppointment(txPrisma, {
         organisationId,
         appointmentId: input.appointmentId,
+        encounterId: input.encounterId,
       });
 
       await createRenderedDocumentForArtifactInTx(createdArtifact, tx);
@@ -1686,33 +1970,17 @@ export const ClinicalArtifactService = {
       );
     }
 
-    const treatmentItem = await clinicalPrisma.workspaceTreatmentItem.findFirst(
-      {
-        where: {
-          organisationId: record.artifact.organisationId,
-          prescriptionId: record.id,
-        },
-        select: {
-          id: true,
-          billingStatus: true,
-          invoiceRowId: true,
-        },
-      },
-    );
-
-    if (
-      treatmentItem &&
-      (treatmentItem.billingStatus !== "UNBILLED" ||
-        treatmentItem.invoiceRowId != null)
-    ) {
-      throw new ClinicalArtifactServiceError(
-        "Prescription has already been billed.",
-        409,
-      );
-    }
-
     await prisma.$transaction(async (tx) => {
       const txPrisma = tx as ClinicalPrisma;
+      // Inside the transaction: checking outside it left a window where a
+      // concurrent billing update could land between the guard and the delete,
+      // and the billed row would be removed anyway.
+      await assertNoBilledTreatmentItems(
+        txPrisma,
+        record.artifact.organisationId,
+        record.id,
+      );
+
       await txPrisma.workspaceTreatmentItem.deleteMany({
         where: {
           organisationId: record.artifact.organisationId,
@@ -1757,30 +2025,12 @@ export const ClinicalArtifactService = {
       );
     }
 
-    const treatmentItem = await clinicalPrisma.workspaceTreatmentItem.findFirst(
-      {
-        where: {
-          organisationId: record.artifact.organisationId,
-          prescriptionId: record.id,
-        },
-        select: {
-          id: true,
-          billingStatus: true,
-          invoiceRowId: true,
-        },
-      },
+    await assertNoBilledTreatmentItems(
+      clinicalPrisma,
+      record.artifact.organisationId,
+      record.id,
+      "Prescription has already been billed or paid.",
     );
-
-    if (
-      treatmentItem &&
-      (treatmentItem.billingStatus !== "UNBILLED" ||
-        treatmentItem.invoiceRowId != null)
-    ) {
-      throw new ClinicalArtifactServiceError(
-        "Prescription has already been billed or paid.",
-        409,
-      );
-    }
 
     const dispenseRequest =
       await clinicalPrisma.prescriptionDispenseRequest.findFirst({
@@ -1811,6 +2061,14 @@ export const ClinicalArtifactService = {
 
     const artifact = await prisma.$transaction(async (tx) => {
       const txPrisma = tx as ClinicalPrisma;
+      // Re-checked inside the transaction; see `deletePrescription`.
+      await assertNoBilledTreatmentItems(
+        txPrisma,
+        record.artifact.organisationId,
+        record.id,
+        "Prescription has already been billed or paid.",
+      );
+
       await txPrisma.workspaceTreatmentItem.deleteMany({
         where: {
           organisationId: record.artifact.organisationId,
@@ -1910,6 +2168,7 @@ export const ClinicalArtifactService = {
       await advanceCheckedInAppointment(txPrisma, {
         organisationId,
         appointmentId: input.appointmentId,
+        encounterId: input.encounterId,
       });
 
       await createRenderedDocumentForArtifactInTx(createdArtifact, tx);
@@ -2082,6 +2341,7 @@ export const ClinicalArtifactService = {
       await advanceCheckedInAppointment(txPrisma, {
         organisationId,
         appointmentId: input.appointmentId,
+        encounterId: input.encounterId,
       });
 
       await createRenderedDocumentForArtifactInTx(createdArtifact, tx);
@@ -2208,7 +2468,7 @@ export const ClinicalArtifactService = {
       orderBy: { measuredAt: "desc" },
     });
 
-    return Promise.all(records.map(toVitalRecordRecord));
+    return hydrateVitalRecords(records);
   },
 
   async listVitalRecordsForAppointment(
@@ -2227,7 +2487,7 @@ export const ClinicalArtifactService = {
       orderBy: { measuredAt: "desc" },
     });
 
-    return Promise.all(records.map(toVitalRecordRecord));
+    return hydrateVitalRecords(records);
   },
 
   // Passport clinical-record kinds (immunization, rabies titration, parasite
@@ -2424,17 +2684,27 @@ export const ClinicalArtifactService = {
     );
   },
 
+  /**
+   * An amendment is a NEW draft authored by whoever is amending.
+   *
+   * The `*InputFromRecord` helpers copy the source artifact wholesale, including
+   * `authorId`, so without `amendedBy` the new draft went out in FHIR attributed
+   * to the original practitioner - a colleague's name on a record they did not
+   * write. `?? undefined` keeps the copied author only when no actor is known.
+   */
   async amendSoapNote(
     soapNoteId: string,
     organisationId?: string,
+    amendedBy?: string,
   ): Promise<SoapNoteRecord> {
     const note = await ClinicalArtifactService.getSoapNote(
       soapNoteId,
       organisationId,
     );
-    return ClinicalArtifactService.createSoapNote(
-      soapNoteInputFromRecord(note),
-    );
+    return ClinicalArtifactService.createSoapNote({
+      ...soapNoteInputFromRecord(note),
+      ...(amendedBy?.trim() ? { authorId: amendedBy.trim() } : {}),
+    });
   },
 
   async finalizePrescription(
@@ -2477,9 +2747,11 @@ export const ClinicalArtifactService = {
       prescriptionId,
       organisationId,
     );
-    return ClinicalArtifactService.createPrescription(
-      prescriptionInputFromRecord(record),
-    );
+    return ClinicalArtifactService.createPrescription({
+      ...prescriptionInputFromRecord(record),
+      // The amending clinician owns the new draft; see `amendSoapNote`.
+      ...(actor.actorId.trim() ? { authorId: actor.actorId.trim() } : {}),
+    });
   },
 
   async finalizeDischargeSummary(
@@ -2507,14 +2779,16 @@ export const ClinicalArtifactService = {
   async amendDischargeSummary(
     dischargeSummaryId: string,
     organisationId?: string,
+    amendedBy?: string,
   ): Promise<DischargeSummaryRecord> {
     const record = await ClinicalArtifactService.getDischargeSummary(
       dischargeSummaryId,
       organisationId,
     );
-    return ClinicalArtifactService.createDischargeSummary(
-      dischargeSummaryInputFromRecord(record),
-    );
+    return ClinicalArtifactService.createDischargeSummary({
+      ...dischargeSummaryInputFromRecord(record),
+      ...(amendedBy?.trim() ? { authorId: amendedBy.trim() } : {}),
+    });
   },
 
   async finalizeVitalRecord(
@@ -2542,13 +2816,15 @@ export const ClinicalArtifactService = {
   async amendVitalRecord(
     vitalRecordId: string,
     organisationId?: string,
+    amendedBy?: string,
   ): Promise<VitalRecordRecord> {
     const record = await ClinicalArtifactService.getVitalRecord(
       vitalRecordId,
       organisationId,
     );
-    return ClinicalArtifactService.createVitalRecord(
-      vitalRecordInputFromRecord(record),
-    );
+    return ClinicalArtifactService.createVitalRecord({
+      ...vitalRecordInputFromRecord(record),
+      ...(amendedBy?.trim() ? { authorId: amendedBy.trim() } : {}),
+    });
   },
 };

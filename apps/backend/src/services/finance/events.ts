@@ -13,12 +13,24 @@ export type FinanceEventInput = {
 
 // Resolve a staff member's display name from their app user id so events can
 // record WHO performed an action (e.g. marked an encounter ready for billing).
+/**
+ * `createdBy` / actor columns carry the literal "SYSTEM" for anything the
+ * platform did on its own - auto-generated form assignments, automated
+ * readiness transitions. It is a sentinel, not a user id, so looking it up
+ * finds nothing and the surface renders a blank actor. Name it here, once, so
+ * every caller of this resolver reads the same.
+ */
+const SYSTEM_ACTOR_ID = "SYSTEM";
+
 export const resolveActorDisplayName = async (
   actorUserId?: string | null,
 ): Promise<string | null> => {
   const id = actorUserId?.trim();
   if (!id) {
     return null;
+  }
+  if (id === SYSTEM_ACTOR_ID) {
+    return "System";
   }
   const user = await prisma.user.findUnique({
     where: { userId: id },

@@ -7,6 +7,7 @@ import { AuditTrailService } from "src/services/audit-trail.service";
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    patientOrganisation: { findFirst: jest.fn() },
     insuranceClaim: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -55,6 +56,11 @@ const makeClaim = (over: Record<string, unknown> = {}) => ({
 });
 
 beforeEach(() => {
+  // Every create here files a record against a companion, which must belong
+  // to the organisation the record is filed under.
+  (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue({
+    id: "patient-org-link",
+  });
   jest.clearAllMocks();
   (AuditTrailService.recordSafely as jest.Mock).mockResolvedValue(undefined);
   pm.insuranceClaim.findFirst.mockResolvedValue(makeClaim());
@@ -71,6 +77,20 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("InsuranceClaimService.create", () => {
+  // `patientId` comes from the request body while RBAC only authorised the
+  // organisation, so without this a caller could file a insurance claim against
+  // another tenant's companion.
+  it("rejects a companion outside the caller's organisation", async () => {
+    (prisma.patientOrganisation.findFirst as jest.Mock).mockResolvedValue(null);
+
+    await expect(
+      InsuranceClaimService.create({
+        organisationId: "org-1",
+        patientId: "pat-other",
+      } as never),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
   it("creates a DRAFT claim and emits audit event", async () => {
     const result = await InsuranceClaimService.create({
       organisationId: "org-1",

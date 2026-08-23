@@ -44,7 +44,7 @@ const RECORDS: CompanionRecord[] = [
   record({
     id: 'rec-2',
     title: 'Dental chart and treatment plan',
-    subcategory: 'SURGERY_PROCEDURE',
+    subcategory: 'SURGERY_OR_PROCEDURE',
     issueDate: '2026-07-02',
     issuingBusinessName: ORG_NAME,
     syncedFromPms: true,

@@ -1,19 +1,33 @@
 import React, {useMemo} from 'react';
 import {View, Text, StyleSheet} from 'react-native';
+import {colors} from '@/theme';
+import type {ColorTokens} from '@/theme';
 import type {VetBusiness, BusinessCategory} from '../../types';
 
 export interface ClinicMapPinProps {
   business: VetBusiness;
   isSelected: boolean;
+  /**
+   * Active palette. Defaults to the light one so the pin stays a pure
+   * presentational component - useTheme is redux-backed, and reaching into the
+   * store from a leaf rendered inside a Marker would couple it to a Provider
+   * for the sake of one colour. MapDiscoveryView already holds the theme and
+   * passes it down.
+   */
+  palette?: ColorTokens;
 }
 
-const CATEGORY_COLORS: Record<BusinessCategory, string> = {
-  hospital: '#247AED',
-  groomer: '#008F5D',
-  breeder: '#FF9800',
-  boarder: '#9C27B0',
-  pet_center: '#00BCD4',
-};
+// Category colours come from the ACTIVE theme, not the light palette. The map
+// itself now has an espresso variant, and several of these tokens differ
+// between themes - violet is #7C3AED on bone but #C4B5FD on espresso - so
+// pinning them to the light values would put dark pins on a dark map.
+const categoryColors = (c: ColorTokens): Record<BusinessCategory, string> => ({
+  hospital: c.blue,
+  groomer: c.success,
+  breeder: c.warning,
+  boarder: c.violet,
+  pet_center: c.cyanText,
+});
 
 const CATEGORY_SYMBOLS: Record<BusinessCategory, string> = {
   hospital: '🏥',
@@ -35,8 +49,12 @@ const buildRatingLabel = (business: VetBusiness): string => {
   return CATEGORY_SYMBOLS[business.category] ?? '•';
 };
 
-const ClinicMapPin: React.FC<ClinicMapPinProps> = ({business, isSelected}) => {
-  const pinColor = CATEGORY_COLORS[business.category] ?? '#247AED';
+const ClinicMapPin: React.FC<ClinicMapPinProps> = ({
+  business,
+  isSelected,
+  palette = colors,
+}) => {
+  const pinColor = categoryColors(palette)[business.category] ?? palette.blue;
   const ratingLabel = useMemo(() => buildRatingLabel(business), [business]);
   const displayName = useMemo(
     () => truncateName(business.name),

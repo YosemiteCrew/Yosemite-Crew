@@ -52,6 +52,7 @@ import {observationToolApi} from '@/features/observationalTools/services/observa
 import {fetchBusinesses} from '@/features/appointments/businessesSlice';
 import type {VetService} from '@/features/appointments/types';
 
+import i18next from 'i18next';
 type Navigation = NativeStackNavigationProp<TaskStackParamList, 'TaskView'>;
 type Route = RouteProp<TaskStackParamList, 'TaskView'>;
 
@@ -321,32 +322,32 @@ export const TaskViewScreen: React.FC = () => {
         submissionId = preview.id || null;
       } catch {
         Alert.alert(
-          'Submission required',
-          'Complete the observational tool before booking.',
+          i18next.t('alerts.tasks.submissionRequired'),
+          i18next.t('alerts.tasks.submissionRequiredBody'),
         );
         return;
       }
     }
     if (!submissionId) {
       Alert.alert(
-        'Submission required',
-        'Complete the observational tool before booking.',
+        i18next.t('alerts.tasks.submissionRequired'),
+        i18next.t('alerts.tasks.submissionRequiredBody'),
       );
       return;
     }
     const service = resolveOtServices[0];
     if (!service) {
       Alert.alert(
-        'No providers available',
-        'We could not find a clinic offering this tool yet.',
+        i18next.t('alerts.tasks.noProvidersAvailable'),
+        i18next.t('alerts.tasks.noProvidersAvailableBody'),
       );
       return;
     }
     const business = businesses.find(biz => biz.id === service.businessId);
     if (!business) {
       Alert.alert(
-        'No providers available',
-        'We could not find a clinic offering this tool yet.',
+        i18next.t('alerts.tasks.noProvidersAvailable'),
+        i18next.t('alerts.tasks.noProvidersAvailableBody'),
       );
       return;
     }
@@ -1091,7 +1092,7 @@ const createStyles = (theme: any) => {
     },
     doseMeta: {
       ...theme.typography.body13,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
       fontVariant: ['tabular-nums'],
     },
     // Toggle rows (warm-bone overrides of the shared form styles)
@@ -1137,7 +1138,7 @@ const createStyles = (theme: any) => {
     // Error styles - matching DocumentForm
     errorText: {
       ...theme.typography.labelXxsBold,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
       marginTop: theme.spacing['1'],
       marginBottom: theme.spacing['3'],
       marginLeft: theme.spacing['1'],
@@ -1166,7 +1167,7 @@ const createStyles = (theme: any) => {
     },
     cancelledText: {
       ...theme.typography.bodyMedium,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
       fontWeight: '600',
     },
     completeButtonContainer: {
@@ -1203,7 +1204,7 @@ const createStyles = (theme: any) => {
     },
     errorContainerText: {
       ...theme.typography.bodyMedium,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
     },
   });
 };

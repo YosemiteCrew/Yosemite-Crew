@@ -9,7 +9,7 @@ import {
 import { generatePresignedUrl } from "src/middlewares/upload";
 import { stringify } from "node:querystring";
 import helpers from "src/utils/helper";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import { resolveVerifiedUserId } from "src/utils/request";
 import { getParentAddressForAuthUser } from "src/utils/location";
 
 // Only strings reach the `googlePlacesId` / `name` Prisma filters: a structured value such
@@ -127,7 +127,10 @@ export const OrganizationController = {
       }
 
       const payload = rawPayload;
-      const userId = resolveUserIdFromRequest(req);
+      // Verified session id only: `upsert` uses this to decide whether the
+      // caller may overwrite an existing organisation, and the header fallback
+      // in `resolveVerifiedUserId` is client-controlled.
+      const userId = resolveVerifiedUserId(req);
 
       const { response, created } = await OrganizationService.upsert(
         payload,
@@ -168,9 +171,14 @@ export const OrganizationController = {
     }
   },
 
-  getAllBusinesses: async (_req: Request, res: Response) => {
+  getAllBusinesses: async (req: Request, res: Response) => {
     try {
-      const resources = await OrganizationService.listAll();
+      const userId = resolveVerifiedUserId(req);
+      if (!userId) {
+        res.status(401).json({ message: "Authentication required." });
+        return;
+      }
+      const resources = await OrganizationService.listForUser(userId);
       res.status(200).json(resources);
     } catch (error) {
       logger.error("Failed to retrieve businesses", error);
@@ -292,7 +300,11 @@ export const OrganizationController = {
       let lng = requestedLng;
 
       if (lat === null || lng === null) {
-        const authUserId = resolveUserIdFromRequest(req);
+        // Verified session only. This resolves ANOTHER account's saved city /
+        // pincode into coordinates, so it must never be driven by the
+        // client-supplied `x-user-id` header. Anonymous callers must send
+        // lat/lng explicitly and get the 400 below.
+        const authUserId = resolveVerifiedUserId(req);
         const resolved = await resolveCoordinatesFromSavedAddress(authUserId);
 
         lat = resolved.lat;

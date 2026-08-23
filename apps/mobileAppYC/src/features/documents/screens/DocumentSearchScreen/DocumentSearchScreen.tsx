@@ -318,7 +318,7 @@ export const DocumentSearchScreen: React.FC = () => {
                     <Ionicons
                       name="chevron-forward"
                       size={15}
-                      color={theme.colors.inkFaint2}
+                      color={theme.colors.inkFaint}
                     />
                   </View>
                 ))}
@@ -402,7 +402,7 @@ const createStyles = (theme: any) => {
     },
     resultsCount: {
       ...theme.typography.body12,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
       marginBottom: theme.spacing['2'],
     },
     resultsContainer: {
@@ -447,7 +447,7 @@ const createStyles = (theme: any) => {
     },
     resultMeta: {
       ...theme.typography.body12,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
       marginTop: theme.spacing['0'],
     },
     highlight: {
@@ -460,7 +460,7 @@ const createStyles = (theme: any) => {
     },
     recentHeader: {
       ...theme.typography.eyebrow,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     recentChips: {
       flexDirection: 'row' as const,

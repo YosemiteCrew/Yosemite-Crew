@@ -116,16 +116,11 @@ const OtpModal = ({
   };
 
   const handleVerify = async (): Promise<void> => {
-    if (secondsLeft === 0) {
-      showErrorTost({
-        message: 'This verification code has expired. Please request a new code.',
-        errortext: 'Code expired',
-        iconElement: dangerIcon,
-        className: 'errofoundbg',
-      });
-      return;
-    }
-
+    // `secondsLeft` is the RESEND countdown - how long before another code can
+    // be requested - not the code's lifetime. Blocking verification on it locked
+    // users out of a code the auth provider still considered valid, forcing a
+    // pointless resend. The provider is the authority on expiry and returns a
+    // clear error, which the catch below already surfaces.
     if (code.includes('')) {
       showErrorTost({
         message: 'Please enter the full OTP',

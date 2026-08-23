@@ -103,6 +103,7 @@ import {
   getAppointmentFormAnswerRows,
 } from './ViewAppointmentScreen.helpers';
 
+import i18next from 'i18next';
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
 const useAppointmentInvoicesData = ({
@@ -250,17 +251,14 @@ const useStatusDisplay = (theme: any) => {
   return getStatusDisplay;
 };
 
-const useStatusFlags = (
-  status: string,
-  paymentStatus?: string | null,
-  bookingPaymentStatus?: string | null,
-) => {
+/**
+ * Deliberately does not take the booking payment status: a paid booking is a
+ * deposit taken at booking time, not settlement of the appointment's invoice.
+ * Consulting it here hid an outstanding invoice and removed the Pay Now action.
+ */
+const useStatusFlags = (status: string, paymentStatus?: string | null) => {
   return useMemo(() => {
-    const isPaymentPending = isAppointmentPaymentPending(
-      status,
-      paymentStatus,
-      bookingPaymentStatus,
-    );
+    const isPaymentPending = isAppointmentPaymentPending(status, paymentStatus);
     const isPaymentFailed = isAppointmentPaymentFailed(status, paymentStatus);
     const requiresPayment = isPaymentPending || isPaymentFailed;
     const isRequested = status === 'REQUESTED';
@@ -279,7 +277,7 @@ const useStatusFlags = (
       showInvoice: !requiresPayment,
       showCancel: !isTerminal && !requiresPayment,
     };
-  }, [paymentStatus, bookingPaymentStatus, status]);
+  }, [paymentStatus, status]);
 };
 
 const useAppointmentDisplayData = (params: {
@@ -498,7 +496,7 @@ const useCheckInFlow = ({
     if (isWithinCheckInWindow) return true;
     const startLabel = formatLocalStartTime();
     Alert.alert(
-      'Too early to check in',
+      i18next.t('alerts.appointments.tooEarlyToCheckIn'),
       `You can check in starting ${CHECKIN_BUFFER_MINUTES} ${minuteUnit} before your appointment at ${startLabel}.`,
     );
     return false;
@@ -513,8 +511,8 @@ const useCheckInFlow = ({
     React.useCallback(async (): Promise<boolean> => {
       if (!businessCoords.lat || !businessCoords.lng) {
         Alert.alert(
-          'Location unavailable',
-          'Provider location is missing. Please try again later.',
+          i18next.t('alerts.appointments.locationUnavailable'),
+          i18next.t('alerts.appointments.locationUnavailableBody'),
         );
         return false;
       }
@@ -529,14 +527,14 @@ const useCheckInFlow = ({
       );
       if (distance === null) {
         Alert.alert(
-          'Location unavailable',
-          'Unable to determine distance for check-in.',
+          i18next.t('alerts.appointments.locationUnavailable'),
+          i18next.t('alerts.appointments.locationUnavailableBody2'),
         );
         return false;
       }
       if (distance > CHECKIN_RADIUS_METERS) {
         Alert.alert(
-          'Too far to check in',
+          i18next.t('alerts.appointments.tooFarToCheckIn'),
           `Move closer to the service location to check in. You are ~${Math.round(distance)}m away.`,
         );
         return false;
@@ -561,8 +559,8 @@ const useCheckInFlow = ({
     } catch (error) {
       console.warn('[Appointment] Check-in failed', error);
       Alert.alert(
-        'Check-in failed',
-        'Unable to check in right now. Please try again.',
+        i18next.t('alerts.appointments.checkInFailed'),
+        i18next.t('alerts.appointments.checkInFailedBody'),
       );
     } finally {
       setCheckingIn(false);
@@ -884,11 +882,7 @@ export const ViewAppointmentScreen: React.FC = () => {
 
   const status = apt?.status ?? 'REQUESTED';
   const getStatusDisplay = useStatusDisplay(theme);
-  const statusFlags = useStatusFlags(
-    status,
-    apt?.paymentStatus,
-    apt?.bookingPaymentStatus,
-  );
+  const statusFlags = useStatusFlags(status, apt?.paymentStatus);
   const {isRequested, isTerminal, showPayNow, showInvoice, showCancel} =
     statusFlags;
   const statusInfo = getStatusDisplay(
@@ -1317,7 +1311,7 @@ export const ViewAppointmentScreen: React.FC = () => {
                   return <ActivityIndicator />;
                 }
                 if (appointmentForms.length > 0) {
-                  return appointmentForms.map(renderFormCard);
+                  return appointmentForms.map(entry => renderFormCard(entry));
                 }
                 return (
                   <Text style={styles.emptyDocsText}>
@@ -1515,7 +1509,7 @@ const createStyles = (theme: Theme) =>
     },
     emptyDocsText: {
       ...theme.typography.body12,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     actionsContainer: {
       gap: theme.spacing['2.5'],
@@ -1540,7 +1534,7 @@ const createStyles = (theme: Theme) =>
     },
     alertButtonText: {
       ...theme.typography.button,
-      color: theme.colors.danger,
+      color: theme.colors.dangerText,
       textAlign: 'center',
     },
     formCardShadowWrapper: {
@@ -1594,7 +1588,7 @@ const createStyles = (theme: Theme) =>
     },
     formMeta: {
       ...theme.typography.body12,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     formStatusBadge: {
       paddingHorizontal: theme.spacing['3'],
@@ -1606,7 +1600,7 @@ const createStyles = (theme: Theme) =>
     },
     formDescription: {
       ...theme.typography.body12,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     formAnswers: {
       gap: theme.spacing['2'],
@@ -1623,7 +1617,7 @@ const createStyles = (theme: Theme) =>
     },
     answerLabel: {
       ...theme.typography.body12,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     answerValue: {
       ...theme.typography.body13,

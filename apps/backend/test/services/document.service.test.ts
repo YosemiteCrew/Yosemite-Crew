@@ -633,6 +633,51 @@ describe("DocumentService", () => {
     );
   });
 
+  // Guards against the taxonomy drifting away from the clients again. Every
+  // value below is one the web picker (apps/frontend .. companionDocuments.ts)
+  // or the mobile SUBCATEGORY_API_MAP actually puts on the wire; when the
+  // server-side set stopped accepting one, the upload failed with a 400 on a
+  // choice the UI had offered the user.
+  it.each([
+    ["ADMIN", "PASSPORT"],
+    ["ADMIN", "CERTIFICATES"],
+    ["ADMIN", "INSURANCE"],
+    ["HEALTH", "SURGERY_OR_PROCEDURE"],
+    ["HEALTH", "PRESCRIPTION"],
+    ["HEALTH", "VACCINATION"],
+    ["HEALTH", "DISCHARGE_SUMMARY"],
+    ["HEALTH", "LAB_TEST"],
+    ["HEALTH", "IMAGING_OR_DIAGNOSTIC"],
+    ["HEALTH", "PARASITE_PREVENTION"],
+    ["HEALTH", "MEDICAL_CONDITION"],
+    ["HEALTH", "OTHER"],
+    ["HYGIENE_MAINTENANCE", "BATHING"],
+    ["HYGIENE_MAINTENANCE", "NAIL_TRIM"],
+    ["HYGIENE_MAINTENANCE", "GROOMING"],
+    ["HYGIENE_MAINTENANCE", "EAR_CLEANING"],
+    ["HYGIENE_MAINTENANCE", "DENTAL_CLEANING"],
+    ["HYGIENE_MAINTENANCE", "SKIN_CARE"],
+    ["HYGIENE_MAINTENANCE", "ANAL_GLAND_EXPRESSION"],
+    ["HYGIENE_MAINTENANCE", "OTHER"],
+    ["DIETARY_PLANS", "NUTRITION_PLANS"],
+  ])(
+    "accepts the %s/%s pair the clients send",
+    async (category, subcategory) => {
+      await expect(
+        DocumentService.create(
+          {
+            patientId: uuidPatientId,
+            category,
+            subcategory,
+            title: "Doc",
+            attachments: [{ key: "k-1", mimeType: "image/png" }],
+          },
+          { parentId: uuidParentId },
+        ),
+      ).resolves.toBeDefined();
+    },
+  );
+
   it("rejects invalid inputs", async () => {
     await expect(
       DocumentService.create(

@@ -335,7 +335,13 @@ export const WorkspaceDocumentPacketService = {
       input.encounterId,
     );
     if (existingPacket && hasActiveOrCompletedSigning(existingPacket)) {
-      return mapPacket(existingPacket);
+      // Same redaction the read path applies. This create route is open to
+      // `document:edit:any`, a far wider audience than the signer, and
+      // `signing.signingUrl` is a Documenso recipient token - a bearer link that
+      // completes the signature as the intended recipient. Returning the packet
+      // unredacted here let any colleague with document rights sign in the
+      // recipient's name.
+      return toReadOnlyPacket(mapPacket(existingPacket));
     }
 
     const bootstrap = await WorkspaceService.getEncounterBootstrap(
@@ -867,9 +873,27 @@ export const WorkspaceDocumentPacketService = {
       throw new WorkspaceServiceError("Encounter not found", 404);
     }
 
-    return WorkspaceDocumentPacketService.buildEncounterPacketPdf(
-      encounter.organisationId,
-      normalizedEncounterId,
-    );
+    // Owners get the SIGNED packet only.
+    //
+    // `buildEncounterPacketPdf` falls back to merging whatever documents exist
+    // right now when nothing has been signed yet, which is the correct
+    // behaviour for staff printing a working copy - and the wrong one here: it
+    // handed the owner unfinalised clinical content before a clinician had
+    // signed off on it. No signed packet means the record is not released yet,
+    // not that it should be assembled on demand.
+    const signedPdf =
+      await WorkspaceDocumentPacketService.fetchSignedEncounterPacketPdf(
+        encounter.organisationId,
+        normalizedEncounterId,
+      );
+
+    if (!signedPdf) {
+      throw new WorkspaceServiceError(
+        "This clinical record has not been finalised yet.",
+        404,
+      );
+    }
+
+    return signedPdf;
   },
 };

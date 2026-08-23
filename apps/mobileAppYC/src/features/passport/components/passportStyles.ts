@@ -18,7 +18,7 @@ export const createPassportStyles = (theme: any) =>
     },
     errorText: {
       ...theme.typography.bodyMedium,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
       textAlign: 'center',
     },
     emptyText: {
@@ -64,7 +64,13 @@ export const createPassportStyles = (theme: any) =>
     },
     walletButtonText: {
       ...theme.typography.buttonSmall,
-      color: theme.colors.white,
+      // ctaText, not white. These buttons are tinted `secondary`, which flips
+      // with the theme - near-black in light, bone in dark - so a fixed white
+      // label reads 13.36:1 in light and 1.18:1 in dark, i.e. invisible. Nobody
+      // caught it because the passport screen was unreachable until the parent
+      // scope lookup was fixed. ctaText flips with `secondary` and pairs at
+      // 13.36:1 / 14.40:1.
+      color: theme.colors.ctaText,
     },
     identityName: {
       ...theme.typography.h4,
@@ -123,6 +129,10 @@ export const createPassportStyles = (theme: any) =>
       width: 24,
       height: 24,
       resizeMode: 'contain',
+      // addIconDark is a dark glyph. Header tints its right icon for exactly
+      // this reason; this one sits inside a card and was missed, so the upload
+      // action rendered #302F2E on a #25211E disc - 1.20:1 - in dark mode.
+      tintColor: theme.colors.text,
     },
     uploadsHint: {
       ...theme.typography.bodySmall,

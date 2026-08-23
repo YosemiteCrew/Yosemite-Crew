@@ -1,13 +1,13 @@
 import { Request, Response } from "express";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { NotificationService } from "src/services/notification.service";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import { resolveVerifiedUserId } from "src/utils/request";
 
 export const NotificationController = {
   // List notifications for current user
   listNotifications: async (req: Request, res: Response) => {
     try {
-      const authUserId = resolveUserIdFromRequest(req);
+      const authUserId = resolveVerifiedUserId(req);
       if (!authUserId) {
         return res
           .status(401)

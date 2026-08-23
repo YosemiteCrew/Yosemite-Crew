@@ -157,7 +157,7 @@ export const AssignTaskBottomSheet = ({
     const avatarTextStyle = {
       ...theme.typography.bodyLarge,
       fontWeight: '700' as const,
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
     };
     const nameTextStyle = {
       ...theme.typography.bodyMedium,

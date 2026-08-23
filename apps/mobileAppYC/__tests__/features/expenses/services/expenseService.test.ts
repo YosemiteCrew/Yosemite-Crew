@@ -795,3 +795,66 @@ describe('expenseService', () => {
     });
   });
 });
+
+describe('attachment upload bounds', () => {
+  const uploadBoundsInput = {
+    companionId: 'c1',
+    category: 'food',
+    expenseName: 'Kibble',
+    date: '2023-05-20',
+    amount: 50,
+    currency: 'USD',
+    attachments: [],
+  } as never;
+
+  it('never runs more than three uploads at once', async () => {
+    // The uploader reads each file fully into base64 first, so starting every
+    // attachment at once multiplies peak memory by the attachment count.
+    let inFlight = 0;
+    let peak = 0;
+    (documentApi.uploadAttachment as jest.Mock).mockImplementation(async () => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await new Promise(resolve => setTimeout(resolve, 0));
+      inFlight -= 1;
+      return {key: 'k', url: 'u'};
+    });
+
+    const attachments = Array.from({length: 9}, (_, index) => ({
+      id: `a${index}`,
+      name: `file-${index}`,
+      uri: `file:///tmp/${index}`,
+    }));
+
+    (apiClient.post as jest.Mock).mockResolvedValue({data: {id: 'new-exp'}});
+    await expenseApi.createExternal({
+      input: {...(uploadBoundsInput as object), attachments} as never,
+      accessToken: 't',
+    });
+
+    expect(peak).toBeLessThanOrEqual(3);
+    expect(documentApi.uploadAttachment).toHaveBeenCalledTimes(9);
+  });
+
+  it('uploads nothing when an attachment has no path', async () => {
+    // Validated up front: discovering this mid-flight left already-started
+    // uploads running behind the rejection, orphaning objects in storage.
+    (documentApi.uploadAttachment as jest.Mock).mockClear();
+    (documentApi.uploadAttachment as jest.Mock).mockResolvedValue({key: 'k'});
+
+    await expect(
+      expenseApi.createExternal({
+        input: {
+          ...(uploadBoundsInput as object),
+          attachments: [
+            {id: 'a1', name: 'ok', uri: 'file:///tmp/ok'},
+            {id: 'a2', name: 'broken'},
+          ],
+        } as never,
+        accessToken: 't',
+      }),
+    ).rejects.toThrow('File path missing');
+
+    expect(documentApi.uploadAttachment).not.toHaveBeenCalled();
+  });
+});

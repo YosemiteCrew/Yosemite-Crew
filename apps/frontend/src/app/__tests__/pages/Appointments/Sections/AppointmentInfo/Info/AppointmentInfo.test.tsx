@@ -784,6 +784,35 @@ describe('AppointmentInfo section', () => {
     expect(screen.getByTestId('date-time-lead-options').textContent).toBe('[]');
   });
 
+  it('does not carry the booked time onto a different date', async () => {
+    // The synthesized slot exists because THIS appointment occupies its own
+    // pre-booked time, so availability never lists it. Reusing it after a date
+    // change let a reschedule keep a time nobody had said was free that day -
+    // and the lead options and save validation both derive from the slot, so
+    // nothing downstream caught it.
+    getSlotsMock.mockResolvedValue([{ startTime: '14:00', endTime: '14:30', vetIds: ['team-1'] }]);
+    render(<AppointmentInfo activeAppointment={activeAppointment} />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('edit-Appointments details'));
+    });
+    // The appointment's own date keeps the booked slot available to the form.
+    await waitFor(() => expect(getSlotsMock).toHaveBeenCalled());
+    expect(screen.getByTestId('date-time-lead-options').textContent).toBe(
+      JSON.stringify([{ label: 'Alex', value: 'team-1' }])
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('set-date-value'));
+    });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    // A different date offers only the slots that day actually has.
+    expect(screen.getByTestId('date-time-lead-options').textContent).toBe('[]');
+  });
+
   it('treats an unparseable appointment start time as having no booked slot', async () => {
     render(
       <AppointmentInfo activeAppointment={{ ...activeAppointment, startTime: 'not-a-date' }} />

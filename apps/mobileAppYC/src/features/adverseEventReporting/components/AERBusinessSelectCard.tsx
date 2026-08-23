@@ -136,7 +136,7 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing['3'],
     },
     cardSelected: {
-      borderColor: theme.colors.pink,
+      borderColor: theme.colors.pinkDeep,
       ...theme.shadows.companion,
     },
     avatar: {
@@ -175,7 +175,7 @@ const createStyles = (theme: any) =>
     },
     meta: {
       ...theme.typography.caption,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
       marginTop: theme.spacing['1'],
     },
     checkChip: {

@@ -238,7 +238,7 @@ export const ConfirmActionBottomSheet = ({
                 <Ionicons
                   name={destructiveIcon}
                   size={24}
-                  color={theme.colors.danger}
+                  color={theme.colors.dangerText}
                 />
               </View>
               <Text style={styles.destructiveTitle} numberOfLines={2}>

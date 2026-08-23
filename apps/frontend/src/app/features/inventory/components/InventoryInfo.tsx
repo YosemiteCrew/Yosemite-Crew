@@ -275,16 +275,21 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
     }
   }
 
-  // Reporting isEditing:false to the parent here (rather than from a
-  // useEffect watching isEditing) still has to happen after this render
-  // commits, since calling the parent's setter mid-render would update a
-  // different component while this one is rendering.
+  // Mirror EVERY isEditing transition to the parent, from a layout effect that
+  // runs after the render commits (calling the parent's setter mid-render would
+  // update a different component while this one renders).
+  //
+  // Watching `disableEditing` changing instead could never report the
+  // force-close: the render that sees the change still observes isEditing ===
+  // true, and by the render where isEditing is false the change has already
+  // been reconciled - so the parent stayed stuck in "section is editing" after
+  // the editor had exited. Tracking the transition itself has no such gap.
+  const prevIsEditingRef = useRef(isEditing);
   useLayoutEffect(() => {
-    /* v8 ignore next 3 -- unreachable: disableEditingChanged is always false by commit time because prevDisableEditing is reconciled via a render-phase setState that restarts the render, so this notify-parent path never runs */
-    if (disableEditingChanged && disableEditing && isEditing === false) {
-      onEditingChange?.(false);
-    }
-  });
+    if (prevIsEditingRef.current === isEditing) return;
+    prevIsEditingRef.current = isEditing;
+    onEditingChange?.(isEditing);
+  }, [isEditing, onEditingChange]);
 
   useLayoutEffect(() => {
     dispatchBatchEditor({ type: 'RESET' });

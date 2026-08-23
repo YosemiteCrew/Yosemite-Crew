@@ -183,6 +183,7 @@ const runManualCollection = async ({
   encounter,
   financeCurrency,
   method,
+  dueCents,
   persistCurrentInvoice,
   reloadBilling,
   recordInvoicePayment,
@@ -196,13 +197,18 @@ const runManualCollection = async ({
   | 'recordInvoicePayment'
 > & {
   method: PaymentMethod;
+  /** What the Collect button showed - the total less any deposit being applied. */
+  dueCents: number;
 }): Promise<void> => {
   const invoice = await persistCurrentInvoice({ finalize: true });
   if (invoice?.id) {
     await recordManualInvoicePayment(invoice.id, {
       provider: 'MANUAL',
       settlementChannel: 'CASH',
-      amount: centsToMajor(computeInvoiceTotalCents(encounter)),
+      // The amount the button offered to collect, not the invoice total. When a
+      // deposit is being applied the two differ, and recording the total meant
+      // staff collected one figure while the payment record claimed another.
+      amount: centsToMajor(dueCents),
       currency: financeCurrency,
       receivedAt: new Date().toISOString(),
     });
@@ -238,21 +244,28 @@ const handleDepositOnlineCollection = async ({
   const invoiceToCollectAgainst = await persistCurrentInvoice({ finalize: false });
   if (!invoiceToCollectAgainst?.id) return;
 
-  const checkoutUrl = await getPaymentLink(invoiceToCollectAgainst.id);
+  // Pass the requested deposit through. Without it the link is for the whole
+  // outstanding balance, so a $25 deposit on a $500 invoice produced a $500
+  // checkout that the UI labelled a deposit link.
+  const checkoutUrl = await getPaymentLink(invoiceToCollectAgainst.id, centsToMajor(amountCents));
   setDepositPaymentLink(checkoutUrl ?? null);
   if (checkoutUrl) {
     startPaymentProgress(invoiceToCollectAgainst.id, checkoutUrl);
     openCheckoutUrl(checkoutUrl);
   }
-  recordDepositCollection(appointmentId, {
-    amountCents,
-    method: 'ONLINE',
-    byName: encounter.leadName ?? 'Front desk',
-  });
+  // Only record the deposit once the link exists. Recording it up front showed
+  // a deposit balance for money the customer had not been asked for yet.
+  if (checkoutUrl) {
+    recordDepositCollection(appointmentId, {
+      amountCents,
+      method: 'ONLINE',
+      byName: encounter.leadName ?? 'Front desk',
+    });
+  }
   setConfirmation(
     checkoutUrl
-      ? `Payment link generated for the appointment invoice: ${checkoutUrl}`
-      : 'Payment link generated for the appointment invoice'
+      ? `Deposit payment link generated: ${checkoutUrl}`
+      : 'Deposit payment link generated'
   );
   if (!checkoutUrl) await reloadBilling();
 };
@@ -1079,7 +1092,14 @@ const useInvoiceStepContent = ({
   // explicit end-of-visit settlement.
   const persistCurrentInvoice = async ({ finalize = false }: { finalize?: boolean } = {}) => {
     if (!organisationId) return undefined;
-    const lineItems = toFinanceLineItems(encounter.invoiceLineItems);
+    // Lines seeded out of an already-persisted invoice are ALREADY charged, and
+    // the add-items endpoint only appends. Re-sending one charges it twice, and
+    // editing one changed its content key so the duplicate filter stopped
+    // recognising it - so they are excluded here rather than relying on that
+    // filter to catch them.
+    const lineItems = toFinanceLineItems(
+      encounter.invoiceLineItems.filter((item) => !item.seededFromInvoiceId)
+    );
     // Prefer an existing OPEN invoice for this appointment and append new lines to
     // it (web /lines). When none exists, create one via the web POST /invoices —
     // never the mobile /seed route, which requires a mobile session on web
@@ -1163,6 +1183,7 @@ const useInvoiceStepContent = ({
           encounter,
           financeCurrency,
           method,
+          dueCents,
           persistCurrentInvoice,
           reloadBilling,
           recordInvoicePayment,

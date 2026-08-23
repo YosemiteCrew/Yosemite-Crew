@@ -18,6 +18,9 @@ export class LabOrderServiceError extends Error {
   }
 }
 
+const DEFAULT_LAB_ORDER_SEARCH_LIMIT = 50;
+const MAX_LAB_ORDER_SEARCH_LIMIT = 200;
+
 const ensureNonEmpty = (value: string | undefined, field: string) => {
   if (!value?.trim()) {
     throw new LabOrderServiceError(`${field} is required.`, 400);
@@ -603,10 +606,17 @@ export const LabOrderService = {
     const safeCompanionId = ensureOptionalString(patientId, "patientId");
     const safeProvider = ensureOptionalString(provider, "provider");
     const safeStatus = ensureOptionalStatus(status);
-    const safeLimit =
+    // An omitted limit used to mean `take: undefined`, i.e. every lab order the
+    // organisation has ever had -- patient names, test names, notes and result
+    // URLs -- shipped to the browser for a caller that only wanted the latest
+    // few. An unfiltered search now returns a page, and an explicit limit is
+    // capped so a caller cannot ask for the whole table either.
+    const safeLimit = Math.min(
       typeof limit === "number" && Number.isFinite(limit) && limit > 0
         ? Math.floor(limit)
-        : undefined;
+        : DEFAULT_LAB_ORDER_SEARCH_LIMIT,
+      MAX_LAB_ORDER_SEARCH_LIMIT,
+    );
 
     const where: Prisma.LabOrderWhereInput = {
       organisationId: safeOrganisationId,

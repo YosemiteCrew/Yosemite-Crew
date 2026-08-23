@@ -8,6 +8,14 @@ import { prisma } from "src/config/prisma";
  * will happily persist a row against a nonexistent or another tenant's
  * companion - a clinical record that no companion view will ever surface.
  *
+ * ACTIVE only. A PENDING `PatientOrganisation` row is a link the organisation
+ * *requested* for a companion it did not create; the parent's approval is what
+ * turns it ACTIVE. Accepting PENDING here made that approval decorative - a
+ * practice could raise a link request against a companion it had no approved
+ * relationship with and immediately read and write its clinical records.
+ * Companions the practice creates itself are linked ACTIVE at creation, so this
+ * costs the normal flow nothing.
+ *
  * `throwNotFound` is supplied by the caller so each service keeps raising its
  * own typed error; the message stays the uniform "Companion not found." 404 so
  * this cannot be used to probe which patient ids exist.
@@ -18,7 +26,7 @@ export const assertPatientOrgMembership = async (
   throwNotFound: () => never,
 ): Promise<void> => {
   const membership = await prisma.patientOrganisation.findFirst({
-    where: { patientId, organisationId, status: { in: ["ACTIVE", "PENDING"] } },
+    where: { patientId, organisationId, status: "ACTIVE" },
     select: { id: true },
   });
   if (!membership) {
@@ -46,7 +54,7 @@ export const assertPatientsOrgMembership = async (
     where: {
       patientId: { in: wanted },
       organisationId,
-      status: { in: ["ACTIVE", "PENDING"] },
+      status: "ACTIVE",
     },
     select: { patientId: true },
   });

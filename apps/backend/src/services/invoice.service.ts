@@ -394,23 +394,36 @@ const mergeInvoiceLineItems = (
   newItems: DraftInvoiceItemInput[],
 ) => {
   const merged = [...existingItems];
+  // Each existing line may absorb at most ONE incoming line. The content-key
+  // fallback exists so a client that sends no line ids can still update an
+  // existing line, but without this an invoice legitimately carrying the same
+  // item twice - two identical consumables added as separate lines - collapsed
+  // to one: the second match landed on the line the first had just added.
+  const claimed = new Set<number>();
 
   for (const item of newItems) {
     const lineId = item.id?.trim();
     let index = -1;
     if (lineId) {
-      index = merged.findIndex((existing) => existing.id?.trim() === lineId);
+      index = merged.findIndex(
+        (existing, position) =>
+          !claimed.has(position) && existing.id?.trim() === lineId,
+      );
     }
     if (index === -1) {
       const contentKey = invoiceLineContentKey(item);
       index = merged.findIndex(
-        (existing) => invoiceLineContentKey(existing) === contentKey,
+        (existing, position) =>
+          !claimed.has(position) &&
+          invoiceLineContentKey(existing) === contentKey,
       );
     }
 
     if (index === -1) {
+      claimed.add(merged.length);
       merged.push(item);
     } else {
+      claimed.add(index);
       merged[index] = item;
     }
   }
@@ -1486,6 +1499,19 @@ export const InvoiceService = {
       return toInvoiceRecord(doc);
     }
 
+    // Changing HOW an invoice is collected invalidates the artifacts of the old
+    // method. A parent still holding the previous checkout link or
+    // `client_secret` could otherwise complete it after the practice switched to
+    // PAYMENT_LINK or PAYMENT_AT_CLINIC, settling against an intent nobody
+    // expects to be live. The next collection attempt mints a fresh one.
+    await prisma.paymentAttempt.updateMany({
+      where: {
+        invoiceId: doc.id,
+        status: { notIn: ["SUCCEEDED", "CANCELED"] },
+      },
+      data: { status: "CANCELED" },
+    });
+
     const updated = await prisma.invoice.update({
       where: { id: doc.id },
       data: { paymentCollectionMethod: resolvedPaymentCollectionMethod },
@@ -1556,6 +1582,20 @@ export const InvoiceService = {
         409,
       );
     }
+
+    // A credit note lowers what is owed, but the Stripe artifacts already issued
+    // for this invoice still name the OLD amount: an outstanding checkout link or
+    // PaymentIntent would keep collecting the full sum. The local ledger caps the
+    // applied payment at the credited balance, so the difference would be
+    // captured at Stripe and never recorded here. Expire them; the next
+    // collection attempt mints one for the reduced balance.
+    await prisma.paymentAttempt.updateMany({
+      where: {
+        invoiceId: invoice.id,
+        status: { notIn: ["SUCCEEDED", "CANCELED"] },
+      },
+      data: { status: "CANCELED" },
+    });
 
     const creditNote = await prisma.creditNote.create({
       data: {
@@ -1834,9 +1874,21 @@ export const InvoiceService = {
     );
   },
 
+  /**
+   * Resolve (or create) the open invoice for an appointment.
+   *
+   * `expectedOrganisationId` is how a caller that already knows which tenant it
+   * is acting for binds this to that tenant. The appointment id often arrives in
+   * a request body while the route authorises a *different* id, so resolving the
+   * invoice from the appointment alone let a caller in one organisation
+   * bootstrap and then mutate another organisation's invoice. Callers that
+   * genuinely have no organisation context (a parent's own mobile flow, which
+   * has already been scoped by parent ownership) omit it.
+   */
   async bootstrapForAppointment(
     appointmentId: string,
     paymentCollectionMethod: CreateInvoiceInput["paymentCollectionMethod"] = "PAYMENT_LINK",
+    expectedOrganisationId?: string,
   ) {
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
@@ -1850,6 +1902,12 @@ export const InvoiceService = {
       },
     });
     if (!appointment) {
+      throw new InvoiceServiceError("Appointment not found", 404);
+    }
+    const expectedOrg = expectedOrganisationId?.trim();
+    if (expectedOrg && appointment.organisationId !== expectedOrg) {
+      // Same 404 as a missing appointment so this cannot be used to probe which
+      // appointment ids exist in other tenants.
       throw new InvoiceServiceError("Appointment not found", 404);
     }
 
@@ -1994,7 +2052,6 @@ export const InvoiceService = {
     // A finalized or previously paid invoice can receive new charges. Re-open it
     // so existing payments remain recorded while the new balance is collectible.
     const wasFinalized = Boolean(invoice.finalizedAt);
-    const wasPaid = invoice.status === "PAID";
 
     const existingItems = Array.isArray(invoice.items)
       ? (invoice.items as unknown as DraftInvoiceItemInput[])
@@ -2021,6 +2078,18 @@ export const InvoiceService = {
       taxContext,
     });
 
+    // Re-open a settled invoice only when the charges actually GREW.
+    //
+    // `mergeInvoiceLineItems` can replace a line by id or by content key, and
+    // the charge endpoints do not strip an `id` from the payload, so a duplicate
+    // or replacement submission produced no new money owed - yet the invoice was
+    // unconditionally flipped back to AWAITING_PAYMENT with `paidAt` cleared and
+    // the billing stage reset to DRAFT. That let a settled invoice, and its
+    // payment/audit state, be reopened without a legitimate new charge.
+    const previousTotal = invoice.totalAmount ?? 0;
+    const wasPaid =
+      invoice.status === "PAID" && totals.totalAmount > previousTotal;
+
     const updated = await prisma.invoice.update({
       where: { id: invoiceId },
       data: {
@@ -2045,14 +2114,19 @@ export const InvoiceService = {
       },
     });
 
-    // Re-opening a finalized-but-unpaid invoice invalidates any in-flight Stripe
-    // payment attempt so a fresh checkout link is generated for the new total.
-    if (wasFinalized) {
-      await prisma.paymentAttempt.updateMany({
-        where: { invoiceId, status: { notIn: ["SUCCEEDED", "CANCELED"] } },
-        data: { status: "CANCELED" },
-      });
-    }
+    // Adding charges invalidates any in-flight Stripe payment attempt, so a
+    // fresh checkout link is generated for the new total.
+    //
+    // This used to be conditional on `wasFinalized`. Online collection now
+    // issues a checkout URL for an invoice left deliberately OPEN, so the
+    // unfinalized case is exactly the one that matters: the original session
+    // stayed live, `createCheckoutSessionForInvoice` kept handing it back, and
+    // completing it wrote the old, lower total onto the invoice and marked it
+    // settled - underpaying an invoice that had since grown.
+    await prisma.paymentAttempt.updateMany({
+      where: { invoiceId, status: { notIn: ["SUCCEEDED", "CANCELED"] } },
+      data: { status: "CANCELED" },
+    });
 
     const targets = await resolveAuditTargetsForInvoiceRow(updated);
     await recordInvoiceAuditEvent(targets, {
@@ -2185,8 +2259,11 @@ export const InvoiceService = {
       organisationId,
     );
     if (!invoice) {
-      const bootstrappedInvoice =
-        await this.bootstrapForAppointment(appointmentId);
+      const bootstrappedInvoice = await this.bootstrapForAppointment(
+        appointmentId,
+        undefined,
+        organisationId,
+      );
 
       if (
         !bootstrappedInvoice.id ||

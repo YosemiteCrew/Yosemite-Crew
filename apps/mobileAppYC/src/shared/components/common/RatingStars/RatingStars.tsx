@@ -21,7 +21,10 @@ export const RatingStars: React.FC<{
             onPress={() => onChange?.(i)}
             activeOpacity={0.8}
             accessibilityRole="radio"
-            accessibilityState={{selected: filled}}
+            // The star's own value, not whether it is FILLED. Radio controls are
+            // mutually exclusive, so announcing stars 1-3 as all selected for a
+            // rating of 3 tells a screen-reader user the wrong thing.
+            accessibilityState={{selected: i === value}}
             accessibilityLabel={`Rate ${i} star${i === 1 ? '' : 's'}`}>
             <Image
               source={filled ? Images.starSolid : Images.starOutline}
@@ -30,9 +33,7 @@ export const RatingStars: React.FC<{
                 {width: size, height: size},
                 // Pink = companion moment (hearts / ratings).
                 {
-                  tintColor: filled
-                    ? theme.colors.pink
-                    : theme.colors.inkFaint2,
+                  tintColor: filled ? theme.colors.pink : theme.colors.inkFaint,
                 },
               ]}
               resizeMode="contain"

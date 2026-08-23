@@ -613,7 +613,8 @@ describe("AvailabilityController", () => {
   });
 
   describe("Helpers (Coverage)", () => {
-    it("should resolve userId from header", async () => {
+    it("should resolve userId from the verified session, not the header", async () => {
+      (req as any).userId = "sessionUser";
       req.headers = { "x-user-id": "headerUser" };
       req.params = { orgId: "o1" };
       mockedAvailabilityService.getCurrentStatus.mockResolvedValue(
@@ -626,7 +627,7 @@ describe("AvailabilityController", () => {
       );
       expect(mockedAvailabilityService.getCurrentStatus).toHaveBeenCalledWith(
         "o1",
-        "headerUser",
+        "sessionUser",
       );
     });
 

@@ -78,6 +78,29 @@ describe('PhoneShell', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it('hides the FAB when the user can view the list but not create', () => {
+    // The route being enabled only proves a VIEW grant. Creating needs the same
+    // edit permission the desktop create button checks, so a view-only user
+    // must not get a create flow just by using a phone viewport.
+    setViewport(true);
+    mockUsePathname.mockReturnValue('/appointments');
+    setOrg({ permissions: [PERMISSIONS.APPOINTMENTS_VIEW_ANY] });
+    render(<PhoneShell />);
+
+    expect(screen.queryByRole('button', { name: 'New appointment' })).not.toBeInTheDocument();
+  });
+
+  it('shows the FAB for a user who can only edit their own appointments', () => {
+    setViewport(true);
+    mockUsePathname.mockReturnValue('/appointments');
+    setOrg({
+      permissions: [PERMISSIONS.APPOINTMENTS_VIEW_ANY, PERMISSIONS.APPOINTMENTS_EDIT_OWN],
+    });
+    render(<PhoneShell />);
+
+    expect(screen.getByRole('button', { name: 'New appointment' })).toBeInTheDocument();
+  });
+
   it('renders the phone header, tab bar and FAB on a phone viewport', () => {
     setViewport(true);
     mockUsePathname.mockReturnValue('/appointments');

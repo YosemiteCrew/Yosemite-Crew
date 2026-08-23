@@ -1,0 +1,122 @@
+name: Roadmap
+
+# The public roadmap board (https://github.com/orgs/YosemiteCrew/projects/6) was
+# hand-curated, so it stopped being curated. By 2026-08-22 it held 388 items of
+# which 387 were already closed, and exactly one of the 79 open issues was on it.
+# Nobody decided that; it is just what happens to a board that only changes when
+# someone remembers.
+#
+# This runs the reconciliation on every issue event so the board is a projection
+# of the tracker rather than a parallel copy of it, plus daily so that facts which
+# change without an issue event - a linked PR opening, an item ageing past the
+# archive window - are still picked up.
+on:
+  issues:
+    types: [opened, closed, reopened, labeled, unlabeled, assigned, unassigned, transferred]
+  schedule:
+    # After the nightly CI settles, before European working hours.
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Report what would change without writing to the board.
+        required: false
+        default: false
+        type: boolean
+      archive_after_days:
+        description: Archive completed items whose issue closed this many days ago.
+        required: false
+        default: '30'
+        type: string
+
+# A label sweep across a backlog fires dozens of issue events in a few seconds.
+# Collapse them: the sync reads whole-board state every run, so the last one wins
+# and the intermediate runs have nothing unique to contribute.
+concurrency:
+  group: roadmap-sync
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  sync:
+    name: Reconcile the roadmap board
+    # A fork has no access to the org project and no reason to try.
+    if: github.repository_owner == 'YosemiteCrew'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      # Deliberately a hard failure rather than a skip. A roadmap sync that
+      # quietly does nothing looks identical to one that is working, which is the
+      # failure mode this whole workflow exists to prevent.
+      - name: Check the token is present
+        env:
+          ROADMAP_TOKEN: ${{ secrets.ROADMAP_TOKEN }}
+        run: |
+          if [ -z "${ROADMAP_TOKEN}" ]; then
+            echo "::error::ROADMAP_TOKEN is not set. The roadmap board is an ORGANISATION project, and the built-in GITHUB_TOKEN cannot write to one regardless of its permissions block. Create a fine-grained PAT with organisation permission 'Projects: Read and write' plus repository permission 'Issues: Read', and save it as the repository secret ROADMAP_TOKEN."
+            exit 1
+          fi
+
+      - name: Sync the board
+        env:
+          ROADMAP_TOKEN: ${{ secrets.ROADMAP_TOKEN }}
+          ROADMAP_OWNER: ${{ github.repository_owner }}
+          ROADMAP_REPO: ${{ github.event.repository.name }}
+          # Passed through the environment rather than interpolated into the
+          # script body, so a workflow input can never become shell syntax.
+          ARCHIVE_AFTER_DAYS: ${{ inputs.archive_after_days || '30' }}
+          DRY_RUN: ${{ inputs.dry_run && 'true' || '' }}
+        run: |
+          set -euo pipefail
+          case "${ARCHIVE_AFTER_DAYS}" in
+            ''|*[!0-9]*) echo "::error::archive_after_days must be a whole number of days"; exit 1 ;;
+          esac
+          ARGS=(--archive-after-days "${ARCHIVE_AFTER_DAYS}" --json)
+          if [ -n "${DRY_RUN}" ]; then ARGS=(--dry-run "${ARGS[@]}"); fi
+          node scripts/roadmap/sync.mjs "${ARGS[@]}" > roadmap-sync.json
+          node -e '
+            const r = require("./roadmap-sync.json");
+            const s = r.summary;
+            const lines = [
+              "## Roadmap sync",
+              "",
+              `Board: ${s.project}${s.dryRun ? " (dry run)" : ""}`,
+              "",
+              "| | |",
+              "|---|---|",
+              `| Open issues | ${s.openIssues} |`,
+              `| Added to board | ${s.added} |`,
+              `| Archived | ${s.archived} |`,
+              `| Field updates | ${s.fieldUpdates} |`,
+              `| Uncategorised | ${s.uncategorised} |`,
+            ];
+            if (r.actions.uncategorised.length) {
+              lines.push("", "### Needs a human", "");
+              for (const u of r.actions.uncategorised) lines.push(`- ${u}`);
+            }
+            if (r.actions.skipped.length) {
+              lines.push("", "### Skipped", "");
+              for (const u of r.actions.skipped) lines.push(`- ${u}`);
+            }
+            require("node:fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join("\n") + "\n");
+          '
+
+      - name: Upload the sync report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: roadmap-sync
+          path: roadmap-sync.json
+          if-no-files-found: ignore
+          retention-days: 14

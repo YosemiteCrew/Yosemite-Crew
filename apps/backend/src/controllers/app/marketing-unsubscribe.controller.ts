@@ -1,56 +1,39 @@
-import type { Request, Response } from "express";
-import { z } from "zod";
 import {
   InvalidMarketingUnsubscribeTokenError,
   MarketingUnsubscribeConfigError,
+  readMarketingUnsubscribeToken,
   unsubscribeMarketingEmail,
 } from "src/services/marketing-unsubscribe.service";
-import logger from "src/utils/logger";
+import { escapeHtml } from "src/utils/email-templates";
+import {
+  createUnsubscribeController,
+  unsubscribePage,
+} from "./shared/unsubscribe-controller";
 
-const UnsubscribeQuerySchema = z.object({
-  token: z.string().min(1),
+const confirmPage = (token: string) =>
+  unsubscribePage(
+    "Unsubscribe",
+    `<h1>Unsubscribe from marketing emails?</h1>
+<p>This stops marketing emails. Transactional messages about your account, such as appointment confirmations, are unaffected.</p>
+<form method="POST">
+  <input type="hidden" name="token" value="${escapeHtml(token)}" />
+  <button type="submit">Yes, unsubscribe me</button>
+</form>`,
+  );
+
+const successPage = unsubscribePage(
+  "Unsubscribed",
+  `<h1>You have been unsubscribed</h1>
+<p>You will no longer receive marketing emails from us. Transactional messages about your account are unaffected.</p>`,
+);
+
+export const MarketingUnsubscribeController = createUnsubscribeController({
+  readToken: readMarketingUnsubscribeToken,
+  unsubscribe: unsubscribeMarketingEmail,
+  InvalidTokenError: InvalidMarketingUnsubscribeTokenError,
+  ConfigError: MarketingUnsubscribeConfigError,
+  configErrorMessage: "Marketing unsubscribe configuration is invalid.",
+  failureMessage: "Failed to unsubscribe SES marketing contact.",
+  confirmPage,
+  successPage,
 });
-
-const successPage = `<!doctype html>
-<html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Unsubscribed</title></head>
-<body><main><h1>You have been unsubscribed</h1><p>You will no longer receive marketing emails from us.</p></main></body>
-</html>`;
-
-const handleError = (error: unknown, res: Response): Response => {
-  if (
-    error instanceof z.ZodError ||
-    error instanceof InvalidMarketingUnsubscribeTokenError
-  ) {
-    return res.status(400).json({ message: "Invalid unsubscribe link." });
-  }
-  if (error instanceof MarketingUnsubscribeConfigError) {
-    logger.error("Marketing unsubscribe configuration is invalid.", { error });
-  } else {
-    logger.error("Failed to unsubscribe SES marketing contact.", { error });
-  }
-  return res.status(500).json({ message: "Unable to unsubscribe right now." });
-};
-
-export const MarketingUnsubscribeController = {
-  async unsubscribe(
-    this: void,
-    req: Request,
-    res: Response,
-  ): Promise<Response> {
-    try {
-      const { token } = UnsubscribeQuerySchema.parse(req.query);
-      await unsubscribeMarketingEmail(token);
-
-      if (req.method === "GET") {
-        return res
-          .status(200)
-          .set("Content-Type", "text/html; charset=utf-8")
-          .send(successPage);
-      }
-      return res.status(200).json({ message: "Successfully unsubscribed." });
-    } catch (error) {
-      return handleError(error, res);
-    }
-  },
-};

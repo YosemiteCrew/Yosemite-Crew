@@ -21,6 +21,7 @@ import type { Appointment } from '@yosemite-crew/types';
 import Text from '@/app/ui/Text';
 import { useCompanionStore } from '@/app/stores/companionStore';
 import { useAppointmentStore } from '@/app/stores/appointmentStore';
+import { useOrgStore } from '@/app/stores/orgStore';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import { shareEntityToChannel, type SharedEntityType } from '../services/chatService';
 import { ChatAvatar } from './ChatAvatar';
@@ -42,23 +43,39 @@ export function ShareEntityModal({
   const rewrite = useCompanionTerminologyText();
   const companions = useCompanionStore((s) => s.companionsById);
   const appointments = useAppointmentStore((s) => s.appointmentsById);
+  // The stores are keyed by id across every organisation the tab has loaded, so
+  // offering their whole contents put other tenants' records in the picker. Both
+  // stores keep an org index; the picker uses it.
+  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
+  const companionIdsForOrg = useCompanionStore((s) =>
+    primaryOrgId ? (s.companionsIdsByOrgId[primaryOrgId] ?? []) : []
+  );
+  const appointmentIdsForOrg = useAppointmentStore((s) =>
+    primaryOrgId ? (s.appointmentIdsByOrgId[primaryOrgId] ?? []) : []
+  );
   const [tab, setTab] = useState<'COMPANION' | 'APPOINTMENT'>('COMPANION');
   const [query, setQuery] = useState('');
   const [sharing, setSharing] = useState<string | null>(null);
 
   const items = useMemo<PickItem[]>(() => {
     if (tab === 'COMPANION') {
-      return Object.entries(companions).map(([id, c]) => {
+      return companionIdsForOrg.flatMap((id) => {
+        const c = companions[id];
+        if (!c) return [];
         const pet = c as { name?: string; species?: string; breed?: string };
-        return {
-          id,
-          title: pet.name ?? 'Companion',
-          subtitle: [pet.species, pet.breed].filter(Boolean).join(' · ') || undefined,
-          entityType: 'COMPANION' as const,
-        };
+        return [
+          {
+            id,
+            title: pet.name ?? 'Companion',
+            subtitle: [pet.species, pet.breed].filter(Boolean).join(' · ') || undefined,
+            entityType: 'COMPANION' as const,
+          },
+        ];
       });
     }
-    return Object.entries(appointments).map(([id, raw]) => {
+    return appointmentIdsForOrg.flatMap((id) => {
+      const raw = appointments[id];
+      if (!raw) return [];
       const a = raw as Appointment;
       const when = a.startTime
         ? formatDateInPreferredTimeZone(new Date(a.startTime), {
@@ -68,14 +85,16 @@ export function ShareEntityModal({
             minute: '2-digit',
           })
         : undefined;
-      return {
-        id,
-        title: a.patient?.name ?? a.companion?.name ?? 'Appointment',
-        subtitle: when,
-        entityType: 'APPOINTMENT' as const,
-      };
+      return [
+        {
+          id,
+          title: a.patient?.name ?? a.companion?.name ?? 'Appointment',
+          subtitle: when,
+          entityType: 'APPOINTMENT' as const,
+        },
+      ];
     });
-  }, [tab, companions, appointments]);
+  }, [tab, companions, appointments, companionIdsForOrg, appointmentIdsForOrg]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

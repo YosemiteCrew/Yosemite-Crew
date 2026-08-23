@@ -1676,22 +1676,7 @@ const resolvePackageCatalogSelection = (params: {
     );
   }
 
-  const billingItems: ResolvedCatalogItem[] = [
-    buildResolvedItem({
-      productItemId: params.product.id,
-      code: params.product.code,
-      name: params.product.name,
-      kind: params.product.kind,
-      quantity: 1,
-      unitPrice: params.parentPrice?.unitPrice ?? 0,
-      currency: params.parentPrice?.currency ?? null,
-      defaultDiscountPercent:
-        params.parentPrice?.defaultDiscountPercent ?? null,
-      maxDiscountPercent: params.parentPrice?.maxDiscountPercent ?? null,
-      discountPercent: params.parentPrice?.defaultDiscountPercent ?? 0,
-      isPackageComponent: false,
-    }),
-  ];
+  const billingItems: ResolvedCatalogItem[] = [];
   const includedItems: ResolvedCatalogItem[] = [];
 
   for (const item of params.product.package.items) {
@@ -1752,6 +1737,30 @@ const resolvePackageCatalogSelection = (params: {
           item.discountPercent ?? childPrice?.defaultDiscountPercent ?? 0,
         isPackageComponent: true,
         packageProductItemId: params.product.id,
+      }),
+    );
+  }
+
+  // The package's own price is its list price - the sum of what its components
+  // cost - so charging it ALONGSIDE those components bills the package twice.
+  // It becomes a billable line only when there is nothing else to bill: a
+  // package whose components are all INCLUDED has no component lines, and then
+  // the parent price is the charge.
+  if (billingItems.length === 0) {
+    billingItems.push(
+      buildResolvedItem({
+        productItemId: params.product.id,
+        code: params.product.code,
+        name: params.product.name,
+        kind: params.product.kind,
+        quantity: 1,
+        unitPrice: params.parentPrice?.unitPrice ?? 0,
+        currency: params.parentPrice?.currency ?? null,
+        defaultDiscountPercent:
+          params.parentPrice?.defaultDiscountPercent ?? null,
+        maxDiscountPercent: params.parentPrice?.maxDiscountPercent ?? null,
+        discountPercent: params.parentPrice?.defaultDiscountPercent ?? 0,
+        isPackageComponent: false,
       }),
     );
   }
@@ -2653,6 +2662,11 @@ export const CatalogService = {
           orderBy: [{ isDefault: "desc" as const }],
           select: {
             unitPrice: true,
+            // Selected because the parent-facing quote is computed from it. A
+            // select that omits it does not fail - the field is simply
+            // undefined and the discount silently computes as zero, so the
+            // quote quietly reverts to the gross price.
+            defaultDiscountPercent: true,
           },
           take: 1,
         },
@@ -2717,35 +2731,71 @@ export const CatalogService = {
           .filter((s) => s.organisationId === org.id)
           .filter((product) => Boolean(product.bookable))
           .map((product) => {
+            // Discovery view of a package, NOT the internal breakdown.
+            //
+            // This endpoint returns OTHER organisations' catalogs, so the
+            // per-line economics - internal product codes, pricing modes,
+            // override prices, discount percentages and the computed
+            // gross/discount/final amounts - are another practice's commercial
+            // terms and have no business here. What a prospective client needs
+            // is what the package contains and how much of it. Archived children
+            // are dropped rather than advertised: `isActive` was selected but
+            // never filtered on, so inactive items retained inside an active
+            // package were listed as though they were on sale.
             const packageItems =
               product.kind === "PACKAGE" && product.package?.items.length
                 ? product.package.items
+                    // A package child is either a product item or an
+                    // inventory item. Checking only the product side let an
+                    // archived inventory-backed child stay listed, which is
+                    // exactly what this filter exists to prevent.
+                    .filter((item) => {
+                      const child = item as unknown as {
+                        childProductItem?: { isActive?: boolean } | null;
+                        inventoryItem?: { status?: string } | null;
+                      };
+                      if (child.childProductItem?.isActive === false) {
+                        return false;
+                      }
+                      const inventoryStatus = child.inventoryItem?.status;
+                      return (
+                        inventoryStatus === undefined ||
+                        inventoryStatus === "ACTIVE"
+                      );
+                    })
                     .map(buildPackageBreakdownRow)
                     .map((item) => ({
                       id: item.id,
-                      childProductItemId: item.childItemId,
                       childProductName: item.childItemName,
                       childProductKind: item.childItemKind,
-                      childProductCode: item.childItemCode ?? null,
                       quantity: item.quantity,
-                      pricingMode: item.pricingMode,
-                      overridePrice: item.overridePrice,
-                      discountPercent: item.discountPercent,
                       sortOrder: item.sortOrder,
                       isOptional: item.isOptional,
-                      currency: item.currency,
-                      grossAmount: item.grossAmount,
-                      discountAmount: item.discountAmount,
-                      finalAmount: item.finalAmount,
                     }))
                 : undefined;
+
+            // The parent-facing quote has to be the amount that will actually
+            // be billed. `cost` is the GROSS unit price, and the practice's
+            // standing discount is applied when the invoice is drafted - so
+            // sending cost alone quoted a pet parent 240 for a visit their
+            // invoice then charged 228 for. `cost` stays for existing callers;
+            // the discounted amounts are additive.
+            const listPrice = product.prices?.[0];
+            const listAmounts = computeLineAmounts({
+              unitPrice: listPrice?.unitPrice ?? 0,
+              quantity: 1,
+              discountPercent: listPrice?.defaultDiscountPercent ?? 0,
+            });
 
             return {
               id: product.id,
               name: product.name,
               kind: product.kind,
               appointmentKinds: toAppointmentKinds(product.bookable),
-              cost: product.prices?.[0]?.unitPrice ?? 0,
+              cost: listPrice?.unitPrice ?? 0,
+              grossAmount: listAmounts.grossAmount,
+              defaultDiscountPercent: listPrice?.defaultDiscountPercent ?? 0,
+              finalAmount: listAmounts.finalAmount,
               specialityId: product.specialityId,
               organisationId: product.organisationId,
               ...(packageItems ? { packageItems } : {}),

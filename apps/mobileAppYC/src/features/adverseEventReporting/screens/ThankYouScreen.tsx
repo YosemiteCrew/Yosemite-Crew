@@ -28,6 +28,7 @@ import {adverseEventService} from '@/features/adverseEventReporting/services/adv
 import {showErrorAlert, showSuccessAlert} from '@/shared/utils/commonHelpers';
 import {SUPPORTED_ADVERSE_EVENT_COUNTRIES} from '@/features/adverseEventReporting/content/supportedCountries';
 import type {Theme} from '@/theme';
+import {useResolvedUserCurrency} from '@/shared/hooks/useResolvedUserCurrency';
 
 type Props = NativeStackScreenProps<AdverseEventStackParamList, 'ThankYou'>;
 
@@ -53,6 +54,7 @@ export const ThankYouScreen: React.FC<Props> = ({navigation}) => {
     (state: RootState) => state.linkedBusinesses.linkedBusinesses,
   );
   const authUser = useSelector((state: RootState) => state.auth.user);
+  const resolvedCurrency = useResolvedUserCurrency();
 
   const [agreeToBeContacted, setAgreeToBeContacted] = useState(
     draft.consentToContact,
@@ -159,6 +161,7 @@ export const ThankYouScreen: React.FC<Props> = ({navigation}) => {
             sendToAuthority: false,
           },
           consentToContact: agreeToBeContacted,
+          reporterCurrency: resolvedCurrency,
         });
 
         if (productFiles?.length) {
@@ -475,7 +478,7 @@ const createStyles = (theme: any) =>
     },
     errorText: {
       ...theme.typography.labelXxsBold,
-      color: theme.colors.danger,
+      color: theme.colors.dangerText,
       marginTop: theme.spacing['2'],
       marginLeft: theme.spacing['7'],
     },

@@ -1,5 +1,5 @@
 'use client';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { IoCaretDown } from 'react-icons/io5';
 import clsx from 'clsx';
@@ -82,9 +82,17 @@ const InventoryFilters = ({
   const updateFilters = (patch: Partial<InventoryFiltersState>) => {
     onChange({ ...filters, ...patch });
   };
-  if (filters.category !== 'all' && !categories.includes(filters.category)) {
+
+  // The selected category can disappear from `categories` (an org type change,
+  // a reload). Telling the parent from an effect rather than during render:
+  // `onChange` sets state in the PARENT, and doing that while this component
+  // renders is what React warns about - and re-renders in a loop if the parent
+  // does not replace the value immediately.
+  const categoryIsStale = filters.category !== 'all' && !categories.includes(filters.category);
+  useEffect(() => {
+    if (!categoryIsStale) return;
     onChange({ ...filters, category: 'all' });
-  }
+  }, [categoryIsStale, filters, onChange]);
 
   useFilterDropdownDismiss(dropdownOpen, setDropdownOpen, triggerRef, panelRef);
 

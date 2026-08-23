@@ -86,7 +86,7 @@ const resolveCategoryVisual = (
     return {
       icon: 'cut-outline',
       background: theme.colors.pinkGlow,
-      color: theme.colors.pink,
+      color: theme.colors.pinkDeep,
     };
   }
   if (
@@ -260,7 +260,7 @@ const createStyles = (theme: any) =>
     },
     meta: {
       fontSize: 12.5,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
       marginTop: 2,
     },
     amountColumn: {

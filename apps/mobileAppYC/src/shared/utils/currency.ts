@@ -144,3 +144,42 @@ export const formatCurrencyAmount = (
 export const getAllCurrencies = (): CurrencyRecord[] => {
   return Object.values(supportedCurrencyMap);
 };
+
+/**
+ * The currency to show a user when nothing more specific applies.
+ *
+ * There were three answers to this question and they disagreed: Edit parent
+ * and Home hardcoded 'USD', the expenses thunk hardcoded 'USD', and
+ * PreferencesContext derived it from the account country. A user with no
+ * imperial country therefore saw USD in some places and EUR in others.
+ *
+ * This is the single derivation. An explicit override always wins; otherwise
+ * an imperial country gives USD and everything else - including an account
+ * with no address set - gives EUR.
+ *
+ * Note this is the USER's currency. The currency of a specific thing - an
+ * invoice, a payment intent, a service's price - belongs to that thing and
+ * must not be replaced by this.
+ */
+/**
+ * Narrow an API-supplied currency string to one this app can actually render.
+ * The profile field is free-form, so a stored 'GBP' must not be handed to
+ * anything typed CurrencyCode.
+ */
+export const asSupportedCurrency = (
+  value?: string | null,
+): CurrencyCode | undefined => {
+  const normalized = value?.toUpperCase();
+  return SUPPORTED_CURRENCIES.find(code => code === normalized);
+};
+
+export const resolveUserCurrency = (
+  countryName?: string | null,
+  override?: CurrencyCode | null,
+): CurrencyCode => {
+  if (override) {
+    return override;
+  }
+  const imperialCountries = ['United States', 'Myanmar', 'Liberia'];
+  return countryName && imperialCountries.includes(countryName) ? 'USD' : 'EUR';
+};

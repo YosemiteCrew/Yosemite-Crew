@@ -95,6 +95,8 @@ import {upsertBusiness} from '@/features/appointments/businessesSlice';
 import {BusinessSearchDropdown} from '@/features/linkedBusinesses/components/BusinessSearchDropdown';
 import {deriveHomeGreetingName} from './HomeScreen.helpers';
 
+import i18next from 'i18next';
+import {useResolvedUserCurrency} from '@/shared/hooks/useResolvedUserCurrency';
 const EMPTY_ACCESS_MAP: Record<string, ParentCompanionAccess> = {};
 
 /** Ceiling on the opaque first-load overlay, which has no dismiss control. */
@@ -160,7 +162,8 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const hasCompanions = companions.length > 0;
   const unreadNotifications = useSelector(selectUnreadCount);
   const notificationsLoading = useSelector(selectNotificationsLoading);
-  const userCurrencyCode = authUser?.currency ?? 'USD';
+  const resolvedCurrency = useResolvedUserCurrency();
+  const userCurrencyCode = resolvedCurrency;
   const {businessMap, employeeMap, serviceMap} = useAppointmentDataMaps();
   const upcomingAppointmentsSelector = React.useMemo(
     () => createSelectUpcomingAppointments(),
@@ -336,7 +339,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     if (Platform.OS === 'android') {
       ToastAndroid.show(message, ToastAndroid.SHORT);
     } else {
-      Alert.alert('Permission needed', message);
+      Alert.alert(i18next.t('alerts.shared.permissionNeeded'), message);
     }
   }, []);
 
@@ -365,7 +368,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     if (Platform.OS === 'android') {
       ToastAndroid.show(message, ToastAndroid.SHORT);
     } else {
-      Alert.alert('Add a companion', message);
+      Alert.alert(i18next.t('alerts.shared.addACompanion'), message);
     }
     return false;
   }, [hasCompanions]);
@@ -785,8 +788,8 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         }
         if (!merckOrganisationId) {
           Alert.alert(
-            'MSD Veterinary Manuals unavailable',
-            'Link a hospital for this companion to use MSD Veterinary Manual search.',
+            i18next.t('alerts.home.msdVeterinaryManualsUnavailable'),
+            i18next.t('alerts.home.msdVeterinaryManualsUnavailableBody'),
           );
           return;
         }
@@ -929,8 +932,8 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
       if (!appointment) {
         Alert.alert(
-          'Chat unavailable',
-          'Book an appointment with an assigned vet to access chat.',
+          i18next.t('alerts.shared.chatUnavailable'),
+          i18next.t('alerts.home.chatUnavailableBody'),
           [{text: 'OK'}],
         );
         return;
@@ -999,7 +1002,10 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       }
       const target = upcomingAppointments.find(a => a.id === appointmentId);
       if (!target) {
-        Alert.alert('Appointment not found', 'Please refresh and try again.');
+        Alert.alert(
+          i18next.t('alerts.home.appointmentNotFound'),
+          i18next.t('alerts.home.appointmentNotFoundBody'),
+        );
         return;
       }
 
@@ -1369,6 +1375,10 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
                 onPress={handleEmergencyPress}
                 size={actionIconSize}
                 style={styles.actionIcon}
+                // The red badge's cross is a knockout, so it needs a light
+                // disc behind it in both themes - and an emergency control
+                // is the one place a high-visibility disc is wanted.
+                tintColor={theme.colors.white}
                 accessibilityLabel="Emergency">
                 <Image
                   source={Images.emergencyIcon}
@@ -1389,7 +1399,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
                 <View style={styles.notificationIconWrapper}>
                   <Image
                     source={Images.notificationIcon}
-                    style={styles.actionImage}
+                    style={styles.notificationImage}
                   />
                   {hasUnreadNotifications ? (
                     <View style={styles.notificationDot} />
@@ -1631,7 +1641,7 @@ const createStyles = (theme: any) =>
     greetingName: {
       // Warm-bone greeting: Newsreader serif italic in the companion pink.
       ...theme.typography.greeting,
-      color: theme.colors.pink,
+      color: theme.colors.pinkDeep,
     },
     greetingTitle: {
       // Large Newsreader serif headline under the greeting.
@@ -1658,6 +1668,14 @@ const createStyles = (theme: any) =>
       width: theme.spacing['6'] + 1,
       height: theme.spacing['6'] + 1,
       resizeMode: 'contain',
+    },
+    notificationImage: {
+      width: theme.spacing['6'] + 1,
+      height: theme.spacing['6'] + 1,
+      resizeMode: 'contain',
+      // Flat dark artwork: without a tint the bell disappears into the dark
+      // glass disc once the button stops forcing a light tint.
+      tintColor: theme.colors.ink,
     },
     notificationIconWrapper: {
       position: 'relative',
@@ -1814,7 +1832,7 @@ const createStyles = (theme: any) =>
 
     viewMoreText: {
       ...theme.typography.labelXxsBold,
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
     },
     viewMoreButton: {
       alignSelf: 'flex-start',
@@ -1869,6 +1887,6 @@ const createStyles = (theme: any) =>
     },
     requestedBadgeText: {
       ...theme.typography.labelSmallBold,
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
     },
   });

@@ -1,7 +1,8 @@
 import type { Router } from "express";
 
-const requireWebAuth = jest.fn((_req, _res, next) => next());
+const requireAnyAuth = jest.fn((_req, _res, next) => next());
 const requireMobileAuth = jest.fn((_req, _res, next) => next());
+const requireSuperAdmin = jest.fn((_req, _res, next) => next());
 const publicContactLimiter = jest.fn((_req, _res, next) => next());
 
 const ContactController = {
@@ -16,8 +17,12 @@ const ContactController = {
 const rateLimit = jest.fn(() => publicContactLimiter);
 
 jest.mock("../../src/middlewares/auth", () => ({
-  requireWebAuth,
+  requireAnyAuth,
   requireMobileAuth,
+}));
+
+jest.mock("../../src/middlewares/super-admin", () => ({
+  requireSuperAdmin,
 }));
 
 jest.mock("express-rate-limit", () => rateLimit);
@@ -69,18 +74,36 @@ describe("contact-us.router", () => {
     );
   });
 
-  it("keeps auth on the mobile and support routes", () => {
+  it("keeps auth on the mobile route", () => {
     expect(findRoute("/contact", "post")?.stack.map((l) => l.handle)).toContain(
       requireMobileAuth,
     );
-    expect(findRoute("/requests", "get")?.stack.map((l) => l.handle)).toContain(
-      requireWebAuth,
-    );
-    expect(
-      findRoute("/requests/:id", "get")?.stack.map((l) => l.handle),
-    ).toContain(requireWebAuth);
-    expect(
-      findRoute("/requests/:id/status", "patch")?.stack.map((l) => l.handle),
-    ).toContain(requireWebAuth);
+  });
+
+  // The /requests queue holds submissions from the PUBLIC contact form - names,
+  // emails, phone numbers - belonging to people with no relationship to any
+  // practice. It is operator data, not tenant data, so a plain staff session is
+  // not enough. The gate lives on a `router.use` prefix rather than per-route so
+  // a future /requests route cannot be added without it.
+  it("gates the whole support queue behind super-admin", () => {
+    const gate = (
+      contactRouter as unknown as {
+        stack: Array<{ route?: unknown; handle: unknown; regexp: RegExp }>;
+      }
+    ).stack.filter((layer) => !layer.route);
+
+    const handlers = gate.map((layer) => layer.handle);
+    expect(handlers).toContain(requireAnyAuth);
+    expect(handlers).toContain(requireSuperAdmin);
+
+    for (const layer of gate) {
+      if (
+        layer.handle === requireSuperAdmin ||
+        layer.handle === requireAnyAuth
+      ) {
+        expect(layer.regexp.test("/requests")).toBe(true);
+        expect(layer.regexp.test("/contact-web")).toBe(false);
+      }
+    }
   });
 });

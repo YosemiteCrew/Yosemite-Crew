@@ -15,6 +15,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import Video from 'react-native-video';
 import {useReducedMotion} from '@/shared/components/common/Skeleton/useReducedMotion';
 
+import {colors} from '@/theme';
 type Props = {
   onAnimationEnd: () => void;
 };
@@ -33,17 +34,21 @@ const COMPLIANCE_LOGOS = [
   {name: 'fda', source: require('../../../../assets/splash/fda.png')},
 ];
 
-// Warm-bone + over-video values (splash renders before the theme resolves).
+// The splash paints before the theme provider mounts, so it cannot use the
+// useTheme hook — but `colors` is a plain exported constant, so the light
+// palette is available directly. These were hand-copied hex values that
+// silently drifted from the tokens they were copied from.
 const C = {
-  screen: '#F7F3EC',
-  inset: '#EAE2D5',
-  ink: '#1D1C1B',
-  inkMuted: '#5C5956',
-  inkFaint2: '#A9A39E',
-  pink: '#FF90D4',
-  blue: '#257BED',
-  hairline: '#E5DCCF',
-  onVideo: '#F7F3EC',
+  screen: colors.screen,
+  inset: colors.inset,
+  ink: colors.ink,
+  inkMuted: colors.inkMuted,
+  inkFaint2: colors.inkFaint2,
+  pink: colors.pink,
+  pinkDeep: colors.pinkDeep,
+  blue: colors.blue,
+  hairline: colors.hairline,
+  onVideo: colors.screen,
 };
 
 // Cinematic scrim over the video: dark enough for the white lockup up top,
@@ -55,7 +60,7 @@ const SCRIM_COLORS = [
   'rgba(29,28,27,0.12)',
   'rgba(29,28,27,0.32)',
   'rgba(29,28,27,0.46)',
-  '#F7F3EC',
+  C.screen,
 ];
 const SCRIM_LOCATIONS = [0, 0.14, 0.28, 0.44, 0.6, 0.74, 0.98];
 
@@ -199,25 +204,32 @@ const styles = StyleSheet.create({
     fontSize: 34,
     letterSpacing: -0.6,
     color: C.onVideo,
-    textShadowColor: 'rgba(0,0,0,0.45)',
-    textShadowOffset: {width: 0, height: 2},
-    textShadowRadius: 22,
+    // Was radius 22, which spreads into a grey haze around the letters rather
+    // than lifting them off the video. Tighter and slightly stronger reads as
+    // a crisp edge.
+    textShadowColor: 'rgba(0,0,0,0.55)',
+    textShadowOffset: {width: 0, height: 1},
+    textShadowRadius: 6,
   },
   betaPill: {
     marginLeft: 11,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 9999,
-    backgroundColor: 'rgba(29,28,27,0.32)',
-    borderWidth: 1,
-    borderColor: 'rgba(247,243,236,0.28)',
+    // A translucent black fill takes the hue of whatever frame is behind it.
+    // Over the warm splash footage rgba(29,28,27,0.32) composited to #705C3E -
+    // a muddy brown patch 5.77:1 darker than the frame around it, with the
+    // pink label sitting on it at 3.10:1. A solid bone pill is the same shape
+    // but reads as a deliberate chip whatever the video is doing, and takes
+    // pinkDeep at 5.29:1.
+    backgroundColor: C.screen,
     transform: [{translateY: -6}],
   },
   betaText: {
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1.2,
-    color: C.pink,
+    color: C.pinkDeep,
   },
   tagline: {
     fontFamily: NEWSREADER_ITALIC,
@@ -226,9 +238,9 @@ const styles = StyleSheet.create({
     letterSpacing: -0.1,
     color: C.pink,
     marginTop: 10,
-    textShadowColor: 'rgba(0,0,0,0.4)',
+    textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: {width: 0, height: 1},
-    textShadowRadius: 16,
+    textShadowRadius: 5,
   },
   bottom: {
     position: 'absolute',

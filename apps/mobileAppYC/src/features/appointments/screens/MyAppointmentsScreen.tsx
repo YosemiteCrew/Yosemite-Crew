@@ -785,7 +785,7 @@ const createStyles = (theme: Theme) =>
     },
     groupTitle: {
       ...theme.typography.eyebrow,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     segmentContainer: {
       marginTop: theme.spacing['1'],
@@ -840,7 +840,7 @@ const createStyles = (theme: Theme) =>
     },
     ratingLoadingText: {
       ...theme.typography.body12,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     pastStatusWrapper: {
       flexDirection: 'row',

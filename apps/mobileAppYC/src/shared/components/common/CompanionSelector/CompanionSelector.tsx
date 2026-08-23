@@ -18,6 +18,7 @@ import {useLazyRef} from '@/shared/hooks/useLazyRef';
 import type {RootState} from '@/app/store';
 import type {CoParentPermissions} from '@/features/coParent';
 
+import i18next from 'i18next';
 export interface CompanionBase {
   id?: string;
   _id?: string;
@@ -141,7 +142,7 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
     if (Platform.OS === 'android') {
       ToastAndroid.show(message, ToastAndroid.SHORT);
     } else {
-      Alert.alert('Permission needed', message);
+      Alert.alert(i18next.t('alerts.shared.permissionNeeded'), message);
     }
   }, []);
 
@@ -281,7 +282,7 @@ const createStyles = (theme: any) =>
     },
     // Pink = companion moment: the selected tile gets a pink border + soft glow.
     companionItemSelected: {
-      borderColor: theme.colors.pink,
+      borderColor: theme.colors.pinkDeep,
       backgroundColor: theme.colors.screen,
       ...theme.shadows.companion,
     },
@@ -298,7 +299,7 @@ const createStyles = (theme: any) =>
       borderColor: theme.colors.transparent,
     },
     companionAvatarRingSelected: {
-      borderColor: theme.colors.pink,
+      borderColor: theme.colors.pinkDeep,
     },
     companionAvatar: {
       width: 48,
@@ -316,7 +317,7 @@ const createStyles = (theme: any) =>
     },
     companionAvatarInitial: {
       ...theme.typography.titleMedium,
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
       fontWeight: '700',
     },
     companionName: {
@@ -327,7 +328,7 @@ const createStyles = (theme: any) =>
     },
     companionMeta: {
       ...theme.typography.labelXxsBold,
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
     },
     addCompanionItem: {
       alignItems: 'center',
@@ -355,7 +356,7 @@ const createStyles = (theme: any) =>
     },
     addCompanionLabel: {
       ...theme.typography.labelXxsBold,
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
       textAlign: 'center',
     },
   });

@@ -44,7 +44,7 @@ export const createScreenHeaderStyles = (
   },
   headerSubtitle: {
     ...theme.typography.body12,
-    color: theme.colors.inkFaint,
+    color: theme.colors.inkMuted,
     textAlign: 'center',
     marginTop: 1,
   },

@@ -152,7 +152,7 @@ describe('appUpdatePolicy', () => {
     expect(prompt?.storeUrl).toBe('market://details?id=com.yc.bundle');
   });
 
-  it('downgrades a forced update to optional when the iOS store URL cannot be resolved', () => {
+  it('keeps a forced iOS update required, falling back to App Store search', () => {
     (Platform as {OS: string}).OS = 'ios';
 
     const prompt = evaluateAppUpdatePrompt(
@@ -169,10 +169,15 @@ describe('appUpdatePolicy', () => {
       'com.yc.bundle',
     );
 
-    // Without a store URL the required sheet would trap the user (non-dismissible
-    // with no working action), so the prompt must stay dismissible.
-    expect(prompt?.kind).toBe('optional');
-    expect(prompt?.storeUrl).toBeNull();
+    // A required sheet with no destination would trap the user, but degrading to
+    // dismissible let a misconfigured remote config switch the force-update
+    // mechanism off - which is how a vulnerable build gets retired. The search
+    // URL is always constructible, so the prompt stays required AND actionable.
+    expect(prompt?.kind).toBe('required');
+    expect(prompt?.storeUrl).toBe(
+      'https://apps.apple.com/search?term=com.yc.bundle',
+    );
+    expect(isTrustedStoreUrl(prompt?.storeUrl ?? '')).toBe(true);
   });
 
   it('downgrades a minimum-version update to optional when no store url resolves', () => {

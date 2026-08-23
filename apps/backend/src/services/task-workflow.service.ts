@@ -556,9 +556,20 @@ const loadScheduleByInstanceId = async (
 };
 
 export const TaskWorkflowService = {
+  /**
+   * Task schedules on an encounter.
+   *
+   * `ownerScope` narrows the result to the caller's own schedules. The route
+   * accepts `tasks:view:any` OR `tasks:view:own`, and `requirePermission` treats
+   * an array as any-of - so without this a role holding only own-task visibility
+   * could name any encounter in the organisation and read every schedule on it,
+   * including creator and activator ids, template ids, generated task ids and
+   * the raw schedule input.
+   */
   async listSchedulesForEncounter(
     organisationId: string,
     encounterId: string,
+    ownerScope?: { actorId: string },
   ): Promise<TaskScheduleLike[]> {
     const trimmedOrganisationId = organisationId.trim();
     const trimmedEncounterId = encounterId.trim();
@@ -571,10 +582,18 @@ export const TaskWorkflowService = {
       throw new TaskWorkflowServiceError("Invalid encounterId", 400);
     }
 
+    const actorId = ownerScope?.actorId.trim();
+    if (ownerScope && !actorId) {
+      throw new TaskWorkflowServiceError("Invalid actorId", 400);
+    }
+
     const schedules = await prisma.taskSchedule.findMany({
       where: {
         organisationId: trimmedOrganisationId,
         encounterId: trimmedEncounterId,
+        ...(actorId
+          ? { OR: [{ createdBy: actorId }, { activatedBy: actorId }] }
+          : {}),
       },
       orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
     });

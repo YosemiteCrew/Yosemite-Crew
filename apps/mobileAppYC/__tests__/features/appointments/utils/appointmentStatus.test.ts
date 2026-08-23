@@ -12,11 +12,13 @@ const mockTheme = {
   colors: {
     secondary: '#secondary',
     primary: '#primary',
+    blueText: '#blueText',
     primaryTint: '#primaryTint',
     success: '#success',
     successSurface: '#successSurface',
     warning: '#warning',
     warningSurface: '#warningSurface',
+    dangerText: '#dangerText',
     error: '#error',
     errorSurface: '#errorSurface',
   },
@@ -167,10 +169,20 @@ describe('isActionableUpcomingStatus', () => {
 });
 
 describe('getAppointmentStatusLabel', () => {
-  it('returns "Booking paid" when bookingPaymentStatus is PAID, regardless of status', () => {
-    expect(getAppointmentStatusLabel('UPCOMING', 'UNPAID', 'PAID')).toBe(
+  it('returns "Booking paid" once the appointment itself owes nothing', () => {
+    expect(getAppointmentStatusLabel('UPCOMING', 'PAID', 'PAID')).toBe(
       'Booking paid',
     );
+  });
+
+  it('does not let a paid booking mask an unpaid appointment invoice', () => {
+    // A paid booking is a deposit taken at booking time, not settlement of the
+    // appointment's invoice. Showing "Booking paid" over an unpaid invoice
+    // reads as settled and removed the Pay Now action.
+    expect(getAppointmentStatusLabel('UPCOMING', 'UNPAID', 'PAID')).toBe(
+      'Payment pending',
+    );
+    expect(isAppointmentPaymentPending('UPCOMING', 'UNPAID')).toBe(true);
   });
 
   it('returns "Payment failed" when payment failed', () => {
@@ -210,16 +222,27 @@ describe('getAppointmentStatusLabel', () => {
 });
 
 describe('getAppointmentStatusBadgePalette', () => {
-  it('returns success palette with "Booking paid" label when bookingPaymentStatus is PAID', () => {
+  it('returns success palette with "Booking paid" once nothing is outstanding', () => {
+    const result = getAppointmentStatusBadgePalette(
+      mockTheme,
+      'UPCOMING',
+      'PAID',
+      'PAID',
+    );
+    expect(result.text).toBe('Booking paid');
+    expect(result.textColor).toBe('#success');
+    expect(result.backgroundColor).toBe('#successSurface');
+  });
+
+  it('does not show a green booking badge over an unpaid invoice', () => {
     const result = getAppointmentStatusBadgePalette(
       mockTheme,
       'UPCOMING',
       'UNPAID',
       'PAID',
     );
-    expect(result.text).toBe('Booking paid');
-    expect(result.textColor).toBe('#success');
-    expect(result.backgroundColor).toBe('#successSurface');
+    expect(result.text).toBe('Payment pending');
+    expect(result.textColor).not.toBe('#success');
   });
 
   it('returns error palette for payment failed', () => {
@@ -228,7 +251,7 @@ describe('getAppointmentStatusBadgePalette', () => {
       'PAYMENT_FAILED',
       null,
     );
-    expect(result.textColor).toBe('#error');
+    expect(result.textColor).toBe('#dangerText');
     expect(result.backgroundColor).toBe('#errorSurface');
     expect(result.text).toBe('Payment failed');
   });
@@ -297,7 +320,7 @@ describe('getAppointmentStatusBadgePalette', () => {
       'REQUESTED',
       null,
     );
-    expect(result.textColor).toBe('#primary');
+    expect(result.textColor).toBe('#blueText');
     expect(result.backgroundColor).toBe('#primaryTint');
   });
 
@@ -317,7 +340,7 @@ describe('getAppointmentStatusBadgePalette', () => {
       'CANCELLED',
       null,
     );
-    expect(result.textColor).toBe('#error');
+    expect(result.textColor).toBe('#dangerText');
     expect(result.backgroundColor).toBe('#errorSurface');
   });
 
@@ -328,7 +351,7 @@ describe('getAppointmentStatusBadgePalette', () => {
       'AWAITING_PAYMENT',
     );
     expect(result.text).toBe('Cancelled');
-    expect(result.textColor).toBe('#error');
+    expect(result.textColor).toBe('#dangerText');
     expect(result.backgroundColor).toBe('#errorSurface');
   });
 
@@ -339,7 +362,7 @@ describe('getAppointmentStatusBadgePalette', () => {
       'PAYMENT_FAILED',
     );
     expect(result.text).toBe('Cancelled');
-    expect(result.textColor).toBe('#error');
+    expect(result.textColor).toBe('#dangerText');
   });
 
   it('returns error palette for REJECTED', () => {
@@ -348,13 +371,13 @@ describe('getAppointmentStatusBadgePalette', () => {
       'REJECTED',
       null,
     );
-    expect(result.textColor).toBe('#error');
+    expect(result.textColor).toBe('#dangerText');
     expect(result.backgroundColor).toBe('#errorSurface');
   });
 
   it('returns error palette for NO_SHOW', () => {
     const result = getAppointmentStatusBadgePalette(mockTheme, 'NO_SHOW', null);
-    expect(result.textColor).toBe('#error');
+    expect(result.textColor).toBe('#dangerText');
     expect(result.backgroundColor).toBe('#errorSurface');
   });
 

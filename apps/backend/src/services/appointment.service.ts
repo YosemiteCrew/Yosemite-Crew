@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import { filterUserIdsInOrganisation } from "./shared/organisation-membership";
 import { AppointmentStatus } from "../models/appointment";
 import {
   Appointment,
@@ -1082,9 +1083,17 @@ const sendAppointmentAssignmentEmails = async (
 
     if (!staff.length) return;
 
+    // Only staff who actually work at this appointment's organisation. The lead
+    // and support-staff ids come off the appointment payload, so an unfiltered
+    // lookup would email companion names and appointment details to an account
+    // in another practice.
     const staffIds = [...new Set(staff.map((member) => member.id))];
+    const members = await filterUserIdsInOrganisation(
+      staffIds,
+      appointment.organisationId,
+    );
     const users = await prisma.user.findMany({
-      where: { userId: { in: staffIds } },
+      where: { userId: { in: staffIds.filter((id) => members.has(id)) } },
       select: {
         userId: true,
         email: true,

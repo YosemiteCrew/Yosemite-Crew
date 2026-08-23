@@ -30,9 +30,15 @@ jest.mock("src/config/prisma", () => ({
     },
     authUserMobile: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
       updateMany: jest.fn(),
     },
   },
+}));
+
+const mockDeleteAuthUser = jest.fn();
+jest.mock("@yosemite-crew/auth", () => ({
+  getAuthService: jest.fn(() => ({ deleteUser: mockDeleteAuthUser })),
 }));
 
 jest.mock("../../src/services/authUserMobile.service", () => ({
@@ -67,7 +73,11 @@ const mockedPrisma = prisma as unknown as {
   };
   parentAddress: { upsert: jest.Mock; deleteMany: jest.Mock };
   parentPatient: { deleteMany: jest.Mock };
-  authUserMobile: { findFirst: jest.Mock; updateMany: jest.Mock };
+  authUserMobile: {
+    findFirst: jest.Mock;
+    findMany: jest.Mock;
+    updateMany: jest.Mock;
+  };
 };
 
 const mockedAuth = AuthUserMobileService as unknown as {

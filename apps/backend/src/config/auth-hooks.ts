@@ -66,7 +66,16 @@ export const authHooks: AuthHooks = {
     try {
       const normalizedEmail = email?.trim().toLowerCase();
 
-      if (normalizedEmail && authProfile) {
+      // Only relink a provider account that has NOT already been bound. Once a
+      // mapping exists it is the answer; re-deriving it from the email on every
+      // login would let a later collision silently move a live session onto a
+      // different account.
+      const boundMapping = await prisma.authIdentity.findFirst({
+        where: { provider, providerUserId },
+        select: { appUserId: true },
+      });
+
+      if (!boundMapping && normalizedEmail && authProfile) {
         const candidates = await prisma.authIdentity.findMany({
           where: {
             email: normalizedEmail,
@@ -78,9 +87,31 @@ export const authHooks: AuthHooks = {
           },
         });
 
-        const legacyCandidate = candidates.find(
-          (candidate) => candidate.appUserId !== appUserId,
-        );
+        const legacyAppUserIds = [
+          ...new Set(
+            candidates
+              .map((candidate) => candidate.appUserId)
+              .filter((candidateId) => candidateId !== appUserId),
+          ),
+        ];
+
+        // Ambiguity is a takeover primitive, not a migration case. `email` is
+        // indexed but not unique, so a shared mailbox, a duplicated legacy
+        // import, or a recycled address can produce several legacy accounts for
+        // one address. Adopting "the oldest" would hand the new session whichever
+        // account happens to sort first, so refuse instead and let the account
+        // stand on its own id.
+        if (legacyAppUserIds.length > 1) {
+          logger.error(
+            "Ambiguous legacy identity for auth profile; refusing to relink",
+            { authProfile, candidateCount: legacyAppUserIds.length },
+          );
+          return appUserId;
+        }
+
+        const legacyCandidate = legacyAppUserIds[0]
+          ? { appUserId: legacyAppUserIds[0] }
+          : undefined;
 
         if (legacyCandidate) {
           await prisma.authIdentity.upsert({
@@ -108,17 +139,7 @@ export const authHooks: AuthHooks = {
         }
       }
 
-      const existingMapping = await prisma.authIdentity.findFirst({
-        where: {
-          provider,
-          providerUserId,
-        },
-        select: {
-          appUserId: true,
-        },
-      });
-
-      return existingMapping?.appUserId ?? appUserId;
+      return boundMapping?.appUserId ?? appUserId;
     } catch (error) {
       logger.error("Failed to resolve auth identity mapping", error);
       return appUserId;

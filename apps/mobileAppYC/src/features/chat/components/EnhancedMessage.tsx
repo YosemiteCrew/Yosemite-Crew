@@ -19,6 +19,7 @@ import Share from 'react-native-share';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import {Toast} from 'toastify-react-native';
 
+import i18next from 'i18next';
 export const EnhancedMessage: React.FC = () => {
   const {channel, message, isMyMessage, setQuotedMessage} = useMessageContext();
 
@@ -81,8 +82,8 @@ export const EnhancedMessage: React.FC = () => {
       handlers.push(() => {
         ReactNativeHapticFeedback.trigger('impactMedium');
         Alert.alert(
-          'Delete Message',
-          'Are you sure you want to delete this message?',
+          i18next.t('alerts.chat.deleteMessage'),
+          i18next.t('alerts.chat.deleteMessageBody'),
           [
             {
               text: 'Cancel',
@@ -121,7 +122,7 @@ export const EnhancedMessage: React.FC = () => {
     } else {
       // Android
       Alert.alert(
-        'Message Options',
+        i18next.t('alerts.chat.messageOptions'),
         '',
         [
           ...options.slice(0, -1).map((option, index) => ({

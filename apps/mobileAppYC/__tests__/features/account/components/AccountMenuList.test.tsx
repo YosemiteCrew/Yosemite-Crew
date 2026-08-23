@@ -1,4 +1,8 @@
 import React from 'react';
+
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({t: (k: string) => k}),
+}));
 import {fireEvent, render} from '@testing-library/react-native';
 import {Image, ImageSourcePropType} from 'react-native';
 import type {ReactTestInstance} from 'react-test-renderer';
@@ -66,7 +70,7 @@ describe('AccountMenuList', () => {
       ? dangerLabel.props.style
       : [dangerLabel.props.style];
     const hasDangerColor = labelStyles.some(
-      style => style?.color === lightTheme.colors.error,
+      style => style?.color === lightTheme.colors.dangerText,
     );
     expect(hasDangerColor).toBe(true);
 
@@ -164,5 +168,24 @@ describe('AccountMenuList', () => {
       : [tileIcon.props.style];
     const hasAnyTint = iconStyles.some(style => style?.tintColor !== undefined);
     expect(hasAnyTint).toBe(false);
+  });
+
+  // Every other row in this list opens an in-app screen. About us leaves for a
+  // browser, so the row has to say so before it is tapped.
+  it('marks an external row and leaves the others unmarked', () => {
+    const items = [
+      {id: 'faqs', label: 'FAQs', icon: createIcon()},
+      {id: 'about', label: 'About us', icon: createIcon(), external: true},
+    ];
+
+    const {getByLabelText, queryAllByText} = renderWithStore(
+      <AccountMenuList items={items} onItemPress={jest.fn()} />,
+    );
+
+    expect(queryAllByText('account.opensInBrowserShort')).toHaveLength(1);
+    expect(getByLabelText('About us').props.accessibilityHint).toBe(
+      'account.opensInBrowser',
+    );
+    expect(getByLabelText('FAQs').props.accessibilityHint).toBeUndefined();
   });
 });

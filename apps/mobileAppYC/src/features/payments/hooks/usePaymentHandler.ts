@@ -6,6 +6,7 @@ import type {AppDispatch} from '@/app/store';
 import {recordPayment} from '@/features/appointments/appointmentsSlice';
 import {getResolvedStripePublishableKey} from '@/config/stripeKeyRegistry';
 
+import i18next from 'i18next';
 export const usePaymentHandler = ({
   clientSecret,
   connectedAccountId,
@@ -60,8 +61,8 @@ export const usePaymentHandler = ({
   const handlePayNow = useCallback(async () => {
     if (!clientSecret) {
       Alert.alert(
-        'Payment unavailable',
-        'No payment intent found for this appointment.',
+        i18next.t('alerts.shared.paymentUnavailable'),
+        i18next.t('alerts.payments.paymentUnavailableBody'),
       );
       return;
     }
@@ -97,7 +98,10 @@ export const usePaymentHandler = ({
         initError.code,
         initError.message,
       );
-      Alert.alert('Payment unavailable', initError.message);
+      Alert.alert(
+        i18next.t('alerts.shared.paymentUnavailable'),
+        initError.message,
+      );
       return;
     }
 
@@ -111,15 +115,15 @@ export const usePaymentHandler = ({
           error.code,
           error.message,
         );
-        Alert.alert('Payment failed', error.message);
+        Alert.alert(i18next.t('alerts.payments.paymentFailed'), error.message);
         return;
       }
     } catch (err) {
       setPresentingSheet(false);
       console.error('[Payment] presentPaymentSheet threw', err);
       Alert.alert(
-        'Payment failed',
-        'Unable to present the payment sheet. Please try again.',
+        i18next.t('alerts.payments.paymentFailed'),
+        i18next.t('alerts.payments.paymentFailedBody'),
       );
       return;
     }

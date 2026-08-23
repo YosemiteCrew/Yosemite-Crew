@@ -105,7 +105,7 @@ export const AddressFields: React.FC<AddressFieldsProps> = ({
                   <View style={styles.suggestionLoader}>
                     <ActivityIndicator
                       size="small"
-                      color={theme.colors.primary}
+                      color={theme.colors.blueText}
                     />
                   </View>
                 );

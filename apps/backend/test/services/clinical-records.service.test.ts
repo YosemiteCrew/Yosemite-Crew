@@ -41,6 +41,11 @@ jest.mock("src/config/prisma", () => ({
     },
     user: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
+    userOrganization: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
     },
     appointment: {
       updateMany: jest.fn(),
@@ -87,6 +92,11 @@ describe("ClinicalArtifactService clinical records", () => {
     };
     user: {
       findFirst: jest.Mock;
+      findMany: jest.Mock;
+    };
+    userOrganization: {
+      findFirst: jest.Mock;
+      findMany: jest.Mock;
     };
     appointment: {
       updateMany: jest.Mock;
@@ -118,6 +128,11 @@ describe("ClinicalArtifactService clinical records", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // `recordedBy` only resolves to a name for someone who actually holds an
+    // active membership in the artifact's organisation.
+    mockedPrisma.userOrganization.findFirst.mockResolvedValue({
+      id: "membership-1",
+    });
     mockedPrisma.user.findFirst.mockResolvedValue({
       id: "user-1",
       userId: "nurse-1",

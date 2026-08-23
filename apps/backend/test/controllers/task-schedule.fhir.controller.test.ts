@@ -72,7 +72,7 @@ describe("TaskScheduleFhirController", () => {
     mockedMapper.toTask.mockReturnValue({ resourceType: "Task" } as never);
   });
 
-  it("lists encounter schedules as a FHIR bundle", async () => {
+  it("lists encounter schedules as a FHIR bundle for an any-scope viewer", async () => {
     mockedService.listSchedulesForEncounter.mockResolvedValueOnce([
       { id: "schedule-1" },
       { id: "schedule-2" },
@@ -85,13 +85,16 @@ describe("TaskScheduleFhirController", () => {
           organisationId: "org-1",
           encounterId: "enc-1",
         },
-      } as Request,
+        userPermissions: ["tasks:view:any"],
+      } as unknown as Request,
       res as Response,
     );
 
+    // `tasks:view:any` sees the whole encounter, so no owner scope is passed.
     expect(mockedService.listSchedulesForEncounter).toHaveBeenCalledWith(
       "org-1",
       "enc-1",
+      undefined,
     );
     expect(mockedMapper.toTask).toHaveBeenCalledTimes(2);
     expect(jsonMock).toHaveBeenCalledWith(
@@ -106,6 +109,32 @@ describe("TaskScheduleFhirController", () => {
       }),
     );
     expect(statusMock).toHaveBeenCalledWith(200);
+  });
+
+  // The route admits `tasks:view:any` OR `tasks:view:own`, and `requirePermission`
+  // treats an array as any-of - so a role with only own-task visibility could
+  // otherwise name any encounter and read every schedule on it.
+  it("narrows the listing to the caller's own schedules for an own-scope viewer", async () => {
+    mockedService.listSchedulesForEncounter.mockResolvedValueOnce([] as never);
+
+    await TaskScheduleFhirController.listEncounterSchedules(
+      {
+        ...req,
+        params: {
+          organisationId: "org-1",
+          encounterId: "enc-1",
+        },
+        userPermissions: ["tasks:view:own"],
+        userId: "user-9",
+      } as unknown as Request,
+      res as Response,
+    );
+
+    expect(mockedService.listSchedulesForEncounter).toHaveBeenCalledWith(
+      "org-1",
+      "enc-1",
+      { actorId: "user-9" },
+    );
   });
 
   it("applies, pauses, resumes, cancels, and regenerates schedules", async () => {

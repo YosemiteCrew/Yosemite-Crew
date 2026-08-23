@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { OrganizationRatingService } from "src/services/organisationReting.service";
 import logger from "src/utils/logger";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import { resolveVerifiedUserId } from "src/utils/request";
 
 type RatingRequestBody = {
   rating: number;
@@ -12,7 +12,7 @@ type RatingRequestBody = {
 export const OrganisationRatingController = {
   rateOrganisation: async (req: Request, res: Response) => {
     try {
-      const authUserId = resolveUserIdFromRequest(req);
+      const authUserId = resolveVerifiedUserId(req);
       const authUser = await AuthUserMobileService.getByProviderUserId(
         authUserId!,
       );
@@ -47,7 +47,7 @@ export const OrganisationRatingController = {
 
   isUserRatedOrganisation: async (req: Request, res: Response) => {
     try {
-      const authUserId = resolveUserIdFromRequest(req);
+      const authUserId = resolveVerifiedUserId(req);
       const authUser = await AuthUserMobileService.getByProviderUserId(
         authUserId!,
       );

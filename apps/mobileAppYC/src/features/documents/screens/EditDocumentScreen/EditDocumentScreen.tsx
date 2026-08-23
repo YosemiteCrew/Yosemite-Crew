@@ -262,7 +262,7 @@ export const EditDocumentScreen: React.FC = () => {
           onBack={() => navigation.goBack()}
         />
         <View style={styles.errorContainer}>
-          <Text style={[styles.errorMessage, {color: theme.colors.error}]}>
+          <Text style={[styles.errorMessage, {color: theme.colors.dangerText}]}>
             Document not found
           </Text>
         </View>
@@ -294,6 +294,7 @@ export const EditDocumentScreen: React.FC = () => {
             onBack={handleBack}
             onRightPress={handleDelete}
             rightIcon={Images.deleteIconRed}
+            rightIconTint={theme.colors.dangerText}
             glass={false}
           />
         }
@@ -354,6 +355,6 @@ const createStyles = (theme: any) =>
     },
     errorMessage: {
       ...theme.typography.body,
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
     },
   });

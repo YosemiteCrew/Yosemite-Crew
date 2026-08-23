@@ -49,6 +49,7 @@ import {
   type ContactAttachmentPayload,
 } from '../services/contactService';
 
+import i18next from 'i18next';
 type ContactUsScreenProps = NativeStackScreenProps<
   HomeStackParamList,
   'ContactUs'
@@ -365,8 +366,8 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
         resetSimpleForm(tabId);
         setSimpleErrors(prev => ({...prev, [tabId]: {}}));
         Alert.alert(
-          'Message sent',
-          'Thanks for reaching out. Our team will get back to you shortly.',
+          i18next.t('alerts.support.messageSent'),
+          i18next.t('alerts.support.messageSentBody'),
         );
         return true;
       } catch (error) {
@@ -374,7 +375,7 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
           error instanceof Error
             ? error.message
             : 'Failed to submit your request. Please try again.';
-        Alert.alert('Unable to submit', message);
+        Alert.alert(i18next.t('alerts.shared.unableToSubmit'), message);
         return false;
       } finally {
         setSubmittingFor(tabId, false);
@@ -481,8 +482,8 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
       setDsarErrors({});
       setDsarForm(buildInitialDsarFormState());
       Alert.alert(
-        'Request sent',
-        'We have received your data request and will follow up shortly.',
+        i18next.t('alerts.support.requestSent'),
+        i18next.t('alerts.support.requestSentBody'),
       );
       return true;
     } catch (error) {
@@ -490,7 +491,7 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
         error instanceof Error
           ? error.message
           : 'Failed to submit your request. Please try again.';
-      Alert.alert('Unable to submit', messageText);
+      Alert.alert(i18next.t('alerts.shared.unableToSubmit'), messageText);
       return false;
     } finally {
       setSubmittingFor('dsar', false);
@@ -537,7 +538,7 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
       const errorText =
         'Please add a pet profile before uploading complaint images.';
       setAttachmentError(errorText);
-      Alert.alert('Add a pet profile', errorText);
+      Alert.alert(i18next.t('alerts.support.addAPetProfile'), errorText);
       return false;
     }
 
@@ -582,8 +583,8 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
       setComplaintForm(buildInitialComplaintFormState());
       setAttachmentError(undefined);
       Alert.alert(
-        'Complaint submitted',
-        'Thanks for sharing the details. We will review and respond soon.',
+        i18next.t('alerts.support.complaintSubmitted'),
+        i18next.t('alerts.support.complaintSubmittedBody'),
       );
       return true;
     } catch (error) {
@@ -594,7 +595,7 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
       if (complaintAttachments.length) {
         setAttachmentError(error instanceof Error ? error.message : undefined);
       }
-      Alert.alert('Unable to submit', message);
+      Alert.alert(i18next.t('alerts.shared.unableToSubmit'), message);
       return false;
     } finally {
       setSubmittingFor('complaint', false);
@@ -1254,7 +1255,7 @@ const createStyles = (theme: any) =>
     },
     optionsBox: {
       borderWidth: 1.5,
-      borderColor: theme.colors.hairline,
+      borderColor: theme.colors.controlBorder,
       borderRadius: theme.borderRadius.field,
       overflow: 'hidden',
       backgroundColor: theme.colors.fieldBg,
@@ -1281,7 +1282,7 @@ const createStyles = (theme: any) =>
     },
     errorText: {
       ...theme.typography.labelXxsBold,
-      color: theme.colors.danger,
+      color: theme.colors.dangerText,
       marginTop: 3,
       marginBottom: theme.spacing['3'],
       marginLeft: theme.spacing['1'],
@@ -1318,7 +1319,7 @@ const createStyles = (theme: any) =>
     },
     uploadLabel: {
       ...theme.typography.labelSmall,
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
     },
     button: {
       width: '100%',

@@ -315,10 +315,12 @@ describe("CodeService", () => {
 
     await expect(CodeService.listEntries({})).resolves.toBe(rows);
 
+    // Always bounded: `CodeEntry` is a terminology table, so an unbounded read
+    // is a full-table load on an authenticated endpoint.
     expect(mockedPrisma.codeEntry.findMany).toHaveBeenCalledWith({
       where: {},
       orderBy: { display: "asc" },
-      take: undefined,
+      take: 200,
     });
   });
 
@@ -332,29 +334,39 @@ describe("CodeService", () => {
     expect(mockedPrisma.codeEntry.findMany).toHaveBeenCalledWith({
       where: {},
       orderBy: { display: "asc" },
-      take: undefined,
+      take: 200,
     });
   });
 
-  it("ignores a non-finite limit", async () => {
+  it("falls back to the ceiling for a non-finite limit", async () => {
     const rows = [{ id: "x" }];
     mockedPrisma.codeEntry.findMany.mockResolvedValue(rows);
 
     await CodeService.listEntries({ limit: Number.POSITIVE_INFINITY });
 
     expect(mockedPrisma.codeEntry.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ take: undefined }),
+      expect.objectContaining({ take: 200 }),
     );
   });
 
-  it("treats a non-positive limit as no limit on the no-query path", async () => {
+  it("falls back to the ceiling for a non-positive limit", async () => {
     const rows = [{ id: "np" }];
     mockedPrisma.codeEntry.findMany.mockResolvedValue(rows);
 
     await CodeService.listEntries({ limit: -3 });
 
     expect(mockedPrisma.codeEntry.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ take: undefined }),
+      expect.objectContaining({ take: 200 }),
+    );
+  });
+
+  it("caps an oversized limit at the ceiling", async () => {
+    mockedPrisma.codeEntry.findMany.mockResolvedValue([{ id: "big" }]);
+
+    await CodeService.listEntries({ limit: 1_000_000 });
+
+    expect(mockedPrisma.codeEntry.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 200 }),
     );
   });
 
@@ -384,10 +396,14 @@ describe("CodeService", () => {
       expect.objectContaining({ id: "c" }),
     ]);
 
-    expect(mockedPrisma.codeEntry.findMany).toHaveBeenCalledWith({
-      where: {},
-      orderBy: { display: "asc" },
-    });
+    // Narrowed in SQL on the plain columns and hard-capped, so the in-memory
+    // synonym pass runs over a bounded slice rather than the whole table.
+    expect(mockedPrisma.codeEntry.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: { display: "asc" },
+        take: 2_000,
+      }),
+    );
   });
 
   it("matches on code and slices the filtered results to the limit", async () => {

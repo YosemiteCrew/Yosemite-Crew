@@ -85,7 +85,7 @@ const createStyles = (theme: any) =>
       flex: 1,
     },
     errorText: {
-      color: theme.colors.error,
+      color: theme.colors.dangerText,
       ...theme.typography.bodySmall,
       marginTop: theme.spacing['1'],
       marginLeft: theme.spacing['7'],

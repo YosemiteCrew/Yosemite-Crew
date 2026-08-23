@@ -3,6 +3,7 @@ import { prisma } from "src/config/prisma";
 import { AuditTrailService } from "./audit-trail.service";
 import { PassportConsentService } from "./passport-consent.service";
 import { assertPatientOrgMembership } from "./shared/patient-org-membership";
+import { findParentIdForAuthUser } from "./shared/parent-identity";
 import type { AuditActorType } from "../models/audit-trail";
 import type {
   ClinicalExamDTO,
@@ -273,12 +274,7 @@ const assemblePassport = async (
   // sees its own records plus those it has been granted cross-practice consent
   // for; the owner / public view sees every practice's records.
   const chipPatientIds = patient.microchipNumber
-    ? (
-        await prisma.patient.findMany({
-          where: { microchipNumber: patient.microchipNumber },
-          select: { id: true },
-        })
-      ).map((p) => p.id)
+    ? await resolveChipSiblingIds(patientId, patient.microchipNumber)
     : [patientId];
 
   let orgFilter: { in: string[] } | undefined;
@@ -414,15 +410,12 @@ const assertParentOfPatient = async (
   if (!userId) {
     throw new PetPassportServiceError("Companion not found.", 404);
   }
-  const parent = await prisma.parent.findFirst({
-    where: { linkedUserId: userId },
-    select: { id: true },
-  });
-  const link = parent
+  const parentId = await findParentIdForAuthUser(userId);
+  const link = parentId
     ? await prisma.parentPatient.findFirst({
         where: {
           patientId,
-          parentId: parent.id,
+          parentId,
           role: { in: roles },
           status: "ACTIVE",
         },
@@ -441,6 +434,52 @@ const assertParentOfPatient = async (
     throw new PetPassportServiceError("Companion not found.", 404);
   }
   return membership.organisationId;
+};
+
+/**
+ * The patient rows that belong to the SAME physical pet as `patientId`.
+ *
+ * `Patient.microchipNumber` is nullable and NOT unique - one row per practice is
+ * the intended model - so a chip match alone is what lets the passport gather a
+ * pet's history across practices. But the chip is caller-supplied data, not an
+ * authenticated identifier: mobile companion creation persists whatever chip
+ * number the caller types. Expanding on the chip alone therefore let anyone who
+ * knew a victim's chip number register a companion with it and read that pet's
+ * records from every practice.
+ *
+ * Ownership is the constant that survives across practices, so the sibling rows
+ * are additionally required to share an ACTIVE parent with the authorised row.
+ * A fabricated row has a different parent and drops out; the owner's own
+ * duplicates keep resolving.
+ */
+const resolveChipSiblingIds = async (
+  patientId: string,
+  microchipNumber: string,
+): Promise<string[]> => {
+  const chipRows = await prisma.patient.findMany({
+    where: { microchipNumber },
+    select: { id: true },
+  });
+  const chipIds = chipRows.map((row) => row.id);
+  if (chipIds.length <= 1) return [patientId];
+
+  const authorisedParents = await prisma.parentPatient.findMany({
+    where: { patientId, status: "ACTIVE" },
+    select: { parentId: true },
+  });
+  const parentIds = authorisedParents.map((row) => row.parentId);
+  if (parentIds.length === 0) return [patientId];
+
+  const shared = await prisma.parentPatient.findMany({
+    where: {
+      patientId: { in: chipIds },
+      parentId: { in: parentIds },
+      status: "ACTIVE",
+    },
+    select: { patientId: true },
+  });
+
+  return [...new Set([patientId, ...shared.map((row) => row.patientId)])];
 };
 
 const generatePublicToken = (): string => randomBytes(32).toString("base64url");

@@ -158,14 +158,16 @@ export const PillSelector: React.FC<PillSelectorProps> = ({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, contentStyle]}
         style={[styles.container, containerStyle]}>
-        <View style={styles.scrollRow}>{options.map(renderOption)}</View>
+        <View style={styles.scrollRow}>
+          {options.map(option => renderOption(option))}
+        </View>
       </ScrollView>
     );
   }
 
   return (
     <View style={[styles.container, styles.staticContainer, containerStyle]}>
-      {options.map(renderOption)}
+      {options.map(option => renderOption(option))}
     </View>
   );
 };
@@ -195,7 +197,10 @@ const createStyles = (theme: any, pillSpacing?: number) =>
       borderRadius: theme.borderRadius.md,
       paddingHorizontal: theme.spacing['4'],
       paddingVertical: theme.spacing['1.25'],
-      backgroundColor: theme.colors.white,
+      // `white` is #FFFFFF in BOTH themes while `text` inverts, so a resting
+      // pill in dark mode rendered #E6DDD0 on #FFFFFF - 1.34:1. fieldBg is the
+      // control fill and follows the theme: 12.60:1 light, 12.16:1 dark.
+      backgroundColor: theme.colors.fieldBg,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
@@ -212,7 +217,7 @@ const createStyles = (theme: any, pillSpacing?: number) =>
       textAlign: 'center',
     },
     pillTextActive: {
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
     },
     badge: {
       minWidth: 20,

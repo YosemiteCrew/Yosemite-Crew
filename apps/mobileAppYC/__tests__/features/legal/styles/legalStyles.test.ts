@@ -74,6 +74,6 @@ describe('createLegalStyles', () => {
 
   it('applies error color and typography to formErrorText', () => {
     const styles = createLegalStyles(mockTheme);
-    expect(styles.formErrorText.color).toBe(mockTheme.colors.error);
+    expect(styles.formErrorText.color).toBe(mockTheme.colors.dangerText);
   });
 });

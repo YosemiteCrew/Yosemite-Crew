@@ -216,12 +216,28 @@ describe("FormAssignmentService", () => {
     );
   });
 
+  // The sync runs from read flows (workspace bootstrap, document retrieval,
+  // appointment form listing) that are authorised on view permissions, while
+  // creating an assignment is a `forms:edit:any` action. Without the gate,
+  // merely opening an appointment persisted client-visible consent requests.
+  it("creates nothing for a caller who cannot manage forms", async () => {
+    await FormAssignmentService.syncLinkedTemplateAssignmentsForAppointment({
+      organisationId: "org-1",
+      appointmentId: "appt-1",
+      canManageForms: false,
+    });
+
+    expect(mockedTemplateService.resolve).not.toHaveBeenCalled();
+    expect(mockedPrisma.formAssignment.create).not.toHaveBeenCalled();
+  });
+
   it("syncs linked templates once per appointment", async () => {
     mockedPrisma.formAssignment.findFirst.mockResolvedValueOnce(null);
 
     await FormAssignmentService.syncLinkedTemplateAssignmentsForAppointment({
       organisationId: "org-1",
       appointmentId: "appt-1",
+      canManageForms: true,
     });
 
     expect(mockedTemplateService.resolve).toHaveBeenCalledWith(

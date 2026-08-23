@@ -5,6 +5,7 @@
 import {useMemo} from 'react';
 import {StyleSheet, Platform} from 'react-native';
 
+import {colors as palette} from '@/theme';
 /**
  * Creates standard container styles for screens
  * Use this for basic screen layouts with ScrollView or View
@@ -37,7 +38,7 @@ export const createErrorContainerStyles = (theme: any) => ({
   },
   errorText: {
     ...theme.typography.bodyLarge,
-    color: theme.colors.error,
+    color: theme.colors.dangerText,
     textAlign: 'center' as const,
   },
 });
@@ -126,7 +127,7 @@ export const createLiquidGlassHeaderStyles = (
       borderTopRightRadius: 0,
       borderBottomLeftRadius: theme.borderRadius['2xl'],
       borderBottomRightRadius: theme.borderRadius['2xl'],
-      shadowColor: theme.colors.neutralShadow ?? '#000000',
+      shadowColor: theme.colors.neutralShadow ?? palette.black,
       shadowOffset: {width: 0, height: 12},
       shadowOpacity: 0.14,
       shadowRadius: 18,
@@ -343,7 +344,9 @@ export const useCommonScreenStyles = <T extends Record<string, any>>(
 ) => {
   return useMemo(() => {
     const commonStyles = createAllCommonStyles(theme);
-    const customStyles = createCustomStylesFn ? createCustomStylesFn(theme) : {};
+    const customStyles = createCustomStylesFn
+      ? createCustomStylesFn(theme)
+      : {};
     return StyleSheet.create({
       ...commonStyles,
       ...customStyles,

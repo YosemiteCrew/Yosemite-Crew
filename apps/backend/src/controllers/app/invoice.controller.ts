@@ -1,4 +1,5 @@
 import { InvoiceItem } from "@yosemite-crew/types";
+import { resolveVerifiedOrganisationId } from "src/utils/request";
 import { Request, Response } from "express";
 import {
   InvoiceService,
@@ -266,8 +267,14 @@ export const InvoiceController = {
         return res.status(400).json({ message: "Appointment Id is required" });
       }
 
-      const invoice =
-        await InvoiceService.bootstrapForAppointment(appointmentId);
+      // `withAppointmentOrgPermissions` already derived the organisation FROM
+      // the appointment, so passing it back is a belt-and-braces assertion that
+      // the two agree rather than a new check.
+      const invoice = await InvoiceService.bootstrapForAppointment(
+        appointmentId,
+        undefined,
+        resolveVerifiedOrganisationId(req),
+      );
       return res.status(200).json(toFinanceEnvelope(invoice));
     } catch (err) {
       logger.error("Error bootstrapping appointment invoice", err);

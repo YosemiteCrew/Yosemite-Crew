@@ -1,0 +1,1 @@
+ALTER TABLE "APActor" ADD COLUMN "directoryListed" BOOLEAN NOT NULL DEFAULT false;

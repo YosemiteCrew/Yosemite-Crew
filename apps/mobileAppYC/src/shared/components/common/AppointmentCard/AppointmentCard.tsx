@@ -180,7 +180,7 @@ export const AppointmentCard = ({
                   }
                   style={styles.actionButton}
                   textStyle={styles.actionButtonText}
-                  tintColor={theme.colors.white}
+                  tintColor={theme.colors.fieldBg}
                   shadowIntensity="light"
                   forceBorder
                   borderColor={theme.colors.secondary}
@@ -196,7 +196,7 @@ export const AppointmentCard = ({
                   onPress={onCheckIn ?? (() => {})}
                   style={styles.actionButton}
                   textStyle={styles.actionButtonText}
-                  tintColor={theme.colors.white}
+                  tintColor={theme.colors.fieldBg}
                   shadowIntensity="light"
                   forceBorder
                   borderColor={theme.colors.secondary}
@@ -252,7 +252,7 @@ const createStyles = (theme: any) =>
       minWidth: theme.spacing['24'],
       justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: theme.colors.white,
+      backgroundColor: theme.colors.fieldBg,
       borderWidth: 1,
       borderColor: theme.colors.secondary,
       borderRadius: theme.borderRadius.lg,
@@ -276,7 +276,7 @@ const createStyles = (theme: any) =>
     note: {...theme.typography.labelSmall, color: theme.colors.placeholder},
     noteLabel: {
       ...theme.typography.labelSmallBold,
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
     },
     buttonContainer: {gap: theme.spacing['4']}, // Reduced gap to bring sections closer
     inlineButtons: {

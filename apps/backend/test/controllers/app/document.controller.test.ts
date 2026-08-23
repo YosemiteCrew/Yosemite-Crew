@@ -36,6 +36,14 @@ jest.mock("../../../src/services/document.service", () => {
   };
 });
 
+import { prisma } from "../../../src/config/prisma";
+
+jest.mock("../../../src/config/prisma", () => ({
+  prisma: {
+    patientOrganisation: { findFirst: jest.fn() },
+    parentPatient: { findFirst: jest.fn() },
+  },
+}));
 jest.mock("../../../src/services/authUserMobile.service");
 jest.mock("../../../src/middlewares/upload");
 jest.mock("../../../src/utils/logger");
@@ -101,6 +109,34 @@ describe("DocumentController", () => {
   // ----------------------------------------------------------------------
 
   describe("getUploadUrl", () => {
+    // This handler serves the mobile route too, where the boundary is the
+    // caller's own parent link rather than an organisation membership.
+    const authoriseAsParent = () => {
+      (req as { userId?: string }).userId = "auth-user-1";
+      mockedAuthMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "parent-1",
+      } as never);
+      (
+        prisma.parentPatient.findFirst as unknown as jest.Mock
+      ).mockResolvedValue({ id: "parent-link-1" } as never);
+    };
+
+    it("rejects a companion the caller's parent is not linked to", async () => {
+      req.body = { patientId: "c-other", mimeType: "image/png" };
+      (req as { userId?: string }).userId = "auth-user-1";
+      mockedAuthMobileService.getByProviderUserId.mockResolvedValue({
+        parentId: "parent-1",
+      } as never);
+      (
+        prisma.parentPatient.findFirst as unknown as jest.Mock
+      ).mockResolvedValue(null as never);
+
+      await DocumentController.getUploadUrl(req as never, res as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(404);
+      expect(UploadMiddleware.generatePresignedUrl).not.toHaveBeenCalled();
+    });
+
     it("should 400 if patientId or mimeType missing", async () => {
       req.body = { patientId: "c1" }; // missing mimeType
       await DocumentController.getUploadUrl(req as any, res as Response);
@@ -109,6 +145,7 @@ describe("DocumentController", () => {
 
     it("should success (200)", async () => {
       req.body = { patientId: "c1", mimeType: "image/png" };
+      authoriseAsParent();
       jest.mocked(UploadMiddleware.generatePresignedUrl).mockResolvedValue({
         url: "http://s3",
         key: "key",
@@ -121,6 +158,7 @@ describe("DocumentController", () => {
 
     it("should handle generic error", async () => {
       req.body = { patientId: "c1", mimeType: "image/png" };
+      authoriseAsParent();
       jest
         .mocked(UploadMiddleware.generatePresignedUrl)
         .mockRejectedValue(new Error("Fail"));

@@ -356,7 +356,7 @@ const createStyles = (theme: any) =>
     },
     summaryMeta: {
       ...theme.typography.body13,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
     },
     infoBanner: {
       flexDirection: 'row',
@@ -384,7 +384,7 @@ const createStyles = (theme: any) =>
     noteText: {
       ...theme.typography.caption,
       lineHeight: 17,
-      color: theme.colors.inkFaint,
+      color: theme.colors.inkMuted,
       flex: 1,
     },
     leadingIcon: {
@@ -412,7 +412,7 @@ const createStyles = (theme: any) =>
     },
     footnote: {
       ...theme.typography.caption,
-      color: theme.colors.inkFaint2,
+      color: theme.colors.inkMuted,
       textAlign: 'center',
     },
   });

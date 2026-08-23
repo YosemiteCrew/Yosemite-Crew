@@ -18,6 +18,13 @@ export interface LocationPermissionState {
   userCoords: UserCoords | null;
   hasPermission: boolean;
   isLoading: boolean;
+  /**
+   * A geolocation lookup was attempted and failed (timeout, provider
+   * unavailable, GPS off). Callers waiting for coordinates must stop waiting on
+   * this and fall back, rather than treating "granted but no coordinates" as
+   * "still loading" forever.
+   */
+  locationFailed: boolean;
   mapCenter: UserLocation | null;
   handleMapUserLocationChange: (location: UserLocation | null) => void;
 }
@@ -32,6 +39,15 @@ type LocationState = {
   userLocation: UserLocation | null;
   hasPermission: boolean;
   isLoading: boolean;
+  /**
+   * A geolocation lookup was attempted and failed.
+   *
+   * Distinct from "no location yet": permission granted with no coordinates
+   * used to mean both, so callers waiting for coordinates waited forever after
+   * a GPS timeout or an unavailable provider - and never fell back to searching
+   * without a location.
+   */
+  locationFailed: boolean;
 };
 
 type LocationAction =
@@ -46,6 +62,7 @@ const initialState: LocationState = {
   userLocation: null,
   hasPermission: false,
   isLoading: true,
+  locationFailed: false,
 };
 
 function locationReducer(
@@ -54,22 +71,35 @@ function locationReducer(
 ): LocationState {
   switch (action.type) {
     case 'PERMISSION_GRANTED':
+      // A fresh attempt is starting, so any previous failure is cleared.
       return {
         ...state,
         hasPermission: true,
         isLoading: true,
+        locationFailed: false,
       };
     case 'GRANTED':
       return {
         userLocation: action.location,
         hasPermission: true,
         isLoading: false,
+        locationFailed: false,
       };
     case 'LOCATION_ERROR':
-      return {...state, userLocation: null, isLoading: false};
+      return {
+        ...state,
+        userLocation: null,
+        isLoading: false,
+        locationFailed: true,
+      };
     case 'DENIED':
     case 'ERROR':
-      return {userLocation: null, hasPermission: false, isLoading: false};
+      return {
+        userLocation: null,
+        hasPermission: false,
+        isLoading: false,
+        locationFailed: false,
+      };
     case 'LOADING':
       return {...state, isLoading: true};
     default:
@@ -182,6 +212,7 @@ export const useLocationPermission = (): LocationPermissionState => {
     userCoords,
     hasPermission: state.hasPermission,
     isLoading: state.isLoading,
+    locationFailed: state.locationFailed,
     mapCenter,
     handleMapUserLocationChange,
   };

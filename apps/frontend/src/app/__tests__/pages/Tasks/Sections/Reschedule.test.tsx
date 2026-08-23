@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import RescheduleTask from '@/app/features/tasks/pages/Tasks/Sections/Reschedule';
-import { updateTask } from '@/app/features/tasks/services/taskService';
+import { rescheduleTask } from '@/app/features/tasks/services/taskService';
 import { buildDateInPreferredTimeZone, getPreferredTimeZone } from '@/app/lib/timezone';
 import { getPreferredTimeValue } from '@/app/lib/date';
 import { canRescheduleTask } from '@/app/lib/tasks';
@@ -59,7 +59,7 @@ jest.mock('@/app/ui/inputs/Timepicker', () => ({
 }));
 
 jest.mock('@/app/features/tasks/services/taskService', () => ({
-  updateTask: jest.fn(),
+  rescheduleTask: jest.fn(),
 }));
 
 jest.mock('@/app/lib/timezone', () => ({
@@ -98,7 +98,7 @@ describe('Task Reschedule section', () => {
     (canRescheduleTask as jest.Mock).mockReturnValue(true);
     (buildDateInPreferredTimeZone as jest.Mock).mockReturnValue(new Date('2026-04-15T09:45:00Z'));
     (getPreferredTimeZone as jest.Mock).mockReturnValue('Asia/Kolkata');
-    (updateTask as jest.Mock).mockResolvedValue({});
+    (rescheduleTask as jest.Mock).mockResolvedValue({});
   });
 
   it('blocks saving and warns for non-reschedulable statuses', async () => {
@@ -129,19 +129,20 @@ describe('Task Reschedule section', () => {
         585
       );
     });
-    // A one-off task reschedules straight away, with no series scope.
-    expect(updateTask).toHaveBeenCalledWith(
-      expect.objectContaining({
-        dueAt: new Date('2026-04-15T09:45:00Z'),
-        timezone: 'Asia/Kolkata',
-      }),
+    // A one-off task reschedules straight away, with no series scope. Only the
+    // id, the new time and the timezone are sent - a scoped update applies every
+    // field it receives to every occurrence.
+    expect(rescheduleTask).toHaveBeenCalledWith(
+      'task-1',
+      new Date('2026-04-15T09:45:00Z'),
+      'Asia/Kolkata',
       undefined
     );
     expect(setShowModal).toHaveBeenCalledWith(false);
   });
 
   it('shows error notification when save fails', async () => {
-    (updateTask as jest.Mock).mockRejectedValue(new Error('save failed'));
+    (rescheduleTask as jest.Mock).mockRejectedValue(new Error('save failed'));
 
     render(<RescheduleTask showModal setShowModal={setShowModal} activeTask={activeTask} />);
     fireEvent.click(screen.getByText('Update'));
@@ -177,7 +178,7 @@ describe('Task Reschedule section', () => {
         expect(screen.getByText('Edit recurring task')).toBeInTheDocument();
       });
       // The edit is held until the user picks a scope.
-      expect(updateTask).not.toHaveBeenCalled();
+      expect(rescheduleTask).not.toHaveBeenCalled();
       expect(setShowModal).not.toHaveBeenCalledWith(false);
     });
 
@@ -195,11 +196,12 @@ describe('Task Reschedule section', () => {
       fireEvent.click(screen.getByText('Save changes'));
 
       await waitFor(() => {
-        expect(updateTask).toHaveBeenCalledWith(
-          expect.objectContaining({
-            dueAt: new Date('2026-04-15T09:45:00Z'),
-            timezone: 'Asia/Kolkata',
-          }),
+        // Crucially NOT the whole task: name, assignee, medication and reminders
+        // must not be copied across the series by a reschedule.
+        expect(rescheduleTask).toHaveBeenCalledWith(
+          'task-1',
+          new Date('2026-04-15T09:45:00Z'),
+          'Asia/Kolkata',
           'ALL'
         );
       });
@@ -217,7 +219,12 @@ describe('Task Reschedule section', () => {
       fireEvent.click(screen.getByText('Save changes'));
 
       await waitFor(() => {
-        expect(updateTask).toHaveBeenCalledWith(expect.objectContaining({ _id: 'task-1' }), 'THIS');
+        expect(rescheduleTask).toHaveBeenCalledWith(
+          'task-1',
+          expect.any(Date),
+          expect.any(String),
+          'THIS'
+        );
       });
     });
   });

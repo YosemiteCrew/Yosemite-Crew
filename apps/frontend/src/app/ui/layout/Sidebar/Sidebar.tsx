@@ -39,6 +39,7 @@ import { useIsTabletRail } from './useIsTabletRail';
 
 import './Sidebar.css';
 import { usePlatformStatus } from '@/app/hooks/usePlatformStatus';
+import { isLocalGuardBypassEnabled } from '@/app/lib/localGuardBypass';
 
 const ROUTE_ICONS: Record<string, IconType> = {
   Dashboard: IoGridOutline,
@@ -50,6 +51,7 @@ const ROUTE_ICONS: Record<string, IconType> = {
   Companions: IoPaw,
   Inventory: IoCubeOutline,
   Integrations: IoGitNetworkOutline,
+  Network: IoGlobeOutline,
   Templates: IoBookOutline,
   'API Keys': IoKeyOutline,
   'Website - Builder': IoGlobeOutline,
@@ -62,7 +64,7 @@ const APP_ROUTE_GROUPS = [
   { label: 'Schedule & Work', routeNames: ['Appointments', 'Tasks', 'Chat'] },
   { label: 'Clients & Records', routeNames: ['Companions', 'Templates'] },
   { label: 'Business', routeNames: ['Finance', 'Inventory'] },
-  { label: 'Administration', routeNames: ['Organization', 'Integrations'] },
+  { label: 'Administration', routeNames: ['Organization', 'Integrations', 'Network'] },
 ] as const;
 
 const DEV_ROUTE_GROUPS = [
@@ -130,8 +132,9 @@ const Sidebar = () => {
   };
 
   // Skip the org-data loading gate on localhost with NEXT_PUBLIC_DISABLE_AUTH_GUARD so
-  // the nav renders for UI/styling work without a session. No effect when deployed.
-  const authGuardDisabled = process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD === 'true';
+  // the nav renders for UI/styling work without a session. The shared helper
+  // enforces the localhost part, which a direct env read did not.
+  const authGuardDisabled = isLocalGuardBypassEnabled();
   const isInitialLoading = orgStatus !== 'loaded' && !authGuardDisabled;
   const currentRole = membership?.roleDisplay ?? membership?.roleCode;
   const authenticatedLogoHref = isDevPortal
