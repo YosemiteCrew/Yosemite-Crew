@@ -453,7 +453,10 @@ export const PetPassportController = {
     run: async ({ params, req, res }) =>
       applePassResponse(
         await parentPassport(params, req),
-        await PetPassportService.ensurePublicToken(params.patientId),
+        await PetPassportService.walletShareTokenForParent(
+          params.patientId,
+          req.userId ?? null,
+        ),
         res,
       ),
   }),
@@ -465,7 +468,10 @@ export const PetPassportController = {
     run: async ({ params, req, res }) =>
       googlePassResponse(
         await parentPassport(params, req),
-        await PetPassportService.ensurePublicToken(params.patientId),
+        await PetPassportService.walletShareTokenForParent(
+          params.patientId,
+          req.userId ?? null,
+        ),
         res,
       ),
   }),
