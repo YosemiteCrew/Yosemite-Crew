@@ -11,6 +11,13 @@ name: Deploy API
 # someone makes, not a side effect of merging. What this removes is the drift and
 # the laptop, not the judgement.
 on:
+  # The deploy itself stays manual (see below). The unit tests for its git-sync
+  # step do not: they are the only thing standing between a refspec edit and a
+  # deploy that stops on a ref-lock error, which is how this script first failed.
+  pull_request:
+    paths:
+      - 'scripts/deploy/**'
+      - '.github/workflows/deploy-api.yml'
   workflow_dispatch:
     inputs:
       environment:
@@ -31,11 +38,25 @@ permissions:
 # between `git checkout` and `pm2 restart` leaves the box on new source with an
 # old bundle.
 concurrency:
-  group: deploy-api-${{ inputs.environment }}
+  # Keyed by event as well as host: a PR running the unit tests must not queue
+  # behind a deploy, and two PRs must not serialise against each other.
+  group: deploy-api-${{ github.event_name }}-${{ inputs.environment || github.ref }}
   cancel-in-progress: false
 
 jobs:
+  git-sync-tests:
+    name: git-sync unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Run deploy git-sync tests
+        run: ./scripts/deploy/tests/git-sync.test.sh
+
   deploy:
+    # Only ever on an explicit dispatch. The pull_request trigger above exists for
+    # the unit-test job; without this guard it would also start a real deploy, with
+    # an empty `environment` input, on every PR that touches scripts/deploy.
+    if: github.event_name == 'workflow_dispatch'
     name: Deploy API (${{ inputs.environment }})
     runs-on: ubuntu-latest
     timeout-minutes: 30

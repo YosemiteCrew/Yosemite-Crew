@@ -38,6 +38,9 @@ GIT_REF="${3:?git ref required}"
 SMOKE_PORT="${4:-8099}"
 
 NODE_BIN="${NODE_BIN:-$HOME/.nvm/versions/node/v22.21.1/bin}"
+
+# shellcheck source=lib/git-sync.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/git-sync.sh"
 export PATH="$NODE_BIN:$PATH"
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
 
@@ -56,18 +59,11 @@ cp apps/backend/.env "/tmp/api-env-before-$STAMP" 2>/dev/null || true
 echo "backups: /tmp/api-dist-before-$STAMP.tgz  /tmp/api-env-before-$STAMP"
 
 say "checkout $GIT_REF"
-# --prune is load-bearing. A remote branch named `fix` had been deleted upstream
-# while the box still held refs/remotes/origin/fix, so every refs/remotes/origin/fix/*
-# the fetch tried to create failed to lock, the whole fetch failed, and the deploy
-# stopped at "couldn't find remote ref". Pruning clears the deleted parent ref first.
-#
-# The ref is accepted as either `dev` or `origin/dev`; `git rev-parse` below adds the
-# remote itself, and passing the qualified form asked the remote for a branch called
-# `origin/dev`, which does not exist.
-GIT_REF="${GIT_REF#origin/}"
-git fetch --quiet --prune origin "$GIT_REF" || git fetch --quiet --prune origin
-git checkout --detach "$(git rev-parse "origin/$GIT_REF" 2>/dev/null || echo "$GIT_REF")" --quiet
-git rev-parse --short HEAD
+# Fetch and checkout live in lib/git-sync.sh so their two failure modes - a stale
+# parent ref breaking the whole fetch, and a qualified `origin/dev` being sent to
+# the remote as a branch name - are covered by tests/git-sync.test.sh against a
+# real remote, rather than only being found on a live box.
+deploy_git_sync "$REPO_DIR" "$GIT_REF"
 
 say "install"
 pnpm install --frozen-lockfile
