@@ -35,6 +35,7 @@ import {InlineEditRow} from '@/shared/components/common/InlineEditRow/InlineEdit
 import COUNTRIES from '@/shared/utils/countryList.json';
 
 // Bottom sheets
+import {usePreferences} from '@/features/preferences/PreferencesContext';
 import {
   CurrencyBottomSheet,
   type CurrencyBottomSheetRef,
@@ -96,6 +97,13 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
   const accessTokenRef = useRef<string | null>(null);
 
   // Bottom sheet refs
+  // The profile's currency is a separate, server-side setting from the
+  // device preference - but when it is unset the two used different
+  // fallbacks. This row hardcoded 'USD' while PreferencesContext derives
+  // EUR for a non-imperial account, so the same user saw USD here and
+  // EUR under Preferences. Fall back to the value the app actually uses.
+  const {currency: resolvedCurrency} = usePreferences();
+
   const currencySheetRef = useRef<CurrencyBottomSheetRef>(null);
   const addressSheetRef = useRef<AddressBottomSheetRef>(null);
   const phoneSheetRef = useRef<CountryMobileBottomSheetRef>(null);
@@ -457,7 +465,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
                 {/* Currency – Bottom sheet */}
                 <RowButton
                   label="Currency"
-                  value={safeUser.currency ?? 'USD'}
+                  value={safeUser.currency ?? resolvedCurrency}
                   onPress={() => {
                     openBottomSheetRef.current = 'currency';
                     currencySheetRef.current?.open();
@@ -551,7 +559,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
       {/* ====== Bottom Sheets ====== */}
       <CurrencyBottomSheet
         ref={currencySheetRef}
-        selectedCurrency={safeUser.currency ?? 'USD'}
+        selectedCurrency={safeUser.currency ?? resolvedCurrency}
         onSave={(currency: string) => {
           applyPatch({currency});
           openBottomSheetRef.current = null;
