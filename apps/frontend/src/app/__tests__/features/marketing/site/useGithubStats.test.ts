@@ -6,6 +6,7 @@ import {
   useLatestRelease,
   useMobileRelease,
   usePlatformRelease,
+  useReleaseLanes,
   type GithubStats,
   type ReleaseInfo,
 } from '@/app/features/marketing/site/useGithubStats';
@@ -441,5 +442,186 @@ describe('useGithubStats hooks', () => {
     const { result } = renderHook(() => useMobileRelease());
     await waitFor(() => expect(result.current.tag).toBe('m9.9'));
     expect(result.current.url).toBe('https://x/cached-m');
+  });
+});
+
+describe('useReleaseLanes', () => {
+  const THIS_YEAR = new Date().getFullYear();
+
+  /** Mirrors the real tag shapes documented in RELEASING.md, newest-first as GitHub returns them. */
+  const RELEASES = [
+    {
+      tag_name: 'mobile-v1.6.1',
+      published_at: `${THIS_YEAR}-08-21T10:00:00Z`,
+      html_url: 'https://x/mobile',
+    },
+    {
+      tag_name: 'v0.1.0-beta.4',
+      published_at: `${THIS_YEAR}-08-19T10:00:00Z`,
+      html_url: 'https://x/desktop',
+    },
+    {
+      tag_name: 'backend-v2.3.0-beta',
+      published_at: `${THIS_YEAR}-08-19T09:00:00Z`,
+      html_url: 'https://x/backend',
+    },
+    {
+      tag_name: 'pims-v2.3.0-beta',
+      published_at: `${THIS_YEAR}-08-19T08:00:00Z`,
+      html_url: 'https://x/pims',
+    },
+    {
+      tag_name: 'pims-v2.2.0-beta',
+      published_at: `${THIS_YEAR}-08-08T08:00:00Z`,
+      html_url: 'https://x/pims-old',
+    },
+  ];
+
+  // The endpoint is `/api/community/github-releases?list=1` - it contains `-releases`, not
+  // `/releases`, so match the route name itself.
+  const RELEASES_ROUTE = 'github-releases';
+
+  const lanesFetch = (list: unknown[]) =>
+    jest.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes(RELEASES_ROUTE)) return Promise.resolve(makeRes(list));
+      return Promise.resolve(makeRes(null));
+    });
+
+  beforeEach(() => {
+    sessionStorage.clear();
+  });
+
+  const byKey = (lanes: ReturnType<typeof useReleaseLanes>, key: string) =>
+    lanes.find((lane) => lane.key === key)!;
+
+  it('buckets one releases response into the four shipped lanes', async () => {
+    globalThis.fetch = lanesFetch(RELEASES) as unknown as FetchLike;
+
+    const { result } = renderHook(() => useReleaseLanes());
+    await waitFor(() => expect(byKey(result.current, 'pims').tag).toBe('v2.3.0-beta'));
+
+    expect(byKey(result.current, 'pims').url).toBe('https://x/pims');
+    expect(byKey(result.current, 'mobile').tag).toBe('v1.6.1');
+    expect(byKey(result.current, 'backend').tag).toBe('v2.3.0-beta');
+    expect(result.current.map((lane) => lane.key)).toEqual([
+      'pims',
+      'desktop',
+      'mobile',
+      'backend',
+    ]);
+  });
+
+  it('claims the unprefixed tag for desktop', async () => {
+    // The one that a naive prefix match gets wrong. desktop-release.yml requires the tag to be a
+    // bare `v${version}` because electron-updater ignores non-semver tags, so the newest desktop
+    // release carries no product prefix at all - and it must not leak into another lane either.
+    globalThis.fetch = lanesFetch(RELEASES) as unknown as FetchLike;
+
+    const { result } = renderHook(() => useReleaseLanes());
+    await waitFor(() => expect(byKey(result.current, 'desktop').tag).toBe('v0.1.0-beta.4'));
+
+    expect(byKey(result.current, 'desktop').url).toBe('https://x/desktop');
+    expect(byKey(result.current, 'pims').tag).not.toBe('v0.1.0-beta.4');
+    expect(byKey(result.current, 'mobile').tag).not.toBe('v0.1.0-beta.4');
+  });
+
+  it('still matches the legacy pms- spelling and the early desktop- tags', async () => {
+    globalThis.fetch = lanesFetch([
+      {
+        tag_name: 'pms-v1.3.0-beta',
+        published_at: `${THIS_YEAR}-05-09T00:00:00Z`,
+        html_url: 'https://x/pms',
+      },
+      {
+        tag_name: 'desktop-v0.1.0-beta.2',
+        published_at: `${THIS_YEAR}-07-13T00:00:00Z`,
+        html_url: 'https://x/dt',
+      },
+    ]) as unknown as FetchLike;
+
+    const { result } = renderHook(() => useReleaseLanes());
+    await waitFor(() => expect(byKey(result.current, 'pims').url).toBe('https://x/pms'));
+    expect(byKey(result.current, 'desktop').url).toBe('https://x/dt');
+  });
+
+  it('takes the newest release per lane, not the first tag seen', async () => {
+    globalThis.fetch = lanesFetch(RELEASES) as unknown as FetchLike;
+    const { result } = renderHook(() => useReleaseLanes());
+    await waitFor(() => expect(byKey(result.current, 'pims').tag).toBeTruthy());
+    // Two pims releases are present; the newer one leads the list and must win.
+    expect(byKey(result.current, 'pims').url).toBe('https://x/pims');
+  });
+
+  it('leaves a lane null rather than inventing a version for it', async () => {
+    // A lane with nothing on the fetched page must show its placeholder. Falling back to a
+    // hard-coded version would present a stale literal as a live release.
+    globalThis.fetch = lanesFetch([RELEASES[0]]) as unknown as FetchLike;
+
+    const { result } = renderHook(() => useReleaseLanes());
+    await waitFor(() => expect(byKey(result.current, 'mobile').tag).toBe('v1.6.1'));
+
+    for (const key of ['pims', 'desktop', 'backend']) {
+      expect(byKey(result.current, key).tag).toBeNull();
+      expect(byKey(result.current, key).url).toBeNull();
+      expect(byKey(result.current, key).dateCompact).toBeNull();
+    }
+  });
+
+  it('keeps every lane empty when the list is empty or the request fails', async () => {
+    globalThis.fetch = lanesFetch([]) as unknown as FetchLike;
+    const { result } = renderHook(() => useReleaseLanes());
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+    expect(result.current.every((lane) => lane.tag === null)).toBe(true);
+
+    globalThis.fetch = jest.fn(() => Promise.reject(new Error('network'))) as unknown as FetchLike;
+    const failed = renderHook(() => useReleaseLanes());
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+    expect(failed.result.current.every((lane) => lane.tag === null)).toBe(true);
+  });
+
+  it('drops the year from the compact date only within the current year', async () => {
+    globalThis.fetch = lanesFetch([
+      {
+        tag_name: 'mobile-v1.6.1',
+        published_at: `${THIS_YEAR}-08-21T10:00:00Z`,
+        html_url: 'https://x/m',
+      },
+      {
+        tag_name: 'backend-v1.0.0',
+        published_at: `${THIS_YEAR - 2}-03-04T10:00:00Z`,
+        html_url: 'https://x/b',
+      },
+    ]) as unknown as FetchLike;
+
+    const { result } = renderHook(() => useReleaseLanes());
+    await waitFor(() => expect(byKey(result.current, 'mobile').dateCompact).toBeTruthy());
+
+    expect(byKey(result.current, 'mobile').dateCompact).toBe('21 Aug');
+    // An older release stays unambiguous by carrying a two-digit year.
+    expect(byKey(result.current, 'backend').dateCompact).toBe(
+      `4 Mar ${String(THIS_YEAR - 2).slice(-2)}`
+    );
+    // The full date is kept for the accessible name and tooltip.
+    expect(byKey(result.current, 'mobile').date).toContain(String(THIS_YEAR));
+  });
+
+  it('renders every lane empty on the server', () => {
+    const Probe = () => {
+      const lanes = useReleaseLanes();
+      return createElement('span', null, lanes.map((l) => l.tag ?? '-').join(','));
+    };
+    expect(renderToString(createElement(Probe))).toContain('-,-,-,-');
+  });
+
+  it('fetches the releases list once for all four lanes', async () => {
+    const spy = lanesFetch(RELEASES);
+    globalThis.fetch = spy as unknown as FetchLike;
+
+    const { result } = renderHook(() => useReleaseLanes());
+    await waitFor(() => expect(byKey(result.current, 'pims').tag).toBeTruthy());
+
+    const releaseCalls = spy.mock.calls.filter((c) => String(c[0]).includes(RELEASES_ROUTE));
+    expect(releaseCalls).toHaveLength(1);
   });
 });

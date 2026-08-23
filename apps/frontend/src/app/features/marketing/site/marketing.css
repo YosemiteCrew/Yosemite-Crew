@@ -649,3 +649,56 @@ select.yc-field {
     display: flex !important;
   }
 }
+
+/* ---- Release lanes (Home hero eyebrow: latest release per shipped component) ---- */
+[data-yc-lane] {
+  transition:
+    background 0.18s ease,
+    color 0.18s ease;
+}
+[data-yc-lane]:hover {
+  background: var(--inset);
+}
+[data-yc-lane]:hover span:first-child {
+  color: var(--blue);
+}
+
+/* Narrow screens: a flex row wraps to one lane per line (four rows, ~120px) because the
+   longest segment is wider than half the bar. A two-column grid pins it to 2x2 instead, and
+   pins it there whatever a future version string is - the cell wraps its own text rather than
+   pushing the row. The bar squares off since a pill radius around a block reads wrong, the
+   github mark is dropped (it is repeated on every link's accessible name), and the separators
+   go with it because they no longer sit between items on a row. */
+@media (max-width: 720px) {
+  [data-yc-lanes] {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    border-radius: 16px !important;
+    padding: 4px !important;
+    gap: 2px;
+  }
+  [data-yc-lanes] > svg {
+    display: none !important;
+  }
+  [data-yc-lanes] > span > span[aria-hidden='true'] {
+    display: none !important;
+  }
+  /* Each cell breaks in the same place: name + version on the first line, date on the
+     second. Letting it wrap naturally instead put the two longer lanes on three lines and
+     the two shorter ones on two, so the block came out ragged. The pieces are already
+     separate spans, so pushing the date onto its own flex line is enough - and each piece
+     keeps nowrap so a version never splits mid-token. */
+  [data-yc-lane] {
+    flex-wrap: wrap;
+    align-content: center;
+    padding: 5px 8px !important;
+    font-size: 12px !important;
+    line-height: 1.5;
+  }
+  /* The hero centres its text, which a full-width second line inherits - the date would sit
+     centred under a left-aligned name. */
+  [data-yc-lane] > span:nth-child(3) {
+    flex-basis: 100%;
+    text-align: left;
+  }
+}

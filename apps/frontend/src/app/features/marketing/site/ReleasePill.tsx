@@ -129,7 +129,9 @@ function StandardPillBody({
       />
       <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{shownVersion}</span>
       {!isStatic && release.date ? (
-        <span style={{ color: 'var(--ink-faint)', fontWeight: 500 }}>{` · ${release.date}`}</span>
+        // --ink-muted: --ink-faint measures 2.84:1 on this background in light mode, under the
+        // 4.5:1 floor for text this size. Same fix as the release lanes on the home hero.
+        <span style={{ color: 'var(--ink-muted)', fontWeight: 500 }}>{` · ${release.date}`}</span>
       ) : null}
       <IoLogoGithub
         style={{ fontSize: 14, color: 'var(--ink-faint)', marginLeft: 1 }}

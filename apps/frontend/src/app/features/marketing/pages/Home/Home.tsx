@@ -19,7 +19,7 @@ import {
   IoExtensionPuzzleOutline,
 } from 'react-icons/io5';
 import {
-  ReleasePill,
+  ReleaseLanes,
   Reveal,
   Spotlight,
   HeroVideo,
@@ -773,7 +773,7 @@ function Hero() {
             animation: 'ycHeroUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.05s both',
           }}
         >
-          <ReleasePill variant="latest" version="v2.0 beta" />
+          <ReleaseLanes />
         </span>
 
         <HeroHeading />
