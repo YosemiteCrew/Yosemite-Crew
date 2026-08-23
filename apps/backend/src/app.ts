@@ -192,10 +192,10 @@ export function createApp() {
   // states only, never configuration values, so it is safe for an external
   // uptime check to poll.
   app.get("/health/controls", (_, res) => {
-    const controls = getControlReports();
-    return res.status(hasFailedControl() ? 503 : 200).json({
-      status: hasFailedControl() ? "degraded" : "ok",
-      controls,
+    const degraded = hasFailedControl();
+    return res.status(degraded ? 503 : 200).json({
+      status: degraded ? "degraded" : "ok",
+      controls: getControlReports(),
     });
   });
 

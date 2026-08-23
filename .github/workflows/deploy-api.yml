@@ -76,10 +76,16 @@ jobs:
           PM2_TARGET: ${{ steps.target.outputs.pm2 }}
           REF: ${{ steps.target.outputs.ref }}
           DEFAULT_REF: ${{ steps.target.outputs.default_ref }}
+          # Passed as an env var rather than interpolated into the script below.
+          # A ${{ }} expression inside `run:` is substituted before the shell
+          # sees it, so context values become part of the command text - the
+          # template-injection shape, regardless of how constrained the input
+          # looks today.
+          ENVIRONMENT: ${{ inputs.environment }}
         run: |
           set -euo pipefail
           if [ -z "${SSH_KEY:-}" ]; then
-            echo "API_DEPLOY_SSH_KEY is not set for the '${{ inputs.environment }}' environment." >&2
+            echo "API_DEPLOY_SSH_KEY is not set for the '$ENVIRONMENT' environment." >&2
             echo "Add it as an environment secret before using this workflow." >&2
             exit 1
           fi
