@@ -1313,7 +1313,7 @@ const createStyles = (theme: any) =>
     },
     speciesCardSelected: {
       borderWidth: 1.5,
-      borderColor: theme.colors.pink,
+      borderColor: theme.colors.pinkDeep,
       ...theme.shadows.companion,
     },
     speciesAvatar: {

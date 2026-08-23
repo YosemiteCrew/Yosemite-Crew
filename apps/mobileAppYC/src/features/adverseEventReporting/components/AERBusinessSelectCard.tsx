@@ -136,7 +136,7 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing['3'],
     },
     cardSelected: {
-      borderColor: theme.colors.pink,
+      borderColor: theme.colors.pinkDeep,
       ...theme.shadows.companion,
     },
     avatar: {
