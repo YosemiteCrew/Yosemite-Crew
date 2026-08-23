@@ -158,14 +158,16 @@ export const PillSelector: React.FC<PillSelectorProps> = ({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, contentStyle]}
         style={[styles.container, containerStyle]}>
-        <View style={styles.scrollRow}>{options.map(renderOption)}</View>
+        <View style={styles.scrollRow}>
+          {options.map(option => renderOption(option))}
+        </View>
       </ScrollView>
     );
   }
 
   return (
     <View style={[styles.container, styles.staticContainer, containerStyle]}>
-      {options.map(renderOption)}
+      {options.map(option => renderOption(option))}
     </View>
   );
 };

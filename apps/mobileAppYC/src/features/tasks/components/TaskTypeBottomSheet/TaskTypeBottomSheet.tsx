@@ -223,7 +223,7 @@ export const TaskTypeBottomSheet = ({
           {subsubcat.subsubcategory.label}
         </Text>
         <View style={styles.pillsContainer}>
-          {subsubcat.children.map(renderPillButton)}
+          {subsubcat.children.map(child => renderPillButton(child))}
         </View>
       </View>
     ),
@@ -251,10 +251,14 @@ export const TaskTypeBottomSheet = ({
           )}
 
           {hasSubsubcategories ? (
-            <View>{subcat.subsubcategories!.map(renderSubsubcategory)}</View>
+            <View>
+              {subcat.subsubcategories!.map(subsubcat =>
+                renderSubsubcategory(subsubcat),
+              )}
+            </View>
           ) : (
             <View style={styles.pillsContainer}>
-              {subcat.children?.map(renderPillButton)}
+              {subcat.children?.map(child => renderPillButton(child))}
             </View>
           )}
         </View>

@@ -1311,7 +1311,7 @@ export const ViewAppointmentScreen: React.FC = () => {
                   return <ActivityIndicator />;
                 }
                 if (appointmentForms.length > 0) {
-                  return appointmentForms.map(renderFormCard);
+                  return appointmentForms.map(entry => renderFormCard(entry));
                 }
                 return (
                   <Text style={styles.emptyDocsText}>
