@@ -312,4 +312,78 @@ describe("vocabularyCoverage", () => {
       expect(call).not.toContain("DISJOINT");
     });
   });
+
+  describe("edge branches", () => {
+    it("carries a null display as an absent Coding.display, in both branches", async () => {
+      // FHIR Coding.display is optional; null must become undefined rather than a
+      // literal null in the emitted Coding. Covers the terminal branch and the mapped
+      // branch fallbacks.
+      entryFind.mockResolvedValue([{ code: "YC-1", display: null }]);
+
+      const [own] = await TerminologyProjectionService.projectCodes(
+        ["YC-1"],
+        "YOSEMITECODE",
+      );
+      expect(own.status).toBe("mapped");
+      if (own.status === "mapped") {
+        expect(own.coding.display).toBeUndefined();
+      }
+
+      mappingFind.mockResolvedValue([
+        {
+          sourceCode: "YC-1",
+          targetCode: "422400008",
+          targetDisplay: null,
+          equivalence: "EQUIVALENT",
+        },
+      ]);
+      const [mapped] = await TerminologyProjectionService.projectCodes(
+        ["YC-1"],
+        "SNOMED",
+      );
+      expect(mapped.status).toBe("mapped");
+      if (mapped.status === "mapped") {
+        expect(mapped.coding.display).toBeUndefined();
+      }
+    });
+
+    it("ranks an equivalence it does not recognise below every known one", async () => {
+      // The enum can grow before this table does. An unknown value must lose to any
+      // known one rather than win by accident of indexOf returning -1.
+      entryFind.mockResolvedValue([{ code: "YC-1" }]);
+      mappingFind.mockResolvedValue([
+        {
+          sourceCode: "YC-1",
+          targetCode: "111",
+          targetDisplay: "future",
+          equivalence: "SOME_FUTURE_VALUE",
+        },
+        {
+          sourceCode: "YC-1",
+          targetCode: "222",
+          targetDisplay: "known",
+          equivalence: "INEXACT",
+        },
+      ]);
+
+      const [result] = await TerminologyProjectionService.projectCodes(
+        ["YC-1"],
+        "SNOMED",
+      );
+
+      expect(result.status).toBe("mapped");
+      if (result.status === "mapped") {
+        expect(result.coding.code).toBe("222");
+      }
+    });
+
+    it("reports zero coverage when the query returns no row at all", async () => {
+      queryRaw.mockResolvedValue([]);
+
+      const coverage =
+        await TerminologyProjectionService.vocabularyCoverage("SNOMED");
+
+      expect(coverage).toMatchObject({ terms: 0, mapped: 0, percent: 0 });
+    });
+  });
 });
