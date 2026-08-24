@@ -30,6 +30,45 @@ const setReducedMotion = (matches: boolean) => {
     }));
 };
 
+/**
+ * matchMedia stub that retains its listeners, so a preference change can be
+ * delivered the way the OS delivers one. The plain setReducedMotion above swaps
+ * the value but never notifies, which is enough for a snapshot read and not for
+ * the subscription.
+ */
+const liveReducedMotion = (initial: boolean) => {
+  const listeners = new Set<(e: MediaQueryListEvent) => void>();
+  let matches = initial;
+  (globalThis as unknown as { matchMedia: unknown }).matchMedia = jest
+    .fn()
+    .mockImplementation((query: string) => ({
+      get matches() {
+        return matches;
+      },
+      media: query,
+      onchange: null,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      // Only 'change' registrations are honoured, because that is the only event
+      // a real MediaQueryList dispatches. A stub that accepted any name would keep
+      // these tests green if the subscription's event name ever regressed.
+      addEventListener: (type: string, cb: (e: MediaQueryListEvent) => void) => {
+        if (type === 'change') listeners.add(cb);
+      },
+      removeEventListener: (type: string, cb: (e: MediaQueryListEvent) => void) => {
+        if (type === 'change') listeners.delete(cb);
+      },
+      dispatchEvent: jest.fn(),
+    }));
+  return {
+    set(next: boolean) {
+      matches = next;
+      for (const cb of listeners) cb({ matches: next } as MediaQueryListEvent);
+    },
+    listenerCount: () => listeners.size,
+  };
+};
+
 class FiringIO {
   private readonly cb: IntersectionObserverCallback;
   constructor(cb: IntersectionObserverCallback) {
@@ -138,6 +177,90 @@ describe('motion primitives', () => {
     setReducedMotion(true);
     const { result } = renderHook(() => useReducedMotion());
     expect(result.current).toBe(true);
+  });
+
+  it('useReducedMotion server-renders false so the hydrating render matches', () => {
+    // A server cannot read the preference, so the snapshot React reuses while
+    // hydrating has to be the same on both sides regardless of what the OS says.
+    setReducedMotion(true);
+    const Probe = () => <span>{String(useReducedMotion())}</span>;
+    expect(renderToString(<Probe />)).toContain('false');
+  });
+
+  it('useReducedMotion follows a preference change without a re-render loop', () => {
+    const media = liveReducedMotion(false);
+    const { result } = renderHook(() => useReducedMotion());
+    expect(result.current).toBe(false);
+    act(() => media.set(true));
+    expect(result.current).toBe(true);
+    act(() => media.set(false));
+    expect(result.current).toBe(false);
+  });
+
+  it('useReducedMotion drops its listener on unmount', () => {
+    const media = liveReducedMotion(true);
+    const { unmount } = renderHook(() => useReducedMotion());
+    expect(media.listenerCount()).toBeGreaterThan(0);
+    unmount();
+    expect(media.listenerCount()).toBe(0);
+  });
+
+  it('useReducedMotion reports false when matchMedia is unavailable', () => {
+    const original = (globalThis as unknown as { matchMedia: unknown }).matchMedia;
+    (globalThis as unknown as { matchMedia: unknown }).matchMedia = undefined;
+    try {
+      const { result } = renderHook(() => useReducedMotion());
+      expect(result.current).toBe(false);
+    } finally {
+      (globalThis as unknown as { matchMedia: unknown }).matchMedia = original;
+    }
+  });
+
+  it('HeroVideo hydrates without a mismatch when the reader prefers reduced motion', () => {
+    // HeroVideo returns null under reduced motion, so the preference decides the
+    // markup rather than only an effect. The server has to emit the video and the
+    // hydrating render has to agree, or React reports a mismatch it will not patch.
+    setReducedMotion(true);
+    const html = renderToString(<HeroVideo src="https://x/v.mp4" />);
+    expect(html).toContain('<video');
+
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    // A spec-compliant parser sets the muted IDL property from the content
+    // attribute at element creation; jsdom leaves it false (it only sets
+    // defaultMuted), and React hydration compares the property. Verified: React
+    // 19's renderToString emits muted="", so in a browser this is not a
+    // mismatch. Make jsdom faithful rather than loosening the assertions.
+    container.querySelectorAll('video').forEach((v) => {
+      v.muted = v.hasAttribute('muted');
+    });
+    document.body.appendChild(container);
+
+    const recoverable: unknown[] = [];
+    const errors: unknown[] = [];
+    const spy = jest.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
+      errors.push(args);
+    });
+    let root: ReturnType<typeof hydrateRoot> | undefined;
+    try {
+      act(() => {
+        root = hydrateRoot(container, <HeroVideo src="https://x/v.mp4" />, {
+          onRecoverableError: (error) => recoverable.push(error),
+        });
+      });
+    } finally {
+      spy.mockRestore();
+      act(() => root?.unmount());
+      container.remove();
+    }
+
+    expect(errors).toEqual([]);
+    expect(recoverable).toEqual([]);
+    // The settle is the second half of the contract: hydration reuses the server
+    // snapshot (video present), then the client snapshot reads the preference and
+    // unmounts it. Without this the handoff to "the component removes it" that
+    // the marketing.css comment relies on would be unpinned.
+    expect(container.querySelector('video')).toBeNull();
   });
 
   it('Reveal arms off-screen, then plays when it scrolls into view', () => {

@@ -52,20 +52,36 @@ const SCROLL_PROGRESS_STYLE: CSSProperties = {
   pointerEvents: 'none',
 };
 
-/** True when the user asked the OS to reduce motion. Recomputed on preference change. */
+const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
+
+/** Subscribe a reduced-motion read to the media query (for useSyncExternalStore). */
+const subscribeToReducedMotion = (onStoreChange: () => void): (() => void) => {
+  const mq = globalThis.window?.matchMedia?.(REDUCED_MOTION);
+  if (!mq) return () => undefined;
+  mq.addEventListener('change', onStoreChange);
+  return () => mq.removeEventListener('change', onStoreChange);
+};
+
+/**
+ * True when the user asked the OS to reduce motion. Recomputed on preference change.
+ *
+ * Read through useSyncExternalStore rather than mirrored into state by an effect:
+ * the preference is external, and syncing it with setState made every consumer
+ * render once before the value arrived.
+ *
+ * The server snapshot is `false` because a server cannot know the preference, and
+ * React reuses that snapshot for the hydrating render, so the first paint always
+ * says "motion is fine" and settles immediately after. That is a property of SSR,
+ * not of this hook, so anything that must honour the preference from the very
+ * first frame belongs in a `prefers-reduced-motion` media query instead - which is
+ * what marketing.css does for the scroll reveals and the hero loop.
+ */
 export function useReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
-
-  useEffect(() => {
-    if (!globalThis.window?.matchMedia) return undefined;
-    const mq = globalThis.window.matchMedia('(prefers-reduced-motion: reduce)');
-    const sync = () => setReduced(mq.matches);
-    sync();
-    mq.addEventListener('change', sync);
-    return () => mq.removeEventListener('change', sync);
-  }, []);
-
-  return reduced;
+  return useSyncExternalStore(
+    subscribeToReducedMotion,
+    () => globalThis.window?.matchMedia?.(REDUCED_MOTION).matches ?? false,
+    () => false
+  );
 }
 
 interface RevealProps extends React.HTMLAttributes<HTMLElement> {
@@ -314,7 +330,12 @@ export function HeroVideo({ src, poster, position = 'center 42%' }: Readonly<Her
         onError={() => setFailed(true)}
         style={{ ...HERO_VIDEO_STYLE, objectPosition: position }}
       >
-        <source src={src} type="video/mp4" />
+        {/* The media gate stops the FETCH for reduced-motion readers even when
+            hydration never runs (scripting off, a blocked bundle): a source whose
+            media query does not match is never selected. Browsers without media
+            support on video sources ignore it and fall back to the CSS guard
+            plus the unmount above. */}
+        <source src={src} type="video/mp4" media="(prefers-reduced-motion: no-preference)" />
       </video>
       <div data-hero-scrim="" style={HERO_SCRIM_STYLE} />
     </div>
