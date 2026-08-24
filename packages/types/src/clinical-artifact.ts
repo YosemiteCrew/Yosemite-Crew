@@ -822,22 +822,55 @@ const VITAL_UNITS: Record<string, { unit: string; code: string }> = {
 const unitsFor = (key: string) =>
   Object.prototype.hasOwnProperty.call(VITAL_UNITS, key) ? VITAL_UNITS[key] : undefined;
 
-/** CRT is stored as a string by VitalsForm, so a numeric-only branch would skip it. */
-const asFiniteNumber = (value: unknown): number | null => {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-  if (typeof value === 'string' && value.trim() !== '') {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
+/** Longest first, so "<=" is not read as "<" followed by an unparseable "=2". */
+const QUANTITY_COMPARATORS = ['<=', '>=', '<', '>'] as const;
+
+type QuantityComparator = (typeof QUANTITY_COMPARATORS)[number];
+
+type MeasuredValue = { value: number; comparator?: QuantityComparator };
+
+/**
+ * CRT is free text in VitalsForm - the field is inputMode 'text' with no bounds - so it
+ * arrives as a string, and a numeric-only branch would skip a known clinical vital.
+ *
+ * It also arrives as comparator notation: "<2" is what this repo's own VitalsForm and
+ * QuickActionsModal stories store, because "capillary refill under two seconds" is how
+ * the reading is taken. Parsing only the bare digits would drop those to a unitless
+ * valueString, losing the seconds unit and the bound with it. FHIR carries exactly this
+ * in Quantity.comparator, so "<2" exports as two seconds bounded above.
+ *
+ * Anything that is not a comparator followed by a number stays prose for the caller to
+ * read, rather than being coerced into a number it never claimed to be.
+ */
+const asMeasuredValue = (value: unknown): MeasuredValue | null => {
+  if (typeof value === 'number') return Number.isFinite(value) ? { value } : null;
+  if (typeof value !== 'string') return null;
+
+  const text = value.trim();
+  if (text === '') return null;
+
+  const comparator = QUANTITY_COMPARATORS.find((candidate) => text.startsWith(candidate));
+  const magnitude = comparator ? text.slice(comparator.length).trim() : text;
+  if (magnitude === '') return null;
+
+  const parsed = Number(magnitude);
+  if (!Number.isFinite(parsed)) return null;
+
+  return comparator ? { value: parsed, comparator } : { value: parsed };
 };
 
 const vitalComponentValue = (key: string, value: unknown) => {
   const units = unitsFor(key);
-  const numeric = units ? asFiniteNumber(value) : null;
-  if (units && numeric !== null) {
+  const measured = units ? asMeasuredValue(value) : null;
+  if (units && measured) {
     return {
-      valueQuantity: { value: numeric, unit: units.unit, system: UCUM_SYSTEM, code: units.code },
+      valueQuantity: {
+        value: measured.value,
+        ...(measured.comparator ? { comparator: measured.comparator } : {}),
+        unit: units.unit,
+        system: UCUM_SYSTEM,
+        code: units.code,
+      },
     };
   }
   if (typeof value === 'number') return { valueDecimal: value };

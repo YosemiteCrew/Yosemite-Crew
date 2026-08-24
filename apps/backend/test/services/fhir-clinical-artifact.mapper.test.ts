@@ -835,12 +835,45 @@ describe("clinicalArtifactFhirMapper", () => {
     it("qualifies CRT even though the form stores it as a string", () => {
       // draft.crtSec is a string, so a numeric-only branch skipped it and left a known
       // clinical vital unqualified - the exact gap this change set out to close.
-      expect(
-        componentFor({ crtSec: "2" }, "crtSec")?.valueQuantity,
-      ).toMatchObject({
+      const quantity = componentFor({ crtSec: "2" }, "crtSec")?.valueQuantity;
+
+      expect(quantity).toMatchObject({
         value: 2,
         unit: "s",
         code: "s",
+      });
+      // A plain reading is not bounded, so it must not pick up a comparator.
+      expect(quantity).not.toHaveProperty("comparator");
+    });
+
+    it("keeps the seconds unit when CRT is stored as comparator notation", () => {
+      // The CRT field is inputMode 'text' with no bounds, and "<2" is what this repo's
+      // own VitalsForm and QuickActionsModal stories store, because that is how the
+      // reading is taken. Parsing only bare digits dropped it to a unitless valueString,
+      // losing the seconds and the bound together. FHIR carries this in
+      // Quantity.comparator.
+      expect(
+        componentFor({ crtSec: "<2" }, "crtSec")?.valueQuantity,
+      ).toMatchObject({
+        value: 2,
+        comparator: "<",
+        unit: "s",
+        system: "http://unitsofmeasure.org",
+        code: "s",
+      });
+      expect(
+        componentFor({ crtSec: ">= 3.5" }, "crtSec")?.valueQuantity,
+      ).toMatchObject({ value: 3.5, comparator: ">=", code: "s" });
+    });
+
+    it("keeps CRT prose that is not a comparator reading as a string", () => {
+      // A bare comparator has no magnitude to qualify, and "brisk" is not a number at
+      // all. Neither may be coerced into a quantity the record never carried.
+      expect(componentFor({ crtSec: "<" }, "crtSec")).toMatchObject({
+        valueString: "<",
+      });
+      expect(componentFor({ crtSec: "brisk" }, "crtSec")).toMatchObject({
+        valueString: "brisk",
       });
     });
 
