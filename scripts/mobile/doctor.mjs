@@ -12,6 +12,10 @@
  * Never prints a secret value: only whether something is present.
  */
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
+
+// Single source of the placeholder vocabulary; check-ios-secrets guards its main
+// block, so importing it runs no checks.
+import { PLACEHOLDER } from './check-ios-secrets.mjs';
 import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 
@@ -64,7 +68,6 @@ else
 // validates shape and package name, not values. Push, auth and Maps are simply
 // dead at runtime. Checking only for existence reports OK on those, which is
 // worse than reporting nothing.
-const PLACEHOLDER = /YOUR_[A-Z_]+|CHANGE_?ME|REPLACE_?ME|<[A-Z_]+>/;
 
 // Returns true, false, or null for "could not read". Collapsing unreadable to
 // false would report OK for a file nobody can open, which is the failure shape
@@ -218,7 +221,10 @@ if (declaredFonts && onDisk) {
         'Icon fonts render as "?" boxes and text fonts fall back silently. Add them to UIAppFonts in ios/mobileAppYC/Info.plist.'
     );
   } else {
-    ok('UIAppFonts', `${declaredFonts.length} fonts registered, covering every bundled and icon font`);
+    ok(
+      'UIAppFonts',
+      `${declaredFonts.length} fonts registered, covering every bundled and icon font`
+    );
   }
 
   // A font shipped in assets/fonts but never registered is the same failure,

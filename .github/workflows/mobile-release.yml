@@ -277,6 +277,14 @@ jobs:
           echo "$SECRETS_XCCONFIG" | base64 -d > ios/mobileAppYC/Secrets.xcconfig
           echo "$VARIABLES_LOCAL_TS" | base64 -d > src/config/variables.local.ts
 
+      # Info.plist references these as $(...) build variables now that it is
+      # tracked, and xcodebuild does not fail on an absent one: it substitutes
+      # nothing, or the literal placeholder, and the archive succeeds. Checked in
+      # a script rather than inline so the empty and placeholder cases are covered
+      # by tests; grep alone reports success for "FACEBOOK_APP_ID =".
+      - name: Verify the iOS build variables carry real values
+        run: node scripts/mobile/check-ios-secrets.mjs
+
       # See the android job: without this the app ships template social sign-in
       # config, and nothing in the build itself would say so.
       - name: Verify the app config restored
