@@ -60,7 +60,13 @@ router.post(
 );
 
 // Get companion by id (PMS)
-router.get("/org/:id", requireWebAuth, CompanionController.getCompanionById);
+router.get(
+  "/org/:id",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("companions:view:any"),
+  CompanionController.getCompanionByIdPMS,
+);
 
 // Update companion (PMS)
 router.put(

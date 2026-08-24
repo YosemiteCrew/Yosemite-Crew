@@ -10,6 +10,7 @@ const requireCompanionPermission = jest.fn();
 const CompanionController = {
   createCompanionMobile: jest.fn(),
   getCompanionById: jest.fn(),
+  getCompanionByIdPMS: jest.fn(),
   updateCompanion: jest.fn(),
   deleteCompanion: jest.fn(),
   getProfileUploadUrl: jest.fn(),
@@ -62,7 +63,9 @@ describe("companion.router", () => {
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
       requireWebAuth,
-      CompanionController.getCompanionById,
+      withOrgPermissionsMiddleware,
+      requirePermissionMiddleware,
+      CompanionController.getCompanionByIdPMS,
     ]);
   });
 

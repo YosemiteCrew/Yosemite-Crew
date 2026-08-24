@@ -189,6 +189,37 @@ export const CompanionController = {
     }
   },
 
+  getCompanionByIdPMS: async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+
+      if (!requireParam(res, id, "Companion ID is required.")) {
+        return;
+      }
+
+      const organisationId = resolveVerifiedOrganisationId(req);
+      if (!organisationId) {
+        return res
+          .status(400)
+          .json({ message: "Organisation context is required." });
+      }
+
+      const result = await CompanionService.getByIdForOrg(id, organisationId);
+      if (!result) {
+        return res.status(404).json({ message: "Companion not found." });
+      }
+
+      return res.status(200).json(result.response);
+    } catch (error) {
+      return handleCompanionError(
+        res,
+        error,
+        "Failed to fetch companion",
+        "Unable to fetch companion.",
+      );
+    }
+  },
+
   updateCompanion: async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
