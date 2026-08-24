@@ -77,8 +77,11 @@ export class TaskRecommendationError extends Error {
   }
 }
 
+/** The three species the task library covers. */
+type TaskSpecies = "dog" | "cat" | "horse";
+
 /** `Patient.type` and `TaskLibrarySpecies` share three values; `other` has none. */
-const TASK_SPECIES: Record<string, "dog" | "cat" | "horse" | undefined> = {
+const TASK_SPECIES: Record<string, TaskSpecies | undefined> = {
   dog: "dog",
   cat: "cat",
   horse: "horse",
@@ -115,6 +118,136 @@ const withinWindow = (
   return true;
 };
 
+type LoadedPatient = {
+  speciesCode: string | null;
+  breedCode: string | null;
+  dateOfBirth: Date | null;
+  type: string;
+};
+
+type RuleWithDefinition = {
+  id: string;
+  breedCodes: string[];
+  minAgeMonths: number | null;
+  maxAgeMonths: number | null;
+  taskDefinitionId: string;
+  recommendationText: string;
+  citationAuthors: string;
+  citationTitle: string;
+  citationSource: string;
+  citationYear: number;
+  citationDoi: string | null;
+  citationUrl: string | null;
+  citationClaim: string;
+  evidenceGrade: string;
+  lastReviewedAt: Date | null;
+  reviewedBy: string | null;
+  nextReviewDue: Date | null;
+  taskDefinition: {
+    id: string;
+    name: string;
+    category: string;
+    isActive: boolean;
+    applicableSpecies: string[];
+  };
+};
+
+/**
+ * Which species' rules apply, or null when that cannot be answered safely.
+ *
+ * `speciesCode` first, `type` as the fallback. They carry the same three
+ * species, but `speciesCode` is optional and null on 30 of 37 production
+ * companions while `type` is required, so reading only the coded column
+ * returned nothing for four companions in five until the backfill ran. This is
+ * a fallback between two RECORDED values - `type` is what the parent picked -
+ * not an inference from free text, which is still not done.
+ *
+ * When both are present and disagree the answer is null. The companion's data
+ * is inconsistent, and choosing either would serve guidance for the wrong
+ * animal on exactly the rows already known to be wrong. Nothing upstream
+ * enforces agreement: validateCompanionCodes checks that each code is valid,
+ * not that the two describe one species.
+ */
+const resolveSpecies = (patient: LoadedPatient): TaskSpecies | null => {
+  const coded = taskSpeciesForCode(patient.speciesCode);
+  const declared = TASK_SPECIES[patient.type];
+  if (coded && declared && coded !== declared) return null;
+  return coded ?? declared ?? null;
+};
+
+/** Whether a rule applies to this companion. Every clause is a reason to say no. */
+const appliesTo = (
+  rule: RuleWithDefinition,
+  species: TaskSpecies,
+  ageMonths: number,
+  patientBreed: string | null,
+): boolean => {
+  // A blank reviewer is not a signature. The column is a nullable string, so ""
+  // and "   " both satisfy a NOT NULL check while naming nobody, and this is the
+  // gate that keeps unreviewed clinical guidance away from pet parents.
+  if ((rule.reviewedBy ?? "").trim().length === 0) return false;
+
+  if (!rule.taskDefinition?.isActive) return false;
+
+  // An EMPTY applicableSpecies means universal, not "applies to nothing" -
+  // taskLibrary.service.ts matches `{ isEmpty: true }` alongside
+  // `{ has: species }` for that reason. Reading empty as a mismatch would
+  // silently drop every universal task.
+  const scope = rule.taskDefinition.applicableSpecies;
+  if (scope.length > 0 && !scope.includes(species)) return false;
+
+  if (!withinWindow(ageMonths, rule.minAgeMonths, rule.maxAgeMonths))
+    return false;
+
+  // No breed codes means species-wide - the life-stage tasks most animals get.
+  // Otherwise the companion's breed has to appear, compared canonically because
+  // the vocabulary holds both separator conventions.
+  if (rule.breedCodes.length === 0) return true;
+  if (!patientBreed) return false;
+  return rule.breedCodes.some(
+    (code) => canonicalBreedCode(code) === patientBreed,
+  );
+};
+
+const toRecommendation = (
+  rule: RuleWithDefinition,
+  species: TaskSpecies,
+  ageMonths: number,
+  patientBreed: string | null,
+): CompanionRecommendation => ({
+  ruleId: rule.id,
+  taskDefinitionId: rule.taskDefinitionId,
+  taskName: rule.taskDefinition.name,
+  taskCategory: rule.taskDefinition.category,
+  text: rule.recommendationText,
+  because: {
+    species,
+    breedSpecific: rule.breedCodes.length > 0,
+    breedCode: patientBreed,
+    minAgeMonths: rule.minAgeMonths,
+    maxAgeMonths: rule.maxAgeMonths,
+    ageMonths,
+  },
+  evidence: {
+    artifact: {
+      type: "citation",
+      label: GRADE_LABELS[rule.evidenceGrade] ?? rule.evidenceGrade,
+      display: rule.citationClaim,
+      citation: `${rule.citationAuthors}. ${rule.citationTitle}. ${rule.citationSource}. ${rule.citationYear}.`,
+      url:
+        rule.citationUrl ??
+        (rule.citationDoi ? `https://doi.org/${rule.citationDoi}` : undefined),
+    },
+    year: rule.citationYear,
+    grade: rule.evidenceGrade,
+    attestation: {
+      lastReviewedAt: rule.lastReviewedAt,
+      reviewedBy: rule.reviewedBy,
+      nextReviewDue: rule.nextReviewDue,
+    },
+  },
+});
+
 export const TaskRecommendationService = {
   async forCompanion(patientId: string): Promise<CompanionRecommendation[]> {
     const id = patientId?.trim();
@@ -135,31 +268,11 @@ export const TaskRecommendationService = {
       throw new TaskRecommendationError("Companion not found.", 404);
     }
 
-    // `speciesCode` first, `type` as the fallback. They carry the same three
-    // species, but `speciesCode` is optional and null on 30 of 37 production
-    // companions, while `type` is required. Reading only the coded column would
-    // have returned nothing for four companions in five until the backfill ran.
-    //
-    // This is a fallback between two recorded values, not an inference: `type` is
-    // what the parent picked. Guessing a species from free-text breed would be a
-    // different thing and is still not done.
-    const coded = taskSpeciesForCode(patient.speciesCode);
-    const declared = TASK_SPECIES[patient.type];
-
-    // If both are recorded and they disagree, the companion's data is
-    // inconsistent and neither value can be trusted to pick the rules.
-    // Returning nothing is the only safe answer: choosing one would serve
-    // guidance for the wrong animal on exactly the rows where we already know
-    // something is wrong. Nothing upstream enforces agreement -
-    // validateCompanionCodes checks each code is valid, not that the two
-    // describe the same species.
-    if (coded && declared && coded !== declared) return [];
-
-    const species = coded ?? declared;
+    const species = resolveSpecies(patient);
     if (!species) return [];
 
-    const age = ageInMonths(patient.dateOfBirth, new Date());
-    if (age === null) return [];
+    const ageMonths = ageInMonths(patient.dateOfBirth, new Date());
+    if (ageMonths === null) return [];
 
     const rules = await prisma.taskRecommendationRule.findMany({
       where: {
@@ -167,11 +280,8 @@ export const TaskRecommendationService = {
         isActive: true,
         // Both conditions, not just isActive. A rule reaches a pet parent only
         // once a named reviewer has signed it off; an active-but-unreviewed row
-        // is a seeding accident, not a recommendation.
-        //
-        // NOT null is not enough on its own: the column is a nullable string, so
-        // "" and "   " both satisfy it while naming nobody. This is the safety
-        // gate, so it rejects anything that is not an actual name.
+        // is a seeding accident, not a recommendation. `appliesTo` rejects a
+        // blank name, which this predicate cannot.
         reviewedBy: { not: null },
       },
       include: {
@@ -189,71 +299,12 @@ export const TaskRecommendationService = {
 
     const patientBreed = canonicalBreedCode(patient.breedCode);
 
-    return (
-      rules
-        .filter((rule) => (rule.reviewedBy ?? "").trim().length > 0)
-        .filter((rule) => rule.taskDefinition?.isActive)
-        // A rule for dogs must not recommend a task the definition does not apply
-        // to dogs. Nothing in the relation enforces that, so a curator pointing a
-        // canine rule at a feline-only task would otherwise ship it.
-        //
-        // An EMPTY applicableSpecies means universal, not "applies to nothing" -
-        // taskLibrary.service.ts matches `{ isEmpty: true }` alongside
-        // `{ has: species }` for exactly that reason. Treating empty as a
-        // mismatch here would silently drop every universal task.
-        .filter(
-          (rule) =>
-            rule.taskDefinition.applicableSpecies.length === 0 ||
-            rule.taskDefinition.applicableSpecies.includes(species),
-        )
-        .filter((rule) =>
-          withinWindow(age, rule.minAgeMonths, rule.maxAgeMonths),
-        )
-        .filter((rule) => {
-          // No breed codes means the rule is species-wide - the life-stage tasks
-          // most animals get. Otherwise the patient's breed has to appear, compared
-          // canonically because the vocabulary holds both separator conventions.
-          if (rule.breedCodes.length === 0) return true;
-          if (!patientBreed) return false;
-          return rule.breedCodes.some(
-            (code) => canonicalBreedCode(code) === patientBreed,
-          );
-        })
-        .map((rule) => ({
-          ruleId: rule.id,
-          taskDefinitionId: rule.taskDefinitionId,
-          taskName: rule.taskDefinition.name,
-          taskCategory: rule.taskDefinition.category,
-          text: rule.recommendationText,
-          because: {
-            species,
-            breedSpecific: rule.breedCodes.length > 0,
-            breedCode: patientBreed,
-            minAgeMonths: rule.minAgeMonths,
-            maxAgeMonths: rule.maxAgeMonths,
-            ageMonths: age,
-          },
-          evidence: {
-            artifact: {
-              type: "citation",
-              label: GRADE_LABELS[rule.evidenceGrade] ?? rule.evidenceGrade,
-              display: rule.citationClaim,
-              citation: `${rule.citationAuthors}. ${rule.citationTitle}. ${rule.citationSource}. ${rule.citationYear}.`,
-              url:
-                rule.citationUrl ??
-                (rule.citationDoi
-                  ? `https://doi.org/${rule.citationDoi}`
-                  : undefined),
-            },
-            year: rule.citationYear,
-            grade: rule.evidenceGrade,
-            attestation: {
-              lastReviewedAt: rule.lastReviewedAt,
-              reviewedBy: rule.reviewedBy,
-              nextReviewDue: rule.nextReviewDue,
-            },
-          },
-        }))
-    );
+    return rules
+      .filter((rule: RuleWithDefinition) =>
+        appliesTo(rule, species, ageMonths, patientBreed),
+      )
+      .map((rule: RuleWithDefinition) =>
+        toRecommendation(rule, species, ageMonths, patientBreed),
+      );
   },
 };

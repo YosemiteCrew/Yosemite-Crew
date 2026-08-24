@@ -53,15 +53,15 @@ interface Outcome {
 const vocabKey = (type: string, display: string) =>
   `${type}::${display.trim().toLowerCase()}`;
 
-export const planBackfill = async (): Promise<Outcome[]> => {
-  const patients = await prisma.patient.findMany({
-    where: { breedCode: null },
-    select: { id: true, breed: true, type: true },
-  });
-
-  // One vocabulary query per species, not per patient. Every lookup in the loop
-  // below asks the same species-scoped question, so issuing it once per companion
-  // was a round trip per row for no new information.
+/**
+ * Every breed display this run needs, per species, resolved in one query each.
+ *
+ * One query per species rather than per companion: each lookup asks the same
+ * species-scoped question, so a round trip per row bought no new information.
+ */
+const loadVocabulary = async (
+  patients: Array<{ breed: string; type: string }>,
+): Promise<Map<string, string[]>> => {
   const wanted = new Map<string, Set<string>>();
   for (const patient of patients) {
     const breed = patient.breed?.trim();
@@ -76,11 +76,11 @@ export const planBackfill = async (): Promise<Outcome[]> => {
     const species = SPECIES_BY_TYPE[type];
     const entries = await prisma.codeEntry.findMany({
       where: {
-        // Constrained to the live Yosemite breed vocabulary. Without system/type/
-        // active, an inactive entry - or one from another code system that happens
-        // to carry a YBREED-shaped code and the same display - would be accepted,
-        // and the apply phase would persist a code that ordinary companion writes
-        // would never produce.
+        // Constrained to the live Yosemite breed vocabulary. Without
+        // system/type/active, an inactive entry - or one from another code
+        // system carrying a YBREED-shaped code and the same display - would be
+        // accepted, and the apply phase would persist a code that ordinary
+        // companion writes would never produce.
         system: "YOSEMITECODE",
         type: "BREED",
         active: true,
@@ -94,74 +94,70 @@ export const planBackfill = async (): Promise<Outcome[]> => {
       vocabulary.set(key, [...(vocabulary.get(key) ?? []), entry.code]);
     }
   }
+  return vocabulary;
+};
 
-  const outcomes: Outcome[] = [];
+/** What this run would do to one companion, and why. */
+const classify = (
+  patient: { id: string; breed: string; type: string },
+  vocabulary: Map<string, string[]>,
+): Outcome => {
+  const breed = patient.breed?.trim();
+  const base = {
+    patientId: patient.id,
+    breed: breed ?? "",
+    type: patient.type,
+  };
 
-  for (const patient of patients) {
-    const breed = patient.breed?.trim();
-    const species = SPECIES_BY_TYPE[patient.type];
-
-    if (!breed) {
-      outcomes.push({
-        patientId: patient.id,
-        breed: patient.breed ?? "",
-        type: patient.type,
-        resolved: null,
-        reason: "no breed text to match",
-      });
-      continue;
-    }
-
-    if (!species) {
-      // `other`, or a species the breed vocabulary does not cover.
-      outcomes.push({
-        patientId: patient.id,
-        breed,
-        type: patient.type,
-        resolved: null,
-        reason: `species '${patient.type}' has no breed vocabulary`,
-      });
-      continue;
-    }
-
-    const candidates = vocabulary.get(vocabKey(patient.type, breed)) ?? [];
-
-    const distinct = [
-      ...new Set(
-        candidates
-          .map((code) => canonicalBreedCode(code))
-          .filter((code): code is string => Boolean(code)),
-      ),
-    ];
-
-    if (distinct.length === 1) {
-      outcomes.push({
-        patientId: patient.id,
-        breed,
-        type: patient.type,
-        resolved: distinct[0],
-        reason: "matched within its own species",
-      });
-    } else if (distinct.length === 0) {
-      outcomes.push({
-        patientId: patient.id,
-        breed,
-        type: patient.type,
-        resolved: null,
-        reason: "no vocabulary entry for this breed in this species",
-      });
-    } else {
-      outcomes.push({
-        patientId: patient.id,
-        breed,
-        type: patient.type,
-        resolved: null,
-        reason: `ambiguous: ${distinct.join(", ")}`,
-      });
-    }
+  if (!breed) {
+    return { ...base, resolved: null, reason: "no breed text to match" };
+  }
+  if (!SPECIES_BY_TYPE[patient.type]) {
+    // `other`, or a species the breed vocabulary does not cover.
+    return {
+      ...base,
+      resolved: null,
+      reason: `species '${patient.type}' has no breed vocabulary`,
+    };
   }
 
-  return outcomes;
+  const distinct = [
+    ...new Set(
+      (vocabulary.get(vocabKey(patient.type, breed)) ?? [])
+        .map((code) => canonicalBreedCode(code))
+        .filter((code): code is string => Boolean(code)),
+    ),
+  ];
+
+  if (distinct.length === 1) {
+    return {
+      ...base,
+      resolved: distinct[0],
+      reason: "matched within its own species",
+    };
+  }
+  if (distinct.length === 0) {
+    return {
+      ...base,
+      resolved: null,
+      reason: "no vocabulary entry for this breed in this species",
+    };
+  }
+  return {
+    ...base,
+    resolved: null,
+    reason: `ambiguous: ${distinct.join(", ")}`,
+  };
+};
+
+export const planBackfill = async (): Promise<Outcome[]> => {
+  const patients = await prisma.patient.findMany({
+    where: { breedCode: null },
+    select: { id: true, breed: true, type: true },
+  });
+
+  const vocabulary = await loadVocabulary(patients);
+  return patients.map((patient) => classify(patient, vocabulary));
 };
 
 export const main = async () => {
