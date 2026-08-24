@@ -278,21 +278,12 @@ jobs:
           echo "$VARIABLES_LOCAL_TS" | base64 -d > src/config/variables.local.ts
 
       # Info.plist references these as $(...) build variables now that it is
-      # tracked. A missing one does not fail the archive: xcodebuild embeds the
-      # literal "$(FACEBOOK_APP_ID)" and the app ships with sign-in that dies at
-      # the redirect. Fail here, where the message can say which key is missing.
-      - name: Verify the iOS build variables are present
-        run: |
-          cd apps/mobileAppYC
-          missing=""
-          for key in GOOGLE_MAPS_API_KEY FACEBOOK_APP_ID FACEBOOK_CLIENT_TOKEN GOOGLE_REVERSED_CLIENT_ID; do
-            grep -qE "^[[:space:]]*${key}[[:space:]]*=" ios/mobileAppYC/Secrets.xcconfig || missing="$missing $key"
-          done
-          if [ -n "$missing" ]; then
-            echo "::error::IOS_SECRETS_XCCONFIG is missing:$missing. Info.plist references these as build variables, so the archive would succeed and sign-in would fail at runtime."
-            exit 1
-          fi
-          echo "All four iOS build variables are present in Secrets.xcconfig."
+      # tracked, and xcodebuild does not fail on an absent one: it substitutes
+      # nothing, or the literal placeholder, and the archive succeeds. Checked in
+      # a script rather than inline so the empty and placeholder cases are covered
+      # by tests; grep alone reports success for "FACEBOOK_APP_ID =".
+      - name: Verify the iOS build variables carry real values
+        run: node scripts/mobile/check-ios-secrets.mjs
 
       # See the android job: without this the app ships template social sign-in
       # config, and nothing in the build itself would say so.
