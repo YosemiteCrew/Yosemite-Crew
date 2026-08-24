@@ -1,3 +1,4 @@
+import type { RelatedArtifact } from "@yosemite-crew/fhir";
 import { prisma } from "src/config/prisma";
 import {
   ageInMonths,
@@ -17,19 +18,35 @@ import {
  * rule knows a breed and an age, not a patient.
  */
 
-export interface RecommendationCitation {
-  authors: string;
-  title: string;
-  source: string;
+/**
+ * The evidence behind a recommendation, as a FHIR R4 `RelatedArtifact`.
+ *
+ * `RelatedArtifact` is the standard's own type for exactly this - the citation
+ * supporting a definitional resource - so there is no reason to invent a shape
+ * for it, and apps/backend/AGENTS.md says as much. The mapping:
+ *
+ *   type     "citation"
+ *   citation the bibliographic string
+ *   url      the DOI, or the source URL when there is no DOI
+ *   display  the specific claim relied on, which is what a vet argues with
+ *   label    the evidence grade, in words
+ *
+ * The attestation below is NOT part of it. `lastReviewedAt` / `reviewedBy` /
+ * `nextReviewDue` are this product's governance over its own rule table, not a
+ * property of the cited artifact, and FHIR has no slot for them here. Keeping
+ * them beside the artifact rather than inside it avoids overloading a standard
+ * type with a local meaning.
+ */
+export interface RecommendationEvidence {
+  artifact: RelatedArtifact;
+  /** Kept discrete so a client can sort or filter without parsing the citation. */
   year: number;
-  doi: string | null;
-  url: string | null;
-  /** The specific claim relied on, so a vet can argue with the rule, not the paper. */
-  claim: string;
   grade: string;
-  lastReviewedAt: Date | null;
-  reviewedBy: string | null;
-  nextReviewDue: Date | null;
+  attestation: {
+    lastReviewedAt: Date | null;
+    reviewedBy: string | null;
+    nextReviewDue: Date | null;
+  };
 }
 
 export interface CompanionRecommendation {
@@ -47,7 +64,7 @@ export interface CompanionRecommendation {
     maxAgeMonths: number | null;
     ageMonths: number;
   };
-  citation: RecommendationCitation;
+  evidence: RecommendationEvidence;
 }
 
 export class TaskRecommendationError extends Error {
@@ -59,6 +76,29 @@ export class TaskRecommendationError extends Error {
     this.name = "TaskRecommendationError";
   }
 }
+
+/** `Patient.type` and `TaskLibrarySpecies` share three values; `other` has none. */
+const TASK_SPECIES: Record<string, "dog" | "cat" | "horse" | undefined> = {
+  dog: "dog",
+  cat: "cat",
+  horse: "horse",
+};
+
+/**
+ * Plain-language labels for the evidence grades.
+ *
+ * The citation is meant to be readable by the parent looking at the card, and
+ * `CONSENSUS_STATEMENT` is not that. The raw enum is kept alongside so a client
+ * can still sort or filter on it without parsing prose.
+ */
+const GRADE_LABELS: Record<string, string> = {
+  CONSENSUS_STATEMENT: "Consensus statement",
+  PRACTICE_GUIDELINE: "Practice guideline",
+  POPULATION_STUDY: "Population study",
+  COHORT_STUDY: "Cohort study",
+  CASE_SERIES: "Case series",
+  EXPERT_OPINION: "Expert opinion",
+};
 
 /**
  * Half-open window: [min, max). A rule for "from seven years" is minAgeMonths 84
@@ -84,16 +124,27 @@ export const TaskRecommendationService = {
 
     const patient = await prisma.patient.findUnique({
       where: { id },
-      select: { speciesCode: true, breedCode: true, dateOfBirth: true },
+      select: {
+        speciesCode: true,
+        breedCode: true,
+        dateOfBirth: true,
+        type: true,
+      },
     });
     if (!patient) {
       throw new TaskRecommendationError("Companion not found.", 404);
     }
 
-    // A companion with no coded species cannot be matched. Returning nothing is
-    // correct: guessing the species from free-text breed here would put an
-    // unreviewed inference behind a cited recommendation.
-    const species = taskSpeciesForCode(patient.speciesCode);
+    // `speciesCode` first, `type` as the fallback. They carry the same three
+    // species, but `speciesCode` is optional and null on 30 of 37 production
+    // companions, while `type` is required. Reading only the coded column would
+    // have returned nothing for four companions in five until the backfill ran.
+    //
+    // This is a fallback between two recorded values, not an inference: `type` is
+    // what the parent picked. Guessing a species from free-text breed would be a
+    // different thing and is still not done.
+    const species =
+      taskSpeciesForCode(patient.speciesCode) ?? TASK_SPECIES[patient.type];
     if (!species) return [];
 
     const age = ageInMonths(patient.dateOfBirth, new Date());
@@ -106,57 +157,85 @@ export const TaskRecommendationService = {
         // Both conditions, not just isActive. A rule reaches a pet parent only
         // once a named reviewer has signed it off; an active-but-unreviewed row
         // is a seeding accident, not a recommendation.
-        NOT: { reviewedBy: null },
+        //
+        // NOT null is not enough on its own: the column is a nullable string, so
+        // "" and "   " both satisfy it while naming nobody. This is the safety
+        // gate, so it rejects anything that is not an actual name.
+        reviewedBy: { not: null },
       },
       include: {
         taskDefinition: {
-          select: { id: true, name: true, category: true, isActive: true },
+          select: {
+            id: true,
+            name: true,
+            category: true,
+            isActive: true,
+            applicableSpecies: true,
+          },
         },
       },
     });
 
     const patientBreed = canonicalBreedCode(patient.breedCode);
 
-    return rules
-      .filter((rule) => rule.taskDefinition?.isActive)
-      .filter((rule) => withinWindow(age, rule.minAgeMonths, rule.maxAgeMonths))
-      .filter((rule) => {
-        // No breed codes means the rule is species-wide - the life-stage tasks
-        // most animals get. Otherwise the patient's breed has to appear, compared
-        // canonically because the vocabulary holds both separator conventions.
-        if (rule.breedCodes.length === 0) return true;
-        if (!patientBreed) return false;
-        return rule.breedCodes.some(
-          (code) => canonicalBreedCode(code) === patientBreed,
-        );
-      })
-      .map((rule) => ({
-        ruleId: rule.id,
-        taskDefinitionId: rule.taskDefinitionId,
-        taskName: rule.taskDefinition.name,
-        taskCategory: rule.taskDefinition.category,
-        text: rule.recommendationText,
-        because: {
-          species,
-          breedSpecific: rule.breedCodes.length > 0,
-          breedCode: patientBreed,
-          minAgeMonths: rule.minAgeMonths,
-          maxAgeMonths: rule.maxAgeMonths,
-          ageMonths: age,
-        },
-        citation: {
-          authors: rule.citationAuthors,
-          title: rule.citationTitle,
-          source: rule.citationSource,
-          year: rule.citationYear,
-          doi: rule.citationDoi,
-          url: rule.citationUrl,
-          claim: rule.citationClaim,
-          grade: rule.evidenceGrade,
-          lastReviewedAt: rule.lastReviewedAt,
-          reviewedBy: rule.reviewedBy,
-          nextReviewDue: rule.nextReviewDue,
-        },
-      }));
+    return (
+      rules
+        .filter((rule) => (rule.reviewedBy ?? "").trim().length > 0)
+        .filter((rule) => rule.taskDefinition?.isActive)
+        // A rule for dogs must not recommend a task the definition does not apply
+        // to dogs. Nothing in the relation enforces that, so a curator pointing a
+        // canine rule at a feline-only task would otherwise ship it.
+        .filter((rule) =>
+          rule.taskDefinition.applicableSpecies.includes(species),
+        )
+        .filter((rule) =>
+          withinWindow(age, rule.minAgeMonths, rule.maxAgeMonths),
+        )
+        .filter((rule) => {
+          // No breed codes means the rule is species-wide - the life-stage tasks
+          // most animals get. Otherwise the patient's breed has to appear, compared
+          // canonically because the vocabulary holds both separator conventions.
+          if (rule.breedCodes.length === 0) return true;
+          if (!patientBreed) return false;
+          return rule.breedCodes.some(
+            (code) => canonicalBreedCode(code) === patientBreed,
+          );
+        })
+        .map((rule) => ({
+          ruleId: rule.id,
+          taskDefinitionId: rule.taskDefinitionId,
+          taskName: rule.taskDefinition.name,
+          taskCategory: rule.taskDefinition.category,
+          text: rule.recommendationText,
+          because: {
+            species,
+            breedSpecific: rule.breedCodes.length > 0,
+            breedCode: patientBreed,
+            minAgeMonths: rule.minAgeMonths,
+            maxAgeMonths: rule.maxAgeMonths,
+            ageMonths: age,
+          },
+          evidence: {
+            artifact: {
+              type: "citation",
+              label: GRADE_LABELS[rule.evidenceGrade] ?? rule.evidenceGrade,
+              display: rule.citationClaim,
+              citation: `${rule.citationAuthors}. ${rule.citationTitle}. ${rule.citationSource}. ${rule.citationYear}.`,
+              url:
+                rule.citationUrl ??
+                (rule.citationDoi
+                  ? `https://doi.org/${rule.citationDoi}`
+                  : undefined),
+            },
+            year: rule.citationYear,
+            grade: rule.evidenceGrade,
+            attestation: {
+              lastReviewedAt: rule.lastReviewedAt,
+              reviewedBy: rule.reviewedBy,
+              nextReviewDue: rule.nextReviewDue,
+            },
+          },
+        }))
+    );
   },
 };

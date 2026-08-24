@@ -76,6 +76,14 @@ export const planBackfill = async (): Promise<Outcome[]> => {
     const species = SPECIES_BY_TYPE[type];
     const entries = await prisma.codeEntry.findMany({
       where: {
+        // Constrained to the live Yosemite breed vocabulary. Without system/type/
+        // active, an inactive entry - or one from another code system that happens
+        // to carry a YBREED-shaped code and the same display - would be accepted,
+        // and the apply phase would persist a code that ordinary companion writes
+        // would never produce.
+        system: "YOSEMITECODE",
+        type: "BREED",
+        active: true,
         code: { startsWith: species.prefix },
         display: { in: [...breeds], mode: "insensitive" },
       },
@@ -190,9 +198,25 @@ const main = async () => {
   console.log(`\nwrote ${written} companions`);
 };
 
-main()
-  .catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-  })
-  .finally(() => prisma.$disconnect());
+/**
+ * Only run when this file IS the command, not when a test imports planBackfill.
+ *
+ * Unguarded, importing this module started main() before any test had mocked a
+ * result, so planBackfill threw and the catch set process.exitCode = 1. The suite
+ * reported 8 passing tests and jest still exited 1 - a red build with nothing red
+ * in the output to explain it.
+ *
+ * argv[1] rather than require.main, which is not defined under ESM.
+ */
+const invokedDirectly = (process.argv[1] ?? "").includes(
+  "backfill-breed-codes",
+);
+
+if (invokedDirectly) {
+  main()
+    .catch((error) => {
+      console.error(error);
+      process.exitCode = 1;
+    })
+    .finally(() => prisma.$disconnect());
+}

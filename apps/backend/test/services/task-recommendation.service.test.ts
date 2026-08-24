@@ -49,6 +49,7 @@ const rule = (over: Partial<Record<string, unknown>> = {}) => ({
     name: "Log weight",
     category: "Monitoring",
     isActive: true,
+    applicableSpecies: ["dog", "cat", "horse"],
   },
   ...over,
 });
@@ -59,6 +60,7 @@ beforeEach(() => {
     speciesCode: "YSPEC:CANINE",
     breedCode: "YBREED:CANINE:CAVALIER_KING_CHARLES_SPANIEL",
     dateOfBirth: yearsAgo(7),
+    type: "dog",
   });
   ruleFind.mockResolvedValue([]);
 });
@@ -75,7 +77,7 @@ describe("TaskRecommendationService.forCompanion", () => {
         where: expect.objectContaining({
           species: "dog",
           isActive: true,
-          NOT: { reviewedBy: null },
+          reviewedBy: { not: null },
         }),
       }),
     );
@@ -100,6 +102,7 @@ describe("TaskRecommendationService.forCompanion", () => {
       speciesCode: "YSPEC:CANINE",
       breedCode: null,
       dateOfBirth: yearsAgo(3),
+      type: "dog",
     });
     ruleFind.mockResolvedValue([rule({ breedCodes: [] })]);
 
@@ -114,6 +117,7 @@ describe("TaskRecommendationService.forCompanion", () => {
       speciesCode: "YSPEC:CANINE",
       breedCode: null,
       dateOfBirth: yearsAgo(7),
+      type: "dog",
     });
     ruleFind.mockResolvedValue([
       rule({ breedCodes: ["YBREED:CANINE:CAVALIER_KING_CHARLES_SPANIEL"] }),
@@ -127,6 +131,7 @@ describe("TaskRecommendationService.forCompanion", () => {
       speciesCode: "YSPEC:CANINE",
       breedCode: null,
       dateOfBirth: yearsAgo(7),
+      type: "dog",
     });
     ruleFind.mockResolvedValue([
       rule({ id: "under-84", minAgeMonths: null, maxAgeMonths: 84 }),
@@ -153,13 +158,14 @@ describe("TaskRecommendationService.forCompanion", () => {
     expect(await TaskRecommendationService.forCompanion("pat-1")).toEqual([]);
   });
 
-  it("returns nothing for a species it cannot code, rather than guessing", async () => {
+  it("returns nothing for a species with no rules vocabulary, rather than guessing", async () => {
     // Guessing the species from free-text breed would put an unreviewed inference
     // behind a cited recommendation.
     patientFind.mockResolvedValue({
       speciesCode: null,
       breedCode: "YBREED:CANINE:PUG",
       dateOfBirth: yearsAgo(4),
+      type: "other",
     });
 
     expect(await TaskRecommendationService.forCompanion("pat-1")).toEqual([]);
@@ -171,6 +177,7 @@ describe("TaskRecommendationService.forCompanion", () => {
       speciesCode: "YSPEC:CANINE",
       breedCode: null,
       dateOfBirth: null,
+      type: "dog",
     });
 
     expect(await TaskRecommendationService.forCompanion("pat-1")).toEqual([]);
@@ -186,14 +193,15 @@ describe("TaskRecommendationService.forCompanion", () => {
 
     const [out] = await TaskRecommendationService.forCompanion("pat-1");
 
-    expect(out.citation).toMatchObject({
-      authors: "Author A, Author B",
-      year: 2024,
-      doi: "10.0000/example",
-      claim: "The specific sentence relied on.",
-      grade: "CONSENSUS_STATEMENT",
-      reviewedBy: "vet-1",
+    expect(out.evidence.artifact).toMatchObject({
+      type: "citation",
+      // The claim relied on, not the paper's abstract - this is what a vet argues with.
+      display: "The specific sentence relied on.",
+      citation: "Author A, Author B. A title. A journal. 2024.",
+      url: "https://doi.org/10.0000/example",
     });
+    expect(out.evidence.grade).toBe("CONSENSUS_STATEMENT");
+    expect(out.evidence.attestation.reviewedBy).toBe("vet-1");
     expect(out.because).toMatchObject({
       species: "dog",
       breedSpecific: true,
@@ -213,5 +221,103 @@ describe("TaskRecommendationService.forCompanion", () => {
     ).rejects.toMatchObject({
       statusCode: 400,
     });
+  });
+});
+
+describe("TaskRecommendationService hardening", () => {
+  it("falls back to the required type when speciesCode is missing", async () => {
+    // speciesCode is null on 30 of 37 production companions. Reading only the
+    // coded column returned nothing for four companions in five until the
+    // backfill ran. `type` is required and is what the parent picked, so this is
+    // a fallback between two recorded values, not an inference.
+    patientFind.mockResolvedValue({
+      speciesCode: null,
+      breedCode: null,
+      dateOfBirth: yearsAgo(5),
+      type: "cat",
+    });
+    ruleFind.mockResolvedValue([rule()]);
+
+    const out = await TaskRecommendationService.forCompanion("pat-1");
+
+    expect(ruleFind).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ species: "cat" }),
+      }),
+    );
+    expect(out).toHaveLength(1);
+  });
+
+  it("does not treat a blank reviewer as a signature", async () => {
+    // The column is a nullable string, so "" and "   " both pass a NOT NULL
+    // check while naming nobody. This is the gate that keeps unreviewed clinical
+    // guidance away from pet parents.
+    ruleFind.mockResolvedValue([
+      rule({ id: "empty", reviewedBy: "" }),
+      rule({ id: "spaces", reviewedBy: "   " }),
+      rule({ id: "named", reviewedBy: "Dr Real Person" }),
+    ]);
+
+    const out = await TaskRecommendationService.forCompanion("pat-1");
+
+    expect(out.map((r) => r.ruleId)).toEqual(["named"]);
+  });
+
+  it("will not recommend a task the definition does not apply to that species", async () => {
+    // Nothing in the relation enforces this, so a curator pointing a canine rule
+    // at a feline-only task would otherwise ship it.
+    ruleFind.mockResolvedValue([
+      rule({
+        taskDefinition: {
+          id: "task-1",
+          name: "Cat-only thing",
+          category: "x",
+          isActive: true,
+          applicableSpecies: ["cat"],
+        },
+      }),
+    ]);
+
+    expect(await TaskRecommendationService.forCompanion("pat-1")).toEqual([]);
+  });
+
+  it("gives the evidence grade a readable label without dropping the raw value", async () => {
+    ruleFind.mockResolvedValue([
+      rule({ evidenceGrade: "CONSENSUS_STATEMENT" }),
+    ]);
+
+    const [out] = await TaskRecommendationService.forCompanion("pat-1");
+
+    expect(out.evidence.grade).toBe("CONSENSUS_STATEMENT");
+    expect(out.evidence.artifact.label).toBe("Consensus statement");
+  });
+
+  it("falls back to the raw grade if a new one has no label yet", async () => {
+    ruleFind.mockResolvedValue([rule({ evidenceGrade: "SOMETHING_NEW" })]);
+
+    const [out] = await TaskRecommendationService.forCompanion("pat-1");
+
+    expect(out.evidence.artifact.label).toBe("SOMETHING_NEW");
+  });
+});
+
+describe("TaskRecommendationService evidence shape", () => {
+  it("prefers an explicit url over a DOI, and omits the link when there is neither", async () => {
+    ruleFind.mockResolvedValue([
+      rule({
+        id: "with-url",
+        citationUrl: "https://example.org/paper",
+        citationDoi: "10.1/x",
+      }),
+    ]);
+    const [withUrl] = await TaskRecommendationService.forCompanion("pat-1");
+    expect(withUrl.evidence.artifact.url).toBe("https://example.org/paper");
+
+    ruleFind.mockResolvedValue([
+      rule({ citationUrl: null, citationDoi: null }),
+    ]);
+    const [bare] = await TaskRecommendationService.forCompanion("pat-1");
+    // Not an empty string or a bare "https://doi.org/" - the field is simply absent.
+    expect(bare.evidence.artifact.url).toBeUndefined();
   });
 });

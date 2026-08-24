@@ -54,3 +54,19 @@ ALTER TABLE "TaskRecommendationRule"
   ADD CONSTRAINT "TaskRecommendationRule_taskDefinitionId_fkey"
   FOREIGN KEY ("taskDefinitionId") REFERENCES "TaskLibraryDefinition"("id")
   ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- Enable row level security, matching 20260818090000_enable_row_level_security.
+--
+-- That migration switches RLS on by looping over every table in `public`, which
+-- makes it idempotent but only covers tables that existed when it ran. A table
+-- created by a later migration ships with RLS off, and the CI step "Check row
+-- level security is enabled on every public table" fails on it - which is how
+-- this was caught here, and how it was caught on CareReminderOptOut before it.
+--
+-- Enabling with no policy is the intended default: the API connects as the
+-- owning role and bypasses RLS, so Prisma queries are unaffected, while
+-- Supabase's PostgREST surface to the `anon` and `authenticated` keys is denied.
+-- That matters here because these rows carry clinical guidance that is only safe
+-- to read once a reviewer has signed it off - the `isActive` and `reviewedBy`
+-- gate lives in the application, and PostgREST would go straight past it.
+ALTER TABLE "TaskRecommendationRule" ENABLE ROW LEVEL SECURITY;

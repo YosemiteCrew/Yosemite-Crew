@@ -57,6 +57,11 @@ describe("TaskRecommendationController.listForCompanion", () => {
 
     expect(disclaimer).toMatch(/not a diagnosis/i);
     expect(disclaimer).toMatch(/ask them/i);
+    // Must NOT claim breed and age. Not every rule is breed-specific or
+    // age-bounded - a species-wide life-stage task matches on neither - so a
+    // blanket claim would overstate what triggered the guidance. The per-card
+    // `because` block carries what each one was actually matched on.
+    expect(disclaimer).not.toMatch(/this breed and age/i);
   });
 
   it("still returns the disclaimer when there is nothing to recommend", async () => {
