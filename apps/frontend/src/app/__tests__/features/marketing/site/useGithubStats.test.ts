@@ -631,6 +631,40 @@ describe('useReleaseLanes', () => {
     }
   });
 
+  it('replaces stale cached lanes even when the refresh cannot be written', async () => {
+    // The gap the first version of the fallback left. With lanes ALREADY cached
+    // and the refresh write failing, returning the store meant the fresh result
+    // was discarded on every render and the hero showed old releases forever.
+    sessionStorage.setItem(
+      'yc_marketing_release_lanes_v1',
+      JSON.stringify([
+        {
+          key: 'pims',
+          label: 'PIMS',
+          tag: 'v0.0.1-stale',
+          date: null,
+          dateCompact: null,
+          url: 'https://x/old',
+        },
+        { key: 'desktop', label: 'Desktop', tag: null, date: null, dateCompact: null, url: null },
+        { key: 'mobile', label: 'Mobile', tag: null, date: null, dateCompact: null, url: null },
+        { key: 'backend', label: 'Backend', tag: null, date: null, dateCompact: null, url: null },
+      ])
+    );
+    const setItem = jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('QuotaExceededError');
+    });
+    try {
+      globalThis.fetch = lanesFetch(RELEASES) as unknown as FetchLike;
+      const { result } = renderHook(() => useReleaseLanes());
+      await waitFor(() => expect(byKey(result.current, 'pims').tag).toBe('v2.3.0-beta'));
+      expect(byKey(result.current, 'pims').tag).not.toBe('v0.0.1-stale');
+      expect(byKey(result.current, 'mobile').tag).toBe('v1.6.1');
+    } finally {
+      setItem.mockRestore();
+    }
+  });
+
   it('fetches the releases list once for all four lanes', async () => {
     const spy = lanesFetch(RELEASES);
     globalThis.fetch = spy as unknown as FetchLike;

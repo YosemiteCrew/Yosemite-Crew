@@ -669,7 +669,13 @@ select.yc-field {
    pushing the row. The bar squares off since a pill radius around a block reads wrong, the
    github mark is dropped (it is repeated on every link's accessible name), and the separators
    go with it because they no longer sit between items on a row. */
-@media (max-width: 720px) {
+/* 860px, not a round 768. The one-row bar is ~754px intrinsic and the hero adds
+   24px of padding either side, so it needs ~802px of viewport before it fits.
+   Below that the flex row wraps between segments and the strip goes ragged, so
+   the compact grid has to take over BEFORE that point, not after. 834 - the
+   tablet QA viewport - sits inside the broken zone and is now covered, and the
+   rest is headroom for a longer version string than today's. */
+@media (max-width: 860px) {
   [data-yc-lanes] {
     display: grid !important;
     grid-template-columns: 1fr 1fr;

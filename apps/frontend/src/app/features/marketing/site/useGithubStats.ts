@@ -403,10 +403,14 @@ export function useReleaseLanes(): ReleaseLane[] {
     };
   }, []);
 
-  // The store wins whenever it holds anything: it is shared, so it stays correct
-  // across instances. EMPTY_LANES is a module constant, so this is an identity
-  // check for "nothing cached", not a deep comparison.
-  if (cached !== EMPTY_LANES) return cached;
+  // Prefer what this instance actually fetched.
+  //
+  // An earlier version returned the store whenever it held anything, which only
+  // covered a cold cache: with STALE lanes already cached and the refresh write
+  // then failing, the store stayed non-empty and the fresh result was discarded
+  // on every render, so the hero kept showing old releases forever. Preferring
+  // the fetched value is never worse - when the write succeeds the two agree,
+  // and when it fails this is the only copy of the newer data.
   return fetched ?? cached;
 }
 
