@@ -1,0 +1,86 @@
+name: Back-merge main into dev
+
+# dev must always CONTAIN main, so that "is everything promoted?" is answerable
+# with `git merge-base --is-ancestor main dev` instead of forensics.
+#
+# It is not answerable today. Promotion merges dev into main with a merge commit,
+# and that commit lives only on main - dev never receives it. After 32 promotions
+# dev was 40 commits "behind" main while holding identical content, which makes
+# the count useless: a harmless merge commit and a hotfix that never came back
+# look exactly the same.
+#
+# That ambiguity has already cost something real. The json security bump (#2131)
+# was merged straight into main on 2026-08-13, dev stayed on the vulnerable
+# version, and nothing detected it - a person did, later. This job is the part
+# that would have caught it: anything reaching main gets a pull request back into
+# dev, automatically, whether it arrived by promotion or through the main-direct
+# escape hatch.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: back-merge
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  back-merge:
+    name: Open a back-merge pull request
+    if: github.repository_owner == 'YosemiteCrew'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Open or update the back-merge pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          git fetch origin main dev --quiet
+
+          # The invariant itself. When it already holds there is nothing to carry
+          # back, which is the normal state immediately after a back-merge lands.
+          if git merge-base --is-ancestor origin/main origin/dev; then
+            echo "dev already contains main - nothing to back-merge."
+            exit 0
+          fi
+
+          BEHIND="$(git rev-list --count origin/dev..origin/main)"
+          echo "main has ${BEHIND} commit(s) that dev does not contain."
+
+          EXISTING="$(gh pr list --repo "${REPO}" --base dev --head main --state open --json number --jq '.[0].number // empty')"
+          if [ -n "${EXISTING}" ]; then
+            echo "::notice::Back-merge PR #${EXISTING} is already open; it updates itself as main moves."
+            exit 0
+          fi
+
+          # Usually an empty diff: main's tree is dev's tree at the point they
+          # diverged, so only the merge commits differ. The pull request exists to
+          # restore ancestry, and it is the safety net for the rare case where the
+          # diff is NOT empty - something landed on main without passing through
+          # dev, and that content would otherwise be stranded.
+          gh pr create --repo "${REPO}" --base dev --head main \
+            --title "chore(repo): back-merge main into dev" \
+            --body "$(cat <<'BODY'
+          Opened automatically so that `dev` continues to contain `main`.
+
+          `main` currently holds commits `dev` does not. Usually these are only the merge commits created by each `dev` to `main` promotion, and the file diff is empty - merging this restores ancestry and nothing else.
+
+          **If the diff is NOT empty, read it.** That means something reached `main` without passing through `dev`, and this pull request is carrying it back. That is the case the json security bump (#2131) fell into, where `dev` was left on the vulnerable version.
+
+          Merge with a merge commit. Do not squash: squashing creates a new commit and leaves the ancestry broken, which is the problem this exists to fix.
+          BODY
+          )"

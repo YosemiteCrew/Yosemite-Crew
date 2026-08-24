@@ -23,9 +23,11 @@ concurrency:
   cancel-in-progress: true
 
 # pull_request_target runs against the BASE repository, so it must never check
-# out or execute the pull request's code. It only reads branch metadata below.
+# out or execute the pull request's code. It only reads branch metadata and
+# retargets the pull request through the API below.
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
   guard:
@@ -33,19 +35,67 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      # Bots first, and deliberately BEFORE the main-direct escape hatch, so no
+      # label a human applies can wave a bot's pull request into main.
+      #
+      # Dependabot SECURITY updates ignore `target-branch: dev` and always open
+      # against the default branch - that is a GitHub behaviour we cannot
+      # configure away, and it is how #2131 landed on main leaving dev on the
+      # vulnerable version. Blocking those PRs alone would leave the fix
+      # stranded, so retarget them at dev where they can actually be merged.
+      - name: Retarget bot pull requests at dev
+        id: retarget
+        if: github.event.pull_request.user.type == 'Bot'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          # A fork branch cannot be retargeted usefully, and we will not grant it
+          # a path into main. Leave it for the guard below to reject.
+          if [[ "${HEAD_REPO}" != "${BASE_REPO}" ]]; then
+            echo "retargeted=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          echo "::notice::${AUTHOR} opened this against main. Retargeting at dev."
+          gh pr edit "${PR}" --repo "${BASE_REPO}" --base dev
+
+          gh pr comment "${PR}" --repo "${BASE_REPO}" --body "$(cat <<'BODY'
+          Retargeted from `main` to `dev` automatically.
+
+          `main` only ever takes changes from `dev`. Dependabot security updates ignore the `target-branch: dev` setting and always open against the default branch, so this is corrected here rather than in configuration.
+
+          Nothing is needed from you: review and merge this into `dev`, and the next `dev` to `main` promotion carries it. If the diff no longer applies cleanly against `dev`, close this and let the `dev`-targeted update supersede it.
+          BODY
+          )"
+
+          echo "retargeted=true" >> "${GITHUB_OUTPUT}"
+
       - name: Check the head branch
+        if: steps.retarget.outputs.retargeted != 'true'
         env:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
           BASE_REPO: ${{ github.repository }}
+          IS_BOT: ${{ github.event.pull_request.user.type == 'Bot' }}
           # A deliberate, human-applied escape hatch for the rare direct-to-main
           # change (an emergency hotfix, or a dependabot.yml sync that has to
-          # take effect before the next promotion). Dependabot cannot apply it:
-          # it only sets the labels listed in dependabot.yml, and this is not
-          # one of them.
+          # take effect before the next promotion). Checked AFTER the bot branch
+          # above, so it can only ever release a human's pull request.
           LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
         run: |
           set -euo pipefail
+
+          if [[ "${IS_BOT}" == "true" ]]; then
+            echo "::error::A bot pull request (${HEAD_REPO}:${HEAD_REF}) cannot merge into main, and the 'main-direct' label does not apply to it. It should have been retargeted at dev automatically; if it was not, retarget it by hand."
+            exit 1
+          fi
 
           if [[ ",${LABELS}," == *",main-direct,"* ]]; then
             echo "::notice::'main-direct' label present - a human has explicitly allowed this direct merge."
