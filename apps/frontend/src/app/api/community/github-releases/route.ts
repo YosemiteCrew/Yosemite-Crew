@@ -20,7 +20,15 @@ import {
 
 const GITHUB_API_REPO = 'https://api.github.com/repos/YosemiteCrew/Yosemite-Crew';
 const GITHUB_USER_AGENT = 'YosemiteCrew-Web (https://www.yosemitecrew.com, 1.0)';
-const RELEASE_PAGE_SIZE = 30;
+// One page has to be deep enough to hold the newest release of EVERY component,
+// not just the newest few overall. The home page reads this list to show a lane
+// per component, and a lane whose latest release has fallen off the page renders
+// as an empty placeholder even though the release exists. At four components on
+// a roughly monthly cadence, 30 covers about seven months - one quiet component
+// and it drops out. 100 is GitHub's maximum for this endpoint and covers years;
+// the response is trimmed to four fields per release below, so the extra entries
+// cost very little and the route is cached.
+const RELEASE_PAGE_SIZE = 100;
 
 export interface GithubRelease {
   tag_name?: string;

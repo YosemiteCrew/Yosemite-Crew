@@ -649,3 +649,91 @@ select.yc-field {
     display: flex !important;
   }
 }
+
+/* ---- Release lanes (Home hero eyebrow: latest release per shipped component) ---- */
+[data-yc-lane] {
+  transition:
+    background 0.18s ease,
+    color 0.18s ease;
+}
+[data-yc-lane]:hover {
+  background: var(--inset);
+}
+/* --blue-text, not --blue. --blue is a fill token: on the --inset hover surface
+   it measures 3.18:1 in light and 3.54:1 in dark, under the 4.5:1 floor for a
+   12.5px label. --blue-text is maintained for readable blue text and measures
+   5.04:1 and 7.02:1 on the same surface. */
+[data-yc-lane]:hover span:first-child {
+  color: var(--blue-text);
+}
+
+/* Narrow screens: a flex row wraps to one lane per line (four rows, ~120px) because the
+   longest segment is wider than half the bar. A two-column grid pins it to 2x2 instead, and
+   pins it there whatever a future version string is - the cell wraps its own text rather than
+   pushing the row. The bar squares off since a pill radius around a block reads wrong, the
+   github mark is dropped (it is repeated on every link's accessible name), and the separators
+   go with it because they no longer sit between items on a row. */
+/* 860px, not a round 768. The one-row bar is ~754px intrinsic and the hero adds
+   24px of padding either side, so it needs ~802px of viewport before it fits.
+   Below that the flex row wraps between segments and the strip goes ragged, so
+   the compact grid has to take over BEFORE that point, not after. 834 - the
+   tablet QA viewport - sits inside the broken zone and is now covered, and the
+   rest is headroom for a longer version string than today's. */
+@media (max-width: 860px) {
+  [data-yc-lanes] {
+    display: grid !important;
+    /* minmax(0, 1fr), not 1fr. A bare 1fr keeps an automatic min-content floor,
+       so a track cannot shrink below its widest unbreakable child - and the
+       segments are nowrap. RELEASING.md specifies mobile tags as
+       mobile-vX.Y.Z-iOS-vA.B, so a real one strips to v1.0.12-ios-v1.0.7, wide
+       enough to push both tracks past the hero and clip the strip. */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    border-radius: 16px !important;
+    padding: 4px !important;
+    gap: 2px;
+  }
+  /* The live dot and the github mark are chrome, not content - at 342px they would each
+     take a grid cell and break the 2x2. Every lane is a github link anyway, and each one
+     says so in its accessible name. */
+  [data-yc-lanes] > svg,
+  [data-yc-lanes] > span[aria-hidden='true'] {
+    display: none !important;
+  }
+  [data-yc-lanes] > span > span[aria-hidden='true'] {
+    display: none !important;
+  }
+  /* Each cell breaks in the same place: name + version on the first line, date on the
+     second. Letting it wrap naturally instead put the two longer lanes on three lines and
+     the two shorter ones on two, so the block came out ragged. The pieces are already
+     separate spans, so pushing the date onto its own flex line is enough - and each piece
+     keeps nowrap so a version never splits mid-token. */
+  [data-yc-lane] {
+    flex-wrap: wrap;
+    align-content: center;
+    padding: 5px 8px !important;
+    font-size: 12px !important;
+    line-height: 1.5;
+    min-width: 0;
+    /* Reserve the second line before the dates arrive.
+       On a cold cache the first paint has no date spans, and each one takes a
+       full flex line when it appears, so every cell grew 27px -> 50px and the
+       bar 65px -> 110px, shoving the hero heading and the CTAs down after
+       paint. Holding the resolved height from the start costs nothing while
+       loading and removes the shift entirely. */
+    min-height: 50px;
+  }
+  /* The product name stays on one line; the version is what can get long, so it
+     is the piece allowed to break. `anywhere` rather than `break-word` because
+     a version has no spaces to break at. */
+  [data-yc-lane] > span:nth-child(2) {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+  /* The hero centres its text, which a full-width second line inherits - the date would sit
+     centred under a left-aligned name. */
+  [data-yc-lane] > span:nth-child(3) {
+    flex-basis: 100%;
+    text-align: left;
+  }
+}

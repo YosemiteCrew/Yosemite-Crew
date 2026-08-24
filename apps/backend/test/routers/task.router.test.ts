@@ -39,6 +39,15 @@ const TaskTemplateController = {
   archive: jest.fn(),
 };
 
+const companionGuard = jest.fn((_req, _res, next) => next());
+const requireCompanionPermission = jest.fn(
+  (_feature: string, _paramName?: string) => companionGuard,
+);
+
+const TaskRecommendationController = {
+  listForCompanion: jest.fn(),
+};
+
 jest.mock("../../src/middlewares/auth", () => ({
   requireWebAuth,
   requireMobileAuth,
@@ -54,6 +63,17 @@ jest.mock("../../src/controllers/web/task.controller", () => ({
   TaskController,
   TaskLibraryController,
   TaskTemplateController,
+}));
+
+jest.mock("../../src/middlewares/companion-access", () => ({
+  requireCompanionPermission: (feature: string, paramName?: string) => {
+    requireCompanionPermission(feature, paramName);
+    return companionGuard;
+  },
+}));
+
+jest.mock("../../src/controllers/app/task-recommendation.controller", () => ({
+  TaskRecommendationController,
 }));
 
 const taskRouter = jest.requireActual("../../src/routers/task.router")
@@ -146,5 +166,39 @@ describe("task.router", () => {
       "tasks:view:any",
       "tasks:view:own",
     ]);
+  });
+});
+
+describe("task.router recommendations", () => {
+  const PATH = "/mobile/companion/:patientId/recommendations";
+
+  it("puts recommendations behind mobile auth and the co-parent tasks gate", () => {
+    // The rules are health-adjacent. A co-parent whose tasks switch is off should
+    // not be able to read what has been recommended for the companion either, and
+    // the guard is the only thing that enforces that - the handler does not check.
+    const route = findRoute(PATH, "get");
+    expect(route).toBeDefined();
+    expect(route?.stack).toHaveLength(3);
+
+    const handles = route?.stack.map((l) => l.handle);
+    expect(handles).toContain(requireMobileAuth);
+    expect(handles).toContain(companionGuard);
+    expect(handles).toContain(TaskRecommendationController.listForCompanion);
+    expect(handles).not.toContain(requireWebAuth);
+  });
+
+  it("gates it on the same feature as the companion task list", () => {
+    expect(requireCompanionPermission).toHaveBeenCalledWith(
+      "tasks",
+      "patientId",
+    );
+  });
+
+  it("does not expose recommendations on a PMS path", () => {
+    // Clinic visibility is a separate surface with its own permission model; it
+    // must not arrive by accident on a route mounted for parents.
+    expect(
+      findRoute("/pms/companion/:patientId/recommendations", "get"),
+    ).toBeUndefined();
   });
 });

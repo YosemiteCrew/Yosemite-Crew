@@ -262,6 +262,159 @@ const matchesMobileTag = (tag: string): boolean => /mobile|ios|android|app-v|exp
 const matchesPlatformTag = (tag: string): boolean => /^(pims|pms)[-_]/.test(tag);
 
 /**
+ * The four shipped components, and the tag each one releases under. Both the shapes and the
+ * `desktop` exception are documented in RELEASING.md; this mirrors it rather than guessing:
+ *
+ *   pims-v* (older releases used pms-v*)  apps/frontend, tagged manually
+ *   backend-v*                            apps/backend, tagged manually
+ *   mobile-v*                             apps/mobileAppYC, tagged manually
+ *   v*  - NO prefix                       apps/desktop, tagged on main, built by desktop-release.yml
+ *
+ * Desktop is the odd one out on purpose: electron-updater ignores any release whose tag is not
+ * valid semver, so a `desktop-v*` tag would make every desktop release invisible to the updater.
+ * Its tag is therefore a bare `vX.Y.Z`, which is also why it is matched last - the prefixed
+ * patterns are tried first, so only an unprefixed tag can fall through to it. A handful of early
+ * `desktop-v*` / `desktop-manual-v*` tags exist in history and are still matched.
+ */
+const matchesBackendTag = (tag: string): boolean => /^backend[-_]/.test(tag);
+const matchesLaneMobileTag = (tag: string): boolean => /^mobile[-_]/.test(tag);
+const matchesDesktopTag = (tag: string): boolean => /^desktop[-_]/.test(tag) || /^v\d/.test(tag);
+
+export type ReleaseLaneKey = 'pims' | 'desktop' | 'mobile' | 'backend';
+
+export interface ReleaseLane {
+  key: ReleaseLaneKey;
+  /** Product name shown on the tag, e.g. 'PIMS'. */
+  label: string;
+  /** Cleaned tag, e.g. 'v2.3.0-beta'. Null until the fetch resolves, or if this lane has no release. */
+  tag: string | null;
+  /** Full publish date, e.g. 'Aug 19, 2026'. Used for the accessible name and tooltip. */
+  date: string | null;
+  /** Compact publish date for the tag face, e.g. '19 Aug' ('19 Aug 25' outside the current year). */
+  dateCompact: string | null;
+  url: string | null;
+}
+
+const LANE_DEFINITIONS: ReadonlyArray<{
+  key: ReleaseLaneKey;
+  label: string;
+  matches: (tag: string) => boolean;
+}> = [
+  { key: 'pims', label: 'PIMS', matches: matchesPlatformTag },
+  { key: 'desktop', label: 'Desktop', matches: matchesDesktopTag },
+  { key: 'mobile', label: 'Mobile', matches: matchesLaneMobileTag },
+  { key: 'backend', label: 'Backend', matches: matchesBackendTag },
+];
+
+const LANES_CACHE_KEY = 'yc_marketing_release_lanes_v1';
+
+const EMPTY_LANES: ReleaseLane[] = LANE_DEFINITIONS.map(({ key, label }) => ({
+  key,
+  label,
+  tag: null,
+  date: null,
+  dateCompact: null,
+  url: null,
+}));
+
+/**
+ * Day + short month, with the year appended only when the release is not from the current year.
+ * Keeps the tag face short for the normal case (everything on the current cadence) without making
+ * an older release ambiguous. Safe to read the clock here: lanes only ever render after hydration,
+ * from the session cache, so this never runs during SSR and cannot cause a hydration mismatch.
+ */
+const formatCompactReleaseDate = (iso?: string): string | null => {
+  if (!iso) return null;
+  try {
+    const parsed = new Date(iso);
+    if (Number.isNaN(parsed.getTime())) return null;
+    const day = parsed.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    const year = parsed.getFullYear();
+    return year === new Date().getFullYear() ? day : `${day} ${String(year).slice(-2)}`;
+  } catch {
+    return null;
+  }
+};
+
+const laneSnapshots = new Map<string, { raw: string | null; value: ReleaseLane[] }>();
+
+const getLanesSnapshot = (): ReleaseLane[] => {
+  const raw = getStorageItem('session', LANES_CACHE_KEY);
+  const memo = laneSnapshots.get(LANES_CACHE_KEY);
+  if (memo?.raw === raw) return memo.value;
+  const value = parseJson<ReleaseLane[]>(raw) ?? EMPTY_LANES;
+  laneSnapshots.set(LANES_CACHE_KEY, { raw, value });
+  return value;
+};
+
+const getServerLanes = (): ReleaseLane[] => EMPTY_LANES;
+
+const toLanes = (list: RawRelease[]): ReleaseLane[] =>
+  LANE_DEFINITIONS.map(({ key, label, matches }) => {
+    // Newest-first from the API, so the first tag this lane claims is its latest.
+    const match = list.find((entry) => matches((entry.tag_name ?? '').toLowerCase()));
+    if (!match?.html_url)
+      return { key, label, tag: null, date: null, dateCompact: null, url: null };
+    const info = toReleaseInfo(match);
+    return {
+      key,
+      label,
+      tag: info.tag,
+      date: info.date,
+      dateCompact: formatCompactReleaseDate(match.published_at),
+      url: info.url,
+    };
+  });
+
+/**
+ * Latest release per shipped component, from a SINGLE releases request.
+ *
+ * The per-variant pills each mount their own hook so a page only fetches what it shows; a row of
+ * four lanes would turn that into four identical `?list=1` calls against the same unauthenticated
+ * quota, so this buckets one response instead.
+ *
+ * A lane with no match keeps its nulls - the row renders that lane in its loading/absent state and
+ * links to the releases index. It must never fall back to a hard-coded version: a stale literal
+ * presented as a live release is worse than an empty slot, and it would poison the shared cache.
+ */
+export function useReleaseLanes(): ReleaseLane[] {
+  const cached = useSyncExternalStore(subscribeToSessionCache, getLanesSnapshot, getServerLanes);
+
+  // What THIS instance fetched, used only when the cache could not take it.
+  // Writing to session storage can fail - Safari private browsing, a blocked
+  // third-party context, an exhausted quota - and the store is the only path
+  // from response to screen, so without this a successful fetch would render
+  // placeholders forever. Component state rather than a module variable, so a
+  // failed write in one place cannot leak a stale value into another.
+  const [fetched, setFetched] = useState<ReleaseLane[] | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const list = (await fetchJson(`${GITHUB_RELEASES_ENDPOINT}?list=1`)) as RawRelease[] | null;
+      if (!active || !Array.isArray(list) || list.length === 0) return;
+      const resolved = toLanes(list);
+      setJsonStorageItem('session', LANES_CACHE_KEY, resolved);
+      emitSessionCacheChange();
+      setFetched(resolved);
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Prefer what this instance actually fetched.
+  //
+  // An earlier version returned the store whenever it held anything, which only
+  // covered a cold cache: with STALE lanes already cached and the refresh write
+  // then failing, the store stayed non-empty and the fresh result was discarded
+  // on every render, so the hero kept showing old releases forever. Preferring
+  // the fetched value is never worse - when the write succeeds the two agree,
+  // and when it fails this is the only copy of the newer data.
+  return fetched ?? cached;
+}
+
+/**
  * Newest release from the repo's releases list whose TAG matches `matchesTag`. Matching on the tag
  * (not the free-text title) keeps e.g. a backend release that merely mentions "mobile" from being
  * picked; the list is newest-first, so the first match is the latest. Shared by useMobileRelease

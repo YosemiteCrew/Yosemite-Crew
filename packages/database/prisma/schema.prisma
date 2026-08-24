@@ -8,8 +8,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -226,7 +226,7 @@ model ContactRequest {
   userId           String?
   email            String?
   organisationId   String?
-  patientId      String?
+  patientId        String?
   parentId         String?
   dsarDetails      Json?
   complaintContext Json?
@@ -245,20 +245,20 @@ model ContactRequest {
 }
 
 model IntegrationAccount {
-  id             String              @id @default(uuid())
-  organisationId String
-  provider       IntegrationProvider
-  status         IntegrationStatus   @default(disabled)
-  enabledAt      DateTime?
-  disabledAt     DateTime?
-  lastSyncAt     DateTime?
-  lastError      String?
+  id                String                       @id @default(uuid())
+  organisationId    String
+  provider          IntegrationProvider
+  status            IntegrationStatus            @default(disabled)
+  enabledAt         DateTime?
+  disabledAt        DateTime?
+  lastSyncAt        DateTime?
+  lastError         String?
   credentialsStatus IntegrationCredentialsStatus @default(missing)
   lastValidatedAt   DateTime?
-  credentials    Json?
-  config         Json?
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
+  credentials       Json?
+  config            Json?
+  createdAt         DateTime                     @default(now())
+  updatedAt         DateTime                     @updatedAt
 
   @@unique([organisationId, provider])
   @@index([organisationId])
@@ -314,7 +314,7 @@ model LabOrder {
   id                     String           @id @default(uuid())
   organisationId         String
   provider               String
-  patientId            String
+  patientId              String
   parentId               String
   appointmentId          String?
   createdByUserId        String?
@@ -346,28 +346,28 @@ model LabOrder {
 }
 
 model LabResult {
-  id                    String   @id @default(uuid())
-  organisationId        String?
-  provider              String
-  resultId              String
-  orderId               String?
-  requisitionId         String?
-  accessionId           String?
-  diagnosticSetId       String?
-  status                String?
-  statusDetail          String?
-  modality              String?
-  patientId             String?
-  patientName           String?
-  clientId              String?
-  clientFirstName       String?
-  clientLastName        String?
-  updatedDate           String?
-  updatedAuditDate      String?
+  id                     String   @id @default(uuid())
+  organisationId         String?
+  provider               String
+  resultId               String
+  orderId                String?
+  requisitionId          String?
+  accessionId            String?
+  diagnosticSetId        String?
+  status                 String?
+  statusDetail           String?
+  modality               String?
+  patientId              String?
+  patientName            String?
+  clientId               String?
+  clientFirstName        String?
+  clientLastName         String?
+  updatedDate            String?
+  updatedAuditDate       String?
   specimenCollectionDate String?
-  rawPayload            Json?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  rawPayload             Json?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
   @@unique([provider, resultId])
   @@index([provider, orderId])
@@ -375,52 +375,52 @@ model LabResult {
 }
 
 model LabResultSyncState {
-  id           String   @id @default(uuid())
-  provider     String   @unique
-  lastBatchId  String?
+  id            String    @id @default(uuid())
+  provider      String    @unique
+  lastBatchId   String?
   lastTimestamp String?
-  lastPolledAt DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  lastPolledAt  DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model Patient {
-  id               String        @id @default(uuid())
-  name             String
-  type             PatientType
-  breed            String
-  speciesCode      String?
-  breedCode        String?
-  dateOfBirth      DateTime
-  gender           Gender
-  photoUrl         String?
-  currentWeight    Float?
-  colour           String?
-  allergy          String?
-  bloodGroup       String?
-  isNeutered       Boolean?
-  ageWhenNeutered  String?
-  microchipNumber  String?
+  id                   String        @id @default(uuid())
+  name                 String
+  type                 PatientType
+  breed                String
+  speciesCode          String?
+  breedCode            String?
+  dateOfBirth          DateTime
+  gender               Gender
+  photoUrl             String?
+  currentWeight        Float?
+  colour               String?
+  allergy              String?
+  bloodGroup           String?
+  isNeutered           Boolean?
+  ageWhenNeutered      String?
+  microchipNumber      String?
   microchipImplantedAt DateTime?
-  microchipLocation String?
-  passportNumber   String?
-  isInsured        Boolean       @default(false)
-  insurance        Json?
-  countryOfOrigin  String?
-  source           SourceType?
-  status           RecordStatus?
-  physicalAttribute Json?
-  breedingInfo     Json?
-  medicalRecords   Json?
-  alerts           Json?
-  isProfileComplete Boolean      @default(false)
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  microchipLocation    String?
+  passportNumber       String?
+  isInsured            Boolean       @default(false)
+  insurance            Json?
+  countryOfOrigin      String?
+  source               SourceType?
+  status               RecordStatus?
+  physicalAttribute    Json?
+  breedingInfo         Json?
+  medicalRecords       Json?
+  alerts               Json?
+  isProfileComplete    Boolean       @default(false)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 
-  documents         Document[]
-  formAssignments   FormAssignment[]
-  organisations     PatientOrganisation[]
-  parentLinks       ParentPatient[]
+  documents            Document[]
+  formAssignments      FormAssignment[]
+  organisations        PatientOrganisation[]
+  parentLinks          ParentPatient[]
   companionShareTokens CompanionShareToken[]
   petPassports         PetPassport[]
 
@@ -429,24 +429,24 @@ model Patient {
 }
 
 model Document {
-  id                 String               @id @default(uuid())
-  patientId        String
-  appointmentId      String?
-  category           String
-  subcategory        String?
-  visitType          String?
-  title              String
+  id                  String    @id @default(uuid())
+  patientId           String
+  appointmentId       String?
+  category            String
+  subcategory         String?
+  visitType           String?
+  title               String
   issuingBusinessName String?
-  issueDate          DateTime?
-  uploadedByParentId String?
+  issueDate           DateTime?
+  uploadedByParentId  String?
   uploadedByPmsUserId String?
-  pmsVisible         Boolean              @default(false)
-  syncedFromPms      Boolean              @default(false)
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
+  pmsVisible          Boolean   @default(false)
+  syncedFromPms       Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
-  patient          Patient            @relation(fields: [patientId], references: [id])
-  attachments        DocumentAttachment[]
+  patient     Patient              @relation(fields: [patientId], references: [id])
+  attachments DocumentAttachment[]
 
   @@index([patientId])
   @@index([patientId, category])
@@ -455,56 +455,56 @@ model Document {
 }
 
 model DocumentAttachment {
-  id         String   @id @default(uuid())
+  id         String @id @default(uuid())
   documentId String
   key        String
   mimeType   String
   size       Int?
 
-  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@index([documentId])
 }
 
 model PatientOrganisation {
-  id                    String                     @id @default(uuid())
-  patientId           String
-  organisationId        String?
-  linkedByParentId      String?
-  linkedByPmsUserId     String?
-  organisationType      OrganisationType
-  role                  PatientOrganisationRole  @default(ORGANISATION)
-  status                PatientOrganisationStatus @default(ACTIVE)
-  invitedViaEmail       String?
-  organisationName      String?
-  organisationPlacesId  String?
-  inviteToken           String?
-  acceptedAt            DateTime?
-  rejectedAt            DateTime?
-  createdAt             DateTime                   @default(now())
-  updatedAt             DateTime                   @updatedAt
+  id                   String                    @id @default(uuid())
+  patientId            String
+  organisationId       String?
+  linkedByParentId     String?
+  linkedByPmsUserId    String?
+  organisationType     OrganisationType
+  role                 PatientOrganisationRole   @default(ORGANISATION)
+  status               PatientOrganisationStatus @default(ACTIVE)
+  invitedViaEmail      String?
+  organisationName     String?
+  organisationPlacesId String?
+  inviteToken          String?
+  acceptedAt           DateTime?
+  rejectedAt           DateTime?
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
 
-  patient             Patient                  @relation(fields: [patientId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id])
+  // Partial unique index for ACTIVE rows is maintained via SQL migration because
+  // Prisma schema cannot express `WHERE status = 'ACTIVE'`.
 
   @@index([patientId])
   @@index([organisationId])
-  // Partial unique index for ACTIVE rows is maintained via SQL migration because
-  // Prisma schema cannot express `WHERE status = 'ACTIVE'`.
 }
 
 model ParentPatient {
-  id                String               @id @default(uuid())
+  id                String              @id @default(uuid())
   parentId          String
-  patientId       String
+  patientId         String
   role              ParentPatientRole
   status            ParentPatientStatus @default(ACTIVE)
   permissions       Json
   invitedByParentId String?
   acceptedAt        DateTime?
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
 
-  patient         Patient            @relation(fields: [patientId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id])
 
   @@unique([parentId, patientId])
   @@index([parentId])
@@ -541,7 +541,7 @@ model CompanionShareToken {
   createdAt               DateTime              @default(now())
   updatedAt               DateTime              @updatedAt
 
-  patient                 Patient               @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   @@index([patientId])
   @@index([organisationId])
@@ -570,17 +570,17 @@ enum ParasiteTreatmentType {
 }
 
 model PetPassport {
-  id                String        @id @default(uuid())
-  patientId         String
-  organisationId    String
-  passportNumber    String        @unique
-  issuingCountry    String?
-  issuingAuthority  String?
-  issuingVetId      String?
-  issuingVetName    String?
-  issuingVetLicense String?
-  issueDate         DateTime      @default(now())
-  status            RecordStatus?
+  id                           String        @id @default(uuid())
+  patientId                    String
+  organisationId               String
+  passportNumber               String        @unique
+  issuingCountry               String?
+  issuingAuthority             String?
+  issuingVetId                 String?
+  issuingVetName               String?
+  issuingVetLicense            String?
+  issueDate                    DateTime      @default(now())
+  status                       RecordStatus?
   // Credential for the public QR / wallet verification page. The patient id must
   // never be used for this: it is an internal identifier already handed to
   // authenticated clients and embedded in app routes, so it can be neither
@@ -591,9 +591,9 @@ model PetPassport {
   // baked into the QR of Apple and Google Wallet passes that already live on
   // owners' phones, and regenerating a pass must not invalidate the copies
   // already issued - which requires reading the value back.
-  publicToken       String?       @unique
-  publicTokenIssuedAt DateTime?
-  publicTokenRevokedAt DateTime?
+  publicToken                  String?       @unique
+  publicTokenIssuedAt          DateTime?
+  publicTokenRevokedAt         DateTime?
   // Staff-facing wallet passes carry THIS token, never `publicToken`.
   //
   // The owner's public token resolves with "owner" scope, which shows every
@@ -605,13 +605,13 @@ model PetPassport {
   // "practice" scope, so it grants strictly less than the staff member already
   // has. Minting it from a staff session is therefore safe, unlike the public
   // token, which only the owner may create.
-  practiceWalletToken       String?       @unique
-  practiceWalletTokenIssuedAt DateTime?
+  practiceWalletToken          String?       @unique
+  practiceWalletTokenIssuedAt  DateTime?
   practiceWalletTokenRevokedAt DateTime?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  createdAt                    DateTime      @default(now())
+  updatedAt                    DateTime      @updatedAt
 
-  patient           Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   @@index([patientId])
   @@index([organisationId])
@@ -657,36 +657,37 @@ model PassportShareConsent {
 }
 
 model Appointment {
-  id                String            @id @default(uuid())
+  id              String            @id @default(uuid())
   patient         Json
-  lead              Json?
-  supportStaff      Json?
-  room              Json?
-  appointmentType   Json?
-  caseId            String?
-  encounterId       String?
-  productItemId     String?
-  appointmentKind   AppointmentKind   @default(OUTPATIENT)
-  idempotencyKey    String?
-  organisationId    String
-  appointmentDate   DateTime
-  startTime         DateTime
-  endTime           DateTime
-  timeSlot          String
-  durationMinutes   Int
-  status            AppointmentStatus @default(REQUESTED)
-  isEmergency       Boolean           @default(false)
-  concern           String?
-  attachments       Json?
-  formIds           String[]
-  expiresAt         DateTime?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  lead            Json?
+  supportStaff    Json?
+  room            Json?
+  appointmentType Json?
+  caseId          String?
+  encounterId     String?
+  productItemId   String?
+  appointmentKind AppointmentKind   @default(OUTPATIENT)
+  idempotencyKey  String?
+  organisationId  String
+  appointmentDate DateTime
+  startTime       DateTime
+  endTime         DateTime
+  timeSlot        String
+  durationMinutes Int
+  status          AppointmentStatus @default(REQUESTED)
+  isEmergency     Boolean           @default(false)
+  concern         String?
+  attachments     Json?
+  formIds         String[]
+  expiresAt       DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
-  caseRecord        Case?             @relation("CaseAppointments", fields: [caseId], references: [id], onDelete: SetNull)
-  encounter         Encounter?        @relation("EncounterAppointments", fields: [encounterId], references: [id], onDelete: SetNull)
-  formAssignments   FormAssignment[]
+  caseRecord      Case?            @relation("CaseAppointments", fields: [caseId], references: [id], onDelete: SetNull)
+  encounter       Encounter?       @relation("EncounterAppointments", fields: [encounterId], references: [id], onDelete: SetNull)
+  formAssignments FormAssignment[]
 
+  @@unique([organisationId, idempotencyKey])
   @@index([organisationId, appointmentDate])
   @@index([organisationId])
   @@index([organisationId, productItemId])
@@ -694,13 +695,12 @@ model Appointment {
   @@index([encounterId])
   @@index([status])
   @@index([expiresAt])
-  @@unique([organisationId, idempotencyKey])
 }
 
 model Case {
   id              String          @id @default(uuid())
   organisationId  String
-  patientId     String
+  patientId       String
   parentId        String?
   status          String
   appointmentKind AppointmentKind @default(OUTPATIENT)
@@ -709,8 +709,8 @@ model Case {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
-  appointments    Appointment[]   @relation("CaseAppointments")
-  encounters      Encounter[]
+  appointments Appointment[] @relation("CaseAppointments")
+  encounters   Encounter[]
 
   @@index([organisationId, status])
   @@index([organisationId, appointmentKind])
@@ -722,7 +722,7 @@ model Encounter {
   id              String          @id @default(uuid())
   caseId          String
   organisationId  String
-  patientId     String
+  patientId       String
   parentId        String?
   status          String
   encounterClass  String
@@ -734,8 +734,8 @@ model Encounter {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
-  caseRecord      Case            @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  appointments    Appointment[]   @relation("EncounterAppointments")
+  caseRecord      Case                 @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  appointments    Appointment[]        @relation("EncounterAppointments")
   admission       Admission?
   unitAssignments RoomUnitAssignment[]
 
@@ -747,20 +747,20 @@ model Encounter {
 }
 
 model Admission {
-  encounterId       String   @id
-  organisationId    String
-  patientId       String
-  unitId            String?
-  expectedStayDays  Int?
-  admittedAt        DateTime
-  admittedBy        String?
-  dischargedAt      DateTime?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  encounterId      String    @id
+  organisationId   String
+  patientId        String
+  unitId           String?
+  expectedStayDays Int?
+  admittedAt       DateTime
+  admittedBy       String?
+  dischargedAt     DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  encounter         Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
-  currentUnit       RoomUnit? @relation("AdmissionCurrentUnit", fields: [unitId], references: [id], onDelete: SetNull)
-  assignments       RoomUnitAssignment[]
+  encounter   Encounter            @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  currentUnit RoomUnit?            @relation("AdmissionCurrentUnit", fields: [unitId], references: [id], onDelete: SetNull)
+  assignments RoomUnitAssignment[]
 
   @@index([organisationId, admittedAt])
   @@index([organisationId, dischargedAt])
@@ -768,27 +768,27 @@ model Admission {
 }
 
 model ChatSession {
-  id              String            @id @default(uuid())
-  type            ChatSessionType
-  appointmentId   String?
-  channelId       String
-  organisationId  String
+  id                        String            @id @default(uuid())
+  type                      ChatSessionType
+  appointmentId             String?
+  channelId                 String
+  organisationId            String
   counterpartOrganisationId String?
-  patientId     String?
-  parentId        String?
-  vetId           String?
-  supportStaffIds String[]
-  createdBy       String?
-  title           String?
-  isPrivate       Boolean           @default(true)
-  members         String[]
-  participants    Json?
-  status          ChatSessionStatus @default(PENDING)
-  allowedFrom     DateTime?
-  allowedUntil    DateTime?
-  closedAt        DateTime?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  patientId                 String?
+  parentId                  String?
+  vetId                     String?
+  supportStaffIds           String[]
+  createdBy                 String?
+  title                     String?
+  isPrivate                 Boolean           @default(true)
+  members                   String[]
+  participants              Json?
+  status                    ChatSessionStatus @default(PENDING)
+  allowedFrom               DateTime?
+  allowedUntil              DateTime?
+  closedAt                  DateTime?
+  createdAt                 DateTime          @default(now())
+  updatedAt                 DateTime          @updatedAt
 
   @@index([type])
   @@index([appointmentId])
@@ -835,93 +835,93 @@ model SharedChatEntity {
 }
 
 model Parent {
-  id               String            @id @default(uuid())
-  firstName        String
-  lastName         String?
-  birthDate        DateTime?
-  email            String
-  phoneNumber      String?
-  currency         String?
-  timezone         String?
-  profileImageUrl  String?
-  isProfileComplete Boolean          @default(false)
-  linkedUserId     String?
-  createdFrom      ParentCreatedFrom
-  address          ParentAddress?
-  alerts           Json?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  id                String            @id @default(uuid())
+  firstName         String
+  lastName          String?
+  birthDate         DateTime?
+  email             String
+  phoneNumber       String?
+  currency          String?
+  timezone          String?
+  profileImageUrl   String?
+  isProfileComplete Boolean           @default(false)
+  linkedUserId      String?
+  createdFrom       ParentCreatedFrom
+  address           ParentAddress?
+  alerts            Json?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
   @@index([email])
 }
 
 model ParentAddress {
-  id           String   @id @default(uuid())
-  parentId     String   @unique
-  addressLine  String?
-  country      String?
-  city         String?
-  state        String?
-  postalCode   String?
-  latitude     Float?
-  longitude    Float?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default(uuid())
+  parentId    String   @unique
+  addressLine String?
+  country     String?
+  city        String?
+  state       String?
+  postalCode  String?
+  latitude    Float?
+  longitude   Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  parent       Parent   @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  parent Parent @relation(fields: [parentId], references: [id], onDelete: Cascade)
 }
 
 model Organization {
-  id                          String           @id @default(uuid())
-  fhirId                      String?
-  name                        String
-  taxId                       String
-  dunsNumber                  String?
-  imageUrl                    String?
-  type                        OrganizationType
-  petNamePreference           PetNamePreference? @default(PATIENT)
-  phoneNo                     String
-  email                       String?
-  website                     String?
-  documensoTeamId             String?
-  documensoApiKey             String?
-  address                     OrganizationAddress?
-  isVerified                  Boolean          @default(false)
-  verificationOverride        Boolean?
-  isActive                    Boolean          @default(true)
-  typeCoding                  Json?
-  healthAndSafetyCertNo       String?
-  animalWelfareComplianceCertNo String?
-  fireAndEmergencyCertNo      String?
-  googlePlacesId              String?
-  stripeAccountId             String?
-  averageRating               Float            @default(0)
-  ratingCount                 Int              @default(0)
-  appointmentCheckInBufferMinutes Int          @default(5)
-  appointmentCheckInRadiusMeters  Int          @default(200)
+  id                                     String               @id @default(uuid())
+  fhirId                                 String?
+  name                                   String
+  taxId                                  String
+  dunsNumber                             String?
+  imageUrl                               String?
+  type                                   OrganizationType
+  petNamePreference                      PetNamePreference?   @default(PATIENT)
+  phoneNo                                String
+  email                                  String?
+  website                                String?
+  documensoTeamId                        String?
+  documensoApiKey                        String?
+  address                                OrganizationAddress?
+  isVerified                             Boolean              @default(false)
+  verificationOverride                   Boolean?
+  isActive                               Boolean              @default(true)
+  typeCoding                             Json?
+  healthAndSafetyCertNo                  String?
+  animalWelfareComplianceCertNo          String?
+  fireAndEmergencyCertNo                 String?
+  googlePlacesId                         String?
+  stripeAccountId                        String?
+  averageRating                          Float                @default(0)
+  ratingCount                            Int                  @default(0)
+  appointmentCheckInBufferMinutes        Int                  @default(5)
+  appointmentCheckInRadiusMeters         Int                  @default(200)
   appointmentLockWindowOutpatientMinutes Int?
-  appointmentLockWindowInpatientMinutes   Int?
-  crossOrgMessagingEnabled    Boolean          @default(false)
-  maxOverallDiscountPercent   Float?
-  createdAt                   DateTime         @default(now())
-  updatedAt                   DateTime         @updatedAt
+  appointmentLockWindowInpatientMinutes  Int?
+  crossOrgMessagingEnabled               Boolean              @default(false)
+  maxOverallDiscountPercent              Float?
+  createdAt                              DateTime             @default(now())
+  updatedAt                              DateTime             @updatedAt
 
   @@index([googlePlacesId, name])
 }
 
 model OrganizationAddress {
-  id           String       @id @default(uuid())
-  organizationId String     @unique
-  addressLine  String?
-  country      String?
-  city         String?
-  state        String?
-  postalCode   String?
-  latitude     Float?
-  longitude    Float?
-  location     Json?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id             String   @id @default(uuid())
+  organizationId String   @unique
+  addressLine    String?
+  country        String?
+  city           String?
+  state          String?
+  postalCode     String?
+  latitude       Float?
+  longitude      Float?
+  location       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
@@ -940,14 +940,14 @@ model User {
 }
 
 model UserProfile {
-  id                  String            @id @default(uuid())
+  id                  String              @id @default(uuid())
   userId              String
   organizationId      String
   personalDetails     Json?
   professionalDetails Json?
-  status              UserProfileStatus @default(DRAFT)
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  status              UserProfileStatus   @default(DRAFT)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
   address             UserProfileAddress?
 
   @@unique([userId, organizationId])
@@ -956,8 +956,8 @@ model UserProfile {
 }
 
 model UserProfileAddress {
-  id            String      @id @default(uuid())
-  userProfileId String      @unique
+  id            String   @id @default(uuid())
+  userProfileId String   @unique
   addressLine   String?
   country       String?
   city          String?
@@ -965,25 +965,25 @@ model UserProfileAddress {
   postalCode    String?
   latitude      Float?
   longitude     Float?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  userProfile   UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+  userProfile UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
 }
 
 model UserOrganization {
-  id                      String   @id @default(uuid())
-  fhirId                  String?
-  practitionerReference   String
-  organizationReference   String
-  roleCode                String
-  roleDisplay             String?
-  active                  Boolean  @default(true)
-  extraPermissions        String[]
-  revokedPermissions      String[]
-  effectivePermissions    String[]
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+  id                    String   @id @default(uuid())
+  fhirId                String?
+  practitionerReference String
+  organizationReference String
+  roleCode              String
+  roleDisplay           String?
+  active                Boolean  @default(true)
+  extraPermissions      String[]
+  revokedPermissions    String[]
+  effectivePermissions  String[]
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   @@unique([practitionerReference, organizationReference, roleCode], map: "unique_user_org_role")
 }
@@ -1161,18 +1161,18 @@ model OrganizationBilling {
 }
 
 model SubscriptionEntitlement {
-  id            String   @id @default(uuid())
-  orgId         String
-  code          String
-  name          String?
-  value         Json?
-  source        String   @default("MANUAL")
-  status        String   @default("ACTIVE")
-  grantedAt     DateTime @default(now())
-  expiresAt     DateTime?
-  metadata      Json?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id        String    @id @default(uuid())
+  orgId     String
+  code      String
+  name      String?
+  value     Json?
+  source    String    @default("MANUAL")
+  status    String    @default("ACTIVE")
+  grantedAt DateTime  @default(now())
+  expiresAt DateTime?
+  metadata  Json?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@unique([orgId, code])
   @@index([orgId, status])
@@ -1180,17 +1180,17 @@ model SubscriptionEntitlement {
 }
 
 model FinanceProviderLink {
-  id                     String   @id @default(uuid())
-  orgId                  String
-  provider               String
-  externalCustomerId     String?
-  externalSubscriptionId String?
+  id                         String   @id @default(uuid())
+  orgId                      String
+  provider                   String
+  externalCustomerId         String?
+  externalSubscriptionId     String?
   externalSubscriptionItemId String?
-  externalPriceId        String?
-  externalProductId      String?
-  metadata               Json?
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+  externalPriceId            String?
+  externalProductId          String?
+  metadata                   Json?
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
 
   @@unique([orgId, provider])
   @@index([externalSubscriptionId])
@@ -1199,18 +1199,18 @@ model FinanceProviderLink {
 }
 
 model UsageEvent {
-  id                String   @id @default(uuid())
-  orgId             String
-  usageKey          String
-  quantity          Int      @default(1)
-  billableQuantity  Int      @default(1)
-  source            String
-  referenceType     String?
-  referenceId       String?
-  metadata          Json?
-  occurredAt        DateTime @default(now())
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id               String   @id @default(uuid())
+  orgId            String
+  usageKey         String
+  quantity         Int      @default(1)
+  billableQuantity Int      @default(1)
+  source           String
+  referenceType    String?
+  referenceId      String?
+  metadata         Json?
+  occurredAt       DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@index([orgId, usageKey, occurredAt])
   @@index([orgId, referenceType, referenceId])
@@ -1235,16 +1235,16 @@ model UsageSnapshot {
 }
 
 model FinanceEvent {
-  id            String   @id @default(uuid())
+  id             String    @id @default(uuid())
   organisationId String?
-  eventType     String
-  entityType    String
-  entityId      String
-  payload       Json
-  occurredAt    DateTime @default(now())
-  processedAt   DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  eventType      String
+  entityType     String
+  entityId       String
+  payload        Json
+  occurredAt     DateTime  @default(now())
+  processedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@index([organisationId])
   @@index([eventType])
@@ -1255,31 +1255,31 @@ model FinanceEvent {
 }
 
 model OrganizationDocument {
-  id              String                @id @default(uuid())
-  organisationId  String
-  title           String
-  description     String?               @default("")
-  category        OrgDocumentCategory
-  fileUrl         String?
-  fileName        String?
-  fileType        String?
-  fileSize        Int?
-  visibility      OrgDocumentVisibility @default(INTERNAL)
-  version         Int                   @default(1)
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
+  id             String                @id @default(uuid())
+  organisationId String
+  title          String
+  description    String?               @default("")
+  category       OrgDocumentCategory
+  fileUrl        String?
+  fileName       String?
+  fileType       String?
+  fileSize       Int?
+  visibility     OrgDocumentVisibility @default(INTERNAL)
+  version        Int                   @default(1)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
 
   @@index([organisationId])
 }
 
 model OrganizationDocumentAcknowledgement {
-  id             String               @id @default(uuid())
+  id             String              @id @default(uuid())
   organisationId String
   documentId     String
   category       OrgDocumentCategory
   version        Int
   userId         String
-  acknowledgedAt DateTime             @default(now())
+  acknowledgedAt DateTime            @default(now())
 
   @@unique([userId, organisationId, documentId, category, version])
   @@index([organisationId, documentId, category])
@@ -1288,26 +1288,26 @@ model OrganizationDocumentAcknowledgement {
 }
 
 model OrganisationRoom {
-  id                    String                @id @default(uuid())
+  id                    String               @id @default(uuid())
   organisationId        String
   name                  String
   code                  String
   description           String?
   type                  RoomType
-  occupancyStatus       RoomOccupancyStatus   @default(VACANT)
-  availableNow          Boolean               @default(true)
-  availabilityMode      RoomAvailabilityMode  @default(ALL_DAY)
-  availabilityDays      String[]              @default([])
-  availabilityStartTime  String?
-  availabilityEndTime    String?
-  capabilities          String[]              @default([])
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
+  occupancyStatus       RoomOccupancyStatus  @default(VACANT)
+  availableNow          Boolean              @default(true)
+  availabilityMode      RoomAvailabilityMode @default(ALL_DAY)
+  availabilityDays      String[]             @default([])
+  availabilityStartTime String?
+  availabilityEndTime   String?
+  capabilities          String[]             @default([])
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
 
-  units                 RoomUnit[]
-  unitGroups            RoomUnitGroup[]
-  specialityLinks       OrganisationRoomSpeciality[]
-  staffLinks            OrganisationRoomStaff[]
+  units           RoomUnit[]
+  unitGroups      RoomUnitGroup[]
+  specialityLinks OrganisationRoomSpeciality[]
+  staffLinks      OrganisationRoomStaff[]
 
   @@unique([organisationId, code])
   @@index([organisationId])
@@ -1322,8 +1322,8 @@ model OrganisationRoomSpeciality {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  room           OrganisationRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  speciality     Speciality       @relation(fields: [specialityId], references: [id], onDelete: Cascade)
+  room       OrganisationRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  speciality Speciality       @relation(fields: [specialityId], references: [id], onDelete: Cascade)
 
   @@unique([roomId, specialityId])
   @@index([organisationId])
@@ -1339,8 +1339,8 @@ model OrganisationRoomStaff {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  room           OrganisationRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  staff          User             @relation(fields: [staffUserId], references: [userId], onDelete: Cascade)
+  room  OrganisationRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  staff User             @relation(fields: [staffUserId], references: [userId], onDelete: Cascade)
 
   @@unique([roomId, staffUserId])
   @@index([organisationId])
@@ -1361,10 +1361,10 @@ model RoomUnit {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  room               OrganisationRoom     @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  unitGroup          RoomUnitGroup?       @relation(fields: [unitGroupId], references: [id], onDelete: SetNull)
-  currentAdmissions  Admission[]          @relation("AdmissionCurrentUnit")
-  assignments        RoomUnitAssignment[]
+  room              OrganisationRoom     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  unitGroup         RoomUnitGroup?       @relation(fields: [unitGroupId], references: [id], onDelete: SetNull)
+  currentAdmissions Admission[]          @relation("AdmissionCurrentUnit")
+  assignments       RoomUnitAssignment[]
 
   @@unique([roomId, code])
   @@index([organisationId])
@@ -1374,42 +1374,42 @@ model RoomUnit {
 }
 
 model RoomUnitGroup {
-  id                  String   @id @default(uuid())
-  organisationId      String
-  roomId              String
-  name                String
-  size                String?
-  unitCount           Int      @default(0)
-  speciesConstraints   Json?
-  capabilities        String[] @default([])
-  isActive            Boolean  @default(true)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                 String   @id @default(uuid())
+  organisationId     String
+  roomId             String
+  name               String
+  size               String?
+  unitCount          Int      @default(0)
+  speciesConstraints Json?
+  capabilities       String[] @default([])
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
-  room                OrganisationRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  units               RoomUnit[]
+  room  OrganisationRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  units RoomUnit[]
 
+  @@unique([roomId, name])
   @@index([organisationId])
   @@index([roomId])
   @@index([isActive])
-  @@unique([roomId, name])
 }
 
 model RoomUnitAssignment {
-  id           String   @id @default(uuid())
-  encounterId  String
-  admissionId  String
-  unitId       String
-  assignedAt   DateTime
-  releasedAt   DateTime?
-  assignedBy   String?
-  reason       String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String    @id @default(uuid())
+  encounterId String
+  admissionId String
+  unitId      String
+  assignedAt  DateTime
+  releasedAt  DateTime?
+  assignedBy  String?
+  reason      String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  encounter    Encounter  @relation(fields: [encounterId], references: [id], onDelete: Cascade)
-  admission    Admission  @relation(fields: [admissionId], references: [encounterId], onDelete: Cascade)
-  unit         RoomUnit   @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  encounter Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  admission Admission @relation(fields: [admissionId], references: [encounterId], onDelete: Cascade)
+  unit      RoomUnit  @relation(fields: [unitId], references: [id], onDelete: Cascade)
 
   @@index([encounterId, assignedAt])
   @@index([admissionId, assignedAt])
@@ -1418,20 +1418,20 @@ model RoomUnitAssignment {
 }
 
 model OrganisationInvite {
-  id               String                      @id @default(uuid())
-  organisationId   String
-  invitedByUserId  String
-  departmentIds    String[]
-  inviteeEmail     String
-  inviteeName      String?
-  role             String
-  employmentType   OrganisationInviteEmploymentType?
-  token            String                      @unique
-  status           OrganisationInviteStatus    @default(PENDING)
-  expiresAt        DateTime
-  acceptedAt       DateTime?
-  createdAt        DateTime                    @default(now())
-  updatedAt        DateTime                    @updatedAt
+  id              String                            @id @default(uuid())
+  organisationId  String
+  invitedByUserId String
+  departmentIds   String[]
+  inviteeEmail    String
+  inviteeName     String?
+  role            String
+  employmentType  OrganisationInviteEmploymentType?
+  token           String                            @unique
+  status          OrganisationInviteStatus          @default(PENDING)
+  expiresAt       DateTime
+  acceptedAt      DateTime?
+  createdAt       DateTime                          @default(now())
+  updatedAt       DateTime                          @updatedAt
 
   @@index([organisationId])
   @@index([token])
@@ -1440,30 +1440,30 @@ model OrganisationInvite {
 }
 
 model OrganisationRating {
-  id              String   @id @default(uuid())
-  organizationId  String
-  userId          String
-  rating          Int
-  review          String?  @default("")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String   @id @default(uuid())
+  organizationId String
+  userId         String
+  rating         Int
+  review         String?  @default("")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@unique([organizationId, userId])
 }
 
 model OrganizationUsageCounter {
-  id                   String   @id @default(uuid())
-  orgId                String   @unique
-  appointmentsUsed     Int      @default(0)
-  toolsUsed            Int      @default(0)
-  usersActiveCount     Int      @default(0)
-  usersBillableCount   Int      @default(0)
-  freeAppointmentsLimit Int     @default(120)
-  freeToolsLimit       Int      @default(200)
-  freeUsersLimit       Int      @default(10)
-  freeLimitReachedAt   DateTime?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  id                    String    @id @default(uuid())
+  orgId                 String    @unique
+  appointmentsUsed      Int       @default(0)
+  toolsUsed             Int       @default(0)
+  usersActiveCount      Int       @default(0)
+  usersBillableCount    Int       @default(0)
+  freeAppointmentsLimit Int       @default(120)
+  freeToolsLimit        Int       @default(200)
+  freeUsersLimit        Int       @default(10)
+  freeLimitReachedAt    DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   @@index([freeLimitReachedAt])
   @@map("OrgUsageCounters")
@@ -2131,6 +2131,7 @@ enum DayOfWeek {
   SATURDAY
   SUNDAY
 }
+
 enum ObservationFieldType {
   TEXT
   NUMBER
@@ -2155,44 +2156,45 @@ enum AdverseEventStatus {
 }
 
 model CoParentInvite {
-  id               String   @id @default(uuid())
-  email            String
-  inviteeName      String?
-  patientId      String
+  id                String    @id @default(uuid())
+  email             String
+  inviteeName       String?
+  patientId         String
   invitedByParentId String
-  inviteToken      String   @unique
-  expiresAt        DateTime
-  acceptedAt       DateTime?
-  diclinedAt       DateTime?
-  consumed         Boolean  @default(false)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  inviteToken       String    @unique
+  expiresAt         DateTime
+  acceptedAt        DateTime?
+  diclinedAt        DateTime?
+  consumed          Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@index([email])
 }
+
 model ExternalExpense {
-  id            String   @id @default(uuid())
-  patientId   String
-  parentId      String
-  category      String
-  subcategory   String?
-  visitType     String?
-  expenseName   String
-  businessName  String?
-  date          DateTime
-  amount        Float
-  currency      String   @default("USD")
-  attachments   Json?
-  notes         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String   @id @default(uuid())
+  patientId    String
+  parentId     String
+  category     String
+  subcategory  String?
+  visitType    String?
+  expenseName  String
+  businessName String?
+  date         DateTime
+  amount       Float
+  currency     String   @default("USD")
+  attachments  Json?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([patientId])
   @@index([parentId])
 }
 
 model Form {
-  id             String             @id @default(uuid())
+  id             String              @id @default(uuid())
   orgId          String
   businessType   OrganizationType?
   name           String
@@ -2202,16 +2204,16 @@ model Form {
   serviceId      String[]
   speciesFilter  String[]
   requiredSigner FormRequiredSigner?
-  status         FormStatus         @default(draft)
+  status         FormStatus          @default(draft)
   schema         Json
   createdBy      String
   updatedBy      String
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
 
-  fields         FormField[]
-  versions       FormVersion[]
-  submissions    FormSubmission[]
+  fields      FormField[]
+  versions    FormVersion[]
+  submissions FormSubmission[]
 
   @@index([orgId, status])
   @@index([orgId, category])
@@ -2235,7 +2237,7 @@ model FormField {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  form        Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
 
   @@index([formId])
   @@index([type])
@@ -2251,7 +2253,7 @@ model FormVersion {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  form           Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
 
   @@unique([formId, version])
   @@index([formId])
@@ -2262,7 +2264,7 @@ model FormSubmission {
   formId        String
   formVersion   Int
   appointmentId String?
-  patientId   String?
+  patientId     String?
   parentId      String?
   submittedBy   String?
   answers       Json
@@ -2271,7 +2273,7 @@ model FormSubmission {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  form          Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
 
   @@index([formId])
   @@index([formId, formVersion])
@@ -2307,9 +2309,9 @@ model FormAssignment {
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
 
-  template        Template             @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  appointment     Appointment?         @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
-  companion       Patient?             @relation(fields: [companionId], references: [id], onDelete: SetNull)
+  template    Template     @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  companion   Patient?     @relation(fields: [companionId], references: [id], onDelete: SetNull)
 
   @@index([organisationId, appointmentId])
   @@index([organisationId, companionId])
@@ -2318,27 +2320,27 @@ model FormAssignment {
 }
 
 model Template {
-  id                 String               @id @default(uuid())
-  organisationId     String?
-  ownerUserId        String?
-  ownership          TemplateOwnershipType @default(ORG_TEMPLATE)
-  kind               TemplateKind
-  name               String
-  description        String?
-  status             TemplateStatus       @default(DRAFT)
-  scope              TemplateScope        @default(ORGANISATION)
-  rules              Json?
-  latestVersion      Int                  @default(1)
-  publishedVersion   Int?
-  createdBy          String
-  updatedBy          String
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
+  id               String                @id @default(uuid())
+  organisationId   String?
+  ownerUserId      String?
+  ownership        TemplateOwnershipType @default(ORG_TEMPLATE)
+  kind             TemplateKind
+  name             String
+  description      String?
+  status           TemplateStatus        @default(DRAFT)
+  scope            TemplateScope         @default(ORGANISATION)
+  rules            Json?
+  latestVersion    Int                   @default(1)
+  publishedVersion Int?
+  createdBy        String
+  updatedBy        String
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
 
-  versions           TemplateVersion[]
-  instances          TemplateInstance[]
-  formAssignments   FormAssignment[]
-  catalogLinks       TemplateCatalogLink[]
+  versions        TemplateVersion[]
+  instances       TemplateInstance[]
+  formAssignments FormAssignment[]
+  catalogLinks    TemplateCatalogLink[]
 
   @@index([organisationId, ownership, kind, status])
   @@index([organisationId, scope])
@@ -2347,19 +2349,19 @@ model Template {
 }
 
 model TemplateVersion {
-  id                    String   @id @default(uuid())
-  templateId            String
-  version               Int
-  schemaSnapshot        Json
-  renderConfigSnapshot   Json?
-  validationSnapshot    Json?
-  publishedAt           DateTime?
-  createdBy             String
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id                   String    @id @default(uuid())
+  templateId           String
+  version              Int
+  schemaSnapshot       Json
+  renderConfigSnapshot Json?
+  validationSnapshot   Json?
+  publishedAt          DateTime?
+  createdBy            String
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
-  template              Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  clinicalArtifacts     ClinicalArtifact[]
+  template          Template           @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  clinicalArtifacts ClinicalArtifact[]
 
   @@unique([templateId, version])
   @@index([templateId])
@@ -2367,14 +2369,14 @@ model TemplateVersion {
 }
 
 model TemplateCatalogLink {
-  id             String   @id @default(uuid())
-  templateId     String
-  catalogItemId  String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id            String   @id @default(uuid())
+  templateId    String
+  catalogItemId String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  template       Template   @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  catalogItem    ProductItem @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
+  template    Template    @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  catalogItem ProductItem @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
 
   @@unique([templateId, catalogItemId])
   @@index([templateId])
@@ -2382,7 +2384,7 @@ model TemplateCatalogLink {
 }
 
 model TemplateInstance {
-  id              String                @id @default(uuid())
+  id              String                 @id @default(uuid())
   templateId      String
   templateVersion Int
   organisationId  String
@@ -2396,11 +2398,11 @@ model TemplateInstance {
   signedAt        DateTime?
   generatedPdfUrl String?
   generatedPdf    Json?
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
 
-  template        Template              @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  taskSchedule    TaskSchedule?
+  template          Template           @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  taskSchedule      TaskSchedule?
   renderedDocuments RenderedDocument[]
 
   @@index([templateId])
@@ -2411,31 +2413,31 @@ model TemplateInstance {
 }
 
 model RenderedDocument {
-  id                String                    @id @default(uuid())
-  organisationId    String
-  sourceKind        RenderedDocumentSourceKind
-  sourceId          String
-  templateInstanceId String?                  @unique
-  clinicalArtifactId String?                  @unique
-  templateId        String?
-  templateVersion   Int?
-  templateVersionId String?
-  kind              TemplateKind
-  version           Int                       @default(1)
-  title             String
-  mimeType          String                    @default("application/pdf")
-  status            RenderedDocumentStatus    @default(DRAFT)
-  signable          Boolean                   @default(true)
-  pdfUrl            String?
-  pdf               Json?
-  signing           Json?
-  signedBy          String?
-  signedAt          DateTime?
-  createdAt         DateTime                  @default(now())
-  updatedAt         DateTime                  @updatedAt
+  id                 String                     @id @default(uuid())
+  organisationId     String
+  sourceKind         RenderedDocumentSourceKind
+  sourceId           String
+  templateInstanceId String?                    @unique
+  clinicalArtifactId String?                    @unique
+  templateId         String?
+  templateVersion    Int?
+  templateVersionId  String?
+  kind               TemplateKind
+  version            Int                        @default(1)
+  title              String
+  mimeType           String                     @default("application/pdf")
+  status             RenderedDocumentStatus     @default(DRAFT)
+  signable           Boolean                    @default(true)
+  pdfUrl             String?
+  pdf                Json?
+  signing            Json?
+  signedBy           String?
+  signedAt           DateTime?
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
 
-  templateInstance  TemplateInstance?         @relation(fields: [templateInstanceId], references: [id], onDelete: SetNull)
-  clinicalArtifact  ClinicalArtifact?         @relation(fields: [clinicalArtifactId], references: [id], onDelete: SetNull)
+  templateInstance TemplateInstance?  @relation(fields: [templateInstanceId], references: [id], onDelete: SetNull)
+  clinicalArtifact ClinicalArtifact?  @relation(fields: [clinicalArtifactId], references: [id], onDelete: SetNull)
   signature        DocumentSignature?
 
   @@index([organisationId, kind, status])
@@ -2445,7 +2447,7 @@ model RenderedDocument {
 }
 
 model WorkspaceDocumentPacket {
-  id             String                     @id @default(uuid())
+  id             String                        @id @default(uuid())
   organisationId String
   appointmentId  String?
   encounterId    String
@@ -2456,8 +2458,8 @@ model WorkspaceDocumentPacket {
   signedBy       String?
   signedByName   String?
   signedAt       DateTime?
-  createdAt      DateTime                   @default(now())
-  updatedAt      DateTime                   @updatedAt
+  createdAt      DateTime                      @default(now())
+  updatedAt      DateTime                      @updatedAt
 
   @@index([organisationId])
   @@index([organisationId, encounterId])
@@ -2466,7 +2468,7 @@ model WorkspaceDocumentPacket {
 }
 
 model WorkspaceTreatmentItem {
-  id                 String   @id @default(uuid())
+  id                 String    @id @default(uuid())
   organisationId     String
   appointmentId      String?
   encounterId        String
@@ -2474,16 +2476,16 @@ model WorkspaceTreatmentItem {
   productVersion     Int?
   productSnapshot    Json
   servicePackageKind String
-  quantity           Int      @default(1)
+  quantity           Int       @default(1)
   priceSnapshot      Json
-  billingStatus      String   @default("UNBILLED")
+  billingStatus      String    @default("UNBILLED")
   invoiceRowId       String?
   settledInvoiceId   String?
   settledAt          DateTime?
   lockState          Json?
   prescriptionId     String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   @@index([organisationId, encounterId])
   @@index([organisationId, appointmentId])
@@ -2494,50 +2496,50 @@ model WorkspaceTreatmentItem {
 }
 
 model DocumentSignature {
-  id                 String                   @id @default(uuid())
-  renderedDocumentId String                   @unique
-  signerId          String
-  signerType        DocumentSignatureSignerType
-  signatureText     String?
-  signedAt          DateTime                  @default(now())
-  createdAt         DateTime                  @default(now())
-  updatedAt         DateTime                  @updatedAt
+  id                 String                      @id @default(uuid())
+  renderedDocumentId String                      @unique
+  signerId           String
+  signerType         DocumentSignatureSignerType
+  signatureText      String?
+  signedAt           DateTime                    @default(now())
+  createdAt          DateTime                    @default(now())
+  updatedAt          DateTime                    @updatedAt
 
-  renderedDocument  RenderedDocument          @relation(fields: [renderedDocumentId], references: [id], onDelete: Cascade)
+  renderedDocument RenderedDocument @relation(fields: [renderedDocumentId], references: [id], onDelete: Cascade)
 
   @@index([renderedDocumentId])
   @@index([signerId])
 }
 
 model ClinicalArtifact {
-  id              String                  @id @default(uuid())
-  organisationId  String
-  appointmentId   String?
-  caseId          String?
-  encounterId     String?
-  kind            ClinicalArtifactKind
-  status          ClinicalArtifactStatus  @default(DRAFT)
-  templateId      String?
-  templateVersion Int?
+  id                String                 @id @default(uuid())
+  organisationId    String
+  appointmentId     String?
+  caseId            String?
+  encounterId       String?
+  kind              ClinicalArtifactKind
+  status            ClinicalArtifactStatus @default(DRAFT)
+  templateId        String?
+  templateVersion   Int?
   templateVersionId String?
-  authorId        String?
-  signedBy        String?
-  signedAt        DateTime?
-  summary         String?
-  createdAt       DateTime                @default(now())
-  updatedAt       DateTime                @updatedAt
+  authorId          String?
+  signedBy          String?
+  signedAt          DateTime?
+  summary           String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
 
-  soapNote        SoapNote?
-  prescription    Prescription?
-  dischargeSummary DischargeSummary?
-  vitalRecord     VitalRecord?
-  immunization    Immunization?
-  rabiesTitration RabiesTitration?
-  parasiteTreatment ParasiteTreatment?
-  clinicalExamination ClinicalExamination?
-  attestation     ClinicalArtifactAttestation?
-  templateVersionRecord TemplateVersion?   @relation(fields: [templateVersionId], references: [id], onDelete: SetNull)
-  renderedDocuments RenderedDocument[]
+  soapNote              SoapNote?
+  prescription          Prescription?
+  dischargeSummary      DischargeSummary?
+  vitalRecord           VitalRecord?
+  immunization          Immunization?
+  rabiesTitration       RabiesTitration?
+  parasiteTreatment     ParasiteTreatment?
+  clinicalExamination   ClinicalExamination?
+  attestation           ClinicalArtifactAttestation?
+  templateVersionRecord TemplateVersion?             @relation(fields: [templateVersionId], references: [id], onDelete: SetNull)
+  renderedDocuments     RenderedDocument[]
 
   @@index([organisationId, kind, status])
   @@index([organisationId, appointmentId])
@@ -2548,117 +2550,117 @@ model ClinicalArtifact {
 }
 
 model SoapNote {
-  id              String           @id @default(uuid())
-  artifactId      String           @unique
-  subjective      Json?
-  objective       Json?
-  assessment      Json?
-  plan            Json?
-  diagnoses       Json?
-  metadata        Json?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id         String   @id @default(uuid())
+  artifactId String   @unique
+  subjective Json?
+  objective  Json?
+  assessment Json?
+  plan       Json?
+  diagnoses  Json?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  artifact        ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  artifact ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
 
   @@index([artifactId])
 }
 
 model Prescription {
-  id              String           @id @default(uuid())
-  artifactId      String           @unique
-  items           PrescriptionItem[]
+  id               String                        @id @default(uuid())
+  artifactId       String                        @unique
+  items            PrescriptionItem[]
   dispenseRequests PrescriptionDispenseRequest[]
-  medications     Json?
-  instructions    Json?
-  notes           Json?
-  metadata        Json?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  medications      Json?
+  instructions     Json?
+  notes            Json?
+  metadata         Json?
+  createdAt        DateTime                      @default(now())
+  updatedAt        DateTime                      @updatedAt
 
-  artifact        ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  artifact ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
 
   @@index([artifactId])
 }
 
 model PrescriptionItem {
-  id             String       @id @default(uuid())
-  prescriptionId String
-  sourceLineKey  String?
-  medication     String
-  strength       String?
-  dosage         String?
-  route          String?
-  frequency      String?
-  duration       String?
-  quantity       String?
-  instructions   String?
-  refill         String?
-  inventoryItemId String?
+  id               String    @id @default(uuid())
+  prescriptionId   String
+  sourceLineKey    String?
+  medication       String
+  strength         String?
+  dosage           String?
+  route            String?
+  frequency        String?
+  duration         String?
+  quantity         String?
+  instructions     String?
+  refill           String?
+  inventoryItemId  String?
   inventoryItemSku String?
-  batchId        String?
-  batchNumber    String?
-  lotNumber      String?
-  expiryDate     DateTime?
-  metadata       Json?
-  sortOrder      Int          @default(0)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  batchId          String?
+  batchNumber      String?
+  lotNumber        String?
+  expiryDate       DateTime?
+  metadata         Json?
+  sortOrder        Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  prescription Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
 
   @@index([prescriptionId, sortOrder])
 }
 
 model PrescriptionDispenseRequest {
-  id             String                              @id @default(uuid())
+  id             String                            @id @default(uuid())
   prescriptionId String
   organisationId String
-  status         PrescriptionDispenseRequestStatus   @default(PENDING)
+  status         PrescriptionDispenseRequestStatus @default(PENDING)
   medications    Json
   metadata       Json?
   requestedBy    String?
   reviewedBy     String?
-  requestedAt    DateTime                            @default(now())
+  requestedAt    DateTime                          @default(now())
   reviewedAt     DateTime?
-  createdAt      DateTime                            @default(now())
-  updatedAt      DateTime                            @updatedAt
+  createdAt      DateTime                          @default(now())
+  updatedAt      DateTime                          @updatedAt
 
-  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  prescription Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
 
   @@index([prescriptionId, status, requestedAt])
   @@index([organisationId, status])
 }
 
 model DischargeSummary {
-  id              String           @id @default(uuid())
-  artifactId      String           @unique
-  summary         Json?
-  diagnoses       Json?
-  medications     Json?
-  followUp        Json?
-  instructions    Json?
-  metadata        Json?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id           String   @id @default(uuid())
+  artifactId   String   @unique
+  summary      Json?
+  diagnoses    Json?
+  medications  Json?
+  followUp     Json?
+  instructions Json?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  artifact        ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  artifact ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
 
   @@index([artifactId])
 }
 
 model VitalRecord {
-  id              String           @id @default(uuid())
-  artifactId      String           @unique
-  measuredAt      DateTime
-  recordedBy      String?
-  vitals          Json
-  notes           Json?
-  metadata        Json?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id         String   @id @default(uuid())
+  artifactId String   @unique
+  measuredAt DateTime
+  recordedBy String?
+  vitals     Json
+  notes      Json?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  artifact        ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  artifact ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
 
   @@index([artifactId])
   @@index([measuredAt])
@@ -2668,9 +2670,9 @@ model VitalRecord {
 // Immunization / Observation / Procedure). The administering/verifying vet and
 // the legally-binding signature live on ClinicalArtifactAttestation, not here.
 model Immunization {
-  id               String           @id @default(uuid())
-  artifactId       String           @unique
-  vaccineType      VaccineType      @default(OTHER)
+  id               String      @id @default(uuid())
+  artifactId       String      @unique
+  vaccineType      VaccineType @default(OTHER)
   vaccineName      String
   manufacturer     String?
   batchNumber      String?
@@ -2683,27 +2685,27 @@ model Immunization {
   route            String?
   notes            String?
   metadata         Json?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 
-  artifact         ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  artifact ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
 
   @@index([artifactId])
   @@index([validUntil])
 }
 
 model RabiesTitration {
-  id          String           @id @default(uuid())
-  artifactId  String           @unique
+  id          String   @id @default(uuid())
+  artifactId  String   @unique
   approvedLab String
   sampleDate  DateTime
   resultIuMl  Float
   reportUrl   String?
   metadata    Json?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  artifact    ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  artifact ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
 
   @@index([artifactId])
 }
@@ -2720,7 +2722,7 @@ model ParasiteTreatment {
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
 
-  artifact      ClinicalArtifact      @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  artifact ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
 
   @@index([artifactId])
 }
@@ -2728,18 +2730,18 @@ model ParasiteTreatment {
 // Pre-travel clinical examination ("fit to travel" attestation): the EU passport
 // section a vet signs shortly before movement.
 model ClinicalExamination {
-  id           String           @id @default(uuid())
-  artifactId   String           @unique
+  id           String   @id @default(uuid())
+  artifactId   String   @unique
   examinedAt   DateTime
-  fitForTravel Boolean          @default(true)
+  fitForTravel Boolean  @default(true)
   findings     String?
   weightKg     Float?
   temperatureC Float?
   metadata     Json?
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  artifact     ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  artifact ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
 
   @@index([artifactId])
   @@index([examinedAt])
@@ -2751,9 +2753,9 @@ model ClinicalExamination {
 // legally-binding notary record. A SIGNED artifact is immutable; corrections
 // supersede and revocations propagate to the wallet pass + public page.
 model ClinicalArtifactAttestation {
-  id                  String           @id @default(uuid())
-  artifactId          String           @unique
-  primarySource       Boolean          @default(true)
+  id                  String    @id @default(uuid())
+  artifactId          String    @unique
+  primarySource       Boolean   @default(true)
   signatoryUserId     String?
   signatoryName       String?
   signatoryLicence    String?
@@ -2765,10 +2767,10 @@ model ClinicalArtifactAttestation {
   revokedAt           DateTime?
   revokedReason       String?
   supersededById      String?
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime         @updatedAt
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
-  artifact            ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  artifact ClinicalArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
 
   @@index([artifactId])
   @@index([signatoryUserId])
@@ -2795,22 +2797,22 @@ model Service {
 }
 
 model ProductItem {
-  id              String               @id @default(uuid())
+  id              String                @id @default(uuid())
   organisationId  String
   name            String
   description     String?
   code            String?
-  kind            ProductKind          @default(CONSULTATION)
+  kind            ProductKind           @default(CONSULTATION)
   specialityId    String?
-  legacyServiceId String?              @unique
-  isActive        Boolean              @default(true)
-  version         Int                  @default(1)
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
+  legacyServiceId String?               @unique
+  isActive        Boolean               @default(true)
+  version         Int                   @default(1)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
   prices          ProductPrice[]
   bookable        ProductBookable?
   package         ProductPackage?
-  packageItems    ProductPackageItem[] @relation("ProductPackageComponent")
+  packageItems    ProductPackageItem[]  @relation("ProductPackageComponent")
   templateLinks   TemplateCatalogLink[]
 
   @@index([organisationId])
@@ -2882,10 +2884,10 @@ model ProductPackageItem {
 }
 
 model Task {
-  id                String       @id @default(uuid())
+  id                String        @id @default(uuid())
   organisationId    String?
   appointmentId     String?
-  patientId       String?
+  patientId         String?
   createdBy         String
   assignedBy        String?
   assignedTo        String
@@ -2908,12 +2910,12 @@ model Task {
   syncWithCalendar  Boolean?
   calendarEventId   String?
   attachments       Json?
-  status            TaskStatus   @default(PENDING)
+  status            TaskStatus    @default(PENDING)
   priority          TaskPriority?
   completedAt       DateTime?
   completedBy       String?
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 
   @@index([assignedTo, dueAt])
   @@index([assignedGroupId, dueAt])
@@ -2923,30 +2925,30 @@ model Task {
 }
 
 model TaskSchedule {
-  id                String            @id @default(uuid())
-  templateInstanceId String            @unique
-  templateId        String
-  templateVersion   Int
-  templateKind      TemplateKind
-  organisationId    String
-  appointmentId     String?
-  caseId            String?
-  encounterId      String?
-  patientId       String?
-  createdBy         String
-  activatedBy       String?
-  activatedAt       DateTime?
-  completedAt       DateTime?
+  id                 String             @id @default(uuid())
+  templateInstanceId String             @unique
+  templateId         String
+  templateVersion    Int
+  templateKind       TemplateKind
+  organisationId     String
+  appointmentId      String?
+  caseId             String?
+  encounterId        String?
+  patientId          String?
+  createdBy          String
+  activatedBy        String?
+  activatedAt        DateTime?
+  completedAt        DateTime?
   lastMaterializedAt DateTime?
-  status            TaskScheduleStatus @default(DRAFT)
-  scheduleInput     Json?
-  materializedSeeds Json?
-  generatedTaskIds  Json?
-  metadata          Json?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  status             TaskScheduleStatus @default(DRAFT)
+  scheduleInput      Json?
+  materializedSeeds  Json?
+  generatedTaskIds   Json?
+  metadata           Json?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
-  templateInstance  TemplateInstance   @relation(fields: [templateInstanceId], references: [id], onDelete: Cascade)
+  templateInstance TemplateInstance @relation(fields: [templateInstanceId], references: [id], onDelete: Cascade)
 
   @@index([organisationId, status])
   @@index([templateId, templateVersion])
@@ -2956,54 +2958,56 @@ model TaskSchedule {
 }
 
 model TaskCompletion {
-  id          String   @id @default(uuid())
-  taskId      String
+  id        String   @id @default(uuid())
+  taskId    String
   patientId String
-  filledBy    String
-  answers     Json
-  score       Float?
-  summary     String?
-  createdAt   DateTime @default(now())
+  filledBy  String
+  answers   Json
+  score     Float?
+  summary   String?
+  createdAt DateTime @default(now())
 
   @@index([taskId])
   @@index([patientId])
 }
 
 model TaskTemplate {
-  id                          String          @id @default(uuid())
-  source                      TaskSource      @default(ORG_TEMPLATE)
-  organisationId              String
-  libraryTaskId               String?
-  category                    String
-  name                        String
-  description                 String?
-  kind                        TaskKind
-  defaultRole                 TaskTemplateRole
-  inpatientOnly               Boolean         @default(false)
-  defaultMedication           Json?
-  defaultObservationToolId    String?
-  defaultRecurrence           Json?
+  id                           String           @id @default(uuid())
+  source                       TaskSource       @default(ORG_TEMPLATE)
+  organisationId               String
+  libraryTaskId                String?
+  category                     String
+  name                         String
+  description                  String?
+  kind                         TaskKind
+  defaultRole                  TaskTemplateRole
+  inpatientOnly                Boolean          @default(false)
+  defaultMedication            Json?
+  defaultObservationToolId     String?
+  defaultRecurrence            Json?
   defaultReminderOffsetMinutes Int?
-  isActive                    Boolean         @default(true)
-  createdBy                   String
-  createdAt                   DateTime        @default(now())
-  updatedAt                   DateTime        @updatedAt
+  isActive                     Boolean          @default(true)
+  createdBy                    String
+  createdAt                    DateTime         @default(now())
+  updatedAt                    DateTime         @updatedAt
 
   @@index([organisationId])
 }
 
 model TaskLibraryDefinition {
-  id                 String             @id @default(uuid())
-  source             TaskSource         @default(YC_LIBRARY)
+  id                 String               @id @default(uuid())
+  source             TaskSource           @default(YC_LIBRARY)
   kind               TaskKind
   category           String
   name               String
   defaultDescription String?
   schema             Json
   applicableSpecies  TaskLibrarySpecies[]
-  isActive           Boolean            @default(true)
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  isActive           Boolean              @default(true)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  recommendationRules TaskRecommendationRule[]
 
   @@index([kind])
   @@index([category])
@@ -3025,9 +3029,9 @@ model ReminderJob {
 }
 
 model AuditTrail {
-  id             String         @id @default(uuid())
+  id             String           @id @default(uuid())
   organisationId String
-  patientId    String
+  patientId      String
   eventType      AuditEventType
   actorType      AuditActorType?
   actorId        String?
@@ -3035,9 +3039,9 @@ model AuditTrail {
   entityType     AuditEntityType?
   entityId       String?
   metadata       Json?
-  occurredAt     DateTime       @default(now())
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  occurredAt     DateTime         @default(now())
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   @@index([organisationId])
   @@index([patientId])
@@ -3067,45 +3071,45 @@ model AccountWithdrawal {
 }
 
 model InventoryItem {
-  id                        String               @id @default(uuid())
-  organisationId            String
-  businessType              InventoryBusinessType
-  itemType                  InventoryItemType     @default(NON_MEDICAL)
-  name                      String
-  sku                       String?
-  category                  String
-  subCategory               String?
-  description               String?
-  imageUrl                  String?
-  stockUnitType             String?
-  attachments               Json?
-  attributes                Json                 @default("{}")
-  genericName               String?
-  strength                  String?
-  dosageForm                String?
-  routeOfAdministration     String?
-  drugClass                 String?
-  prescriptionRequired      Boolean              @default(false)
-  controlledItem            Boolean              @default(false)
-  storageInstructions       String?
-  expiryTrackingRequired    Boolean              @default(false)
-  unitOfMeasure             String?
-  packageQuantity           Int?
-  storageLocation           String?
-  onHand                    Int                  @default(0)
-  allocated                 Int                  @default(0)
-  minimumStock              Int?
-  emergencyStockLevel       Int?
-  reorderLevel              Int?
-  unitCost                  Float?
-  sellingPrice              Float?
-  taxRate                   Float?
-  currency                  String?
-  vendorId                  String?
-  status                    InventoryItemStatus   @default(ACTIVE)
-  createdAt                 DateTime             @default(now())
-  updatedAt                 DateTime             @updatedAt
-  packageItemsAsInventory    ProductPackageItem[]  @relation("ProductPackageInventoryComponent")
+  id                      String                @id @default(uuid())
+  organisationId          String
+  businessType            InventoryBusinessType
+  itemType                InventoryItemType     @default(NON_MEDICAL)
+  name                    String
+  sku                     String?
+  category                String
+  subCategory             String?
+  description             String?
+  imageUrl                String?
+  stockUnitType           String?
+  attachments             Json?
+  attributes              Json                  @default("{}")
+  genericName             String?
+  strength                String?
+  dosageForm              String?
+  routeOfAdministration   String?
+  drugClass               String?
+  prescriptionRequired    Boolean               @default(false)
+  controlledItem          Boolean               @default(false)
+  storageInstructions     String?
+  expiryTrackingRequired  Boolean               @default(false)
+  unitOfMeasure           String?
+  packageQuantity         Int?
+  storageLocation         String?
+  onHand                  Int                   @default(0)
+  allocated               Int                   @default(0)
+  minimumStock            Int?
+  emergencyStockLevel     Int?
+  reorderLevel            Int?
+  unitCost                Float?
+  sellingPrice            Float?
+  taxRate                 Float?
+  currency                String?
+  vendorId                String?
+  status                  InventoryItemStatus   @default(ACTIVE)
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+  packageItemsAsInventory ProductPackageItem[]  @relation("ProductPackageInventoryComponent")
 
   @@unique([organisationId, sku])
   @@index([organisationId, name])
@@ -3116,21 +3120,21 @@ model InventoryItem {
 }
 
 model InventoryBatch {
-  id                   String   @id @default(uuid())
-  itemId               String
-  organisationId       String
-  batchNumber          String?
-  lotNumber            String?
-  regulatoryTrackingId String?
-  expiryWarningBefore  String?
-  barcode              String?
-  manufactureDate      DateTime?
-  expiryDate           DateTime?
+  id                    String    @id @default(uuid())
+  itemId                String
+  organisationId        String
+  batchNumber           String?
+  lotNumber             String?
+  regulatoryTrackingId  String?
+  expiryWarningBefore   String?
+  barcode               String?
+  manufactureDate       DateTime?
+  expiryDate            DateTime?
   minShelfLifeAlertDate DateTime?
-  quantity             Int      @default(0)
-  allocated            Int      @default(0)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  quantity              Int       @default(0)
+  allocated             Int       @default(0)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   @@index([itemId])
   @@index([organisationId])
@@ -3139,7 +3143,7 @@ model InventoryBatch {
 }
 
 model InventoryVendor {
-  id                String   @id @default(uuid())
+  id                String    @id @default(uuid())
   organisationId    String
   name              String
   brand             String?
@@ -3153,36 +3157,36 @@ model InventoryVendor {
   deliveryFrequency String?
   leadTimeDays      Int?
   contactInfo       Json?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@index([organisationId, name])
   @@index([organisationId, vendorItemCode])
 }
 
 model InventoryCategory {
-  id            String   @id @default(uuid())
-  code          String   @unique
-  name          String
-  isMedical     Boolean  @default(false)
-  sortOrder     Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  isMedical Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  subcategories  InventorySubcategory[]
+  subcategories InventorySubcategory[]
 }
 
 model InventorySubcategory {
-  id            String   @id @default(uuid())
-  categoryId    String
-  code          String
-  name          String
-  sortOrder     Int      @default(0)
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id         String   @id @default(uuid())
+  categoryId String
+  code       String
+  name       String
+  sortOrder  Int      @default(0)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  category      InventoryCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  category InventoryCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@unique([categoryId, code])
   @@index([categoryId])
@@ -3228,16 +3232,16 @@ enum InventoryConsumptionAction {
 }
 
 model InventoryConsumptionRule {
-  id                 String                        @id @default(uuid())
+  id                 String                         @id @default(uuid())
   organisationId     String
   sourceType         InventoryConsumptionSourceType
   sourceKey          String
   inventoryItemId    String
-  quantityMultiplier Float                         @default(1)
+  quantityMultiplier Float                          @default(1)
   notes              String?
-  active             Boolean                       @default(true)
-  createdAt          DateTime                      @default(now())
-  updatedAt          DateTime                      @updatedAt
+  active             Boolean                        @default(true)
+  createdAt          DateTime                       @default(now())
+  updatedAt          DateTime                       @updatedAt
 
   @@unique([organisationId, sourceType, sourceKey, inventoryItemId])
   @@index([organisationId, sourceType, sourceKey])
@@ -3245,7 +3249,7 @@ model InventoryConsumptionRule {
 }
 
 model InventoryConsumptionEvent {
-  id              String                        @id @default(uuid())
+  id              String                         @id @default(uuid())
   organisationId  String
   sourceType      InventoryConsumptionSourceType
   sourceId        String
@@ -3305,7 +3309,7 @@ model ObservationToolSubmission {
   id                      String   @id @default(uuid())
   toolId                  String
   taskId                  String?
-  patientId             String
+  patientId               String
   filledBy                String
   answers                 Json
   score                   Float?
@@ -3320,22 +3324,22 @@ model ObservationToolSubmission {
 }
 
 model Occupancy {
-  id             String             @id @default(uuid())
+  id             String              @id @default(uuid())
   userId         String
   organisationId String
   startTime      DateTime
   endTime        DateTime
   sourceType     OccupancySourceType @default(APPOINTMENT)
   referenceId    String?
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
 
   @@index([userId, startTime, endTime])
   @@index([userId, organisationId, startTime])
 }
 
 model RegulatoryAuthority {
-  id            String   @id @default(uuid())
+  id            String  @id @default(uuid())
   country       String?
   iso2          String?
   iso3          String?
@@ -3352,7 +3356,7 @@ model AdverseEventReport {
   organisationId String?
   appointmentId  String?
   reporter       Json
-  patient      Json
+  patient        Json
   product        Json
   destinations   Json
   consent        Json
@@ -3380,11 +3384,12 @@ model Speciality {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  roomLinks          OrganisationRoomSpeciality[]
+  roomLinks OrganisationRoomSpeciality[]
 
   @@index([organisationId])
   @@index([organisationId, isActive])
 }
+
 model DeviceToken {
   id          String         @id @default(uuid())
   userId      String
@@ -3412,41 +3417,42 @@ model Notification {
 }
 
 model Invoice {
-  id                       String                   @id @default(uuid())
-  parentId                 String?
-  patientId              String?
-  organisationId           String?
-  appointmentId            String?
-  items                    Json
-  subtotal                 Float
-  discountTotal            Float                    @default(0)
-  invoiceDiscountType      String?
-  invoiceDiscountValue     Float?
-  invoiceDiscountTotal     Float                    @default(0)
-  taxTotal                 Float                    @default(0)
-  taxPercent               Float                    @default(0)
-  taxProvider              TaxProvider?
-  totalAmount              Float
-  currency                 String
-  paymentCollectionMethod  PaymentCollectionMethod  @default(PAYMENT_INTENT)
-  billingCollectionMode    BillingCollectionMode    @default(PREPAY_AT_BOOKING)
-  visitBillingStage        InvoiceVisitBillingStage  @default(DRAFT)
-  readyForBillingAt        DateTime?
-  readyForBillingActorId   String?
-  depositTargetAmount      Float                    @default(0)
-  depositCollectedAmount   Float                    @default(0)
-  status                   InvoiceStatus            @default(PENDING)
-  metadata                 Json?
-  paidAt                   DateTime?
-  finalizedAt              DateTime?
-  createdAt                DateTime                 @default(now())
-  updatedAt                DateTime                 @updatedAt
+  id                      String                   @id @default(uuid())
+  parentId                String?
+  patientId               String?
+  organisationId          String?
+  appointmentId           String?
+  items                   Json
+  subtotal                Float
+  discountTotal           Float                    @default(0)
+  invoiceDiscountType     String?
+  invoiceDiscountValue    Float?
+  invoiceDiscountTotal    Float                    @default(0)
+  taxTotal                Float                    @default(0)
+  taxPercent              Float                    @default(0)
+  taxProvider             TaxProvider?
+  totalAmount             Float
+  currency                String
+  paymentCollectionMethod PaymentCollectionMethod  @default(PAYMENT_INTENT)
+  billingCollectionMode   BillingCollectionMode    @default(PREPAY_AT_BOOKING)
+  visitBillingStage       InvoiceVisitBillingStage @default(DRAFT)
+  readyForBillingAt       DateTime?
+  readyForBillingActorId  String?
+  depositTargetAmount     Float                    @default(0)
+  depositCollectedAmount  Float                    @default(0)
+  status                  InvoiceStatus            @default(PENDING)
+  metadata                Json?
+  paidAt                  DateTime?
+  finalizedAt             DateTime?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
 
-  taxSnapshot              InvoiceTaxSnapshot?
-  paymentAttempts          PaymentAttempt[]
-  payments                 Payment[]
-  creditNotes              CreditNote[]
+  taxSnapshot     InvoiceTaxSnapshot?
+  paymentAttempts PaymentAttempt[]
+  payments        Payment[]
+  creditNotes     CreditNote[]
 
+  @@unique([appointmentId])
   @@index([parentId])
   @@index([organisationId])
   @@index([appointmentId])
@@ -3456,7 +3462,6 @@ model Invoice {
   @@index([visitBillingStage])
   @@index([readyForBillingAt])
   @@index([taxProvider])
-  @@unique([appointmentId])
 }
 
 model InvoiceTaxSnapshot {
@@ -3475,33 +3480,33 @@ model InvoiceTaxSnapshot {
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
 
-  invoice             Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 }
 
 model PaymentAttempt {
-  id                      String               @id @default(uuid())
-  invoiceId               String
-  provider                PaymentProvider
-  settlementChannel       SettlementChannel?
-  providerPaymentIntentId String?
+  id                        String                 @id @default(uuid())
+  invoiceId                 String
+  provider                  PaymentProvider
+  settlementChannel         SettlementChannel?
+  providerPaymentIntentId   String?
   providerCheckoutSessionId String?
-  providerPaymentLinkId   String?
-  status                  PaymentAttemptStatus @default(REQUIRES_PAYMENT_METHOD)
-  amountRequested         Float                @default(0)
-  amountCaptured          Float                @default(0)
-  amountApplied           Float                @default(0)
-  currency                String
-  failureCode             String?
-  failureMessage          String?
-  collectionMode          BillingCollectionMode?
-  isOffline               Boolean              @default(false)
-  isPartial               Boolean              @default(false)
-  rawProviderPayload      Json?
-  createdAt               DateTime             @default(now())
-  updatedAt               DateTime             @updatedAt
+  providerPaymentLinkId     String?
+  status                    PaymentAttemptStatus   @default(REQUIRES_PAYMENT_METHOD)
+  amountRequested           Float                  @default(0)
+  amountCaptured            Float                  @default(0)
+  amountApplied             Float                  @default(0)
+  currency                  String
+  failureCode               String?
+  failureMessage            String?
+  collectionMode            BillingCollectionMode?
+  isOffline                 Boolean                @default(false)
+  isPartial                 Boolean                @default(false)
+  rawProviderPayload        Json?
+  createdAt                 DateTime               @default(now())
+  updatedAt                 DateTime               @updatedAt
 
-  invoice                 Invoice              @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  payment                 Payment?
+  invoice Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  payment Payment?
 
   @@index([invoiceId])
   @@index([provider])
@@ -3512,25 +3517,25 @@ model PaymentAttempt {
 }
 
 model Payment {
-  id                    String          @id @default(uuid())
-  invoiceId             String
-  paymentAttemptId      String?         @unique
-  provider              PaymentProvider
-  settlementChannel     SettlementChannel?
-  collectionMode        BillingCollectionMode?
-  providerPaymentId     String?
-  amount                Float
-  currency              String
-  status                PaymentStatus   @default(PENDING)
-  paidAt                DateTime?
-  receiptUrl            String?
-  rawProviderPayload    Json?
-  createdAt             DateTime        @default(now())
-  updatedAt             DateTime        @updatedAt
+  id                 String                 @id @default(uuid())
+  invoiceId          String
+  paymentAttemptId   String?                @unique
+  provider           PaymentProvider
+  settlementChannel  SettlementChannel?
+  collectionMode     BillingCollectionMode?
+  providerPaymentId  String?
+  amount             Float
+  currency           String
+  status             PaymentStatus          @default(PENDING)
+  paidAt             DateTime?
+  receiptUrl         String?
+  rawProviderPayload Json?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
 
-  invoice               Invoice         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  paymentAttempt        PaymentAttempt? @relation(fields: [paymentAttemptId], references: [id])
-  refunds               Refund[]
+  invoice        Invoice         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  paymentAttempt PaymentAttempt? @relation(fields: [paymentAttemptId], references: [id])
+  refunds        Refund[]
 
   @@index([invoiceId])
   @@index([paymentAttemptId])
@@ -3540,19 +3545,19 @@ model Payment {
 }
 
 model Refund {
-  id                    String         @id @default(uuid())
-  paymentId             String
-  provider              PaymentProvider
-  providerRefundId      String?
-  amount                Float
-  currency              String
-  status                RefundStatus   @default(PENDING)
-  reason                String?
-  rawProviderPayload    Json?
-  createdAt             DateTime       @default(now())
-  updatedAt             DateTime       @updatedAt
+  id                 String          @id @default(uuid())
+  paymentId          String
+  provider           PaymentProvider
+  providerRefundId   String?
+  amount             Float
+  currency           String
+  status             RefundStatus    @default(PENDING)
+  reason             String?
+  rawProviderPayload Json?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
 
-  payment               Payment        @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
 
   @@index([paymentId])
   @@index([provider])
@@ -3571,7 +3576,7 @@ model CreditNote {
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
-  invoice          Invoice          @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@index([invoiceId])
   @@index([status])
@@ -3799,7 +3804,6 @@ model PatientAllergy {
   @@map("PatientAllergy")
 }
 
-
 // ---------------------------------------------------------------------------
 // Medication Administration Record (MAR)
 // ---------------------------------------------------------------------------
@@ -3856,17 +3860,17 @@ enum PreventiveCareStatus {
 }
 
 model PreventiveCarePlan {
-  id                String                  @id @default(uuid())
-  organisationId    String
-  patientId         String
-  name              String
-  description       String?
-  status            PreventiveCareStatus    @default(ACTIVE)
-  createdBy         String?
-  createdAt         DateTime                @default(now())
-  updatedAt         DateTime                @updatedAt
+  id             String               @id @default(uuid())
+  organisationId String
+  patientId      String
+  name           String
+  description    String?
+  status         PreventiveCareStatus @default(ACTIVE)
+  createdBy      String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
 
-  items             PreventiveCareItem[]
+  items PreventiveCareItem[]
 
   @@index([organisationId, patientId, status])
   @@index([organisationId, patientId])
@@ -3874,19 +3878,19 @@ model PreventiveCarePlan {
 }
 
 model PreventiveCareItem {
-  id              String                  @id @default(uuid())
-  planId          String
-  organisationId  String
-  careType        String
-  frequency       PreventiveCareFrequency
-  intervalDays    Int?
-  lastDoneAt      DateTime?
-  nextDueAt       DateTime?
-  notes           String?
-  createdAt       DateTime                @default(now())
-  updatedAt       DateTime                @updatedAt
+  id             String                  @id @default(uuid())
+  planId         String
+  organisationId String
+  careType       String
+  frequency      PreventiveCareFrequency
+  intervalDays   Int?
+  lastDoneAt     DateTime?
+  nextDueAt      DateTime?
+  notes          String?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
 
-  plan            PreventiveCarePlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  plan PreventiveCarePlan @relation(fields: [planId], references: [id], onDelete: Cascade)
 
   @@index([organisationId, nextDueAt])
   @@index([planId])
@@ -4069,7 +4073,6 @@ model DiagnosticImage {
   @@map("DiagnosticImage")
 }
 
-
 // ---------------------------------------------------------------------------
 // Blood Transfusion Records
 // ---------------------------------------------------------------------------
@@ -4094,26 +4097,26 @@ enum TransfusionReaction {
 }
 
 model BloodTransfusion {
-  id              String              @id @default(uuid())
-  organisationId  String
-  patientId       String
-  encounterId     String?
-  donorId         String?
-  productType     String
-  bloodType       BloodType
-  volumeMl        Float
-  startedAt       DateTime
-  endedAt         DateTime?
-  durationMinutes Int?
-  reaction        TransfusionReaction @default(NONE)
-  reactionNotes   String?
-  administeredBy  String?
-  crossMatchDone  Boolean             @default(false)
-  crossMatchResult String?
-  preTransfusionPCV Float?
+  id                 String              @id @default(uuid())
+  organisationId     String
+  patientId          String
+  encounterId        String?
+  donorId            String?
+  productType        String
+  bloodType          BloodType
+  volumeMl           Float
+  startedAt          DateTime
+  endedAt            DateTime?
+  durationMinutes    Int?
+  reaction           TransfusionReaction @default(NONE)
+  reactionNotes      String?
+  administeredBy     String?
+  crossMatchDone     Boolean             @default(false)
+  crossMatchResult   String?
+  preTransfusionPCV  Float?
   postTransfusionPCV Float?
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   @@index([organisationId, patientId])
   @@index([encounterId])
@@ -4143,25 +4146,25 @@ enum FluidTherapyStatus {
 }
 
 model FluidTherapyPlan {
-  id               String             @id @default(uuid())
-  organisationId   String
-  patientId        String
-  encounterId      String?
-  admissionId      String?
-  fluidType        FluidType
-  customFluidName  String?
-  additives        String?
-  rateMlPerHour    Float
-  totalVolumeMl    Float?
-  durationHours    Float?
-  startedAt        DateTime
-  endedAt          DateTime?
-  status           FluidTherapyStatus @default(ACTIVE)
-  indication       String?
-  prescribedBy     String?
-  notes            String?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  id              String             @id @default(uuid())
+  organisationId  String
+  patientId       String
+  encounterId     String?
+  admissionId     String?
+  fluidType       FluidType
+  customFluidName String?
+  additives       String?
+  rateMlPerHour   Float
+  totalVolumeMl   Float?
+  durationHours   Float?
+  startedAt       DateTime
+  endedAt         DateTime?
+  status          FluidTherapyStatus @default(ACTIVE)
+  indication      String?
+  prescribedBy    String?
+  notes           String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
 
   @@index([organisationId, patientId])
   @@index([encounterId])
@@ -4179,27 +4182,27 @@ enum NutritionPlanStatus {
 }
 
 model NutritionPlan {
-  id              String              @id @default(uuid())
-  organisationId  String
-  patientId       String
-  encounterId     String?
-  status          NutritionPlanStatus @default(ACTIVE)
-  dietName        String
-  calories        Float?
-  calorieUnit     String?
-  protein         Float?
-  fat             Float?
-  fibre           Float?
+  id               String              @id @default(uuid())
+  organisationId   String
+  patientId        String
+  encounterId      String?
+  status           NutritionPlanStatus @default(ACTIVE)
+  dietName         String
+  calories         Float?
+  calorieUnit      String?
+  protein          Float?
+  fat              Float?
+  fibre            Float?
   feedingFrequency String?
-  portionSize     String?
-  waterIntake     String?
-  restrictions    String?
-  indication      String?
-  prescribedBy    String?
-  reviewDate      DateTime?
-  notes           String?
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  portionSize      String?
+  waterIntake      String?
+  restrictions     String?
+  indication       String?
+  prescribedBy     String?
+  reviewDate       DateTime?
+  notes            String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
 
   @@index([organisationId, patientId])
   @@index([encounterId])
@@ -4217,27 +4220,27 @@ enum PostOpCareStatus {
 }
 
 model PostOpCarePlan {
-  id                String          @id @default(uuid())
-  organisationId    String
-  patientId         String
-  encounterId       String?
-  surgicalProcedureId String?
-  status            PostOpCareStatus @default(ACTIVE)
-  painScore         Int?
-  analgesiaProtocol String?
+  id                    String           @id @default(uuid())
+  organisationId        String
+  patientId             String
+  encounterId           String?
+  surgicalProcedureId   String?
+  status                PostOpCareStatus @default(ACTIVE)
+  painScore             Int?
+  analgesiaProtocol     String?
   woundCareInstructions String?
   activityRestrictions  String?
-  dietaryNotes      String?
-  fluidTherapyNotes String?
-  monitoringParams  String?
-  firstReviewAt     DateTime?
-  nextReviewAt      DateTime?
-  reviewedBy        String?
-  reviewNotes       String?
-  prescribedBy      String?
-  notes             String?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  dietaryNotes          String?
+  fluidTherapyNotes     String?
+  monitoringParams      String?
+  firstReviewAt         DateTime?
+  nextReviewAt          DateTime?
+  reviewedBy            String?
+  reviewNotes           String?
+  prescribedBy          String?
+  notes                 String?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
 
   @@index([organisationId, patientId])
   @@index([encounterId])
@@ -4295,35 +4298,35 @@ enum PhysiotherapyStatus {
 }
 
 model PhysiotherapyPlan {
-  id                   String              @id @default(uuid())
-  organisationId       String
-  patientId            String
-  encounterId          String?
-  surgicalProcedureId  String?
-  diagnosis            String
-  goals                String?
-  frequency            String?
-  durationMinutes      Int?
-  totalSessions        Int?
-  exercisePrescription String?
-  hydrotherapy         Boolean             @default(false)
-  laserTherapy         Boolean             @default(false)
-  therapeuticUltrasound Boolean            @default(false)
-  massage              Boolean             @default(false)
-  acupuncture          Boolean             @default(false)
-  tapeApplication      Boolean             @default(false)
-  precautions          String?
-  homeExercises        String?
-  startDate            DateTime?
-  endDate              DateTime?
-  lastSessionAt        DateTime?
-  nextSessionAt        DateTime?
-  therapist            String?
-  prescribedBy         String?
-  status               PhysiotherapyStatus @default(ACTIVE)
-  notes                String?
-  createdAt            DateTime            @default(now())
-  updatedAt            DateTime            @updatedAt
+  id                    String              @id @default(uuid())
+  organisationId        String
+  patientId             String
+  encounterId           String?
+  surgicalProcedureId   String?
+  diagnosis             String
+  goals                 String?
+  frequency             String?
+  durationMinutes       Int?
+  totalSessions         Int?
+  exercisePrescription  String?
+  hydrotherapy          Boolean             @default(false)
+  laserTherapy          Boolean             @default(false)
+  therapeuticUltrasound Boolean             @default(false)
+  massage               Boolean             @default(false)
+  acupuncture           Boolean             @default(false)
+  tapeApplication       Boolean             @default(false)
+  precautions           String?
+  homeExercises         String?
+  startDate             DateTime?
+  endDate               DateTime?
+  lastSessionAt         DateTime?
+  nextSessionAt         DateTime?
+  therapist             String?
+  prescribedBy          String?
+  status                PhysiotherapyStatus @default(ACTIVE)
+  notes                 String?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
 
   @@index([organisationId, patientId])
   @@index([encounterId])
@@ -4688,21 +4691,21 @@ enum DentalGrade {
 }
 
 model DentalExamination {
-  id              String      @id @default(uuid())
-  organisationId  String
-  patientId       String
-  encounterId     String?
-  examinedAt      DateTime
-  examinedBy      String?
-  overallGrade    DentalGrade
-  findings        Json
-  calculusScore   Int?
-  plaqueScore     Int?
-  gingivalScore   Int?
-  procedures      String[]
-  notes           String?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id             String      @id @default(uuid())
+  organisationId String
+  patientId      String
+  encounterId    String?
+  examinedAt     DateTime
+  examinedBy     String?
+  overallGrade   DentalGrade
+  findings       Json
+  calculusScore  Int?
+  plaqueScore    Int?
+  gingivalScore  Int?
+  procedures     String[]
+  notes          String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
   @@index([organisationId, patientId])
   @@map("DentalExamination")
@@ -4730,27 +4733,27 @@ enum PregnancyStatus {
 }
 
 model ReproductiveRecord {
-  id                    String              @id @default(uuid())
-  organisationId        String
-  patientId             String
-  reproductiveStatus    ReproductiveStatus
-  lastHeatDate          DateTime?
-  nextHeatExpected      DateTime?
-  matingDate            DateTime?
-  sireId                String?
-  sireName              String?
-  pregnancyStatus       PregnancyStatus?
-  pregnancyConfirmedAt  DateTime?
-  expectedWhelp         DateTime?
-  litterSizeUltrasound  Int?
-  litterSizeXray        Int?
-  actualWhelp           DateTime?
-  litterSizeBorn        Int?
-  litterSizeAlive       Int?
-  recordedBy            String?
-  notes                 String?
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
+  id                   String             @id @default(uuid())
+  organisationId       String
+  patientId            String
+  reproductiveStatus   ReproductiveStatus
+  lastHeatDate         DateTime?
+  nextHeatExpected     DateTime?
+  matingDate           DateTime?
+  sireId               String?
+  sireName             String?
+  pregnancyStatus      PregnancyStatus?
+  pregnancyConfirmedAt DateTime?
+  expectedWhelp        DateTime?
+  litterSizeUltrasound Int?
+  litterSizeXray       Int?
+  actualWhelp          DateTime?
+  litterSizeBorn       Int?
+  litterSizeAlive      Int?
+  recordedBy           String?
+  notes                String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
 
   @@index([organisationId, patientId])
   @@map("ReproductiveRecord")
@@ -4774,32 +4777,32 @@ enum PLRResponse {
 }
 
 model OphthalmologyExamination {
-  id                  String       @id @default(uuid())
-  organisationId      String
-  patientId           String
-  encounterId         String?
-  examinedAt          DateTime
-  examinedBy          String?
-  visionLeft          VisionStatus?
-  visionRight         VisionStatus?
-  menaceLeft          Boolean?
-  menaceRight         Boolean?
-  plrDirectLeft       PLRResponse?
-  plrDirectRight      PLRResponse?
-  plrConsensualLeft   PLRResponse?
-  plrConsensualRight  PLRResponse?
-  sttLeft             Int?
-  sttRight            Int?
-  iopLeft             Decimal?
-  iopRight            Decimal?
-  fluoresceinLeft     Boolean?
-  fluoresceinRight    Boolean?
-  findingsLeft        Json?
-  findingsRight       Json?
-  diagnoses           String[]
-  notes               String?
-  createdAt           DateTime     @default(now())
-  updatedAt           DateTime     @updatedAt
+  id                 String        @id @default(uuid())
+  organisationId     String
+  patientId          String
+  encounterId        String?
+  examinedAt         DateTime
+  examinedBy         String?
+  visionLeft         VisionStatus?
+  visionRight        VisionStatus?
+  menaceLeft         Boolean?
+  menaceRight        Boolean?
+  plrDirectLeft      PLRResponse?
+  plrDirectRight     PLRResponse?
+  plrConsensualLeft  PLRResponse?
+  plrConsensualRight PLRResponse?
+  sttLeft            Int?
+  sttRight           Int?
+  iopLeft            Decimal?
+  iopRight           Decimal?
+  fluoresceinLeft    Boolean?
+  fluoresceinRight   Boolean?
+  findingsLeft       Json?
+  findingsRight      Json?
+  diagnoses          String[]
+  notes              String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
   @@index([organisationId, patientId])
   @@map("OphthalmologyExamination")
@@ -4840,7 +4843,7 @@ enum AcvimClass {
 }
 
 model CardiologyAssessment {
-  id                   String      @id @default(uuid())
+  id                   String       @id @default(uuid())
   organisationId       String
   patientId            String
   encounterId          String?
@@ -4861,8 +4864,8 @@ model CardiologyAssessment {
   findings             Json?
   diagnoses            String[]
   notes                String?
-  createdAt            DateTime    @default(now())
-  updatedAt            DateTime    @updatedAt
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
 
   @@index([organisationId, patientId])
   @@map("CardiologyAssessment")
@@ -4889,24 +4892,24 @@ enum HandlingTolerance {
 }
 
 model BehaviorAssessment {
-  id                    String            @id @default(uuid())
-  organisationId        String
-  patientId             String
-  encounterId           String?
-  assessedAt            DateTime
-  assessedBy            String?
-  fasScore              FasScore?
-  nailTrimTolerance     HandlingTolerance?
-  handlingTolerance     HandlingTolerance?
-  aggressionTriggers    String[]
-  aversionBehaviors     String[]
-  trainingHistory       String?
-  diagnoses             String[]
-  referralRecommended   Boolean?
-  fearFreeNotes         String?
-  notes                 String?
-  createdAt             DateTime          @default(now())
-  updatedAt             DateTime          @updatedAt
+  id                  String             @id @default(uuid())
+  organisationId      String
+  patientId           String
+  encounterId         String?
+  assessedAt          DateTime
+  assessedBy          String?
+  fasScore            FasScore?
+  nailTrimTolerance   HandlingTolerance?
+  handlingTolerance   HandlingTolerance?
+  aggressionTriggers  String[]
+  aversionBehaviors   String[]
+  trainingHistory     String?
+  diagnoses           String[]
+  referralRecommended Boolean?
+  fearFreeNotes       String?
+  notes               String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
 
   @@index([organisationId, patientId])
   @@map("BehaviorAssessment")
@@ -4917,25 +4920,25 @@ model BehaviorAssessment {
 // ---------------------------------------------------------------------------
 
 model DermatologyAssessment {
-  id                    String    @id @default(uuid())
-  organisationId        String
-  patientId             String
-  encounterId           String?
-  assessedAt            DateTime
-  assessedBy            String?
-  pruritusScore         Int?
-  affectedRegions       String[]
-  primaryLesions        String[]
-  secondaryLesions      String[]
-  coatQuality           String?
-  lesionMap             Json?
+  id                     String   @id @default(uuid())
+  organisationId         String
+  patientId              String
+  encounterId            String?
+  assessedAt             DateTime
+  assessedBy             String?
+  pruritusScore          Int?
+  affectedRegions        String[]
+  primaryLesions         String[]
+  secondaryLesions       String[]
+  coatQuality            String?
+  lesionMap              Json?
   environmentalAllergens String[]
-  foodTrialStatus       String?
-  cades04Score          Int?
-  diagnoses             String[]
-  notes                 String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  foodTrialStatus        String?
+  cades04Score           Int?
+  diagnoses              String[]
+  notes                  String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
   @@index([organisationId, patientId])
   @@map("DermatologyAssessment")
@@ -4961,25 +4964,25 @@ enum GaitScore {
 }
 
 model NeurologyAssessment {
-  id                    String             @id @default(uuid())
-  organisationId        String
-  patientId             String
-  encounterId           String?
-  assessedAt            DateTime
-  assessedBy            String?
-  consciousnessLevel    ConsciousnessLevel?
-  gaitScore             GaitScore?
-  cranialNerveFindings  String?
-  spinalReflexGrades    Json?
-  deepPainPresent       Boolean?
-  proprioceptionIntact  Boolean?
-  seizureHistory        Boolean?
-  seizureFrequency      String?
-  mriRecommended        Boolean?
-  diagnoses             String[]
-  notes                 String?
-  createdAt             DateTime           @default(now())
-  updatedAt             DateTime           @updatedAt
+  id                   String              @id @default(uuid())
+  organisationId       String
+  patientId            String
+  encounterId          String?
+  assessedAt           DateTime
+  assessedBy           String?
+  consciousnessLevel   ConsciousnessLevel?
+  gaitScore            GaitScore?
+  cranialNerveFindings String?
+  spinalReflexGrades   Json?
+  deepPainPresent      Boolean?
+  proprioceptionIntact Boolean?
+  seizureHistory       Boolean?
+  seizureFrequency     String?
+  mriRecommended       Boolean?
+  diagnoses            String[]
+  notes                String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
 
   @@index([organisationId, patientId])
   @@map("NeurologyAssessment")
@@ -5004,26 +5007,26 @@ enum OncologyStage {
 }
 
 model OncologyAssessment {
-  id                      String        @id @default(uuid())
-  organisationId          String
-  patientId               String
-  encounterId             String?
-  assessedAt              DateTime
-  assessedBy              String?
-  tumorType               String?
-  primaryTumorStage       String?
-  nodeStage               String?
-  metastasisStage         String?
-  overallStage            OncologyStage?
-  chemotherapyProtocol    String?
-  chemotherapyStartDate   DateTime?
-  chemotherapyCycles      Int?
-  qualityOfLifeScore      Int?
-  prognosis               String?
-  diagnoses               String[]
-  notes                   String?
-  createdAt               DateTime      @default(now())
-  updatedAt               DateTime      @updatedAt
+  id                    String         @id @default(uuid())
+  organisationId        String
+  patientId             String
+  encounterId           String?
+  assessedAt            DateTime
+  assessedBy            String?
+  tumorType             String?
+  primaryTumorStage     String?
+  nodeStage             String?
+  metastasisStage       String?
+  overallStage          OncologyStage?
+  chemotherapyProtocol  String?
+  chemotherapyStartDate DateTime?
+  chemotherapyCycles    Int?
+  qualityOfLifeScore    Int?
+  prognosis             String?
+  diagnoses             String[]
+  notes                 String?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
 
   @@index([organisationId, patientId])
   @@map("OncologyAssessment")
@@ -5050,27 +5053,27 @@ enum FeedingRoute {
 }
 
 model NutritionAssessment {
-  id                        String        @id @default(uuid())
-  organisationId            String
-  patientId                 String
-  encounterId               String?
-  assessedAt                DateTime
-  assessedBy                String?
-  appetiteScore             AppetiteScore?
-  bodyConditionScore        Int?
-  muscleConditionScore      Int?
-  currentWeightKg           Float?
-  idealWeightKg             Float?
-  restingEnergyRequirement  Float?
-  feedingRoute              FeedingRoute?
-  currentDiet               String?
-  feedingPlan               String?
-  supplementation           String[]
-  hydrationStatus           String?
-  diagnoses                 String[]
-  notes                     String?
-  createdAt                 DateTime      @default(now())
-  updatedAt                 DateTime      @updatedAt
+  id                       String         @id @default(uuid())
+  organisationId           String
+  patientId                String
+  encounterId              String?
+  assessedAt               DateTime
+  assessedBy               String?
+  appetiteScore            AppetiteScore?
+  bodyConditionScore       Int?
+  muscleConditionScore     Int?
+  currentWeightKg          Float?
+  idealWeightKg            Float?
+  restingEnergyRequirement Float?
+  feedingRoute             FeedingRoute?
+  currentDiet              String?
+  feedingPlan              String?
+  supplementation          String[]
+  hydrationStatus          String?
+  diagnoses                String[]
+  notes                    String?
+  createdAt                DateTime       @default(now())
+  updatedAt                DateTime       @updatedAt
 
   @@index([organisationId, patientId])
   @@map("NutritionAssessment")
@@ -5096,23 +5099,23 @@ enum PocTestType {
 }
 
 model PointOfCareLab {
-  id                  String       @id @default(uuid())
-  organisationId      String
-  patientId           String
-  encounterId         String?
-  conductedAt         DateTime
-  conductedBy         String?
-  testType            PocTestType
-  analyzerName        String?
-  sampleType          String?
-  results             Json
+  id                    String      @id @default(uuid())
+  organisationId        String
+  patientId             String
+  encounterId           String?
+  conductedAt           DateTime
+  conductedBy           String?
+  testType              PocTestType
+  analyzerName          String?
+  sampleType            String?
+  results               Json
   overallInterpretation String?
-  abnormalFlags       String[]
-  criticalFlags       String[]
-  followUpRecommended Boolean?
-  notes               String?
-  createdAt           DateTime     @default(now())
-  updatedAt           DateTime     @updatedAt
+  abnormalFlags         String[]
+  criticalFlags         String[]
+  followUpRecommended   Boolean?
+  notes                 String?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
 
   @@index([organisationId, patientId])
   @@index([organisationId, testType])
@@ -5144,7 +5147,7 @@ enum OrthoRating {
 }
 
 model GeneticHealthScreen {
-  id                  String            @id @default(uuid())
+  id                  String       @id @default(uuid())
   organisationId      String
   patientId           String
   encounterId         String?
@@ -5160,8 +5163,8 @@ model GeneticHealthScreen {
   certificateNumber   String?
   certificationExpiry DateTime?
   notes               String?
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
 
   @@index([organisationId, patientId])
   @@map("GeneticHealthScreen")
@@ -5172,26 +5175,26 @@ model GeneticHealthScreen {
 // ---------------------------------------------------------------------------
 
 model QualityOfLifeAssessment {
-  id               String    @id @default(uuid())
-  organisationId   String
-  patientId        String
-  encounterId      String?
-  assessedAt       DateTime
-  assessedBy       String?
-  hhhhhmmScore     Int?
-  painScore        Int?
-  appetiteScore    Int?
-  hygieneScore     Int?
-  happinessScore   Int?
-  mobilityScore    Int?
-  moreDaysGood     Boolean?
-  overallScore     Int?
-  ownerAssessed    Boolean   @default(false)
-  clinicianNotes   String?
-  ownerNotes       String?
+  id                  String   @id @default(uuid())
+  organisationId      String
+  patientId           String
+  encounterId         String?
+  assessedAt          DateTime
+  assessedBy          String?
+  hhhhhmmScore        Int?
+  painScore           Int?
+  appetiteScore       Int?
+  hygieneScore        Int?
+  happinessScore      Int?
+  mobilityScore       Int?
+  moreDaysGood        Boolean?
+  overallScore        Int?
+  ownerAssessed       Boolean  @default(false)
+  clinicianNotes      String?
+  ownerNotes          String?
   euthanasiaDiscussed Boolean?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   @@index([organisationId, patientId])
   @@map("QualityOfLifeAssessment")
@@ -5425,22 +5428,22 @@ enum BodyDispositionType {
 }
 
 model DeceasedRecord {
-  id                 String              @id @default(uuid())
+  id                 String               @id @default(uuid())
   organisationId     String
-  patientId          String              @unique
+  patientId          String               @unique
   deceasedAt         DateTime
   causeOfDeathType   CauseOfDeathType
   causeOfDeathDetail String?
   bodyWeightKg       Float?
   bodyConditionScore Int?
-  necropsyRequested  Boolean             @default(false)
+  necropsyRequested  Boolean              @default(false)
   necropsyFacility   String?
   bodyDisposition    BodyDispositionType?
   ownerNotifiedAt    DateTime?
   certifiedBy        String?
   notes              String?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
 
   @@index([organisationId, deceasedAt])
   @@map("DeceasedRecord")
@@ -5464,17 +5467,17 @@ enum ChecklistStatus {
 }
 
 model SurgicalChecklist {
-  id              String          @id @default(uuid())
-  organisationId  String
-  patientId       String
-  encounterId     String
-  phase           ChecklistPhase  @default(SIGN_IN)
-  status          ChecklistStatus @default(PENDING)
-  conductedBy     String?
-  completedAt     DateTime?
-  notes           String?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  id             String          @id @default(uuid())
+  organisationId String
+  patientId      String
+  encounterId    String
+  phase          ChecklistPhase  @default(SIGN_IN)
+  status         ChecklistStatus @default(PENDING)
+  conductedBy    String?
+  completedAt    DateTime?
+  notes          String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
   items SurgicalChecklistItem[]
 
@@ -5484,16 +5487,16 @@ model SurgicalChecklist {
 }
 
 model SurgicalChecklistItem {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   checklistId String
   label       String
-  isChecked   Boolean  @default(false)
+  isChecked   Boolean   @default(false)
   checkedBy   String?
   checkedAt   DateTime?
   notes       String?
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   checklist SurgicalChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
 
@@ -5645,28 +5648,28 @@ enum AsaClass {
 }
 
 model PreOpAssessment {
-  id                   String    @id @default(uuid())
-  organisationId       String
-  patientId            String
-  encounterId          String
-  asaClass             AsaClass  @default(ASA_I)
-  fastingStartedAt     DateTime?
-  labsReviewed         Boolean   @default(false)
-  ecgReviewed          Boolean   @default(false)
-  ownerConsentSigned   Boolean   @default(false)
-  anesthetistId        String?
-  surgeonId            String?
-  plannedProcedure     String?
-  anesthesiaType       String?
-  knownAllergies       String?
-  currentMedications   String?
-  airwayNotes          String?
-  cardiovascularNotes  String?
-  notes                String?
-  assessedBy           String?
-  assessedAt           DateTime  @default(now())
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  id                  String    @id @default(uuid())
+  organisationId      String
+  patientId           String
+  encounterId         String
+  asaClass            AsaClass  @default(ASA_I)
+  fastingStartedAt    DateTime?
+  labsReviewed        Boolean   @default(false)
+  ecgReviewed         Boolean   @default(false)
+  ownerConsentSigned  Boolean   @default(false)
+  anesthetistId       String?
+  surgeonId           String?
+  plannedProcedure    String?
+  anesthesiaType      String?
+  knownAllergies      String?
+  currentMedications  String?
+  airwayNotes         String?
+  cardiovascularNotes String?
+  notes               String?
+  assessedBy          String?
+  assessedAt          DateTime  @default(now())
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   @@index([organisationId, patientId])
   @@index([organisationId, encounterId])
@@ -5699,20 +5702,20 @@ enum IsolationLevel {
 }
 
 model IsolationProtocol {
-  id              String         @id @default(uuid())
-  organisationId  String
-  patientId       String
-  reason          IsolationReason @default(OTHER)
-  level           IsolationLevel  @default(CONTACT)
-  unitId          String?
-  startedAt       DateTime
-  endedAt         DateTime?
-  initiatedBy     String?
-  endedBy         String?
-  ppe             String[]
-  notes           String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id             String          @id @default(uuid())
+  organisationId String
+  patientId      String
+  reason         IsolationReason @default(OTHER)
+  level          IsolationLevel  @default(CONTACT)
+  unitId         String?
+  startedAt      DateTime
+  endedAt        DateTime?
+  initiatedBy    String?
+  endedBy        String?
+  ppe            String[]
+  notes          String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
   @@index([organisationId, patientId])
   @@index([organisationId, endedAt])
@@ -5732,25 +5735,25 @@ enum TransferType {
 }
 
 model PatientTransfer {
-  id                    String       @id @default(uuid())
-  organisationId        String
-  patientId             String
-  encounterId           String?
-  transferType          TransferType
-  receivingFacility     String
-  receivingVetName      String?
-  receivingVetContact   String?
-  transferredAt         DateTime
-  transferredBy         String?
-  chiefComplaint        String?
-  currentDiagnoses      String?
-  ongoingTreatments     String?
-  medicationsDispensed  String?
-  caseSummary           String?
-  criticalAlerts        String?
-  ownerInformed         Boolean      @default(false)
-  createdAt             DateTime     @default(now())
-  updatedAt             DateTime     @updatedAt
+  id                   String       @id @default(uuid())
+  organisationId       String
+  patientId            String
+  encounterId          String?
+  transferType         TransferType
+  receivingFacility    String
+  receivingVetName     String?
+  receivingVetContact  String?
+  transferredAt        DateTime
+  transferredBy        String?
+  chiefComplaint       String?
+  currentDiagnoses     String?
+  ongoingTreatments    String?
+  medicationsDispensed String?
+  caseSummary          String?
+  criticalAlerts       String?
+  ownerInformed        Boolean      @default(false)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
 
   @@index([organisationId, patientId])
   @@index([organisationId, transferredAt])
@@ -5779,7 +5782,7 @@ enum EquipmentStatus {
 }
 
 model ClinicEquipment {
-  id              String          @id @default(uuid())
+  id              String                    @id @default(uuid())
   organisationId  String
   name            String
   model           String?
@@ -5787,32 +5790,32 @@ model ClinicEquipment {
   manufacturer    String?
   purchasedAt     DateTime?
   warrantyExpiry  DateTime?
-  status          EquipmentStatus @default(OPERATIONAL)
+  status          EquipmentStatus           @default(OPERATIONAL)
   locationNotes   String?
   notes           String?
   maintenanceLogs EquipmentMaintenanceLog[]
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
 
   @@index([organisationId])
   @@map("ClinicEquipment")
 }
 
 model EquipmentMaintenanceLog {
-  id            String          @id @default(uuid())
-  equipmentId   String
-  equipment     ClinicEquipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  id              String          @id @default(uuid())
+  equipmentId     String
+  equipment       ClinicEquipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
   maintenanceType MaintenanceType
-  performedBy   String?
-  vendor        String?
-  scheduledAt   DateTime?
-  performedAt   DateTime
-  nextDueAt     DateTime?
-  cost          Float?
-  currency      String?
-  passed        Boolean?
-  notes         String?
-  createdAt     DateTime        @default(now())
+  performedBy     String?
+  vendor          String?
+  scheduledAt     DateTime?
+  performedAt     DateTime
+  nextDueAt       DateTime?
+  cost            Float?
+  currency        String?
+  passed          Boolean?
+  notes           String?
+  createdAt       DateTime        @default(now())
 
   @@index([equipmentId])
   @@index([equipmentId, performedAt])
@@ -5884,21 +5887,21 @@ enum ClinicalAlertSeverity {
 }
 
 model ClinicalAlertLog {
-  id              String                @id @default(uuid())
-  organisationId  String
-  patientId       String
-  encounterId     String?
-  alertType       ClinicalAlertType
-  severity        ClinicalAlertSeverity @default(WARNING)
-  title           String
-  body            String?
-  triggeredBy     String?
-  acknowledgedAt  DateTime?
-  acknowledgedBy  String?
+  id               String                @id @default(uuid())
+  organisationId   String
+  patientId        String
+  encounterId      String?
+  alertType        ClinicalAlertType
+  severity         ClinicalAlertSeverity @default(WARNING)
+  title            String
+  body             String?
+  triggeredBy      String?
+  acknowledgedAt   DateTime?
+  acknowledgedBy   String?
   acknowledgedNote String?
-  dismissed       Boolean               @default(false)
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
+  dismissed        Boolean               @default(false)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
 
   @@index([organisationId, patientId])
   @@index([organisationId, severity])
@@ -5926,24 +5929,24 @@ enum TelemedicineStatus {
 }
 
 model TelemedicineSession {
-  id               String               @id @default(uuid())
-  organisationId   String
-  appointmentId    String?
-  clientId         String
-  patientId        String?
-  platform         TelemedicinePlatform
-  status           TelemedicineStatus   @default(SCHEDULED)
-  startedAt        DateTime?
-  endedAt          DateTime?
-  durationMinutes  Int?
-  conductedBy      String?
-  chiefComplaint   String?
-  clinicianNotes   String?
-  followUpRequired Boolean              @default(false)
-  recordingUrl     String?
+  id                String               @id @default(uuid())
+  organisationId    String
+  appointmentId     String?
+  clientId          String
+  patientId         String?
+  platform          TelemedicinePlatform
+  status            TelemedicineStatus   @default(SCHEDULED)
+  startedAt         DateTime?
+  endedAt           DateTime?
+  durationMinutes   Int?
+  conductedBy       String?
+  chiefComplaint    String?
+  clinicianNotes    String?
+  followUpRequired  Boolean              @default(false)
+  recordingUrl      String?
   externalSessionId String?
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
 
   @@index([organisationId, clientId])
   @@index([organisationId, status])
@@ -5964,23 +5967,23 @@ enum CheckInStatus {
 }
 
 model PatientCheckIn {
-  id              String         @id @default(uuid())
-  organisationId  String
-  patientId       String
-  clientId        String
-  appointmentId   String?
-  arrivedAt       DateTime
-  triagePriority  TriagePriority @default(NON_URGENT)
-  triageNote      String?
-  assignedRoomId  String?
-  checkedInBy     String?
-  waitStartedAt   DateTime?
-  seenAt          DateTime?
-  waitMinutes     Int?
-  status          CheckInStatus  @default(WAITING)
-  notes           String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id             String         @id @default(uuid())
+  organisationId String
+  patientId      String
+  clientId       String
+  appointmentId  String?
+  arrivedAt      DateTime
+  triagePriority TriagePriority @default(NON_URGENT)
+  triageNote     String?
+  assignedRoomId String?
+  checkedInBy    String?
+  waitStartedAt  DateTime?
+  seenAt         DateTime?
+  waitMinutes    Int?
+  status         CheckInStatus  @default(WAITING)
+  notes          String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   @@index([organisationId, status])
   @@index([organisationId, patientId])
@@ -6000,7 +6003,7 @@ enum AnaesthesiaStatus {
 }
 
 model AnaesthesiaRecord {
-  id                  String             @id @default(uuid())
+  id                  String            @id @default(uuid())
   organisationId      String
   patientId           String
   encounterId         String?
@@ -6019,9 +6022,9 @@ model AnaesthesiaRecord {
   intraOpNotes        Json?
   complications       String?
   recoveryNotes       String?
-  status              AnaesthesiaStatus  @default(PLANNED)
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
+  status              AnaesthesiaStatus @default(PLANNED)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 
   @@index([organisationId, patientId])
   @@index([organisationId, status])
@@ -6109,27 +6112,27 @@ enum MedicalCertificateStatus {
 }
 
 model MedicalCertificate {
-  id              String                   @id @default(uuid())
-  organisationId  String
-  patientId       String
-  clientId        String
-  encounterId     String?
-  appointmentId   String?
-  certificateType MedicalCertificateType
-  status          MedicalCertificateStatus @default(DRAFT)
-  issueNumber     String?                  @unique
-  issuedAt        DateTime?
-  expiresAt       DateTime?
-  issuedBy        String?
-  validForTravel  Boolean                  @default(false)
+  id                 String                   @id @default(uuid())
+  organisationId     String
+  patientId          String
+  clientId           String
+  encounterId        String?
+  appointmentId      String?
+  certificateType    MedicalCertificateType
+  status             MedicalCertificateStatus @default(DRAFT)
+  issueNumber        String?                  @unique
+  issuedAt           DateTime?
+  expiresAt          DateTime?
+  issuedBy           String?
+  validForTravel     Boolean                  @default(false)
   destinationCountry String?
   clinicalFindings   String?
   restrictions       String?
   notes              String?
   revokedAt          DateTime?
   revokedReason      String?
-  createdAt       DateTime                 @default(now())
-  updatedAt       DateTime                 @updatedAt
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
 
   @@index([organisationId, patientId])
   @@index([organisationId, status])
@@ -6178,7 +6181,7 @@ model PatientFlag {
 }
 
 model InventoryCount {
-  id              String   @id @default(uuid())
+  id              String    @id @default(uuid())
   organisationId  String
   inventoryItemId String
   countedBy       String?
@@ -6187,11 +6190,11 @@ model InventoryCount {
   physicalCount   Int
   discrepancy     Int
   notes           String?
-  reconciled      Boolean  @default(false)
+  reconciled      Boolean   @default(false)
   reconciledAt    DateTime?
   reconciledBy    String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@index([organisationId, inventoryItemId])
   @@index([organisationId, countedAt])
@@ -6234,13 +6237,13 @@ model ClinicNote {
 // ─── ActivityPub Federation ───────────────────────────────────────────────────
 
 model APActor {
-  id                String       @id @default(uuid())
-  organisationId    String?      @unique
-  uri               String       @unique
-  preferredUsername String       @unique
+  id                String   @id @default(uuid())
+  organisationId    String?  @unique
+  uri               String   @unique
+  preferredUsername String   @unique
   publicKeyPem      String
   privateKeyPem     String
-  publicKeyId       String       @unique
+  publicKeyId       String   @unique
   inboxUri          String
   outboxUri         String
   followersUri      String
@@ -6249,13 +6252,13 @@ model APActor {
   summary           String?
   iconUrl           String?
   licenseToken      String?
-  directoryListed   Boolean      @default(false)
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
+  directoryListed   Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  followers         APFollower[] @relation("LocalActorFollowers")
-  following         APFollowing[]
-  activities        APActivity[]
+  followers  APFollower[]  @relation("LocalActorFollowers")
+  following  APFollowing[]
+  activities APActivity[]
 }
 
 model APFollower {
@@ -6269,7 +6272,7 @@ model APFollower {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
-  localActor     APActor         @relation("LocalActorFollowers", fields: [localActorId], references: [id])
+  localActor APActor @relation("LocalActorFollowers", fields: [localActorId], references: [id])
 
   @@unique([localActorId, remoteActorUri])
   @@index([localActorId])
@@ -6287,7 +6290,7 @@ model APFollowing {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
-  localActor     APActor          @relation(fields: [localActorId], references: [id])
+  localActor APActor @relation(fields: [localActorId], references: [id])
 
   @@unique([localActorId, remoteActorUri])
   @@index([localActorId])
@@ -6313,22 +6316,22 @@ model APRemoteActor {
 }
 
 model APActivity {
-  id            String       @id @default(uuid())
-  uri           String       @unique
-  type          String
-  localActorId  String
-  objectUri     String?
-  objectJson    Json?
-  targetUri     String?
-  toAddresses   String[]
-  ccAddresses   String[]
-  published     DateTime
-  processed     Boolean      @default(false)
-  direction     APDirection  @default(OUTBOUND)
-  rawJson       Json
-  createdAt     DateTime     @default(now())
+  id           String      @id @default(uuid())
+  uri          String      @unique
+  type         String
+  localActorId String
+  objectUri    String?
+  objectJson   Json?
+  targetUri    String?
+  toAddresses  String[]
+  ccAddresses  String[]
+  published    DateTime
+  processed    Boolean     @default(false)
+  direction    APDirection @default(OUTBOUND)
+  rawJson      Json
+  createdAt    DateTime    @default(now())
 
-  localActor    APActor      @relation(fields: [localActorId], references: [id])
+  localActor APActor @relation(fields: [localActorId], references: [id])
 
   @@index([localActorId])
   @@index([type])
@@ -6337,20 +6340,20 @@ model APActivity {
 }
 
 model APReferral {
-  id              String             @id @default(uuid())
-  activityUri     String             @unique
+  id              String            @id @default(uuid())
+  activityUri     String            @unique
   fromActorUri    String
   toActorUri      String
   fromOrgId       String?
   toOrgId         String?
   patientSummary  Json
   clinicalContext String?
-  urgency         APReferralUrgency  @default(ROUTINE)
-  state           APReferralState    @default(PENDING)
+  urgency         APReferralUrgency @default(ROUTINE)
+  state           APReferralState   @default(PENDING)
   acceptedAt      DateTime?
   declinedAt      DateTime?
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
   @@index([fromActorUri])
   @@index([toActorUri])
@@ -6386,4 +6389,89 @@ enum APReferralUrgency {
   ROUTINE
   URGENT
   EMERGENCY
+}
+
+/// Strength of the source behind a recommendation rule.
+///
+/// An ACVIM consensus statement and a single forty-dog retrospective are not the
+/// same thing, and a table that treats them alike will not survive contact with a
+/// vet. Ordered strongest first.
+enum RecommendationEvidenceGrade {
+  CONSENSUS_STATEMENT
+  PRACTICE_GUIDELINE
+  POPULATION_STUDY
+  COHORT_STUDY
+  CASE_SERIES
+  EXPERT_OPINION
+}
+
+/// A husbandry task recommended for a species, breed and age window, with the
+/// source it comes from.
+///
+/// Separate from TaskLibraryDefinition on purpose. The definition is the TASK
+/// ("Log weight"); this is the INDICATION ("for a Cavalier over five, because
+/// MMVD"). One definition can be recommended by several rules with different age
+/// windows and different sources, which breed arrays bolted onto the definition
+/// could not express.
+///
+/// Recommends husbandry, never diagnosis. The rendered copy says "commonly
+/// recommended for this breed" with the citation visible; nothing here may be
+/// phrased as a claim about the individual animal.
+model TaskRecommendationRule {
+  id String @id @default(uuid())
+
+  /// Matches TaskLibraryDefinition.applicableSpecies, so a rule cannot recommend
+  /// a task to a species the task does not support.
+  species TaskLibrarySpecies
+
+  /// Canonical breed codes this applies to, e.g. YBREED:CANINE:CAVALIER_KING_CHARLES_SPANIEL.
+  /// Empty means the rule is species-wide - the life-stage tasks most animals get.
+  ///
+  /// Stored canonically (hyphens folded to underscores, upper case) because the
+  /// vocabulary holds 36 breeds under BOTH separator conventions; comparing these
+  /// literally would silently miss every patient coded the other way.
+  breedCodes String[] @default([])
+
+  /// Half-open age window in months: [minAgeMonths, maxAgeMonths). Null is open.
+  /// Months rather than years because the feline and canine life-stage guidelines
+  /// are finer than a year in the first two.
+  minAgeMonths Int?
+  maxAgeMonths Int?
+
+  taskDefinitionId String
+  taskDefinition   TaskLibraryDefinition @relation(fields: [taskDefinitionId], references: [id])
+
+  /// Shown as-is to the parent. Husbandry phrasing, no diagnosis.
+  recommendationText String
+
+  /// Structured so the app can render a real citation rather than a bare link.
+  citationAuthors String
+  citationTitle   String
+  citationSource  String
+  citationYear    Int
+  citationDoi     String?
+  citationUrl     String?
+
+  /// The specific claim in the source that this rule rests on. This is what a vet
+  /// argues with, so it has to be the sentence, not the paper.
+  citationClaim String
+
+  evidenceGrade RecommendationEvidenceGrade
+
+  /// Attestation, same shape the passport already uses. A citation with no review
+  /// date rots silently: three years on, nobody knows whether it still stands.
+  lastReviewedAt DateTime?
+  reviewedBy     String?
+  nextReviewDue  DateTime?
+
+  /// Both must hold before a rule is served. `isActive` alone is not enough - a
+  /// rule reaches pet parents only once a named reviewer has signed it off, which
+  /// is why seeded rules land inactive and unreviewed.
+  isActive Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([species, isActive])
+  @@index([taskDefinitionId])
 }

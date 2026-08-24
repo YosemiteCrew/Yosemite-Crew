@@ -38,6 +38,18 @@ GIT_REF="${3:?git ref required}"
 SMOKE_PORT="${4:-8099}"
 
 NODE_BIN="${NODE_BIN:-$HOME/.nvm/versions/node/v22.21.1/bin}"
+
+# lib/ has to travel WITH this script. Copying api-deploy.sh alone leaves this
+# looking for a helper that is not on the box, and bash exits before preflight
+# with a bare "No such file or directory" - so say what is actually wrong.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ ! -r "$SCRIPT_DIR/lib/git-sync.sh" ]; then
+  echo "missing $SCRIPT_DIR/lib/git-sync.sh" >&2
+  echo "Copy the whole scripts/deploy directory to the host, not just this file." >&2
+  exit 1
+fi
+# shellcheck source=lib/git-sync.sh
+. "$SCRIPT_DIR/lib/git-sync.sh"
 export PATH="$NODE_BIN:$PATH"
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
 
@@ -56,9 +68,11 @@ cp apps/backend/.env "/tmp/api-env-before-$STAMP" 2>/dev/null || true
 echo "backups: /tmp/api-dist-before-$STAMP.tgz  /tmp/api-env-before-$STAMP"
 
 say "checkout $GIT_REF"
-git fetch --quiet origin "$GIT_REF" || git fetch --quiet origin
-git checkout --detach "$(git rev-parse "origin/$GIT_REF" 2>/dev/null || echo "$GIT_REF")" --quiet
-git rev-parse --short HEAD
+# Fetch and checkout live in lib/git-sync.sh so their two failure modes - a stale
+# parent ref breaking the whole fetch, and a qualified `origin/dev` being sent to
+# the remote as a branch name - are covered by tests/git-sync.test.sh against a
+# real remote, rather than only being found on a live box.
+deploy_git_sync "$REPO_DIR" "$GIT_REF"
 
 say "install"
 pnpm install --frozen-lockfile
