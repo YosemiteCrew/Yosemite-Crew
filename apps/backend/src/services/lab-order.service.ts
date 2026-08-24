@@ -325,6 +325,9 @@ export const LabOrderService = {
           externalStatus: result.externalStatus ?? null,
           requestPayload: toJsonInput(result.requestPayload),
           responsePayload: toJsonInput(result.responsePayload),
+          // Persisted rather than logged: the clinic reading this result needs to know
+          // the breed on the requisition was not the breed on the record.
+          breedSubstitution: toJsonInput(result.breedSubstitution ?? undefined),
           modality: input.modality ?? labOrder.modality,
           ivls: toJsonInput(input.ivls),
         },

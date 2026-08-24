@@ -126,8 +126,18 @@ export const resolveIdexxBreedCode = async (args: {
     ? await findIdexxTargetCode(fallbackSource)
     : null;
 
-  if (!fallbackTarget || !fallbackSource) {
+  if (!fallbackSource) {
+    // No catch-all is configured for this species, so the unmapped breed is the thing
+    // the caller has to act on.
     throw mappingError(requested ?? args.speciesCode, "breed");
+  }
+
+  if (!fallbackTarget) {
+    // The species has a catch-all but its own mapping is missing or inactive, which
+    // happens after an incomplete reference sync. Naming the requested breed here would
+    // send someone to fix the one thing that is behaving exactly as designed: an
+    // unmapped breed is the condition this fallback exists for.
+    throw mappingError(fallbackSource, "breed");
   }
 
   return {

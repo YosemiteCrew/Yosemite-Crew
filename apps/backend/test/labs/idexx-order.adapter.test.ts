@@ -328,6 +328,25 @@ describe("IdexxOrderAdapter", () => {
       });
     });
 
+    it("names the fallback mapping when that is what is missing", async () => {
+      // After an incomplete reference sync the species catch-all exists but its mapping
+      // does not. Reporting the requested breed would point at the one thing working as
+      // designed: an unmapped breed is the condition the fallback exists for.
+      prismaMock.patient.findUnique.mockResolvedValue({
+        ...baseCompanion,
+        speciesCode: "YSPEC:CANINE",
+        breedCode: "YBREED:CANINE:SPINONE_ITALIANO",
+      });
+      prismaMock.codeMapping.findFirst.mockImplementation(
+        async ({ where }: any) =>
+          where.sourceCode === "YSPEC:CANINE" ? { targetCode: "CANINE" } : null,
+      );
+
+      await expect(order()).rejects.toThrow(
+        "Missing IDEXX mapping for code YBREED:CANINE:CANINE_OTHER.",
+      );
+    });
+
     it("still fails when the species has no catch-all breed", async () => {
       // A fallback is only honest where IDEXX actually publishes one. Inventing a
       // breed for an unsupported species would put a false animal on the order.

@@ -331,6 +331,9 @@ model LabOrder {
   ivls                   Json?
   requestPayload         Json?
   responsePayload        Json?
+  /// Set when the breed sent to the provider was a species-level substitute rather than
+  /// the companion's recorded breed, so a clinic reading the result can see it.
+  breedSubstitution      Json?
   error                  String?
   externalStatus         String?
   invoiceId              String?
