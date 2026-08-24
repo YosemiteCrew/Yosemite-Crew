@@ -11,6 +11,13 @@ name: Deploy API
 # someone makes, not a side effect of merging. What this removes is the drift and
 # the laptop, not the judgement.
 on:
+  # The deploy itself stays manual (see below). The unit tests for its git-sync
+  # step do not: they are the only thing standing between a refspec edit and a
+  # deploy that stops on a ref-lock error, which is how this script first failed.
+  pull_request:
+    paths:
+      - 'scripts/deploy/**'
+      - '.github/workflows/deploy-api.yml'
   workflow_dispatch:
     inputs:
       environment:
@@ -31,11 +38,31 @@ permissions:
 # between `git checkout` and `pm2 restart` leaves the box on new source with an
 # old bundle.
 concurrency:
-  group: deploy-api-${{ inputs.environment }}
+  # Keyed by event as well as host: a PR running the unit tests must not queue
+  # behind a deploy, and two PRs must not serialise against each other.
+  group: deploy-api-${{ github.event_name }}-${{ inputs.environment || github.ref }}
   cancel-in-progress: false
 
 jobs:
+  git-sync-tests:
+    name: git-sync unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Run deploy git-sync tests
+        run: ./scripts/deploy/tests/git-sync.test.sh
+
   deploy:
+    # Only ever on an explicit dispatch. The pull_request trigger above exists for
+    # the unit-test job; without this guard it would also start a real deploy, with
+    # an empty `environment` input, on every PR that touches scripts/deploy.
+    if: github.event_name == 'workflow_dispatch'
+    # The tests gate the deploy rather than running beside it. Without this the two
+    # jobs start together on a dispatch, and a broken ref-sync change could reach a
+    # live host while its own suite was still going red in parallel.
+    needs: git-sync-tests
     name: Deploy API (${{ inputs.environment }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -97,14 +124,20 @@ jobs:
           TARGET_REF="${REF:-$DEFAULT_REF}"
           echo "Deploying $TARGET_REF to $HOST ($REPO)"
 
-          # Ship the script from THIS checkout rather than trusting whatever
-          # version happens to be on the box.
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
-            scripts/deploy/api-deploy.sh "ubuntu@$HOST:/tmp/api-deploy.sh"
+          # Ship the whole deploy directory from THIS checkout rather than
+          # trusting whatever version happens to be on the box. The directory,
+          # not just the entry script: api-deploy.sh sources lib/git-sync.sh
+          # relative to its own location, so copying the one file would leave it
+          # looking for a helper that is not there and exit before preflight.
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "ubuntu@$HOST" \
+            "rm -rf /tmp/yc-deploy && mkdir -p /tmp/yc-deploy"
+
+          scp -r -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            scripts/deploy/. "ubuntu@$HOST:/tmp/yc-deploy/"
 
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
             -o ServerAliveInterval=30 "ubuntu@$HOST" \
-            "chmod +x /tmp/api-deploy.sh && /tmp/api-deploy.sh '$REPO' '$PM2_TARGET' '$TARGET_REF'"
+            "chmod +x /tmp/yc-deploy/api-deploy.sh && /tmp/yc-deploy/api-deploy.sh '$REPO' '$PM2_TARGET' '$TARGET_REF'"
 
       - name: Verify from outside
         shell: bash
