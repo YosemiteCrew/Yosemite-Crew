@@ -11,6 +11,7 @@ import {
   withTaskOrgPermissions,
 } from "src/middlewares/rbac";
 import { requireCompanionPermission } from "src/middlewares/companion-access";
+import { TaskRecommendationController } from "src/controllers/app/task-recommendation.controller";
 
 const router = Router();
 
@@ -37,6 +38,16 @@ router.get(
   requireMobileAuth,
   requireCompanionPermission("tasks", "patientId"),
   TaskController.listForCompanion,
+);
+
+// Behind the same co-parent gate as the companion's task list. The rules are
+// health-adjacent, and a co-parent whose tasks switch is off should not be able
+// to read what has been recommended for the companion either.
+router.get(
+  "/mobile/companion/:patientId/recommendations",
+  requireMobileAuth,
+  requireCompanionPermission("tasks", "patientId"),
+  TaskRecommendationController.listForCompanion,
 );
 
 /* ─────────────────────────────────────────────────
