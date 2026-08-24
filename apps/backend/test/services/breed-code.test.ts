@@ -29,6 +29,14 @@ describe("canonicalBreedCode", () => {
     expect(canonicalBreedCode("YBREED:CANINE:A__B")).toBe("YBREED:CANINE:A_B");
   });
 
+  it("keeps a single separator at the edges rather than eating it", () => {
+    // A split/filter/join collapse would drop these. Not reachable from the
+    // picker, but the function is the one place codes are normalised and it
+    // should not quietly rewrite its input beyond what it claims to do.
+    expect(canonicalBreedCode("_A_B_")).toBe("_A_B_");
+    expect(canonicalBreedCode("__A__B__")).toBe("_A_B_");
+  });
+
   it("returns null for anything unusable", () => {
     expect(canonicalBreedCode(null)).toBeNull();
     expect(canonicalBreedCode(undefined)).toBeNull();

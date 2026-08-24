@@ -16,13 +16,32 @@
  * and a recommendation that is silently absent looks exactly like a breed with
  * no guidance for it. Comparing canonical forms is what stops that.
  */
+/**
+ * Collapse runs of separators, without a regular expression.
+ *
+ * `/_{2,}/g` would read more compactly, but the security scan flags a quantified
+ * pattern applied to caller-supplied text, and a breed code is not worth
+ * arguing the point over. This is also exact at the edges: a single leading or
+ * trailing separator survives, where a split/filter/join would silently eat it.
+ */
+const collapseSeparators = (value: string): string => {
+  let out = "";
+  let previousWasSeparator = false;
+  for (const char of value) {
+    const isSeparator = char === "_";
+    if (!isSeparator || !previousWasSeparator) out += char;
+    previousWasSeparator = isSeparator;
+  }
+  return out;
+};
+
 export const canonicalBreedCode = (
   code: string | null | undefined,
 ): string | null => {
   if (typeof code !== "string") return null;
   const trimmed = code.trim();
   if (!trimmed) return null;
-  return trimmed.toUpperCase().replaceAll("-", "_").replaceAll(/_{2,}/g, "_");
+  return collapseSeparators(trimmed.toUpperCase().replaceAll("-", "_"));
 };
 
 /** True when two breed codes name the same breed, whichever convention each uses. */
