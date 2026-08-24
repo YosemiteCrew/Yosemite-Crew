@@ -13,6 +13,7 @@ import {
   classifyStatus,
   scopeOf,
   affectedAreaOf,
+  targetDateFor,
 } from './classify.mjs';
 
 const cat = (o) => classifyCategory(o).category;
@@ -168,4 +169,46 @@ test('a bug that stops people using the product outranks a cosmetic bug', () => 
     }),
     PRIORITIES.URGENT
   );
+});
+
+// The roadmap timeline plotted start dates only, so every bar recorded when an
+// issue was FILED rather than when it might land. These targets are what give a
+// bar somewhere to point.
+test('a target date is measured from the run date, not the filing date', () => {
+  // An urgent issue opened months ago must not be handed a target in the past.
+  assert.equal(targetDateFor(PRIORITIES.URGENT, '2026-08-22'), '2026-09-05');
+  assert.equal(targetDateFor(PRIORITIES.HIGH, '2026-08-22'), '2026-10-03');
+  assert.equal(targetDateFor(PRIORITIES.NORMAL, '2026-08-22'), '2026-11-21');
+  assert.equal(targetDateFor(PRIORITIES.LOW, '2026-08-22'), '2027-02-20');
+});
+
+test('target dates are ordered by urgency', () => {
+  const on = (p) => targetDateFor(p, '2026-08-22');
+  assert.ok(on(PRIORITIES.URGENT) < on(PRIORITIES.HIGH));
+  assert.ok(on(PRIORITIES.HIGH) < on(PRIORITIES.NORMAL));
+  assert.ok(on(PRIORITIES.NORMAL) < on(PRIORITIES.LOW));
+});
+
+test('target dates cross month and year boundaries correctly', () => {
+  assert.equal(targetDateFor(PRIORITIES.URGENT, '2026-12-28'), '2027-01-11');
+  // 2028 is a leap year, so February has 29 days.
+  assert.equal(targetDateFor(PRIORITIES.URGENT, '2028-02-20'), '2028-03-05');
+});
+
+test('an unknown priority falls back to the normal horizon rather than throwing', () => {
+  assert.equal(
+    targetDateFor(undefined, '2026-08-22'),
+    targetDateFor(PRIORITIES.NORMAL, '2026-08-22')
+  );
+});
+
+test('a full timestamp is accepted as well as a plain date', () => {
+  assert.equal(
+    targetDateFor(PRIORITIES.URGENT, '2026-08-22T14:03:11Z'),
+    targetDateFor(PRIORITIES.URGENT, '2026-08-22')
+  );
+});
+
+test('a nonsense date is rejected rather than silently producing NaN', () => {
+  assert.throws(() => targetDateFor(PRIORITIES.URGENT, 'not-a-date'), /bad date/);
 });

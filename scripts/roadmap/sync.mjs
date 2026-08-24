@@ -34,6 +34,7 @@ import {
   classifyCategory,
   classifyPriority,
   classifyStatus,
+  targetDateFor,
 } from './classify.mjs';
 
 const OWNER = env.ROADMAP_OWNER || 'YosemiteCrew';
@@ -275,7 +276,7 @@ async function addMissingIssues({ project, openIssues, byContentId, live, action
 // Empty cells only, with one exception: an OPEN issue sitting in Completed is
 // corrected. That specific lie is the reason this script exists, so it outranks
 // the general rule that a human's edit is left alone.
-async function reconcileIssue({ issue, item, setSelect, setDate, actions }) {
+async function reconcileIssue({ issue, item, setSelect, setDate, actions, today }) {
   const ref = `#${issue.number}`;
   const labels = (issue.labels?.nodes || []).map((l) => l.name);
 
@@ -289,14 +290,24 @@ async function reconcileIssue({ issue, item, setSelect, setDate, actions }) {
     else actions.uncategorised.push(`${ref} ${issue.title.slice(0, 70)} (${reason})`);
   }
 
-  if (!fieldValue(item, 'Priority')) {
-    await setSelect(item, 'Priority', classifyPriority({ labels, title: issue.title }), ref);
+  // Held in a variable because the target date below depends on it, and a value a
+  // human already set must drive that target rather than the derived one.
+  let priority = fieldValue(item, 'Priority');
+  if (!priority) {
+    priority = classifyPriority({ labels, title: issue.title });
+    await setSelect(item, 'Priority', priority, ref);
   }
 
   // The roadmap view is a timeline. Without a start date an item does not plot at
   // all, which is why the board's ROADMAP_LAYOUT view had been rendering empty.
   if (!fieldValue(item, 'Start date')) {
     await setDate(item, 'Start date', issue.createdAt, ref);
+  }
+
+  // A start date alone plots a bar that ends the day it began, so the timeline
+  // shows only where work came from. The target gives it somewhere to point.
+  if (!fieldValue(item, 'End date')) {
+    await setDate(item, 'End date', targetDateFor(priority, today), ref);
   }
 
   const current = fieldValue(item, 'Status');
@@ -325,7 +336,10 @@ async function retireCompleted({ project, live, cutoff, setSelect, setDate, acti
       if (fieldValue(item, 'Status') !== STATUSES.COMPLETED) {
         await setSelect(item, 'Status', STATUSES.COMPLETED, `#${c.number}`);
       }
-      if (!fieldValue(item, 'End date')) {
+      // Overwrite, not fill. Any End date on a closed item is the estimate it
+      // carried while open, and an estimate never outranks the date it actually
+      // landed - the same reason Status is forced to Completed here.
+      if (fieldValue(item, 'End date') !== c.closedAt.slice(0, 10)) {
         await setDate(item, 'End date', c.closedAt, `#${c.number}`);
       }
       continue;
@@ -384,6 +398,8 @@ async function main() {
 
   const actions = { added: [], archived: [], updated: [], uncategorised: [], skipped: [] };
   const { setSelect, setDate } = makeWriters({ project, fields, optionId, actions });
+  // One clock reading for the whole run, so every target set today agrees.
+  const today = new Date().toISOString().slice(0, 10);
 
   await addMissingIssues({ project, openIssues, byContentId, live, actions });
 
@@ -394,6 +410,7 @@ async function main() {
       setSelect,
       setDate,
       actions,
+      today,
     });
   }
 

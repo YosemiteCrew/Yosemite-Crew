@@ -202,6 +202,36 @@ export function classifyPriority({ labels = [], title = '' } = {}) {
   return PRIORITIES.NORMAL;
 }
 
+// How far out a target date is set, per priority, in days.
+//
+// These are ESTIMATES the board publishes, not commitments anyone has made, so
+// they are deliberately coarse: a fortnight, six weeks, a quarter, half a year.
+// sync.mjs only ever writes them into an EMPTY cell, so the moment a human puts a
+// real date on an item the estimate is gone for good and never comes back.
+//
+// Without them the roadmap timeline plots start dates only, which means every bar
+// records when an issue was FILED rather than when it is expected to land - a
+// history chart wearing a roadmap's clothes.
+export const TARGET_DAYS = {
+  [PRIORITIES.URGENT]: 14,
+  [PRIORITIES.HIGH]: 42,
+  [PRIORITIES.NORMAL]: 91,
+  [PRIORITIES.LOW]: 182,
+};
+
+/**
+ * A target date for open work, measured from the run date rather than from when
+ * the issue was filed. Anchoring to the filing date would hand an urgent issue
+ * opened two months ago a target that has already passed.
+ */
+export function targetDateFor(priority, fromISO) {
+  const days = TARGET_DAYS[priority] ?? TARGET_DAYS[PRIORITIES.NORMAL];
+  const d = new Date(`${String(fromISO).slice(0, 10)}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) throw new Error(`targetDateFor: bad date ${fromISO}`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 /**
  * Status from the issue's own state.
  *
