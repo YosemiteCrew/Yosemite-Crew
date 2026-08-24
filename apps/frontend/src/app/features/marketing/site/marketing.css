@@ -678,7 +678,12 @@ select.yc-field {
 @media (max-width: 860px) {
   [data-yc-lanes] {
     display: grid !important;
-    grid-template-columns: 1fr 1fr;
+    /* minmax(0, 1fr), not 1fr. A bare 1fr keeps an automatic min-content floor,
+       so a track cannot shrink below its widest unbreakable child - and the
+       segments are nowrap. RELEASING.md specifies mobile tags as
+       mobile-vX.Y.Z-iOS-vA.B, so a real one strips to v1.0.12-ios-v1.0.7, wide
+       enough to push both tracks past the hero and clip the strip. */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     border-radius: 16px !important;
     padding: 4px !important;
     gap: 2px;
@@ -704,6 +709,15 @@ select.yc-field {
     padding: 5px 8px !important;
     font-size: 12px !important;
     line-height: 1.5;
+    min-width: 0;
+  }
+  /* The product name stays on one line; the version is what can get long, so it
+     is the piece allowed to break. `anywhere` rather than `break-word` because
+     a version has no spaces to break at. */
+  [data-yc-lane] > span:nth-child(2) {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    min-width: 0;
   }
   /* The hero centres its text, which a full-width second line inherits - the date would sit
      centred under a left-aligned name. */
