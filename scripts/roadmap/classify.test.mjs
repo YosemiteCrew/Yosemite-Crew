@@ -4,6 +4,7 @@
 // regression test so the ordering cannot be casually rearranged.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { buildLinkedPrMap } from './sync.mjs';
 import {
   CATEGORIES,
   PRIORITIES,
@@ -14,6 +15,7 @@ import {
   scopeOf,
   affectedAreaOf,
   targetDateFor,
+  STATUS_RANK,
 } from './classify.mjs';
 
 const cat = (o) => classifyCategory(o).category;
@@ -158,7 +160,7 @@ test('priority starts from the labels a human already applied', () => {
   assert.equal(classifyPriority({ labels: ['security'] }), PRIORITIES.URGENT);
   assert.equal(classifyPriority({ labels: ['future-scope'] }), PRIORITIES.LOW);
   assert.equal(classifyPriority({ labels: ['bug'], title: 'contrast is low' }), PRIORITIES.HIGH);
-  assert.equal(classifyPriority({ labels: [] }), PRIORITIES.NORMAL);
+  assert.equal(classifyPriority({ labels: ['enhancement'] }), PRIORITIES.NORMAL);
 });
 
 test('a bug that stops people using the product outranks a cosmetic bug', () => {
@@ -211,4 +213,72 @@ test('a full timestamp is accepted as well as a plain date', () => {
 
 test('a nonsense date is rejected rather than silently producing NaN', () => {
   assert.throws(() => targetDateFor(PRIORITIES.URGENT, 'not-a-date'), /bad date/);
+});
+
+// The sync fires within ~20s of `issues: opened`, before any human has labelled
+// the issue. Defaulting to Normal there, combined with the fill-once write rule,
+// published #2444 and #2472 - both labelled `security` - on the PUBLIC roadmap as
+// Normal with a 2026-11-23 target instead of Urgent / 2026-09-07, and no later
+// run could correct them.
+test('an unlabelled issue has NO derived priority, rather than defaulting to Normal', () => {
+  assert.equal(classifyPriority({ labels: [], title: 'Anything at all' }), null);
+  assert.equal(classifyPriority({ labels: ['Backend'], title: 'x' }), null);
+});
+
+test('a priority-bearing label added later does produce a priority', () => {
+  assert.equal(
+    classifyPriority({ labels: ['Backend', 'security'], title: 'x' }),
+    PRIORITIES.URGENT
+  );
+  assert.equal(classifyPriority({ labels: ['bug', 'Backend'], title: 'x' }), PRIORITIES.HIGH);
+});
+
+// Closing as "not planned" is abandonment. Publishing it as Completed on a public
+// roadmap advertises cancelled scope as delivered, with a fabricated date.
+test('an issue closed as not planned is not a completion', () => {
+  assert.equal(classifyStatus({ state: 'CLOSED', stateReason: 'NOT_PLANNED' }), null);
+  assert.equal(classifyStatus({ state: 'CLOSED', stateReason: 'COMPLETED' }), STATUSES.COMPLETED);
+  assert.equal(classifyStatus({ state: 'CLOSED' }), STATUSES.COMPLETED);
+});
+
+test('status ranks let the sync move an item forward but never backward', () => {
+  assert.ok(STATUS_RANK[STATUSES.NOT_STARTED] < STATUS_RANK[STATUSES.IN_PROGRESS]);
+  assert.ok(STATUS_RANK[STATUSES.IN_PROGRESS] < STATUS_RANK[STATUSES.UNDER_TESTING]);
+  assert.ok(STATUS_RANK[STATUSES.UNDER_TESTING] < STATUS_RANK[STATUSES.COMPLETED]);
+});
+
+// closedByPullRequestsReferences is empty for every issue in this repo, because
+// GitHub only records a closing reference for PRs targeting the DEFAULT branch
+// and every PR here targets `dev`. The map is built from the PRs instead.
+test('linked PRs are recovered from closing keywords in the PR title and body', () => {
+  const map = buildLinkedPrMap([
+    { number: 10, state: 'OPEN', isDraft: false, title: 'fix(x): thing', body: 'Fixes #123' },
+    { number: 11, state: 'OPEN', isDraft: true, title: 'closes #124', body: '' },
+    { number: 12, state: 'OPEN', isDraft: false, title: 'unrelated', body: 'see #123 for context' },
+  ]);
+  assert.deepEqual(map.get(123), [{ number: 10, state: 'OPEN', isDraft: false }]);
+  assert.deepEqual(map.get(124), [{ number: 11, state: 'OPEN', isDraft: true }]);
+  // A bare "#123" mention is not a closing reference and must not count as work started.
+  assert.equal(map.get(123).length, 1);
+});
+
+test('the structured closing reference is unioned in, without duplicating a PR', () => {
+  const map = buildLinkedPrMap([
+    {
+      number: 10,
+      state: 'OPEN',
+      isDraft: false,
+      title: 'Fixes #123',
+      body: '',
+      closingIssuesReferences: { nodes: [{ number: 123 }] },
+    },
+  ]);
+  assert.equal(map.get(123).length, 1);
+});
+
+test('an issue with a ready linked PR reaches Under Testing', () => {
+  const map = buildLinkedPrMap([
+    { number: 10, state: 'OPEN', isDraft: false, title: 'Fixes #500', body: '' },
+  ]);
+  assert.equal(classifyStatus({ state: 'OPEN', linkedPrs: map.get(500) }), STATUSES.UNDER_TESTING);
 });

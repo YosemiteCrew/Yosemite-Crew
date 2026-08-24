@@ -21,8 +21,9 @@
 // makes roadmaps read as though no product work is happening.
 
 // Category option names. These must match the single-select options on the board;
-// sync.mjs resolves them by name and refuses to run if one is missing, so a
-// rename here fails loudly instead of silently dropping items into no column.
+// sync.mjs resolves them by name at runtime and validates the whole option set
+// on startup, so renaming or deleting one in the project UI fails the run loudly
+// instead of silently skipping every item that maps to it.
 export const CATEGORIES = {
   MOBILE: 'Mobile App',
   PMS: 'Web PMS',
@@ -180,12 +181,27 @@ export function classifyCategory({ title = '', body = '', labels = [] } = {}) {
   return { category: null, reason: 'no usable signal' };
 }
 
+// How far along each status is. sync.mjs re-derives Status on every run and only
+// ever moves an item FORWARD by this rank, so a human who set "Under Testing" by
+// hand keeps it while a genuine advance still lands. The one licensed move
+// backwards is an OPEN issue parked in Completed, which is the lie the whole
+// script exists to correct.
+export const STATUS_RANK = {
+  [STATUSES.NOT_STARTED]: 0,
+  [STATUSES.IN_PROGRESS]: 1,
+  [STATUSES.UNDER_TESTING]: 2,
+  [STATUSES.COMPLETED]: 3,
+};
+
 /**
  * Priority from the labels a human already applied.
  *
  * Kept crude on purpose. The board lets a human override any cell, and sync.mjs
  * never overwrites a value that is already set, so this only has to produce a
- * sane starting point for a brand new issue.
+ * sane starting point.
+ *
+ * Returns null when the issue carries no label this can judge, which sync.mjs
+ * treats as "do not write". An unlabelled issue is untriaged, not Normal.
  */
 export function classifyPriority({ labels = [], title = '' } = {}) {
   if (has(labels, 'security')) return PRIORITIES.URGENT;
@@ -199,7 +215,16 @@ export function classifyPriority({ labels = [], title = '' } = {}) {
   }
   if (has(labels, 'bug')) return PRIORITIES.HIGH;
   if (has(labels, 'future-scope')) return PRIORITIES.LOW;
-  return PRIORITIES.NORMAL;
+  if (has(labels, 'enhancement') || has(labels, 'documentation')) return PRIORITIES.NORMAL;
+
+  // No priority-bearing label yet, so there is nothing to judge on. Returning
+  // Normal here is what published two `security` issues on the public roadmap as
+  // Normal with a 91-day target: the sync runs within ~20s of `issues: opened`,
+  // long before a human labels anything, and sync.mjs only ever fills an EMPTY
+  // cell - so that first guess was permanent and the later `labeled` event could
+  // not correct it. Return null instead and let the cell stay empty until the
+  // labels exist; the `labeled` run then fills it correctly.
+  return null;
 }
 
 // How far out a target date is set, per priority, in days.
@@ -236,11 +261,18 @@ export function targetDateFor(priority, fromISO) {
  * Status from the issue's own state.
  *
  * The tracker is the source of truth for "is this done", which is exactly the
- * fact the old board got wrong on four items. Everything softer than that -
+ * fact the old board got wrong on four items. Returns null when the tracker says
+ * the work is closed but NOT delivered, which the caller must treat as
+ * "write nothing". Everything softer than that -
  * whether open work has actually started - is inferred, and sync.mjs treats the
  * inference as a default rather than an instruction.
  */
-export function classifyStatus({ state, assignees = [], linkedPrs = [] } = {}) {
+export function classifyStatus({ state, stateReason, assignees = [], linkedPrs = [] } = {}) {
+  // Closed as NOT PLANNED means abandoned, not delivered. Reporting it as
+  // Completed on a PUBLIC roadmap advertises cancelled scope as shipped, with a
+  // fabricated delivery date. Return null so the caller writes nothing and
+  // archives the item instead.
+  if (state === 'CLOSED' && stateReason === 'NOT_PLANNED') return null;
   if (state === 'CLOSED' || state === 'MERGED') return STATUSES.COMPLETED;
   const openPrs = linkedPrs.filter((p) => p.state === 'OPEN');
   // A PR that is out of draft is code waiting on review or QA, not code being

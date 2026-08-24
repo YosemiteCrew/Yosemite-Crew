@@ -28,6 +28,8 @@
 // reader can see recent shipping, then archives - archived items are retained by
 // GitHub and can be restored, so no history is lost.
 import { argv, env, exit, stdout, stderr } from 'node:process';
+import { fileURLToPath } from 'node:url';
+import { realpathSync } from 'node:fs';
 import {
   CATEGORIES,
   STATUSES,
@@ -35,6 +37,8 @@ import {
   classifyPriority,
   classifyStatus,
   targetDateFor,
+  PRIORITIES,
+  STATUS_RANK,
 } from './classify.mjs';
 
 const OWNER = env.ROADMAP_OWNER || 'YosemiteCrew';
@@ -53,10 +57,6 @@ const AS_JSON = Boolean(arg('json', false));
 const ARCHIVE_AFTER_DAYS = Number(arg('archive-after-days', 30));
 
 const token = env.ROADMAP_TOKEN || env.GITHUB_TOKEN;
-if (!token) {
-  stderr.write('roadmap-sync: no ROADMAP_TOKEN or GITHUB_TOKEN in the environment\n');
-  exit(2);
-}
 
 const log = (msg) => {
   if (!AS_JSON) stdout.write(`${msg}\n`);
@@ -121,7 +121,7 @@ const ITEMS_QUERY = `
 query($owner:String!, $number:Int!, $cursor:String) {
   organization(login:$owner) {
     projectV2(number:$number) {
-      items(first:100, after:$cursor) {
+      items(first:100, after:$cursor, archivedStates:[ARCHIVED, NOT_ARCHIVED]) {
         pageInfo { hasNextPage endCursor }
         nodes {
           id isArchived
@@ -133,7 +133,7 @@ query($owner:String!, $number:Int!, $cursor:String) {
             }
           }
           content {
-            ... on Issue { id number state closedAt }
+            ... on Issue { id number state stateReason closedAt }
             ... on PullRequest { id number state closedAt }
           }
         }
@@ -158,6 +158,55 @@ query($owner:String!, $repo:String!, $cursor:String) {
       }
     }
   }
+}`;
+
+// Every open pull request, with whatever issues it says it closes.
+//
+// The obvious source, Issue.closedByPullRequestsReferences, is empty for every
+// issue in this repository: GitHub only records a closing reference when the PR
+// targets the DEFAULT branch, and every PR here targets `dev`. Relying on it left
+// the "Under Testing" column holding 0 of 96 items, unreachable by construction.
+// So read the PRs directly and match them back to issues ourselves.
+const OPEN_PRS_QUERY = `
+query($owner:String!, $repo:String!, $cursor:String) {
+  repository(owner:$owner, name:$repo) {
+    pullRequests(first:50, after:$cursor, states:[OPEN]) {
+      pageInfo { hasNextPage endCursor }
+      nodes {
+        number state isDraft title body
+        closingIssuesReferences(first:10) { nodes { number } }
+      }
+    }
+  }
+}`;
+
+// "Fixes #123", "closes #123", "resolved #123". Deliberately the same verb set
+// GitHub itself honours, so the map matches what a reader would expect.
+const CLOSING_KEYWORD = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s*:?\s+#(\d+)\b/gi;
+
+/** issue number -> [{ state, isDraft }] for every open PR that claims to close it. */
+export function buildLinkedPrMap(pullRequests) {
+  const map = new Map();
+  const add = (num, pr) => {
+    if (!map.has(num)) map.set(num, []);
+    const bucket = map.get(num);
+    if (!bucket.some((p) => p.number === pr.number)) bucket.push(pr);
+  };
+  for (const pr of pullRequests) {
+    const entry = { number: pr.number, state: pr.state, isDraft: pr.isDraft };
+    // Union of both sources: the structured one keeps working if `dev` ever
+    // becomes the default branch, the text one is what actually fires today.
+    for (const n of pr.closingIssuesReferences?.nodes || []) add(n.number, entry);
+    for (const m of `${pr.title || ''}\n${pr.body || ''}`.matchAll(CLOSING_KEYWORD)) {
+      add(Number(m[1]), entry);
+    }
+  }
+  return map;
+}
+
+const UNARCHIVE_ITEM = `
+mutation($projectId:ID!, $itemId:ID!) {
+  unarchiveProjectV2Item(input:{projectId:$projectId, itemId:$itemId}) { item { id } }
 }`;
 
 const ADD_ITEM = `
@@ -205,6 +254,27 @@ async function loadBoard() {
     (n) => !fields.has(n)
   );
   if (missing.length) throw new Error(`Board is missing fields: ${missing.join(', ')}`);
+
+  // Validate the OPTION sets too, not just the field names. Renaming
+  // "Platform & Infra" in the project UI used to make every Category write for
+  // 60% of the board a silent skip on a green build; renaming "Completed" would
+  // quietly kill the open-issue-parked-in-Completed correction, which is the
+  // single reason this script exists. Fail the run instead.
+  const expected = {
+    Status: Object.values(STATUSES),
+    Category: Object.values(CATEGORIES),
+    Priority: Object.values(PRIORITIES),
+  };
+  const missingOptions = Object.entries(expected).flatMap(([field, names]) => {
+    const have = new Set((fields.get(field).options || []).map((o) => o.name));
+    return names.filter((n) => !have.has(n)).map((n) => `${field}: "${n}"`);
+  });
+  if (missingOptions.length) {
+    throw new Error(
+      `Board is missing single-select options: ${missingOptions.join(', ')}. ` +
+        'Restore the option name in the project UI, or update scripts/roadmap/classify.mjs to match.'
+    );
+  }
 
   const optionId = (fieldName, optionName) =>
     (fields.get(fieldName).options || []).find((x) => x.name === optionName)?.id ?? null;
@@ -255,9 +325,34 @@ function makeWriters({ project, fields, optionId, actions }) {
 // writes a live run would make. Skipping that bookkeeping would make a dry run
 // silently omit field updates for exactly the issues it is about to add, which
 // is the opposite of what a dry run is for.
-async function addMissingIssues({ project, openIssues, byContentId, live, actions }) {
+async function addMissingIssues({
+  project,
+  openIssues,
+  byContentId,
+  archivedByContentId,
+  live,
+  actions,
+}) {
   for (const issue of openIssues) {
     if (byContentId.has(issue.id)) continue;
+
+    // Reopened after being archived. addProjectV2ItemById would hand back the
+    // SAME archived item, so treating this as a fresh add left the work
+    // permanently invisible on the board while overwriting the item's real field
+    // values with defaults on every single run. Bring it back instead, keeping
+    // whatever it already holds.
+    const archived = archivedByContentId.get(issue.id);
+    if (archived) {
+      if (!DRY_RUN) {
+        await gql(UNARCHIVE_ITEM, { projectId: project.id, itemId: archived.id });
+      }
+      archived.content = issue;
+      byContentId.set(issue.id, archived);
+      live.push(archived);
+      actions.restored.push(`#${issue.number} ${issue.title}`);
+      continue;
+    }
+
     actions.added.push(`#${issue.number} ${issue.title}`);
 
     const id = DRY_RUN
@@ -276,7 +371,7 @@ async function addMissingIssues({ project, openIssues, byContentId, live, action
 // Empty cells only, with one exception: an OPEN issue sitting in Completed is
 // corrected. That specific lie is the reason this script exists, so it outranks
 // the general rule that a human's edit is left alone.
-async function reconcileIssue({ issue, item, setSelect, setDate, actions, today }) {
+async function reconcileIssue({ issue, item, setSelect, setDate, actions, today, linkedPrs }) {
   const ref = `#${issue.number}`;
   const labels = (issue.labels?.nodes || []).map((l) => l.name);
 
@@ -295,7 +390,14 @@ async function reconcileIssue({ issue, item, setSelect, setDate, actions, today 
   let priority = fieldValue(item, 'Priority');
   if (!priority) {
     priority = classifyPriority({ labels, title: issue.title });
-    await setSelect(item, 'Priority', priority, ref);
+    if (priority) {
+      await setSelect(item, 'Priority', priority, ref);
+    } else {
+      // Untriaged. Leave BOTH cells empty and say so: writing a guess here is
+      // what published two `security` issues as Normal with a 91-day target,
+      // because the fill-once rule then made that guess permanent.
+      actions.untriaged.push(`${ref} ${issue.title.slice(0, 70)} (no priority-bearing label yet)`);
+    }
   }
 
   // The roadmap view is a timeline. Without a start date an item does not plot at
@@ -306,21 +408,27 @@ async function reconcileIssue({ issue, item, setSelect, setDate, actions, today 
 
   // A start date alone plots a bar that ends the day it began, so the timeline
   // shows only where work came from. The target gives it somewhere to point.
-  if (!fieldValue(item, 'End date')) {
+  // Skipped entirely without a priority: the target is derived from it, and
+  // baking in a defaulted 91 days is exactly the bug above.
+  if (priority && !fieldValue(item, 'End date')) {
     await setDate(item, 'End date', targetDateFor(priority, today), ref);
   }
 
+  // Status is re-derived every run and moves FORWARD only. Fill-once froze it at
+  // the `opened` run, when the issue had no assignee and no PR, so nothing could
+  // ever leave "Not Started". Monotonic means a genuine advance lands while a
+  // human's hand-set "Under Testing" is never demoted.
   const current = fieldValue(item, 'Status');
-  if (!current || current === STATUSES.COMPLETED) {
-    const derived = classifyStatus({
-      state: issue.state,
-      assignees: issue.assignees?.nodes || [],
-      linkedPrs: (issue.closedByPullRequestsReferences?.nodes || []).map((p) => ({
-        state: p.state,
-        isDraft: p.isDraft,
-      })),
-    });
-    await setSelect(item, 'Status', derived, ref);
+  const derived = classifyStatus({
+    state: issue.state,
+    stateReason: issue.stateReason,
+    assignees: issue.assignees?.nodes || [],
+    linkedPrs: linkedPrs || [],
+  });
+  const advances = STATUS_RANK[derived] > (STATUS_RANK[current] ?? -1);
+  // An OPEN issue parked in Completed is the one move backwards worth making.
+  if (derived && (!current || current === STATUSES.COMPLETED || advances)) {
+    if (derived !== current) await setSelect(item, 'Status', derived, ref);
   }
 }
 
@@ -331,6 +439,16 @@ async function retireCompleted({ project, live, cutoff, setSelect, setDate, acti
   for (const item of live) {
     const c = item.content;
     if (!c?.closedAt) continue;
+
+    // Closed as NOT PLANNED. Never stamp it Completed with a fabricated delivery
+    // date on a public roadmap - archive it straight away, because abandoned
+    // scope is not the same as recent shipping and does not belong in the
+    // 30-day window at all.
+    if (c.stateReason === 'NOT_PLANNED') {
+      if (!DRY_RUN) await gql(ARCHIVE_ITEM, { projectId: project.id, itemId: item.id });
+      actions.archived.push(`#${c.number} (not planned, closed ${c.closedAt.slice(0, 10)})`);
+      continue;
+    }
 
     if (Date.parse(c.closedAt) > cutoff) {
       if (fieldValue(item, 'Status') !== STATUSES.COMPLETED) {
@@ -363,12 +481,17 @@ function report({ summary, actions }) {
     `  added ${summary.added}  archived ${summary.archived}  field updates ${summary.fieldUpdates}`
   );
   for (const a of actions.added.slice(0, 100)) log(`    + ${a}`);
+  for (const r of actions.restored) log(`    ^ restored (reopened) ${r}`);
   if (actions.archived.length) {
     log(`  archived (closed over ${ARCHIVE_AFTER_DAYS}d ago): ${actions.archived.length}`);
   }
   if (actions.uncategorised.length) {
     log(`\n  NEEDS A HUMAN - no category could be derived:`);
     for (const u of actions.uncategorised) log(`    ? ${u}`);
+  }
+  if (actions.untriaged.length) {
+    log(`\n  NEEDS A HUMAN - no priority-bearing label yet:`);
+    for (const u of actions.untriaged) log(`    ? ${u}`);
   }
   if (actions.skipped.length) {
     log(`\n  SKIPPED:`);
@@ -380,28 +503,44 @@ function report({ summary, actions }) {
 async function main() {
   const { project, fields, optionId } = await loadBoard();
 
-  const [items, openIssues] = await Promise.all([
+  const [items, openIssues, openPrs] = await Promise.all([
     paginate(
       ITEMS_QUERY,
       { owner: OWNER, number: PROJECT_NUMBER },
       (d) => d.organization.projectV2.items
     ),
     paginate(OPEN_ISSUES_QUERY, { owner: OWNER, repo: REPO }, (d) => d.repository.issues),
+    paginate(OPEN_PRS_QUERY, { owner: OWNER, repo: REPO }, (d) => d.repository.pullRequests),
   ]);
 
+  const linkedPrMap = buildLinkedPrMap(openPrs);
+
   const live = items.filter((i) => !i.isArchived);
+  // Archived items are now fetched too, so a reopened issue can be restored
+  // rather than endlessly re-added as a phantom.
+  const archivedByContentId = new Map(
+    items.filter((i) => i.isArchived && i.content?.id).map((i) => [i.content.id, i])
+  );
   // Snapshot before anything mutates `live`. Deriving this afterwards by
   // subtracting the added count is wrong under --dry-run, where the additions are
   // counted but never pushed.
   const liveItemsBefore = live.length;
   const byContentId = new Map(live.filter((i) => i.content?.id).map((i) => [i.content.id, i]));
 
-  const actions = { added: [], archived: [], updated: [], uncategorised: [], skipped: [] };
+  const actions = {
+    added: [],
+    restored: [],
+    archived: [],
+    updated: [],
+    uncategorised: [],
+    untriaged: [],
+    skipped: [],
+  };
   const { setSelect, setDate } = makeWriters({ project, fields, optionId, actions });
   // One clock reading for the whole run, so every target set today agrees.
   const today = new Date().toISOString().slice(0, 10);
 
-  await addMissingIssues({ project, openIssues, byContentId, live, actions });
+  await addMissingIssues({ project, openIssues, byContentId, archivedByContentId, live, actions });
 
   for (const issue of openIssues) {
     await reconcileIssue({
@@ -411,6 +550,7 @@ async function main() {
       setDate,
       actions,
       today,
+      linkedPrs: linkedPrMap.get(issue.number) || [],
     });
   }
 
@@ -430,17 +570,39 @@ async function main() {
       boardItemsBefore: items.length,
       liveItemsBefore,
       openIssues: openIssues.length,
+      openPrs: openPrs.length,
       added: actions.added.length,
+      restored: actions.restored.length,
       archived: actions.archived.length,
       fieldUpdates: actions.updated.length,
       uncategorised: actions.uncategorised.length,
+      untriaged: actions.untriaged.length,
       skipped: actions.skipped.length,
     },
     actions,
   });
 }
 
-main().catch((err) => {
-  stderr.write(`roadmap-sync failed: ${err.message}\n`);
-  exit(1);
-});
+// Only run when invoked directly, so the unit test can import buildLinkedPrMap.
+// Compared as resolved filesystem paths: import.meta.url percent-encodes
+// characters such as spaces while argv[1] does not, so a raw string comparison
+// silently skips main() in any clone path containing a space.
+const invokedDirectly = () => {
+  if (!argv[1]) return false;
+  try {
+    return realpathSync(fileURLToPath(import.meta.url)) === realpathSync(argv[1]);
+  } catch {
+    return false;
+  }
+};
+
+if (invokedDirectly()) {
+  if (!token) {
+    stderr.write('roadmap-sync: no ROADMAP_TOKEN or GITHUB_TOKEN in the environment\n');
+    exit(2);
+  }
+  main().catch((err) => {
+    stderr.write(`roadmap-sync failed: ${err.message}\n`);
+    exit(1);
+  });
+}
