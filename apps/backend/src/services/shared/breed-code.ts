@@ -22,7 +22,7 @@ export const canonicalBreedCode = (
   if (typeof code !== "string") return null;
   const trimmed = code.trim();
   if (!trimmed) return null;
-  return trimmed.toUpperCase().replace(/-/g, "_").replace(/_{2,}/g, "_");
+  return trimmed.toUpperCase().replaceAll("-", "_").replaceAll(/_{2,}/g, "_");
 };
 
 /** True when two breed codes name the same breed, whichever convention each uses. */
@@ -75,5 +75,5 @@ export const ageInMonths = (
     (asOf.getMonth() - dateOfBirth.getMonth());
   // Not a whole month yet if the day of the month has not come round.
   if (asOf.getDate() < dateOfBirth.getDate()) months -= 1;
-  return months < 0 ? 0 : months;
+  return Math.max(0, months);
 };
