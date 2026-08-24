@@ -206,7 +206,17 @@ export const main = async () => {
             venomId: category.venomId,
           },
         },
-        update: { display: category.display, active: true },
+        update: {
+          display: category.display,
+          active: true,
+          // Refreshed on every run. Without this a category imported from release g
+          // keeps claiming release g after a later release renames or moves it.
+          meta: {
+            source: "VeNom",
+            release: extract.release,
+            venomId: category.venomId,
+          },
+        },
       }),
     ),
     prisma.codeRelationship.createMany({
@@ -224,8 +234,10 @@ export const main = async () => {
   const results = await prisma.$transaction(operations);
   const written = results[results.length - 1] as { count: number };
 
+  // plan.categories counts every category the edges need, most of which already exist on
+  // a rerun. Reporting it as "wrote" would overstate the work on every run after the first.
   console.log(
-    `wrote ${plan.categories.length} categories and ${written.count} edges`,
+    `upserted ${plan.categories.length} categories and added ${written.count} edges`,
   );
   if (written.count !== plan.edges.length) {
     console.log(

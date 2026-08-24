@@ -310,7 +310,9 @@ describe("main", () => {
     expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
     const operations = prismaMock.$transaction.mock.calls[0][0];
     expect(operations).toHaveLength(2);
-    expect(output()).toMatch(/wrote 1 categories and 1 edges/);
+    // "upserted" rather than "wrote": on a rerun most categories already exist, so
+    // reporting the plan size as work done would overstate every run after the first.
+    expect(output()).toMatch(/upserted 1 categories and added 1 edges/);
   });
 
   it("says plainly that withdrawn edges are not deactivated", async () => {

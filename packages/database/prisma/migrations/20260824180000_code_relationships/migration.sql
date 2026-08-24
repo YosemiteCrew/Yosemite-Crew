@@ -12,7 +12,10 @@
 --
 -- Additive only. No existing table or column is altered.
 
-ALTER TYPE "CodeType" ADD VALUE IF NOT EXISTS 'CLINICAL_CATEGORY';
+-- BEFORE 'OTHER' matters. ADD VALUE appends by default, but schema.prisma declares
+-- CLINICAL_CATEGORY ahead of OTHER, so a database created fresh from the schema would
+-- order its enum differently from one migrated incrementally, and the two would drift.
+ALTER TYPE "CodeType" ADD VALUE IF NOT EXISTS 'CLINICAL_CATEGORY' BEFORE 'OTHER';
 
 CREATE TABLE IF NOT EXISTS "CodeRelationship" (
   "id"         TEXT NOT NULL,
