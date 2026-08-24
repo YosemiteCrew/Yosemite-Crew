@@ -457,4 +457,39 @@ describe("CodeService", () => {
       orderBy: { createdAt: "desc" },
     });
   });
+  describe("mapping equivalence", () => {
+    it("persists the equivalence it was given, on create and on update", async () => {
+      // The importer decides how well a crosswalk holds; if this layer drops it, every
+      // mapping silently reverts to asserting exact sameness.
+      mockedPrisma.codeMapping.upsert.mockResolvedValue({ id: "m-1" });
+
+      await CodeService.upsertMapping({
+        sourceSystem: "YOSEMITECODE",
+        sourceCode: "YC-1",
+        targetSystem: "SNOMED",
+        targetCode: "422400008",
+        equivalence: "NARROWER",
+        active: true,
+      });
+
+      const args = mockedPrisma.codeMapping.upsert.mock.calls[0][0];
+      expect(args.create.equivalence).toBe("NARROWER");
+      expect(args.update.equivalence).toBe("NARROWER");
+    });
+
+    it("defaults to EQUIVALENT when the caller says nothing", async () => {
+      mockedPrisma.codeMapping.upsert.mockResolvedValue({ id: "m-2" });
+
+      await CodeService.upsertMapping({
+        sourceSystem: "YOSEMITECODE",
+        sourceCode: "YC-2",
+        targetSystem: "VENOM",
+        targetCode: "13",
+        active: true,
+      });
+
+      const args = mockedPrisma.codeMapping.upsert.mock.calls[0][0];
+      expect(args.create.equivalence).toBe("EQUIVALENT");
+    });
+  });
 });

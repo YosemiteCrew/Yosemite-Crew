@@ -77,11 +77,13 @@ const syncCodeMappingToPostgres = async (input: CodeMappingMongo) => {
       targetCode: input.targetCode,
       targetDisplay: input.targetDisplay ?? null,
       targetVersion: input.targetVersion ?? null,
+      equivalence: input.equivalence ?? "EQUIVALENT",
       active: input.active,
     },
     update: {
       targetDisplay: input.targetDisplay ?? null,
       targetVersion: input.targetVersion ?? null,
+      equivalence: input.equivalence ?? "EQUIVALENT",
       active: input.active,
     },
   });

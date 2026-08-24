@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { type CodeEntryMongo, type CodeSystem } from "src/models/code-entry";
+import { type MappingEquivalence } from "src/models/code-mapping";
 import { CodeService } from "src/services/code.service";
 import { prisma } from "src/config/prisma";
 import { z } from "zod";
@@ -97,6 +98,22 @@ const EXTERNAL_CODE_SYSTEM_MAP: Record<string, CodeSystem> = {
 
 const normalizeCodeSystem = (system: string): CodeSystem | null =>
   EXTERNAL_CODE_SYSTEM_MAP[system.trim().toLowerCase()] ?? null;
+
+/**
+ * The extract uses its own wording for equivalence; this is the FHIR ConceptMap
+ * vocabulary. Anything unrecognised becomes INEXACT rather than EQUIVALENT: overstating
+ * how well a crosswalk holds is the failure that silently corrupts a research cohort.
+ */
+const EQUIVALENCE_MAP: Record<string, MappingEquivalence> = {
+  equivalent: "EQUIVALENT",
+  related: "RELATEDTO",
+  narrower: "NARROWER",
+  broader: "WIDER",
+  inexact: "INEXACT",
+};
+
+const toMappingEquivalence = (value?: string): MappingEquivalence =>
+  EQUIVALENCE_MAP[(value ?? "").trim().toLowerCase()] ?? "INEXACT";
 
 const toUniqueStrings = (values: Array<string | null | undefined>) => {
   const seen = new Set<string>();
@@ -220,7 +237,7 @@ export const ClinicalTermsService = {
 
       for (const code of concept.codes) {
         const targetSystem = normalizeCodeSystem(code.system);
-        if (!targetSystem || code.equivalence !== "equivalent") continue;
+        if (!targetSystem) continue;
 
         await CodeService.upsertMapping({
           sourceSystem: "YOSEMITECODE",
@@ -229,6 +246,7 @@ export const ClinicalTermsService = {
           targetCode: code.code,
           targetDisplay: code.display ?? concept.label,
           targetVersion: null,
+          equivalence: toMappingEquivalence(code.equivalence),
           active: concept.active,
         });
         mappingsUpserted += 1;
