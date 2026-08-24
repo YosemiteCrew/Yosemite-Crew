@@ -22,10 +22,13 @@ CREATE OR REPLACE FUNCTION code_entry_search_text(display text, synonyms jsonb)
   LANGUAGE sql
   IMMUTABLE
   PARALLEL SAFE
-  RETURNS NULL ON NULL INPUT
 AS $$
+  -- Deliberately not RETURNS NULL ON NULL INPUT. synonyms is nullable, and a strict
+  -- function would return NULL for such a row, making the prefilter's NULL LIKE ...
+  -- reject it before its display was ever scored. That is precisely the silent
+  -- disappearance from search this index exists to end.
   SELECT lower(
-    display || ' ' || COALESCE(
+    COALESCE(display, '') || ' ' || COALESCE(
       (SELECT string_agg(value, ' ')
          FROM jsonb_array_elements_text(
            CASE WHEN jsonb_typeof(synonyms) = 'array' THEN synonyms ELSE '[]'::jsonb END
