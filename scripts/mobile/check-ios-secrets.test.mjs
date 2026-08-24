@@ -37,7 +37,7 @@ test('rejects a template placeholder copied verbatim', () => {
   );
   const found = problems(parseXcconfig(text));
   assert.equal(found.length, 1);
-  assert.match(found[0], /FACEBOOK_APP_ID still holds the template placeholder/);
+  assert.match(found[0], /FACEBOOK_APP_ID still holds a template placeholder/);
 });
 
 // The reversed client id placeholder is a compound value, so the check has to look
@@ -49,8 +49,21 @@ test('rejects a placeholder embedded in a longer value', () => {
   );
   const found = problems(parseXcconfig(text));
   assert.equal(found.length, 1);
-  assert.match(found[0], /GOOGLE_REVERSED_CLIENT_ID still holds the template placeholder/);
+  assert.match(found[0], /GOOGLE_REVERSED_CLIENT_ID still holds a template placeholder/);
 });
+
+// The gate must speak the repo's whole placeholder vocabulary, not one spelling.
+for (const bad of ['CHANGE_ME', 'CHANGEME', 'REPLACE_ME', '<API_KEY>']) {
+  test(`rejects the ${bad} placeholder spelling`, () => {
+    const text = complete.replace(
+      'FACEBOOK_APP_ID = real-value-for-FACEBOOK_APP_ID',
+      `FACEBOOK_APP_ID = ${bad}`
+    );
+    const found = problems(parseXcconfig(text));
+    assert.equal(found.length, 1);
+    assert.match(found[0], /FACEBOOK_APP_ID still holds a template placeholder/);
+  });
+}
 
 test('reports every unusable variable, not just the first', () => {
   assert.equal(problems(parseXcconfig('')).length, REQUIRED.length);

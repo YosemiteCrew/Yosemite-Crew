@@ -30,6 +30,8 @@ const runDoctor = ({ assetFonts, registered, plistBody }) => {
   try {
     mkdirSync(join(root, 'scripts/mobile'), { recursive: true });
     cpSync(DOCTOR, join(root, 'scripts/mobile/doctor.mjs'));
+    // doctor imports its placeholder vocabulary from this sibling module.
+    cpSync(join(here, 'check-ios-secrets.mjs'), join(root, 'scripts/mobile/check-ios-secrets.mjs'));
     const app = join(root, 'apps/mobileAppYC');
     mkdirSync(join(app, 'assets/fonts'), { recursive: true });
     mkdirSync(join(app, 'ios/mobileAppYC'), { recursive: true });

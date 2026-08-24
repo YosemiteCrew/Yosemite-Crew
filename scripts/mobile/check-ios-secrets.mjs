@@ -14,6 +14,14 @@ const XCCONFIG = 'ios/mobileAppYC/Secrets.xcconfig';
 // Every variable Info.plist dereferences. Keep in step with the $(...) references
 // there; a name here that the plist does not use is a false failure, and one it
 // uses but this omits is the silent breakage above.
+/**
+ * The repository's placeholder vocabulary, shared with doctor.mjs. One regex,
+ * because a gate that recognises only one spelling waves through the others:
+ * CHANGE_ME, REPLACE_ME and <API_KEY> are all shapes the templates in this
+ * repo have used.
+ */
+export const PLACEHOLDER = /YOUR_[A-Z_]+|CHANGE_?ME|REPLACE_?ME|<[A-Z_]+>/;
+
 export const REQUIRED = [
   'GOOGLE_MAPS_API_KEY',
   'FACEBOOK_APP_ID',
@@ -47,8 +55,8 @@ export const problems = (values) => {
       found.push(`${key} is not declared`);
     } else if (values.get(key) === '') {
       found.push(`${key} is declared but empty`);
-    } else if (values.get(key).includes('YOUR_')) {
-      found.push(`${key} still holds the template placeholder`);
+    } else if (PLACEHOLDER.test(values.get(key))) {
+      found.push(`${key} still holds a template placeholder`);
     }
   }
   return found;
