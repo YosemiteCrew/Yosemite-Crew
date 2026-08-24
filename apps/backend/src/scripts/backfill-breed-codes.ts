@@ -1,5 +1,9 @@
 /**
- * Backfill `speciesCode` and `breedCode` on Patient rows that have neither.
+ * Backfill `speciesCode` and `breedCode` on Patient rows with no breed code.
+ *
+ * Selected on `breedCode` alone, not on both columns being null. The two are
+ * written together here, but a row with a species and no breed is exactly a row
+ * that needs repairing - requiring both to be null would skip it.
  *
  * Recommendation rules match on coded species and breed. On production today
  * only 7 of 37 companions are coded - about 19 percent - so a matcher built on
@@ -45,11 +49,43 @@ interface Outcome {
   reason: string;
 }
 
+/** Key for the per-species vocabulary map. Display is matched case-insensitively. */
+const vocabKey = (type: string, display: string) =>
+  `${type}::${display.trim().toLowerCase()}`;
+
 export const planBackfill = async (): Promise<Outcome[]> => {
   const patients = await prisma.patient.findMany({
     where: { breedCode: null },
     select: { id: true, breed: true, type: true },
   });
+
+  // One vocabulary query per species, not per patient. Every lookup in the loop
+  // below asks the same species-scoped question, so issuing it once per companion
+  // was a round trip per row for no new information.
+  const wanted = new Map<string, Set<string>>();
+  for (const patient of patients) {
+    const breed = patient.breed?.trim();
+    if (!breed || !SPECIES_BY_TYPE[patient.type]) continue;
+    const set = wanted.get(patient.type) ?? new Set<string>();
+    set.add(breed);
+    wanted.set(patient.type, set);
+  }
+
+  const vocabulary = new Map<string, string[]>();
+  for (const [type, breeds] of wanted) {
+    const species = SPECIES_BY_TYPE[type];
+    const entries = await prisma.codeEntry.findMany({
+      where: {
+        code: { startsWith: species.prefix },
+        display: { in: [...breeds], mode: "insensitive" },
+      },
+      select: { code: true, display: true },
+    });
+    for (const entry of entries) {
+      const key = vocabKey(type, entry.display ?? "");
+      vocabulary.set(key, [...(vocabulary.get(key) ?? []), entry.code]);
+    }
+  }
 
   const outcomes: Outcome[] = [];
 
@@ -80,18 +116,12 @@ export const planBackfill = async (): Promise<Outcome[]> => {
       continue;
     }
 
-    const candidates = await prisma.codeEntry.findMany({
-      where: {
-        code: { startsWith: species.prefix },
-        display: { equals: breed, mode: "insensitive" },
-      },
-      select: { code: true },
-    });
+    const candidates = vocabulary.get(vocabKey(patient.type, breed)) ?? [];
 
     const distinct = [
       ...new Set(
         candidates
-          .map((entry) => canonicalBreedCode(entry.code))
+          .map((code) => canonicalBreedCode(code))
           .filter((code): code is string => Boolean(code)),
       ),
     ];

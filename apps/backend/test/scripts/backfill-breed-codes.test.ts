@@ -24,7 +24,9 @@ describe("planBackfill", () => {
     patientFind.mockResolvedValue([
       { id: "p1", breed: "Abyssinian", type: "cat" },
     ]);
-    codeFind.mockResolvedValue([{ code: "YBREED:FELINE:ABYSSINIAN" }]);
+    codeFind.mockResolvedValue([
+      { code: "YBREED:FELINE:ABYSSINIAN", display: "Abyssinian" },
+    ]);
 
     const [outcome] = await planBackfill();
 
@@ -32,6 +34,7 @@ describe("planBackfill", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           code: { startsWith: "YBREED:FELINE:" },
+          display: { in: ["Abyssinian"], mode: "insensitive" },
         }),
       }),
     );
@@ -43,8 +46,8 @@ describe("planBackfill", () => {
       { id: "p1", breed: "American Curl", type: "cat" },
     ]);
     codeFind.mockResolvedValue([
-      { code: "YBREED:FELINE:AMERICAN_CURL" },
-      { code: "YBREED:FELINE:AMERICAN-CURL" },
+      { code: "YBREED:FELINE:AMERICAN_CURL", display: "American Curl" },
+      { code: "YBREED:FELINE:AMERICAN-CURL", display: "American Curl" },
     ]);
 
     const [outcome] = await planBackfill();
@@ -60,8 +63,8 @@ describe("planBackfill", () => {
       { id: "p1", breed: "Maltese", type: "dog" },
     ]);
     codeFind.mockResolvedValue([
-      { code: "YBREED:CANINE:MALTESE" },
-      { code: "YBREED:CANINE:MALTESE_CANINE" },
+      { code: "YBREED:CANINE:MALTESE", display: "Maltese" },
+      { code: "YBREED:CANINE:MALTESE_CANINE", display: "Maltese" },
     ]);
 
     const [outcome] = await planBackfill();
@@ -109,5 +112,24 @@ describe("planBackfill", () => {
     expect(patientFind).toHaveBeenCalledWith(
       expect.objectContaining({ where: { breedCode: null } }),
     );
+  });
+});
+
+describe("planBackfill query volume", () => {
+  it("asks the vocabulary once per species, not once per companion", async () => {
+    // Every lookup asks the same species-scoped question, so one round trip per
+    // companion bought no new information.
+    patientFind.mockResolvedValue([
+      { id: "p1", breed: "Pug", type: "dog" },
+      { id: "p2", breed: "Beagle", type: "dog" },
+      { id: "p3", breed: "Boxer", type: "dog" },
+      { id: "p4", breed: "Abyssinian", type: "cat" },
+    ]);
+    codeFind.mockResolvedValue([]);
+
+    await planBackfill();
+
+    // Two species present, so two queries - not four.
+    expect(codeFind).toHaveBeenCalledTimes(2);
   });
 });
