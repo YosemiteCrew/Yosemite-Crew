@@ -2,6 +2,7 @@ import { prisma } from "src/config/prisma";
 import { LabOrderServiceError } from "src/services/lab-order.service";
 import { IntegrationService } from "src/services/integration.service";
 import { IdexxClient } from "src/integrations/idexx/idexx.client";
+import type { LabBreedSubstitution } from "src/labs/types";
 
 export type IdexxLookupField = "species" | "breed" | "providerCode";
 
@@ -11,10 +12,7 @@ const MAPPING_ERROR_CODES: Record<IdexxLookupField, string> = {
   providerCode: "DIAGNOSTIC_PROVIDER_CODE_MAPPING_UNSUPPORTED",
 };
 
-export const lookupIdexxMapping = async (
-  yosemiteCode: string,
-  field: IdexxLookupField = "providerCode",
-) => {
+const findIdexxTargetCode = async (yosemiteCode: string) => {
   const mapping = await prisma.codeMapping.findFirst({
     where: {
       sourceSystem: "YOSEMITECODE",
@@ -24,22 +22,110 @@ export const lookupIdexxMapping = async (
     },
   });
 
-  if (!mapping) {
-    throw new LabOrderServiceError(
-      `Missing IDEXX mapping for code ${yosemiteCode}.`,
-      400,
-      MAPPING_ERROR_CODES[field],
-      {
-        provider: "IDEXX",
-        field,
-        code: yosemiteCode,
-        sourceSystem: "YOSEMITECODE",
-        targetSystem: "IDEXX",
-      },
-    );
+  return mapping?.targetCode ?? null;
+};
+
+const mappingError = (yosemiteCode: string, field: IdexxLookupField) =>
+  new LabOrderServiceError(
+    `Missing IDEXX mapping for code ${yosemiteCode}.`,
+    400,
+    MAPPING_ERROR_CODES[field],
+    {
+      provider: "IDEXX",
+      field,
+      code: yosemiteCode,
+      sourceSystem: "YOSEMITECODE",
+      targetSystem: "IDEXX",
+    },
+  );
+
+/**
+ * IDEXX only accepts breeds from its own reference list, which the sync mints as
+ * YBREED:<SPECIES>:<CODE>. Breeds minted from VeNOM have no IDEXX counterpart, so on
+ * dev only 371 of 1,749 breeds could reach IDEXX at all - and none of the four horses.
+ *
+ * IDEXX does publish a species-level catch-all, so an unmapped breed no longer has to
+ * block the order. Note the asymmetry: canine and equine have a true "Other", but IDEXX
+ * offers no generic "Feline, Other", so cats fall back to "Feline, Mixed Breed" - which
+ * asserts something the record may not support. Every substitution is therefore returned
+ * to the caller instead of being applied silently.
+ */
+export const SPECIES_FALLBACK_BREED_CODE: Record<string, string> = {
+  "YSPEC:CANINE": "YBREED:CANINE:CANINE_OTHER",
+  "YSPEC:FELINE": "YBREED:FELINE:MIXED_BREED_FELINE",
+  "YSPEC:EQUINE": "YBREED:EQUINE:EQUINE_OTHER",
+};
+
+const SPECIES_CODE_BY_TYPE: Record<string, string> = {
+  dog: "YSPEC:CANINE",
+  canine: "YSPEC:CANINE",
+  cat: "YSPEC:FELINE",
+  feline: "YSPEC:FELINE",
+  horse: "YSPEC:EQUINE",
+  equine: "YSPEC:EQUINE",
+};
+
+/**
+ * Ten of the 44 companions on dev carry no speciesCode but do carry a type. The stored
+ * code wins where present so existing behaviour is untouched; type is only a backstop.
+ */
+export const resolveCompanionSpeciesCode = (companion: {
+  speciesCode?: string | null;
+  type?: string | null;
+}): string | null => {
+  const stored = companion.speciesCode?.trim();
+  if (stored) return stored;
+  const type = companion.type?.trim().toLowerCase();
+  return type ? (SPECIES_CODE_BY_TYPE[type] ?? null) : null;
+};
+
+export type IdexxBreedSubstitution = LabBreedSubstitution;
+
+export const resolveIdexxBreedCode = async (args: {
+  speciesCode: string;
+  breedCode?: string | null;
+}): Promise<{
+  targetCode: string;
+  substitution: IdexxBreedSubstitution | null;
+}> => {
+  const requested = args.breedCode?.trim() ? args.breedCode.trim() : null;
+
+  if (requested) {
+    const direct = await findIdexxTargetCode(requested);
+    if (direct) return { targetCode: direct, substitution: null };
   }
 
-  return mapping.targetCode;
+  const fallbackSource = SPECIES_FALLBACK_BREED_CODE[args.speciesCode];
+  const fallbackTarget = fallbackSource
+    ? await findIdexxTargetCode(fallbackSource)
+    : null;
+
+  if (!fallbackTarget || !fallbackSource) {
+    throw mappingError(requested ?? args.speciesCode, "breed");
+  }
+
+  return {
+    targetCode: fallbackTarget,
+    substitution: {
+      requestedBreedCode: requested,
+      usedBreedCode: fallbackSource,
+      usedTargetCode: fallbackTarget,
+      reason: requested ? "UNMAPPED_BREED" : "UNCODED_BREED",
+    },
+  };
+};
+
+export const lookupIdexxMapping = async (
+  yosemiteCode: string,
+  field: IdexxLookupField = "providerCode",
+) => {
+  const targetCode = await findIdexxTargetCode(yosemiteCode);
+
+  if (!targetCode) {
+    throw mappingError(yosemiteCode, field);
+  }
+
+  return targetCode;
 };
 
 export const buildIdexxClient = async (organisationId: string) => {

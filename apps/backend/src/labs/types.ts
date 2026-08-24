@@ -31,7 +31,20 @@ export type LabOrderUpdateInput = Partial<
   tests?: string[];
 };
 
+/**
+ * Set when the breed sent to the provider is not the companion's recorded breed,
+ * because the provider's own vocabulary has no counterpart for it. Callers should
+ * surface this rather than let a substituted breed look like the real one.
+ */
+export type LabBreedSubstitution = {
+  requestedBreedCode: string | null;
+  usedBreedCode: string;
+  usedTargetCode: string;
+  reason: "UNCODED_BREED" | "UNMAPPED_BREED";
+};
+
 export type LabOrderCreateResult = {
+  breedSubstitution?: LabBreedSubstitution | null;
   requestPayload: Record<string, unknown>;
   responsePayload: Record<string, unknown>;
   idexxOrderId?: string | null;
