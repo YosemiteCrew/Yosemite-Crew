@@ -1,10 +1,15 @@
 import { FormField } from "@yosemite-crew/types";
 import fs from "node:fs";
-import { chromium } from "playwright";
+import { chromium, type Browser } from "playwright";
+import {
+  addCachedPromise,
+  type CachedPromise,
+} from "src/utils/cached-promise-cache";
 import {
   resolveDocumentPdfTemplate,
   type DocumentPdfTemplateKind,
 } from "src/services/document-pdf-template-registry.service";
+import logger from "src/utils/logger";
 
 export interface PdfField {
   label: string;
@@ -232,31 +237,108 @@ function applyTemplate(
   return html;
 }
 
+// Templates are static files on disk — cache their contents so repeated renders
+// do not re-read them, and read asynchronously so the event loop is never blocked.
+const TEMPLATE_CACHE_TTL_MS = 60 * 60 * 1000;
+const TEMPLATE_CACHE_MAX_ENTRIES = 16;
+const templateCache = new Map<string, CachedPromise<string>>();
+
+const readTemplate = (templatePath: string): Promise<string> =>
+  addCachedPromise(
+    templateCache,
+    templatePath,
+    TEMPLATE_CACHE_TTL_MS,
+    () => fs.promises.readFile(templatePath, "utf8"),
+    {
+      maxEntries: TEMPLATE_CACHE_MAX_ENTRIES,
+      pruneIntervalMs: TEMPLATE_CACHE_TTL_MS,
+    },
+  );
+
+export const clearPdfTemplateCache = (): void => {
+  templateCache.clear();
+};
+
+// Launching Chromium costs hundreds of milliseconds and hundreds of MB of RSS,
+// so one browser is shared across renders; each render gets its own context,
+// which gives the same isolation as a fresh browser at a fraction of the cost.
+let sharedBrowserPromise: Promise<Browser> | null = null;
+
+const launchSharedBrowser = (): Promise<Browser> => {
+  const launched: Promise<Browser> = chromium
+    .launch()
+    .catch((error: unknown) => {
+      // Do not cache a failed launch — the next render should retry.
+      if (sharedBrowserPromise === launched) {
+        sharedBrowserPromise = null;
+      }
+      throw error;
+    });
+  return launched;
+};
+
+const getSharedBrowser = async (): Promise<Browser> => {
+  const existing = sharedBrowserPromise;
+  if (existing) {
+    const browser = await existing;
+    if (browser.isConnected()) {
+      return browser;
+    }
+    // The browser crashed or was closed externally — replace it, unless a
+    // concurrent caller already has.
+    if (sharedBrowserPromise === existing) {
+      sharedBrowserPromise = null;
+    }
+  }
+  sharedBrowserPromise ??= launchSharedBrowser();
+  return sharedBrowserPromise;
+};
+
+export const closePdfBrowser = async (): Promise<void> => {
+  const existing = sharedBrowserPromise;
+  sharedBrowserPromise = null;
+  if (!existing) return;
+  try {
+    const browser = await existing;
+    await browser.close();
+  } catch (error) {
+    logger.warn("PDF browser was not closed cleanly", { error });
+  }
+};
+
 export async function renderPdf(
   vm: PdfViewModel,
   options?: PdfRenderOptions,
 ): Promise<Buffer> {
   const templateKind = options?.templateKind ?? "FORM";
   const template = resolveDocumentPdfTemplate(templateKind);
-  const templateHtml = fs.readFileSync(template.path, "utf8");
-  const browser = await chromium.launch();
-  const page = await browser.newPage();
+  const templateHtml = await readTemplate(template.path);
+  const browser = await getSharedBrowser();
+  const context = await browser.newContext();
 
-  await page.setContent(
-    applyTemplate(vm, templateHtml, template.label, options),
-    {
-      waitUntil: "load",
-    },
-  );
+  try {
+    const page = await context.newPage();
 
-  const pdf = await page.pdf({
-    format: "A4",
-    printBackground: true,
-  });
+    await page.setContent(
+      applyTemplate(vm, templateHtml, template.label, options),
+      {
+        waitUntil: "load",
+      },
+    );
 
-  await browser.close();
-
-  return pdf;
+    return await page.pdf({
+      format: "A4",
+      printBackground: true,
+    });
+  } finally {
+    // Teardown must run even when rendering throws, or the Chromium resources
+    // leak; a close failure must not mask the render error.
+    try {
+      await context.close();
+    } catch (error) {
+      logger.warn("PDF browser context was not closed cleanly", { error });
+    }
+  }
 }
 
 export async function generateFormSubmissionPdf({
