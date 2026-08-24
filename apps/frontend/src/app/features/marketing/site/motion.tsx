@@ -82,9 +82,9 @@ interface RevealProps extends React.HTMLAttributes<HTMLElement> {
  * attribute. Deriving the initial state here instead made the server (no
  * IntersectionObserver, so settled) and the first client render (observer present,
  * so hidden) disagree on opacity/transform/filter — a hydration mismatch React
- * leaves unpatched, so the reveal never ran on an SSR'd load. Reduced motion and
- * scripting-off are media queries on the same selector, so they hold from the first
- * paint rather than waiting on an effect.
+ * leaves unpatched, so the reveal never ran on an SSR'd load. Reduced motion is a
+ * media query on the same selector, so it holds from the first paint rather than
+ * waiting on an effect; scripting-off is covered by the (public) layout's noscript.
  */
 export function Reveal({
   children,
@@ -105,7 +105,7 @@ export function Reveal({
     const clear = () => globalThis.window.clearTimeout(timer);
 
     // Older browsers with no observer settle on their own rather than staying
-    // hidden, matching what the stylesheet does when scripting is off.
+    // hidden behind a reveal that nothing will ever trigger.
     if (typeof IntersectionObserver === 'undefined') {
       reveal();
       return clear;
