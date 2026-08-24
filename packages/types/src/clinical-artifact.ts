@@ -778,19 +778,53 @@ const compositionToDischargeSummaryInput = (
   ),
 });
 
+/**
+ * The unit of a vital is currently encoded in its key name - tempF, weightLbs - which
+ * means a FHIR Observation carrying a bare number is not interpretable: 212 could be
+ * degrees Fahrenheit or Celsius, and a weight of 12 could be pounds or kilograms. That is
+ * not hypothetical here, since vitals record weightLbs while the passport and body
+ * condition surfaces record weightKg.
+ *
+ * UCUM is what FHIR expects for exactly this. A measured vital becomes a valueQuantity
+ * carrying its unit as a code, so a receiving system can convert rather than guess.
+ */
+const UCUM_SYSTEM = 'http://unitsofmeasure.org';
+
+const VITAL_UNITS: Record<string, { unit: string; code: string }> = {
+  tempF: { unit: '°F', code: '[degF]' },
+  tempC: { unit: '°C', code: 'Cel' },
+  weightLbs: { unit: 'lb', code: '[lb_av]' },
+  weightKg: { unit: 'kg', code: 'kg' },
+  heartRateBpm: { unit: 'beats/min', code: '/min' },
+  respRateBpm: { unit: 'breaths/min', code: '/min' },
+  crtSec: { unit: 's', code: 's' },
+  // Dimensionless scales. UCUM annotates these rather than leaving them bare, which
+  // distinguishes "a score of 5" from "5 of something unstated".
+  bcs: { unit: 'score', code: '{score}' },
+  painScore: { unit: 'score', code: '{score}' },
+};
+
+const vitalComponentValue = (key: string, value: unknown) => {
+  if (typeof value === 'number') {
+    const units = VITAL_UNITS[key];
+    // An unrecognised numeric vital stays a plain decimal rather than being given a
+    // guessed unit. A wrong unit is worse than an absent one.
+    return units
+      ? { valueQuantity: { value, unit: units.unit, system: UCUM_SYSTEM, code: units.code } }
+      : { valueDecimal: value };
+  }
+  if (typeof value === 'boolean') return { valueBoolean: value };
+  if (typeof value === 'string') return { valueString: value };
+  return { valueString: stringifyMaybe(value) ?? '' };
+};
+
 const vitalRecordToObservation = (record: VitalRecordRecord): Observation => {
   const vitalsValue = record.vitalRecord.vitals;
   const component =
     vitalsValue && typeof vitalsValue === 'object' && !Array.isArray(vitalsValue)
       ? Object.entries(vitalsValue as Record<string, unknown>).map(([key, value]) => ({
           code: toCodeableConcept(key, key),
-          ...(typeof value === 'number'
-            ? { valueDecimal: value }
-            : typeof value === 'boolean'
-              ? { valueBoolean: value }
-              : typeof value === 'string'
-                ? { valueString: value }
-                : { valueString: stringifyMaybe(value) ?? '' }),
+          ...vitalComponentValue(key, value),
         }))
       : undefined;
 

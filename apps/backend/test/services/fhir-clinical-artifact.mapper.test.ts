@@ -772,4 +772,79 @@ describe("clinicalArtifactFhirMapper", () => {
       ]),
     ).toEqual(expect.objectContaining({ total: 1 }));
   });
+
+  describe("vital units", () => {
+    const observationFor = (vitals: Record<string, unknown>) =>
+      clinicalArtifactFhirMapper.vitalRecordToObservation({
+        artifact: {
+          id: "art-1",
+          status: "FINAL",
+          patientId: "pat-1",
+          organisationId: "org-1",
+        },
+        vitalRecord: {
+          measuredAt: new Date("2026-06-19T16:44:40.796Z"),
+          vitals,
+          recordedBy: null,
+          notes: null,
+          metadata: null,
+        },
+      } as never);
+
+    const componentFor = (vitals: Record<string, unknown>, key: string) =>
+      observationFor(vitals).component?.find(
+        (c) => c.code?.coding?.[0]?.code === key,
+      );
+
+    it("states the unit of a temperature so 212 cannot be read as Celsius", () => {
+      // The unit only exists in the key name today, so an exported bare number is
+      // uninterpretable to any receiving system.
+      expect(componentFor({ tempF: 212 }, "tempF")).toMatchObject({
+        valueQuantity: {
+          value: 212,
+          unit: "°F",
+          system: "http://unitsofmeasure.org",
+          code: "[degF]",
+        },
+      });
+    });
+
+    it("distinguishes a weight in pounds from one in kilograms", () => {
+      // Vitals record weightLbs while the passport and body condition surfaces record
+      // weightKg, so an unqualified 12 is genuinely ambiguous across this codebase.
+      expect(
+        componentFor({ weightLbs: 12 }, "weightLbs")?.valueQuantity,
+      ).toMatchObject({
+        unit: "lb",
+        code: "[lb_av]",
+      });
+      expect(
+        componentFor({ weightKg: 12 }, "weightKg")?.valueQuantity,
+      ).toMatchObject({
+        unit: "kg",
+        code: "kg",
+      });
+    });
+
+    it("annotates a dimensionless score rather than leaving it bare", () => {
+      expect(componentFor({ bcs: 5 }, "bcs")?.valueQuantity).toMatchObject({
+        code: "{score}",
+      });
+    });
+
+    it("leaves an unrecognised numeric vital without a guessed unit", () => {
+      // A wrong unit is worse than an absent one: it would be silently converted.
+      const component = componentFor({ somethingNew: 7 }, "somethingNew");
+      expect(component).toMatchObject({ valueDecimal: 7 });
+      expect(component).not.toHaveProperty("valueQuantity");
+    });
+
+    it("still carries non-numeric vitals through unchanged", () => {
+      expect(
+        componentFor({ mucousMembrane: "pink" }, "mucousMembrane"),
+      ).toMatchObject({
+        valueString: "pink",
+      });
+    });
+  });
 });
