@@ -659,8 +659,12 @@ select.yc-field {
 [data-yc-lane]:hover {
   background: var(--inset);
 }
+/* --blue-text, not --blue. --blue is a fill token: on the --inset hover surface
+   it measures 3.18:1 in light and 3.54:1 in dark, under the 4.5:1 floor for a
+   12.5px label. --blue-text is maintained for readable blue text and measures
+   5.04:1 and 7.02:1 on the same surface. */
 [data-yc-lane]:hover span:first-child {
-  color: var(--blue);
+  color: var(--blue-text);
 }
 
 /* Narrow screens: a flex row wraps to one lane per line (four rows, ~120px) because the
@@ -710,6 +714,13 @@ select.yc-field {
     font-size: 12px !important;
     line-height: 1.5;
     min-width: 0;
+    /* Reserve the second line before the dates arrive.
+       On a cold cache the first paint has no date spans, and each one takes a
+       full flex line when it appears, so every cell grew 27px -> 50px and the
+       bar 65px -> 110px, shoving the hero heading and the CTAs down after
+       paint. Holding the resolved height from the start costs nothing while
+       loading and removes the shift entirely. */
+    min-height: 50px;
   }
   /* The product name stays on one line; the version is what can get long, so it
      is the piece allowed to break. `anywhere` rather than `break-word` because
