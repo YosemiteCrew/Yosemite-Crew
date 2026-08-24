@@ -18,6 +18,18 @@
     transform: translateY(0);
   }
 }
+@keyframes ycReveal {
+  from {
+    opacity: 0;
+    translate: 0 34px;
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    translate: 0;
+    filter: blur(0px);
+  }
+}
 @keyframes ycUp {
   from {
     opacity: 0;
@@ -178,6 +190,53 @@
   }
   50% {
     opacity: 0;
+  }
+}
+
+/* ---- Scroll reveal (drives Reveal in site/motion.tsx) ---- */
+/* The settled look is the DEFAULT, and only an armed element is hidden. That
+   ordering matters: the server has no IntersectionObserver, so it renders
+   data-reveal="idle", and anything that stops the client from arming - scripting
+   off, a blocked or failed bundle, a throw before hydration - leaves the copy
+   readable instead of stranding it at opacity 0 with nothing able to flip it.
+
+   Motion rides `translate`, not `transform`, because callers own `transform`:
+   Pricing's Business card sits on an inline translateY(-8px). They are separate
+   properties, so the reveal composes with the caller's offset rather than
+   fighting it. Likewise the run is a keyframe animation, not a transition, since
+   a Reveal can carry a class that owns `transition` (yc-card-lift does, on the
+   PetParents feature card) and the winning shorthand would replace the lot. */
+[data-reveal] {
+  opacity: 1;
+  /* An explicit zero, not `none`: this is what makes a settled Reveal a
+     containing block for its absolutely-positioned descendants. */
+  translate: 0;
+  filter: blur(0px);
+}
+[data-reveal='hidden'] {
+  opacity: 0;
+  translate: 0 34px;
+  filter: blur(8px);
+  will-change: opacity, translate;
+}
+[data-reveal='shown'] {
+  animation: ycReveal 1s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Reduced motion wants the content simply present. Keeping it here rather than in
+   the component means it does not wait on an effect - it is what the very first
+   paint already uses. */
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] {
+    opacity: 1;
+    translate: 0;
+    filter: blur(0px);
+    /* Duration rather than `animation: none`. Clearing the name and restoring it
+       when the preference flips back creates a brand new animation, which would
+       replay ycReveal over content the reader is already looking at. Keeping the
+       name and collapsing the duration leaves a finished run finished. */
+    animation-duration: 0.01ms;
+    will-change: auto;
   }
 }
 
