@@ -4,13 +4,8 @@ import { type CodeEntryMongo, type CodeSystem } from "src/models/code-entry";
 import { type MappingEquivalence } from "src/models/code-mapping";
 import { CodeService } from "src/services/code.service";
 import { prisma } from "src/config/prisma";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
-
-// A queried autocomplete scans a large but bounded slice of active clinical
-// terms so synonym-only matches on later alphabetic rows are not dropped, while
-// still capping the rows pulled into memory. Sized to comfortably exceed the
-// curated clinical terminology; browsing (no query) stays bounded by fetchLimit.
-const CLINICAL_TERM_QUERY_SCAN_LIMIT = 5000;
 
 export type ClinicalDomain =
   | "ReasonForVisit"
@@ -180,35 +175,6 @@ const normalizeSynonyms = (value: unknown): string[] => {
     .filter(Boolean);
 };
 
-const scoreSuggestion = (term: ClinicalTermSuggestion, query?: string) => {
-  if (!query) return 0;
-  const normalized = query.trim().toLowerCase();
-  const label = term.label.toLowerCase();
-  const synonyms = term.synonyms.map((item) => item.toLowerCase());
-
-  if (label === normalized) return 400;
-  if (synonyms.includes(normalized)) return 300;
-  if (label.startsWith(normalized)) return 200;
-  if (synonyms.some((item) => item.startsWith(normalized))) return 150;
-  if (label.includes(normalized)) return 100;
-  if (synonyms.some((item) => item.includes(normalized))) return 50;
-  return 0;
-};
-
-const matchesSpecies = (
-  termSpecies: ClinicalSpecies[],
-  requestedSpecies?: ClinicalSpecies[],
-) => {
-  if (!requestedSpecies?.length) return true;
-  if (!termSpecies.length) return false;
-  return requestedSpecies.some((species) => termSpecies.includes(species));
-};
-
-const matchesQuery = (term: ClinicalTermSuggestion, query?: string) => {
-  if (!query?.trim()) return true;
-  return scoreSuggestion(term, query) > 0;
-};
-
 const toSuggestion = (entry: {
   code: string;
   display: string;
@@ -228,6 +194,117 @@ const toSuggestion = (entry: {
     synonyms: toUniqueStrings(normalizeSynonyms(entry.synonyms)),
     source: typeof meta.source === "string" ? meta.source : undefined,
   };
+};
+
+type ClinicalTermRow = {
+  code: string;
+  display: string;
+  synonyms: unknown;
+  meta: unknown;
+};
+
+// A user typing % or _ means those characters literally, not as LIKE wildcards.
+// Unescaped, a lone "%" would match the entire vocabulary.
+const escapeLike = (value: string) =>
+  value.replace(/[\\%_]/g, (character) => `\\${character}`);
+
+const SYNONYMS_COLUMN = Prisma.sql`e."synonyms"`;
+const SPECIES_META = Prisma.sql`e."meta"->'species'`;
+
+const jsonTextArray = (expression: Prisma.Sql) =>
+  Prisma.sql`jsonb_array_elements_text(CASE WHEN jsonb_typeof(${expression}) = 'array' THEN ${expression} ELSE '[]'::jsonb END)`;
+
+const synonymMatches = (predicate: Prisma.Sql) =>
+  Prisma.sql`EXISTS (SELECT 1 FROM ${jsonTextArray(SYNONYMS_COLUMN)} s WHERE ${predicate})`;
+
+export type SuggestTermsParams = {
+  q?: string;
+  domain?: ClinicalDomain;
+  species?: ClinicalSpecies[];
+  limit?: number;
+};
+
+/**
+ * Built as a value so the pushdown itself is testable without a database. The
+ * filtering used to happen in JavaScript over a fixed 5,000-row slice, which left
+ * 6,742 of 11,742 terms permanently unsearchable.
+ */
+export const buildSuggestionQuery = (
+  params: SuggestTermsParams,
+): Prisma.Sql => {
+  const safeLimit =
+    typeof params.limit === "number" && Number.isFinite(params.limit)
+      ? Math.min(Math.max(Math.floor(params.limit), 1), 50)
+      : 10;
+  const query = params.q?.trim().toLowerCase();
+  // Hoisted so the patterns are built once rather than nested inside each SQL fragment.
+  const escaped = query ? escapeLike(query) : "";
+  const containsPattern = `%${escaped}%`;
+  const prefixPattern = `${escaped}%`;
+
+  // Filtering and scoring happen in SQL. Doing it in JavaScript meant first pulling a
+  // fixed slice of rows, which silently made most of the vocabulary unsearchable.
+  const filters: Prisma.Sql[] = [
+    Prisma.sql`e."system" = 'YOSEMITECODE'::"CodeSystem"`,
+    Prisma.sql`e."type" = 'CLINICAL_TERM'::"CodeType"`,
+    Prisma.sql`e."active"`,
+  ];
+
+  if (query) {
+    // Must match the indexed expression character for character, or the trigram index
+    // is not used. code_entry_search_text builds its text from the synonym array's
+    // elements rather than from synonyms::text, so a synonym containing a quote or
+    // backslash is searchable rather than appearing JSON-escaped. This is a prefilter
+    // over a superset; scoreExpression below decides the real matches.
+    filters.push(
+      Prisma.sql`code_entry_search_text(e."display", e."synonyms") LIKE ${containsPattern} ESCAPE '\\'`,
+    );
+  }
+
+  if (params.domain) {
+    filters.push(Prisma.sql`e."meta"->>'domain' = ${params.domain}`);
+  }
+
+  if (params.species?.length) {
+    const speciesElements = jsonTextArray(SPECIES_META);
+    filters.push(
+      Prisma.sql`EXISTS (SELECT 1 FROM ${speciesElements} sp WHERE sp = ANY(${params.species}))`,
+    );
+  }
+
+  const synonymExact = synonymMatches(Prisma.sql`lower(s) = ${query}`);
+  const synonymPrefix = synonymMatches(
+    Prisma.sql`lower(s) LIKE ${prefixPattern} ESCAPE '\\'`,
+  );
+  const synonymContains = synonymMatches(
+    Prisma.sql`lower(s) LIKE ${containsPattern} ESCAPE '\\'`,
+  );
+
+  const scoreExpression = query
+    ? Prisma.sql`CASE
+          WHEN lower(e."display") = ${query} THEN 400
+          WHEN ${synonymExact} THEN 300
+          WHEN lower(e."display") LIKE ${prefixPattern} ESCAPE '\\' THEN 200
+          WHEN ${synonymPrefix} THEN 150
+          WHEN lower(e."display") LIKE ${containsPattern} ESCAPE '\\' THEN 100
+          WHEN ${synonymContains} THEN 50
+          ELSE 0
+        END`
+    : Prisma.sql`0`;
+
+  const scoreFilter = query ? Prisma.sql`score > 0` : Prisma.sql`TRUE`;
+
+  return Prisma.sql`
+    SELECT code, display, synonyms, meta, score FROM (
+      SELECT e."code" AS code, e."display" AS display, e."synonyms" AS synonyms,
+             e."meta" AS meta, ${scoreExpression} AS score
+      FROM "CodeEntry" e
+      WHERE ${Prisma.join(filters, " AND ")}
+    ) scored
+    WHERE ${scoreFilter}
+    ORDER BY score DESC, display ASC
+    LIMIT ${safeLimit}
+  `;
 };
 
 export const ClinicalTermsService = {
@@ -274,41 +351,10 @@ export const ClinicalTermsService = {
     return this.importConcepts(parsed);
   },
 
-  async suggestTerms(params: {
-    q?: string;
-    domain?: ClinicalDomain;
-    species?: ClinicalSpecies[];
-    limit?: number;
-  }) {
-    const safeLimit =
-      typeof params.limit === "number" && Number.isFinite(params.limit)
-        ? Math.min(Math.max(Math.floor(params.limit), 1), 50)
-        : 10;
-    const query = params.q?.trim();
-    const fetchLimit = Math.max(safeLimit * 10, 50);
-
-    const rows = await prisma.codeEntry.findMany({
-      where: {
-        system: "YOSEMITECODE",
-        type: "CLINICAL_TERM",
-        active: true,
-      },
-      orderBy: { display: "asc" },
-      take: query ? CLINICAL_TERM_QUERY_SCAN_LIMIT : fetchLimit,
-    });
-
-    const candidates = rows.map((row) => toSuggestion(row));
-
-    return candidates
-      .filter((term) => !params.domain || term.domain === params.domain)
-      .filter((term) => matchesSpecies(term.species, params.species))
-      .filter((term) => matchesQuery(term, query))
-      .sort((left, right) => {
-        const scoreDelta =
-          scoreSuggestion(right, query) - scoreSuggestion(left, query);
-        if (scoreDelta !== 0) return scoreDelta;
-        return left.label.localeCompare(right.label);
-      })
-      .slice(0, safeLimit);
+  async suggestTerms(params: SuggestTermsParams) {
+    const rows = await prisma.$queryRaw<ClinicalTermRow[]>(
+      buildSuggestionQuery(params),
+    );
+    return rows.map((row) => toSuggestion(row));
   },
 };
