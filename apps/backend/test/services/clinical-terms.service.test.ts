@@ -201,6 +201,48 @@ describe("ClinicalTermsService", () => {
       );
     });
 
+    it("survives an unrecognised equivalence coming through the file path", async () => {
+      // The bug this covers: parseConcepts validated equivalence with z.enum, so an
+      // unfamiliar word threw before the INEXACT fallback could run. The earlier test
+      // passed only because it called importConcepts directly, bypassing validation.
+      const parsed = ClinicalTermsService.parseConcepts([
+        {
+          ycCode: "YC-1",
+          label: "Vomiting",
+          domain: "Diagnosis",
+          source: "VeNom",
+          codes: [
+            {
+              system: "http://snomed.info/sct",
+              code: "422400008",
+              equivalence: "some-word-we-have-not-seen",
+            },
+          ],
+        },
+      ]);
+
+      await ClinicalTermsService.importConcepts(parsed);
+
+      expect(CodeService.upsertMapping).toHaveBeenCalledWith(
+        expect.objectContaining({ equivalence: "INEXACT" }),
+      );
+    });
+
+    it("carries the FHIR values the extract may already use", async () => {
+      for (const [word, expected] of [
+        ["equal", "EQUAL"],
+        ["subsumes", "SUBSUMES"],
+        ["specializes", "SPECIALIZES"],
+        ["disjoint", "DISJOINT"],
+        ["unmatched", "UNMATCHED"],
+      ]) {
+        await ClinicalTermsService.importConcepts([concept(word) as never]);
+        expect(CodeService.upsertMapping).toHaveBeenLastCalledWith(
+          expect.objectContaining({ equivalence: expected }),
+        );
+      }
+    });
+
     it("treats an unrecognised equivalence as inexact, never as equivalent", async () => {
       // Overstating how well a crosswalk holds is the failure that silently corrupts a
       // research cohort, so the unknown case degrades rather than flatters.

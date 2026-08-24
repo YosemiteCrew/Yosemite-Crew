@@ -284,10 +284,13 @@ model CodeEntry {
 /// research cohort built on a narrower mapping treated as equivalent is wrong with no way
 /// to detect it.
 enum MappingEquivalence {
-  EQUIVALENT
   RELATEDTO
+  EQUIVALENT
+  EQUAL
   WIDER
+  SUBSUMES
   NARROWER
+  SPECIALIZES
   INEXACT
   UNMATCHED
   DISJOINT

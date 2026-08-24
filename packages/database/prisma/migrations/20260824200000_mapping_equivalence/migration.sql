@@ -14,11 +14,16 @@
 --
 -- Additive only. No existing row changes meaning: the default matches what they assert.
 
+-- The complete FHIR R4 ConceptMap equivalence vocabulary, in the order FHIR lists it.
+-- A partial set would force a real relationship to be recorded as something it is not.
 CREATE TYPE "MappingEquivalence" AS ENUM (
-  'EQUIVALENT',
   'RELATEDTO',
+  'EQUIVALENT',
+  'EQUAL',
   'WIDER',
+  'SUBSUMES',
   'NARROWER',
+  'SPECIALIZES',
   'INEXACT',
   'UNMATCHED',
   'DISJOINT'

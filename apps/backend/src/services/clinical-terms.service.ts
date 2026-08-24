@@ -43,9 +43,10 @@ const ClinicalCodeSchema = z.object({
   system: z.string().trim().min(1),
   code: z.string().trim().min(1),
   display: z.string().trim().optional(),
-  equivalence: z
-    .enum(["equivalent", "related", "narrower", "broader", "inexact"])
-    .default("equivalent"),
+  // Deliberately a free string rather than an enum. An unrecognised equivalence must
+  // reach toMappingEquivalence and degrade to INEXACT; rejecting the whole import
+  // because one coding uses an unfamiliar word is worse than recording it cautiously.
+  equivalence: z.string().trim().default("equivalent"),
 });
 
 const ClinicalDesignationSchema = z.object({
@@ -106,10 +107,17 @@ const normalizeCodeSystem = (system: string): CodeSystem | null =>
  */
 const EQUIVALENCE_MAP: Record<string, MappingEquivalence> = {
   equivalent: "EQUIVALENT",
+  equal: "EQUAL",
   related: "RELATEDTO",
+  relatedto: "RELATEDTO",
   narrower: "NARROWER",
+  specializes: "SPECIALIZES",
   broader: "WIDER",
+  wider: "WIDER",
+  subsumes: "SUBSUMES",
   inexact: "INEXACT",
+  unmatched: "UNMATCHED",
+  disjoint: "DISJOINT",
 };
 
 const toMappingEquivalence = (value?: string): MappingEquivalence =>

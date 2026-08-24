@@ -1,9 +1,12 @@
 /** FHIR ConceptMap equivalence, describing how exactly a crosswalk holds. */
 export type MappingEquivalence =
-  | "EQUIVALENT"
   | "RELATEDTO"
+  | "EQUIVALENT"
+  | "EQUAL"
   | "WIDER"
+  | "SUBSUMES"
   | "NARROWER"
+  | "SPECIALIZES"
   | "INEXACT"
   | "UNMATCHED"
   | "DISJOINT";
