@@ -464,7 +464,7 @@ describe("EstimateService.convert", () => {
     ).rejects.toMatchObject({ statusCode: 404 });
   });
 
-  it("records the audit event outside the transaction", async () => {
+  it("records the audit event", async () => {
     mockFindFirst.mockResolvedValue(approved);
     await EstimateService.convert("est-1", "org-1", "user-1");
 
@@ -475,6 +475,26 @@ describe("EstimateService.convert", () => {
         metadata: expect.objectContaining({ invoiceId: "inv-1" }),
       }),
     );
+  });
+
+  it("does not record the audit event until the transaction has closed", async () => {
+    // recordSafely closes over the module-level client, so calling it with the
+    // transaction still open runs it on a different connection while this one
+    // holds the estimate row. Asserting only that it was called cannot tell the
+    // two placements apart, so the count is sampled from inside the callback.
+    mockFindFirst.mockResolvedValue(approved);
+    let recordedDuringTransaction = -1;
+    mockTransaction.mockImplementation(async (fn: (tx: unknown) => unknown) => {
+      const result = await fn(prisma);
+      recordedDuringTransaction = (AuditTrailService.recordSafely as jest.Mock)
+        .mock.calls.length;
+      return result;
+    });
+
+    await EstimateService.convert("est-1", "org-1", "user-1");
+
+    expect(recordedDuringTransaction).toBe(0);
+    expect(AuditTrailService.recordSafely).toHaveBeenCalledTimes(1);
   });
 
   it("derives the blended tax percent from the copied totals", async () => {
