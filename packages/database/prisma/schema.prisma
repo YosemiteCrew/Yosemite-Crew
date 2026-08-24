@@ -915,6 +915,15 @@ model ParentAddress {
   parent Parent @relation(fields: [parentId], references: [id], onDelete: Cascade)
 }
 
+/// Which vocabulary a practice wants its exports expressed in. Deliberately narrower
+/// than CodeSystem: IDEXX is an ordering vocabulary for lab requisitions, not something a
+/// clinical record should be exported as.
+enum VocabularyPreference {
+  YOSEMITECODE
+  VENOM
+  SNOMED
+}
+
 model Organization {
   id                                     String               @id @default(uuid())
   fhirId                                 String?
@@ -946,6 +955,9 @@ model Organization {
   appointmentLockWindowOutpatientMinutes Int?
   appointmentLockWindowInpatientMinutes  Int?
   crossOrgMessagingEnabled               Boolean              @default(false)
+  /// Governs how coded data is projected on the way out. It never narrows what a
+  /// clinician can pick: input is always the full YC vocabulary.
+  preferredVocabulary                    VocabularyPreference @default(YOSEMITECODE)
   maxOverallDiscountPercent              Float?
   createdAt                              DateTime             @default(now())
   updatedAt                              DateTime             @updatedAt
