@@ -1,5 +1,6 @@
 import { prisma } from "src/config/prisma";
 import { Prisma } from "@prisma/client";
+import type { Coding } from "@yosemite-crew/fhir";
 import type { MappingEquivalence } from "src/models/code-mapping";
 
 /**
@@ -15,17 +16,59 @@ import type { MappingEquivalence } from "src/models/code-mapping";
  */
 export type ProjectionTarget = "YOSEMITECODE" | "VENOM" | "SNOMED";
 
+/** Terminology system URIs, so a projection is quotable as a FHIR Coding. */
+export const SYSTEM_URI: Record<ProjectionTarget, string> = {
+  YOSEMITECODE: "https://yosemitecrew.com/fhir/CodeSystem/yosemite",
+  VENOM: "urn:venom",
+  SNOMED: "http://snomed.info/sct",
+};
+
+/**
+ * A FHIR Coding for the mapped case, wrapped in a result that can also say "no
+ * counterpart" or "unknown". Coding alone cannot express either, and collapsing them
+ * into an absent Coding is what makes an export look complete when it is not.
+ */
 export type ProjectedCode =
   | {
       status: "mapped";
       ycCode: string;
       system: ProjectionTarget;
-      code: string;
-      display: string | null;
+      coding: Coding;
       equivalence: MappingEquivalence;
     }
   | { status: "unmapped"; ycCode: string; system: ProjectionTarget }
   | { status: "unknown"; ycCode: string; system: ProjectionTarget };
+
+/**
+ * Equivalences that assert a usable counterpart. UNMATCHED means no counterpart exists
+ * and DISJOINT means the two do not overlap, so counting either as coverage would
+ * overstate what the target vocabulary can express - the opposite of what a coverage
+ * disclosure is for.
+ */
+const USABLE_EQUIVALENCES: MappingEquivalence[] = [
+  "RELATEDTO",
+  "EQUIVALENT",
+  "EQUAL",
+  "WIDER",
+  "SUBSUMES",
+  "NARROWER",
+  "SPECIALIZES",
+  "INEXACT",
+];
+
+/** Strongest first. A term with several codes in one system should project its best. */
+const EQUIVALENCE_RANK: MappingEquivalence[] = [
+  "EQUAL",
+  "EQUIVALENT",
+  "NARROWER",
+  "SPECIALIZES",
+  "WIDER",
+  "SUBSUMES",
+  "RELATEDTO",
+  "INEXACT",
+  "UNMATCHED",
+  "DISJOINT",
+];
 
 export type VocabularyCoverage = {
   system: ProjectionTarget;
@@ -66,8 +109,11 @@ export const TerminologyProjectionService = {
               status: "mapped" as const,
               ycCode,
               system,
-              code: ycCode,
-              display: byCode.get(ycCode) ?? null,
+              coding: {
+                system: SYSTEM_URI[system],
+                code: ycCode,
+                display: byCode.get(ycCode) ?? undefined,
+              },
               equivalence: "EQUIVALENT" as MappingEquivalence,
             }
           : { status: "unknown" as const, ycCode, system },
@@ -98,26 +144,47 @@ export const TerminologyProjectionService = {
       }),
     ]);
 
-    const mapped = new Map(mappings.map((row) => [row.sourceCode, row]));
     const exists = new Set(known.map((row) => row.code));
 
+    // One term can hold several codes in a system. Keep the strongest equivalence
+    // rather than whichever target code happens to sort first.
+    const rank = (equivalence: string) => {
+      const index = EQUIVALENCE_RANK.indexOf(equivalence as MappingEquivalence);
+      return index === -1 ? EQUIVALENCE_RANK.length : index;
+    };
+    const mapped = new Map<string, (typeof mappings)[number]>();
+    for (const row of mappings) {
+      const held = mapped.get(row.sourceCode);
+      if (!held || rank(row.equivalence) < rank(held.equivalence)) {
+        mapped.set(row.sourceCode, row);
+      }
+    }
+
     return wanted.map((ycCode) => {
+      // Existence first. A mapping can outlive the concept it maps from - the entry is
+      // retired while its CodeMapping row stays active - and trusting the mapping would
+      // project a concept we no longer hold as though it were current.
+      if (!exists.has(ycCode)) {
+        return { status: "unknown" as const, ycCode, system };
+      }
+
       const hit = mapped.get(ycCode);
       if (hit) {
         return {
           status: "mapped" as const,
           ycCode,
           system,
-          code: hit.targetCode,
-          display: hit.targetDisplay,
+          coding: {
+            system: SYSTEM_URI[system],
+            code: hit.targetCode,
+            display: hit.targetDisplay ?? undefined,
+          },
           equivalence: hit.equivalence,
         };
       }
-      // An unknown code and a code with no counterpart are different failures: the first
-      // is a bug in the caller, the second is a real gap in the target vocabulary.
-      return exists.has(ycCode)
-        ? { status: "unmapped" as const, ycCode, system }
-        : { status: "unknown" as const, ycCode, system };
+      // A concept we hold with no counterpart is a real gap in the target vocabulary,
+      // which is a different thing from a code we never had.
+      return { status: "unmapped" as const, ycCode, system };
     });
   },
 
@@ -155,6 +222,7 @@ export const TerminologyProjectionService = {
             AND m."sourceSystem" = 'YOSEMITECODE'::"CodeSystem"
             AND m."targetSystem" = ${system}::"CodeSystem"
             AND m."active"
+            AND m."equivalence" = ANY(${USABLE_EQUIVALENCES}::"MappingEquivalence"[])
         ))`;
 
     const [row] = await prisma.$queryRaw<

@@ -39,8 +39,11 @@ describe("projectCodes", () => {
       status: "mapped",
       ycCode: "YC-1",
       system: "SNOMED",
-      code: "422400008",
-      display: "Vomiting",
+      coding: {
+        system: "http://snomed.info/sct",
+        code: "422400008",
+        display: "Vomiting",
+      },
       equivalence: "NARROWER",
     });
   });
@@ -100,7 +103,7 @@ describe("projectCodes", () => {
 
     expect(result).toMatchObject({
       status: "mapped",
-      code: "YC-1",
+      coding: { code: "YC-1" },
       equivalence: "EQUIVALENT",
     });
   });
@@ -198,5 +201,115 @@ describe("vocabularyCoverage", () => {
       await TerminologyProjectionService.vocabularyCoverage("YOSEMITECODE");
 
     expect(coverage).toMatchObject({ percent: 100, species: null });
+  });
+
+  describe("projectCode", () => {
+    it("projects a single code", async () => {
+      entryFind.mockResolvedValue([{ code: "YC-1" }]);
+      mappingFind.mockResolvedValue([
+        {
+          sourceCode: "YC-1",
+          targetCode: "422400008",
+          targetDisplay: "Vomiting",
+          equivalence: "EQUIVALENT",
+        },
+      ]);
+
+      const result = await TerminologyProjectionService.projectCode(
+        "YC-1",
+        "SNOMED",
+      );
+
+      expect(result).toMatchObject({
+        status: "mapped",
+        coding: { code: "422400008" },
+      });
+    });
+
+    it("returns unknown for a blank code rather than querying", async () => {
+      const result = await TerminologyProjectionService.projectCode(
+        "   ",
+        "SNOMED",
+      );
+
+      expect(result).toEqual({
+        status: "unknown",
+        ycCode: "   ",
+        system: "SNOMED",
+      });
+      expect(mappingFind).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("a mapping that outlived its concept", () => {
+    it("reports unknown when the concept is gone but the mapping is still active", async () => {
+      // CodeMapping rows are not cascaded when an entry is retired, so a live mapping can
+      // point from a concept we no longer hold. Trusting it would project a retired code
+      // as though it were current.
+      entryFind.mockResolvedValue([]);
+      mappingFind.mockResolvedValue([
+        {
+          sourceCode: "YC-retired",
+          targetCode: "422400008",
+          targetDisplay: "Vomiting",
+          equivalence: "EQUIVALENT",
+        },
+      ]);
+
+      const [result] = await TerminologyProjectionService.projectCodes(
+        ["YC-retired"],
+        "SNOMED",
+      );
+
+      expect(result.status).toBe("unknown");
+    });
+  });
+
+  describe("competing mappings", () => {
+    it("projects the strongest equivalence, not the first code returned", async () => {
+      entryFind.mockResolvedValue([{ code: "YC-1" }]);
+      mappingFind.mockResolvedValue([
+        {
+          sourceCode: "YC-1",
+          targetCode: "111",
+          targetDisplay: "loose",
+          equivalence: "INEXACT",
+        },
+        {
+          sourceCode: "YC-1",
+          targetCode: "222",
+          targetDisplay: "exact",
+          equivalence: "EQUIVALENT",
+        },
+      ]);
+
+      const [result] = await TerminologyProjectionService.projectCodes(
+        ["YC-1"],
+        "SNOMED",
+      );
+
+      expect(result).toMatchObject({
+        coding: { code: "222" },
+        equivalence: "EQUIVALENT",
+      });
+    });
+  });
+
+  describe("coverage honesty", () => {
+    it("excludes UNMATCHED and DISJOINT from the covered count", async () => {
+      // Both mean there is no usable counterpart. Counting them would inflate the very
+      // disclosure meant to warn a practice off a vocabulary that cannot express its work.
+      queryRaw.mockResolvedValue([{ terms: BigInt(10), mapped: BigInt(4) }]);
+
+      await TerminologyProjectionService.vocabularyCoverage("SNOMED");
+
+      // $queryRaw is a tagged template, so the whole call is the statement: the strings
+      // array plus every interpolated fragment and bound value.
+      const call = JSON.stringify(queryRaw.mock.calls[0]);
+      expect(call).toContain("equivalence");
+      expect(call).toContain("EQUIVALENT");
+      expect(call).not.toContain("UNMATCHED");
+      expect(call).not.toContain("DISJOINT");
+    });
   });
 });
