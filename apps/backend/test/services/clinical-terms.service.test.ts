@@ -205,6 +205,16 @@ describe("ClinicalTermsService", () => {
       expect(values).toContain(10);
     });
 
+    it("searches synonym text, not its JSON encoding", () => {
+      // synonyms::text yields the JSON encoding, so a synonym containing a quote reads
+      // as \" and a query spanning it would miss a row that genuinely matches. The
+      // prefilter has to use the same function the index is built on.
+      const { text } = sqlFor({ q: "vomiting" });
+
+      expect(text).toContain("code_entry_search_text");
+      expect(text).not.toContain('"synonyms"::text');
+    });
+
     it("pushes the text match into SQL as a bound parameter", () => {
       const { text, values } = sqlFor({ q: "Vomiting" });
 

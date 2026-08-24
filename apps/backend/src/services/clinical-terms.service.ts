@@ -226,10 +226,13 @@ export const buildSuggestionQuery = (
   ];
 
   if (query) {
-    // Matches the indexed expression exactly so the trigram index is used. This is a
-    // prefilter over a superset; scoreExpression below decides the real matches.
+    // Must match the indexed expression character for character, or the trigram index
+    // is not used. code_entry_search_text builds its text from the synonym array's
+    // elements rather than from synonyms::text, so a synonym containing a quote or
+    // backslash is searchable rather than appearing JSON-escaped. This is a prefilter
+    // over a superset; scoreExpression below decides the real matches.
     filters.push(
-      Prisma.sql`lower(e."display" || ' ' || COALESCE(e."synonyms"::text, '')) LIKE ${containsPattern} ESCAPE '\\'`,
+      Prisma.sql`code_entry_search_text(e."display", e."synonyms") LIKE ${containsPattern} ESCAPE '\\'`,
     );
   }
 
