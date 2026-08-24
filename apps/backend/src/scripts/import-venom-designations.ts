@@ -50,7 +50,9 @@ export const planDesignations = (
   >();
   const skipped: DesignationPlan["skipped"] = [];
 
-  for (const [ycCode, term, lang, type] of extract.designations) {
+  // The fourth element is VeNom's label type. Whether a designation is a translation or
+  // a synonym does not change how it is stored, so it is not destructured.
+  for (const [ycCode, term, lang] of extract.designations) {
     const trimmed = term.trim();
     if (!trimmed || !lang.trim()) {
       skipped.push({ ycCode, term, reason: "empty term or language" });
@@ -87,7 +89,6 @@ export const planDesignations = (
       preferred: false,
     });
     entry.added += 1;
-    void type;
   }
 
   return {
