@@ -81,6 +81,98 @@ export type VocabularyCoverage = {
 
 const isTerminal = (system: ProjectionTarget) => system === "YOSEMITECODE";
 
+/**
+ * Our own vocabulary is not projected, but a code must still be confirmed to exist
+ * rather than echoed back: echoing would make a nonexistent code look valid.
+ */
+const projectOwnVocabulary = async (
+  wanted: string[],
+  system: ProjectionTarget,
+): Promise<ProjectedCode[]> => {
+  const known = await prisma.codeEntry.findMany({
+    where: { system: "YOSEMITECODE", code: { in: wanted }, active: true },
+    select: { code: true, display: true },
+  });
+  const byCode = new Map(known.map((row) => [row.code, row.display]));
+  return wanted.map((ycCode) =>
+    byCode.has(ycCode)
+      ? {
+          status: "mapped" as const,
+          ycCode,
+          system,
+          coding: {
+            system: SYSTEM_URI[system],
+            code: ycCode,
+            display: byCode.get(ycCode) ?? undefined,
+          },
+          equivalence: "EQUIVALENT" as MappingEquivalence,
+        }
+      : { status: "unknown" as const, ycCode, system },
+  );
+};
+
+type MappingRow = {
+  sourceCode: string;
+  targetCode: string;
+  targetDisplay: string | null;
+  equivalence: string;
+};
+
+const equivalenceRank = (equivalence: string) => {
+  const index = EQUIVALENCE_RANK.indexOf(equivalence as MappingEquivalence);
+  return index === -1 ? EQUIVALENCE_RANK.length : index;
+};
+
+/**
+ * One term can hold several codes in a system. Keep the strongest equivalence rather
+ * than whichever target code happens to sort first.
+ */
+const strongestMappingPerSource = (rows: MappingRow[]) => {
+  const mapped = new Map<string, MappingRow>();
+  for (const row of rows) {
+    const held = mapped.get(row.sourceCode);
+    if (
+      !held ||
+      equivalenceRank(row.equivalence) < equivalenceRank(held.equivalence)
+    ) {
+      mapped.set(row.sourceCode, row);
+    }
+  }
+  return mapped;
+};
+
+const projectOne = (
+  ycCode: string,
+  system: ProjectionTarget,
+  exists: Set<string>,
+  mapped: Map<string, MappingRow>,
+): ProjectedCode => {
+  // Existence first. A mapping can outlive the concept it maps from - the entry is
+  // retired while its CodeMapping row stays active - and trusting the mapping would
+  // project a concept we no longer hold as though it were current.
+  if (!exists.has(ycCode)) {
+    return { status: "unknown", ycCode, system };
+  }
+
+  const hit = mapped.get(ycCode);
+  if (hit) {
+    return {
+      status: "mapped",
+      ycCode,
+      system,
+      coding: {
+        system: SYSTEM_URI[system],
+        code: hit.targetCode,
+        display: hit.targetDisplay ?? undefined,
+      },
+      equivalence: hit.equivalence as MappingEquivalence,
+    };
+  }
+  // A concept we hold with no counterpart is a real gap in the target vocabulary,
+  // which is a different thing from a code we never had.
+  return { status: "unmapped", ycCode, system };
+};
+
 export const TerminologyProjectionService = {
   /**
    * Projects several codes at once. Batched deliberately: a SOAP note or an export runs
@@ -94,31 +186,7 @@ export const TerminologyProjectionService = {
       ...new Set(ycCodes.map((code) => code.trim()).filter(Boolean)),
     ];
     if (wanted.length === 0) return [];
-
-    // Asking for our own vocabulary is not a projection; it still has to confirm the
-    // code exists rather than echoing whatever it was handed.
-    if (isTerminal(system)) {
-      const known = await prisma.codeEntry.findMany({
-        where: { system: "YOSEMITECODE", code: { in: wanted }, active: true },
-        select: { code: true, display: true },
-      });
-      const byCode = new Map(known.map((row) => [row.code, row.display]));
-      return wanted.map((ycCode) =>
-        byCode.has(ycCode)
-          ? {
-              status: "mapped" as const,
-              ycCode,
-              system,
-              coding: {
-                system: SYSTEM_URI[system],
-                code: ycCode,
-                display: byCode.get(ycCode) ?? undefined,
-              },
-              equivalence: "EQUIVALENT" as MappingEquivalence,
-            }
-          : { status: "unknown" as const, ycCode, system },
-      );
-    }
+    if (isTerminal(system)) return projectOwnVocabulary(wanted, system);
 
     const [mappings, known] = await Promise.all([
       prisma.codeMapping.findMany({
@@ -134,8 +202,8 @@ export const TerminologyProjectionService = {
           targetDisplay: true,
           equivalence: true,
         },
-        // A term can carry more than one code in a system. Deterministic order so the
-        // same record projects the same way every time.
+        // Deterministic order, so a term with several codes projects the same way
+        // every time even before ranking breaks the tie.
         orderBy: { targetCode: "asc" },
       }),
       prisma.codeEntry.findMany({
@@ -145,47 +213,8 @@ export const TerminologyProjectionService = {
     ]);
 
     const exists = new Set(known.map((row) => row.code));
-
-    // One term can hold several codes in a system. Keep the strongest equivalence
-    // rather than whichever target code happens to sort first.
-    const rank = (equivalence: string) => {
-      const index = EQUIVALENCE_RANK.indexOf(equivalence as MappingEquivalence);
-      return index === -1 ? EQUIVALENCE_RANK.length : index;
-    };
-    const mapped = new Map<string, (typeof mappings)[number]>();
-    for (const row of mappings) {
-      const held = mapped.get(row.sourceCode);
-      if (!held || rank(row.equivalence) < rank(held.equivalence)) {
-        mapped.set(row.sourceCode, row);
-      }
-    }
-
-    return wanted.map((ycCode) => {
-      // Existence first. A mapping can outlive the concept it maps from - the entry is
-      // retired while its CodeMapping row stays active - and trusting the mapping would
-      // project a concept we no longer hold as though it were current.
-      if (!exists.has(ycCode)) {
-        return { status: "unknown" as const, ycCode, system };
-      }
-
-      const hit = mapped.get(ycCode);
-      if (hit) {
-        return {
-          status: "mapped" as const,
-          ycCode,
-          system,
-          coding: {
-            system: SYSTEM_URI[system],
-            code: hit.targetCode,
-            display: hit.targetDisplay ?? undefined,
-          },
-          equivalence: hit.equivalence,
-        };
-      }
-      // A concept we hold with no counterpart is a real gap in the target vocabulary,
-      // which is a different thing from a code we never had.
-      return { status: "unmapped" as const, ycCode, system };
-    });
+    const mapped = strongestMappingPerSource(mappings);
+    return wanted.map((ycCode) => projectOne(ycCode, system, exists, mapped));
   },
 
   async projectCode(
