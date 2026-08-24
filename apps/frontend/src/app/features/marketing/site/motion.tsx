@@ -75,7 +75,17 @@ interface RevealProps extends React.HTMLAttributes<HTMLElement> {
   as?: 'div' | 'section' | 'li' | 'span';
 }
 
-/** Fade + rise + de-blur when scrolled into view. Renders visible immediately under reduced motion. */
+/**
+ * Fade + rise + de-blur when scrolled into view.
+ *
+ * Both states live in marketing.css keyed off `data-reveal`; this only flips the
+ * attribute. Deriving the initial state here instead made the server (no
+ * IntersectionObserver, so settled) and the first client render (observer present,
+ * so hidden) disagree on opacity/transform/filter — a hydration mismatch React
+ * leaves unpatched, so the reveal never ran on an SSR'd load. Reduced motion and
+ * scripting-off are media queries on the same selector, so they hold from the first
+ * paint rather than waiting on an effect.
+ */
 export function Reveal({
   children,
   delay = 0,
@@ -85,43 +95,49 @@ export function Reveal({
   ...rest
 }: Readonly<RevealProps>) {
   const ref = useRef<HTMLElement | null>(null);
-  const reduced = useReducedMotion();
-  // Without IntersectionObserver (SSR / older browsers) content is visible from
-  // the first paint; the observer below only drives the reveal when it exists.
-  const [shown, setShown] = useState(() => typeof IntersectionObserver === 'undefined');
+  const [shown, setShown] = useState(false);
 
   useEffect(() => {
-    if (reduced || typeof IntersectionObserver === 'undefined') return undefined;
+    let timer = 0;
+    const reveal = () => {
+      timer = globalThis.window.setTimeout(() => setShown(true), delay);
+    };
+    const clear = () => globalThis.window.clearTimeout(timer);
+
+    // Older browsers with no observer settle on their own rather than staying
+    // hidden, matching what the stylesheet does when scripting is off.
+    if (typeof IntersectionObserver === 'undefined') {
+      reveal();
+      return clear;
+    }
     const node = ref.current;
     if (!node) return undefined;
-    const reveal = () => setShown(true);
     const io = new IntersectionObserver(
       (entries) => {
         const entry = entries.find((e) => e.isIntersecting);
         if (entry) {
-          globalThis.window.setTimeout(reveal, delay);
+          reveal();
           io.unobserve(entry.target);
         }
       },
       { threshold: 0.12 }
     );
     io.observe(node);
-    return () => io.disconnect();
-  }, [reduced, delay]);
-
-  const motionStyle: CSSProperties = reduced
-    ? {}
-    : {
-        opacity: shown ? 1 : 0,
-        transform: shown ? 'translateY(0px)' : 'translateY(34px)',
-        filter: shown ? 'blur(0px)' : 'blur(8px)',
-        transition: `opacity 1s ${EASE}, transform 1s ${EASE}, filter 1s ${EASE}`,
-        willChange: 'opacity, transform',
-      };
+    return () => {
+      clear();
+      io.disconnect();
+    };
+  }, [delay]);
 
   const Tag = as;
   return (
-    <Tag ref={ref as never} className={className} style={{ ...motionStyle, ...style }} {...rest}>
+    <Tag
+      ref={ref as never}
+      data-reveal={shown ? 'shown' : 'hidden'}
+      className={className}
+      style={style}
+      {...rest}
+    >
       {children}
     </Tag>
   );

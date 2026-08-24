@@ -181,6 +181,47 @@
   }
 }
 
+/* ---- Scroll reveal (drives Reveal in site/motion.tsx) ---- */
+/* Both states live here rather than in the component's inline style. Deriving the
+   initial state in JS meant the server (no IntersectionObserver, so settled) and the
+   first client render (observer present, so hidden) disagreed on opacity/transform/
+   filter; React reports that as a hydration mismatch and leaves the attributes
+   unpatched, so the reveal never actually ran on an SSR'd load. With the states in
+   CSS both sides emit the same markup and only data-reveal flips, after hydration. */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(34px);
+  filter: blur(8px);
+  transition:
+    opacity 1s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 1s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 1s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+[data-reveal='shown'] {
+  opacity: 1;
+  /* An explicit zero, not `none`: the transform is what makes a settled Reveal a
+     containing block for its absolutely-positioned descendants, and dropping it
+     would re-anchor them to the page. */
+  transform: translateY(0);
+  filter: blur(0px);
+  will-change: auto;
+}
+
+/* Reduced motion, and browsers running with scripting off, both want the content
+   simply present. Keeping that here rather than in the component means neither
+   branch waits on an effect - it is what the very first paint already uses.
+   (An unknown media feature evaluates false, so `scripting` is safe to list.) */
+@media (prefers-reduced-motion: reduce), (scripting: none) {
+  [data-reveal] {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0px);
+    transition: none;
+    will-change: auto;
+  }
+}
+
 /* ---- Buttons ---- */
 .yc-btn-primary {
   position: relative;
