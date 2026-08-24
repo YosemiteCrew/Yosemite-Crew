@@ -183,11 +183,14 @@ type ClinicalTermRow = {
 const escapeLike = (value: string) =>
   value.replace(/[\\%_]/g, (character) => `\\${character}`);
 
+const SYNONYMS_COLUMN = Prisma.sql`e."synonyms"`;
+const SPECIES_META = Prisma.sql`e."meta"->'species'`;
+
 const jsonTextArray = (expression: Prisma.Sql) =>
   Prisma.sql`jsonb_array_elements_text(CASE WHEN jsonb_typeof(${expression}) = 'array' THEN ${expression} ELSE '[]'::jsonb END)`;
 
 const synonymMatches = (predicate: Prisma.Sql) =>
-  Prisma.sql`EXISTS (SELECT 1 FROM ${jsonTextArray(Prisma.sql`e."synonyms"`)} s WHERE ${predicate})`;
+  Prisma.sql`EXISTS (SELECT 1 FROM ${jsonTextArray(SYNONYMS_COLUMN)} s WHERE ${predicate})`;
 
 export type SuggestTermsParams = {
   q?: string;
@@ -235,22 +238,33 @@ export const buildSuggestionQuery = (
   }
 
   if (params.species?.length) {
+    const speciesElements = jsonTextArray(SPECIES_META);
     filters.push(
-      Prisma.sql`EXISTS (SELECT 1 FROM ${jsonTextArray(Prisma.sql`e."meta"->'species'`)} sp WHERE sp = ANY(${params.species}))`,
+      Prisma.sql`EXISTS (SELECT 1 FROM ${speciesElements} sp WHERE sp = ANY(${params.species}))`,
     );
   }
+
+  const synonymExact = synonymMatches(Prisma.sql`lower(s) = ${query}`);
+  const synonymPrefix = synonymMatches(
+    Prisma.sql`lower(s) LIKE ${prefixPattern} ESCAPE '\\'`,
+  );
+  const synonymContains = synonymMatches(
+    Prisma.sql`lower(s) LIKE ${containsPattern} ESCAPE '\\'`,
+  );
 
   const scoreExpression = query
     ? Prisma.sql`CASE
           WHEN lower(e."display") = ${query} THEN 400
-          WHEN ${synonymMatches(Prisma.sql`lower(s) = ${query}`)} THEN 300
+          WHEN ${synonymExact} THEN 300
           WHEN lower(e."display") LIKE ${prefixPattern} ESCAPE '\\' THEN 200
-          WHEN ${synonymMatches(Prisma.sql`lower(s) LIKE ${prefixPattern} ESCAPE '\\'`)} THEN 150
+          WHEN ${synonymPrefix} THEN 150
           WHEN lower(e."display") LIKE ${containsPattern} ESCAPE '\\' THEN 100
-          WHEN ${synonymMatches(Prisma.sql`lower(s) LIKE ${containsPattern} ESCAPE '\\'`)} THEN 50
+          WHEN ${synonymContains} THEN 50
           ELSE 0
         END`
     : Prisma.sql`0`;
+
+  const scoreFilter = query ? Prisma.sql`score > 0` : Prisma.sql`TRUE`;
 
   return Prisma.sql`
     SELECT code, display, synonyms, meta, score FROM (
@@ -259,7 +273,7 @@ export const buildSuggestionQuery = (
       FROM "CodeEntry" e
       WHERE ${Prisma.join(filters, " AND ")}
     ) scored
-    WHERE ${query ? Prisma.sql`score > 0` : Prisma.sql`TRUE`}
+    WHERE ${scoreFilter}
     ORDER BY score DESC, display ASC
     LIMIT ${safeLimit}
   `;
