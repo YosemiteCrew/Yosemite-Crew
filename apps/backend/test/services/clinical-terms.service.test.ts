@@ -1,4 +1,7 @@
-import { ClinicalTermsService } from "../../src/services/clinical-terms.service";
+import {
+  ClinicalTermsService,
+  buildSuggestionQuery,
+} from "../../src/services/clinical-terms.service";
 import { CodeService } from "src/services/code.service";
 import { prisma } from "src/config/prisma";
 import fs from "node:fs";
@@ -16,6 +19,7 @@ jest.mock("src/config/prisma", () => ({
     codeEntry: {
       findMany: jest.fn(),
     },
+    $queryRaw: jest.fn(),
   },
 }));
 
@@ -151,38 +155,14 @@ describe("ClinicalTermsService", () => {
   });
 
   describe("suggestTerms", () => {
-    it("filters postgres-backed suggestions by query, domain, and species", async () => {
-      process.env.READ_FROM_POSTGRES = "true";
-      (prisma.codeEntry.findMany as jest.Mock).mockResolvedValue([
+    it("maps rows returned by the database onto suggestions", async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([
         {
           code: "YC-1",
           display: "Vomiting",
           synonyms: ["Emesis", "Vomiting"],
-          meta: {
-            domain: "Diagnosis",
-            species: ["SA"],
-            source: "VeNom",
-          },
-        },
-        {
-          code: "YC-2",
-          display: "Vomiting test",
-          synonyms: ["Test emesis"],
-          meta: {
-            domain: "DiagnosticTest",
-            species: ["SA"],
-            source: "VeNom",
-          },
-        },
-        {
-          code: "YC-3",
-          display: "Coughing",
-          synonyms: ["Cough"],
-          meta: {
-            domain: "Diagnosis",
-            species: ["EQUINE"],
-            source: "VeNom",
-          },
+          meta: { domain: "Diagnosis", species: ["SA"], source: "VeNom" },
+          score: 400,
         },
       ]);
 
@@ -193,7 +173,7 @@ describe("ClinicalTermsService", () => {
         limit: 5,
       });
 
-      expect(prisma.codeEntry.findMany).toHaveBeenCalled();
+      expect(prisma.$queryRaw).toHaveBeenCalled();
       expect(result).toEqual([
         {
           ycCode: "YC-1",
@@ -205,49 +185,69 @@ describe("ClinicalTermsService", () => {
         },
       ]);
     });
+  });
 
-    it("returns terms that only match through a synonym", async () => {
-      process.env.READ_FROM_POSTGRES = "true";
-      (prisma.codeEntry.findMany as jest.Mock).mockResolvedValue([
-        {
-          code: "YC-9",
-          display: "Vomiting",
-          synonyms: ["Emesis"],
-          meta: {
-            domain: "Diagnosis",
-            species: ["SA"],
-            source: "VeNom",
-          },
-        },
-      ]);
+  describe("buildSuggestionQuery", () => {
+    // The filtering lives in SQL now, so these assert the statement itself. Mocking the
+    // database and asserting the rows it was told to return would prove nothing.
+    const sqlFor = (params: Parameters<typeof buildSuggestionQuery>[0]) => {
+      const statement = buildSuggestionQuery(params);
+      return { text: statement.sql, values: statement.values };
+    };
 
-      const result = await ClinicalTermsService.suggestTerms({
-        q: "emesis",
-        domain: "Diagnosis",
-        species: ["SA"],
-        limit: 5,
-      });
+    it("does not cap the rows it scans", () => {
+      // The whole defect: a fixed 5,000-row slice left 6,742 of 11,742 terms
+      // unreachable, cutting the vocabulary at "Hypoadrenocorticism".
+      const { text, values } = sqlFor({ q: "vomiting", limit: 10 });
 
-      expect(prisma.codeEntry.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: {
-            system: "YOSEMITECODE",
-            type: "CLINICAL_TERM",
-            active: true,
-          },
-          take: 5000,
-        }),
+      expect(text).not.toContain("5000");
+      expect(values).not.toContain(5000);
+      expect(values).toContain(10);
+    });
+
+    it("pushes the text match into SQL as a bound parameter", () => {
+      const { text, values } = sqlFor({ q: "Vomiting" });
+
+      expect(text).toContain("LIKE");
+      expect(values).toContain("%vomiting%");
+      // Never interpolated into the statement text.
+      expect(text).not.toContain("vomiting");
+    });
+
+    it("escapes LIKE wildcards typed by the user", () => {
+      // Unescaped, a lone "%" matches the entire vocabulary and the autocomplete
+      // returns arbitrary terms.
+      const { values } = sqlFor({ q: "50%" });
+
+      expect(values).toContain("%50\\%%");
+    });
+
+    it("filters by domain in SQL only when a domain is asked for", () => {
+      expect(sqlFor({ q: "a", domain: "Diagnosis" }).text).toContain(
+        "'domain'",
       );
-      expect(result).toEqual([
-        {
-          ycCode: "YC-9",
-          label: "Vomiting",
-          domain: "Diagnosis",
-          species: ["SA"],
-          synonyms: ["Emesis"],
-          source: "VeNom",
-        },
-      ]);
+      expect(sqlFor({ q: "a" }).text).not.toContain("'domain'");
+    });
+
+    it("filters by species in SQL only when species are asked for", () => {
+      const withSpecies = sqlFor({ q: "a", species: ["SA", "EQUINE"] });
+      expect(withSpecies.text).toContain("'species'");
+      expect(withSpecies.values).toContainEqual(["SA", "EQUINE"]);
+
+      expect(sqlFor({ q: "a" }).text).not.toContain("'species'");
+    });
+
+    it("returns unscored rows when browsing without a query", () => {
+      const { text } = sqlFor({});
+
+      expect(text).not.toContain("LIKE");
+      expect(text).toContain("TRUE");
+    });
+
+    it("clamps the limit", () => {
+      expect(sqlFor({ limit: 5000 }).values).toContain(50);
+      expect(sqlFor({ limit: -3 }).values).toContain(1);
+      expect(sqlFor({}).values).toContain(10);
     });
   });
 
