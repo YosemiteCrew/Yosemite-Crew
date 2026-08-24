@@ -209,6 +209,10 @@ export const buildSuggestionQuery = (
       ? Math.min(Math.max(Math.floor(params.limit), 1), 50)
       : 10;
   const query = params.q?.trim().toLowerCase();
+  // Hoisted so the patterns are built once rather than nested inside each SQL fragment.
+  const escaped = query ? escapeLike(query) : "";
+  const containsPattern = `%${escaped}%`;
+  const prefixPattern = `${escaped}%`;
 
   // Filtering and scoring happen in SQL. Doing it in JavaScript meant first pulling a
   // fixed slice of rows, which silently made most of the vocabulary unsearchable.
@@ -222,7 +226,7 @@ export const buildSuggestionQuery = (
     // Matches the indexed expression exactly so the trigram index is used. This is a
     // prefilter over a superset; scoreExpression below decides the real matches.
     filters.push(
-      Prisma.sql`lower(e."display" || ' ' || COALESCE(e."synonyms"::text, '')) LIKE ${`%${escapeLike(query)}%`} ESCAPE '\\'`,
+      Prisma.sql`lower(e."display" || ' ' || COALESCE(e."synonyms"::text, '')) LIKE ${containsPattern} ESCAPE '\\'`,
     );
   }
 
@@ -240,10 +244,10 @@ export const buildSuggestionQuery = (
     ? Prisma.sql`CASE
           WHEN lower(e."display") = ${query} THEN 400
           WHEN ${synonymMatches(Prisma.sql`lower(s) = ${query}`)} THEN 300
-          WHEN lower(e."display") LIKE ${`${escapeLike(query)}%`} ESCAPE '\\' THEN 200
-          WHEN ${synonymMatches(Prisma.sql`lower(s) LIKE ${`${escapeLike(query)}%`} ESCAPE '\\'`)} THEN 150
-          WHEN lower(e."display") LIKE ${`%${escapeLike(query)}%`} ESCAPE '\\' THEN 100
-          WHEN ${synonymMatches(Prisma.sql`lower(s) LIKE ${`%${escapeLike(query)}%`} ESCAPE '\\'`)} THEN 50
+          WHEN lower(e."display") LIKE ${prefixPattern} ESCAPE '\\' THEN 200
+          WHEN ${synonymMatches(Prisma.sql`lower(s) LIKE ${prefixPattern} ESCAPE '\\'`)} THEN 150
+          WHEN lower(e."display") LIKE ${containsPattern} ESCAPE '\\' THEN 100
+          WHEN ${synonymMatches(Prisma.sql`lower(s) LIKE ${containsPattern} ESCAPE '\\'`)} THEN 50
           ELSE 0
         END`
     : Prisma.sql`0`;
