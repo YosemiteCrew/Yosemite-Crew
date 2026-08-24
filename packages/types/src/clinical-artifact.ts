@@ -790,10 +790,19 @@ const compositionToDischargeSummaryInput = (
  */
 const UCUM_SYSTEM = 'http://unitsofmeasure.org';
 
+/**
+ * Vitals whose storage key determines their unit beyond doubt.
+ *
+ * tempF and weightLbs are deliberately absent. VitalsForm's resolveDraftKey routes any
+ * template field whose label contains "temp" into tempF and any "weight" into weightLbs,
+ * whatever unit that template declares - there is a test covering a field declared in
+ * Celsius. Stamping [degF] on a Celsius reading would export 38.5 as severe hypothermia
+ * rather than a normal canine temperature: a confident, wrong clinical claim, which is
+ * worse than the unqualified number it replaced. They stay unqualified until the stored
+ * vital carries the unit it was entered in.
+ */
 const VITAL_UNITS: Record<string, { unit: string; code: string }> = {
-  tempF: { unit: '°F', code: '[degF]' },
   tempC: { unit: '°C', code: 'Cel' },
-  weightLbs: { unit: 'lb', code: '[lb_av]' },
   weightKg: { unit: 'kg', code: 'kg' },
   heartRateBpm: { unit: 'beats/min', code: '/min' },
   respRateBpm: { unit: 'breaths/min', code: '/min' },
@@ -804,15 +813,34 @@ const VITAL_UNITS: Record<string, { unit: string; code: string }> = {
   painScore: { unit: 'score', code: '{score}' },
 };
 
-const vitalComponentValue = (key: string, value: unknown) => {
-  if (typeof value === 'number') {
-    const units = VITAL_UNITS[key];
-    // An unrecognised numeric vital stays a plain decimal rather than being given a
-    // guessed unit. A wrong unit is worse than an absent one.
-    return units
-      ? { valueQuantity: { value, unit: units.unit, system: UCUM_SYSTEM, code: units.code } }
-      : { valueDecimal: value };
+/**
+ * Own properties only. A vital named "constructor" or "toString" - reachable through the
+ * passthrough Observation endpoint - would otherwise find an inherited function on the
+ * prototype, which is truthy, and emit a valueQuantity carrying the UCUM system with no
+ * unit or code at all.
+ */
+const unitsFor = (key: string) =>
+  Object.prototype.hasOwnProperty.call(VITAL_UNITS, key) ? VITAL_UNITS[key] : undefined;
+
+/** CRT is stored as a string by VitalsForm, so a numeric-only branch would skip it. */
+const asFiniteNumber = (value: unknown): number | null => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
   }
+  return null;
+};
+
+const vitalComponentValue = (key: string, value: unknown) => {
+  const units = unitsFor(key);
+  const numeric = units ? asFiniteNumber(value) : null;
+  if (units && numeric !== null) {
+    return {
+      valueQuantity: { value: numeric, unit: units.unit, system: UCUM_SYSTEM, code: units.code },
+    };
+  }
+  if (typeof value === 'number') return { valueDecimal: value };
   if (typeof value === 'boolean') return { valueBoolean: value };
   if (typeof value === 'string') return { valueString: value };
   return { valueString: stringifyMaybe(value) ?? '' };
