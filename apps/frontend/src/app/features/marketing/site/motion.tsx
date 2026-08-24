@@ -113,23 +113,40 @@ export function Reveal({
     let timer = 0;
     const io = new IntersectionObserver(
       (entries) => {
-        const entry = entries.at(-1);
-        if (!entry) return;
-        if (!entry.isIntersecting) {
-          // Off-screen, so hiding it now costs the reader nothing and gives the
-          // scroll-in something to animate from.
-          if (!armed.current) {
-            armed.current = true;
-            setState('hidden');
+        // Scan the whole batch for an intersection rather than trusting the last
+        // record. A fast scroll (a scrollbar drag, End, a trackpad flick) can move
+        // an element in and out between two rendering opportunities, and the
+        // observer then delivers both records at once. Reading only the final one
+        // sees "off-screen", drops the reveal, and strands the element hidden until
+        // the reader happens to scroll back past it.
+        // No records carries no information, and hiding on that would be hiding
+        // content for no reason.
+        if (entries.length === 0) return;
+        const intersecting = entries.find((entry) => entry.isIntersecting);
+        if (intersecting) {
+          io.unobserve(intersecting.target);
+          if (armed.current) {
+            timer = globalThis.window.setTimeout(() => setState('shown'), delay);
           }
           return;
         }
-        io.unobserve(entry.target);
-        if (armed.current) {
-          timer = globalThis.window.setTimeout(() => setState('shown'), delay);
+        // Below the fold, so hiding it now costs the reader nothing and gives the
+        // scroll-in something to animate from.
+        if (!armed.current) {
+          armed.current = true;
+          setState('hidden');
         }
       },
-      { threshold: 0.12 }
+      {
+        threshold: 0.12,
+        // The root reaches far above the viewport so that anything the reader has
+        // already scrolled past counts as intersecting and reveals. Without it, a
+        // jump straight to the bottom (the End key, a scrollbar drag) moves an
+        // element from below the viewport to above it without ever crossing a
+        // threshold, so no callback is delivered at all and the element stays
+        // hidden for the rest of the session.
+        rootMargin: '100000px 0px 0px 0px',
+      }
     );
     io.observe(node);
     return () => {

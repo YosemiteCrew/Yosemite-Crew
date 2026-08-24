@@ -94,6 +94,33 @@ class EmptyIO {
   }
 }
 
+/**
+ * A fast scroll can move an element in and out between two rendering
+ * opportunities, and the observer then delivers both records in one callback.
+ * Reproduces that batch, intersection first and off-screen last.
+ */
+class BatchedIO {
+  private readonly cb: IntersectionObserverCallback;
+  constructor(cb: IntersectionObserverCallback) {
+    this.cb = cb;
+  }
+  observe(node: Element) {
+    this.cb(
+      [
+        { isIntersecting: false, target: node } as IntersectionObserverEntry,
+        { isIntersecting: true, target: node } as IntersectionObserverEntry,
+        { isIntersecting: false, target: node } as IntersectionObserverEntry,
+      ],
+      this as unknown as IntersectionObserver
+    );
+  }
+  unobserve() {}
+  disconnect() {}
+  takeRecords() {
+    return [] as IntersectionObserverEntry[];
+  }
+}
+
 describe('motion primitives', () => {
   const OriginalIO = globalThis.IntersectionObserver;
   const OriginalMM = (globalThis as unknown as { matchMedia: unknown }).matchMedia;
@@ -162,6 +189,27 @@ describe('motion primitives', () => {
       expect(setState.mock.calls.length).toBe(rendersAfterFirstArm);
     } finally {
       setState.mockRestore();
+    }
+  });
+
+  it('Reveal still plays when a fast scroll batches the intersection mid-callback', () => {
+    (globalThis as unknown as { IntersectionObserver: unknown }).IntersectionObserver = ScrollIO;
+    jest.useFakeTimers();
+    try {
+      const { unmount } = render(<Reveal delay={5}>batched content</Reveal>);
+      expect(screen.getByText('batched content')).toHaveAttribute('data-reveal', 'hidden');
+      unmount();
+
+      // Same element, now reported through a batch that ends off-screen. Reading
+      // only the last record would strand it hidden for good.
+      (globalThis as unknown as { IntersectionObserver: unknown }).IntersectionObserver = BatchedIO;
+      render(<Reveal delay={5}>batched content</Reveal>);
+      act(() => {
+        jest.runAllTimers();
+      });
+      expect(screen.getByText('batched content')).toHaveAttribute('data-reveal', 'idle');
+    } finally {
+      jest.useRealTimers();
     }
   });
 
