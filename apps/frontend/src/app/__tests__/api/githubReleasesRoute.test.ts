@@ -79,7 +79,11 @@ describe('github-releases route handler', () => {
 
     const res = await call(`${BASE}?list=1`);
 
-    expect(String(fetchMock.mock.calls[0][0])).toContain('/releases?per_page=30');
+    // 100, GitHub's maximum here, not a smaller default. The home page reads this
+    // list to show a lane per shipped component, and a component whose latest
+    // release has fallen off the page renders as an empty lane. At four
+    // components on a monthly cadence, 30 covered about seven months.
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/releases?per_page=100');
     expect(res.body).toHaveLength(2);
     expect((res.body as Release[])[0]).not.toHaveProperty('extra');
     expect(res.init?.headers?.['Cache-Control']).toContain('s-maxage=300');
