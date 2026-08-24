@@ -280,17 +280,34 @@ model CodeEntry {
   @@index([system, type, active])
 }
 
+/// FHIR ConceptMap equivalence. Without it every crosswalk asserts exact sameness, and a
+/// research cohort built on a narrower mapping treated as equivalent is wrong with no way
+/// to detect it.
+enum MappingEquivalence {
+  RELATEDTO
+  EQUIVALENT
+  EQUAL
+  WIDER
+  SUBSUMES
+  NARROWER
+  SPECIALIZES
+  INEXACT
+  UNMATCHED
+  DISJOINT
+}
+
 model CodeMapping {
-  id            String     @id @default(uuid())
+  id            String             @id @default(uuid())
   sourceSystem  CodeSystem
   sourceCode    String
   targetSystem  CodeSystem
   targetCode    String
   targetDisplay String?
   targetVersion String?
-  active        Boolean    @default(true)
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  equivalence   MappingEquivalence @default(EQUIVALENT)
+  active        Boolean            @default(true)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
 
   @@unique([sourceSystem, sourceCode, targetSystem, targetCode])
   @@index([sourceSystem, sourceCode])

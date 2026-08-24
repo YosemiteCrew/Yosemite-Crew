@@ -53,7 +53,7 @@ describe("ClinicalTermsService", () => {
   });
 
   describe("importConcepts", () => {
-    it("upserts canonical entries and supported equivalent mappings", async () => {
+    it("upserts canonical entries and every supported coding, with its equivalence", async () => {
       const result = await ClinicalTermsService.importConcepts([
         {
           ycCode: "YC-1",
@@ -136,7 +136,9 @@ describe("ClinicalTermsService", () => {
         },
       });
 
-      expect(CodeService.upsertMapping).toHaveBeenCalledTimes(1);
+      // Both codings are kept now. Previously anything not exactly "equivalent" was
+      // skipped, so a related crosswalk was not weakened - it vanished with no trace.
+      expect(CodeService.upsertMapping).toHaveBeenCalledTimes(2);
       expect(CodeService.upsertMapping).toHaveBeenCalledWith({
         sourceSystem: "YOSEMITECODE",
         sourceCode: "YC-1",
@@ -144,9 +146,111 @@ describe("ClinicalTermsService", () => {
         targetCode: "123",
         targetDisplay: "Vomiting",
         targetVersion: null,
+        equivalence: "EQUIVALENT",
         active: true,
       });
-      expect(result).toEqual({ entriesUpserted: 1, mappingsUpserted: 1 });
+      expect(CodeService.upsertMapping).toHaveBeenCalledWith(
+        expect.objectContaining({
+          targetSystem: "SNOMED",
+          equivalence: "RELATEDTO",
+        }),
+      );
+      expect(result).toEqual({ entriesUpserted: 1, mappingsUpserted: 2 });
+    });
+  });
+
+  describe("equivalence", () => {
+    const concept = (equivalence: string) => ({
+      ycCode: "YC-9",
+      label: "Vomiting",
+      domain: "Diagnosis" as const,
+      active: true,
+      source: "VeNom" as const,
+      designations: [],
+      species: [],
+      codes: [
+        {
+          system: "http://snomed.info/sct",
+          code: "422400008",
+          display: "Vomiting",
+          equivalence,
+        },
+      ],
+    });
+
+    it("records a narrower crosswalk as narrower rather than dropping it", async () => {
+      await ClinicalTermsService.importConcepts([concept("narrower") as never]);
+
+      expect(CodeService.upsertMapping).toHaveBeenCalledWith(
+        expect.objectContaining({
+          targetCode: "422400008",
+          equivalence: "NARROWER",
+        }),
+      );
+    });
+
+    it("maps the extract's wording onto the FHIR vocabulary", async () => {
+      await ClinicalTermsService.importConcepts([concept("broader") as never]);
+      expect(CodeService.upsertMapping).toHaveBeenLastCalledWith(
+        expect.objectContaining({ equivalence: "WIDER" }),
+      );
+
+      await ClinicalTermsService.importConcepts([concept("inexact") as never]);
+      expect(CodeService.upsertMapping).toHaveBeenLastCalledWith(
+        expect.objectContaining({ equivalence: "INEXACT" }),
+      );
+    });
+
+    it("survives an unrecognised equivalence coming through the file path", async () => {
+      // The bug this covers: parseConcepts validated equivalence with z.enum, so an
+      // unfamiliar word threw before the INEXACT fallback could run. The earlier test
+      // passed only because it called importConcepts directly, bypassing validation.
+      const parsed = ClinicalTermsService.parseConcepts([
+        {
+          ycCode: "YC-1",
+          label: "Vomiting",
+          domain: "Diagnosis",
+          source: "VeNom",
+          codes: [
+            {
+              system: "http://snomed.info/sct",
+              code: "422400008",
+              equivalence: "some-word-we-have-not-seen",
+            },
+          ],
+        },
+      ]);
+
+      await ClinicalTermsService.importConcepts(parsed);
+
+      expect(CodeService.upsertMapping).toHaveBeenCalledWith(
+        expect.objectContaining({ equivalence: "INEXACT" }),
+      );
+    });
+
+    it("carries the FHIR values the extract may already use", async () => {
+      for (const [word, expected] of [
+        ["equal", "EQUAL"],
+        ["subsumes", "SUBSUMES"],
+        ["specializes", "SPECIALIZES"],
+        ["disjoint", "DISJOINT"],
+        ["unmatched", "UNMATCHED"],
+      ]) {
+        await ClinicalTermsService.importConcepts([concept(word) as never]);
+        expect(CodeService.upsertMapping).toHaveBeenLastCalledWith(
+          expect.objectContaining({ equivalence: expected }),
+        );
+      }
+    });
+
+    it("treats an unrecognised equivalence as inexact, never as equivalent", async () => {
+      // Overstating how well a crosswalk holds is the failure that silently corrupts a
+      // research cohort, so the unknown case degrades rather than flatters.
+      await ClinicalTermsService.importConcepts([concept("nonsense") as never]);
+
+      expect(CodeService.upsertMapping).toHaveBeenLastCalledWith(
+        expect.objectContaining({ equivalence: "INEXACT" }),
+      );
     });
   });
 
