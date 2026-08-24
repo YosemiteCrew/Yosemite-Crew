@@ -1567,11 +1567,20 @@ const IdexxHubHeader = ({ subtitleSuffix }: { subtitleSuffix: React.ReactNode })
       </p>
     </div>
     <div className="flex flex-wrap items-center justify-end gap-2">
+      {/*
+        Lab orders are appointment-scoped: createIdexxLabOrder requires an
+        appointmentId, and the only ordering UI is the LabTests panel inside an
+        appointment. There is no way to start an order from this page, and the
+        appointments deep link needs an appointment id we do not have. So this button
+        sends the user to choose an appointment - and now says so. It previously read
+        "Create a new order" and landed them on a full calendar with nothing to say
+        they were mid-task.
+      */}
       <Primary
         href="/appointments"
-        text="New order"
+        text="Order from an appointment"
         icon={<IoAdd aria-hidden="true" />}
-        ariaLabel="Create a new order"
+        ariaLabel="Choose an appointment to order lab tests from"
       />
     </div>
   </div>
