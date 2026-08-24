@@ -231,7 +231,11 @@
     opacity: 1;
     translate: 0;
     filter: blur(0px);
-    animation: none;
+    /* Duration rather than `animation: none`. Clearing the name and restoring it
+       when the preference flips back creates a brand new animation, which would
+       replay ycReveal over content the reader is already looking at. Keeping the
+       name and collapsing the duration leaves a finished run finished. */
+    animation-duration: 0.01ms;
     will-change: auto;
   }
 }
