@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import {
   LabOrderService,
   LabOrderServiceError,
@@ -16,6 +17,9 @@ jest.mock("src/config/prisma", () => ({
       findMany: jest.fn(),
     },
     parentPatient: {
+      findFirst: jest.fn(),
+    },
+    patientOrganisation: {
       findFirst: jest.fn(),
     },
     labOrder: {
@@ -45,6 +49,7 @@ jest.mock("src/services/invoice.service", () => ({
 const prismaMock = prisma as unknown as {
   codeEntry: { count: jest.Mock; findMany: jest.Mock };
   parentPatient: { findFirst: jest.Mock };
+  patientOrganisation: { findFirst: jest.Mock };
   labOrder: {
     create: jest.Mock;
     update: jest.Mock;
@@ -88,6 +93,9 @@ describe("LabOrderService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (getLabOrderAdapter as jest.Mock).mockReturnValue(adapterMock);
+    prismaMock.patientOrganisation.findFirst.mockResolvedValue({
+      id: "patient-org-1",
+    });
     adapterMock.createOrder.mockResolvedValue({
       idexxOrderId: "ID-1",
       requestPayload: {},
@@ -416,6 +424,63 @@ describe("LabOrderService", () => {
   });
 
   describe("createOrder", () => {
+    it("refuses a companion that is not linked to the calling organisation", async () => {
+      // The organisation comes from the URL and is checked by RBAC, but the
+      // companion id comes from the body. Without a link check an order could be
+      // raised against another tenant's companion and its record shipped to this
+      // organisation's IDEXX account.
+      prismaMock.patientOrganisation.findFirst.mockResolvedValue(null);
+
+      await expectServiceError(
+        LabOrderService.createOrder("IDEXX", {
+          organisationId: "org-1",
+          patientId: "victim-patient",
+          tests: ["T1"],
+        }),
+        "Companion not found.",
+        404,
+      );
+
+      expect(prismaMock.patientOrganisation.findFirst).toHaveBeenCalledWith({
+        where: {
+          patientId: "victim-patient",
+          organisationId: "org-1",
+          status: "ACTIVE",
+        },
+        select: { id: true },
+      });
+      expect(prismaMock.labOrder.create).not.toHaveBeenCalled();
+      expect(adapterMock.createOrder).not.toHaveBeenCalled();
+    });
+
+    it("persists the breed substitution the adapter reports", async () => {
+      const substitution = {
+        requestedBreedCode: "YBREED:CANINE:SPINONE_ITALIANO",
+        usedBreedCode: "YBREED:CANINE:CANINE_OTHER",
+        usedTargetCode: "CANINE_OTHER",
+        reason: "UNMAPPED_BREED",
+      };
+      adapterMock.createOrder.mockResolvedValue({
+        idexxOrderId: "ID-1",
+        requestPayload: {},
+        responsePayload: {},
+        status: "CREATED",
+        breedSubstitution: substitution,
+      });
+
+      await LabOrderService.createOrder("IDEXX", {
+        organisationId: "org-1",
+        patientId: "patient-1",
+        parentId: "parent-1",
+        tests: ["T1"],
+      });
+
+      expect(prismaMock.labOrder.update).toHaveBeenCalledWith({
+        where: { id: "order-1" },
+        data: expect.objectContaining({ breedSubstitution: substitution }),
+      });
+    });
+
     it("rejects when the companion has no primary parent link", async () => {
       prismaMock.parentPatient.findFirst.mockResolvedValue(null);
 
@@ -950,6 +1015,54 @@ describe("LabOrderService", () => {
       expect(adapterMock.updateOrder).not.toHaveBeenCalled();
     });
 
+    it("persists the substitution the update reports, and clears one it does not", async () => {
+      // An order can be updated after its companion's breed is corrected, or after it
+      // becomes unmapped. The create path persisted the substitution; the update path
+      // silently dropped it, so the stored order kept whatever create wrote - a
+      // substitution that no longer happened, or none where one now did.
+      adapterMock.updateOrder.mockResolvedValue({
+        requestPayload: {},
+        responsePayload: {},
+        breedSubstitution: {
+          requestedBreedCode: "YBREED:CANINE:SPINONE_ITALIANO",
+          usedBreedCode: "YBREED:CANINE:CANINE_OTHER",
+          usedTargetCode: "CANINE_OTHER",
+          reason: "UNMAPPED_BREED",
+        },
+      });
+      prismaMock.labOrder.update.mockResolvedValue({ id: "order-1" });
+
+      await LabOrderService.updateOrder("IDEXX", "org-1", "ID-1", {
+        tests: ["T1"],
+      });
+
+      expect(prismaMock.labOrder.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            breedSubstitution: expect.objectContaining({
+              reason: "UNMAPPED_BREED",
+            }),
+          }),
+        }),
+      );
+
+      // And the clearing direction: no substitution reported means none stored.
+      adapterMock.updateOrder.mockResolvedValue({
+        requestPayload: {},
+        responsePayload: {},
+        breedSubstitution: null,
+      });
+
+      await LabOrderService.updateOrder("IDEXX", "org-1", "ID-1", {
+        tests: ["T1"],
+      });
+
+      // toJsonInput maps null to Prisma's JsonNull sentinel - that is how a JSON
+      // column is actually cleared, so that is what must reach the write.
+      const lastData = prismaMock.labOrder.update.mock.calls.at(-1)[0].data;
+      expect(lastData.breedSubstitution).toBe(Prisma.JsonNull);
+    });
+
     it("forwards the supplied payload and persists the adapter response", async () => {
       adapterMock.updateOrder.mockResolvedValue({
         requestPayload: { req: 1 },
@@ -992,6 +1105,7 @@ describe("LabOrderService", () => {
           pdfUrl: "pdf-new",
           requestPayload: { req: 1 },
           responsePayload: { res: 2 },
+          breedSubstitution: Prisma.JsonNull,
           tests: ["T1", "T2"],
           modality: "IN_HOUSE",
           ivls: [{ serialNumber: "S1" }],
@@ -1000,6 +1114,63 @@ describe("LabOrderService", () => {
           notes: "note",
           specimenCollectionDate: "2026-01-02",
         },
+      });
+    });
+
+    it("persists a breed substitution reported by the update", async () => {
+      // The update re-sends the whole patient block, so a breed that became
+      // unmappable between create and update is substituted here too - and the
+      // clinic reading the order has to be able to see that.
+      const substitution = {
+        requestedBreedCode: "YBREED:FELINE:BURMESE",
+        usedBreedCode: "YBREED:FELINE:MIXED_BREED_FELINE",
+        usedTargetCode: "MIXED_BREED_FELINE",
+        reason: "UNMAPPED_BREED",
+      };
+      adapterMock.updateOrder.mockResolvedValue({
+        requestPayload: {},
+        responsePayload: {},
+        status: "CREATED",
+        breedSubstitution: substitution,
+      });
+      prismaMock.labOrder.update.mockResolvedValue({ id: "order-1" });
+
+      await LabOrderService.updateOrder("IDEXX", "org-1", "ID-1", {});
+
+      expect(prismaMock.labOrder.update).toHaveBeenCalledWith({
+        where: { id: "order-1" },
+        data: expect.objectContaining({ breedSubstitution: substitution }),
+      });
+    });
+
+    it("clears a stale breed substitution when the update needs none", async () => {
+      // The recorded breed was corrected, so IDEXX now holds the real one. Leaving
+      // the old note on the row would keep claiming a substitute was sent.
+      prismaMock.labOrder.findFirst.mockResolvedValue(
+        storedOrder({
+          breedSubstitution: {
+            requestedBreedCode: "YBREED:FELINE:BURMESE",
+            usedBreedCode: "YBREED:FELINE:MIXED_BREED_FELINE",
+            usedTargetCode: "MIXED_BREED_FELINE",
+            reason: "UNMAPPED_BREED",
+          },
+        }),
+      );
+      adapterMock.updateOrder.mockResolvedValue({
+        requestPayload: {},
+        responsePayload: {},
+        status: "CREATED",
+        breedSubstitution: null,
+      });
+      prismaMock.labOrder.update.mockResolvedValue({ id: "order-1" });
+
+      await LabOrderService.updateOrder("IDEXX", "org-1", "ID-1", {});
+
+      expect(prismaMock.labOrder.update).toHaveBeenCalledWith({
+        where: { id: "order-1" },
+        data: expect.objectContaining({
+          breedSubstitution: Prisma.JsonNull,
+        }),
       });
     });
 

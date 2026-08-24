@@ -4,6 +4,7 @@ import { getLabOrderAdapter, normalizeLabProvider } from "src/labs";
 import type { LabOrderCreateInput, LabOrderUpdateInput } from "src/labs";
 import logger from "src/utils/logger";
 import { InvoiceService } from "src/services/invoice.service";
+import { assertPatientOrgMembership } from "src/services/shared/patient-org-membership";
 import type { InvoiceItem } from "@yosemite-crew/types";
 
 export class LabOrderServiceError extends Error {
@@ -280,6 +281,20 @@ export const LabOrderService = {
       throw new LabOrderServiceError("Unsupported lab provider.", 400);
     }
 
+    // The caller is authenticated against the organisation in the URL, but the
+    // companion id arrives in the request body and nothing downstream re-scopes
+    // it: the adapter reads the companion with a bare findUnique. Without this
+    // check an order could be raised against another tenant's companion, sending
+    // its record and its parent's contact details to this organisation's IDEXX
+    // account. The census path already asserts this link; the order path did not.
+    await assertPatientOrgMembership(
+      input.patientId,
+      input.organisationId,
+      () => {
+        throw new LabOrderServiceError("Companion not found.", 404);
+      },
+    );
+
     const adapter = getLabOrderAdapter(provider);
     const parentId =
       input.parentId ?? (await resolvePrimaryParentId(input.patientId));
@@ -506,6 +521,11 @@ export const LabOrderService = {
         pdfUrl: result.pdfUrl ?? existing.pdfUrl ?? null,
         requestPayload: toJsonInput(result.requestPayload),
         responsePayload: toJsonInput(result.responsePayload),
+        // Overwritten on every update, absent included: an order whose breed was
+        // corrected between create and update would otherwise keep claiming a
+        // substitution that no longer happened, and the reverse would hide one that
+        // now did.
+        breedSubstitution: toJsonInput(result.breedSubstitution ?? null),
         tests: toJsonInput(input.tests ?? existing.tests),
         modality: input.modality ?? existing.modality ?? null,
         ivls: toJsonInput(input.ivls ?? existing.ivls ?? null),
