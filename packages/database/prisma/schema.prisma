@@ -1942,6 +1942,7 @@ enum AuditEventType {
   ESTIMATE_CREATED
   ESTIMATE_APPROVED
   ESTIMATE_DECLINED
+  ESTIMATE_CONVERTED
   DECEASED_RECORD_CREATED
   ADMISSION_CREATED
   ADMISSION_DISCHARGED
@@ -3439,6 +3440,12 @@ model Invoice {
   patientId               String?
   organisationId          String?
   appointmentId           String?
+  /// Set when this invoice was produced by converting an Estimate. Unique, so
+  /// the database refuses a second invoice for the same estimate even if a code
+  /// path other than EstimateService.convert ever tries. NULLs stay distinct in
+  /// Postgres, so the invoices that were not converted from an estimate are
+  /// unaffected.
+  estimateId              String?                  @unique
   items                   Json
   subtotal                Float
   discountTotal           Float                    @default(0)
