@@ -58,6 +58,10 @@ const NetworkDirectory = () => {
   const [clinics, setClinics] = useState<APDirectoryClinic[]>([]);
   const [loading, setLoading] = useState(true);
   const [followingUri, setFollowingUri] = useState<string | null>(null);
+  // Distinct from "no clinics": a failed load used to fall through to the empty
+  // state, so an unreachable or disabled federation service read as "nobody has
+  // listed yet" and looked like the feature was simply doing nothing.
+  const [unavailable, setUnavailable] = useState(false);
 
   const load = useCallback(async () => {
     // No setLoading(true) here: this runs once from the mount effect and
@@ -66,7 +70,9 @@ const NetworkDirectory = () => {
     try {
       const data = await listDirectory();
       setClinics(data);
+      setUnavailable(false);
     } catch {
+      setUnavailable(true);
       notify('error', {
         title: 'Directory unavailable',
         text: 'Could not load the clinic directory.',
@@ -113,7 +119,13 @@ const NetworkDirectory = () => {
         and messaging with them.
       </div>
       {renderState === 'loading' && <div className={TEXT_MUTED}>Loading...</div>}
-      {renderState === 'empty' && (
+      {renderState === 'empty' && unavailable && (
+        <div className={TEXT_MUTED}>
+          The clinic directory is unavailable. Federation may be switched off on this instance, or
+          the directory service cannot be reached.
+        </div>
+      )}
+      {renderState === 'empty' && !unavailable && (
         <div className={TEXT_MUTED}>No clinics are listed in the directory yet.</div>
       )}
       {renderState === 'ready' && (

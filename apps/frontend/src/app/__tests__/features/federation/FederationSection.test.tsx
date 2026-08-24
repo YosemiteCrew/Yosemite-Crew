@@ -144,11 +144,30 @@ describe('FederationSection', () => {
     expect(screen.getByText('Federation identity')).toBeInTheDocument();
   });
 
-  it('renders nothing when getActorSettings rejects', async () => {
+  it('explains the failure instead of disappearing when getActorSettings rejects', async () => {
+    // It used to return null, so on an instance with federation switched off the
+    // entire section vanished from Settings and the only signal was a toast that
+    // had already faded. That reads as "the feature does not exist".
     (getActorSettings as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
     render(<FederationSection />);
     await waitFor(() => expect(getActorSettings).toHaveBeenCalled());
+
+    expect(await screen.findByText('Federation')).toBeInTheDocument();
+    expect(screen.getByText(/could not be loaded/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    // The working cards are still absent, so this is the failure state.
     expect(screen.queryByText('Federation identity')).not.toBeInTheDocument();
+  });
+
+  it('retries loading when Try again is clicked', async () => {
+    (getActorSettings as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
+    render(<FederationSection />);
+    const retry = await screen.findByRole('button', { name: 'Try again' });
+
+    (getActorSettings as jest.Mock).mockResolvedValueOnce(mockActor);
+    fireEvent.click(retry);
+
+    expect(await screen.findByText('Federation identity')).toBeInTheDocument();
   });
 
   describe('LicenseTokenCard', () => {
