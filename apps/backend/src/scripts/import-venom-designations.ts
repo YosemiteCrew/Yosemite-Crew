@@ -29,6 +29,13 @@ export type Designation = {
 export type PlannedConcept = {
   ycCode: string;
   designations: Designation[];
+  /**
+   * The full synonym list after the import, existing entries first. Search reads
+   * synonyms, not meta.designations - importConcepts folds every designation term into
+   * synonyms for exactly that reason - so an importer that wrote only the designations
+   * would land 12,738 translations that no search can ever return.
+   */
+  synonyms: string[];
   added: number;
 };
 
@@ -40,13 +47,24 @@ export type DesignationPlan = {
 const key = (term: string, lang: string) =>
   `${term.trim().toLowerCase()}|${lang.trim().toLowerCase()}`;
 
+export type ExistingConcept = {
+  designations: Designation[];
+  synonyms: string[];
+};
+
 export const planDesignations = (
   extract: DesignationExtract,
-  existing: Map<string, Designation[]>,
+  existing: Map<string, ExistingConcept>,
 ): DesignationPlan => {
   const merged = new Map<
     string,
-    { current: Designation[]; seen: Set<string>; added: number }
+    {
+      current: Designation[];
+      seen: Set<string>;
+      synonyms: string[];
+      synonymKeys: Set<string>;
+      added: number;
+    }
   >();
   const skipped: DesignationPlan["skipped"] = [];
 
@@ -67,8 +85,12 @@ export const planDesignations = (
         continue;
       }
       entry = {
-        current: [...current],
-        seen: new Set(current.map((d) => key(d.term, d.lang))),
+        current: [...current.designations],
+        seen: new Set(current.designations.map((d) => key(d.term, d.lang))),
+        synonyms: [...current.synonyms],
+        synonymKeys: new Set(
+          current.synonyms.map((synonym) => synonym.trim().toLowerCase()),
+        ),
         added: 0,
       };
       merged.set(ycCode, entry);
@@ -80,6 +102,14 @@ export const planDesignations = (
     }
 
     entry.seen.add(key(trimmed, lang));
+    // Fold the term into synonyms too, matching importConcepts. Search matches on
+    // display and synonyms only, so a designation that never reaches synonyms exists
+    // in the record and nowhere a query can see.
+    const synonymKey = trimmed.toLowerCase();
+    if (!entry.synonymKeys.has(synonymKey)) {
+      entry.synonymKeys.add(synonymKey);
+      entry.synonyms.push(trimmed);
+    }
     entry.current.push({
       term: trimmed,
       lang: lang.trim(),
@@ -97,6 +127,7 @@ export const planDesignations = (
       .map(([ycCode, value]) => ({
         ycCode,
         designations: value.current,
+        synonyms: value.synonyms,
         added: value.added,
       })),
     skipped,
@@ -121,15 +152,33 @@ const asDesignations = (value: unknown): Designation[] => {
   );
 };
 
+const asSynonyms = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
+
 export const loadExistingDesignations = async () => {
   const entries = await prisma.codeEntry.findMany({
-    where: { system: "YOSEMITECODE", type: "CLINICAL_TERM", active: true },
-    select: { code: true, meta: true },
+    // BREED included: VeNom's file carries designations for breeds too - the two en-GB
+    // synonyms target a YBREED code - and a CLINICAL_TERM-only load skipped them as
+    // "concept not found".
+    where: {
+      system: "YOSEMITECODE",
+      type: { in: ["CLINICAL_TERM", "BREED"] },
+      active: true,
+    },
+    select: { code: true, meta: true, synonyms: true },
   });
-  const index = new Map<string, Designation[]>();
+  const index = new Map<string, ExistingConcept>();
   for (const entry of entries) {
     const meta = entry.meta as { designations?: unknown } | null;
-    index.set(entry.code, asDesignations(meta?.designations));
+    index.set(entry.code, {
+      designations: asDesignations(meta?.designations),
+      synonyms: asSynonyms(entry.synonyms),
+    });
   }
   return index;
 };
@@ -177,6 +226,7 @@ export const main = async () => {
               '{designations}',
               ${JSON.stringify(concept.designations)}::jsonb
             ),
+            "synonyms" = ${JSON.stringify(concept.synonyms)}::jsonb,
             "updatedAt" = NOW()
         WHERE "system" = 'YOSEMITECODE'::"CodeSystem" AND "code" = ${concept.ycCode}
       `,
