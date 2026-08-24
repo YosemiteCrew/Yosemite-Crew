@@ -291,6 +291,25 @@ describe("IdexxOrderAdapter", () => {
       expect(result.breedSubstitution).toBeNull();
     });
 
+    it("refuses a breed code belonging to a different species", async () => {
+      // A breed code carries its species. A canine order must never carry an equine
+      // breed just because that code happens to map - that is a claim about the animal.
+      prismaMock.patient.findUnique.mockResolvedValue({
+        ...baseCompanion,
+        speciesCode: "YSPEC:CANINE",
+        breedCode: "YBREED:FELINE:MIXED_BREED_FELINE",
+      });
+
+      const result = await order();
+
+      expect(sentPatient().breedCode).toBe("CANINE_OTHER");
+      expect(result.breedSubstitution).toMatchObject({
+        requestedBreedCode: "YBREED:FELINE:MIXED_BREED_FELINE",
+        usedTargetCode: "CANINE_OTHER",
+        reason: "MISMATCHED_BREED",
+      });
+    });
+
     it("still fails when the species has no catch-all breed", async () => {
       // A fallback is only honest where IDEXX actually publishes one. Inventing a
       // breed for an unsupported species would put a false animal on the order.

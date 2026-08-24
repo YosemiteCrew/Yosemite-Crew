@@ -40,7 +40,7 @@ export type LabBreedSubstitution = {
   requestedBreedCode: string | null;
   usedBreedCode: string;
   usedTargetCode: string;
-  reason: "UNCODED_BREED" | "UNMAPPED_BREED";
+  reason: "UNCODED_BREED" | "UNMAPPED_BREED" | "MISMATCHED_BREED";
 };
 
 export type LabOrderCreateResult = {

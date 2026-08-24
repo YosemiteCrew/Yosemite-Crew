@@ -81,6 +81,30 @@ export const resolveCompanionSpeciesCode = (companion: {
 
 export type IdexxBreedSubstitution = LabBreedSubstitution;
 
+/**
+ * A breed code carries its species in the code itself, so a companion's breed code
+ * disagreeing with its species means one of the two is wrong. No live record violates
+ * this today, but nothing enforces it either, and the failure would be silent and bad:
+ * an equine breed sent on a canine order, which is a clinical claim about the animal.
+ * Treat a mismatch as unusable and fall back to the species catch-all instead.
+ */
+const breedBelongsToSpecies = (breedCode: string, speciesCode: string) => {
+  const species = speciesCode.startsWith("YSPEC:")
+    ? speciesCode.slice("YSPEC:".length)
+    : null;
+  // A non-canonical species code makes no claim we can check, so do not block on it.
+  if (!species) return true;
+  return breedCode.startsWith(`YBREED:${species}:`);
+};
+
+const mismatchReason = (
+  requested: string | null,
+  mismatched: boolean,
+): IdexxBreedSubstitution["reason"] => {
+  if (!requested) return "UNCODED_BREED";
+  return mismatched ? "MISMATCHED_BREED" : "UNMAPPED_BREED";
+};
+
 export const resolveIdexxBreedCode = async (args: {
   speciesCode: string;
   breedCode?: string | null;
@@ -89,8 +113,10 @@ export const resolveIdexxBreedCode = async (args: {
   substitution: IdexxBreedSubstitution | null;
 }> => {
   const requested = args.breedCode?.trim() ? args.breedCode.trim() : null;
+  const mismatched =
+    requested !== null && !breedBelongsToSpecies(requested, args.speciesCode);
 
-  if (requested) {
+  if (requested && !mismatched) {
     const direct = await findIdexxTargetCode(requested);
     if (direct) return { targetCode: direct, substitution: null };
   }
@@ -110,7 +136,7 @@ export const resolveIdexxBreedCode = async (args: {
       requestedBreedCode: requested,
       usedBreedCode: fallbackSource,
       usedTargetCode: fallbackTarget,
-      reason: requested ? "UNMAPPED_BREED" : "UNCODED_BREED",
+      reason: mismatchReason(requested, mismatched),
     },
   };
 };
