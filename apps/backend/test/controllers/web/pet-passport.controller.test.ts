@@ -32,9 +32,11 @@ jest.mock("../../../src/services/pet-passport.service", () => {
     PetPassportService: {
       issuePassport: jest.fn(),
       getPassport: jest.fn(),
+      getPassportForParent: jest.fn(),
       getPublicPassportByToken: jest.fn(),
       ensurePublicToken: jest.fn(),
       getExistingPublicToken: jest.fn(),
+      walletShareTokenForParent: jest.fn(),
       getOrCreatePracticeWalletToken: jest.fn(),
       issuePublicToken: jest.fn(),
       revokePublicToken: jest.fn(),
@@ -104,6 +106,10 @@ describe("PetPassportController", () => {
       "practice-token" as never,
     );
     service.getExistingPublicToken.mockResolvedValue(
+      "share-token-abc" as never,
+    );
+    // Parent wallet routes embed a share link only the primary parent may mint.
+    service.walletShareTokenForParent.mockResolvedValue(
       "share-token-abc" as never,
     );
     jsonMock = jest.fn();
@@ -778,6 +784,84 @@ describe("PetPassportController", () => {
       service.getPassport.mockRejectedValue(new Error("boom"));
       await PetPassportController.getGooglePass(authed(), res as Response);
       expect(statusMock).toHaveBeenCalledWith(500);
+    });
+  });
+
+  describe("getApplePassForParent", () => {
+    it("streams the pass with the parent share token, never minting via ensurePublicToken", async () => {
+      service.getPassportForParent.mockResolvedValue(passportDto as never);
+      wallet.buildApplePass.mockResolvedValue(Buffer.from("pk") as never);
+
+      await PetPassportController.getApplePassForParent(
+        authed(),
+        res as Response,
+      );
+
+      expect(service.walletShareTokenForParent).toHaveBeenCalledWith(
+        "pat-1",
+        "user-1",
+      );
+      expect(service.ensurePublicToken).not.toHaveBeenCalled();
+      expect(wallet.buildApplePass).toHaveBeenCalledWith(
+        passportDto,
+        "share-token-abc",
+      );
+      expect(sendMock).toHaveBeenCalled();
+    });
+
+    it("409s when a co-parent has no primary-created share link to embed", async () => {
+      service.getPassportForParent.mockResolvedValue(passportDto as never);
+      service.walletShareTokenForParent.mockRejectedValue(
+        new PetPassportServiceError("no link", 409),
+      );
+
+      await PetPassportController.getApplePassForParent(
+        authed(),
+        res as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(409);
+      expect(wallet.buildApplePass).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("getGooglePassForParent", () => {
+    it("returns the save url with the parent share token, never minting via ensurePublicToken", async () => {
+      service.getPassportForParent.mockResolvedValue(passportDto as never);
+      wallet.buildGoogleSaveUrl.mockReturnValue("https://pay.google.com/x");
+
+      await PetPassportController.getGooglePassForParent(
+        authed(),
+        res as Response,
+      );
+
+      expect(service.walletShareTokenForParent).toHaveBeenCalledWith(
+        "pat-1",
+        "user-1",
+      );
+      expect(service.ensurePublicToken).not.toHaveBeenCalled();
+      expect(wallet.buildGoogleSaveUrl).toHaveBeenCalledWith(
+        passportDto,
+        "share-token-abc",
+      );
+      expect(jsonMock).toHaveBeenCalledWith({
+        saveUrl: "https://pay.google.com/x",
+      });
+    });
+
+    it("409s when a co-parent has no primary-created share link to embed", async () => {
+      service.getPassportForParent.mockResolvedValue(passportDto as never);
+      service.walletShareTokenForParent.mockRejectedValue(
+        new PetPassportServiceError("no link", 409),
+      );
+
+      await PetPassportController.getGooglePassForParent(
+        authed(),
+        res as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(409);
+      expect(wallet.buildGoogleSaveUrl).not.toHaveBeenCalled();
     });
   });
 

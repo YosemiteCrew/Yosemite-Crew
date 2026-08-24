@@ -734,6 +734,97 @@ describe("PetPassportService.getExistingPublicToken", () => {
   });
 });
 
+describe("PetPassportService.walletShareTokenForParent", () => {
+  // Minting an owner-scope public link is the primary parent's call; a
+  // co-parent may only embed a link the primary already created, never mint one.
+  it("404s an unauthenticated caller without touching the passport", async () => {
+    await expect(
+      PetPassportService.walletShareTokenForParent("pat-1", null),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(prismaMock.petPassport.update).not.toHaveBeenCalled();
+  });
+
+  it("404s a caller who is not the pet's parent without minting", async () => {
+    prismaMock.authUserMobile.findFirst.mockResolvedValue({
+      parentId: "par-1",
+    });
+    prismaMock.parentPatient.findFirst.mockResolvedValue(null);
+    await expect(
+      PetPassportService.walletShareTokenForParent("pat-1", "user-1"),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(prismaMock.petPassport.update).not.toHaveBeenCalled();
+  });
+
+  it("lets the PRIMARY parent mint a public token when none is live", async () => {
+    prismaMock.authUserMobile.findFirst.mockResolvedValue({
+      parentId: "par-1",
+    });
+    prismaMock.parentPatient.findFirst.mockResolvedValue({ role: "PRIMARY" });
+    prismaMock.petPassport.findFirst.mockResolvedValue({
+      id: "pp-1",
+      publicToken: null,
+      publicTokenRevokedAt: null,
+    });
+    prismaMock.petPassport.update.mockResolvedValue({});
+    const token = await PetPassportService.walletShareTokenForParent(
+      "pat-1",
+      "user-1",
+    );
+    expect(token).toHaveLength(43);
+    expect(prismaMock.petPassport.update).toHaveBeenCalled();
+  });
+
+  it("reuses a live token for the PRIMARY parent without minting", async () => {
+    prismaMock.authUserMobile.findFirst.mockResolvedValue({
+      parentId: "par-1",
+    });
+    prismaMock.parentPatient.findFirst.mockResolvedValue({ role: "PRIMARY" });
+    prismaMock.petPassport.findFirst.mockResolvedValue({
+      id: "pp-1",
+      publicToken: "live-token",
+      publicTokenRevokedAt: null,
+    });
+    const token = await PetPassportService.walletShareTokenForParent(
+      "pat-1",
+      "user-1",
+    );
+    expect(token).toBe("live-token");
+    expect(prismaMock.petPassport.update).not.toHaveBeenCalled();
+  });
+
+  it("hands a CO_PARENT the primary's live link without minting one", async () => {
+    prismaMock.authUserMobile.findFirst.mockResolvedValue({
+      parentId: "par-2",
+    });
+    prismaMock.parentPatient.findFirst.mockResolvedValue({ role: "CO_PARENT" });
+    prismaMock.petPassport.findFirst.mockResolvedValue({
+      publicToken: "live-token",
+      publicTokenRevokedAt: null,
+    });
+    const token = await PetPassportService.walletShareTokenForParent(
+      "pat-1",
+      "co-parent-user",
+    );
+    expect(token).toBe("live-token");
+    expect(prismaMock.petPassport.update).not.toHaveBeenCalled();
+  });
+
+  it("409s a CO_PARENT when the primary has created no public link", async () => {
+    prismaMock.authUserMobile.findFirst.mockResolvedValue({
+      parentId: "par-2",
+    });
+    prismaMock.parentPatient.findFirst.mockResolvedValue({ role: "CO_PARENT" });
+    prismaMock.petPassport.findFirst.mockResolvedValue({
+      publicToken: null,
+      publicTokenRevokedAt: null,
+    });
+    await expect(
+      PetPassportService.walletShareTokenForParent("pat-1", "co-parent-user"),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    expect(prismaMock.petPassport.update).not.toHaveBeenCalled();
+  });
+});
+
 describe("PetPassportService.getPassportForParent", () => {
   // The caller's id is a PROVIDER id, so the parent is resolved through
   // AuthUser. Fixtures that put the provider id straight on
