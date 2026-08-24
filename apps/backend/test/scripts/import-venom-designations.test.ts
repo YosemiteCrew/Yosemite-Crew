@@ -32,7 +32,16 @@ const extract = (
   designations,
 });
 
-const existing = (pairs: Array<[string, Designation[]]>) => new Map(pairs);
+const existing = (
+  pairs: Array<[string, Designation[]]>,
+  synonyms: Record<string, string[]> = {},
+) =>
+  new Map(
+    pairs.map(([code, designations]) => [
+      code,
+      { designations, synonyms: synonyms[code] ?? [] },
+    ]),
+  );
 
 describe("planDesignations", () => {
   it("adds a translation to an existing concept rather than creating a new term", () => {
@@ -253,6 +262,51 @@ describe("planDesignations", () => {
   });
 });
 
+describe("search visibility", () => {
+  it("folds every added designation into synonyms, where search actually looks", () => {
+    // The defect this exists for: --apply wrote meta.designations only, while
+    // suggestTerms matches on display and synonyms. 12,738 translations imported
+    // cleanly and none of them could ever be returned by a search.
+    const plan = planDesignations(
+      extract([
+        ["YC-1", "Anomalía de comportamiento", "es-ES", "name"],
+        ["YC-1", "Alteração de comportamento", "pt-BR", "name"],
+      ]),
+      existing([["YC-1", []]], { "YC-1": ["Behavioural abnormality"] }),
+    );
+
+    expect(plan.concepts[0].synonyms).toEqual([
+      "Behavioural abnormality",
+      "Anomalía de comportamiento",
+      "Alteração de comportamento",
+    ]);
+  });
+
+  it("does not duplicate a synonym the entry already carries", () => {
+    const plan = planDesignations(
+      extract([["YC-1", "Alopecia", "es-ES", "name"]]),
+      existing([["YC-1", []]], { "YC-1": ["alopecia", "Hair loss"] }),
+    );
+
+    // Case-insensitively already present, so the synonym list is unchanged; the
+    // designation itself is still added, because es-ES did not carry it yet.
+    expect(plan.concepts[0].synonyms).toEqual(["alopecia", "Hair loss"]);
+    expect(plan.concepts[0].added).toBe(1);
+  });
+
+  it("keeps existing synonyms first so display ordering is stable", () => {
+    const plan = planDesignations(
+      extract([["YC-1", "Sangrado", "es-ES", "name"]]),
+      existing([["YC-1", []]], { "YC-1": ["Bleeding", "Haemorrhage"] }),
+    );
+
+    expect(plan.concepts[0].synonyms.slice(0, 2)).toEqual([
+      "Bleeding",
+      "Haemorrhage",
+    ]);
+  });
+});
+
 describe("loadDesignations", () => {
   afterEach(() => jest.restoreAllMocks());
 
@@ -291,9 +345,38 @@ describe("loadExistingDesignations", () => {
 
     const index = await loadExistingDesignations();
 
-    expect(index.get("YC-1")).toEqual([
-      { term: "Vomiting", lang: "en", source: "venom", preferred: true },
+    expect(index.get("YC-1")).toEqual({
+      designations: [
+        { term: "Vomiting", lang: "en", source: "venom", preferred: true },
+      ],
+      synonyms: [],
+    });
+  });
+
+  it("loads breed entries too, so VeNom's breed designations resolve", async () => {
+    // The file's two en-GB synonyms target a YBREED code; a CLINICAL_TERM-only load
+    // skipped them as "concept not found".
+    prismaMock.codeEntry.findMany.mockResolvedValue([]);
+
+    await loadExistingDesignations();
+
+    expect(prismaMock.codeEntry.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          type: { in: ["CLINICAL_TERM", "BREED"] },
+        }),
+      }),
+    );
+  });
+
+  it("reads the synonyms column, which is where search looks", async () => {
+    prismaMock.codeEntry.findMany.mockResolvedValue([
+      { code: "YC-1", meta: null, synonyms: ["Vomiting", "  Emesis  ", 7, ""] },
     ]);
+
+    const index = await loadExistingDesignations();
+
+    expect(index.get("YC-1")?.synonyms).toEqual(["Vomiting", "Emesis"]);
   });
 
   it("treats malformed meta as no designations rather than throwing", async () => {
@@ -306,9 +389,9 @@ describe("loadExistingDesignations", () => {
 
     const index = await loadExistingDesignations();
 
-    expect(index.get("YC-1")).toEqual([]);
-    expect(index.get("YC-2")).toEqual([]);
-    expect(index.get("YC-3")).toEqual([]);
+    expect(index.get("YC-1")?.designations).toEqual([]);
+    expect(index.get("YC-2")?.designations).toEqual([]);
+    expect(index.get("YC-3")?.designations).toEqual([]);
   });
 });
 
@@ -356,6 +439,14 @@ describe("main", () => {
     await main();
 
     expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
+    // The statement itself must write synonyms, not only meta.designations. A write
+    // that skips synonyms lands translations search can never see - which is the
+    // defect this importer shipped with, and a planner-only test would miss it again.
+    const statements = JSON.stringify(prismaMock.$transaction.mock.calls[0][0]);
+    expect(statements).toContain('\\"synonyms\\" =');
+    // The bare-array form is the synonyms parameter; the designation object also
+    // mentions the term, so match the shape that only synonyms produces.
+    expect(statements).toContain('[\\"Sangrado\\"]');
     expect(output()).toMatch(/wrote 1 designations across 1 concepts/);
   });
 
