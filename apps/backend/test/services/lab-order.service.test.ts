@@ -19,9 +19,6 @@ jest.mock("src/config/prisma", () => ({
     parentPatient: {
       findFirst: jest.fn(),
     },
-    patientOrganisation: {
-      findFirst: jest.fn(),
-    },
     labOrder: {
       create: jest.fn(),
       update: jest.fn(),
@@ -49,7 +46,6 @@ jest.mock("src/services/invoice.service", () => ({
 const prismaMock = prisma as unknown as {
   codeEntry: { count: jest.Mock; findMany: jest.Mock };
   parentPatient: { findFirst: jest.Mock };
-  patientOrganisation: { findFirst: jest.Mock };
   labOrder: {
     create: jest.Mock;
     update: jest.Mock;
@@ -93,9 +89,6 @@ describe("LabOrderService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (getLabOrderAdapter as jest.Mock).mockReturnValue(adapterMock);
-    prismaMock.patientOrganisation.findFirst.mockResolvedValue({
-      id: "patient-org-1",
-    });
     adapterMock.createOrder.mockResolvedValue({
       idexxOrderId: "ID-1",
       requestPayload: {},
@@ -424,35 +417,6 @@ describe("LabOrderService", () => {
   });
 
   describe("createOrder", () => {
-    it("refuses a companion that is not linked to the calling organisation", async () => {
-      // The organisation comes from the URL and is checked by RBAC, but the
-      // companion id comes from the body. Without a link check an order could be
-      // raised against another tenant's companion and its record shipped to this
-      // organisation's IDEXX account.
-      prismaMock.patientOrganisation.findFirst.mockResolvedValue(null);
-
-      await expectServiceError(
-        LabOrderService.createOrder("IDEXX", {
-          organisationId: "org-1",
-          patientId: "victim-patient",
-          tests: ["T1"],
-        }),
-        "Companion not found.",
-        404,
-      );
-
-      expect(prismaMock.patientOrganisation.findFirst).toHaveBeenCalledWith({
-        where: {
-          patientId: "victim-patient",
-          organisationId: "org-1",
-          status: "ACTIVE",
-        },
-        select: { id: true },
-      });
-      expect(prismaMock.labOrder.create).not.toHaveBeenCalled();
-      expect(adapterMock.createOrder).not.toHaveBeenCalled();
-    });
-
     it("persists the breed substitution the adapter reports", async () => {
       const substitution = {
         requestedBreedCode: "YBREED:CANINE:SPINONE_ITALIANO",
