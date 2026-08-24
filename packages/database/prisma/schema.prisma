@@ -3446,6 +3446,14 @@ model Invoice {
   /// Postgres, so the invoices that were not converted from an estimate are
   /// unaffected.
   estimateId              String?                  @unique
+  /// The Stripe PaymentIntent this invoice was minted for, set only by the
+  /// appointment-booking webhook. Unique, because a duplicate webhook delivery
+  /// carries the SAME intent id while a legitimate second charge carries a
+  /// different one - so this constraint separates the two cases that the unique
+  /// on appointmentId conflates, and it keeps holding once that one is dropped.
+  /// NULLs stay distinct in Postgres, so every invoice raised by any other path
+  /// is unaffected.
+  providerPaymentIntentId String?                  @unique
   items                   Json
   subtotal                Float
   discountTotal           Float                    @default(0)
