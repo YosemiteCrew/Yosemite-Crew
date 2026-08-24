@@ -112,7 +112,7 @@ export const resolveIdexxBreedCode = async (args: {
   targetCode: string;
   substitution: IdexxBreedSubstitution | null;
 }> => {
-  const requested = args.breedCode?.trim() ? args.breedCode.trim() : null;
+  const requested = args.breedCode?.trim() || null;
   const mismatched =
     requested !== null && !breedBelongsToSpecies(requested, args.speciesCode);
 

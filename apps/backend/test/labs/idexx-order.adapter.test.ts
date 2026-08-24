@@ -245,6 +245,24 @@ describe("IdexxOrderAdapter", () => {
       });
     });
 
+    it("treats a whitespace-only breed code as no breed at all", async () => {
+      // Without trimming, "   " is truthy and gets looked up as though it were a code,
+      // so the companion falls through to a mapping error instead of the fallback.
+      prismaMock.patient.findUnique.mockResolvedValue({
+        ...baseCompanion,
+        speciesCode: "YSPEC:CANINE",
+        breedCode: "   ",
+      });
+
+      const result = await order();
+
+      expect(sentPatient().breedCode).toBe("CANINE_OTHER");
+      expect(result.breedSubstitution).toMatchObject({
+        requestedBreedCode: null,
+        reason: "UNCODED_BREED",
+      });
+    });
+
     it("substitutes when the companion has no breed code at all", async () => {
       prismaMock.patient.findUnique.mockResolvedValue({
         ...baseCompanion,
