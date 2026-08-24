@@ -43,7 +43,10 @@ jest.mock('@/app/features/marketing/site', () => {
     HeroVideo: () => null,
     HeroGlow: () => null,
     ctaBandContainerStyle: () => ({}),
-    ReleaseLanes: () => React_.createElement('span', null, 'PIMS Desktop Mobile Backend'),
+    // A div, matching what the real component renders. A span here would hide a
+    // div-inside-span nesting error in the hero, which jest.setup turns into a
+    // test failure via console.error.
+    ReleaseLanes: () => React_.createElement('div', null, 'PIMS Desktop Mobile Backend'),
     CountUp: ({ value }: { value: string }) => React_.createElement('span', null, value),
     useMagnet: () => React_.createRef(),
     useParallax: () => React_.createRef(),
@@ -99,6 +102,23 @@ describe('Home marketing page', () => {
     expect(screen.getByText('Contributors')).toBeInTheDocument();
     expect(screen.getByText('Discord members')).toBeInTheDocument();
     expect(screen.getByText('Repo stars')).toBeInTheDocument();
+  });
+
+  it('wraps the release lanes in a block element, not a span', () => {
+    // ReleaseLanes renders a flex container. A div inside a span is invalid HTML
+    // that the browser repairs before React hydrates, which shows up as a
+    // hydration mismatch on the hero rather than as anything visible.
+    //
+    // Asserted structurally on purpose: React 19 emits no validateDOMNesting
+    // warning for this pair in this setup - verified with a probe render - so
+    // the console.error trap in jest.setup would not catch it.
+    render(<Home />);
+    // The wrapper matches this text too, since it holds nothing else. Document
+    // order puts it first, so the innermost match is the component itself.
+    const matches = screen.getAllByText('PIMS Desktop Mobile Backend');
+    const lanes = matches[matches.length - 1];
+    expect(lanes.tagName).toBe('DIV');
+    expect(lanes.parentElement?.tagName).not.toBe('SPAN');
   });
 
   it('renders the closing CTA', () => {

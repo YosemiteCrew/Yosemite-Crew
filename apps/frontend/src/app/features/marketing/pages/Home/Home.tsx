@@ -767,14 +767,18 @@ function Hero() {
           maxWidth: 1040,
         }}
       >
-        <span
+        {/* div, not span: ReleaseLanes renders a flex container, and a div inside a
+            span is invalid HTML that the browser repairs before React hydrates,
+            producing a mismatch on the hero. The pill this replaced returned an
+            anchor, which was legal here. */}
+        <div
           style={{
             opacity: 0,
             animation: 'ycHeroUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.05s both',
           }}
         >
           <ReleaseLanes />
-        </span>
+        </div>
 
         <HeroHeading />
 
