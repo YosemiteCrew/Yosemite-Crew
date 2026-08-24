@@ -4,7 +4,7 @@
 // regression test so the ordering cannot be casually rearranged.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildLinkedPrMap } from './sync.mjs';
+import { buildLinkedPrMap, safeTitle } from './sync.mjs';
 import {
   CATEGORIES,
   PRIORITIES,
@@ -281,4 +281,35 @@ test('an issue with a ready linked PR reaches Under Testing', () => {
     { number: 10, state: 'OPEN', isDraft: false, title: 'Fixes #500', body: '' },
   ]);
   assert.equal(classifyStatus({ state: 'OPEN', linkedPrs: map.get(500) }), STATUSES.UNDER_TESTING);
+});
+
+// Titles are author-controlled and land in a GitHub Actions log, which treats
+// `::`-prefixed lines as WORKFLOW COMMANDS, and in the markdown job summary. The
+// repository is public so the titles are not secret; the risk is a crafted title
+// forging log output or smuggling escape sequences into a terminal.
+test('a title cannot forge a workflow command', () => {
+  assert.ok(!safeTitle('::error::everything is broken').startsWith('::'));
+  assert.ok(safeTitle('::error::x').includes('error'));
+});
+
+test('control characters and newlines are flattened out of a logged title', () => {
+  assert.equal(safeTitle('line one\nline two'), 'line one line two');
+  assert.equal(safeTitle('bell\u0007and\u001b[31mred'), 'bell and [31mred');
+  assert.ok(!/[\u0000-\u001f]/.test(safeTitle('tab\there\r\nand more')));
+});
+
+test('a very long title is capped so it cannot flood the log', () => {
+  const out = safeTitle('x'.repeat(500));
+  assert.equal(out.length, 80);
+  assert.ok(out.endsWith('\u2026'));
+  assert.equal(safeTitle('y'.repeat(500), 70).length, 70);
+});
+
+test('an ordinary title is passed through unchanged', () => {
+  assert.equal(
+    safeTitle('fix(mobile): breed picker is always empty'),
+    'fix(mobile): breed picker is always empty'
+  );
+  assert.equal(safeTitle(''), '');
+  assert.equal(safeTitle(undefined), '');
 });

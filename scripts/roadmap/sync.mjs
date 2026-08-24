@@ -234,6 +234,22 @@ mutation($projectId:ID!, $itemId:ID!, $fieldId:ID!, $date:Date!) {
   }) { projectV2Item { id } }
 }`;
 
+// Issue titles are author-controlled free text that ends up in a GitHub Actions
+// log and in the job summary. They are public on a public repository, so this is
+// not about privacy - it is that a workflow log interprets `::`-prefixed lines as
+// WORKFLOW COMMANDS, and the summary renders markdown. Strip control characters,
+// defuse a leading `::`, and cap the length so a crafted title cannot forge log
+// output or smuggle escape sequences into someone's terminal.
+export const safeTitle = (title = '', max = 80) => {
+  const flat = String(title)
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const capped = flat.length > max ? `${flat.slice(0, max - 1)}\u2026` : flat;
+  return capped.startsWith('::') ? `\u2060${capped}` : capped;
+};
+
 const fieldValue = (item, name) => {
   for (const n of item.fieldValues?.nodes || []) {
     if (n?.field?.name === name) return n.name ?? n.text ?? n.date ?? null;
@@ -349,11 +365,11 @@ async function addMissingIssues({
       archived.content = issue;
       byContentId.set(issue.id, archived);
       live.push(archived);
-      actions.restored.push(`#${issue.number} ${issue.title}`);
+      actions.restored.push(`#${issue.number} ${safeTitle(issue.title)}`);
       continue;
     }
 
-    actions.added.push(`#${issue.number} ${issue.title}`);
+    actions.added.push(`#${issue.number} ${safeTitle(issue.title)}`);
 
     const id = DRY_RUN
       ? `dry-run:${issue.number}`
@@ -382,7 +398,7 @@ async function reconcileIssue({ issue, item, setSelect, setDate, actions, today,
       labels,
     });
     if (category) await setSelect(item, 'Category', category, ref);
-    else actions.uncategorised.push(`${ref} ${issue.title.slice(0, 70)} (${reason})`);
+    else actions.uncategorised.push(`${ref} ${safeTitle(issue.title, 70)} (${reason})`);
   }
 
   // Held in a variable because the target date below depends on it, and a value a
@@ -396,7 +412,9 @@ async function reconcileIssue({ issue, item, setSelect, setDate, actions, today,
       // Untriaged. Leave BOTH cells empty and say so: writing a guess here is
       // what published two `security` issues as Normal with a 91-day target,
       // because the fill-once rule then made that guess permanent.
-      actions.untriaged.push(`${ref} ${issue.title.slice(0, 70)} (no priority-bearing label yet)`);
+      actions.untriaged.push(
+        `${ref} ${safeTitle(issue.title, 70)} (no priority-bearing label yet)`
+      );
     }
   }
 
