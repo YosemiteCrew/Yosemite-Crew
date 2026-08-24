@@ -164,7 +164,7 @@ export const planBackfill = async (): Promise<Outcome[]> => {
   return outcomes;
 };
 
-const main = async () => {
+export const main = async () => {
   const apply = process.argv.includes("--apply");
   const outcomes = await planBackfill();
 
@@ -187,15 +187,29 @@ const main = async () => {
   }
 
   let written = 0;
+  let skippedConcurrent = 0;
   for (const outcome of resolved) {
     const species = SPECIES_BY_TYPE[outcome.type];
-    await prisma.patient.update({
-      where: { id: outcome.patientId },
+    // Conditional on breedCode still being null, via updateMany rather than
+    // update. A parent editing their companion between the plan and this loop
+    // would otherwise have their newly chosen breed overwritten by a value
+    // planned from the row as it was before they touched it.
+    const result = await prisma.patient.updateMany({
+      where: { id: outcome.patientId, breedCode: null },
       data: { speciesCode: species.code, breedCode: outcome.resolved },
     });
+    if (result.count === 0) {
+      skippedConcurrent += 1;
+      continue;
+    }
     written += 1;
   }
   console.log(`\nwrote ${written} companions`);
+  if (skippedConcurrent > 0) {
+    console.log(
+      `  ${skippedConcurrent} skipped - coded by someone else while this ran`,
+    );
+  }
 };
 
 /**

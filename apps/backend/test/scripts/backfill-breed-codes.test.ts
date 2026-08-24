@@ -1,13 +1,13 @@
 jest.mock("src/config/prisma", () => ({
   prisma: {
-    patient: { findMany: jest.fn(), update: jest.fn() },
+    patient: { findMany: jest.fn(), updateMany: jest.fn() },
     codeEntry: { findMany: jest.fn() },
     $disconnect: jest.fn(),
   },
 }));
 
 import { prisma } from "src/config/prisma";
-import { planBackfill } from "src/scripts/backfill-breed-codes";
+import { main, planBackfill } from "src/scripts/backfill-breed-codes";
 
 const patientFind = (prisma as unknown as { patient: { findMany: jest.Mock } })
   .patient.findMany;
@@ -131,5 +131,77 @@ describe("planBackfill query volume", () => {
 
     // Two species present, so two queries - not four.
     expect(codeFind).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("main", () => {
+  const patientUpdateMany = (
+    prisma as unknown as { patient: { updateMany: jest.Mock } }
+  ).patient.updateMany;
+
+  let log: jest.SpyInstance;
+  let argv: string[];
+
+  beforeEach(() => {
+    argv = process.argv;
+    log = jest.spyOn(console, "log").mockImplementation(() => {});
+    patientFind.mockResolvedValue([{ id: "p1", breed: "Pug", type: "dog" }]);
+    codeFind.mockResolvedValue([{ code: "YBREED:CANINE:PUG", display: "Pug" }]);
+    patientUpdateMany.mockResolvedValue({ count: 1 });
+  });
+
+  afterEach(() => {
+    process.argv = argv;
+    log.mockRestore();
+  });
+
+  const output = () => log.mock.calls.map((c) => String(c[0])).join("\n");
+
+  it("writes nothing without --apply", async () => {
+    process.argv = ["node", "backfill-breed-codes.ts"];
+    await main();
+
+    expect(patientUpdateMany).not.toHaveBeenCalled();
+    expect(output()).toMatch(/dry run/);
+  });
+
+  it("writes only when --apply is passed, and only while the row is still uncoded", async () => {
+    process.argv = ["node", "backfill-breed-codes.ts", "--apply"];
+    await main();
+
+    // updateMany with breedCode: null in the where, not update by id. A parent
+    // editing their companion between the plan and the write would otherwise
+    // have their new breed overwritten by a stale planned value.
+    expect(patientUpdateMany).toHaveBeenCalledWith({
+      where: { id: "p1", breedCode: null },
+      data: {
+        speciesCode: "YSPEC:CANINE",
+        breedCode: "YBREED:CANINE:PUG",
+      },
+    });
+    expect(output()).toMatch(/wrote 1 companions/);
+  });
+
+  it("reports a row that someone else coded while it was running", async () => {
+    process.argv = ["node", "backfill-breed-codes.ts", "--apply"];
+    patientUpdateMany.mockResolvedValue({ count: 0 });
+
+    await main();
+
+    expect(output()).toMatch(/wrote 0 companions/);
+    expect(output()).toMatch(/coded by someone else/);
+  });
+
+  it("names every skipped companion and why", async () => {
+    process.argv = ["node", "backfill-breed-codes.ts"];
+    patientFind.mockResolvedValue([
+      { id: "p1", breed: "Nonesuch", type: "dog" },
+    ]);
+    codeFind.mockResolvedValue([]);
+
+    await main();
+
+    expect(output()).toMatch(/SKIP dog "Nonesuch"/);
+    expect(output()).toMatch(/no vocabulary entry/);
   });
 });

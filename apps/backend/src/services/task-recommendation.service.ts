@@ -143,8 +143,19 @@ export const TaskRecommendationService = {
     // This is a fallback between two recorded values, not an inference: `type` is
     // what the parent picked. Guessing a species from free-text breed would be a
     // different thing and is still not done.
-    const species =
-      taskSpeciesForCode(patient.speciesCode) ?? TASK_SPECIES[patient.type];
+    const coded = taskSpeciesForCode(patient.speciesCode);
+    const declared = TASK_SPECIES[patient.type];
+
+    // If both are recorded and they disagree, the companion's data is
+    // inconsistent and neither value can be trusted to pick the rules.
+    // Returning nothing is the only safe answer: choosing one would serve
+    // guidance for the wrong animal on exactly the rows where we already know
+    // something is wrong. Nothing upstream enforces agreement -
+    // validateCompanionCodes checks each code is valid, not that the two
+    // describe the same species.
+    if (coded && declared && coded !== declared) return [];
+
+    const species = coded ?? declared;
     if (!species) return [];
 
     const age = ageInMonths(patient.dateOfBirth, new Date());
@@ -185,8 +196,15 @@ export const TaskRecommendationService = {
         // A rule for dogs must not recommend a task the definition does not apply
         // to dogs. Nothing in the relation enforces that, so a curator pointing a
         // canine rule at a feline-only task would otherwise ship it.
-        .filter((rule) =>
-          rule.taskDefinition.applicableSpecies.includes(species),
+        //
+        // An EMPTY applicableSpecies means universal, not "applies to nothing" -
+        // taskLibrary.service.ts matches `{ isEmpty: true }` alongside
+        // `{ has: species }` for exactly that reason. Treating empty as a
+        // mismatch here would silently drop every universal task.
+        .filter(
+          (rule) =>
+            rule.taskDefinition.applicableSpecies.length === 0 ||
+            rule.taskDefinition.applicableSpecies.includes(species),
         )
         .filter((rule) =>
           withinWindow(age, rule.minAgeMonths, rule.maxAgeMonths),

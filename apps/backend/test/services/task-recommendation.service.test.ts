@@ -321,3 +321,43 @@ describe("TaskRecommendationService evidence shape", () => {
     expect(bare.evidence.artifact.url).toBeUndefined();
   });
 });
+
+describe("TaskRecommendationService species integrity", () => {
+  it("returns nothing when speciesCode and type disagree", async () => {
+    // Nothing upstream enforces that the two agree - validateCompanionCodes
+    // checks each code is valid, not that they describe one species. Picking
+    // either would serve guidance for the wrong animal on exactly the rows
+    // already known to be inconsistent.
+    patientFind.mockResolvedValue({
+      speciesCode: "YSPEC:CANINE",
+      breedCode: null,
+      dateOfBirth: yearsAgo(5),
+      type: "cat",
+    });
+    ruleFind.mockResolvedValue([rule()]);
+
+    expect(await TaskRecommendationService.forCompanion("pat-1")).toEqual([]);
+    expect(ruleFind).not.toHaveBeenCalled();
+  });
+
+  it("keeps a universal task definition, which declares no species at all", async () => {
+    // taskLibrary.service.ts matches `{ isEmpty: true }` alongside
+    // `{ has: species }`, so empty means universal rather than "applies to
+    // nothing". Reading it as a mismatch would drop every universal task.
+    ruleFind.mockResolvedValue([
+      rule({
+        taskDefinition: {
+          id: "task-1",
+          name: "Universal",
+          category: "x",
+          isActive: true,
+          applicableSpecies: [],
+        },
+      }),
+    ]);
+
+    expect(await TaskRecommendationService.forCompanion("pat-1")).toHaveLength(
+      1,
+    );
+  });
+});
