@@ -487,6 +487,29 @@ describe("StripeController", () => {
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({ error: "Unknown error" });
     });
+
+    it("returns 500 when the handler throws on a validly signed event", async () => {
+      // A signature we verified plus a handler that failed is our fault, not the
+      // caller's. Answering 400 for both made a database outage and a forged
+      // signature indistinguishable on the Stripe dashboard.
+      mockedStripe.verifyWebhook.mockReturnValue({ id: "evt_1" });
+      mockedStripe.handleWebhookEvent.mockRejectedValue(
+        new Error("database unavailable"),
+      );
+      const req = buildReq({
+        headers: { "stripe-signature": "sig_1" },
+        body: Buffer.from("payload"),
+      });
+
+      await StripeController.webhook(
+        req as Request<unknown, unknown, Buffer>,
+        res,
+      );
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.status).not.toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ error: "database unavailable" });
+    });
   });
 
   describe("connectWebhook", () => {
@@ -548,6 +571,28 @@ describe("StripeController", () => {
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({ error: "Unknown error" });
+    });
+
+    it("returns 500 when the handler throws on a validly signed connect event", async () => {
+      mockedStripe.verifyConnectWebhook.mockReturnValue({ id: "evt_connect" });
+      mockedStripe.handleWebhookEvent.mockRejectedValue(
+        new Error("connected account lookup failed"),
+      );
+      const req = buildReq({
+        headers: { "stripe-signature": "sig_c" },
+        body: Buffer.from("connect-payload"),
+      });
+
+      await StripeController.connectWebhook(
+        req as Request<unknown, unknown, Buffer>,
+        res,
+      );
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.status).not.toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        error: "connected account lookup failed",
+      });
     });
   });
 
