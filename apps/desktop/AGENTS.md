@@ -2,7 +2,7 @@
 
 Inherits all root `AGENTS.md` rules. This file adds desktop-specific rules.
 
-**Stack:** Electron 39 (main + preload + renderer), TypeScript, `electron-builder` for
+**Stack:** Electron 43 (main + preload + renderer — check `apps/desktop/package.json` for the current pin; it moves often), TypeScript, `electron-builder` for
 packaging, Jest for unit tests, Playwright for e2e. Frameless `BrowserWindow` with a
 `WebContentsView` tab-chrome view stacked over the content views. Local SQLite via `sql.js`,
 auto-update via `electron-updater`.

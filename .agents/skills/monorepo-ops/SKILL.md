@@ -25,7 +25,7 @@ apps/
 packages/
   auth/           @yosemite-crew/auth
   database/       @yosemite-crew/database
-  design-tokens/  @yosemite-crew/design-tokens
+  design-tokens/  @yosemite-crew/design-tokens (DEAD - never built, zero consumers; live tokens: apps/frontend/src/app/globals.css)
   fhir/           @yosemite-crew/fhir
   fhirtypes/      @yosemite-crew/fhirtypes
   lib/            @yosemite-crew/lib
@@ -65,8 +65,8 @@ pnpm --filter frontend run type-check
 npx tsc --noemit
 
 # Tests (targeted)
-pnpm --filter frontend run test -- --testPathPattern="ComponentName"
-pnpm --filter mobileAppYC run test -- --testPathPattern="ScreenName"
+pnpm --filter frontend run test -- --testPathPatterns="ComponentName"
+pnpm --filter mobileAppYC run test -- --testPathPatterns="ScreenName"
 ```
 
 ---
@@ -117,7 +117,7 @@ pnpm turbo build --filter=frontend...  # builds frontend + its dependencies
 
 ## Pre-commit Hooks
 
-Husky + commitlint are configured. Pre-commit runs lint + type-check. Commit messages must follow conventional commits:
+Husky + commitlint are configured. Pre-commit runs a staged-secret scan + lint-staged (eslint --fix, prettier, secretlint on staged files); the full monorepo lint + type-check run at pre-push. Commit messages must follow conventional commits:
 
 ```
 <type>(<scope>): <subject>

@@ -36,11 +36,11 @@ Use this when drafting architecture decisions, technical narratives, or product-
 
 ## Platform Directions
 
-**Frontend:** Moving toward stronger design system contract (`src/app/ui`) with Storybook. Shared semantic token package (`packages/design-tokens`) being established.
+**Frontend:** Moving toward stronger design system contract (`src/app/ui`) with Storybook. The shared semantic token package (`packages/design-tokens`) is dead - never built, zero runtime consumers, stale palette; the live tokens are `apps/frontend/src/app/globals.css`.
 
-**Mobile:** Feature-first module layout with Redux Toolkit + Redux Persist. Semantic token mapping aligns with web vocabulary.
+**Mobile:** Feature-first module layout with Redux Toolkit + Redux Persist. Its `semanticTokens.ts` is a hand-maintained approximation of the web vocabulary, unused by application code and drifting - do not treat the two as aligned.
 
-**Backend:** Express app with rate limiting, CORS, upload handling, sanitization, centralized route registration. Service layer domain-partitioned. Persistence is being consolidated onto Prisma/Postgres as the single source of truth.
+**Backend:** Express app with rate limiting, CORS, upload handling, sanitization, centralized route registration. Service layer domain-partitioned. Persistence is consolidated onto Prisma/Postgres as the single source of truth (the MongoDB migration is complete and the old cluster is gone).
 
 ## Engineering Narrative Themes
 

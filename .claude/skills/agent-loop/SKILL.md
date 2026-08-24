@@ -106,11 +106,13 @@ those files are the source of truth for exact commands, timeouts, and coverage b
 Loop-critical traps on top of them:
 
 - Type check can take 60-120s; if it times out, say so explicitly - never silently skip it.
-- Tests: targeted by default (`pnpm --filter <ws> run test -- --testPathPattern="<name>"`).
+- Tests: targeted by default (`pnpm --filter <ws> run test -- --testPathPatterns="<name>"`).
   Run the full frontend suite (100s+) only when the user explicitly asks, when validating
-  repo-wide failures, or when changing shared test infrastructure (per `AGENTS.md`). If
-  your harness's delegated subagents cannot run jest reliably, have them write the tests,
-  then run jest yourself from the top-level session.
+  repo-wide failures, or when changing shared test infrastructure (per `AGENTS.md`).
+  Delegated subagents can and should run jest themselves: have them run their targeted
+  suites with `--coverage`, iterate to green, and report measured numbers. The top-level
+  session still does one final batch run - cross-file isolation regressions only surface
+  when suites run together.
 - Coverage: every file you touch ends at or above the coverage you found it at; the bars
   for new files live in `CLAUDE.md` / `AGENTS.md`.
 - Build: CI (`ci.yaml`) builds every affected workspace. If your change could

@@ -114,10 +114,10 @@ SuperTokens is the mobile auth provider (email OTP + social through the provider
 
 ## Testing
 
-- **Jest 29** + Testing Library for React Native.
+- **Jest 30** + Testing Library for React Native. Jest 30 renamed the targeting flag to `--testPathPatterns` (plural) - the old singular form errors.
 - **Detox** for E2E (run separately, not part of standard CI).
-- Target tests: `pnpm --filter mobileAppYC run test -- --testPathPattern="path/to/file"`
-- Never run the full suite without `--testPathPattern`.
+- Target tests: `pnpm --filter mobileAppYC run test -- --testPathPatterns="path/to/file"`
+- Never run the full suite without `--testPathPatterns`.
 
 ### Coverage Mandate — Non-Negotiable
 
@@ -146,7 +146,7 @@ All four layers must grow together. Do not add unit tests while leaving Detox un
 
 ```bash
 # After every change, run coverage for the touched file(s):
-pnpm --filter mobileAppYC run test -- --testPathPattern="<YourFile>" --coverage --collectCoverageFrom="src/path/to/YourFile.tsx"
+pnpm --filter mobileAppYC run test -- --testPathPatterns="<YourFile>" --coverage --collectCoverageFrom="src/path/to/YourFile.tsx"
 
 # Check — if Statements/Branches/Functions dropped vs what you started with, add tests before declaring done.
 ```
@@ -175,7 +175,7 @@ Never leave an existing file in a worse coverage state than you found it.
 ```bash
 npx tsc --noemit                                    # from apps/mobileAppYC/
 pnpm --filter mobileAppYC run lint
-pnpm --filter mobileAppYC run test -- --testPathPattern="<YourFile>"
+pnpm --filter mobileAppYC run test -- --testPathPatterns="<YourFile>"
 ```
 
 ---
@@ -193,7 +193,7 @@ Before every submission run these checks — **do not bump versions mid-review**
    - `UI_FEATURE_FLAGS.forceLiquidGlassBorder = false`
    - `MOBILE_CONFIG_BEHAVIOR.overrides.forceLiquidGlassBorder = false`
 
-2. **Silence console output** — `App.tsx` lines 203–207 must be uncommented:
+2. **Silence console output** — the console-silencing block in `App.tsx` must be uncommented (search for `const noop`; never trust hardcoded line numbers):
 
    ```ts
    const noop = () => {};
@@ -271,4 +271,4 @@ After both stores go live, update `README.md`:
 - Redux Persist can cause stale state after schema changes — bump the persist version key when changing slice shape.
 - `@gorhom/bottom-sheet` requires `GestureHandlerRootView` at app root — it's already there, don't remove it.
 - Reactotron is dev-only — guard with `__DEV__` checks.
-- i18n resource files are in `src/i18n/` — add new keys there before using `t()`.
+- i18n resource files are in `src/localization/` (there is no `src/i18n/`) — add new keys there before using `t()`.

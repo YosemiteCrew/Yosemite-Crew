@@ -27,7 +27,14 @@ src/app/ui/
   layout/             Header, Sidebar
   primitives/         low-level Buttons, Icons
   filters/            form/inventory filters
+  avatars/            avatar components
+  board/              kanban/board pieces
+  icons/              icon components
+  theme/              theme helpers
+  widgets/            composite widgets
 ```
+
+(Tree drifts — `ls src/app/ui/` for the current contents.)
 
 Import from barrel: `import { Button, Card } from '@/app/ui'`
 
@@ -115,7 +122,7 @@ let the fill alone signal state. That is what `--blue-strong` is for.
 
 Zustand stores in `src/app/stores/`. One store per domain. Do not introduce new state libraries.
 
-Available stores: appointment, auth, availability, companion, document, forms, integration, inventory, invoice, org, parent, profile, room, search, service, subscription, task, team, universalSearch.
+Available stores (26 — list drifts, enumerate `src/app/stores/` before adding one): appointment, appointmentWorkspace, auth, availability, companion, counter, document, forms, fullscreenLoader, integration, inventory, invoice, org, parent, profile, revampCatalog, room, routeLoader, search, service, signingOverlay, speciality, subscription, task, team, universalSearch. Never duplicate a store — check this directory first.
 
 ---
 
@@ -175,7 +182,7 @@ After any change: `npx tsc --noemit` + `pnpm --filter frontend run lint`.
 
 ```bash
 # Prefer targeted Jest runs during development. Full Jest runs are allowed when the user explicitly asks, when validating repo-wide failures, or when changing shared test infrastructure. Playwright and accessibility runs are allowed whenever relevant.
-pnpm --filter frontend run test -- --testPathPattern="ComponentName"
+pnpm --filter frontend run test -- --testPathPatterns="ComponentName"
 ```
 
 ### Coverage Mandate - Non-Negotiable
@@ -201,7 +208,7 @@ pnpm --filter frontend run test -- --testPathPattern="ComponentName"
 
 ```bash
 # Verify coverage for the file(s) you changed:
-pnpm --filter frontend run test -- --testPathPattern="<YourFile>" --coverage --collectCoverageFrom="src/app/path/to/YourFile.tsx"
+pnpm --filter frontend run test -- --testPathPatterns="<YourFile>" --coverage --collectCoverageFrom="src/app/path/to/YourFile.tsx"
 # If Statements/Branches/Functions dropped, add tests before declaring done.
 ```
 
@@ -233,7 +240,7 @@ npx tsc --noemit                                    # from apps/frontend/
 pnpm --filter frontend run lint
 
 # 3. Targeted tests - check src/app/__tests__/ for matching test file before running
-pnpm --filter frontend run test -- --testPathPattern="<YourFile>"
+pnpm --filter frontend run test -- --testPathPatterns="<YourFile>"
 ```
 
 When modifying an existing file, check whether a test file already exists for it in `src/app/__tests__/` (mirroring the source path). If it does, run it and **fix any failures your change introduced** before declaring the task done. A change is not complete if it breaks existing tests.
