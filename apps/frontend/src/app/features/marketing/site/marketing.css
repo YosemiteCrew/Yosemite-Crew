@@ -21,12 +21,12 @@
 @keyframes ycReveal {
   from {
     opacity: 0;
-    transform: translateY(34px);
+    translate: 0 34px;
     filter: blur(8px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    translate: 0;
     filter: blur(0px);
   }
 }
@@ -194,45 +194,42 @@
 }
 
 /* ---- Scroll reveal (drives Reveal in site/motion.tsx) ---- */
-/* Both states live here rather than in the component's inline style. Deriving the
-   initial state in JS meant the server (no IntersectionObserver, so settled) and the
-   first client render (observer present, so hidden) disagreed on opacity/transform/
-   filter; React reports that as a hydration mismatch and leaves the attributes
-   unpatched, so the reveal never actually ran on an SSR'd load. With the states in
-   CSS both sides emit the same markup and only data-reveal flips, after hydration. */
+/* The settled look is the DEFAULT, and only an armed element is hidden. That
+   ordering matters: the server has no IntersectionObserver, so it renders
+   data-reveal="idle", and anything that stops the client from arming - scripting
+   off, a blocked or failed bundle, a throw before hydration - leaves the copy
+   readable instead of stranding it at opacity 0 with nothing able to flip it.
+
+   Motion rides `translate`, not `transform`, because callers own `transform`:
+   Pricing's Business card sits on an inline translateY(-8px). They are separate
+   properties, so the reveal composes with the caller's offset rather than
+   fighting it. Likewise the run is a keyframe animation, not a transition, since
+   a Reveal can carry a class that owns `transition` (yc-card-lift does, on the
+   PetParents feature card) and the winning shorthand would replace the lot. */
 [data-reveal] {
+  opacity: 1;
+  /* An explicit zero, not `none`: this is what makes a settled Reveal a
+     containing block for its absolutely-positioned descendants. */
+  translate: 0;
+  filter: blur(0px);
+}
+[data-reveal='hidden'] {
   opacity: 0;
-  transform: translateY(34px);
+  translate: 0 34px;
   filter: blur(8px);
-  will-change: opacity, transform;
+  will-change: opacity, translate;
 }
 [data-reveal='shown'] {
-  opacity: 1;
-  /* An explicit zero, not `none`: the transform is what makes a settled Reveal a
-     containing block for its absolutely-positioned descendants, and dropping it
-     would re-anchor them to the page. */
-  transform: translateY(0);
-  filter: blur(0px);
-  will-change: auto;
-  /* Keyframes rather than a transition, because a Reveal can carry a class that
-     owns `transition` itself - yc-card-lift does, on the PetParents feature card -
-     and the shorthand from whichever rule wins replaces the whole list, so one
-     silently cancels the other. `animation` is a separate property, so the two
-     compose. Deliberately not filled forwards: once the run ends the settled
-     declarations above take over, which leaves a later :hover rule free to move
-     the card. */
   animation: ycReveal 1s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Reduced motion wants the content simply present. Keeping that here rather than in
+/* Reduced motion wants the content simply present. Keeping it here rather than in
    the component means it does not wait on an effect - it is what the very first
-   paint already uses. Scripting-off is handled by the <noscript> block in the
-   (public) route layout, since the `scripting` media feature is not supported
-   across this project's whole browser target. */
+   paint already uses. */
 @media (prefers-reduced-motion: reduce) {
   [data-reveal] {
     opacity: 1;
-    transform: translateY(0);
+    translate: 0;
     filter: blur(0px);
     animation: none;
     will-change: auto;

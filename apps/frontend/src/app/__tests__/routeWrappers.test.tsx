@@ -92,22 +92,13 @@ describe('route wrappers', () => {
     // The public layout is now a pass-through: each page supplies its own chrome
     // (marketing pages use MarketingShell, auth pages AuthShell), so the layout
     // only forwards children plus the shared marketing stylesheet + theme script.
-    const { container } = render(
+    render(
       <PublicLayout>
         <div data-testid="public-child" />
       </PublicLayout>
     );
 
     expect(screen.getByTestId('public-child')).toBeInTheDocument();
-
-    // Scroll reveals start hidden in marketing.css and only settle once the
-    // observer in Reveal flips data-reveal. With scripting off nothing flips it,
-    // so this noscript rule is the only thing keeping the marketing and legal
-    // copy readable. Asserted here so it cannot be dropped unnoticed.
-    const noscript = container.querySelector('noscript');
-    expect(noscript).not.toBeNull();
-    expect(noscript?.innerHTML).toContain('[data-reveal]');
-    expect(noscript?.innerHTML).toContain('opacity:1');
   });
 
   it('renders route loading states with accessible labels', () => {

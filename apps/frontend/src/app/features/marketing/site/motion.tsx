@@ -75,16 +75,25 @@ interface RevealProps extends React.HTMLAttributes<HTMLElement> {
   as?: 'div' | 'section' | 'li' | 'span';
 }
 
+/** `idle` is the settled look, and the only state the server can produce. */
+type RevealState = 'idle' | 'hidden' | 'shown';
+
 /**
  * Fade + rise + de-blur when scrolled into view.
  *
- * Both states live in marketing.css keyed off `data-reveal`; this only flips the
- * attribute. Deriving the initial state here instead made the server (no
- * IntersectionObserver, so settled) and the first client render (observer present,
- * so hidden) disagree on opacity/transform/filter — a hydration mismatch React
- * leaves unpatched, so the reveal never ran on an SSR'd load. Reduced motion is a
- * media query on the same selector, so it holds from the first paint rather than
- * waiting on an effect; scripting-off is covered by the (public) layout's noscript.
+ * The states live in marketing.css and this only flips `data-reveal`, so the
+ * server HTML and the first client render agree. Deriving the initial state here
+ * instead (from `typeof IntersectionObserver`) made the two disagree on
+ * opacity/transform/filter — a hydration mismatch React leaves unpatched, so the
+ * reveal never ran on an SSR'd load at all.
+ *
+ * The server can only ever render `idle`, which is the settled look, and the
+ * client arms an element by moving it to `hidden` once the observer confirms it
+ * is off-screen. Nothing is hidden that the client has not already proven it can
+ * reveal, so a blocked bundle, a throw before hydration, or scripting being off
+ * leaves the copy readable rather than stranded at opacity 0. An element already
+ * on screen when the observer first reports stays `idle`: it is visible, so
+ * animating it in would only flash.
  */
 export function Reveal({
   children,
@@ -95,49 +104,43 @@ export function Reveal({
   ...rest
 }: Readonly<RevealProps>) {
   const ref = useRef<HTMLElement | null>(null);
-  const [shown, setShown] = useState(false);
+  const armed = useRef(false);
+  const [state, setState] = useState<RevealState>('idle');
 
   useEffect(() => {
-    let timer = 0;
-    const reveal = () => {
-      timer = globalThis.window.setTimeout(() => setShown(true), delay);
-    };
-    const clear = () => globalThis.window.clearTimeout(timer);
-
-    // Older browsers with no observer settle on their own rather than staying
-    // hidden behind a reveal that nothing will ever trigger.
-    if (typeof IntersectionObserver === 'undefined') {
-      reveal();
-      return clear;
-    }
     const node = ref.current;
-    if (!node) return undefined;
+    if (!node || typeof IntersectionObserver === 'undefined') return undefined;
+    let timer = 0;
     const io = new IntersectionObserver(
       (entries) => {
-        const entry = entries.find((e) => e.isIntersecting);
-        if (entry) {
-          reveal();
-          io.unobserve(entry.target);
+        const entry = entries.at(-1);
+        if (!entry) return;
+        if (!entry.isIntersecting) {
+          // Off-screen, so hiding it now costs the reader nothing and gives the
+          // scroll-in something to animate from.
+          if (!armed.current) {
+            armed.current = true;
+            setState('hidden');
+          }
+          return;
+        }
+        io.unobserve(entry.target);
+        if (armed.current) {
+          timer = globalThis.window.setTimeout(() => setState('shown'), delay);
         }
       },
       { threshold: 0.12 }
     );
     io.observe(node);
     return () => {
-      clear();
+      globalThis.window.clearTimeout(timer);
       io.disconnect();
     };
   }, [delay]);
 
   const Tag = as;
   return (
-    <Tag
-      ref={ref as never}
-      data-reveal={shown ? 'shown' : 'hidden'}
-      className={className}
-      style={style}
-      {...rest}
-    >
+    <Tag ref={ref as never} data-reveal={state} className={className} style={style} {...rest}>
       {children}
     </Tag>
   );
