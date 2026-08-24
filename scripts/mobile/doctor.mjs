@@ -173,20 +173,17 @@ checkFile('ios/mobileAppYC/Info.plist', 'ask a maintainer', bad);
 
 // iOS ignores a bundled font that is not listed in UIAppFonts, and the failure
 // is silent for text (it falls back to the system face) and only slightly
-// louder for icon fonts (every glyph becomes a "?" box). The real Info.plist is
-// gitignored and restored from a CI secret, so it drifts from the template
-// without anything noticing. Compare the two.
-// The only two plists this compares, so the reader takes a key rather than a
-// path and no caller can widen it.
-const PLIST_PATHS = {
-  build: 'ios/mobileAppYC/Info.plist',
-  template: 'config-templates/ios/Info.plist.example',
-};
+// louder for icon fonts (every glyph becomes a "?" box). Info.plist is tracked
+// now, so this compares it against the fonts that actually exist rather than
+// against a second copy of the plist, which was itself a drift source.
+const BUILD_PLIST = 'ios/mobileAppYC/Info.plist';
+// Shipped by the react-native-vector-icons pod, not by assets/fonts, so they
+// cannot be discovered from disk. These are the two families the app imports.
+const ICON_FONTS = ['Ionicons.ttf', 'MaterialIcons.ttf'];
 
-const uiAppFonts = (which) => {
-  // resolve() over join(): the key indexes a fixed table, and normalising here
-  // means the path cannot climb out of the workspace even if that table grows.
-  const plistPath = resolve(root, PLIST_PATHS[which]);
+const uiAppFonts = () => {
+  // resolve() over join() so the path cannot climb out of the workspace.
+  const plistPath = resolve(root, BUILD_PLIST);
   if (!existsSync(plistPath) || !plistPath.startsWith(resolve(root))) return null;
   try {
     const xml = readFileSync(plistPath, 'utf8');
@@ -198,19 +195,30 @@ const uiAppFonts = (which) => {
   }
 };
 
-const declaredFonts = uiAppFonts('build');
-const templateFonts = uiAppFonts('template');
+const bundledFonts = () => {
+  const dir = resolve(root, 'assets/fonts');
+  if (!existsSync(dir) || !dir.startsWith(resolve(root))) return null;
+  try {
+    return readdirSync(dir).filter((f) => /\.(ttf|otf)$/i.test(f));
+  } catch {
+    return null;
+  }
+};
 
-if (declaredFonts && templateFonts) {
-  const missing = templateFonts.filter((f) => !declaredFonts.includes(f));
+const declaredFonts = uiAppFonts();
+const onDisk = bundledFonts();
+
+if (declaredFonts && onDisk) {
+  const required = [...onDisk, ...ICON_FONTS];
+  const missing = required.filter((f) => !declaredFonts.includes(f));
   if (missing.length > 0) {
     bad(
       'UIAppFonts',
-      `Info.plist is missing ${missing.length} font(s) the template registers: ${missing.join(', ')}. ` +
-        'Icon fonts render as "?" boxes and text fonts fall back silently. Update the IOS_INFO_PLIST secret from config-templates/ios/Info.plist.example.'
+      `Info.plist is missing ${missing.length} font(s): ${missing.join(', ')}. ` +
+        'Icon fonts render as "?" boxes and text fonts fall back silently. Add them to UIAppFonts in ios/mobileAppYC/Info.plist.'
     );
   } else {
-    ok('UIAppFonts', `${declaredFonts.length} fonts registered, matching the template`);
+    ok('UIAppFonts', `${declaredFonts.length} fonts registered, covering every bundled and icon font`);
   }
 
   // A font shipped in assets/fonts but never registered is the same failure,
@@ -408,7 +416,7 @@ if (process.argv.includes('--require-app-config')) {
 // too narrow (missing a real placeholder) or too broad (condemning real
 // config) fails loudly rather than silently reporting OK.
 //
-// Only these six are asserted. Other templates in config-templates/ are
+// Only these five are asserted. Other templates in config-templates/ are
 // instructional or carry no secret values, so they legitimately contain no
 // placeholder markers and flagging them would be wrong.
 if (process.argv.includes('--self-test')) {
@@ -418,7 +426,6 @@ if (process.argv.includes('--self-test')) {
     'android/strings.example.xml',
     'android/local.properties.example',
     'ios/GoogleService-Info.example.plist',
-    'ios/Info.plist.example',
     'ios/Secrets.xcconfig.example',
   ];
   let failures = 0;

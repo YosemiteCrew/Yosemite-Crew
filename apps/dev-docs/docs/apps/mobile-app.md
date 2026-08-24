@@ -206,7 +206,6 @@ Create these gitignored files when setting up a fresh clone:
 | `apps/mobileAppYC/android/gradle.properties`                   | `config-templates/android/gradle.properties.example`                        |
 | `apps/mobileAppYC/android/local.properties`                    | `config-templates/android/local.properties.example` or Android Studio       |
 | `apps/mobileAppYC/ios/GoogleService-Info.plist`                | `config-templates/ios/GoogleService-Info.example.plist` or Firebase Console |
-| `apps/mobileAppYC/ios/mobileAppYC/Info.plist`                  | `config-templates/ios/Info.plist.example`                                   |
 | `apps/mobileAppYC/ios/mobileAppYC/Secrets.xcconfig`            | `config-templates/ios/Secrets.xcconfig.example`                             |
 | `apps/mobileAppYC/ios/.xcode.env.local`                        | create manually only if Xcode cannot find Node                              |
 
@@ -347,35 +346,33 @@ Then add this stub file to the Xcode project the same way. Push notifications wi
 
 #### E. iOS: Native Keys (`Info.plist` + `Secrets.xcconfig` + `.xcode.env.local`)
 
-`AppDelegate.swift` is application source code and must stay tracked. Do not place API keys or service tokens in `AppDelegate.swift`; put iOS native keys in the gitignored `Info.plist`, `GoogleService-Info.plist`, or `Secrets.xcconfig` files created below.
+`AppDelegate.swift` is application source code and must stay tracked. So is `Info.plist`: it was gitignored until every checkout drifted apart and App Store builds shipped without the icon fonts. **Do not put keys or tokens in `AppDelegate.swift` or `Info.plist`.** Native secrets belong in the gitignored `GoogleService-Info.plist` and `Secrets.xcconfig` created below, and `Info.plist` references them as `$(BUILD_VARIABLE)`.
 
-1. **Info.plist** - contains Facebook SDK keys, Google Sign-In reverse client ID, a `GMSApiKey` placeholder, and permission usage strings:
+1. **Info.plist** - already in the repository. Nothing to copy or edit. It holds the permission usage strings, the font registrations, and `$(...)` references to the values you set in step 2.
 
-   ```sh
-   cp apps/mobileAppYC/config-templates/ios/Info.plist.example \
-      apps/mobileAppYC/ios/mobileAppYC/Info.plist
-   ```
+   Keep both location purpose keys (`NSLocationWhenInUseUsageDescription` and `NSLocationAlwaysAndWhenInUseUsageDescription`) even if a library triggers the always-location API indirectly; App Store validation requires the purpose string to be present.
 
-   Open the file and replace:
+   If you find yourself pasting a key into this file, it belongs in `Secrets.xcconfig` instead, referenced here as `$(YOUR_KEY_NAME)`. A value pasted here is committed.
 
-   | Placeholder                  | Where to find it                                                |
-   | ---------------------------- | --------------------------------------------------------------- |
-   | `YOUR_FACEBOOK_APP_ID`       | Facebook Developer Console → your app → App ID                  |
-   | `YOUR_FACEBOOK_CLIENT_TOKEN` | Facebook Developer Console → Settings → Advanced → Client Token |
-   | `YOUR_REVERSED_CLIENT_ID`    | `ios/GoogleService-Info.plist` → `REVERSED_CLIENT_ID` value     |
-
-   Keep both location purpose keys from the template (`NSLocationWhenInUseUsageDescription` and `NSLocationAlwaysAndWhenInUseUsageDescription`) even if a library triggers the always-location API indirectly; App Store validation requires the purpose string to be present.
-
-   Facebook and Google Sign-In social auth will not work with placeholders, but OTP login and everything else in the app will function normally.
-
-2. **Secrets.xcconfig** - contains the iOS Google Maps SDK key consumed by `Info.plist` as `$(GOOGLE_MAPS_API_KEY)`:
+2. **Secrets.xcconfig** - every iOS native key, consumed by `Info.plist` through `$(...)` substitution at build time:
 
    ```sh
    cp apps/mobileAppYC/config-templates/ios/Secrets.xcconfig.example \
       apps/mobileAppYC/ios/mobileAppYC/Secrets.xcconfig
    ```
 
-   Open the file and replace `YOUR_IOS_GOOGLE_MAPS_API_KEY`. Google Maps rendering will not work with the placeholder.
+   Open the file and replace:
+
+   | Placeholder                        | Where to find it                                                |
+   | ---------------------------------- | --------------------------------------------------------------- |
+   | `YOUR_IOS_GOOGLE_MAPS_API_KEY`     | Google Cloud Console → Credentials, with Maps SDK for iOS enabled |
+   | `YOUR_FACEBOOK_APP_ID`             | Facebook Developer Console → your app → App ID                  |
+   | `YOUR_FACEBOOK_CLIENT_TOKEN`       | Facebook Developer Console → Settings → Advanced → Client Token |
+   | `YOUR_REVERSED_CLIENT_ID`          | `ios/GoogleService-Info.plist` → `REVERSED_CLIENT_ID` value     |
+
+   The reversed client id must match the `GoogleService-Info.plist` in this checkout. It is the URL scheme Google returns to after sign-in, so a mismatch builds cleanly and then fails at the redirect with nothing to point at.
+
+   Google Maps rendering, Facebook and Google Sign-In will not work with placeholders, but OTP login and everything else in the app will function normally.
 
 3. **`.xcode.env.local`** - tells Xcode's build scripts where Node.js is on your machine. Required for Xcode builds (the Metro bundler script phase uses it). Create it manually:
    ```sh
