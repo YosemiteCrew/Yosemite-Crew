@@ -240,6 +240,27 @@
   }
 }
 
+/* ---- Hero video (HeroVideo in site/motion.tsx) ---- */
+/* The loop is decorative, and HeroVideo drops it from the tree once the client
+   reads the preference. That is necessarily a post-hydration decision: a server
+   cannot know prefers-reduced-motion, so the markup ships either way and a reader
+   who asked for less motion would otherwise watch it paint before it disappears.
+   Hiding it here means it never paints for them; the component still removes it,
+   which is what stops the playback (display alone does not), and the media
+   attribute on the <source> is what stops the download when scripting never runs.
+
+   The scrim selector is scoped to the one HeroVideo renders beside its video.
+   The attribute is not exclusive: PetParents places its own standalone
+   [data-hero-scrim] as a page-level readability wash over unconditional glow
+   layers, and that one must keep painting for reduced-motion readers - it is the
+   contrast surface the headline sits on, in both themes. */
+@media (prefers-reduced-motion: reduce) {
+  [data-hero-video],
+  [data-hero-video] + [data-hero-scrim] {
+    display: none;
+  }
+}
+
 /* ---- Buttons ---- */
 .yc-btn-primary {
   position: relative;
