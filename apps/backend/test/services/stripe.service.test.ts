@@ -2366,6 +2366,29 @@ describe("StripeService", () => {
       ).rejects.toThrow("connection reset");
     });
 
+    it("settles from an expanded charge without a second round trip", async () => {
+      // latest_charge is string | Charge | null. When the intent was expanded it
+      // IS the charge, so treating anything non-string as absent skipped
+      // settlement on a payment that had already been captured.
+      bookingAppointment();
+      bookingService();
+      (prisma.invoice.create as jest.Mock).mockResolvedValueOnce({
+        id: "inv_new",
+      });
+
+      await StripeService._handleAppointmentBookingPayment({
+        ...bookingEvent,
+        latest_charge: { id: "ch_expanded", receipt_url: "receipt" },
+      } as any);
+
+      expect(mStripe.charges.retrieve).not.toHaveBeenCalled();
+      expect(
+        FinancePaymentService.handleInvoicePaymentIntentSucceeded,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({ chargeId: "ch_expanded" }),
+      );
+    });
+
     it("does not settle when the intent carries no usable charge id", async () => {
       bookingAppointment();
       bookingService();

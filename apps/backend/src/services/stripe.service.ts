@@ -83,31 +83,140 @@ const isUniqueConstraintViolation = (error: unknown): boolean =>
   "code" in error &&
   (error as { code?: string }).code === "P2002";
 
-// Same guarded read the invoice-payment handler already uses, rather than the
-// blind `as string` cast this path used to carry: latest_charge is typed
-// string | Charge | null, and passing a non-string to charges.retrieve throws
-// inside the handler, which Stripe then retries forever.
+// latest_charge is typed string | Charge | null. It is an id when the intent was
+// not expanded and the Charge itself when it was, so the blind `as string` cast
+// this path used to carry would have handed an object to charges.retrieve. An
+// already-expanded charge needs no round trip; only an id does.
 const retrieveBookingCharge = async (
   pi: Stripe.PaymentIntent,
   connectedAccountId?: string,
 ): Promise<Stripe.Charge | null> => {
-  const chargeId =
-    typeof pi.latest_charge === "string" ? pi.latest_charge : null;
-  if (!chargeId) return null;
+  if (typeof pi.latest_charge !== "string") {
+    return pi.latest_charge ?? null;
+  }
 
-  return getStripeClient().charges.retrieve(chargeId, {
+  return getStripeClient().charges.retrieve(pi.latest_charge, {
     ...(connectedAccountId ? { stripeAccount: connectedAccountId } : {}),
   });
+};
+
+/** The invoice already bound to this intent, if this delivery is a replay. */
+const findInvoiceBoundToIntent = (intentId: string) =>
+  prisma.invoice.findUnique({
+    where: { providerPaymentIntentId: intentId },
+    select: { id: true },
+  });
+
+/**
+ * Claim an appointment's open invoice by stamping the intent on it.
+ *
+ * Stamping is the point, not settling. Without it a later redelivery finds
+ * nothing bound and nothing open, and mints a second invoice - the failure that
+ * looks safe because the happy path is unchanged.
+ */
+const claimOpenBookingInvoice = async (
+  appointmentId: string,
+  intentId: string,
+): Promise<string | null> => {
+  const claimed = await prisma.invoice.updateMany({
+    where: {
+      appointmentId,
+      status: { in: ["AWAITING_PAYMENT", "PENDING"] },
+      providerPaymentIntentId: null,
+    },
+    data: { providerPaymentIntentId: intentId },
+  });
+  if (claimed.count === 0) return null;
+
+  const invoice = await findInvoiceBoundToIntent(intentId);
+  return invoice?.id ?? null;
+};
+
+/**
+ * Mint the booking invoice, or absorb the unique violation that says we should
+ * not have. Returns null when there is nothing left to settle.
+ */
+const mintBookingInvoice = async (params: {
+  appointmentId: string;
+  organisationId: string | null;
+  parentId?: string | null;
+  patientId?: string | null;
+  service: { name: string; description: string | null; cost: number };
+  pi: Stripe.PaymentIntent;
+}): Promise<string | null> => {
+  const { appointmentId, organisationId, parentId, patientId, service, pi } =
+    params;
+
+  try {
+    const created = await prisma.invoice.create({
+      data: {
+        appointmentId,
+        organisationId,
+        parentId: parentId ?? undefined,
+        patientId: patientId ?? undefined,
+        currency: pi.currency ?? "usd",
+        status: "PAID",
+        providerPaymentIntentId: pi.id,
+        items: [
+          {
+            name: service.name,
+            description: service.description ?? undefined,
+            quantity: 1,
+            unitPrice: service.cost,
+            total: service.cost,
+          },
+        ],
+        subtotal: service.cost,
+        discountTotal: 0,
+        taxTotal: 0,
+        totalAmount: service.cost,
+      },
+      select: { id: true },
+    });
+    return created.id;
+  } catch (error) {
+    if (!isUniqueConstraintViolation(error)) throw error;
+
+    // Two shapes reach here and they need different answers.
+    //
+    // A racer that lost on providerPaymentIntentId: the winner committed before
+    // Postgres raised, so this read cannot miss it. The winner settles.
+    const winner = await findInvoiceBoundToIntent(pi.id);
+    if (winner) {
+      logger.info(
+        `Appointment ${appointmentId} booking lost the race for ${pi.id}; invoice ${winner.id} won`,
+      );
+      return null;
+    }
+
+    // Or a collision on the appointment key, which still exists: a SECOND
+    // legitimate intent for an appointment that already has an invoice. Log it
+    // and stop, because throwing answers non-2xx and buys an endless Stripe
+    // retry of an event that cannot succeed while that index stands.
+    logger.error(
+      `Appointment ${appointmentId} already carries an invoice, so intent ${pi.id} could not be recorded. Payment captured with no invoice of its own.`,
+      error,
+    );
+    return null;
+  }
 };
 
 const settleAppointmentBookingInvoice = async (params: {
   invoiceId: string;
   appointmentId: string;
   pi: Stripe.PaymentIntent;
-  charge: Stripe.Charge;
   connectedAccountId?: string;
+  origin: string;
 }) => {
-  const { invoiceId, appointmentId, pi, charge, connectedAccountId } = params;
+  const { invoiceId, appointmentId, pi, connectedAccountId, origin } = params;
+
+  const charge = await retrieveBookingCharge(pi, connectedAccountId);
+  if (!charge) {
+    logger.error(
+      `Appointment ${appointmentId} booking intent ${pi.id} carries no charge; invoice ${invoiceId} ${origin} but not settled.`,
+    );
+    return;
+  }
 
   await FinancePaymentService.handleInvoicePaymentIntentSucceeded({
     invoiceId,
@@ -133,6 +242,10 @@ const settleAppointmentBookingInvoice = async (params: {
       expiresAt: null,
     },
   });
+
+  logger.info(
+    `Appointment ${appointmentId} booking PAID. Invoice ${invoiceId} ${origin}`,
+  );
 };
 
 export const StripeService = {
@@ -706,9 +819,9 @@ export const StripeService = {
     pi: Stripe.PaymentIntent,
     connectedAccountId?: string,
   ) {
-    // (your existing code unchanged)
     const appointmentId = pi.metadata?.appointmentId;
     if (!appointmentId) return;
+
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
       select: {
@@ -723,59 +836,28 @@ export const StripeService = {
     // Replay check, and the reason this handler is safe at all. Stripe redelivers
     // on any non-2xx and nothing upstream deduplicates by event id, so the same
     // intent can arrive here more than once, including concurrently. An invoice
-    // already bound to THIS intent means the work was done; settling again is a
-    // no-op inside the payment service, but minting again would not be.
-    const boundInvoice = await prisma.invoice.findUnique({
-      where: { providerPaymentIntentId: pi.id },
-      select: { id: true },
-    });
-    if (boundInvoice) {
+    // already bound to THIS intent means the work was done.
+    const bound = await findInvoiceBoundToIntent(pi.id);
+    if (bound) {
       logger.info(
-        `Appointment ${appointmentId} booking replay for ${pi.id}; invoice ${boundInvoice.id} already bound`,
+        `Appointment ${appointmentId} booking replay for ${pi.id}; invoice ${bound.id} already bound`,
       );
       return;
     }
 
-    // Claim an open invoice by stamping the intent on it, rather than just
-    // settling it. Without the stamp a later redelivery finds nothing bound and
-    // nothing open, and mints a second invoice - the failure that looks safe
-    // because the happy path is unchanged.
-    const claimed = await prisma.invoice.updateMany({
-      where: {
+    const claimedInvoiceId = await claimOpenBookingInvoice(
+      appointmentId,
+      pi.id,
+    );
+    if (claimedInvoiceId) {
+      await settleAppointmentBookingInvoice({
+        invoiceId: claimedInvoiceId,
         appointmentId,
-        status: { in: ["AWAITING_PAYMENT", "PENDING"] },
-        providerPaymentIntentId: null,
-      },
-      data: { providerPaymentIntentId: pi.id },
-    });
-
-    if (claimed.count > 0) {
-      const openInvoice = await prisma.invoice.findUnique({
-        where: { providerPaymentIntentId: pi.id },
-        select: { id: true },
+        pi,
+        connectedAccountId,
+        origin: "claimed",
       });
-      if (openInvoice) {
-        const charge = await retrieveBookingCharge(pi, connectedAccountId);
-        if (!charge) {
-          logger.error(
-            `Appointment ${appointmentId} booking intent ${pi.id} carries no charge id; invoice ${openInvoice.id} claimed but not settled.`,
-          );
-          return;
-        }
-
-        await settleAppointmentBookingInvoice({
-          invoiceId: openInvoice.id,
-          appointmentId,
-          pi,
-          charge,
-          connectedAccountId,
-        });
-
-        logger.info(
-          `Appointment ${appointmentId} booking PAID. Invoice ${openInvoice.id} settled`,
-        );
-        return;
-      }
+      return;
     }
 
     const serviceId = extractAppointmentTypeId(appointment.appointmentType);
@@ -788,80 +870,23 @@ export const StripeService = {
 
     const { parentId, patientId } = extractAppointmentPatientRefs(appointment);
 
-    let createdInvoice: { id: string };
-    try {
-      createdInvoice = await prisma.invoice.create({
-        data: {
-          appointmentId,
-          organisationId: appointment.organisationId,
-          parentId: parentId ?? undefined,
-          patientId: patientId ?? undefined,
-          currency: pi.currency ?? "usd",
-          status: "PAID",
-          providerPaymentIntentId: pi.id,
-          items: [
-            {
-              name: service.name,
-              description: service.description ?? undefined,
-              quantity: 1,
-              unitPrice: service.cost,
-              total: service.cost,
-            },
-          ],
-          subtotal: service.cost,
-          discountTotal: 0,
-          taxTotal: 0,
-          totalAmount: service.cost,
-        },
-        select: { id: true },
-      });
-    } catch (error) {
-      if (!isUniqueConstraintViolation(error)) throw error;
-
-      // Two shapes reach here, and they need different answers.
-      //
-      // A racer that lost on providerPaymentIntentId: the winner committed
-      // before Postgres raised, so this read cannot miss it. Nothing to settle,
-      // the winner is doing that.
-      const winner = await prisma.invoice.findUnique({
-        where: { providerPaymentIntentId: pi.id },
-        select: { id: true },
-      });
-      if (winner) {
-        logger.info(
-          `Appointment ${appointmentId} booking lost the race for ${pi.id}; invoice ${winner.id} won`,
-        );
-        return;
-      }
-
-      // Or a collision on the appointment key, which still exists: a SECOND
-      // legitimate intent for an appointment that already has an invoice. Log it
-      // and return, because throwing would answer non-2xx and buy an endless
-      // Stripe retry of an event that can never succeed while that index stands.
-      logger.error(
-        `Appointment ${appointmentId} already carries an invoice, so intent ${pi.id} could not be recorded. Payment captured with no invoice of its own.`,
-        error,
-      );
-      return;
-    }
-
-    const charge = await retrieveBookingCharge(pi, connectedAccountId);
-    if (!charge) {
-      logger.error(
-        `Appointment ${appointmentId} booking intent ${pi.id} carries no charge id; invoice ${createdInvoice.id} created but not settled.`,
-      );
-      return;
-    }
+    const mintedInvoiceId = await mintBookingInvoice({
+      appointmentId,
+      organisationId: appointment.organisationId,
+      parentId,
+      patientId,
+      service,
+      pi,
+    });
+    if (!mintedInvoiceId) return;
 
     await settleAppointmentBookingInvoice({
-      invoiceId: createdInvoice.id,
+      invoiceId: mintedInvoiceId,
       appointmentId,
       pi,
-      charge,
       connectedAccountId,
+      origin: "created",
     });
-
-    logger.info(`Appointment ${appointmentId} booking PAID. Invoice created`);
   },
 
   async _handleInvoicePayment(
