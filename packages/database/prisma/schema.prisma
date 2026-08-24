@@ -179,6 +179,11 @@ enum CodeType {
   GENDER
   TEST
   CLINICAL_TERM
+  // A node that exists only to hold the taxonomy together ("Presenting complaint",
+  // "Alopecia finding"). VeNom does not publish these as terms; they appear only as
+  // relationship parents. Kept out of CLINICAL_TERM so clinical autocomplete does not
+  // start offering category headings as if they were diagnoses.
+  CLINICAL_CATEGORY
   OTHER
 }
 
@@ -294,6 +299,25 @@ enum MappingEquivalence {
   INEXACT
   UNMATCHED
   DISJOINT
+}
+
+/// A directed edge between two codes in the same system: child -> parent. CodeMapping
+/// cannot express this - its key has no relationship type, so it could not hold both
+/// "is a" and "is in container" between one pair, and it means "the same concept in
+/// another system" rather than "sits under".
+model CodeRelationship {
+  id         String     @id @default(uuid())
+  system     CodeSystem
+  sourceCode String
+  type       String
+  targetCode String
+  active     Boolean    @default(true)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@unique([system, sourceCode, type, targetCode])
+  @@index([system, sourceCode])
+  @@index([system, targetCode])
 }
 
 model CodeMapping {

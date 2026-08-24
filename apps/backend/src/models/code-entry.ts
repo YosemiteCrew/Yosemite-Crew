@@ -1,6 +1,12 @@
 export type CodeSystem = "YOSEMITECODE" | "IDEXX" | "SNOMED" | "VENOM";
 export type CodeType =
-  "SPECIES" | "BREED" | "GENDER" | "TEST" | "CLINICAL_TERM" | "OTHER";
+  | "SPECIES"
+  | "BREED"
+  | "GENDER"
+  | "TEST"
+  | "CLINICAL_TERM"
+  | "CLINICAL_CATEGORY"
+  | "OTHER";
 
 export interface CodeEntryMongo {
   system: CodeSystem;
