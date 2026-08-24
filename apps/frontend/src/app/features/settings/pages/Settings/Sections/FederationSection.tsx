@@ -805,7 +805,30 @@ const FederationSection = () => {
     return <div className="min-h-40 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />;
   }
 
-  if (!actor) return null;
+  // Never render nothing. Returning null meant that when federation is switched
+  // off on the instance, or the API cannot be reached, the whole section
+  // silently disappeared from Settings and the only signal was a toast that had
+  // already faded - indistinguishable from the feature not existing, which is
+  // exactly how it was reported.
+  if (!actor) {
+    return (
+      <SectionCard title="Federation">
+        <div className={TEXT_MUTED}>
+          Federation settings could not be loaded. Federation may be switched off on this instance,
+          or the API cannot be reached.
+        </div>
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={loadActor}
+            className="text-body-4 text-text-primary underline underline-offset-2"
+          >
+            Try again
+          </button>
+        </div>
+      </SectionCard>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">

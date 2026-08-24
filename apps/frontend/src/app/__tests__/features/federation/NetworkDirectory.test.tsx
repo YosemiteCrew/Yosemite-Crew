@@ -99,7 +99,21 @@ describe('NetworkDirectory', () => {
         text: 'Could not load the clinic directory.',
       })
     );
-    expect(screen.getByText('No clinics are listed in the directory yet.')).toBeInTheDocument();
+    // Previously this fell through to the empty state, so an unreachable or
+    // switched-off federation service read as "nobody has listed yet".
+    expect(screen.getByText(/directory is unavailable/i)).toBeInTheDocument();
+    expect(
+      screen.queryByText('No clinics are listed in the directory yet.')
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows the empty state, not the error state, when the directory is genuinely empty', async () => {
+    (listDirectory as jest.Mock).mockResolvedValueOnce([]);
+    render(<NetworkDirectory />);
+    expect(
+      await screen.findByText('No clinics are listed in the directory yet.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/directory is unavailable/i)).not.toBeInTheDocument();
   });
 
   it('follows a clinic and notifies success', async () => {
