@@ -44,7 +44,14 @@ jobs:
 
       - name: Open or update the back-merge pull request
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # BACKMERGE_TOKEN first when it exists. The built-in GITHUB_TOKEN is
+          # refused outright by "GitHub Actions is not permitted to create or
+          # approve pull requests" whenever the repository or organisation has
+          # `can_approve_pull_request_reviews` off, which is the case here and
+          # SHOULD stay that way - the same switch also lets a workflow approve
+          # pull requests, which is a larger hole than the one this closes.
+          GH_TOKEN: ${{ secrets.BACKMERGE_TOKEN || secrets.GITHUB_TOKEN }}
+          USING_PAT: ${{ secrets.BACKMERGE_TOKEN && 'true' || 'false' }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
@@ -60,6 +67,7 @@ jobs:
 
           BEHIND="$(git rev-list --count origin/dev..origin/main)"
           echo "main has ${BEHIND} commit(s) that dev does not contain."
+          echo "credential: $([ "${USING_PAT}" = "true" ] && echo BACKMERGE_TOKEN || echo GITHUB_TOKEN)"
 
           EXISTING="$(gh pr list --repo "${REPO}" --base dev --head main --state open --json number --jq '.[0].number // empty')"
           if [ -n "${EXISTING}" ]; then
@@ -72,9 +80,8 @@ jobs:
           # restore ancestry, and it is the safety net for the rare case where the
           # diff is NOT empty - something landed on main without passing through
           # dev, and that content would otherwise be stranded.
-          gh pr create --repo "${REPO}" --base dev --head main \
-            --title "chore(repo): back-merge main into dev" \
-            --body "$(cat <<'BODY'
+          BODY_FILE="$(mktemp)"
+          cat > "${BODY_FILE}" <<'BODY'
           Opened automatically so that `dev` continues to contain `main`.
 
           `main` currently holds commits `dev` does not. Usually these are only the merge commits created by each `dev` to `main` promotion, and the file diff is empty - merging this restores ancestry and nothing else.
@@ -83,4 +90,38 @@ jobs:
 
           Merge with a merge commit. Do not squash: squashing creates a new commit and leaves the ancestry broken, which is the problem this exists to fix.
           BODY
-          )"
+
+          if gh pr create --repo "${REPO}" --base dev --head main \
+               --title "chore(repo): back-merge main into dev" \
+               --body-file "${BODY_FILE}" 2>"${BODY_FILE}.err"; then
+            exit 0
+          fi
+
+          # Distinguish "this repository forbids Actions opening pull requests"
+          # from any other failure. Only the former has a settings-level answer,
+          # and reporting the raw GraphQL string sends people to the workflow
+          # looking for a bug that is not there.
+          if grep -q "not permitted to create or approve pull requests" "${BODY_FILE}.err"; then
+            {
+              echo "::error::dev no longer contains main, and this workflow cannot open the back-merge pull request itself."
+              echo
+              echo "GITHUB_TOKEN is refused because 'Allow GitHub Actions to create and approve"
+              echo "pull requests' is off for this repository and organisation."
+              echo
+              echo "Do NOT turn that setting on to fix this. It also lets a workflow APPROVE pull"
+              echo "requests, which is a bigger hole than the one this job closes."
+              echo
+              echo "Either:"
+              echo "  - add a BACKMERGE_TOKEN secret (a PAT with pull-requests: write on this repo),"
+              echo "    which this job prefers automatically when present; or"
+              echo "  - open it by hand:"
+              echo "      gh pr create --repo ${REPO} --base dev --head main \\"
+              echo "        --title 'chore(repo): back-merge main into dev'"
+              echo "    and merge it with a MERGE COMMIT, never a squash."
+            } >&2
+            exit 1
+          fi
+
+          echo "::error::Failed to open the back-merge pull request." >&2
+          cat "${BODY_FILE}.err" >&2
+          exit 1
