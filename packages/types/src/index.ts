@@ -421,6 +421,8 @@ export {
   type SoapNoteRecord,
   SOAP_CODED_SECTIONS,
   SOAP_DIAGNOSES_EXTENSION_URL,
+  SOAP_CODED_TERM_EXTENSION_URL,
+  CONCEPT_MAP_EQUIVALENCE_EXTENSION_URL,
   parseSoapCodedProblems,
   type SoapCodedSection,
   type SoapCodedTerm,

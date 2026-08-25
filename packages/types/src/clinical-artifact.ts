@@ -344,6 +344,21 @@ const SOAP_ASSESSMENT_EXTENSION_URL =
 const SOAP_PLAN_EXTENSION_URL = 'https://yosemitecrew.com/fhir/StructureDefinition/soap-note-plan';
 export const SOAP_DIAGNOSES_EXTENSION_URL =
   'https://yosemitecrew.com/fhir/StructureDefinition/soap-note-diagnoses';
+/**
+ * Typed FHIR surface for picked coded terms: one complex extension per term,
+ * carrying a `section` discriminator and a `concept` valueCodeableConcept whose
+ * codings hold the Yosemite code plus any usable VeNom/SNOMED translations.
+ * Derived at read time from the raw `soap-note-diagnoses` channel - never stored,
+ * so a signed note's record is immutable while projections stay current.
+ */
+export const SOAP_CODED_TERM_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/soap-note-coded-term';
+/**
+ * Per-coding ConceptMap equivalence (FHIR ConceptMapEquivalence code, lowercase),
+ * so a NARROWER or INEXACT crosswalk is never passed off as an exact translation.
+ */
+export const CONCEPT_MAP_EQUIVALENCE_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/concept-map-equivalence';
 const SOAP_METADATA_EXTENSION_URL =
   'https://yosemitecrew.com/fhir/StructureDefinition/soap-note-metadata';
 

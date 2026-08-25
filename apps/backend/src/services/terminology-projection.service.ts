@@ -45,7 +45,7 @@ export type ProjectedCode =
  * overstate what the target vocabulary can express - the opposite of what a coverage
  * disclosure is for.
  */
-const USABLE_EQUIVALENCES: MappingEquivalence[] = [
+export const USABLE_EQUIVALENCES: MappingEquivalence[] = [
   "RELATEDTO",
   "EQUIVALENT",
   "EQUAL",
