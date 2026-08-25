@@ -63,6 +63,25 @@ export const METRICS = ['coverage', 'duplicated_lines_density', 'violations'];
 // reason not to: the only read in this file has to be visibly constant.
 const REPORT_TASK = '.scannerwork/report-task.txt';
 
+// The one Sonar host this repository scans to. report-task.txt names a server
+// URL too, but honouring it would send SONAR_TOKEN (Basic auth on every poll)
+// to whatever host a tampered .scannerwork names. So the file's value is
+// checked against this pin and then discarded; every request below uses the
+// constant.
+export const SONAR_SERVER = 'https://sonarcloud.io';
+
+/**
+ * Why the report's serverUrl must equal the pin, as a failure message - or
+ * null when it does. Split out so the refusal has a test.
+ */
+export function pinnedServerFailure(serverUrl) {
+  if (serverUrl === SONAR_SERVER) return null;
+  return (
+    `${REPORT_TASK} names server ${serverUrl}, but this repository scans to ` +
+    `${SONAR_SERVER}. Refusing to send SONAR_TOKEN anywhere else.`
+  );
+}
+
 /**
  * Parse the scanner's report-task.txt.
  *
@@ -310,8 +329,14 @@ async function main(argv) {
     }
   }
 
+  const pinFailure = pinnedServerFailure(report.serverUrl);
+  if (pinFailure) {
+    process.stderr.write(`sonar-thresholds: ${pinFailure}\n`);
+    return 1;
+  }
+
   const scope = analysisScope(report.dashboardUrl);
-  const task = await waitForAnalysis(report.serverUrl, report.ceTaskId);
+  const task = await waitForAnalysis(SONAR_SERVER, report.ceTaskId);
 
   // The report file names the project and the task independently, and a stale
   // .scannerwork picked up from the repository root would agree with itself
@@ -326,7 +351,7 @@ async function main(argv) {
   }
 
   const query = measuresQuery(report.projectKey, scope, METRICS);
-  const { component } = await getJson(`${report.serverUrl}/api/measures/component?${query}`);
+  const { component } = await getJson(`${SONAR_SERVER}/api/measures/component?${query}`);
   const measures = component.measures ?? [];
 
   const shown = (metric) =>

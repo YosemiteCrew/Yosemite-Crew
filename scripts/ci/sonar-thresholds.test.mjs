@@ -14,10 +14,12 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+  SONAR_SERVER,
   analysisScope,
   checkMeasures,
   measuresQuery,
   parseReportTask,
+  pinnedServerFailure,
 } from './sonar-thresholds.mjs';
 
 /** The limits the workflow passes, spelled once. */
@@ -51,6 +53,18 @@ describe('reading report-task.txt', () => {
     const report = parseReportTask('#comment\n\n!bang\nceTaskUrl=https\\://x/y?id\\=a=b\n');
     assert.equal(report.ceTaskUrl, 'https://x/y?id=a=b');
     assert.equal(Object.keys(report).length, 1);
+  });
+});
+
+describe('pinning the server', () => {
+  it('accepts the one host this repository scans to', () => {
+    assert.equal(pinnedServerFailure(SONAR_SERVER), null);
+  });
+
+  it('refuses any other host, naming both sides', () => {
+    const failure = pinnedServerFailure('https://sonar.attacker.example');
+    assert.match(failure, /https:\/\/sonar\.attacker\.example/);
+    assert.match(failure, /Refusing to send SONAR_TOKEN/);
   });
 });
 
