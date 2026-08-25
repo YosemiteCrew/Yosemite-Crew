@@ -44,11 +44,12 @@ src/app/ui/                 ← start here
 
 ## Design Tokens
 
-The design-token source of truth is `apps/frontend/src/app/globals.css` under `@theme`. Never hardcode hex values or px sizes - always use tokens.
+The design-token source of truth is `apps/frontend/src/app/globals.css` - the Tailwind `@theme` block PLUS the runtime layers below it: `:root` (the warm-bone light palette: `--blue`, `--ink`, `--screen`, `--band`, `--hairline`, ...) and `html[data-theme="dark"]`. The short-form tokens outnumber `--color-*` in app code roughly 3:1, so "use `--color-*`" is not the rule - match the token layer the surrounding code uses (`apps/frontend/AGENTS.md` has the full token-layer map). Never hardcode hex values or px sizes - always use tokens.
 
 ```css
 /* Colors */
---color-*          (e.g. --color-neutral-200, --color-primary-500)
+--color-*                                    (Tailwind @theme, e.g. --color-neutral-200)
+--blue, --ink, --screen, --band, --hairline  (warm-bone runtime layer: :root + html[data-theme="dark"])
 
 /* Typography */
 --font-satoshi     (body/UI - all weights 300-900)
@@ -101,10 +102,11 @@ Body/UI font: **Satoshi** (300 Light → 900 Black). Display serif: **Newsreader
 ### Button usage
 
 ```tsx
-// Always use the wrapper, not primitives directly
-<Button variant="primary" text="Save" href="#" onClick={handleSave} />
-<Button variant="secondary" text="Cancel" href="#" onClick={handleCancel} />
-<Button variant="danger" text="Delete" href="#" onClick={handleDelete} />
+// Always use the wrapper, not primitives directly.
+// Omit href for actions - href renders an <a> (Next.js Link); use it only for navigation.
+<Button variant="primary" text="Save" onClick={handleSave} />
+<Button variant="secondary" text="Cancel" onClick={handleCancel} />
+<Button variant="danger" text="Delete" onClick={handleDelete} />
 ```
 
 ### State management

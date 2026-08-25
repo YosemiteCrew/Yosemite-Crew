@@ -25,7 +25,7 @@ npx tsc --noemit
 pnpm --filter frontend run lint
 
 # 3. Prefer targeted tests for files you modified; full Jest runs are allowed if the user explicitly asks or if you are validating shared test infrastructure
-pnpm --filter frontend run test -- --testPathPattern="<ModifiedComponentName>"
+pnpm --filter frontend run test -- --testPathPatterns="<ModifiedComponentName>"
 ```
 
 **Full suite (`pnpm run test` with no filter) is discouraged by default.** Use it only when the user explicitly asks, when triaging repo-wide breakage, or when validating shared test infrastructure. Playwright and accessibility runs are allowed whenever relevant.

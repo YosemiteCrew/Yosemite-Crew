@@ -23,7 +23,8 @@ The same rules are also structured as skills: `.agents/skills/` (Codex and compa
 
 - Tooling: `pnpm` workspaces + `turbo`. Package manager: `pnpm@8.15.6` — never use `npm` or `yarn`.
 - Workspaces: `apps/frontend`, `apps/backend`, `apps/desktop`, `apps/mobileAppYC`, `apps/dev-docs`, `packages/auth`, `packages/database`, `packages/design-tokens`, `packages/fhir`, `packages/fhirtypes`, `packages/lib`, `packages/types`.
-- Architecture baseline (scale, domain model, platform directions): `.claude/skills/monorepo-ops/project-baseline.md`.
+- Architecture baseline (scale, domain model, platform directions): `.agents/skills/monorepo-ops/project-baseline.md`.
+- `packages/design-tokens` is dead code: never built (no `dist/`), zero runtime consumers, and its palette is stale. The live design tokens are `apps/frontend/src/app/globals.css`. Do not treat it as a source of truth or wire it into anything without explicit instruction.
 
 ---
 
@@ -35,7 +36,7 @@ The same rules are also structured as skills: `.agents/skills/` (Codex and compa
 4. Before every checkpoint, run and report lint + typecheck + targeted tests for each touched workspace.
 5. When resuming interrupted work, inspect `git status` first — preserve all uncommitted changes unless the user explicitly says otherwise.
 6. **NEVER run `git commit` yourself.** After every logical batch, tell the user: "**COMMIT CHECKPOINT** — suggested message: `<conventional commit message>`"
-7. Prefer targeted Jest runs with `--testPathPattern` during development. Full Jest runs are allowed when the user explicitly asks, when validating repo-wide failures, or when changing shared test infrastructure. Playwright, E2E, and accessibility runs are allowed whenever relevant.
+7. Prefer targeted Jest runs with `--testPathPatterns` during development. Full Jest runs are allowed when the user explicitly asks, when validating repo-wide failures, or when changing shared test infrastructure. Playwright, E2E, and accessibility runs are allowed whenever relevant.
 8. Never commit secrets, tokens, private keys, or `.env` values.
 9. Never add co-author lines or signatures to commit messages.
 10. Let all pre-commit hooks pass naturally — `--no-verify` is forbidden.
@@ -65,7 +66,7 @@ For cross-workspace changes use `repo`. PR title must match the same pattern, an
 ```bash
 npx tsc --noemit                    # from apps/frontend/
 pnpm --filter frontend run lint
-pnpm --filter frontend run test -- --testPathPattern="<YourFile>"
+pnpm --filter frontend run test -- --testPathPatterns="<YourFile>"
 ```
 
 **Mobile (`apps/mobileAppYC`):**
@@ -73,7 +74,7 @@ pnpm --filter frontend run test -- --testPathPattern="<YourFile>"
 ```bash
 npx tsc --noemit                    # from apps/mobileAppYC/
 pnpm --filter mobileAppYC run lint
-pnpm --filter mobileAppYC run test -- --testPathPattern="<YourFile>"
+pnpm --filter mobileAppYC run test -- --testPathPatterns="<YourFile>"
 ```
 
 ---
@@ -100,7 +101,7 @@ Coverage bar for any new file: **Statements ≥ 90%, Branches ≥ 90%, Functions
 - Keep PRs focused and reversible.
 - Never expose backend enums or acronyms in user-facing text (e.g. `PAYMENT_AT_CLINIC`, `VET`). Map to plain language before rendering.
 - Do not use `Actor` as a UI label — prefer `Lead`, `Support`, or `Updated by`.
-- For frontend Sonar compliance: `apps/frontend/AGENTS.md` and `.claude/skills/frontend-sonar/SKILL.md` are the source of truth.
+- For frontend Sonar compliance: `apps/frontend/AGENTS.md` and `.agents/skills/frontend-sonar/SKILL.md` are the source of truth.
 
 ---
 

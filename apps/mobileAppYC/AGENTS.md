@@ -173,7 +173,7 @@ const {control, handleSubmit} = useForm({
 ## Testing
 
 ```bash
-pnpm --filter mobileAppYC run test -- --testPathPattern="path/to/File.test.tsx"
+pnpm --filter mobileAppYC run test -- --testPathPatterns="path/to/File.test.tsx"
 ```
 
 ### Coverage Mandate - Non-Negotiable
@@ -199,7 +199,7 @@ pnpm --filter mobileAppYC run test -- --testPathPattern="path/to/File.test.tsx"
 
 ```bash
 # Verify coverage for the file(s) you changed:
-pnpm --filter mobileAppYC run test -- --testPathPattern="<YourFile>" --coverage --collectCoverageFrom="src/path/to/YourFile.tsx"
+pnpm --filter mobileAppYC run test -- --testPathPatterns="<YourFile>" --coverage --collectCoverageFrom="src/path/to/YourFile.tsx"
 # If Statements/Branches/Functions dropped, add tests before declaring done.
 ```
 
@@ -226,7 +226,7 @@ Never leave an existing file in a worse coverage state than you found it.
 ```bash
 npx tsc --noemit                                    # from apps/mobileAppYC/
 pnpm --filter mobileAppYC run lint
-pnpm --filter mobileAppYC run test -- --testPathPattern="<YourFile>"
+pnpm --filter mobileAppYC run test -- --testPathPatterns="<YourFile>"
 ```
 
 - Any code change that alters behavior must include matching test updates in the same batch.

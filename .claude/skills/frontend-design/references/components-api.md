@@ -14,6 +14,7 @@ type ButtonSize = 'default' | 'large';
   variant="primary" // optional, default: primary
   size="default" // optional, default: default
   onClick={handler} // optional
+  type="button" // optional: 'button' | 'submit' | 'reset' (default 'button'); only applies when href is omitted
   isDisabled={false} // optional
   className="..." // optional extra classes
   style={{}} // optional inline style (avoid)
