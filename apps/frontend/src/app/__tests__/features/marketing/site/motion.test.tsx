@@ -475,6 +475,20 @@ describe('motion primitives', () => {
     expect(container.querySelector('video')).not.toBeInTheDocument();
   });
 
+  it('HeroVideo leaves the source ungated so WebKit can select it', () => {
+    // A media attribute here is not a safe optimisation. WebKit evaluates it during
+    // the initial resource selection, before a render-blocking stylesheet has resolved
+    // styles, reads it as not matching and rejects the only candidate source. The
+    // element then sits in NETWORK_NO_SOURCE, which is terminal, so the loop never
+    // loads in Safari on any landing page. Reduced motion is guarded by the unmount
+    // above and by the prefers-reduced-motion rule in marketing.css instead.
+    const { container } = render(<HeroVideo src="https://x/v.mp4" />);
+    const source = container.querySelector('video > source') as HTMLSourceElement;
+    expect(source).toBeInTheDocument();
+    expect(source.getAttribute('src')).toBe('https://x/v.mp4');
+    expect(source.hasAttribute('media')).toBe(false);
+  });
+
   it('Tilt flattens when the cursor leaves the card', () => {
     render(
       <Tilt max={6}>

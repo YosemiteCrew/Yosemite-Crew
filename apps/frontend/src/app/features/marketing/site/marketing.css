@@ -246,8 +246,14 @@
    cannot know prefers-reduced-motion, so the markup ships either way and a reader
    who asked for less motion would otherwise watch it paint before it disappears.
    Hiding it here means it never paints for them; the component still removes it,
-   which is what stops the playback (display alone does not), and the media
-   attribute on the <source> is what stops the download when scripting never runs.
+   which is what stops the playback (display alone does not).
+
+   This rule and that unmount are the whole guard. The <source> deliberately
+   carries no media attribute: gating it on (prefers-reduced-motion: no-preference)
+   also stopped the download for everyone on Safari, because WebKit evaluates that
+   query during the initial resource selection and lands the element in a terminal
+   NETWORK_NO_SOURCE it never retries. When scripting never runs, a reduced-motion
+   reader now fetches the file and never sees it, which is the cheaper failure.
 
    The scrim selector is scoped to the one HeroVideo renders beside its video.
    The attribute is not exclusive: PetParents places its own standalone
