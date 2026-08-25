@@ -1,263 +1,73 @@
-.DevApiKeys {
+.DevApiKeys-intro {
+  margin: 8px 0 24px;
+  max-width: 640px;
+}
+
+.DevApiKeys-reveal {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  font-family: var(--font-satoshi);
-}
-
-.dev-keys-heading {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.dev-keys-heading p {
-  margin: 0;
-}
-
-.dev-keys-subtitle {
-  font-size: 13.5px;
-  color: var(--ink-muted);
-}
-
-.dev-keys-preview {
-  margin: 0;
-  align-self: flex-start;
-  display: inline-flex;
-  padding: 4px 12px;
-  border-radius: 9999px;
-  background: var(--color-inset);
-  color: var(--color-text-tertiary);
-  font-weight: 600;
-}
-
-.dev-key-reveal {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  background: var(--spot);
-  border-radius: 16px;
-  padding: 16px 20px;
-  box-shadow: 0 12px 34px var(--sh20);
-}
-
-.dev-key-reveal-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  background: rgba(92, 225, 230, 0.14);
-  color: var(--color-cyan);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.dev-key-reveal-body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.dev-key-reveal-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: #f4efe6;
-}
-
-.dev-key-reveal-value {
-  font-family: ui-monospace, monospace;
-  font-size: 13px;
-  color: var(--color-cyan);
-  overflow-wrap: anywhere;
-}
-
-.dev-key-copy {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 36px;
-  padding: 0 16px;
-  border-radius: 9999px;
-  border: none;
-  background: var(--color-cyan);
-  color: var(--color-ink);
-  font-size: 12.5px;
-  font-weight: 700;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.dev-key-reveal-dismiss {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 9999px;
-  border: none;
-  background: transparent;
-  color: rgba(244, 239, 230, 0.6);
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.dev-keys-table {
-  background: var(--color-surface-card);
-  border: 1px solid var(--color-card-border);
-  border-radius: 18px;
-  overflow: hidden;
-  box-shadow:
-    0 1px 2px var(--sh03),
-    0 8px 22px var(--sh05);
-}
-
-.dev-keys-row {
-  display: grid;
-  grid-template-columns: 1.5fr 1.3fr 1fr 1fr 1fr 120px 48px;
   gap: 12px;
-  align-items: center;
-  padding: 12px 20px;
+  padding: 16px;
+  margin-bottom: 24px;
+  border: 1px solid var(--color-border-brand, var(--color-text-primary));
+  border-radius: 16px;
+  background: var(--color-surface-secondary, #f6f7f9);
 }
 
-.dev-keys-head {
-  background: var(--color-screen-2);
-  color: var(--color-text-tertiary);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.dev-keys-row:not(.dev-keys-head) {
-  border-top: 1px solid var(--color-card-border);
-}
-
-/* A revoked key is called out by its status cell, not by dimming the row: at
-   0.6 the row's --color-text-tertiary cells composited to about 2.5:1, and a
-   revoked row is informational text, not an inactive control. */
-.dev-keys-row.is-revoked .dev-key-name {
-  color: var(--ink-muted);
-}
-
-/* Just-created key row — tied visually to the reveal banner above it. */
-.dev-keys-row.is-new {
-  background: var(--surface-soft);
-}
-
-.dev-key-name {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: var(--ink);
-}
-
-.dev-key-value {
-  font-family: ui-monospace, monospace;
-  font-size: 12.5px;
-  color: var(--ink-muted);
-}
-
-.dev-key-muted {
-  font-size: 12.5px;
-  color: var(--ink-muted);
-}
-
-.dev-key-actions {
-  display: flex;
-  justify-content: center;
-  color: var(--ink-faint);
-}
-
-.dev-env-badge,
-.dev-key-status {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 9px;
-  border-radius: 9999px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  border: 1px solid transparent;
-}
-
-.dev-env-badge.sandbox {
-  background: var(--status-upcoming-bg);
-  color: var(--status-upcoming-text);
-  border-color: var(--status-upcoming-border);
-}
-
-.dev-env-badge.production {
-  background: var(--status-in-progress-bg);
-  color: var(--status-in-progress-text);
-  border-color: var(--status-in-progress-border);
-}
-
-.dev-key-status.active {
-  background: var(--status-completed-bg);
-  color: var(--status-completed-text);
-  border-color: var(--status-completed-border);
-}
-
-.dev-key-status.revoked {
-  background: var(--status-cancelled-bg);
-  color: var(--status-cancelled-text);
-  border-color: var(--status-cancelled-border);
-}
-
-.dev-keys-usage {
-  border-top: 1px solid var(--color-card-border);
-  padding: 14px 20px;
+.DevApiKeys-secret {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-.dev-keys-usage-label {
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--color-text-tertiary);
+.DevApiKeys-secret code {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--color-surface-tertiary, #eceef1);
+  font-family: var(--font-mono, monospace);
+  word-break: break-all;
 }
 
-.dev-keys-usage-bars {
-  flex: 1;
+.DevApiKeys-form {
   display: flex;
-  align-items: flex-end;
-  gap: 6px;
-  height: 40px;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 480px;
+  margin-bottom: 24px;
 }
 
-.dev-keys-usage-bar {
-  flex: 1;
-  border-radius: 4px 4px 2px 2px;
-  background: var(--color-cyan);
-  opacity: 0.75;
+.DevApiKeys-input {
+  padding: 10px 12px;
+  border: 1px solid var(--color-border-primary, #d4d7dd);
+  border-radius: 12px;
+  background: var(--color-surface-primary, #fff);
 }
 
-/* The two most recent days carry full emphasis. */
-.dev-keys-usage-bar.is-recent {
-  opacity: 1;
+.DevApiKeys-formActions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
 }
 
-.dev-keys-usage-total {
-  white-space: nowrap;
+.DevApiKeys-error {
+  color: var(--color-text-error, #c0392b);
+  margin-bottom: 16px;
 }
 
-.dev-tabular {
-  font-variant-numeric: tabular-nums;
+.DevApiKeys-table {
+  width: 100%;
+  border-collapse: collapse;
 }
 
-@media screen and (max-width: 1024px) {
-  .dev-keys-table {
-    overflow-x: auto;
-  }
+.DevApiKeys-table th,
+.DevApiKeys-table td {
+  text-align: left;
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--color-border-primary, #eceef1);
+  font-size: 14px;
+}
 
-  .dev-keys-row {
-    min-width: 820px;
-  }
-
-  .dev-keys-usage {
-    min-width: 820px;
-  }
+.DevApiKeys-table code {
+  font-family: var(--font-mono, monospace);
 }

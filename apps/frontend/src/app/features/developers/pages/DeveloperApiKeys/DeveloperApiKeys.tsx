@@ -1,192 +1,258 @@
 'use client';
-import React, { useState } from 'react';
-import { Icon } from '@/app/ui/icons/Icon';
+import React, { useCallback, useEffect, useState } from 'react';
 
-import { Primary } from '@/app/ui/primitives/Buttons';
+import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import DevRouteGuard from '@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard';
+import { logger } from '@/app/lib/logger';
+import {
+  createApiKey,
+  listApiKeys,
+  revokeApiKey,
+  type ApiKeyEnvironment,
+  type DeveloperApiKey,
+  type IssuedApiKey,
+} from '@/app/services/developerApiKeys';
 
 import './DeveloperApiKeys.css';
 import '@/app/features/organizations/styles/Organizations.css';
 
-type KeyEnvironment = 'sandbox' | 'production';
-type KeyStatus = 'active' | 'revoked';
-
-type ApiKeyRow = {
-  id: string;
-  name: string;
-  maskedKey: string;
-  environment: KeyEnvironment;
-  created: string;
-  lastUsed: string;
-  status: KeyStatus;
-};
-
-const SAMPLE_KEYS: ApiKeyRow[] = [
-  {
-    id: 'monitor-sync',
-    name: 'Monitor sync · sandbox',
-    maskedKey: 'yc_sand_9f2K…D41x',
-    environment: 'sandbox',
-    created: 'Today · 09:41',
-    lastUsed: 'Just now',
-    status: 'active',
-  },
-  {
-    id: 'booking-widget',
-    name: 'Booking widget · prod',
-    maskedKey: 'yc_live_4hTe…9samp',
-    environment: 'production',
-    created: '12 May 2026',
-    lastUsed: '2 min ago',
-    status: 'active',
-  },
-  {
-    id: 'legacy-import',
-    name: 'Legacy import script',
-    maskedKey: 'yc_sand_77Qa…mm20',
-    environment: 'sandbox',
-    created: '03 Feb 2026',
-    lastUsed: 'Apr 2026',
-    status: 'revoked',
-  },
-];
-
-const ENVIRONMENT_LABEL: Record<KeyEnvironment, string> = {
-  sandbox: 'Sandbox',
-  production: 'Production',
-};
-
-const STATUS_LABEL: Record<KeyStatus, string> = {
-  active: 'Active',
-  revoked: 'Revoked',
-};
-
-const USAGE_BARS = [
-  { day: 'Mon', value: 45 },
-  { day: 'Tue', value: 60 },
-  { day: 'Wed', value: 38 },
-  { day: 'Thu', value: 72 },
-  { day: 'Fri', value: 55 },
-  { day: 'Sat', value: 84 },
-  { day: 'Sun', value: 66 },
-];
-const REVEALED_KEY = 'yc_sand_9f2K…D41x_monitor';
-
-const copyToClipboard = (value: string) => {
-  void globalThis.navigator?.clipboard?.writeText?.(value);
-};
+const formatDate = (value: string | null): string =>
+  value ? new Date(value).toLocaleDateString() : '—';
 
 const DeveloperApiKeys = () => {
-  const [showReveal, setShowReveal] = useState(true);
+  const [keys, setKeys] = useState<DeveloperApiKey[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState('');
+  const [environment, setEnvironment] = useState<ApiKeyEnvironment>('live');
+  const [scopesInput, setScopesInput] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  const [issued, setIssued] = useState<IssuedApiKey | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const loadKeys = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setKeys(await listApiKeys());
+    } catch (err) {
+      logger.error('Failed to load API keys', err);
+      setError('Could not load your API keys. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadKeys();
+  }, [loadKeys]);
+
+  const resetForm = () => {
+    setName('');
+    setScopesInput('');
+    setEnvironment('live');
+  };
+
+  const handleCreate = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!name.trim() || creating) return;
+    setCreating(true);
+    setError(null);
+    try {
+      const scopes = scopesInput
+        .split(',')
+        .map((scope) => scope.trim())
+        .filter(Boolean);
+      const result = await createApiKey({
+        name: name.trim(),
+        environment,
+        scopes: scopes.length ? scopes : undefined,
+      });
+      setIssued(result);
+      setCopied(false);
+      setShowForm(false);
+      resetForm();
+      await loadKeys();
+    } catch (err) {
+      logger.error('Failed to create API key', err);
+      setError('Could not create the API key. Please try again.');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleRevoke = async (id: string) => {
+    setError(null);
+    try {
+      await revokeApiKey(id);
+      await loadKeys();
+    } catch (err) {
+      logger.error('Failed to revoke API key', err);
+      setError('Could not revoke the API key. Please try again.');
+    }
+  };
+
+  const handleCopy = async () => {
+    if (!issued) return;
+    try {
+      await navigator.clipboard.writeText(issued.apiKey);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  const renderKeyList = () => {
+    if (loading) {
+      return <p className="text-body-3 text-text-secondary">Loading API keys…</p>;
+    }
+    if (keys.length === 0) {
+      return (
+        <p className="text-body-3 text-text-secondary" data-testid="api-keys-empty">
+          You don&apos;t have any API keys yet.
+        </p>
+      );
+    }
+    return (
+      <table className="DevApiKeys-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Key</th>
+            <th>Env</th>
+            <th>Status</th>
+            <th>Last used</th>
+            <th>Created</th>
+            <th aria-label="Actions" />
+          </tr>
+        </thead>
+        <tbody>
+          {keys.map((apiKey) => (
+            <tr key={apiKey.id}>
+              <td>{apiKey.name}</td>
+              <td>
+                <code>
+                  {apiKey.prefix}…{apiKey.last4}
+                </code>
+              </td>
+              <td>{apiKey.environment}</td>
+              <td>{apiKey.status}</td>
+              <td>{formatDate(apiKey.lastUsedAt)}</td>
+              <td>{formatDate(apiKey.createdAt)}</td>
+              <td>
+                {apiKey.status === 'active' && (
+                  <Secondary
+                    danger
+                    text="Revoke"
+                    onClick={() => handleRevoke(apiKey.id)}
+                    style={{ maxWidth: 110 }}
+                  />
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  };
 
   return (
     <DevRouteGuard>
       <div className="OperationsWrapper">
         <div className="TitleContainer">
-          <div className="dev-keys-heading">
-            <h1 className="text-page-title">API keys</h1>
-            <p className="dev-keys-subtitle">Keys are scoped per environment and shown only once</p>
-          </div>
-          <Primary
-            text="Create key"
-            icon={<Icon icon="ion:add" width={16} height={16} aria-hidden="true" />}
-            onClick={() => setShowReveal(true)}
-            style={{ maxWidth: 180 }}
-          />
+          <h1 className="text-heading-1 text-text-primary">API Keys</h1>
+          {!showForm && (
+            <Primary
+              text="Create API key"
+              onClick={() => setShowForm(true)}
+              style={{ maxWidth: 200 }}
+            />
+          )}
         </div>
 
-        <p className="dev-keys-preview text-caption-2">
-          Preview · key management API is coming soon. The keys below are sample data.
+        <p className="text-body-3 text-text-secondary DevApiKeys-intro">
+          Use API keys to authenticate apps and agents against the Yosemite Crew API. Treat them
+          like passwords — never expose them in client-side code.
         </p>
 
-        <section className="DevApiKeys">
-          {showReveal && (
-            <div className="dev-key-reveal" data-testid="dev-key-reveal">
-              <span className="dev-key-reveal-icon" aria-hidden="true">
-                <Icon icon="ion:key-outline" width={18} height={18} />
-              </span>
-              <span className="dev-key-reveal-body">
-                <span className="dev-key-reveal-title">
-                  &quot;Monitor sync · sandbox&quot; created. Copy it now, it won&apos;t be shown
-                  again
-                </span>
-                <span className="dev-key-reveal-value">{REVEALED_KEY}</span>
-              </span>
-              <button
-                type="button"
-                className="dev-key-copy"
-                onClick={() => copyToClipboard(REVEALED_KEY)}
-              >
-                <Icon icon="ion:copy-outline" width={14} height={14} aria-hidden="true" />
-                Copy key
-              </button>
-              <button
-                type="button"
-                className="dev-key-reveal-dismiss"
-                aria-label="Dismiss new key banner"
-                onClick={() => setShowReveal(false)}
-              >
-                <Icon icon="ion:close" width={16} height={16} aria-hidden="true" />
-              </button>
+        {issued && (
+          <div className="DevApiKeys-reveal" role="alert">
+            <p className="text-body-2 text-text-primary">
+              Copy your new key now. For your security it won&apos;t be shown again.
+            </p>
+            <div className="DevApiKeys-secret">
+              <code data-testid="issued-secret">{issued.apiKey}</code>
+              <Secondary
+                text={copied ? 'Copied' : 'Copy'}
+                onClick={handleCopy}
+                style={{ maxWidth: 120 }}
+              />
             </div>
-          )}
-
-          <div className="dev-keys-table">
-            <div className="dev-keys-row dev-keys-head text-caption-2">
-              <span>Name</span>
-              <span>Key</span>
-              <span>Environment</span>
-              <span>Created</span>
-              <span>Last used</span>
-              <span>Status</span>
-              <span />
-            </div>
-            {SAMPLE_KEYS.map((row, index) => (
-              <div
-                key={row.id}
-                className={`dev-keys-row ${row.status === 'revoked' ? 'is-revoked' : ''} ${
-                  showReveal && index === 0 ? 'is-new' : ''
-                }`}
-              >
-                <span className="dev-key-name">{row.name}</span>
-                <span className="dev-key-value">{row.maskedKey}</span>
-                <span>
-                  <span className={`dev-env-badge ${row.environment} text-caption-3`}>
-                    {ENVIRONMENT_LABEL[row.environment]}
-                  </span>
-                </span>
-                <span className="dev-key-muted">{row.created}</span>
-                <span className="dev-key-muted">{row.lastUsed}</span>
-                <span>
-                  <span className={`dev-key-status ${row.status} text-caption-3`}>
-                    {STATUS_LABEL[row.status]}
-                  </span>
-                </span>
-                <span className="dev-key-actions" aria-hidden="true">
-                  <Icon icon="ion:ellipsis-horizontal" width={16} height={16} />
-                </span>
-              </div>
-            ))}
-
-            <div className="dev-keys-usage">
-              <span className="dev-keys-usage-label text-caption-2">Requests · 7 days</span>
-              <span className="dev-keys-usage-bars" aria-hidden="true">
-                {USAGE_BARS.map((bar, index) => (
-                  <span
-                    key={bar.day}
-                    className={`dev-keys-usage-bar ${
-                      index >= USAGE_BARS.length - 2 ? 'is-recent' : ''
-                    }`}
-                    style={{ height: `${bar.value}%` }}
-                  />
-                ))}
-              </span>
-              <span className="dev-keys-usage-total text-body-4-emphasis text-text-primary dev-tabular">
-                27,904 <span className="text-caption-2 text-text-tertiary">total</span>
-              </span>
-            </div>
+            <Secondary text="Done" onClick={() => setIssued(null)} style={{ maxWidth: 120 }} />
           </div>
-        </section>
+        )}
+
+        {showForm && (
+          <form className="DevApiKeys-form" onSubmit={handleCreate}>
+            <label className="text-body-3 text-text-primary" htmlFor="apiKeyName">
+              Key name
+            </label>
+            <input
+              id="apiKeyName"
+              className="DevApiKeys-input"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="e.g. Production server"
+              maxLength={100}
+            />
+            <label className="text-body-3 text-text-primary" htmlFor="apiKeyEnv">
+              Environment
+            </label>
+            <select
+              id="apiKeyEnv"
+              className="DevApiKeys-input"
+              value={environment}
+              onChange={(event) => setEnvironment(event.target.value as ApiKeyEnvironment)}
+            >
+              <option value="live">Live</option>
+              <option value="test">Test</option>
+            </select>
+            <label className="text-body-3 text-text-primary" htmlFor="apiKeyScopes">
+              Scopes (optional, comma-separated)
+            </label>
+            <input
+              id="apiKeyScopes"
+              className="DevApiKeys-input"
+              value={scopesInput}
+              onChange={(event) => setScopesInput(event.target.value)}
+              placeholder="appointments:read, inventory:read"
+            />
+            <div className="DevApiKeys-formActions">
+              <Primary
+                text={creating ? 'Creating…' : 'Create'}
+                type="submit"
+                isDisabled={!name.trim() || creating}
+                style={{ maxWidth: 140 }}
+              />
+              <Secondary
+                text="Cancel"
+                onClick={() => setShowForm(false)}
+                style={{ maxWidth: 120 }}
+              />
+            </div>
+          </form>
+        )}
+
+        {error && (
+          <p className="text-body-3 DevApiKeys-error" role="alert">
+            {error}
+          </p>
+        )}
+
+        {renderKeyList()}
       </div>
     </DevRouteGuard>
   );
