@@ -81,6 +81,21 @@ const parseSoapCodedTerm = (value: unknown): SoapCodedTerm | null => {
   return domain === undefined ? { ycCode, label } : { ycCode, label, domain };
 };
 
+/** One section's raw payload → valid terms: drops malformed entries, dedups by code, caps the count. */
+const parseSectionTerms = (raw: unknown): SoapCodedTerm[] => {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const terms: SoapCodedTerm[] = [];
+  for (const item of raw) {
+    if (terms.length >= MAX_CODED_TERMS_PER_SECTION) break;
+    const term = parseSoapCodedTerm(item);
+    if (!term || seen.has(term.ycCode)) continue;
+    seen.add(term.ycCode);
+    terms.push(term);
+  }
+  return terms;
+};
+
 /**
  * Validate an untyped `diagnoses` payload into SoapCodedProblems. Only the four
  * known section keys are read (never arbitrary keys, so `__proto__`/`constructor`
@@ -96,17 +111,7 @@ export const parseSoapCodedProblems = (value: unknown): SoapCodedProblems | unde
   let total = 0;
   for (const section of SOAP_CODED_SECTIONS) {
     if (!Object.prototype.hasOwnProperty.call(source, section)) continue;
-    const raw = source[section];
-    if (!Array.isArray(raw)) continue;
-    const seen = new Set<string>();
-    const terms: SoapCodedTerm[] = [];
-    for (const item of raw) {
-      if (terms.length >= MAX_CODED_TERMS_PER_SECTION) break;
-      const term = parseSoapCodedTerm(item);
-      if (!term || seen.has(term.ycCode)) continue;
-      seen.add(term.ycCode);
-      terms.push(term);
-    }
+    const terms = parseSectionTerms(source[section]);
     if (terms.length > 0) {
       result[section] = terms;
       total += terms.length;
