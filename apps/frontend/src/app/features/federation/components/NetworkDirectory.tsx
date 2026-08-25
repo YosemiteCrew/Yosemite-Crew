@@ -69,8 +69,10 @@ const NetworkDirectory = () => {
     // would be a synchronous state write during the effect body.
     try {
       const data = await listDirectory();
-      setClinics(data);
-      setUnavailable(false);
+      setClinics(data.clinics);
+      // The backend degrades gracefully when the authority is unreachable, so a
+      // successful response can still mean "could not load". Trust its flag.
+      setUnavailable(Boolean(data.unavailable));
     } catch {
       setUnavailable(true);
       notify('error', {
