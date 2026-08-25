@@ -5,6 +5,7 @@ import type {
   LabOrderCreateResult,
 } from "../types";
 import { LabOrderServiceError } from "src/services/lab-order.service";
+import { assertPatientOrgMembership } from "src/services/shared/patient-org-membership";
 import { normalizeLabStatus } from "src/labs/status";
 import {
   buildIdexxClient,
@@ -292,6 +293,21 @@ const resolveOrderParentId = async (
 export class IdexxOrderAdapter implements LabOrderAdapter {
   async createOrder(input: LabOrderCreateInput): Promise<LabOrderCreateResult> {
     const patientId = input.patientId;
+
+    // The caller is authenticated against input.organisationId, but patientId
+    // arrives from the request body and every lookup below resolves it
+    // GLOBALLY. Without this a user with labs:edit:any in one organisation who
+    // knows another tenant's patient id could place an order that ships that
+    // companion's identifiers plus the parent's name, address, email and phone
+    // to IDEXX under their own organisation.
+    //
+    // The species-level breed fallback made this materially worse: those
+    // companions used to be rejected for having no mapped breed, so the check
+    // that was accidentally holding the line is gone.
+    await assertPatientOrgMembership(patientId, input.organisationId, () => {
+      throw new LabOrderServiceError("Companion not found.", 404);
+    });
+
     const parentId = await resolveOrderParentId(patientId, input.parentId);
 
     const { payload, breedSubstitution } = await buildOrderPayload({
@@ -359,6 +375,20 @@ export class IdexxOrderAdapter implements LabOrderAdapter {
   ): Promise<LabOrderCreateResult> {
     const patientId = input.patientId;
     const parentId = input.parentId ?? null;
+
+    // The caller is authenticated against input.organisationId, but patientId
+    // arrives from the request body and every lookup below resolves it
+    // GLOBALLY. Without this a user with labs:edit:any in one organisation who
+    // knows another tenant's patient id could place an order that ships that
+    // companion's identifiers plus the parent's name, address, email and phone
+    // to IDEXX under their own organisation.
+    //
+    // The species-level breed fallback made this materially worse: those
+    // companions used to be rejected for having no mapped breed, so the check
+    // that was accidentally holding the line is gone.
+    await assertPatientOrgMembership(patientId, input.organisationId, () => {
+      throw new LabOrderServiceError("Companion not found.", 404);
+    });
 
     if (!parentId) {
       throw new LabOrderServiceError(
