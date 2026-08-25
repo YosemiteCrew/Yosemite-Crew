@@ -9,6 +9,7 @@ jest.mock("src/config/prisma", () => ({
     patient: { findUnique: jest.fn() },
     parent: { findUnique: jest.fn() },
     parentPatient: { findFirst: jest.fn() },
+    patientOrganisation: { findFirst: jest.fn() },
   },
 }));
 
@@ -90,6 +91,9 @@ describe("IdexxOrderAdapter", () => {
     prismaMock.parentPatient.findFirst.mockResolvedValue({
       parentId: "parent-1",
     });
+    // Default: the companion belongs to the calling organisation. The cross-org
+    // tests below override this to null.
+    prismaMock.patientOrganisation.findFirst.mockResolvedValue({ id: "po-1" });
 
     mockIdexxClient.getCensusPatient.mockRejectedValue({
       response: { status: 404 },
@@ -578,5 +582,90 @@ describe("IdexxOrderAdapter", () => {
         tests: ["T1"],
       } as any),
     ).rejects.toThrow("IDEXX PIMS config missing.");
+  });
+
+  // A PMS user with labs:edit:any in one organisation who knows another
+  // tenant's patient id could previously place an order against it: the caller
+  // is authorised against input.organisationId, but every lookup in the adapter
+  // resolves patientId GLOBALLY. The order shipped that companion's identifiers
+  // plus the parent's name, address, email and phone to IDEXX, under the
+  // attacker's organisation.
+  //
+  // The species-level breed fallback widened it. Those companions used to be
+  // rejected for having no mapped breed, so the check accidentally holding the
+  // line is gone.
+  describe("cross-organisation access", () => {
+    it("refuses to create an order for a companion in another organisation", async () => {
+      prismaMock.patientOrganisation.findFirst.mockResolvedValue(null);
+
+      await expect(
+        adapter.createOrder({
+          organisationId: "org-attacker",
+          patientId: "victim-patient",
+          parentId: "parent-1",
+          tests: ["T1"],
+        } as never),
+      ).rejects.toMatchObject({
+        message: "Companion not found.",
+        statusCode: 404,
+      });
+    });
+
+    it("refuses to update an order for a companion in another organisation", async () => {
+      prismaMock.patientOrganisation.findFirst.mockResolvedValue(null);
+
+      await expect(
+        adapter.updateOrder("IDX-1", {
+          organisationId: "org-attacker",
+          patientId: "victim-patient",
+          parentId: "parent-1",
+          tests: ["T1"],
+        } as never),
+      ).rejects.toMatchObject({
+        message: "Companion not found.",
+        statusCode: 404,
+      });
+    });
+
+    // The victim's details must never leave the process. Asserting only on the
+    // thrown error would still pass if the payload had already been built and
+    // sent, so assert the outbound client was never called.
+    it("sends nothing to IDEXX when the companion is in another organisation", async () => {
+      prismaMock.patientOrganisation.findFirst.mockResolvedValue(null);
+
+      await expect(
+        adapter.createOrder({
+          organisationId: "org-attacker",
+          patientId: "victim-patient",
+          parentId: "parent-1",
+          tests: ["T1"],
+        } as never),
+      ).rejects.toThrow();
+
+      expect(mockIdexxClient.createOrder).not.toHaveBeenCalled();
+      expect(mockIdexxClient.addCensusPatient).not.toHaveBeenCalled();
+      expect(mockIdexxClient.getCensusPatient).not.toHaveBeenCalled();
+    });
+
+    // Scoping must not be satisfied by a PENDING link: that is a relationship
+    // the organisation requested, not one the parent approved.
+    it("scopes the membership lookup to the caller org and ACTIVE status", async () => {
+      await adapter.createOrder({
+        organisationId: "org-1",
+        patientId: "patient-1",
+        parentId: "parent-1",
+        tests: ["T1"],
+      } as never);
+
+      expect(prismaMock.patientOrganisation.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            patientId: "patient-1",
+            organisationId: "org-1",
+            status: "ACTIVE",
+          }),
+        }),
+      );
+    });
   });
 });
