@@ -308,6 +308,25 @@ describe("AppointmentController", () => {
       expect(statusMock).toHaveBeenCalledWith(200);
     });
 
+    it("should strip line breaks from the logged appointment id", async () => {
+      req.params = { appointmentId: "a1\nforged" };
+      req.body = { status: "booked" };
+      mockedAppointmentService.approveRequestedFromPms.mockResolvedValue(
+        {} as any,
+      );
+
+      await AppointmentController.acceptRequested(req as any, res as Response);
+
+      for (const call of mockedLogger.info.mock.calls) {
+        for (const arg of call) {
+          if (typeof arg === "string") {
+            expect(arg).not.toContain("\n");
+            expect(arg).not.toContain("\r");
+          }
+        }
+      }
+    });
+
     it("should handle error", async () => {
       mockedAppointmentService.approveRequestedFromPms.mockRejectedValue(
         new Error("Fail"),
