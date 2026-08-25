@@ -154,6 +154,86 @@ describe('workspaceClinicalService', () => {
     );
   });
 
+  it('sends coded terms through the diagnoses extension, and an empty object when none are picked', async () => {
+    postDataMock.mockResolvedValue({ data: { resourceType: 'Composition', id: 'soap-3' } });
+
+    const baseNote = {
+      id: 'draft',
+      chiefComplaint: '',
+      subjective: '<p>S</p>',
+      objective: '',
+      assessment: '',
+      plan: '',
+      status: 'IN_PROGRESS' as const,
+      createdAt: '2026-04-20T09:00:00.000Z',
+    };
+    await saveSoapNote(
+      { organisationId: 'org-1', appointmentId: 'appt-1' },
+      {
+        ...baseNote,
+        codedProblems: {
+          assessment: [{ ycCode: 'YC-000123', label: 'Gastritis', domain: 'Diagnosis' }],
+        },
+      }
+    );
+    const [, withTerms] = postDataMock.mock.calls[0] as [
+      string,
+      { extension: Array<{ url: string; valueString?: string }> },
+    ];
+    const diagnosesExt = withTerms.extension.find((ext) => ext.url.endsWith('soap-note-diagnoses'));
+    expect(diagnosesExt).toBeDefined();
+    expect(JSON.parse(diagnosesExt?.valueString ?? '')).toEqual({
+      assessment: [{ ycCode: 'YC-000123', label: 'Gastritis', domain: 'Diagnosis' }],
+    });
+
+    // No chips: the extension is still present as an explicit empty object so a
+    // draft PATCH clears a previously stored set instead of silently keeping it.
+    await saveSoapNote({ organisationId: 'org-1', appointmentId: 'appt-1' }, baseNote);
+    const [, withoutTerms] = postDataMock.mock.calls[1] as [
+      string,
+      { extension: Array<{ url: string; valueString?: string }> },
+    ];
+    const emptyExt = withoutTerms.extension.find((ext) => ext.url.endsWith('soap-note-diagnoses'));
+    expect(emptyExt?.valueString).toBe('{}');
+  });
+
+  it('rehydrates coded terms from the diagnoses extension and drops malformed payloads', async () => {
+    const composition = (id: string, diagnoses: string) => ({
+      resourceType: 'Composition',
+      id,
+      status: 'preliminary',
+      date: '2026-04-20T09:00:00.000Z',
+      extension: [
+        {
+          url: 'https://yosemitecrew.com/fhir/StructureDefinition/soap-note-diagnoses',
+          valueString: diagnoses,
+        },
+      ],
+    });
+    postDataMock.mockResolvedValueOnce({
+      data: {
+        resourceType: 'Bundle',
+        type: 'searchset',
+        entry: [
+          {
+            resource: composition(
+              'soap-good',
+              JSON.stringify({ plan: [{ ycCode: 'YC-1', label: 'Dental scale' }] })
+            ),
+          },
+          { resource: composition('soap-bad', '"not-an-object"') },
+        ],
+      },
+    });
+
+    const notes = await listSoapNotesForAppointment('org-1', 'appt-1', {});
+
+    expect(notes[0]?.codedProblems).toEqual({
+      plan: [{ ycCode: 'YC-1', label: 'Dental scale' }],
+    });
+    expect(notes[1]?.codedProblems).toBeUndefined();
+  });
+
   it('updates a persisted SOAP note instead of creating a duplicate', async () => {
     patchDataMock.mockResolvedValueOnce({ data: { resourceType: 'Composition', id: 'soap-2' } });
 

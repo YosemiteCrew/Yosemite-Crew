@@ -412,6 +412,71 @@ describe('SoapStep', () => {
     expect(screen.getAllByText(APPOINTMENT_REASON).length).toBeGreaterThanOrEqual(1);
   });
 
+  it('persists a note that only carries coded terms (chips alone are content)', async () => {
+    seedAndGet();
+    useAppointmentWorkspaceStore.getState().upsertSoap(APPT, {
+      codedProblems: { assessment: [{ ycCode: 'YC-000123', label: 'Gastritis' }] },
+    });
+    const enc = useAppointmentWorkspaceStore.getState().getEncounter(APPT)!;
+    renderSoapStep(enc);
+    fireEvent.click(screen.getByRole('button', { name: 'Save & Next' }));
+    await waitFor(() => expect(onSaveAndNext).toHaveBeenCalledTimes(1));
+    // The save ran (not the silent advance for empty drafts) and carried the chips.
+    expect(saveSoapNote).toHaveBeenCalledTimes(1);
+    const [, savedNote] = (saveSoapNote as jest.Mock).mock.calls[0];
+    expect(savedNote.codedProblems).toEqual({
+      assessment: [{ ycCode: 'YC-000123', label: 'Gastritis' }],
+    });
+  });
+
+  it('shows picked coded terms as chips and lists them in the signed note history', () => {
+    seedAndGet();
+    const store = useAppointmentWorkspaceStore.getState();
+    store.upsertSoap(APPT, {
+      subjective: '<p>history text</p>',
+      codedProblems: {
+        subjective: [{ ycCode: 'YC-005423', label: 'Vomiting' }],
+        assessment: [{ ycCode: 'YC-000123', label: 'Gastritis' }],
+      },
+    });
+    renderSoapStep(useAppointmentWorkspaceStore.getState().getEncounter(APPT)!);
+    // Active draft renders one chip per picked term with a remove affordance.
+    expect(screen.getByRole('button', { name: 'Remove Vomiting' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove Gastritis' })).toBeInTheDocument();
+
+    // Sign it: the history read-out lists each section's coded terms.
+    store.signSoap(APPT, 'Dr Tim', false);
+    reset();
+    seedAndGet();
+    const signedStore = useAppointmentWorkspaceStore.getState();
+    signedStore.upsertSoap(APPT, {
+      subjective: '<p>history text</p>',
+      codedProblems: { assessment: [{ ycCode: 'YC-000123', label: 'Gastritis' }] },
+    });
+    signedStore.signSoap(APPT, 'Dr Tim', false);
+    renderSoapStep(useAppointmentWorkspaceStore.getState().getEncounter(APPT)!);
+    fireEvent.click(screen.getByRole('button', { name: /view soap note by dr tim/i }));
+    expect(screen.getByText('Coded terms (Assessment)')).toBeInTheDocument();
+    expect(screen.getByText('Gastritis (YC-000123)')).toBeInTheDocument();
+  });
+
+  it('removing a chip updates the active draft in the store', () => {
+    seedAndGet();
+    useAppointmentWorkspaceStore.getState().upsertSoap(APPT, {
+      codedProblems: {
+        subjective: [
+          { ycCode: 'YC-005423', label: 'Vomiting' },
+          { ycCode: 'YC-001111', label: 'Diarrhoea' },
+        ],
+      },
+    });
+    renderSoapStep(useAppointmentWorkspaceStore.getState().getEncounter(APPT)!);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Vomiting' }));
+    expect(
+      useAppointmentWorkspaceStore.getState().getEncounter(APPT)!.soap[0]?.codedProblems
+    ).toEqual({ subjective: [{ ycCode: 'YC-001111', label: 'Diarrhoea' }] });
+  });
+
   it('invokes the Record Vitals callback from the vitals panel', () => {
     onRecordVitals.mockClear();
     renderSoapStep();

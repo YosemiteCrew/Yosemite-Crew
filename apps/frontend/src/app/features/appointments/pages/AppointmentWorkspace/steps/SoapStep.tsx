@@ -17,6 +17,11 @@ import type {
   AppointmentEncounter,
   SoapNoteEntry,
 } from '@/app/features/appointments/types/workspace';
+import {
+  SOAP_CODED_SECTIONS,
+  type SoapCodedSection,
+  type SoapCodedTerm,
+} from '@yosemite-crew/types';
 import { isRichTextEmpty } from '@/app/lib/richText';
 import {
   formatStampDate,
@@ -101,6 +106,26 @@ const useAutoResolvedSoapTemplate = ({
     visitStarted,
   ]);
 };
+
+const SECTION_READ_LABEL: Record<SoapCodedSection, string> = {
+  subjective: 'Coded terms (Subjective)',
+  objective: 'Coded terms (Objective)',
+  assessment: 'Coded terms (Assessment)',
+  plan: 'Coded terms (Plan)',
+};
+
+/** One read-only row per section that carries coded terms, e.g. "Vomiting (YC-005423)". */
+const codedTermReadRows = (entry: SoapNoteEntry) =>
+  SOAP_CODED_SECTIONS.flatMap((section) => {
+    const terms = entry.codedProblems?.[section];
+    if (!terms?.length) return [];
+    return [
+      {
+        label: SECTION_READ_LABEL[section],
+        text: terms.map((term) => `${term.label} (${term.ycCode})`).join(' · '),
+      },
+    ];
+  });
 
 /** Chief complaint alongside the read-only speciality/service context for this appointment. */
 const SoapContextHeader = ({
@@ -309,6 +334,7 @@ const SoapStep = ({
                   { label: 'Objective (Examination)', html: entry.objective },
                   { label: 'Assessment (Differential)', html: entry.assessment },
                   { label: 'Plan', html: entry.plan },
+                  ...codedTermReadRows(entry),
                 ],
               },
             ]
@@ -318,6 +344,11 @@ const SoapStep = ({
   );
 
   const customMode = isCustomSoap(note);
+
+  const handleCodedProblemsChange = (section: SoapCodedSection, terms: SoapCodedTerm[]) =>
+    upsertSoap(appointmentId, {
+      codedProblems: { ...note.codedProblems, [section]: terms },
+    });
 
   const handleCustomAnswerChange = (fieldId: string, value: unknown) =>
     upsertSoap(appointmentId, {
@@ -435,11 +466,13 @@ const SoapStep = ({
                   objective={note.objective}
                   assessment={note.assessment}
                   plan={note.plan}
+                  codedProblems={note.codedProblems}
                   terminologyText={terminologyText}
                   onSubjectiveChange={(html) => upsertSoap(appointmentId, { subjective: html })}
                   onObjectiveChange={(html) => upsertSoap(appointmentId, { objective: html })}
                   onAssessmentChange={(html) => upsertSoap(appointmentId, { assessment: html })}
                   onPlanChange={(html) => upsertSoap(appointmentId, { plan: html })}
+                  onCodedProblemsChange={handleCodedProblemsChange}
                   onRecordVitals={onRecordVitals}
                 />
               )}

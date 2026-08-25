@@ -1,0 +1,165 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { IoCloseOutline } from 'react-icons/io5';
+import type { SoapCodedTerm } from '@yosemite-crew/types';
+import Search from '@/app/ui/inputs/Search';
+import SearchResultsDropdown from '@/app/features/appointments/pages/AppointmentWorkspace/components/SearchResultsDropdown';
+import WorkspaceSearchResultRow from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceSearchResultRow';
+import {
+  suggestClinicalTerms,
+  type ClinicalTermDomain,
+  type ClinicalTermSuggestion,
+} from '@/app/features/appointments/services/clinicalTermsService';
+
+const MIN_QUERY_LENGTH = 2;
+const SUGGEST_DEBOUNCE_MS = 250;
+const SUGGEST_LIMIT = 8;
+
+/**
+ * When the display label itself doesn't contain the query, the hit came from a
+ * synonym (often another language). Surface which one so the clinician sees why
+ * "anomalía" returned "Behavioural abnormality".
+ */
+const matchedSynonym = (suggestion: ClinicalTermSuggestion, query: string): string | undefined => {
+  const q = query.trim().toLowerCase();
+  if (!q || suggestion.label.toLowerCase().includes(q)) return undefined;
+  return suggestion.synonyms.find((synonym) => synonym.toLowerCase().includes(q));
+};
+
+type SoapCodedTermPickerProps = {
+  /** Section name used in accessible labels, e.g. "Assessment". */
+  sectionLabel: string;
+  /** Vocabulary domain to narrow suggestions to; omit to search every domain. */
+  domain?: ClinicalTermDomain;
+  selected: SoapCodedTerm[];
+  onChange: (terms: SoapCodedTerm[]) => void;
+};
+
+/**
+ * Coded-term chips for one SOAP section: type ≥2 characters to search the
+ * clinical vocabulary (display + multilingual synonyms), pick a suggestion to
+ * pin it as a chip. The picked codes ride the note's `diagnoses` channel so the
+ * free-text prose gains exact vocabulary references.
+ */
+const SoapCodedTermPicker = ({
+  sectionLabel,
+  domain,
+  selected,
+  onChange,
+}: SoapCodedTermPickerProps) => {
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<ClinicalTermSuggestion[]>([]);
+  // Monotonic request id: a slow earlier response must never overwrite a newer one.
+  const requestSeqRef = useRef(0);
+
+  useEffect(() => {
+    const trimmed = query.trim();
+    const requestId = requestSeqRef.current + 1;
+    requestSeqRef.current = requestId;
+    const belowMinimum = trimmed.length < MIN_QUERY_LENGTH;
+    // All setState runs inside the timer, never synchronously in the effect
+    // (react-hooks cascading-render rule). Clearing uses a zero delay so the
+    // dropdown hides immediately when the query drops below the minimum.
+    const timer = setTimeout(
+      () => {
+        if (belowMinimum) {
+          setResults([]);
+          return;
+        }
+        suggestClinicalTerms({ q: trimmed, domain, limit: SUGGEST_LIMIT })
+          .then((items) => {
+            if (requestSeqRef.current === requestId) setResults(items);
+          })
+          .catch((error) => {
+            console.error('Unable to suggest clinical terms:', error);
+            if (requestSeqRef.current === requestId) setResults([]);
+          });
+      },
+      belowMinimum ? 0 : SUGGEST_DEBOUNCE_MS
+    );
+    return () => clearTimeout(timer);
+  }, [query, domain]);
+
+  const selectedCodes = useMemo(() => new Set(selected.map((term) => term.ycCode)), [selected]);
+
+  // Duplicates can't reach here: the result row for an already-picked code is
+  // disabled, and the shared parser dedups again on the way back in.
+  const addTerm = (suggestion: ClinicalTermSuggestion) => {
+    onChange([
+      ...selected,
+      {
+        ycCode: suggestion.ycCode,
+        label: suggestion.label,
+        ...(suggestion.domain ? { domain: suggestion.domain } : {}),
+      },
+    ]);
+    setQuery('');
+  };
+
+  const removeTerm = (ycCode: string) =>
+    onChange(selected.filter((term) => term.ycCode !== ycCode));
+
+  return (
+    <div className="mt-3 flex flex-col gap-2">
+      {selected.length > 0 && (
+        <ul
+          className="flex flex-wrap items-center gap-1.5"
+          aria-label={`${sectionLabel} coded terms`}
+        >
+          {selected.map((term) => (
+            <li
+              key={term.ycCode}
+              className="inline-flex items-center gap-1.5 rounded-full border border-card-border bg-neutral-100 py-1 pl-3 pr-1.5 text-caption-1 font-semibold text-text-primary"
+            >
+              <span>{term.label}</span>
+              <span className="font-normal text-text-tertiary">{term.ycCode}</span>
+              <button
+                type="button"
+                aria-label={`Remove ${term.label}`}
+                onClick={() => removeTerm(term.ycCode)}
+                className="flex size-5 items-center justify-center rounded-full text-text-tertiary transition-colors hover:bg-neutral-200 hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+              >
+                <IoCloseOutline size={14} aria-hidden="true" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div ref={anchorRef} className="relative w-full sm:max-w-90">
+        <Search
+          value={query}
+          setSearch={setQuery}
+          placeholder="Add coded term"
+          label={`Add coded term to ${sectionLabel}`}
+          className="w-full!"
+        />
+        <SearchResultsDropdown
+          anchorRef={anchorRef}
+          open={results.length > 0}
+          onClose={() => setQuery('')}
+        >
+          <ul>
+            {results.map((suggestion) => {
+              const synonym = matchedSynonym(suggestion, query);
+              const alreadyAdded = selectedCodes.has(suggestion.ycCode);
+              return (
+                <WorkspaceSearchResultRow
+                  key={suggestion.ycCode}
+                  name={suggestion.label}
+                  origin={
+                    synonym ? `${suggestion.ycCode} · matches “${synonym}”` : suggestion.ycCode
+                  }
+                  disabled={alreadyAdded}
+                  disabledReason={alreadyAdded ? 'Added' : undefined}
+                  onSelect={() => addTerm(suggestion)}
+                />
+              );
+            })}
+          </ul>
+        </SearchResultsDropdown>
+      </div>
+    </div>
+  );
+};
+
+export default SoapCodedTermPicker;
