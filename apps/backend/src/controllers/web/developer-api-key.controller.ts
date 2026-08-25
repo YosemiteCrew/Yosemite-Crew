@@ -7,7 +7,7 @@ import {
 } from "../../services/developer-api-key.service";
 import logger from "../../utils/logger";
 import type { OrgRequest } from "src/middlewares/rbac";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import { resolveVerifiedUserId } from "src/utils/request";
 
 const CreateApiKeySchema = z.object({
   name: z.string().trim().min(1).max(100),
@@ -38,7 +38,7 @@ export const DeveloperApiKeyController = {
       if (!organisationId) {
         return res.status(400).json({ message: "Missing organisationId" });
       }
-      const createdBy = resolveUserIdFromRequest(req);
+      const createdBy = resolveVerifiedUserId(req);
       if (!createdBy) {
         return res.status(401).json({ message: "Unauthorized" });
       }

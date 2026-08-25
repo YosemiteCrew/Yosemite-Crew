@@ -1,6 +1,6 @@
 import express, { Router } from "express";
 import { DeveloperBillingController } from "../controllers/web/developer-billing.controller";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 
 const router = Router();
@@ -14,7 +14,7 @@ router.post(
 
 router.get(
   "/",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("billing:view:any"),
   DeveloperBillingController.getSubscription,
@@ -22,7 +22,7 @@ router.get(
 
 router.post(
   "/checkout",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("billing:edit:any"),
   DeveloperBillingController.createCheckout,
@@ -30,7 +30,7 @@ router.post(
 
 router.post(
   "/portal",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("billing:view:any"),
   DeveloperBillingController.createPortal,

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 import { DeveloperUsageController } from "../controllers/web/developer-usage.controller";
 
@@ -7,7 +7,7 @@ const developerUsageRouter = Router();
 
 developerUsageRouter.get(
   "/",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("billing:view:any"),
   DeveloperUsageController.getUsage,

@@ -1,27 +1,27 @@
 import { Router } from "express";
 import { DeveloperApiKeyController } from "../controllers/web/developer-api-key.controller";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 
 const router = Router();
 
 router.post(
   "/",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("integrations:edit:any"),
   DeveloperApiKeyController.createApiKey,
 );
 router.get(
   "/",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("integrations:view:any"),
   DeveloperApiKeyController.listApiKeys,
 );
 router.delete(
   "/:keyId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("integrations:edit:any"),
   DeveloperApiKeyController.revokeApiKey,
