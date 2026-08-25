@@ -68,6 +68,75 @@ jobs:
     timeout-minutes: 30
     environment: ${{ inputs.environment }}
     steps:
+      # Fail on a missing credential BEFORE checkout, and say exactly what is
+      # missing and where to put it.
+      #
+      # The generic check further down already refused to deploy without a key,
+      # but it only said "not set for the 'dev' environment", which reads as a
+      # bug in the workflow rather than a one-line fix in repository settings. On
+      # 2026-08-24 a dispatch failed on exactly that; the secret was added 98
+      # seconds later and the run was never retried, so the deploy simply did not
+      # happen and nothing said so.
+      #
+      # Production is the case worth naming out loud: `environment:` creates the
+      # environment implicitly on first use, so dispatching production does NOT
+      # fail with "no such environment". It succeeds into an EMPTY one and the
+      # key resolves to nothing, which looks identical to a revoked key.
+      - name: Preflight the deploy credential
+        shell: bash
+        env:
+          SSH_KEY: ${{ secrets.API_DEPLOY_SSH_KEY }}
+          ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SSH_KEY:-}" ]; then
+            {
+              echo "::error::No API_DEPLOY_SSH_KEY in the '${ENVIRONMENT}' environment, so there is nothing to authenticate with and no deploy has happened."
+              echo
+              echo "Fix it in repository settings, not here:"
+              echo "  Settings > Environments > ${ENVIRONMENT} > Environment secrets > New secret"
+              echo "  Name:  API_DEPLOY_SSH_KEY"
+              echo "  Value: the PRIVATE half of the key pair whose public half is in"
+              echo "         ubuntu@<host>:~/.ssh/authorized_keys on that box."
+              echo
+              echo "If '${ENVIRONMENT}' is not listed under Environments, create it first."
+              echo "A job that names an environment creates it implicitly and empty, so"
+              echo "dispatching an environment that was never set up fails here rather"
+              echo "than anywhere more obvious."
+            } >&2
+            exit 1
+          fi
+
+          # A truncated or single-line paste authenticates against nothing and
+          # fails later as a confusing "Permission denied (publickey)". Check the
+          # shape, never the contents: nothing here echoes the key.
+          if ! printf '%s' "${SSH_KEY}" | head -n 1 | grep -q -- '-----BEGIN .*PRIVATE KEY-----'; then
+            {
+              echo "::error::API_DEPLOY_SSH_KEY for '${ENVIRONMENT}' does not begin with a private-key header."
+              echo "It is most likely the PUBLIC half of the pair. The value must be the private key."
+              echo "Re-add it from the file so the format survives: gh secret set API_DEPLOY_SSH_KEY --env ${ENVIRONMENT} < path/to/key"
+            } >&2
+            exit 1
+          fi
+
+          # The header alone is not enough. A key pasted through a form that
+          # collapses newlines keeps its BEGIN marker on the single remaining
+          # line and passes the check above, then fails at ssh time as a
+          # permission error that looks like a revoked key rather than a
+          # malformed one. A real key is at least three lines.
+          KEY_LINES="$(printf '%s\n' "${SSH_KEY}" | grep -c '')"
+          if [ "${KEY_LINES}" -lt 3 ]; then
+            {
+              echo "::error::API_DEPLOY_SSH_KEY for '${ENVIRONMENT}' is ${KEY_LINES} line(s). A private key has at least three."
+              echo "The newlines were almost certainly lost when it was pasted."
+              echo "Re-add it from the file: gh secret set API_DEPLOY_SSH_KEY --env ${ENVIRONMENT} < path/to/key"
+            } >&2
+            exit 1
+          fi
+
+          echo "A private key is present for '${ENVIRONMENT}'."
+
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -111,9 +180,10 @@ jobs:
           ENVIRONMENT: ${{ inputs.environment }}
         run: |
           set -euo pipefail
+          # Preflight above already proved this; kept so the step cannot run with
+          # an empty key if the steps are ever reordered.
           if [ -z "${SSH_KEY:-}" ]; then
-            echo "API_DEPLOY_SSH_KEY is not set for the '$ENVIRONMENT' environment." >&2
-            echo "Add it as an environment secret before using this workflow." >&2
+            echo "API_DEPLOY_SSH_KEY is empty at deploy time. See the preflight step." >&2
             exit 1
           fi
           install -m 700 -d ~/.ssh
