@@ -54,12 +54,19 @@ jobs:
     # Release sync PRs replay already-merged dev history into main. Keep title
     # validation active, but do not re-lint historical commits in that path.
     #
+    # The back-merge is the same situation in the opposite direction: a main to
+    # dev pull request replays already-merged MAIN history into dev, so it
+    # re-lints commits that shipped long ago and cannot be rewritten. #2503 failed
+    # exactly that way, on `chore(deps): bump json (#2131)` - scope `deps` is not
+    # in scope-enum. That is the Dependabot commit merged straight into main on
+    # 2026-08-13, the incident that made back-merges necessary in the first place.
+    #
     # Dependabot writes long changelog and release-note lines into its commit
     # bodies, which trip config-conventional's body/footer-max-line-length and
     # fail this job on every bot PR. The PR-title gate above still runs, so the
     # conventional type(scope) contract is enforced on the squash-merge subject;
     # only the generated body lines are exempt.
-    if: ${{ !(github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'dev') && github.event.pull_request.user.login != 'dependabot[bot]' }}
+    if: ${{ !(github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'dev') && !(github.event.pull_request.base.ref == 'dev' && github.event.pull_request.head.ref == 'main') && github.event.pull_request.user.login != 'dependabot[bot]' }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
