@@ -141,19 +141,18 @@ const serializeSoapNote = async (record: SoapNoteRecord) => {
 
 const serializeSoapNoteBundle = async (records: SoapNoteRecord[]) => {
   const bundle = clinicalArtifactFhirMapper.bundles.soapNotes(records);
-  // recordBundle maps records in order, so entries pair up index-for-index.
-  await Promise.all(
-    records.map(async (record, index) => {
-      const coded = await SoapCodedTermsFhirService.codedTermExtensions(
-        record.soapNote.diagnoses,
-      );
-      const resource = bundle.entry?.[index]?.resource as
-        Composition | undefined;
-      if (coded.length > 0 && resource) {
-        resource.extension = [...(resource.extension ?? []), ...coded];
-      }
-    }),
-  );
+  // One projection query set for the whole bundle; recordBundle maps records
+  // in order, so per-record extension lists pair up index-for-index.
+  const codedPerRecord =
+    await SoapCodedTermsFhirService.codedTermExtensionsForMany(
+      records.map((record) => record.soapNote.diagnoses),
+    );
+  codedPerRecord.forEach((coded, index) => {
+    const resource = bundle.entry?.[index]?.resource as Composition | undefined;
+    if (coded.length > 0 && resource) {
+      resource.extension = [...(resource.extension ?? []), ...coded];
+    }
+  });
   return bundle;
 };
 

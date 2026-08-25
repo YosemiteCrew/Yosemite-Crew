@@ -75,6 +75,9 @@ jest.mock("../../src/utils/logger", () => ({
 jest.mock("../../src/services/soap-coded-terms.service", () => ({
   SoapCodedTermsFhirService: {
     codedTermExtensions: jest.fn(async () => []),
+    codedTermExtensionsForMany: jest.fn(async (list: unknown[]) =>
+      list.map(() => []),
+    ),
   },
 }));
 
@@ -1480,8 +1483,8 @@ describe("ClinicalArtifactFhirController", () => {
         resourceType: "Bundle",
         entry: [{ resource: { resourceType: "Composition" } }],
       } as never);
-      mockedCodedTerms.codedTermExtensions.mockResolvedValueOnce([
-        { url: "marker-ext" },
+      mockedCodedTerms.codedTermExtensionsForMany.mockResolvedValueOnce([
+        [{ url: "marker-ext" }],
       ] as never);
       mockedService.listSoapNotesForAppointment.mockResolvedValueOnce([
         { artifact: { id: "artifact-1" }, soapNote: { id: "soap-1" } },

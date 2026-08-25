@@ -157,6 +157,60 @@ describe("SoapCodedTermsFhirService.codedTermExtensions", () => {
     }
   });
 
+  it("batches a bundle into one query set with per-record attribution", async () => {
+    entryFind.mockResolvedValue([{ code: "YC-1" }, { code: "YC-2" }]);
+    mappingFind.mockImplementation(({ where }) =>
+      Promise.resolve(
+        where.targetSystem === "VENOM"
+          ? [
+              {
+                sourceCode: "YC-1",
+                targetCode: "v1",
+                targetDisplay: "V1",
+                equivalence: "EQUIVALENT",
+              },
+              {
+                sourceCode: "YC-2",
+                targetCode: "v2",
+                targetDisplay: "V2",
+                equivalence: "EQUIVALENT",
+              },
+            ]
+          : [],
+      ),
+    );
+
+    const perRecord =
+      (await SoapCodedTermsFhirService.codedTermExtensionsForMany([
+        { subjective: [{ ycCode: "YC-1", label: "One" }] },
+        "malformed",
+        { assessment: [{ ycCode: "YC-2", label: "Two" }] },
+      ])) as Ext[][];
+
+    // One VENOM + one SNOMED query for the whole bundle, over the union set.
+    expect(mappingFind).toHaveBeenCalledTimes(2);
+    for (const call of mappingFind.mock.calls) {
+      expect(call[0].where.sourceCode).toEqual({ in: ["YC-1", "YC-2"] });
+    }
+
+    // Output mirrors input order; each record keeps only its own terms.
+    expect(perRecord).toHaveLength(3);
+    expect(perRecord[1]).toEqual([]);
+    expect(concept(perRecord[0][0])?.coding?.[0].code).toBe("YC-1");
+    expect(concept(perRecord[0][0])?.coding?.[1].code).toBe("v1");
+    expect(perRecord[0]).toHaveLength(1);
+    expect(concept(perRecord[2][0])?.coding?.[0].code).toBe("YC-2");
+    expect(concept(perRecord[2][0])?.coding?.[1].code).toBe("v2");
+    expect(perRecord[2]).toHaveLength(1);
+  });
+
+  it("makes no queries when no record carries coded terms", async () => {
+    const perRecord =
+      await SoapCodedTermsFhirService.codedTermExtensionsForMany([null, {}]);
+    expect(perRecord).toEqual([[], []]);
+    expect(mappingFind).not.toHaveBeenCalled();
+  });
+
   it("keeps the strongest mapping when a term has several in one system", async () => {
     entryFind.mockResolvedValue([{ code: "YC-1" }]);
     mappingFind.mockImplementation(({ where }) =>
