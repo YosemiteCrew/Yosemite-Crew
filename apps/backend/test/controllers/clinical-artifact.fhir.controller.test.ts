@@ -6,6 +6,7 @@ import {
   ClinicalArtifactServiceError,
 } from "../../src/services/clinical-artifact.service";
 import { clinicalArtifactFhirMapper } from "../../src/services/fhir-clinical-artifact.mapper";
+import { SoapCodedTermsFhirService } from "../../src/services/soap-coded-terms.service";
 import logger from "../../src/utils/logger";
 
 jest.mock("../../src/services/clinical-artifact.service", () => {
@@ -71,6 +72,12 @@ jest.mock("../../src/utils/logger", () => ({
   },
 }));
 
+jest.mock("../../src/services/soap-coded-terms.service", () => ({
+  SoapCodedTermsFhirService: {
+    codedTermExtensions: jest.fn(async () => []),
+  },
+}));
+
 jest.mock("../../src/services/fhir-clinical-artifact.mapper", () => ({
   clinicalArtifactFhirMapper: {
     soapNoteToComposition: jest.fn(),
@@ -96,6 +103,9 @@ jest.mock("../../src/services/fhir-clinical-artifact.mapper", () => ({
 
 const mockedService = ClinicalArtifactService as jest.Mocked<
   typeof ClinicalArtifactService
+>;
+const mockedCodedTerms = SoapCodedTermsFhirService as jest.Mocked<
+  typeof SoapCodedTermsFhirService
 >;
 const mockedMapper = clinicalArtifactFhirMapper as jest.Mocked<
   typeof clinicalArtifactFhirMapper
@@ -1434,5 +1444,60 @@ describe("ClinicalArtifactFhirController", () => {
         );
       },
     );
+  });
+
+  describe("coded-term projection wiring", () => {
+    it("appends coded-term extensions to single SOAP responses and passes the stored diagnoses", async () => {
+      mockedMapper.soapNoteToComposition.mockReturnValue({
+        resourceType: "Composition",
+      } as never);
+      mockedCodedTerms.codedTermExtensions.mockResolvedValueOnce([
+        { url: "marker-ext" },
+      ] as never);
+      mockedService.getSoapNote.mockResolvedValueOnce({
+        artifact: { id: "artifact-1" },
+        soapNote: {
+          id: "soap-1",
+          diagnoses: { plan: [{ ycCode: "YC-1", label: "L" }] },
+        },
+      } as never);
+
+      await ClinicalArtifactFhirController.getSoapNote(
+        req as Request,
+        res as Response,
+      );
+
+      expect(mockedCodedTerms.codedTermExtensions).toHaveBeenCalledWith({
+        plan: [{ ycCode: "YC-1", label: "L" }],
+      });
+      expect(jsonMock).toHaveBeenCalledWith(
+        expect.objectContaining({ extension: [{ url: "marker-ext" }] }),
+      );
+    });
+
+    it("appends coded-term extensions to each bundle entry", async () => {
+      mockedMapper.bundles.soapNotes.mockReturnValue({
+        resourceType: "Bundle",
+        entry: [{ resource: { resourceType: "Composition" } }],
+      } as never);
+      mockedCodedTerms.codedTermExtensions.mockResolvedValueOnce([
+        { url: "marker-ext" },
+      ] as never);
+      mockedService.listSoapNotesForAppointment.mockResolvedValueOnce([
+        { artifact: { id: "artifact-1" }, soapNote: { id: "soap-1" } },
+      ] as never);
+
+      await ClinicalArtifactFhirController.listSoapNotesForAppointment(
+        req as Request,
+        res as Response,
+      );
+
+      const bundle = jsonMock.mock.calls[0][0] as {
+        entry: Array<{ resource: { extension?: unknown } }>;
+      };
+      expect(bundle.entry[0].resource.extension).toEqual([
+        { url: "marker-ext" },
+      ]);
+    });
   });
 });
