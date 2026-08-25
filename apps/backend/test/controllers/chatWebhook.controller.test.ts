@@ -19,6 +19,7 @@ import {
   scanMessageAttachments,
 } from "src/controllers/app/chatWebhook.controller";
 import { scanAttachmentUrl } from "src/services/attachmentScanner.service";
+import logger from "src/utils/logger";
 import type { Request, Response } from "express";
 
 const mockScan = scanAttachmentUrl as unknown as jest.Mock;
@@ -120,6 +121,19 @@ describe("scanMessageAttachments", () => {
       message: { id: "m1", attachments: [{ image_url: "u" }] },
     });
     expect(mockDeleteMessage).toHaveBeenCalledWith("m1", true);
+  });
+
+  it("strips line breaks from the message id before logging it", async () => {
+    const warn = jest.spyOn(logger, "warn").mockImplementation(() => logger);
+    mockScan.mockResolvedValue({ clean: false, threat: "bad" });
+    await scanMessageAttachments({
+      type: "message.new",
+      message: { id: "m1\nforged line", attachments: [{ asset_url: "u" }] },
+    });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toContain("m1 forged line");
+    expect(warn.mock.calls[0][0]).not.toContain("\n");
+    warn.mockRestore();
   });
 
   it("swallows a delete failure", async () => {

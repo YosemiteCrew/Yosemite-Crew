@@ -132,7 +132,12 @@ export const AppointmentController = {
     try {
       const { appointmentId } = req.params;
       logger.info("Request Path: ", req.params);
-      logger.info("Accepting appointment with ID:", appointmentId);
+      // The id is caller-supplied; strip line breaks so it cannot forge
+      // additional log lines.
+      logger.info(
+        "Accepting appointment with ID:",
+        appointmentId.replace(/[\n\r]+/g, " "),
+      );
       const dto = req.body as AppointmentRequestDTO; // partial FHIR update fields
 
       const result = await AppointmentService.approveRequestedFromPms(

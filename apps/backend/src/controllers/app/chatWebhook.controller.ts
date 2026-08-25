@@ -36,8 +36,10 @@ export const scanMessageAttachments = async (
 
     const result = await scanAttachmentUrl(url);
     if (!result.clean) {
+      // The message id arrives in the webhook payload; strip line breaks so it
+      // cannot forge additional log lines.
       logger.warn(
-        `Unsafe chat attachment on message ${messageId} (${result.threat}); deleting message`,
+        `Unsafe chat attachment on message ${messageId.replace(/[\n\r]+/g, " ")} (${result.threat}); deleting message`,
       );
       try {
         const client = StreamChat.getInstance(STREAM_KEY, STREAM_SECRET);
