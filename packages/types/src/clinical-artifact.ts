@@ -45,6 +45,76 @@ export type SoapNoteInput = ClinicalArtifactBaseInput & {
   metadata?: unknown;
 };
 
+/**
+ * Structured coded terms attached to a SOAP note, keyed by section. This is the
+ * shape the PIMS workspace writes into the SoapNote `diagnoses` JSON channel
+ * (round-tripped through the `soap-note-diagnoses` composition extension), so a
+ * free-text note also carries exact vocabulary references. Kept alongside
+ * SoapNoteInput because both ends of the wire must agree on it.
+ */
+export const SOAP_CODED_SECTIONS = ['subjective', 'objective', 'assessment', 'plan'] as const;
+
+export type SoapCodedSection = (typeof SOAP_CODED_SECTIONS)[number];
+
+export type SoapCodedTerm = {
+  /** Yosemite vocabulary code, e.g. YC-005416. */
+  ycCode: string;
+  /** Display label the clinician picked (the concept's display at pick time). */
+  label: string;
+  /** VeNom-style domain the term belongs to, when known (e.g. Diagnosis). */
+  domain?: string;
+};
+
+export type SoapCodedProblems = Partial<Record<SoapCodedSection, SoapCodedTerm[]>>;
+
+/** Bound per section so a malformed or hostile payload cannot balloon the JSON column. */
+const MAX_CODED_TERMS_PER_SECTION = 50;
+
+const parseSoapCodedTerm = (value: unknown): SoapCodedTerm | null => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const entry = value as Record<string, unknown>;
+  const ycCode = typeof entry.ycCode === 'string' ? entry.ycCode.trim() : '';
+  const label = typeof entry.label === 'string' ? entry.label.trim() : '';
+  if (!ycCode || !label) return null;
+  const domain =
+    typeof entry.domain === 'string' && entry.domain.trim() ? entry.domain.trim() : undefined;
+  return domain === undefined ? { ycCode, label } : { ycCode, label, domain };
+};
+
+/**
+ * Validate an untyped `diagnoses` payload into SoapCodedProblems. Only the four
+ * known section keys are read (never arbitrary keys, so `__proto__`/`constructor`
+ * payloads are ignored by construction), entries missing a code or label are
+ * dropped, and duplicates within a section collapse onto the first occurrence.
+ * Returns undefined when nothing valid remains, so an absent/legacy payload and
+ * an empty one look the same to callers.
+ */
+export const parseSoapCodedProblems = (value: unknown): SoapCodedProblems | undefined => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
+  const source = value as Record<string, unknown>;
+  const result: SoapCodedProblems = {};
+  let total = 0;
+  for (const section of SOAP_CODED_SECTIONS) {
+    if (!Object.prototype.hasOwnProperty.call(source, section)) continue;
+    const raw = source[section];
+    if (!Array.isArray(raw)) continue;
+    const seen = new Set<string>();
+    const terms: SoapCodedTerm[] = [];
+    for (const item of raw) {
+      if (terms.length >= MAX_CODED_TERMS_PER_SECTION) break;
+      const term = parseSoapCodedTerm(item);
+      if (!term || seen.has(term.ycCode)) continue;
+      seen.add(term.ycCode);
+      terms.push(term);
+    }
+    if (terms.length > 0) {
+      result[section] = terms;
+      total += terms.length;
+    }
+  }
+  return total > 0 ? result : undefined;
+};
+
 export type SoapNoteRecord = {
   artifact: {
     id: string;
@@ -267,7 +337,7 @@ const SOAP_OBJECTIVE_EXTENSION_URL =
 const SOAP_ASSESSMENT_EXTENSION_URL =
   'https://yosemitecrew.com/fhir/StructureDefinition/soap-note-assessment';
 const SOAP_PLAN_EXTENSION_URL = 'https://yosemitecrew.com/fhir/StructureDefinition/soap-note-plan';
-const SOAP_DIAGNOSES_EXTENSION_URL =
+export const SOAP_DIAGNOSES_EXTENSION_URL =
   'https://yosemitecrew.com/fhir/StructureDefinition/soap-note-diagnoses';
 const SOAP_METADATA_EXTENSION_URL =
   'https://yosemitecrew.com/fhir/StructureDefinition/soap-note-metadata';
