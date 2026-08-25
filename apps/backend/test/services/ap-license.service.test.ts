@@ -99,7 +99,8 @@ function makeToken(
 
 function mockFetch(opts?: { revoked?: string[]; jwks?: unknown }) {
   const jwks = opts?.jwks ?? { keys: [signingJwk] };
-  const revoked = { revokedJtis: opts?.revoked ?? [] };
+  // The authority serves a BARE ARRAY, which is what broke verification.
+  const revoked = opts?.revoked ?? [];
   (global.fetch as unknown as jest.Mock) = jest.fn((url: string) => {
     const body = url.includes("revoked") ? revoked : jwks;
     return Promise.resolve({
