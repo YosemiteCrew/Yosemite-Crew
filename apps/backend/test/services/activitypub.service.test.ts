@@ -1483,7 +1483,7 @@ describe("listDirectory", () => {
 
       const result = await fresh.listDirectory("org-1");
 
-      expect(result).toEqual({ clinics });
+      expect(result).toEqual({ clinics, unavailable: false });
       const [url, opts] = fetchMock.mock.calls[0];
       expect(url).toBe("https://authority.example/api/directory");
       expect(opts.headers.Authorization).toBe("Bearer lic-token");
@@ -1521,7 +1521,7 @@ describe("listDirectory", () => {
 
       const result = await fresh.listDirectory("org-1");
 
-      expect(result).toEqual({ clinics: [] });
+      expect(result).toEqual({ clinics: [], unavailable: false });
       expect(fetchMock.mock.calls[0][1].headers.Authorization).toBeUndefined();
     });
   });
@@ -1537,11 +1537,11 @@ describe("listDirectory", () => {
       global.fetch = fetchMock as unknown as typeof fetch;
 
       const result = await fresh.listDirectory("org-1");
-      expect(result).toEqual({ clinics });
+      expect(result).toEqual({ clinics, unavailable: false });
     });
   });
 
-  it("returns { clinics: [] } (resilient) when the authority responds non-ok", async () => {
+  it("reports unavailable, not empty, when the authority responds non-ok", async () => {
     await jest.isolateModulesAsync(async () => {
       const fresh = await import("src/services/activitypub.service");
       prisma.aPActor.findUnique.mockResolvedValue(makeActor());
@@ -1551,11 +1551,11 @@ describe("listDirectory", () => {
       }) as unknown as typeof fetch;
 
       const result = await fresh.listDirectory("org-1");
-      expect(result).toEqual({ clinics: [] });
+      expect(result).toEqual({ clinics: [], unavailable: true });
     });
   });
 
-  it("returns { clinics: [] } (resilient) when fetch rejects (network error)", async () => {
+  it("reports unavailable, not empty, when fetch rejects (network error)", async () => {
     await jest.isolateModulesAsync(async () => {
       const fresh = await import("src/services/activitypub.service");
       prisma.aPActor.findUnique.mockResolvedValue(makeActor());
@@ -1566,7 +1566,7 @@ describe("listDirectory", () => {
         ) as unknown as typeof fetch;
 
       const result = await fresh.listDirectory("org-1");
-      expect(result).toEqual({ clinics: [] });
+      expect(result).toEqual({ clinics: [], unavailable: true });
     });
   });
 });

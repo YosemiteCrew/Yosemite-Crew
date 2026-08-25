@@ -31,6 +31,8 @@ export interface APDirectoryClinic {
 
 export interface APDirectory {
   clinics: APDirectoryClinic[];
+  /** True when the authority could not be reached, as opposed to being empty. */
+  unavailable?: boolean;
 }
 
 export interface APFollower {
