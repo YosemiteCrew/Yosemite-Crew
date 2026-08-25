@@ -5,6 +5,8 @@ import {
   buildPdfViewModel,
   renderPdf,
   generateFormSubmissionPdf,
+  closePdfBrowser,
+  clearPdfTemplateCache,
   PdfViewModel,
 } from "../../src/services/formPDF.service";
 import { FormField } from "@yosemite-crew/types";
@@ -12,16 +14,27 @@ import { FormField } from "@yosemite-crew/types";
 // ----------------------------------------------------------------------
 // 1. MOCKS
 // ----------------------------------------------------------------------
-jest.mock("node:fs");
-jest.mock("playwright");
+jest.mock("node:fs", () => {
+  const mockFs = { promises: { readFile: jest.fn() } };
+  return { __esModule: true, ...mockFs, default: mockFs };
+});
+jest.mock("playwright", () => ({
+  chromium: { launch: jest.fn() },
+}));
 
 const mockPage = {
   setContent: jest.fn(),
   pdf: jest.fn(),
 };
 
-const mockBrowser = {
+const mockContext = {
   newPage: jest.fn(),
+  close: jest.fn(),
+};
+
+const mockBrowser = {
+  newContext: jest.fn(),
+  isConnected: jest.fn(),
   close: jest.fn(),
 };
 
@@ -31,11 +44,16 @@ const mockBrowser = {
 describe("FormPDFService", () => {
   const mockDate = new Date("2023-01-01T12:00:00.000Z");
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    // Reset the module-level browser singleton and template cache so every
+    // test starts from a cold renderer.
+    await closePdfBrowser();
+    clearPdfTemplateCache();
     jest.clearAllMocks();
-    // Default mock implementation for fs.readFileSync
+
+    // Default mock implementation for fs.promises.readFile
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (fs.readFileSync as any).mockReturnValue(
+    (fs.promises.readFile as any).mockResolvedValue(
       "<html>{{brandSection}}{{title}} {{submittedAt}} {{sections}} {{templateLabel}}</html>",
     );
 
@@ -45,7 +63,13 @@ describe("FormPDFService", () => {
 
     // FIX: Cast the mock function itself to any to avoid 'never' inference
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (mockBrowser.newPage as any).mockResolvedValue(mockPage);
+    (mockBrowser.newContext as any).mockResolvedValue(mockContext);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (mockBrowser.isConnected as any).mockReturnValue(true);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (mockContext.newPage as any).mockResolvedValue(mockPage);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (mockPage.pdf as any).mockResolvedValue(Buffer.from("mock-pdf-buffer"));
@@ -332,8 +356,9 @@ describe("FormPDFService", () => {
       const result = await renderPdf(mockVm);
 
       expect(chromium.launch).toHaveBeenCalled();
-      expect(mockBrowser.newPage).toHaveBeenCalled();
-      expect(fs.readFileSync).toHaveBeenCalledWith(
+      expect(mockBrowser.newContext).toHaveBeenCalled();
+      expect(mockContext.newPage).toHaveBeenCalled();
+      expect(fs.promises.readFile).toHaveBeenCalledWith(
         expect.stringContaining("pdf-templates/form.html"),
         "utf8",
       );
@@ -352,7 +377,9 @@ describe("FormPDFService", () => {
         format: "A4",
         printBackground: true,
       });
-      expect(mockBrowser.close).toHaveBeenCalled();
+      // The per-render context is torn down; the shared browser stays open.
+      expect(mockContext.close).toHaveBeenCalled();
+      expect(mockBrowser.close).not.toHaveBeenCalled();
       expect(result).toBeInstanceOf(Buffer);
     });
 
@@ -368,7 +395,7 @@ describe("FormPDFService", () => {
         },
       });
 
-      expect(fs.readFileSync).toHaveBeenCalledWith(
+      expect(fs.promises.readFile).toHaveBeenCalledWith(
         expect.stringContaining("pdf-templates/soap-note.html"),
         "utf8",
       );
@@ -384,6 +411,111 @@ describe("FormPDFService", () => {
         expect.stringContaining("SOAP note"),
         { waitUntil: "load" },
       );
+    });
+  });
+
+  /* ========================================================================
+   * BROWSER LIFECYCLE & TEARDOWN
+   * ======================================================================*/
+  describe("browser lifecycle and teardown", () => {
+    const mockVm: PdfViewModel = {
+      title: "Lifecycle",
+      submittedAt: "2023-01-01",
+      sections: [{ title: "S1", fields: [{ label: "L1", value: "V1" }] }],
+    };
+
+    it("reuses one shared browser across renders", async () => {
+      await renderPdf(mockVm);
+      await renderPdf(mockVm);
+
+      expect(chromium.launch).toHaveBeenCalledTimes(1);
+      expect(mockBrowser.newContext).toHaveBeenCalledTimes(2);
+      expect(mockBrowser.close).not.toHaveBeenCalled();
+    });
+
+    it("caches the template read across renders of the same kind", async () => {
+      await renderPdf(mockVm);
+      await renderPdf(mockVm);
+
+      expect(fs.promises.readFile).toHaveBeenCalledTimes(1);
+    });
+
+    it("relaunches when the shared browser has disconnected", async () => {
+      await renderPdf(mockVm);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (mockBrowser.isConnected as any).mockReturnValue(false);
+      await renderPdf(mockVm);
+
+      expect(chromium.launch).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not cache a failed launch", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (chromium.launch as any).mockRejectedValueOnce(new Error("no chromium"));
+
+      await expect(renderPdf(mockVm)).rejects.toThrow("no chromium");
+
+      const result = await renderPdf(mockVm);
+      expect(result).toBeInstanceOf(Buffer);
+      expect(chromium.launch).toHaveBeenCalledTimes(2);
+    });
+
+    it("closes the context when setContent throws, leaving the browser open", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (mockPage.setContent as any).mockRejectedValueOnce(
+        new Error("bad template"),
+      );
+
+      await expect(renderPdf(mockVm)).rejects.toThrow("bad template");
+
+      expect(mockContext.close).toHaveBeenCalledTimes(1);
+      expect(mockBrowser.close).not.toHaveBeenCalled();
+    });
+
+    it("closes the context when pdf generation throws", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (mockPage.pdf as any).mockRejectedValueOnce(new Error("render timeout"));
+
+      await expect(renderPdf(mockVm)).rejects.toThrow("render timeout");
+
+      expect(mockContext.close).toHaveBeenCalledTimes(1);
+      expect(mockBrowser.close).not.toHaveBeenCalled();
+    });
+
+    it("keeps the render error when context teardown also fails", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (mockPage.pdf as any).mockRejectedValueOnce(new Error("render timeout"));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (mockContext.close as any).mockRejectedValueOnce(
+        new Error("close failed"),
+      );
+
+      await expect(renderPdf(mockVm)).rejects.toThrow("render timeout");
+    });
+
+    it("closePdfBrowser closes the shared browser", async () => {
+      await renderPdf(mockVm);
+
+      await closePdfBrowser();
+
+      expect(mockBrowser.close).toHaveBeenCalledTimes(1);
+    });
+
+    it("closePdfBrowser is a no-op when no browser was launched", async () => {
+      await closePdfBrowser();
+
+      expect(mockBrowser.close).not.toHaveBeenCalled();
+    });
+
+    it("closePdfBrowser tolerates a browser that fails to close", async () => {
+      await renderPdf(mockVm);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (mockBrowser.close as any).mockRejectedValueOnce(
+        new Error("already gone"),
+      );
+
+      await expect(closePdfBrowser()).resolves.toBeUndefined();
     });
   });
 
