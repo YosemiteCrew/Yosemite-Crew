@@ -39,8 +39,11 @@ let jwkCache: Cache<JWK[]> | null = null;
 let revokedCache: Cache<string[]> | null = null;
 
 function authorityBase(): string {
+  // The licence authority is SuperAdmin, not this API. Defaulting to the API's
+  // own host meant every deployment had to override this or fetch the signing
+  // key and revocation list from somewhere that does not serve them.
   return (
-    process.env.AP_LICENSE_AUTHORITY_URL ?? "https://api.yosemitecrew.com"
+    process.env.AP_LICENSE_AUTHORITY_URL ?? "https://admin.yosemitecrew.com"
   ).replace(/\/$/, "");
 }
 
