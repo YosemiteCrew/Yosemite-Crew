@@ -71,11 +71,18 @@ async function getRevokedJtis(): Promise<string[]> {
   ) {
     return revokedCache.value;
   }
-  const data = await fetchJson<{ revokedJtis: string[] }>(
+  // The authority serves a bare JSON array of revoked jti values - see
+  // SuperAdmin's app/api/ap/revoked.json/route.ts, which has shipped that shape
+  // since before this client existed. Reading it as `{ revokedJtis }` produced
+  // undefined, and the `.includes()` below then threw on EVERY verification, so
+  // no instance could ever be verified. The object form is still accepted in
+  // case the authority is changed later.
+  const data = await fetchJson<string[] | { revokedJtis?: string[] }>(
     `${authorityBase()}/api/ap/revoked.json`,
   );
-  revokedCache = { value: data.revokedJtis, fetchedAt: Date.now() };
-  return data.revokedJtis;
+  const jtis = Array.isArray(data) ? data : (data.revokedJtis ?? []);
+  revokedCache = { value: jtis, fetchedAt: Date.now() };
+  return jtis;
 }
 
 function base64urlDecode(str: string): Buffer {
