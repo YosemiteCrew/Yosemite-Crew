@@ -161,6 +161,30 @@ describe("StripeService", () => {
     // one; without it every unrelated account.updated test throws "not iterable".
     (prisma.organizationBilling.findMany as jest.Mock).mockResolvedValue([]);
 
+    // mockReset, not just the clearAllMocks above: clearAllMocks drops recorded
+    // calls but NOT queued mockResolvedValueOnce values, so a test that queues
+    // more responses than it consumes leaves them for whichever later test calls
+    // the same mock next. That was survivable while every booking test made the
+    // same number of invoice reads; it stops being survivable now that the
+    // handler's read pattern differs per branch.
+    (prisma.invoice.findUnique as jest.Mock).mockReset();
+    (prisma.invoice.findFirst as jest.Mock).mockReset();
+    (prisma.invoice.create as jest.Mock).mockReset();
+    (prisma.invoice.updateMany as jest.Mock).mockReset();
+    // Same reason, and this one had already bitten: a booking test that queued a
+    // charge it never retrieved handed that charge to the next test that did,
+    // which is how an unrelated invoice-payment test started reporting the wrong
+    // receipt url and captured amount.
+    mStripe.charges.retrieve.mockReset();
+
+    // The appointment-booking handler now opens with a replay lookup and a claim
+    // before it decides anything, so both need a shape by default: no invoice is
+    // yet bound to this intent, and no open invoice was claimed. That is the
+    // first-delivery-with-nothing-to-reuse case, which is what most of these
+    // tests are about. Tests that exercise a replay or a claim override them.
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValue(null);
+    (prisma.invoice.updateMany as jest.Mock).mockResolvedValue({ count: 0 });
+
     process.env = {
       ...originalEnv,
       STRIPE_SECRET_KEY: "sk_test_mock",
@@ -1143,9 +1167,6 @@ describe("StripeService", () => {
         organisationId: "org_1",
         companion: { id: "comp_1", parent: { id: "par_1" } },
       });
-      (prisma.invoice.findFirst as jest.Mock)
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null);
       (prisma.invoice.create as jest.Mock).mockResolvedValueOnce({
         id: "inv_new",
       });
@@ -1178,10 +1199,10 @@ describe("StripeService", () => {
         organisationId: "org_1",
         companion: { id: "comp_1", parent: { id: "par_1" } },
       });
-      (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
-        id: "inv_open",
-        status: "AWAITING_PAYMENT",
-      });
+      (prisma.invoice.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+      (prisma.invoice.findUnique as jest.Mock)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: "inv_open" });
       (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce({
         id: "pa_open",
       });
@@ -1199,6 +1220,17 @@ describe("StripeService", () => {
 
       expect(prisma.appointment.updateMany).toHaveBeenCalled();
       expect(prisma.invoice.create).not.toHaveBeenCalled();
+      // The claim is the point: settling without stamping the intent would leave
+      // a later redelivery with nothing bound and nothing open, and it would mint
+      // a second invoice.
+      expect(prisma.invoice.updateMany).toHaveBeenCalledWith({
+        where: {
+          appointmentId: "appt_1",
+          status: { in: ["AWAITING_PAYMENT", "PENDING"] },
+          providerPaymentIntentId: null,
+        },
+        data: { providerPaymentIntentId: "pi_1" },
+      });
     });
 
     it("handles invoice payment and failure/refund flows", async () => {
@@ -1285,10 +1317,10 @@ describe("StripeService", () => {
         organisationId: "org_1",
         patient: { id: "comp_1", parent: { id: "par_1" } },
       });
-      (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
-        id: "inv_open",
-        status: "AWAITING_PAYMENT",
-      });
+      (prisma.invoice.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+      (prisma.invoice.findUnique as jest.Mock)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: "inv_open" });
       (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce({
         id: "pa_open",
         settlementChannel: "STRIPE",
@@ -2210,29 +2242,169 @@ describe("StripeService", () => {
         metadata: { appointmentId: "appt_1" },
       } as any);
 
-      expect(prisma.invoice.findFirst).not.toHaveBeenCalled();
+      expect(prisma.invoice.findUnique).not.toHaveBeenCalled();
     });
 
-    it("skips when a paid invoice already exists", async () => {
+    const bookingAppointment = () =>
       (prisma.appointment.findUnique as jest.Mock).mockResolvedValueOnce({
         id: "appt_1",
         appointmentType: { id: "svc_1" },
         organisationId: "org_1",
         patient: { id: "c" },
       });
-      (prisma.invoice.findFirst as jest.Mock)
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce({ id: "inv_paid", status: "PAID" });
 
-      await StripeService._handleAppointmentBookingPayment({
-        id: "pi_1",
-        currency: "usd",
-        latest_charge: "ch_1",
-        metadata: { appointmentId: "appt_1" },
-      } as any);
+    const bookingService = () =>
+      (prisma.service.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "svc_1",
+        name: "Checkup",
+        description: "desc",
+        cost: 25,
+      });
 
+    const bookingEvent = {
+      id: "pi_1",
+      currency: "usd",
+      latest_charge: "ch_1",
+      metadata: { appointmentId: "appt_1" },
+    };
+
+    it("no-ops when an invoice is already bound to this payment intent", async () => {
+      // The replay case. Stripe redelivers on any non-2xx and nothing upstream
+      // deduplicates by event id, so this is the ordinary path for a retry, not
+      // an edge case.
+      bookingAppointment();
+      (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "inv_bound",
+      });
+
+      await StripeService._handleAppointmentBookingPayment(bookingEvent as any);
+
+      expect(prisma.invoice.findUnique).toHaveBeenCalledWith({
+        where: { providerPaymentIntentId: "pi_1" },
+        select: { id: true },
+      });
+      expect(prisma.invoice.updateMany).not.toHaveBeenCalled();
       expect(prisma.invoice.create).not.toHaveBeenCalled();
       expect(mStripe.charges.retrieve).not.toHaveBeenCalled();
+    });
+
+    it("stamps the payment intent on the invoice it mints", async () => {
+      // Without this assertion the whole guarantee can be deleted by removing one
+      // line: a unique index over a column nothing ever writes enforces nothing,
+      // and every other test here would stay green.
+      bookingAppointment();
+      bookingService();
+      (prisma.invoice.create as jest.Mock).mockResolvedValueOnce({
+        id: "inv_new",
+      });
+      mStripe.charges.retrieve.mockResolvedValueOnce({
+        id: "ch_1",
+        receipt_url: "receipt",
+      });
+
+      await StripeService._handleAppointmentBookingPayment(bookingEvent as any);
+
+      expect(prisma.invoice.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ providerPaymentIntentId: "pi_1" }),
+        }),
+      );
+    });
+
+    it("settles nothing when it loses the race for the payment intent", async () => {
+      // Postgres raises 23505 only after the winner commits, so this re-read
+      // cannot miss it. The winner settles; this delivery must not.
+      bookingAppointment();
+      bookingService();
+      (prisma.invoice.create as jest.Mock).mockRejectedValueOnce({
+        code: "P2002",
+      });
+      (prisma.invoice.findUnique as jest.Mock)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: "inv_winner" });
+
+      await StripeService._handleAppointmentBookingPayment(bookingEvent as any);
+
+      expect(
+        FinancePaymentService.handleInvoicePaymentIntentSucceeded,
+      ).not.toHaveBeenCalled();
+      expect(mStripe.charges.retrieve).not.toHaveBeenCalled();
+    });
+
+    it("logs and returns when the appointment key blocks a second intent", async () => {
+      // A collision that is NOT on the intent means the appointment already has
+      // an invoice. Throwing would answer non-2xx and buy an endless Stripe retry
+      // of an event that cannot succeed while that index stands.
+      bookingAppointment();
+      bookingService();
+      (prisma.invoice.create as jest.Mock).mockRejectedValueOnce({
+        code: "P2002",
+      });
+
+      await expect(
+        StripeService._handleAppointmentBookingPayment(bookingEvent as any),
+      ).resolves.toBeUndefined();
+
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining("could not be recorded"),
+        expect.anything(),
+      );
+      expect(
+        FinancePaymentService.handleInvoicePaymentIntentSucceeded,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("rethrows a create failure that is not a unique violation", async () => {
+      bookingAppointment();
+      bookingService();
+      (prisma.invoice.create as jest.Mock).mockRejectedValueOnce(
+        new Error("connection reset"),
+      );
+
+      await expect(
+        StripeService._handleAppointmentBookingPayment(bookingEvent as any),
+      ).rejects.toThrow("connection reset");
+    });
+
+    it("settles from an expanded charge without a second round trip", async () => {
+      // latest_charge is string | Charge | null. When the intent was expanded it
+      // IS the charge, so treating anything non-string as absent skipped
+      // settlement on a payment that had already been captured.
+      bookingAppointment();
+      bookingService();
+      (prisma.invoice.create as jest.Mock).mockResolvedValueOnce({
+        id: "inv_new",
+      });
+
+      await StripeService._handleAppointmentBookingPayment({
+        ...bookingEvent,
+        latest_charge: { id: "ch_expanded", receipt_url: "receipt" },
+      } as any);
+
+      expect(mStripe.charges.retrieve).not.toHaveBeenCalled();
+      expect(
+        FinancePaymentService.handleInvoicePaymentIntentSucceeded,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({ chargeId: "ch_expanded" }),
+      );
+    });
+
+    it("does not settle when the intent carries no usable charge id", async () => {
+      bookingAppointment();
+      bookingService();
+      (prisma.invoice.create as jest.Mock).mockResolvedValueOnce({
+        id: "inv_new",
+      });
+
+      await StripeService._handleAppointmentBookingPayment({
+        ...bookingEvent,
+        latest_charge: null,
+      } as any);
+
+      expect(mStripe.charges.retrieve).not.toHaveBeenCalled();
+      expect(
+        FinancePaymentService.handleInvoicePaymentIntentSucceeded,
+      ).not.toHaveBeenCalled();
     });
 
     it("stops when the appointment service ref is unusable", async () => {
@@ -2504,10 +2676,10 @@ describe("StripeService", () => {
         organisationId: "org_1",
         companion: {},
       });
-      (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
-        id: "inv_open",
-        status: "PENDING",
-      });
+      (prisma.invoice.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+      (prisma.invoice.findUnique as jest.Mock)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: "inv_open" });
       mStripe.charges.retrieve.mockResolvedValueOnce({
         id: "ch_1",
         receipt_url: null,

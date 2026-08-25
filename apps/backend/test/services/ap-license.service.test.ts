@@ -99,7 +99,8 @@ function makeToken(
 
 function mockFetch(opts?: { revoked?: string[]; jwks?: unknown }) {
   const jwks = opts?.jwks ?? { keys: [signingJwk] };
-  const revoked = { revokedJtis: opts?.revoked ?? [] };
+  // The authority serves a BARE ARRAY, which is what broke verification.
+  const revoked = opts?.revoked ?? [];
   (global.fetch as unknown as jest.Mock) = jest.fn((url: string) => {
     const body = url.includes("revoked") ? revoked : jwks;
     return Promise.resolve({
@@ -216,6 +217,71 @@ describe("ap-license.service", () => {
         expect(mod.verifyLicenseToken(makeToken(), ACTOR_URI)).rejects.toThrow(
           /HTTP 500/,
         ),
+      );
+    });
+  });
+
+  describe("authority host", () => {
+    // The signing key and revocation list are served by SuperAdmin, not by this
+    // API. Nothing asserted the host before, so a default pointing at the API's
+    // own origin verified nothing and no test noticed.
+    function captureFetchedUrls(): string[] {
+      const urls: string[] = [];
+      mockFetch();
+      const inner = global.fetch as unknown as jest.Mock;
+      (global.fetch as unknown as jest.Mock) = jest.fn((url: string) => {
+        urls.push(url);
+        return inner(url);
+      });
+      return urls;
+    }
+
+    it("fetches both licence endpoints from SuperAdmin by default", async () => {
+      const previous = process.env.AP_LICENSE_AUTHORITY_URL;
+      delete process.env.AP_LICENSE_AUTHORITY_URL;
+      const urls = captureFetchedUrls();
+      try {
+        await withFreshModule((mod) =>
+          mod.verifyLicenseToken(makeToken(), ACTOR_URI),
+        );
+      } finally {
+        if (previous === undefined) {
+          delete process.env.AP_LICENSE_AUTHORITY_URL;
+        } else {
+          process.env.AP_LICENSE_AUTHORITY_URL = previous;
+        }
+      }
+
+      expect(urls).toEqual(
+        expect.arrayContaining([
+          "https://admin.yosemitecrew.com/api/ap/signing-key.json",
+          "https://admin.yosemitecrew.com/api/ap/revoked.json",
+        ]),
+      );
+    });
+
+    it("prefers an explicitly configured authority over the default", async () => {
+      const previous = process.env.AP_LICENSE_AUTHORITY_URL;
+      process.env.AP_LICENSE_AUTHORITY_URL = "https://authority.example/";
+      const urls = captureFetchedUrls();
+      try {
+        await withFreshModule((mod) =>
+          mod.verifyLicenseToken(makeToken(), ACTOR_URI),
+        );
+      } finally {
+        if (previous === undefined) {
+          delete process.env.AP_LICENSE_AUTHORITY_URL;
+        } else {
+          process.env.AP_LICENSE_AUTHORITY_URL = previous;
+        }
+      }
+
+      // The trailing slash is stripped rather than producing a double slash.
+      expect(urls).toEqual(
+        expect.arrayContaining([
+          "https://authority.example/api/ap/signing-key.json",
+          "https://authority.example/api/ap/revoked.json",
+        ]),
       );
     });
   });

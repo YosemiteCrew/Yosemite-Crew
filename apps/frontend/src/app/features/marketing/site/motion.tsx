@@ -52,20 +52,36 @@ const SCROLL_PROGRESS_STYLE: CSSProperties = {
   pointerEvents: 'none',
 };
 
-/** True when the user asked the OS to reduce motion. Recomputed on preference change. */
+const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
+
+/** Subscribe a reduced-motion read to the media query (for useSyncExternalStore). */
+const subscribeToReducedMotion = (onStoreChange: () => void): (() => void) => {
+  const mq = globalThis.window?.matchMedia?.(REDUCED_MOTION);
+  if (!mq) return () => undefined;
+  mq.addEventListener('change', onStoreChange);
+  return () => mq.removeEventListener('change', onStoreChange);
+};
+
+/**
+ * True when the user asked the OS to reduce motion. Recomputed on preference change.
+ *
+ * Read through useSyncExternalStore rather than mirrored into state by an effect:
+ * the preference is external, and syncing it with setState made every consumer
+ * render once before the value arrived.
+ *
+ * The server snapshot is `false` because a server cannot know the preference, and
+ * React reuses that snapshot for the hydrating render, so the first paint always
+ * says "motion is fine" and settles immediately after. That is a property of SSR,
+ * not of this hook, so anything that must honour the preference from the very
+ * first frame belongs in a `prefers-reduced-motion` media query instead - which is
+ * what marketing.css does for the scroll reveals and the hero loop.
+ */
 export function useReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
-
-  useEffect(() => {
-    if (!globalThis.window?.matchMedia) return undefined;
-    const mq = globalThis.window.matchMedia('(prefers-reduced-motion: reduce)');
-    const sync = () => setReduced(mq.matches);
-    sync();
-    mq.addEventListener('change', sync);
-    return () => mq.removeEventListener('change', sync);
-  }, []);
-
-  return reduced;
+  return useSyncExternalStore(
+    subscribeToReducedMotion,
+    () => globalThis.window?.matchMedia?.(REDUCED_MOTION).matches ?? false,
+    () => false
+  );
 }
 
 interface RevealProps extends React.HTMLAttributes<HTMLElement> {
@@ -75,7 +91,26 @@ interface RevealProps extends React.HTMLAttributes<HTMLElement> {
   as?: 'div' | 'section' | 'li' | 'span';
 }
 
-/** Fade + rise + de-blur when scrolled into view. Renders visible immediately under reduced motion. */
+/** `idle` is the settled look, and the only state the server can produce. */
+type RevealState = 'idle' | 'hidden' | 'shown';
+
+/**
+ * Fade + rise + de-blur when scrolled into view.
+ *
+ * The states live in marketing.css and this only flips `data-reveal`, so the
+ * server HTML and the first client render agree. Deriving the initial state here
+ * instead (from `typeof IntersectionObserver`) made the two disagree on
+ * opacity/transform/filter — a hydration mismatch React leaves unpatched, so the
+ * reveal never ran on an SSR'd load at all.
+ *
+ * The server can only ever render `idle`, which is the settled look, and the
+ * client arms an element by moving it to `hidden` once the observer confirms it
+ * is off-screen. Nothing is hidden that the client has not already proven it can
+ * reveal, so a blocked bundle, a throw before hydration, or scripting being off
+ * leaves the copy readable rather than stranded at opacity 0. An element already
+ * on screen when the observer first reports stays `idle`: it is visible, so
+ * animating it in would only flash.
+ */
 export function Reveal({
   children,
   delay = 0,
@@ -85,43 +120,60 @@ export function Reveal({
   ...rest
 }: Readonly<RevealProps>) {
   const ref = useRef<HTMLElement | null>(null);
-  const reduced = useReducedMotion();
-  // Without IntersectionObserver (SSR / older browsers) content is visible from
-  // the first paint; the observer below only drives the reveal when it exists.
-  const [shown, setShown] = useState(() => typeof IntersectionObserver === 'undefined');
+  const armed = useRef(false);
+  const [state, setState] = useState<RevealState>('idle');
 
   useEffect(() => {
-    if (reduced || typeof IntersectionObserver === 'undefined') return undefined;
     const node = ref.current;
-    if (!node) return undefined;
-    const reveal = () => setShown(true);
+    if (!node || typeof IntersectionObserver === 'undefined') return undefined;
+    let timer = 0;
     const io = new IntersectionObserver(
       (entries) => {
-        const entry = entries.find((e) => e.isIntersecting);
-        if (entry) {
-          globalThis.window.setTimeout(reveal, delay);
-          io.unobserve(entry.target);
+        // Scan the whole batch for an intersection rather than trusting the last
+        // record. A fast scroll (a scrollbar drag, End, a trackpad flick) can move
+        // an element in and out between two rendering opportunities, and the
+        // observer then delivers both records at once. Reading only the final one
+        // sees "off-screen", drops the reveal, and strands the element hidden until
+        // the reader happens to scroll back past it.
+        // No records carries no information, and hiding on that would be hiding
+        // content for no reason.
+        if (entries.length === 0) return;
+        const intersecting = entries.find((entry) => entry.isIntersecting);
+        if (intersecting) {
+          io.unobserve(intersecting.target);
+          if (armed.current) {
+            timer = globalThis.window.setTimeout(() => setState('shown'), delay);
+          }
+          return;
+        }
+        // Below the fold, so hiding it now costs the reader nothing and gives the
+        // scroll-in something to animate from.
+        if (!armed.current) {
+          armed.current = true;
+          setState('hidden');
         }
       },
-      { threshold: 0.12 }
+      {
+        threshold: 0.12,
+        // The root reaches far above the viewport so that anything the reader has
+        // already scrolled past counts as intersecting and reveals. Without it, a
+        // jump straight to the bottom (the End key, a scrollbar drag) moves an
+        // element from below the viewport to above it without ever crossing a
+        // threshold, so no callback is delivered at all and the element stays
+        // hidden for the rest of the session.
+        rootMargin: '100000px 0px 0px 0px',
+      }
     );
     io.observe(node);
-    return () => io.disconnect();
-  }, [reduced, delay]);
-
-  const motionStyle: CSSProperties = reduced
-    ? {}
-    : {
-        opacity: shown ? 1 : 0,
-        transform: shown ? 'translateY(0px)' : 'translateY(34px)',
-        filter: shown ? 'blur(0px)' : 'blur(8px)',
-        transition: `opacity 1s ${EASE}, transform 1s ${EASE}, filter 1s ${EASE}`,
-        willChange: 'opacity, transform',
-      };
+    return () => {
+      globalThis.window.clearTimeout(timer);
+      io.disconnect();
+    };
+  }, [delay]);
 
   const Tag = as;
   return (
-    <Tag ref={ref as never} className={className} style={{ ...motionStyle, ...style }} {...rest}>
+    <Tag ref={ref as never} data-reveal={state} className={className} style={style} {...rest}>
       {children}
     </Tag>
   );
@@ -278,6 +330,16 @@ export function HeroVideo({ src, poster, position = 'center 42%' }: Readonly<Her
         onError={() => setFailed(true)}
         style={{ ...HERO_VIDEO_STYLE, objectPosition: position }}
       >
+        {/* No `media` gate on this source. It used to carry
+            media="(prefers-reduced-motion: no-preference)" so the fetch never started
+            for reduced-motion readers, but WebKit evaluates a source's media query
+            during the initial resource selection - before a render-blocking stylesheet
+            has resolved styles - decides it does not match, and rejects the only
+            candidate. That leaves the element in NETWORK_NO_SOURCE, which is terminal:
+            Safari never re-selects, so the loop never loaded on any landing page while
+            matchMedia reported the very same query as matching a moment later.
+            Reduced motion is still honoured twice over - the CSS guard hides this pair
+            from first paint, and the unmount above is what stops playback. */}
         <source src={src} type="video/mp4" />
       </video>
       <div data-hero-scrim="" style={HERO_SCRIM_STYLE} />

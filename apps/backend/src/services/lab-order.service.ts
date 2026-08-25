@@ -325,6 +325,9 @@ export const LabOrderService = {
           externalStatus: result.externalStatus ?? null,
           requestPayload: toJsonInput(result.requestPayload),
           responsePayload: toJsonInput(result.responsePayload),
+          // Persisted rather than logged: the clinic reading this result needs to know
+          // the breed on the requisition was not the breed on the record.
+          breedSubstitution: toJsonInput(result.breedSubstitution ?? undefined),
           modality: input.modality ?? labOrder.modality,
           ivls: toJsonInput(input.ivls),
         },
@@ -503,6 +506,11 @@ export const LabOrderService = {
         pdfUrl: result.pdfUrl ?? existing.pdfUrl ?? null,
         requestPayload: toJsonInput(result.requestPayload),
         responsePayload: toJsonInput(result.responsePayload),
+        // Overwritten on every update, absent included: an order whose breed was
+        // corrected between create and update would otherwise keep claiming a
+        // substitution that no longer happened, and the reverse would hide one that
+        // now did.
+        breedSubstitution: toJsonInput(result.breedSubstitution ?? null),
         tests: toJsonInput(input.tests ?? existing.tests),
         modality: input.modality ?? existing.modality ?? null,
         ivls: toJsonInput(input.ivls ?? existing.ivls ?? null),

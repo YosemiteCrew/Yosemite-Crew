@@ -179,6 +179,11 @@ enum CodeType {
   GENDER
   TEST
   CLINICAL_TERM
+  // A node that exists only to hold the taxonomy together ("Presenting complaint",
+  // "Alopecia finding"). VeNom does not publish these as terms; they appear only as
+  // relationship parents. Kept out of CLINICAL_TERM so clinical autocomplete does not
+  // start offering category headings as if they were diagnoses.
+  CLINICAL_CATEGORY
   OTHER
 }
 
@@ -280,17 +285,53 @@ model CodeEntry {
   @@index([system, type, active])
 }
 
+/// FHIR ConceptMap equivalence. Without it every crosswalk asserts exact sameness, and a
+/// research cohort built on a narrower mapping treated as equivalent is wrong with no way
+/// to detect it.
+enum MappingEquivalence {
+  RELATEDTO
+  EQUIVALENT
+  EQUAL
+  WIDER
+  SUBSUMES
+  NARROWER
+  SPECIALIZES
+  INEXACT
+  UNMATCHED
+  DISJOINT
+}
+
+/// A directed edge between two codes in the same system: child -> parent. CodeMapping
+/// cannot express this - its key has no relationship type, so it could not hold both
+/// "is a" and "is in container" between one pair, and it means "the same concept in
+/// another system" rather than "sits under".
+model CodeRelationship {
+  id         String     @id @default(uuid())
+  system     CodeSystem
+  sourceCode String
+  type       String
+  targetCode String
+  active     Boolean    @default(true)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@unique([system, sourceCode, type, targetCode])
+  @@index([system, sourceCode])
+  @@index([system, targetCode])
+}
+
 model CodeMapping {
-  id            String     @id @default(uuid())
+  id            String             @id @default(uuid())
   sourceSystem  CodeSystem
   sourceCode    String
   targetSystem  CodeSystem
   targetCode    String
   targetDisplay String?
   targetVersion String?
-  active        Boolean    @default(true)
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  equivalence   MappingEquivalence @default(EQUIVALENT)
+  active        Boolean            @default(true)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
 
   @@unique([sourceSystem, sourceCode, targetSystem, targetCode])
   @@index([sourceSystem, sourceCode])
@@ -331,6 +372,9 @@ model LabOrder {
   ivls                   Json?
   requestPayload         Json?
   responsePayload        Json?
+  /// Set when the breed sent to the provider was a species-level substitute rather than
+  /// the companion's recorded breed, so a clinic reading the result can see it.
+  breedSubstitution      Json?
   error                  String?
   externalStatus         String?
   invoiceId              String?
@@ -871,6 +915,15 @@ model ParentAddress {
   parent Parent @relation(fields: [parentId], references: [id], onDelete: Cascade)
 }
 
+/// Which vocabulary a practice wants its exports expressed in. Deliberately narrower
+/// than CodeSystem: IDEXX is an ordering vocabulary for lab requisitions, not something a
+/// clinical record should be exported as.
+enum VocabularyPreference {
+  YOSEMITECODE
+  VENOM
+  SNOMED
+}
+
 model Organization {
   id                                     String               @id @default(uuid())
   fhirId                                 String?
@@ -902,6 +955,9 @@ model Organization {
   appointmentLockWindowOutpatientMinutes Int?
   appointmentLockWindowInpatientMinutes  Int?
   crossOrgMessagingEnabled               Boolean              @default(false)
+  /// Governs how coded data is projected on the way out. It never narrows what a
+  /// clinician can pick: input is always the full YC vocabulary.
+  preferredVocabulary                    VocabularyPreference @default(YOSEMITECODE)
   maxOverallDiscountPercent              Float?
   createdAt                              DateTime             @default(now())
   updatedAt                              DateTime             @updatedAt
@@ -1925,6 +1981,7 @@ enum AuditEventType {
   ESTIMATE_CREATED
   ESTIMATE_APPROVED
   ESTIMATE_DECLINED
+  ESTIMATE_CONVERTED
   DECEASED_RECORD_CREATED
   ADMISSION_CREATED
   ADMISSION_DISCHARGED
@@ -3422,6 +3479,20 @@ model Invoice {
   patientId               String?
   organisationId          String?
   appointmentId           String?
+  /// Set when this invoice was produced by converting an Estimate. Unique, so
+  /// the database refuses a second invoice for the same estimate even if a code
+  /// path other than EstimateService.convert ever tries. NULLs stay distinct in
+  /// Postgres, so the invoices that were not converted from an estimate are
+  /// unaffected.
+  estimateId              String?                  @unique
+  /// The Stripe PaymentIntent this invoice was minted for, set only by the
+  /// appointment-booking webhook. Unique, because a duplicate webhook delivery
+  /// carries the SAME intent id while a legitimate second charge carries a
+  /// different one - so this constraint separates the two cases that the unique
+  /// on appointmentId conflates, and it keeps holding once that one is dropped.
+  /// NULLs stay distinct in Postgres, so every invoice raised by any other path
+  /// is unaffected.
+  providerPaymentIntentId String?                  @unique
   items                   Json
   subtotal                Float
   discountTotal           Float                    @default(0)

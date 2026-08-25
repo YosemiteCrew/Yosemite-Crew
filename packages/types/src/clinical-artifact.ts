@@ -45,6 +45,81 @@ export type SoapNoteInput = ClinicalArtifactBaseInput & {
   metadata?: unknown;
 };
 
+/**
+ * Structured coded terms attached to a SOAP note, keyed by section. This is the
+ * shape the PIMS workspace writes into the SoapNote `diagnoses` JSON channel
+ * (round-tripped through the `soap-note-diagnoses` composition extension), so a
+ * free-text note also carries exact vocabulary references. Kept alongside
+ * SoapNoteInput because both ends of the wire must agree on it.
+ */
+export const SOAP_CODED_SECTIONS = ['subjective', 'objective', 'assessment', 'plan'] as const;
+
+export type SoapCodedSection = (typeof SOAP_CODED_SECTIONS)[number];
+
+export type SoapCodedTerm = {
+  /** Yosemite vocabulary code, e.g. YC-005416. */
+  ycCode: string;
+  /** Display label the clinician picked (the concept's display at pick time). */
+  label: string;
+  /** VeNom-style domain the term belongs to, when known (e.g. Diagnosis). */
+  domain?: string;
+};
+
+export type SoapCodedProblems = Partial<Record<SoapCodedSection, SoapCodedTerm[]>>;
+
+/** Bound per section so a malformed or hostile payload cannot balloon the JSON column. */
+const MAX_CODED_TERMS_PER_SECTION = 50;
+
+const parseSoapCodedTerm = (value: unknown): SoapCodedTerm | null => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const entry = value as Record<string, unknown>;
+  const ycCode = typeof entry.ycCode === 'string' ? entry.ycCode.trim() : '';
+  const label = typeof entry.label === 'string' ? entry.label.trim() : '';
+  if (!ycCode || !label) return null;
+  const domain =
+    typeof entry.domain === 'string' && entry.domain.trim() ? entry.domain.trim() : undefined;
+  return domain === undefined ? { ycCode, label } : { ycCode, label, domain };
+};
+
+/** One section's raw payload → valid terms: drops malformed entries, dedups by code, caps the count. */
+const parseSectionTerms = (raw: unknown): SoapCodedTerm[] => {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const terms: SoapCodedTerm[] = [];
+  for (const item of raw) {
+    if (terms.length >= MAX_CODED_TERMS_PER_SECTION) break;
+    const term = parseSoapCodedTerm(item);
+    if (!term || seen.has(term.ycCode)) continue;
+    seen.add(term.ycCode);
+    terms.push(term);
+  }
+  return terms;
+};
+
+/**
+ * Validate an untyped `diagnoses` payload into SoapCodedProblems. Only the four
+ * known section keys are read (never arbitrary keys, so `__proto__`/`constructor`
+ * payloads are ignored by construction), entries missing a code or label are
+ * dropped, and duplicates within a section collapse onto the first occurrence.
+ * Returns undefined when nothing valid remains, so an absent/legacy payload and
+ * an empty one look the same to callers.
+ */
+export const parseSoapCodedProblems = (value: unknown): SoapCodedProblems | undefined => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
+  const source = value as Record<string, unknown>;
+  const result: SoapCodedProblems = {};
+  let total = 0;
+  for (const section of SOAP_CODED_SECTIONS) {
+    if (!Object.prototype.hasOwnProperty.call(source, section)) continue;
+    const terms = parseSectionTerms(source[section]);
+    if (terms.length > 0) {
+      result[section] = terms;
+      total += terms.length;
+    }
+  }
+  return total > 0 ? result : undefined;
+};
+
 export type SoapNoteRecord = {
   artifact: {
     id: string;
@@ -267,8 +342,23 @@ const SOAP_OBJECTIVE_EXTENSION_URL =
 const SOAP_ASSESSMENT_EXTENSION_URL =
   'https://yosemitecrew.com/fhir/StructureDefinition/soap-note-assessment';
 const SOAP_PLAN_EXTENSION_URL = 'https://yosemitecrew.com/fhir/StructureDefinition/soap-note-plan';
-const SOAP_DIAGNOSES_EXTENSION_URL =
+export const SOAP_DIAGNOSES_EXTENSION_URL =
   'https://yosemitecrew.com/fhir/StructureDefinition/soap-note-diagnoses';
+/**
+ * Typed FHIR surface for picked coded terms: one complex extension per term,
+ * carrying a `section` discriminator and a `concept` valueCodeableConcept whose
+ * codings hold the Yosemite code plus any usable VeNom/SNOMED translations.
+ * Derived at read time from the raw `soap-note-diagnoses` channel - never stored,
+ * so a signed note's record is immutable while projections stay current.
+ */
+export const SOAP_CODED_TERM_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/soap-note-coded-term';
+/**
+ * Per-coding ConceptMap equivalence (FHIR ConceptMapEquivalence code, lowercase),
+ * so a NARROWER or INEXACT crosswalk is never passed off as an exact translation.
+ */
+export const CONCEPT_MAP_EQUIVALENCE_EXTENSION_URL =
+  'https://yosemitecrew.com/fhir/StructureDefinition/concept-map-equivalence';
 const SOAP_METADATA_EXTENSION_URL =
   'https://yosemitecrew.com/fhir/StructureDefinition/soap-note-metadata';
 
@@ -778,19 +868,114 @@ const compositionToDischargeSummaryInput = (
   ),
 });
 
+/**
+ * The unit of a vital is currently encoded in its key name - tempF, weightLbs - which
+ * means a FHIR Observation carrying a bare number is not interpretable: 212 could be
+ * degrees Fahrenheit or Celsius, and a weight of 12 could be pounds or kilograms. That is
+ * not hypothetical here, since vitals record weightLbs while the passport and body
+ * condition surfaces record weightKg.
+ *
+ * UCUM is what FHIR expects for exactly this. A measured vital becomes a valueQuantity
+ * carrying its unit as a code, so a receiving system can convert rather than guess.
+ */
+const UCUM_SYSTEM = 'http://unitsofmeasure.org';
+
+/**
+ * Vitals whose storage key determines their unit beyond doubt.
+ *
+ * tempF and weightLbs are deliberately absent. VitalsForm's resolveDraftKey routes any
+ * template field whose label contains "temp" into tempF and any "weight" into weightLbs,
+ * whatever unit that template declares - there is a test covering a field declared in
+ * Celsius. Stamping [degF] on a Celsius reading would export 38.5 as severe hypothermia
+ * rather than a normal canine temperature: a confident, wrong clinical claim, which is
+ * worse than the unqualified number it replaced. They stay unqualified until the stored
+ * vital carries the unit it was entered in.
+ */
+const VITAL_UNITS: Record<string, { unit: string; code: string }> = {
+  tempC: { unit: '°C', code: 'Cel' },
+  weightKg: { unit: 'kg', code: 'kg' },
+  heartRateBpm: { unit: 'beats/min', code: '/min' },
+  respRateBpm: { unit: 'breaths/min', code: '/min' },
+  crtSec: { unit: 's', code: 's' },
+  // Dimensionless scales. UCUM annotates these rather than leaving them bare, which
+  // distinguishes "a score of 5" from "5 of something unstated".
+  bcs: { unit: 'score', code: '{score}' },
+  painScore: { unit: 'score', code: '{score}' },
+};
+
+/**
+ * Own properties only. A vital named "constructor" or "toString" - reachable through the
+ * passthrough Observation endpoint - would otherwise find an inherited function on the
+ * prototype, which is truthy, and emit a valueQuantity carrying the UCUM system with no
+ * unit or code at all.
+ */
+const unitsFor = (key: string) =>
+  Object.prototype.hasOwnProperty.call(VITAL_UNITS, key) ? VITAL_UNITS[key] : undefined;
+
+/** Longest first, so "<=" is not read as "<" followed by an unparseable "=2". */
+const QUANTITY_COMPARATORS = ['<=', '>=', '<', '>'] as const;
+
+type QuantityComparator = (typeof QUANTITY_COMPARATORS)[number];
+
+type MeasuredValue = { value: number; comparator?: QuantityComparator };
+
+/**
+ * CRT is free text in VitalsForm - the field is inputMode 'text' with no bounds - so it
+ * arrives as a string, and a numeric-only branch would skip a known clinical vital.
+ *
+ * It also arrives as comparator notation: "<2" is what this repo's own VitalsForm and
+ * QuickActionsModal stories store, because "capillary refill under two seconds" is how
+ * the reading is taken. Parsing only the bare digits would drop those to a unitless
+ * valueString, losing the seconds unit and the bound with it. FHIR carries exactly this
+ * in Quantity.comparator, so "<2" exports as two seconds bounded above.
+ *
+ * Anything that is not a comparator followed by a number stays prose for the caller to
+ * read, rather than being coerced into a number it never claimed to be.
+ */
+const asMeasuredValue = (value: unknown): MeasuredValue | null => {
+  if (typeof value === 'number') return Number.isFinite(value) ? { value } : null;
+  if (typeof value !== 'string') return null;
+
+  const text = value.trim();
+  if (text === '') return null;
+
+  const comparator = QUANTITY_COMPARATORS.find((candidate) => text.startsWith(candidate));
+  const magnitude = comparator ? text.slice(comparator.length).trim() : text;
+  if (magnitude === '') return null;
+
+  const parsed = Number(magnitude);
+  if (!Number.isFinite(parsed)) return null;
+
+  return comparator ? { value: parsed, comparator } : { value: parsed };
+};
+
+const vitalComponentValue = (key: string, value: unknown) => {
+  const units = unitsFor(key);
+  const measured = units ? asMeasuredValue(value) : null;
+  if (units && measured) {
+    return {
+      valueQuantity: {
+        value: measured.value,
+        ...(measured.comparator ? { comparator: measured.comparator } : {}),
+        unit: units.unit,
+        system: UCUM_SYSTEM,
+        code: units.code,
+      },
+    };
+  }
+  if (typeof value === 'number') return { valueDecimal: value };
+  if (typeof value === 'boolean') return { valueBoolean: value };
+  if (typeof value === 'string') return { valueString: value };
+  return { valueString: stringifyMaybe(value) ?? '' };
+};
+
 const vitalRecordToObservation = (record: VitalRecordRecord): Observation => {
   const vitalsValue = record.vitalRecord.vitals;
   const component =
     vitalsValue && typeof vitalsValue === 'object' && !Array.isArray(vitalsValue)
       ? Object.entries(vitalsValue as Record<string, unknown>).map(([key, value]) => ({
           code: toCodeableConcept(key, key),
-          ...(typeof value === 'number'
-            ? { valueDecimal: value }
-            : typeof value === 'boolean'
-              ? { valueBoolean: value }
-              : typeof value === 'string'
-                ? { valueString: value }
-                : { valueString: stringifyMaybe(value) ?? '' }),
+          ...vitalComponentValue(key, value),
         }))
       : undefined;
 

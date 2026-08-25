@@ -61,6 +61,6 @@ TRIGGER: when asked to review code, check a PR, or audit changes in any part of 
 1. Read the changed files.
 2. Run through the relevant checklist sections above.
 3. For frontend changes, run: `npx tsc --noemit` + `pnpm --filter frontend run lint`.
-4. For frontend changes, run targeted tests for every modified file: `pnpm --filter frontend run test -- --testPathPattern="<ModifiedFile>"`. Verify no existing tests are broken by the change.
+4. For frontend changes, run targeted tests for every modified file: `pnpm --filter frontend run test -- --testPathPatterns="<ModifiedFile>"`. Verify no existing tests are broken by the change.
 5. For each issue found, state: file + line, the rule violated, and the fix.
 6. Summarize: blocking issues vs. suggestions.

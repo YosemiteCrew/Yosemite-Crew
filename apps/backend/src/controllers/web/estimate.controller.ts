@@ -35,6 +35,15 @@ const UpdateEstimateSchema = z.object({
   items: z.array(EstimateItemSchema).optional(),
 });
 
+// Path params are strings as far as Express is concerned, but parsing them here
+// states that invariant instead of relying on it: these values go straight into a
+// Prisma `where`, and an object arriving where a string is expected would change
+// what the query matches. Follows the same pattern as companion-card.controller.
+const ConvertParamsSchema = z.object({
+  organisationId: z.string().min(1),
+  estimateId: z.string().min(1),
+});
+
 const ApproveDeclineSchema = z.object({
   reason: z.string().optional(),
 });
@@ -147,6 +156,31 @@ export const estimateController = {
         estimateId,
         organisationId,
         approvedBy,
+      );
+      res.json(estimate);
+    } catch (err: unknown) {
+      const e = err as { statusCode?: number; message?: string };
+      res.status(e.statusCode ?? 500).json({ error: e.message });
+    }
+  },
+
+  convert: async (req: Request, res: Response) => {
+    const params = ConvertParamsSchema.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: params.error.flatten() });
+      return;
+    }
+    const { organisationId, estimateId } = params.data;
+    const convertedBy = getSessionUserId(req);
+    if (!convertedBy) {
+      res.status(401).json({ error: "Unauthorized: User ID missing" });
+      return;
+    }
+    try {
+      const estimate = await EstimateService.convert(
+        estimateId,
+        organisationId,
+        convertedBy,
       );
       res.json(estimate);
     } catch (err: unknown) {

@@ -40,7 +40,7 @@ All four layers must grow together. Do not add 20 RTL tests while leaving Playwr
 
 ```bash
 # After every change, run coverage for the touched file(s):
-pnpm --filter frontend run test -- --testPathPattern="<YourFile>" --coverage --collectCoverageFrom="src/app/path/to/YourFile.tsx"
+pnpm --filter frontend run test -- --testPathPatterns="<YourFile>" --coverage --collectCoverageFrom="src/app/path/to/YourFile.tsx"
 
 # Check the output — if Statements/Branches/Functions dropped vs what you started with, add tests before declaring done.
 ```
@@ -80,12 +80,12 @@ npx tsc --noemit
 pnpm --filter frontend run lint
 
 # 3. Prefer targeted tests for the files you modified; full Jest runs are allowed if the user explicitly asks or if you are validating shared test infrastructure
-pnpm --filter frontend run test -- --testPathPattern="<ModifiedComponentName>"
+pnpm --filter frontend run test -- --testPathPatterns="<ModifiedComponentName>"
 
 # Examples
-pnpm --filter frontend run test -- --testPathPattern="CompanionCard"
-pnpm --filter frontend run test -- --testPathPattern="Availability"
-pnpm --filter frontend run test -- --testPathPattern="__tests__/features/billing"
+pnpm --filter frontend run test -- --testPathPatterns="CompanionCard"
+pnpm --filter frontend run test -- --testPathPatterns="Availability"
+pnpm --filter frontend run test -- --testPathPatterns="__tests__/features/billing"
 ```
 
 **Full suite is discouraged by default.** Use targeted runs for normal development, but a full Jest run is allowed if the user explicitly asks, if you are triaging repo-wide breakage, or if you changed shared test infrastructure. Playwright and accessibility runs are allowed whenever they are relevant.
@@ -96,7 +96,7 @@ pnpm --filter frontend run test -- --testPathPattern="__tests__/features/billing
 
 ## Stack
 
-- **Jest 29** + **React Testing Library** (@testing-library/react, @testing-library/user-event)
+- **Jest 30** + **React Testing Library** (@testing-library/react, @testing-library/user-event). Jest 30 renamed the targeting flag to `--testPathPatterns` (plural) - the old singular form errors.
 - **Playwright** for E2E (separate from unit/integration tests)
 - Test files: `src/app/__tests__/`
 - Jest config: `apps/frontend/jest.config.ts`
@@ -216,7 +216,7 @@ Test file naming: `ComponentName.test.tsx` mirrors the source file name.
 - `userEvent` needs `await` in v14+ — always `await userEvent.click(el)`.
 - If a test imports from `@/app/ui`, make sure the mock is at module level, not inside `describe`.
 - Playwright tests live in `e2e/` and run separately — don't confuse them with Jest tests.
-- If `--testPathPattern` matches multiple files unintentionally, be more specific with the path.
+- If `--testPathPatterns` matches multiple files unintentionally, be more specific with the path.
 
 ---
 

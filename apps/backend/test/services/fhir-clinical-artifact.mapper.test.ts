@@ -772,4 +772,146 @@ describe("clinicalArtifactFhirMapper", () => {
       ]),
     ).toEqual(expect.objectContaining({ total: 1 }));
   });
+
+  describe("vital units", () => {
+    const observationFor = (vitals: Record<string, unknown>) =>
+      clinicalArtifactFhirMapper.vitalRecordToObservation({
+        artifact: {
+          id: "art-1",
+          status: "FINAL",
+          patientId: "pat-1",
+          organisationId: "org-1",
+        },
+        vitalRecord: {
+          measuredAt: new Date("2026-06-19T16:44:40.796Z"),
+          vitals,
+          recordedBy: null,
+          notes: null,
+          metadata: null,
+        },
+      } as never);
+
+    const componentFor = (vitals: Record<string, unknown>, key: string) =>
+      observationFor(vitals).component?.find(
+        (c) => c.code?.coding?.[0]?.code === key,
+      );
+
+    it("refuses to claim a unit for tempF, because the form may write Celsius into it", () => {
+      // VitalsForm.resolveDraftKey routes any field whose label contains "temp" into
+      // tempF whatever unit the template declares, and a Celsius template has its own
+      // test. Stamping [degF] here would export 38.5 as severe hypothermia rather than
+      // a normal canine temperature: confidently wrong beats ambiguous, the wrong way.
+      const component = componentFor({ tempF: 38.5 }, "tempF");
+
+      expect(component).toMatchObject({ valueDecimal: 38.5 });
+      expect(component).not.toHaveProperty("valueQuantity");
+    });
+
+    it("refuses to claim a unit for weightLbs for the same reason", () => {
+      const component = componentFor({ weightLbs: 12 }, "weightLbs");
+
+      expect(component).toMatchObject({ valueDecimal: 12 });
+      expect(component).not.toHaveProperty("valueQuantity");
+    });
+
+    it("states the unit where the storage key does determine it", () => {
+      expect(
+        componentFor({ weightKg: 12 }, "weightKg")?.valueQuantity,
+      ).toMatchObject({
+        unit: "kg",
+        code: "kg",
+      });
+      expect(
+        componentFor({ tempC: 38.5 }, "tempC")?.valueQuantity,
+      ).toMatchObject({
+        unit: "°C",
+        code: "Cel",
+      });
+      expect(
+        componentFor({ heartRateBpm: 120 }, "heartRateBpm")?.valueQuantity,
+      ).toMatchObject({ code: "/min" });
+    });
+
+    it("qualifies CRT even though the form stores it as a string", () => {
+      // draft.crtSec is a string, so a numeric-only branch skipped it and left a known
+      // clinical vital unqualified - the exact gap this change set out to close.
+      const quantity = componentFor({ crtSec: "2" }, "crtSec")?.valueQuantity;
+
+      expect(quantity).toMatchObject({
+        value: 2,
+        unit: "s",
+        code: "s",
+      });
+      // A plain reading is not bounded, so it must not pick up a comparator.
+      expect(quantity).not.toHaveProperty("comparator");
+    });
+
+    it("keeps the seconds unit when CRT is stored as comparator notation", () => {
+      // The CRT field is inputMode 'text' with no bounds, and "<2" is what this repo's
+      // own VitalsForm and QuickActionsModal stories store, because that is how the
+      // reading is taken. Parsing only bare digits dropped it to a unitless valueString,
+      // losing the seconds and the bound together. FHIR carries this in
+      // Quantity.comparator.
+      expect(
+        componentFor({ crtSec: "<2" }, "crtSec")?.valueQuantity,
+      ).toMatchObject({
+        value: 2,
+        comparator: "<",
+        unit: "s",
+        system: "http://unitsofmeasure.org",
+        code: "s",
+      });
+      expect(
+        componentFor({ crtSec: ">= 3.5" }, "crtSec")?.valueQuantity,
+      ).toMatchObject({ value: 3.5, comparator: ">=", code: "s" });
+    });
+
+    it("keeps CRT prose that is not a comparator reading as a string", () => {
+      // A bare comparator has no magnitude to qualify, and "brisk" is not a number at
+      // all. Neither may be coerced into a quantity the record never carried.
+      expect(componentFor({ crtSec: "<" }, "crtSec")).toMatchObject({
+        valueString: "<",
+      });
+      expect(componentFor({ crtSec: "brisk" }, "crtSec")).toMatchObject({
+        valueString: "brisk",
+      });
+    });
+
+    it("does not treat an inherited property name as a known vital", () => {
+      // Reachable through the passthrough Observation endpoint: a lookup of
+      // "constructor" finds a function on the prototype, which is truthy, and would
+      // emit a valueQuantity carrying the UCUM system with no unit and no code.
+      const component = componentFor({ constructor: 5 }, "constructor");
+
+      expect(component).toMatchObject({ valueDecimal: 5 });
+      expect(component).not.toHaveProperty("valueQuantity");
+    });
+
+    it("leaves a non-numeric string vital alone", () => {
+      expect(componentFor({ crtSec: "not a number" }, "crtSec")).toMatchObject({
+        valueString: "not a number",
+      });
+    });
+
+    it("annotates a dimensionless score rather than leaving it bare", () => {
+      expect(componentFor({ bcs: 5 }, "bcs")?.valueQuantity).toMatchObject({
+        code: "{score}",
+      });
+    });
+
+    it("leaves an unrecognised numeric vital without a guessed unit", () => {
+      // A wrong unit is worse than an absent one: it would be silently converted.
+      const component = componentFor({ somethingNew: 7 }, "somethingNew");
+      expect(component).toMatchObject({ valueDecimal: 7 });
+      expect(component).not.toHaveProperty("valueQuantity");
+    });
+
+    it("still carries non-numeric vitals through unchanged", () => {
+      expect(
+        componentFor({ mucousMembrane: "pink" }, "mucousMembrane"),
+      ).toMatchObject({
+        valueString: "pink",
+      });
+    });
+  });
 });

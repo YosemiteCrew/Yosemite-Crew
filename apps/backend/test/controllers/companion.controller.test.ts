@@ -27,6 +27,7 @@ jest.mock("../../src/services/companion.service", () => {
     CompanionService: {
       create: jest.fn(),
       getById: jest.fn(),
+      getByIdForOrg: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
       getByName: jest.fn(),
@@ -330,6 +331,67 @@ describe("CompanionController", () => {
         new Error("Test error"),
       );
       await CompanionController.getCompanionById(req, res);
+      expect(res.status).toHaveBeenCalledWith(500);
+    });
+  });
+
+  describe("getCompanionByIdPMS", () => {
+    // The route sits behind `withOrgPermissions`, which supplies the scope.
+    // Without an organisation the read would return any tenant's companion,
+    // because `Patient` rows are not org-scoped in the schema.
+    beforeEach(() => {
+      (req as { organisationId?: string }).organisationId = "org-1";
+    });
+
+    it("should return 400 if id is missing", async () => {
+      await CompanionController.getCompanionByIdPMS(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(CompanionService.getByIdForOrg).not.toHaveBeenCalled();
+    });
+
+    it("returns 400 when no organisation context is present", async () => {
+      req.params.id = "c1";
+      (req as { organisationId?: string }).organisationId = undefined;
+
+      await CompanionController.getCompanionByIdPMS(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(CompanionService.getByIdForOrg).not.toHaveBeenCalled();
+    });
+
+    it("should return 404 when the id is not in the caller's organisation", async () => {
+      req.params.id = "c1";
+      (CompanionService.getByIdForOrg as jest.Mock).mockResolvedValue(null);
+
+      await CompanionController.getCompanionByIdPMS(req, res);
+
+      expect(CompanionService.getByIdForOrg).toHaveBeenCalledWith(
+        "c1",
+        "org-1",
+      );
+      expect(res.status).toHaveBeenCalledWith(404);
+    });
+
+    it("should return 200 on success", async () => {
+      req.params.id = "c1";
+      (CompanionService.getByIdForOrg as jest.Mock).mockResolvedValue({
+        response: "data",
+      });
+
+      await CompanionController.getCompanionByIdPMS(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith("data");
+    });
+
+    it("should handle errors", async () => {
+      req.params.id = "c1";
+      (CompanionService.getByIdForOrg as jest.Mock).mockRejectedValue(
+        new Error("Test error"),
+      );
+
+      await CompanionController.getCompanionByIdPMS(req, res);
+
       expect(res.status).toHaveBeenCalledWith(500);
     });
   });

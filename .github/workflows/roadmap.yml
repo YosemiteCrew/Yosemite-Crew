@@ -96,20 +96,35 @@ jobs:
               "| | |",
               "|---|---|",
               `| Open issues | ${s.openIssues} |`,
+              `| Open pull requests | ${s.openPrs ?? 0} |`,
               `| Added to board | ${s.added} |`,
+              `| Restored (reopened) | ${s.restored ?? 0} |`,
               `| Archived | ${s.archived} |`,
               `| Field updates | ${s.fieldUpdates} |`,
               `| Uncategorised | ${s.uncategorised} |`,
+              `| Untriaged (no priority label) | ${s.untriaged ?? 0} |`,
+              `| Skipped | ${s.skipped} |`,
             ];
             if (r.actions.uncategorised.length) {
-              lines.push("", "### Needs a human", "");
+              lines.push("", "### Needs a human - no category could be derived", "");
               for (const u of r.actions.uncategorised) lines.push(`- ${u}`);
+            }
+            if (r.actions.untriaged.length) {
+              lines.push("", "### Needs a human - no priority-bearing label yet", "");
+              for (const u of r.actions.untriaged) lines.push(`- ${u}`);
             }
             if (r.actions.skipped.length) {
               lines.push("", "### Skipped", "");
               for (const u of r.actions.skipped) lines.push(`- ${u}`);
             }
             require("node:fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join("\n") + "\n");
+            // A skip means a write was silently dropped, almost always because a
+            // single-select option was renamed in the project UI. Letting that
+            // ride a green build is how the board drifts without anyone noticing.
+            if (r.actions.skipped.length) {
+              console.log(`::error::${r.actions.skipped.length} board write(s) were skipped. See the job summary.`);
+              process.exit(1);
+            }
           '
 
       - name: Upload the sync report

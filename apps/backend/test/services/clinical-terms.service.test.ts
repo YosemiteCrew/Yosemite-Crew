@@ -1,4 +1,7 @@
-import { ClinicalTermsService } from "../../src/services/clinical-terms.service";
+import {
+  ClinicalTermsService,
+  buildSuggestionQuery,
+} from "../../src/services/clinical-terms.service";
 import { CodeService } from "src/services/code.service";
 import { prisma } from "src/config/prisma";
 import fs from "node:fs";
@@ -16,6 +19,7 @@ jest.mock("src/config/prisma", () => ({
     codeEntry: {
       findMany: jest.fn(),
     },
+    $queryRaw: jest.fn(),
   },
 }));
 
@@ -53,7 +57,7 @@ describe("ClinicalTermsService", () => {
   });
 
   describe("importConcepts", () => {
-    it("upserts canonical entries and supported equivalent mappings", async () => {
+    it("upserts canonical entries and every supported coding, with its equivalence", async () => {
       const result = await ClinicalTermsService.importConcepts([
         {
           ycCode: "YC-1",
@@ -136,7 +140,9 @@ describe("ClinicalTermsService", () => {
         },
       });
 
-      expect(CodeService.upsertMapping).toHaveBeenCalledTimes(1);
+      // Both codings are kept now. Previously anything not exactly "equivalent" was
+      // skipped, so a related crosswalk was not weakened - it vanished with no trace.
+      expect(CodeService.upsertMapping).toHaveBeenCalledTimes(2);
       expect(CodeService.upsertMapping).toHaveBeenCalledWith({
         sourceSystem: "YOSEMITECODE",
         sourceCode: "YC-1",
@@ -144,45 +150,123 @@ describe("ClinicalTermsService", () => {
         targetCode: "123",
         targetDisplay: "Vomiting",
         targetVersion: null,
+        equivalence: "EQUIVALENT",
         active: true,
       });
-      expect(result).toEqual({ entriesUpserted: 1, mappingsUpserted: 1 });
+      expect(CodeService.upsertMapping).toHaveBeenCalledWith(
+        expect.objectContaining({
+          targetSystem: "SNOMED",
+          equivalence: "RELATEDTO",
+        }),
+      );
+      expect(result).toEqual({ entriesUpserted: 1, mappingsUpserted: 2 });
+    });
+  });
+
+  describe("equivalence", () => {
+    const concept = (equivalence: string) => ({
+      ycCode: "YC-9",
+      label: "Vomiting",
+      domain: "Diagnosis" as const,
+      active: true,
+      source: "VeNom" as const,
+      designations: [],
+      species: [],
+      codes: [
+        {
+          system: "http://snomed.info/sct",
+          code: "422400008",
+          display: "Vomiting",
+          equivalence,
+        },
+      ],
+    });
+
+    it("records a narrower crosswalk as narrower rather than dropping it", async () => {
+      await ClinicalTermsService.importConcepts([concept("narrower") as never]);
+
+      expect(CodeService.upsertMapping).toHaveBeenCalledWith(
+        expect.objectContaining({
+          targetCode: "422400008",
+          equivalence: "NARROWER",
+        }),
+      );
+    });
+
+    it("maps the extract's wording onto the FHIR vocabulary", async () => {
+      await ClinicalTermsService.importConcepts([concept("broader") as never]);
+      expect(CodeService.upsertMapping).toHaveBeenLastCalledWith(
+        expect.objectContaining({ equivalence: "WIDER" }),
+      );
+
+      await ClinicalTermsService.importConcepts([concept("inexact") as never]);
+      expect(CodeService.upsertMapping).toHaveBeenLastCalledWith(
+        expect.objectContaining({ equivalence: "INEXACT" }),
+      );
+    });
+
+    it("survives an unrecognised equivalence coming through the file path", async () => {
+      // The bug this covers: parseConcepts validated equivalence with z.enum, so an
+      // unfamiliar word threw before the INEXACT fallback could run. The earlier test
+      // passed only because it called importConcepts directly, bypassing validation.
+      const parsed = ClinicalTermsService.parseConcepts([
+        {
+          ycCode: "YC-1",
+          label: "Vomiting",
+          domain: "Diagnosis",
+          source: "VeNom",
+          codes: [
+            {
+              system: "http://snomed.info/sct",
+              code: "422400008",
+              equivalence: "some-word-we-have-not-seen",
+            },
+          ],
+        },
+      ]);
+
+      await ClinicalTermsService.importConcepts(parsed);
+
+      expect(CodeService.upsertMapping).toHaveBeenCalledWith(
+        expect.objectContaining({ equivalence: "INEXACT" }),
+      );
+    });
+
+    it("carries the FHIR values the extract may already use", async () => {
+      for (const [word, expected] of [
+        ["equal", "EQUAL"],
+        ["subsumes", "SUBSUMES"],
+        ["specializes", "SPECIALIZES"],
+        ["disjoint", "DISJOINT"],
+        ["unmatched", "UNMATCHED"],
+      ]) {
+        await ClinicalTermsService.importConcepts([concept(word) as never]);
+        expect(CodeService.upsertMapping).toHaveBeenLastCalledWith(
+          expect.objectContaining({ equivalence: expected }),
+        );
+      }
+    });
+
+    it("treats an unrecognised equivalence as inexact, never as equivalent", async () => {
+      // Overstating how well a crosswalk holds is the failure that silently corrupts a
+      // research cohort, so the unknown case degrades rather than flatters.
+      await ClinicalTermsService.importConcepts([concept("nonsense") as never]);
+
+      expect(CodeService.upsertMapping).toHaveBeenLastCalledWith(
+        expect.objectContaining({ equivalence: "INEXACT" }),
+      );
     });
   });
 
   describe("suggestTerms", () => {
-    it("filters postgres-backed suggestions by query, domain, and species", async () => {
-      process.env.READ_FROM_POSTGRES = "true";
-      (prisma.codeEntry.findMany as jest.Mock).mockResolvedValue([
+    it("maps rows returned by the database onto suggestions", async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([
         {
           code: "YC-1",
           display: "Vomiting",
           synonyms: ["Emesis", "Vomiting"],
-          meta: {
-            domain: "Diagnosis",
-            species: ["SA"],
-            source: "VeNom",
-          },
-        },
-        {
-          code: "YC-2",
-          display: "Vomiting test",
-          synonyms: ["Test emesis"],
-          meta: {
-            domain: "DiagnosticTest",
-            species: ["SA"],
-            source: "VeNom",
-          },
-        },
-        {
-          code: "YC-3",
-          display: "Coughing",
-          synonyms: ["Cough"],
-          meta: {
-            domain: "Diagnosis",
-            species: ["EQUINE"],
-            source: "VeNom",
-          },
+          meta: { domain: "Diagnosis", species: ["SA"], source: "VeNom" },
+          score: 400,
         },
       ]);
 
@@ -193,7 +277,7 @@ describe("ClinicalTermsService", () => {
         limit: 5,
       });
 
-      expect(prisma.codeEntry.findMany).toHaveBeenCalled();
+      expect(prisma.$queryRaw).toHaveBeenCalled();
       expect(result).toEqual([
         {
           ycCode: "YC-1",
@@ -205,49 +289,79 @@ describe("ClinicalTermsService", () => {
         },
       ]);
     });
+  });
 
-    it("returns terms that only match through a synonym", async () => {
-      process.env.READ_FROM_POSTGRES = "true";
-      (prisma.codeEntry.findMany as jest.Mock).mockResolvedValue([
-        {
-          code: "YC-9",
-          display: "Vomiting",
-          synonyms: ["Emesis"],
-          meta: {
-            domain: "Diagnosis",
-            species: ["SA"],
-            source: "VeNom",
-          },
-        },
-      ]);
+  describe("buildSuggestionQuery", () => {
+    // The filtering lives in SQL now, so these assert the statement itself. Mocking the
+    // database and asserting the rows it was told to return would prove nothing.
+    const sqlFor = (params: Parameters<typeof buildSuggestionQuery>[0]) => {
+      const statement = buildSuggestionQuery(params);
+      return { text: statement.sql, values: statement.values };
+    };
 
-      const result = await ClinicalTermsService.suggestTerms({
-        q: "emesis",
-        domain: "Diagnosis",
-        species: ["SA"],
-        limit: 5,
-      });
+    it("does not cap the rows it scans", () => {
+      // The whole defect: a fixed 5,000-row slice left 6,742 of 11,742 terms
+      // unreachable, cutting the vocabulary at "Hypoadrenocorticism".
+      const { text, values } = sqlFor({ q: "vomiting", limit: 10 });
 
-      expect(prisma.codeEntry.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: {
-            system: "YOSEMITECODE",
-            type: "CLINICAL_TERM",
-            active: true,
-          },
-          take: 5000,
-        }),
+      expect(text).not.toContain("5000");
+      expect(values).not.toContain(5000);
+      expect(values).toContain(10);
+    });
+
+    it("searches synonym text, not its JSON encoding", () => {
+      // synonyms::text yields the JSON encoding, so a synonym containing a quote reads
+      // as \" and a query spanning it would miss a row that genuinely matches. The
+      // prefilter has to use the same function the index is built on.
+      const { text } = sqlFor({ q: "vomiting" });
+
+      expect(text).toContain("code_entry_search_text");
+      expect(text).not.toContain('"synonyms"::text');
+    });
+
+    it("pushes the text match into SQL as a bound parameter", () => {
+      const { text, values } = sqlFor({ q: "Vomiting" });
+
+      expect(text).toContain("LIKE");
+      expect(values).toContain("%vomiting%");
+      // Never interpolated into the statement text.
+      expect(text).not.toContain("vomiting");
+    });
+
+    it("escapes LIKE wildcards typed by the user", () => {
+      // Unescaped, a lone "%" matches the entire vocabulary and the autocomplete
+      // returns arbitrary terms.
+      const { values } = sqlFor({ q: "50%" });
+
+      expect(values).toContain("%50\\%%");
+    });
+
+    it("filters by domain in SQL only when a domain is asked for", () => {
+      expect(sqlFor({ q: "a", domain: "Diagnosis" }).text).toContain(
+        "'domain'",
       );
-      expect(result).toEqual([
-        {
-          ycCode: "YC-9",
-          label: "Vomiting",
-          domain: "Diagnosis",
-          species: ["SA"],
-          synonyms: ["Emesis"],
-          source: "VeNom",
-        },
-      ]);
+      expect(sqlFor({ q: "a" }).text).not.toContain("'domain'");
+    });
+
+    it("filters by species in SQL only when species are asked for", () => {
+      const withSpecies = sqlFor({ q: "a", species: ["SA", "EQUINE"] });
+      expect(withSpecies.text).toContain("'species'");
+      expect(withSpecies.values).toContainEqual(["SA", "EQUINE"]);
+
+      expect(sqlFor({ q: "a" }).text).not.toContain("'species'");
+    });
+
+    it("returns unscored rows when browsing without a query", () => {
+      const { text } = sqlFor({});
+
+      expect(text).not.toContain("LIKE");
+      expect(text).toContain("TRUE");
+    });
+
+    it("clamps the limit", () => {
+      expect(sqlFor({ limit: 5000 }).values).toContain(50);
+      expect(sqlFor({ limit: -3 }).values).toContain(1);
+      expect(sqlFor({}).values).toContain(10);
     });
   });
 

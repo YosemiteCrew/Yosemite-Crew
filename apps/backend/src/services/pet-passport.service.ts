@@ -645,6 +645,52 @@ export const PetPassportService = {
   },
 
   /**
+   * The public token a PARENT wallet pass embeds.
+   *
+   * Minting an owner-scope public link is the primary parent's call: that token
+   * resolves with "owner" scope - every practice's records, no consent gate -
+   * so it is a durable credential only the owner should be able to create. A
+   * co-parent may embed a link the primary has already created, but never mint
+   * one, mirroring why staff pass builders reuse an existing token rather than
+   * forging a public credential the owner never authorised.
+   */
+  async walletShareTokenForParent(
+    patientId: string,
+    userId: string | null,
+  ): Promise<string> {
+    if (!userId) {
+      throw new PetPassportServiceError("Companion not found.", 404);
+    }
+    const parentId = await findParentIdForAuthUser(userId);
+    const link = parentId
+      ? await prisma.parentPatient.findFirst({
+          where: {
+            patientId,
+            parentId,
+            status: "ACTIVE",
+            role: { in: ["PRIMARY", "CO_PARENT"] },
+          },
+          select: { role: true },
+        })
+      : null;
+    // Uniform 404 so this cannot be used to probe which patient ids exist.
+    if (!link) {
+      throw new PetPassportServiceError("Companion not found.", 404);
+    }
+    if (link.role === "PRIMARY") {
+      return PetPassportService.ensurePublicToken(patientId);
+    }
+    const existing = await PetPassportService.getExistingPublicToken(patientId);
+    if (existing) {
+      return existing;
+    }
+    throw new PetPassportServiceError(
+      "No public share link exists for this passport.",
+      409,
+    );
+  },
+
+  /**
    * The token a STAFF wallet pass carries.
    *
    * Distinct from `publicToken` on purpose. The public one resolves with

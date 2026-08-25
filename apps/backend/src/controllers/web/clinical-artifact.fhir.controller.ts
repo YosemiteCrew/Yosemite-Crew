@@ -10,6 +10,8 @@ import {
   ClinicalArtifactServiceError,
 } from "src/services/clinical-artifact.service";
 import { clinicalArtifactFhirMapper } from "src/services/fhir-clinical-artifact.mapper";
+import { SoapCodedTermsFhirService } from "src/services/soap-coded-terms.service";
+import type { SoapNoteRecord } from "@yosemite-crew/types";
 import { createFhirErrorHandler } from "src/controllers/web/fhir-controller.shared";
 import { resolveVerifiedUserId } from "src/utils/request";
 import type { PrescriptionActor } from "src/services/clinical-artifact.service";
@@ -121,6 +123,39 @@ const readAppointmentId = (value: string | undefined) => value?.trim() || "";
 
 const readEncounterId = (value: string | undefined) => value?.trim() || "";
 
+/**
+ * SOAP notes serialize through these so every response carries the typed
+ * coded-term projection (YC + usable VeNom/SNOMED translations) alongside the
+ * raw diagnoses channel. Derived per read; the stored record is never touched.
+ */
+const serializeSoapNote = async (record: SoapNoteRecord) => {
+  const composition = clinicalArtifactFhirMapper.soapNoteToComposition(record);
+  const coded = await SoapCodedTermsFhirService.codedTermExtensions(
+    record.soapNote.diagnoses,
+  );
+  if (coded.length > 0) {
+    composition.extension = [...(composition.extension ?? []), ...coded];
+  }
+  return composition;
+};
+
+const serializeSoapNoteBundle = async (records: SoapNoteRecord[]) => {
+  const bundle = clinicalArtifactFhirMapper.bundles.soapNotes(records);
+  // One projection query set for the whole bundle; recordBundle maps records
+  // in order, so per-record extension lists pair up index-for-index.
+  const codedPerRecord =
+    await SoapCodedTermsFhirService.codedTermExtensionsForMany(
+      records.map((record) => record.soapNote.diagnoses),
+    );
+  codedPerRecord.forEach((coded, index) => {
+    const resource = bundle.entry?.[index]?.resource as Composition | undefined;
+    if (coded.length > 0 && resource) {
+      resource.extension = [...(resource.extension ?? []), ...coded];
+    }
+  });
+  return bundle;
+};
+
 export const ClinicalArtifactFhirController = {
   async listSoapNotesForAppointment(req: Request, res: Response) {
     try {
@@ -128,9 +163,7 @@ export const ClinicalArtifactFhirController = {
         req.params.organisationId,
         readAppointmentId(req.params.appointmentId),
       );
-      return res
-        .status(200)
-        .json(clinicalArtifactFhirMapper.bundles.soapNotes(records));
+      return res.status(200).json(await serializeSoapNoteBundle(records));
     } catch (error) {
       return handleError(error, res);
     }
@@ -142,9 +175,7 @@ export const ClinicalArtifactFhirController = {
         req.params.organisationId,
         readEncounterId(req.params.encounterId),
       );
-      return res
-        .status(200)
-        .json(clinicalArtifactFhirMapper.bundles.soapNotes(records));
+      return res.status(200).json(await serializeSoapNoteBundle(records));
     } catch (error) {
       return handleError(error, res);
     }
@@ -163,9 +194,7 @@ export const ClinicalArtifactFhirController = {
           organisationId: req.params.organisationId,
         }),
       );
-      return res
-        .status(201)
-        .json(clinicalArtifactFhirMapper.soapNoteToComposition(record));
+      return res.status(201).json(await serializeSoapNote(record));
     } catch (error) {
       return handleError(error, res);
     }
@@ -177,9 +206,7 @@ export const ClinicalArtifactFhirController = {
         req.params.soapNoteId,
         req.params.organisationId,
       );
-      return res
-        .status(200)
-        .json(clinicalArtifactFhirMapper.soapNoteToComposition(record));
+      return res.status(200).json(await serializeSoapNote(record));
     } catch (error) {
       return handleError(error, res);
     }
@@ -200,9 +227,7 @@ export const ClinicalArtifactFhirController = {
         }),
         req.params.organisationId,
       );
-      return res
-        .status(200)
-        .json(clinicalArtifactFhirMapper.soapNoteToComposition(record));
+      return res.status(200).json(await serializeSoapNote(record));
     } catch (error) {
       return handleError(error, res);
     }
@@ -495,9 +520,7 @@ export const ClinicalArtifactFhirController = {
         req.params.soapNoteId,
         req.params.organisationId,
       );
-      return res
-        .status(200)
-        .json(clinicalArtifactFhirMapper.soapNoteToComposition(record));
+      return res.status(200).json(await serializeSoapNote(record));
     } catch (error) {
       return handleError(error, res);
     }
@@ -509,9 +532,7 @@ export const ClinicalArtifactFhirController = {
         req.params.soapNoteId,
         req.params.organisationId,
       );
-      return res
-        .status(200)
-        .json(clinicalArtifactFhirMapper.soapNoteToComposition(record));
+      return res.status(200).json(await serializeSoapNote(record));
     } catch (error) {
       return handleError(error, res);
     }
@@ -524,9 +545,7 @@ export const ClinicalArtifactFhirController = {
         req.params.organisationId,
         resolveVerifiedUserId(req),
       );
-      return res
-        .status(201)
-        .json(clinicalArtifactFhirMapper.soapNoteToComposition(record));
+      return res.status(201).json(await serializeSoapNote(record));
     } catch (error) {
       return handleError(error, res);
     }

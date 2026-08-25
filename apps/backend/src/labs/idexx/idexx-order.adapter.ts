@@ -5,11 +5,16 @@ import type {
   LabOrderCreateResult,
 } from "../types";
 import { LabOrderServiceError } from "src/services/lab-order.service";
+import { assertPatientOrgMembership } from "src/services/shared/patient-org-membership";
 import { normalizeLabStatus } from "src/labs/status";
 import {
   buildIdexxClient,
   lookupIdexxMapping,
+  resolveCompanionSpeciesCode,
+  resolveIdexxBreedCode,
+  type IdexxBreedSubstitution,
 } from "src/labs/idexx/idexx.shared";
+import logger from "src/utils/logger";
 
 const coerceString = (value: unknown): string | null => {
   if (typeof value === "string") return value;
@@ -76,17 +81,19 @@ const loadCompanionAndParent = async (input: {
     throw new LabOrderServiceError(input.parentLastNameError, 400);
   }
 
-  if (!companion.speciesCode || !companion.breedCode) {
+  const speciesCode = resolveCompanionSpeciesCode(companion);
+  if (!speciesCode) {
     throw new LabOrderServiceError(
-      "Companion speciesCode and breedCode are required.",
+      "Companion species is missing or not supported by IDEXX (canine, feline and equine only).",
       400,
     );
   }
 
-  return { companion, parent };
+  return { companion, parent, speciesCode };
 };
 
 const buildPatientPayload = async (input: {
+  speciesCode: string;
   companion: {
     id: string;
     name?: string;
@@ -112,20 +119,26 @@ const buildPatientPayload = async (input: {
     } | null;
   };
 }) => {
-  const speciesCode = await lookupIdexxMapping(
-    input.companion.speciesCode as string,
-    "species",
-  );
-  const breedCode = await lookupIdexxMapping(
-    input.companion.breedCode as string,
-    "breed",
-  );
+  const speciesCode = await lookupIdexxMapping(input.speciesCode, "species");
+  const { targetCode: breedCode, substitution } = await resolveIdexxBreedCode({
+    speciesCode: input.speciesCode,
+    breedCode: input.companion.breedCode,
+  });
+
+  if (substitution) {
+    logger.warn("IDEXX breed substituted with species-level fallback", {
+      patientId: input.companion.id,
+      speciesCode: input.speciesCode,
+      ...substitution,
+    });
+  }
+
   const genderCode = resolveGenderCode(
     input.companion.gender as string,
     input.companion.isNeutered ?? undefined,
   );
 
-  return {
+  const patient = {
     patientId: input.companion.id,
     name: input.companion.name,
     microchip: input.companion.microchipNumber ?? undefined,
@@ -150,16 +163,20 @@ const buildPatientPayload = async (input: {
       },
     },
   };
+
+  return { patient, breedSubstitution: substitution };
 };
 
 const buildOrderResult = (
   response: Record<string, unknown>,
   requestPayload: Record<string, unknown>,
   idexxOrderId?: string | null,
+  breedSubstitution?: IdexxBreedSubstitution | null,
 ): LabOrderCreateResult => {
   const statusInfo = normalizeLabStatus(response.status);
 
   return {
+    breedSubstitution: breedSubstitution ?? null,
     requestPayload,
     responsePayload: response,
     idexxOrderId: idexxOrderId ?? coerceString(response.idexxOrderId),
@@ -180,8 +197,11 @@ const buildOrderPayload = async (input: {
   technician?: string | null;
   notes?: string | null;
   specimenCollectionDate?: string | null;
-}): Promise<Record<string, unknown>> => {
-  const { companion, parent } = await loadCompanionAndParent({
+}): Promise<{
+  payload: Record<string, unknown>;
+  breedSubstitution: IdexxBreedSubstitution | null;
+}> => {
+  const { companion, parent, speciesCode } = await loadCompanionAndParent({
     patientId: input.patientId,
     parentId: input.parentId,
     parentLastNameError: "Parent last name is required for IDEXX orders.",
@@ -198,17 +218,24 @@ const buildOrderPayload = async (input: {
     }
   }
 
-  const patient = await buildPatientPayload({ companion, parent });
+  const { patient, breedSubstitution } = await buildPatientPayload({
+    companion,
+    parent,
+    speciesCode,
+  });
 
   return {
-    editable: false,
-    patients: [patient],
-    tests: input.tests,
-    veterinarian: input.veterinarian ?? undefined,
-    technician: input.technician ?? undefined,
-    notes: input.notes ?? undefined,
-    specimenCollectionDate: input.specimenCollectionDate ?? undefined,
-    ivls: input.modality === "IN_HOUSE" ? input.ivls : undefined,
+    breedSubstitution,
+    payload: {
+      editable: false,
+      patients: [patient],
+      tests: input.tests,
+      veterinarian: input.veterinarian ?? undefined,
+      technician: input.technician ?? undefined,
+      notes: input.notes ?? undefined,
+      specimenCollectionDate: input.specimenCollectionDate ?? undefined,
+      ivls: input.modality === "IN_HOUSE" ? input.ivls : undefined,
+    },
   };
 };
 
@@ -218,13 +245,17 @@ const buildCensusPayload = async (input: {
   veterinarian?: string | null;
   ivls?: Array<{ serialNumber: string }>;
 }) => {
-  const { companion, parent } = await loadCompanionAndParent({
+  const { companion, parent, speciesCode } = await loadCompanionAndParent({
     patientId: input.patientId,
     parentId: input.parentId,
     parentLastNameError: "Parent last name is required for IDEXX census.",
   });
 
-  const patient = await buildPatientPayload({ companion, parent });
+  const { patient } = await buildPatientPayload({
+    companion,
+    parent,
+    speciesCode,
+  });
 
   return {
     patient,
@@ -262,9 +293,24 @@ const resolveOrderParentId = async (
 export class IdexxOrderAdapter implements LabOrderAdapter {
   async createOrder(input: LabOrderCreateInput): Promise<LabOrderCreateResult> {
     const patientId = input.patientId;
+
+    // The caller is authenticated against input.organisationId, but patientId
+    // arrives from the request body and every lookup below resolves it
+    // GLOBALLY. Without this a user with labs:edit:any in one organisation who
+    // knows another tenant's patient id could place an order that ships that
+    // companion's identifiers plus the parent's name, address, email and phone
+    // to IDEXX under their own organisation.
+    //
+    // The species-level breed fallback made this materially worse: those
+    // companions used to be rejected for having no mapped breed, so the check
+    // that was accidentally holding the line is gone.
+    await assertPatientOrgMembership(patientId, input.organisationId, () => {
+      throw new LabOrderServiceError("Companion not found.", 404);
+    });
+
     const parentId = await resolveOrderParentId(patientId, input.parentId);
 
-    const payload = await buildOrderPayload({
+    const { payload, breedSubstitution } = await buildOrderPayload({
       patientId,
       parentId,
       tests: input.tests,
@@ -309,7 +355,7 @@ export class IdexxOrderAdapter implements LabOrderAdapter {
 
     const response = await client.createOrder(payload);
     const resp = response as Record<string, unknown>;
-    return buildOrderResult(resp, payload);
+    return buildOrderResult(resp, payload, null, breedSubstitution);
   }
 
   async getOrder(
@@ -330,6 +376,13 @@ export class IdexxOrderAdapter implements LabOrderAdapter {
     const patientId = input.patientId;
     const parentId = input.parentId ?? null;
 
+    // Same reasoning as createOrder above: patientId comes from the request
+    // body and is resolved globally, so it must be bound to the caller's
+    // organisation before anything reads the companion or its parent.
+    await assertPatientOrgMembership(patientId, input.organisationId, () => {
+      throw new LabOrderServiceError("Companion not found.", 404);
+    });
+
     if (!parentId) {
       throw new LabOrderServiceError(
         "parentId is required to update order.",
@@ -337,7 +390,7 @@ export class IdexxOrderAdapter implements LabOrderAdapter {
       );
     }
 
-    const payload = await buildOrderPayload({
+    const { payload, breedSubstitution } = await buildOrderPayload({
       patientId,
       parentId,
       tests: input.tests,
@@ -353,7 +406,7 @@ export class IdexxOrderAdapter implements LabOrderAdapter {
 
     const response = await client.updateOrder(idexxOrderId, payload);
     const resp = response as Record<string, unknown>;
-    return buildOrderResult(resp, payload, idexxOrderId);
+    return buildOrderResult(resp, payload, idexxOrderId, breedSubstitution);
   }
 
   async cancelOrder(

@@ -10,6 +10,53 @@ import logger from "src/utils/logger";
 import { OrgRequest } from "src/middlewares/rbac";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 
+/**
+ * Verify, then handle - as two separate failures.
+ *
+ * Both steps used to share one try/catch that answered 400, which made a forged
+ * signature and a database outage indistinguishable in the logs and on the
+ * Stripe dashboard. They are different faults: a signature that does not verify
+ * is the caller's, and no retry will ever fix it, while a handler that throws is
+ * ours and the retry is the thing that saves the event.
+ *
+ * Stripe retries on any non-2xx, so this does not change delivery behaviour. It
+ * changes what the failure says, which is what makes the difference visible when
+ * one of these endpoints starts failing.
+ */
+const dispatchStripeWebhook = async (
+  req: Request<unknown, unknown, Buffer>,
+  res: Response,
+  handler: {
+    label: string;
+    verify: (
+      body: Buffer,
+      signature: string | string[] | undefined,
+    ) => ReturnType<typeof StripeService.verifyWebhook>;
+  },
+) => {
+  const signature = req.headers["stripe-signature"];
+
+  let event: ReturnType<typeof StripeService.verifyWebhook>;
+  try {
+    event = handler.verify(req.body, signature);
+  } catch (err) {
+    logger.error(`${handler.label} signature rejected:`, err);
+    return res.status(400).json({
+      error: err instanceof Error ? err.message : "Unknown error",
+    });
+  }
+
+  try {
+    await StripeService.handleWebhookEvent(event);
+    return res.status(200).send("OK");
+  } catch (err) {
+    logger.error(`${handler.label} handler failed:`, err);
+    return res.status(500).json({
+      error: err instanceof Error ? err.message : "Unknown error",
+    });
+  }
+};
+
 // PMS routes are bound to the organisation the RBAC middleware authorized;
 // mobile routes fall back to the pet parent linked to the session.
 const resolveInvoiceScope = async (req: Request) => {
@@ -150,34 +197,20 @@ export const StripeController = {
     }
   },
 
-  webhook: async (req: Request<unknown, unknown, Buffer>, res: Response) => {
-    const sig = req.headers["stripe-signature"];
-    try {
-      const event = StripeService.verifyWebhook(req.body, sig);
-      await StripeService.handleWebhookEvent(event);
-      return res.status(200).send("OK");
-    } catch (err) {
-      logger.error("Stripe Webhook Error:", err);
-      const message = err instanceof Error ? err.message : "Unknown error";
-      return res.status(400).json({ error: message });
-    }
-  },
+  webhook: async (req: Request<unknown, unknown, Buffer>, res: Response) =>
+    dispatchStripeWebhook(req, res, {
+      label: "Stripe Webhook",
+      verify: (body, sig) => StripeService.verifyWebhook(body, sig),
+    }),
 
   connectWebhook: async (
     req: Request<unknown, unknown, Buffer>,
     res: Response,
-  ) => {
-    const sig = req.headers["stripe-signature"];
-    try {
-      const event = StripeService.verifyConnectWebhook(req.body, sig);
-      await StripeService.handleWebhookEvent(event);
-      return res.status(200).send("OK");
-    } catch (err) {
-      logger.error("Stripe Connect Webhook Error:", err);
-      const message = err instanceof Error ? err.message : "Unknown error";
-      return res.status(400).json({ error: message });
-    }
-  },
+  ) =>
+    dispatchStripeWebhook(req, res, {
+      label: "Stripe Connect Webhook",
+      verify: (body, sig) => StripeService.verifyConnectWebhook(body, sig),
+    }),
 
   createPaymentIntent: async (req: Request, res: Response) => {
     try {

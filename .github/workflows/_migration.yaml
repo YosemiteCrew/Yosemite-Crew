@@ -132,6 +132,97 @@ jobs:
       - name: Apply migrations
         run: pnpm --filter @yosemite-crew/database run prisma:deploy
 
+      # `code_entry_search_text` (20260824160000_clinical_term_search_index) is
+      # the prefilter behind clinical-term autocomplete, and it has two
+      # properties that are easy to lose and silent when lost. Both were real
+      # defects during review, and both make a term vanish from search rather
+      # than raise anything:
+      #
+      #   1. It must NOT be strict. `synonyms` is nullable, so a
+      #      `RETURNS NULL ON NULL INPUT` declaration returns NULL for such a
+      #      row, and the caller's `NULL LIKE ...` drops it before its display is
+      #      ever scored. Fixed in 970532c48.
+      #   2. It must read the synonym ARRAY ELEMENTS, not `synonyms::text`.
+      #      Casting the jsonb yields its JSON encoding, so a synonym containing
+      #      a quote appears escaped and a query spanning that character misses a
+      #      row that genuinely contains it. Fixed in 066c48846.
+      #
+      # An applied migration is immutable, so the risk is not that this file
+      # changes: it is a LATER migration doing CREATE OR REPLACE and restoring
+      # either fault. That is a behavioural regression, so it needs a
+      # behavioural check, which is why this asserts against the migrated
+      # database rather than grepping the SQL.
+      #
+      # Rows are scoped by an explicit code so the assertion cannot be satisfied
+      # or broken by anything a future migration seeds, and the trap removes them
+      # whether the assertions pass or fail, so the checks below see the database
+      # they expect.
+      - name: Check clinical term search survives null and quoted synonyms
+        shell: bash
+        env:
+          PGPASSWORD: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          psql_ci() { psql -h localhost -U postgres -d yosemite_ci "$@"; }
+
+          cleanup() {
+            psql_ci -q -c "DELETE FROM \"CodeEntry\"
+              WHERE \"code\" IN ('CI_GUARD_NULL_SYNONYMS', 'CI_GUARD_QUOTED_SYNONYM');" || true
+          }
+          trap cleanup EXIT
+
+          psql_ci -v ON_ERROR_STOP=1 -q <<'SQL'
+          INSERT INTO "CodeEntry" ("id", "system", "code", "display", "type", "active", "synonyms", "updatedAt")
+          VALUES
+            ('00000000-0000-4000-8000-0000000ce001', 'YOSEMITECODE', 'CI_GUARD_NULL_SYNONYMS',
+             'Vomiting', 'CLINICAL_TERM', true, NULL, now()),
+            ('00000000-0000-4000-8000-0000000ce002', 'YOSEMITECODE', 'CI_GUARD_QUOTED_SYNONYM',
+             'Regurgitation', 'CLINICAL_TERM', true, '["a\"b"]'::jsonb, now());
+          SQL
+
+          # Mirrors the filter the service builds at
+          # apps/backend/src/services/clinical-terms.service.ts, ESCAPE included,
+          # so this fails for the same reason the product would.
+          matches() {
+            psql_ci -tAc "
+              SELECT count(*) FROM \"CodeEntry\" e
+              WHERE e.\"system\" = 'YOSEMITECODE'::\"CodeSystem\"
+                AND e.\"type\" = 'CLINICAL_TERM'::\"CodeType\"
+                AND e.\"active\"
+                AND e.\"code\" = '$1'
+                AND code_entry_search_text(e.\"display\", e.\"synonyms\") LIKE '$2' ESCAPE '\\';"
+          }
+
+          null_synonyms=$(matches 'CI_GUARD_NULL_SYNONYMS' '%vomit%')
+          quoted_synonym=$(matches 'CI_GUARD_QUOTED_SYNONYM' '%a"b%')
+
+          failed=0
+
+          if [ "$null_synonyms" != "1" ]; then
+            echo "::error::A clinical term with no synonyms is not findable by its display."
+            echo "code_entry_search_text returned NULL for a row whose \"synonyms\" is SQL NULL,"
+            echo "so the prefilter's NULL LIKE ... dropped it. The function must not be declared"
+            echo "RETURNS NULL ON NULL INPUT, and \"display\" must be coalesced."
+            echo "Expected 1 match for '%vomit%' on display 'Vomiting', got: $null_synonyms"
+            failed=1
+          fi
+
+          if [ "$quoted_synonym" != "1" ]; then
+            echo "::error::A clinical term whose synonym contains a quote is not findable by it."
+            echo "code_entry_search_text must build its text from jsonb_array_elements_text, not"
+            echo "from \"synonyms\"::text - the cast yields the JSON encoding, so a quote appears"
+            echo "escaped and a query spanning it misses a row that genuinely contains it."
+            echo "Expected 1 match for '%a\"b%' on synonym 'a\"b', got: $quoted_synonym"
+            failed=1
+          fi
+
+          if [ "$failed" -ne 0 ]; then
+            exit 1
+          fi
+
+          echo "Clinical term search survives a null synonym list and a quoted synonym."
+
       # The Supabase advisor caught public."OrganizationDocumentAcknowledgements"
       # shipping with RLS off. The cause was structural: RLS was only ever enabled
       # by hand in the dashboard, so every new table was unprotected until someone

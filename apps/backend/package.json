@@ -18,7 +18,9 @@
     "prisma:migrate": "pnpm --filter @yosemite-crew/database run prisma:migrate",
     "seed:inventory-catalog": "tsx src/scripts/seed-inventory-catalog.ts",
     "seed:template-library": "tsx src/scripts/seed-template-library.ts",
-    "check:wallet": "tsx src/scripts/check-wallet-config.ts"
+    "check:wallet": "tsx src/scripts/check-wallet-config.ts",
+    "import:venom-designations": "tsx src/scripts/import-venom-designations.ts",
+    "import:venom-hierarchy": "tsx src/scripts/import-venom-hierarchy.ts"
   },
   "dependencies": {
     "@aws-sdk/client-pinpoint": "^3.1108.0",

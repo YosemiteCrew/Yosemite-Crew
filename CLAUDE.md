@@ -35,7 +35,7 @@ apps/
 packages/
   auth/          — Shared auth helpers
   database/      — Prisma schema, migrations, and database client
-  design-tokens/ — Shared design tokens
+  design-tokens/ — DEAD: never built, nothing imports it (live palette: apps/frontend/src/app/globals.css)
   fhir/          — FHIR R4 generated types and compatibility helpers
   fhirtypes/     — FHIR type definitions
   lib/           — Shared errors, types, and reusable utilities
@@ -58,12 +58,12 @@ npx tsc --noemit
 pnpm --filter frontend run lint
 
 # 3. Tests — TARGETED ONLY, never the full suite
-pnpm --filter frontend run test -- --testPathPattern="<relevant-file>"
+pnpm --filter frontend run test -- --testPathPatterns="<relevant-file>"
 # Example:
-pnpm --filter frontend run test -- --testPathPattern="Availability"
+pnpm --filter frontend run test -- --testPathPatterns="Availability"
 ```
 
-**Targeted runs (`--testPathPattern`) by default** — the full frontend suite takes 100+ seconds. A full Jest run is allowed only when the user explicitly asks, when triaging repo-wide breakage, or when changing shared test infrastructure (same rule as `AGENTS.md`).
+**Targeted runs (`--testPathPatterns`) by default** — the full frontend suite takes 100+ seconds. A full Jest run is allowed only when the user explicitly asks, when triaging repo-wide breakage, or when changing shared test infrastructure (same rule as `AGENTS.md`).
 
 **TypeScript check timeout:** `npx tsc --noemit` on this repo can take 60–120 seconds. Always set a 120s timeout when running it as a tool call. If it times out, note this explicitly to the user — do not silently skip it.
 
@@ -93,7 +93,7 @@ Additional commit rules:
 
 - Never add `Co-Authored-By` or any signature lines to commit messages.
 - Never skip pre-commit hooks (`--no-verify` is forbidden).
-- All pre-commit hooks must pass before the user commits — if lint/type/test checks fail, fix them first.
+- All hooks must pass naturally: pre-commit runs a staged-secret scan + lint-staged (eslint --fix, prettier, secretlint on staged files); the full monorepo lint + type-check run at pre-push. If any check fails, fix it first.
 - Before suggesting any commit message, validate the scope against `commitlint.config.cjs`.
 - Allowed scopes are exactly: `backend`, `frontend`, `mobile`, `desktop`, `dev-docs`, `types`, `fhir`, `repo`, `ci`, `docs`, `lib`, `auth`, `database`.
 - If changes span multiple workspaces, use `repo`.
@@ -124,16 +124,15 @@ All SonarQube rules, test writing rules, and frontend code quality patterns live
 
 Identify and fix Sonar findings **locally before pushing** — never let issues or security hotspots first surface on the PR.
 
-- Before pushing ANY change, run the local Sonar pipeline (for `apps/desktop`: `./apps/desktop/sonar-local.sh`, which runs lint → type-check → tests+coverage → build → a SonarCloud branch scan).
-- Review **every** reported issue **and security hotspot** from `sonar-issues.json` (or the project results) — not just gate-failing ones — and fix all of them.
+- Before pushing ANY change, run the local Sonar workflow for the touched app (lint → type-check → tests+coverage → build → a SonarCloud scan) and review **every** reported issue **and security hotspot** — not just gate-failing ones — and fix all of them.
 - Re-run until the scan is clean (zero new issues, zero hotspots). Only then push / open the PR.
-- `sonar-local.sh`, `sonar-issues.json`, and `.sonar-token` are local-only and gitignored — never commit, print, echo, or `git add` them.
+- The local Sonar tooling is machine-specific and intentionally untracked — set it up from your local, gitignored instructions (`CLAUDE.local.md`). Never commit, print, echo, or `git add` local Sonar scripts, scan outputs, or tokens.
 
 ---
 
 ## What NOT to Do
 
-- Do not run `pnpm run test` without `--testPathPattern` except in the three allowed cases (explicit user request, repo-wide breakage, shared test infrastructure changes).
+- Do not run `pnpm run test` without `--testPathPatterns` except in the three allowed cases (explicit user request, repo-wide breakage, shared test infrastructure changes).
 - Do not commit `.env` files, secrets, tokens, or private keys.
 - Do not refactor backend code unless explicitly requested.
 - Do not add `// eslint-disable` comments to suppress warnings — fix the root cause.

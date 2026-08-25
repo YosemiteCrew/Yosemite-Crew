@@ -235,7 +235,11 @@ const ensureCodeExists = async (code: string, type: "SPECIES" | "BREED") => {
   });
 
   if (!entry) {
-    logger.warn(`Invalid ${type} code provided: ${code}`);
+    // The code is caller-supplied; strip line breaks so it cannot forge
+    // additional log lines.
+    logger.warn(
+      `Invalid ${type} code provided: ${code.replace(/[\n\r]+/g, " ")}`,
+    );
     throw new CompanionServiceError(`Invalid ${type.toLowerCase()} code.`, 400);
   }
 };
@@ -550,6 +554,30 @@ export const CompanionService = {
     if (!id || typeof id !== "string") return null;
 
     const doc = await prisma.patient.findUnique({ where: { id } });
+    if (!doc) return null;
+
+    return { response: toFHIRFromPrisma(doc) };
+  },
+
+  async getByIdForOrg(id: string, organisationId: string) {
+    if (!id || typeof id !== "string") return null;
+
+    const org = organisationId?.trim();
+    if (!org) {
+      throw new CompanionServiceError("Organisation is required.", 400);
+    }
+
+    // Scoped with a relation filter rather than a bare id lookup: `Patient` rows
+    // are not org-scoped in the schema, so `getById` would return any tenant's
+    // companion. Requiring an ACTIVE link keeps the read to the practice's own.
+    const doc = await prisma.patient.findFirst({
+      where: {
+        id,
+        organisations: {
+          some: { organisationId: org, status: "ACTIVE" },
+        },
+      },
+    });
     if (!doc) return null;
 
     return { response: toFHIRFromPrisma(doc) };

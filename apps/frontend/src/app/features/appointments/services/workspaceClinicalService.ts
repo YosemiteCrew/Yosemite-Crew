@@ -1,5 +1,9 @@
 import type { Bundle, Composition, MedicationRequest, Observation } from '@yosemite-crew/fhir';
-import { clinicalArtifactFhirMapper } from '@yosemite-crew/types';
+import {
+  clinicalArtifactFhirMapper,
+  parseSoapCodedProblems,
+  SOAP_DIAGNOSES_EXTENSION_URL,
+} from '@yosemite-crew/types';
 import { postData, getData, patchData, deleteData } from '@/app/services/axios';
 import type {
   AppointmentEncounter,
@@ -196,6 +200,7 @@ const SOAP_EXT = {
   objective: 'https://yosemitecrew.com/fhir/StructureDefinition/soap-note-objective',
   assessment: 'https://yosemitecrew.com/fhir/StructureDefinition/soap-note-assessment',
   plan: 'https://yosemitecrew.com/fhir/StructureDefinition/soap-note-plan',
+  diagnoses: SOAP_DIAGNOSES_EXTENSION_URL,
   // The shared clinical-artifact mapper round-trips this extension into the SoapNote.metadata
   // JSON column, so a custom-template structure override (schema + answers) persists and
   // rehydrates without any backend change.
@@ -280,6 +285,7 @@ const soapNoteFromComposition = (
     plan: toText(input.plan),
     templateId: input.templateId,
     templateVersionId: (input as { templateVersionId?: string }).templateVersionId,
+    codedProblems: parseSoapCodedProblems(input.diagnoses),
     customSchema: customTemplate?.schema,
     customAnswers: customTemplate?.answers,
     // A SOAP note that came back from the backend is a saved record and belongs in the
@@ -436,6 +442,9 @@ export const saveSoapNote = async (context: ClinicalContext, note: SoapNoteEntry
       jsonExtension(SOAP_EXT.objective, note.objective),
       jsonExtension(SOAP_EXT.assessment, note.assessment),
       jsonExtension(SOAP_EXT.plan, note.plan),
+      // Always present (never undefined): clearing every chip must clear the stored
+      // set on a draft PATCH, and an absent extension would keep the old value.
+      jsonExtension(SOAP_EXT.diagnoses, note.codedProblems ?? {}),
       jsonExtension(SOAP_EXT.metadata, customMetadata),
     ])
   );

@@ -9,6 +9,7 @@ jest.mock("src/config/prisma", () => ({
     patient: { findUnique: jest.fn() },
     parent: { findUnique: jest.fn() },
     parentPatient: { findFirst: jest.fn() },
+    patientOrganisation: { findFirst: jest.fn() },
   },
 }));
 
@@ -90,6 +91,9 @@ describe("IdexxOrderAdapter", () => {
     prismaMock.parentPatient.findFirst.mockResolvedValue({
       parentId: "parent-1",
     });
+    // Default: the companion belongs to the calling organisation. The cross-org
+    // tests below override this to null.
+    prismaMock.patientOrganisation.findFirst.mockResolvedValue({ id: "po-1" });
 
     mockIdexxClient.getCensusPatient.mockRejectedValue({
       response: { status: 404 },
@@ -174,10 +178,12 @@ describe("IdexxOrderAdapter", () => {
     ).rejects.toThrow("Parent last name is required for IDEXX orders.");
   });
 
-  it("errors when companion species or breed is missing", async () => {
+  it("errors for a species IDEXX does not support", async () => {
+    // "other" is a real PatientType value; IDEXX accepts only canine, feline and equine.
     prismaMock.patient.findUnique.mockResolvedValueOnce({
       ...baseCompanion,
-      breedCode: null,
+      speciesCode: null,
+      type: "other",
     });
 
     await expect(
@@ -187,7 +193,177 @@ describe("IdexxOrderAdapter", () => {
         parentId: "parent-1",
         tests: ["T1"],
       } as any),
-    ).rejects.toThrow("Companion speciesCode and breedCode are required.");
+    ).rejects.toThrow(
+      "Companion species is missing or not supported by IDEXX (canine, feline and equine only).",
+    );
+  });
+
+  describe("species-level breed fallback", () => {
+    // IDEXX only accepts breeds from its own list, so breeds minted from VeNOM have no
+    // counterpart. Before the fallback, 30 of the 44 companions on dev - and every horse
+    // - could not place a lab order at all.
+    const IDEXX_MAP: Record<string, string> = {
+      "YSPEC:CANINE": "CANINE",
+      "YSPEC:FELINE": "FELINE",
+      "YSPEC:BOVINE": "BOVINE",
+      "YBREED:CANINE:LABRADOR_RETRIEVER": "LABRADOR_RETRIEVER",
+      "YBREED:CANINE:CANINE_OTHER": "CANINE_OTHER",
+      "YBREED:FELINE:MIXED_BREED_FELINE": "MIXED_BREED_FELINE",
+    };
+
+    const order = () =>
+      adapter.createOrder({
+        organisationId: "org-1",
+        patientId: "comp-1",
+        parentId: "parent-1",
+        tests: ["T1"],
+      } as any);
+
+    const sentPatient = () =>
+      (mockIdexxClient.createOrder.mock.calls[0][0] as any).patients[0];
+
+    beforeEach(() => {
+      prismaMock.codeMapping.findFirst.mockImplementation(
+        async ({ where }: any) =>
+          IDEXX_MAP[where.sourceCode]
+            ? { targetCode: IDEXX_MAP[where.sourceCode] }
+            : null,
+      );
+    });
+
+    it("substitutes the species catch-all when the breed has no IDEXX mapping", async () => {
+      prismaMock.patient.findUnique.mockResolvedValue({
+        ...baseCompanion,
+        speciesCode: "YSPEC:CANINE",
+        breedCode: "YBREED:CANINE:SPINONE_ITALIANO",
+      });
+
+      const result = await order();
+
+      expect(sentPatient().breedCode).toBe("CANINE_OTHER");
+      expect(result.breedSubstitution).toEqual({
+        requestedBreedCode: "YBREED:CANINE:SPINONE_ITALIANO",
+        usedBreedCode: "YBREED:CANINE:CANINE_OTHER",
+        usedTargetCode: "CANINE_OTHER",
+        reason: "UNMAPPED_BREED",
+      });
+    });
+
+    it("treats a whitespace-only breed code as no breed at all", async () => {
+      // Without trimming, "   " is truthy and gets looked up as though it were a code,
+      // so the companion falls through to a mapping error instead of the fallback.
+      prismaMock.patient.findUnique.mockResolvedValue({
+        ...baseCompanion,
+        speciesCode: "YSPEC:CANINE",
+        breedCode: "   ",
+      });
+
+      const result = await order();
+
+      expect(sentPatient().breedCode).toBe("CANINE_OTHER");
+      expect(result.breedSubstitution).toMatchObject({
+        requestedBreedCode: null,
+        reason: "UNCODED_BREED",
+      });
+    });
+
+    it("substitutes when the companion has no breed code at all", async () => {
+      prismaMock.patient.findUnique.mockResolvedValue({
+        ...baseCompanion,
+        speciesCode: "YSPEC:CANINE",
+        breedCode: null,
+      });
+
+      const result = await order();
+
+      expect(sentPatient().breedCode).toBe("CANINE_OTHER");
+      expect(result.breedSubstitution).toMatchObject({
+        requestedBreedCode: null,
+        reason: "UNCODED_BREED",
+      });
+    });
+
+    it("derives the species from the companion type when speciesCode is absent", async () => {
+      // Ten companions on dev carry a type but no speciesCode.
+      prismaMock.patient.findUnique.mockResolvedValue({
+        ...baseCompanion,
+        speciesCode: null,
+        type: "cat",
+        breedCode: null,
+      });
+
+      const result = await order();
+
+      expect(sentPatient().speciesCode).toBe("FELINE");
+      expect(result.breedSubstitution?.usedTargetCode).toBe(
+        "MIXED_BREED_FELINE",
+      );
+    });
+
+    it("reports no substitution when the breed maps cleanly", async () => {
+      prismaMock.patient.findUnique.mockResolvedValue({
+        ...baseCompanion,
+        speciesCode: "YSPEC:CANINE",
+        breedCode: "YBREED:CANINE:LABRADOR_RETRIEVER",
+      });
+
+      const result = await order();
+
+      expect(sentPatient().breedCode).toBe("LABRADOR_RETRIEVER");
+      expect(result.breedSubstitution).toBeNull();
+    });
+
+    it("refuses a breed code belonging to a different species", async () => {
+      // A breed code carries its species. A canine order must never carry an equine
+      // breed just because that code happens to map - that is a claim about the animal.
+      prismaMock.patient.findUnique.mockResolvedValue({
+        ...baseCompanion,
+        speciesCode: "YSPEC:CANINE",
+        breedCode: "YBREED:FELINE:MIXED_BREED_FELINE",
+      });
+
+      const result = await order();
+
+      expect(sentPatient().breedCode).toBe("CANINE_OTHER");
+      expect(result.breedSubstitution).toMatchObject({
+        requestedBreedCode: "YBREED:FELINE:MIXED_BREED_FELINE",
+        usedTargetCode: "CANINE_OTHER",
+        reason: "MISMATCHED_BREED",
+      });
+    });
+
+    it("names the fallback mapping when that is what is missing", async () => {
+      // After an incomplete reference sync the species catch-all exists but its mapping
+      // does not. Reporting the requested breed would point at the one thing working as
+      // designed: an unmapped breed is the condition the fallback exists for.
+      prismaMock.patient.findUnique.mockResolvedValue({
+        ...baseCompanion,
+        speciesCode: "YSPEC:CANINE",
+        breedCode: "YBREED:CANINE:SPINONE_ITALIANO",
+      });
+      prismaMock.codeMapping.findFirst.mockImplementation(
+        async ({ where }: any) =>
+          where.sourceCode === "YSPEC:CANINE" ? { targetCode: "CANINE" } : null,
+      );
+
+      await expect(order()).rejects.toThrow(
+        "Missing IDEXX mapping for code YBREED:CANINE:CANINE_OTHER.",
+      );
+    });
+
+    it("still fails when the species has no catch-all breed", async () => {
+      // A fallback is only honest where IDEXX actually publishes one. Inventing a
+      // breed for an unsupported species would put a false animal on the order.
+      prismaMock.patient.findUnique.mockResolvedValue({
+        ...baseCompanion,
+        speciesCode: "YSPEC:BOVINE",
+        breedCode: "YBREED:BOVINE:HOLSTEIN",
+      });
+
+      await expect(order()).rejects.toThrow(
+        "Missing IDEXX mapping for code YBREED:BOVINE:HOLSTEIN.",
+      );
+    });
   });
 
   it("errors when IDEXX mapping is missing", async () => {
@@ -406,5 +582,90 @@ describe("IdexxOrderAdapter", () => {
         tests: ["T1"],
       } as any),
     ).rejects.toThrow("IDEXX PIMS config missing.");
+  });
+
+  // A PMS user with labs:edit:any in one organisation who knows another
+  // tenant's patient id could previously place an order against it: the caller
+  // is authorised against input.organisationId, but every lookup in the adapter
+  // resolves patientId GLOBALLY. The order shipped that companion's identifiers
+  // plus the parent's name, address, email and phone to IDEXX, under the
+  // attacker's organisation.
+  //
+  // The species-level breed fallback widened it. Those companions used to be
+  // rejected for having no mapped breed, so the check accidentally holding the
+  // line is gone.
+  describe("cross-organisation access", () => {
+    it("refuses to create an order for a companion in another organisation", async () => {
+      prismaMock.patientOrganisation.findFirst.mockResolvedValue(null);
+
+      await expect(
+        adapter.createOrder({
+          organisationId: "org-attacker",
+          patientId: "victim-patient",
+          parentId: "parent-1",
+          tests: ["T1"],
+        } as never),
+      ).rejects.toMatchObject({
+        message: "Companion not found.",
+        statusCode: 404,
+      });
+    });
+
+    it("refuses to update an order for a companion in another organisation", async () => {
+      prismaMock.patientOrganisation.findFirst.mockResolvedValue(null);
+
+      await expect(
+        adapter.updateOrder("IDX-1", {
+          organisationId: "org-attacker",
+          patientId: "victim-patient",
+          parentId: "parent-1",
+          tests: ["T1"],
+        } as never),
+      ).rejects.toMatchObject({
+        message: "Companion not found.",
+        statusCode: 404,
+      });
+    });
+
+    // The victim's details must never leave the process. Asserting only on the
+    // thrown error would still pass if the payload had already been built and
+    // sent, so assert the outbound client was never called.
+    it("sends nothing to IDEXX when the companion is in another organisation", async () => {
+      prismaMock.patientOrganisation.findFirst.mockResolvedValue(null);
+
+      await expect(
+        adapter.createOrder({
+          organisationId: "org-attacker",
+          patientId: "victim-patient",
+          parentId: "parent-1",
+          tests: ["T1"],
+        } as never),
+      ).rejects.toThrow();
+
+      expect(mockIdexxClient.createOrder).not.toHaveBeenCalled();
+      expect(mockIdexxClient.addCensusPatient).not.toHaveBeenCalled();
+      expect(mockIdexxClient.getCensusPatient).not.toHaveBeenCalled();
+    });
+
+    // Scoping must not be satisfied by a PENDING link: that is a relationship
+    // the organisation requested, not one the parent approved.
+    it("scopes the membership lookup to the caller org and ACTIVE status", async () => {
+      await adapter.createOrder({
+        organisationId: "org-1",
+        patientId: "patient-1",
+        parentId: "parent-1",
+        tests: ["T1"],
+      } as never);
+
+      expect(prismaMock.patientOrganisation.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            patientId: "patient-1",
+            organisationId: "org-1",
+            status: "ACTIVE",
+          }),
+        }),
+      );
+    });
   });
 });

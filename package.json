@@ -16,7 +16,7 @@
     "check:secrets": "secretlint \"**/*\" --maskSecrets",
     "check:staged-secrets": "node scripts/check-staged-secrets.js",
     "check:overrides": "node scripts/ci/check-override-advisories.mjs",
-    "test:scripts": "node --test scripts/ci/*.test.mjs scripts/security/*.test.mjs scripts/roadmap/*.test.mjs",
+    "test:scripts": "node --test scripts/ci/*.test.mjs scripts/security/*.test.mjs scripts/roadmap/*.test.mjs scripts/mobile/*.test.mjs",
     "doctor": "pnpm exec react-doctor",
     "security:sbom": "./scripts/security/supply-chain.sh sbom",
     "security:scan": "./scripts/security/supply-chain.sh scan",

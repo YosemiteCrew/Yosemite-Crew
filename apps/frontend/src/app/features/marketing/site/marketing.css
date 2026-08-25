@@ -18,6 +18,18 @@
     transform: translateY(0);
   }
 }
+@keyframes ycReveal {
+  from {
+    opacity: 0;
+    translate: 0 34px;
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    translate: 0;
+    filter: blur(0px);
+  }
+}
 @keyframes ycUp {
   from {
     opacity: 0;
@@ -178,6 +190,80 @@
   }
   50% {
     opacity: 0;
+  }
+}
+
+/* ---- Scroll reveal (drives Reveal in site/motion.tsx) ---- */
+/* The settled look is the DEFAULT, and only an armed element is hidden. That
+   ordering matters: the server has no IntersectionObserver, so it renders
+   data-reveal="idle", and anything that stops the client from arming - scripting
+   off, a blocked or failed bundle, a throw before hydration - leaves the copy
+   readable instead of stranding it at opacity 0 with nothing able to flip it.
+
+   Motion rides `translate`, not `transform`, because callers own `transform`:
+   Pricing's Business card sits on an inline translateY(-8px). They are separate
+   properties, so the reveal composes with the caller's offset rather than
+   fighting it. Likewise the run is a keyframe animation, not a transition, since
+   a Reveal can carry a class that owns `transition` (yc-card-lift does, on the
+   PetParents feature card) and the winning shorthand would replace the lot. */
+[data-reveal] {
+  opacity: 1;
+  /* An explicit zero, not `none`: this is what makes a settled Reveal a
+     containing block for its absolutely-positioned descendants. */
+  translate: 0;
+  filter: blur(0px);
+}
+[data-reveal='hidden'] {
+  opacity: 0;
+  translate: 0 34px;
+  filter: blur(8px);
+  will-change: opacity, translate;
+}
+[data-reveal='shown'] {
+  animation: ycReveal 1s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Reduced motion wants the content simply present. Keeping it here rather than in
+   the component means it does not wait on an effect - it is what the very first
+   paint already uses. */
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] {
+    opacity: 1;
+    translate: 0;
+    filter: blur(0px);
+    /* Duration rather than `animation: none`. Clearing the name and restoring it
+       when the preference flips back creates a brand new animation, which would
+       replay ycReveal over content the reader is already looking at. Keeping the
+       name and collapsing the duration leaves a finished run finished. */
+    animation-duration: 0.01ms;
+    will-change: auto;
+  }
+}
+
+/* ---- Hero video (HeroVideo in site/motion.tsx) ---- */
+/* The loop is decorative, and HeroVideo drops it from the tree once the client
+   reads the preference. That is necessarily a post-hydration decision: a server
+   cannot know prefers-reduced-motion, so the markup ships either way and a reader
+   who asked for less motion would otherwise watch it paint before it disappears.
+   Hiding it here means it never paints for them; the component still removes it,
+   which is what stops the playback (display alone does not).
+
+   This rule and that unmount are the whole guard. The <source> deliberately
+   carries no media attribute: gating it on (prefers-reduced-motion: no-preference)
+   also stopped the download for everyone on Safari, because WebKit evaluates that
+   query during the initial resource selection and lands the element in a terminal
+   NETWORK_NO_SOURCE it never retries. When scripting never runs, a reduced-motion
+   reader now fetches the file and never sees it, which is the cheaper failure.
+
+   The scrim selector is scoped to the one HeroVideo renders beside its video.
+   The attribute is not exclusive: PetParents places its own standalone
+   [data-hero-scrim] as a page-level readability wash over unconditional glow
+   layers, and that one must keep painting for reduced-motion readers - it is the
+   contrast surface the headline sits on, in both themes. */
+@media (prefers-reduced-motion: reduce) {
+  [data-hero-video],
+  [data-hero-video] + [data-hero-scrim] {
+    display: none;
   }
 }
 

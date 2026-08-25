@@ -15,6 +15,7 @@ jest.mock("src/config/prisma", () => ({
       create: jest.fn(),
       findMany: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       update: jest.fn(),
       deleteMany: jest.fn(),
     },
@@ -88,6 +89,7 @@ const mockedPrisma = prisma as unknown as {
     create: jest.Mock;
     findMany: jest.Mock;
     findUnique: jest.Mock;
+    findFirst: jest.Mock;
     update: jest.Mock;
     deleteMany: jest.Mock;
   };
@@ -524,6 +526,49 @@ describe("CompanionService", () => {
     expect(mockedPrisma.patient.findUnique).toHaveBeenCalledWith({
       where: { id: "patient-1" },
     });
+    expect(result?.response).toMatchObject({ id: "patient-1" });
+  });
+
+  it("returns null for an invalid id in the org-scoped read", async () => {
+    await expect(
+      CompanionService.getByIdForOrg("", "org-1"),
+    ).resolves.toBeNull();
+  });
+
+  // `Patient` rows are not org-scoped in the schema, so a read with no
+  // organisation would return any tenant's companion.
+  it("rejects an org-scoped read with no organisation context", async () => {
+    await expect(
+      CompanionService.getByIdForOrg("patient-1", "  "),
+    ).rejects.toEqual(
+      expect.objectContaining({
+        message: "Organisation is required.",
+        statusCode: 400,
+      }),
+    );
+  });
+
+  it("returns null when the id is not linked to the organisation", async () => {
+    mockedPrisma.patient.findFirst.mockResolvedValueOnce(null);
+
+    await expect(
+      CompanionService.getByIdForOrg("patient-1", "org-1"),
+    ).resolves.toBeNull();
+    expect(mockedPrisma.patient.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "patient-1",
+        organisations: {
+          some: { organisationId: "org-1", status: "ACTIVE" },
+        },
+      },
+    });
+  });
+
+  it("returns a mapped companion when the id is linked to the organisation", async () => {
+    mockedPrisma.patient.findFirst.mockResolvedValueOnce(createdPatient);
+
+    const result = await CompanionService.getByIdForOrg("patient-1", "org-1");
+
     expect(result?.response).toMatchObject({ id: "patient-1" });
   });
 

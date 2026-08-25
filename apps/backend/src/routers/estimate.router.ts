@@ -56,6 +56,14 @@ estimateRouter.post(
 );
 
 estimateRouter.post(
+  `${base}/:estimateId/convert`,
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission("billing:edit:any"),
+  estimateController.convert,
+);
+
+estimateRouter.post(
   `${base}/:estimateId/decline`,
   requireWebAuth,
   withOrgPermissions(),

@@ -1,4 +1,5 @@
 import type { FormField } from '@/app/features/forms/types/forms';
+import type { SoapCodedProblems } from '@yosemite-crew/types';
 
 /** The six workspace steps, in order. */
 export type WorkspaceStep =
@@ -62,6 +63,12 @@ export type SoapNoteEntry = {
    */
   customSchema?: FormField[];
   customAnswers?: Record<string, unknown>;
+  /**
+   * Structured vocabulary references picked per S/O/A/P section (shape shared with the
+   * backend via @yosemite-crew/types). Persisted through the SoapNote `diagnoses`
+   * channel so the free-text note also carries exact coded terms.
+   */
+  codedProblems?: SoapCodedProblems;
   signedByName?: string;
   signedAt?: string;
   signedOffline?: boolean;
