@@ -330,12 +330,17 @@ export function HeroVideo({ src, poster, position = 'center 42%' }: Readonly<Her
         onError={() => setFailed(true)}
         style={{ ...HERO_VIDEO_STYLE, objectPosition: position }}
       >
-        {/* The media gate stops the FETCH for reduced-motion readers even when
-            hydration never runs (scripting off, a blocked bundle): a source whose
-            media query does not match is never selected. Browsers without media
-            support on video sources ignore it and fall back to the CSS guard
-            plus the unmount above. */}
-        <source src={src} type="video/mp4" media="(prefers-reduced-motion: no-preference)" />
+        {/* No `media` gate on this source. It used to carry
+            media="(prefers-reduced-motion: no-preference)" so the fetch never started
+            for reduced-motion readers, but WebKit evaluates a source's media query
+            during the initial resource selection - before a render-blocking stylesheet
+            has resolved styles - decides it does not match, and rejects the only
+            candidate. That leaves the element in NETWORK_NO_SOURCE, which is terminal:
+            Safari never re-selects, so the loop never loaded on any landing page while
+            matchMedia reported the very same query as matching a moment later.
+            Reduced motion is still honoured twice over - the CSS guard hides this pair
+            from first paint, and the unmount above is what stops playback. */}
+        <source src={src} type="video/mp4" />
       </video>
       <div data-hero-scrim="" style={HERO_SCRIM_STYLE} />
     </div>
