@@ -10,13 +10,51 @@ import {
 describe('PreferenceGroup', () => {
   it('renders the group title and its children', () => {
     render(
-      <PreferenceGroup title="Workspace preferences">
+      <PreferenceGroup title="Your preferences">
         <div>child content</div>
       </PreferenceGroup>
     );
 
-    expect(screen.getByRole('heading', { name: 'Workspace preferences' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Your preferences' })).toBeInTheDocument();
     expect(screen.getByText('child content')).toBeInTheDocument();
+  });
+
+  // A clinic-wide group must SAY it is clinic-wide. Without this the page looks
+  // correct while telling the reader nothing about who a change affects, which
+  // is the exact failure the scope split exists to prevent.
+  it('names the audience and warns when the scope is the whole clinic', () => {
+    render(
+      <PreferenceGroup title="Scheduling & messaging" scope="organisation">
+        <span>x</span>
+      </PreferenceGroup>
+    );
+
+    expect(screen.getByText('Whole clinic')).toBeInTheDocument();
+    expect(
+      screen.getByText('These apply to everyone at this clinic, not just you.')
+    ).toBeInTheDocument();
+  });
+
+  it('names the audience as the signed-in user for a personal scope', () => {
+    render(
+      <PreferenceGroup title="Your preferences" scope="personal">
+        <span>x</span>
+      </PreferenceGroup>
+    );
+
+    expect(screen.getByText('Only you')).toBeInTheDocument();
+    expect(screen.getByText('These apply to your account on this clinic.')).toBeInTheDocument();
+  });
+
+  it('renders no scope chip or hint when the scope is not declared', () => {
+    render(
+      <PreferenceGroup title="Group">
+        <span>x</span>
+      </PreferenceGroup>
+    );
+
+    expect(screen.queryByText('Whole clinic')).not.toBeInTheDocument();
+    expect(screen.queryByText('Only you')).not.toBeInTheDocument();
   });
 
   it('appends an extra className when provided', () => {

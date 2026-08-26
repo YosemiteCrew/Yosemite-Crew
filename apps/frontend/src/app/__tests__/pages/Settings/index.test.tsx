@@ -124,7 +124,9 @@ describe('Settings page', () => {
     render(<Settings />);
 
     expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
-    expect(screen.getByText('Personal and workspace preferences')).toBeInTheDocument();
+    expect(
+      screen.getByText('Your preferences, and the clinic settings you administer')
+    ).toBeInTheDocument();
     expect(screen.getByText('Changes save automatically')).toBeInTheDocument();
   });
 
