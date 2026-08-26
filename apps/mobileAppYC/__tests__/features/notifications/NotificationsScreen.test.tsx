@@ -124,6 +124,8 @@ jest.mock('../../../src/features/notifications/selectors', () => ({
   selectNotificationFilter: jest.fn(),
   selectNotificationSortBy: jest.fn(),
   selectUnreadCountByCategory: jest.fn(),
+  selectNotificationsLoadFailure: jest.fn(() => () => undefined),
+  selectHasHydratedCompanion: jest.fn(() => () => true),
 }));
 
 // Mock Auth context to avoid provider requirement.

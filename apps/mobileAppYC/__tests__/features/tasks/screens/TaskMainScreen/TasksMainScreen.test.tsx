@@ -37,6 +37,7 @@ jest.mock('@/features/companion', () => ({
 // 3. Selectors
 jest.mock('@/features/tasks/selectors', () => ({
   selectHasHydratedCompanion: jest.fn(),
+  selectTasksLoadFailure: jest.fn(() => () => undefined),
   selectRecentTasksByCategory: jest.fn(),
   selectTaskCountByCategory: jest.fn(),
   selectTasksByCompanion: jest.fn(),
@@ -324,6 +325,8 @@ describe('TasksMainScreen', () => {
     selectRecentTasksByCategory.mockReturnValue((_state: any) => []);
     selectTaskCountByCategory.mockReturnValue((_state: any) => 0);
     selectTasksByCompanion.mockReturnValue((_state: any) => []);
+    const {selectTasksLoadFailure} = require('@/features/tasks/selectors');
+    selectTasksLoadFailure.mockReturnValue((_state: any) => undefined);
 
     const {selectAuthUser} = require('@/features/auth/selectors');
     selectAuthUser.mockReturnValue(mockAuthUser);
@@ -402,6 +405,39 @@ describe('TasksMainScreen', () => {
 
     render(<TasksMainScreen />);
     expect(setSelectedCompanion).toHaveBeenCalledWith('c1');
+  });
+
+  // The disguise, at the screen level. Before this the failed fetch produced an
+  // empty task list, and an empty task list rendered "No tasks yet" - the same
+  // copy a companion with genuinely nothing scheduled sees, and no way to retry.
+  it('renders a load error with retry instead of the empty state when the fetch failed', () => {
+    const {
+      selectTasksLoadFailure,
+      selectHasHydratedCompanion,
+    } = require('@/features/tasks/selectors');
+    selectTasksLoadFailure.mockReturnValue((_state: any) => 'Network Error');
+    selectHasHydratedCompanion.mockReturnValue((_state: any) => false);
+
+    const {getByTestId, queryByText} = render(<TasksMainScreen />);
+
+    expect(getByTestId('tasks-load-error')).toBeTruthy();
+    expect(queryByText('No tasks yet')).toBeNull();
+  });
+
+  it('refetches tasks when the load error retry is pressed', () => {
+    const {
+      selectTasksLoadFailure,
+      selectHasHydratedCompanion,
+    } = require('@/features/tasks/selectors');
+    selectTasksLoadFailure.mockReturnValue((_state: any) => 'Network Error');
+    selectHasHydratedCompanion.mockReturnValue((_state: any) => false);
+
+    const {getByTestId} = render(<TasksMainScreen />);
+    mockDispatch.mockClear();
+
+    fireEvent.press(getByTestId('tasks-load-error-retry'));
+
+    expect(mockDispatch).toHaveBeenCalled();
   });
 
   it('renders the main screen content when companion is selected', () => {

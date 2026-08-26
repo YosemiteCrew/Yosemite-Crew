@@ -193,6 +193,13 @@ export interface TasksState {
   loading: boolean;
   error: string | null;
   hydratedCompanions: Record<string, boolean>;
+  /**
+   * Companions whose last list fetch FAILED, mapped to the message. Kept
+   * apart from `hydratedCompanions` so a screen can tell a failed load
+   * from an account that is genuinely empty - collapsing the two is what
+   * made every failure render as the new-user empty state.
+   */
+  failedCompanions: Record<string, string>;
 }
 
 // Form Data Types

@@ -25,8 +25,11 @@ import {
   selectRecentTasksByCategory,
   selectTaskCountByCategory,
   selectTasksByCompanion,
+  selectTasksLoadFailure,
   taskOccursOnDate,
 } from '@/features/tasks/selectors';
+import {ListErrorState} from '@/shared/components/common/ListErrorState/ListErrorState';
+import {resolveListPhase} from '@/shared/utils/listPhase';
 import {selectAuthUser} from '@/features/auth/selectors';
 import type {AppDispatch, RootState} from '@/app/store';
 import type {TaskStackParamList} from '@/navigation/types';
@@ -113,6 +116,10 @@ export const TasksMainScreen: React.FC = () => {
   );
 
   // Get all tasks for the selected companion
+  const tasksLoadFailure = useSelector(
+    selectTasksLoadFailure(selectedCompanionId),
+  );
+  const tasksLoading = useSelector((state: RootState) => state.tasks.loading);
   const allTasks = useSelector(
     selectTasksByCompanion(selectedCompanionId ?? null),
   );
@@ -235,13 +242,34 @@ export const TasksMainScreen: React.FC = () => {
     }
   }, [companions, selectedCompanionId, dispatch]);
 
+  // Four states, not two. An empty `allTasks` used to mean "no tasks yet" no
+  // matter why it was empty, so a failed fetch rendered the same "add your
+  // first task" prompt as a brand new companion.
+  const taskListPhase = useMemo(
+    () =>
+      resolveListPhase({
+        loading: tasksLoading,
+        loadError: tasksLoadFailure,
+        hasLoaded: hasHydrated,
+        itemCount: allTasks.length,
+      }),
+    [tasksLoading, tasksLoadFailure, hasHydrated, allTasks.length],
+  );
+
+  const refetchTasks = useCallback(() => {
+    if (!selectedCompanionId) {
+      return;
+    }
+    dispatch(fetchTasksForCompanion({companionId: selectedCompanionId}));
+  }, [dispatch, selectedCompanionId]);
+
   useFocusEffect(
     useCallback(() => {
       if (!selectedCompanionId || hasHydrated) {
         return;
       }
-      dispatch(fetchTasksForCompanion({companionId: selectedCompanionId}));
-    }, [dispatch, selectedCompanionId, hasHydrated]),
+      refetchTasks();
+    }, [selectedCompanionId, hasHydrated, refetchTasks]),
   );
 
   useEffect(() => {
@@ -312,12 +340,16 @@ export const TasksMainScreen: React.FC = () => {
           />
 
           {/* Category Sections */}
-          {allTasks.length === 0 ? (
+          {taskListPhase === 'error' && (
+            <ListErrorState testID="tasks-load-error" onRetry={refetchTasks} />
+          )}
+          {taskListPhase === 'empty' ? (
             <NoTasksEmptyState
               companionName={selectedCompanion?.name}
               styles={styles}
             />
-          ) : (
+          ) : null}
+          {taskListPhase === 'ready' ? (
             <>
               {totalCount > 0 && (
                 <TaskProgressSummary
@@ -342,7 +374,7 @@ export const TasksMainScreen: React.FC = () => {
                 />
               ))}
             </>
-          )}
+          ) : null}
         </ScrollView>
       )}
     </LiquidGlassHeaderScreen>

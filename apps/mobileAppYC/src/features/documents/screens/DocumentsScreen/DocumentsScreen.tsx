@@ -6,6 +6,8 @@ import {CompanionSelector} from '@/shared/components/common/CompanionSelector/Co
 import DocumentListItem from '@/features/documents/components/DocumentListItem';
 import {CategoryTile} from '@/shared/components/common/CategoryTile/CategoryTile';
 import {EmptyDocumentsScreen} from '../EmptyDocumentsScreen/EmptyDocumentsScreen';
+import {ListErrorState} from '@/shared/components/common/ListErrorState/ListErrorState';
+import {fetchCompanions} from '@/features/companion';
 import {useSelector} from 'react-redux';
 import type {RootState} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
@@ -42,6 +44,19 @@ export const DocumentsScreen: React.FC = () => {
     },
   }));
   useDocumentCompanionSync({companions, selectedCompanionId, dispatch});
+
+  const companionLoadError = useSelector(
+    (state: RootState) => state.companion?.loadError ?? undefined,
+  );
+  const parentId = useSelector(
+    (state: RootState) => state.auth?.user?.parentId ?? undefined,
+  );
+  const handleRetryCompanions = React.useCallback(() => {
+    if (!parentId) {
+      return;
+    }
+    dispatch(fetchCompanions(parentId));
+  }, [dispatch, parentId]);
   const {handleAddDocument, handleViewDocument, handleEditDocument} =
     useDocumentNavigation(navigation);
 
@@ -81,8 +96,17 @@ export const DocumentsScreen: React.FC = () => {
     });
   }, [filteredDocuments]);
 
-  // Show empty screen if no companions
+  // Show empty screen if no companions - unless the companion fetch FAILED, in
+  // which case an empty list is not evidence the user has no companions.
   if (companions.length === 0) {
+    if (companionLoadError) {
+      return (
+        <ListErrorState
+          testID="documents-companions-load-error"
+          onRetry={handleRetryCompanions}
+        />
+      );
+    }
     return <EmptyDocumentsScreen />;
   }
 

@@ -68,11 +68,15 @@ jest.mock('@/features/tasks', () => ({
   markTaskStatus: jest.fn(payload => ({type: 'tasks/markStatus', payload})),
 }));
 
+// Stable references so tests can assert on the readiness gate rather than on a
+// fresh mock per render.
+const mockShowLoader = jest.fn();
+const mockHideLoader = jest.fn();
 jest.mock('@/context/GlobalLoaderContext', () => {
   return {
     useGlobalLoader: () => ({
-      showLoader: jest.fn(),
-      hideLoader: jest.fn(),
+      showLoader: mockShowLoader,
+      hideLoader: mockHideLoader,
       isLoading: false,
     }),
     GlobalLoaderProvider: ({children}: any) => <>{children}</>,
@@ -731,6 +735,49 @@ describe('HomeScreen', () => {
       );
 
       expect(getByText('Hello, Sky')).toBeTruthy();
+    });
+
+    // #2368's disguise on Home: an empty companion list rendered "Add your
+    // first companion" whether the account was new or the fetch had failed, so
+    // an outage looked like onboarding and offered no retry.
+    it('renders a load error instead of the add-first-companion hero when the companion fetch failed', () => {
+      const store = createStore({
+        companion: {
+          list: [],
+          selectedId: null,
+          loading: false,
+          loadError: 'Network Error',
+        },
+      });
+
+      const {getByTestId, queryByText} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+
+      expect(getByTestId('home-companions-load-error')).toBeTruthy();
+      expect(queryByText('Add your first companion')).toBeNull();
+    });
+
+    it('still shows the add-first-companion hero when the list is genuinely empty', () => {
+      const store = createStore({
+        companion: {
+          list: [],
+          selectedId: null,
+          loading: false,
+          loadError: null,
+        },
+      });
+
+      const {getByText, queryByTestId} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+
+      expect(getByText('Add your first companion')).toBeTruthy();
+      expect(queryByTestId('home-companions-load-error')).toBeNull();
     });
 
     it('navigates to AddCompanion when the hero button is pressed', () => {

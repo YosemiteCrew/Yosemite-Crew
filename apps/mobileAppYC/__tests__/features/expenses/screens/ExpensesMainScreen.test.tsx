@@ -158,6 +158,7 @@ jest.mock('@/features/expenses/utils/expenseLabels', () => ({
 jest.mock('@/features/expenses/selectors', () => ({
   selectExpenseSummaryByCompanion: jest.fn(),
   selectExpensesLoading: jest.fn(),
+  selectExpensesLoadFailure: jest.fn(() => () => undefined),
   selectHasHydratedCompanion: jest.fn(),
   selectRecentExternalExpenses: jest.fn(),
   selectRecentInAppExpenses: jest.fn(),

@@ -33,6 +33,8 @@ import {
   fetchCompanions,
 } from '@/features/companion';
 import {selectAuthUser} from '@/features/auth/selectors';
+import {selectCollectionFailure} from '@/shared/store/collectionLoadState';
+import {ListErrorState} from '@/shared/components/common/ListErrorState/ListErrorState';
 import {AppointmentCard} from '@/shared/components/common/AppointmentCard/AppointmentCard';
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
 import {
@@ -93,7 +95,10 @@ import {resolveCategoryLabel} from '@/features/tasks/utils/taskLabels';
 import {useLiquidGlassHeaderLayout} from '@/shared/hooks/useLiquidGlassHeaderLayout';
 import {upsertBusiness} from '@/features/appointments/businessesSlice';
 import {BusinessSearchDropdown} from '@/features/linkedBusinesses/components/BusinessSearchDropdown';
-import {deriveHomeGreetingName} from './HomeScreen.helpers';
+import {
+  deriveHomeGreetingName,
+  isHomeRequestSettled,
+} from './HomeScreen.helpers';
 
 import i18next from 'i18next';
 import {useResolvedUserCurrency} from '@/shared/hooks/useResolvedUserCurrency';
@@ -235,6 +240,25 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       : true,
   );
   const hasTasksHydrated = useSelector(selectTasksHydrated(targetCompanionId));
+
+  // The readiness gate below waits on hydration flags that are only ever set in
+  // `.fulfilled`. A rejected fetch left them false forever, so a single failure
+  // held the full-screen loader up until the 12s escape hatch and then dropped
+  // the user onto a Home with every section silently blank. Reading the failure
+  // side of each slice lets the gate treat "failed" as SETTLED, and lets Home
+  // say so instead of pretending there is nothing to show.
+  const companionLoadError = useSelector(
+    (state: RootState) => state.companion?.loadError ?? undefined,
+  );
+  const appointmentsLoadError = useSelector((state: RootState) =>
+    selectCollectionFailure(state.appointments, targetCompanionId),
+  );
+  const expensesLoadError = useSelector((state: RootState) =>
+    selectCollectionFailure(state.expenses, selectedCompanionIdRedux),
+  );
+  const notificationsLoadError = useSelector((state: RootState) =>
+    selectCollectionFailure(state.notifications, 'default-companion'),
+  );
   const nextUpcomingTaskSelector = React.useMemo(
     () => selectNextUpcomingTask(targetCompanionId),
     [targetCompanionId],
@@ -648,15 +672,30 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     if (initialRequests.access && accessLoading) return false;
     if (
       initialRequests.notifications &&
-      (notificationsLoading || !hasNotificationsHydrated)
+      !isHomeRequestSettled(
+        notificationsLoading,
+        hasNotificationsHydrated,
+        notificationsLoadError,
+      )
     )
       return false;
     if (
       initialRequests.appointments &&
-      (appointmentsLoading || !hasAppointmentsHydrated)
+      !isHomeRequestSettled(
+        appointmentsLoading,
+        hasAppointmentsHydrated,
+        appointmentsLoadError,
+      )
     )
       return false;
-    if (initialRequests.expenses && (expensesLoading || !hasExpenseHydrated))
+    if (
+      initialRequests.expenses &&
+      !isHomeRequestSettled(
+        expensesLoading,
+        hasExpenseHydrated,
+        expensesLoadError,
+      )
+    )
       return false;
     if (initialRequests.linkedBusinesses && linkedBusinessesLoading)
       return false;
@@ -667,10 +706,13 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     accessLoading,
     notificationsLoading,
     hasNotificationsHydrated,
+    notificationsLoadError,
     appointmentsLoading,
     hasAppointmentsHydrated,
+    appointmentsLoadError,
     expensesLoading,
     hasExpenseHydrated,
+    expensesLoadError,
     linkedBusinessesLoading,
   ]);
 
@@ -715,6 +757,16 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       hideLoader();
     };
   }, [hideLoader]);
+
+  // Retrying the companion list also unblocks everything keyed off a selected
+  // companion, which is why Home offers one retry rather than one per section.
+  const handleRetryHomeLoad = React.useCallback(() => {
+    if (!user?.parentId) {
+      return;
+    }
+    markInitialRequest('companions');
+    dispatch(fetchCompanions(user.parentId));
+  }, [dispatch, markInitialRequest, user?.parentId]);
 
   const handleAddCompanion = () => {
     navigation.navigate('AddCompanion');
@@ -1436,7 +1488,16 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           {paddingBottom: bottomScrollPadding},
         ]}
         showsVerticalScrollIndicator={false}>
-        {companions.length === 0 ? (
+        {companionLoadError && companions.length === 0 ? (
+          // Without this the hero below claimed the account has no companions,
+          // which is the same screen a brand new user sees. A fetch that failed
+          // is not an empty account, and the user had no way to retry.
+          <ListErrorState
+            testID="home-companions-load-error"
+            onRetry={handleRetryHomeLoad}
+          />
+        ) : null}
+        {companions.length === 0 && !companionLoadError ? (
           <View style={styles.heroShadowWrapper}>
             <LiquidGlassCard
               glassEffect="clear"
@@ -1468,7 +1529,8 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
               </View>
             </LiquidGlassCard>
           </View>
-        ) : (
+        ) : null}
+        {companions.length > 0 ? (
           <CompanionSelector
             companions={companions}
             selectedCompanionId={selectedCompanionIdRedux}
@@ -1476,7 +1538,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             onAddCompanion={handleAddCompanion}
             showAddButton={true}
           />
-        )}
+        ) : null}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Upcoming</Text>

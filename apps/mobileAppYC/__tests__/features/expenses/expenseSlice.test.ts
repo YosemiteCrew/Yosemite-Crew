@@ -10,7 +10,11 @@ import {
   deleteExternalExpense,
   markInAppExpenseStatus,
 } from '@/features/expenses/thunks';
-import type {ExpensesState, Expense, ExpenseSummary} from '@/features/expenses/types';
+import type {
+  ExpensesState,
+  Expense,
+  ExpenseSummary,
+} from '@/features/expenses/types';
 
 jest.useFakeTimers().setSystemTime(new Date('2023-01-01T00:00:00.000Z'));
 
@@ -20,6 +24,7 @@ const initialState: ExpensesState = {
   error: null,
   summaries: {},
   hydratedCompanions: {},
+  failedCompanions: {},
 };
 
 const mockExpense1: Expense = {
@@ -99,6 +104,7 @@ describe('expensesSlice', () => {
         error: 'Boom',
         summaries: {comp1: mockSummary},
         hydratedCompanions: {comp1: true},
+        failedCompanions: {},
       };
 
       const nextState = expensesReducer(populatedState, resetExpensesState());
@@ -158,14 +164,20 @@ describe('expensesSlice', () => {
 
     it('should set error on rejected', () => {
       const error = 'Unable to fetch';
-      const action = {type: fetchExpensesForCompanion.rejected.type, payload: error};
+      const action = {
+        type: fetchExpensesForCompanion.rejected.type,
+        payload: error,
+      };
       const state = expensesReducer(initialState, action);
       expect(state.loading).toBe(false);
       expect(state.error).toBe(error);
     });
 
     it('should set default error on rejected if no payload', () => {
-      const action = {type: fetchExpensesForCompanion.rejected.type, payload: undefined};
+      const action = {
+        type: fetchExpensesForCompanion.rejected.type,
+        payload: undefined,
+      };
       const state = expensesReducer(initialState, action);
       expect(state.error).toBe('Unable to fetch expenses');
     });
@@ -179,7 +191,10 @@ describe('expensesSlice', () => {
     });
 
     it('should add expense and update summary on fulfilled', () => {
-      const action = {type: addExternalExpense.fulfilled.type, payload: mockExpense1};
+      const action = {
+        type: addExternalExpense.fulfilled.type,
+        payload: mockExpense1,
+      };
       const state = expensesReducer(initialState, action);
 
       expect(state.loading).toBe(false);
@@ -197,7 +212,10 @@ describe('expensesSlice', () => {
     });
 
     it('should set default error on rejected if no payload', () => {
-      const action = {type: addExternalExpense.rejected.type, payload: undefined};
+      const action = {
+        type: addExternalExpense.rejected.type,
+        payload: undefined,
+      };
       const state = expensesReducer(initialState, action);
       expect(state.error).toBe('Unable to add expense');
     });
@@ -245,14 +263,20 @@ describe('expensesSlice', () => {
 
     it('should set error on rejected', () => {
       const error = 'Unable to update';
-      const action = {type: updateExternalExpense.rejected.type, payload: error};
+      const action = {
+        type: updateExternalExpense.rejected.type,
+        payload: error,
+      };
       const state = expensesReducer(initialStateWithItem, action);
       expect(state.loading).toBe(false);
       expect(state.error).toBe(error);
     });
 
     it('should set default error on rejected if no payload', () => {
-      const action = {type: updateExternalExpense.rejected.type, payload: undefined};
+      const action = {
+        type: updateExternalExpense.rejected.type,
+        payload: undefined,
+      };
       const state = expensesReducer(initialStateWithItem, action);
       expect(state.error).toBe('Unable to update expense');
     });
@@ -297,14 +321,20 @@ describe('expensesSlice', () => {
 
     it('should set error on rejected', () => {
       const error = 'Unable to delete';
-      const action = {type: deleteExternalExpense.rejected.type, payload: error};
+      const action = {
+        type: deleteExternalExpense.rejected.type,
+        payload: error,
+      };
       const state = expensesReducer(initialStateWithItem, action);
       expect(state.loading).toBe(false);
       expect(state.error).toBe(error);
     });
 
     it('should set default error on rejected if no payload', () => {
-      const action = {type: deleteExternalExpense.rejected.type, payload: undefined};
+      const action = {
+        type: deleteExternalExpense.rejected.type,
+        payload: undefined,
+      };
       const state = expensesReducer(initialStateWithItem, action);
       expect(state.error).toBe('Unable to delete expense');
     });
@@ -344,7 +374,10 @@ describe('expensesSlice', () => {
 
     it('should set error on rejected', () => {
       const error = 'Unable to update status';
-      const action = {type: markInAppExpenseStatus.rejected.type, payload: error};
+      const action = {
+        type: markInAppExpenseStatus.rejected.type,
+        payload: error,
+      };
       const state = expensesReducer(initialStateWithItem, action);
       expect(state.loading).toBe(false);
       expect(state.error).toBe(error);

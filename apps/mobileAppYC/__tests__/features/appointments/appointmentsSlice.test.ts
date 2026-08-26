@@ -100,6 +100,7 @@ const initialState = {
   loading: false,
   error: null,
   hydratedCompanions: {},
+  failedCompanions: {},
 };
 
 const createTestStore = (
@@ -178,6 +179,7 @@ describe('appointmentsSlice', () => {
         items: [mockAppointment],
         invoices: [mockInvoice],
         hydratedCompanions: {'comp-1': true},
+        failedCompanions: {},
       };
 
       const nextState = appointmentsReducer(
@@ -1724,6 +1726,7 @@ describe('appointmentsSlice', () => {
           {...mockInvoice, id: 'inv-2', appointmentId: 'appt-2'},
         ],
         hydratedCompanions: {'comp-1': true, 'comp-2': true},
+        failedCompanions: {},
       });
 
       store.dispatch(

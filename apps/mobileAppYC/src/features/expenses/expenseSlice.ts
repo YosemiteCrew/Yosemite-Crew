@@ -10,15 +10,25 @@ import {
   updateExternalExpense,
 } from './thunks';
 
+import {
+  markCollectionFailed,
+  markCollectionHydrated,
+  markCollectionPending,
+} from '@/shared/store/collectionLoadState';
+
 const initialState: ExpensesState = {
   items: [],
   loading: false,
   error: null,
   summaries: {},
   hydratedCompanions: {},
+  failedCompanions: {},
 };
 
-const buildSummary = (expenses: Expense[], override?: ExpenseSummary): ExpenseSummary => {
+const buildSummary = (
+  expenses: Expense[],
+  override?: ExpenseSummary,
+): ExpenseSummary => {
   const totals = expenses.reduce(
     (acc, expense) => {
       acc.total += expense.amount;
@@ -60,7 +70,10 @@ const recalculateSummary = (
     return;
   }
 
-  state.summaries[companionId] = buildSummary(expenses, summaryOverride ?? undefined);
+  state.summaries[companionId] = buildSummary(
+    expenses,
+    summaryOverride ?? undefined,
+  );
 };
 
 const expensesSlice = createSlice({
@@ -71,9 +84,14 @@ const expensesSlice = createSlice({
       state.error = null;
     },
     resetExpensesState: () => initialState,
-    injectMockExpenses: (state, action: PayloadAction<{companionId: string; expenses: Expense[]}>) => {
+    injectMockExpenses: (
+      state,
+      action: PayloadAction<{companionId: string; expenses: Expense[]}>,
+    ) => {
       const {companionId, expenses} = action.payload;
-      state.items = state.items.filter(item => item.companionId !== companionId);
+      state.items = state.items.filter(
+        item => item.companionId !== companionId,
+      );
       state.items.push(...expenses);
       recalculateSummary(state, companionId);
       state.hydratedCompanions[companionId] = true;
@@ -81,22 +99,30 @@ const expensesSlice = createSlice({
   },
   extraReducers: builder => {
     builder
-      .addCase(fetchExpensesForCompanion.pending, state => {
+      .addCase(fetchExpensesForCompanion.pending, (state, action) => {
         state.loading = true;
         state.error = null;
+        markCollectionPending(state, action.meta?.arg?.companionId);
       })
       .addCase(fetchExpensesForCompanion.fulfilled, (state, action) => {
         state.loading = false;
         const {companionId, expenses, summary} = action.payload;
 
-        state.items = state.items.filter(item => item.companionId !== companionId);
+        state.items = state.items.filter(
+          item => item.companionId !== companionId,
+        );
         state.items.push(...expenses);
         recalculateSummary(state, companionId, summary);
-        state.hydratedCompanions[companionId] = true;
+        markCollectionHydrated(state, companionId);
       })
       .addCase(fetchExpensesForCompanion.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload ?? 'Unable to fetch expenses';
+        markCollectionFailed(
+          state,
+          action.meta?.arg?.companionId,
+          action.payload,
+        );
       })
       .addCase(addExternalExpense.pending, state => {
         state.loading = true;
@@ -118,7 +144,9 @@ const expensesSlice = createSlice({
       .addCase(updateExternalExpense.fulfilled, (state, action) => {
         state.loading = false;
         const updatedExpense = action.payload;
-        const index = state.items.findIndex(item => item.id === updatedExpense.id);
+        const index = state.items.findIndex(
+          item => item.id === updatedExpense.id,
+        );
         if (index !== -1) {
           state.items[index] = updatedExpense;
         }
@@ -181,6 +209,7 @@ const expensesSlice = createSlice({
   },
 });
 
-export const {clearExpenseError, resetExpensesState, injectMockExpenses} = expensesSlice.actions;
+export const {clearExpenseError, resetExpensesState, injectMockExpenses} =
+  expensesSlice.actions;
 
 export default expensesSlice.reducer;

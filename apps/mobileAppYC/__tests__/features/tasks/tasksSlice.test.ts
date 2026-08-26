@@ -7,29 +7,29 @@ import tasksReducer, {
 // We use the relative path here as well to ensure Jest resolves it correctly
 jest.mock('@/features/tasks/thunks', () => ({
   fetchTasksForCompanion: {
-    pending: { type: 'tasks/fetchTasksForCompanion/pending' },
-    fulfilled: { type: 'tasks/fetchTasksForCompanion/fulfilled' },
-    rejected: { type: 'tasks/fetchTasksForCompanion/rejected' },
+    pending: {type: 'tasks/fetchTasksForCompanion/pending'},
+    fulfilled: {type: 'tasks/fetchTasksForCompanion/fulfilled'},
+    rejected: {type: 'tasks/fetchTasksForCompanion/rejected'},
   },
   addTask: {
-    pending: { type: 'tasks/addTask/pending' },
-    fulfilled: { type: 'tasks/addTask/fulfilled' },
-    rejected: { type: 'tasks/addTask/rejected' },
+    pending: {type: 'tasks/addTask/pending'},
+    fulfilled: {type: 'tasks/addTask/fulfilled'},
+    rejected: {type: 'tasks/addTask/rejected'},
   },
   updateTask: {
-    pending: { type: 'tasks/updateTask/pending' },
-    fulfilled: { type: 'tasks/updateTask/fulfilled' },
-    rejected: { type: 'tasks/updateTask/rejected' },
+    pending: {type: 'tasks/updateTask/pending'},
+    fulfilled: {type: 'tasks/updateTask/fulfilled'},
+    rejected: {type: 'tasks/updateTask/rejected'},
   },
   deleteTask: {
-    pending: { type: 'tasks/deleteTask/pending' },
-    fulfilled: { type: 'tasks/deleteTask/fulfilled' },
-    rejected: { type: 'tasks/deleteTask/rejected' },
+    pending: {type: 'tasks/deleteTask/pending'},
+    fulfilled: {type: 'tasks/deleteTask/fulfilled'},
+    rejected: {type: 'tasks/deleteTask/rejected'},
   },
   markTaskStatus: {
-    pending: { type: 'tasks/markTaskStatus/pending' },
-    fulfilled: { type: 'tasks/markTaskStatus/fulfilled' },
-    rejected: { type: 'tasks/markTaskStatus/rejected' },
+    pending: {type: 'tasks/markTaskStatus/pending'},
+    fulfilled: {type: 'tasks/markTaskStatus/fulfilled'},
+    rejected: {type: 'tasks/markTaskStatus/rejected'},
   },
 }));
 
@@ -37,7 +37,7 @@ jest.mock('@/features/tasks/thunks', () => ({
 const mockTask = (
   id: string,
   companionId: string,
-  status = 'pending'
+  status = 'pending',
 ): any => ({
   id,
   companionId,
@@ -53,6 +53,7 @@ describe('features/tasks/taskSlice', () => {
     loading: false,
     error: null,
     hydratedCompanions: {},
+    failedCompanions: {},
   };
 
   // -------------------------------------------------------------------------
@@ -60,7 +61,7 @@ describe('features/tasks/taskSlice', () => {
   // -------------------------------------------------------------------------
 
   it('should handle initial state', () => {
-    expect(tasksReducer(undefined, { type: 'unknown' })).toEqual(initialState);
+    expect(tasksReducer(undefined, {type: 'unknown'})).toEqual(initialState);
   });
 
   // -------------------------------------------------------------------------
@@ -69,7 +70,7 @@ describe('features/tasks/taskSlice', () => {
 
   describe('reducers', () => {
     it('should handle clearTaskError', () => {
-      const errorState = { ...initialState, error: 'Something went wrong' };
+      const errorState = {...initialState, error: 'Something went wrong'};
       const nextState = tasksReducer(errorState, clearTaskError());
       expect(nextState.error).toBeNull();
     });
@@ -79,7 +80,8 @@ describe('features/tasks/taskSlice', () => {
       const existingState = {
         ...initialState,
         items: [mockTask('1', 'C1'), mockTask('2', 'C2')],
-        hydratedCompanions: { C2: true },
+        hydratedCompanions: {C2: true},
+        failedCompanions: {},
       };
 
       const newTasks = [mockTask('3', 'C1'), mockTask('4', 'C1')];
@@ -87,7 +89,7 @@ describe('features/tasks/taskSlice', () => {
       // Action: Inject tasks for C1 (should replace existing C1 tasks, keep C2)
       const nextState = tasksReducer(
         existingState,
-        injectMockTasks({ companionId: 'C1', tasks: newTasks })
+        injectMockTasks({companionId: 'C1', tasks: newTasks}),
       );
 
       expect(nextState.items).toHaveLength(3); // 1 from C2 + 2 new from C1
@@ -109,7 +111,7 @@ describe('features/tasks/taskSlice', () => {
     const rejectedType = 'tasks/fetchTasksForCompanion/rejected';
 
     it('should set loading true on pending', () => {
-      const nextState = tasksReducer(initialState, { type: pendingType });
+      const nextState = tasksReducer(initialState, {type: pendingType});
       expect(nextState.loading).toBe(true);
       expect(nextState.error).toBeNull();
     });
@@ -124,7 +126,7 @@ describe('features/tasks/taskSlice', () => {
 
       const action = {
         type: fulfilledType,
-        payload: { companionId: 'C1', tasks: newTasks },
+        payload: {companionId: 'C1', tasks: newTasks},
       };
 
       const nextState = tasksReducer(startState, action);
@@ -132,12 +134,8 @@ describe('features/tasks/taskSlice', () => {
       expect(nextState.loading).toBe(false);
       expect(nextState.items).toHaveLength(2); // 1 kept + 1 new
       // Explicitly typed 't' as any to fix TS7006
-      expect(
-        nextState.items.find((t: any) => t.id === 'old1')
-      ).toBeUndefined();
-      expect(
-        nextState.items.find((t: any) => t.id === 'new1')
-      ).toBeDefined();
+      expect(nextState.items.find((t: any) => t.id === 'old1')).toBeUndefined();
+      expect(nextState.items.find((t: any) => t.id === 'new1')).toBeDefined();
       expect(nextState.hydratedCompanions.C1).toBe(true);
     });
 
@@ -146,12 +144,56 @@ describe('features/tasks/taskSlice', () => {
         type: rejectedType,
         payload: 'Network Error',
       };
-      const nextState = tasksReducer(
-        { ...initialState, loading: true },
-        action
-      );
+      const nextState = tasksReducer({...initialState, loading: true}, action);
       expect(nextState.loading).toBe(false);
       expect(nextState.error).toBe('Network Error');
+    });
+
+    // The disguise: a rejected fetch left hydratedCompanions false and items
+    // empty, which is byte-identical to a companion who genuinely has no tasks.
+    // The screen then rendered "add your first task" for an outage.
+    it('records the failure against the companion without hydrating it', () => {
+      const action = {
+        type: rejectedType,
+        payload: 'Network Error',
+        meta: {arg: {companionId: 'C1'}},
+      };
+
+      const nextState = tasksReducer({...initialState, loading: true}, action);
+
+      expect(nextState.failedCompanions.C1).toBe('Network Error');
+      expect(nextState.hydratedCompanions.C1).toBeUndefined();
+    });
+
+    it('clears a recorded failure when the fetch is retried', () => {
+      const failed = tasksReducer(initialState, {
+        type: rejectedType,
+        payload: 'Network Error',
+        meta: {arg: {companionId: 'C1'}},
+      });
+
+      const retrying = tasksReducer(failed, {
+        type: pendingType,
+        meta: {arg: {companionId: 'C1'}},
+      });
+
+      expect(retrying.failedCompanions.C1).toBeUndefined();
+    });
+
+    it('clears a recorded failure when the retry succeeds', () => {
+      const failed = tasksReducer(initialState, {
+        type: rejectedType,
+        payload: 'Network Error',
+        meta: {arg: {companionId: 'C1'}},
+      });
+
+      const succeeded = tasksReducer(failed, {
+        type: fulfilledType,
+        payload: {companionId: 'C1', tasks: []},
+      });
+
+      expect(succeeded.failedCompanions.C1).toBeUndefined();
+      expect(succeeded.hydratedCompanions.C1).toBe(true);
     });
 
     it('should use default error message if rejected payload is undefined', () => {
@@ -159,10 +201,7 @@ describe('features/tasks/taskSlice', () => {
         type: rejectedType,
         payload: undefined,
       };
-      const nextState = tasksReducer(
-        { ...initialState, loading: true },
-        action
-      );
+      const nextState = tasksReducer({...initialState, loading: true}, action);
       expect(nextState.loading).toBe(false);
       expect(nextState.error).toBe('Unable to fetch tasks');
     });
@@ -174,13 +213,13 @@ describe('features/tasks/taskSlice', () => {
     const rejectedType = 'tasks/addTask/rejected';
 
     it('should set loading true on pending', () => {
-      const nextState = tasksReducer(initialState, { type: pendingType });
+      const nextState = tasksReducer(initialState, {type: pendingType});
       expect(nextState.loading).toBe(true);
     });
 
     it('should add the new task on fulfilled', () => {
       const newTask = mockTask('1', 'C1');
-      const action = { type: fulfilledType, payload: newTask };
+      const action = {type: fulfilledType, payload: newTask};
       const nextState = tasksReducer(initialState, action);
 
       expect(nextState.loading).toBe(false);
@@ -188,20 +227,14 @@ describe('features/tasks/taskSlice', () => {
     });
 
     it('should set error payload on rejected', () => {
-      const action = { type: rejectedType, payload: 'Failed to add' };
-      const nextState = tasksReducer(
-        { ...initialState, loading: true },
-        action
-      );
+      const action = {type: rejectedType, payload: 'Failed to add'};
+      const nextState = tasksReducer({...initialState, loading: true}, action);
       expect(nextState.error).toBe('Failed to add');
     });
 
     it('should use default error message if rejected payload is undefined', () => {
-      const action = { type: rejectedType, payload: undefined };
-      const nextState = tasksReducer(
-        { ...initialState, loading: true },
-        action
-      );
+      const action = {type: rejectedType, payload: undefined};
+      const nextState = tasksReducer({...initialState, loading: true}, action);
       expect(nextState.error).toBe('Unable to add task');
     });
   });
@@ -217,12 +250,16 @@ describe('features/tasks/taskSlice', () => {
     };
 
     it('should set loading true on pending', () => {
-      const nextState = tasksReducer(startState, { type: pendingType });
+      const nextState = tasksReducer(startState, {type: pendingType});
       expect(nextState.loading).toBe(true);
     });
 
     it('should replace the entire task on fulfilled', () => {
-      const updatedTask = { ...startState.items[0], title: 'Updated Title', status: 'pending' };
+      const updatedTask = {
+        ...startState.items[0],
+        title: 'Updated Title',
+        status: 'pending',
+      };
       const action = {
         type: fulfilledType,
         payload: updatedTask, // Full task object
@@ -238,27 +275,28 @@ describe('features/tasks/taskSlice', () => {
     it('should do nothing if task not found on fulfilled', () => {
       const action = {
         type: fulfilledType,
-        payload: { id: '999', title: 'Ghost', companionId: 'C1', status: 'pending', createdAt: '2023-01-01T00:00:00.000Z', updatedAt: '2023-01-01T00:00:00.000Z' }, // Full task object with non-existent ID
+        payload: {
+          id: '999',
+          title: 'Ghost',
+          companionId: 'C1',
+          status: 'pending',
+          createdAt: '2023-01-01T00:00:00.000Z',
+          updatedAt: '2023-01-01T00:00:00.000Z',
+        }, // Full task object with non-existent ID
       };
       const nextState = tasksReducer(startState, action);
       expect(nextState.items).toEqual(startState.items);
     });
 
     it('should set error payload on rejected', () => {
-      const action = { type: rejectedType, payload: 'Update failed' };
-      const nextState = tasksReducer(
-        { ...startState, loading: true },
-        action
-      );
+      const action = {type: rejectedType, payload: 'Update failed'};
+      const nextState = tasksReducer({...startState, loading: true}, action);
       expect(nextState.error).toBe('Update failed');
     });
 
     it('should use default error message if rejected payload is undefined', () => {
-      const action = { type: rejectedType, payload: undefined };
-      const nextState = tasksReducer(
-        { ...startState, loading: true },
-        action
-      );
+      const action = {type: rejectedType, payload: undefined};
+      const nextState = tasksReducer({...startState, loading: true}, action);
       expect(nextState.error).toBe('Unable to update task');
     });
   });
@@ -274,13 +312,13 @@ describe('features/tasks/taskSlice', () => {
     };
 
     it('should set loading true on pending', () => {
-      const nextState = tasksReducer(startState, { type: pendingType });
+      const nextState = tasksReducer(startState, {type: pendingType});
       expect(nextState.loading).toBe(true);
     });
 
     it('should update the task with cancelled status on fulfilled', () => {
       // Delete returns the cancelled task and updates it in place
-      const cancelledTask = { ...startState.items[0], status: 'CANCELLED' };
+      const cancelledTask = {...startState.items[0], status: 'CANCELLED'};
       const action = {
         type: fulfilledType,
         payload: cancelledTask, // Full task object that was cancelled
@@ -294,20 +332,14 @@ describe('features/tasks/taskSlice', () => {
     });
 
     it('should set error payload on rejected', () => {
-      const action = { type: rejectedType, payload: 'Delete failed' };
-      const nextState = tasksReducer(
-        { ...startState, loading: true },
-        action
-      );
+      const action = {type: rejectedType, payload: 'Delete failed'};
+      const nextState = tasksReducer({...startState, loading: true}, action);
       expect(nextState.error).toBe('Delete failed');
     });
 
     it('should use default error message if rejected payload is undefined', () => {
-      const action = { type: rejectedType, payload: undefined };
-      const nextState = tasksReducer(
-        { ...startState, loading: true },
-        action
-      );
+      const action = {type: rejectedType, payload: undefined};
+      const nextState = tasksReducer({...startState, loading: true}, action);
       expect(nextState.error).toBe('Unable to delete task');
     });
   });
@@ -323,7 +355,7 @@ describe('features/tasks/taskSlice', () => {
     };
 
     it('should set loading true on pending', () => {
-      const nextState = tasksReducer(startState, { type: pendingType });
+      const nextState = tasksReducer(startState, {type: pendingType});
       expect(nextState.loading).toBe(true);
     });
 
@@ -390,19 +422,13 @@ describe('features/tasks/taskSlice', () => {
         type: rejectedType,
         payload: 'Status update error',
       };
-      const nextState = tasksReducer(
-        { ...startState, loading: true },
-        action
-      );
+      const nextState = tasksReducer({...startState, loading: true}, action);
       expect(nextState.error).toBe('Status update error');
     });
 
     it('should use default error message if rejected payload is undefined', () => {
-      const action = { type: rejectedType, payload: undefined };
-      const nextState = tasksReducer(
-        { ...startState, loading: true },
-        action
-      );
+      const action = {type: rejectedType, payload: undefined};
+      const nextState = tasksReducer({...startState, loading: true}, action);
       expect(nextState.error).toBe('Unable to update task status');
     });
   });

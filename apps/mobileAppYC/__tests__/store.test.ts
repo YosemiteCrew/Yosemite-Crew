@@ -92,7 +92,7 @@ describe('Redux Store', () => {
 
     expect(config).toBeDefined();
     expect(config.key).toBe('root');
-    expect(config.version).toBe(7);
+    expect(config.version).toBe(8);
     expect(config.storage).toBeDefined();
     expect(config.migrate).toEqual(expect.any(Function));
   });
@@ -253,12 +253,17 @@ describe('Redux Store', () => {
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining('Migrating from v2 to v3'),
       );
+      // The runner applies EVERY step from the persisted version upward, so a
+      // v2 state also picks up `services` from the v4 -> v5 step. Before the
+      // chain was fixed it stopped after v2 -> v3 and this user stayed on a
+      // shape three versions stale.
       expect(newState.businesses).toEqual({
         businesses: [],
         employees: [],
         availability: [],
         loading: false,
         error: null,
+        services: [],
       });
     });
 
@@ -280,6 +285,8 @@ describe('Redux Store', () => {
         error: null,
         unreadCount: 0,
         hydratedCompanions: {},
+        // Added by the v7 -> v8 step, which the chained runner also applies.
+        failedCompanions: {},
         filter: 'all',
         sortBy: 'new',
       });
@@ -296,6 +303,8 @@ describe('Redux Store', () => {
 
       expect(newState.notifications).toEqual({
         existing: true,
+        hydratedCompanions: {},
+        failedCompanions: {},
       });
     });
 
@@ -396,6 +405,74 @@ describe('Redux Store', () => {
         distanceOverride: 'mi',
         currencyOverride: 'USD',
       });
+    });
+
+    // The list slices below are all in the persist whitelist, so a user
+    // upgrading from v7 rehydrates without `failedCompanions` and the first
+    // fetch after launch would write through undefined.
+    it('handles v7 -> v8 migration and adds list load-failure state', async () => {
+      const oldState = {
+        tasks: {items: [], hydratedCompanions: {c1: true}},
+        appointments: {items: []},
+        expenses: {items: []},
+        notifications: {items: []},
+        companion: {companions: []},
+      };
+
+      const newState = await runMigrate(7, oldState);
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Migrating from v7 to v8'),
+      );
+      expect(newState.tasks.failedCompanions).toEqual({});
+      expect(newState.tasks.hydratedCompanions).toEqual({c1: true});
+      expect(newState.appointments.failedCompanions).toEqual({});
+      expect(newState.expenses.failedCompanions).toEqual({});
+      expect(newState.notifications.failedCompanions).toEqual({});
+      expect(newState.companion.hasLoaded).toBe(false);
+      expect(newState.companion.loadError).toBeNull();
+    });
+
+    it('leaves existing v8 load-failure state untouched', async () => {
+      const oldState = {
+        tasks: {failedCompanions: {c1: 'boom'}, hydratedCompanions: {}},
+        companion: {hasLoaded: true, loadError: 'boom'},
+      };
+
+      const newState = await runMigrate(7, oldState);
+
+      expect(newState.tasks.failedCompanions).toEqual({c1: 'boom'});
+      expect(newState.companion.hasLoaded).toBe(true);
+      expect(newState.companion.loadError).toBe('boom');
+    });
+
+    it('skips slices that are absent from the persisted state', async () => {
+      const newState = await runMigrate(7, {});
+
+      expect(newState.tasks).toBeUndefined();
+      expect(newState.companion).toBeUndefined();
+    });
+
+    // The runner used to apply exactly one step, so a user more than one
+    // version behind silently skipped every later migration. That made each new
+    // migration reach fewer users the later it was added.
+    it('applies every migration step from the persisted version upward', async () => {
+      const newState = await runMigrate(1, {
+        businesses: {someOldData: true},
+        tasks: {items: []},
+      });
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Migrating from v1 to v2'),
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Migrating from v7 to v8'),
+      );
+      // v2 -> v3 reset it, v4 -> v5 added services, v7 -> v8 added the maps.
+      expect(newState.businesses.services).toEqual([]);
+      expect(newState.notifications).toBeDefined();
+      expect(newState.preferences).toBeDefined();
+      expect(newState.tasks.failedCompanions).toEqual({});
     });
 
     it('handles non-matching versions gracefully', async () => {

@@ -146,7 +146,10 @@
     "no": "No",
     "on": "Activado",
     "off": "Desactivado",
-    "sign_out": "Cerrar Sesión"
+    "sign_out": "Cerrar Sesión",
+    "load_failed_title": "No pudimos cargar esto",
+    "load_failed_message": "Algo salió mal por nuestra parte. Comprueba tu conexión e inténtalo de nuevo.",
+    "load_failed_offline": "Parece que no tienes conexión. Vuelve a conectarte e inténtalo de nuevo."
   },
   "validation": {
     "email_required": "El correo electrónico es requerido",

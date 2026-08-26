@@ -17,6 +17,8 @@ import {useTheme} from '@/hooks';
 import type {Theme} from '@/theme';
 import type {RootState, AppDispatch} from '@/app/store';
 import {fetchAppointmentsForCompanion} from '@/features/appointments/appointmentsSlice';
+import {selectCollectionFailure} from '@/shared/store/collectionLoadState';
+import {ListErrorState} from '@/shared/components/common/ListErrorState/ListErrorState';
 import {setSelectedCompanion} from '@/features/companion';
 import {
   createSelectUpcomingAppointments,
@@ -111,6 +113,10 @@ export const MyAppointmentsScreen: React.FC = () => {
   const lastFetchedCompanionIdRef = React.useRef<string | null>(null);
   useAutoSelectCompanion(companions, selectedCompanionId);
 
+  const appointmentsLoadError = useSelector((state: RootState) =>
+    selectCollectionFailure(state.appointments, selectedCompanionId),
+  );
+
   const fetchAppointmentsOnce = React.useCallback(
     (companionId?: string | null) => {
       /* istanbul ignore next -- fetchAppointmentsOnce is only ever called with a resolved companion id */
@@ -121,6 +127,14 @@ export const MyAppointmentsScreen: React.FC = () => {
     },
     [dispatch],
   );
+
+  // Retry has to clear the once-per-companion guard, otherwise pressing it
+  // after a failure is a no-op and the error never clears.
+  const retryFetchAppointments = React.useCallback(() => {
+    if (!selectedCompanionId) return;
+    lastFetchedCompanionIdRef.current = null;
+    fetchAppointmentsOnce(selectedCompanionId);
+  }, [fetchAppointmentsOnce, selectedCompanionId]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -327,8 +341,16 @@ export const MyAppointmentsScreen: React.FC = () => {
       {section.data.length > 0 && (
         <Text style={styles.groupTitle}>{section.title}</Text>
       )}
-      {section.data.length === 0 &&
-        (section.key === 'past'
+      {section.data.length === 0 && appointmentsLoadError ? (
+        // Both empty cards below read as "nothing booked". A failed fetch is a
+        // different fact and needs a way out, not reassurance.
+        <ListErrorState
+          testID={`appointments-load-error-${section.key}`}
+          onRetry={retryFetchAppointments}
+        />
+      ) : null}
+      {section.data.length === 0 && !appointmentsLoadError
+        ? section.key === 'past'
           ? renderEmptyCard(
               'No past appointments',
               'Completed appointments will appear here.',
@@ -336,7 +358,8 @@ export const MyAppointmentsScreen: React.FC = () => {
           : renderEmptyCard(
               'No upcoming appointments',
               'Book a new appointment to see it here.',
-            ))}
+            )
+        : null}
     </View>
   );
 

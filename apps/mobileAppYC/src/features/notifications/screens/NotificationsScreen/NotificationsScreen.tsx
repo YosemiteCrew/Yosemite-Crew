@@ -21,8 +21,12 @@ import {
   selectUnreadCount,
   selectNotificationFilter,
   selectNotificationSortBy,
+  selectNotificationsLoadFailure,
+  selectHasHydratedCompanion,
   selectUnreadCountByCategory,
 } from '../../selectors';
+import {ListErrorState} from '@/shared/components/common/ListErrorState/ListErrorState';
+import {resolveListPhase} from '@/shared/utils/listPhase';
 import {
   fetchNotificationsForCompanion,
   markNotificationAsRead,
@@ -61,6 +65,8 @@ const DEEP_LINK_TARGETS: Array<{prefix: string; type: NavigationTarget}> = [
   {prefix: '/documents/', type: 'document'},
 ];
 
+const NOTIFICATIONS_COMPANION_ID = 'default-companion';
+
 export const NotificationsScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const {theme} = useTheme();
@@ -75,6 +81,12 @@ export const NotificationsScreen: React.FC = () => {
   const sortBy = useSelector(selectNotificationSortBy);
   const loading = useSelector(
     (state: RootState) => state.notifications.loading,
+  );
+  const loadFailure = useSelector(
+    selectNotificationsLoadFailure(NOTIFICATIONS_COMPANION_ID),
+  );
+  const hasHydrated = useSelector(
+    selectHasHydratedCompanion(NOTIFICATIONS_COMPANION_ID),
   );
   const companions = useSelector(
     (state: RootState) => state.companion.companions,
@@ -92,14 +104,18 @@ export const NotificationsScreen: React.FC = () => {
 
   const [refreshing, setRefreshing] = React.useState(false);
 
-  useEffect(() => {
+  const refetchNotifications = useCallback(() => {
     if (!isLoggedIn) {
       return;
     }
     dispatch(
-      fetchNotificationsForCompanion({companionId: 'default-companion'}),
+      fetchNotificationsForCompanion({companionId: NOTIFICATIONS_COMPANION_ID}),
     );
   }, [dispatch, isLoggedIn]);
+
+  useEffect(() => {
+    refetchNotifications();
+  }, [refetchNotifications]);
 
   // Handle refresh
   const handleRefresh = useCallback(async () => {
@@ -107,7 +123,9 @@ export const NotificationsScreen: React.FC = () => {
     try {
       if (isLoggedIn) {
         await dispatch(
-          fetchNotificationsForCompanion({companionId: 'default-companion'}),
+          fetchNotificationsForCompanion({
+            companionId: NOTIFICATIONS_COMPANION_ID,
+          }),
         ).unwrap();
       }
     } catch (error) {
@@ -116,6 +134,17 @@ export const NotificationsScreen: React.FC = () => {
       setRefreshing(false);
     }
   }, [dispatch, isLoggedIn]);
+
+  const listPhase = useMemo(
+    () =>
+      resolveListPhase({
+        loading,
+        loadError: loadFailure,
+        hasLoaded: hasHydrated,
+        itemCount: notifications.length,
+      }),
+    [loading, loadFailure, hasHydrated, notifications.length],
+  );
 
   const refreshControl = useMemo(
     () => (
@@ -329,7 +358,18 @@ export const NotificationsScreen: React.FC = () => {
             sections={sections}
             renderItem={renderNotificationItem}
             refreshControl={refreshControl}
-            emptyComponent={<NotificationsEmptyState styles={styles} />}
+            emptyComponent={
+              // A failed fetch used to render the same "you're all caught up"
+              // copy as an genuinely empty inbox, with no way to retry.
+              listPhase === 'error' ? (
+                <ListErrorState
+                  testID="notifications-load-error"
+                  onRetry={refetchNotifications}
+                />
+              ) : (
+                <NotificationsEmptyState styles={styles} />
+              )
+            }
             styles={styles}
           />
         </>

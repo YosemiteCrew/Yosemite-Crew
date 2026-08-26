@@ -36,6 +36,13 @@ export interface NotificationsState {
   error: string | null;
   unreadCount: number;
   hydratedCompanions: Record<string, boolean>;
+  /**
+   * Companions whose last list fetch FAILED, mapped to the message. Kept
+   * apart from `hydratedCompanions` so a screen can tell a failed load
+   * from an account that is genuinely empty - collapsing the two is what
+   * made every failure render as the new-user empty state.
+   */
+  failedCompanions: Record<string, string>;
   lastFetchTimestamp?: number;
   filter: NotificationCategory;
   sortBy: 'new' | 'seen';

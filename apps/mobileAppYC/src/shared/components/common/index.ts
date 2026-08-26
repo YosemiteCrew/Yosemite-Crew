@@ -3,6 +3,7 @@ export {Badge} from './Badge/Badge';
 export {Toggle} from './Toggle/Toggle';
 export {SegmentedControl} from './SegmentedControl/SegmentedControl';
 export {EmptyState} from './EmptyState/EmptyState';
+export {ListErrorState} from './ListErrorState/ListErrorState';
 export {AppearanceSelector} from './AppearanceSelector/AppearanceSelector';
 export {InkEncircle} from './InkEncircle/InkEncircle';
 export {Input} from './Input/Input';
@@ -51,5 +52,6 @@ export type {
   SegmentOption,
 } from './SegmentedControl/SegmentedControl';
 export type {EmptyStateProps} from './EmptyState/EmptyState';
+export type {ListErrorStateProps} from './ListErrorState/ListErrorState';
 export type {AppearanceSelectorProps} from './AppearanceSelector/AppearanceSelector';
 export type {InkEncircleProps} from './InkEncircle/InkEncircle';
