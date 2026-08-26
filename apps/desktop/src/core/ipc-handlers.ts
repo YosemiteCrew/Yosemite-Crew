@@ -153,7 +153,7 @@ export interface IpcServices {
   idleUnlock: (mode: 'biometric' | 'password') => void;
 }
 
-const CS_ACTIONS = ['dispense', 'administer', 'receive', 'waste', 'transfer', 'inventory'];
+const CS_ACTIONS = new Set(['dispense', 'administer', 'receive', 'waste', 'transfer', 'inventory']);
 const CS_REQUIRED_FIELDS = [
   'drugName',
   'drugClass',
@@ -178,7 +178,7 @@ const requireNonEmptyStrings = (
 
 const validateCsRecordPayload = (d: Record<string, unknown>): CsRecordValidation => {
   const action = d.action;
-  if (typeof action !== 'string' || !CS_ACTIONS.includes(action))
+  if (typeof action !== 'string' || !CS_ACTIONS.has(action))
     return { ok: false, error: 'invalid-action' };
 
   const missing = requireNonEmptyStrings(d, CS_REQUIRED_FIELDS);
