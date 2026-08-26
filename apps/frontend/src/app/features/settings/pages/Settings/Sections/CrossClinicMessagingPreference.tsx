@@ -25,7 +25,7 @@ const CrossClinicMessagingPreference = ({ readOnly = false }: { readOnly?: boole
   const [saving, setSaving] = useState(false);
 
   const handleToggle = async () => {
-    if (readOnly || !primaryOrg?._id || saving || !isKnown) return;
+    if (!primaryOrg?._id || saving || !isKnown) return;
     const next = !enabled;
     setSaving(true);
     try {
