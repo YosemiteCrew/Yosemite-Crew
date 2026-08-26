@@ -5,6 +5,8 @@ import React, { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { IoInformationCircleOutline } from 'react-icons/io5';
 
+import { useHasPermission } from '@/app/hooks/usePermissions';
+import { PERMISSIONS } from '@/app/lib/permissions';
 import { PreferenceGroup } from '@/app/features/settings/pages/Settings/Sections/PreferenceGroup';
 import '@/app/features/settings/styles/Settings.css';
 
@@ -98,6 +100,10 @@ const SettingsBand = ({
 const Settings = () => {
   const [profileOpen, setProfileOpen] = useState(false);
   const [hoursOpen, setHoursOpen] = useState(false);
+  // The two updateOrg controls below are gated by teams:edit:any, NOT by
+  // integrations:edit:any - see organization.router.ts. Supervisor holds the
+  // former and not the latter.
+  const canEditClinicPreferences = useHasPermission(PERMISSIONS.TEAMS_EDIT_ANY);
 
   return (
     <div className="yc-page-content">
@@ -115,9 +121,9 @@ const Settings = () => {
               className="flex-none"
             />
           </h1>
-          <span className="yc-settings-subtitle">
-            Your preferences, and the clinic settings you administer
-          </span>
+          {/* Permission-neutral on purpose: most roles can view the organisation
+              band without holding integrations:edit:any. */}
+          <span className="yc-settings-subtitle">Your preferences and clinic settings</span>
         </div>
         <span className="yc-settings-autosave">
           <span className="yc-settings-autosave-dot" aria-hidden="true" />
@@ -140,13 +146,16 @@ const Settings = () => {
             onEditHours={() => setHoursOpen(true)}
           />
 
-          {/* Every control here writes the per-user profile (patchUserProfile) or
-              device-local theme storage — none of it is workspace-wide, which is
-              what the old "Workspace preferences" title wrongly implied. */}
+          {/* Every control here writes the per-user profile via patchUserProfile,
+              so it follows the account to any device. Appearance does NOT — it is
+              deliberately in its own group below. */}
           <PreferenceGroup title="Your preferences" scope="personal">
             <DefaultOpenScreenPreference />
             <TimezonePreference />
             <CompanionTerminologyPreference />
+          </PreferenceGroup>
+
+          <PreferenceGroup title="This browser" scope="device">
             <AppearancePreference />
           </PreferenceGroup>
 
@@ -155,13 +164,22 @@ const Settings = () => {
         </div>
       </SettingsBand>
 
+      {/* The band description stays permission-neutral because the band mixes
+          two different gates: the scheduling controls go through updateOrg
+          (teams:edit:any) and federation through integrations:edit:any. A
+          Supervisor holds the first and not the second, so any single verdict
+          here would be wrong for that role. Each group states its own. */}
       <SettingsBand
         title="Organisation"
         description="Shared clinic settings. Changes here apply to every colleague."
       >
         <div className="flex flex-col gap-3.5">
           {/* Both write the organisation record via updateOrg. */}
-          <PreferenceGroup title="Scheduling & messaging" scope="organisation">
+          <PreferenceGroup
+            title="Scheduling & messaging"
+            scope="organisation"
+            readOnly={!canEditClinicPreferences}
+          >
             <AppointmentLockWindowPreference />
             <CrossClinicMessagingPreference />
           </PreferenceGroup>
