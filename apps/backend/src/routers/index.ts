@@ -63,6 +63,7 @@ import roomUnitRouter from "./room-unit.router";
 import roomUnitGroupRouter from "./room-unit-group.router";
 import companionCardRouter from "./companion-card.router";
 import companionCardPublicRouter from "./companion-card-public.router";
+import bookingPageRouter from "./booking-page.router";
 import petPassportRouter from "./pet-passport.router";
 import petPassportPublicRouter from "./pet-passport-public.router";
 import treatmentProtocolRouter from "./treatment-protocol.router";
@@ -192,6 +193,9 @@ export function registerRoutes(app: Express) {
   app.use(`/v1/companion-history`, companionHistoryRouter);
   app.use(`/v1/companion-card`, companionCardRouter);
   app.use(`/public/companion-card`, companionCardPublicRouter);
+  // Authenticated configuration for the public booking page. The anonymous
+  // surface it configures is a separate router mounted under `/public`.
+  app.use(`/v1/booking-page`, bookingPageRouter);
   app.use(`/v1/pet-passport`, petPassportRouter);
   app.use(`/public/pet-passport`, petPassportPublicRouter);
   app.use(`/v1`, treatmentProtocolRouter);

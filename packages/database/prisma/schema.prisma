@@ -959,8 +959,19 @@ model Organization {
   /// clinician can pick: input is always the full YC vocabulary.
   preferredVocabulary                    VocabularyPreference @default(YOSEMITECODE)
   maxOverallDiscountPercent              Float?
+  /// Current public booking slug, or null when the practice has never opened a
+  /// booking page. Denormalised from `BookingSlugReservation` so resolving
+  /// `/book/<slug>` is a single indexed lookup; every value here was first
+  /// claimed in that table, which is what makes the namespace collision-proof.
+  bookingSlug                            String?              @unique
+  /// Publishing is opt-in and off by default. An existing practice does not
+  /// become reachable on the public internet because this column shipped.
+  publicBookingEnabled                   Boolean              @default(false)
   createdAt                              DateTime             @default(now())
   updatedAt                              DateTime             @updatedAt
+
+  bookingSettings     PublicBookingSettings?
+  bookingSlugHistory  BookingSlugReservation[]
 
   @@index([googlePlacesId, name])
 }
@@ -978,6 +989,53 @@ model OrganizationAddress {
   location       Json?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+/// Every booking slug an organisation has ever been handed, current and retired.
+///
+/// This table - not `Organization.bookingSlug` - owns the slug namespace. A slug
+/// is claimed here first, inside the same transaction that sets it on the
+/// organisation, so two practices both called "Park Vets" collide on this
+/// primary key under concurrency instead of racing two `findFirst`/`update`
+/// pairs. Retired slugs are never deleted: a booking URL ends up on a printed
+/// card and in a Google listing, so the public route resolves an old slug and
+/// permanently redirects to the current one rather than 404ing it.
+model BookingSlugReservation {
+  slug           String   @id
+  organizationId String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+/// What a practice configured for its public booking page.
+///
+/// Separate from `Organization` because it is written by one wizard and read by
+/// one public surface, and because `Organization` is already the widest row in
+/// the schema. Absent row means the practice has never opened the wizard.
+model PublicBookingSettings {
+  id             String @id @default(uuid())
+  organizationId String @unique
+  /// The services offered publicly. A service listed here is still re-checked
+  /// against `isBookable` and `ACTIVE` when the page renders, so archiving a
+  /// service withdraws it from the public page without anyone editing this list.
+  serviceIds     String[]
+  /// How far ahead a pet owner may book.
+  bookingWindowDays Int      @default(28)
+  /// Padding added after a publicly booked slot.
+  bufferMinutes     Int      @default(10)
+  /// False - the default - means a public request lands as REQUESTED for a human
+  /// to accept. True writes to the calendar directly, and is only ever honoured
+  /// after the requester has confirmed their email address.
+  autoConfirm       Boolean  @default(false)
+  welcomeMessage    String?
+  replyToEmail      String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
