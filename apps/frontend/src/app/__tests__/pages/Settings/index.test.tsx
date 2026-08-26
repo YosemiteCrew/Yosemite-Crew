@@ -75,11 +75,21 @@ jest.mock('next/dynamic', () => ({
       // whole point of the scope split regress without failing anything. They are
       // identifiable now so the composition tests below can assert placement.
       if (source.includes('Sections/AppointmentLockWindowPreference')) {
-        return <div>Appointment Lock Window Preference</div>;
+        return (
+          <div>
+            Appointment Lock Window Preference
+            <span data-testid="lock-window-readonly">{String(props.readOnly)}</span>
+          </div>
+        );
       }
 
       if (source.includes('Sections/CrossClinicMessagingPreference')) {
-        return <div>Cross Clinic Messaging Preference</div>;
+        return (
+          <div>
+            Cross Clinic Messaging Preference
+            <span data-testid="cross-clinic-readonly">{String(props.readOnly)}</span>
+          </div>
+        );
       }
 
       if (source.includes('Sections/YourOrganizations')) {
@@ -138,10 +148,14 @@ jest.mock('@/app/features/settings/pages/Settings/Sections/CompanionTerminologyP
   default: () => <div>Companion Terminology</div>,
 }));
 
-const mockHasPermission = jest.fn(() => true);
+// Records the permission argument. Discarding it made every permission test
+// pass even when the page checked the WRONG permission - reverting to
+// integrations:edit:any, the exact bug these tests exist to catch, left the
+// suite green.
+const mockHasPermission = jest.fn((_perm?: unknown) => true);
 jest.mock('@/app/hooks/usePermissions', () => ({
   __esModule: true,
-  useHasPermission: () => mockHasPermission(),
+  useHasPermission: (perm: unknown) => mockHasPermission(perm),
 }));
 
 /**
@@ -217,6 +231,25 @@ describe('Settings page', () => {
 
     const group = screen.getByText('Appointment Lock Window Preference').closest('section');
     expect(group).not.toHaveTextContent(/Managed by a clinic administrator/);
+  });
+
+  it('gates the scheduling group on teams:edit:any, not the integrations permission', () => {
+    render(<Settings />);
+
+    // The scheduling controls write through updateOrg, whose PUT route requires
+    // teams:edit:any. Asserting the argument is what makes the other permission
+    // tests meaningful.
+    expect(mockHasPermission).toHaveBeenCalledWith('teams:edit:any');
+    expect(mockHasPermission).not.toHaveBeenCalledWith('integrations:edit:any');
+  });
+
+  it('disables the clinic controls when the member cannot edit them', () => {
+    mockHasPermission.mockReturnValue(false);
+    render(<Settings />);
+
+    // Advertising read-only without enforcing it invites a click the backend rejects.
+    expect(screen.getByTestId('lock-window-readonly')).toHaveTextContent('true');
+    expect(screen.getByTestId('cross-clinic-readonly')).toHaveTextContent('true');
   });
 
   it('keeps the organisation band description permission-neutral', () => {
