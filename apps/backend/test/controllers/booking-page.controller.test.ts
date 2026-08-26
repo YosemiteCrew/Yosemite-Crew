@@ -93,7 +93,7 @@ describe("BookingPageController", () => {
 
     it("does not leak an unexpected failure to the caller", async () => {
       mockedService.getConfig.mockRejectedValueOnce(
-        new Error("connection string postgres://user:pw@host"),
+        new Error("internal detail that must not reach the caller"),
       );
       const req = { organisationId: "org-1", params: {} } as never;
       const res = createResponse();
@@ -152,7 +152,7 @@ describe("BookingPageController", () => {
       ["a zero-day booking window", { bookingWindowDays: 0 }],
       ["a buffer beyond the ceiling", { bufferMinutes: 999 }],
       ["a negative buffer", { bufferMinutes: -1 }],
-      ["a non-uuid service id", { serviceIds: ["../../etc/passwd"] }],
+      ["a non-uuid service id", { serviceIds: ["not-a-uuid"] }],
       ["a malformed reply-to address", { replyToEmail: "not-an-email" }],
       ["an over-long welcome message", { welcomeMessage: "x".repeat(501) }],
       ["a missing autoConfirm flag", { autoConfirm: undefined }],
