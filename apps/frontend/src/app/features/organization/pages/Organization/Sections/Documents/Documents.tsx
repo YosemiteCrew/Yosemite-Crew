@@ -73,7 +73,7 @@ const Documents = () => {
         buttonClick={setAddPopup}
         showButton={canEditDocument}
       >
-        <div className="rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] overflow-hidden shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+        <div className="overflow-hidden">
           <div className="px-5! py-3! border-b border-[var(--hairline)] text-[11.5px] text-[var(--ink-faint)]">
             Clinic-wide templates and files
           </div>

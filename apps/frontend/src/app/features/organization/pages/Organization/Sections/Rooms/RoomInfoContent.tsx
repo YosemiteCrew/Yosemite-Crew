@@ -31,7 +31,7 @@ const IconCircleButton = ({
     onClick={onClick}
     className={`flex size-8 items-center justify-center rounded-full border ${
       danger
-        ? 'border-text-error bg-[var(--screen)] text-text-error'
+        ? 'border-[var(--danger-border)] bg-[var(--screen)] text-text-error'
         : 'border-[var(--ink)] bg-[var(--ink)] text-[var(--screen)]'
     }`}
   >
