@@ -135,6 +135,24 @@ describe('waste events report the witness that was actually verified', () => {
     expect(dwLog.getVerifiedWasteEvents()).toHaveLength(1);
   });
 
+  test('the verification flag is signed into the audit entry, so flipping it on disk is detectable', async () => {
+    const deps = makeDeps();
+    const auditLog = await createAuditLog(tmpDir, deps);
+    const logbook = createControlledSubstanceLogbook(tmpDir, { auditLog, ...deps });
+
+    logbook.record({ ...WASTE, witnessId: 'nurse-1', witnessName: 'Nurse Jane' });
+
+    const [entry] = auditLog.query({ resourceType: 'controlled-substance' });
+    expect(entry.details.witnessPinVerified).toBe(false);
+    expect(auditLog.verify(entry)).toBe(true);
+
+    // The logbook file is not HMAC-protected. Someone with access to the data
+    // directory can flip the flag there, but the signed audit entry still says
+    // what was actually verified, so the two disagree and the alteration shows.
+    const tampered = { ...entry, details: { ...entry.details, witnessPinVerified: true } };
+    expect(auditLog.verify(tampered)).toBe(false);
+  });
+
   test('hasWitness reports whether a witness can be verified at all', async () => {
     const { dwLog } = await build();
     expect(dwLog.hasWitness('nurse-1')).toBe(false);

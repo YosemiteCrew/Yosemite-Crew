@@ -153,6 +153,56 @@ export interface IpcServices {
   idleUnlock: (mode: 'biometric' | 'password') => void;
 }
 
+const CS_ACTIONS = ['dispense', 'administer', 'receive', 'waste', 'transfer', 'inventory'];
+const CS_REQUIRED_FIELDS = [
+  'drugName',
+  'drugClass',
+  'lotNumber',
+  'unit',
+  'veterinarianId',
+  'veterinarianName',
+];
+
+type CsRecordValidation = { ok: false; error: string } | { ok: true; needsWitness: boolean };
+
+const requireNonEmptyStrings = (
+  d: Record<string, unknown>,
+  fields: readonly string[]
+): string | null => {
+  for (const f of fields) {
+    const v = d[f];
+    if (typeof v !== 'string' || v.trim() === '') return `missing-${f}`;
+  }
+  return null;
+};
+
+const validateCsRecordPayload = (d: Record<string, unknown>): CsRecordValidation => {
+  const action = d.action;
+  if (typeof action !== 'string' || !CS_ACTIONS.includes(action))
+    return { ok: false, error: 'invalid-action' };
+
+  const missing = requireNonEmptyStrings(d, CS_REQUIRED_FIELDS);
+  if (missing) return { ok: false, error: missing };
+
+  const quantity = d.quantity;
+  if (typeof quantity !== 'number' || !Number.isFinite(quantity))
+    return { ok: false, error: 'invalid-quantity' };
+  if (action !== 'transfer' && action !== 'inventory' && quantity <= 0)
+    return { ok: false, error: 'invalid-quantity' };
+
+  // Destruction may not be recorded on one person's say-so. Without this the
+  // channel accepted action:'waste' with no witness at all, and the record still
+  // read back as witness-verified.
+  const needsWitness = WITNESS_REQUIRED_ACTIONS.includes(action as CsAction);
+  if (needsWitness) {
+    const missingWitness = requireNonEmptyStrings(d, ['witnessId', 'witnessName']);
+    if (missingWitness) return { ok: false, error: missingWitness };
+    if (d.witnessId === d.veterinarianId) return { ok: false, error: 'witness-must-differ' };
+  }
+
+  return { ok: true, needsWitness };
+};
+
 export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): void => {
   const registry = createIpcRegistry({
     ipcMain: ipc,
@@ -377,44 +427,15 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     if (typeof data !== 'object' || data === null || Array.isArray(data))
       return { ok: false, error: 'invalid-data' };
     const d = data as Record<string, unknown>;
-    const action = d.action;
-    const CS_ACTIONS = ['dispense', 'administer', 'receive', 'waste', 'transfer', 'inventory'];
-    if (typeof action !== 'string' || !CS_ACTIONS.includes(action))
-      return { ok: false, error: 'invalid-action' };
-    for (const f of [
-      'drugName',
-      'drugClass',
-      'lotNumber',
-      'unit',
-      'veterinarianId',
-      'veterinarianName',
-    ]) {
-      const v = d[f];
-      if (typeof v !== 'string' || v.trim() === '') return { ok: false, error: `missing-${f}` };
-    }
-    const quantity = d.quantity;
-    if (typeof quantity !== 'number' || !Number.isFinite(quantity))
-      return { ok: false, error: 'invalid-quantity' };
-    if (action !== 'transfer' && action !== 'inventory' && quantity <= 0)
-      return { ok: false, error: 'invalid-quantity' };
 
-    // Destruction may not be recorded on one person's say-so. Without this the
-    // channel accepted action:'waste' with no witness at all, and the record
-    // still read back as witness-verified.
-    const needsWitness = WITNESS_REQUIRED_ACTIONS.includes(action as CsAction);
-    if (needsWitness) {
-      for (const f of ['witnessId', 'witnessName']) {
-        const v = d[f];
-        if (typeof v !== 'string' || v.trim() === '') return { ok: false, error: `missing-${f}` };
-      }
-      if (d.witnessId === d.veterinarianId) return { ok: false, error: 'witness-must-differ' };
-    }
+    const validation = validateCsRecordPayload(d);
+    if (!validation.ok) return { ok: false, error: validation.error };
 
     // The verification flag is derived here from an actual PIN check and never
     // taken from the payload: a renderer must not be able to assert that a
     // witness was verified.
     const witnessPinVerified =
-      needsWitness &&
+      validation.needsWitness &&
       services.dualWitnessLog !== null &&
       typeof d.witnessPin === 'string' &&
       services.dualWitnessLog.verifyWitnessPin(d.witnessId as string, d.witnessPin);
@@ -432,29 +453,6 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
       witnessPinVerified,
     });
     return { ok: true, transaction: tx, witnessPinVerified };
-  });
-
-  registry.handle('yc:cs-set-witness-pin', async (_event, args) => {
-    // Without an enrolment path verifyWitnessPin could never return true, which
-    // is why the dual-witness check was dead code and waste went unverified.
-    if (!services.dualWitnessLog) return { ok: false, error: 'dual-witness-not-ready' };
-    const data = args[0];
-    if (typeof data !== 'object' || data === null || Array.isArray(data))
-      return { ok: false, error: 'invalid-data' };
-    const d = data as Record<string, unknown>;
-    for (const f of ['witnessId', 'witnessName', 'pin']) {
-      const v = d[f];
-      if (typeof v !== 'string' || v.trim() === '') return { ok: false, error: `missing-${f}` };
-    }
-    if ((d.pin as string).length < 4) return { ok: false, error: 'pin-too-short' };
-    services.dualWitnessLog.setWitnessPin(
-      d.witnessId as string,
-      d.witnessName as string,
-      d.pin as string
-    );
-    // Never log the PIN itself.
-    services.logger.info('cs_witness_enrolled', { witnessId: d.witnessId });
-    return { ok: true };
   });
 
   registry.handle('yc:cs-export', async (_event, args) => {

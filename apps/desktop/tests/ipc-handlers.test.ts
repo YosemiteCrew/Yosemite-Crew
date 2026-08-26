@@ -43,6 +43,7 @@ jest.mock('../src/ui/theming', () => ({
 import { registerIpc, type IpcServices } from '../src/core/ipc-handlers';
 import { createDualWitnessLog } from '../src/compliance/dual-witness';
 import { getDesktopConfig } from '../src/core/navigation-policy';
+import { IPC_CHANNELS, validateIpcRequest } from '../src/core/ipc';
 import { BUILTIN_ACTIONS } from '../src/ui/command-palette';
 
 const event = { senderFrame: { url: 'https://yosemitecrew.com/dashboard' } };
@@ -470,13 +471,7 @@ describe('ipc-handlers — happy paths', () => {
     test('a correct witness PIN produces a genuinely verified record', async () => {
       const services = makeServices();
       const call = register(services);
-      expect(
-        await call('yc:cs-set-witness-pin', {
-          witnessId: 'nurse-1',
-          witnessName: 'Nurse Jane',
-          pin: '1234',
-        })
-      ).toEqual({ ok: true });
+      services.dualWitnessLog!.setWitnessPin('nurse-1', 'Nurse Jane', '1234');
 
       const result = (await call('yc:cs-record', {
         ...waste,
@@ -494,11 +489,7 @@ describe('ipc-handlers — happy paths', () => {
     test('a wrong witness PIN is not verification', async () => {
       const services = makeServices();
       const call = register(services);
-      await call('yc:cs-set-witness-pin', {
-        witnessId: 'nurse-1',
-        witnessName: 'Nurse Jane',
-        pin: '1234',
-      });
+      services.dualWitnessLog!.setWitnessPin('nurse-1', 'Nurse Jane', '1234');
 
       const result = (await call('yc:cs-record', {
         ...waste,
@@ -534,27 +525,22 @@ describe('ipc-handlers — happy paths', () => {
     });
   });
 
-  test('cs-set-witness-pin validates its payload', async () => {
-    const services = makeServices();
-    const call = register(services);
-    expect(await call('yc:cs-set-witness-pin', null)).toEqual({ ok: false, error: 'invalid-data' });
-    expect(await call('yc:cs-set-witness-pin', {})).toEqual({
-      ok: false,
-      error: 'missing-witnessId',
-    });
+  test('witness enrolment is not reachable over IPC', () => {
+    // An enrolment channel any renderer can call is not a dual-witness control:
+    // one person could enrol a witness with a PIN of their choosing and use it
+    // immediately, manufacturing witnessPinVerified: true on their own. Until
+    // enrolment is tied to an authenticated second identity it is not exposed,
+    // and an unknown channel is rejected before any handler runs.
+    expect(IPC_CHANNELS).not.toContain('yc:cs-set-witness-pin');
     expect(
-      await call('yc:cs-set-witness-pin', { witnessId: 'n1', witnessName: 'Jane', pin: '12' })
-    ).toEqual({ ok: false, error: 'pin-too-short' });
-    // The PIN must never reach the logs.
-    const logged = JSON.stringify((services.logger.info as jest.Mock).mock.calls);
-    expect(logged).not.toContain('1234');
-  });
-
-  test('cs-set-witness-pin reports when dual-witness is not initialised', async () => {
-    const call = register(makeServices({ dualWitnessLog: null }));
-    expect(
-      await call('yc:cs-set-witness-pin', { witnessId: 'n1', witnessName: 'Jane', pin: '1234' })
-    ).toEqual({ ok: false, error: 'dual-witness-not-ready' });
+      validateIpcRequest(
+        event,
+        'yc:cs-set-witness-pin',
+        [{ witnessId: 'n1', witnessName: 'Jane', pin: '1234' }],
+        getDesktopConfig({}),
+        tmp
+      )
+    ).toEqual({ ok: false, reason: 'unknown-channel' });
   });
 
   test('tab + window + misc handlers', async () => {

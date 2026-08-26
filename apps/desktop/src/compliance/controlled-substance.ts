@@ -132,6 +132,11 @@ export const createControlledSubstanceLogbook = (
         patientId: input.patientId,
         veterinarianId: input.veterinarianId,
         witnessId: input.witnessId,
+        // Signed alongside the rest of the entry. The logbook file itself is not
+        // HMAC-protected, so without this a flag flipped from false to true on
+        // disk would read back as a witness-verified destruction with the audit
+        // chain still verifying cleanly.
+        witnessPinVerified: input.witnessPinVerified === true,
       },
     });
 
