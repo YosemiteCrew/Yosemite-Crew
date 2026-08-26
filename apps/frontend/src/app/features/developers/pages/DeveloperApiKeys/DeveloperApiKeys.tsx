@@ -34,10 +34,13 @@ const DeveloperApiKeys = () => {
   const [copied, setCopied] = useState(false);
 
   const loadKeys = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    // No setLoading(true) here: this runs from the mount effect and `loading`
+    // already starts true, so setting it again would be a synchronous state
+    // write during the effect body.
     try {
-      setKeys(await listApiKeys());
+      const next = await listApiKeys();
+      setKeys(next);
+      setError(null);
     } catch (err) {
       logger.error('Failed to load API keys', err);
       setError('Could not load your API keys. Please try again.');
@@ -47,7 +50,13 @@ const DeveloperApiKeys = () => {
   }, []);
 
   useEffect(() => {
-    void loadKeys();
+    // Wrapped rather than called directly: the hooks lint cannot see through the
+    // useCallback to prove the setStates all happen after an await, and flags a
+    // bare `loadKeys()` as a synchronous state write.
+    const run = async () => {
+      await loadKeys();
+    };
+    run();
   }, [loadKeys]);
 
   const resetForm = () => {

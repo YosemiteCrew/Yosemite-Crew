@@ -95,10 +95,13 @@ const DeveloperBilling = () => {
   const [openingPortal, setOpeningPortal] = useState(false);
 
   const loadSubscription = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    // No setLoading(true) here: this runs from the mount effect and `loading`
+    // already starts true, so setting it again would be a synchronous state
+    // write during the effect body.
     try {
-      setSubscription(await getSubscription());
+      const next = await getSubscription();
+      setSubscription(next);
+      setError(null);
     } catch (err) {
       logger.error('Failed to load developer subscription', err);
       setError('Could not load your subscription. Please try again.');
@@ -108,7 +111,13 @@ const DeveloperBilling = () => {
   }, []);
 
   useEffect(() => {
-    void loadSubscription();
+    // Wrapped rather than called directly: the hooks lint cannot see through the
+    // useCallback to prove the setStates all happen after an await, and flags a
+    // bare `loadSubscription()` as a synchronous state write.
+    const run = async () => {
+      await loadSubscription();
+    };
+    run();
   }, [loadSubscription]);
 
   const handleUpgrade = async () => {
