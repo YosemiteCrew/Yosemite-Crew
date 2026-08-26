@@ -298,6 +298,21 @@ export const MyAppointmentsScreen: React.FC = () => {
     </LiquidGlassCard>
   );
 
+  // Sections are keyed past | thisWeek | later | upcoming, so anything that is
+  // not 'past' takes the upcoming copy. One ternary, deliberately not a lookup
+  // table: a table keyed only on 'past'/'upcoming' would return undefined for
+  // thisWeek and later and crash on the property read.
+  const renderEmptySectionCard = (sectionKey: string) =>
+    sectionKey === 'past'
+      ? renderEmptyCard(
+          'No past appointments',
+          'Completed appointments will appear here.',
+        )
+      : renderEmptyCard(
+          'No upcoming appointments',
+          'Book a new appointment to see it here.',
+        );
+
   const handleAdd = () => navigation.navigate('BrowseBusinesses');
 
   // The Upcoming/Past segmented control selects which set is shown; the
@@ -350,15 +365,7 @@ export const MyAppointmentsScreen: React.FC = () => {
         />
       ) : null}
       {section.data.length === 0 && !appointmentsLoadError
-        ? section.key === 'past'
-          ? renderEmptyCard(
-              'No past appointments',
-              'Completed appointments will appear here.',
-            )
-          : renderEmptyCard(
-              'No upcoming appointments',
-              'Book a new appointment to see it here.',
-            )
+        ? renderEmptySectionCard(section.key)
         : null}
     </View>
   );

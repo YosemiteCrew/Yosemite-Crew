@@ -941,6 +941,44 @@ describe('MyAppointmentsScreen', () => {
       ).toBeTruthy();
     });
 
+    // Before this, a failed fetch produced an empty list and the empty list said
+    // "No upcoming appointments" - the same words a user with nothing booked
+    // sees, and with no way to retry.
+    it('renders a load error instead of the empty card when the fetch failed', () => {
+      store = mockStore({
+        companion: {
+          companions: [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+          selectedCompanionId: 'c1',
+        },
+        appointments: {
+          upcomingOverride: [],
+          pastOverride: [],
+          failedCompanions: {c1: 'Network Error'},
+        },
+      });
+      renderScreen();
+
+      expect(
+        screen.getByTestId('appointments-load-error-upcoming'),
+      ).toBeTruthy();
+      expect(screen.queryByText('No upcoming appointments')).toBeNull();
+    });
+
+    it('still renders the empty card when nothing failed', () => {
+      store = buildStore(
+        [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+        'c1',
+        [],
+        [],
+      );
+      renderScreen();
+
+      expect(screen.getByText('No upcoming appointments')).toBeTruthy();
+      expect(
+        screen.queryByTestId('appointments-load-error-upcoming'),
+      ).toBeNull();
+    });
+
     it('renders an empty state card when there are no upcoming appointments', () => {
       store = buildStore(
         [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],

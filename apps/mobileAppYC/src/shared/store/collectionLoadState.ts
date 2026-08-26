@@ -101,12 +101,11 @@ export const selectCollectionFailure = (
   if (!key) {
     return undefined;
   }
-  return Object.prototype.hasOwnProperty.call(
-    state?.failedCompanions ?? {},
-    key,
-  )
-    ? state?.failedCompanions?.[key]
-    : undefined;
+  // Check the value's TYPE rather than its provenance. An inherited member such
+  // as `toString` reads back as a function, never a string, so it can never be
+  // mistaken for a real failure message and pin a list into its error state.
+  const message = state?.failedCompanions?.[key];
+  return typeof message === 'string' ? message : undefined;
 };
 
 /**
@@ -121,10 +120,7 @@ export const selectCollectionHydrated = (
   if (!key) {
     return false;
   }
-  return Boolean(
-    Object.prototype.hasOwnProperty.call(
-      state?.hydratedCompanions ?? {},
-      key,
-    ) && state?.hydratedCompanions?.[key],
-  );
+  // Strict `=== true` for the same reason: an inherited member is an object or
+  // a function, never the literal true this map stores.
+  return state?.hydratedCompanions?.[key] === true;
 };
