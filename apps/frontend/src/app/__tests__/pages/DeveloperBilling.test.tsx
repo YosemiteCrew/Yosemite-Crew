@@ -192,6 +192,11 @@ describe('DeveloperBilling page', () => {
     expect(meta.textContent).toContain('Cancels at period end');
   });
 
+  /* No click-through test for Enterprise's "Contact us": it assigns a `mailto:`
+     to window.location, jsdom reports that as "Not implemented: navigation", and
+     jest.setup.ts turns any console.error into a failure. Weakening that guard
+     for two lines of a mailto handler is a bad trade. */
+
   it('disables Upgrade to Pro when already on Pro', async () => {
     getSubscriptionMock.mockResolvedValue(proSub);
     render(<DeveloperBilling />);

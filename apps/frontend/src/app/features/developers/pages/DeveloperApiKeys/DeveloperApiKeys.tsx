@@ -1,37 +1,37 @@
 'use client';
 import React, { useCallback, useEffect, useState } from 'react';
 
-import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import { Primary } from '@/app/ui/primitives/Buttons';
 import DevRouteGuard from '@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard';
 import { logger } from '@/app/lib/logger';
 import {
   createApiKey,
   listApiKeys,
   revokeApiKey,
-  type ApiKeyEnvironment,
   type DeveloperApiKey,
   type IssuedApiKey,
 } from '@/app/services/developerApiKeys';
 
+import CreateKeyForm, { type NewApiKeyInput } from './CreateKeyForm';
+import KeyReveal from './KeyReveal';
+import KeyTable from './KeyTable';
+
 import './DeveloperApiKeys.css';
 import '@/app/features/organizations/styles/Organizations.css';
 
-const formatDate = (value: string | null): string =>
-  value ? new Date(value).toLocaleDateString() : '—';
-
+/**
+ * Owns the data and the three requests; the form, the reveal and the table are
+ * separate components that hold their own presentation state. What is left here
+ * is the server-backed state the page coordinates - the key list, whether a
+ * create is in flight, the one issued key, and the last error.
+ */
 const DeveloperApiKeys = () => {
   const [keys, setKeys] = useState<DeveloperApiKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   const [showForm, setShowForm] = useState(false);
-  const [name, setName] = useState('');
-  const [environment, setEnvironment] = useState<ApiKeyEnvironment>('live');
-  const [scopesInput, setScopesInput] = useState('');
   const [creating, setCreating] = useState(false);
-
   const [issued, setIssued] = useState<IssuedApiKey | null>(null);
-  const [copied, setCopied] = useState(false);
 
   const loadKeys = useCallback(async () => {
     // No setLoading(true) here: this runs from the mount effect and `loading`
@@ -59,31 +59,16 @@ const DeveloperApiKeys = () => {
     run();
   }, [loadKeys]);
 
-  const resetForm = () => {
-    setName('');
-    setScopesInput('');
-    setEnvironment('live');
-  };
-
-  const handleCreate = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!name.trim() || creating) return;
+  const handleCreate = async (input: NewApiKeyInput) => {
+    if (creating) return;
     setCreating(true);
     setError(null);
     try {
-      const scopes = scopesInput.split(',').flatMap((scope) => {
-        const trimmed = scope.trim();
-        return trimmed ? [trimmed] : [];
-      });
-      const result = await createApiKey({
-        name: name.trim(),
-        environment,
-        scopes: scopes.length ? scopes : undefined,
-      });
+      const result = await createApiKey(input);
       setIssued(result);
-      setCopied(false);
+      // Closing the form unmounts it, which is what clears the typed fields.
+      // On failure it stays open and keeps them for a retry.
       setShowForm(false);
-      resetForm();
       await loadKeys();
     } catch (err) {
       logger.error('Failed to create API key', err);
@@ -102,78 +87,6 @@ const DeveloperApiKeys = () => {
       logger.error('Failed to revoke API key', err);
       setError('Could not revoke the API key. Please try again.');
     }
-  };
-
-  const handleCopy = async () => {
-    if (!issued) return;
-    try {
-      await navigator.clipboard.writeText(issued.apiKey);
-      setCopied(true);
-    } catch {
-      setCopied(false);
-    }
-  };
-
-  const renderKeyList = () => {
-    if (loading) {
-      return <p className="text-body-3 text-text-secondary">Loading API keys…</p>;
-    }
-    if (keys.length === 0) {
-      return (
-        <p className="text-body-3 text-text-secondary" data-testid="api-keys-empty">
-          You don&apos;t have any API keys yet.
-        </p>
-      );
-    }
-    return (
-      <table className="DevApiKeys-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Key</th>
-            <th>Env</th>
-            <th>Status</th>
-            <th>Last used</th>
-            <th>Created</th>
-            <th aria-label="Actions" />
-          </tr>
-        </thead>
-        <tbody>
-          {keys.map((apiKey) => (
-            <tr key={apiKey.id}>
-              <td>{apiKey.name}</td>
-              <td>
-                <code>
-                  {apiKey.prefix}…{apiKey.last4}
-                </code>
-              </td>
-              <td>
-                <span className={`DevApiKeys-badge DevApiKeys-badge--${apiKey.environment}`}>
-                  {apiKey.environment}
-                </span>
-              </td>
-              <td>
-                <span className={`DevApiKeys-badge DevApiKeys-badge--${apiKey.status}`}>
-                  {apiKey.status}
-                </span>
-              </td>
-              <td>{formatDate(apiKey.lastUsedAt)}</td>
-              <td>{formatDate(apiKey.createdAt)}</td>
-              <td>
-                {apiKey.status === 'active' && (
-                  <Secondary
-                    danger
-                    text="Revoke"
-                    onClick={() => handleRevoke(apiKey.id)}
-                    style={{ maxWidth: 110 }}
-                  />
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    );
   };
 
   return (
@@ -195,72 +108,14 @@ const DeveloperApiKeys = () => {
           like passwords — never expose them in client-side code.
         </p>
 
-        {issued && (
-          <div className="DevApiKeys-reveal" role="alert">
-            <p className="text-body-2 text-text-primary">
-              Copy your new key now. For your security it won&apos;t be shown again.
-            </p>
-            <div className="DevApiKeys-secret">
-              <code data-testid="issued-secret">{issued.apiKey}</code>
-              <Secondary
-                text={copied ? 'Copied' : 'Copy'}
-                onClick={handleCopy}
-                style={{ maxWidth: 120 }}
-              />
-            </div>
-            <Secondary text="Done" onClick={() => setIssued(null)} style={{ maxWidth: 120 }} />
-          </div>
-        )}
+        {issued && <KeyReveal issued={issued} onDone={() => setIssued(null)} />}
 
         {showForm && (
-          <form className="DevApiKeys-form" onSubmit={handleCreate}>
-            <label className="text-body-3 text-text-primary" htmlFor="apiKeyName">
-              Key name
-            </label>
-            <input
-              id="apiKeyName"
-              className="DevApiKeys-input"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="e.g. Production server"
-              maxLength={100}
-            />
-            <label className="text-body-3 text-text-primary" htmlFor="apiKeyEnv">
-              Environment
-            </label>
-            <select
-              id="apiKeyEnv"
-              className="DevApiKeys-input"
-              value={environment}
-              onChange={(event) => setEnvironment(event.target.value as ApiKeyEnvironment)}
-            >
-              <option value="live">Live</option>
-              <option value="test">Test</option>
-            </select>
-            <label className="text-body-3 text-text-primary" htmlFor="apiKeyScopes">
-              Scopes (optional, comma-separated)
-            </label>
-            <input
-              id="apiKeyScopes"
-              className="DevApiKeys-input"
-              value={scopesInput}
-              onChange={(event) => setScopesInput(event.target.value)}
-              placeholder="appointments:read, inventory:read"
-            />
-            <div className="DevApiKeys-formActions">
-              <Primary
-                text={creating ? 'Creating…' : 'Create'}
-                type="submit"
-                isDisabled={!name.trim() || creating}
-                style={{ maxWidth: 140 }}
-              />
-              <Secondary
-                text="Cancel"
-                onClick={() => setShowForm(false)}
-                style={{ maxWidth: 120 }}
-              />
-            </div>
-          </form>
+          <CreateKeyForm
+            creating={creating}
+            onCreate={handleCreate}
+            onCancel={() => setShowForm(false)}
+          />
         )}
 
         {error && (
@@ -269,7 +124,7 @@ const DeveloperApiKeys = () => {
           </p>
         )}
 
-        {renderKeyList()}
+        <KeyTable keys={keys} loading={loading} onRevoke={handleRevoke} />
       </div>
     </DevRouteGuard>
   );
