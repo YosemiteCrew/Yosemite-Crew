@@ -4,16 +4,23 @@ import '@testing-library/jest-dom';
 
 const notifyMock = jest.fn();
 const loadCatalogMock = jest.fn().mockResolvedValue(undefined);
+const loadSpecialityCatalogMock = jest.fn().mockResolvedValue(undefined);
 const getConfigMock = jest.fn();
 const saveConfigMock = jest.fn();
 
 let servicesState: any[] = [];
+let specialitiesState: any[] = [];
 let primaryOrgId: string | null = 'org-1';
 let primaryOrg: any = null;
 
 jest.mock('@/app/stores/revampCatalogStore', () => ({
   useRevampCatalogStore: (selector: any) =>
-    selector({ services: servicesState, loadOrganisationCatalog: loadCatalogMock }),
+    selector({
+      services: servicesState,
+      specialities: specialitiesState,
+      loadOrganisationCatalog: loadCatalogMock,
+      loadSpecialityCatalog: loadSpecialityCatalogMock,
+    }),
 }));
 
 jest.mock('@/app/stores/orgStore', () => ({
@@ -103,6 +110,7 @@ describe('PublicBookingSetup', () => {
     jest.clearAllMocks();
     primaryOrgId = 'org-1';
     primaryOrg = { name: 'Alpenblick Animal Clinic', imageURL: 'https://x/logo.png' };
+    specialitiesState = [{ id: 'spec-1', organisationId: 'org-1', name: 'General Practice' }];
     getConfigMock.mockResolvedValue(config());
     saveConfigMock.mockResolvedValue(config({ slug: 'alpenblick-animal-clinic' }));
     servicesState = [
@@ -159,6 +167,32 @@ describe('PublicBookingSetup', () => {
     expect(first).toHaveAttribute('aria-pressed', 'false');
     fireEvent.click(first);
     expect(first).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('loads the services for every speciality, not just the speciality list', async () => {
+    specialitiesState = [
+      { id: 'spec-1', organisationId: 'org-1', name: 'General Practice' },
+      { id: 'spec-2', organisationId: 'org-1', name: 'Dentistry' },
+      // Another practice's speciality must not be fetched.
+      { id: 'spec-9', organisationId: 'org-other', name: 'Elsewhere' },
+    ];
+    await renderSetup();
+
+    expect(loadSpecialityCatalogMock).toHaveBeenCalledWith('org-1', 'spec-1');
+    expect(loadSpecialityCatalogMock).toHaveBeenCalledWith('org-1', 'spec-2');
+    expect(loadSpecialityCatalogMock).not.toHaveBeenCalledWith('org-1', 'spec-9');
+  });
+
+  it('swallows a speciality load failure', async () => {
+    loadSpecialityCatalogMock.mockRejectedValueOnce(new Error('offline'));
+    await renderSetup();
+    expect(screen.getByText('What can pet parents book?')).toBeInTheDocument();
+  });
+
+  it('does not fetch speciality services without a primary org', async () => {
+    primaryOrgId = null;
+    await renderSetup();
+    expect(loadSpecialityCatalogMock).not.toHaveBeenCalled();
   });
 
   it('renders an empty state when no services are bookable', async () => {

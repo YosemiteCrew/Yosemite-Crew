@@ -121,6 +121,10 @@ const seed = (
   useRevampCatalogStore.setState({
     services: options.services ?? SERVICES,
     specialities: [SPECIALITY],
+    // The page fans out to `loadSpecialityCatalog` for each speciality. Marking
+    // this one already loaded makes that call return at its first line, so the
+    // preview iframe stays off the network with the seeded services intact.
+    loadedSpecialityIds: [`${SPECIALITY_ID}:active`],
   });
 
   return () => {

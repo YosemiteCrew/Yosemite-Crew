@@ -437,7 +437,9 @@ const PublicBookingSetup = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const primaryOrg = usePrimaryOrg();
   const services = useRevampCatalogStore((s) => s.services);
+  const specialities = useRevampCatalogStore((s) => s.specialities);
   const loadOrganisationCatalog = useRevampCatalogStore((s) => s.loadOrganisationCatalog);
+  const loadSpecialityCatalog = useRevampCatalogStore((s) => s.loadSpecialityCatalog);
 
   const orgName = primaryOrg?.name || 'Your clinic';
   const orgInitial = orgName.charAt(0).toUpperCase();
@@ -477,6 +479,21 @@ const PublicBookingSetup = () => {
       Promise.resolve(loadOrganisationCatalog(primaryOrgId)).catch(() => undefined);
     }
   }, [primaryOrgId, loadOrganisationCatalog]);
+
+  // `loadOrganisationCatalog` populates `specialities` and nothing else -
+  // services are fetched one speciality at a time by `loadSpecialityCatalog`.
+  // Without this fan-out `services` is permanently empty, so the bookable list
+  // below rendered "No bookable services yet" for every practice no matter what
+  // its catalogue contained. The store dedupes by in-flight promise and by
+  // `loadedSpecialityIds`, so re-running this effect is cheap.
+  useEffect(() => {
+    if (!primaryOrgId) return;
+    specialities
+      .filter((speciality) => speciality.organisationId === primaryOrgId)
+      .forEach((speciality) => {
+        Promise.resolve(loadSpecialityCatalog(primaryOrgId, speciality.id)).catch(() => undefined);
+      });
+  }, [primaryOrgId, specialities, loadSpecialityCatalog]);
 
   useEffect(() => {
     if (!primaryOrgId) return;
