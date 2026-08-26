@@ -38,20 +38,20 @@ const UsageMeter = ({ usage }: { usage: DeveloperUsage }) => {
         )}
       </p>
 
+      {/* A native <progress> rather than a div with role="progressbar": it carries
+          the semantics for free and is announced correctly without hand-written
+          aria-value* attributes (Sonar typescript:S6819). The fill is styled
+          through the ::-webkit-progress-value / ::-moz-progress-bar pseudo
+          elements, so no inner element is needed to draw it - which also removes
+          the percentage arithmetic, since the element clamps value to max
+          itself. */}
       {allowance !== null && (
-        <div
-          className="DevBilling-usageTrack"
-          role="progressbar"
-          aria-valuenow={Math.min(callCount, allowance)}
-          aria-valuemin={0}
-          aria-valuemax={allowance}
+        <progress
+          className={`DevBilling-usageTrack${exhausted ? ' DevBilling-usageTrack--exhausted' : ''}`}
+          value={Math.min(callCount, allowance)}
+          max={allowance}
           aria-label="Included API calls used this period"
-        >
-          <div
-            className={`DevBilling-usageFill${exhausted ? ' DevBilling-usageFill--exhausted' : ''}`}
-            style={{ width: `${Math.min(100, (callCount / allowance) * 100)}%` }}
-          />
-        </div>
+        />
       )}
 
       {exhausted && (

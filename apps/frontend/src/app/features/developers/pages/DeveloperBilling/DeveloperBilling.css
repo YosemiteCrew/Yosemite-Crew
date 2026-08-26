@@ -126,21 +126,46 @@
   color: var(--color-text-tertiary);
 }
 
+/* A native <progress>. The browser draws the fill, so the bar is styled through
+   the two vendor pseudo elements below rather than an inner div - `appearance:
+   none` is what stops the UA widget from painting over them.
+
+   The two pseudo-element rules cannot be combined into one selector list: an
+   unrecognised pseudo element invalidates the whole rule, so Chrome would drop a
+   list containing ::-moz-progress-bar and Firefox one containing
+   ::-webkit-progress-value. They stay separate on purpose. */
 .DevBilling-usageTrack {
+  display: block;
+  width: 100%;
   height: 6px;
   margin-top: 12px;
+  border: none;
   border-radius: 9999px;
   background: var(--color-inset);
+  appearance: none;
   overflow: hidden;
 }
 
-.DevBilling-usageFill {
-  height: 100%;
+.DevBilling-usageTrack::-webkit-progress-bar {
+  border-radius: 9999px;
+  background: var(--color-inset);
+}
+
+.DevBilling-usageTrack::-webkit-progress-value {
   border-radius: 9999px;
   background: var(--cyan-text);
 }
 
-.DevBilling-usageFill--exhausted {
+.DevBilling-usageTrack::-moz-progress-bar {
+  border-radius: 9999px;
+  background: var(--cyan-text);
+}
+
+.DevBilling-usageTrack--exhausted::-webkit-progress-value {
+  background: var(--danger-text);
+}
+
+.DevBilling-usageTrack--exhausted::-moz-progress-bar {
   background: var(--danger-text);
 }
 

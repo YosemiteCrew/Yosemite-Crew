@@ -4,8 +4,23 @@ import React from 'react';
 import { Secondary } from '@/app/ui/primitives/Buttons';
 import type { DeveloperApiKey } from '@/app/services/developerApiKeys';
 
-const formatDate = (value: string | null): string =>
-  value ? new Date(value).toLocaleDateString() : '—';
+/**
+ * ISO date, not `toLocaleDateString`.
+ *
+ * This renders during SSR too, and a locale/timezone-dependent format there is
+ * the server's, not the reader's, so the two passes disagree and React reports a
+ * hydration mismatch (react-doctor/no-locale-format-in-render). `toISOString` is
+ * UTC by definition, so both passes produce the same string.
+ *
+ * It also happens to be the better format for this table: key metadata is
+ * developer-facing, where an unambiguous sortable date beats one whose 03/04 you
+ * have to guess at.
+ */
+const formatDate = (value: string | null): string => {
+  if (!value) return '—';
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? '—' : parsed.toISOString().slice(0, 10);
+};
 
 /**
  * Presentational: it owns no state and performs no requests, so the loading and

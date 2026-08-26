@@ -216,9 +216,11 @@ describe('DeveloperBilling page', () => {
     it('fills the progress bar in proportion to calls used', async () => {
       render(<DeveloperBilling />);
       await screen.findByTestId('billing-usage');
-      const bar = screen.getByRole('progressbar');
-      expect(bar).toHaveAttribute('aria-valuenow', '120');
-      expect(bar).toHaveAttribute('aria-valuemax', '1000');
+      // A native <progress>, so value/max carry the semantics rather than
+      // hand-written aria-value* attributes.
+      const bar = screen.getByRole('progressbar') as HTMLProgressElement;
+      expect(bar.value).toBe(120);
+      expect(bar.max).toBe(1000);
     });
 
     it('warns that calls now 429 once the allowance is spent', async () => {
@@ -237,10 +239,10 @@ describe('DeveloperBilling page', () => {
       getUsageMock.mockResolvedValue({ ...freeUsage, callCount: 4000 });
       render(<DeveloperBilling />);
       await screen.findByTestId('billing-usage');
-      const bar = screen.getByRole('progressbar');
+      const bar = screen.getByRole('progressbar') as HTMLProgressElement;
       // clamped, so the bar cannot report more progress than its own maximum
-      expect(bar).toHaveAttribute('aria-valuenow', '1000');
-      expect(bar.firstElementChild).toHaveStyle({ width: '100%' });
+      expect(bar.value).toBe(1000);
+      expect(bar.max).toBe(1000);
     });
 
     it('renders no bar for a zero limit rather than a NaN width', async () => {
@@ -248,7 +250,7 @@ describe('DeveloperBilling page', () => {
       render(<DeveloperBilling />);
       const meter = await screen.findByTestId('billing-usage');
 
-      // 0/0 is NaN, which would reach the DOM as the invalid `width: NaN%`.
+      // A zero max would make <progress> indeterminate rather than empty.
       expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
       expect(meter.innerHTML).not.toContain('NaN');
     });

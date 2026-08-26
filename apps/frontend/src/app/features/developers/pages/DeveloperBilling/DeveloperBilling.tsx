@@ -12,8 +12,9 @@ import {
 import { getUsage, type DeveloperUsage } from '@/app/services/developerUsage';
 
 import CurrentPlanRow from './CurrentPlanRow';
-import PlanCard, { PLANS } from './PlanCard';
+import PlanCard from './PlanCard';
 import UsageMeter from './UsageMeter';
+import { PLANS } from './plans';
 
 import './DeveloperBilling.css';
 import '@/app/features/organizations/styles/Organizations.css';

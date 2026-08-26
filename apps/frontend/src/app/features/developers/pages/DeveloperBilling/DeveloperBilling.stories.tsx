@@ -226,8 +226,8 @@ export const AllowanceSpent: Story = {
     /* The bar turning red is the visual signal; the sentence is the actionable
        one, because a 429 from the API is otherwise unexplained. */
     await expect(canvas.getByText(/used your monthly allowance/)).toBeInTheDocument();
-    const fill = canvasElement.querySelector('.DevBilling-usageFill');
-    await expect(fill).toHaveClass('DevBilling-usageFill--exhausted');
+    const bar = canvasElement.querySelector('.DevBilling-usageTrack');
+    await expect(bar).toHaveClass('DevBilling-usageTrack--exhausted');
   },
   parameters: {
     docs: {
