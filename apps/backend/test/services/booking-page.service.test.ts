@@ -10,7 +10,7 @@ import {
 import { prisma } from "src/config/prisma";
 
 const txReservationCreate = jest.fn();
-const txOrganizationUpdateMany = jest.fn();
+const txExecuteRaw = jest.fn();
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
@@ -41,7 +41,7 @@ const uniqueViolation = () =>
 const runTransaction = async (fn: (tx: unknown) => Promise<unknown>) =>
   fn({
     bookingSlugReservation: { create: txReservationCreate },
-    organization: { updateMany: txOrganizationUpdateMany },
+    $executeRaw: txExecuteRaw,
   });
 
 /** The slug each `$transaction` attempt tried to claim, in order. */
@@ -54,7 +54,7 @@ describe("booking-page.service", () => {
     delete process.env.PUBLIC_BOOKING_BASE_URL;
     pm.$transaction.mockImplementation(runTransaction);
     txReservationCreate.mockResolvedValue({});
-    txOrganizationUpdateMany.mockResolvedValue({ count: 1 });
+    txExecuteRaw.mockResolvedValue(1);
     pm.publicBookingSettings.findUnique.mockResolvedValue(null);
     pm.publicBookingSettings.upsert.mockResolvedValue({});
     pm.productItem.findMany.mockResolvedValue([]);
@@ -233,7 +233,7 @@ describe("booking-page.service", () => {
         })
         // The read-back after the guarded update refused the write.
         .mockResolvedValueOnce({ bookingSlug: "park-vets" });
-      txOrganizationUpdateMany.mockResolvedValue({ count: 0 });
+      txExecuteRaw.mockResolvedValue(0);
 
       await expect(ensureBookingSlug("org-9")).resolves.toBe("park-vets");
       // One attempt, then it defers - it must not walk on to `park-vets-2` and
@@ -249,7 +249,7 @@ describe("booking-page.service", () => {
           bookingSlug: null,
         })
         .mockResolvedValueOnce({ bookingSlug: null });
-      txOrganizationUpdateMany.mockResolvedValue({ count: 0 });
+      txExecuteRaw.mockResolvedValue(0);
 
       await expect(ensureBookingSlug("org-10")).rejects.toMatchObject({
         status: 503,

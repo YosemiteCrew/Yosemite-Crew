@@ -169,15 +169,31 @@ export const isValidBookingSlug = (slug: string): boolean =>
  * "Tierärzte Grünwald" becomes `tierarzte-grunwald` and not `tier-rzte-gr-nwald`
  * - this product operates in the EU and most practice names carry them.
  */
+/**
+ * Trim leading and trailing hyphens.
+ *
+ * Deliberately not `/^-+|-+$/g`. That pattern backtracks polynomially on a
+ * string of many hyphens (CodeQL js/polynomial-redos), and the input here is a
+ * practice name, which the practice chooses. These two scans are linear.
+ */
+const trimHyphens = (value: string): string => {
+  let start = 0;
+  let end = value.length;
+  while (start < end && value[start] === "-") start += 1;
+  while (end > start && value[end - 1] === "-") end -= 1;
+  return value.slice(start, end);
+};
+
 export const slugifyOrganisationName = (name: string): string =>
-  name
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, MAX_SLUG_LENGTH)
-    .replace(/-+$/g, "");
+  trimHyphens(
+    trimHyphens(
+      name
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-"),
+    ).slice(0, MAX_SLUG_LENGTH),
+  );
 
 /**
  * Candidates to try, in order, for a practice named `name`.
@@ -262,15 +278,21 @@ const claimSlug = async (
         data: { slug, organizationId: safeOrganizationId },
       });
 
-      // `updateMany`, not `update`: `update` addresses a row by unique key and
-      // cannot carry an extra predicate, so there would be nowhere to put the
-      // "still unallocated" condition.
-      const claimed = await tx.organization.updateMany({
-        where: { id: safeOrganizationId, bookingSlug: null },
-        data: { bookingSlug: slug },
-      });
+      // Raw, parameterised UPDATE rather than `update` or `updateMany`.
+      //
+      // `update` addresses a row by unique key and cannot carry the extra
+      // "still unallocated" predicate. `updateMany` can, but its `where` is a
+      // Prisma filter object, so a non-string id would become a filter operator
+      // rather than an equality test and silently widen the statement. A tagged
+      // template binds both values as query parameters, where an object cannot
+      // be reinterpreted as an operator at all.
+      const claimed = await tx.$executeRaw`
+        UPDATE "Organization"
+        SET "bookingSlug" = ${slug}
+        WHERE "id" = ${safeOrganizationId} AND "bookingSlug" IS NULL
+      `;
 
-      if (claimed.count === 0) throw new SlugAlreadyAllocatedError();
+      if (claimed === 0) throw new SlugAlreadyAllocatedError();
     });
     return true;
   } catch (error: unknown) {
