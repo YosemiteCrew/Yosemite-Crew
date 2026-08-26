@@ -38,8 +38,11 @@ export class CsWriteError extends Error {
   }
 }
 
+/** A transaction as the caller supplies it, before the store stamps identity. */
+export type CsTransactionInput = Omit<CsTransaction, 'id' | 'timestamp' | 'auditEntryId'>;
+
 export interface ControlledSubstanceLogbook {
-  record: (tx: Omit<CsTransaction, 'id' | 'timestamp' | 'auditEntryId'>) => CsTransaction;
+  record: (tx: CsTransactionInput) => CsTransaction;
   getTransactions: (opts?: {
     drugName?: string;
     since?: number;
@@ -116,7 +119,7 @@ export const createControlledSubstanceLogbook = (
   const load = (): CsTransaction[] => (store ? store.readAll() : []);
 
   const record = (
-    input: Omit<CsTransaction, 'id' | 'timestamp' | 'auditEntryId'>
+    input: CsTransactionInput
   ): CsTransaction => {
     if (!store) {
       throw new CsWriteError(
@@ -178,7 +181,7 @@ export const createControlledSubstanceLogbook = (
    * caller reports rather than hides.
    */
   const appendCompensation = (
-    input: Omit<CsTransaction, 'id' | 'timestamp' | 'auditEntryId'>,
+    input: CsTransactionInput,
     txId: string,
     voidedAuditEntryId: string,
     cause: Error
