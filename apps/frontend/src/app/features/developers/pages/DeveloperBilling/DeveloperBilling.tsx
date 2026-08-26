@@ -202,6 +202,16 @@ const DeveloperBilling = () => {
           {PLANS.map((plan) => {
             const isCurrent = currentPlan === plan.key;
 
+            /* Extracted rather than nested inline in the Pro button: a nested
+               ternary trips Sonar's typescript:S3358, and the three states read
+               more clearly named than stacked. */
+            let proLabel = 'Upgrade to Pro';
+            if (isCurrent) {
+              proLabel = 'Current plan';
+            } else if (checkingOut) {
+              proLabel = 'Redirecting…';
+            }
+
             return (
               <div
                 key={plan.key}
@@ -234,9 +244,7 @@ const DeveloperBilling = () => {
                 )}
                 {plan.key === 'pro' && (
                   <Primary
-                    text={
-                      isCurrent ? 'Current plan' : checkingOut ? 'Redirecting…' : 'Upgrade to Pro'
-                    }
+                    text={proLabel}
                     onClick={isCurrent ? undefined : handleUpgrade}
                     isDisabled={isCurrent || checkingOut}
                     style={{ maxWidth: '100%' }}
