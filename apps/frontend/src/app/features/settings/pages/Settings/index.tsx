@@ -67,6 +67,34 @@ const FederationSection = dynamic(
   { loading: () => <CardSkeleton /> }
 );
 
+/**
+ * A scope band: the labelled region that separates personal settings from
+ * clinic-wide ones. The heading is what tells a reader, before they touch
+ * anything, whether a change is theirs alone or everyone's.
+ */
+const SettingsBand = ({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) => (
+  <section className="flex flex-col gap-3.5" aria-labelledby={`settings-band-${title}`}>
+    <div className="flex flex-col gap-[2px]">
+      <h2
+        id={`settings-band-${title}`}
+        className="m-0! text-[15px] font-bold tracking-[-0.01em] text-[var(--ink)]"
+      >
+        {title}
+      </h2>
+      <p className="m-0! text-[12px] text-[var(--ink-faint)]">{description}</p>
+    </div>
+    {children}
+  </section>
+);
+
 const Settings = () => {
   const [profileOpen, setProfileOpen] = useState(false);
   const [hoursOpen, setHoursOpen] = useState(false);
@@ -87,7 +115,9 @@ const Settings = () => {
               className="flex-none"
             />
           </h1>
-          <span className="yc-settings-subtitle">Personal and workspace preferences</span>
+          <span className="yc-settings-subtitle">
+            Your preferences, and the clinic settings you administer
+          </span>
         </div>
         <span className="yc-settings-autosave">
           <span className="yc-settings-autosave-dot" aria-hidden="true" />
@@ -95,40 +125,55 @@ const Settings = () => {
         </span>
       </div>
 
-      {/* Compact control panel — the design's 2-column Settings grid:
-          [Personal | Workspace preferences] / [Scheduling & messaging | Organizations + Delete]. */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5 items-start">
-        <Personal
-          onEditProfile={() => setProfileOpen(true)}
-          onEditHours={() => setHoursOpen(true)}
-        />
+      {/* The page is split by WHO a setting affects, not by topic. Grouping by
+          topic previously put per-user controls under a card called "Workspace
+          preferences" and clinic-wide controls beside a device theme toggle, so
+          the labels pointed away from the truth. Scope is the axis that changes
+          whether a click is safe, so it is the axis the page is built on. */}
+      <SettingsBand
+        title="Personal"
+        description="Yours alone. Colleagues are unaffected by anything in this section."
+      >
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5 items-start">
+          <Personal
+            onEditProfile={() => setProfileOpen(true)}
+            onEditHours={() => setHoursOpen(true)}
+          />
 
-        <PreferenceGroup title="Workspace preferences">
-          <DefaultOpenScreenPreference />
-          <TimezonePreference />
-          <CompanionTerminologyPreference />
-        </PreferenceGroup>
+          {/* Every control here writes the per-user profile (patchUserProfile) or
+              device-local theme storage — none of it is workspace-wide, which is
+              what the old "Workspace preferences" title wrongly implied. */}
+          <PreferenceGroup title="Your preferences" scope="personal">
+            <DefaultOpenScreenPreference />
+            <TimezonePreference />
+            <CompanionTerminologyPreference />
+            <AppearancePreference />
+          </PreferenceGroup>
 
-        <PreferenceGroup title="Scheduling & messaging">
-          <AppointmentLockWindowPreference />
-          <CrossClinicMessagingPreference />
-          <AppearancePreference />
-        </PreferenceGroup>
-
-        <div className="flex flex-col gap-3.5">
           <YourOrganizations />
           <DeleteProfile />
         </div>
+      </SettingsBand>
 
-        {/* Federation is institution-to-institution: clinical referrals, directory
-            presence and trust between practices. It is deliberately separate from
-            the cross-clinic messaging toggle above, which only governs colleague
-            chat. A clinic can federate without opening its staff to chat, and the
-            reverse, so the two switches are not merged. */}
-        <div className="xl:col-span-2">
+      <SettingsBand
+        title="Organisation"
+        description="Shared clinic settings. Changes here apply to every colleague."
+      >
+        <div className="flex flex-col gap-3.5">
+          {/* Both write the organisation record via updateOrg. */}
+          <PreferenceGroup title="Scheduling & messaging" scope="organisation">
+            <AppointmentLockWindowPreference />
+            <CrossClinicMessagingPreference />
+          </PreferenceGroup>
+
+          {/* Federation is institution-to-institution: clinical referrals, directory
+              presence and trust between practices. It is deliberately separate from
+              the cross-clinic messaging toggle above, which only governs colleague
+              chat. A clinic can federate without opening its staff to chat, and the
+              reverse, so the two switches are not merged. */}
           <FederationSection />
         </div>
-      </div>
+      </SettingsBand>
 
       {/* Detailed editors are reached from the Personal card's "Edit profile" /
           "Edit hours" affordances as centered modals, so the page itself stays
