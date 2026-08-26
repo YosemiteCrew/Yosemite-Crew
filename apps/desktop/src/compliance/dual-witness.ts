@@ -28,8 +28,11 @@ export interface DualWitnessLog {
   ) => WasteEvent;
   verifyWitnessPin: (witnessId: string, pin: string) => boolean;
   getWasteEvents: (drugName?: string) => WasteEvent[];
+  /** Waste events whose witness proved their identity. Never inferred. */
+  getVerifiedWasteEvents: (drugName?: string) => WasteEvent[];
   getWasteByWitness: (witnessId: string) => WasteEvent[];
   setWitnessPin: (witnessId: string, witnessName: string, pin: string) => void;
+  hasWitness: (witnessId: string) => boolean;
 }
 
 interface DualWitnessDeps {
@@ -62,8 +65,11 @@ const verifyPinHash = (pin: string, stored: string): boolean => {
   return expected.length === actual.length && timingSafeEqual(expected, actual);
 };
 
-// A persisted waste transaction read back from the controlled-substance logbook
-// is, by definition, one that passed dual-witness verification at record time.
+// A waste transaction read back from the logbook reports what was actually
+// verified when it was recorded. The previous version hardcoded
+// `witnessPinVerified: true`, so a destruction recorded with no witness at all
+// read back as witness-verified and was counted as a witnessed waste event in
+// the PMP dialog: an affirmative false compliance statement on the normal path.
 const txToWasteEvent = (tx: CsTransaction): WasteEvent => ({
   id: tx.id,
   timestamp: tx.timestamp,
@@ -76,7 +82,7 @@ const txToWasteEvent = (tx: CsTransaction): WasteEvent => ({
   veterinarianName: tx.veterinarianName,
   witnessId: tx.witnessId || '',
   witnessName: tx.witnessName || '',
-  witnessPinVerified: true,
+  witnessPinVerified: tx.witnessPinVerified === true,
   reason: tx.notes || '',
   csTransactionId: tx.id,
 });
@@ -142,6 +148,7 @@ export const createDualWitnessLog = (deps: DualWitnessDeps): DualWitnessLog => {
       veterinarianName: input.veterinarianName,
       witnessId: input.witnessId,
       witnessName: input.witnessName,
+      witnessPinVerified: true,
     });
 
     return buildEvent(pinVerified, csTx.id);
@@ -151,6 +158,9 @@ export const createDualWitnessLog = (deps: DualWitnessDeps): DualWitnessLog => {
     const txs = drugName ? deps.logbook.getByDrug(drugName) : deps.logbook.getTransactions();
     return txs.filter((tx) => tx.action === 'waste').map(txToWasteEvent);
   };
+
+  const getVerifiedWasteEvents = (drugName?: string): WasteEvent[] =>
+    getWasteEvents(drugName).filter((e) => e.witnessPinVerified);
 
   const getWasteByWitness = (witnessId: string): WasteEvent[] => {
     const txs = deps.logbook.getTransactions();
@@ -163,7 +173,9 @@ export const createDualWitnessLog = (deps: DualWitnessDeps): DualWitnessLog => {
     recordWaste,
     verifyWitnessPin,
     getWasteEvents,
+    getVerifiedWasteEvents,
     getWasteByWitness,
     setWitnessPin,
+    hasWitness: (witnessId: string): boolean => witnesses.has(witnessId),
   };
 };

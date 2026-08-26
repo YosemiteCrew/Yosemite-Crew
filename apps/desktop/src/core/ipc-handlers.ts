@@ -19,7 +19,12 @@ import {
   type SettingsStore,
 } from '../utils/settings-store';
 import type { AuditLog } from '../compliance/audit-log';
-import type { ControlledSubstanceLogbook } from '../compliance/controlled-substance';
+import {
+  WITNESS_REQUIRED_ACTIONS,
+  type ControlledSubstanceLogbook,
+  type CsAction,
+} from '../compliance/controlled-substance';
+import type { DualWitnessLog } from '../compliance/dual-witness';
 import type { DeaRegistrationTracker } from '../compliance/dea-registration';
 import type { IpcMain as IpcMainType } from 'electron';
 import type { DesktopLogger } from '../utils/logger';
@@ -117,6 +122,7 @@ export interface IpcServices {
   // Compliance
   auditLog: AuditLog | null;
   controlledSubstanceLog: ControlledSubstanceLogbook | null;
+  dualWitnessLog: DualWitnessLog | null;
   csExport: {
     exportDailyLog: (date?: Date) => { rowCount: number; filePath: string } | null;
   } | null;
@@ -391,11 +397,64 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
       return { ok: false, error: 'invalid-quantity' };
     if (action !== 'transfer' && action !== 'inventory' && quantity <= 0)
       return { ok: false, error: 'invalid-quantity' };
-    const tx = services.controlledSubstanceLog.record(
-      data as Parameters<ControlledSubstanceLogbook['record']>[0]
+
+    // Destruction may not be recorded on one person's say-so. Without this the
+    // channel accepted action:'waste' with no witness at all, and the record
+    // still read back as witness-verified.
+    const needsWitness = WITNESS_REQUIRED_ACTIONS.includes(action as CsAction);
+    if (needsWitness) {
+      for (const f of ['witnessId', 'witnessName']) {
+        const v = d[f];
+        if (typeof v !== 'string' || v.trim() === '') return { ok: false, error: `missing-${f}` };
+      }
+      if (d.witnessId === d.veterinarianId) return { ok: false, error: 'witness-must-differ' };
+    }
+
+    // The verification flag is derived here from an actual PIN check and never
+    // taken from the payload: a renderer must not be able to assert that a
+    // witness was verified.
+    const witnessPinVerified =
+      needsWitness &&
+      services.dualWitnessLog !== null &&
+      typeof d.witnessPin === 'string' &&
+      services.dualWitnessLog.verifyWitnessPin(d.witnessId as string, d.witnessPin);
+
+    // The PIN is a credential, not part of the record: it must not be persisted
+    // into the logbook or echoed back to the caller.
+    const rest = Object.fromEntries(Object.entries(d).filter(([k]) => k !== 'witnessPin'));
+    const tx = services.controlledSubstanceLog.record({
+      ...(rest as Parameters<ControlledSubstanceLogbook['record']>[0]),
+      witnessPinVerified,
+    });
+    services.logger.info('cs_recorded', {
+      id: tx.id,
+      drugName: tx.drugName,
+      witnessPinVerified,
+    });
+    return { ok: true, transaction: tx, witnessPinVerified };
+  });
+
+  registry.handle('yc:cs-set-witness-pin', async (_event, args) => {
+    // Without an enrolment path verifyWitnessPin could never return true, which
+    // is why the dual-witness check was dead code and waste went unverified.
+    if (!services.dualWitnessLog) return { ok: false, error: 'dual-witness-not-ready' };
+    const data = args[0];
+    if (typeof data !== 'object' || data === null || Array.isArray(data))
+      return { ok: false, error: 'invalid-data' };
+    const d = data as Record<string, unknown>;
+    for (const f of ['witnessId', 'witnessName', 'pin']) {
+      const v = d[f];
+      if (typeof v !== 'string' || v.trim() === '') return { ok: false, error: `missing-${f}` };
+    }
+    if ((d.pin as string).length < 4) return { ok: false, error: 'pin-too-short' };
+    services.dualWitnessLog.setWitnessPin(
+      d.witnessId as string,
+      d.witnessName as string,
+      d.pin as string
     );
-    services.logger.info('cs_recorded', { id: tx.id, drugName: tx.drugName });
-    return { ok: true, transaction: tx };
+    // Never log the PIN itself.
+    services.logger.info('cs_witness_enrolled', { witnessId: d.witnessId });
+    return { ok: true };
   });
 
   registry.handle('yc:cs-export', async (_event, args) => {

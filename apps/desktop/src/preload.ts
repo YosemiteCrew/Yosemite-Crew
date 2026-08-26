@@ -25,6 +25,7 @@ export interface YcDesktop {
   onShortcut: (callback: (id: string) => void) => () => void;
   openPatientWindow: (patientId: string, name: string) => Promise<unknown>;
   csRecord: (data: Record<string, unknown>) => Promise<unknown>;
+  csSetWitnessPin: (data: Record<string, unknown>) => Promise<unknown>;
   csExport: (date?: string) => Promise<unknown>;
   auditAppend: (entry: Record<string, unknown>) => Promise<unknown>;
   vaultSave: (filename: string, content: string, mimeType?: string) => Promise<unknown>;
@@ -107,6 +108,8 @@ const api: YcDesktop = {
     ipcRenderer.invoke('yc:open-patient-window', patientId, name),
   csRecord: (data: Record<string, unknown>): Promise<unknown> =>
     ipcRenderer.invoke('yc:cs-record', data),
+  csSetWitnessPin: (data: Record<string, unknown>): Promise<unknown> =>
+    ipcRenderer.invoke('yc:cs-set-witness-pin', data),
   csExport: (date?: string): Promise<unknown> => ipcRenderer.invoke('yc:cs-export', date),
   auditAppend: (entry: Record<string, unknown>): Promise<unknown> =>
     ipcRenderer.invoke('yc:audit-append', entry),

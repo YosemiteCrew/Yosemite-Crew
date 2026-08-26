@@ -1825,6 +1825,9 @@ if (gotSingleInstanceLock) {
         get controlledSubstanceLog() {
           return controlledSubstanceLog;
         },
+        get dualWitnessLog() {
+          return dualWitnessLog;
+        },
         get csExport() {
           return csExport;
         },
