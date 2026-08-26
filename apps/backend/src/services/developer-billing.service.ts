@@ -23,8 +23,6 @@ const getStripeClient = (): Stripe => {
   return stripeClient;
 };
 
-const toPlanTier = (): DeveloperPlanTier => "free";
-
 const toSubscriptionStatus = (
   value?: string | null,
 ): DeveloperSubscriptionStatus => {
@@ -147,7 +145,7 @@ async function handleSubscriptionDeleted(
   await prisma.developerSubscription.update({
     where: { id: record.id },
     data: {
-      plan: toPlanTier(),
+      plan: "free",
       status: "canceled",
       stripeSubscriptionId: null,
       stripeSubscriptionItemId: null,
