@@ -11,18 +11,13 @@
 // colour, which uses the danger surface instead of blue-soft.
 
 import React, {useMemo} from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native';
+import {View, Text, type StyleProp, type ViewStyle} from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {useTranslation} from 'react-i18next';
 
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
+import {createStateBlockStyles} from '@/shared/styles/stateBlockStyles';
 import type {Theme} from '@/theme';
 
 export interface ListErrorStateProps {
@@ -87,51 +82,10 @@ export const ListErrorState: React.FC<ListErrorStateProps> = ({
 };
 
 const createStyles = (theme: Theme) =>
-  StyleSheet.create({
-    container: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: theme.spacing['5'],
-      // Carries its own vertical breathing room so a caller can drop it into a
-      // scroll view without supplying a layout style.
-      paddingVertical: theme.spacing['8'],
-    },
-    ring: {
-      width: 104,
-      height: 104,
-      borderRadius: theme.borderRadius.pill,
-      backgroundColor: theme.colors.dangerSurface,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: theme.spacing['5'],
-    },
-    title: {
-      ...theme.typography.emptyStateTitle,
-      color: theme.colors.ink,
-      textAlign: 'center',
-    },
-    description: {
-      ...theme.typography.bodySmall,
-      fontSize: 14.5,
-      color: theme.colors.inkMuted,
-      textAlign: 'center',
-      marginTop: theme.spacing['2'],
-    },
-    cta: {
-      minHeight: 54,
-      alignSelf: 'center',
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: theme.spacing['2'],
-      borderRadius: theme.borderRadius.pill,
-      backgroundColor: theme.colors.cta,
-      paddingHorizontal: theme.spacing['7'],
-      marginTop: theme.spacing['6'],
-    },
-    ctaLabel: {
-      ...theme.typography.button,
-      fontSize: 16.5,
-      color: theme.colors.ctaText,
-    },
+  createStateBlockStyles(theme, {
+    ringColor: theme.colors.dangerSurface,
+    // Errors are dropped inline into a scroll view, so the component carries
+    // its own vertical breathing room rather than making every caller pass a
+    // layout style.
+    paddingVertical: theme.spacing['8'],
   });
