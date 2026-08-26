@@ -71,10 +71,10 @@ const DeveloperApiKeys = () => {
     setCreating(true);
     setError(null);
     try {
-      const scopes = scopesInput
-        .split(',')
-        .map((scope) => scope.trim())
-        .filter(Boolean);
+      const scopes = scopesInput.split(',').flatMap((scope) => {
+        const trimmed = scope.trim();
+        return trimmed ? [trimmed] : [];
+      });
       const result = await createApiKey({
         name: name.trim(),
         environment,
@@ -147,8 +147,16 @@ const DeveloperApiKeys = () => {
                   {apiKey.prefix}…{apiKey.last4}
                 </code>
               </td>
-              <td>{apiKey.environment}</td>
-              <td>{apiKey.status}</td>
+              <td>
+                <span className={`DevApiKeys-badge DevApiKeys-badge--${apiKey.environment}`}>
+                  {apiKey.environment}
+                </span>
+              </td>
+              <td>
+                <span className={`DevApiKeys-badge DevApiKeys-badge--${apiKey.status}`}>
+                  {apiKey.status}
+                </span>
+              </td>
               <td>{formatDate(apiKey.lastUsedAt)}</td>
               <td>{formatDate(apiKey.createdAt)}</td>
               <td>

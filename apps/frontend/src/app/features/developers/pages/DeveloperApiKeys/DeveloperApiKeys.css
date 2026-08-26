@@ -1,17 +1,38 @@
+/**
+ * Developer API keys.
+ *
+ * This page predates the developer portal's warm-bone restyle and was written
+ * against `var(--color-surface-secondary, #f6f7f9)`-style fallbacks whose token
+ * halves do not exist in `globals.css` - so it rendered the grey/white fallback
+ * literals on a bone page, visibly out of step with every other portal surface.
+ * It now uses the same card, badge and table vocabulary as the rest of the
+ * portal, drawn from real tokens so it follows the theme.
+ */
+
 .DevApiKeys-intro {
   margin: 8px 0 24px;
   max-width: 640px;
 }
 
+/* One-time reveal ---------------------------------------------------------- */
+
+/* The reveal is the only moment the plaintext key exists in the UI, so it gets
+   the portal's dark "spot" treatment rather than another bone card - it should
+   not read as one more row on the page. */
 .DevApiKeys-reveal {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 16px;
+  padding: 18px 20px;
   margin-bottom: 24px;
-  border: 1px solid var(--color-border-brand, var(--color-text-primary));
-  border-radius: 16px;
-  background: var(--color-surface-secondary, #f6f7f9);
+  background: var(--spot);
+  border-radius: 18px;
+  box-shadow: 0 12px 34px var(--sh20);
+}
+
+.DevApiKeys-reveal p {
+  margin: 0;
+  color: #f4efe6;
 }
 
 .DevApiKeys-secret {
@@ -19,15 +40,23 @@
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+  padding: 13px 15px;
+  background: rgba(244, 239, 230, 0.06);
+  border: 1px solid rgba(244, 239, 230, 0.16);
+  border-radius: 14px;
 }
 
 .DevApiKeys-secret code {
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: var(--color-surface-tertiary, #eceef1);
-  font-family: var(--font-mono, monospace);
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #f4efe6;
   word-break: break-all;
 }
+
+/* Create form -------------------------------------------------------------- */
 
 .DevApiKeys-form {
   display: flex;
@@ -35,13 +64,39 @@
   gap: 8px;
   max-width: 480px;
   margin-bottom: 24px;
+  padding: 20px 22px;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-card-border);
+  border-radius: 18px;
+  box-shadow:
+    0 1px 2px var(--sh03),
+    0 8px 22px var(--sh05);
 }
 
 .DevApiKeys-input {
-  padding: 10px 12px;
-  border: 1px solid var(--color-border-primary, #d4d7dd);
-  border-radius: 12px;
-  background: var(--color-surface-primary, #fff);
+  width: 100%;
+  box-sizing: border-box;
+  padding: 13px 15px;
+  font-family: var(--font-satoshi);
+  font-size: 15.5px;
+  letter-spacing: -0.01em;
+  color: var(--ink-body);
+  background: var(--field-bg);
+  border: 1.5px solid var(--hairline);
+  border-radius: 13px;
+  outline: none;
+  transition:
+    border-color 200ms,
+    box-shadow 200ms;
+}
+
+.DevApiKeys-input::placeholder {
+  color: var(--ink-faint2);
+}
+
+.DevApiKeys-input:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px var(--glow-b10, rgba(37, 123, 237, 0.1));
 }
 
 .DevApiKeys-formActions {
@@ -50,24 +105,112 @@
   margin-top: 8px;
 }
 
-.DevApiKeys-error {
-  color: var(--color-text-error, #c0392b);
-  margin-bottom: 16px;
-}
+/* Key table ---------------------------------------------------------------- */
 
+/* Wrapped in its own card so the rows sit on `--color-surface-card` rather than
+   directly on the page, matching the other portal surfaces. */
 .DevApiKeys-table {
   width: 100%;
   border-collapse: collapse;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-card-border);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow:
+    0 1px 2px var(--sh03),
+    0 8px 22px var(--sh05);
 }
 
 .DevApiKeys-table th,
 .DevApiKeys-table td {
   text-align: left;
-  padding: 12px 8px;
-  border-bottom: 1px solid var(--color-border-primary, #eceef1);
-  font-size: 14px;
+  padding: 14px 20px;
+  font-size: 13.5px;
+  vertical-align: middle;
+}
+
+.DevApiKeys-table thead th {
+  background: var(--color-screen-2);
+  border-bottom: 1px solid var(--color-card-border);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.DevApiKeys-table tbody td {
+  border-top: 1px solid var(--color-card-border);
+  color: var(--color-text-secondary);
+}
+
+.DevApiKeys-table tbody tr:first-child td {
+  border-top: none;
+}
+
+/* Name is the row's identity, so it carries the ink weight the rest does not. */
+.DevApiKeys-table tbody td:first-child {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* Environment and status badges. The label text is the raw enum value, so it
+   stays lowercase in the DOM and is uppercased for display only - queries and
+   assertions still match `live` / `active`. */
+.DevApiKeys-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border: 1px solid transparent;
+  border-radius: 9999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.DevApiKeys-badge--live,
+.DevApiKeys-badge--active {
+  background: var(--status-completed-bg);
+  color: var(--status-completed-text);
+  border-color: var(--status-completed-border);
+}
+
+.DevApiKeys-badge--test {
+  background: var(--color-inset);
+  color: var(--color-text-secondary);
+  border-color: var(--divider);
+}
+
+.DevApiKeys-badge--revoked {
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  border-color: var(--danger-border);
 }
 
 .DevApiKeys-table code {
-  font-family: var(--font-mono, monospace);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+}
+
+.DevApiKeys-error {
+  margin-bottom: 16px;
+  color: var(--color-text-error);
+}
+
+@media screen and (max-width: 768px) {
+  /* The table has seven columns and cannot usefully reflow, so it scrolls
+     inside its own card rather than forcing the page sideways. */
+  .DevApiKeys-table {
+    display: block;
+    overflow-x: auto;
+  }
+
+  .DevApiKeys-secret {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }

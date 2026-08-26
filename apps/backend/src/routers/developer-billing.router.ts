@@ -1,16 +1,17 @@
-import express, { Router } from "express";
+import { Router } from "express";
 import { DeveloperBillingController } from "../controllers/web/developer-billing.controller";
 import { requireWebAuth } from "src/middlewares/auth";
 import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 
 const router = Router();
 
-// Public — Stripe calls this directly; raw body required for signature verification
-router.post(
-  "/webhook",
-  express.raw({ type: "application/json" }),
-  DeveloperBillingController.webhook,
-);
+/*
+ * `POST /v1/developers/billing/webhook` is deliberately NOT here. Stripe's
+ * signature check needs the unparsed body, and this router mounts after the
+ * global `express.json()`, so a raw parser on it would never run. It is
+ * registered directly on the app alongside the other webhooks instead - see
+ * `app.ts`.
+ */
 
 router.get(
   "/",

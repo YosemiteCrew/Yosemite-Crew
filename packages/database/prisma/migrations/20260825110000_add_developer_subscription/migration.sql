@@ -32,3 +32,12 @@ CREATE UNIQUE INDEX "DeveloperSubscriptions_stripeSubscriptionId_key" ON "Develo
 
 -- CreateIndex
 CREATE INDEX "DeveloperSubscriptions_stripeCustomerId_idx" ON "DeveloperSubscriptions"("stripeCustomerId");
+
+-- Enable row level security, as 20260818090000_enable_row_level_security does for
+-- every table that existed when it ran. That migration is a one-shot loop, so a
+-- table created after it ships unprotected: Supabase exposes everything in
+-- `public` over PostgREST to the `anon` and `authenticated` keys, and with RLS
+-- off those keys can read it directly. The API connects as the owning role, which
+-- bypasses RLS, so Prisma queries are unaffected; enabling with no policy simply
+-- denies the PostgREST path by default. CI enforces this.
+ALTER TABLE "DeveloperSubscriptions" ENABLE ROW LEVEL SECURITY;

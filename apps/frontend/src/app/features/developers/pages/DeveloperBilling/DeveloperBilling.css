@@ -1,180 +1,210 @@
+/**
+ * Developer billing.
+ *
+ * This file previously styled the page against a token set that does not exist
+ * anywhere in `globals.css` - `--spacing-*`, `--radius-*`, `--font-size-*`,
+ * `--color-surface-*`, `--color-brand-primary`, `--color-feedback-*` - none of
+ * which had fallbacks. Every one of those declarations was invalid at computed
+ * value time, so the page rendered effectively unstyled while looking, in
+ * source, like it had a full design. It now uses the same warm-bone card
+ * vocabulary as the rest of the developer portal.
+ */
+
 .DevBilling-intro {
+  margin: 8px 0 24px;
   max-width: 640px;
-  margin-bottom: var(--spacing-6);
 }
+
+/* Current plan ------------------------------------------------------------ */
 
 .DevBilling-currentPlan {
   display: flex;
   align-items: center;
-  gap: var(--spacing-3);
-  padding: var(--spacing-4) var(--spacing-5);
-  background: var(--color-surface-secondary);
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-md);
-  margin-bottom: var(--spacing-8);
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 18px 20px;
+  margin-bottom: 24px;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-card-border);
+  border-radius: 18px;
+  box-shadow:
+    0 1px 2px var(--sh03),
+    0 8px 22px var(--sh05);
 }
+
+.DevBilling-planMeta {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+/* Status badge. Shares the DS micro-badge convention: pill, uppercase, 10px. */
 
 .DevBilling-planBadge {
   display: inline-flex;
   align-items: center;
-  padding: var(--spacing-1) var(--spacing-3);
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
+  padding: 3px 10px;
+  border: 1px solid transparent;
+  border-radius: 9999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 .DevBilling-planBadge--free {
-  background: var(--color-surface-tertiary);
+  background: var(--color-inset);
   color: var(--color-text-secondary);
+  border-color: var(--divider);
 }
 
 .DevBilling-planBadge--pro {
-  background: var(--color-brand-primary);
-  color: #fff;
+  background: var(--status-completed-bg);
+  color: var(--status-completed-text);
+  border-color: var(--status-completed-border);
 }
 
 .DevBilling-planBadge--enterprise {
-  background: var(--color-text-primary);
-  color: var(--color-surface-primary);
+  background: var(--nav-active-bg);
+  color: var(--cyan-text);
+  border-color: var(--color-card-border);
 }
 
 .DevBilling-planBadge--past_due {
-  background: var(--color-feedback-error-surface);
-  color: var(--color-feedback-error-text);
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  border-color: var(--danger-border);
 }
 
-.DevBilling-planMeta {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-}
+/* Plan grid --------------------------------------------------------------- */
 
-.DevBilling-intervalToggle {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-  margin-bottom: var(--spacing-6);
-}
-
-.DevBilling-intervalBtn {
-  padding: var(--spacing-1-5) var(--spacing-4);
-  border-radius: var(--radius-full);
-  border: 1px solid var(--color-border-default);
-  background: transparent;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  cursor: pointer;
-  transition:
-    background 120ms,
-    color 120ms,
-    border-color 120ms;
-}
-
-.DevBilling-intervalBtn--active {
-  background: var(--color-brand-primary);
-  color: #fff;
-  border-color: var(--color-brand-primary);
-}
-
-.DevBilling-intervalSavings {
-  font-size: var(--font-size-xs);
-  color: var(--color-feedback-success-text);
-  font-weight: var(--font-weight-medium);
-}
-
+/* The recommended card's ribbon straddles its top border, so the headroom lives
+   on the grid rather than on that one card - a margin there would push it 12px
+   below its neighbours and break the row's top alignment. */
 .DevBilling-plans {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: var(--spacing-5);
-  margin-bottom: var(--spacing-8);
+  gap: 16px;
+  padding-top: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  align-items: stretch;
 }
 
 .DevBilling-planCard {
+  position: relative;
   display: flex;
   flex-direction: column;
-  padding: var(--spacing-6);
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface-primary);
-  position: relative;
+  gap: 10px;
+  padding: 20px 22px;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-card-border);
+  border-radius: 18px;
+  box-shadow:
+    0 1px 2px var(--sh03),
+    0 8px 22px var(--sh05);
 }
 
 .DevBilling-planCard--current {
-  border-color: var(--color-brand-primary);
-  box-shadow: 0 0 0 1px var(--color-brand-primary);
+  border-color: var(--cyan-text);
+}
+
+/* The recommended ribbon straddles the top border, so the card needs headroom
+   for it and the grid needs `align-items: stretch` above to keep the taller
+   card from stretching its neighbours. */
+.DevBilling-planCard--recommended {
+  margin-top: 12px;
 }
 
 .DevBilling-planCard--recommended::before {
-  content: 'Most Popular';
+  content: 'Most popular';
   position: absolute;
   top: -12px;
   left: 50%;
   transform: translateX(-50%);
-  background: var(--color-brand-primary);
-  color: #fff;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  padding: 2px var(--spacing-3);
-  border-radius: var(--radius-full);
+  padding: 4px 12px;
+  border-radius: 9999px;
+  background: var(--cta);
+  color: var(--cta-text);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
 .DevBilling-planName {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  margin-bottom: var(--spacing-1);
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--ink);
 }
 
 .DevBilling-planPrice {
-  font-size: var(--font-size-3xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-primary);
-  margin-bottom: var(--spacing-1);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 27px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 
 .DevBilling-planPriceSub {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  margin-bottom: var(--spacing-4);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--color-text-tertiary);
 }
 
 .DevBilling-planDesc {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  margin-bottom: var(--spacing-5);
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink-muted);
 }
 
 .DevBilling-planFeatures {
-  list-style: none;
+  margin: 4px 0 0;
   padding: 0;
-  margin: 0 0 var(--spacing-6);
-  flex: 1;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .DevBilling-planFeatures li {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--spacing-2);
-  font-size: var(--font-size-sm);
+  position: relative;
+  padding-left: 20px;
+  font-size: 12.5px;
+  line-height: 1.5;
   color: var(--color-text-secondary);
-  padding: var(--spacing-1-5) 0;
 }
 
+/* Drawn rather than an icon component: these are list bullets, and a checkmark
+   glyph in an ::before keeps the markup a plain <li>. */
 .DevBilling-planFeatures li::before {
-  content: '✓';
-  color: var(--color-feedback-success-text);
-  font-weight: var(--font-weight-bold);
-  flex-shrink: 0;
-  margin-top: 1px;
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0.42em;
+  width: 9px;
+  height: 5px;
+  border-left: 1.8px solid var(--cyan-text);
+  border-bottom: 1.8px solid var(--cyan-text);
+  transform: rotate(-45deg);
 }
 
 .DevBilling-error {
-  padding: var(--spacing-3) var(--spacing-4);
-  background: var(--color-feedback-error-surface);
-  color: var(--color-feedback-error-text);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
-  margin-bottom: var(--spacing-4);
+  margin-bottom: 16px;
+  color: var(--color-text-error);
+}
+
+@media screen and (max-width: 768px) {
+  .DevBilling-currentPlan {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
 }
