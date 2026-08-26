@@ -1,5 +1,6 @@
 import { FormField } from "@yosemite-crew/types";
 import fs from "node:fs";
+import path from "node:path";
 import { chromium, type Browser } from "playwright";
 import {
   addCachedPromise,
@@ -248,7 +249,7 @@ const readTemplate = (templatePath: string): Promise<string> =>
     templateCache,
     templatePath,
     TEMPLATE_CACHE_TTL_MS,
-    () => fs.promises.readFile(templatePath, "utf8"),
+    () => { if (templatePath.includes('..') || path.isAbsolute(templatePath)) { throw new Error('Invalid path'); } return fs.promises.readFile(templatePath, "utf8"); },
     {
       maxEntries: TEMPLATE_CACHE_MAX_ENTRIES,
       pruneIntervalMs: TEMPLATE_CACHE_TTL_MS,
