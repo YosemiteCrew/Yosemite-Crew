@@ -41,6 +41,14 @@ const mockPrisma = prisma as unknown as {
 const mockReportUsage = DeveloperBillingService.reportUsage as jest.Mock;
 const mockLoggerError = logger.error as jest.Mock;
 
+// Mirrors the service's own period key. Recomputed per assertion rather than
+// frozen at module load so a test running across a UTC month boundary still
+// matches the value the service derives.
+const currentPeriod = (): string => {
+  const now = new Date();
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+};
+
 describe("DeveloperUsageService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -105,7 +113,64 @@ describe("DeveloperUsageService", () => {
       await Promise.resolve();
       await Promise.resolve();
 
-      expect(mockReportUsage).toHaveBeenCalledWith("cus_x", 42);
+      expect(mockReportUsage).toHaveBeenCalledWith(
+        "cus_x",
+        1,
+        `dev-api-org-1-${currentPeriod()}-42`,
+      );
+    });
+
+    // Regression guard. Reporting record.callCount as the quantity - which this
+    // did originally - makes a summing meter bill the Nth call N times over, so
+    // 1,000 real calls invoice as 500,500. The quantity must stay 1 no matter how
+    // far into the period the request lands.
+    it.each([1, 42, 1000, 250_000])(
+      "reports a quantity of 1 on call %i, never the running total",
+      async (callCount) => {
+        mockPrisma.developerApiUsage.upsert.mockResolvedValue({ callCount });
+        mockPrisma.developerSubscription.findUnique.mockResolvedValue({
+          plan: "pro",
+          stripeCustomerId: "cus_x",
+        });
+        mockReportUsage.mockResolvedValue(undefined);
+        mockPrisma.developerApiUsage.update.mockResolvedValue({});
+
+        await DeveloperUsageService.incrementAndCheck("org-1");
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(mockReportUsage).toHaveBeenCalledWith(
+          "cus_x",
+          1,
+          expect.stringContaining(`-${callCount}`),
+        );
+      },
+    );
+
+    it("gives consecutive calls distinct meter-event identifiers", async () => {
+      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
+        plan: "pro",
+        stripeCustomerId: "cus_x",
+      });
+      mockReportUsage.mockResolvedValue(undefined);
+      mockPrisma.developerApiUsage.update.mockResolvedValue({});
+
+      mockPrisma.developerApiUsage.upsert.mockResolvedValueOnce({
+        callCount: 7,
+      });
+      await DeveloperUsageService.incrementAndCheck("org-1");
+      mockPrisma.developerApiUsage.upsert.mockResolvedValueOnce({
+        callCount: 8,
+      });
+      await DeveloperUsageService.incrementAndCheck("org-1");
+
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const identifiers = mockReportUsage.mock.calls.map(
+        (call: unknown[]) => call[2],
+      );
+      expect(new Set(identifiers).size).toBe(2);
     });
 
     it("no subscription record (null) — defaults to free plan, allowed:true when count <= 1000", async () => {
@@ -147,7 +212,13 @@ describe("DeveloperUsageService", () => {
       await Promise.resolve();
       await Promise.resolve();
 
-      expect(mockReportUsage).toHaveBeenCalledWith("cus_abc", 99);
+      // 1, not 99: the fourth argument is the call's position in the period, used
+      // to build the identifier, not the quantity being billed.
+      expect(mockReportUsage).toHaveBeenCalledWith(
+        "cus_abc",
+        1,
+        "dev-api-org-1-2026-06-99",
+      );
       expect(mockPrisma.developerApiUsage.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: {

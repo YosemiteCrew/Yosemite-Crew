@@ -239,6 +239,37 @@ describe("DeveloperBillingService", () => {
       });
     });
 
+    it("passes the identifier through so Stripe can drop a duplicate post", async () => {
+      process.env.STRIPE_DEV_METER_EVENT_NAME = "api_calls";
+      const stripe = getStripeInstance();
+      stripe.billing.meterEvents.create.mockResolvedValue({});
+
+      await DeveloperBillingService.reportUsage(
+        "cus_abc",
+        1,
+        "dev-api-org-1-2026-06-7",
+      );
+
+      expect(stripe.billing.meterEvents.create).toHaveBeenCalledWith({
+        event_name: "api_calls",
+        payload: { stripe_customer_id: "cus_abc", value: "1" },
+        identifier: "dev-api-org-1-2026-06-7",
+      });
+    });
+
+    it("omits identifier entirely when none is given, rather than sending undefined", async () => {
+      process.env.STRIPE_DEV_METER_EVENT_NAME = "api_calls";
+      const stripe = getStripeInstance();
+      stripe.billing.meterEvents.create.mockResolvedValue({});
+
+      await DeveloperBillingService.reportUsage("cus_abc", 1);
+
+      const [params] = stripe.billing.meterEvents.create.mock.calls[0] as [
+        Record<string, unknown>,
+      ];
+      expect(Object.hasOwn(params, "identifier")).toBe(false);
+    });
+
     it("does nothing when quantity is zero", async () => {
       process.env.STRIPE_DEV_METER_EVENT_NAME = "api_calls";
       const stripe = getStripeInstance();

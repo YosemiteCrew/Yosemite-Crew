@@ -277,8 +277,23 @@ export const DeveloperBillingService = {
   },
 
   // Reports metered API usage to Stripe so it is invoiced at end of period.
-  // Uses Stripe Billing Meters (v20+ API). Call after each authenticated API request or batch.
-  async reportUsage(customerId: string, quantity: number): Promise<void> {
+  // Uses Stripe Billing Meters (v20+ API). Call after each authenticated API request.
+  //
+  // `quantity` is the number of calls THIS event accounts for - a delta, never a
+  // running total. A billing meter aggregates the events it receives (the default
+  // and the one this integration assumes is `sum`), so posting the cumulative
+  // period count on every call bills the Nth call N times over: 1,000 real calls
+  // would invoice as 1+2+...+1000 = 500,500.
+  //
+  // `identifier` makes the post idempotent. Stripe enforces uniqueness on it over
+  // a rolling window of at least 24 hours, so a retry of the same logical call -
+  // ours or the SDK's - is discarded instead of double-counted. Omitting it lets
+  // Stripe generate one, which gives up that protection.
+  async reportUsage(
+    customerId: string,
+    quantity: number,
+    identifier?: string,
+  ): Promise<void> {
     if (!customerId || quantity <= 0) return;
     const eventName = process.env.STRIPE_DEV_METER_EVENT_NAME;
     if (!eventName) return;
@@ -289,6 +304,7 @@ export const DeveloperBillingService = {
         stripe_customer_id: customerId,
         value: String(quantity),
       },
+      ...(identifier ? { identifier } : {}),
     });
   },
 

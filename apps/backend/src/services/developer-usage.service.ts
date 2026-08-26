@@ -4,6 +4,10 @@ import logger from "../utils/logger";
 
 const FREE_TIER_LIMIT = 1_000;
 
+// One authenticated request is one metered call. Reported as a delta because the
+// Stripe meter sums the events it receives - see DeveloperBillingService.reportUsage.
+const CALLS_PER_REQUEST = 1;
+
 const currentBillingPeriod = (): string => {
   const now = new Date();
   const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
@@ -49,17 +53,26 @@ export const DeveloperUsageService = {
     return { allowed: true, callCount: record.callCount };
   },
 
-  // Fire-and-forget: report accumulated usage to Stripe and update lastReportedAt.
+  // Fire-and-forget: report this one call to Stripe and update lastReportedAt.
   // Called inline from incrementAndCheck; errors are logged but never surfaced to the caller.
+  //
+  // `callSequence` is the request's position in the period, taken from the atomic
+  // increment in incrementAndCheck. It is NOT the reported quantity - it only
+  // makes the meter event's identifier unique per call, and stable if the same
+  // call is ever reported twice.
   reportToStripe(
     customerId: string,
     organisationId: string,
     billingPeriod: string,
-    callCount: number,
+    callSequence: number,
   ): void {
     void (async () => {
       try {
-        await DeveloperBillingService.reportUsage(customerId, callCount);
+        await DeveloperBillingService.reportUsage(
+          customerId,
+          CALLS_PER_REQUEST,
+          `dev-api-${organisationId}-${billingPeriod}-${callSequence}`,
+        );
         await prisma.developerApiUsage.update({
           where: {
             organisationId_billingPeriod: {
