@@ -5,6 +5,8 @@ import React, { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { IoInformationCircleOutline } from 'react-icons/io5';
 
+import { useHasPermission } from '@/app/hooks/usePermissions';
+import { PERMISSIONS } from '@/app/lib/permissions';
 import { PreferenceGroup } from '@/app/features/settings/pages/Settings/Sections/PreferenceGroup';
 import '@/app/features/settings/styles/Settings.css';
 
@@ -98,6 +100,7 @@ const SettingsBand = ({
 const Settings = () => {
   const [profileOpen, setProfileOpen] = useState(false);
   const [hoursOpen, setHoursOpen] = useState(false);
+  const canEditOrgSettings = useHasPermission(PERMISSIONS.INTEGRATIONS_EDIT_ANY);
 
   return (
     <div className="yc-page-content">
@@ -115,9 +118,9 @@ const Settings = () => {
               className="flex-none"
             />
           </h1>
-          <span className="yc-settings-subtitle">
-            Your preferences, and the clinic settings you administer
-          </span>
+          {/* Permission-neutral on purpose: most roles can view the organisation
+              band without holding integrations:edit:any. */}
+          <span className="yc-settings-subtitle">Your preferences and clinic settings</span>
         </div>
         <span className="yc-settings-autosave">
           <span className="yc-settings-autosave-dot" aria-hidden="true" />
@@ -140,13 +143,16 @@ const Settings = () => {
             onEditHours={() => setHoursOpen(true)}
           />
 
-          {/* Every control here writes the per-user profile (patchUserProfile) or
-              device-local theme storage — none of it is workspace-wide, which is
-              what the old "Workspace preferences" title wrongly implied. */}
+          {/* Every control here writes the per-user profile via patchUserProfile,
+              so it follows the account to any device. Appearance does NOT — it is
+              deliberately in its own group below. */}
           <PreferenceGroup title="Your preferences" scope="personal">
             <DefaultOpenScreenPreference />
             <TimezonePreference />
             <CompanionTerminologyPreference />
+          </PreferenceGroup>
+
+          <PreferenceGroup title="This browser" scope="device">
             <AppearancePreference />
           </PreferenceGroup>
 
@@ -155,9 +161,18 @@ const Settings = () => {
         </div>
       </SettingsBand>
 
+      {/* Most roles can VIEW this band but not change it: the backend requires
+          integrations:edit:any, and veterinarian/technician hold only the :view
+          permissions. Saying "you administer these" to a reader whose every click
+          would 403 is worse than saying nothing, so the description follows the
+          permission rather than assuming it. */}
       <SettingsBand
         title="Organisation"
-        description="Shared clinic settings. Changes here apply to every colleague."
+        description={
+          canEditOrgSettings
+            ? 'Shared clinic settings. Changes here apply to every colleague.'
+            : 'Shared clinic settings. These apply to every colleague and are managed by a clinic administrator.'
+        }
       >
         <div className="flex flex-col gap-3.5">
           {/* Both write the organisation record via updateOrg. */}

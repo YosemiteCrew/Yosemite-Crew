@@ -9,10 +9,16 @@ import React from 'react';
  * undifferentiated cards - so an owner could change the whole clinic believing it
  * was their own preference. Groups declare their scope and say so on screen.
  */
-export type PreferenceScope = 'personal' | 'organisation';
+export type PreferenceScope = 'personal' | 'device' | 'organisation';
 
 const SCOPE_COPY: Record<PreferenceScope, { label: string; hint: string }> = {
   personal: { label: 'Only you', hint: 'These apply to your account on this clinic.' },
+  // Distinct from `personal` on purpose. The theme is stored under an
+  // un-namespaced `yc-theme` key in browser localStorage, so it does not follow
+  // the account to another device and does not reset for the next person to use
+  // the same browser. Calling that "your account" would be a promise the storage
+  // does not keep.
+  device: { label: 'This device', hint: 'Saved in this browser, not on your account.' },
   organisation: {
     label: 'Whole clinic',
     hint: 'These apply to everyone at this clinic, not just you.',
@@ -64,7 +70,10 @@ const ScopeChip = ({ scope, label }: { scope: PreferenceScope; label: string }) 
   <span
     className={`flex-none rounded-full border px-2 py-[2px] text-[10.5px] font-semibold tracking-[0.02em] whitespace-nowrap ${
       scope === 'organisation'
-        ? 'border-[var(--blue)] text-[var(--blue)]'
+        ? // --blue is a FILL token and carries no contrast duty; at 10.5px it fails
+          // AA on the bone surfaces. --blue-text is the one that clears 4.5:1, so
+          // the border keeps the fill and the label takes the text token.
+          'border-[var(--blue)] text-[var(--blue-text)]'
         : 'border-[var(--hairline)] text-[var(--ink-faint)]'
     }`}
   >
