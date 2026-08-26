@@ -100,7 +100,10 @@ const SettingsBand = ({
 const Settings = () => {
   const [profileOpen, setProfileOpen] = useState(false);
   const [hoursOpen, setHoursOpen] = useState(false);
-  const canEditOrgSettings = useHasPermission(PERMISSIONS.INTEGRATIONS_EDIT_ANY);
+  // The two updateOrg controls below are gated by teams:edit:any, NOT by
+  // integrations:edit:any - see organization.router.ts. Supervisor holds the
+  // former and not the latter.
+  const canEditClinicPreferences = useHasPermission(PERMISSIONS.TEAMS_EDIT_ANY);
 
   return (
     <div className="yc-page-content">
@@ -161,22 +164,22 @@ const Settings = () => {
         </div>
       </SettingsBand>
 
-      {/* Most roles can VIEW this band but not change it: the backend requires
-          integrations:edit:any, and veterinarian/technician hold only the :view
-          permissions. Saying "you administer these" to a reader whose every click
-          would 403 is worse than saying nothing, so the description follows the
-          permission rather than assuming it. */}
+      {/* The band description stays permission-neutral because the band mixes
+          two different gates: the scheduling controls go through updateOrg
+          (teams:edit:any) and federation through integrations:edit:any. A
+          Supervisor holds the first and not the second, so any single verdict
+          here would be wrong for that role. Each group states its own. */}
       <SettingsBand
         title="Organisation"
-        description={
-          canEditOrgSettings
-            ? 'Shared clinic settings. Changes here apply to every colleague.'
-            : 'Shared clinic settings. These apply to every colleague and are managed by a clinic administrator.'
-        }
+        description="Shared clinic settings. Changes here apply to every colleague."
       >
         <div className="flex flex-col gap-3.5">
           {/* Both write the organisation record via updateOrg. */}
-          <PreferenceGroup title="Scheduling & messaging" scope="organisation">
+          <PreferenceGroup
+            title="Scheduling & messaging"
+            scope="organisation"
+            readOnly={!canEditClinicPreferences}
+          >
             <AppointmentLockWindowPreference />
             <CrossClinicMessagingPreference />
           </PreferenceGroup>

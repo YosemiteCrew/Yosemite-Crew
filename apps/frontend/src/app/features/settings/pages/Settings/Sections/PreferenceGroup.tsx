@@ -31,6 +31,16 @@ type PreferenceGroupProps = {
   className?: string;
   /** Who the group's controls affect. Renders a scope chip and a one-line hint. */
   scope?: PreferenceScope;
+  /**
+   * The reader can see these settings but not change them.
+   *
+   * Belongs on the GROUP, not the surrounding band: the organisation band mixes
+   * controls behind different permissions - the scheduling ones are gated by
+   * `teams:edit:any` and federation by `integrations:edit:any` - so a Supervisor
+   * can edit one and not the other. A single band-level verdict would be wrong
+   * for exactly that role.
+   */
+  readOnly?: boolean;
 };
 
 /**
@@ -41,7 +51,13 @@ type PreferenceGroupProps = {
  * When `scope` is given the title row also carries a chip naming who the settings
  * affect, plus a faint hint line beneath it.
  */
-export const PreferenceGroup = ({ title, children, className, scope }: PreferenceGroupProps) => {
+export const PreferenceGroup = ({
+  title,
+  children,
+  className,
+  scope,
+  readOnly = false,
+}: PreferenceGroupProps) => {
   const copy = scope ? SCOPE_COPY[scope] : null;
 
   return (
@@ -55,7 +71,11 @@ export const PreferenceGroup = ({ title, children, className, scope }: Preferenc
           <h3 className="text-[14.5px] font-bold text-[var(--ink)]">{title}</h3>
           {copy && <ScopeChip scope={scope!} label={copy.label} />}
         </div>
-        {copy && <p className="m-0! text-[11.5px] text-[var(--ink-faint)]">{copy.hint}</p>}
+        {copy && (
+          <p className="m-0! text-[11.5px] text-[var(--ink-faint)]">
+            {readOnly ? `${copy.hint} Managed by a clinic administrator.` : copy.hint}
+          </p>
+        )}
       </div>
       {children}
     </section>

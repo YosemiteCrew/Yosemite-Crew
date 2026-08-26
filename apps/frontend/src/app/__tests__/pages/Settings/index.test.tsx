@@ -199,11 +199,34 @@ describe('Settings page', () => {
     expect(appearanceGroup).not.toHaveTextContent('Only you');
   });
 
-  it('does not tell a read-only member they administer clinic settings', () => {
+  // Scoped to the GROUP, not the band. The organisation band mixes two gates -
+  // scheduling goes through updateOrg (teams:edit:any), federation through
+  // integrations:edit:any - so a Supervisor holds one and not the other. A
+  // band-level verdict would be wrong for exactly that role.
+  it('marks the scheduling group read-only when the member cannot edit it', () => {
     mockHasPermission.mockReturnValue(false);
     render(<Settings />);
 
-    expect(screen.getByText(/managed by a clinic administrator/)).toBeInTheDocument();
+    const group = screen.getByText('Appointment Lock Window Preference').closest('section');
+    expect(group).toHaveTextContent(/Managed by a clinic administrator/);
+  });
+
+  it('does not mark the scheduling group read-only for a member who can edit it', () => {
+    mockHasPermission.mockReturnValue(true);
+    render(<Settings />);
+
+    const group = screen.getByText('Appointment Lock Window Preference').closest('section');
+    expect(group).not.toHaveTextContent(/Managed by a clinic administrator/);
+  });
+
+  it('keeps the organisation band description permission-neutral', () => {
+    mockHasPermission.mockReturnValue(false);
+    render(<Settings />);
+
+    // The band must not claim a single verdict for controls behind two gates.
+    expect(
+      screen.getByText('Shared clinic settings. Changes here apply to every colleague.')
+    ).toBeInTheDocument();
   });
 
   it('renders the header with the subtitle and auto-save indicator', () => {
