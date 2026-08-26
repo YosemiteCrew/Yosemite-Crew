@@ -238,6 +238,16 @@ describe('DeveloperBilling page', () => {
       expect(bar.firstElementChild).toHaveStyle({ width: '100%' });
     });
 
+    it('renders no bar for a zero limit rather than a NaN width', async () => {
+      getUsageMock.mockResolvedValue({ ...freeUsage, callCount: 0, limit: 0 });
+      render(<DeveloperBilling />);
+      const meter = await screen.findByTestId('billing-usage');
+
+      // 0/0 is NaN, which would reach the DOM as the invalid `width: NaN%`.
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+      expect(meter.innerHTML).not.toContain('NaN');
+    });
+
     it('shows a bare count with no bar on a metered plan', async () => {
       getSubscriptionMock.mockResolvedValue(proSub);
       getUsageMock.mockResolvedValue(meteredUsage);

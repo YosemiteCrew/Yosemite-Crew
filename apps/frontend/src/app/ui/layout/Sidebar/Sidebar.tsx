@@ -54,6 +54,7 @@ const ROUTE_ICONS: Record<string, IconType> = {
   Network: IoGlobeOutline,
   Templates: IoBookOutline,
   'API Keys': IoKeyOutline,
+  Billing: IoWalletOutline,
   'Website - Builder': IoGlobeOutline,
   Plugins: IoExtensionPuzzleOutline,
   Documentation: IoBookOutline,
