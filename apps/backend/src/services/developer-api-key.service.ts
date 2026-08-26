@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHmac, randomBytes } from "node:crypto";
 import {
   DeveloperApiKeyEnvironment,
   DeveloperApiKeyStatus,
@@ -36,8 +36,45 @@ export type VerifiedApiKey = {
   environment: DeveloperApiKeyEnvironment;
 };
 
+/**
+ * Server-side secret mixed into every stored key digest.
+ *
+ * Read per call rather than captured at module load so a test or a process that
+ * sets it after import still sees it, and so a missing value surfaces as a
+ * request-time 500 rather than an import-time crash that would take down routes
+ * having nothing to do with developer API keys.
+ *
+ * Fails closed on purpose. Falling back to an unkeyed digest would leave the
+ * database readable by anyone holding a dump, while looking like it still worked.
+ */
+const apiKeyPepper = (): string => {
+  const pepper = process.env.DEVELOPER_API_KEY_PEPPER;
+  if (!pepper) {
+    throw new DeveloperApiKeyServiceError(
+      "DEVELOPER_API_KEY_PEPPER is not configured",
+      500,
+    );
+  }
+  return pepper;
+};
+
+/**
+ * Keyed digest, not a bare hash.
+ *
+ * verify() looks the key up with an exact match on this value, so the digest has
+ * to be deterministic - which rules out bcrypt/argon2/scrypt, whose per-record
+ * salts make an indexed lookup impossible. HMAC keeps determinism while removing
+ * the offline attack: a stolen DeveloperApiKeys dump cannot be brute-forced or
+ * matched against precomputed digests without the pepper, which lives in the
+ * environment rather than the database.
+ *
+ * SHA-256's speed is not the weakness here that it is for passwords - the input
+ * is `yc_<env>_` plus 192 bits of CSPRNG output (KEY_SECRET_BYTES = 24), not a
+ * human-chosen string, so guessing it is infeasible regardless of hash cost.
+ * The pepper is what makes the stored value worthless on its own.
+ */
 const hashApiKey = (plaintext: string) =>
-  createHash("sha256").update(plaintext).digest("hex");
+  createHmac("sha256", apiKeyPepper()).update(plaintext).digest("hex");
 
 const generateApiKey = (environment: DeveloperApiKeyEnvironment) => {
   const secret = randomBytes(KEY_SECRET_BYTES).toString("base64url");

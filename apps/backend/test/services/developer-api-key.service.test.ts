@@ -29,6 +29,7 @@ const mockPrisma = prisma as unknown as {
 describe("DeveloperApiKeyService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.DEVELOPER_API_KEY_PEPPER = "test-pepper";
   });
 
   describe("issue", () => {
@@ -158,6 +159,57 @@ describe("DeveloperApiKeyService", () => {
       await expect(
         DeveloperApiKeyService.revoke({ organisationId: "o", keyId: "k" }),
       ).rejects.toMatchObject({ statusCode: 404 });
+    });
+  });
+
+  describe("key digest", () => {
+    const lookupHashFor = async (pepper: string): Promise<string> => {
+      process.env.DEVELOPER_API_KEY_PEPPER = pepper;
+      mockPrisma.developerApiKey.findUnique.mockResolvedValue(null);
+      await DeveloperApiKeyService.verify("yc_live_fixed-plaintext");
+      const [{ where }] = mockPrisma.developerApiKey.findUnique.mock
+        .calls[0] as [{ where: { hashedKey: string } }];
+      return where.hashedKey;
+    };
+
+    it("is deterministic, so the indexed lookup in verify can match it", async () => {
+      const first = await lookupHashFor("pepper-a");
+      jest.clearAllMocks();
+      const second = await lookupHashFor("pepper-a");
+
+      expect(first).toBe(second);
+    });
+
+    it("is keyed by the pepper — the same key hashes differently under another", async () => {
+      const underA = await lookupHashFor("pepper-a");
+      jest.clearAllMocks();
+      const underB = await lookupHashFor("pepper-b");
+
+      // The point of the pepper: a stolen table of digests cannot be matched
+      // against candidates computed without it.
+      expect(underA).not.toBe(underB);
+    });
+
+    it("fails closed when the pepper is unset rather than falling back to an unkeyed digest", async () => {
+      delete process.env.DEVELOPER_API_KEY_PEPPER;
+
+      await expect(
+        DeveloperApiKeyService.verify("yc_live_whatever"),
+      ).rejects.toMatchObject({ statusCode: 500 });
+      expect(mockPrisma.developerApiKey.findUnique).not.toHaveBeenCalled();
+    });
+
+    it("fails closed on issue when the pepper is unset", async () => {
+      delete process.env.DEVELOPER_API_KEY_PEPPER;
+
+      await expect(
+        DeveloperApiKeyService.issue({
+          organisationId: "org-1",
+          name: "k",
+          createdBy: "user-1",
+        }),
+      ).rejects.toMatchObject({ statusCode: 500 });
+      expect(mockPrisma.developerApiKey.create).not.toHaveBeenCalled();
     });
   });
 
