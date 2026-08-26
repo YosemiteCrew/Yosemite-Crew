@@ -136,10 +136,7 @@ const Settings = () => {
           preferences" and clinic-wide controls beside a device theme toggle, so
           the labels pointed away from the truth. Scope is the axis that changes
           whether a click is safe, so it is the axis the page is built on. */}
-      <SettingsBand
-        title="Personal"
-        description="Yours alone. Colleagues are unaffected by anything in this section."
-      >
+      <SettingsBand title="Personal" description="Settings for you, not for the clinic.">
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5 items-start">
           <Personal
             onEditProfile={() => setProfileOpen(true)}
@@ -180,8 +177,8 @@ const Settings = () => {
             scope="organisation"
             readOnly={!canEditClinicPreferences}
           >
-            <AppointmentLockWindowPreference />
-            <CrossClinicMessagingPreference />
+            <AppointmentLockWindowPreference readOnly={!canEditClinicPreferences} />
+            <CrossClinicMessagingPreference readOnly={!canEditClinicPreferences} />
           </PreferenceGroup>
 
           {/* Federation is institution-to-institution: clinical referrals, directory
