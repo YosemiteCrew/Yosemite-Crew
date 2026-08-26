@@ -156,15 +156,49 @@ export const createControlledSubstanceLogbook = (
     try {
       store.append(tx);
     } catch (error) {
-      // The audit entry above is already signed and on disk, so the two
-      // regulatory records would otherwise disagree forever. Surface the
-      // failure instead of returning a transaction that exists nowhere.
+      // The audit entry above is already signed and on disk. Surfacing the
+      // failure is necessary but not sufficient: left alone, the audit trail
+      // would assert that a dispense occurred while the register holds no such
+      // transaction, and a retry would add a second such claim. Write an
+      // explicit compensation entry so the two regulatory histories cannot
+      // disagree about whether the event completed.
+      const compensated = appendCompensation(input, txId, auditEntry.id, error as Error);
       throw new CsWriteError(
-        `failed to persist controlled-substance transaction ${txId}: ${(error as Error).message}`,
+        `failed to persist controlled-substance transaction ${txId}: ${(error as Error).message}` +
+          (compensated ? '' : ' (the compensating audit entry could not be written either)'),
         error
       );
     }
     return tx;
+  };
+
+  /**
+   * Records that a transaction announced in the audit log never reached the
+   * register. Returns false when the audit log is unwritable too, which the
+   * caller reports rather than hides.
+   */
+  const appendCompensation = (
+    input: Omit<CsTransaction, 'id' | 'timestamp' | 'auditEntryId'>,
+    txId: string,
+    voidedAuditEntryId: string,
+    cause: Error
+  ): boolean => {
+    try {
+      deps.auditLog.append({
+        action: `cs:${input.action}:not-recorded`,
+        actor: input.veterinarianId,
+        resourceType: 'controlled-substance',
+        resourceId: `${input.drugName}:${input.lotNumber}`,
+        details: {
+          csTransactionId: txId,
+          voidsAuditEntryId: voidedAuditEntryId,
+          reason: cause.message,
+        },
+      });
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const getTransactions = (opts?: {

@@ -69,7 +69,16 @@ const makeDeps = (overrides: Partial<StatusDialogDeps> = {}): StatusDialogDeps =
     getExpiringSoon: () => [],
     getAllRegistrations: () => [{ deaNumber: 'AB123' }],
   } as never,
-  controlledSubstanceLog: {} as never,
+  controlledSubstanceLog: {
+    getIntegrity: () => ({
+      ok: true,
+      reason: null,
+      quarantinePath: null,
+      recordsLoaded: 0,
+      watermarkCount: 0,
+      tornTail: false,
+    }),
+  } as never,
   pmpService: {
     getPending: () => [],
     getSubmitted: () => [1],
@@ -164,6 +173,56 @@ describe('status dialogs — happy paths', () => {
     expect(detail).toContain('CANNOT BE CHECKED');
     expect(detail).not.toContain('Tampered: 12');
     expect(detail).toContain('signing key could not be read');
+  });
+
+  test('a compliance export from a damaged register carries a warning', () => {
+    const damaged = {
+      getIntegrity: () => ({
+        ok: false,
+        reason: '2 record(s) missing (expected 9, found 7)',
+        quarantinePath: '/data/cs.jsonl.corrupt-1700000000',
+        recordsLoaded: 7,
+        watermarkCount: 9,
+        tornTail: false,
+      }),
+    } as never;
+
+    const deps = makeDeps({ controlledSubstanceLog: damaged });
+    const svc = createStatusDialogService(deps);
+    svc.exportCsDailyLog();
+    const exported = (deps.dialog.showMessageBox as jest.Mock).mock.calls[0][0].detail as string;
+    // A daily log built from an incomplete register must not look authoritative.
+    expect(exported).toContain('WARNING: the controlled-substance register is not intact');
+    expect(exported).toContain('2 record(s) missing');
+    expect(exported).toContain('/data/cs.jsonl.corrupt-1700000000');
+
+    // ...and so must the biennial report.
+    const reportDeps = makeDeps({ controlledSubstanceLog: damaged });
+    createStatusDialogService(reportDeps).generateDeaReportAction();
+    const reported = (reportDeps.dialog.showMessageBox as jest.Mock).mock.calls
+      .map((c) => c[0].detail as string)
+      .join('\n');
+    expect(reported).toContain('WARNING: the controlled-substance register is not intact');
+  });
+
+  test('an empty daily export from a damaged register still warns', () => {
+    const deps = makeDeps({
+      csExport: { exportDailyLog: () => null } as never,
+      controlledSubstanceLog: {
+        getIntegrity: () => ({
+          ok: false,
+          reason: 'the final record was written incompletely and was discarded',
+          quarantinePath: null,
+          recordsLoaded: 0,
+          watermarkCount: 1,
+          tornTail: true,
+        }),
+      } as never,
+    });
+    createStatusDialogService(deps).exportCsDailyLog();
+    const detail = (deps.dialog.showMessageBox as jest.Mock).mock.calls[0][0].detail as string;
+    expect(detail).toContain('No controlled-substance transactions to export');
+    expect(detail).toContain('WARNING: the controlled-substance register is not intact');
   });
 
   test('generateDeaReportAction writes the chosen format', () => {

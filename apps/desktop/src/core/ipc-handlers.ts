@@ -424,7 +424,16 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     const entry = args[0];
     if (typeof entry !== 'object' || entry === null || Array.isArray(entry))
       return { ok: false, error: 'invalid-entry' };
-    const created = services.auditLog.append(entry as Parameters<AuditLog['append']>[0]);
+    // append() throws when the entry did not reach the disk. An audit entry that
+    // exists only in this process is not an audit entry, so the caller has to be
+    // told rather than shown a generic handler failure.
+    let created: ReturnType<AuditLog['append']>;
+    try {
+      created = services.auditLog.append(entry as Parameters<AuditLog['append']>[0]);
+    } catch (error) {
+      services.logger.error('audit_append_failed', { error });
+      return { ok: false, error: 'audit-write-failed' };
+    }
     services.logger.info('audit_appended', {
       id: created.id,
       action: created.action,

@@ -21,72 +21,50 @@ describe('Controlled Substance Logbook - Path Traversal Security', () => {
     mem = createMemoryFs();
   });
 
-  test('blocks path traversal with .. in directory path', async () => {
+  // One shape, many malicious inputs: the logbook must never touch the disk and
+  // must never present a blocked directory as an empty-but-healthy register.
+  test.each([
+    ['.. in the directory path', '../../../etc'],
+    ['multiple .. sequences', '../../../../../../root'],
+    ['traversal hidden mid-path', 'data/../../../etc'],
+    ['a traversal pointing at a seeded file', '../../../etc/passwd'],
+  ])('blocks path traversal: %s', async (_label, maliciousPath) => {
     const deps = makeFsDeps(1000);
     const auditLog = await createAuditLog('safe-dir', deps);
+    // Seed a file at the target so a successful traversal would be observable.
+    mem.files.set(
+      `${maliciousPath}/controlled-substance-log.jsonl`,
+      `${JSON.stringify({ id: 'malicious-1', drugName: 'SensitiveData', timestamp: 1000 })}\n`
+    );
 
-    // Attacker tries to traverse to sensitive directory
-    const maliciousPath = '../../../etc';
-    const logbook = createControlledSubstanceLogbook(maliciousPath, {
-      auditLog,
-      ...deps,
-    });
+    const logbook = createControlledSubstanceLogbook(maliciousPath, { auditLog, ...deps });
 
-    // Security check prevents reading from traversed path
-    expect(logbook.getTransactions()).toEqual([]);
-    expect(logbook.size()).toBe(0);
-
-    // Verify no file system access occurred with the malicious path
-    expect(deps.readFileSync).not.toHaveBeenCalled();
-  });
-
-  test('blocks path traversal with multiple .. sequences', async () => {
-    const deps = makeFsDeps(1000);
-    const auditLog = await createAuditLog('safe-dir', deps);
-
-    // Multiple traversal attempts
-    const maliciousPath = '../../../../../../root';
-    const logbook = createControlledSubstanceLogbook(maliciousPath, {
-      auditLog,
-      ...deps,
-    });
-
-    // Should reject and return empty results
     expect(logbook.getTransactions()).toEqual([]);
     expect(logbook.size()).toBe(0);
     expect(logbook.getInventory()).toEqual([]);
+    // A blocked register is not a healthy empty one.
+    expect(logbook.getIntegrity().ok).toBe(false);
+    expect(deps.readFileSync).not.toHaveBeenCalled();
   });
 
-  test('blocks path traversal in mixed paths', async () => {
+  test('a percent-encoded sequence is a literal directory name, not a traversal', async () => {
     const deps = makeFsDeps(1000);
     const auditLog = await createAuditLog('safe-dir', deps);
+    // The filesystem never decodes %2F, so "..%2F..%2Fetc" names one directory
+    // and cannot escape anywhere. The guard correctly leaves it alone; the
+    // security property is that it stays put, not that it is rejected.
+    const encodedPath = '..%2F..%2Fetc';
+    mem.files.set(
+      `${encodedPath}/controlled-substance-log.jsonl`,
+      `${JSON.stringify({ id: 'local-1', drugName: 'Ketamine', timestamp: 1000 })}\n`
+    );
 
-    // Traversal hidden in seemingly safe path
-    const maliciousPath = 'data/../../../etc';
-    const logbook = createControlledSubstanceLogbook(maliciousPath, {
-      auditLog,
-      ...deps,
-    });
-
-    // Should be blocked due to .. in path
-    expect(logbook.getTransactions()).toEqual([]);
-    expect(logbook.size()).toBe(0);
-  });
-
-  test('blocks path traversal with encoded sequences', async () => {
-    const deps = makeFsDeps(1000);
-    const auditLog = await createAuditLog('safe-dir', deps);
-
-    // Path with encoded .. (though Node.js path.join normalizes this)
-    const maliciousPath = '..%2F..%2Fetc';
-    const logbook = createControlledSubstanceLogbook(maliciousPath, {
-      auditLog,
-      ...deps,
-    });
-
-    // The path contains '..' so should be rejected
-    expect(logbook.getTransactions()).toEqual([]);
-    expect(logbook.size()).toBe(0);
+    const logbook = createControlledSubstanceLogbook(encodedPath, { auditLog, ...deps });
+    expect(logbook.getTransactions()).toHaveLength(1);
+    // Reads stayed inside the named directory; nothing above it was touched.
+    expect(deps.readFileSync.mock.calls.every(([f]) => String(f).startsWith(encodedPath))).toBe(
+      true
+    );
   });
 
   test('allows safe relative paths without traversal', async () => {
@@ -120,30 +98,6 @@ describe('Controlled Substance Logbook - Path Traversal Security', () => {
     const transactions = logbook.getTransactions();
     expect(transactions).toHaveLength(1);
     expect(transactions[0].drugName).toBe('Ketamine');
-  });
-
-  test('prevents reading sensitive files via path traversal', async () => {
-    const deps = makeFsDeps(1000);
-    const auditLog = await createAuditLog('safe-dir', deps);
-
-    // Simulate attacker trying to read /etc/passwd
-    mem.files.set(
-      '../../../etc/passwd/controlled-substance-log.jsonl',
-      `${JSON.stringify({ id: 'malicious-1', drugName: 'SensitiveData', timestamp: 1000 })}\n`
-    );
-
-    const maliciousPath = '../../../etc/passwd';
-    const logbook = createControlledSubstanceLogbook(maliciousPath, {
-      auditLog,
-      ...deps,
-    });
-
-    // Should not be able to read the sensitive file
-    expect(logbook.getTransactions()).toEqual([]);
-    expect(logbook.size()).toBe(0);
-
-    // Verify readFileSync was not called (security check prevented it)
-    expect(deps.readFileSync).not.toHaveBeenCalled();
   });
 
   test('record on a blocked path throws instead of returning an unpersisted transaction', async () => {

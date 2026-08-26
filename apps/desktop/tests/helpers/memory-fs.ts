@@ -54,6 +54,7 @@ export const createMemoryFs = (seed: Record<string, string> = {}): MemoryFs => {
   const dirs = new Set<string>();
   const fsyncCalls: string[] = [];
   const handles = new Map<number, string>();
+  const dirHandles = new Set<number>();
   let nextFd = 10;
 
   let openFault: { match: (p: string, f: string) => boolean; code: string } | null = null;
@@ -110,6 +111,14 @@ export const createMemoryFs = (seed: Record<string, string> = {}): MemoryFs => {
 
     openSync: jest.fn((filePath: string, flags: string) => {
       if (openFault?.match(filePath, flags)) throw failure(openFault.code, filePath, 'open');
+      // Opening a directory is how the code fsyncs a directory entry. It must
+      // not conjure a file at that path.
+      if (dirs.has(filePath) && !files.has(filePath)) {
+        const dirFd = nextFd++;
+        dirHandles.add(dirFd);
+        handles.set(dirFd, filePath);
+        return dirFd;
+      }
       if (!dirs.has(path.dirname(filePath))) throw enoent(filePath, 'open');
       if (flags.includes('w') || !files.has(filePath)) files.set(filePath, '');
       const fd = nextFd++;
@@ -120,6 +129,7 @@ export const createMemoryFs = (seed: Record<string, string> = {}): MemoryFs => {
     writeSync: jest.fn((fd: number, data: string) => {
       const filePath = handles.get(fd);
       if (filePath === undefined) throw new Error(`EBADF: bad file descriptor ${fd}`);
+      if (dirHandles.has(fd)) throw failure('EISDIR', filePath, 'write');
       if (writeFault?.match(filePath)) throw failure(writeFault.code, filePath, 'write');
       const payload =
         shortWrite?.match(filePath) === true
@@ -137,6 +147,7 @@ export const createMemoryFs = (seed: Record<string, string> = {}): MemoryFs => {
 
     closeSync: jest.fn((fd: number) => {
       handles.delete(fd);
+      dirHandles.delete(fd);
     }),
 
     renameSync: jest.fn((from: string, to: string) => {

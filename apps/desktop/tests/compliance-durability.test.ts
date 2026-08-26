@@ -239,4 +239,94 @@ describe('compliance write failures (blocker 2: failures reported as success)', 
     expect(() => log.append(AUDIT_INPUT)).toThrow(AuditWriteError);
     expect(log.size()).toBe(0);
   });
+
+  test('a retry after a partial write starts on a new line instead of splicing', async () => {
+    const log = await createAuditLog(CS_DIR, deps());
+    log.append(AUDIT_INPUT);
+
+    // Half a record reaches the disk, then the caller retries.
+    mem.truncateWrite((p) => p === AUDIT_LOG, 12);
+    expect(() => log.append({ ...AUDIT_INPUT, resourceId: 'p2' })).toThrow(AuditWriteError);
+    mem.clearFaults();
+    log.append({ ...AUDIT_INPUT, resourceId: 'p3' });
+
+    // The retry must be its own line. Concatenating it onto the fragment would
+    // corrupt the retry too, and the acknowledged entry would be lost.
+    const reopened = await createAuditLog(CS_DIR, deps());
+    expect(reopened.query().map((e) => e.resourceId).sort()).toEqual(['p1', 'p3']);
+  });
+
+  test('a dispense that fails to persist is voided in the audit trail', async () => {
+    const auditLog = await createAuditLog(CS_DIR, deps());
+    const logbook = createControlledSubstanceLogbook(CS_DIR, { auditLog, ...deps() });
+
+    mem.failWrite((p) => p === CS_LOG, 'ENOSPC');
+    expect(() => logbook.record(DISPENSE)).toThrow(CsWriteError);
+
+    // The audit log already carried a signed cs:dispense entry. Without a
+    // compensation record it would assert forever that a dispense happened.
+    const entries = readJsonl<AuditEntry>(mem, AUDIT_LOG);
+    expect(entries.map((e) => e.action)).toEqual(['cs:dispense', 'cs:dispense:not-recorded']);
+    expect(entries[1]!.details.voidsAuditEntryId).toBe(entries[0]!.id);
+    expect(entries[1]!.details.csTransactionId).toBe(entries[0]!.details.csTransactionId);
+    // The compensation entry is part of the signed chain, not a loose note.
+    expect(auditLog.verify(entries[1]!)).toBe(true);
+  });
+
+  test('an unwritable audit log is reported when the compensation also fails', async () => {
+    const auditLog = await createAuditLog(CS_DIR, deps());
+    const logbook = createControlledSubstanceLogbook(CS_DIR, { auditLog, ...deps() });
+
+    // The disk fills after the cs:dispense entry is written: the register write
+    // fails, and so does the compensation that would have voided it.
+    let auditWrites = 0;
+    mem.failWrite((p) => {
+      if (p === CS_LOG) return true;
+      if (p !== AUDIT_LOG) return false;
+      auditWrites += 1;
+      return auditWrites > 1;
+    }, 'ENOSPC');
+
+    expect(() => logbook.record(DISPENSE)).toThrow(/compensating audit entry could not be written/);
+  });
+
+  test('a same-length replacement of the register is detected', async () => {
+    const auditLog = await createAuditLog(CS_DIR, deps());
+    const logbook = createControlledSubstanceLogbook(CS_DIR, { auditLog, ...deps() });
+    logbook.record(DISPENSE);
+    logbook.record({ ...DISPENSE, lotNumber: 'LOT-002' });
+    expect(logbook.getIntegrity().ok).toBe(true);
+
+    // A restored backup or rolled-back file: same record count, different
+    // records. A count-only watermark check would call this healthy.
+    const swapped = readJsonl<CsTransaction>(mem, CS_LOG).map((tx, i) => ({
+      ...tx,
+      id: `cs-other-${i}`,
+    }));
+    mem.files.set(CS_LOG, swapped.map((tx) => `${JSON.stringify(tx)}\n`).join(''));
+
+    const reopened = createControlledSubstanceLogbook(CS_DIR, {
+      auditLog: await createAuditLog(CS_DIR, deps()),
+      ...deps(),
+    });
+    expect(reopened.size()).toBe(2);
+    expect(reopened.getIntegrity().ok).toBe(false);
+    expect(reopened.getIntegrity().reason).toContain('has been replaced');
+  });
+
+  test('a record whose watermark cannot be advanced leaves the store degraded', async () => {
+    const log = await createAuditLog(CS_DIR, deps());
+    log.append(AUDIT_INPUT);
+    expect(log.getIntegrity().ok).toBe(true);
+
+    mem.failOpen((p) => p.includes('.state.json'), 'ENOSPC');
+    log.append({ ...AUDIT_INPUT, resourceId: 'p2' });
+
+    // The entry is durable, but a stale watermark cannot prove a later loss of
+    // it, so the store must stop claiming to be healthy.
+    expect(readJsonl<AuditEntry>(mem, AUDIT_LOG)).toHaveLength(2);
+    expect(log.getIntegrity().ok).toBe(false);
+    expect(log.getIntegrity().reason).toContain('watermark could not be updated');
+    expect(log.verifyChain()).toBe(false);
+  });
 });

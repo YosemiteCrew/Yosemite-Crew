@@ -42,6 +42,7 @@ jest.mock('../src/ui/theming', () => ({
 
 import { registerIpc, type IpcServices } from '../src/core/ipc-handlers';
 import { CsWriteError } from '../src/compliance/controlled-substance';
+import { AuditWriteError } from '../src/compliance/audit-log';
 import { getDesktopConfig } from '../src/core/navigation-policy';
 import { BUILTIN_ACTIONS } from '../src/ui/command-palette';
 
@@ -412,6 +413,25 @@ describe('ipc-handlers — happy paths', () => {
       ok: false,
       error: 'invalid-quantity',
     });
+  });
+
+  test('audit-append reports a failed write instead of confirming the entry', async () => {
+    const services = makeServices();
+    services.auditLog = {
+      append: () => {
+        throw new AuditWriteError('ENOSPC: no space left on device');
+      },
+    } as never;
+    const call = register(services);
+
+    // An audit entry that reached no disk is not an audit entry; the caller has
+    // to be told, and with a specific reason rather than a generic failure.
+    expect(await call('yc:audit-append', { action: 'patient:update' })).toEqual({
+      ok: false,
+      error: 'audit-write-failed',
+    });
+    expect(services.logger.error).toHaveBeenCalledWith('audit_append_failed', expect.anything());
+    expect(services.logger.info).not.toHaveBeenCalledWith('audit_appended', expect.anything());
   });
 
   test('cs-record reports a failed write instead of confirming the dispense', async () => {

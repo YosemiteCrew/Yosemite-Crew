@@ -160,19 +160,40 @@ describe('createJsonlStore', () => {
     expect(mem.files.get(LOG)).toContain('{"id":"b"\n{"id":"c","value":3}\n');
   });
 
-  test('a damaged log that cannot be quarantined still reports the damage', () => {
+  test('a damaged log that cannot be copied aside still reports the damage', () => {
     mem.files.set(LOG, 'garbage line\n{"id":"a","value":1}\n');
-    mem.renameSync.mockImplementation(() => {
-      throw new Error('EBUSY');
-    });
+    mem.failOpen((p) => p.includes('.corrupt-'), 'EROFS');
 
-    const health = makeStore().health();
+    const store = makeStore();
+    const health = store.health();
     expect(health.ok).toBe(false);
-    expect(health.reason).toContain('could not be quarantined');
+    expect(health.reason).toContain('could not be copied aside');
     expect(health.quarantinePath).toBeNull();
+    // The surviving record stays readable either way: preserving evidence must
+    // not cost the records that are still a required register.
+    expect(store.readAll()).toEqual([{ id: 'a', value: 1 }]);
   });
 
-  test('quarantine survives a failed watermark update', () => {
+  test('a damaged log keeps its surviving records live and appendable', () => {
+    mem.files.set(LOG, '{"id":"a","value":1}\ngarbage line\n{"id":"b","value":2}\n');
+    const store = makeStore();
+
+    expect(store.readAll()).toEqual([
+      { id: 'a', value: 1 },
+      { id: 'b', value: 2 },
+    ]);
+    const quarantined = store.health().quarantinePath!;
+    // A copy, not a move: the live log is intact on disk.
+    expect(mem.files.get(quarantined)).toContain('garbage line');
+    expect(mem.files.get(LOG)).toContain('garbage line');
+
+    store.append({ id: 'c', value: 3 });
+    expect(store.readAll()).toHaveLength(3);
+    // ...and it never goes back to claiming to be healthy.
+    expect(store.health().ok).toBe(false);
+  });
+
+  test('the damage report survives a failed watermark update', () => {
     mem.files.set(LOG, 'garbage line\n{"id":"a","value":1}\n');
     const realOpen = mem.openSync.getMockImplementation()!;
     mem.openSync.mockImplementation((p: string, flags: string) => {

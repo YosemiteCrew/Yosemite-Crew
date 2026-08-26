@@ -69,6 +69,18 @@ export interface StatusDialogService {
 export const createStatusDialogService = (deps: StatusDialogDeps): StatusDialogService => {
   const { dialog } = deps;
 
+  // A daily log or biennial report built from a register that lost records is
+  // an understated compliance document with nothing on its face to say so. Any
+  // output derived from the register carries the warning.
+  const registerWarning = (): string => {
+    const integrity = deps.controlledSubstanceLog?.getIntegrity();
+    if (!integrity || integrity.ok) return '';
+    const preserved = integrity.quarantinePath
+      ? `\nDamaged register preserved at: ${integrity.quarantinePath}`
+      : '';
+    return `\n\nWARNING: the controlled-substance register is not intact, so this output may be incomplete.\n${integrity.reason}${preserved}`;
+  };
+
   const infoDialog = (message: string, detail: string): void => {
     void dialog.showMessageBox({
       type: 'info',
@@ -115,13 +127,13 @@ export const createStatusDialogService = (deps: StatusDialogDeps): StatusDialogS
       if (!result) {
         infoDialog(
           'Controlled-Substance Export',
-          'No controlled-substance transactions to export for today.'
+          `No controlled-substance transactions to export for today.${registerWarning()}`
         );
         return;
       }
       infoDialog(
         'Controlled-Substance Export',
-        `Exported ${result.rowCount} row(s) to:\n${result.filePath}`
+        `Exported ${result.rowCount} row(s) to:\n${result.filePath}${registerWarning()}`
       );
     },
 
@@ -200,6 +212,8 @@ export const createStatusDialogService = (deps: StatusDialogDeps): StatusDialogS
           path: result,
           format: selectedFormat.name,
         });
+        const warning = registerWarning();
+        if (warning) infoDialog('DEA Report', `Saved to:\n${result}${warning}`);
       } catch (error) {
         deps.logger.error('dea_report_save_failed', { error });
         dialog.showErrorBox('DEA Report', 'Failed to save the report.');
