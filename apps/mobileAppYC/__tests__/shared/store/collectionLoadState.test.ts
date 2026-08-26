@@ -128,6 +128,65 @@ describe('collectionLoadState', () => {
     });
   });
 
+  // Companion ids arrive as a thunk argument and are used as an object key, so
+  // `__proto__` would reach Object.prototype instead of the map.
+  describe('prototype-pollution safety', () => {
+    afterEach(() => {
+      // Prove nothing leaked onto the prototype regardless of outcome.
+      expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    });
+
+    it.each(['__proto__', 'constructor', 'prototype'])(
+      'refuses %p as a companion id when recording a failure',
+      unsafe => {
+        const state = emptyState();
+
+        markCollectionFailed(state, unsafe, 'polluted');
+
+        // `state.failedCompanions['__proto__']` returns Object.prototype, not
+        // undefined, so the meaningful assertion is that no OWN key was added.
+        expect(
+          Object.prototype.hasOwnProperty.call(state.failedCompanions, unsafe),
+        ).toBe(false);
+        expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+      },
+    );
+
+    it.each(['__proto__', 'constructor', 'prototype'])(
+      'refuses %p as a companion id when marking hydrated',
+      unsafe => {
+        const state = emptyState();
+
+        markCollectionHydrated(state, unsafe);
+
+        expect(
+          Object.prototype.hasOwnProperty.call(
+            state.hydratedCompanions,
+            unsafe,
+          ),
+        ).toBe(false);
+      },
+    );
+
+    it('refuses an unsafe id on pending without touching the maps', () => {
+      const state = emptyState();
+      markCollectionFailed(state, 'c1', 'boom');
+
+      markCollectionPending(state, '__proto__');
+
+      expect(state.failedCompanions.c1).toBe('boom');
+    });
+
+    it('never reports an inherited property as a real value', () => {
+      const state = emptyState();
+
+      expect(selectCollectionFailure(state, '__proto__')).toBeUndefined();
+      expect(selectCollectionFailure(state, 'toString')).toBeUndefined();
+      expect(selectCollectionHydrated(state, '__proto__')).toBe(false);
+      expect(selectCollectionHydrated(state, 'toString')).toBe(false);
+    });
+  });
+
   describe('selectors', () => {
     it('reads the failure message back', () => {
       const state = emptyState();

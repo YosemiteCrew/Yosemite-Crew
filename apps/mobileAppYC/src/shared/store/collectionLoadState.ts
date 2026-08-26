@@ -31,6 +31,18 @@ const ensureMaps = (state: Partial<CollectionLoadState>): void => {
 };
 
 /**
+ * Companion ids reach these helpers as a thunk argument, so they are a
+ * caller-supplied key on an object write. `__proto__` and friends would reach
+ * Object.prototype rather than the map, so they are refused outright: no real
+ * companion id looks like this, and a silently ignored key is better than a
+ * polluted prototype.
+ */
+const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+const usableKey = (companionId: string | null | undefined): string | null =>
+  companionId && !UNSAFE_KEYS.has(companionId) ? companionId : null;
+
+/**
  * A fetch is in flight. Clears any previous failure so a retry does not keep
  * showing the error it is currently retrying.
  */
@@ -39,10 +51,11 @@ export const markCollectionPending = (
   companionId: string | null | undefined,
 ): void => {
   ensureMaps(state);
-  if (!companionId) {
+  const key = usableKey(companionId);
+  if (!key) {
     return;
   }
-  delete state.failedCompanions[companionId];
+  delete state.failedCompanions[key];
 };
 
 /** The collection arrived. It is now hydrated and, by definition, not failed. */
@@ -51,11 +64,12 @@ export const markCollectionHydrated = (
   companionId: string | null | undefined,
 ): void => {
   ensureMaps(state);
-  if (!companionId) {
+  const key = usableKey(companionId);
+  if (!key) {
     return;
   }
-  state.hydratedCompanions[companionId] = true;
-  delete state.failedCompanions[companionId];
+  state.hydratedCompanions[key] = true;
+  delete state.failedCompanions[key];
 };
 
 /**
@@ -68,11 +82,11 @@ export const markCollectionFailed = (
   message?: string | null,
 ): void => {
   ensureMaps(state);
-  if (!companionId) {
+  const key = usableKey(companionId);
+  if (!key) {
     return;
   }
-  state.failedCompanions[companionId] =
-    message || DEFAULT_COLLECTION_LOAD_ERROR;
+  state.failedCompanions[key] = message || DEFAULT_COLLECTION_LOAD_ERROR;
 };
 
 /**
@@ -83,10 +97,16 @@ export const selectCollectionFailure = (
   state: Partial<CollectionLoadState> | undefined,
   companionId: string | null | undefined,
 ): string | undefined => {
-  if (!companionId) {
+  const key = usableKey(companionId);
+  if (!key) {
     return undefined;
   }
-  return state?.failedCompanions?.[companionId];
+  return Object.prototype.hasOwnProperty.call(
+    state?.failedCompanions ?? {},
+    key,
+  )
+    ? state?.failedCompanions?.[key]
+    : undefined;
 };
 
 /**
@@ -97,8 +117,14 @@ export const selectCollectionHydrated = (
   state: Partial<CollectionLoadState> | undefined,
   companionId: string | null | undefined,
 ): boolean => {
-  if (!companionId) {
+  const key = usableKey(companionId);
+  if (!key) {
     return false;
   }
-  return Boolean(state?.hydratedCompanions?.[companionId]);
+  return Boolean(
+    Object.prototype.hasOwnProperty.call(
+      state?.hydratedCompanions ?? {},
+      key,
+    ) && state?.hydratedCompanions?.[key],
+  );
 };
