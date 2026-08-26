@@ -51,6 +51,15 @@ const makeDeps = (overrides: Partial<StatusDialogDeps> = {}): StatusDialogDeps =
     verifyAll: () => ({ valid: 3, tampered: 0 }),
     verifyChain: () => true,
     size: () => 3,
+    getIntegrity: () => ({
+      ok: true,
+      reason: null,
+      quarantinePath: null,
+      recordsLoaded: 3,
+      watermarkCount: 3,
+      tornTail: false,
+      signingKey: 'persisted' as const,
+    }),
   } as never,
   csExport: {
     exportDailyLog: () => ({ rowCount: 2, filePath: '/tmp/cs.csv' }),
@@ -105,6 +114,56 @@ describe('status dialogs — happy paths', () => {
     expect((deps.dialog.showMessageBox as jest.Mock).mock.calls.length).toBeGreaterThan(5);
     expect(deps.secondaryDisplays!.openDisplay).toHaveBeenCalled();
     expect(deps.runBackup).toHaveBeenCalled();
+  });
+
+  test('verifyAuditTrail names the problem when the log is not intact', () => {
+    const deps = makeDeps({
+      auditLog: {
+        verifyAll: () => ({ valid: 1, tampered: 0 }),
+        verifyChain: () => false,
+        size: () => 1,
+        getIntegrity: () => ({
+          ok: false,
+          reason: '4 record(s) missing (expected 5, found 1)',
+          quarantinePath: '/data/audit-log.jsonl.corrupt-1700000000',
+          recordsLoaded: 1,
+          watermarkCount: 5,
+          tornTail: false,
+        }),
+      } as never,
+    });
+    createStatusDialogService(deps).verifyAuditTrail();
+
+    const detail = (deps.dialog.showMessageBox as jest.Mock).mock.calls[0][0].detail as string;
+    expect(detail).toContain('Hash chain intact: NO');
+    expect(detail).toContain('4 record(s) missing');
+    expect(detail).toContain('/data/audit-log.jsonl.corrupt-1700000000');
+  });
+
+  test('verifyAuditTrail does not call unverifiable entries tampered', () => {
+    const deps = makeDeps({
+      auditLog: {
+        // With a session-only key every historical entry fails its check.
+        verifyAll: () => ({ valid: 0, tampered: 12 }),
+        verifyChain: () => false,
+        size: () => 12,
+        getIntegrity: () => ({
+          ok: false,
+          reason: 'the audit signing key could not be read (the OS keychain is unavailable)',
+          quarantinePath: null,
+          recordsLoaded: 12,
+          watermarkCount: 12,
+          tornTail: false,
+          signingKey: 'session-only' as const,
+        }),
+      } as never,
+    });
+    createStatusDialogService(deps).verifyAuditTrail();
+
+    const detail = (deps.dialog.showMessageBox as jest.Mock).mock.calls[0][0].detail as string;
+    expect(detail).toContain('CANNOT BE CHECKED');
+    expect(detail).not.toContain('Tampered: 12');
+    expect(detail).toContain('signing key could not be read');
   });
 
   test('generateDeaReportAction writes the chosen format', () => {

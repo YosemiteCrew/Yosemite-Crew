@@ -86,9 +86,23 @@ export const createStatusDialogService = (deps: StatusDialogDeps): StatusDialogS
       }
       const { valid, tampered } = deps.auditLog.verifyAll();
       const chainIntact = deps.auditLog.verifyChain();
+      const integrity = deps.auditLog.getIntegrity();
+      // Without the stored key every historical entry fails its signature check.
+      // Reporting that as "Tampered" is indistinguishable from real tampering
+      // and sends the practice looking for a breach that did not happen.
+      const signatureLines =
+        integrity.signingKey === 'session-only'
+          ? 'Signatures: CANNOT BE CHECKED (signing key unreadable)'
+          : `Valid signatures: ${valid}\nTampered: ${tampered}`;
+      // "Hash chain intact: yes" over a log that lost records is an affirmative
+      // false compliance statement, so say what is wrong when anything is.
+      const problem = integrity.ok ? '' : `\n\nProblem detected: ${integrity.reason}`;
+      const quarantine = integrity.quarantinePath
+        ? `\nDamaged log preserved at: ${integrity.quarantinePath}`
+        : '';
       infoDialog(
         'Audit Trail Integrity',
-        `Total entries: ${deps.auditLog.size()}\nValid signatures: ${valid}\nTampered: ${tampered}\nHash chain intact: ${chainIntact ? 'yes' : 'NO'}`
+        `Total entries: ${deps.auditLog.size()}\n${signatureLines}\nHash chain intact: ${chainIntact ? 'yes' : 'NO'}${problem}${quarantine}`
       );
     },
 

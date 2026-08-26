@@ -1,5 +1,9 @@
-import { createControlledSubstanceLogbook } from '../src/compliance/controlled-substance';
+import {
+  createControlledSubstanceLogbook,
+  CsWriteError,
+} from '../src/compliance/controlled-substance';
 import { createAuditLog } from '../src/compliance/audit-log';
+import { createMemoryFs, asDeps, type MemoryFs } from './helpers/memory-fs';
 
 /**
  * Security tests for path traversal vulnerability mitigation in controlled substance logbook.
@@ -9,23 +13,12 @@ import { createAuditLog } from '../src/compliance/audit-log';
  * intended directory.
  */
 describe('Controlled Substance Logbook - Path Traversal Security', () => {
-  let mockFs: Record<string, string> = {};
+  let mem: MemoryFs;
 
-  const makeFsDeps = (nowVal = 1000) => ({
-    readFileSync: jest.fn((filePath: string) => {
-      if (mockFs[filePath] !== undefined) return mockFs[filePath];
-      throw new Error('ENOENT');
-    }),
-    writeFileSync: jest.fn((filePath: string, data: string) => {
-      mockFs[filePath] = data;
-    }),
-    mkdirSync: jest.fn(),
-    existsSync: jest.fn((filePath: string) => mockFs[filePath] !== undefined),
-    now: jest.fn(() => nowVal),
-  });
+  const makeFsDeps = (nowVal = 1000) => asDeps(mem, () => nowVal);
 
   beforeEach(() => {
-    mockFs = {};
+    mem = createMemoryFs();
   });
 
   test('blocks path traversal with .. in directory path', async () => {
@@ -134,13 +127,10 @@ describe('Controlled Substance Logbook - Path Traversal Security', () => {
     const auditLog = await createAuditLog('safe-dir', deps);
 
     // Simulate attacker trying to read /etc/passwd
-    mockFs['../../../etc/passwd/controlled-substance-log.json'] = JSON.stringify([
-      {
-        id: 'malicious-1',
-        drugName: 'SensitiveData',
-        timestamp: 1000,
-      },
-    ]);
+    mem.files.set(
+      '../../../etc/passwd/controlled-substance-log.jsonl',
+      `${JSON.stringify({ id: 'malicious-1', drugName: 'SensitiveData', timestamp: 1000 })}\n`
+    );
 
     const maliciousPath = '../../../etc/passwd';
     const logbook = createControlledSubstanceLogbook(maliciousPath, {
@@ -156,7 +146,7 @@ describe('Controlled Substance Logbook - Path Traversal Security', () => {
     expect(deps.readFileSync).not.toHaveBeenCalled();
   });
 
-  test('record operation fails silently with malicious path', async () => {
+  test('record on a blocked path throws instead of returning an unpersisted transaction', async () => {
     const deps = makeFsDeps(1000);
     const auditLog = await createAuditLog('safe-dir', deps);
 
@@ -166,24 +156,25 @@ describe('Controlled Substance Logbook - Path Traversal Security', () => {
       ...deps,
     });
 
-    // Attempt to record a transaction
-    const tx = logbook.record({
-      action: 'receive',
-      drugName: 'Ketamine',
-      drugClass: 'CIII',
-      lotNumber: 'LOT-001',
-      quantity: 100,
-      unit: 'mL',
-      veterinarianId: 'vet-456',
-      veterinarianName: 'Dr. Smith',
-    });
+    // Returning a transaction here is what let the UI confirm a dispense that
+    // was never written. The caller must be told the record does not exist.
+    expect(() =>
+      logbook.record({
+        action: 'receive',
+        drugName: 'Ketamine',
+        drugClass: 'CIII',
+        lotNumber: 'LOT-001',
+        quantity: 100,
+        unit: 'mL',
+        veterinarianId: 'vet-456',
+        veterinarianName: 'Dr. Smith',
+      })
+    ).toThrow(CsWriteError);
 
-    // Transaction is created but not persisted
-    expect(tx.id).toMatch(/^cs-/);
-
-    // But reading back should return empty due to security check
     expect(logbook.getTransactions()).toEqual([]);
     expect(logbook.size()).toBe(0);
+    // ...and the store says so, rather than reporting a healthy empty register.
+    expect(logbook.getIntegrity().ok).toBe(false);
   });
 
   test('blocks absolute paths on Unix-like systems', async () => {

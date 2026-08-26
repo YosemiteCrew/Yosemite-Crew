@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { Buffer } from 'node:buffer';
+import { createJsonlStore, type DurableLogFs, type JsonlHealth } from './durable-log';
 
 export interface AuditEntry {
   id: string;
@@ -17,6 +18,17 @@ export interface AuditEntry {
   // chain (empty string for the genesis entry).
   prevSignature: string;
   signature: string;
+}
+
+/**
+ * Thrown when an audit entry could not be written to disk. An audit entry that
+ * only exists in memory is not an audit entry, so this must reach the caller.
+ */
+export class AuditWriteError extends Error {
+  constructor(message: string, readonly cause?: unknown) {
+    super(message);
+    this.name = 'AuditWriteError';
+  }
 }
 
 export interface AuditLog {
@@ -37,7 +49,24 @@ export interface AuditLog {
   verifyAll: () => { valid: number; tampered: number };
   // Verifies the full hash chain: each entry's stored prevSignature must match
   // the actual prior entry, catching deletion, insertion and reordering.
+  //
+  // A walk over the surviving entries alone cannot detect a log that was
+  // shortened from the front, so this also compares the loaded entries against
+  // the persisted watermark. Without that, a one-entry log left behind by a
+  // truncating crash walks cleanly and certifies a wiped history as intact.
   verifyChain: () => boolean;
+  /** Whether the log on disk can be trusted, and why not when it cannot. */
+  getIntegrity: () => AuditIntegrity;
+}
+
+export interface AuditIntegrity extends JsonlHealth {
+  /**
+   * `session-only` means the stored HMAC key could not be read, so this session
+   * signs with a temporary key. Historical entries then fail verify() because
+   * they were signed with a different key, which is NOT evidence of tampering
+   * and must not be reported as such.
+   */
+  signingKey: 'persisted' | 'session-only';
 }
 
 // OS-backed encryption (Electron safeStorage). Injectable for tests.
@@ -47,11 +76,8 @@ export interface SecureStore {
   decryptString: (encrypted: Buffer) => string;
 }
 
-interface AuditDeps {
-  readFileSync?: typeof fs.readFileSync;
+interface AuditDeps extends Partial<DurableLogFs> {
   writeFileSync?: typeof fs.writeFileSync;
-  mkdirSync?: typeof fs.mkdirSync;
-  existsSync?: typeof fs.existsSync;
   now?: () => number;
   // HMAC key. If omitted, a random per-install key is created and persisted
   // alongside the log (encrypted at rest via secureStore when available).
@@ -78,8 +104,15 @@ const resolveSecureStore = async (deps: AuditDeps): Promise<SecureStore | null> 
   return null;
 };
 
-const AUDIT_FILENAME = 'audit-log.json';
+const AUDIT_LEGACY_FILENAME = 'audit-log.json';
+const AUDIT_FILENAME = 'audit-log.jsonl';
 const AUDIT_KEY_FILENAME = 'audit-key';
+
+const isAuditEntry = (value: unknown): value is AuditEntry => {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return typeof v.id === 'string' && typeof v.action === 'string';
+};
 
 let idCounter = 0;
 const generateId = (): string => `audit-${Date.now()}-${++idCounter}`;
@@ -97,92 +130,135 @@ export const createAuditLog = async (dirPath: string, deps: AuditDeps = {}): Pro
   const mkdirSync = deps.mkdirSync || fs.mkdirSync;
   const existsSync = deps.existsSync || fs.existsSync;
   const now = deps.now || (() => Date.now());
-  const filePath = path.join(dirPath, AUDIT_FILENAME);
   const keyPath = path.join(dirPath, AUDIT_KEY_FILENAME);
 
   const secureStore = await resolveSecureStore(deps);
 
-  // Parse a stored key file wrapper. Returns the recovered key, or null when the
-  // wrapper is present but unusable (caller then generates a fresh key).
-  const decodeStoredKey = (stored: string): string | null => {
+  /**
+   * Reading the stored key has three outcomes, and conflating the last two is
+   * what destroys an installation's audit history: "there is no key yet" means
+   * mint one, but "the key is there and cannot be read right now" (no keyring
+   * session, locked or reset login keychain) must never be answered by writing a
+   * new key over it.
+   */
+  type KeyRead =
+    | { status: 'found'; key: string }
+    | { status: 'absent' }
+    | { status: 'unreadable'; reason: string };
+
+  const isLegacyHexKey = (stored: string): boolean => /^[0-9a-f]{32,}$/i.test(stored);
+
+  const decodeStoredKey = (stored: string): KeyRead => {
+    let parsed: { enc?: boolean; data?: string; key?: string } | null = null;
     try {
-      const parsed = JSON.parse(stored) as {
-        enc?: boolean;
-        data?: string;
-        key?: string;
-      };
-      if (parsed.enc && parsed.data && secureStore) {
-        return secureStore.decryptString(Buffer.from(parsed.data, 'base64'));
+      const value: unknown = JSON.parse(stored);
+      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        parsed = value as { enc?: boolean; data?: string; key?: string };
       }
-      if (!parsed.enc && typeof parsed.key === 'string') return parsed.key;
-      return null;
     } catch {
-      // legacy plaintext-hex key file
-      return stored;
+      // not JSON: may be a legacy plaintext-hex key file
     }
+
+    if (parsed === null) {
+      if (isLegacyHexKey(stored)) return { status: 'found', key: stored };
+      return { status: 'unreadable', reason: 'the key file is not in a recognised format' };
+    }
+
+    if (parsed.enc) {
+      if (!parsed.data) {
+        return { status: 'unreadable', reason: 'the encrypted key file contains no key data' };
+      }
+      if (!secureStore) {
+        return {
+          status: 'unreadable',
+          reason: 'the key is encrypted but the OS keychain is unavailable',
+        };
+      }
+      try {
+        return {
+          status: 'found',
+          key: secureStore.decryptString(Buffer.from(parsed.data, 'base64')),
+        };
+      } catch (error) {
+        return {
+          status: 'unreadable',
+          reason: `the OS keychain could not decrypt the key: ${(error as Error).message}`,
+        };
+      }
+    }
+
+    if (typeof parsed.key === 'string' && parsed.key !== '') {
+      return { status: 'found', key: parsed.key };
+    }
+    return { status: 'unreadable', reason: 'the key file contains no usable key' };
   };
 
-  const readExistingKey = (): string | null => {
+  const readExistingKey = (): KeyRead => {
+    if (!existsSync(keyPath)) return { status: 'absent' };
+    let stored: string;
     try {
-      if (!existsSync(keyPath)) return null;
-      const stored = readFileSync(keyPath, 'utf8').trim();
-      return stored ? decodeStoredKey(stored) : null;
-    } catch {
-      // fall through and create a new key
-      return null;
+      stored = String(readFileSync(keyPath, 'utf8')).trim();
+    } catch (error) {
+      return {
+        status: 'unreadable',
+        reason: `the key file could not be read: ${(error as Error).message}`,
+      };
     }
+    if (stored === '') return { status: 'unreadable', reason: 'the key file is empty' };
+    return decodeStoredKey(stored);
   };
 
-  const loadOrCreateKey = (): string => {
+  interface KeyState {
+    key: string;
+    persisted: boolean;
+    reason: string | null;
+  }
+
+  const loadOrCreateKey = (): KeyState => {
     const existing = readExistingKey();
-    if (existing !== null) return existing;
+    if (existing.status === 'found') return { key: existing.key, persisted: true, reason: null };
+
     const key = crypto.randomBytes(32).toString('hex');
+    if (existing.status === 'unreadable') {
+      // Overwriting here would destroy the only means of ever verifying the
+      // existing history, permanently, in response to a condition that is
+      // usually temporary. Run on a session key and leave the stored one intact
+      // so it still works once the keychain is available again.
+      return { key, persisted: false, reason: existing.reason };
+    }
+
     try {
       mkdirSync(dirPath, { recursive: true });
       const wrapper = secureStore
         ? { enc: true, data: secureStore.encryptString(key).toString('base64') }
         : { enc: false, key };
       writeFileSync(keyPath, JSON.stringify(wrapper), { mode: 0o600 });
-    } catch {
-      // if persistence fails the key still works for this session
-    }
-    return key;
-  };
-
-  const key = deps.hmacKey || loadOrCreateKey();
-
-  let cached: AuditEntry[] | null = null;
-
-  const load = (): AuditEntry[] => {
-    if (cached) return cached;
-    try {
-      if (!existsSync(filePath)) {
-        cached = [];
-        return cached;
-      }
-      const raw = readFileSync(filePath, 'utf8');
-      const entries: AuditEntry[] = JSON.parse(raw);
-      if (!Array.isArray(entries)) {
-        cached = [];
-        return cached;
-      }
-      cached = entries.filter((e) => typeof e.id === 'string' && typeof e.action === 'string');
-      return cached;
-    } catch {
-      cached = [];
-      return cached;
+      return { key, persisted: true, reason: null };
+    } catch (error) {
+      return {
+        key,
+        persisted: false,
+        reason: `the new signing key could not be saved: ${(error as Error).message}`,
+      };
     }
   };
 
-  const save = (entries: AuditEntry[]): void => {
-    cached = entries;
-    try {
-      mkdirSync(dirPath, { recursive: true });
-      writeFileSync(filePath, JSON.stringify(entries), 'utf8');
-    } catch {
-      // persist must never break the app
-    }
-  };
+  const keyState: KeyState = deps.hmacKey
+    ? { key: deps.hmacKey, persisted: true, reason: null }
+    : loadOrCreateKey();
+  const key = keyState.key;
+
+  const store = createJsonlStore<AuditEntry>({
+    dirPath,
+    fileName: AUDIT_FILENAME,
+    legacyFileName: AUDIT_LEGACY_FILENAME,
+    isRecord: isAuditEntry,
+    watermarkOf: (entry) => entry.signature,
+    fsq: deps,
+    now,
+  });
+
+  const load = (): AuditEntry[] => store.readAll();
 
   const append = (
     input: Omit<AuditEntry, 'id' | 'timestamp' | 'signature' | 'prevSignature'>
@@ -199,8 +275,17 @@ export const createAuditLog = async (dirPath: string, deps: AuditDeps = {}): Pro
       ...unsigned,
       signature: computeSignature(unsigned, key),
     };
-    entries.push(entry);
-    save(entries);
+    try {
+      // The store only advances its in-memory view once the bytes are durable,
+      // so a failed write cannot leave the session showing a signed entry that
+      // is on no disk anywhere.
+      store.append(entry);
+    } catch (error) {
+      throw new AuditWriteError(
+        `failed to persist audit entry ${entry.id}: ${(error as Error).message}`,
+        error
+      );
+    }
     return entry;
   };
 
@@ -268,7 +353,29 @@ export const createAuditLog = async (dirPath: string, deps: AuditDeps = {}): Pro
       if (!verify(entry)) return false;
       prev = entry.signature;
     }
+
+    // Walking the surviving entries proves they are internally consistent, not
+    // that they are all of them. A log truncated back to its first entry walks
+    // perfectly: prevSignature is '' and the HMAC is genuine. The watermark is
+    // what makes that case distinguishable from a genuinely new install.
+    if (!getIntegrity().ok) return false;
+    const watermark = store.watermarkValue();
+    if (watermark !== '' && !entries.some((e) => e.signature === watermark)) return false;
     return true;
+  };
+
+  const getIntegrity = (): AuditIntegrity => {
+    const health = store.health();
+    if (keyState.persisted) return { ...health, signingKey: 'persisted' };
+    const keyReason =
+      `the audit signing key could not be read (${keyState.reason}), so this session signs with a ` +
+      `temporary key; earlier entries cannot be verified until the stored key is readable again`;
+    return {
+      ...health,
+      ok: false,
+      reason: health.reason ? `${health.reason}; ${keyReason}` : keyReason,
+      signingKey: 'session-only',
+    };
   };
 
   return {
@@ -281,6 +388,7 @@ export const createAuditLog = async (dirPath: string, deps: AuditDeps = {}): Pro
     verify,
     verifyAll,
     verifyChain,
+    getIntegrity,
   };
 };
 
