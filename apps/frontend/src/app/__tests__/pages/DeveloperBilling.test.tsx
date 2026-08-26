@@ -9,6 +9,10 @@ jest.mock('@/app/services/developerBilling', () => ({
   createPortalSession: jest.fn(),
 }));
 
+jest.mock('@/app/services/developerUsage', () => ({
+  getUsage: jest.fn(),
+}));
+
 jest.mock('@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard', () => ({
   __esModule: true,
   default: ({ children }: { children: React.ReactNode }) => (
@@ -40,10 +44,15 @@ import {
   createCheckoutSession,
   createPortalSession,
 } from '@/app/services/developerBilling';
+import { getUsage } from '@/app/services/developerUsage';
 
 const getSubscriptionMock = getSubscription as jest.Mock;
 const createCheckoutMock = createCheckoutSession as jest.Mock;
 const createPortalMock = createPortalSession as jest.Mock;
+const getUsageMock = getUsage as jest.Mock;
+
+const freeUsage = { billingPeriod: '2026-08', callCount: 120, limit: 1000 };
+const meteredUsage = { billingPeriod: '2026-08', callCount: 48_250, limit: null };
 
 const freeSub = {
   id: null,
@@ -71,6 +80,7 @@ const proSub = {
 beforeEach(() => {
   jest.clearAllMocks();
   getSubscriptionMock.mockResolvedValue(freeSub);
+  getUsageMock.mockResolvedValue(freeUsage);
 });
 
 describe('DeveloperBilling page', () => {
@@ -187,5 +197,72 @@ describe('DeveloperBilling page', () => {
     render(<DeveloperBilling />);
     await screen.findByTestId('billing-plan-meta');
     expect(screen.getByRole('button', { name: 'Current plan' })).toBeDisabled();
+  });
+
+  describe('usage meter', () => {
+    it('shows calls used against the included allowance', async () => {
+      render(<DeveloperBilling />);
+      const meter = await screen.findByTestId('billing-usage');
+      expect(meter.textContent).toContain('120');
+      expect(meter.textContent).toContain('1,000');
+      expect(meter.textContent).toContain('2026-08');
+    });
+
+    it('fills the progress bar in proportion to calls used', async () => {
+      render(<DeveloperBilling />);
+      await screen.findByTestId('billing-usage');
+      const bar = screen.getByRole('progressbar');
+      expect(bar).toHaveAttribute('aria-valuenow', '120');
+      expect(bar).toHaveAttribute('aria-valuemax', '1000');
+    });
+
+    it('warns that calls now 429 once the allowance is spent', async () => {
+      getUsageMock.mockResolvedValue({ ...freeUsage, callCount: 1000 });
+      render(<DeveloperBilling />);
+      expect(await screen.findByText(/used your monthly allowance/)).toBeInTheDocument();
+    });
+
+    it('does not warn while the allowance still has room', async () => {
+      render(<DeveloperBilling />);
+      await screen.findByTestId('billing-usage');
+      expect(screen.queryByText(/used your monthly allowance/)).not.toBeInTheDocument();
+    });
+
+    it('caps the bar at 100% rather than overflowing when calls exceed the limit', async () => {
+      getUsageMock.mockResolvedValue({ ...freeUsage, callCount: 4000 });
+      render(<DeveloperBilling />);
+      await screen.findByTestId('billing-usage');
+      const bar = screen.getByRole('progressbar');
+      // clamped, so the bar cannot report more progress than its own maximum
+      expect(bar).toHaveAttribute('aria-valuenow', '1000');
+      expect(bar.firstElementChild).toHaveStyle({ width: '100%' });
+    });
+
+    it('shows a bare count with no bar on a metered plan', async () => {
+      getSubscriptionMock.mockResolvedValue(proSub);
+      getUsageMock.mockResolvedValue(meteredUsage);
+      render(<DeveloperBilling />);
+      const meter = await screen.findByTestId('billing-usage');
+      expect(meter.textContent).toContain('48,250');
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+      expect(screen.getByText(/Metered — billed at the end/)).toBeInTheDocument();
+    });
+
+    it('hides the meter but keeps the plan cards when usage fails to load', async () => {
+      getUsageMock.mockRejectedValue(new Error('network'));
+      render(<DeveloperBilling />);
+      expect(await screen.findByTestId('plan-card-free')).toBeInTheDocument();
+      expect(screen.queryByTestId('billing-usage')).not.toBeInTheDocument();
+      // the subscription loaded fine, so no page-level error should appear
+      expect(screen.queryByText(/Could not load your subscription/)).not.toBeInTheDocument();
+    });
+
+    it('still shows the subscription error when only the subscription fails', async () => {
+      getSubscriptionMock.mockRejectedValue(new Error('network'));
+      render(<DeveloperBilling />);
+      expect(await screen.findByText(/Could not load your subscription/)).toBeInTheDocument();
+      // usage resolved, so the meter is still rendered
+      expect(screen.getByTestId('billing-usage')).toBeInTheDocument();
+    });
   });
 });

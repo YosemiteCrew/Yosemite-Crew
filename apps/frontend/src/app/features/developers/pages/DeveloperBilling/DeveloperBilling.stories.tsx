@@ -73,6 +73,29 @@ const subscription = (plan: DeveloperPlanTier, status: DeveloperSubscriptionStat
   updatedAt: '2026-08-01T00:00:00.000Z',
 });
 
+const usage = (callCount: number, limit: number | null) => ({
+  billingPeriod: '2026-08',
+  callCount,
+  limit,
+});
+
+/**
+ * The page fetches the subscription and the usage counter in parallel, so a stub
+ * has to answer on the URL. A single-body handler would hand the subscription
+ * payload to the usage request too, and the meter would render blanks while
+ * still looking wired up.
+ */
+const routed = (
+  sub: unknown,
+  use: unknown,
+  status?: { subscription?: number; usage?: number }
+): Handler => {
+  return (config) =>
+    config.url?.includes('/usage')
+      ? { status: status?.usage, body: { data: use } }
+      : { status: status?.subscription, body: { data: sub } };
+};
+
 const setup = (handler: Handler) => () => {
   clearInFlightGetRequests();
   const restoreAuth = seedDeveloper();
@@ -106,7 +129,7 @@ const meta = {
   },
   tags: ['autodocs'],
   globals: { viewport: { value: 'desktop', isRotated: false } },
-  beforeEach: setup(() => ({ body: { data: subscription('free', 'active') } })),
+  beforeEach: setup(routed(subscription('free', 'active'), usage(120, 1000))),
 } satisfies Meta<typeof DeveloperBilling>;
 
 export default meta;
@@ -149,7 +172,7 @@ export const FreePlan: Story = {
 
 export const ProPlan: Story = {
   name: 'Pro plan (metered)',
-  beforeEach: setup(() => ({ body: { data: subscription('pro', 'active') } })),
+  beforeEach: setup(routed(subscription('pro', 'active'), usage(48_250, null))),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await waitFor(() => expect(canvas.getByTestId('billing-plan-meta')).toBeInTheDocument());
@@ -172,7 +195,7 @@ export const ProPlan: Story = {
 
 export const PastDue: Story = {
   name: 'Past due',
-  beforeEach: setup(() => ({ body: { data: subscription('pro', 'past_due') } })),
+  beforeEach: setup(routed(subscription('pro', 'past_due'), usage(48_250, null))),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
@@ -193,12 +216,88 @@ export const PastDue: Story = {
   },
 };
 
+export const AllowanceSpent: Story = {
+  name: 'Free plan, allowance spent',
+  beforeEach: setup(routed(subscription('free', 'active'), usage(1000, 1000))),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(canvas.getByTestId('billing-usage')).toBeInTheDocument());
+
+    /* The bar turning red is the visual signal; the sentence is the actionable
+       one, because a 429 from the API is otherwise unexplained. */
+    await expect(canvas.getByText(/used your monthly allowance/)).toBeInTheDocument();
+    const fill = canvasElement.querySelector('.DevBilling-usageFill');
+    await expect(fill).toHaveClass('DevBilling-usageFill--exhausted');
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The state a developer hits right before their integration starts failing. The meter ' +
+          'is the only place in the portal that explains why calls have begun returning 429, so ' +
+          'it names the status code and points at the upgrade.',
+      },
+    },
+  },
+};
+
+export const MeteredUsage: Story = {
+  name: 'Pro plan, metered usage',
+  beforeEach: setup(routed(subscription('pro', 'active'), usage(48_250, null))),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(canvas.getByTestId('billing-usage')).toBeInTheDocument());
+
+    /* No bar on a metered plan: there is nothing to fill toward, and a bar
+       against an invented ceiling would imply a cap that does not exist. */
+    await expect(canvas.queryByRole('progressbar')).not.toBeInTheDocument();
+    await expect(canvas.getByTestId('billing-usage')).toHaveTextContent('48,250');
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Metered plans report `limit: null`, so the meter shows the raw count and no bar.\n\n' +
+          'It deliberately stops short of estimating a bill. The "first 1,000 calls free" on the ' +
+          'Pro card is a tier on the Stripe price, not a number this app holds, so computing a ' +
+          'billable figure here could disagree with the actual invoice.',
+      },
+    },
+  },
+};
+
+export const UsageUnavailable: Story = {
+  name: 'Usage unavailable',
+  beforeEach: setup(routed(subscription('pro', 'active'), null, { usage: 403 })),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(canvas.getByTestId('billing-plan-meta')).toBeInTheDocument());
+
+    /* The meter is fetched alongside the subscription but settled separately, so
+       losing it costs the meter and nothing else - no page-level error. */
+    await expect(canvas.queryByTestId('billing-usage')).not.toBeInTheDocument();
+    await expect(canvas.getByTestId('plan-card-pro')).toBeInTheDocument();
+    await expect(
+      canvas.queryByText('Could not load your subscription. Please try again.')
+    ).not.toBeInTheDocument();
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The two requests are settled independently, so a failing usage counter degrades to a ' +
+          'missing meter rather than taking the plan cards down with it.',
+      },
+    },
+  },
+};
+
 export const LoadFailed: Story = {
   name: 'Load failed',
   /* 403, not 500: the response interceptor retries 429/500/502/503/504 with
      exponential backoff, so a 5xx never reaches the component within a story's
      lifetime and this assertion would time out against a working error path. */
-  beforeEach: setup(() => ({ status: 403, body: { message: 'Insufficient scope' } })),
+  beforeEach: setup(routed(null, null, { subscription: 403, usage: 403 })),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await waitFor(() =>

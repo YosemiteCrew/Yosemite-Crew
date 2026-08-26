@@ -77,6 +77,87 @@
   border-color: var(--danger-border);
 }
 
+/* Usage meter ------------------------------------------------------------- */
+
+.DevBilling-usage {
+  padding: 18px 20px;
+  margin-bottom: 24px;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-card-border);
+  border-radius: 18px;
+  box-shadow:
+    0 1px 2px var(--sh03),
+    0 8px 22px var(--sh05);
+}
+
+.DevBilling-usageHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.DevBilling-usageLabel {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+
+.DevBilling-usagePeriod {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.DevBilling-usageCount {
+  margin: 6px 0 0;
+  font-size: 27px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.DevBilling-usageLimit {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+}
+
+.DevBilling-usageTrack {
+  height: 6px;
+  margin-top: 12px;
+  border-radius: 9999px;
+  background: var(--color-inset);
+  overflow: hidden;
+}
+
+.DevBilling-usageFill {
+  height: 100%;
+  border-radius: 9999px;
+  background: var(--cyan-text);
+}
+
+.DevBilling-usageFill--exhausted {
+  background: var(--danger-text);
+}
+
+.DevBilling-usageWarning {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--danger-text);
+}
+
+.DevBilling-usageNote {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
 /* Plan grid --------------------------------------------------------------- */
 
 /* The recommended card's ribbon straddles its top border, so the headroom lives

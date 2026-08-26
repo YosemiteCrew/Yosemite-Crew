@@ -11,6 +11,7 @@ import {
   type DeveloperPlanTier,
   type DeveloperSubscription,
 } from '@/app/services/developerBilling';
+import { getUsage, type DeveloperUsage } from '@/app/services/developerUsage';
 
 import './DeveloperBilling.css';
 import '@/app/features/organizations/styles/Organizations.css';
@@ -87,38 +88,111 @@ const PlanBadge = ({ plan, status }: { plan: DeveloperPlanTier; status: string }
   return <span className={cls}>{label}</span>;
 };
 
+/**
+ * Calls consumed in the current billing period.
+ *
+ * Deliberately renders only what the API returns. A plan with an included
+ * allowance reports `limit`, and the meter fills against it; a metered plan
+ * reports `limit: null`, and the count is shown bare. The "first 1,000 calls
+ * free" the Pro card advertises is a tier on the Stripe price, not a number this
+ * app owns, so it is never recomputed here into a billable-calls figure that
+ * could disagree with the invoice.
+ */
+const UsageMeter = ({ usage }: { usage: DeveloperUsage }) => {
+  const { billingPeriod, callCount, limit } = usage;
+  const formatted = callCount.toLocaleString();
+  const exhausted = limit !== null && callCount >= limit;
+
+  return (
+    <div className="DevBilling-usage" data-testid="billing-usage">
+      <div className="DevBilling-usageHead">
+        <span className="DevBilling-usageLabel">API calls this period</span>
+        <span className="DevBilling-usagePeriod">{billingPeriod}</span>
+      </div>
+
+      <p className="DevBilling-usageCount">
+        {formatted}
+        {limit !== null && (
+          <span className="DevBilling-usageLimit"> / {limit.toLocaleString()}</span>
+        )}
+      </p>
+
+      {limit !== null && (
+        <div
+          className="DevBilling-usageTrack"
+          role="progressbar"
+          aria-valuenow={Math.min(callCount, limit)}
+          aria-valuemin={0}
+          aria-valuemax={limit}
+          aria-label="Included API calls used this period"
+        >
+          <div
+            className={`DevBilling-usageFill${exhausted ? ' DevBilling-usageFill--exhausted' : ''}`}
+            style={{ width: `${Math.min(100, (callCount / limit) * 100)}%` }}
+          />
+        </div>
+      )}
+
+      {exhausted && (
+        <p className="DevBilling-usageWarning" role="alert">
+          You have used your monthly allowance. Further API calls return 429 until the period resets
+          — upgrade to Pro to keep going.
+        </p>
+      )}
+
+      {limit === null && (
+        <p className="DevBilling-usageNote">
+          Metered — billed at the end of the period. Test-environment calls are not counted.
+        </p>
+      )}
+    </div>
+  );
+};
+
 const DeveloperBilling = () => {
   const [subscription, setSubscription] = useState<DeveloperSubscription | null>(null);
+  const [usage, setUsage] = useState<DeveloperUsage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [checkingOut, setCheckingOut] = useState(false);
   const [openingPortal, setOpeningPortal] = useState(false);
 
-  const loadSubscription = useCallback(async () => {
+  const loadBilling = useCallback(async () => {
     // No setLoading(true) here: this runs from the mount effect and `loading`
     // already starts true, so setting it again would be a synchronous state
     // write during the effect body.
-    try {
-      const next = await getSubscription();
-      setSubscription(next);
+    //
+    // allSettled rather than all: usage is supplementary, and a failing usage
+    // request must not take the plan cards down with it.
+    const [subResult, usageResult] = await Promise.allSettled([getSubscription(), getUsage()]);
+
+    if (subResult.status === 'fulfilled') {
+      setSubscription(subResult.value);
       setError(null);
-    } catch (err) {
-      logger.error('Failed to load developer subscription', err);
+    } else {
+      logger.error('Failed to load developer subscription', subResult.reason);
       setError('Could not load your subscription. Please try again.');
-    } finally {
-      setLoading(false);
     }
+
+    if (usageResult.status === 'fulfilled') {
+      setUsage(usageResult.value);
+    } else {
+      logger.error('Failed to load developer API usage', usageResult.reason);
+      setUsage(null);
+    }
+
+    setLoading(false);
   }, []);
 
   useEffect(() => {
     // Wrapped rather than called directly: the hooks lint cannot see through the
     // useCallback to prove the setStates all happen after an await, and flags a
-    // bare `loadSubscription()` as a synchronous state write.
+    // bare `loadBilling()` as a synchronous state write.
     const run = async () => {
-      await loadSubscription();
+      await loadBilling();
     };
     run();
-  }, [loadSubscription]);
+  }, [loadBilling]);
 
   const handleUpgrade = async () => {
     if (checkingOut) return;
@@ -195,6 +269,8 @@ const DeveloperBilling = () => {
         </p>
 
         {renderCurrentPlan()}
+
+        {!loading && usage && <UsageMeter usage={usage} />}
 
         {error && <p className="DevBilling-error">{error}</p>}
 
