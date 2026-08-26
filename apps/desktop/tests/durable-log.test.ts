@@ -61,6 +61,35 @@ describe('createJsonlStore', () => {
     }
   });
 
+  test.each(['../../../etc', 'data/../../secrets', '..'])(
+    'refuses a log directory that escapes its parent: %s',
+    (badDir) => {
+      // The audit log used to pass its directory straight through with no
+      // traversal guard at all, unlike the controlled-substance logbook.
+      expect(() =>
+        createJsonlStore<Rec>({
+          dirPath: badDir,
+          fileName: 'log.jsonl',
+          isRecord: isRec,
+          watermarkOf: (r) => r.id,
+          fsq: mem,
+        })
+      ).toThrow(/escapes its parent/);
+    }
+  );
+
+  test('refuses a filename that escapes the log directory', () => {
+    expect(() =>
+      createJsonlStore<Rec>({
+        dirPath: DIR,
+        fileName: '../../etc/passwd',
+        isRecord: isRec,
+        watermarkOf: (r) => r.id,
+        fsq: mem,
+      })
+    ).toThrow(/resolves outside the log directory/);
+  });
+
   test('an unreadable watermark does not by itself condemn the log', () => {
     mem.files.set(LOG, '{"id":"a","value":1}\n');
     mem.files.set(STATE, 'not json at all');

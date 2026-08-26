@@ -106,7 +106,19 @@ const resolveFs = (partial?: Partial<DurableLogFs>): DurableLogFs => ({
  * keeps the caller's shape (relative stays relative) so injected filesystems
  * still see the paths they expect.
  */
+const assertSafeDirectory = (dirPath: string): void => {
+  // The controlled-substance logbook already refused a traversing directory;
+  // the audit log had no such guard, so this applies the same rule to every
+  // store. A ".." segment means the configured data directory is not the one
+  // being written to.
+  const segments = path.normalize(dirPath).split(/[\\/]+/);
+  if (segments.includes('..')) {
+    throw new Error(`refusing to use "${dirPath}": the log directory escapes its parent`);
+  }
+};
+
 const containedPath = (dirPath: string, name: string): string => {
+  assertSafeDirectory(dirPath);
   const base = path.resolve(dirPath);
   const target = path.resolve(base, name);
   const relative = path.relative(base, target);
@@ -143,6 +155,7 @@ const writeDurably = (fsq: DurableLogFs, filePath: string, data: string, flags: 
  */
 const syncDirectory = (fsq: DurableLogFs, dirPath: string): void => {
   try {
+    assertSafeDirectory(dirPath);
     const fd = fsq.openSync(dirPath, 'r');
     try {
       fsq.fsyncSync(fd);
