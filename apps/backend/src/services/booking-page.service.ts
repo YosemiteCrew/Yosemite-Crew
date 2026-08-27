@@ -447,6 +447,14 @@ export type BookingPageSettingsInput = {
   autoConfirm: boolean;
   welcomeMessage?: string | null;
   replyToEmail?: string | null;
+  /**
+   * Whether the practice wants `/book/<slug>` to answer.
+   *
+   * Separate from the rest of the settings because it is the only field that
+   * changes what the internet can see. Absent means "leave it as it is", so
+   * saving settings never publishes a practice as a side effect.
+   */
+  publicBookingEnabled?: boolean;
 };
 
 export const BookingPageService = {
@@ -523,6 +531,26 @@ export const BookingPageService = {
       );
     }
 
+    // Publishing an empty page is the same broken promise this whole change
+    // exists to remove: a clinic would hand out an address that resolves to a
+    // page offering nothing bookable. Refused rather than allowed and rendered
+    // as an apology.
+    if (input.publicBookingEnabled === true && requested.length === 0) {
+      const bookableCount = await prisma.productItem.count({
+        where: {
+          organisationId: safeOrganisationId,
+          isActive: true,
+          bookable: { isNot: null },
+        },
+      });
+      if (bookableCount === 0) {
+        throw new BookingPageServiceError(
+          "Add at least one bookable service before publishing your booking page.",
+          400,
+        );
+      }
+    }
+
     await ensureBookingSlug(safeOrganisationId);
 
     const settingsData = {
@@ -539,6 +567,13 @@ export const BookingPageService = {
       create: { organizationId: safeOrganisationId, ...settingsData },
       update: settingsData,
     });
+
+    if (typeof input.publicBookingEnabled === "boolean") {
+      await prisma.organization.update({
+        where: { id: safeOrganisationId },
+        data: { publicBookingEnabled: input.publicBookingEnabled },
+      });
+    }
 
     return BookingPageService.getConfig(safeOrganisationId);
   },

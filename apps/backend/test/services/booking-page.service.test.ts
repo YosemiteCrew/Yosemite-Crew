@@ -15,17 +15,17 @@ const txExecuteRaw = jest.fn();
 jest.mock("src/config/prisma", () => ({
   prisma: {
     $transaction: jest.fn(),
-    organization: { findUnique: jest.fn() },
+    organization: { findUnique: jest.fn(), update: jest.fn() },
     publicBookingSettings: { findUnique: jest.fn(), upsert: jest.fn() },
-    productItem: { findMany: jest.fn() },
+    productItem: { findMany: jest.fn(), count: jest.fn() },
   },
 }));
 
 const pm = prisma as unknown as {
   $transaction: jest.Mock;
-  organization: { findUnique: jest.Mock };
+  organization: { findUnique: jest.Mock; update: jest.Mock };
   publicBookingSettings: { findUnique: jest.Mock; upsert: jest.Mock };
-  productItem: { findMany: jest.Mock };
+  productItem: { findMany: jest.Mock; count: jest.Mock };
 };
 
 const uniqueViolation = () =>
@@ -58,6 +58,7 @@ describe("booking-page.service", () => {
     pm.publicBookingSettings.findUnique.mockResolvedValue(null);
     pm.publicBookingSettings.upsert.mockResolvedValue({});
     pm.productItem.findMany.mockResolvedValue([]);
+    pm.productItem.count.mockResolvedValue(1);
   });
 
   describe("slugifyOrganisationName", () => {
@@ -544,6 +545,71 @@ describe("booking-page.service", () => {
 
       expect(pm.productItem.findMany).not.toHaveBeenCalled();
       expect(pm.publicBookingSettings.upsert).toHaveBeenCalled();
+    });
+
+    it("publishes the practice when asked", async () => {
+      pm.productItem.findMany.mockResolvedValue([{ id: "svc-1" }]);
+
+      await BookingPageService.saveConfig("org-1", {
+        ...input,
+        publicBookingEnabled: true,
+      });
+
+      expect(pm.organization.update).toHaveBeenCalledWith({
+        where: { id: "org-1" },
+        data: { publicBookingEnabled: true },
+      });
+    });
+
+    it("leaves publication alone when the flag is absent", async () => {
+      pm.productItem.findMany.mockResolvedValue([{ id: "svc-1" }]);
+
+      await BookingPageService.saveConfig("org-1", input);
+
+      // Saving settings must not publish a practice as a side effect.
+      expect(pm.organization.update).not.toHaveBeenCalled();
+    });
+
+    it("unpublishes without needing a bookable service", async () => {
+      pm.productItem.count.mockResolvedValue(0);
+
+      await BookingPageService.saveConfig("org-1", {
+        ...input,
+        serviceIds: [],
+        publicBookingEnabled: false,
+      });
+
+      // Taking a page down must never be blocked by the state that made it
+      // unpublishable in the first place.
+      expect(pm.organization.update).toHaveBeenCalledWith({
+        where: { id: "org-1" },
+        data: { publicBookingEnabled: false },
+      });
+    });
+
+    it("refuses to publish a page that would offer nothing", async () => {
+      pm.productItem.count.mockResolvedValue(0);
+
+      await expect(
+        BookingPageService.saveConfig("org-1", {
+          ...input,
+          serviceIds: [],
+          publicBookingEnabled: true,
+        }),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(pm.organization.update).not.toHaveBeenCalled();
+    });
+
+    it("publishes an unnarrowed practice that has bookable services", async () => {
+      pm.productItem.count.mockResolvedValue(3);
+
+      await BookingPageService.saveConfig("org-1", {
+        ...input,
+        serviceIds: [],
+        publicBookingEnabled: true,
+      });
+
+      expect(pm.organization.update).toHaveBeenCalled();
     });
 
     it("allocates a slug for a practice saving for the first time", async () => {

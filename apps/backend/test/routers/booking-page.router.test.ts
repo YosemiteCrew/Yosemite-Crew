@@ -7,6 +7,8 @@ const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const BookingPageController = {
   getConfig: jest.fn(),
   saveConfig: jest.fn(),
+  listRequests: jest.fn(),
+  updateRequestStatus: jest.fn(),
 };
 
 jest.mock("../../src/middlewares/auth", () => ({ requireWebAuth }));
@@ -41,7 +43,7 @@ const findRoute = (path: string, method: string) =>
   )?.route;
 
 describe("booking-page.router", () => {
-  it("exposes exactly the read and write configuration routes", () => {
+  it("exposes exactly the configuration and request-queue routes", () => {
     const routes = layers()
       .filter((entry) => entry.route)
       .map((entry) => [
@@ -52,7 +54,21 @@ describe("booking-page.router", () => {
     expect(routes).toEqual([
       ["/:organisationId", ["get"]],
       ["/:organisationId", ["put"]],
+      ["/:organisationId/requests", ["get"]],
+      ["/:organisationId/requests/:requestId", ["patch"]],
     ]);
+  });
+
+  it("gates the request queue on appointment permissions, not on the publishing one", () => {
+    // Triaging a request into the diary is scheduling work. Requiring
+    // `teams:edit:any` here would mean a receptionist needs the permission that
+    // publishes the practice just to decline a request.
+    expect(requirePermission).toHaveBeenCalledWith("appointments:view:any");
+    expect(requirePermission).toHaveBeenCalledWith("appointments:edit:any");
+  });
+
+  it("derives the tenant through withOrgPermissions on every route", () => {
+    expect(withOrgPermissions).toHaveBeenCalledTimes(4);
   });
 
   it("requires a web session before any route in the router", () => {
@@ -75,9 +91,5 @@ describe("booking-page.router", () => {
     expect(findRoute("/:organisationId", "put")).toBeDefined();
     expect(requirePermission).toHaveBeenCalledWith("teams:edit:any");
     expect(requirePermission).not.toHaveBeenCalledWith("specialities:edit:any");
-  });
-
-  it("derives the tenant through withOrgPermissions on both routes", () => {
-    expect(withOrgPermissions).toHaveBeenCalledTimes(2);
   });
 });

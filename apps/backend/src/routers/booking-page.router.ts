@@ -31,4 +31,27 @@ router.put(
   BookingPageController.saveConfig,
 );
 
+/**
+ * The queue of confirmed public booking requests.
+ *
+ * Gated on `appointments:*:any` rather than `teams:*`, because this is clinical
+ * scheduling work rather than organisation administration: the people who
+ * triage a request into the diary are the ones who already hold the appointment
+ * permissions, and the receptionist who books them should not need the
+ * permission that publishes the practice.
+ */
+router.get(
+  "/:organisationId/requests",
+  withOrgPermissions(),
+  requirePermission("appointments:view:any"),
+  BookingPageController.listRequests,
+);
+
+router.patch(
+  "/:organisationId/requests/:requestId",
+  withOrgPermissions(),
+  requirePermission("appointments:edit:any"),
+  BookingPageController.updateRequestStatus,
+);
+
 export default router;
