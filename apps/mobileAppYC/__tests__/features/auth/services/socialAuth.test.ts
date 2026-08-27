@@ -213,6 +213,28 @@ describe('socialAuth', () => {
     expect(mockAppleAuthAndroid.configure).not.toHaveBeenCalled();
   });
 
+  // Same gap as the OTP path: the social sign-in built its token bundle with no
+  // expiresAt at all, and a missing expiry reads as "never expires" downstream.
+  it('records the token expiry from the access token at social sign-in', async () => {
+    // {"exp":1893456000} in base64url.
+    mockSuperTokens.getAccessToken.mockResolvedValue(
+      ['header', 'eyJleHAiOjE4OTM0NTYwMDB9', 'sig'].join('.'),
+    );
+    const {signInWithSocialProvider} = loadSocialAuth();
+
+    const result = await signInWithSocialProvider('google');
+
+    expect(result.tokens.expiresAt).toBe(1893456000 * 1000);
+  });
+
+  it('leaves the social sign-in expiry undefined for a non-JWT token', async () => {
+    const {signInWithSocialProvider} = loadSocialAuth();
+
+    const result = await signInWithSocialProvider('google');
+
+    expect(result.tokens.expiresAt).toBeUndefined();
+  });
+
   it('signs in with Google and exchanges the tokens with SuperTokens', async () => {
     const {signInWithSocialProvider} = loadSocialAuth();
 

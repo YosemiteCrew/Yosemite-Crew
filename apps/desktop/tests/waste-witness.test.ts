@@ -1,9 +1,12 @@
-import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { createAuditLog } from '../src/compliance/audit-log';
-import { createControlledSubstanceLogbook } from '../src/compliance/controlled-substance';
+import { createAuditLog, type AuditEntry } from '../src/compliance/audit-log';
+import {
+  createControlledSubstanceLogbook,
+  type CsTransaction,
+} from '../src/compliance/controlled-substance';
 import { createDualWitnessLog } from '../src/compliance/dual-witness';
+import { createMemoryFs, asDeps, readJsonl, type MemoryFs } from './helpers/memory-fs';
 
 /**
  * Regression tests for blocker 3: yc:cs-record accepted action:'waste' with no
@@ -16,21 +19,17 @@ import { createDualWitnessLog } from '../src/compliance/dual-witness';
  */
 
 describe('waste events report the witness that was actually verified', () => {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'waste-witness-test-'));
-  let mockFs: Record<string, string> = {};
+  const tmpDir = path.join(os.tmpdir(), 'waste-witness-test');
+  const CS_LOG = path.join(tmpDir, 'controlled-substance-log.jsonl');
+  const AUDIT_LOG = path.join(tmpDir, 'audit-log.jsonl');
+  let mem: MemoryFs;
 
-  const makeDeps = (nowVal = 1000) => ({
-    readFileSync: jest.fn((filePath: string) => {
-      if (mockFs[filePath] !== undefined) return mockFs[filePath];
-      throw new Error('ENOENT');
-    }),
-    writeFileSync: jest.fn((filePath: string, data: string) => {
-      mockFs[filePath] = data;
-    }),
-    mkdirSync: jest.fn(),
-    existsSync: jest.fn((filePath: string) => mockFs[filePath] !== undefined),
-    now: jest.fn(() => nowVal),
-  });
+  const makeDeps = (nowVal = 1000) => asDeps(mem, () => nowVal);
+
+  /** Overwrites an append-only log with attacker-supplied rows. */
+  const rewrite = (file: string, rows: unknown[]): void => {
+    mem.files.set(file, rows.map((r) => `${JSON.stringify(r)}\n`).join(''));
+  };
 
   const build = async () => {
     const deps = makeDeps();
@@ -52,11 +51,7 @@ describe('waste events report the witness that was actually verified', () => {
   };
 
   beforeEach(() => {
-    mockFs = {};
-  });
-
-  afterAll(() => {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
+    mem = createMemoryFs();
   });
 
   test('a waste transaction recorded without a witness does not read back as verified', async () => {
@@ -162,10 +157,9 @@ describe('waste events report the witness that was actually verified', () => {
     // ...then the logbook file is edited on disk to claim verification. The
     // logbook is not HMAC-protected, so this succeeds; the audit entry is
     // untouched and still says false, so verifyAll/verifyChain still pass.
-    const logFile = Object.keys(mockFs).find((f) => f.endsWith('controlled-substance-log.json'))!;
-    const rows = JSON.parse(mockFs[logFile]) as Array<Record<string, unknown>>;
+    const rows = readJsonl<CsTransaction>(mem, CS_LOG) as Array<Record<string, unknown>>;
     rows[0].witnessPinVerified = true;
-    mockFs[logFile] = JSON.stringify(rows);
+    rewrite(CS_LOG, rows);
 
     const { dwLog: reread } = await build();
     expect(reread.getWasteEvents()[0].witnessPinVerified).toBe(false);
@@ -211,8 +205,7 @@ describe('waste events report the witness that was actually verified', () => {
     expect(byWitness.filter((e) => e.witnessPinVerified)).toHaveLength(1);
   });
 
-  const auditFile = () => Object.keys(mockFs).find((f) => f.endsWith('audit-log.json'))!;
-  const logFile = () => Object.keys(mockFs).find((f) => f.endsWith('controlled-substance-log.json'))!;
+
 
   const recordVerifiedWaste = (dwLog: ReturnType<typeof createDualWitnessLog>) => {
     dwLog.setWitnessPin('nurse-1', 'Nurse Jane', '1234');
@@ -238,9 +231,9 @@ describe('waste events report the witness that was actually verified', () => {
 
     // Forge the signed side: the details still claim verification, but the
     // signature no longer matches, so the entry proves nothing.
-    const entries = JSON.parse(mockFs[auditFile()]) as Array<Record<string, unknown>>;
+    const entries = readJsonl<AuditEntry>(mem, AUDIT_LOG) as Array<Record<string, unknown>>;
     entries[0].signature = 'f'.repeat(64);
-    mockFs[auditFile()] = JSON.stringify(entries);
+    rewrite(AUDIT_LOG, entries);
 
     const { dwLog: reread } = await build();
     expect(reread.getWasteEvents()[0].witnessPinVerified).toBe(false);
@@ -255,12 +248,12 @@ describe('waste events report the witness that was actually verified', () => {
     // Point the UNVERIFIED transaction at the verified transaction's audit
     // entry. The entry is genuine and its signature is valid, so only the
     // csTransactionId binding stops it being reused as proof.
-    const rows = JSON.parse(mockFs[logFile()]) as Array<Record<string, unknown>>;
+    const rows = readJsonl<CsTransaction>(mem, CS_LOG) as Array<Record<string, unknown>>;
     const borrower = rows.find((r) => r.lotNumber === 'LOT-B')!;
     const donor = rows.find((r) => r.id === verified.csTransactionId)!;
     borrower.auditEntryId = donor.auditEntryId;
     borrower.witnessPinVerified = true;
-    mockFs[logFile()] = JSON.stringify(rows);
+    rewrite(CS_LOG, rows);
 
     const { dwLog: reread } = await build();
     const events = reread.getWasteEvents();

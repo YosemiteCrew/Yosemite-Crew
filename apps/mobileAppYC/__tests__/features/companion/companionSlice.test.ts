@@ -20,6 +20,8 @@ describe('companionSlice', () => {
     selectedCompanionId: null,
     loading: false,
     error: null,
+    hasLoaded: false,
+    loadError: null,
   };
 
   const mockCompanion: Companion = {
@@ -63,7 +65,7 @@ describe('companionSlice', () => {
   describe('initial state', () => {
     it('should return the initial state', () => {
       expect(companionReducer(undefined, {type: 'unknown'})).toEqual(
-        initialState
+        initialState,
       );
     });
   });
@@ -73,7 +75,7 @@ describe('companionSlice', () => {
       it('should set the selected companion ID', () => {
         const state = companionReducer(
           initialState,
-          setSelectedCompanion('companion_1')
+          setSelectedCompanion('companion_1'),
         );
         expect(state.selectedCompanionId).toBe('companion_1');
       });
@@ -85,7 +87,7 @@ describe('companionSlice', () => {
         };
         const state = companionReducer(
           stateWithSelection,
-          setSelectedCompanion(null)
+          setSelectedCompanion(null),
         );
         expect(state.selectedCompanionId).toBeNull();
       });
@@ -143,7 +145,7 @@ describe('companionSlice', () => {
         };
         const state = companionReducer(
           stateWithCompanions,
-          updateCompanion(updatedCompanion)
+          updateCompanion(updatedCompanion),
         );
         expect(state.companions[0].name).toBe('Updated Buddy');
         expect(state.companions[0].currentWeight).toBe(32);
@@ -162,7 +164,7 @@ describe('companionSlice', () => {
         };
         const state = companionReducer(
           stateWithCompanions,
-          updateCompanion(nonExistentCompanion)
+          updateCompanion(nonExistentCompanion),
         );
         expect(state.companions).toEqual([mockCompanion]);
         expect(state.companions.length).toBe(1);
@@ -177,7 +179,7 @@ describe('companionSlice', () => {
         };
         const state = companionReducer(
           stateWithCompanions,
-          removeCompanion('companion_1')
+          removeCompanion('companion_1'),
         );
         expect(state.companions).toEqual([mockCompanion2]);
         expect(state.companions.length).toBe(1);
@@ -191,7 +193,7 @@ describe('companionSlice', () => {
         };
         const state = companionReducer(
           stateWithCompanions,
-          removeCompanion('companion_1')
+          removeCompanion('companion_1'),
         );
         expect(state.companions).toEqual([mockCompanion2]);
         expect(state.selectedCompanionId).toBe('companion_2');
@@ -205,7 +207,7 @@ describe('companionSlice', () => {
         };
         const state = companionReducer(
           stateWithOneCompanion,
-          removeCompanion('companion_1')
+          removeCompanion('companion_1'),
         );
         expect(state.companions).toEqual([]);
         expect(state.selectedCompanionId).toBeNull();
@@ -219,7 +221,7 @@ describe('companionSlice', () => {
         };
         const state = companionReducer(
           stateWithCompanions,
-          removeCompanion('companion_1')
+          removeCompanion('companion_1'),
         );
         expect(state.companions).toEqual([mockCompanion2]);
         expect(state.selectedCompanionId).toBe('companion_2');
@@ -232,7 +234,7 @@ describe('companionSlice', () => {
         };
         const state = companionReducer(
           stateWithCompanions,
-          removeCompanion('non_existent_id')
+          removeCompanion('non_existent_id'),
         );
         expect(state.companions).toEqual([mockCompanion]);
       });
@@ -243,7 +245,7 @@ describe('companionSlice', () => {
     it('should set loading to true on pending', () => {
       const state = companionReducer(
         initialState,
-        fetchCompanions.pending('requestId', 'user_1')
+        fetchCompanions.pending('requestId', 'user_1'),
       );
       expect(state.loading).toBe(true);
       expect(state.error).toBeNull();
@@ -253,7 +255,7 @@ describe('companionSlice', () => {
       const companions = [mockCompanion, mockCompanion2];
       const state = companionReducer(
         {...initialState, loading: true},
-        fetchCompanions.fulfilled(companions, 'requestId', 'user_1')
+        fetchCompanions.fulfilled(companions, 'requestId', 'user_1'),
       );
       expect(state.loading).toBe(false);
       expect(state.companions).toEqual(companions);
@@ -264,7 +266,7 @@ describe('companionSlice', () => {
       const error = 'Failed to fetch companions';
       const state = companionReducer(
         {...initialState, loading: true},
-        fetchCompanions.rejected(null, 'requestId', 'user_1', error)
+        fetchCompanions.rejected(null, 'requestId', 'user_1', error),
       );
       expect(state.loading).toBe(false);
       expect(state.error).toBe(error);
@@ -273,7 +275,7 @@ describe('companionSlice', () => {
     it('should set default error message on rejected without payload', () => {
       const state = companionReducer(
         {...initialState, loading: true},
-        fetchCompanions.rejected(null, 'requestId', 'user_1')
+        fetchCompanions.rejected(null, 'requestId', 'user_1'),
       );
       expect(state.loading).toBe(false);
       expect(state.error).toBe('Failed to fetch companions');
@@ -287,7 +289,7 @@ describe('companionSlice', () => {
         updateCompanionProfile.pending('requestId', {
           userId: 'user_1',
           updatedCompanion: mockCompanion,
-        })
+        }),
       );
       expect(state.loading).toBe(true);
       expect(state.error).toBeNull();
@@ -305,11 +307,10 @@ describe('companionSlice', () => {
       };
       const state = companionReducer(
         stateWithCompanions,
-        updateCompanionProfile.fulfilled(
+        updateCompanionProfile.fulfilled(updatedCompanion, 'requestId', {
+          userId: 'user_1',
           updatedCompanion,
-          'requestId',
-          {userId: 'user_1', updatedCompanion}
-        )
+        }),
       );
       expect(state.loading).toBe(false);
       expect(state.companions[0].name).toBe('Updated Buddy');
@@ -329,11 +330,10 @@ describe('companionSlice', () => {
       };
       const state = companionReducer(
         stateWithCompanions,
-        updateCompanionProfile.fulfilled(
+        updateCompanionProfile.fulfilled(updatedCompanion, 'requestId', {
+          userId: 'user_1',
           updatedCompanion,
-          'requestId',
-          {userId: 'user_1', updatedCompanion}
-        )
+        }),
       );
       expect(state.companions).toEqual([mockCompanion2]);
     });
@@ -346,8 +346,8 @@ describe('companionSlice', () => {
           null,
           'requestId',
           {userId: 'user_1', updatedCompanion: mockCompanion},
-          error
-        )
+          error,
+        ),
       );
       expect(state.loading).toBe(false);
       expect(state.error).toBe(error);
@@ -356,11 +356,10 @@ describe('companionSlice', () => {
     it('should set default error message on rejected without payload', () => {
       const state = companionReducer(
         {...initialState, loading: true},
-        updateCompanionProfile.rejected(
-          null,
-          'requestId',
-          {userId: 'user_1', updatedCompanion: mockCompanion}
-        )
+        updateCompanionProfile.rejected(null, 'requestId', {
+          userId: 'user_1',
+          updatedCompanion: mockCompanion,
+        }),
       );
       expect(state.loading).toBe(false);
       expect(state.error).toBe('Failed to update companion');
@@ -394,7 +393,7 @@ describe('companionSlice', () => {
             origin: 'unknown',
             profileImage: null,
           },
-        })
+        }),
       );
       expect(state.loading).toBe(true);
       expect(state.error).toBeNull();
@@ -403,11 +402,10 @@ describe('companionSlice', () => {
     it('should add new companion on fulfilled', () => {
       const state = companionReducer(
         initialState,
-        addCompanion.fulfilled(
-          mockCompanion,
-          'requestId',
-          {userId: 'user_1', payload: {} as any}
-        )
+        addCompanion.fulfilled(mockCompanion, 'requestId', {
+          userId: 'user_1',
+          payload: {} as any,
+        }),
       );
       expect(state.loading).toBe(false);
       expect(state.companions).toEqual([mockCompanion]);
@@ -421,11 +419,10 @@ describe('companionSlice', () => {
       };
       const state = companionReducer(
         stateWithCompanions,
-        addCompanion.fulfilled(
-          mockCompanion2,
-          'requestId',
-          {userId: 'user_1', payload: {} as any}
-        )
+        addCompanion.fulfilled(mockCompanion2, 'requestId', {
+          userId: 'user_1',
+          payload: {} as any,
+        }),
       );
       expect(state.loading).toBe(false);
       expect(state.companions).toEqual([mockCompanion, mockCompanion2]);
@@ -439,8 +436,8 @@ describe('companionSlice', () => {
           null,
           'requestId',
           {userId: 'user_1', payload: {} as any},
-          error
-        )
+          error,
+        ),
       );
       expect(state.loading).toBe(false);
       expect(state.error).toBe(error);
@@ -449,11 +446,10 @@ describe('companionSlice', () => {
     it('should set default error message on rejected without payload', () => {
       const state = companionReducer(
         {...initialState, loading: true},
-        addCompanion.rejected(
-          null,
-          'requestId',
-          {userId: 'user_1', payload: {} as any}
-        )
+        addCompanion.rejected(null, 'requestId', {
+          userId: 'user_1',
+          payload: {} as any,
+        }),
       );
       expect(state.loading).toBe(false);
       expect(state.error).toBe('Failed to add companion');
@@ -467,7 +463,7 @@ describe('companionSlice', () => {
         deleteCompanion.pending('requestId', {
           userId: 'user_1',
           companionId: 'companion_1',
-        })
+        }),
       );
       expect(state.loading).toBe(true);
       expect(state.error).toBeNull();
@@ -481,11 +477,10 @@ describe('companionSlice', () => {
       };
       const state = companionReducer(
         stateWithCompanions,
-        deleteCompanion.fulfilled(
-          'companion_1',
-          'requestId',
-          {userId: 'user_1', companionId: 'companion_1'}
-        )
+        deleteCompanion.fulfilled('companion_1', 'requestId', {
+          userId: 'user_1',
+          companionId: 'companion_1',
+        }),
       );
       expect(state.loading).toBe(false);
       expect(state.companions).toEqual([mockCompanion2]);
@@ -501,11 +496,10 @@ describe('companionSlice', () => {
       };
       const state = companionReducer(
         stateWithCompanions,
-        deleteCompanion.fulfilled(
-          'companion_1',
-          'requestId',
-          {userId: 'user_1', companionId: 'companion_1'}
-        )
+        deleteCompanion.fulfilled('companion_1', 'requestId', {
+          userId: 'user_1',
+          companionId: 'companion_1',
+        }),
       );
       expect(state.companions).toEqual([mockCompanion2]);
       expect(state.selectedCompanionId).toBe('companion_2');
@@ -520,11 +514,10 @@ describe('companionSlice', () => {
       };
       const state = companionReducer(
         stateWithOneCompanion,
-        deleteCompanion.fulfilled(
-          'companion_1',
-          'requestId',
-          {userId: 'user_1', companionId: 'companion_1'}
-        )
+        deleteCompanion.fulfilled('companion_1', 'requestId', {
+          userId: 'user_1',
+          companionId: 'companion_1',
+        }),
       );
       expect(state.companions).toEqual([]);
       expect(state.selectedCompanionId).toBeNull();
@@ -539,11 +532,10 @@ describe('companionSlice', () => {
       };
       const state = companionReducer(
         stateWithCompanions,
-        deleteCompanion.fulfilled(
-          'companion_1',
-          'requestId',
-          {userId: 'user_1', companionId: 'companion_1'}
-        )
+        deleteCompanion.fulfilled('companion_1', 'requestId', {
+          userId: 'user_1',
+          companionId: 'companion_1',
+        }),
       );
       expect(state.companions).toEqual([mockCompanion2]);
       expect(state.selectedCompanionId).toBe('companion_2');
@@ -557,8 +549,8 @@ describe('companionSlice', () => {
           null,
           'requestId',
           {userId: 'user_1', companionId: 'companion_1'},
-          error
-        )
+          error,
+        ),
       );
       expect(state.loading).toBe(false);
       expect(state.error).toBe(error);
@@ -567,11 +559,10 @@ describe('companionSlice', () => {
     it('should set default error message on rejected without payload', () => {
       const state = companionReducer(
         {...initialState, loading: true},
-        deleteCompanion.rejected(
-          null,
-          'requestId',
-          {userId: 'user_1', companionId: 'companion_1'}
-        )
+        deleteCompanion.rejected(null, 'requestId', {
+          userId: 'user_1',
+          companionId: 'companion_1',
+        }),
       );
       expect(state.loading).toBe(false);
       expect(state.error).toBe('Failed to delete companion');

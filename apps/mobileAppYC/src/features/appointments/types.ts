@@ -1,9 +1,5 @@
 export type BusinessCategory =
-  | 'hospital'
-  | 'groomer'
-  | 'breeder'
-  | 'pet_center'
-  | 'boarder';
+  'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder';
 
 export interface VetBusiness {
   id: string;
@@ -153,10 +149,7 @@ export interface PaymentIntentInfo {
 }
 
 export type PaymentCollectionMethod =
-  | 'PAYMENT_INTENT'
-  | 'PAYMENT_LINK'
-  | 'PAYMENT_AT_CLINIC'
-  | (string & {});
+  'PAYMENT_INTENT' | 'PAYMENT_LINK' | 'PAYMENT_AT_CLINIC' | (string & {});
 
 export type BillingCollectionMode =
   | 'PREPAY_AT_BOOKING'
@@ -167,10 +160,7 @@ export type BillingCollectionMode =
   | (string & {});
 
 export type InvoiceVisitBillingStage =
-  | 'DRAFT'
-  | 'READY_FOR_BILLING'
-  | 'SETTLED'
-  | (string & {});
+  'DRAFT' | 'READY_FOR_BILLING' | 'SETTLED' | (string & {});
 
 export interface Invoice {
   id: string;
@@ -253,6 +243,24 @@ export interface AppointmentsState {
   loading: boolean;
   error: string | null;
   hydratedCompanions: Record<string, boolean>;
+  /**
+   * Companions whose last list fetch FAILED, mapped to the message. Kept
+   * apart from `hydratedCompanions` so a screen can tell a failed load
+   * from an account that is genuinely empty - collapsing the two is what
+   * made every failure render as the new-user empty state.
+   */
+  failedCompanions: Record<string, string>;
+  /**
+   * requestId of the newest in-flight fetch per companion. Lets a rejection
+   * that arrives after a newer request already succeeded be discarded
+   * instead of overwriting a good result with a stale error.
+   */
+  activeRequests: Record<string, string>;
+  /**
+   * Epoch ms of the last SUCCESSFUL fetch per companion, so a stale list can
+   * say how old what the user is reading actually is.
+   */
+  lastLoadedAt: Record<string, number>;
 }
 
 export interface BusinessesState {

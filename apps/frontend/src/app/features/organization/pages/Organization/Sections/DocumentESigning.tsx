@@ -40,7 +40,7 @@ const ToggleRow = ({ title, description, checked, onChange }: ToggleRowProps) =>
           checked ? 'translate-x-[20px]' : 'translate-x-[2px]'
         )}
         style={{
-          backgroundColor: checked ? '#ffffff' : 'var(--screen)',
+          backgroundColor: checked ? 'var(--white-text)' : 'var(--screen)',
           borderColor: checked ? 'transparent' : 'var(--hairline)',
         }}
       />
@@ -68,7 +68,7 @@ const DocumentESigning = () => {
       fallback={<Fallback resource="document e-signing settings" />}
     >
       <SectionCard title="E-signing" showButton={false}>
-        <div className="rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] overflow-hidden shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+        <div className="overflow-hidden">
           <div className="px-5! py-3! border-b border-[var(--hairline)] text-[11.5px] text-[var(--ink-faint)]">
             How consent documents get signed
           </div>

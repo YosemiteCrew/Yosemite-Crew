@@ -23,6 +23,7 @@ import {
   WITNESS_REQUIRED_ACTIONS,
   type ControlledSubstanceLogbook,
   type CsAction,
+  type CsTransaction,
 } from '../compliance/controlled-substance';
 import type { DualWitnessLog } from '../compliance/dual-witness';
 import type { DeaRegistrationTracker } from '../compliance/dea-registration';
@@ -467,10 +468,19 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     // The PIN is a credential, not part of the record: it must not be persisted
     // into the logbook or echoed back to the caller.
     const rest = Object.fromEntries(Object.entries(d).filter(([k]) => k !== 'witnessPin'));
-    const tx = services.controlledSubstanceLog.record({
-      ...(rest as Parameters<ControlledSubstanceLogbook['record']>[0]),
-      witnessPinVerified,
-    });
+    // record() throws when the transaction did not reach the disk. Reporting
+    // ok:true there is how a full disk or a locked file produced a green
+    // confirmation for a dispense that was never written down.
+    let tx: CsTransaction;
+    try {
+      tx = services.controlledSubstanceLog.record({
+        ...(rest as Parameters<ControlledSubstanceLogbook['record']>[0]),
+        witnessPinVerified,
+      });
+    } catch (error) {
+      services.logger.error('cs_record_failed', { error });
+      return { ok: false, error: 'cs-write-failed' };
+    }
     services.logger.info('cs_recorded', {
       id: tx.id,
       drugName: tx.drugName,
@@ -493,7 +503,16 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     const entry = args[0];
     if (typeof entry !== 'object' || entry === null || Array.isArray(entry))
       return { ok: false, error: 'invalid-entry' };
-    const created = services.auditLog.append(entry as Parameters<AuditLog['append']>[0]);
+    // append() throws when the entry did not reach the disk. An audit entry that
+    // exists only in this process is not an audit entry, so the caller has to be
+    // told rather than shown a generic handler failure.
+    let created: ReturnType<AuditLog['append']>;
+    try {
+      created = services.auditLog.append(entry as Parameters<AuditLog['append']>[0]);
+    } catch (error) {
+      services.logger.error('audit_append_failed', { error });
+      return { ok: false, error: 'audit-write-failed' };
+    }
     services.logger.info('audit_appended', {
       id: created.id,
       action: created.action,

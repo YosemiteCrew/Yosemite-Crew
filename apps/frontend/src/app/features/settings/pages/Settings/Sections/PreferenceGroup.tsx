@@ -9,10 +9,16 @@ import React from 'react';
  * undifferentiated cards - so an owner could change the whole clinic believing it
  * was their own preference. Groups declare their scope and say so on screen.
  */
-export type PreferenceScope = 'personal' | 'organisation';
+export type PreferenceScope = 'personal' | 'device' | 'organisation';
 
 const SCOPE_COPY: Record<PreferenceScope, { label: string; hint: string }> = {
   personal: { label: 'Only you', hint: 'These apply to your account on this clinic.' },
+  // Distinct from `personal` on purpose. The theme is stored under an
+  // un-namespaced `yc-theme` key in browser localStorage, so it does not follow
+  // the account to another device and does not reset for the next person to use
+  // the same browser. Calling that "your account" would be a promise the storage
+  // does not keep.
+  device: { label: 'This device', hint: 'Saved in this browser, not on your account.' },
   organisation: {
     label: 'Whole clinic',
     hint: 'These apply to everyone at this clinic, not just you.',
@@ -25,6 +31,16 @@ type PreferenceGroupProps = {
   className?: string;
   /** Who the group's controls affect. Renders a scope chip and a one-line hint. */
   scope?: PreferenceScope;
+  /**
+   * The reader can see these settings but not change them.
+   *
+   * Belongs on the GROUP, not the surrounding band: the organisation band mixes
+   * controls behind different permissions - the scheduling ones are gated by
+   * `teams:edit:any` and federation by `integrations:edit:any` - so a Supervisor
+   * can edit one and not the other. A single band-level verdict would be wrong
+   * for exactly that role.
+   */
+  readOnly?: boolean;
 };
 
 /**
@@ -35,7 +51,13 @@ type PreferenceGroupProps = {
  * When `scope` is given the title row also carries a chip naming who the settings
  * affect, plus a faint hint line beneath it.
  */
-export const PreferenceGroup = ({ title, children, className, scope }: PreferenceGroupProps) => {
+export const PreferenceGroup = ({
+  title,
+  children,
+  className,
+  scope,
+  readOnly = false,
+}: PreferenceGroupProps) => {
   const copy = scope ? SCOPE_COPY[scope] : null;
 
   return (
@@ -49,7 +71,11 @@ export const PreferenceGroup = ({ title, children, className, scope }: Preferenc
           <h3 className="text-[14.5px] font-bold text-[var(--ink)]">{title}</h3>
           {copy && <ScopeChip scope={scope!} label={copy.label} />}
         </div>
-        {copy && <p className="m-0! text-[11.5px] text-[var(--ink-faint)]">{copy.hint}</p>}
+        {copy && (
+          <p className="m-0! text-[11.5px] text-[var(--ink-faint)]">
+            {readOnly ? `${copy.hint} Managed by a clinic administrator.` : copy.hint}
+          </p>
+        )}
       </div>
       {children}
     </section>
@@ -64,7 +90,10 @@ const ScopeChip = ({ scope, label }: { scope: PreferenceScope; label: string }) 
   <span
     className={`flex-none rounded-full border px-2 py-[2px] text-[10.5px] font-semibold tracking-[0.02em] whitespace-nowrap ${
       scope === 'organisation'
-        ? 'border-[var(--blue)] text-[var(--blue)]'
+        ? // --blue is a FILL token and carries no contrast duty; at 10.5px it fails
+          // AA on the bone surfaces. --blue-text is the one that clears 4.5:1, so
+          // the border keeps the fill and the label takes the text token.
+          'border-[var(--blue)] text-[var(--blue-text)]'
         : 'border-[var(--hairline)] text-[var(--ink-faint)]'
     }`}
   >

@@ -9,6 +9,7 @@ import {
   resetAuthLifecycle,
   resolveExpiration,
   isTokenExpired,
+  shouldAttemptRefresh,
   markAuthRefreshed,
   getUserStorageKey,
   REFRESH_BUFFER_MS,
@@ -17,7 +18,6 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {AppState} from 'react-native';
 import SuperTokens from 'supertokens-react-native';
-import {Buffer} from 'node:buffer';
 import {fetchProfileStatus} from '../../../src/features/account/services/profileService';
 import {
   clearStoredTokens,
@@ -77,18 +77,6 @@ jest.mock('@/features/auth/utils/parentProfileMapper', () => ({
     ...user,
     ...(parent ? {merged: true} : {}),
   })),
-}));
-
-jest.mock('node:buffer', () => ({
-  Buffer: {
-    from: jest.fn(str => ({
-      toString: () => {
-        // Simple mock decoding for "jwt-like" strings
-        if (str.includes('eyJleHAiOjEwMH0')) return '{"exp":100}'; // 100 seconds
-        return '{}';
-      },
-    })),
-  },
 }));
 
 const mockSuperTokens = SuperTokens as unknown as {
@@ -171,12 +159,13 @@ describe('sessionManager', () => {
     });
 
     it('returns undefined and warns when the decoded payload is not valid JSON', () => {
-      (Buffer.from as jest.Mock).mockImplementationOnce(() => ({
-        toString: () => 'not-json{',
-      }));
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
 
-      const result = resolveExpiration({idToken: 'header.somepayload.sig'});
+      // base64url for 'not-json{' - a payload that decodes fine but is not JSON.
+      const notJsonPayload = 'bm90LWpzb257';
+      const result = resolveExpiration({
+        idToken: ['header', notJsonPayload, 'sig'].join('.'),
+      });
 
       expect(result).toBeUndefined();
       expect(consoleSpy).toHaveBeenCalledWith(
@@ -205,6 +194,34 @@ describe('sessionManager', () => {
       jest.setSystemTime(now);
       const expiresAt = now + REFRESH_BUFFER_MS + 10000;
       expect(isTokenExpired(expiresAt)).toBe(false);
+    });
+  });
+
+  describe('shouldAttemptRefresh', () => {
+    // isTokenExpired answers "is this definitely dead"; shouldAttemptRefresh
+    // answers "can I hand this to a caller without checking". Unknown expiry is
+    // false for the first and true for the second - conflating the two is what
+    // made a token with no readable expiry look permanently valid.
+    it('treats an unknown expiry as needing a refresh', () => {
+      expect(shouldAttemptRefresh(undefined)).toBe(true);
+      expect(shouldAttemptRefresh(null)).toBe(true);
+      expect(isTokenExpired(undefined)).toBe(false);
+    });
+
+    it('agrees with isTokenExpired once the expiry is known', () => {
+      const now = 1000000;
+      jest.setSystemTime(now);
+
+      expect(shouldAttemptRefresh(now + REFRESH_BUFFER_MS + 10000)).toBe(false);
+      expect(shouldAttemptRefresh(now + REFRESH_BUFFER_MS - 1)).toBe(true);
+    });
+
+    it('honours a custom buffer', () => {
+      const now = 1000000;
+      jest.setSystemTime(now);
+
+      expect(shouldAttemptRefresh(now + 5000, 10000)).toBe(true);
+      expect(shouldAttemptRefresh(now + 5000, 1000)).toBe(false);
     });
   });
 
@@ -942,6 +959,95 @@ describe('sessionManager', () => {
       expect(storeTokens).not.toHaveBeenCalled();
       consoleSpy.mockRestore();
     });
+
+    // The heart of the reported bug. `node:buffer` never resolved in the Metro
+    // bundle, so decodeJwtExpiration always threw, always got caught, and every
+    // token arrived here with expiresAt === undefined. This branch then handed
+    // the caller whatever was in the Keychain without ever asking SuperTokens
+    // for a fresh one, and the refresh path below was unreachable on device.
+    it('refreshes rather than trusting a token whose expiry is unknown', async () => {
+      (loadStoredTokens as jest.Mock).mockResolvedValue({
+        ...mockTokens,
+        idToken: 'not-a-jwt',
+        accessToken: 'opaque-token',
+        userId: 'user-123',
+        expiresAt: undefined,
+      });
+      mockSuperTokens.getAccessToken.mockResolvedValue('fresh-st-token');
+
+      const result = await getFreshStoredTokens();
+
+      expect(mockSuperTokens.getAccessToken).toHaveBeenCalled();
+      expect(result?.accessToken).toBe('fresh-st-token');
+    });
+
+    // ...but an unknown expiry is not proof the session is dead. When the
+    // refresh returns the same token we cannot distinguish "still valid" from
+    // "could not renew", and signing that user out is worse than the bug.
+    it('keeps an unknown-expiry token when the refresh returns it unchanged', async () => {
+      (loadStoredTokens as jest.Mock).mockResolvedValue({
+        ...mockTokens,
+        idToken: 'not-a-jwt',
+        accessToken: 'opaque-token',
+        userId: 'user-123',
+        expiresAt: undefined,
+      });
+      mockSuperTokens.getAccessToken.mockResolvedValue('opaque-token');
+
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const result = await getFreshStoredTokens();
+
+      expect(result?.accessToken).toBe('opaque-token');
+      expect(storeTokens).not.toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    // Proves the decoder actually runs end to end: nothing sets expiresAt here,
+    // so the only way to know this token is expired is to read its exp claim.
+    it('derives expiry from the stored JWT when expiresAt was never recorded', async () => {
+      jest.setSystemTime(1_000_000_000_000);
+      // {"exp":900000000} -> 900000000000 ms, comfortably in the past.
+      const expiredJwt = ['header', 'eyJleHAiOjkwMDAwMDAwMH0', 'sig'].join('.');
+
+      (loadStoredTokens as jest.Mock).mockResolvedValue({
+        provider: 'supertokens' as const,
+        idToken: expiredJwt,
+        accessToken: expiredJwt,
+        userId: 'user-123',
+        expiresAt: undefined,
+      });
+      mockSuperTokens.getAccessToken.mockResolvedValue(expiredJwt);
+
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const result = await getFreshStoredTokens();
+
+      // Same token back on a token we could prove was expired -> dead session.
+      expect(result).toBeNull();
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('did not renew'),
+      );
+      consoleSpy.mockRestore();
+    });
+
+    it('returns null when a refresh hands back an already expired token', async () => {
+      jest.setSystemTime(1_000_000_000_000);
+      const expiredJwt = ['header', 'eyJleHAiOjkwMDAwMDAwMH0', 'sig'].join('.');
+
+      (loadStoredTokens as jest.Mock).mockResolvedValue({
+        ...mockTokens,
+        accessToken: 'stale-token',
+        userId: 'user-123',
+        expiresAt: Date.now() - 1000,
+      });
+      mockSuperTokens.getAccessToken.mockResolvedValue(expiredJwt);
+
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const result = await getFreshStoredTokens();
+
+      expect(result).toBeNull();
+      expect(storeTokens).not.toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
   });
 
   // ===========================================================================
@@ -959,6 +1065,34 @@ describe('sessionManager', () => {
       expect(spy).toHaveBeenCalled();
       jest.runAllTimers();
       expect(callback).toHaveBeenCalled();
+      spy.mockRestore();
+    });
+
+    // SuperTokens' core issues one hour access tokens by default. The old six
+    // hour fallback scheduled the refresh five hours after the token died, and
+    // it was the ONLY path taken on device because expiresAt was always
+    // undefined.
+    it('scheduleSessionRefresh falls back to under an hour when expiry is unknown', () => {
+      const spy = jest.spyOn(globalThis, 'setTimeout');
+      const callback = jest.fn();
+
+      scheduleSessionRefresh(undefined, callback);
+
+      const delay = spy.mock.calls[spy.mock.calls.length - 1][1] as number;
+      expect(delay).toBeLessThan(60 * 60 * 1000);
+      expect(delay).toBeGreaterThan(0);
+      spy.mockRestore();
+    });
+
+    it('scheduleSessionRefresh prefers a known expiry over the fallback', () => {
+      const spy = jest.spyOn(globalThis, 'setTimeout');
+      const now = 1_000_000;
+      jest.setSystemTime(now);
+
+      scheduleSessionRefresh(now + 10 * 60 * 1000, jest.fn());
+
+      const delay = spy.mock.calls[spy.mock.calls.length - 1][1] as number;
+      expect(delay).toBe(10 * 60 * 1000 - REFRESH_BUFFER_MS);
       spy.mockRestore();
     });
 

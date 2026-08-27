@@ -1,6 +1,7 @@
 import {createSelector} from '@reduxjs/toolkit';
 import type {RootState} from '@/app/store';
 import type {Task, TaskStatus, TaskCategory} from './types';
+import {selectCollectionFailure} from '@/shared/store/collectionLoadState';
 
 const normalizeStatus = (status: TaskStatus): string =>
   String(status).toUpperCase();
@@ -107,6 +108,16 @@ export const selectTasksError = createSelector(
 export const selectHasHydratedCompanion = (companionId: string | null) =>
   createSelector([selectTasksState], tasks =>
     companionId ? (tasks.hydratedCompanions[companionId] ?? false) : false,
+  );
+
+/**
+ * The message from the last FAILED task fetch for this companion, or undefined.
+ * Paired with `selectHasHydratedCompanion` so a screen can tell an empty list
+ * from a list that never arrived.
+ */
+export const selectTasksLoadFailure = (companionId: string | null) =>
+  createSelector([selectTasksState], tasks =>
+    selectCollectionFailure(tasks, companionId),
   );
 
 // Select tasks by companion ID

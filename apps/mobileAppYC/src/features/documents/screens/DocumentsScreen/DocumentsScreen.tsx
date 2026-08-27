@@ -6,12 +6,15 @@ import {CompanionSelector} from '@/shared/components/common/CompanionSelector/Co
 import DocumentListItem from '@/features/documents/components/DocumentListItem';
 import {CategoryTile} from '@/shared/components/common/CategoryTile/CategoryTile';
 import {EmptyDocumentsScreen} from '../EmptyDocumentsScreen/EmptyDocumentsScreen';
+import {ListErrorState} from '@/shared/components/common/ListErrorState/ListErrorState';
+import {ListStaleBanner} from '@/shared/components/common/ListStaleBanner/ListStaleBanner';
+import {isListStale} from '@/shared/utils/listPhase';
 import {useSelector} from 'react-redux';
 import type {RootState} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
 import {DOCUMENT_CATEGORIES} from '@/features/documents/constants';
 import {Images} from '@/assets/images';
-import {setSelectedCompanion} from '@/features/companion';
+import {fetchCompanions, setSelectedCompanion} from '@/features/companion';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {useCompanionFormScreen} from '@/shared/hooks/useFormScreen';
 import {DocumentsListHeader} from '@/features/documents/components/DocumentsListHeader';
@@ -42,6 +45,19 @@ export const DocumentsScreen: React.FC = () => {
     },
   }));
   useDocumentCompanionSync({companions, selectedCompanionId, dispatch});
+
+  const companionLoadError = useSelector(
+    (state: RootState) => state.companion?.loadError ?? undefined,
+  );
+  const parentId = useSelector(
+    (state: RootState) => state.auth?.user?.parentId ?? undefined,
+  );
+  const handleRetryCompanions = React.useCallback(() => {
+    if (!parentId) {
+      return;
+    }
+    dispatch(fetchCompanions(parentId));
+  }, [dispatch, parentId]);
   const {handleAddDocument, handleViewDocument, handleEditDocument} =
     useDocumentNavigation(navigation);
 
@@ -81,8 +97,39 @@ export const DocumentsScreen: React.FC = () => {
     });
   }, [filteredDocuments]);
 
-  // Show empty screen if no companions
+  // Show empty screen if no companions - unless the companion fetch FAILED, in
+  // which case an empty list is not evidence the user has no companions.
   if (companions.length === 0) {
+    if (companionLoadError) {
+      // Inside the standard screen shell, not returned bare: the header,
+      // safe-area inset, background and full-height layout all come from
+      // LiquidGlassHeaderScreen, and without it the retry copy can start under
+      // the status bar on a device with a top inset.
+      return (
+        <LiquidGlassHeaderScreen
+          header={
+            <DocumentsListHeader
+              title="Documents"
+              searchPlaceholder="Search through documents"
+              onSearchPress={() => navigation.navigate('DocumentSearch')}
+              rightIcon={Images.addIconDark}
+              onRightPress={handleAddDocument}
+              searchContainerStyle={styles.searchBar}
+            />
+          }
+          cardGap={theme.spacing['3']}
+          contentPadding={theme.spacing['3']}>
+          {contentPaddingStyle => (
+            <View style={contentPaddingStyle}>
+              <ListErrorState
+                testID="documents-companions-load-error"
+                onRetry={handleRetryCompanions}
+              />
+            </View>
+          )}
+        </LiquidGlassHeaderScreen>
+      );
+    }
     return <EmptyDocumentsScreen />;
   }
 
@@ -118,6 +165,19 @@ export const DocumentsScreen: React.FC = () => {
             requiredPermission="documents"
             permissionLabel="documents"
           />
+          {/* Documents are companion-scoped, so a failed COMPANION fetch is what
+              makes this screen stale: the companion list on screen, and the
+              documents hanging off it, may no longer be current. */}
+          {isListStale({
+            loadError: companionLoadError,
+            itemCount: companions.length,
+          }) ? (
+            <ListStaleBanner
+              testID="documents-stale-banner"
+              onRetry={handleRetryCompanions}
+              style={styles.companionSelector}
+            />
+          ) : null}
           {recentDocuments.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Recent</Text>

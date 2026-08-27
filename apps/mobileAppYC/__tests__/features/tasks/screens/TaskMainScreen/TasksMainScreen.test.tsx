@@ -37,6 +37,7 @@ jest.mock('@/features/companion', () => ({
 // 3. Selectors
 jest.mock('@/features/tasks/selectors', () => ({
   selectHasHydratedCompanion: jest.fn(),
+  selectTasksLoadFailure: jest.fn(() => () => undefined),
   selectRecentTasksByCategory: jest.fn(),
   selectTaskCountByCategory: jest.fn(),
   selectTasksByCompanion: jest.fn(),
@@ -236,6 +237,9 @@ jest.mock('@/shared/components/common/ViewMoreButton/ViewMoreButton', () => {
   };
 });
 
+// Toggled per-test so the screen's `state.tasks.loading` read is controllable.
+let mockTasksLoading = false;
+
 describe('TasksMainScreen', () => {
   const mockDispatch = jest.fn();
   const mockNavigate = jest.fn();
@@ -324,6 +328,9 @@ describe('TasksMainScreen', () => {
     selectRecentTasksByCategory.mockReturnValue((_state: any) => []);
     selectTaskCountByCategory.mockReturnValue((_state: any) => 0);
     selectTasksByCompanion.mockReturnValue((_state: any) => []);
+    const {selectTasksLoadFailure} = require('@/features/tasks/selectors');
+    selectTasksLoadFailure.mockReturnValue((_state: any) => undefined);
+    mockTasksLoading = false;
 
     const {selectAuthUser} = require('@/features/auth/selectors');
     selectAuthUser.mockReturnValue(mockAuthUser);
@@ -337,6 +344,7 @@ describe('TasksMainScreen', () => {
           companions: mockCompanions,
           selectedCompanionId: 'c1',
         },
+        tasks: {loading: mockTasksLoading},
       };
 
       try {
@@ -402,6 +410,118 @@ describe('TasksMainScreen', () => {
 
     render(<TasksMainScreen />);
     expect(setSelectedCompanion).toHaveBeenCalledWith('c1');
+  });
+
+  // The disguise, at the screen level. Before this the failed fetch produced an
+  // empty task list, and an empty task list rendered "No tasks yet" - the same
+  // copy a companion with genuinely nothing scheduled sees, and no way to retry.
+  it('renders a load error with retry instead of the empty state when the fetch failed', () => {
+    const {
+      selectTasksLoadFailure,
+      selectHasHydratedCompanion,
+    } = require('@/features/tasks/selectors');
+    selectTasksLoadFailure.mockReturnValue((_state: any) => 'Network Error');
+    selectHasHydratedCompanion.mockReturnValue((_state: any) => false);
+
+    const {getByTestId, queryByText} = render(<TasksMainScreen />);
+
+    expect(getByTestId('tasks-load-error')).toBeTruthy();
+    expect(queryByText('No tasks yet')).toBeNull();
+  });
+
+  it('refetches tasks when the load error retry is pressed', () => {
+    const {
+      selectTasksLoadFailure,
+      selectHasHydratedCompanion,
+    } = require('@/features/tasks/selectors');
+    selectTasksLoadFailure.mockReturnValue((_state: any) => 'Network Error');
+    selectHasHydratedCompanion.mockReturnValue((_state: any) => false);
+
+    const {getByTestId} = render(<TasksMainScreen />);
+    mockDispatch.mockClear();
+
+    fireEvent.press(getByTestId('tasks-load-error-retry'));
+
+    expect(mockDispatch).toHaveBeenCalled();
+  });
+
+  // resolveListPhase returned 'loading' from the start, but no branch rendered
+  // it, so the task area went blank during the first fetch and for the whole
+  // duration of a retry - a slow retry looked like it had done nothing.
+  // Local fixture: the `mockTask` used further down is scoped to its own test.
+  const staleTask = {
+    id: 'stale-1',
+    title: 'Walk',
+    category: 'health',
+    status: 'pending',
+    date: '2023-01-17',
+    time: '10:00',
+    companionId: 'c1',
+  };
+
+  // The staleness case: the list is still readable, so it must stay on screen,
+  // but a failed refresh must not be silent over a medication schedule.
+  it('shows a stale banner above the list when a refresh fails over content', () => {
+    const {
+      selectTasksLoadFailure,
+      selectTasksByCompanion,
+      selectHasHydratedCompanion,
+    } = require('@/features/tasks/selectors');
+    selectHasHydratedCompanion.mockReturnValue((_state: any) => true);
+    selectTasksByCompanion.mockReturnValue((_state: any) => [staleTask]);
+    selectTasksLoadFailure.mockReturnValue((_state: any) => 'Network Error');
+
+    const {getByTestId, queryByTestId} = render(<TasksMainScreen />);
+
+    expect(getByTestId('tasks-stale-banner')).toBeTruthy();
+    // The content is NOT replaced by an error: that is the whole point.
+    expect(queryByTestId('tasks-load-error')).toBeNull();
+  });
+
+  it('shows no stale banner when the refresh succeeded', () => {
+    const {
+      selectTasksByCompanion,
+      selectHasHydratedCompanion,
+    } = require('@/features/tasks/selectors');
+    selectHasHydratedCompanion.mockReturnValue((_state: any) => true);
+    selectTasksByCompanion.mockReturnValue((_state: any) => [staleTask]);
+
+    const {queryByTestId} = render(<TasksMainScreen />);
+
+    expect(queryByTestId('tasks-stale-banner')).toBeNull();
+  });
+
+  it('refetches tasks when the stale banner retry is pressed', () => {
+    const {
+      selectTasksLoadFailure,
+      selectTasksByCompanion,
+      selectHasHydratedCompanion,
+    } = require('@/features/tasks/selectors');
+    selectHasHydratedCompanion.mockReturnValue((_state: any) => true);
+    selectTasksByCompanion.mockReturnValue((_state: any) => [staleTask]);
+    selectTasksLoadFailure.mockReturnValue((_state: any) => 'Network Error');
+
+    const {getByTestId} = render(<TasksMainScreen />);
+    mockDispatch.mockClear();
+
+    fireEvent.press(getByTestId('tasks-stale-banner-retry'));
+
+    expect(mockDispatch).toHaveBeenCalled();
+  });
+
+  it('renders a loading state while the initial task fetch is pending', () => {
+    const {
+      selectHasHydratedCompanion,
+      selectTasksLoadFailure,
+    } = require('@/features/tasks/selectors');
+    selectHasHydratedCompanion.mockReturnValue((_state: any) => false);
+    selectTasksLoadFailure.mockReturnValue((_state: any) => undefined);
+    mockTasksLoading = true;
+
+    const {getByTestId, queryByText} = render(<TasksMainScreen />);
+
+    expect(getByTestId('tasks-loading')).toBeTruthy();
+    expect(queryByText('No tasks yet')).toBeNull();
   });
 
   it('renders the main screen content when companion is selected', () => {

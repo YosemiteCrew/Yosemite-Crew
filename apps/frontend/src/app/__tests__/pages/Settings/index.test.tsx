@@ -71,6 +71,35 @@ jest.mock('next/dynamic', () => ({
         return <MockDeleteProfile {...props} />;
       }
 
+      // The clinic-wide controls previously fell through to `null`, which let the
+      // whole point of the scope split regress without failing anything. They are
+      // identifiable now so the composition tests below can assert placement.
+      if (source.includes('Sections/AppointmentLockWindowPreference')) {
+        return (
+          <div>
+            Appointment Lock Window Preference
+            <span data-testid="lock-window-readonly">{String(props.readOnly)}</span>
+          </div>
+        );
+      }
+
+      if (source.includes('Sections/CrossClinicMessagingPreference')) {
+        return (
+          <div>
+            Cross Clinic Messaging Preference
+            <span data-testid="cross-clinic-readonly">{String(props.readOnly)}</span>
+          </div>
+        );
+      }
+
+      if (source.includes('Sections/YourOrganizations')) {
+        return <div>Your Organizations</div>;
+      }
+
+      if (source.includes('Sections/FederationSection')) {
+        return <div>Federation Section</div>;
+      }
+
       return null;
     };
 
@@ -119,14 +148,125 @@ jest.mock('@/app/features/settings/pages/Settings/Sections/CompanionTerminologyP
   default: () => <div>Companion Terminology</div>,
 }));
 
+// Records the permission argument. Discarding it made every permission test
+// pass even when the page checked the WRONG permission - reverting to
+// integrations:edit:any, the exact bug these tests exist to catch, left the
+// suite green.
+const mockHasPermission = jest.fn((_perm?: unknown) => true);
+jest.mock('@/app/hooks/usePermissions', () => ({
+  __esModule: true,
+  useHasPermission: (perm: unknown) => mockHasPermission(perm),
+}));
+
+/**
+ * Returns the labelled scope band (`<section aria-labelledby>`) that contains
+ * the given control, so a test can assert WHERE a control sits rather than just
+ * that it rendered somewhere on the page.
+ */
+const bandContaining = (text: string): HTMLElement | null =>
+  screen.getByText(text).closest('section[aria-labelledby^="settings-band-"]');
+
 describe('Settings page', () => {
+  beforeEach(() => {
+    mockHasPermission.mockReturnValue(true);
+  });
+
+  it('puts every per-user control in the Personal band', () => {
+    render(<Settings />);
+
+    for (const control of [
+      'Personal Card',
+      'Timezone Preference',
+      'Default Open Screen Preference',
+      'Companion Terminology',
+      'Your Organizations',
+      'Delete Profile',
+      // Device-scoped, but still the signed-in person's own surface.
+      'Appearance Preference',
+    ]) {
+      expect(bandContaining(control)).toHaveAttribute('aria-labelledby', 'settings-band-Personal');
+    }
+  });
+
+  it('puts every clinic-wide control in the Organisation band', () => {
+    render(<Settings />);
+
+    for (const control of [
+      'Appointment Lock Window Preference',
+      'Cross Clinic Messaging Preference',
+      'Federation Section',
+    ]) {
+      expect(bandContaining(control)).toHaveAttribute(
+        'aria-labelledby',
+        'settings-band-Organisation'
+      );
+    }
+  });
+
+  it('keeps the device theme out of the account-scoped group', () => {
+    render(<Settings />);
+
+    // Appearance does not follow the account to another device, so it must not
+    // sit under the group that promises "your account".
+    const appearanceGroup = screen.getByText('Appearance Preference').closest('section');
+    expect(appearanceGroup).toHaveTextContent('This device');
+    expect(appearanceGroup).not.toHaveTextContent('Only you');
+  });
+
+  // Scoped to the GROUP, not the band. The organisation band mixes two gates -
+  // scheduling goes through updateOrg (teams:edit:any), federation through
+  // integrations:edit:any - so a Supervisor holds one and not the other. A
+  // band-level verdict would be wrong for exactly that role.
+  it('marks the scheduling group read-only when the member cannot edit it', () => {
+    mockHasPermission.mockReturnValue(false);
+    render(<Settings />);
+
+    const group = screen.getByText('Appointment Lock Window Preference').closest('section');
+    expect(group).toHaveTextContent(/Managed by a clinic administrator/);
+  });
+
+  it('does not mark the scheduling group read-only for a member who can edit it', () => {
+    mockHasPermission.mockReturnValue(true);
+    render(<Settings />);
+
+    const group = screen.getByText('Appointment Lock Window Preference').closest('section');
+    expect(group).not.toHaveTextContent(/Managed by a clinic administrator/);
+  });
+
+  it('gates the scheduling group on teams:edit:any, not the integrations permission', () => {
+    render(<Settings />);
+
+    // The scheduling controls write through updateOrg, whose PUT route requires
+    // teams:edit:any. Asserting the argument is what makes the other permission
+    // tests meaningful.
+    expect(mockHasPermission).toHaveBeenCalledWith('teams:edit:any');
+    expect(mockHasPermission).not.toHaveBeenCalledWith('integrations:edit:any');
+  });
+
+  it('disables the clinic controls when the member cannot edit them', () => {
+    mockHasPermission.mockReturnValue(false);
+    render(<Settings />);
+
+    // Advertising read-only without enforcing it invites a click the backend rejects.
+    expect(screen.getByTestId('lock-window-readonly')).toHaveTextContent('true');
+    expect(screen.getByTestId('cross-clinic-readonly')).toHaveTextContent('true');
+  });
+
+  it('keeps the organisation band description permission-neutral', () => {
+    mockHasPermission.mockReturnValue(false);
+    render(<Settings />);
+
+    // The band must not claim a single verdict for controls behind two gates.
+    expect(
+      screen.getByText('Shared clinic settings. Changes here apply to every colleague.')
+    ).toBeInTheDocument();
+  });
+
   it('renders the header with the subtitle and auto-save indicator', () => {
     render(<Settings />);
 
     expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
-    expect(
-      screen.getByText('Your preferences, and the clinic settings you administer')
-    ).toBeInTheDocument();
+    expect(screen.getByText('Your preferences and clinic settings')).toBeInTheDocument();
     expect(screen.getByText('Changes save automatically')).toBeInTheDocument();
   });
 

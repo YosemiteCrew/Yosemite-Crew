@@ -199,3 +199,23 @@ describe('AppointmentLockWindowPreference', () => {
     expect(notify).not.toHaveBeenCalled();
   });
 });
+
+// The page-level suite mocks this component and only checks the prop is
+// forwarded, so without these both `disabled={readOnly}` assignments could be
+// removed while every focused test stayed green - letting an unauthorised
+// member edit and locally persist the clinic lock window again.
+describe('AppointmentLockWindowPreference (read-only)', () => {
+  it('disables both fields when read-only', () => {
+    render(<AppointmentLockWindowPreference readOnly />);
+
+    expect(screen.getByLabelText('Outpatient')).toBeDisabled();
+    expect(screen.getByLabelText('Inpatient')).toBeDisabled();
+  });
+
+  it('leaves both fields editable when not read-only', () => {
+    render(<AppointmentLockWindowPreference />);
+
+    expect(screen.getByLabelText('Outpatient')).not.toBeDisabled();
+    expect(screen.getByLabelText('Inpatient')).not.toBeDisabled();
+  });
+});

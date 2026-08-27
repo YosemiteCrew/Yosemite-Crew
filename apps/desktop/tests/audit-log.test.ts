@@ -1,31 +1,23 @@
 import { createAuditLog, type AuditEntry } from '../src/compliance/audit-log';
-import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { createMemoryFs, asDeps, readJsonl, type MemoryFs } from './helpers/memory-fs';
 
 describe('createAuditLog', () => {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'audit-log-test-'));
-  let mockFs: Record<string, string> = {};
+  const tmpDir = path.join(os.tmpdir(), 'audit-log-test');
+  const logPath = path.join(tmpDir, 'audit-log.jsonl');
+  let mem: MemoryFs;
 
-  const makeDeps = (nowVal?: number | (() => number)) => ({
-    readFileSync: jest.fn((filePath: string) => {
-      if (mockFs[filePath] !== undefined) return mockFs[filePath];
-      throw new Error('ENOENT');
-    }),
-    writeFileSync: jest.fn((filePath: string, data: string) => {
-      mockFs[filePath] = data;
-    }),
-    mkdirSync: jest.fn(),
-    existsSync: jest.fn((filePath: string) => mockFs[filePath] !== undefined),
-    now: typeof nowVal === 'function' ? nowVal : jest.fn(() => nowVal ?? 1000),
-  });
+  const makeDeps = (nowVal?: number | (() => number)) =>
+    asDeps(mem, typeof nowVal === 'function' ? nowVal : () => nowVal ?? 1000);
+
+  /** Overwrites the append-only log with an attacker-supplied set of entries. */
+  const rewriteLog = (entries: AuditEntry[]): void => {
+    mem.files.set(logPath, entries.map((e) => `${JSON.stringify(e)}\n`).join(''));
+  };
 
   beforeEach(() => {
-    mockFs = {};
-  });
-
-  afterAll(() => {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
+    mem = createMemoryFs();
   });
 
   test('append creates an entry with id, timestamp, and signature', async () => {
@@ -315,13 +307,10 @@ describe('createAuditLog', () => {
       details: {},
     });
 
-    // read raw file, tamper with it, write back to mockFs
-    const writeCalls = (deps.writeFileSync as jest.Mock).mock.calls;
-    const filePath = writeCalls[writeCalls.length - 1][0] as string;
-    const raw = writeCalls[writeCalls.length - 1][1] as string;
-    const entries: AuditEntry[] = JSON.parse(raw);
+    // read the persisted log, tamper with it, write it back
+    const entries = readJsonl<AuditEntry>(mem, logPath);
     entries[0].details = { breed: 'Poodle' };
-    mockFs[filePath] = JSON.stringify(entries);
+    rewriteLog(entries);
     const tamperedLog = await createAuditLog(tmpDir, deps);
 
     const tampered = tamperedLog.query({ resourceType: 'patient' });
@@ -348,12 +337,9 @@ describe('createAuditLog', () => {
       details: {},
     });
 
-    const writeCalls = (deps.writeFileSync as jest.Mock).mock.calls;
-    const filePath = writeCalls[writeCalls.length - 1][0] as string;
-    const raw = writeCalls[writeCalls.length - 1][1] as string;
-    const entries: AuditEntry[] = JSON.parse(raw);
+    const entries = readJsonl<AuditEntry>(mem, logPath);
     entries[0].resourceId = 'p999';
-    mockFs[filePath] = JSON.stringify(entries);
+    rewriteLog(entries);
     const tamperedLog = await createAuditLog(tmpDir, deps);
 
     const after = tamperedLog.verifyAll();
@@ -407,13 +393,8 @@ describe('createAuditLog', () => {
     });
     expect(log.verifyChain()).toBe(true);
 
-    const auditWrites = (deps.writeFileSync as jest.Mock).mock.calls.filter((c) =>
-      String(c[0]).endsWith('audit-log.json')
-    );
-    const filePath = auditWrites[auditWrites.length - 1][0] as string;
-    const raw = auditWrites[auditWrites.length - 1][1] as string;
-    const entries: AuditEntry[] = JSON.parse(raw);
-    mockFs[filePath] = JSON.stringify([entries[1], entries[0]]); // reordered
+    const entries = readJsonl<AuditEntry>(mem, logPath);
+    rewriteLog([entries[1], entries[0]]); // reordered
     expect((await createAuditLog(tmpDir, deps)).verifyChain()).toBe(false);
   });
 
@@ -469,8 +450,9 @@ describe('createAuditLog', () => {
     // manually write a key file in legacy { enc: false, key: '...' } format
     const keyPath = path.join(tmpDir, 'audit-key');
     const legacyKey = 'abcdef1234567890';
-    mockFs[keyPath] = JSON.stringify({ enc: false, key: legacyKey });
-    mockFs[path.join(tmpDir, 'audit-log.json')] = '[]';
+    mem.files.set(keyPath, JSON.stringify({ enc: false, key: legacyKey }));
+    mem.files.set(path.join(tmpDir, 'audit-log.json'), '[]');
+    mem.dirs.add(tmpDir);
 
     const log = await createAuditLog(tmpDir, deps);
     log.append({
@@ -486,8 +468,9 @@ describe('createAuditLog', () => {
   test('loads key from legacy hex-only key file', async () => {
     const deps = makeDeps(1000);
     const keyPath = path.join(tmpDir, 'audit-key');
-    mockFs[keyPath] = '00'.repeat(32);
-    mockFs[path.join(tmpDir, 'audit-log.json')] = '[]';
+    mem.files.set(keyPath, '00'.repeat(32));
+    mem.files.set(path.join(tmpDir, 'audit-log.json'), '[]');
+    mem.dirs.add(tmpDir);
 
     const log = await createAuditLog(tmpDir, deps);
     log.append({
