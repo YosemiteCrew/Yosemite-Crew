@@ -177,6 +177,25 @@ describe('BookClient', () => {
     await waitFor(() => expect(screen.getByText(/No times available/)).toBeInTheDocument());
   });
 
+  it('ignores a practice that loads after the visitor has left', async () => {
+    let resolve: (value: unknown) => void = () => {};
+    getPracticeMock.mockReturnValue(
+      new Promise((res) => {
+        resolve = res;
+      })
+    );
+    const { unmount } = render(<BookClient slug="park-vets" />);
+    unmount();
+
+    await act(async () => {
+      resolve({ kind: 'practice', practice: practice() });
+    });
+
+    // No redirect, no render against an unmounted tree.
+    expect(replaceMock).not.toHaveBeenCalled();
+    expect(screen.queryByText('Park Veterinary')).not.toBeInTheDocument();
+  });
+
   it('ignores a slot failure that lands after the visitor has left', async () => {
     let fail: (reason: unknown) => void = () => {};
     getSlotsMock.mockReturnValue(

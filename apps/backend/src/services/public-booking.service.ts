@@ -381,8 +381,10 @@ const assertSlotIsOffered = async (
   startTime: string,
 ): Promise<{ durationMinutes: number }> => {
   const slots = await PublicBookingService.getSlots(slug, serviceId, date);
-  const match = slots.windows.find((window) => window.startTime === startTime);
-  if (!match) {
+  const offered = slots.windows.some(
+    (window) => window.startTime === startTime,
+  );
+  if (!offered) {
     throw new PublicBookingError("That time is no longer available", 409);
   }
   return { durationMinutes: slots.durationMinutes };
@@ -592,8 +594,7 @@ export const PublicBookingRequestService = {
       },
     });
 
-    if (!existing || existing.status !== "PENDING_CONFIRMATION")
-      throw notFound();
+    if (existing?.status !== "PENDING_CONFIRMATION") throw notFound();
     if (dayjs.utc(existing.confirmationExpiresAt).isBefore(dayjs.utc()))
       throw notFound();
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   PublicBookingRequestError,
@@ -22,7 +22,15 @@ import {
  * do, and that has to hold on the page the public actually sees.
  */
 
-type LoadState = 'loading' | 'ready' | 'unavailable';
+/**
+ * A discriminated union rather than a status string beside a nullable practice.
+ *
+ * It makes "ready implies we have a practice" a fact the compiler enforces, so
+ * the render path needs no null guard that can never fire - and no unreachable
+ * branch to explain in a coverage report.
+ */
+type PracticeView =
+  { status: 'loading' } | { status: 'unavailable' } | { status: 'ready'; practice: PublicPractice };
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
@@ -63,6 +71,73 @@ const PracticeHeader = ({ practice }: { practice: PublicPractice }) => (
 
 type SlotsResult = { key: string; windows: PublicSlot[]; error: string | null };
 
+/**
+ * The time picker and its four states.
+ *
+ * Extracted from `BookClient` rather than inlined: those four conditionals sat
+ * inside a function that was already branching on load state, submission state
+ * and service selection, and Sonar was right that the result had stopped being
+ * readable in one pass.
+ */
+const SlotPicker = ({
+  loading,
+  error,
+  slots,
+  selectedTime,
+  onSelect,
+}: {
+  loading: boolean;
+  error: string | null;
+  slots: PublicSlot[] | null;
+  selectedTime: string | null;
+  onSelect: (startTime: string) => void;
+}) => {
+  const body = () => {
+    if (loading) {
+      return <p className="text-[13px] text-[var(--ink-muted)]">Checking availability…</p>;
+    }
+    if (error) {
+      return (
+        <p role="alert" className="text-[13px] text-[var(--warn-text)]">
+          {error}
+        </p>
+      );
+    }
+    if (!slots || slots.length === 0) {
+      return (
+        <p className="text-[13px] text-[var(--ink-muted)]">
+          No times available on this day. Try another date.
+        </p>
+      );
+    }
+    return (
+      <div className="flex flex-wrap gap-2">
+        {slots.map((slot) => (
+          <button
+            key={slot.startTime}
+            type="button"
+            aria-pressed={selectedTime === slot.startTime}
+            onClick={() => onSelect(slot.startTime)}
+            className="rounded-full border-[1.5px] px-3.5 py-2 text-[13.5px] font-semibold text-[var(--ink)]"
+            style={{
+              borderColor: selectedTime === slot.startTime ? 'var(--blue)' : 'var(--hairline)',
+            }}
+          >
+            {slot.startTime}
+          </button>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <fieldset className="flex flex-col gap-2">
+      <legend className="mb-2 text-[13px] font-bold text-[var(--ink)]">Available times</legend>
+      {body()}
+    </fieldset>
+  );
+};
+
 type FormValues = {
   ownerName: string;
   ownerEmail: string;
@@ -83,21 +158,94 @@ const EMPTY_FORM: FormValues = {
   consent: false,
 };
 
-const BookClient = ({ slug }: { slug: string }) => {
+/**
+ * The states that replace the form entirely.
+ *
+ * Returns null when the booking form should render instead. Pulled out of
+ * `BookClient` so that component branches once on "is there a status to show"
+ * rather than four times on which one.
+ */
+const PendingOrUnavailable = ({ status }: { status: 'loading' | 'unavailable' }) =>
+  status === 'loading' ? (
+    <Shell>
+      <p className="text-[14px] text-[var(--ink-muted)]">Loading…</p>
+    </Shell>
+  ) : (
+    <Shell>
+      <h1 className="text-[20px] font-bold text-[var(--ink)]">
+        This booking page is not available
+      </h1>
+      <p className="text-[14px] text-[var(--ink-muted)]">
+        The address may be wrong, or the practice may not be taking online bookings. Please contact
+        the practice directly.
+      </p>
+    </Shell>
+  );
+
+const renderStatus = ({
+  practice,
+  submitted,
+  ownerEmail,
+}: {
+  practice: PublicPractice;
+  submitted: boolean;
+  ownerEmail: string;
+}): React.ReactElement | null => {
+  if (submitted) {
+    return (
+      <Shell>
+        <PracticeHeader practice={practice} />
+        <div className="rounded-[16px] border border-[var(--divider)] bg-[var(--inset)] p-5">
+          <h2 className="text-[17px] font-bold text-[var(--ink)]">Check your email</h2>
+          <p className="mt-2 text-[14px] text-[var(--ink-body)]">
+            We have sent a link to <strong>{ownerEmail}</strong>. Follow it to confirm your request,
+            and {practice.name} will be in touch to arrange the appointment.
+          </p>
+          <p className="mt-3 text-[13px] text-[var(--ink-faint)]">
+            Nothing is booked yet. The time you chose is not being held.
+          </p>
+        </div>
+      </Shell>
+    );
+  }
+
+  if (practice.services.length === 0) {
+    return (
+      <Shell>
+        <PracticeHeader practice={practice} />
+        <p className="text-[14px] text-[var(--ink-muted)]">
+          {practice.name} is not offering online booking for any services at the moment. Please
+          contact the practice directly.
+        </p>
+      </Shell>
+    );
+  }
+
+  return null;
+};
+
+/**
+ * Loads the practice, and redirects when the slug has been retired.
+ *
+ * A hook rather than an effect inside the component: the callback nests two
+ * conditionals inside a promise inside an effect, and leaving that in
+ * `BookClient` is most of what pushed its cognitive complexity past the limit.
+ */
+const usePractice = (slug: string): PracticeView => {
   const router = useRouter();
+  // Held in a ref so the effect depends on the slug alone. `useRouter()` is not
+  // contractually identity-stable, and this effect now stores a freshly built
+  // object on success - so a router that changes identity per render would
+  // re-run the load, set new state, and re-run it again forever.
+  const routerRef = useRef(router);
+  // Synced in an effect, not during render: reading or writing a ref while
+  // rendering is what the React Compiler rule forbids, and the initial value
+  // already covers the first pass.
+  useEffect(() => {
+    routerRef.current = router;
+  }, [router]);
 
-  const [state, setState] = useState<LoadState>('loading');
-  const [practice, setPractice] = useState<PublicPractice | null>(null);
-
-  const [serviceId, setServiceId] = useState<string | null>(null);
-  const [date, setDate] = useState(todayIso());
-  const [slotsResult, setSlotsResult] = useState<SlotsResult | null>(null);
-
-  const [startTime, setStartTime] = useState<string | null>(null);
-  const [form, setForm] = useState<FormValues>(EMPTY_FORM);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
+  const [view, setView] = useState<PracticeView>({ status: 'loading' });
 
   useEffect(() => {
     let active = true;
@@ -106,56 +254,50 @@ const BookClient = ({ slug }: { slug: string }) => {
       .then((result) => {
         if (!active) return;
         if (result.kind === 'redirect') {
-          // The practice renamed. Replace rather than push, so Back does not
-          // return the reader to an address that no longer exists.
-          router.replace(`/book/${result.slug}`);
+          // Replace rather than push, so Back does not return the reader to an
+          // address that no longer exists.
+          routerRef.current.replace(`/book/${result.slug}`);
           return;
         }
-        setPractice(result.practice);
-        setServiceId(result.practice.services[0]?.id ?? null);
-        setState('ready');
+        setView({ status: 'ready', practice: result.practice });
       })
       .catch(() => {
-        if (active) setState('unavailable');
+        if (active) setView({ status: 'unavailable' });
       });
 
     return () => {
       active = false;
     };
-  }, [slug, router]);
+  }, [slug]);
 
-  const maxDate = useMemo(
-    () => (practice ? isoDaysFromToday(practice.bookingWindowDays) : todayIso()),
-    [practice]
-  );
+  return view;
+};
 
-  // One key per (service, date) pair. Everything about the slot list is derived
-  // from whether the result we hold matches the key we are currently asking
-  // about, so the effect only ever writes state asynchronously - setting a
-  // loading flag synchronously inside it cascades renders, which the lint rule
-  // is right to reject.
-  const slotsKey = serviceId ? `${serviceId}|${date}` : null;
-  const slotsLoading = slotsKey !== null && slotsResult?.key !== slotsKey;
-  const slots = slotsResult?.key === slotsKey ? slotsResult.windows : null;
-  const slotsError = slotsResult?.key === slotsKey ? slotsResult.error : null;
+/**
+ * Available times for one service on one day.
+ *
+ * Keyed by the (service, date) pair so everything the caller needs is derived
+ * from whether the held result matches the key currently being asked about. The
+ * effect therefore only writes state asynchronously; setting a loading flag
+ * synchronously inside it would cascade renders.
+ */
+const useSlots = (slug: string, serviceId: string | null, date: string) => {
+  const [result, setResult] = useState<SlotsResult | null>(null);
 
-  // A chosen time only counts while it is still on offer. Changing the service
-  // or the day therefore deselects it without an effect writing state.
-  const selectedTime =
-    startTime && slots?.some((slot) => slot.startTime === startTime) ? startTime : null;
+  const key = serviceId ? `${serviceId}|${date}` : null;
 
   useEffect(() => {
-    if (!serviceId || !slotsKey) return;
+    if (!serviceId || !key) return;
     let active = true;
 
     getPublicSlots(slug, serviceId, date)
-      .then((result) => {
-        if (active) setSlotsResult({ key: slotsKey, windows: result.windows, error: null });
+      .then((slots) => {
+        if (active) setResult({ key, windows: slots.windows, error: null });
       })
       .catch((error: unknown) => {
         if (!active) return;
-        setSlotsResult({
-          key: slotsKey,
+        setResult({
+          key,
           windows: [],
           error:
             error instanceof PublicBookingRequestError
@@ -167,7 +309,40 @@ const BookClient = ({ slug }: { slug: string }) => {
     return () => {
       active = false;
     };
-  }, [slug, serviceId, date, slotsKey]);
+  }, [slug, serviceId, date, key]);
+
+  const matches = result?.key === key;
+  return {
+    loading: key !== null && !matches,
+    slots: matches ? result.windows : null,
+    error: matches ? result.error : null,
+  };
+};
+
+const BookClient = ({ slug }: { slug: string }) => {
+  const view = usePractice(slug);
+  // Needed before the guard below, because the default service feeds `useSlots`
+  // and every hook has to run on every render.
+  const loaded = view.status === 'ready' ? view.practice : null;
+
+  // Derived, not stored: the practice's first service is the default until the
+  // reader picks another, so nothing has to write it when the practice loads.
+  const [serviceOverride, setServiceOverride] = useState<string | null>(null);
+  const [date, setDate] = useState(todayIso());
+  const serviceId = serviceOverride ?? loaded?.services[0]?.id ?? null;
+
+  const [startTime, setStartTime] = useState<string | null>(null);
+  const [form, setForm] = useState<FormValues>(EMPTY_FORM);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
+
+  const { loading: slotsLoading, slots, error: slotsError } = useSlots(slug, serviceId, date);
+
+  // A chosen time only counts while it is still on offer, so changing the
+  // service or the day deselects it without an effect writing state.
+  const selectedTime =
+    startTime && slots?.some((slot) => slot.startTime === startTime) ? startTime : null;
 
   const setField = useCallback(
     <K extends keyof FormValues>(key: K, value: FormValues[K]) =>
@@ -211,57 +386,21 @@ const BookClient = ({ slug }: { slug: string }) => {
       .finally(() => setSubmitting(false));
   };
 
-  if (state === 'loading') {
-    return (
-      <Shell>
-        <p className="text-[14px] text-[var(--ink-muted)]">Loading…</p>
-      </Shell>
-    );
-  }
+  if (view.status !== 'ready') return <PendingOrUnavailable status={view.status} />;
 
-  if (state === 'unavailable' || !practice) {
-    return (
-      <Shell>
-        <h1 className="text-[20px] font-bold text-[var(--ink)]">
-          This booking page is not available
-        </h1>
-        <p className="text-[14px] text-[var(--ink-muted)]">
-          The address may be wrong, or the practice may not be taking online bookings. Please
-          contact the practice directly.
-        </p>
-      </Shell>
-    );
-  }
+  // Past the guard the compiler knows there is a practice, so nothing below
+  // needs a null check.
+  const practice = view.practice;
+  const maxDate = isoDaysFromToday(practice.bookingWindowDays);
 
-  if (submitted) {
-    return (
-      <Shell>
-        <PracticeHeader practice={practice} />
-        <div className="rounded-[16px] border border-[var(--divider)] bg-[var(--inset)] p-5">
-          <h2 className="text-[17px] font-bold text-[var(--ink)]">Check your email</h2>
-          <p className="mt-2 text-[14px] text-[var(--ink-body)]">
-            We have sent a link to <strong>{form.ownerEmail}</strong>. Follow it to confirm your
-            request, and {practice.name} will be in touch to arrange the appointment.
-          </p>
-          <p className="mt-3 text-[13px] text-[var(--ink-faint)]">
-            Nothing is booked yet. The time you chose is not being held.
-          </p>
-        </div>
-      </Shell>
-    );
-  }
-
-  if (practice.services.length === 0) {
-    return (
-      <Shell>
-        <PracticeHeader practice={practice} />
-        <p className="text-[14px] text-[var(--ink-muted)]">
-          {practice.name} is not offering online booking for any services at the moment. Please
-          contact the practice directly.
-        </p>
-      </Shell>
-    );
-  }
+  // One branch for the remaining states. They live in `renderStatus`, which has
+  // its own complexity budget.
+  const statusView = renderStatus({
+    practice,
+    submitted,
+    ownerEmail: form.ownerEmail,
+  });
+  if (statusView) return statusView;
 
   const canSubmit = Boolean(selectedTime) && form.consent && !submitting;
 
@@ -281,17 +420,24 @@ const BookClient = ({ slug }: { slug: string }) => {
           {practice.services.map((service: PublicService) => (
             <label
               key={service.id}
+              htmlFor={`service-${service.id}`}
               className="flex cursor-pointer items-center gap-3 rounded-[13px] border-[1.5px] px-3.5 py-2.5"
               style={{
                 borderColor: serviceId === service.id ? 'var(--blue)' : 'var(--hairline)',
               }}
             >
               <input
+                id={`service-${service.id}`}
                 type="radio"
                 name="service"
+                // The visible name sits two elements deep, which is past what a
+                // label's implicit association is guaranteed to expose. The
+                // explicit id/htmlFor pair plus this label give the control a
+                // name in every assistive technology rather than most.
+                aria-label={service.name}
                 value={service.id}
                 checked={serviceId === service.id}
-                onChange={() => setServiceId(service.id)}
+                onChange={() => setServiceOverride(service.id)}
               />
               <span className="min-w-0 flex-1">
                 <span className="block text-[14px] font-bold text-[var(--ink)]">
@@ -317,45 +463,13 @@ const BookClient = ({ slug }: { slug: string }) => {
           />
         </label>
 
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-[13px] font-bold text-[var(--ink)]">Available times</legend>
-
-          {slotsLoading ? (
-            <p className="text-[13px] text-[var(--ink-muted)]">Checking availability…</p>
-          ) : null}
-
-          {!slotsLoading && slotsError ? (
-            <p role="alert" className="text-[13px] text-[var(--warn-text)]">
-              {slotsError}
-            </p>
-          ) : null}
-
-          {!slotsLoading && !slotsError && slots?.length === 0 ? (
-            <p className="text-[13px] text-[var(--ink-muted)]">
-              No times available on this day. Try another date.
-            </p>
-          ) : null}
-
-          {!slotsLoading && slots && slots.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {slots.map((slot) => (
-                <button
-                  key={slot.startTime}
-                  type="button"
-                  aria-pressed={selectedTime === slot.startTime}
-                  onClick={() => setStartTime(slot.startTime)}
-                  className="rounded-full border-[1.5px] px-3.5 py-2 text-[13.5px] font-semibold text-[var(--ink)]"
-                  style={{
-                    borderColor:
-                      selectedTime === slot.startTime ? 'var(--blue)' : 'var(--hairline)',
-                  }}
-                >
-                  {slot.startTime}
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </fieldset>
+        <SlotPicker
+          loading={slotsLoading}
+          error={slotsError}
+          slots={slots}
+          selectedTime={selectedTime}
+          onSelect={setStartTime}
+        />
 
         <fieldset className="flex flex-col gap-2.5">
           <legend className="mb-2 text-[13px] font-bold text-[var(--ink)]">Your details</legend>
