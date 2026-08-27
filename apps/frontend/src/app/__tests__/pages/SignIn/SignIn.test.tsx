@@ -33,6 +33,15 @@ jest.mock('@/app/lib/postAuthRedirect', () => ({
     if (!value.startsWith('/')) return undefined;
     return value;
   }),
+  /* Real behaviour rather than a jest.fn: the component asks this whether the
+     signed-in account is a developer, and a stub returning undefined would make
+     every account look like a non-developer - passing the mismatch tests for
+     the wrong reason. Not requireActual, which would pull the org/profile
+     services this module imports into a suite that has no use for them. */
+  isDeveloperRole: (role?: string | null) =>
+    String(role ?? '')
+      .trim()
+      .toLowerCase() === 'developer',
 }));
 
 // Mock the shared marketing foundation (AuthShell / AuthBrandContent) so its

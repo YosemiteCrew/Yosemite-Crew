@@ -17,7 +17,14 @@ const normalizeRole = (role?: string | null) =>
     .trim()
     .toLowerCase();
 
-const isDeveloperRole = (role?: string | null) => normalizeRole(role) === 'developer';
+/**
+ * The one definition of "this role is a developer role".
+ *
+ * Exported so callers that need the same question answered - SignIn, deciding
+ * whether the developer form matched the account - cannot drift into a second,
+ * subtly different normalization.
+ */
+export const isDeveloperRole = (role?: string | null) => normalizeRole(role) === 'developer';
 const isOwnerRole = (role?: string | null) => normalizeRole(role) === 'owner';
 
 // Only same-origin, absolute-path destinations are safe post-auth targets;

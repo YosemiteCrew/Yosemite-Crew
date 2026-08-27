@@ -14,7 +14,11 @@ import OtpModal from '@/app/ui/overlays/OtpModal/OtpModal';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getEmailValidationError, normalizeEmail } from '@/app/lib/validators';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
-import { resolvePostAuthRedirect, sanitizeNextPath } from '@/app/lib/postAuthRedirect';
+import {
+  isDeveloperRole,
+  resolvePostAuthRedirect,
+  sanitizeNextPath,
+} from '@/app/lib/postAuthRedirect';
 import { setStorageItem } from '@/app/lib/browserStorage';
 import { resetSidebarPreference } from '@/app/lib/sidebarPreference';
 import { AuthShell, AuthBrandContent } from '@/app/features/marketing/site';
@@ -203,11 +207,7 @@ const SignInForm = ({
          letting DevRouteGuard bounce them - from the outside that was
          indistinguishable from a rejected password. The session stays valid;
          the account simply belongs elsewhere. */
-      const signedInAsDeveloper =
-        String(signedInRole ?? '')
-          .trim()
-          .toLowerCase() === 'developer';
-      if (isDeveloper && !signedInAsDeveloper) {
+      if (isDeveloper && !isDeveloperRole(signedInRole)) {
         showErrorTost({
           message:
             'That account is not registered as a developer account. Create a developer account to use the portal.',
