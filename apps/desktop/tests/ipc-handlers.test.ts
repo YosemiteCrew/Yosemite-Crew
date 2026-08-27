@@ -586,6 +586,57 @@ describe('ipc-handlers — happy paths', () => {
     ).toEqual({ ok: false, reason: 'unknown-channel' });
   });
 
+  test('audit-append refuses to mint controlled-substance entries', async () => {
+    const services = makeServices();
+    const call = register(services);
+
+    // THE ATTACK this closes: a renderer appends a correctly signed
+    // controlled-substance entry naming an existing transaction with
+    // witnessPinVerified: true, then edits that transaction's auditEntryId on
+    // disk to match. The entry is signed by this app's own key, so every
+    // downstream signature check passes and an unwitnessed destruction reads as
+    // PIN-verified. The record path is the only way such entries get written.
+    for (const entry of [
+      { action: 'x', resourceType: 'controlled-substance', details: { witnessPinVerified: true } },
+      { action: 'cs:waste', resourceType: 'patient', details: {} },
+      { action: 'cs:dispense', resourceType: 'controlled-substance', details: {} },
+    ]) {
+      expect(await call('yc:audit-append', entry)).toEqual({
+        ok: false,
+        error: 'reserved-resource-type',
+      });
+    }
+    expect(services.logger.warn).toHaveBeenCalledWith('audit_append_rejected', expect.anything());
+
+    // Ordinary entries are unaffected.
+    expect(await call('yc:audit-append', { action: 'patient:update', resourceType: 'patient' })).toMatchObject({ ok: true });
+  });
+
+  test('a verified witness is recorded under the enrolled account name', async () => {
+    const services = makeServices();
+    const call = register(services);
+    services.dualWitnessLog!.setWitnessPin('nurse-1', 'Nurse Jane Doe', '1234');
+
+    // A valid id + PIN proves the ACCOUNT. The caller may still supply any name
+    // it likes, and that name is what the compliance CSV would show.
+    const result = (await call('yc:cs-record', {
+      action: 'waste',
+      drugName: 'Ketamine',
+      drugClass: 'CIII',
+      lotNumber: 'L1',
+      quantity: 3,
+      unit: 'mL',
+      veterinarianId: 'vet-1',
+      veterinarianName: 'Dr. X',
+      witnessId: 'nurse-1',
+      witnessName: 'Someone Else Entirely',
+      witnessPin: '1234',
+    })) as { witnessPinVerified: boolean; transaction: Record<string, unknown> };
+
+    expect(result.witnessPinVerified).toBe(true);
+    expect(result.transaction.witnessName).toBe('Nurse Jane Doe');
+  });
+
   test('audit-append reports a failed write instead of confirming the entry', async () => {
     const services = makeServices();
     services.auditLog = {

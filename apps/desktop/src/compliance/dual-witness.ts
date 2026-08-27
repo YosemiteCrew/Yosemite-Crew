@@ -34,6 +34,11 @@ export interface DualWitnessLog {
   getWasteByWitness: (witnessId: string) => WasteEvent[];
   setWitnessPin: (witnessId: string, witnessName: string, pin: string) => void;
   hasWitness: (witnessId: string) => boolean;
+  /**
+   * The enrolled account for an id, so a caller's claimed witness name can be
+   * replaced with the canonical one. A PIN proves an account, never a name.
+   */
+  getWitnessAccount: (witnessId: string) => { id: string; name: string } | null;
 }
 
 interface DualWitnessDeps {
@@ -169,6 +174,19 @@ export const createDualWitnessLog = (deps: DualWitnessDeps): DualWitnessLog => {
    * leaves the audit entry untouched, so the two disagree and this returns
    * false - where trusting the logbook value would have reported the forged
    * record as witness-verified in the PMP dialog.
+   *
+   * What this CANNOT do, and what it therefore depends on: a signature only
+   * proves this app signed the entry, never that a witness authenticated.
+   * Anyone able to make the app sign an attestation can produce one that
+   * satisfies every check below. The real control is that the app must never
+   * sign `witnessPinVerified: true` for a verification it did not perform,
+   * which is why `yc:audit-append` refuses controlled-substance entries and
+   * leaves the record path as the only writer. Weaken that and these checks
+   * become decoration.
+   *
+   * What the checks below do add is that an entry cannot be repurposed: it must
+   * name this transaction and this witness, so a genuine attestation belonging
+   * to another record is useless to a forger.
    */
   const verifiedFromAuditTrail = (): ((tx: CsTransaction) => boolean) => {
     if (!deps.auditLog) return () => false;
@@ -180,10 +198,20 @@ export const createDualWitnessLog = (deps: DualWitnessDeps): DualWitnessLog => {
     return (tx) => {
       const entry = byId.get(tx.auditEntryId);
       if (!entry) return false;
+      // `isAuditEntry` only checks id and action, so a malformed or tampered row
+      // can reach here with no details at all. Dereferencing it would throw and
+      // take the whole PMP dialog down instead of reporting one record as
+      // unverified.
+      const details = entry.details;
+      if (typeof details !== 'object' || details === null) return false;
       // The entry must be the one for THIS transaction, so a forged flag cannot
       // borrow a genuinely verified entry belonging to another record.
-      if (entry.details.csTransactionId !== tx.id) return false;
-      if (entry.details.witnessPinVerified !== true) return false;
+      if (details.csTransactionId !== tx.id) return false;
+      // ...and it must name the same witness. Swapping only the logbook's
+      // witnessId leaves the signed entry valid, which would otherwise let
+      // getWasteByWitness() report a different person as the verified witness.
+      if ((details.witnessId ?? '') !== (tx.witnessId ?? '')) return false;
+      if (details.witnessPinVerified !== true) return false;
       return auditLog.verify(entry);
     };
   };
@@ -213,5 +241,9 @@ export const createDualWitnessLog = (deps: DualWitnessDeps): DualWitnessLog => {
     getWasteByWitness,
     setWitnessPin,
     hasWitness: (witnessId: string): boolean => witnesses.has(witnessId),
+    getWitnessAccount: (witnessId: string): { id: string; name: string } | null => {
+      const account = witnesses.get(witnessId);
+      return account ? { id: account.id, name: account.name } : null;
+    },
   };
 };

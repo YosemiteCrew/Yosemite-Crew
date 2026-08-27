@@ -154,6 +154,9 @@ export interface IpcServices {
   idleUnlock: (mode: 'biometric' | 'password') => void;
 }
 
+/** Reserved for entries the main process writes itself via the record path. */
+const CS_RESOURCE_TYPE = 'controlled-substance';
+
 const CS_ACTIONS = new Set(['dispense', 'administer', 'receive', 'waste', 'transfer', 'inventory']);
 const CS_REQUIRED_FIELDS = [
   'drugName',
@@ -465,6 +468,15 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
       typeof d.witnessPin === 'string' &&
       services.dualWitnessLog.verifyWitnessPin(d.witnessId as string, d.witnessPin);
 
+    // The PIN proves an ACCOUNT, not a name. A caller could submit a valid
+    // id + PIN alongside any witnessName it liked, and that arbitrary name is
+    // what the compliance CSV would then present in its Witness column. Once
+    // verification succeeds, the account's own name is what gets recorded.
+    if (witnessPinVerified) {
+      const account = services.dualWitnessLog?.getWitnessAccount(d.witnessId as string);
+      if (account) d.witnessName = account.name;
+    }
+
     // The PIN is a credential, not part of the record: it must not be persisted
     // into the logbook or echoed back to the caller.
     const rest = Object.fromEntries(Object.entries(d).filter(([k]) => k !== 'witnessPin'));
@@ -503,6 +515,27 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     const entry = args[0];
     if (typeof entry !== 'object' || entry === null || Array.isArray(entry))
       return { ok: false, error: 'invalid-entry' };
+
+    // Controlled-substance entries are reserved for the main process's own
+    // record path and may not be minted by a renderer.
+    //
+    // Without this, the witness cross-check is bypassable through a legitimate
+    // channel: a caller appends a correctly signed 'controlled-substance' entry
+    // naming an existing transaction with witnessPinVerified: true, edits that
+    // transaction's auditEntryId on disk to match, and the destruction reads as
+    // PIN-verified with no witness ever authenticating. The entry is genuinely
+    // signed by this app's key, so every downstream signature check passes.
+    const e = entry as Record<string, unknown>;
+    if (
+      e.resourceType === CS_RESOURCE_TYPE ||
+      (typeof e.action === 'string' && e.action.startsWith('cs:'))
+    ) {
+      services.logger.warn('audit_append_rejected', {
+        action: e.action,
+        resourceType: e.resourceType,
+      });
+      return { ok: false, error: 'reserved-resource-type' };
+    }
     // append() throws when the entry did not reach the disk. An audit entry that
     // exists only in this process is not an audit entry, so the caller has to be
     // told rather than shown a generic handler failure.

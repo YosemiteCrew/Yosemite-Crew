@@ -262,6 +262,46 @@ describe('waste events report the witness that was actually verified', () => {
     expect(reread.getWasteEvents('Ketamine').find((e) => e.lotNumber === 'LOT-B')!.witnessPinVerified).toBe(false);
   });
 
+  test('swapping the witness on disk invalidates the verification', async () => {
+    const { dwLog } = await build();
+    recordVerifiedWaste(dwLog);
+    expect(dwLog.getWasteByWitness('nurse-1').filter((e) => e.witnessPinVerified)).toHaveLength(1);
+
+    // Keep the id and auditEntryId, change only who the logbook says witnessed
+    // it. The signed entry is untouched and still valid, so without binding the
+    // witness the forged person would be reported as the PIN-verified witness.
+    const rows = readJsonl<CsTransaction>(mem, CS_LOG) as Array<Record<string, unknown>>;
+    rows[0].witnessId = 'nurse-2';
+    rows[0].witnessName = 'Nurse Impostor';
+    rewrite(CS_LOG, rows);
+
+    const { dwLog: reread } = await build();
+    expect(reread.getVerifiedWasteEvents()).toHaveLength(0);
+    expect(reread.getWasteByWitness('nurse-2').filter((e) => e.witnessPinVerified)).toHaveLength(0);
+  });
+
+  test('a malformed audit entry reports unverified instead of throwing', async () => {
+    const { dwLog } = await build();
+    recordVerifiedWaste(dwLog);
+
+    // isAuditEntry only checks id and action, so a row with no details at all
+    // loads fine. Dereferencing it would take the whole PMP dialog down.
+    const entries = readJsonl<AuditEntry>(mem, AUDIT_LOG) as Array<Record<string, unknown>>;
+    delete entries[0].details;
+    rewrite(AUDIT_LOG, entries);
+
+    const { dwLog: reread } = await build();
+    expect(() => reread.getWasteEvents()).not.toThrow();
+    expect(reread.getVerifiedWasteEvents()).toHaveLength(0);
+  });
+
+  test('getWitnessAccount returns the canonical enrolled name', async () => {
+    const { dwLog } = await build();
+    expect(dwLog.getWitnessAccount('nurse-1')).toBeNull();
+    dwLog.setWitnessPin('nurse-1', 'Nurse Jane Doe', '1234');
+    expect(dwLog.getWitnessAccount('nurse-1')).toEqual({ id: 'nurse-1', name: 'Nurse Jane Doe' });
+  });
+
   test('hasWitness reports whether a witness can be verified at all', async () => {
     const { dwLog } = await build();
     expect(dwLog.hasWitness('nurse-1')).toBe(false);
