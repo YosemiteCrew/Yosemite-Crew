@@ -25,6 +25,7 @@ const taskScheduleQueue = queueDouble("task-schedule");
 const taskRecurrenceQueue = queueDouble("task-recurrence");
 const taskReminderQueue = queueDouble("task-reminder");
 const vaccineReminderQueue = queueDouble("vaccine-reminder");
+const publicBookingQueue = queueDouble("public-booking");
 
 jest.mock("../../src/queues/appointment.queue", () => ({
   AppointmentQueue: appointmentQueue,
@@ -48,6 +49,9 @@ jest.mock("../../src/queues/task.queues", () => ({
 jest.mock("../../src/queues/vaccine.queues", () => ({
   VaccineReminderQueue: vaccineReminderQueue,
 }));
+jest.mock("../../src/queues/public-booking.queue", () => ({
+  PublicBookingQueue: publicBookingQueue,
+}));
 
 const pruneLegacyRepeatablesAcross = jest.fn(
   async (..._queues: unknown[]): Promise<void> => undefined,
@@ -64,6 +68,7 @@ const registerIdexxReferenceScheduler = jest.fn(async () => undefined);
 const registerLabStatusScheduler = jest.fn(async () => undefined);
 const registerLabResultsScheduler = jest.fn(async () => undefined);
 const registerVaccineReminderScheduler = jest.fn(async () => undefined);
+const registerPublicBookingSchedulers = jest.fn(async () => undefined);
 
 jest.mock("../../src/queues/task.schedulers", () => ({
   registerTaskSchedulers: () => registerTaskSchedulers(),
@@ -86,6 +91,9 @@ jest.mock("../../src/queues/lab-results.scheduler", () => ({
 jest.mock("../../src/queues/vaccine.scheduler", () => ({
   registerVaccineReminderScheduler: () => registerVaccineReminderScheduler(),
 }));
+jest.mock("../../src/queues/public-booking.scheduler", () => ({
+  registerPublicBookingSchedulers: () => registerPublicBookingSchedulers(),
+}));
 
 const info = jest.fn();
 jest.mock("src/utils/logger", () => ({
@@ -103,6 +111,7 @@ const registrations = [
   registerLabStatusScheduler,
   registerLabResultsScheduler,
   registerVaccineReminderScheduler,
+  registerPublicBookingSchedulers,
 ];
 
 const orderOf = (mock: jest.Mock): number =>
@@ -126,8 +135,9 @@ describe("scheduledQueues", () => {
       taskRecurrenceQueue,
       taskReminderQueue,
       vaccineReminderQueue,
+      publicBookingQueue,
     ]);
-    expect(new Set(scheduledQueues)).toHaveProperty("size", 8);
+    expect(new Set(scheduledQueues)).toHaveProperty("size", 9);
   });
 });
 
