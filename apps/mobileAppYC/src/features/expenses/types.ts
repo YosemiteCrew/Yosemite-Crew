@@ -75,4 +75,13 @@ export interface ExpensesState {
    * say how old what the user is reading actually is.
    */
   lastLoadedAt: Record<string, number>;
+  /**
+   * Failures of the SUMMARY fetch, kept apart from `failedCompanions`.
+   *
+   * Home dispatches fetchExpenseSummary; ExpensesMainScreen dispatches
+   * fetchExpensesForCompanion. Writing both into one entry meant a failed
+   * summary refresh from Home replaced a valid empty expense LIST with an
+   * error whose retry re-fetched the list - the thing that had not failed.
+   */
+  summaryFailedCompanions: Record<string, string>;
 }

@@ -34,6 +34,20 @@ export const selectHasHydratedCompanion = (companionId: string | null) =>
     }),
   );
 
+/**
+ * Failure of the SUMMARY fetch (dispatched by Home), as distinct from the
+ * expense LIST fetch. They retry different things, so they are reported
+ * separately.
+ */
+export const selectExpenseSummaryFailure = (companionId: string | null) =>
+  getCachedSelector(`summaryFailure_${companionId}`, () =>
+    createSelector(selectExpensesState, expenses =>
+      companionId
+        ? expenses?.summaryFailedCompanions?.[companionId]
+        : undefined,
+    ),
+  );
+
 export const selectExpensesLoadFailure = (companionId: string | null) =>
   getCachedSelector(`loadFailure_${companionId}`, () =>
     createSelector(selectExpensesState, expenses =>

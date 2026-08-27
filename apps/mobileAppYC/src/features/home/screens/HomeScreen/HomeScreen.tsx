@@ -25,6 +25,7 @@ import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/Li
 import {LiquidGlassIconButton} from '@/shared/components/common/LiquidGlassIconButton/LiquidGlassIconButton';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {useDispatch, useSelector} from 'react-redux';
+import {useTranslation} from 'react-i18next';
 import type {AppDispatch, RootState} from '@/app/store';
 import {
   selectCompanions,
@@ -41,6 +42,7 @@ import {
   fetchExpenseSummary,
   selectExpenseSummaryByCompanion,
   selectExpensesLoading,
+  selectExpenseSummaryFailure,
   selectHasHydratedCompanion as selectExpensesHydrated,
 } from '@/features/expenses';
 import {fetchAppointmentsForCompanion} from '@/features/appointments/appointmentsSlice';
@@ -253,8 +255,10 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const appointmentsLoadError = useSelector((state: RootState) =>
     selectCollectionFailure(state.appointments, targetCompanionId),
   );
-  const expensesLoadError = useSelector((state: RootState) =>
-    selectCollectionFailure(state.expenses, selectedCompanionIdRedux),
+  // Home dispatches fetchExpenseSummary, so the failure it cares about is the
+  // summary's, not the expense list's. They retry different fetches.
+  const expensesLoadError = useSelector(
+    selectExpenseSummaryFailure(selectedCompanionIdRedux ?? null),
   );
   const notificationsLoadError = useSelector((state: RootState) =>
     selectCollectionFailure(state.notifications, 'default-companion'),
@@ -270,6 +274,8 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     },
     [],
   );
+
+  const {t} = useTranslation();
 
   const {resolvedName: firstName, displayName} = deriveHomeGreetingName(
     authUser?.firstName,
@@ -775,6 +781,14 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     markInitialRequest('appointments');
     dispatch(fetchAppointmentsForCompanion({companionId: targetCompanionId}));
   }, [dispatch, markInitialRequest, targetCompanionId]);
+
+  const handleRetryExpenses = React.useCallback(() => {
+    if (!selectedCompanionIdRedux) {
+      return;
+    }
+    markInitialRequest('expenses');
+    dispatch(fetchExpenseSummary({companionId: selectedCompanionIdRedux}));
+  }, [dispatch, markInitialRequest, selectedCompanionIdRedux]);
 
   const handleAddCompanion = () => {
     navigation.navigate('AddCompanion');
@@ -1318,8 +1332,8 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     // schedule, which is the whole defect this branch exists to remove.
     if (appointmentsLoadError) {
       return renderEmptyStateTile(
-        'Could not load appointments',
-        'Tap to try again.',
+        t('home.home_appointments_load_failed'),
+        t('home.home_load_failed_action'),
         'appointments',
         handleRetryAppointments,
       );
@@ -1355,6 +1369,18 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         'Expenses restricted',
         'Ask the primary parent to enable expenses access for you.',
         'expenses',
+      );
+    }
+
+    // A failed summary fetch renders as a yearly total of zero, which is not a
+    // neutral placeholder: it reads as real spending data and is the same
+    // failure-as-content defect as the appointments branch above.
+    if (expensesLoadError) {
+      return renderEmptyStateTile(
+        t('home.home_expenses_load_failed'),
+        t('home.home_load_failed_action'),
+        'expenses',
+        handleRetryExpenses,
       );
     }
 

@@ -45,6 +45,7 @@ jest.mock('@/features/expenses', () => ({
     .fn()
     .mockImplementation(() => () => ({total: 500, currencyCode: 'USD'})),
   selectExpensesLoading: jest.fn(() => false),
+  selectExpenseSummaryFailure: jest.fn(() => () => undefined),
   selectHasHydratedCompanion: jest.fn(() => true),
 }));
 const mockedExpenses = require('@/features/expenses');
@@ -265,6 +266,8 @@ jest.mock('@/features/expenses', () => ({
   fetchExpenseSummary: jest.fn(() => ({type: 'expenses/fetchSummary'})),
   selectExpenseSummaryByCompanion: (id: string) => (state: any) =>
     id ? state.expenses.summaries[id] : null,
+  selectExpenseSummaryFailure: (id: string) => (state: any) =>
+    id ? state.expenses?.summaryFailedCompanions?.[id] : undefined,
   selectHasHydratedCompanion: () => () => true,
 }));
 
@@ -800,7 +803,9 @@ describe('HomeScreen', () => {
         </Provider>,
       );
 
-      expect(getByText('Could not load appointments')).toBeTruthy();
+      // t() is not mocked in this suite and returns the key, which is also the
+      // assertion that the copy is localized rather than hardcoded English.
+      expect(getByText('home.home_appointments_load_failed')).toBeTruthy();
       expect(queryByText('No upcoming appointments')).toBeNull();
     });
 
@@ -821,7 +826,43 @@ describe('HomeScreen', () => {
       );
 
       expect(getByText('No upcoming appointments')).toBeTruthy();
-      expect(queryByText('Could not load appointments')).toBeNull();
+      expect(queryByText('home.home_appointments_load_failed')).toBeNull();
+    });
+
+    // A failed summary fetch rendered a yearly total of zero, which reads as
+    // real spending data rather than a neutral placeholder.
+    it('shows a retry tile instead of zero spend when the expense summary fails', () => {
+      const store = createStore({
+        expenses: {
+          summaries: {},
+          summaryFailedCompanions: {c1: 'Network Error'},
+        },
+      });
+
+      const {getByText} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+
+      expect(getByText('home.home_expenses_load_failed')).toBeTruthy();
+    });
+
+    it('shows the yearly spend when the expense summary succeeded', () => {
+      const store = createStore({
+        expenses: {
+          summaries: {c1: {total: 500, currencyCode: 'USD'}},
+          summaryFailedCompanions: {},
+        },
+      });
+
+      const {queryByText} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+
+      expect(queryByText('home.home_expenses_load_failed')).toBeNull();
     });
 
     it('navigates to AddCompanion when the hero button is pressed', () => {

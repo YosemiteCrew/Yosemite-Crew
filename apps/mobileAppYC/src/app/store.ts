@@ -164,6 +164,12 @@ const migrateV8ToV9 = (state: any) => {
       state[key].lastLoadedAt = state[key].lastLoadedAt ?? {};
     }
   }
+  if (state.expenses) {
+    // Summary failures live apart from list failures: they retry different
+    // fetches, so one entry cannot serve both.
+    state.expenses.summaryFailedCompanions =
+      state.expenses.summaryFailedCompanions ?? {};
+  }
 };
 
 // Keyed by the persisted version a state is migrating FROM.

@@ -69,7 +69,10 @@
     "view_companions_description": "Check on your companions and their information",
     "schedule_appointment": "Schedule Appointment",
     "schedule_description": "Book a vet appointment for your companion",
-    "sign_out": "Sign Out"
+    "sign_out": "Sign Out",
+    "home_appointments_load_failed": "Could not load appointments",
+    "home_expenses_load_failed": "Could not load expenses",
+    "home_load_failed_action": "Tap to try again."
   },
   "companions": {
     "no_companions_title": "No companions yet",

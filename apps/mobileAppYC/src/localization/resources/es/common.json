@@ -69,7 +69,10 @@
     "view_companions_description": "Revisa tus mascotas y su información",
     "schedule_appointment": "Programar Cita",
     "schedule_description": "Reserva una cita veterinaria para tu mascota",
-    "sign_out": "Cerrar Sesión"
+    "sign_out": "Cerrar Sesión",
+    "home_appointments_load_failed": "No se pudieron cargar las citas",
+    "home_expenses_load_failed": "No se pudieron cargar los gastos",
+    "home_load_failed_action": "Toca para intentarlo de nuevo."
   },
   "companions": {
     "no_companions_title": "Aún no hay mascotas",

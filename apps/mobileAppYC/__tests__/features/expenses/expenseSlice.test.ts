@@ -27,6 +27,7 @@ const initialState: ExpensesState = {
   failedCompanions: {},
   activeRequests: {},
   lastLoadedAt: {},
+  summaryFailedCompanions: {},
 };
 
 const mockExpense1: Expense = {
@@ -134,8 +135,10 @@ describe('expensesSlice', () => {
         meta: {arg: {companionId: 'comp1'}, requestId: 'r1'},
       } as any);
 
-      expect(next.failedCompanions.comp1).toBe('Network Error');
-
+      // Written to the SUMMARY map, not the list map: the expense list
+      // screen's retry re-fetches the list, which is not what failed here.
+      expect(next.summaryFailedCompanions.comp1).toBe('Network Error');
+      expect(next.failedCompanions.comp1).toBeUndefined();
       expect(next.hydratedCompanions.comp1).toBeUndefined();
     });
 
@@ -146,7 +149,7 @@ describe('expensesSlice', () => {
         meta: {arg: {companionId: 'comp1'}, requestId: 'r1'},
       } as any);
 
-      expect(next.failedCompanions.comp1).toBe(
+      expect(next.summaryFailedCompanions.comp1).toBe(
         'Unable to fetch expense summary',
       );
     });
@@ -166,7 +169,7 @@ describe('expensesSlice', () => {
         meta: {arg: {companionId: 'comp1'}, requestId: 'r2'},
       } as any);
 
-      expect(retrying.failedCompanions.comp1).toBeUndefined();
+      expect(retrying.summaryFailedCompanions.comp1).toBeUndefined();
     });
   });
 

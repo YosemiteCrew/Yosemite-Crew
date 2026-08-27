@@ -25,6 +25,7 @@ const initialState: ExpensesState = {
   failedCompanions: {},
   activeRequests: {},
   lastLoadedAt: {},
+  summaryFailedCompanions: {},
 };
 
 const buildSummary = (
@@ -212,11 +213,11 @@ const expensesSlice = createSlice({
       // sat there until its 12s timeout. That is the exact symptom this branch
       // set out to remove, surviving in the one thunk that had no error path.
       .addCase(fetchExpenseSummary.pending, (state, action) => {
-        markCollectionPending(
-          state,
-          action.meta?.arg?.companionId,
-          action.meta?.requestId,
-        );
+        const companionId = action.meta?.arg?.companionId;
+        if (companionId) {
+          state.summaryFailedCompanions = state.summaryFailedCompanions ?? {};
+          delete state.summaryFailedCompanions[companionId];
+        }
       })
       .addCase(fetchExpenseSummary.fulfilled, (state, action) => {
         const {companionId, summary} = action.payload;
@@ -225,16 +226,20 @@ const expensesSlice = createSlice({
           lastUpdated: new Date().toISOString(),
         };
         markCollectionHydrated(state, companionId);
+        state.summaryFailedCompanions = state.summaryFailedCompanions ?? {};
+        delete state.summaryFailedCompanions[companionId];
       })
       .addCase(fetchExpenseSummary.rejected, (state, action) => {
         const message = action.payload ?? 'Unable to fetch expense summary';
         state.error = message;
-        markCollectionFailed(
-          state,
-          action.meta?.arg?.companionId,
-          message,
-          action.meta?.requestId,
-        );
+        // Deliberately NOT markCollectionFailed: that entry drives the expense
+        // LIST screen, whose retry re-fetches the list. A summary failure is a
+        // different fact with a different retry.
+        const companionId = action.meta?.arg?.companionId;
+        if (companionId) {
+          state.summaryFailedCompanions = state.summaryFailedCompanions ?? {};
+          state.summaryFailedCompanions[companionId] = message;
+        }
       });
   },
 });
