@@ -163,6 +163,9 @@ const CS_REQUIRED_FIELDS = [
   'veterinarianName',
 ];
 
+/** Ids are compared case- and whitespace-insensitively when deciding identity. */
+const normaliseId = (value: unknown): string => String(value).trim().toLowerCase();
+
 type CsRecordValidation = { ok: false; error: string } | { ok: true; needsWitness: boolean };
 
 const requireNonEmptyStrings = (
@@ -197,7 +200,14 @@ const validateCsRecordPayload = (d: Record<string, unknown>): CsRecordValidation
   if (needsWitness) {
     const missingWitness = requireNonEmptyStrings(d, ['witnessId', 'witnessName']);
     if (missingWitness) return { ok: false, error: missingWitness };
-    if (d.witnessId === d.veterinarianId) return { ok: false, error: 'witness-must-differ' };
+    // The payload is renderer-controlled, so an exact comparison lets
+    // "vet-1" and "vet-1 " through as different people. Compare normalised,
+    // and persist the normalised ids so the stored record matches too.
+    d.witnessId = String(d.witnessId).trim();
+    d.veterinarianId = String(d.veterinarianId).trim();
+    d.witnessName = String(d.witnessName).trim();
+    if (normaliseId(d.witnessId) === normaliseId(d.veterinarianId))
+      return { ok: false, error: 'witness-must-differ' };
   }
 
   return { ok: true, needsWitness };

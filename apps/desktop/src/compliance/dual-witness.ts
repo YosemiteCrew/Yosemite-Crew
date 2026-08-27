@@ -1,6 +1,7 @@
 'use strict';
 
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import type { AuditLog, AuditEntry } from './audit-log';
 import type { ControlledSubstanceLogbook, CsTransaction } from './controlled-substance';
 
 export interface WasteEvent {
@@ -37,6 +38,14 @@ export interface DualWitnessLog {
 
 interface DualWitnessDeps {
   logbook: ControlledSubstanceLogbook;
+  /**
+   * The signed side of the record. The logbook file is not HMAC-protected, so
+   * its `witnessPinVerified` flag can be edited on disk; the audit entry
+   * carrying the same flag cannot be, without invalidating its signature.
+   * Verification is read from there. Omitting this means nothing can be proved
+   * witness-verified, which is the correct answer rather than a lenient one.
+   */
+  auditLog?: AuditLog;
   now?: () => number;
   generateId?: () => string;
 }
@@ -70,7 +79,7 @@ const verifyPinHash = (pin: string, stored: string): boolean => {
 // `witnessPinVerified: true`, so a destruction recorded with no witness at all
 // read back as witness-verified and was counted as a witnessed waste event in
 // the PMP dialog: an affirmative false compliance statement on the normal path.
-const txToWasteEvent = (tx: CsTransaction): WasteEvent => ({
+const txToWasteEvent = (tx: CsTransaction, witnessPinVerified: boolean): WasteEvent => ({
   id: tx.id,
   timestamp: tx.timestamp,
   drugName: tx.drugName,
@@ -82,7 +91,7 @@ const txToWasteEvent = (tx: CsTransaction): WasteEvent => ({
   veterinarianName: tx.veterinarianName,
   witnessId: tx.witnessId || '',
   witnessName: tx.witnessName || '',
-  witnessPinVerified: tx.witnessPinVerified === true,
+  witnessPinVerified,
   reason: tx.notes || '',
   csTransactionId: tx.id,
 });
@@ -154,9 +163,35 @@ export const createDualWitnessLog = (deps: DualWitnessDeps): DualWitnessLog => {
     return buildEvent(pinVerified, csTx.id);
   };
 
+  /**
+   * Reads verification from the signed audit entry, not from the logbook file.
+   * Editing `controlled-substance-log.jsonl` to set witnessPinVerified: true
+   * leaves the audit entry untouched, so the two disagree and this returns
+   * false - where trusting the logbook value would have reported the forged
+   * record as witness-verified in the PMP dialog.
+   */
+  const verifiedFromAuditTrail = (): ((tx: CsTransaction) => boolean) => {
+    if (!deps.auditLog) return () => false;
+    const auditLog = deps.auditLog;
+    const byId = new Map<string, AuditEntry>();
+    for (const entry of auditLog.query({ resourceType: 'controlled-substance' })) {
+      byId.set(entry.id, entry);
+    }
+    return (tx) => {
+      const entry = byId.get(tx.auditEntryId);
+      if (!entry) return false;
+      // The entry must be the one for THIS transaction, so a forged flag cannot
+      // borrow a genuinely verified entry belonging to another record.
+      if (entry.details.csTransactionId !== tx.id) return false;
+      if (entry.details.witnessPinVerified !== true) return false;
+      return auditLog.verify(entry);
+    };
+  };
+
   const getWasteEvents = (drugName?: string): WasteEvent[] => {
     const txs = drugName ? deps.logbook.getByDrug(drugName) : deps.logbook.getTransactions();
-    return txs.filter((tx) => tx.action === 'waste').map(txToWasteEvent);
+    const isVerified = verifiedFromAuditTrail();
+    return txs.filter((tx) => tx.action === 'waste').map((tx) => txToWasteEvent(tx, isVerified(tx)));
   };
 
   const getVerifiedWasteEvents = (drugName?: string): WasteEvent[] =>
@@ -164,9 +199,10 @@ export const createDualWitnessLog = (deps: DualWitnessDeps): DualWitnessLog => {
 
   const getWasteByWitness = (witnessId: string): WasteEvent[] => {
     const txs = deps.logbook.getTransactions();
+    const isVerified = verifiedFromAuditTrail();
     return txs
       .filter((tx) => tx.action === 'waste' && tx.witnessId === witnessId)
-      .map(txToWasteEvent);
+      .map((tx) => txToWasteEvent(tx, isVerified(tx)));
   };
 
   return {

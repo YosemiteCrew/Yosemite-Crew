@@ -454,6 +454,30 @@ describe('ipc-handlers — happy paths', () => {
       ).toEqual({ ok: false, error: 'witness-must-differ' });
     });
 
+    test('rejects a self-witness disguised by whitespace or case', async () => {
+      const call = register(makeServices());
+      // The payload is renderer-controlled, so an exact string comparison let
+      // "vet-1" witness for "vet-1 ".
+      for (const witnessId of ['vet-1 ', ' vet-1', 'VET-1', ' Vet-1 ']) {
+        expect(
+          await call('yc:cs-record', { ...waste, witnessId, witnessName: 'Dr. X' })
+        ).toEqual({ ok: false, error: 'witness-must-differ' });
+      }
+    });
+
+    test('persists normalised witness ids', async () => {
+      const call = register(makeServices());
+      const result = (await call('yc:cs-record', {
+        ...waste,
+        witnessId: '  nurse-1  ',
+        witnessName: '  Nurse Jane  ',
+      })) as { ok: boolean; transaction: Record<string, unknown> };
+
+      expect(result.ok).toBe(true);
+      expect(result.transaction.witnessId).toBe('nurse-1');
+      expect(result.transaction.witnessName).toBe('Nurse Jane');
+    });
+
     test('records an unverified witness as unverified, not as verified', async () => {
       const services = makeServices();
       const call = register(services);
