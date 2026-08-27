@@ -27,7 +27,9 @@ import {
 } from '../../selectors';
 import {ListErrorState} from '@/shared/components/common/ListErrorState/ListErrorState';
 import {ListLoadingState} from '@/shared/components/common/ListLoadingState/ListLoadingState';
-import {resolveListPhase} from '@/shared/utils/listPhase';
+import {ListStaleBanner} from '@/shared/components/common/ListStaleBanner/ListStaleBanner';
+import {selectCollectionLoadedAt} from '@/shared/store/collectionLoadState';
+import {isListStale, resolveListPhase} from '@/shared/utils/listPhase';
 import {
   fetchNotificationsForCompanion,
   markNotificationAsRead,
@@ -88,6 +90,9 @@ export const NotificationsScreen: React.FC = () => {
   );
   const hasHydrated = useSelector(
     selectHasHydratedCompanion(NOTIFICATIONS_COMPANION_ID),
+  );
+  const notificationsLoadedAt = useSelector((state: RootState) =>
+    selectCollectionLoadedAt(state.notifications, NOTIFICATIONS_COMPANION_ID),
   );
   const companions = useSelector(
     (state: RootState) => state.companion.companions,
@@ -371,6 +376,18 @@ export const NotificationsScreen: React.FC = () => {
             styles={styles}
           />
 
+          {isListStale({
+            loadError: loadFailure,
+            itemCount: notifications.length,
+          }) ? (
+            <ListStaleBanner
+              testID="notifications-stale-banner"
+              lastLoadedAt={notificationsLoadedAt}
+              onRetry={refetchNotifications}
+              style={styles.staleBanner}
+            />
+          ) : null}
+
           <NotificationsSectionList
             sections={sections}
             renderItem={renderNotificationItem}
@@ -396,6 +413,10 @@ const createStyles = (theme: any) => {
     listContent: {
       paddingHorizontal: theme.spacing['4'],
       paddingBottom: theme.spacing['10'],
+    },
+    staleBanner: {
+      marginHorizontal: theme.spacing['4'],
+      marginBottom: theme.spacing['2'],
     },
     sectionHeader: {
       ...theme.typography.eyebrow,

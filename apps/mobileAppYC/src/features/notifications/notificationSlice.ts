@@ -28,6 +28,7 @@ const initialState: NotificationsState = {
   hydratedCompanions: {},
   failedCompanions: {},
   activeRequests: {},
+  lastLoadedAt: {},
   lastFetchTimestamp: undefined,
   filter: 'all',
   sortBy: 'new',

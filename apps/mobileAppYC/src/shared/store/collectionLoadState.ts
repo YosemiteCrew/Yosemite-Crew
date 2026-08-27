@@ -24,6 +24,13 @@ export interface CollectionLoadState {
    * and the screen would replace a correct empty state with an error.
    */
   activeRequests: Record<string, string>;
+  /**
+   * Epoch ms of the last SUCCESSFUL fetch per companion. Only meaningful next
+   * to a recorded failure, where it answers the question a stale list cannot:
+   * how old is what I am looking at. Minutes matters differently from days when
+   * the content is a medication schedule.
+   */
+  lastLoadedAt: Record<string, number>;
 }
 
 /** The single, canonical fallback message for a failed collection fetch. */
@@ -40,6 +47,7 @@ const ensureMaps = (state: Partial<CollectionLoadState>): void => {
   state.hydratedCompanions = state.hydratedCompanions ?? {};
   state.failedCompanions = state.failedCompanions ?? {};
   state.activeRequests = state.activeRequests ?? {};
+  state.lastLoadedAt = state.lastLoadedAt ?? {};
 };
 
 /**
@@ -78,6 +86,9 @@ export const markCollectionPending = (
 export const markCollectionHydrated = (
   state: CollectionLoadState,
   companionId: string | null | undefined,
+  // Injectable so tests are deterministic; reducers elsewhere in this app
+  // already read the clock directly.
+  loadedAt: number = Date.now(),
 ): void => {
   ensureMaps(state);
   const key = usableKey(companionId);
@@ -85,6 +96,7 @@ export const markCollectionHydrated = (
     return;
   }
   state.hydratedCompanions[key] = true;
+  state.lastLoadedAt[key] = loadedAt;
   delete state.failedCompanions[key];
   // Success closes the round: any rejection still in flight is now stale.
   delete state.activeRequests[key];
@@ -151,6 +163,23 @@ export const selectCollectionFailure = (
   // mistaken for a real failure message and pin a list into its error state.
   const message = state?.failedCompanions?.[key];
   return typeof message === 'string' ? message : undefined;
+};
+
+/**
+ * Epoch ms of the last successful fetch, or undefined if there has never been
+ * one. Screens pair this with `selectCollectionFailure` to say how stale the
+ * content on screen is.
+ */
+export const selectCollectionLoadedAt = (
+  state: Partial<CollectionLoadState> | undefined,
+  companionId: string | null | undefined,
+): number | undefined => {
+  const key = usableKey(companionId);
+  if (!key) {
+    return undefined;
+  }
+  const loadedAt = state?.lastLoadedAt?.[key];
+  return typeof loadedAt === 'number' ? loadedAt : undefined;
 };
 
 /**

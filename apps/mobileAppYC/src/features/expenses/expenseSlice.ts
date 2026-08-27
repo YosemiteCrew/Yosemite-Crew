@@ -24,6 +24,7 @@ const initialState: ExpensesState = {
   hydratedCompanions: {},
   failedCompanions: {},
   activeRequests: {},
+  lastLoadedAt: {},
 };
 
 const buildSummary = (

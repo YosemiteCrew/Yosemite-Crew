@@ -30,7 +30,9 @@ import {
 } from '@/features/tasks/selectors';
 import {ListErrorState} from '@/shared/components/common/ListErrorState/ListErrorState';
 import {ListLoadingState} from '@/shared/components/common/ListLoadingState/ListLoadingState';
-import {resolveListPhase} from '@/shared/utils/listPhase';
+import {ListStaleBanner} from '@/shared/components/common/ListStaleBanner/ListStaleBanner';
+import {selectCollectionLoadedAt} from '@/shared/store/collectionLoadState';
+import {isListStale, resolveListPhase} from '@/shared/utils/listPhase';
 import {selectAuthUser} from '@/features/auth/selectors';
 import type {AppDispatch, RootState} from '@/app/store';
 import type {TaskStackParamList} from '@/navigation/types';
@@ -121,6 +123,9 @@ export const TasksMainScreen: React.FC = () => {
     selectTasksLoadFailure(selectedCompanionId),
   );
   const tasksLoading = useSelector((state: RootState) => state.tasks.loading);
+  const tasksLoadedAt = useSelector((state: RootState) =>
+    selectCollectionLoadedAt(state.tasks, selectedCompanionId),
+  );
   const allTasks = useSelector(
     selectTasksByCompanion(selectedCompanionId ?? null),
   );
@@ -341,6 +346,17 @@ export const TasksMainScreen: React.FC = () => {
           />
 
           {/* Category Sections */}
+          {isListStale({
+            loadError: tasksLoadFailure,
+            itemCount: allTasks.length,
+          }) && (
+            <ListStaleBanner
+              testID="tasks-stale-banner"
+              lastLoadedAt={tasksLoadedAt}
+              onRetry={refetchTasks}
+              style={styles.categorySection}
+            />
+          )}
           {taskListPhase === 'loading' && (
             <ListLoadingState testID="tasks-loading" />
           )}

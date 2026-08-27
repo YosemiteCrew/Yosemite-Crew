@@ -10,7 +10,9 @@ import {Header} from '@/shared/components/common/Header/Header';
 import {EmptyState} from '@/shared/components/common/EmptyState/EmptyState';
 import {ListErrorState} from '@/shared/components/common/ListErrorState/ListErrorState';
 import {ListLoadingState} from '@/shared/components/common/ListLoadingState/ListLoadingState';
-import {resolveListPhase} from '@/shared/utils/listPhase';
+import {ListStaleBanner} from '@/shared/components/common/ListStaleBanner/ListStaleBanner';
+import {selectCollectionLoadedAt} from '@/shared/store/collectionLoadState';
+import {isListStale, resolveListPhase} from '@/shared/utils/listPhase';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {ViewMoreButton} from '@/shared/components/common/ViewMoreButton/ViewMoreButton';
 import {
@@ -82,6 +84,9 @@ export const ExpensesMainScreen: React.FC = () => {
   );
   const loadFailure = useSelector(
     selectExpensesLoadFailure(selectedCompanionId ?? null),
+  );
+  const expensesLoadedAt = useSelector((state: RootState) =>
+    selectCollectionLoadedAt(state.expenses, selectedCompanionId ?? null),
   );
   const {openPaymentScreen, processingPayment} = useExpensePayment();
 
@@ -277,6 +282,18 @@ export const ExpensesMainScreen: React.FC = () => {
                 requiredPermission="expenses"
                 permissionLabel="expenses"
               />
+
+              {isListStale({
+                loadError: loadFailure,
+                itemCount: inAppCount + externalCount,
+              }) ? (
+                <ListStaleBanner
+                  testID="expenses-stale-banner"
+                  lastLoadedAt={expensesLoadedAt}
+                  onRetry={refetchExpenses}
+                  style={styles.companionSelector}
+                />
+              ) : null}
 
               <PressableOpacity
                 onPress={() => handleViewMore('inApp')}

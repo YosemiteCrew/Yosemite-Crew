@@ -7,6 +7,8 @@ import DocumentListItem from '@/features/documents/components/DocumentListItem';
 import {CategoryTile} from '@/shared/components/common/CategoryTile/CategoryTile';
 import {EmptyDocumentsScreen} from '../EmptyDocumentsScreen/EmptyDocumentsScreen';
 import {ListErrorState} from '@/shared/components/common/ListErrorState/ListErrorState';
+import {ListStaleBanner} from '@/shared/components/common/ListStaleBanner/ListStaleBanner';
+import {isListStale} from '@/shared/utils/listPhase';
 import {useSelector} from 'react-redux';
 import type {RootState} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
@@ -163,6 +165,19 @@ export const DocumentsScreen: React.FC = () => {
             requiredPermission="documents"
             permissionLabel="documents"
           />
+          {/* Documents are companion-scoped, so a failed COMPANION fetch is what
+              makes this screen stale: the companion list on screen, and the
+              documents hanging off it, may no longer be current. */}
+          {isListStale({
+            loadError: companionLoadError,
+            itemCount: companions.length,
+          }) ? (
+            <ListStaleBanner
+              testID="documents-stale-banner"
+              onRetry={handleRetryCompanions}
+              style={styles.companionSelector}
+            />
+          ) : null}
           {recentDocuments.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Recent</Text>

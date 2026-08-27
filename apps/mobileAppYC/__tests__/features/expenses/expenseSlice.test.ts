@@ -26,6 +26,7 @@ const initialState: ExpensesState = {
   hydratedCompanions: {},
   failedCompanions: {},
   activeRequests: {},
+  lastLoadedAt: {},
 };
 
 const mockExpense1: Expense = {

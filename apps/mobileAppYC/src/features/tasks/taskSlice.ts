@@ -22,6 +22,7 @@ const initialState: TasksState = {
   hydratedCompanions: {},
   failedCompanions: {},
   activeRequests: {},
+  lastLoadedAt: {},
 };
 
 const tasksSlice = createSlice({

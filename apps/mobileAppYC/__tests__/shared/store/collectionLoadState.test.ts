@@ -5,6 +5,7 @@ import {
   markCollectionPending,
   selectCollectionFailure,
   selectCollectionHydrated,
+  selectCollectionLoadedAt,
   type CollectionLoadState,
 } from '@/shared/store/collectionLoadState';
 
@@ -12,6 +13,7 @@ const emptyState = (): CollectionLoadState => ({
   hydratedCompanions: {},
   failedCompanions: {},
   activeRequests: {},
+  lastLoadedAt: {},
 });
 
 describe('collectionLoadState', () => {
@@ -251,6 +253,69 @@ describe('collectionLoadState', () => {
 
       expect(() => markCollectionPending(legacy, 'c1', 'req-1')).not.toThrow();
       expect(legacy.activeRequests.c1).toBe('req-1');
+    });
+  });
+
+  // A stale list has to be able to say how old it is: minutes matters
+  // differently from days when the content is a medication schedule.
+  describe('last successful fetch', () => {
+    it('records the timestamp on a successful fetch', () => {
+      const state = emptyState();
+
+      markCollectionHydrated(state, 'c1', 1_700_000_000_000);
+
+      expect(selectCollectionLoadedAt(state, 'c1')).toBe(1_700_000_000_000);
+    });
+
+    it('keeps the timestamp when a later refresh fails', () => {
+      const state = emptyState();
+      markCollectionHydrated(state, 'c1', 1_700_000_000_000);
+
+      markCollectionFailed(state, 'c1', 'network down');
+
+      // The pair a stale banner needs: a failure AND how old the content is.
+      expect(selectCollectionFailure(state, 'c1')).toBe('network down');
+      expect(selectCollectionLoadedAt(state, 'c1')).toBe(1_700_000_000_000);
+    });
+
+    it('advances the timestamp when a retry succeeds', () => {
+      const state = emptyState();
+      markCollectionHydrated(state, 'c1', 1_700_000_000_000);
+      markCollectionFailed(state, 'c1', 'network down');
+
+      markCollectionHydrated(state, 'c1', 1_700_000_060_000);
+
+      expect(selectCollectionLoadedAt(state, 'c1')).toBe(1_700_000_060_000);
+      expect(selectCollectionFailure(state, 'c1')).toBeUndefined();
+    });
+
+    it('reports undefined before any successful fetch', () => {
+      const state = emptyState();
+      markCollectionFailed(state, 'c1', 'network down');
+
+      expect(selectCollectionLoadedAt(state, 'c1')).toBeUndefined();
+    });
+
+    it('tolerates an absent slice, key or map', () => {
+      expect(selectCollectionLoadedAt(undefined, 'c1')).toBeUndefined();
+      expect(selectCollectionLoadedAt({}, 'c1')).toBeUndefined();
+      expect(selectCollectionLoadedAt(emptyState(), null)).toBeUndefined();
+      expect(
+        selectCollectionLoadedAt(emptyState(), '__proto__'),
+      ).toBeUndefined();
+    });
+
+    it('does not throw on state rehydrated without the map', () => {
+      const legacy = {
+        hydratedCompanions: {},
+        failedCompanions: {},
+        activeRequests: {},
+      } as CollectionLoadState;
+
+      expect(() =>
+        markCollectionHydrated(legacy, 'c1', 1_700_000_000_000),
+      ).not.toThrow();
+      expect(legacy.lastLoadedAt.c1).toBe(1_700_000_000_000);
     });
   });
 

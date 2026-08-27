@@ -92,7 +92,7 @@ describe('Redux Store', () => {
 
     expect(config).toBeDefined();
     expect(config.key).toBe('root');
-    expect(config.version).toBe(8);
+    expect(config.version).toBe(9);
     expect(config.storage).toBeDefined();
     expect(config.migrate).toEqual(expect.any(Function));
   });
@@ -288,6 +288,7 @@ describe('Redux Store', () => {
         // Added by the v7 -> v8 step, which the chained runner also applies.
         failedCompanions: {},
         activeRequests: {},
+        lastLoadedAt: {},
         filter: 'all',
         sortBy: 'new',
       });
@@ -307,6 +308,7 @@ describe('Redux Store', () => {
         hydratedCompanions: {},
         failedCompanions: {},
         activeRequests: {},
+        lastLoadedAt: {},
       });
     });
 
@@ -475,6 +477,42 @@ describe('Redux Store', () => {
       expect(newState.notifications).toBeDefined();
       expect(newState.preferences).toBeDefined();
       expect(newState.tasks.failedCompanions).toEqual({});
+    });
+
+    it('handles v8 -> v9 migration and adds staleness tracking', async () => {
+      const oldState = {
+        tasks: {
+          items: [],
+          hydratedCompanions: {c1: true},
+          failedCompanions: {},
+        },
+        appointments: {items: []},
+        expenses: {items: []},
+        notifications: {items: []},
+      };
+
+      const newState = await runMigrate(8, oldState);
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Migrating from v8 to v9'),
+      );
+      expect(newState.tasks.activeRequests).toEqual({});
+      expect(newState.tasks.lastLoadedAt).toEqual({});
+      expect(newState.tasks.hydratedCompanions).toEqual({c1: true});
+      expect(newState.appointments.lastLoadedAt).toEqual({});
+      expect(newState.expenses.lastLoadedAt).toEqual({});
+      expect(newState.notifications.lastLoadedAt).toEqual({});
+    });
+
+    it('leaves existing v9 staleness state untouched', async () => {
+      const oldState = {
+        tasks: {activeRequests: {c1: 'r1'}, lastLoadedAt: {c1: 123}},
+      };
+
+      const newState = await runMigrate(8, oldState);
+
+      expect(newState.tasks.activeRequests).toEqual({c1: 'r1'});
+      expect(newState.tasks.lastLoadedAt).toEqual({c1: 123});
     });
 
     it('handles non-matching versions gracefully', async () => {

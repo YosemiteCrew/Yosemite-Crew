@@ -420,6 +420,7 @@ const initialState: AppointmentsState = {
   hydratedCompanions: {},
   failedCompanions: {},
   activeRequests: {},
+  lastLoadedAt: {},
 };
 
 const upsertAppointment = (

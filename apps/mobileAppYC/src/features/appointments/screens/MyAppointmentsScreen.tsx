@@ -17,9 +17,14 @@ import {useTheme} from '@/hooks';
 import type {Theme} from '@/theme';
 import type {RootState, AppDispatch} from '@/app/store';
 import {fetchAppointmentsForCompanion} from '@/features/appointments/appointmentsSlice';
-import {selectCollectionFailure} from '@/shared/store/collectionLoadState';
+import {
+  selectCollectionFailure,
+  selectCollectionLoadedAt,
+} from '@/shared/store/collectionLoadState';
 import {ListErrorState} from '@/shared/components/common/ListErrorState/ListErrorState';
 import {ListLoadingState} from '@/shared/components/common/ListLoadingState/ListLoadingState';
+import {ListStaleBanner} from '@/shared/components/common/ListStaleBanner/ListStaleBanner';
+import {isListStale} from '@/shared/utils/listPhase';
 import {setSelectedCompanion} from '@/features/companion';
 import {
   createSelectUpcomingAppointments,
@@ -119,6 +124,9 @@ export const MyAppointmentsScreen: React.FC = () => {
   );
   const appointmentsLoading = useSelector(
     (state: RootState) => state.appointments?.loading ?? false,
+  );
+  const appointmentsLoadedAt = useSelector((state: RootState) =>
+    selectCollectionLoadedAt(state.appointments, selectedCompanionId),
   );
 
   const fetchAppointmentsOnce = React.useCallback(
@@ -673,15 +681,31 @@ export const MyAppointmentsScreen: React.FC = () => {
           renderItem={renderItem}
           renderSectionHeader={renderSectionHeader}
           ListHeaderComponent={
-            <CompanionSelector
-              companions={companions}
-              selectedCompanionId={selectedCompanionId}
-              onSelect={id => dispatch(setSelectedCompanion(id))}
-              showAddButton={false}
-              containerStyle={styles.companionSelector}
-              requiredPermission="appointments"
-              permissionLabel="appointments"
-            />
+            <>
+              <CompanionSelector
+                companions={companions}
+                selectedCompanionId={selectedCompanionId}
+                onSelect={id => dispatch(setSelectedCompanion(id))}
+                showAddButton={false}
+                containerStyle={styles.companionSelector}
+                requiredPermission="appointments"
+                permissionLabel="appointments"
+              />
+              {/* Above the list rather than replacing it: these appointments
+                  are still readable and still probably right, they just might
+                  not be current. */}
+              {isListStale({
+                loadError: appointmentsLoadError,
+                itemCount: filteredUpcoming.length + filteredPast.length,
+              }) ? (
+                <ListStaleBanner
+                  testID="appointments-stale-banner"
+                  lastLoadedAt={appointmentsLoadedAt}
+                  onRetry={retryFetchAppointments}
+                  style={styles.companionSelector}
+                />
+              ) : null}
+            </>
           }
           contentContainerStyle={[styles.container, contentPaddingStyle]}
           stickySectionHeadersEnabled={false}

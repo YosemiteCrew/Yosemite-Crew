@@ -149,7 +149,13 @@
     "sign_out": "Cerrar Sesión",
     "load_failed_title": "No pudimos cargar esto",
     "load_failed_message": "Algo salió mal por nuestra parte. Comprueba tu conexión e inténtalo de nuevo.",
-    "load_failed_offline": "Parece que no tienes conexión. Vuelve a conectarte e inténtalo de nuevo."
+    "load_failed_offline": "Parece que no tienes conexión. Vuelve a conectarte e inténtalo de nuevo.",
+    "stale_title": "Mostrando información anterior",
+    "stale_updated_just_now": "Actualizado ahora mismo",
+    "stale_updated_minutes": "Actualizado hace {{count}} min",
+    "stale_updated_hours": "Actualizado hace {{count}} h",
+    "stale_updated_days": "Actualizado hace {{count}} d",
+    "stale_updated_unknown": "No se pudo actualizar"
   },
   "validation": {
     "email_required": "El correo electrónico es requerido",

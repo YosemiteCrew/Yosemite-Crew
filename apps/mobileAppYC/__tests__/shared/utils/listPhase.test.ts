@@ -1,4 +1,4 @@
-import {resolveListPhase} from '@/shared/utils/listPhase';
+import {isListStale, resolveListPhase} from '@/shared/utils/listPhase';
 
 describe('resolveListPhase', () => {
   // The bug this closes: eight screens asked only `items.length === 0` and
@@ -50,5 +50,34 @@ describe('resolveListPhase', () => {
     expect(
       resolveListPhase({itemCount: 0, hasLoaded: true, loadError: null}),
     ).toBe('empty');
+  });
+});
+
+describe('isListStale', () => {
+  // The other half of "existing items win". resolveListPhase keeps a readable
+  // list readable; this reports the failure it deliberately did not promote, so
+  // the screen can say the content may be out of date instead of staying silent.
+  it('is true when a refresh failed over content that is still on screen', () => {
+    expect(isListStale({loadError: 'boom', itemCount: 3})).toBe(true);
+  });
+
+  it('is false when the list is empty, because that is the error phase', () => {
+    expect(isListStale({loadError: 'boom', itemCount: 0})).toBe(false);
+    expect(resolveListPhase({loadError: 'boom', itemCount: 0})).toBe('error');
+  });
+
+  it('is false when nothing failed', () => {
+    expect(isListStale({itemCount: 3})).toBe(false);
+    expect(isListStale({loadError: null, itemCount: 3})).toBe(false);
+    expect(isListStale({loadError: '', itemCount: 3})).toBe(false);
+  });
+
+  // The pair is what makes the ordering honest: 'ready' still renders the list,
+  // and the staleness is reported next to it rather than discarded.
+  it('coexists with a ready phase rather than replacing it', () => {
+    const input = {loadError: 'boom', itemCount: 3, hasLoaded: true};
+
+    expect(resolveListPhase(input)).toBe('ready');
+    expect(isListStale(input)).toBe(true);
   });
 });

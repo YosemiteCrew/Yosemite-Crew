@@ -55,6 +55,7 @@ describe('features/tasks/taskSlice', () => {
     hydratedCompanions: {},
     failedCompanions: {},
     activeRequests: {},
+    lastLoadedAt: {},
   };
 
   // -------------------------------------------------------------------------

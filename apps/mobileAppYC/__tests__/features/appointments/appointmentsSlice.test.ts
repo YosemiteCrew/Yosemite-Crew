@@ -102,6 +102,7 @@ const initialState = {
   hydratedCompanions: {},
   failedCompanions: {},
   activeRequests: {},
+  lastLoadedAt: {},
 };
 
 const createTestStore = (

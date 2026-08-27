@@ -49,6 +49,11 @@ export interface NotificationsState {
    * instead of overwriting a good result with a stale error.
    */
   activeRequests: Record<string, string>;
+  /**
+   * Epoch ms of the last SUCCESSFUL fetch per companion, so a stale list can
+   * say how old what the user is reading actually is.
+   */
+  lastLoadedAt: Record<string, number>;
   lastFetchTimestamp?: number;
   filter: NotificationCategory;
   sortBy: 'new' | 'seen';

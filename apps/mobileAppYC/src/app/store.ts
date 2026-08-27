@@ -151,6 +151,21 @@ const migrateV7ToV8 = (state: any) => {
   }
 };
 
+const migrateV8ToV9 = (state: any) => {
+  console.log(
+    '[Redux Persist] Migrating from v8 to v9 - adding list staleness tracking',
+  );
+  // `activeRequests` discards rejections superseded by a newer success;
+  // `lastLoadedAt` lets a stale list say how old it is. Both live on persisted
+  // slices, so state written before them rehydrates without the keys.
+  for (const key of ['tasks', 'appointments', 'expenses', 'notifications']) {
+    if (state[key]) {
+      state[key].activeRequests = state[key].activeRequests ?? {};
+      state[key].lastLoadedAt = state[key].lastLoadedAt ?? {};
+    }
+  }
+};
+
 // Keyed by the persisted version a state is migrating FROM.
 const MIGRATIONS_BY_FROM_VERSION: Record<number, (state: any) => void> = {
   1: migrateV1ToV2,
@@ -160,9 +175,10 @@ const MIGRATIONS_BY_FROM_VERSION: Record<number, (state: any) => void> = {
   5: migrateV5ToV6,
   6: migrateV6ToV7,
   7: migrateV7ToV8,
+  8: migrateV8ToV9,
 };
 
-const PERSIST_VERSION = 8;
+const PERSIST_VERSION = 9;
 
 const persistConfig = {
   key: 'root',
