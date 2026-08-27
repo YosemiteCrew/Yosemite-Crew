@@ -12,6 +12,12 @@ import { getData, putData } from '@/app/services/axios';
  */
 export type BookingPageConfig = {
   organisationId: string;
+  /**
+   * Whether the practice has ever saved this setup. Distinguishes a deliberate
+   * "no services offered publicly" from a practice that has never answered,
+   * which both arrive as an empty `serviceIds`.
+   */
+  configured: boolean;
   slug: string | null;
   publicBookingEnabled: boolean;
   publicUrl: string | null;

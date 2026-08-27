@@ -24,6 +24,7 @@ const asResponse = <T>(data: T): AxiosResponse<T> =>
 
 const config: BookingPageConfig = {
   organisationId: 'org-1',
+  configured: true,
   slug: 'park-veterinary',
   publicBookingEnabled: false,
   publicUrl: null,

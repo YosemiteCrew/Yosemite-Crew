@@ -73,6 +73,15 @@ describe("booking-page.service", () => {
       );
     });
 
+    it("does not let leading punctuation eat into the length budget", () => {
+      // The inner trim is NOT redundant with the outer one, which a review
+      // suggested removing. Trimming before the 63-character slice means the
+      // leading separators do not consume part of the budget: with the inner
+      // trim this keeps 63 name characters, without it only 60.
+      const slug = slugifyOrganisationName(`!!!${"a".repeat(70)}`);
+      expect(slug).toBe("a".repeat(63));
+    });
+
     it("returns an empty string when nothing survives", () => {
       expect(slugifyOrganisationName("!!! ??? ***")).toBe("");
     });
@@ -335,6 +344,7 @@ describe("booking-page.service", () => {
 
       await expect(BookingPageService.getConfig("org-1")).resolves.toEqual({
         organisationId: "org-1",
+        configured: false,
         slug: null,
         publicBookingEnabled: false,
         publicUrl: null,
@@ -381,6 +391,46 @@ describe("booking-page.service", () => {
         autoConfirm: true,
         welcomeMessage: "Hello",
         replyToEmail: "front@example.com",
+      });
+    });
+
+    it("reports configured=false when no settings row exists", async () => {
+      pm.organization.findUnique.mockResolvedValue({
+        bookingSlug: "park-vets",
+        publicBookingEnabled: false,
+      });
+      pm.publicBookingSettings.findUnique.mockResolvedValue(null);
+
+      await expect(
+        BookingPageService.getConfig("org-1"),
+      ).resolves.toMatchObject({
+        configured: false,
+        serviceIds: [],
+      });
+    });
+
+    it("reports configured=true for a practice that deliberately saved no services", async () => {
+      pm.organization.findUnique.mockResolvedValue({
+        bookingSlug: "park-vets",
+        publicBookingEnabled: false,
+      });
+      pm.publicBookingSettings.findUnique.mockResolvedValue({
+        serviceIds: [],
+        bookingWindowDays: 28,
+        bufferMinutes: 10,
+        autoConfirm: false,
+        welcomeMessage: null,
+        replyToEmail: null,
+      });
+
+      // Same `serviceIds` as the row above, opposite meaning. Collapsing the two
+      // is what made the wizard re-select every service after a deliberate
+      // empty save.
+      await expect(
+        BookingPageService.getConfig("org-1"),
+      ).resolves.toMatchObject({
+        configured: true,
+        serviceIds: [],
       });
     });
 

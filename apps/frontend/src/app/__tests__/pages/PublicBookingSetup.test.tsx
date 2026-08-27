@@ -72,6 +72,7 @@ const svc = (over: Partial<Record<string, unknown>> = {}) => ({
 
 const config = (over: Partial<Record<string, unknown>> = {}) => ({
   organisationId: 'org-1',
+  configured: false,
   slug: null,
   publicBookingEnabled: false,
   publicUrl: null,
@@ -289,10 +290,31 @@ describe('PublicBookingSetup', () => {
     expect(screen.queryByText('late-arrival')).not.toBeInTheDocument();
   });
 
+  it('ignores a configuration failure that arrives after unmount', async () => {
+    let fail: (reason: unknown) => void = () => {};
+    getConfigMock.mockReturnValue(
+      new Promise((_resolve, reject) => {
+        fail = reject;
+      })
+    );
+    const { unmount } = render(<PublicBookingSetup />);
+    unmount();
+
+    await act(async () => {
+      fail(new Error('offline'));
+    });
+
+    // No alert can be rendered, and no state update is attempted on an
+    // unmounted tree.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   describe('booking address', () => {
     it('never renders a book.yosemitecrew.com address', async () => {
       await goToBranding();
-      expect(screen.queryByText(/book\.yosemitecrew\.com/)).not.toBeInTheDocument();
+      // Substring on the rendered text, not a regex: this asserts the absence of
+      // a host, and an unanchored host regex is exactly what CodeQL flags.
+      expect(document.body.textContent).not.toContain('book.yosemitecrew.com');
     });
 
     it('says no address exists yet before the first save', async () => {
@@ -408,7 +430,7 @@ describe('PublicBookingSetup', () => {
     });
 
     it('restores a stored service selection instead of selecting everything', async () => {
-      getConfigMock.mockResolvedValue(config({ serviceIds: ['s2'] }));
+      getConfigMock.mockResolvedValue(config({ configured: true, serviceIds: ['s2'] }));
       await renderSetup();
 
       await waitFor(() =>
@@ -429,6 +451,96 @@ describe('PublicBookingSetup', () => {
 
       expect(screen.getByText('Reserved when you save')).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /Copy/ })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('selection semantics', () => {
+    it('honours a deliberate empty selection instead of re-selecting everything', async () => {
+      getConfigMock.mockResolvedValue(config({ configured: true, serviceIds: [] }));
+      await renderSetup();
+
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /Wellness & vaccination/ })).toHaveAttribute(
+          'aria-pressed',
+          'false'
+        )
+      );
+      expect(screen.getByRole('button', { name: /Sick visit/ })).toHaveAttribute(
+        'aria-pressed',
+        'false'
+      );
+    });
+
+    it('still selects everything for a practice that has never saved', async () => {
+      getConfigMock.mockResolvedValue(config({ configured: false, serviceIds: [] }));
+      await renderSetup();
+
+      expect(screen.getByRole('button', { name: /Wellness & vaccination/ })).toHaveAttribute(
+        'aria-pressed',
+        'true'
+      );
+    });
+
+    it('builds the first toggle on the stored selection, not on every bookable service', async () => {
+      getConfigMock.mockResolvedValue(config({ configured: true, serviceIds: ['s2'] }));
+      await renderSetup();
+
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /Sick visit/ })).toHaveAttribute(
+          'aria-pressed',
+          'true'
+        )
+      );
+
+      // Deselecting the only stored service must leave nothing selected, not
+      // flip every other service on.
+      fireEvent.click(screen.getByRole('button', { name: /Sick visit/ }));
+
+      expect(screen.getByRole('button', { name: /Sick visit/ })).toHaveAttribute(
+        'aria-pressed',
+        'false'
+      );
+      expect(screen.getByRole('button', { name: /Wellness & vaccination/ })).toHaveAttribute(
+        'aria-pressed',
+        'false'
+      );
+    });
+
+    it('drops a stored service that is no longer bookable', async () => {
+      getConfigMock.mockResolvedValue(
+        config({ configured: true, serviceIds: ['s1', 'archived-since'] })
+      );
+      await renderSetup();
+      fireEvent.click(screen.getByRole('button', { name: /Continue/ }));
+      fireEvent.click(screen.getByRole('button', { name: /Save booking setup/ }));
+
+      await waitFor(() => expect(saveConfigMock).toHaveBeenCalled());
+      // Without the filter the API rejects the whole payload and the practice
+      // can never save again, because there is no row to deselect it with.
+      expect(saveConfigMock.mock.calls[0][1].serviceIds).toEqual(['s1']);
+    });
+  });
+
+  describe('configuration load failure', () => {
+    it('says the shown values are defaults and refuses to save over stored settings', async () => {
+      getConfigMock.mockRejectedValue(new Error('offline'));
+      await goToBranding();
+
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        /could not load your current booking setup/i
+      );
+      const save = screen.getByRole('button', { name: /Save booking setup/ });
+      expect(save).toBeDisabled();
+
+      fireEvent.click(save);
+      expect(saveConfigMock).not.toHaveBeenCalled();
+    });
+
+    it('shows no alert and allows saving once the configuration loads', async () => {
+      await goToBranding();
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Save booking setup/ })).toBeEnabled();
     });
   });
 

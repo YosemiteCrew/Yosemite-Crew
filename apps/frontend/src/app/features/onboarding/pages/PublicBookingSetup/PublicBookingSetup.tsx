@@ -318,6 +318,7 @@ type BrandingStepProps = {
   onBack: () => void;
   onSave: () => void;
   saving: boolean;
+  loadFailed: boolean;
 };
 
 const BookingBrandingStep = ({
@@ -337,6 +338,7 @@ const BookingBrandingStep = ({
   onBack,
   onSave,
   saving,
+  loadFailed,
 }: BrandingStepProps) => (
   <>
     <SetupHeader step={step} label="of 2 · Branding & review" />
@@ -409,6 +411,17 @@ const BookingBrandingStep = ({
       </div>
 
       <BookingAddress slug={slug} publicUrl={publicUrl} copied={copied} onCopy={onCopy} />
+
+      {loadFailed ? (
+        <p
+          role="alert"
+          className="rounded-[14px] border border-[var(--warn-border)] bg-[var(--warn-bg)] px-3.5 py-3 text-[12.5px] text-[var(--warn-text)]"
+        >
+          We could not load your current booking setup, so what is shown here are defaults rather
+          than your settings. Saving is disabled to avoid overwriting them. Reload the page to try
+          again.
+        </p>
+      ) : null}
     </div>
     <div className="flex items-center justify-between gap-3 px-7! py-4! border-t border-[var(--hairline)]">
       <button
@@ -422,7 +435,7 @@ const BookingBrandingStep = ({
       <button
         type="button"
         onClick={onSave}
-        disabled={saving}
+        disabled={saving || loadFailed}
         className="inline-flex items-center gap-1.5 h-11 px-5 rounded-full bg-[var(--cta)] text-[var(--cta-text)] text-[13.5px] font-semibold disabled:opacity-60"
       >
         <IoSaveOutline size={15} />
@@ -464,13 +477,22 @@ const PublicBookingSetup = () => {
   const [replyTo, setReplyTo] = useState('');
   const [copied, setCopied] = useState(false);
   const [config, setConfig] = useState<BookingPageConfig | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // A practice that has saved before gets its own selection back; one that has
-  // not gets every bookable service pre-selected.
+  // A practice that has saved before gets its own selection back, including a
+  // deliberate empty one; a practice that has never saved gets everything
+  // bookable pre-selected. `configured` is what separates those two, because
+  // both arrive as an empty `serviceIds`.
+  //
+  // Stored ids are intersected with what is currently bookable. A service that
+  // was archived after it was chosen no longer has a row to deselect it with,
+  // and the API rejects ids that are not active and bookable - so carrying it
+  // forward would leave the practice unable to save anything at all.
   const storedSelection = useMemo(
-    () => (config && config.serviceIds.length > 0 ? new Set(config.serviceIds) : null),
-    [config]
+    () =>
+      config?.configured ? new Set(config.serviceIds.filter((id) => allBookableIds.has(id))) : null,
+    [config, allBookableIds]
   );
   const selected = selectionOverride ?? storedSelection ?? allBookableIds;
 
@@ -503,6 +525,7 @@ const PublicBookingSetup = () => {
       .getConfig(primaryOrgId)
       .then((loaded) => {
         if (cancelled) return;
+        setLoadFailed(false);
         setConfig(loaded);
         setBookingWindowDays(loaded.bookingWindowDays);
         setBufferMinutes(loaded.bufferMinutes);
@@ -511,10 +534,15 @@ const PublicBookingSetup = () => {
         if (loaded.replyToEmail) setReplyTo(loaded.replyToEmail);
       })
       .catch(() => {
-        // A failed load leaves the form on its defaults. It must not leave a
-        // stale config behind, because `config` is what decides whether an
-        // address is shown at all.
-        if (!cancelled) setConfig(null);
+        // A failed load leaves the form on its defaults, which are NOT this
+        // practice's settings. Saving them would overwrite a stored selection
+        // with defaults the user never chose, turning a transient read outage
+        // into data loss - so record the failure and let it disable saving.
+        // `config` is also cleared, because it is what decides whether a
+        // booking address is shown at all.
+        if (cancelled) return;
+        setConfig(null);
+        setLoadFailed(true);
       });
 
     return () => {
@@ -524,7 +552,10 @@ const PublicBookingSetup = () => {
 
   const toggleService = (id: string) => {
     setSelectionOverride((prev) => {
-      const next = new Set(prev ?? allBookableIds);
+      // `selected`, not `allBookableIds`: before the first toggle the override is
+      // null and the visible selection is the stored one, so seeding from every
+      // bookable id would silently re-select services the practice had removed.
+      const next = new Set(prev ?? selected);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
@@ -541,12 +572,15 @@ const PublicBookingSetup = () => {
   };
 
   const handleSave = () => {
-    if (!primaryOrgId || saving) return;
+    if (!primaryOrgId || saving || loadFailed) return;
     setSaving(true);
 
     bookingPageApi
       .saveConfig(primaryOrgId, {
-        serviceIds: [...selected],
+        // Filtered again at the boundary: `selected` can only contain bookable
+        // ids by construction, but the API rejects the whole payload if one is
+        // not, and a rejected save tells the practice nothing useful.
+        serviceIds: [...selected].filter((id) => allBookableIds.has(id)),
         bookingWindowDays,
         bufferMinutes,
         autoConfirm: !needsConfirmation,
@@ -621,6 +655,7 @@ const PublicBookingSetup = () => {
             onBack={() => setStep(1)}
             onSave={handleSave}
             saving={saving}
+            loadFailed={loadFailed}
           />
         )}
       </div>

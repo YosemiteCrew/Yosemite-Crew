@@ -229,10 +229,16 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm --filter frontend exec playwright install --with-deps chromium firefox
 
+      # Both authenticated specs run here and nowhere else. The public job runs
+      # an explicit two-file list, so a spec that needs a session has no other
+      # home: adding it to `e2e/` alone would mean it never executes.
+      # public-booking-setup.spec.ts follows the same credential-artefact rules
+      # as auth-flow.spec.ts (trace/screenshot/video off in-file, and the
+      # PLAYWRIGHT_NO_COPY_PROMPT above), which is why it is safe in this job.
       - name: Run authenticated Playwright flow
         env:
           E2E_WEB_SERVER_COMMAND: pnpm exec next start -p 3001 -H 127.0.0.1
-        run: pnpm --filter frontend exec playwright test e2e/auth-flow.spec.ts
+        run: pnpm --filter frontend exec playwright test e2e/auth-flow.spec.ts e2e/public-booking-setup.spec.ts
 
       # This job's artifacts are deliberately NOT uploaded.
       #

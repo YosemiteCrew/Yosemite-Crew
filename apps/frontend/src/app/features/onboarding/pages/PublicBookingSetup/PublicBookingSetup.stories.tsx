@@ -66,6 +66,7 @@ const SERVICES: ServiceRevamp[] = [
 
 const config = (over: Partial<BookingPageConfig> = {}): BookingPageConfig => ({
   organisationId: ORG_ID,
+  configured: false,
   slug: null,
   publicBookingEnabled: false,
   publicUrl: null,
@@ -274,7 +275,7 @@ export const BrandingStep: Story = {
     // one. This is the state that used to render a dead book.yosemitecrew.com URL.
     await expect(canvas.getByText('Reserved when you save')).toBeInTheDocument();
     await expect(canvas.queryByRole('button', { name: 'Copy' })).not.toBeInTheDocument();
-    await expect(canvas.queryByText(/book\.yosemitecrew\.com/)).not.toBeInTheDocument();
+    await expect(canvasElement.textContent).not.toContain('book.yosemitecrew.com');
 
     // Fields left, preview right, side by side from `md` up - two children on
     // one row, which is what the phone story below reverses.

@@ -388,6 +388,16 @@ export const resolveBookingPageUrl = (
 
 export type BookingPageConfig = {
   organisationId: string;
+  /**
+   * Whether this practice has ever saved its booking setup.
+   *
+   * Without this, a practice that deliberately saved zero services is
+   * indistinguishable from one that has never opened the wizard - both arrive as
+   * `serviceIds: []`. The caller needs to tell them apart, because one means
+   * "offer nothing publicly" and the other means "we have no answer yet, so
+   * default to everything bookable".
+   */
+  configured: boolean;
   slug: string | null;
   publicBookingEnabled: boolean;
   publicUrl: string | null;
@@ -415,6 +425,7 @@ const toConfig = (
   } | null,
 ): BookingPageConfig => ({
   organisationId,
+  configured: settings !== null,
   slug: organisation.bookingSlug,
   publicBookingEnabled: organisation.publicBookingEnabled,
   publicUrl: resolveBookingPageUrl(
