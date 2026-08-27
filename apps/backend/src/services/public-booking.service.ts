@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
-import customParseFormat from "dayjs/plugin/customParseFormat";
+import utc from "dayjs/plugin/utc.js";
+import customParseFormat from "dayjs/plugin/customParseFormat.js";
 import { prisma } from "src/config/prisma";
 import { CatalogService } from "./catalog.service";
 import { resolveBookingPageUrl } from "./booking-page.service";
