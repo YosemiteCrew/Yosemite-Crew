@@ -193,6 +193,24 @@ export interface TasksState {
   loading: boolean;
   error: string | null;
   hydratedCompanions: Record<string, boolean>;
+  /**
+   * Companions whose last list fetch FAILED, mapped to the message. Kept
+   * apart from `hydratedCompanions` so a screen can tell a failed load
+   * from an account that is genuinely empty - collapsing the two is what
+   * made every failure render as the new-user empty state.
+   */
+  failedCompanions: Record<string, string>;
+  /**
+   * requestId of the newest in-flight fetch per companion. Lets a rejection
+   * that arrives after a newer request already succeeded be discarded
+   * instead of overwriting a good result with a stale error.
+   */
+  activeRequests: Record<string, string>;
+  /**
+   * Epoch ms of the last SUCCESSFUL fetch per companion, so a stale list can
+   * say how old what the user is reading actually is.
+   */
+  lastLoadedAt: Record<string, number>;
 }
 
 // Form Data Types

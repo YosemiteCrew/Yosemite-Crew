@@ -2,6 +2,7 @@ import {createSelector} from '@reduxjs/toolkit';
 import type {RootState} from '@/app/store';
 import type {NotificationCategory} from './types';
 import {notificationsInitialState} from './notificationSlice';
+import {selectCollectionFailure} from '@/shared/store/collectionLoadState';
 
 const getNotificationsState = (state: RootState) =>
   state.notifications ?? notificationsInitialState;
@@ -28,9 +29,13 @@ export const selectNotificationSortBy = (state: RootState) =>
   getNotificationsState(state).sortBy;
 
 export const selectHasHydratedCompanion = (companionId: string | null) =>
-  createSelector(
-    [selectNotificationsState],
-    state => (companionId ? state.hydratedCompanions[companionId] : false),
+  createSelector([selectNotificationsState], state =>
+    companionId ? state.hydratedCompanions[companionId] : false,
+  );
+
+export const selectNotificationsLoadFailure = (companionId: string | null) =>
+  createSelector([selectNotificationsState], state =>
+    selectCollectionFailure(state, companionId),
   );
 
 export const selectLastFetchTimestamp = (state: RootState) =>
@@ -69,7 +74,8 @@ export const selectNotificationsByCategory = (category: NotificationCategory) =>
 // Notifications by priority
 export const selectHighPriorityNotifications = createSelector(
   [selectAllNotifications],
-  notifications => notifications.filter(n => n.priority === 'high' || n.priority === 'urgent'),
+  notifications =>
+    notifications.filter(n => n.priority === 'high' || n.priority === 'urgent'),
 );
 
 // Filtered and sorted notifications
@@ -92,7 +98,8 @@ export const selectFilteredAndSortedNotifications = createSelector(
 
     // Sort by most recent within the filtered set
     const sorted = [...filtered].sort(
-      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+      (a, b) =>
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
     );
 
     return sorted;
@@ -100,7 +107,9 @@ export const selectFilteredAndSortedNotifications = createSelector(
 );
 
 // Notifications for companion with filtering
-export const selectFilteredNotificationsForCompanion = (companionId: string | null) =>
+export const selectFilteredNotificationsForCompanion = (
+  companionId: string | null,
+) =>
   createSelector(
     [selectNotificationsForCompanion(companionId), selectNotificationFilter],
     (notifications, filter) => {
@@ -110,7 +119,9 @@ export const selectFilteredNotificationsForCompanion = (companionId: string | nu
   );
 
 // Sorted notifications for companion
-export const selectSortedNotificationsForCompanion = (companionId: string | null) =>
+export const selectSortedNotificationsForCompanion = (
+  companionId: string | null,
+) =>
   createSelector(
     [
       selectFilteredNotificationsForCompanion(companionId),
@@ -127,26 +138,23 @@ export const selectSortedNotificationsForCompanion = (companionId: string | null
       }
 
       return [...filtered].sort(
-        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
       );
     },
   );
 
 // Unread count by category
 export const selectUnreadCountByCategory = (category: NotificationCategory) =>
-  createSelector(
-    [selectUnreadNotifications],
-    notifications => {
-      if (category === 'all') return notifications.length;
-      return notifications.filter(n => n.category === category).length;
-    },
-  );
+  createSelector([selectUnreadNotifications], notifications => {
+    if (category === 'all') return notifications.length;
+    return notifications.filter(n => n.category === category).length;
+  });
 
 // Single notification by ID
 export const selectNotificationById = (notificationId: string) =>
-  createSelector(
-    [selectAllNotifications],
-    notifications => notifications.find(n => n.id === notificationId),
+  createSelector([selectAllNotifications], notifications =>
+    notifications.find(n => n.id === notificationId),
   );
 
 // Grouped notifications by category

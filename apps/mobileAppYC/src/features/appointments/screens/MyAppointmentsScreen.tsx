@@ -17,6 +17,14 @@ import {useTheme} from '@/hooks';
 import type {Theme} from '@/theme';
 import type {RootState, AppDispatch} from '@/app/store';
 import {fetchAppointmentsForCompanion} from '@/features/appointments/appointmentsSlice';
+import {
+  selectCollectionFailure,
+  selectCollectionLoadedAt,
+} from '@/shared/store/collectionLoadState';
+import {ListErrorState} from '@/shared/components/common/ListErrorState/ListErrorState';
+import {ListLoadingState} from '@/shared/components/common/ListLoadingState/ListLoadingState';
+import {ListStaleBanner} from '@/shared/components/common/ListStaleBanner/ListStaleBanner';
+import {isListStale} from '@/shared/utils/listPhase';
 import {setSelectedCompanion} from '@/features/companion';
 import {
   createSelectUpcomingAppointments,
@@ -111,6 +119,16 @@ export const MyAppointmentsScreen: React.FC = () => {
   const lastFetchedCompanionIdRef = React.useRef<string | null>(null);
   useAutoSelectCompanion(companions, selectedCompanionId);
 
+  const appointmentsLoadError = useSelector((state: RootState) =>
+    selectCollectionFailure(state.appointments, selectedCompanionId),
+  );
+  const appointmentsLoading = useSelector(
+    (state: RootState) => state.appointments?.loading ?? false,
+  );
+  const appointmentsLoadedAt = useSelector((state: RootState) =>
+    selectCollectionLoadedAt(state.appointments, selectedCompanionId),
+  );
+
   const fetchAppointmentsOnce = React.useCallback(
     (companionId?: string | null) => {
       /* istanbul ignore next -- fetchAppointmentsOnce is only ever called with a resolved companion id */
@@ -121,6 +139,14 @@ export const MyAppointmentsScreen: React.FC = () => {
     },
     [dispatch],
   );
+
+  // Retry has to clear the once-per-companion guard, otherwise pressing it
+  // after a failure is a no-op and the error never clears.
+  const retryFetchAppointments = React.useCallback(() => {
+    if (!selectedCompanionId) return;
+    lastFetchedCompanionIdRef.current = null;
+    fetchAppointmentsOnce(selectedCompanionId);
+  }, [fetchAppointmentsOnce, selectedCompanionId]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -284,6 +310,41 @@ export const MyAppointmentsScreen: React.FC = () => {
     </LiquidGlassCard>
   );
 
+  // Sections are keyed past | thisWeek | later | upcoming, so anything that is
+  // not 'past' takes the upcoming copy. One ternary, deliberately not a lookup
+  // table: a table keyed only on 'past'/'upcoming' would return undefined for
+  // thisWeek and later and crash on the property read.
+  const renderEmptySectionCard = (sectionKey: string) =>
+    sectionKey === 'past'
+      ? renderEmptyCard(
+          'No past appointments',
+          'Completed appointments will appear here.',
+        )
+      : renderEmptyCard(
+          'No upcoming appointments',
+          'Book a new appointment to see it here.',
+        );
+
+  // Order matters. The pending reducer clears the failure the moment a retry
+  // starts, so checking the error first would fall straight through to the
+  // empty card and make a slow retry look like it had already come back with
+  // nothing. Both empty cards read as "nothing booked"; neither is true while a
+  // request is in flight or after one failed.
+  const renderEmptySectionContent = (sectionKey: string) => {
+    if (appointmentsLoading) {
+      return <ListLoadingState testID={`appointments-loading-${sectionKey}`} />;
+    }
+    if (appointmentsLoadError) {
+      return (
+        <ListErrorState
+          testID={`appointments-load-error-${sectionKey}`}
+          onRetry={retryFetchAppointments}
+        />
+      );
+    }
+    return renderEmptySectionCard(sectionKey);
+  };
+
   const handleAdd = () => navigation.navigate('BrowseBusinesses');
 
   // The Upcoming/Past segmented control selects which set is shown; the
@@ -327,16 +388,9 @@ export const MyAppointmentsScreen: React.FC = () => {
       {section.data.length > 0 && (
         <Text style={styles.groupTitle}>{section.title}</Text>
       )}
-      {section.data.length === 0 &&
-        (section.key === 'past'
-          ? renderEmptyCard(
-              'No past appointments',
-              'Completed appointments will appear here.',
-            )
-          : renderEmptyCard(
-              'No upcoming appointments',
-              'Book a new appointment to see it here.',
-            ))}
+      {section.data.length === 0
+        ? renderEmptySectionContent(section.key)
+        : null}
     </View>
   );
 
@@ -627,15 +681,31 @@ export const MyAppointmentsScreen: React.FC = () => {
           renderItem={renderItem}
           renderSectionHeader={renderSectionHeader}
           ListHeaderComponent={
-            <CompanionSelector
-              companions={companions}
-              selectedCompanionId={selectedCompanionId}
-              onSelect={id => dispatch(setSelectedCompanion(id))}
-              showAddButton={false}
-              containerStyle={styles.companionSelector}
-              requiredPermission="appointments"
-              permissionLabel="appointments"
-            />
+            <>
+              <CompanionSelector
+                companions={companions}
+                selectedCompanionId={selectedCompanionId}
+                onSelect={id => dispatch(setSelectedCompanion(id))}
+                showAddButton={false}
+                containerStyle={styles.companionSelector}
+                requiredPermission="appointments"
+                permissionLabel="appointments"
+              />
+              {/* Above the list rather than replacing it: these appointments
+                  are still readable and still probably right, they just might
+                  not be current. */}
+              {isListStale({
+                loadError: appointmentsLoadError,
+                itemCount: filteredUpcoming.length + filteredPast.length,
+              }) ? (
+                <ListStaleBanner
+                  testID="appointments-stale-banner"
+                  lastLoadedAt={appointmentsLoadedAt}
+                  onRetry={retryFetchAppointments}
+                  style={styles.companionSelector}
+                />
+              ) : null}
+            </>
           }
           contentContainerStyle={[styles.container, contentPaddingStyle]}
           stickySectionHeadersEnabled={false}

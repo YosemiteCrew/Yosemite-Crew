@@ -57,7 +57,9 @@ describe('companion thunks', () => {
   const parentId = 'parent_123';
   const storageKey = `companions_${parentId}`;
   const mockedApi = companionApi as jest.Mocked<typeof companionApi>;
-  const loadStoredTokensMock = loadStoredTokens as jest.MockedFunction<typeof loadStoredTokens>;
+  const loadStoredTokensMock = loadStoredTokens as jest.MockedFunction<
+    typeof loadStoredTokens
+  >;
 
   const mockCompanion: Companion = {
     id: 'companion_1',
@@ -88,7 +90,14 @@ describe('companion thunks', () => {
   beforeEach(() => {
     store = createTestStore();
     jest.clearAllMocks();
-    loadStoredTokensMock.mockResolvedValue({accessToken: 'token'});
+    // A stored token now carries a readable expiry - either recorded at login
+    // or decoded from the JWT. getFreshStoredTokens treats an UNKNOWN expiry as
+    // "must refresh" rather than "still valid", so a mock without one would
+    // send every case down the SuperTokens refresh path.
+    loadStoredTokensMock.mockResolvedValue({
+      accessToken: 'token',
+      expiresAt: Date.now() + 60 * 60 * 1000,
+    });
   });
 
   describe('fetchCompanions', () => {
@@ -123,7 +132,9 @@ describe('companion thunks', () => {
 
     it('sets error when backend and cache both fail', async () => {
       mockedApi.listByParent.mockRejectedValue(new Error('network down'));
-      (AsyncStorage.getItem as jest.Mock).mockRejectedValue(new Error('cache failure'));
+      (AsyncStorage.getItem as jest.Mock).mockRejectedValue(
+        new Error('cache failure'),
+      );
 
       const result = await store.dispatch(fetchCompanions(parentId) as any);
 
@@ -189,7 +200,10 @@ describe('companion thunks', () => {
     });
 
     it('rejects when access token is missing', async () => {
-      loadStoredTokensMock.mockResolvedValue({accessToken: undefined as any});
+      loadStoredTokensMock.mockResolvedValue({
+        accessToken: undefined as any,
+        expiresAt: Date.now() + 60 * 60 * 1000,
+      });
 
       await store.dispatch(addCompanion({parentId, payload}) as any);
 
@@ -207,9 +221,7 @@ describe('companion thunks', () => {
       (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
       const updated = {...mockCompanion, name: 'Remote Name'};
       mockedApi.update.mockResolvedValue(updated);
-      store.dispatch(
-        fetchCompanions.fulfilled([mockCompanion], '', parentId),
-      );
+      store.dispatch(fetchCompanions.fulfilled([mockCompanion], '', parentId));
 
       await store.dispatch(
         updateCompanionProfile({parentId, updatedCompanion: updated}) as any,
@@ -227,7 +239,10 @@ describe('companion thunks', () => {
       mockedApi.update.mockRejectedValue(new Error('update failed'));
 
       await store.dispatch(
-        updateCompanionProfile({parentId, updatedCompanion: mockCompanion}) as any,
+        updateCompanionProfile({
+          parentId,
+          updatedCompanion: mockCompanion,
+        }) as any,
       );
 
       expect(store.getState().companion.error).toBe('update failed');
@@ -247,16 +262,15 @@ describe('companion thunks', () => {
 
       store.dispatch(
         fetchCompanions.fulfilled(
-          [
-            mockCompanion,
-            {...mockCompanion, id: 'two', name: 'Second'},
-          ],
+          [mockCompanion, {...mockCompanion, id: 'two', name: 'Second'}],
           '',
           parentId,
         ),
       );
 
-      await store.dispatch(deleteCompanion({parentId, companionId: 'two'}) as any);
+      await store.dispatch(
+        deleteCompanion({parentId, companionId: 'two'}) as any,
+      );
 
       const {key, value} = getLastPersistedValue();
       expect(mockedApi.remove).toHaveBeenCalledWith({

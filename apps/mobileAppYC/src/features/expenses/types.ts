@@ -57,4 +57,31 @@ export interface ExpensesState {
   error: string | null;
   summaries: Record<string, ExpenseSummary>;
   hydratedCompanions: Record<string, boolean>;
+  /**
+   * Companions whose last list fetch FAILED, mapped to the message. Kept
+   * apart from `hydratedCompanions` so a screen can tell a failed load
+   * from an account that is genuinely empty - collapsing the two is what
+   * made every failure render as the new-user empty state.
+   */
+  failedCompanions: Record<string, string>;
+  /**
+   * requestId of the newest in-flight fetch per companion. Lets a rejection
+   * that arrives after a newer request already succeeded be discarded
+   * instead of overwriting a good result with a stale error.
+   */
+  activeRequests: Record<string, string>;
+  /**
+   * Epoch ms of the last SUCCESSFUL fetch per companion, so a stale list can
+   * say how old what the user is reading actually is.
+   */
+  lastLoadedAt: Record<string, number>;
+  /**
+   * Failures of the SUMMARY fetch, kept apart from `failedCompanions`.
+   *
+   * Home dispatches fetchExpenseSummary; ExpensesMainScreen dispatches
+   * fetchExpensesForCompanion. Writing both into one entry meant a failed
+   * summary refresh from Home replaced a valid empty expense LIST with an
+   * error whose retry re-fetched the list - the thing that had not failed.
+   */
+  summaryFailedCompanions: Record<string, string>;
 }

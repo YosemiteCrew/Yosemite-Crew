@@ -1,6 +1,7 @@
 import SuperTokens from 'supertokens-react-native';
 import type {ProfileStatus} from '@/features/account/services/profileService';
 import {syncAuthUser} from '@/features/auth/services/authUserService';
+import {decodeJwtExpiration} from '@/features/auth/utils/jwt';
 import {
   initSuperTokens,
   resolveAuthEndpoint,
@@ -252,7 +253,11 @@ export const completePasswordlessSignIn = async (
       idToken: accessToken,
       accessToken,
       refreshToken: undefined,
-      expiresAt: undefined,
+      // Record the expiry at the source instead of leaving it undefined and
+      // hoping a later consumer derives it. An undefined expiry reads as
+      // "never expires" to isTokenExpired, which is how dead credentials used
+      // to reach the network as raw 401s.
+      expiresAt: decodeJwtExpiration(accessToken),
       userId,
       provider: 'supertokens',
     },

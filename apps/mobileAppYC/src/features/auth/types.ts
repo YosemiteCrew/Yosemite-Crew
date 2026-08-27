@@ -1,4 +1,7 @@
-import type {AuthProviderName, StoredAuthTokens} from '@/features/auth/services/tokenStorage';
+import type {
+  AuthProviderName,
+  StoredAuthTokens,
+} from '@/features/auth/services/tokenStorage';
 
 export type AuthProvider = AuthProviderName;
 
@@ -23,7 +26,6 @@ export interface User {
   };
 }
 
-
 export interface AuthTokens extends StoredAuthTokens {
   provider?: AuthProvider;
 }
@@ -34,7 +36,8 @@ export interface NormalizedAuthTokens extends AuthTokens {
   expiresAt?: number;
 }
 
-export type AuthStatus = 'idle' | 'initializing' | 'authenticated' | 'unauthenticated';
+export type AuthStatus =
+  'idle' | 'initializing' | 'authenticated' | 'unauthenticated';
 
 export interface AuthState {
   status: AuthStatus;
