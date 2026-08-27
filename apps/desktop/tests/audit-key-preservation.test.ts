@@ -121,6 +121,24 @@ describe('audit signing key preservation', () => {
     expect(log.getIntegrity().reason).toContain('no usable key');
   });
 
+  test.each(['../../../etc', 'data/../../secrets'])(
+    'refuses to read a signing key from a directory that escapes its parent: %s',
+    async (badDir) => {
+      // The key path was the last compliance path built with a bare join, so it
+      // never went through the containment check the log paths use - and it is
+      // the one that reads a secret. Seed a key at the traversed location so an
+      // unguarded join would demonstrably read it.
+      const escaped = `${badDir}/audit-key`;
+      mem.dirs.add(badDir);
+      mem.files.set(escaped, JSON.stringify({ enc: false, key: 'b'.repeat(64) }));
+
+      await expect(createAuditLog(badDir, deps())).rejects.toThrow(/escapes its parent/);
+      expect(mem.readFileSync.mock.calls.map(([f]) => f)).not.toContain(escaped);
+      // ...and the file at the traversed path is untouched.
+      expect(JSON.parse(mem.files.get(escaped)!).key).toBe('b'.repeat(64));
+    }
+  );
+
   test('a genuinely absent key is still created on first run', async () => {
     const log = await createAuditLog(DIR, deps());
     expect(mem.files.has(KEY_PATH)).toBe(true);

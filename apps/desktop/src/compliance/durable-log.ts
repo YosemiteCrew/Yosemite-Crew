@@ -78,7 +78,11 @@ interface WatermarkFile {
   brokenAt?: number;
   reason?: string;
   quarantined?: string[];
+  /** Set once the legacy array log has been converted. Never migrate twice. */
+  migratedAt?: number;
 }
+
+const CORRUPTION_REASON = 'unparseable record inside the log';
 
 const defaultFs = (): DurableLogFs => ({
   readFileSync: fs.readFileSync,
@@ -117,7 +121,7 @@ const assertSafeDirectory = (dirPath: string): void => {
   }
 };
 
-const containedPath = (dirPath: string, name: string): string => {
+export const containedPath = (dirPath: string, name: string): string => {
   assertSafeDirectory(dirPath);
   const base = path.resolve(dirPath);
   const target = path.resolve(base, name);
@@ -204,18 +208,14 @@ const parseLines = <T>(raw: string, isRecord: (v: unknown) => v is T): ParsedLog
     }
   }
 
-  // The trailing fragment has no terminating newline, so an interrupted append
-  // can only have damaged this one. Keep it if it happens to be complete.
-  let tornTail: string | null = null;
-  if (trailing.trim() !== '') {
-    try {
-      const value: unknown = JSON.parse(trailing);
-      if (isRecord(value)) parsed.push(value);
-      else tornTail = trailing;
-    } catch {
-      tornTail = trailing;
-    }
-  }
+  // The terminating newline IS the commit marker. A record is written as
+  // `json + "\n"` in one write followed by fsync, so a complete record always
+  // carries its newline; a trailing fragment without one means the write did
+  // not finish, whether or not the JSON happens to parse. Accepting a
+  // parseable-but-unterminated tail would commit a record whose caller was
+  // explicitly told the append failed - resurrecting a controlled-substance
+  // transaction after its `:not-recorded` compensation was already written.
+  const tornTail = trailing.trim() === '' ? null : trailing;
 
   return { parsed, tornTail, midFileCorruption };
 };
@@ -241,6 +241,8 @@ export const createJsonlStore = <T>(opts: JsonlStoreOptions<T>): JsonlStore<T> =
   };
   /** Set when a record reached the log but its watermark update did not. */
   let watermarkStale: string | null = null;
+  /** Set when the existing history could not be read. Blocks all appends. */
+  let unreadableReason: string | null = null;
 
   const readState = (): WatermarkFile => {
     try {
@@ -270,6 +272,14 @@ export const createJsonlStore = <T>(opts: JsonlStoreOptions<T>): JsonlStore<T> =
    * presented as an intact history again.
    */
   const preserveDamaged = (raw: string, reason: string, priorState: WatermarkFile): string | null => {
+    // The damaged line is deliberately left in the live log, so every launch
+    // re-detects it. Copying the whole compliance log each time would grow
+    // without bound and eventually fill the volume, which would itself start
+    // failing compliance writes. One copy per break is enough; the sidecar
+    // already carries the break and the path to the copy.
+    const alreadyPreserved = priorState.quarantined?.[priorState.quarantined.length - 1];
+    if (priorState.brokenAt && alreadyPreserved) return alreadyPreserved;
+
     const quarantinePath = `${filePath}.corrupt-${now()}`;
     try {
       writeDurably(fsq, quarantinePath, raw, 'w');
@@ -298,8 +308,16 @@ export const createJsonlStore = <T>(opts: JsonlStoreOptions<T>): JsonlStore<T> =
    * temp file and renamed, so an interrupted migration leaves the legacy file
    * untouched and is simply retried on the next launch.
    */
-  const migrateLegacy = (): boolean => {
+  const migrateLegacy = (state: WatermarkFile): boolean => {
     if (!legacyPath || fsq.existsSync(filePath) || !fsq.existsSync(legacyPath)) return false;
+    // The legacy array is kept after migration rather than deleted. If the live
+    // log is later lost - the very loss the watermark exists to detect -
+    // re-running the migration would rebuild an old snapshot and overwrite the
+    // newer count and marker with the legacy ones, so every record added since
+    // the original migration would vanish while the store reported itself
+    // healthy. A watermark proving a newer log existed means this is loss, not
+    // a first run.
+    if (state.migratedAt !== undefined || state.count !== undefined) return false;
     const parsed: unknown = JSON.parse(String(fsq.readFileSync(legacyPath, 'utf8')));
     if (!Array.isArray(parsed)) throw new Error('legacy log is not an array');
     const valid = parsed.filter(opts.isRecord);
@@ -310,7 +328,11 @@ export const createJsonlStore = <T>(opts: JsonlStoreOptions<T>): JsonlStore<T> =
     fsq.renameSync(tmpPath, filePath);
     syncDirectory(fsq, opts.dirPath);
     const lastValid = valid.length > 0 ? valid[valid.length - 1]! : null;
-    writeState({ count: valid.length, last: lastValid ? opts.watermarkOf(lastValid) : '' });
+    writeState({
+      count: valid.length,
+      last: lastValid ? opts.watermarkOf(lastValid) : '',
+      migratedAt: now(),
+    });
     return true;
   };
 
@@ -336,8 +358,8 @@ export const createJsonlStore = <T>(opts: JsonlStoreOptions<T>): JsonlStore<T> =
   };
 
   /** Reads the live log, migrating a legacy array file first if one is present. */
-  const readRaw = (): string => {
-    const migrated = migrateLegacy();
+  const readRaw = (state: WatermarkFile): string => {
+    const migrated = migrateLegacy(state);
     if (!migrated && !fsq.existsSync(filePath)) return '';
     return String(fsq.readFileSync(filePath, 'utf8'));
   };
@@ -364,10 +386,13 @@ export const createJsonlStore = <T>(opts: JsonlStoreOptions<T>): JsonlStore<T> =
     quarantineFailed: boolean
   ): string[] => {
     const reasons: string[] = [];
-    if (quarantinePath)
-      reasons.push(`unparseable records found; a copy of the damaged log is at ${quarantinePath}`);
+    // Kept short and stable so it matches what gets persisted: the freshly
+    // detected reason and the one replayed from the sidecar must collapse to
+    // one line rather than stacking on every launch. The path to the copy is
+    // reported separately as health.quarantinePath.
+    if (quarantinePath) reasons.push(CORRUPTION_REASON);
     else if (quarantineFailed)
-      reasons.push('unparseable records found and the damaged log could not be copied aside');
+      reasons.push('unparseable record inside the log, which could not be copied aside');
     if (state.brokenAt) reasons.push(state.reason || 'log was previously found damaged');
 
     const expected = state.count ?? 0;
@@ -385,7 +410,7 @@ export const createJsonlStore = <T>(opts: JsonlStoreOptions<T>): JsonlStore<T> =
     }
     if (tornTail !== null) reasons.push('the final record was written incompletely and was discarded');
     if (watermarkStale) reasons.push(watermarkStale);
-    return reasons;
+    return [...new Set(reasons)];
   };
 
   const load = (): T[] => {
@@ -395,13 +420,14 @@ export const createJsonlStore = <T>(opts: JsonlStoreOptions<T>): JsonlStore<T> =
 
     let raw: string;
     try {
-      raw = readRaw();
+      raw = readRaw(state);
     } catch (error) {
       // The file exists but cannot be read or migrated. Reporting "no records"
       // here is what lets a wiped register look like a clean install, so the log
       // is marked unreadable and callers must treat it as untrustworthy.
       records = [];
-      health = unreadable((error as Error).message, watermarkCount);
+      unreadableReason = (error as Error).message;
+      health = unreadable(unreadableReason, watermarkCount);
       opts.onDamage?.(health);
       return records;
     }
@@ -413,7 +439,7 @@ export const createJsonlStore = <T>(opts: JsonlStoreOptions<T>): JsonlStore<T> =
 
     // The parseable records stay live and appendable; only a copy is set aside.
     const quarantinePath = midFileCorruption
-      ? preserveDamaged(raw, 'unparseable record inside the log', state)
+      ? preserveDamaged(raw, CORRUPTION_REASON, state)
       : null;
 
     const reasons = damageReasons(
@@ -434,7 +460,24 @@ export const createJsonlStore = <T>(opts: JsonlStoreOptions<T>): JsonlStore<T> =
       watermarkCount,
       tornTail: tornTail !== null,
     };
-    if (!health.ok) opts.onDamage?.(health);
+    if (!health.ok) {
+      // A detected loss that lives only in memory is erased by ordinary use:
+      // once enough new records replace the missing ones the count matches
+      // again, the marker is present, and the shortened log certifies as
+      // intact. Persist the break so it outlives the session that saw it.
+      // Re-read rather than reusing the snapshot taken at the top of load():
+      // preserveDamaged may have written brokenAt and the quarantine path since
+      // then, and writing a stale copy back would erase them.
+      const current = readState();
+      if (!current.brokenAt && health.reason) {
+        try {
+          writeState({ ...current, brokenAt: now(), reason: health.reason });
+        } catch {
+          // Best effort: the in-memory report still stands for this session.
+        }
+      }
+      opts.onDamage?.(health);
+    }
     return records;
   };
 
@@ -456,6 +499,15 @@ export const createJsonlStore = <T>(opts: JsonlStoreOptions<T>): JsonlStore<T> =
 
   const append = (record: T): void => {
     const current = load();
+    if (unreadableReason !== null) {
+      // The cache is empty because the history could not be READ, not because
+      // there is none. Appending here would sign an audit entry with a genesis
+      // prevSignature over a log that still exists, and would report a
+      // controlled-substance register that omits every prior transaction.
+      throw new Error(
+        `refusing to append: the existing log could not be read (${unreadableReason})`
+      );
+    }
     fsq.mkdirSync(opts.dirPath, { recursive: true });
     const isNewFile = !fsq.existsSync(filePath);
     // A torn tail has no newline of its own; without this separator the new

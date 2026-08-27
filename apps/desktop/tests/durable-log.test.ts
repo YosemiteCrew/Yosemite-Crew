@@ -90,6 +90,89 @@ describe('createJsonlStore', () => {
     ).toThrow(/resolves outside the log directory/);
   });
 
+  test('a complete but unterminated tail is NOT committed', () => {
+    // A short write can persist the whole JSON object and lose only the
+    // newline. The caller was told the append failed, so accepting this record
+    // would resurrect a transaction the caller believes does not exist.
+    mem.files.set(LOG, '{"id":"a","value":1}\n{"id":"b","value":2}');
+    const store = makeStore();
+
+    expect(store.readAll()).toEqual([{ id: 'a', value: 1 }]);
+    expect(store.health().tornTail).toBe(true);
+    expect(mem.files.get(LOG)).toBe('{"id":"a","value":1}\n');
+    // The rejected bytes are kept for inspection rather than destroyed.
+    const torn = [...mem.files.keys()].find((k) => k.includes('.torn-'))!;
+    expect(mem.files.get(torn)).toBe('{"id":"b","value":2}');
+  });
+
+  test('refuses to append when the existing history could not be read', () => {
+    mem.files.set(LOG, '{"id":"a","value":1}\n');
+    mem.readFileSync.mockImplementation((p: string) => {
+      if (p === LOG) throw new Error('EACCES: permission denied');
+      throw new Error('ENOENT');
+    });
+
+    const store = makeStore();
+    expect(store.readAll()).toEqual([]);
+    // The cache is empty because the log is unreadable, not because it is
+    // empty. Appending would start a fresh history over an existing one.
+    expect(() => store.append({ id: 'b', value: 2 })).toThrow(/could not be read/);
+  });
+
+  test('does not re-migrate a legacy log after the live log is lost', () => {
+    mem.files.set(LEGACY, JSON.stringify([{ id: 'old-1', value: 1 }]));
+    const first = makeStore();
+    expect(first.readAll()).toEqual([{ id: 'old-1', value: 1 }]);
+    first.append({ id: 'new-1', value: 2 });
+    expect(JSON.parse(mem.files.get(STATE)!)).toMatchObject({ count: 2, last: 'new-1' });
+
+    // The live log is lost. Re-running the migration would rebuild the stale
+    // snapshot and overwrite the newer watermark, hiding the loss entirely.
+    mem.files.delete(LOG);
+    const reopened = makeStore();
+
+    expect(reopened.readAll()).toEqual([]);
+    expect(reopened.health().ok).toBe(false);
+    expect(reopened.health().reason).toContain('2 record(s) missing');
+    expect(JSON.parse(mem.files.get(STATE)!).last).toBe('new-1');
+  });
+
+  test('persists a detected loss so ordinary use cannot erase it', () => {
+    const store = makeStore();
+    for (const id of ['a', 'b', 'c']) store.append({ id, value: 1 });
+
+    // Truncate to one record, then record enough new ones to restore the count.
+    mem.files.set(LOG, '{"id":"a","value":1}\n');
+    const shortened = makeStore();
+    expect(shortened.health().reason).toContain('2 record(s) missing');
+    // The break reached the sidecar, not just this session's memory.
+    expect(JSON.parse(mem.files.get(STATE)!).brokenAt).toBeGreaterThan(0);
+
+    shortened.append({ id: 'd', value: 1 });
+    shortened.append({ id: 'e', value: 1 });
+
+    const later = makeStore();
+    expect(later.readAll()).toHaveLength(3);
+    // Counts line up again and the marker is present, so without the persisted
+    // break this would now certify as intact.
+    expect(later.health().ok).toBe(false);
+  });
+
+  test('copies a persistent corruption once, not on every launch', () => {
+    mem.files.set(LOG, '{"id":"a","value":1}\ngarbage\n{"id":"b","value":2}\n');
+    const first = makeStore();
+    const path1 = first.health().quarantinePath!;
+    expect(path1).toBeTruthy();
+
+    // The damaged line stays in the live log by design, so every launch
+    // re-detects it. Copying the whole log each time would fill the volume.
+    const second = makeStore();
+    const third = makeStore();
+    expect(second.health().quarantinePath).toBe(path1);
+    expect(third.health().quarantinePath).toBe(path1);
+    expect([...mem.files.keys()].filter((k) => k.includes('.corrupt-'))).toHaveLength(1);
+  });
+
   test('an unreadable watermark does not by itself condemn the log', () => {
     mem.files.set(LOG, '{"id":"a","value":1}\n');
     mem.files.set(STATE, 'not json at all');

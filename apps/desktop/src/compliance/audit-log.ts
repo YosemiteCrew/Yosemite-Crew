@@ -1,10 +1,14 @@
 'use strict';
 
 import fs from 'node:fs';
-import path from 'node:path';
 import crypto from 'node:crypto';
 import { Buffer } from 'node:buffer';
-import { createJsonlStore, type DurableLogFs, type JsonlHealth } from './durable-log';
+import {
+  containedPath,
+  createJsonlStore,
+  type DurableLogFs,
+  type JsonlHealth,
+} from './durable-log';
 
 export interface AuditEntry {
   id: string;
@@ -130,7 +134,10 @@ export const createAuditLog = async (dirPath: string, deps: AuditDeps = {}): Pro
   const mkdirSync = deps.mkdirSync || fs.mkdirSync;
   const existsSync = deps.existsSync || fs.existsSync;
   const now = deps.now || (() => Date.now());
-  const keyPath = path.join(dirPath, AUDIT_KEY_FILENAME);
+  // The signing key was the one compliance path still built with a bare join,
+  // so it never went through the containment check every other path in these
+  // stores uses. It reads a secret, which makes it the worst one to leave out.
+  const keyPath = containedPath(dirPath, AUDIT_KEY_FILENAME);
 
   const secureStore = await resolveSecureStore(deps);
 
