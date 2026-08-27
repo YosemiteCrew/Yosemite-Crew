@@ -36,6 +36,12 @@ export type BookingPageSettingsPayload = {
   autoConfirm: boolean;
   welcomeMessage: string | null;
   replyToEmail: string | null;
+  /**
+   * Whether `/book/<slug>` should answer. Optional on the wire: a caller that
+   * omits it is saving settings, and saving settings must never publish a
+   * practice as a side effect.
+   */
+  publicBookingEnabled?: boolean;
 };
 
 type ConfigEnvelope = { data: BookingPageConfig };

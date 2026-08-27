@@ -319,6 +319,9 @@ type BrandingStepProps = {
   onSave: () => void;
   saving: boolean;
   loadFailed: boolean;
+  publish: boolean;
+  onTogglePublish: () => void;
+  hasBookableServices: boolean;
 };
 
 const BookingBrandingStep = ({
@@ -339,6 +342,9 @@ const BookingBrandingStep = ({
   onSave,
   saving,
   loadFailed,
+  publish,
+  onTogglePublish,
+  hasBookableServices,
 }: BrandingStepProps) => (
   <>
     <SetupHeader step={step} label="of 2 · Branding & review" />
@@ -412,6 +418,32 @@ const BookingBrandingStep = ({
 
       <BookingAddress slug={slug} publicUrl={publicUrl} copied={copied} onCopy={onCopy} />
 
+      <div className="flex items-center justify-between gap-3 px-3.5 py-3 rounded-[14px] border border-[var(--divider)] bg-[var(--inset)]">
+        <span className="text-[12.5px] text-[var(--ink-body)]">
+          <strong className="text-[var(--ink)]">Open my booking page.</strong>{' '}
+          {hasBookableServices
+            ? 'Pet parents can find and use it as soon as you save.'
+            : 'Mark at least one service bookable first — an open page with nothing to book helps nobody.'}
+        </span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={publish}
+          aria-label="Open my booking page"
+          disabled={!hasBookableServices}
+          onClick={onTogglePublish}
+          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full disabled:opacity-50 ${
+            publish ? 'bg-primary-600' : 'bg-neutral-300'
+          }`}
+        >
+          <span
+            className={`inline-block h-5 w-5 rounded-full bg-neutral-0 transition-transform ${
+              publish ? 'translate-x-5' : 'translate-x-0.5'
+            }`}
+          />
+        </button>
+      </div>
+
       {loadFailed ? (
         <p
           role="alert"
@@ -444,6 +476,22 @@ const BookingBrandingStep = ({
     </div>
   </>
 );
+
+/**
+ * What to tell the practice after a save.
+ *
+ * Three distinct outcomes, and conflating them is how the old wizard misled
+ * people: the page is live and has an address to share, the practice asked to
+ * publish but this environment has no public origin configured so nothing is
+ * reachable yet, or the practice deliberately left it closed.
+ */
+const resolveSavedMessage = (saved: BookingPageConfig): string => {
+  if (saved.publicUrl) return 'Your booking page is live at the address above.';
+  if (saved.publicBookingEnabled) {
+    return 'Saved. Your booking page is switched on, but no public address is configured for this environment yet.';
+  }
+  return 'Saved. Your booking page is closed to pet parents until you open it.';
+};
 
 const PublicBookingSetup = () => {
   const { notify } = useNotify();
@@ -479,6 +527,7 @@ const PublicBookingSetup = () => {
   const [config, setConfig] = useState<BookingPageConfig | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [publishOverride, setPublishOverride] = useState<boolean | null>(null);
 
   // A practice that has saved before gets its own selection back, including a
   // deliberate empty one; a practice that has never saved gets everything
@@ -495,6 +544,10 @@ const PublicBookingSetup = () => {
     [config, allBookableIds]
   );
   const selected = selectionOverride ?? storedSelection ?? allBookableIds;
+
+  // Publication follows the stored value until the practice touches the switch.
+  const publish = publishOverride ?? config?.publicBookingEnabled ?? false;
+  const hasBookableServices = allBookableIds.size > 0;
 
   useEffect(() => {
     if (primaryOrgId) {
@@ -530,6 +583,7 @@ const PublicBookingSetup = () => {
         setBookingWindowDays(loaded.bookingWindowDays);
         setBufferMinutes(loaded.bufferMinutes);
         setNeedsConfirmation(!loaded.autoConfirm);
+        setPublishOverride(null);
         if (loaded.welcomeMessage) setWelcome(loaded.welcomeMessage);
         if (loaded.replyToEmail) setReplyTo(loaded.replyToEmail);
       })
@@ -586,15 +640,14 @@ const PublicBookingSetup = () => {
         autoConfirm: !needsConfirmation,
         welcomeMessage: welcome.trim() || null,
         replyToEmail: replyTo.trim() || null,
+        publicBookingEnabled: publish,
       })
       .then((saved) => {
         setConfig(saved);
         setSelectionOverride(null);
         notify('success', {
           title: 'Booking setup saved',
-          text: saved.publicUrl
-            ? 'Your booking page is live at the address above.'
-            : 'Your booking page is not open to pet parents yet. These settings apply the moment it is.',
+          text: resolveSavedMessage(saved),
         });
       })
       .catch(() => {
@@ -656,6 +709,9 @@ const PublicBookingSetup = () => {
             onSave={handleSave}
             saving={saving}
             loadFailed={loadFailed}
+            publish={publish}
+            onTogglePublish={() => setPublishOverride(!publish)}
+            hasBookableServices={hasBookableServices}
           />
         )}
       </div>

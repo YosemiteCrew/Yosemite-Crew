@@ -573,6 +573,9 @@ describe('PublicBookingSetup', () => {
         autoConfirm: true,
         welcomeMessage: 'Come and see us',
         replyToEmail: 'desk@x.vet',
+        // Unchanged: the practice did not touch the publish switch, so the save
+        // carries whatever was already stored.
+        publicBookingEnabled: false,
       });
     });
 
@@ -599,7 +602,7 @@ describe('PublicBookingSetup', () => {
           'success',
           expect.objectContaining({
             title: 'Booking setup saved',
-            text: expect.stringContaining('not open to pet parents yet'),
+            text: expect.stringContaining('closed to pet parents until you open it'),
           })
         )
       );
@@ -618,6 +621,56 @@ describe('PublicBookingSetup', () => {
           'success',
           expect.objectContaining({ text: expect.stringContaining('live at the address above') })
         )
+      );
+    });
+
+    it('publishes the page when the practice opens it', async () => {
+      await goToBranding();
+
+      fireEvent.click(screen.getByRole('switch', { name: 'Open my booking page' }));
+      fireEvent.click(screen.getByRole('button', { name: /Save booking setup/ }));
+
+      await waitFor(() => expect(saveConfigMock).toHaveBeenCalled());
+      expect(saveConfigMock.mock.calls[0][1].publicBookingEnabled).toBe(true);
+    });
+
+    it('refuses to offer publishing with nothing bookable', async () => {
+      servicesState = [];
+      await goToBranding();
+
+      const toggle = screen.getByRole('switch', { name: 'Open my booking page' });
+      expect(toggle).toBeDisabled();
+      expect(screen.getByText(/Mark at least one service bookable first/)).toBeInTheDocument();
+    });
+
+    it('says so when publishing succeeded but the environment has no public address', async () => {
+      saveConfigMock.mockResolvedValue(
+        config({ configured: true, publicBookingEnabled: true, publicUrl: null })
+      );
+      await goToBranding();
+
+      fireEvent.click(screen.getByRole('switch', { name: 'Open my booking page' }));
+      fireEvent.click(screen.getByRole('button', { name: /Save booking setup/ }));
+
+      await waitFor(() =>
+        expect(notifyMock).toHaveBeenCalledWith(
+          'success',
+          expect.objectContaining({
+            text: expect.stringContaining('no public address is configured'),
+          })
+        )
+      );
+    });
+
+    it('reflects a practice that is already published', async () => {
+      getConfigMock.mockResolvedValue(
+        config({ configured: true, publicBookingEnabled: true, publicUrl: 'https://a/book/x' })
+      );
+      await goToBranding();
+
+      expect(screen.getByRole('switch', { name: 'Open my booking page' })).toHaveAttribute(
+        'aria-checked',
+        'true'
       );
     });
 
