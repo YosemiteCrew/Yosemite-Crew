@@ -226,14 +226,28 @@ const isMissingLocalVariablesModule = (error: unknown): boolean => {
   const candidate = error as Partial<NodeJS.ErrnoException> & {
     message?: string;
   };
-  if (candidate.code !== 'MODULE_NOT_FOUND') {
-    return false;
+  const message =
+    typeof candidate.message === 'string' ? candidate.message : '';
+
+  // Node and Jest resolve this the normal way and tag the failure.
+  if (candidate.code === 'MODULE_NOT_FOUND') {
+    return message.includes('variables.local');
   }
 
-  return (
-    typeof candidate.message === 'string' &&
-    candidate.message.includes('variables.local')
-  );
+  // Metro does not. A require it cannot resolve inside a try block becomes a
+  // null slot in the module's dependency map, and the require polyfill then
+  // throws a plain Error with no `code` at all. A release bundle carries no
+  // module name either, so bare "Cannot find module" is the whole signal we
+  // get. Without this branch the throw escapes, and because this module reads
+  // its config at module scope that is a launch crash on any build that does
+  // not ship a variables.local.ts.
+  if (message.startsWith('Cannot find module')) {
+    return (
+      message === 'Cannot find module' || message.includes('variables.local')
+    );
+  }
+
+  return false;
 };
 
 const loadLocalVariablesModule = (): LocalVariablesModule => {

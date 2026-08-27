@@ -331,6 +331,33 @@ describe('passwordlessAuth', () => {
       expect(result.isNewUser).toBe(true);
     });
 
+    // Login used to return `expiresAt: undefined` outright, so even a working
+    // decoder further downstream had nothing to work from at the moment the
+    // session was created. isTokenExpired reads a missing expiry as "still
+    // valid", which is how dead credentials reached the network as raw 401s.
+    it('records the token expiry from the access token at sign-in', async () => {
+      await requestCode();
+      mockFetch.mockResolvedValueOnce(makeResponse(okConsumeBody));
+      // {"exp":1893456000} in base64url.
+      mockSuperTokens.getAccessToken.mockResolvedValue(
+        ['header', 'eyJleHAiOjE4OTM0NTYwMDB9', 'sig'].join('.'),
+      );
+
+      const result = await completePasswordlessSignIn('123456');
+
+      expect(result.tokens.expiresAt).toBe(1893456000 * 1000);
+    });
+
+    it('leaves the expiry undefined when the access token is not a JWT', async () => {
+      await requestCode();
+      mockFetch.mockResolvedValueOnce(makeResponse(okConsumeBody));
+      mockSuperTokens.getAccessToken.mockResolvedValue('opaque-token');
+
+      const result = await completePasswordlessSignIn('123456');
+
+      expect(result.tokens.expiresAt).toBeUndefined();
+    });
+
     it('falls back to the requested email when the response has none', async () => {
       await requestCode();
       mockFetch.mockResolvedValueOnce(

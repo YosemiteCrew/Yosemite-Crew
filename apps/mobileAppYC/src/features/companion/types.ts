@@ -66,6 +66,15 @@ export interface CompanionState {
   selectedCompanionId: string | null;
   loading: boolean;
   error: string | null;
+  /**
+   * A successful fetchCompanions has completed at least once. Without this an
+   * empty `companions` array is ambiguous - it could mean "no companions yet",
+   * "still loading", or "the fetch failed" - and the screens resolved that
+   * ambiguity by always assuming the first.
+   */
+  hasLoaded: boolean;
+  /** The message from the last failed fetchCompanions, if it failed. */
+  loadError: string | null;
 }
 
 export type AddCompanionPayload = CompanionProfileData;

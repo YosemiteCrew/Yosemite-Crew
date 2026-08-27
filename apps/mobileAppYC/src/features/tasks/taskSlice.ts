@@ -9,11 +9,20 @@ import {
   markTaskStatus,
 } from './thunks';
 
+import {
+  markCollectionFailed,
+  markCollectionHydrated,
+  markCollectionPending,
+} from '@/shared/store/collectionLoadState';
+
 const initialState: TasksState = {
   items: [],
   loading: false,
   error: null,
   hydratedCompanions: {},
+  failedCompanions: {},
+  activeRequests: {},
+  lastLoadedAt: {},
 };
 
 const tasksSlice = createSlice({
@@ -29,7 +38,9 @@ const tasksSlice = createSlice({
       action: PayloadAction<{companionId: string; tasks: Task[]}>,
     ) => {
       const {companionId, tasks} = action.payload;
-      state.items = state.items.filter(item => item.companionId !== companionId);
+      state.items = state.items.filter(
+        item => item.companionId !== companionId,
+      );
       state.items.push(...tasks);
       state.hydratedCompanions[companionId] = true;
     },
@@ -51,28 +62,44 @@ const tasksSlice = createSlice({
         state.error = null;
       })
       // Fetch tasks for companion
-      .addCase(fetchTasksForCompanion.pending, state => {
+      .addCase(fetchTasksForCompanion.pending, (state, action) => {
         state.loading = true;
         state.error = null;
+        markCollectionPending(
+          state,
+          action.meta?.arg?.companionId,
+          action.meta?.requestId,
+        );
       })
       .addCase(fetchTasksForCompanion.fulfilled, (state, action) => {
         state.loading = false;
         const {companionId, tasks} = action.payload;
 
         if (companionId) {
-          state.items = state.items.filter(item => item.companionId !== companionId);
+          state.items = state.items.filter(
+            item => item.companionId !== companionId,
+          );
         } else {
           state.items = [];
         }
 
         state.items.push(...tasks);
-        if (companionId) {
-          state.hydratedCompanions[companionId] = true;
-        }
+        markCollectionHydrated(
+          state,
+          companionId,
+          Date.now(),
+          action.meta?.requestId,
+        );
       })
       .addCase(fetchTasksForCompanion.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload ?? 'Unable to fetch tasks';
+        markCollectionFailed(
+          state,
+          action.meta?.arg?.companionId,
+          action.payload,
+          action.meta?.requestId,
+        );
       })
 
       // Add task
@@ -148,6 +175,11 @@ const tasksSlice = createSlice({
   },
 });
 
-export const {clearTaskError, injectMockTasks, resetTasksState, setTaskCalendarEventId} = tasksSlice.actions;
+export const {
+  clearTaskError,
+  injectMockTasks,
+  resetTasksState,
+  setTaskCalendarEventId,
+} = tasksSlice.actions;
 
 export default tasksSlice.reducer;

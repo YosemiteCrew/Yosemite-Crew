@@ -26,6 +26,7 @@ const STRICT_CSP_PATH_PREFIXES = [
   '/create-org',
   '/dashboard',
   '/developers/api-keys',
+  '/developers/billing',
   '/developers/documentation',
   '/developers/home',
   '/developers/plugins',

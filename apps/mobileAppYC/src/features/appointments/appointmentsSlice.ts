@@ -406,12 +406,21 @@ export const fetchInvoiceForAppointment = createAsyncThunk(
   },
 );
 
+import {
+  markCollectionFailed,
+  markCollectionHydrated,
+  markCollectionPending,
+} from '@/shared/store/collectionLoadState';
+
 const initialState: AppointmentsState = {
   items: [],
   invoices: [],
   loading: false,
   error: null,
   hydratedCompanions: {},
+  failedCompanions: {},
+  activeRequests: {},
+  lastLoadedAt: {},
 };
 
 const upsertAppointment = (
@@ -442,21 +451,38 @@ const appointmentsSlice = createSlice({
   },
   extraReducers: builder => {
     builder
-      .addCase(fetchAppointmentsForCompanion.pending, state => {
+      .addCase(fetchAppointmentsForCompanion.pending, (state, action) => {
         state.loading = true;
         state.error = null;
+        markCollectionPending(
+          state,
+          action.meta?.arg?.companionId,
+          action.meta?.requestId,
+        );
       })
       .addCase(fetchAppointmentsForCompanion.fulfilled, (state, action) => {
         state.loading = false;
         const {companionId, items} = action.payload;
         state.items = state.items.filter(a => a.companionId !== companionId);
         state.items.push(...items);
-        state.hydratedCompanions[companionId] = true;
+        markCollectionHydrated(
+          state,
+          companionId,
+          Date.now(),
+          action.meta?.requestId,
+        );
       })
       .addCase(fetchAppointmentsForCompanion.rejected, (state, action) => {
         state.loading = false;
-        state.error =
+        const message =
           (action.payload as string) ?? 'Unable to fetch appointments';
+        state.error = message;
+        markCollectionFailed(
+          state,
+          action.meta?.arg?.companionId,
+          message,
+          action.meta?.requestId,
+        );
       })
       .addCase(fetchAppointmentById.fulfilled, (state, action) => {
         upsertAppointment(state, action.payload);

@@ -23,15 +23,24 @@ Before every submission - **do not bump versions mid-review**:
    - `UI_FEATURE_FLAGS.forceLiquidGlassBorder = false`
    - `MOBILE_CONFIG_BEHAVIOR.overrides.forceLiquidGlassBorder = false`
 
-2. **Silence console output** - the console-silencing noop block near the top level of `App.tsx` (search for `const noop`) must be active:
+2. **Silence console output** - nothing to do. The console-silencing block in
+   `App.tsx` is guarded by `if (!__DEV__)`, so a release build is quiet and a
+   Debug build keeps its logs (search for `const noop` to confirm it is intact):
 
    ```ts
-   const noop = () => {};
-   console.log = noop;
-   console.info = noop;
-   console.debug = noop;
-   console.trace = noop;
+   if (!__DEV__) {
+     const noop = () => {};
+     console.log = noop;
+     console.info = noop;
+     console.debug = noop;
+     console.trace = noop;
+   }
    ```
+
+   It used to run unconditionally, which muted Debug builds too and is why a
+   token-expiry bug warned on every call for a whole release without anyone
+   seeing it. Do not remove the `__DEV__` guard to "make release quieter" - it
+   already is.
 
 3. **Version bumps** (only for a new submission or after rejection):
 

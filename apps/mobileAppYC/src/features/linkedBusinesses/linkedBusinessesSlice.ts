@@ -22,7 +22,10 @@ export const linkedBusinessesSlice = createSlice({
   name: 'linkedBusinesses',
   initialState,
   reducers: {
-    setSelectedCategory(state, action: PayloadAction<'hospital' | 'boarder' | 'breeder' | 'groomer'>) {
+    setSelectedCategory(
+      state,
+      action: PayloadAction<'hospital' | 'boarder' | 'breeder' | 'groomer'>,
+    ) {
       state.selectedCategory = action.payload;
     },
     clearError(state) {
@@ -82,7 +85,8 @@ export const linkedBusinessesSlice = createSlice({
       })
       .addCase(fetchLinkedBusinesses.rejected, (state, action) => {
         state.loading = false;
-        state.error = (action.payload as string) ?? 'Failed to fetch linked businesses';
+        state.error =
+          (action.payload as string) ?? 'Failed to fetch linked businesses';
       });
 
     // Add linked business
@@ -137,7 +141,9 @@ export const linkedBusinessesSlice = createSlice({
       })
       .addCase(deleteLinkedBusiness.fulfilled, (state, action) => {
         state.loading = false;
-        state.linkedBusinesses = state.linkedBusinesses.filter(b => b.id !== action.payload);
+        state.linkedBusinesses = state.linkedBusinesses.filter(
+          b => b.id !== action.payload,
+        );
       })
       .addCase(deleteLinkedBusiness.rejected, (state, action) => {
         state.loading = false;
@@ -151,7 +157,9 @@ export const linkedBusinessesSlice = createSlice({
       })
       .addCase(acceptBusinessInvite.fulfilled, (state, action) => {
         state.loading = false;
-        const business = state.linkedBusinesses.find(b => b.id === action.payload.id || b.linkId === action.payload.linkId);
+        const business = state.linkedBusinesses.find(
+          b => b.id === action.payload.id || b.linkId === action.payload.linkId,
+        );
         if (business) {
           business.inviteStatus = 'accepted';
           business.state = 'active';
@@ -175,7 +183,8 @@ export const linkedBusinessesSlice = createSlice({
         // Remove the declined invite from the list completely
         // This ensures it doesn't appear in the linked businesses section
         state.linkedBusinesses = state.linkedBusinesses.filter(
-          b => !(b.id === action.payload.id || b.linkId === action.payload.linkId)
+          b =>
+            !(b.id === action.payload.id || b.linkId === action.payload.linkId),
         );
       })
       .addCase(declineBusinessInvite.rejected, (state, action) => {
@@ -185,5 +194,10 @@ export const linkedBusinessesSlice = createSlice({
   },
 });
 
-export const {setSelectedCategory, clearError, initializeMockData, resetLinkedBusinesses} = linkedBusinessesSlice.actions;
+export const {
+  setSelectedCategory,
+  clearError,
+  initializeMockData,
+  resetLinkedBusinesses,
+} = linkedBusinessesSlice.actions;
 export default linkedBusinessesSlice.reducer;

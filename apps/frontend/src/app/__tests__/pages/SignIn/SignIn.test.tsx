@@ -33,6 +33,15 @@ jest.mock('@/app/lib/postAuthRedirect', () => ({
     if (!value.startsWith('/')) return undefined;
     return value;
   }),
+  /* Real behaviour rather than a jest.fn: the component asks this whether the
+     signed-in account is a developer, and a stub returning undefined would make
+     every account look like a non-developer - passing the mismatch tests for
+     the wrong reason. Not requireActual, which would pull the org/profile
+     services this module imports into a suite that has no use for them. */
+  isDeveloperRole: (role?: string | null) =>
+    String(role ?? '')
+      .trim()
+      .toLowerCase() === 'developer',
 }));
 
 // Mock the shared marketing foundation (AuthShell / AuthBrandContent) so its
@@ -113,6 +122,14 @@ describe('SignIn Page', () => {
     (resolvePostAuthRedirect as jest.Mock).mockResolvedValue('/create-org');
   });
 
+  /* The store mock is a bare jest.fn() with no getState. Tests that need one
+     assign it, and it would otherwise persist onto the shared mock for every
+     later test - changing the fallbackRole they observe. clearAllMocks does not
+     remove an added property, so remove it here. */
+  afterEach(() => {
+    delete (useAuthStore as unknown as { getState?: unknown }).getState;
+  });
+
   // --- 1. Rendering ---
 
   it('renders the sign-in form correctly (default mode)', () => {
@@ -180,9 +197,57 @@ describe('SignIn Page', () => {
       fireEvent.click(getSubmitBtn());
     });
 
+    /* The developer form no longer forces a developer destination - the role
+       does. Passing the form flag routed non-developers to /developers/home,
+       where the guard rejected them. */
     expect(resolvePostAuthRedirect).toHaveBeenCalledWith(
-      expect.objectContaining({ isDeveloper: true })
+      expect.not.objectContaining({ isDeveloper: expect.anything() })
     );
+  });
+
+  it('tells a non-developer why the developer portal is not opening', async () => {
+    mockSignIn.mockResolvedValue({});
+    (useAuthStore as unknown as jest.Mock).mockReturnValue({
+      signIn: mockSignIn,
+      resendCode: mockResendCode,
+      role: 'user',
+    });
+    (useAuthStore as unknown as { getState: unknown }).getState = () => ({ role: 'user' });
+
+    render(<SignIn isDeveloper />);
+    fireEvent.change(getEmailInput(), { target: { value: 'clinic@example.com' } });
+    fireEvent.change(getPasswordInput(), { target: { value: 'pass123' } });
+
+    await act(async () => {
+      fireEvent.click(getSubmitBtn());
+    });
+
+    /* The sign-in itself succeeded - the account just is not a developer one.
+       Saying nothing here is what made this read as a rejected password. */
+    expect(mockSignIn).toHaveBeenCalled();
+    expect(mockShowErrorTost).toHaveBeenCalledWith(
+      expect.objectContaining({ errortext: 'Not a developer account' })
+    );
+  });
+
+  it('stays quiet when the signed-in account really is a developer', async () => {
+    mockSignIn.mockResolvedValue({});
+    (useAuthStore as unknown as jest.Mock).mockReturnValue({
+      signIn: mockSignIn,
+      resendCode: mockResendCode,
+      role: 'developer',
+    });
+    (useAuthStore as unknown as { getState: unknown }).getState = () => ({ role: 'developer' });
+
+    render(<SignIn isDeveloper />);
+    fireEvent.change(getEmailInput(), { target: { value: 'dev@example.com' } });
+    fireEvent.change(getPasswordInput(), { target: { value: 'pass123' } });
+
+    await act(async () => {
+      fireEvent.click(getSubmitBtn());
+    });
+
+    expect(mockShowErrorTost).not.toHaveBeenCalled();
   });
 
   it('toggles password visibility with the show-password button', () => {
@@ -270,7 +335,6 @@ describe('SignIn Page', () => {
     expect(resolvePostAuthRedirect).toHaveBeenCalledWith({
       fallbackRole: undefined,
       redirectPath: undefined,
-      isDeveloper: false,
     });
     expect(mockRouterReplace).toHaveBeenCalledWith('/create-org');
     expect(mockSessionStorage.setItem).toHaveBeenCalledWith('devAuth', 'false');
@@ -296,7 +360,6 @@ describe('SignIn Page', () => {
     expect(resolvePostAuthRedirect).toHaveBeenCalledWith({
       fallbackRole: undefined,
       redirectPath: undefined,
-      isDeveloper: true,
     });
   });
 

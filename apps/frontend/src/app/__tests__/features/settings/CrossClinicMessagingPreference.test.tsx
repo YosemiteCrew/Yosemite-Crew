@@ -126,3 +126,33 @@ describe('CrossClinicMessagingPreference', () => {
     expect(mockNotify).toHaveBeenCalledWith('success', expect.anything());
   });
 });
+
+// The page-level suite mocks this component and only checks the prop is
+// forwarded, so without these the disabled switch and the early return could
+// both be removed while every focused test stayed green - restoring the exact
+// unauthorised updateOrg request readOnly exists to prevent.
+describe('CrossClinicMessagingPreference (read-only)', () => {
+  it('disables the switch when read-only', () => {
+    setOrg({ _id: 'o1', crossOrgMessagingEnabled: false });
+    render(<CrossClinicMessagingPreference readOnly />);
+    expect(screen.getByRole('switch')).toBeDisabled();
+  });
+
+  it('does not call updateOrg when a read-only switch is clicked', async () => {
+    setOrg({ _id: 'o1', name: 'Clinic', crossOrgMessagingEnabled: false });
+    render(<CrossClinicMessagingPreference readOnly />);
+
+    fireEvent.click(screen.getByRole('switch'));
+    await Promise.resolve();
+
+    expect(mockUpdateOrg).not.toHaveBeenCalled();
+  });
+
+  it('still calls updateOrg when not read-only', async () => {
+    setOrg({ _id: 'o1', name: 'Clinic', crossOrgMessagingEnabled: false });
+    render(<CrossClinicMessagingPreference />);
+
+    fireEvent.click(screen.getByRole('switch'));
+    await waitFor(() => expect(mockUpdateOrg).toHaveBeenCalled());
+  });
+});

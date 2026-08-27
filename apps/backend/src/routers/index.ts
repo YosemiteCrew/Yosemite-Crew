@@ -133,6 +133,9 @@ import careReminderOptOutRouter from "./care-reminder-opt-out.router";
 import marketingUnsubscribeRouter from "./marketing-unsubscribe.router";
 import marketingRouter from "./marketing.router";
 import activityPubRouter from "./activitypub.router";
+import developerApiKeyRouter from "./developer-api-key.router";
+import developerBillingRouter from "./developer-billing.router";
+import developerUsageRouter from "./developer-usage.router";
 
 export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/organization`, organizationRounter);
@@ -265,6 +268,9 @@ export function registerRoutes(app: Express) {
   app.use(`/v1`, inventoryCountRouter);
   app.use(`/v1`, clinicNoteRouter);
   app.use(`/v1/integration`, integrationRouter);
+  app.use(`/v1/developers/api-keys`, developerApiKeyRouter);
+  app.use(`/v1/developers/billing`, developerBillingRouter);
+  app.use(`/v1/developers/usage`, developerUsageRouter);
   app.use(`/v1/knowledge`, knowledgeRouter);
   app.use(`/v1/codes`, codeRouter);
   app.use(`/v1/marketing`, marketingRouter);

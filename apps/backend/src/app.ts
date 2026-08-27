@@ -8,6 +8,7 @@ import { FinanceController } from "./controllers/app/finance.controller";
 import cors from "cors";
 import { DocumensoWebhookController } from "./controllers/web/documenso.controller";
 import { ChatWebhookController } from "./controllers/app/chatWebhook.controller";
+import { DeveloperBillingController } from "./controllers/web/developer-billing.controller";
 import mongoSanitize from "express-mongo-sanitize";
 import helmet from "helmet";
 import wellKnownRouter from "./routers/well-known.router";
@@ -105,6 +106,22 @@ export function createApp() {
     "/v1/chat/webhooks/stream",
     express.raw({ type: "application/json" }),
     (req, res) => ChatWebhookController.handleStreamEvent(req, res),
+  );
+
+  /**
+   * Registered here rather than on `developerBillingRouter` with the rest of its
+   * routes, for the same reason as every webhook above: `express.json()` on line
+   * ~161 runs before `registerRoutes`, and once it has parsed a request
+   * body-parser marks it done - so an `express.raw()` inside a router that mounts
+   * later is a no-op and the controller receives a parsed object instead of the
+   * Buffer `stripe.webhooks.constructEvent` needs. Signature verification then
+   * fails on every call, and `checkout.session.completed` never lands, so a
+   * developer who has actually paid is never moved onto Pro.
+   */
+  app.post(
+    "/v1/developers/billing/webhook",
+    express.raw({ type: "application/json" }),
+    (req, res) => DeveloperBillingController.webhook(req, res),
   );
 
   app.use(fileUpload());
