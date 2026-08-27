@@ -257,24 +257,56 @@ jobs:
             echo "('$1', '[]'::jsonb, 0, 0, 'ci-guard', $2, now())"
           }
 
-          # Two rows, one intent, one statement. The index must refuse this.
-          if psql_ci -v ON_ERROR_STOP=1 -q -c "
-            INSERT INTO \"Invoice\" (\"id\", \"items\", \"subtotal\", \"totalAmount\", \"currency\", \"providerPaymentIntentId\", \"updatedAt\")
-            VALUES $(row 00000000-0000-4000-8000-0000000pi001 "'pi_ci_guard'"),
-                   $(row 00000000-0000-4000-8000-0000000pi002 "'pi_ci_guard'");" 2>/dev/null
-          then
+          insert_rows() {
+            psql_ci -v ON_ERROR_STOP=1 -q -c "
+              INSERT INTO \"Invoice\" (\"id\", \"items\", \"subtotal\", \"totalAmount\", \"currency\", \"providerPaymentIntentId\", \"updatedAt\")
+              VALUES $1;"
+          }
+
+          # The index has to be there AND be unique. Asserted from the catalog as
+          # well as behaviourally, because the two fail differently: a dropped
+          # index shows up here, while an index that exists but stopped being
+          # unique only shows up in the insert below.
+          unique_index=$(psql_ci -tAc "
+            SELECT count(*)
+            FROM pg_index i
+            JOIN pg_class c ON c.oid = i.indexrelid
+            WHERE c.relname = 'Invoice_providerPaymentIntentId_key'
+              AND i.indisunique;")
+
+          if [ "$unique_index" != "1" ]; then
+            echo "::error::Invoice_providerPaymentIntentId_key is missing or is no longer unique."
+            echo "That index is the only thing preventing a redelivered booking webhook"
+            echo "from minting a second invoice for one payment, because nothing"
+            echo "upstream deduplicates by Stripe event id."
+            exit 1
+          fi
+
+          # One good row, then the collision. Split in two on purpose: a single
+          # two-row statement fails for any reason at all - a check constraint, a
+          # trigger, a typo in this SQL - and "the insert failed" would then read
+          # as "uniqueness is intact" while measuring nothing.
+          insert_rows "$(row 00000000-0000-4000-8000-0000000pi001 "'pi_ci_guard'")"
+
+          if err=$(insert_rows "$(row 00000000-0000-4000-8000-0000000pi002 "'pi_ci_guard'")" 2>&1); then
             echo "::error::Two invoices were accepted for the same Stripe payment intent."
-            echo "Invoice_providerPaymentIntentId_key is the only thing preventing a"
-            echo "redelivered booking webhook from minting a second invoice for one"
-            echo "payment, because nothing upstream deduplicates by Stripe event id."
+            exit 1
+          fi
+
+          # And it has to be THAT constraint. Postgres names the violated index in
+          # the message, so an unrelated rejection cannot be mistaken for this one.
+          if ! grep -q 'duplicate key value violates unique constraint' <<<"$err" \
+             || ! grep -q 'Invoice_providerPaymentIntentId_key' <<<"$err"; then
+            echo "::error::The duplicate intent was rejected, but not by the uniqueness guarantee."
+            echo "Something else refused the row, so this check proves nothing about"
+            echo "whether a redelivered booking webhook can mint a second invoice."
+            echo "--- what Postgres actually said ---"
+            echo "$err"
             exit 1
           fi
 
           # The nullable half: unrelated invoices must still coexist freely.
-          psql_ci -v ON_ERROR_STOP=1 -q -c "
-            INSERT INTO \"Invoice\" (\"id\", \"items\", \"subtotal\", \"totalAmount\", \"currency\", \"providerPaymentIntentId\", \"updatedAt\")
-            VALUES $(row 00000000-0000-4000-8000-0000000pi003 NULL),
-                   $(row 00000000-0000-4000-8000-0000000pi004 NULL);"
+          insert_rows "$(row 00000000-0000-4000-8000-0000000pi003 NULL), $(row 00000000-0000-4000-8000-0000000pi004 NULL)"
 
           nulls=$(psql_ci -tAc "SELECT count(*) FROM \"Invoice\" WHERE \"currency\" = 'ci-guard' AND \"providerPaymentIntentId\" IS NULL;")
           if [ "$nulls" != "2" ]; then
