@@ -223,6 +223,70 @@ jobs:
 
           echo "Clinical term search survives a null synonym list and a quoted synonym."
 
+      # Invoice.providerPaymentIntentId is the whole idempotency guarantee of the
+      # Stripe appointment-booking webhook. handleWebhookEvent never reads
+      # event.id - there is no processed-event table, no cache and no lock - so a
+      # redelivered event re-runs the entire dispatch, and this unique index is
+      # the only thing that stops two concurrent deliveries minting two invoices
+      # for one payment.
+      #
+      # It is asserted here because the jest suite CANNOT assert it: that suite
+      # mocks Prisma, so it exercises the handler's decision logic and never the
+      # constraint the decisions rely on. Verified against a real Postgres that
+      # dropping this index lets both racers insert, producing exactly the
+      # duplicate-invoice bug the design exists to prevent.
+      #
+      # The nullable half matters just as much: every invoice not raised by that
+      # webhook has a NULL here, and Postgres keeps NULLs distinct in a unique
+      # index, so they must all continue to coexist.
+      - name: Check the booking payment intent stays unique
+        shell: bash
+        env:
+          PGPASSWORD: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          psql_ci() { psql -h localhost -U postgres -d yosemite_ci "$@"; }
+
+          cleanup() {
+            psql_ci -q -c "DELETE FROM \"Invoice\" WHERE \"currency\" = 'ci-guard';" || true
+          }
+          trap cleanup EXIT
+
+          row() {
+            echo "('$1', '[]'::jsonb, 0, 0, 'ci-guard', $2, now())"
+          }
+
+          # Two rows, one intent, one statement. The index must refuse this.
+          if psql_ci -v ON_ERROR_STOP=1 -q -c "
+            INSERT INTO \"Invoice\" (\"id\", \"items\", \"subtotal\", \"totalAmount\", \"currency\", \"providerPaymentIntentId\", \"updatedAt\")
+            VALUES $(row 00000000-0000-4000-8000-0000000pi001 "'pi_ci_guard'"),
+                   $(row 00000000-0000-4000-8000-0000000pi002 "'pi_ci_guard'");" 2>/dev/null
+          then
+            echo "::error::Two invoices were accepted for the same Stripe payment intent."
+            echo "Invoice_providerPaymentIntentId_key is the only thing preventing a"
+            echo "redelivered booking webhook from minting a second invoice for one"
+            echo "payment, because nothing upstream deduplicates by Stripe event id."
+            exit 1
+          fi
+
+          # The nullable half: unrelated invoices must still coexist freely.
+          psql_ci -v ON_ERROR_STOP=1 -q -c "
+            INSERT INTO \"Invoice\" (\"id\", \"items\", \"subtotal\", \"totalAmount\", \"currency\", \"providerPaymentIntentId\", \"updatedAt\")
+            VALUES $(row 00000000-0000-4000-8000-0000000pi003 NULL),
+                   $(row 00000000-0000-4000-8000-0000000pi004 NULL);"
+
+          nulls=$(psql_ci -tAc "SELECT count(*) FROM \"Invoice\" WHERE \"currency\" = 'ci-guard' AND \"providerPaymentIntentId\" IS NULL;")
+          if [ "$nulls" != "2" ]; then
+            echo "::error::Invoices with no payment intent stopped coexisting."
+            echo "NULLs must stay distinct in this unique index, or every invoice not"
+            echo "raised by the booking webhook collides with every other one."
+            echo "Expected 2 rows, got: $nulls"
+            exit 1
+          fi
+
+          echo "The booking payment intent is unique, and NULLs still coexist."
+
       # The Supabase advisor caught public."OrganizationDocumentAcknowledgements"
       # shipping with RLS off. The cause was structural: RLS was only ever enabled
       # by hand in the dashboard, so every new table was unprotected until someone
