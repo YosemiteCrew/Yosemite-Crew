@@ -163,8 +163,14 @@ const CS_REQUIRED_FIELDS = [
   'veterinarianName',
 ];
 
-/** Ids are compared case- and whitespace-insensitively when deciding identity. */
-const normaliseId = (value: unknown): string => String(value).trim().toLowerCase();
+/**
+ * Whether two ids denote the same person for the purpose of refusing a
+ * self-witness. Compares case- and whitespace-insensitively. This is only ever
+ * used to REJECT, so being generous about what counts as the same person fails
+ * safe; it is deliberately not used to decide what gets stored.
+ */
+const sameIdentity = (a: unknown, b: unknown): boolean =>
+  String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
 
 type CsRecordValidation = { ok: false; error: string } | { ok: true; needsWitness: boolean };
 
@@ -200,13 +206,21 @@ const validateCsRecordPayload = (d: Record<string, unknown>): CsRecordValidation
   if (needsWitness) {
     const missingWitness = requireNonEmptyStrings(d, ['witnessId', 'witnessName']);
     if (missingWitness) return { ok: false, error: missingWitness };
-    // The payload is renderer-controlled, so an exact comparison lets
-    // "vet-1" and "vet-1 " through as different people. Compare normalised,
-    // and persist the normalised ids so the stored record matches too.
+    // The payload is renderer-controlled, so an exact comparison lets "vet-1"
+    // and "vet-1 " through as two different people.
+    //
+    // Comparison and storage deliberately differ, and the asymmetry costs
+    // something worth naming. Identity is decided case-insensitively, so a
+    // veterinarian cannot witness for themselves by changing case. Storage only
+    // trims: these ids come from an external identity system that may well
+    // treat case as significant, and lowercasing on the way to disk would
+    // corrupt the identifier used to match a real person. The consequence is
+    // that "Vet-1" and "vet-1" count as one person for this check while being
+    // stored as written, which is the safer direction to be wrong in.
     d.witnessId = String(d.witnessId).trim();
     d.veterinarianId = String(d.veterinarianId).trim();
     d.witnessName = String(d.witnessName).trim();
-    if (normaliseId(d.witnessId) === normaliseId(d.veterinarianId))
+    if (sameIdentity(d.witnessId, d.veterinarianId))
       return { ok: false, error: 'witness-must-differ' };
   }
 

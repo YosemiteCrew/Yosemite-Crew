@@ -465,7 +465,24 @@ describe('ipc-handlers — happy paths', () => {
       }
     });
 
-    test('persists normalised witness ids', async () => {
+    test('stores ids trimmed but not case-folded, while comparing case-insensitively', async () => {
+      const call = register(makeServices());
+      // Case is significant to an external identity system, so it survives to
+      // disk; it is ignored only when deciding whether two ids are one person.
+      const result = (await call('yc:cs-record', {
+        ...waste,
+        witnessId: '  Nurse-1  ',
+        witnessName: 'Nurse Jane',
+      })) as { ok: boolean; transaction: Record<string, unknown> };
+      expect(result.ok).toBe(true);
+      expect(result.transaction.witnessId).toBe('Nurse-1');
+
+      expect(
+        await call('yc:cs-record', { ...waste, witnessId: 'VET-1 ', witnessName: 'Dr. X' })
+      ).toEqual({ ok: false, error: 'witness-must-differ' });
+    });
+
+    test('persists trimmed witness ids', async () => {
       const call = register(makeServices());
       const result = (await call('yc:cs-record', {
         ...waste,
