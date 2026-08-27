@@ -89,6 +89,7 @@ export const markCollectionHydrated = (
   // Injectable so tests are deterministic; reducers elsewhere in this app
   // already read the clock directly.
   loadedAt: number = Date.now(),
+  requestId?: string,
 ): void => {
   ensureMaps(state);
   const key = usableKey(companionId);
@@ -98,8 +99,17 @@ export const markCollectionHydrated = (
   state.hydratedCompanions[key] = true;
   state.lastLoadedAt[key] = loadedAt;
   delete state.failedCompanions[key];
-  // Success closes the round: any rejection still in flight is now stale.
-  delete state.activeRequests[key];
+
+  // Clear the active request ONLY if this success is the one it names.
+  //
+  // Deleting unconditionally inverted the very race this tracking exists to
+  // fix: with an older success and a newer failure, the older fulfilment wiped
+  // the newer request's entry, and markCollectionFailed then saw no active
+  // request over an already-hydrated collection and discarded a genuine
+  // failure. Stale data was presented as fresh, with no staleness banner.
+  if (!requestId || state.activeRequests[key] === requestId) {
+    delete state.activeRequests[key];
+  }
 };
 
 /**

@@ -237,6 +237,28 @@ describe('collectionLoadState', () => {
       expect(state.failedCompanions.c1).toBe('newer boom');
     });
 
+    // The inverse race: an OLDER success must not wipe a NEWER request's entry,
+    // or the newer failure gets discarded and stale data is presented as fresh.
+    it('keeps a newer request alive when an older one succeeds', () => {
+      const state = emptyState();
+
+      markCollectionPending(state, 'c1', 'req-1');
+      markCollectionPending(state, 'c1', 'req-2');
+      markCollectionHydrated(state, 'c1', 1_700_000_000_000, 'req-1');
+      markCollectionFailed(state, 'c1', 'newer boom', 'req-2');
+
+      expect(state.failedCompanions.c1).toBe('newer boom');
+    });
+
+    it('clears the active request when the matching fetch succeeds', () => {
+      const state = emptyState();
+
+      markCollectionPending(state, 'c1', 'req-1');
+      markCollectionHydrated(state, 'c1', 1_700_000_000_000, 'req-1');
+
+      expect(state.activeRequests.c1).toBeUndefined();
+    });
+
     it('still records a failure when no request id is supplied', () => {
       const state = emptyState();
 

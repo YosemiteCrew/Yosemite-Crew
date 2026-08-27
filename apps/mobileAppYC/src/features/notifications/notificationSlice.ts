@@ -80,7 +80,12 @@ export const notificationSlice = createSlice({
       .addCase(fetchNotificationsForCompanion.fulfilled, (state, action) => {
         state.loading = false;
         state.items = action.payload.notifications;
-        markCollectionHydrated(state, action.payload.companionId);
+        markCollectionHydrated(
+          state,
+          action.payload.companionId,
+          Date.now(),
+          action.meta?.requestId,
+        );
         state.lastFetchTimestamp = Date.now();
         state.unreadCount = action.payload.notifications.filter(
           n => n.status === 'unread',

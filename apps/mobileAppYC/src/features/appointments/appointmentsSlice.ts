@@ -465,7 +465,12 @@ const appointmentsSlice = createSlice({
         const {companionId, items} = action.payload;
         state.items = state.items.filter(a => a.companionId !== companionId);
         state.items.push(...items);
-        markCollectionHydrated(state, companionId);
+        markCollectionHydrated(
+          state,
+          companionId,
+          Date.now(),
+          action.meta?.requestId,
+        );
       })
       .addCase(fetchAppointmentsForCompanion.rejected, (state, action) => {
         state.loading = false;

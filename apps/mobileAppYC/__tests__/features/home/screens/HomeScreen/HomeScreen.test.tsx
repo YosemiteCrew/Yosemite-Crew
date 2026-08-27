@@ -763,6 +763,29 @@ describe('HomeScreen', () => {
       expect(queryByText('Add your first companion')).toBeNull();
     });
 
+    // Home must not simultaneously say the companion list failed to load and
+    // assert the account has no companions: every section below maps
+    // companions.length === 0 to "No companions yet".
+    it('hides the companion-derived sections while the companion load error shows', () => {
+      const store = createStore({
+        companion: {
+          list: [],
+          selectedId: null,
+          loading: false,
+          loadError: 'Network Error',
+        },
+      });
+
+      const {getByTestId, queryAllByText} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+
+      expect(getByTestId('home-companions-load-error')).toBeTruthy();
+      expect(queryAllByText('No companions yet')).toHaveLength(0);
+    });
+
     it('still shows the add-first-companion hero when the list is genuinely empty', () => {
       const store = createStore({
         companion: {

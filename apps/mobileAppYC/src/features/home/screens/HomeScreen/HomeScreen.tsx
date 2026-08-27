@@ -782,6 +782,15 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     dispatch(fetchAppointmentsForCompanion({companionId: targetCompanionId}));
   }, [dispatch, markInitialRequest, targetCompanionId]);
 
+  // The companion list could not be loaded and there is nothing cached. Every
+  // section below is companion-derived, and each maps companions.length === 0
+  // to "No companions yet" - so rendering them here would have Home say the
+  // list failed to load AND assert the account is empty, which is the exact
+  // misleading diagnosis the error state exists to prevent.
+  const companionsUnavailable = Boolean(
+    companionLoadError && companions.length === 0,
+  );
+
   const handleRetryExpenses = React.useCallback(() => {
     if (!selectedCompanionIdRedux) {
       return;
@@ -1535,7 +1544,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           {paddingBottom: bottomScrollPadding},
         ]}
         showsVerticalScrollIndicator={false}>
-        {companionLoadError && companions.length === 0 ? (
+        {companionsUnavailable ? (
           // Without this the hero below claimed the account has no companions,
           // which is the same screen a brand new user sees. A fetch that failed
           // is not an empty account, and the user had no way to retry.
@@ -1544,7 +1553,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             onRetry={handleRetryHomeLoad}
           />
         ) : null}
-        {companions.length === 0 && !companionLoadError ? (
+        {companions.length === 0 && !companionsUnavailable ? (
           <View style={styles.heroShadowWrapper}>
             <LiquidGlassCard
               glassEffect="clear"
@@ -1587,17 +1596,21 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           />
         ) : null}
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Upcoming</Text>
+        {companionsUnavailable ? null : (
+          <>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Upcoming</Text>
 
-          {buildUpcomingTasks()}
-          {buildUpcomingAppointments()}
-        </View>
+              {buildUpcomingTasks()}
+              {buildUpcomingAppointments()}
+            </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Expenses</Text>
-          {buildExpensesSection()}
-        </View>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Expenses</Text>
+              {buildExpensesSection()}
+            </View>
+          </>
+        )}
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>

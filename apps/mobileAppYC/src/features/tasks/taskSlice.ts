@@ -84,7 +84,12 @@ const tasksSlice = createSlice({
         }
 
         state.items.push(...tasks);
-        markCollectionHydrated(state, companionId);
+        markCollectionHydrated(
+          state,
+          companionId,
+          Date.now(),
+          action.meta?.requestId,
+        );
       })
       .addCase(fetchTasksForCompanion.rejected, (state, action) => {
         state.loading = false;

@@ -120,7 +120,12 @@ const expensesSlice = createSlice({
         );
         state.items.push(...expenses);
         recalculateSummary(state, companionId, summary);
-        markCollectionHydrated(state, companionId);
+        markCollectionHydrated(
+          state,
+          companionId,
+          Date.now(),
+          action.meta?.requestId,
+        );
       })
       .addCase(fetchExpensesForCompanion.rejected, (state, action) => {
         state.loading = false;
@@ -225,7 +230,12 @@ const expensesSlice = createSlice({
           ...summary,
           lastUpdated: new Date().toISOString(),
         };
-        markCollectionHydrated(state, companionId);
+        markCollectionHydrated(
+          state,
+          companionId,
+          Date.now(),
+          action.meta?.requestId,
+        );
         state.summaryFailedCompanions = state.summaryFailedCompanions ?? {};
         delete state.summaryFailedCompanions[companionId];
       })
