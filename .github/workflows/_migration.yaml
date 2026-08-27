@@ -249,12 +249,74 @@ jobs:
           psql_ci() { psql -h localhost -U postgres -d yosemite_ci "$@"; }
 
           cleanup() {
-            psql_ci -q -c "DELETE FROM \"Invoice\" WHERE \"currency\" = 'ci-guard';" || true
+            psql_ci -q -c "DELETE FROM \"Invoice\" WHERE \"currency\" LIKE 'ci-guard%';" || true
           }
           trap cleanup EXIT
 
+          # Four facts, because they fail in four different ways and a single
+          # count would hide which one broke. Expected: 1|0|1|1.
+          #
+          #   a. "Invoice" is still a plain table in public - not a view, and not
+          #      a partitioned parent.
+          #   b. It has no children. A partition or an INHERITS child would hold
+          #      invoices the parent's index does not cover.
+          #   c. The index protects THIS table (indrelid), is live rather than a
+          #      half-built corpse (indisvalid/indisready), is unconditional
+          #      (indpred), and is keyed on that one column (indnkeyatts/indkey).
+          #      Every one of those can be false while the name still exists.
+          #   d. It is the ONLY unique index over the column. A second one -
+          #      NULLS NOT DISTINCT, or composite and partial - would end the
+          #      NULL coexistence that every non-webhook invoice depends on,
+          #      without touching this one.
+          #
+          # What this CANNOT see: the column could stop being written at all, and
+          # the index would stay unique and unused. That belongs in a backend
+          # test that mints an invoice through StripeService, not here.
+          intent_attnum="(SELECT attnum FROM pg_attribute
+             WHERE attrelid = to_regclass('public.\"Invoice\"')
+               AND attname = 'providerPaymentIntentId' AND NOT attisdropped)"
+
+          facts=$(psql_ci -tAc "
+            SELECT
+              (SELECT count(*) FROM pg_class
+                 WHERE oid = to_regclass('public.\"Invoice\"') AND relkind = 'r')
+              || '|' ||
+              (SELECT count(*) FROM pg_inherits
+                 WHERE inhparent = to_regclass('public.\"Invoice\"'))
+              || '|' ||
+              (SELECT count(*) FROM pg_index i
+                 JOIN pg_class c ON c.oid = i.indexrelid
+                WHERE c.relname = 'Invoice_providerPaymentIntentId_key'
+                  AND i.indrelid = to_regclass('public.\"Invoice\"')
+                  AND i.indisunique AND i.indisvalid AND i.indisready
+                  AND i.indpred IS NULL
+                  AND i.indnkeyatts = 1
+                  AND i.indkey[0] = $intent_attnum)
+              || '|' ||
+              (SELECT count(*) FROM pg_index i
+                WHERE i.indrelid = to_regclass('public.\"Invoice\"')
+                  AND i.indisunique
+                  AND $intent_attnum = ANY((i.indkey::int2[])[0:i.indnkeyatts-1]));")
+
+          if [ "$facts" != "1|0|1|1" ]; then
+            echo "::error::The uniqueness guarantee on Invoice.providerPaymentIntentId has changed."
+            echo "Expected 1|0|1|1, got: $facts"
+            echo "  1st: \"Invoice\" is a plain table in public"
+            echo "  2nd: it has no partitions or inheritance children"
+            echo "  3rd: Invoice_providerPaymentIntentId_key is on THAT table, valid,"
+            echo "       unconditional, and keyed on providerPaymentIntentId alone"
+            echo "  4th: it is the only unique index over that column"
+            echo "That index is the only thing stopping a redelivered booking webhook"
+            echo "from minting a second invoice for one payment, because nothing"
+            echo "upstream deduplicates by Stripe event id."
+            exit 1
+          fi
+
+          # Every non-intent value differs between the two colliding rows, so a
+          # composite unique index on any other column would not refuse them and
+          # this would correctly fail rather than pass by accident.
           row() {
-            echo "('$1', '[]'::jsonb, 0, 0, 'ci-guard', $2, now())"
+            echo "('$1', '[]'::jsonb, $3, $3, 'ci-guard-$4', $2, now())"
           }
 
           insert_rows() {
@@ -263,56 +325,45 @@ jobs:
               VALUES $1;"
           }
 
-          # The index has to be there AND be unique. Asserted from the catalog as
-          # well as behaviourally, because the two fail differently: a dropped
-          # index shows up here, while an index that exists but stopped being
-          # unique only shows up in the insert below.
-          unique_index=$(psql_ci -tAc "
-            SELECT count(*)
-            FROM pg_index i
-            JOIN pg_class c ON c.oid = i.indexrelid
-            WHERE c.relname = 'Invoice_providerPaymentIntentId_key'
-              AND i.indisunique;")
-
-          if [ "$unique_index" != "1" ]; then
-            echo "::error::Invoice_providerPaymentIntentId_key is missing or is no longer unique."
-            echo "That index is the only thing preventing a redelivered booking webhook"
-            echo "from minting a second invoice for one payment, because nothing"
-            echo "upstream deduplicates by Stripe event id."
-            exit 1
-          fi
-
           # One good row, then the collision. Split in two on purpose: a single
           # two-row statement fails for any reason at all - a check constraint, a
           # trigger, a typo in this SQL - and "the insert failed" would then read
           # as "uniqueness is intact" while measuring nothing.
-          insert_rows "$(row 00000000-0000-4000-8000-0000000pi001 "'pi_ci_guard'")"
+          insert_rows "$(row 00000000-0000-4000-8000-0000000pi001 "'pi_ci_guard'" 11 a)"
 
-          if err=$(insert_rows "$(row 00000000-0000-4000-8000-0000000pi002 "'pi_ci_guard'")" 2>&1); then
+          if err=$(insert_rows "$(row 00000000-0000-4000-8000-0000000pi002 "'pi_ci_guard'" 22 b)" 2>&1); then
             echo "::error::Two invoices were accepted for the same Stripe payment intent."
             exit 1
           fi
 
-          # And it has to be THAT constraint. Postgres names the violated index in
-          # the message, so an unrelated rejection cannot be mistaken for this one.
-          if ! grep -q 'duplicate key value violates unique constraint' <<<"$err" \
-             || ! grep -q 'Invoice_providerPaymentIntentId_key' <<<"$err"; then
+          # And by THAT index. The name is matched with its closing quote, so a
+          # suffixed sibling such as ..._key_v2 cannot pass for it.
+          if ! grep -q 'duplicate key value violates unique constraint "Invoice_providerPaymentIntentId_key"' <<<"$err"; then
             echo "::error::The duplicate intent was rejected, but not by the uniqueness guarantee."
-            echo "Something else refused the row, so this check proves nothing about"
-            echo "whether a redelivered booking webhook can mint a second invoice."
+            echo "Something else refused the row, so this proves nothing about whether a"
+            echo "redelivered booking webhook can mint a second invoice."
             echo "--- what Postgres actually said ---"
             echo "$err"
             exit 1
           fi
 
-          # The nullable half: unrelated invoices must still coexist freely.
-          insert_rows "$(row 00000000-0000-4000-8000-0000000pi003 NULL), $(row 00000000-0000-4000-8000-0000000pi004 NULL)"
+          # The nullable half. Written WITHOUT naming the column, which is how
+          # every non-webhook path inserts, so a DEFAULT or a BEFORE trigger on
+          # it fails here rather than in production.
+          if err=$(psql_ci -v ON_ERROR_STOP=1 -q -c "
+            INSERT INTO \"Invoice\" (\"id\", \"items\", \"subtotal\", \"totalAmount\", \"currency\", \"updatedAt\")
+            VALUES ('00000000-0000-4000-8000-0000000pi003', '[]'::jsonb, 33, 33, 'ci-guard-c', now()),
+                   ('00000000-0000-4000-8000-0000000pi004', '[]'::jsonb, 44, 44, 'ci-guard-d', now());" 2>&1); then
+            nulls=$(psql_ci -tAc "SELECT count(*) FROM \"Invoice\" WHERE \"currency\" LIKE 'ci-guard%' AND \"providerPaymentIntentId\" IS NULL;")
+          else
+            nulls="insert failed: $err"
+          fi
 
-          nulls=$(psql_ci -tAc "SELECT count(*) FROM \"Invoice\" WHERE \"currency\" = 'ci-guard' AND \"providerPaymentIntentId\" IS NULL;")
           if [ "$nulls" != "2" ]; then
             echo "::error::Invoices with no payment intent stopped coexisting."
-            echo "NULLs must stay distinct in this unique index, or every invoice not"
-            echo "raised by the booking webhook collides with every other one."
+            echo "NULLs must stay distinct in this unique index, and the column must"
+            echo "stay genuinely null when nobody sets it, or every invoice not raised"
+            echo "by the booking webhook collides with every other one."
             echo "Expected 2 rows, got: $nulls"
             exit 1
           fi
