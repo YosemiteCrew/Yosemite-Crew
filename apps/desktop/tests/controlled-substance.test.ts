@@ -1,32 +1,17 @@
 import { createControlledSubstanceLogbook } from '../src/compliance/controlled-substance';
 import { createAuditLog } from '../src/compliance/audit-log';
-import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { createMemoryFs, asDeps, type MemoryFs } from './helpers/memory-fs';
 
 describe('createControlledSubstanceLogbook', () => {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cs-logbook-test-'));
-  let mockFs: Record<string, string> = {};
+  const tmpDir = path.join(os.tmpdir(), 'cs-logbook-test');
+  let mem: MemoryFs;
 
-  const makeFsDeps = (nowVal = 1000) => ({
-    readFileSync: jest.fn((filePath: string) => {
-      if (mockFs[filePath] !== undefined) return mockFs[filePath];
-      throw new Error('ENOENT');
-    }),
-    writeFileSync: jest.fn((filePath: string, data: string) => {
-      mockFs[filePath] = data;
-    }),
-    mkdirSync: jest.fn(),
-    existsSync: jest.fn((filePath: string) => mockFs[filePath] !== undefined),
-    now: jest.fn(() => nowVal),
-  });
+  const makeFsDeps = (nowVal = 1000) => asDeps(mem, () => nowVal);
 
   beforeEach(() => {
-    mockFs = {};
-  });
-
-  afterAll(() => {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
+    mem = createMemoryFs();
   });
 
   test('record adds a controlled substance transaction and audit entry', async () => {

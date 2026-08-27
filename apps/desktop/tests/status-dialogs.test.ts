@@ -51,6 +51,15 @@ const makeDeps = (overrides: Partial<StatusDialogDeps> = {}): StatusDialogDeps =
     verifyAll: () => ({ valid: 3, tampered: 0 }),
     verifyChain: () => true,
     size: () => 3,
+    getIntegrity: () => ({
+      ok: true,
+      reason: null,
+      quarantinePath: null,
+      recordsLoaded: 3,
+      watermarkCount: 3,
+      tornTail: false,
+      signingKey: 'persisted' as const,
+    }),
   } as never,
   csExport: {
     exportDailyLog: () => ({ rowCount: 2, filePath: '/tmp/cs.csv' }),
@@ -60,7 +69,16 @@ const makeDeps = (overrides: Partial<StatusDialogDeps> = {}): StatusDialogDeps =
     getExpiringSoon: () => [],
     getAllRegistrations: () => [{ deaNumber: 'AB123' }],
   } as never,
-  controlledSubstanceLog: {} as never,
+  controlledSubstanceLog: {
+    getIntegrity: () => ({
+      ok: true,
+      reason: null,
+      quarantinePath: null,
+      recordsLoaded: 0,
+      watermarkCount: 0,
+      tornTail: false,
+    }),
+  } as never,
   pmpService: {
     getPending: () => [],
     getSubmitted: () => [1],
@@ -105,6 +123,106 @@ describe('status dialogs — happy paths', () => {
     expect((deps.dialog.showMessageBox as jest.Mock).mock.calls.length).toBeGreaterThan(5);
     expect(deps.secondaryDisplays!.openDisplay).toHaveBeenCalled();
     expect(deps.runBackup).toHaveBeenCalled();
+  });
+
+  test('verifyAuditTrail names the problem when the log is not intact', () => {
+    const deps = makeDeps({
+      auditLog: {
+        verifyAll: () => ({ valid: 1, tampered: 0 }),
+        verifyChain: () => false,
+        size: () => 1,
+        getIntegrity: () => ({
+          ok: false,
+          reason: '4 record(s) missing (expected 5, found 1)',
+          quarantinePath: '/data/audit-log.jsonl.corrupt-1700000000',
+          recordsLoaded: 1,
+          watermarkCount: 5,
+          tornTail: false,
+        }),
+      } as never,
+    });
+    createStatusDialogService(deps).verifyAuditTrail();
+
+    const detail = (deps.dialog.showMessageBox as jest.Mock).mock.calls[0][0].detail as string;
+    expect(detail).toContain('Hash chain intact: NO');
+    expect(detail).toContain('4 record(s) missing');
+    expect(detail).toContain('/data/audit-log.jsonl.corrupt-1700000000');
+  });
+
+  test('verifyAuditTrail does not call unverifiable entries tampered', () => {
+    const deps = makeDeps({
+      auditLog: {
+        // With a session-only key every historical entry fails its check.
+        verifyAll: () => ({ valid: 0, tampered: 12 }),
+        verifyChain: () => false,
+        size: () => 12,
+        getIntegrity: () => ({
+          ok: false,
+          reason: 'the audit signing key could not be read (the OS keychain is unavailable)',
+          quarantinePath: null,
+          recordsLoaded: 12,
+          watermarkCount: 12,
+          tornTail: false,
+          signingKey: 'session-only' as const,
+        }),
+      } as never,
+    });
+    createStatusDialogService(deps).verifyAuditTrail();
+
+    const detail = (deps.dialog.showMessageBox as jest.Mock).mock.calls[0][0].detail as string;
+    expect(detail).toContain('CANNOT BE CHECKED');
+    expect(detail).not.toContain('Tampered: 12');
+    expect(detail).toContain('signing key could not be read');
+  });
+
+  test('a compliance export from a damaged register carries a warning', () => {
+    const damaged = {
+      getIntegrity: () => ({
+        ok: false,
+        reason: '2 record(s) missing (expected 9, found 7)',
+        quarantinePath: '/data/cs.jsonl.corrupt-1700000000',
+        recordsLoaded: 7,
+        watermarkCount: 9,
+        tornTail: false,
+      }),
+    } as never;
+
+    const deps = makeDeps({ controlledSubstanceLog: damaged });
+    const svc = createStatusDialogService(deps);
+    svc.exportCsDailyLog();
+    const exported = (deps.dialog.showMessageBox as jest.Mock).mock.calls[0][0].detail as string;
+    // A daily log built from an incomplete register must not look authoritative.
+    expect(exported).toContain('WARNING: the controlled-substance register is not intact');
+    expect(exported).toContain('2 record(s) missing');
+    expect(exported).toContain('/data/cs.jsonl.corrupt-1700000000');
+
+    // ...and so must the biennial report.
+    const reportDeps = makeDeps({ controlledSubstanceLog: damaged });
+    createStatusDialogService(reportDeps).generateDeaReportAction();
+    const reported = (reportDeps.dialog.showMessageBox as jest.Mock).mock.calls
+      .map((c) => c[0].detail as string)
+      .join('\n');
+    expect(reported).toContain('WARNING: the controlled-substance register is not intact');
+  });
+
+  test('an empty daily export from a damaged register still warns', () => {
+    const deps = makeDeps({
+      csExport: { exportDailyLog: () => null } as never,
+      controlledSubstanceLog: {
+        getIntegrity: () => ({
+          ok: false,
+          reason: 'the final record was written incompletely and was discarded',
+          quarantinePath: null,
+          recordsLoaded: 0,
+          watermarkCount: 1,
+          tornTail: true,
+        }),
+      } as never,
+    });
+    createStatusDialogService(deps).exportCsDailyLog();
+    const detail = (deps.dialog.showMessageBox as jest.Mock).mock.calls[0][0].detail as string;
+    expect(detail).toContain('No controlled-substance transactions to export');
+    expect(detail).toContain('WARNING: the controlled-substance register is not intact');
   });
 
   test('generateDeaReportAction writes the chosen format', () => {
