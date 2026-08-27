@@ -232,7 +232,13 @@ jobs:
       - name: Run authenticated Playwright flow
         env:
           E2E_WEB_SERVER_COMMAND: pnpm exec next start -p 3001 -H 127.0.0.1
-        run: pnpm --filter frontend exec playwright test e2e/auth-flow.spec.ts
+        # Specs are named rather than globbed: everything in this job runs with
+        # YC_E2E_* in scope, so adding one is a deliberate act, not something a
+        # new file in e2e/ does by existing.
+        run: |
+          pnpm --filter frontend exec playwright test \
+            e2e/auth-flow.spec.ts \
+            e2e/developer-portal.spec.ts
 
       # This job's artifacts are deliberately NOT uploaded.
       #
@@ -250,8 +256,8 @@ jobs:
       #
       # The job log still carries the assertion, the stack and the step output,
       # which is what a CI failure is normally triaged from. Reproduce locally
-      # with `pnpm --filter frontend exec playwright test e2e/auth-flow.spec.ts`
-      # to get a trace, using your own credentials.
+      # with `pnpm --filter frontend exec playwright test e2e/auth-flow.spec.ts
+      # e2e/developer-portal.spec.ts` to get a trace, using your own credentials.
       #
       # Only restore uploads here if the spec stops handling a real secret (for
       # example a provider-mocked sign-in). The public smoke job keeps its
