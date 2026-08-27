@@ -54,7 +54,6 @@ export const sanitizeNextPath = (value: string | null): string | undefined => {
 type ResolvePostAuthRedirectOptions = {
   fallbackRole?: string | null;
   redirectPath?: string;
-  isDeveloper?: boolean;
 };
 
 type ResolveOrgScopedRedirectOptions = {
@@ -115,13 +114,17 @@ export const resolveOrgScopedRedirect = async ({
 export const resolvePostAuthRedirect = async ({
   fallbackRole,
   redirectPath,
-  isDeveloper = false,
 }: ResolvePostAuthRedirectOptions): Promise<string> => {
   if (redirectPath) {
     return redirectPath;
   }
 
-  if (isDeveloper || isDeveloperRole(fallbackRole)) {
+  /* The role decides this, and only the role. This used to also accept an
+     `isDeveloper` flag meaning "submitted the developer sign-in form", which is
+     true even for an account with no developer role - so it routed those users
+     to a page DevRouteGuard immediately rejects. Callers that care about the
+     mismatch check the role themselves; see SignIn. */
+  if (isDeveloperRole(fallbackRole)) {
     return '/developers/home';
   }
 

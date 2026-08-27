@@ -197,10 +197,36 @@ const SignInForm = ({
       setStorageItem('session', 'devAuth', isDeveloper ? 'true' : 'false');
       const signedInRole =
         typeof useAuthStore.getState === 'function' ? useAuthStore.getState().role : role;
+
+      /* Signing in through the developer form does not make an account a
+         developer account. Say so, rather than routing on into the portal and
+         letting DevRouteGuard bounce them - from the outside that was
+         indistinguishable from a rejected password. The session stays valid;
+         the account simply belongs elsewhere. */
+      const signedInAsDeveloper =
+        String(signedInRole ?? '')
+          .trim()
+          .toLowerCase() === 'developer';
+      if (isDeveloper && !signedInAsDeveloper) {
+        showErrorTost({
+          message:
+            'That account is not registered as a developer account. Create a developer account to use the portal.',
+          errortext: 'Not a developer account',
+          iconElement: (
+            <Icon
+              icon="solar:danger-triangle-bold"
+              width="20"
+              height="20"
+              color="var(--color-danger-600)"
+            />
+          ),
+          className: 'errofoundbg',
+        });
+      }
+
       const nextRoute = await resolvePostAuthRedirect({
         fallbackRole: signedInRole,
         redirectPath: effectiveRedirectPath,
-        isDeveloper,
       });
       router.replace(nextRoute);
     } catch (error: any) {
