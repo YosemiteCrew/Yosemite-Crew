@@ -54,6 +54,7 @@ describe('features/tasks/taskSlice', () => {
     error: null,
     hydratedCompanions: {},
     failedCompanions: {},
+    activeRequests: {},
   };
 
   // -------------------------------------------------------------------------

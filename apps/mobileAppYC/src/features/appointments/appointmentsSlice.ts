@@ -419,6 +419,7 @@ const initialState: AppointmentsState = {
   error: null,
   hydratedCompanions: {},
   failedCompanions: {},
+  activeRequests: {},
 };
 
 const upsertAppointment = (
@@ -452,7 +453,11 @@ const appointmentsSlice = createSlice({
       .addCase(fetchAppointmentsForCompanion.pending, (state, action) => {
         state.loading = true;
         state.error = null;
-        markCollectionPending(state, action.meta?.arg?.companionId);
+        markCollectionPending(
+          state,
+          action.meta?.arg?.companionId,
+          action.meta?.requestId,
+        );
       })
       .addCase(fetchAppointmentsForCompanion.fulfilled, (state, action) => {
         state.loading = false;
@@ -466,7 +471,12 @@ const appointmentsSlice = createSlice({
         const message =
           (action.payload as string) ?? 'Unable to fetch appointments';
         state.error = message;
-        markCollectionFailed(state, action.meta?.arg?.companionId, message);
+        markCollectionFailed(
+          state,
+          action.meta?.arg?.companionId,
+          message,
+          action.meta?.requestId,
+        );
       })
       .addCase(fetchAppointmentById.fulfilled, (state, action) => {
         upsertAppointment(state, action.payload);

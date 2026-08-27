@@ -27,6 +27,7 @@ const initialState: NotificationsState = {
   unreadCount: 0,
   hydratedCompanions: {},
   failedCompanions: {},
+  activeRequests: {},
   lastFetchTimestamp: undefined,
   filter: 'all',
   sortBy: 'new',
@@ -69,7 +70,11 @@ export const notificationSlice = createSlice({
       .addCase(fetchNotificationsForCompanion.pending, (state, action) => {
         state.loading = true;
         state.error = null;
-        markCollectionPending(state, action.meta?.arg?.companionId);
+        markCollectionPending(
+          state,
+          action.meta?.arg?.companionId,
+          action.meta?.requestId,
+        );
       })
       .addCase(fetchNotificationsForCompanion.fulfilled, (state, action) => {
         state.loading = false;
@@ -88,6 +93,7 @@ export const notificationSlice = createSlice({
           state,
           action.meta?.arg?.companionId,
           action.payload,
+          action.meta?.requestId,
         );
       })
 

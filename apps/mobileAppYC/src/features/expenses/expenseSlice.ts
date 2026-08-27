@@ -23,6 +23,7 @@ const initialState: ExpensesState = {
   summaries: {},
   hydratedCompanions: {},
   failedCompanions: {},
+  activeRequests: {},
 };
 
 const buildSummary = (
@@ -102,7 +103,11 @@ const expensesSlice = createSlice({
       .addCase(fetchExpensesForCompanion.pending, (state, action) => {
         state.loading = true;
         state.error = null;
-        markCollectionPending(state, action.meta?.arg?.companionId);
+        markCollectionPending(
+          state,
+          action.meta?.arg?.companionId,
+          action.meta?.requestId,
+        );
       })
       .addCase(fetchExpensesForCompanion.fulfilled, (state, action) => {
         state.loading = false;
@@ -122,6 +127,7 @@ const expensesSlice = createSlice({
           state,
           action.meta?.arg?.companionId,
           action.payload,
+          action.meta?.requestId,
         );
       })
       .addCase(addExternalExpense.pending, state => {
@@ -198,13 +204,36 @@ const expensesSlice = createSlice({
         }
         recalculateSummary(state, expense.companionId);
       })
+      // fetchExpenseSummary marks the companion hydrated, and Home's readiness
+      // gate waits on that flag. It previously had ONLY a fulfilled reducer, so
+      // a rejected summary wrote no failure anywhere: hydration stayed false,
+      // the gate never saw a failure to settle on, and the opaque Home loader
+      // sat there until its 12s timeout. That is the exact symptom this branch
+      // set out to remove, surviving in the one thunk that had no error path.
+      .addCase(fetchExpenseSummary.pending, (state, action) => {
+        markCollectionPending(
+          state,
+          action.meta?.arg?.companionId,
+          action.meta?.requestId,
+        );
+      })
       .addCase(fetchExpenseSummary.fulfilled, (state, action) => {
         const {companionId, summary} = action.payload;
         state.summaries[companionId] = {
           ...summary,
           lastUpdated: new Date().toISOString(),
         };
-        state.hydratedCompanions[companionId] = true;
+        markCollectionHydrated(state, companionId);
+      })
+      .addCase(fetchExpenseSummary.rejected, (state, action) => {
+        const message = action.payload ?? 'Unable to fetch expense summary';
+        state.error = message;
+        markCollectionFailed(
+          state,
+          action.meta?.arg?.companionId,
+          message,
+          action.meta?.requestId,
+        );
       });
   },
 });

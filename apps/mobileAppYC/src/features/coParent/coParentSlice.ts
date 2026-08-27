@@ -61,7 +61,9 @@ export const coParentSlice = createSlice({
       })
       .addCase(addCoParent.fulfilled, (state, action) => {
         state.loading = false;
-        const existingIndex = state.coParents.findIndex(cp => cp.id === action.payload.id);
+        const existingIndex = state.coParents.findIndex(
+          cp => cp.id === action.payload.id,
+        );
         if (existingIndex >= 0) {
           state.coParents[existingIndex] = action.payload;
         } else {
@@ -81,7 +83,9 @@ export const coParentSlice = createSlice({
       })
       .addCase(updateCoParentPermissions.fulfilled, (state, action) => {
         state.loading = false;
-        const index = state.coParents.findIndex(c => c.id === action.payload.id);
+        const index = state.coParents.findIndex(
+          c => c.id === action.payload.id,
+        );
         if (index !== -1) {
           state.coParents[index] = action.payload;
         }
@@ -99,7 +103,9 @@ export const coParentSlice = createSlice({
       })
       .addCase(deleteCoParent.fulfilled, (state, action) => {
         state.loading = false;
-        state.coParents = state.coParents.filter(c => c.id !== action.payload.coParentId);
+        state.coParents = state.coParents.filter(
+          c => c.id !== action.payload.coParentId,
+        );
       })
       .addCase(deleteCoParent.rejected, (state, action) => {
         state.loading = false;
@@ -171,6 +177,7 @@ export const coParentSlice = createSlice({
   },
 });
 
-export const {setSelectedCoParent, clearError, resetCoParentState} = coParentSlice.actions;
+export const {setSelectedCoParent, clearError, resetCoParentState} =
+  coParentSlice.actions;
 
 export default coParentSlice.reducer;

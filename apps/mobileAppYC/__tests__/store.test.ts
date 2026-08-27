@@ -287,6 +287,7 @@ describe('Redux Store', () => {
         hydratedCompanions: {},
         // Added by the v7 -> v8 step, which the chained runner also applies.
         failedCompanions: {},
+        activeRequests: {},
         filter: 'all',
         sortBy: 'new',
       });
@@ -305,6 +306,7 @@ describe('Redux Store', () => {
         existing: true,
         hydratedCompanions: {},
         failedCompanions: {},
+        activeRequests: {},
       });
     });
 

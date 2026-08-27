@@ -780,6 +780,50 @@ describe('HomeScreen', () => {
       expect(queryByTestId('home-companions-load-error')).toBeNull();
     });
 
+    // The readiness gate settles on an appointment failure so the loader clears,
+    // which made the failure land in the appointments tile as "No upcoming
+    // appointments" with a booking action: a failed request presented as a
+    // genuinely empty schedule.
+    it('shows a retry tile instead of an empty schedule when appointments fail', () => {
+      const store = createStore({
+        appointments: {
+          upcoming: [],
+          loading: false,
+          hydratedCompanions: {},
+          failedCompanions: {c1: 'Network Error'},
+        },
+      });
+
+      const {getByText, queryByText} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+
+      expect(getByText('Could not load appointments')).toBeTruthy();
+      expect(queryByText('No upcoming appointments')).toBeNull();
+    });
+
+    it('still shows the empty schedule when the appointment fetch succeeded', () => {
+      const store = createStore({
+        appointments: {
+          upcoming: [],
+          loading: false,
+          hydratedCompanions: {c1: true},
+          failedCompanions: {},
+        },
+      });
+
+      const {getByText, queryByText} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+
+      expect(getByText('No upcoming appointments')).toBeTruthy();
+      expect(queryByText('Could not load appointments')).toBeNull();
+    });
+
     it('navigates to AddCompanion when the hero button is pressed', () => {
       const store = createStore({companion: {list: [], selectedId: null}});
       const {getByText} = renderAndWait(

@@ -431,6 +431,9 @@ describe('ExpensesMainScreen', () => {
     selectExpenseSummaryByCompanionMock.mockReturnValue(() => null);
     selectExpensesLoadingMock.mockReturnValue(false);
     selectHasHydratedCompanionMock.mockReturnValue(() => false);
+    require('@/features/expenses/selectors').selectExpensesLoadFailure.mockReturnValue(
+      () => undefined,
+    );
     selectRecentExternalExpensesMock.mockReturnValue(() => []);
     selectRecentInAppExpensesMock.mockReturnValue(() => []);
 
@@ -474,6 +477,36 @@ describe('ExpensesMainScreen', () => {
   it('should fetch expenses in useEffect if already hydrated', () => {
     selectHasHydratedCompanionMock.mockReturnValue(() => true);
     render(<ExpensesMainScreen />);
+  });
+
+  // Before hydration the screen fell through to the sections and rendered a
+  // zero yearly total behind a touch-blocking overlay, so an in-flight request
+  // looked like loaded data showing nothing.
+  it('renders a loading state before the first expense fetch resolves', () => {
+    selectHasHydratedCompanionMock.mockReturnValue(() => false);
+    selectExpensesLoadingMock.mockReturnValue(true);
+
+    const {getByTestId, queryByText} = render(<ExpensesMainScreen />);
+
+    expect(getByTestId('expenses-loading')).toBeTruthy();
+    expect(queryByText('No expenses yet')).toBeNull();
+  });
+
+  // A companion-specific failure must not strand the user on that companion.
+  it('keeps the companion selector reachable in the expense error state', () => {
+    const {
+      selectExpensesLoadFailure,
+    } = require('@/features/expenses/selectors');
+    selectExpensesLoadFailure.mockReturnValue(() => 'Network Error');
+
+    const {getByTestId} = render(<ExpensesMainScreen />);
+
+    expect(getByTestId('expenses-load-error')).toBeTruthy();
+    // The CompanionSelector mock exposes this child; its presence proves the
+    // selector is still rendered and the user can switch companions.
+    expect(getByTestId('select-c2')).toBeTruthy();
+
+    selectExpensesLoadFailure.mockReturnValue(() => undefined);
   });
 
   it('should render empty state if hydrated and no expenses exist', () => {

@@ -26,6 +26,7 @@ import {
   selectUnreadCountByCategory,
 } from '../../selectors';
 import {ListErrorState} from '@/shared/components/common/ListErrorState/ListErrorState';
+import {ListLoadingState} from '@/shared/components/common/ListLoadingState/ListLoadingState';
 import {resolveListPhase} from '@/shared/utils/listPhase';
 import {
   fetchNotificationsForCompanion,
@@ -135,16 +136,32 @@ export const NotificationsScreen: React.FC = () => {
     }
   }, [dispatch, isLoggedIn]);
 
-  const listPhase = useMemo(
-    () =>
-      resolveListPhase({
-        loading,
-        loadError: loadFailure,
-        hasLoaded: hasHydrated,
-        itemCount: notifications.length,
-      }),
-    [loading, loadFailure, hasHydrated, notifications.length],
-  );
+  // Computed directly rather than memoised: resolveListPhase is four primitive
+  // comparisons over scalars, so the memo cost more than it saved.
+  const listPhase = resolveListPhase({
+    loading,
+    loadError: loadFailure,
+    hasLoaded: hasHydrated,
+    itemCount: notifications.length,
+  });
+
+  // A failed fetch used to render the same "you're all caught up" copy as a
+  // genuinely empty inbox with no way to retry, and an in-flight fetch rendered
+  // it too - so a slow retry looked like it had succeeded with nothing to show.
+  const renderNotificationsPlaceholder = () => {
+    if (listPhase === 'error') {
+      return (
+        <ListErrorState
+          testID="notifications-load-error"
+          onRetry={refetchNotifications}
+        />
+      );
+    }
+    if (listPhase === 'loading') {
+      return <ListLoadingState testID="notifications-loading" />;
+    }
+    return <NotificationsEmptyState styles={styles} />;
+  };
 
   const refreshControl = useMemo(
     () => (
@@ -358,18 +375,7 @@ export const NotificationsScreen: React.FC = () => {
             sections={sections}
             renderItem={renderNotificationItem}
             refreshControl={refreshControl}
-            emptyComponent={
-              // A failed fetch used to render the same "you're all caught up"
-              // copy as an genuinely empty inbox, with no way to retry.
-              listPhase === 'error' ? (
-                <ListErrorState
-                  testID="notifications-load-error"
-                  onRetry={refetchNotifications}
-                />
-              ) : (
-                <NotificationsEmptyState styles={styles} />
-              )
-            }
+            emptyComponent={renderNotificationsPlaceholder()}
             styles={styles}
           />
         </>

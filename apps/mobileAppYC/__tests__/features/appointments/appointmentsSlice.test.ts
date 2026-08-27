@@ -101,6 +101,7 @@ const initialState = {
   error: null,
   hydratedCompanions: {},
   failedCompanions: {},
+  activeRequests: {},
 };
 
 const createTestStore = (

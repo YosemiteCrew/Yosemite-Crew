@@ -99,11 +99,33 @@ export const DocumentsScreen: React.FC = () => {
   // which case an empty list is not evidence the user has no companions.
   if (companions.length === 0) {
     if (companionLoadError) {
+      // Inside the standard screen shell, not returned bare: the header,
+      // safe-area inset, background and full-height layout all come from
+      // LiquidGlassHeaderScreen, and without it the retry copy can start under
+      // the status bar on a device with a top inset.
       return (
-        <ListErrorState
-          testID="documents-companions-load-error"
-          onRetry={handleRetryCompanions}
-        />
+        <LiquidGlassHeaderScreen
+          header={
+            <DocumentsListHeader
+              title="Documents"
+              searchPlaceholder="Search through documents"
+              onSearchPress={() => navigation.navigate('DocumentSearch')}
+              rightIcon={Images.addIconDark}
+              onRightPress={handleAddDocument}
+              searchContainerStyle={styles.searchBar}
+            />
+          }
+          cardGap={theme.spacing['3']}
+          contentPadding={theme.spacing['3']}>
+          {contentPaddingStyle => (
+            <View style={contentPaddingStyle}>
+              <ListErrorState
+                testID="documents-companions-load-error"
+                onRetry={handleRetryCompanions}
+              />
+            </View>
+          )}
+        </LiquidGlassHeaderScreen>
       );
     }
     return <EmptyDocumentsScreen />;

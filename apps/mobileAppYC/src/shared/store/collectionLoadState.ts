@@ -13,6 +13,17 @@
 export interface CollectionLoadState {
   hydratedCompanions: Record<string, boolean>;
   failedCompanions: Record<string, string>;
+  /**
+   * requestId of the newest in-flight fetch per companion, so a rejection that
+   * arrives after a NEWER request already succeeded can be discarded.
+   *
+   * Several screens dispatch the same fetch twice on a focused mount (a
+   * hydration effect plus useFocusEffect, or a tab press plus its active-index
+   * effect). Without this, an older request rejecting after a newer one
+   * returned an empty list would record a failure over a successful hydration,
+   * and the screen would replace a correct empty state with an error.
+   */
+  activeRequests: Record<string, string>;
 }
 
 /** The single, canonical fallback message for a failed collection fetch. */
@@ -28,6 +39,7 @@ export const DEFAULT_COLLECTION_LOAD_ERROR = 'Failed to load';
 const ensureMaps = (state: Partial<CollectionLoadState>): void => {
   state.hydratedCompanions = state.hydratedCompanions ?? {};
   state.failedCompanions = state.failedCompanions ?? {};
+  state.activeRequests = state.activeRequests ?? {};
 };
 
 /**
@@ -49,6 +61,7 @@ const usableKey = (companionId: string | null | undefined): string | null =>
 export const markCollectionPending = (
   state: CollectionLoadState,
   companionId: string | null | undefined,
+  requestId?: string,
 ): void => {
   ensureMaps(state);
   const key = usableKey(companionId);
@@ -56,6 +69,9 @@ export const markCollectionPending = (
     return;
   }
   delete state.failedCompanions[key];
+  if (requestId) {
+    state.activeRequests[key] = requestId;
+  }
 };
 
 /** The collection arrived. It is now hydrated and, by definition, not failed. */
@@ -70,6 +86,8 @@ export const markCollectionHydrated = (
   }
   state.hydratedCompanions[key] = true;
   delete state.failedCompanions[key];
+  // Success closes the round: any rejection still in flight is now stale.
+  delete state.activeRequests[key];
 };
 
 /**
@@ -80,12 +98,39 @@ export const markCollectionFailed = (
   state: CollectionLoadState,
   companionId: string | null | undefined,
   message?: string | null,
+  requestId?: string,
 ): void => {
   ensureMaps(state);
   const key = usableKey(companionId);
   if (!key) {
     return;
   }
+
+  // Only the newest request may report a failure.
+  //
+  // Three cases, and the third is why this is not a bare equality check:
+  //  - the entry names THIS request: it is the newest, record the failure.
+  //  - the entry names a DIFFERENT request: a newer one is still running, so
+  //    this rejection is stale.
+  //  - there is no entry at all: either a newer request already succeeded and
+  //    cleared it, or we never saw a pending for this fetch. Those are
+  //    indistinguishable from the map alone, so fall back to the hydration
+  //    flag - a hydrated collection means a success cleared it and this is
+  //    stale, while an unhydrated one means we have no evidence of a newer
+  //    request and dropping a real failure would be worse than keeping it.
+  // The entry is deliberately LEFT in place after a match rather than cleared:
+  // it marks "this round already reported", so a second, older rejection cannot
+  // fall through the no-entry branch below and overwrite the newer message. The
+  // next pending overwrites it anyway.
+  if (requestId) {
+    const active = state.activeRequests[key];
+    if (active !== requestId) {
+      if (active !== undefined || state.hydratedCompanions[key]) {
+        return;
+      }
+    }
+  }
+
   state.failedCompanions[key] = message || DEFAULT_COLLECTION_LOAD_ERROR;
 };
 

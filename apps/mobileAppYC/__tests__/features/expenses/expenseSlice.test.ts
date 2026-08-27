@@ -25,6 +25,7 @@ const initialState: ExpensesState = {
   summaries: {},
   hydratedCompanions: {},
   failedCompanions: {},
+  activeRequests: {},
 };
 
 const mockExpense1: Expense = {
@@ -109,6 +110,62 @@ describe('expensesSlice', () => {
 
       const nextState = expensesReducer(populatedState, resetExpensesState());
       expect(nextState).toEqual(initialState);
+    });
+  });
+
+  // Home's readiness gate waits on the hydration flag that this thunk sets.
+
+  // It previously had ONLY a fulfilled reducer, so a rejected summary wrote no
+
+  // failure anywhere and the opaque Home loader sat until its 12s timeout.
+
+  describe('extraReducers - fetchExpenseSummary', () => {
+    const pendingType = 'expenses/fetchSummary/pending';
+
+    const rejectedType = 'expenses/fetchSummary/rejected';
+
+    it('records a failure when the summary fetch rejects', () => {
+      const next = expensesReducer(initialState, {
+        type: rejectedType,
+
+        payload: 'Network Error',
+
+        meta: {arg: {companionId: 'comp1'}, requestId: 'r1'},
+      } as any);
+
+      expect(next.failedCompanions.comp1).toBe('Network Error');
+
+      expect(next.hydratedCompanions.comp1).toBeUndefined();
+    });
+
+    it('uses a default message when the rejection has no payload', () => {
+      const next = expensesReducer(initialState, {
+        type: rejectedType,
+
+        meta: {arg: {companionId: 'comp1'}, requestId: 'r1'},
+      } as any);
+
+      expect(next.failedCompanions.comp1).toBe(
+        'Unable to fetch expense summary',
+      );
+    });
+
+    it('clears a recorded failure when the summary fetch is retried', () => {
+      const failed = expensesReducer(initialState, {
+        type: rejectedType,
+
+        payload: 'Network Error',
+
+        meta: {arg: {companionId: 'comp1'}, requestId: 'r1'},
+      } as any);
+
+      const retrying = expensesReducer(failed, {
+        type: pendingType,
+
+        meta: {arg: {companionId: 'comp1'}, requestId: 'r2'},
+      } as any);
+
+      expect(retrying.failedCompanions.comp1).toBeUndefined();
     });
   });
 

@@ -9,6 +9,7 @@ import {YearlySpendCard} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {EmptyState} from '@/shared/components/common/EmptyState/EmptyState';
 import {ListErrorState} from '@/shared/components/common/ListErrorState/ListErrorState';
+import {ListLoadingState} from '@/shared/components/common/ListLoadingState/ListLoadingState';
 import {resolveListPhase} from '@/shared/utils/listPhase';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {ViewMoreButton} from '@/shared/components/common/ViewMoreButton/ViewMoreButton';
@@ -204,15 +205,36 @@ export const ExpensesMainScreen: React.FC = () => {
         }
         contentPadding={theme.spacing['3']}>
         {contentPaddingStyle => {
-          if (listPhase === 'error') {
+          // Errors and in-flight fetches keep the CompanionSelector above them.
+          // Replacing the whole content area stranded the user on the failing
+          // companion with no way to switch to one whose expenses are cached or
+          // would load fine, and an in-flight fetch previously fell through to
+          // the section below and rendered a zero total as if it were data.
+          if (listPhase === 'error' || listPhase === 'loading') {
             return (
               <ScrollView
-                contentContainerStyle={[styles.emptyState, contentPaddingStyle]}
+                contentContainerStyle={[
+                  styles.contentContainer,
+                  contentPaddingStyle,
+                ]}
                 showsVerticalScrollIndicator={false}>
-                <ListErrorState
-                  testID="expenses-load-error"
-                  onRetry={refetchExpenses}
+                <CompanionSelector
+                  companions={companions}
+                  selectedCompanionId={selectedCompanionId}
+                  onSelect={id => dispatch(setSelectedCompanion(id))}
+                  showAddButton={false}
+                  containerStyle={styles.companionSelector}
+                  requiredPermission="expenses"
+                  permissionLabel="expenses"
                 />
+                {listPhase === 'error' ? (
+                  <ListErrorState
+                    testID="expenses-load-error"
+                    onRetry={refetchExpenses}
+                  />
+                ) : (
+                  <ListLoadingState testID="expenses-loading" />
+                )}
               </ScrollView>
             );
           }

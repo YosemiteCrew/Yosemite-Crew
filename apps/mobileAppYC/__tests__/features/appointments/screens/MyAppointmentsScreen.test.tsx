@@ -964,6 +964,28 @@ describe('MyAppointmentsScreen', () => {
       expect(screen.queryByText('No upcoming appointments')).toBeNull();
     });
 
+    // The pending reducer clears the failure the moment a retry starts, so an
+    // error-first check fell straight through to the empty card and made a slow
+    // retry look like it had already returned nothing.
+    it('renders progress rather than the empty card while a retry is in flight', () => {
+      store = mockStore({
+        companion: {
+          companions: [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+          selectedCompanionId: 'c1',
+        },
+        appointments: {
+          upcomingOverride: [],
+          pastOverride: [],
+          loading: true,
+          failedCompanions: {},
+        },
+      });
+      renderScreen();
+
+      expect(screen.getByTestId('appointments-loading-upcoming')).toBeTruthy();
+      expect(screen.queryByText('No upcoming appointments')).toBeNull();
+    });
+
     it('still renders the empty card when nothing failed', () => {
       store = buildStore(
         [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],

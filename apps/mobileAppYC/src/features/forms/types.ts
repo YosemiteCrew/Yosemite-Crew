@@ -3,11 +3,7 @@ import type {Form, FormSubmission} from '@yosemite-crew/types';
 export type FormSource = 'appointment' | 'service';
 
 export type AppointmentFormStatus =
-  | 'not_started'
-  | 'submitted'
-  | 'signing'
-  | 'signed'
-  | 'completed';
+  'not_started' | 'submitted' | 'signing' | 'signed' | 'completed';
 
 export interface AppointmentFormEntry {
   form: Form;

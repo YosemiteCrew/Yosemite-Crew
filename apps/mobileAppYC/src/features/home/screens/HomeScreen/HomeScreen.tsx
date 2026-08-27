@@ -768,6 +768,14 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     dispatch(fetchCompanions(user.parentId));
   }, [dispatch, markInitialRequest, user?.parentId]);
 
+  const handleRetryAppointments = React.useCallback(() => {
+    if (!targetCompanionId) {
+      return;
+    }
+    markInitialRequest('appointments');
+    dispatch(fetchAppointmentsForCompanion({companionId: targetCompanionId}));
+  }, [dispatch, markInitialRequest, targetCompanionId]);
+
   const handleAddCompanion = () => {
     navigation.navigate('AddCompanion');
   };
@@ -1302,6 +1310,19 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     }
     if (nextUpcomingAppointment) {
       return renderAppointmentCard(nextUpcomingAppointment);
+    }
+
+    // The readiness gate now settles on an appointment failure so the loader
+    // clears, but that made the failure land here as "No upcoming appointments"
+    // with a booking action - a failed request presented as a genuinely empty
+    // schedule, which is the whole defect this branch exists to remove.
+    if (appointmentsLoadError) {
+      return renderEmptyStateTile(
+        'Could not load appointments',
+        'Tap to try again.',
+        'appointments',
+        handleRetryAppointments,
+      );
     }
 
     const navigateToAppointments =

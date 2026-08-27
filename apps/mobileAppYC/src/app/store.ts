@@ -142,6 +142,7 @@ const migrateV7ToV8 = (state: any) => {
     if (state[key]) {
       state[key].hydratedCompanions = state[key].hydratedCompanions ?? {};
       state[key].failedCompanions = state[key].failedCompanions ?? {};
+      state[key].activeRequests = state[key].activeRequests ?? {};
     }
   }
   if (state.companion) {

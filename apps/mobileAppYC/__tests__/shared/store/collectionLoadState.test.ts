@@ -11,6 +11,7 @@ import {
 const emptyState = (): CollectionLoadState => ({
   hydratedCompanions: {},
   failedCompanions: {},
+  activeRequests: {},
 });
 
 describe('collectionLoadState', () => {
@@ -184,6 +185,72 @@ describe('collectionLoadState', () => {
       expect(selectCollectionFailure(state, 'toString')).toBeUndefined();
       expect(selectCollectionHydrated(state, '__proto__')).toBe(false);
       expect(selectCollectionHydrated(state, 'toString')).toBe(false);
+    });
+  });
+
+  // Several screens dispatch the same fetch twice on a focused mount. Without
+  // request-id tracking, an older request rejecting after a newer one returned
+  // an empty list recorded a failure over a successful hydration, and the
+  // screen replaced a correct empty state with an error.
+  describe('stale rejections', () => {
+    it('ignores a rejection from a request that a later success superseded', () => {
+      const state = emptyState();
+
+      markCollectionPending(state, 'c1', 'req-1');
+      markCollectionPending(state, 'c1', 'req-2');
+      markCollectionHydrated(state, 'c1');
+      markCollectionFailed(state, 'c1', 'stale boom', 'req-1');
+
+      expect(state.hydratedCompanions.c1).toBe(true);
+      expect(state.failedCompanions.c1).toBeUndefined();
+    });
+
+    it('ignores a rejection superseded by a newer in-flight request', () => {
+      const state = emptyState();
+
+      markCollectionPending(state, 'c1', 'req-1');
+      markCollectionPending(state, 'c1', 'req-2');
+      markCollectionFailed(state, 'c1', 'stale boom', 'req-1');
+
+      expect(state.failedCompanions.c1).toBeUndefined();
+    });
+
+    it('records a rejection from the newest request', () => {
+      const state = emptyState();
+
+      markCollectionPending(state, 'c1', 'req-1');
+      markCollectionFailed(state, 'c1', 'real boom', 'req-1');
+
+      expect(state.failedCompanions.c1).toBe('real boom');
+    });
+
+    it('records only the first of two rejections, newest request first', () => {
+      const state = emptyState();
+
+      markCollectionPending(state, 'c1', 'req-1');
+      markCollectionPending(state, 'c1', 'req-2');
+      markCollectionFailed(state, 'c1', 'newer boom', 'req-2');
+      markCollectionFailed(state, 'c1', 'older boom', 'req-1');
+
+      expect(state.failedCompanions.c1).toBe('newer boom');
+    });
+
+    it('still records a failure when no request id is supplied', () => {
+      const state = emptyState();
+
+      markCollectionFailed(state, 'c1', 'boom');
+
+      expect(state.failedCompanions.c1).toBe('boom');
+    });
+
+    it('tolerates rehydrated state with no activeRequests map', () => {
+      const legacy = {
+        hydratedCompanions: {},
+        failedCompanions: {},
+      } as CollectionLoadState;
+
+      expect(() => markCollectionPending(legacy, 'c1', 'req-1')).not.toThrow();
+      expect(legacy.activeRequests.c1).toBe('req-1');
     });
   });
 

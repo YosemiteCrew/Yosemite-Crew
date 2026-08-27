@@ -21,6 +21,7 @@ const initialState: TasksState = {
   error: null,
   hydratedCompanions: {},
   failedCompanions: {},
+  activeRequests: {},
 };
 
 const tasksSlice = createSlice({
@@ -63,7 +64,11 @@ const tasksSlice = createSlice({
       .addCase(fetchTasksForCompanion.pending, (state, action) => {
         state.loading = true;
         state.error = null;
-        markCollectionPending(state, action.meta?.arg?.companionId);
+        markCollectionPending(
+          state,
+          action.meta?.arg?.companionId,
+          action.meta?.requestId,
+        );
       })
       .addCase(fetchTasksForCompanion.fulfilled, (state, action) => {
         state.loading = false;
@@ -87,6 +92,7 @@ const tasksSlice = createSlice({
           state,
           action.meta?.arg?.companionId,
           action.payload,
+          action.meta?.requestId,
         );
       })
 

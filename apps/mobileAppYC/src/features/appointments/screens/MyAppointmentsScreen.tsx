@@ -19,6 +19,7 @@ import type {RootState, AppDispatch} from '@/app/store';
 import {fetchAppointmentsForCompanion} from '@/features/appointments/appointmentsSlice';
 import {selectCollectionFailure} from '@/shared/store/collectionLoadState';
 import {ListErrorState} from '@/shared/components/common/ListErrorState/ListErrorState';
+import {ListLoadingState} from '@/shared/components/common/ListLoadingState/ListLoadingState';
 import {setSelectedCompanion} from '@/features/companion';
 import {
   createSelectUpcomingAppointments,
@@ -115,6 +116,9 @@ export const MyAppointmentsScreen: React.FC = () => {
 
   const appointmentsLoadError = useSelector((state: RootState) =>
     selectCollectionFailure(state.appointments, selectedCompanionId),
+  );
+  const appointmentsLoading = useSelector(
+    (state: RootState) => state.appointments?.loading ?? false,
   );
 
   const fetchAppointmentsOnce = React.useCallback(
@@ -313,6 +317,26 @@ export const MyAppointmentsScreen: React.FC = () => {
           'Book a new appointment to see it here.',
         );
 
+  // Order matters. The pending reducer clears the failure the moment a retry
+  // starts, so checking the error first would fall straight through to the
+  // empty card and make a slow retry look like it had already come back with
+  // nothing. Both empty cards read as "nothing booked"; neither is true while a
+  // request is in flight or after one failed.
+  const renderEmptySectionContent = (sectionKey: string) => {
+    if (appointmentsLoading) {
+      return <ListLoadingState testID={`appointments-loading-${sectionKey}`} />;
+    }
+    if (appointmentsLoadError) {
+      return (
+        <ListErrorState
+          testID={`appointments-load-error-${sectionKey}`}
+          onRetry={retryFetchAppointments}
+        />
+      );
+    }
+    return renderEmptySectionCard(sectionKey);
+  };
+
   const handleAdd = () => navigation.navigate('BrowseBusinesses');
 
   // The Upcoming/Past segmented control selects which set is shown; the
@@ -356,16 +380,8 @@ export const MyAppointmentsScreen: React.FC = () => {
       {section.data.length > 0 && (
         <Text style={styles.groupTitle}>{section.title}</Text>
       )}
-      {section.data.length === 0 && appointmentsLoadError ? (
-        // Both empty cards below read as "nothing booked". A failed fetch is a
-        // different fact and needs a way out, not reassurance.
-        <ListErrorState
-          testID={`appointments-load-error-${section.key}`}
-          onRetry={retryFetchAppointments}
-        />
-      ) : null}
-      {section.data.length === 0 && !appointmentsLoadError
-        ? renderEmptySectionCard(section.key)
+      {section.data.length === 0
+        ? renderEmptySectionContent(section.key)
         : null}
     </View>
   );

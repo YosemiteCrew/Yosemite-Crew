@@ -29,6 +29,7 @@ import {
   taskOccursOnDate,
 } from '@/features/tasks/selectors';
 import {ListErrorState} from '@/shared/components/common/ListErrorState/ListErrorState';
+import {ListLoadingState} from '@/shared/components/common/ListLoadingState/ListLoadingState';
 import {resolveListPhase} from '@/shared/utils/listPhase';
 import {selectAuthUser} from '@/features/auth/selectors';
 import type {AppDispatch, RootState} from '@/app/store';
@@ -340,6 +341,9 @@ export const TasksMainScreen: React.FC = () => {
           />
 
           {/* Category Sections */}
+          {taskListPhase === 'loading' && (
+            <ListLoadingState testID="tasks-loading" />
+          )}
           {taskListPhase === 'error' && (
             <ListErrorState testID="tasks-load-error" onRetry={refetchTasks} />
           )}

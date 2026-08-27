@@ -237,6 +237,9 @@ jest.mock('@/shared/components/common/ViewMoreButton/ViewMoreButton', () => {
   };
 });
 
+// Toggled per-test so the screen's `state.tasks.loading` read is controllable.
+let mockTasksLoading = false;
+
 describe('TasksMainScreen', () => {
   const mockDispatch = jest.fn();
   const mockNavigate = jest.fn();
@@ -327,6 +330,7 @@ describe('TasksMainScreen', () => {
     selectTasksByCompanion.mockReturnValue((_state: any) => []);
     const {selectTasksLoadFailure} = require('@/features/tasks/selectors');
     selectTasksLoadFailure.mockReturnValue((_state: any) => undefined);
+    mockTasksLoading = false;
 
     const {selectAuthUser} = require('@/features/auth/selectors');
     selectAuthUser.mockReturnValue(mockAuthUser);
@@ -340,6 +344,7 @@ describe('TasksMainScreen', () => {
           companions: mockCompanions,
           selectedCompanionId: 'c1',
         },
+        tasks: {loading: mockTasksLoading},
       };
 
       try {
@@ -438,6 +443,24 @@ describe('TasksMainScreen', () => {
     fireEvent.press(getByTestId('tasks-load-error-retry'));
 
     expect(mockDispatch).toHaveBeenCalled();
+  });
+
+  // resolveListPhase returned 'loading' from the start, but no branch rendered
+  // it, so the task area went blank during the first fetch and for the whole
+  // duration of a retry - a slow retry looked like it had done nothing.
+  it('renders a loading state while the initial task fetch is pending', () => {
+    const {
+      selectHasHydratedCompanion,
+      selectTasksLoadFailure,
+    } = require('@/features/tasks/selectors');
+    selectHasHydratedCompanion.mockReturnValue((_state: any) => false);
+    selectTasksLoadFailure.mockReturnValue((_state: any) => undefined);
+    mockTasksLoading = true;
+
+    const {getByTestId, queryByText} = render(<TasksMainScreen />);
+
+    expect(getByTestId('tasks-loading')).toBeTruthy();
+    expect(queryByText('No tasks yet')).toBeNull();
   });
 
   it('renders the main screen content when companion is selected', () => {

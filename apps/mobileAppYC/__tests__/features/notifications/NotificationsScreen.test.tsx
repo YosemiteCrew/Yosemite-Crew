@@ -131,6 +131,10 @@ jest.mock('../../../src/features/notifications/selectors', () => ({
 // Mock Auth context to avoid provider requirement.
 // Toggled per-test via `mockIsLoggedIn` (defaults to logged-in so existing
 // tests are unaffected); lets us exercise the logged-out guard branches.
+// Toggled per-test so the screen's `state.notifications.loading` read is
+// controllable; the loading phase previously rendered the empty state.
+let mockNotificationsLoading = false;
+
 let mockIsLoggedIn = true;
 jest.mock('@/features/auth/context/AuthContext', () => ({
   useAuth: () => ({
@@ -175,6 +179,15 @@ describe('NotificationsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
+    mockNotificationsLoading = false;
+    // clearAllMocks clears calls but not implementations, so restore the
+    // hydration default explicitly or a test that sets it leaks into the next.
+    const {
+      selectHasHydratedCompanion: resetHydrated,
+      selectNotificationsLoadFailure: resetFailure,
+    } = require('../../../src/features/notifications/selectors');
+    resetHydrated.mockReturnValue(() => true);
+    resetFailure.mockReturnValue(() => undefined);
 
     // FIX: Cast to unknown first to satisfy TypeScript
     (useDispatch as unknown as jest.Mock).mockReturnValue(mockDispatch);
@@ -201,7 +214,7 @@ describe('NotificationsScreen', () => {
       // Mock inline state selectors
       if (typeof selector === 'function') {
         const mockState = {
-          notifications: {loading: false},
+          notifications: {loading: mockNotificationsLoading},
           companion: {
             companions: [{id: 'comp1', name: 'Buddy'}],
           },
@@ -233,6 +246,39 @@ describe('NotificationsScreen', () => {
     expect(getByText('Seen')).toBeTruthy();
   });
 
+  // resolveListPhase returned 'loading', but the placeholder ternary handled
+  // only 'error' and sent everything else to the empty state, so an in-flight
+  // fetch told the user they were "all caught up" and a slow retry looked like
+  // it had succeeded with nothing to show.
+  it('renders a loading placeholder while the notification fetch is pending', () => {
+    mockNotificationsLoading = true;
+    const {
+      selectHasHydratedCompanion,
+    } = require('../../../src/features/notifications/selectors');
+    selectHasHydratedCompanion.mockReturnValue(() => false);
+
+    (useSelector as unknown as jest.Mock).mockImplementation(selector => {
+      if (selector === selectDisplayNotifications) {
+        return [];
+      }
+      if (typeof selector === 'function') {
+        try {
+          return selector({
+            notifications: {loading: mockNotificationsLoading},
+            companion: {companions: []},
+          });
+        } catch {
+          return undefined;
+        }
+      }
+      return undefined;
+    });
+
+    const {getByTestId} = render(<NotificationsScreen />);
+
+    expect(getByTestId('notifications-loading')).toBeTruthy();
+  });
+
   it('renders empty state and injects mock data when list is empty', () => {
     // Override selector to return empty list
     // FIX: Cast to unknown first
@@ -242,7 +288,7 @@ describe('NotificationsScreen', () => {
       }
       if (typeof selector === 'function') {
         return selector({
-          notifications: {loading: false},
+          notifications: {loading: mockNotificationsLoading},
           companion: {companions: []},
         });
       }
@@ -577,7 +623,7 @@ describe('NotificationsScreen', () => {
         }
         if (typeof selector === 'function') {
           return selector({
-            notifications: {loading: false},
+            notifications: {loading: mockNotificationsLoading},
             companion: {companions: []},
           });
         }

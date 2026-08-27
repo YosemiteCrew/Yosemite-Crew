@@ -64,4 +64,10 @@ export interface ExpensesState {
    * made every failure render as the new-user empty state.
    */
   failedCompanions: Record<string, string>;
+  /**
+   * requestId of the newest in-flight fetch per companion. Lets a rejection
+   * that arrives after a newer request already succeeded be discarded
+   * instead of overwriting a good result with a stale error.
+   */
+  activeRequests: Record<string, string>;
 }
