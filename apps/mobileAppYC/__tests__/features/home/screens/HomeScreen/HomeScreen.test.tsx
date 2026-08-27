@@ -45,6 +45,7 @@ jest.mock('@/features/expenses', () => ({
     .fn()
     .mockImplementation(() => () => ({total: 500, currencyCode: 'USD'})),
   selectExpensesLoading: jest.fn(() => false),
+  selectExpenseSummaryFailure: jest.fn(() => () => undefined),
   selectHasHydratedCompanion: jest.fn(() => true),
 }));
 const mockedExpenses = require('@/features/expenses');
@@ -68,11 +69,15 @@ jest.mock('@/features/tasks', () => ({
   markTaskStatus: jest.fn(payload => ({type: 'tasks/markStatus', payload})),
 }));
 
+// Stable references so tests can assert on the readiness gate rather than on a
+// fresh mock per render.
+const mockShowLoader = jest.fn();
+const mockHideLoader = jest.fn();
 jest.mock('@/context/GlobalLoaderContext', () => {
   return {
     useGlobalLoader: () => ({
-      showLoader: jest.fn(),
-      hideLoader: jest.fn(),
+      showLoader: mockShowLoader,
+      hideLoader: mockHideLoader,
       isLoading: false,
     }),
     GlobalLoaderProvider: ({children}: any) => <>{children}</>,
@@ -261,6 +266,8 @@ jest.mock('@/features/expenses', () => ({
   fetchExpenseSummary: jest.fn(() => ({type: 'expenses/fetchSummary'})),
   selectExpenseSummaryByCompanion: (id: string) => (state: any) =>
     id ? state.expenses.summaries[id] : null,
+  selectExpenseSummaryFailure: (id: string) => (state: any) =>
+    id ? state.expenses?.summaryFailedCompanions?.[id] : undefined,
   selectHasHydratedCompanion: () => () => true,
 }));
 
@@ -731,6 +738,154 @@ describe('HomeScreen', () => {
       );
 
       expect(getByText('Hello, Sky')).toBeTruthy();
+    });
+
+    // #2368's disguise on Home: an empty companion list rendered "Add your
+    // first companion" whether the account was new or the fetch had failed, so
+    // an outage looked like onboarding and offered no retry.
+    it('renders a load error instead of the add-first-companion hero when the companion fetch failed', () => {
+      const store = createStore({
+        companion: {
+          list: [],
+          selectedId: null,
+          loading: false,
+          loadError: 'Network Error',
+        },
+      });
+
+      const {getByTestId, queryByText} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+
+      expect(getByTestId('home-companions-load-error')).toBeTruthy();
+      expect(queryByText('Add your first companion')).toBeNull();
+    });
+
+    // Home must not simultaneously say the companion list failed to load and
+    // assert the account has no companions: every section below maps
+    // companions.length === 0 to "No companions yet".
+    it('hides the companion-derived sections while the companion load error shows', () => {
+      const store = createStore({
+        companion: {
+          list: [],
+          selectedId: null,
+          loading: false,
+          loadError: 'Network Error',
+        },
+      });
+
+      const {getByTestId, queryAllByText} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+
+      expect(getByTestId('home-companions-load-error')).toBeTruthy();
+      expect(queryAllByText('No companions yet')).toHaveLength(0);
+    });
+
+    it('still shows the add-first-companion hero when the list is genuinely empty', () => {
+      const store = createStore({
+        companion: {
+          list: [],
+          selectedId: null,
+          loading: false,
+          loadError: null,
+        },
+      });
+
+      const {getByText, queryByTestId} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+
+      expect(getByText('Add your first companion')).toBeTruthy();
+      expect(queryByTestId('home-companions-load-error')).toBeNull();
+    });
+
+    // The readiness gate settles on an appointment failure so the loader clears,
+    // which made the failure land in the appointments tile as "No upcoming
+    // appointments" with a booking action: a failed request presented as a
+    // genuinely empty schedule.
+    it('shows a retry tile instead of an empty schedule when appointments fail', () => {
+      const store = createStore({
+        appointments: {
+          upcoming: [],
+          loading: false,
+          hydratedCompanions: {},
+          failedCompanions: {c1: 'Network Error'},
+        },
+      });
+
+      const {getByText, queryByText} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+
+      // t() is not mocked in this suite and returns the key, which is also the
+      // assertion that the copy is localized rather than hardcoded English.
+      expect(getByText('home.home_appointments_load_failed')).toBeTruthy();
+      expect(queryByText('No upcoming appointments')).toBeNull();
+    });
+
+    it('still shows the empty schedule when the appointment fetch succeeded', () => {
+      const store = createStore({
+        appointments: {
+          upcoming: [],
+          loading: false,
+          hydratedCompanions: {c1: true},
+          failedCompanions: {},
+        },
+      });
+
+      const {getByText, queryByText} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+
+      expect(getByText('No upcoming appointments')).toBeTruthy();
+      expect(queryByText('home.home_appointments_load_failed')).toBeNull();
+    });
+
+    // A failed summary fetch rendered a yearly total of zero, which reads as
+    // real spending data rather than a neutral placeholder.
+    it('shows a retry tile instead of zero spend when the expense summary fails', () => {
+      const store = createStore({
+        expenses: {
+          summaries: {},
+          summaryFailedCompanions: {c1: 'Network Error'},
+        },
+      });
+
+      const {getByText} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+
+      expect(getByText('home.home_expenses_load_failed')).toBeTruthy();
+    });
+
+    it('shows the yearly spend when the expense summary succeeded', () => {
+      const store = createStore({
+        expenses: {
+          summaries: {c1: {total: 500, currencyCode: 'USD'}},
+          summaryFailedCompanions: {},
+        },
+      });
+
+      const {queryByText} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+
+      expect(queryByText('home.home_expenses_load_failed')).toBeNull();
     });
 
     it('navigates to AddCompanion when the hero button is pressed', () => {

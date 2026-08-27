@@ -941,6 +941,66 @@ describe('MyAppointmentsScreen', () => {
       ).toBeTruthy();
     });
 
+    // Before this, a failed fetch produced an empty list and the empty list said
+    // "No upcoming appointments" - the same words a user with nothing booked
+    // sees, and with no way to retry.
+    it('renders a load error instead of the empty card when the fetch failed', () => {
+      store = mockStore({
+        companion: {
+          companions: [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+          selectedCompanionId: 'c1',
+        },
+        appointments: {
+          upcomingOverride: [],
+          pastOverride: [],
+          failedCompanions: {c1: 'Network Error'},
+        },
+      });
+      renderScreen();
+
+      expect(
+        screen.getByTestId('appointments-load-error-upcoming'),
+      ).toBeTruthy();
+      expect(screen.queryByText('No upcoming appointments')).toBeNull();
+    });
+
+    // The pending reducer clears the failure the moment a retry starts, so an
+    // error-first check fell straight through to the empty card and made a slow
+    // retry look like it had already returned nothing.
+    it('renders progress rather than the empty card while a retry is in flight', () => {
+      store = mockStore({
+        companion: {
+          companions: [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+          selectedCompanionId: 'c1',
+        },
+        appointments: {
+          upcomingOverride: [],
+          pastOverride: [],
+          loading: true,
+          failedCompanions: {},
+        },
+      });
+      renderScreen();
+
+      expect(screen.getByTestId('appointments-loading-upcoming')).toBeTruthy();
+      expect(screen.queryByText('No upcoming appointments')).toBeNull();
+    });
+
+    it('still renders the empty card when nothing failed', () => {
+      store = buildStore(
+        [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+        'c1',
+        [],
+        [],
+      );
+      renderScreen();
+
+      expect(screen.getByText('No upcoming appointments')).toBeTruthy();
+      expect(
+        screen.queryByTestId('appointments-load-error-upcoming'),
+      ).toBeNull();
+    });
+
     it('renders an empty state card when there are no upcoming appointments', () => {
       store = buildStore(
         [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],

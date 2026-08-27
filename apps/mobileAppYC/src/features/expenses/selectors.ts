@@ -1,6 +1,7 @@
 import {createSelector} from '@reduxjs/toolkit';
 import type {RootState} from '@/app/store';
 import type {Expense} from './types';
+import {selectCollectionFailure} from '@/shared/store/collectionLoadState';
 
 export const selectExpensesState = (state: RootState) => state.expenses;
 
@@ -16,10 +17,7 @@ export const selectExpensesError = createSelector(
 
 const selectorCache = new Map<string, any>();
 
-const getCachedSelector = <T,>(
-  key: string,
-  factory: () => T,
-): T => {
+const getCachedSelector = <T>(key: string, factory: () => T): T => {
   if (!selectorCache.has(key)) {
     selectorCache.set(key, factory());
   }
@@ -36,6 +34,27 @@ export const selectHasHydratedCompanion = (companionId: string | null) =>
     }),
   );
 
+/**
+ * Failure of the SUMMARY fetch (dispatched by Home), as distinct from the
+ * expense LIST fetch. They retry different things, so they are reported
+ * separately.
+ */
+export const selectExpenseSummaryFailure = (companionId: string | null) =>
+  getCachedSelector(`summaryFailure_${companionId}`, () =>
+    createSelector(selectExpensesState, expenses =>
+      companionId
+        ? expenses?.summaryFailedCompanions?.[companionId]
+        : undefined,
+    ),
+  );
+
+export const selectExpensesLoadFailure = (companionId: string | null) =>
+  getCachedSelector(`loadFailure_${companionId}`, () =>
+    createSelector(selectExpensesState, expenses =>
+      selectCollectionFailure(expenses, companionId),
+    ),
+  );
+
 export const selectExpensesByCompanion = (companionId: string | null) =>
   getCachedSelector(`expensesByCompanion_${companionId}`, () =>
     createSelector(selectExpensesState, expenses => {
@@ -45,8 +64,7 @@ export const selectExpensesByCompanion = (companionId: string | null) =>
       return expenses.items
         .filter(item => item.companionId === companionId)
         .sort(
-          (a, b) =>
-            new Date(b.date).getTime() - new Date(a.date).getTime(),
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
         );
     }),
   );
@@ -65,8 +83,7 @@ export const selectExternalExpensesByCompanion = (companionId: string | null) =>
     ),
   );
 
-const pickRecent = (list: Expense[], limit: number) =>
-  list.slice(0, limit);
+const pickRecent = (list: Expense[], limit: number) => list.slice(0, limit);
 
 export const selectRecentInAppExpenses = (
   companionId: string | null,
@@ -90,8 +107,9 @@ export const selectRecentExternalExpenses = (
 
 export const selectExpenseById = (expenseId: string | null) =>
   getCachedSelector(`expenseById_${expenseId}`, () =>
-    createSelector(selectExpensesState, expenses =>
-      expenses.items.find(item => item.id === expenseId) ?? null,
+    createSelector(
+      selectExpensesState,
+      expenses => expenses.items.find(item => item.id === expenseId) ?? null,
     ),
   );
 
@@ -107,7 +125,8 @@ export const selectExpenseSummaryByCompanion = (companionId: string | null) =>
 
 export const selectTotalSpentForCompanion = (companionId: string | null) =>
   getCachedSelector(`totalSpent_${companionId}`, () =>
-    createSelector(selectExpenseSummaryByCompanion(companionId), summary =>
-      summary?.total ?? 0,
+    createSelector(
+      selectExpenseSummaryByCompanion(companionId),
+      summary => summary?.total ?? 0,
     ),
   );

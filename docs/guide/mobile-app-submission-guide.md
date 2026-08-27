@@ -28,15 +28,23 @@ Also confirm `MOBILE_CONFIG_BEHAVIOR.overrides.forceLiquidGlassBorder` is `false
 
 ### 2. Silence Console Output — `App.tsx`
 
-The following block must be **uncommented** (not wrapped in `//`) for production builds (lines 203–207):
+Nothing to do here. The block is guarded by `if (!__DEV__)`, so release builds
+are quiet automatically and Debug builds keep their logs. Search for `const noop`
+to confirm the guard is still in place:
 
 ```ts
-const noop = () => {};
-console.log = noop;
-console.info = noop;
-console.debug = noop;
-console.trace = noop;
+if (!__DEV__) {
+  const noop = () => {};
+  console.log = noop;
+  console.info = noop;
+  console.debug = noop;
+  console.trace = noop;
+}
 ```
+
+It previously ran unconditionally, which silenced Debug builds too - a
+token-expiry failure warned on every call for an entire release and nobody ever
+saw it. `console.warn` and `console.error` are deliberately left alone.
 
 ---
 

@@ -19,7 +19,10 @@ import {
   type SettingsStore,
 } from '../utils/settings-store';
 import type { AuditLog } from '../compliance/audit-log';
-import type { ControlledSubstanceLogbook } from '../compliance/controlled-substance';
+import type {
+  ControlledSubstanceLogbook,
+  CsTransaction,
+} from '../compliance/controlled-substance';
 import type { DeaRegistrationTracker } from '../compliance/dea-registration';
 import type { IpcMain as IpcMainType } from 'electron';
 import type { DesktopLogger } from '../utils/logger';
@@ -391,9 +394,18 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
       return { ok: false, error: 'invalid-quantity' };
     if (action !== 'transfer' && action !== 'inventory' && quantity <= 0)
       return { ok: false, error: 'invalid-quantity' };
-    const tx = services.controlledSubstanceLog.record(
-      data as Parameters<ControlledSubstanceLogbook['record']>[0]
-    );
+    // record() throws when the transaction did not reach the disk. Reporting
+    // ok:true there is how a full disk or a locked file produced a green
+    // confirmation for a dispense that was never written down.
+    let tx: CsTransaction;
+    try {
+      tx = services.controlledSubstanceLog.record(
+        data as Parameters<ControlledSubstanceLogbook['record']>[0]
+      );
+    } catch (error) {
+      services.logger.error('cs_record_failed', { error });
+      return { ok: false, error: 'cs-write-failed' };
+    }
     services.logger.info('cs_recorded', { id: tx.id, drugName: tx.drugName });
     return { ok: true, transaction: tx };
   });
@@ -412,7 +424,16 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     const entry = args[0];
     if (typeof entry !== 'object' || entry === null || Array.isArray(entry))
       return { ok: false, error: 'invalid-entry' };
-    const created = services.auditLog.append(entry as Parameters<AuditLog['append']>[0]);
+    // append() throws when the entry did not reach the disk. An audit entry that
+    // exists only in this process is not an audit entry, so the caller has to be
+    // told rather than shown a generic handler failure.
+    let created: ReturnType<AuditLog['append']>;
+    try {
+      created = services.auditLog.append(entry as Parameters<AuditLog['append']>[0]);
+    } catch (error) {
+      services.logger.error('audit_append_failed', { error });
+      return { ok: false, error: 'audit-write-failed' };
+    }
     services.logger.info('audit_appended', {
       id: created.id,
       action: created.action,

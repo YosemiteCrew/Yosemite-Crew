@@ -21,8 +21,15 @@ import {
   selectUnreadCount,
   selectNotificationFilter,
   selectNotificationSortBy,
+  selectNotificationsLoadFailure,
+  selectHasHydratedCompanion,
   selectUnreadCountByCategory,
 } from '../../selectors';
+import {ListErrorState} from '@/shared/components/common/ListErrorState/ListErrorState';
+import {ListLoadingState} from '@/shared/components/common/ListLoadingState/ListLoadingState';
+import {ListStaleBanner} from '@/shared/components/common/ListStaleBanner/ListStaleBanner';
+import {selectCollectionLoadedAt} from '@/shared/store/collectionLoadState';
+import {isListStale, resolveListPhase} from '@/shared/utils/listPhase';
 import {
   fetchNotificationsForCompanion,
   markNotificationAsRead,
@@ -61,6 +68,8 @@ const DEEP_LINK_TARGETS: Array<{prefix: string; type: NavigationTarget}> = [
   {prefix: '/documents/', type: 'document'},
 ];
 
+const NOTIFICATIONS_COMPANION_ID = 'default-companion';
+
 export const NotificationsScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const {theme} = useTheme();
@@ -75,6 +84,15 @@ export const NotificationsScreen: React.FC = () => {
   const sortBy = useSelector(selectNotificationSortBy);
   const loading = useSelector(
     (state: RootState) => state.notifications.loading,
+  );
+  const loadFailure = useSelector(
+    selectNotificationsLoadFailure(NOTIFICATIONS_COMPANION_ID),
+  );
+  const hasHydrated = useSelector(
+    selectHasHydratedCompanion(NOTIFICATIONS_COMPANION_ID),
+  );
+  const notificationsLoadedAt = useSelector((state: RootState) =>
+    selectCollectionLoadedAt(state.notifications, NOTIFICATIONS_COMPANION_ID),
   );
   const companions = useSelector(
     (state: RootState) => state.companion.companions,
@@ -92,14 +110,18 @@ export const NotificationsScreen: React.FC = () => {
 
   const [refreshing, setRefreshing] = React.useState(false);
 
-  useEffect(() => {
+  const refetchNotifications = useCallback(() => {
     if (!isLoggedIn) {
       return;
     }
     dispatch(
-      fetchNotificationsForCompanion({companionId: 'default-companion'}),
+      fetchNotificationsForCompanion({companionId: NOTIFICATIONS_COMPANION_ID}),
     );
   }, [dispatch, isLoggedIn]);
+
+  useEffect(() => {
+    refetchNotifications();
+  }, [refetchNotifications]);
 
   // Handle refresh
   const handleRefresh = useCallback(async () => {
@@ -107,7 +129,9 @@ export const NotificationsScreen: React.FC = () => {
     try {
       if (isLoggedIn) {
         await dispatch(
-          fetchNotificationsForCompanion({companionId: 'default-companion'}),
+          fetchNotificationsForCompanion({
+            companionId: NOTIFICATIONS_COMPANION_ID,
+          }),
         ).unwrap();
       }
     } catch (error) {
@@ -116,6 +140,33 @@ export const NotificationsScreen: React.FC = () => {
       setRefreshing(false);
     }
   }, [dispatch, isLoggedIn]);
+
+  // Computed directly rather than memoised: resolveListPhase is four primitive
+  // comparisons over scalars, so the memo cost more than it saved.
+  const listPhase = resolveListPhase({
+    loading,
+    loadError: loadFailure,
+    hasLoaded: hasHydrated,
+    itemCount: notifications.length,
+  });
+
+  // A failed fetch used to render the same "you're all caught up" copy as a
+  // genuinely empty inbox with no way to retry, and an in-flight fetch rendered
+  // it too - so a slow retry looked like it had succeeded with nothing to show.
+  const renderNotificationsPlaceholder = () => {
+    if (listPhase === 'error') {
+      return (
+        <ListErrorState
+          testID="notifications-load-error"
+          onRetry={refetchNotifications}
+        />
+      );
+    }
+    if (listPhase === 'loading') {
+      return <ListLoadingState testID="notifications-loading" />;
+    }
+    return <NotificationsEmptyState styles={styles} />;
+  };
 
   const refreshControl = useMemo(
     () => (
@@ -325,11 +376,23 @@ export const NotificationsScreen: React.FC = () => {
             styles={styles}
           />
 
+          {isListStale({
+            loadError: loadFailure,
+            itemCount: notifications.length,
+          }) ? (
+            <ListStaleBanner
+              testID="notifications-stale-banner"
+              lastLoadedAt={notificationsLoadedAt}
+              onRetry={refetchNotifications}
+              style={styles.staleBanner}
+            />
+          ) : null}
+
           <NotificationsSectionList
             sections={sections}
             renderItem={renderNotificationItem}
             refreshControl={refreshControl}
-            emptyComponent={<NotificationsEmptyState styles={styles} />}
+            emptyComponent={renderNotificationsPlaceholder()}
             styles={styles}
           />
         </>
@@ -350,6 +413,10 @@ const createStyles = (theme: any) => {
     listContent: {
       paddingHorizontal: theme.spacing['4'],
       paddingBottom: theme.spacing['10'],
+    },
+    staleBanner: {
+      marginHorizontal: theme.spacing['4'],
+      marginBottom: theme.spacing['2'],
     },
     sectionHeader: {
       ...theme.typography.eyebrow,

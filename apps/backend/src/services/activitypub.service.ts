@@ -1079,7 +1079,7 @@ export async function setDirectoryListing(
  */
 export async function listDirectory(
   orgId: string,
-): Promise<{ clinics: DirectoryClinic[] }> {
+): Promise<{ clinics: DirectoryClinic[]; unavailable: boolean }> {
   const actor = await getActorByOrgId(orgId);
   const licenseToken = actor?.licenseToken;
 
@@ -1109,10 +1109,14 @@ export async function listDirectory(
       },
       DIRECTORY_CACHE_OPTIONS,
     );
-    return { clinics };
+    return { clinics, unavailable: false };
   } catch (err) {
+    // Still degrade gracefully - an unreachable authority must not error the
+    // page - but SAY SO. Returning a bare empty list made "the authority is
+    // down or unconfigured" indistinguishable from "nobody has listed yet",
+    // and the UI reported the latter.
     logger.error("[AP] listDirectory error", { err });
-    return { clinics: [] };
+    return { clinics: [], unavailable: true };
   }
 }
 

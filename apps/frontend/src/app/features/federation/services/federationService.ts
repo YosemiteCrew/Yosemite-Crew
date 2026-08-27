@@ -2,7 +2,6 @@ import { getData, postData, putData, patchData } from '@/app/services/axios';
 import type {
   APActorSettings,
   APDirectory,
-  APDirectoryClinic,
   APFollower,
   APFollowing,
   APReferral,
@@ -65,9 +64,9 @@ export const respondToReferral = (referralId: string, action: 'accept' | 'declin
 export const updateActorProfile = (opts: { summary?: string; iconUrl?: string }) =>
   putData(`${BASE}/actor`, opts);
 
-export const listDirectory = async (): Promise<APDirectoryClinic[]> => {
+export const listDirectory = async (): Promise<APDirectory> => {
   const res = await getData<APDirectory>(`${BASE}/directory`);
-  return res.data.clinics;
+  return { clinics: res.data.clinics ?? [], unavailable: res.data.unavailable };
 };
 
 export const setDirectoryListed = (listed: boolean) =>

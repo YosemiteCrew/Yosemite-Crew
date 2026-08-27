@@ -57,9 +57,9 @@ beforeEach(() => {
 
 describe('NetworkDirectory', () => {
   it('shows the loading state before data resolves', async () => {
-    let resolve: (value: APDirectoryClinic[]) => void = () => {};
+    let resolve: (value: { clinics: APDirectoryClinic[] }) => void = () => {};
     (listDirectory as jest.Mock).mockReturnValue(
-      new Promise<APDirectoryClinic[]>((r) => {
+      new Promise<{ clinics: APDirectoryClinic[] }>((r) => {
         resolve = r;
       })
     );
@@ -68,12 +68,12 @@ describe('NetworkDirectory', () => {
     expect(screen.getByText('Loading...')).toBeInTheDocument();
 
     await act(async () => {
-      resolve([]);
+      resolve({ clinics: [] });
     });
   });
 
   it('shows the empty state when no clinics are listed', async () => {
-    (listDirectory as jest.Mock).mockResolvedValue([]);
+    (listDirectory as jest.Mock).mockResolvedValue({ clinics: [], unavailable: false });
     render(<NetworkDirectory />);
     await waitFor(() =>
       expect(screen.getByText('No clinics are listed in the directory yet.')).toBeInTheDocument()
@@ -81,7 +81,10 @@ describe('NetworkDirectory', () => {
   });
 
   it('renders clinic cards with name, handle, and host', async () => {
-    (listDirectory as jest.Mock).mockResolvedValue([clinicA, clinicB]);
+    (listDirectory as jest.Mock).mockResolvedValue({
+      clinics: [clinicA, clinicB],
+      unavailable: false,
+    });
     render(<NetworkDirectory />);
     await waitFor(() => screen.getByText('Alpha Vet Clinic'));
     expect(screen.getByText('@alpha-vet')).toBeInTheDocument();
@@ -107,8 +110,21 @@ describe('NetworkDirectory', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('reports unavailable when the API answers 200 but flags the authority as unreachable', async () => {
+    // The backend degrades gracefully rather than erroring, so a successful
+    // response can still mean "could not load". Without honouring the flag this
+    // rendered as "no clinics listed yet", which is how the whole feature came
+    // to look like it was simply doing nothing.
+    (listDirectory as jest.Mock).mockResolvedValueOnce({ clinics: [], unavailable: true });
+    render(<NetworkDirectory />);
+    expect(await screen.findByText(/directory is unavailable/i)).toBeInTheDocument();
+    expect(
+      screen.queryByText('No clinics are listed in the directory yet.')
+    ).not.toBeInTheDocument();
+  });
+
   it('shows the empty state, not the error state, when the directory is genuinely empty', async () => {
-    (listDirectory as jest.Mock).mockResolvedValueOnce([]);
+    (listDirectory as jest.Mock).mockResolvedValueOnce({ clinics: [], unavailable: false });
     render(<NetworkDirectory />);
     expect(
       await screen.findByText('No clinics are listed in the directory yet.')
@@ -117,7 +133,7 @@ describe('NetworkDirectory', () => {
   });
 
   it('follows a clinic and notifies success', async () => {
-    (listDirectory as jest.Mock).mockResolvedValue([clinicA]);
+    (listDirectory as jest.Mock).mockResolvedValue({ clinics: [clinicA], unavailable: false });
     (followRemoteActor as jest.Mock).mockResolvedValueOnce(undefined);
 
     render(<NetworkDirectory />);
@@ -136,7 +152,7 @@ describe('NetworkDirectory', () => {
   });
 
   it('notifies error when following a clinic fails', async () => {
-    (listDirectory as jest.Mock).mockResolvedValue([clinicA]);
+    (listDirectory as jest.Mock).mockResolvedValue({ clinics: [clinicA], unavailable: false });
     (followRemoteActor as jest.Mock).mockRejectedValueOnce(new Error('fail'));
 
     render(<NetworkDirectory />);

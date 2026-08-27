@@ -8,6 +8,11 @@ import {useDispatch, useSelector} from 'react-redux';
 import {YearlySpendCard} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {EmptyState} from '@/shared/components/common/EmptyState/EmptyState';
+import {ListErrorState} from '@/shared/components/common/ListErrorState/ListErrorState';
+import {ListLoadingState} from '@/shared/components/common/ListLoadingState/ListLoadingState';
+import {ListStaleBanner} from '@/shared/components/common/ListStaleBanner/ListStaleBanner';
+import {selectCollectionLoadedAt} from '@/shared/store/collectionLoadState';
+import {isListStale, resolveListPhase} from '@/shared/utils/listPhase';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {ViewMoreButton} from '@/shared/components/common/ViewMoreButton/ViewMoreButton';
 import {
@@ -23,6 +28,7 @@ import type {Expense} from '@/features/expenses';
 import {
   selectExpenseSummaryByCompanion,
   selectExpensesLoading,
+  selectExpensesLoadFailure,
   selectHasHydratedCompanion,
   selectRecentExternalExpenses,
   selectRecentInAppExpenses,
@@ -76,6 +82,12 @@ export const ExpensesMainScreen: React.FC = () => {
   const recentExternalExpenses = useSelector(
     selectRecentExternalExpenses(selectedCompanionId ?? null, 2),
   );
+  const loadFailure = useSelector(
+    selectExpensesLoadFailure(selectedCompanionId ?? null),
+  );
+  const expensesLoadedAt = useSelector((state: RootState) =>
+    selectCollectionLoadedAt(state.expenses, selectedCompanionId ?? null),
+  );
   const {openPaymentScreen, processingPayment} = useExpensePayment();
 
   const [showEmptyState, setShowEmptyState] = useState(false);
@@ -86,12 +98,19 @@ export const ExpensesMainScreen: React.FC = () => {
     }
   }, [companions, selectedCompanionId, dispatch]);
 
+  const refetchExpenses = React.useCallback(() => {
+    if (!selectedCompanionId) {
+      return;
+    }
+    dispatch(fetchExpensesForCompanion({companionId: selectedCompanionId}));
+  }, [dispatch, selectedCompanionId]);
+
   useFocusEffect(
     React.useCallback(() => {
       if (selectedCompanionId && !hasHydrated) {
-        dispatch(fetchExpensesForCompanion({companionId: selectedCompanionId}));
+        refetchExpenses();
       }
-    }, [dispatch, hasHydrated, selectedCompanionId]),
+    }, [hasHydrated, selectedCompanionId, refetchExpenses]),
   );
 
   useEffect(() => {
@@ -102,6 +121,16 @@ export const ExpensesMainScreen: React.FC = () => {
 
   const inAppCount = recentInAppExpenses.length;
   const externalCount = recentExternalExpenses.length;
+
+  // `showEmptyState` only ever asked "is the list empty and hydrated". A failed
+  // fetch never hydrates, so it fell through to the full screen with every
+  // section blank rather than saying anything went wrong.
+  const listPhase = resolveListPhase({
+    loading,
+    loadError: loadFailure,
+    hasLoaded: hasHydrated,
+    itemCount: inAppCount + externalCount,
+  });
 
   useEffect(() => {
     const totalExpenses = inAppCount + externalCount;
@@ -180,8 +209,42 @@ export const ExpensesMainScreen: React.FC = () => {
           />
         }
         contentPadding={theme.spacing['3']}>
-        {contentPaddingStyle =>
-          showEmptyState ? (
+        {contentPaddingStyle => {
+          // Errors and in-flight fetches keep the CompanionSelector above them.
+          // Replacing the whole content area stranded the user on the failing
+          // companion with no way to switch to one whose expenses are cached or
+          // would load fine, and an in-flight fetch previously fell through to
+          // the section below and rendered a zero total as if it were data.
+          if (listPhase === 'error' || listPhase === 'loading') {
+            return (
+              <ScrollView
+                contentContainerStyle={[
+                  styles.contentContainer,
+                  contentPaddingStyle,
+                ]}
+                showsVerticalScrollIndicator={false}>
+                <CompanionSelector
+                  companions={companions}
+                  selectedCompanionId={selectedCompanionId}
+                  onSelect={id => dispatch(setSelectedCompanion(id))}
+                  showAddButton={false}
+                  containerStyle={styles.companionSelector}
+                  requiredPermission="expenses"
+                  permissionLabel="expenses"
+                />
+                {listPhase === 'error' ? (
+                  <ListErrorState
+                    testID="expenses-load-error"
+                    onRetry={refetchExpenses}
+                  />
+                ) : (
+                  <ListLoadingState testID="expenses-loading" />
+                )}
+              </ScrollView>
+            );
+          }
+
+          return showEmptyState ? (
             <ScrollView
               contentContainerStyle={[styles.emptyState, contentPaddingStyle]}
               showsVerticalScrollIndicator={false}>
@@ -219,6 +282,18 @@ export const ExpensesMainScreen: React.FC = () => {
                 requiredPermission="expenses"
                 permissionLabel="expenses"
               />
+
+              {isListStale({
+                loadError: loadFailure,
+                itemCount: inAppCount + externalCount,
+              }) ? (
+                <ListStaleBanner
+                  testID="expenses-stale-banner"
+                  lastLoadedAt={expensesLoadedAt}
+                  onRetry={refetchExpenses}
+                  style={styles.companionSelector}
+                />
+              ) : null}
 
               <PressableOpacity
                 onPress={() => handleViewMore('inApp')}
@@ -299,8 +374,8 @@ export const ExpensesMainScreen: React.FC = () => {
                 </View>
               )}
             </ScrollView>
-          )
-        }
+          );
+        }}
       </LiquidGlassHeaderScreen>
       {(loading || processingPayment) && <View style={styles.loadingOverlay} />}
     </SafeAreaView>

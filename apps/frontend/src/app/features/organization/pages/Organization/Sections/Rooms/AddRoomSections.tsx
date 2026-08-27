@@ -194,7 +194,7 @@ export const UnitsSection = ({
             type="button"
             aria-label="Add unit type"
             onClick={onAddUnit}
-            className="flex size-8 items-center justify-center rounded-full bg-text-primary text-[var(--screen)]"
+            className="flex size-8 items-center justify-center rounded-full bg-[var(--ink)] text-[var(--screen)]"
           >
             <FiPlus size={16} aria-hidden="true" />
           </button>
@@ -204,7 +204,7 @@ export const UnitsSection = ({
     {open && (
       <div className="flex flex-col gap-3">
         {formData.units.map((unit) => (
-          <div key={unit.id} className="rounded-2xl border border-blue-text p-3">
+          <div key={unit.id} className="rounded-2xl border border-[var(--blue)] p-3">
             <div className="mb-3 text-caption-1 text-blue-text">Draft unit type</div>
             <RoomUnitFieldsEditor unit={unit} onUpdateUnit={onUpdateUnit} />
           </div>
@@ -265,7 +265,7 @@ export const EquipmentSection = ({
               type="button"
               aria-label="Add custom equipment"
               onClick={onAddCustomEquipment}
-              className="flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-2xl bg-text-primary text-[var(--screen)]"
+              className="flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-2xl bg-[var(--ink)] text-[var(--screen)]"
             >
               <FiPlus size={18} aria-hidden="true" />
             </button>

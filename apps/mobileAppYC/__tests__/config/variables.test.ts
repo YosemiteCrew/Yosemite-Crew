@@ -214,6 +214,54 @@ describe('Configuration Variables', () => {
       }).toThrow("Cannot find module './different-file'");
     });
 
+    // Metro does not resolve `require('./variables.local')` the way Node does.
+    // The file is gitignored, so on any build that does not carry one Metro
+    // emits a null dependency slot and its require polyfill throws a PLAIN
+    // Error with no `code` - "Cannot find module" in a release bundle, and
+    // "Cannot find module './variables.local'" in a dev one. The old predicate
+    // only recognised Node's `code === 'MODULE_NOT_FOUND'`, so the throw
+    // escaped. Because this module reads its config at module scope, that is a
+    // launch crash rather than a warning.
+    it('treats a bare Metro "Cannot find module" as the optional local config', () => {
+      mockLocalModule(
+        () => {
+          // No `code` property: exactly what metro-runtime's polyfill throws.
+          throw new Error('Cannot find module');
+        },
+        {virtual: true},
+      );
+
+      expect(() => {
+        require('../../src/config/variables');
+      }).not.toThrow();
+    });
+
+    it('treats a dev-mode Metro "Cannot find module \'./variables.local\'" the same way', () => {
+      mockLocalModule(
+        () => {
+          throw new Error("Cannot find module './variables.local'");
+        },
+        {virtual: true},
+      );
+
+      expect(() => {
+        require('../../src/config/variables');
+      }).not.toThrow();
+    });
+
+    it('still re-throws a Metro resolution failure for a different module', () => {
+      mockLocalModule(
+        () => {
+          throw new Error("Cannot find module './something-else'");
+        },
+        {virtual: true},
+      );
+
+      expect(() => {
+        require('../../src/config/variables');
+      }).toThrow("Cannot find module './something-else'");
+    });
+
     it('handles non-object errors gracefully', () => {
       // Edge case for isMissingLocalVariablesModule helper logic
       // If require throws a string or null (unlikely but typescript guarded)

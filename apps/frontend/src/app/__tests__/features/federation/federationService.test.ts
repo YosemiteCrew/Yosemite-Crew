@@ -280,8 +280,23 @@ describe('federationService', () => {
       ];
       mockGetData.mockResolvedValueOnce({ data: { clinics } });
       const result = await listDirectory();
-      expect(result).toEqual(clinics);
+      // Returns the envelope now, so the caller can tell "empty" from
+      // "the authority could not be reached".
+      expect(result).toEqual({ clinics, unavailable: undefined });
       expect(mockGetData).toHaveBeenCalledWith('/ap/manage/directory');
+    });
+
+    it('passes the unavailable flag through', async () => {
+      mockGetData.mockResolvedValueOnce({ data: { clinics: [], unavailable: true } });
+      await expect(listDirectory()).resolves.toEqual({ clinics: [], unavailable: true });
+    });
+
+    it('defaults clinics to an empty array when the field is absent', async () => {
+      mockGetData.mockResolvedValueOnce({ data: {} });
+      await expect(listDirectory()).resolves.toEqual({
+        clinics: [],
+        unavailable: undefined,
+      });
     });
 
     it('throws when getData rejects', async () => {
