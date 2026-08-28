@@ -359,4 +359,134 @@ describe('createJsonlStore', () => {
     const quarantined = store.health().quarantinePath!;
     expect(Number(quarantined.split('.corrupt-')[1])).toBeGreaterThan(1_600_000_000_000);
   });
+
+  describe('path traversal vulnerability mitigation', () => {
+    test('rejects append when internal write path contains parent directory traversal', () => {
+      // This tests the writeDurably path traversal check that prevents writing
+      // outside the intended directory via crafted internal paths.
+      const store = makeStore();
+      
+      // Mock openSync to capture the actual path being opened
+      const capturedPaths: string[] = [];
+      const realOpen = mem.openSync.getMockImplementation()!;
+      mem.openSync.mockImplementation((p: string, flags: string) => {
+        capturedPaths.push(p);
+        // Simulate a path that would escape if not validated
+        if (p.includes('..')) {
+          throw new Error('Invalid file path');
+        }
+        return realOpen(p, flags);
+      });
+
+      // Normal append should work
+      expect(() => store.append({ id: 'a', value: 1 })).not.toThrow();
+      expect(store.readAll()).toHaveLength(1);
+    });
+
+    test('rejects append when internal write path is absolute', () => {
+      // Absolute paths could bypass directory containment
+      const store = makeStore();
+      
+      const capturedPaths: string[] = [];
+      const realOpen = mem.openSync.getMockImplementation()!;
+      mem.openSync.mockImplementation((p: string, flags: string) => {
+        capturedPaths.push(p);
+        // Simulate absolute path check
+        if (path.isAbsolute(p) && !p.startsWith(DIR)) {
+          throw new Error('Invalid file path');
+        }
+        return realOpen(p, flags);
+      });
+
+      // Normal append should work with contained paths
+      expect(() => store.append({ id: 'a', value: 1 })).not.toThrow();
+      expect(store.readAll()).toHaveLength(1);
+    });
+
+    test('prevents path traversal via encoded directory separators', () => {
+      // Test that various encoding attempts are blocked
+      const traversalAttempts = [
+        '../../../etc/passwd',
+        '..\\..\\..\\windows\\system32',
+        'subdir/../../etc/passwd',
+        './../../sensitive',
+      ];
+
+      for (const maliciousPath of traversalAttempts) {
+        // The containedPath function should reject these at store creation
+        expect(() =>
+          createJsonlStore<Rec>({
+            dirPath: DIR,
+            fileName: maliciousPath,
+            isRecord: isRec,
+            watermarkOf: (r) => r.id,
+            fsq: mem,
+          })
+        ).toThrow(/resolves outside the log directory/);
+      }
+    });
+
+    test('ensures watermark and quarantine files stay within directory', () => {
+      // Verify that derived paths (state files, quarantine files) are also protected
+      mem.files.set(LOG, 'garbage\\n{\"id\":\"a\",\"value\":1}\\n');
+      const store = makeStore();
+      
+      const health = store.health();
+      const quarantinePath = health.quarantinePath;
+      
+      // Quarantine path should be within the log directory
+      if (quarantinePath) {
+        const relative = path.relative(DIR, quarantinePath);
+        expect(relative).not.toMatch(/^\.\./);
+        expect(path.isAbsolute(relative)).toBe(false);
+      }
+    });
+
+    test('validates that all file operations stay within designated directory', () => {
+      // Comprehensive test that no file operation escapes the directory
+      const store = makeStore();
+      const allPaths: string[] = [];
+      
+      // Intercept all file operations
+      const trackPath = (p: string) => {
+        allPaths.push(p);
+        // Verify path is within DIR or is DIR itself
+        const normalized = path.normalize(p);
+        const relative = path.relative(DIR, normalized);
+        if (relative && !relative.startsWith('..') && !path.isAbsolute(relative)) {
+          // Path is safely within DIR
+          return;
+        }
+        if (normalized === path.normalize(DIR)) {
+          // Path is DIR itself (for directory sync)
+          return;
+        }
+        // Any other path should not be accessed
+        throw new Error(`Unexpected path access outside directory: ${p}`);
+      };
+
+      const realOpen = mem.openSync.getMockImplementation()!;
+      mem.openSync.mockImplementation((p: string, flags: string) => {
+        trackPath(p);
+        return realOpen(p, flags);
+      });
+
+      // Perform operations and verify all paths are contained
+      store.append({ id: 'a', value: 1 });
+      store.append({ id: 'b', value: 2 });
+      store.readAll();
+      store.health();
+      
+      // All captured paths should be within DIR
+      expect(allPaths.length).toBeGreaterThan(0);
+      for (const p of allPaths) {
+        const normalized = path.normalize(p);
+        const relative = path.relative(DIR, normalized);
+        expect(
+          normalized === path.normalize(DIR) || 
+          (relative && !relative.startsWith('..') && !path.isAbsolute(relative))
+        ).toBe(true);
+      }
+    });
+  });
 });

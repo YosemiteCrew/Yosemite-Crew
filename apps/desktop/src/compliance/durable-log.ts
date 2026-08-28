@@ -138,6 +138,9 @@ export const containedPath = (dirPath: string, name: string): string => {
  * failure mode this module exists to remove.
  */
 const writeDurably = (fsq: DurableLogFs, filePath: string, data: string, flags: string): void => {
+  if (filePath.includes('..') || path.isAbsolute(filePath)) {
+    throw new Error('Invalid file path');
+  }
   const fd = fsq.openSync(filePath, flags, 0o600);
   try {
     const written = fsq.writeSync(fd, data);
