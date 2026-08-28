@@ -39,7 +39,7 @@ export const TelemedicineSessionController = {
   schedule: async (req: Request, res: Response) => {
     const parsed = ScheduleSchema.safeParse(req.body);
     if (!parsed.success)
-      return res.status(400).json({ error: parsed.error.errors });
+      return res.status(400).json({ error: parsed.error.issues });
 
     const session = await TelemedicineSessionService.schedule({
       organisationId: req.params.organisationId,
@@ -59,7 +59,7 @@ export const TelemedicineSessionController = {
   list: async (req: Request, res: Response) => {
     const parsed = ListQuerySchema.safeParse(req.query);
     if (!parsed.success)
-      return res.status(400).json({ error: parsed.error.errors });
+      return res.status(400).json({ error: parsed.error.issues });
 
     const sessions = await TelemedicineSessionService.list({
       organisationId: req.params.organisationId,
@@ -79,7 +79,7 @@ export const TelemedicineSessionController = {
   complete: async (req: Request, res: Response) => {
     const parsed = CompleteSchema.safeParse(req.body);
     if (!parsed.success)
-      return res.status(400).json({ error: parsed.error.errors });
+      return res.status(400).json({ error: parsed.error.issues });
 
     const session = await TelemedicineSessionService.complete(
       req.params.sessionId,

@@ -55,7 +55,7 @@ const pm = prisma as unknown as {
 const slotsMock = CatalogService.getBookableSlotsService as jest.Mock;
 const sendEmailMock = sendEmail as jest.Mock;
 
-const SERVICE_ID = "3f6b1a2c-1111-2222-3333-444455556666";
+const SERVICE_ID = "3f6b1a2c-1111-4222-8333-444455556666";
 
 const publishedOrg = (over: Record<string, unknown> = {}) => ({
   id: "org-1",

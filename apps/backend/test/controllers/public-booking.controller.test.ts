@@ -38,7 +38,7 @@ const createResponse = () => ({
   json: jest.fn().mockReturnThis(),
 });
 
-const SERVICE_ID = "3f6b1a2c-1111-2222-3333-444455556666";
+const SERVICE_ID = "3f6b1a2c-1111-4222-8333-444455556666";
 
 const validBody = {
   serviceId: SERVICE_ID,

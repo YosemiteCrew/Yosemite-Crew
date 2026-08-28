@@ -1081,9 +1081,19 @@ export const OrganizationService = {
       );
     });
 
+    // The widen-the-net fallback is deliberate and covered by a test, so it
+    // stays. What was NOT deliberate is that it carried neither `isVerified`
+    // nor `isActive`, unlike the primary query above - so on an UNAUTHENTICATED
+    // endpoint it surfaced unverified and deactivated practices that the
+    // primary query is careful to exclude. Apply the same guards.
+    //
+    // Worth revisiting separately: whether "nothing within the radius" should
+    // widen to every organisation at all, since a caller in Berlin currently
+    // gets clinics on other continents. That is a product call, not a fix.
     if (organisations.length === 0) {
       logger.warn("No nearby organisations found, returning all organisations");
       organisations = await prisma.organization.findMany({
+        where: { isVerified: true, isActive: true },
         include: { address: true },
       });
     }
@@ -1093,18 +1103,51 @@ export const OrganizationService = {
     const results = [];
 
     for (const org of pageOrgs) {
+      // Select explicitly rather than spreading the rows. This response is
+      // UNAUTHENTICATED, and the `org` object below is already hand-projected
+      // for exactly that reason; the speciality and service rows were not, so
+      // `...spec` and the raw service rows published every column.
+      //
+      // What that exposed: `maxDiscount`, a practice's internal discount
+      // ceiling, and `cost`, alongside `headName`, `headProfilePicUrl`,
+      // `headUserId` and `memberUserIds` - naming department heads, showing
+      // their photograph, and handing staff user ids to anyone who could guess
+      // a latitude and longitude.
+      //
+      // Listing fields rather than removing them means anything added to these
+      // models in future is excluded by default. That is the point.
       const [specialities, services] = await Promise.all([
         prisma.speciality.findMany({
-          where: { organisationId: org.id },
+          where: { organisationId: org.id, isActive: true },
+          select: { id: true, name: true, description: true },
         }),
         prisma.service.findMany({
-          where: { organisationId: org.id },
+          where: { organisationId: org.id, isActive: true },
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            durationMinutes: true,
+            serviceType: true,
+            // Groups services under their speciality below; not emitted.
+            specialityId: true,
+          },
         }),
       ]);
 
       const specialitiesWithServices = specialities.map((spec) => ({
-        ...spec,
-        services: services.filter((srv) => srv.specialityId === spec.id),
+        id: spec.id,
+        name: spec.name,
+        description: spec.description ?? undefined,
+        services: services
+          .filter((srv) => srv.specialityId === spec.id)
+          .map((srv) => ({
+            id: srv.id,
+            name: srv.name,
+            description: srv.description,
+            durationMinutes: srv.durationMinutes,
+            serviceType: srv.serviceType,
+          })),
       }));
 
       const distanceInMeters =

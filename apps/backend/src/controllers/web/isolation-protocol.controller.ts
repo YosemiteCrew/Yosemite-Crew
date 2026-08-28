@@ -66,7 +66,7 @@ export const IsolationProtocolController = {
   start: async (req: Request, res: Response) => {
     const parsed = StartSchema.safeParse(req.body);
     if (!parsed.success)
-      return res.status(400).json({ error: parsed.error.errors });
+      return res.status(400).json({ error: parsed.error.issues });
 
     const protocol = await IsolationProtocolService.start({
       organisationId: req.params.organisationId,
@@ -86,7 +86,7 @@ export const IsolationProtocolController = {
   list: async (req: Request, res: Response) => {
     const parsed = ListQuerySchema.safeParse(req.query);
     if (!parsed.success)
-      return res.status(400).json({ error: parsed.error.errors });
+      return res.status(400).json({ error: parsed.error.issues });
 
     const results = await IsolationProtocolService.list({
       organisationId: req.params.organisationId,
@@ -98,7 +98,7 @@ export const IsolationProtocolController = {
   end: async (req: Request, res: Response) => {
     const parsed = EndSchema.safeParse(req.body);
     if (!parsed.success)
-      return res.status(400).json({ error: parsed.error.errors });
+      return res.status(400).json({ error: parsed.error.issues });
 
     const protocol = await IsolationProtocolService.end(
       req.params.protocolId,
@@ -111,7 +111,7 @@ export const IsolationProtocolController = {
   update: async (req: Request, res: Response) => {
     const parsed = UpdateSchema.safeParse(req.body);
     if (!parsed.success)
-      return res.status(400).json({ error: parsed.error.errors });
+      return res.status(400).json({ error: parsed.error.issues });
 
     const protocol = await IsolationProtocolService.update(
       req.params.protocolId,
