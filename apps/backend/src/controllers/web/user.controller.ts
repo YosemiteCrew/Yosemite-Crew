@@ -74,33 +74,32 @@ function resolveProvisioningProfile(req: AuthenticatedRequest): {
 /**
  * Whether the request's names can be acted on.
  *
- * Two shapes are acceptable: both names RESOLVE - from the body, the session
- * fallback, or one of each - or the request never mentioned them at all. The
- * second is the legitimate repeat call: once `pendingSignUp` is gone the client
- * posts no body, and the session carries no profile attributes either.
+ * A body that mentions either name must supply both, itself. The session
+ * fallback is for a body that says nothing about names at all - the legitimate
+ * repeat call, where `pendingSignUp` is gone so the client posts no body.
  *
- * Resolution is what matters, not where each half came from. A body naming only
- * `firstName` over a session that supplies `lastName` is complete, and creation
- * accepts exactly the same input - the two paths have to agree or the repeat
- * call rejects requests the first one allowed.
+ * Judged on the raw body rather than the resolved profile. Half a name in the
+ * body silently completed from the session is an ambiguous request answered
+ * with a guess: the caller asked to set one name, and the stored value it gets
+ * paired with may be exactly what they meant to replace. Every client sends
+ * both names or neither, so nothing legitimate is refused by insisting on it.
  *
- * The raw body still has to be consulted, because `trimmedString` collapses
- * `""`, whitespace and non-strings to `undefined`: without it an explicitly
- * blank pair is indistinguishable from an absent one, and the repeat path would
+ * The raw body also has to be read because `trimmedString` collapses `""`,
+ * whitespace and non-strings to `undefined` - without that an explicitly blank
+ * pair is indistinguishable from an absent one, and the repeat path would
  * answer 200 to a rename it had silently refused.
  */
 function namesAreUsable(
   req: AuthenticatedRequest,
   profile: { firstName?: string; lastName?: string },
 ): boolean {
-  if (profile.firstName && profile.lastName) {
-    return true;
-  }
-  if (profile.firstName || profile.lastName) {
-    return false;
-  }
   const body = (req.body ?? {}) as Record<string, unknown>;
-  return !("firstName" in body || "lastName" in body);
+  if ("firstName" in body || "lastName" in body) {
+    return Boolean(
+      trimmedString(body.firstName) && trimmedString(body.lastName),
+    );
+  }
+  return Boolean(profile.firstName) === Boolean(profile.lastName);
 }
 
 type AuthServiceForSync = NonNullable<ReturnType<typeof getAuthService>>;
@@ -265,24 +264,31 @@ async function syncProfileToAuthProvider(
   if (!authService) {
     return;
   }
-  try {
-    if (profile.firstName && profile.lastName) {
+  /*
+   * The two writes are isolated, not sequential steps of one try. Sharing a
+   * catch meant a failed name sync returned early and skipped the role
+   * entirely: the response was still 2xx, the client cleared its pending role,
+   * and the correction was lost to a failure in the half of this function that
+   * can afford to fail.
+   */
+  if (profile.firstName && profile.lastName) {
+    try {
       await authService.updateUserName(userId, {
         firstName: profile.firstName,
         lastName: profile.lastName,
       });
+    } catch (nameSyncError) {
+      // Genuinely best-effort: one call, nothing half-done, and the database
+      // already holds the authoritative copy.
+      logger.warn("Auth provider name sync failed", nameSyncError);
     }
-    if (profile.role) {
-      await applyRole(authService, userId, profile.role);
-    }
-  } catch (syncError) {
-    // The one failure that has already changed state. Absorbing it would make a
-    // half-applied replacement permanent, since the client clears its pending
-    // role on any 2xx and never sends it again.
-    if (syncError instanceof RoleReplacementIncomplete) {
-      throw syncError;
-    }
-    logger.warn("Auth provider profile sync failed", syncError);
+  }
+
+  // Not guarded. `applyRole` raises RoleReplacementIncomplete for anything that
+  // may have changed provider state, and that has to reach the client - it is
+  // the only thing here nothing else can repair.
+  if (profile.role) {
+    await applyRole(authService, userId, profile.role);
   }
 }
 

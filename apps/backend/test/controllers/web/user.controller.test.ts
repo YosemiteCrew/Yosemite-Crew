@@ -472,14 +472,13 @@ describe("UserController", () => {
     });
 
     /*
-     * Both names resolve, one from the body and one from the session fallback.
-     * Creation accepts exactly this input, so the repeat path has to as well -
-     * rejecting it would make the repeat call stricter than the first.
+     * Half a name in the body, silently completed from the session, is an
+     * ambiguous request answered with a guess - the stored value it gets paired
+     * with may be exactly what the caller meant to replace. Every client sends
+     * both or neither, so refusing this costs nothing real.
      */
-    it("accepts a body name completed by the session fallback", async () => {
-      const existing = { id: "user-123" };
-      (UserService.getById as jest.Mock).mockResolvedValue(existing);
-      (UserService.updateName as jest.Mock).mockResolvedValue(existing);
+    it("refuses a body name completed by the session fallback", async () => {
+      (UserService.getById as jest.Mock).mockResolvedValue({ id: "user-123" });
 
       const req = createMockReq({
         userId: "user-123",
@@ -489,12 +488,57 @@ describe("UserController", () => {
       });
       await UserController.create(req, mockRes as Response);
 
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(UserService.updateName).not.toHaveBeenCalled();
+    });
+
+    // The session fallback still applies when the body says nothing about
+    // names - the repeat call the client actually makes.
+    it("still uses session names when the body omits them entirely", async () => {
+      const existing = { id: "user-123" };
+      (UserService.getById as jest.Mock).mockResolvedValue(existing);
+      (UserService.updateName as jest.Mock).mockResolvedValue(existing);
+
+      const req = createMockReq(validAuthReq);
+      await UserController.create(req, mockRes as Response);
+
       expect(UserService.updateName).toHaveBeenCalledWith({
         userId: "user-123",
-        firstName: "BodyFirst",
-        lastName: "SessionLast",
+        firstName: "John",
+        lastName: "Doe",
       });
       expect(mockRes.status).toHaveBeenCalledWith(200);
+    });
+
+    /*
+     * The name sync and the role correction are isolated. Sharing a catch meant
+     * a failed name sync returned early and skipped the role entirely, while
+     * still answering 2xx - so the client cleared its pending role and the
+     * correction was lost to a failure in the half that can afford to fail.
+     */
+    it("still applies the role when the name sync fails", async () => {
+      mockAuthService = {
+        updateUserName: mockUpdateUserName.mockRejectedValue(
+          new Error("provider name write failed"),
+        ),
+        setUserRole: mockSetUserRole,
+        removeUserRole: mockRemoveUserRole,
+      };
+      (UserService.create as jest.Mock).mockResolvedValue({ id: "user-123" });
+
+      const req = createMockReq({
+        ...validAuthReq,
+        body: {
+          firstName: "John",
+          lastName: "Doe",
+          role: "developer",
+        },
+      });
+      await UserController.create(req, mockRes as Response);
+
+      expect(logger.warn).toHaveBeenCalled();
+      expect(mockSetUserRole).toHaveBeenCalledWith("user-123", "developer");
+      expect(mockRes.status).toHaveBeenCalledWith(201);
     });
 
     /*
