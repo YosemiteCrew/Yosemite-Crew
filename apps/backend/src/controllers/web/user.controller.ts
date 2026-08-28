@@ -71,6 +71,35 @@ function resolveProvisioningProfile(req: AuthenticatedRequest): {
   };
 }
 
+type AuthServiceForSync = NonNullable<ReturnType<typeof getAuthService>>;
+
+/**
+ * Move the account onto `role`, clearing the one it replaces.
+ *
+ * `setUserRole` ADDS - it does not replace - so correcting `member` to
+ * `developer` would otherwise leave the account holding both, and
+ * `/v1/auth/me` answers with the first role the list returns. The correction
+ * would report success and change nothing the user can see.
+ *
+ * Only the self-assignable roles are cleared. Removing every other role would
+ * strip `superadmin` from an admin who did nothing more than re-provision
+ * their name, and this endpoint has no business revoking a role it was never
+ * allowed to grant.
+ */
+async function applyRole(
+  authService: AuthServiceForSync,
+  userId: string,
+  role: string,
+): Promise<void> {
+  const replaced = [...SELF_ASSIGNABLE_ROLES].filter(
+    (candidate) => candidate !== role,
+  );
+  for (const candidate of replaced) {
+    await authService.removeUserRole(userId, candidate);
+  }
+  await authService.setUserRole(userId, role);
+}
+
 // Best-effort profile sync to the auth provider so /v1/auth/me can serve
 // names and role without touching the database.
 async function syncProfileToAuthProvider(
@@ -89,24 +118,7 @@ async function syncProfileToAuthProvider(
       });
     }
     if (profile.role) {
-      /*
-       * Drop the other self-assignable role first. `setUserRole` ADDS - it
-       * does not replace - so correcting `member` to `developer` would
-       * otherwise leave the account holding both, and `/v1/auth/me` answers
-       * with the first role the list returns. The correction would report
-       * success and change nothing the user can see.
-       *
-       * Only the self-assignable ones are cleared. Removing every other role
-       * would strip `superadmin` from an admin who did nothing more than
-       * re-provision their name, and this endpoint has no business revoking a
-       * role it was never allowed to grant.
-       */
-      for (const stale of SELF_ASSIGNABLE_ROLES) {
-        if (stale !== profile.role) {
-          await authService.removeUserRole(userId, stale);
-        }
-      }
-      await authService.setUserRole(userId, profile.role);
+      await applyRole(authService, userId, profile.role);
     }
   } catch (syncError) {
     logger.warn("Auth provider profile sync failed", syncError);
