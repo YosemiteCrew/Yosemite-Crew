@@ -26,9 +26,6 @@ on:
 permissions:
   contents: read
 
-env:
-  NODE_VERSION: '20'
-
 jobs:
   detect:
     name: Detect affected workspaces
