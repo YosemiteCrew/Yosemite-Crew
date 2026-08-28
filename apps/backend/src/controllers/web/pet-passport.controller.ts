@@ -141,11 +141,13 @@ type PassportHandler = (req: Request, res: Response) => Promise<Response>;
 /**
  * A schema whose parsed OUTPUT is `Out`, whatever shape it accepts as input.
  *
- * The third parameter matters: `z.ZodType<Out>` pins Input to `Out` as well,
- * which rejects any schema carrying a transform - `completed` arrives as a
- * string and leaves as a boolean, so its input and output differ by design.
+ * The Input parameter is load-bearing: `z.ZodType<Out>` defaults Input to
+ * `unknown` in zod 4 but naming it keeps the intent explicit, and pinning it
+ * to `Out` would reject any schema carrying a transform - the aftercare
+ * `completed` filter arrives as a string and parses to a boolean, so its
+ * input and output differ by design.
  */
-type SchemaFor<Out> = z.ZodType<Out, z.ZodTypeDef, unknown>;
+type SchemaFor<Out> = z.ZodType<Out, unknown>;
 
 type HandlerConfig<POut, BOut> = {
   params: SchemaFor<POut>;
