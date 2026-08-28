@@ -69,6 +69,18 @@ describe("UserController", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    /*
+     * clearAllMocks resets calls but NOT implementations, so a mockResolvedValue
+     * set in one test leaked into every later one. That was invisible while
+     * nothing read these on the default path; `create` now looks the user up
+     * first, so a leaked `getById` silently turned a creation test into a
+     * repeat-provisioning test. Reset the service mocks outright and let each
+     * test state its own starting point.
+     */
+    (UserService.create as jest.Mock).mockReset();
+    (UserService.getById as jest.Mock).mockReset();
+    (UserService.updateName as jest.Mock).mockReset();
+    (UserService.deleteById as jest.Mock).mockReset();
     mockRes = createMockRes();
     mockAuthService = null;
     mockResolveCanonicalUserIdImpl = jest.fn(async (value: string) => value);
@@ -507,9 +519,42 @@ describe("UserController", () => {
       const req = createMockReq(validAuthReq);
       await UserController.create(req, mockRes as Response);
 
-      expect(UserService.getById).not.toHaveBeenCalled();
+      /*
+       * Once for the up-front "is this already provisioned" lookup, and no
+       * more: only a 409 triggers the race recovery, so a 400 must not be
+       * quietly converted into a repeat-provisioning success.
+       */
+      expect(UserService.getById).toHaveBeenCalledTimes(1);
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith({ message: "Invalid user id" });
+    });
+
+    /*
+     * The repeat call the client actually makes: once `pendingSignUp` is gone
+     * it posts no body, and the session carries no names either. Create would
+     * reject that on name validation before ever looking for the existing row,
+     * so the lookup has to come first or provisioning can never be repeated.
+     */
+    it("serves a repeat call that carries no names at all", async () => {
+      mockAuthService = {
+        updateUserName: mockUpdateUserName,
+        setUserRole: mockSetUserRole,
+        removeUserRole: mockRemoveUserRole,
+      };
+      const existing = { id: "user-123", email: "test@example.com" };
+      (UserService.getById as jest.Mock).mockResolvedValue(existing);
+
+      const req = createMockReq({
+        userId: "user-123",
+        email: "test@example.com",
+      });
+      await UserController.create(req, mockRes as Response);
+
+      expect(UserService.create).not.toHaveBeenCalled();
+      // Nothing to write, so the stored names are left alone rather than cleared.
+      expect(UserService.updateName).not.toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(existing);
     });
 
     it("should return 500 and log error on generic exception", async () => {

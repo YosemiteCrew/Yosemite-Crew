@@ -109,6 +109,34 @@ async function applyRole(
   }
 }
 
+/**
+ * Take the submitted names into the database for an account that already
+ * exists, returning the row to serve back.
+ *
+ * The provider sync writes whatever names the request carried, so the database
+ * has to accept the same ones: returning the stored row untouched while pushing
+ * new names to the provider is how `/v1/auth/me` and `/fhir/v1/user/:id` end up
+ * reporting different names for one account, with nothing to reconcile them -
+ * `updateName` no-ops once the database matches, so no later call repairs it.
+ *
+ * A request carrying no names (the client posts no body once `pendingSignUp` is
+ * gone) leaves the stored ones alone rather than clearing them.
+ */
+async function reconcileNames(
+  userId: string,
+  stored: Awaited<ReturnType<typeof UserService.getById>>,
+  profile: { firstName?: string; lastName?: string },
+): Promise<Awaited<ReturnType<typeof UserService.create>>> {
+  if (!profile.firstName || !profile.lastName) {
+    return stored!;
+  }
+  return UserService.updateName({
+    userId,
+    firstName: profile.firstName,
+    lastName: profile.lastName,
+  });
+}
+
 // Best-effort profile sync to the auth provider so /v1/auth/me can serve
 // names and role without touching the database.
 async function syncProfileToAuthProvider(
@@ -164,49 +192,51 @@ export const UserController = {
        * this role), so a caller re-asserting one gains no privilege. It would
        * not have been safe against the old shape check.
        */
+      /*
+       * Look the user up BEFORE attempting to create. `UserService.create`
+       * validates first and last name before it checks for an existing row, and
+       * a repeat call routinely carries neither: once `pendingSignUp` is gone
+       * the client posts no body at all, and the session token no longer
+       * carries profile attributes. Going through create would answer 400 to a
+       * request whose only fault is being already done, and the recovery below
+       * would never run.
+       */
+      const provisioned = await UserService.getById(userId);
+
       let user: Awaited<ReturnType<typeof UserService.create>>;
-      let created = true;
-      try {
-        user = await UserService.create({
-          id: userId,
-          email: email,
-          firstName: profile.firstName!,
-          lastName: profile.lastName!,
-        });
-      } catch (error: unknown) {
-        const alreadyProvisioned =
-          error instanceof UserServiceError && error.statusCode === 409;
-        if (!alreadyProvisioned) {
-          throw error;
-        }
+      let created = false;
 
-        const existing = await UserService.getById(userId);
-        // A 409 means a row matched on id OR email. If it matched on email
-        // alone the row belongs to a different id, and serving it here would
-        // hand this caller another user's record - rethrow instead.
-        if (!existing) {
-          throw error;
-        }
+      if (provisioned) {
+        user = await reconcileNames(userId, provisioned, profile);
+      } else {
+        try {
+          user = await UserService.create({
+            id: userId,
+            email: email,
+            firstName: profile.firstName!,
+            lastName: profile.lastName!,
+          });
+          created = true;
+        } catch (error: unknown) {
+          const raced =
+            error instanceof UserServiceError && error.statusCode === 409;
+          if (!raced) {
+            throw error;
+          }
 
-        /*
-         * The sync below writes the submitted names into the auth provider
-         * whichever path got here, so the database has to accept them too.
-         * Returning the stored row untouched while pushing new names to the
-         * provider is how `/v1/auth/me` and `/fhir/v1/user/:id` end up
-         * disagreeing about someone's name, with no route back: updateName
-         * no-ops once the database already matches, so nothing later repairs
-         * the divergence. Idempotent by the same token - unchanged names cost
-         * a read.
-         */
-        user =
-          profile.firstName && profile.lastName
-            ? await UserService.updateName({
-                userId,
-                firstName: profile.firstName,
-                lastName: profile.lastName,
-              })
-            : existing;
-        created = false;
+          /*
+           * Lost a race: the lookup above found nothing, but someone inserted
+           * between it and this write. A 409 matches on id OR email, so it does
+           * not prove the row is this caller's - when nothing comes back for
+           * this id the row is someone else's and the conflict stands, rather
+           * than handing over another user's record.
+           */
+          const winner = await UserService.getById(userId);
+          if (!winner) {
+            throw error;
+          }
+          user = await reconcileNames(userId, winner, profile);
+        }
       }
 
       await syncProfileToAuthProvider(userId, profile);
