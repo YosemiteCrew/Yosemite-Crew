@@ -40,11 +40,16 @@ const generateCsv = (
     patientName?: string;
     veterinarianName: string;
     witnessName?: string;
+    witnessPinVerified?: boolean;
     notes?: string;
   }[]
 ): string => {
+  // "Witness" on its own presents a claimed name as a verified one: a
+  // destruction nobody witnessed reads identically to one a second person
+  // authenticated. The status is its own column so the CSV cannot imply a
+  // verification that did not happen.
   const header =
-    'Date,Time,Action,Drug Name,Drug Class,Lot #,Quantity,Unit,Patient ID,Patient Name,Veterinarian,Witness,Notes';
+    'Date,Time,Action,Drug Name,Drug Class,Lot #,Quantity,Unit,Patient ID,Patient Name,Veterinarian,Witness,Witness Verified,Notes';
   const lines = rows.map((r) => {
     const d = new Date(r.timestamp);
     const date = d.toISOString().split('T')[0] || '';
@@ -62,6 +67,7 @@ const generateCsv = (
       r.patientName || '',
       r.veterinarianName,
       r.witnessName || '',
+      r.witnessPinVerified === true ? 'yes' : 'no',
       r.notes || '',
     ]
       .map((cell) => `"${String(cell).replaceAll('"', '""')}"`)

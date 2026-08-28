@@ -125,6 +125,38 @@ describe('status dialogs — happy paths', () => {
     expect(deps.runBackup).toHaveBeenCalled();
   });
 
+  test('showPmpStatus does not count unwitnessed destructions as witnessed', () => {
+    const wasteEvent = (witnessPinVerified: boolean) => ({
+      witnessPinVerified,
+      witnessId: witnessPinVerified ? 'nurse-1' : '',
+    });
+    const deps = makeDeps({
+      dualWitnessLog: {
+        getWasteEvents: () => [wasteEvent(true), wasteEvent(false), wasteEvent(false)],
+      } as never,
+    });
+    createStatusDialogService(deps).showPmpStatus();
+
+    const detail = (deps.dialog.showMessageBox as jest.Mock).mock.calls[0][0].detail as string;
+    expect(detail).toContain('Witness-verified waste events: 1');
+    expect(detail).toContain('Waste events WITHOUT a verified witness: 2');
+    // The old wording counted all three as witnessed.
+    expect(detail).not.toContain('Witnessed waste events: 3');
+  });
+
+  test('showPmpStatus omits the warning line when every waste event is verified', () => {
+    const deps = makeDeps({
+      dualWitnessLog: {
+        getWasteEvents: () => [{ witnessPinVerified: true }, { witnessPinVerified: true }],
+      } as never,
+    });
+    createStatusDialogService(deps).showPmpStatus();
+
+    const detail = (deps.dialog.showMessageBox as jest.Mock).mock.calls[0][0].detail as string;
+    expect(detail).toContain('Witness-verified waste events: 2');
+    expect(detail).not.toContain('WITHOUT a verified witness');
+  });
+
   test('verifyAuditTrail names the problem when the log is not intact', () => {
     const deps = makeDeps({
       auditLog: {

@@ -19,10 +19,13 @@ import {
   type SettingsStore,
 } from '../utils/settings-store';
 import type { AuditLog } from '../compliance/audit-log';
-import type {
-  ControlledSubstanceLogbook,
-  CsTransaction,
+import {
+  WITNESS_REQUIRED_ACTIONS,
+  type ControlledSubstanceLogbook,
+  type CsAction,
+  type CsTransaction,
 } from '../compliance/controlled-substance';
+import type { DualWitnessLog } from '../compliance/dual-witness';
 import type { DeaRegistrationTracker } from '../compliance/dea-registration';
 import type { IpcMain as IpcMainType } from 'electron';
 import type { DesktopLogger } from '../utils/logger';
@@ -120,6 +123,7 @@ export interface IpcServices {
   // Compliance
   auditLog: AuditLog | null;
   controlledSubstanceLog: ControlledSubstanceLogbook | null;
+  dualWitnessLog: DualWitnessLog | null;
   csExport: {
     exportDailyLog: (date?: Date) => { rowCount: number; filePath: string } | null;
   } | null;
@@ -149,6 +153,83 @@ export interface IpcServices {
   // lifecycle; the lock page only asks for one of these two outcomes.
   idleUnlock: (mode: 'biometric' | 'password') => void;
 }
+
+/** Reserved for entries the main process writes itself via the record path. */
+const CS_RESOURCE_TYPE = 'controlled-substance';
+
+const CS_ACTIONS = new Set(['dispense', 'administer', 'receive', 'waste', 'transfer', 'inventory']);
+const CS_REQUIRED_FIELDS = [
+  'drugName',
+  'drugClass',
+  'lotNumber',
+  'unit',
+  'veterinarianId',
+  'veterinarianName',
+];
+
+/**
+ * Whether two ids denote the same person for the purpose of refusing a
+ * self-witness. Compares case- and whitespace-insensitively. This is only ever
+ * used to REJECT, so being generous about what counts as the same person fails
+ * safe; it is deliberately not used to decide what gets stored.
+ */
+const sameIdentity = (a: unknown, b: unknown): boolean =>
+  String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+
+type CsRecordValidation = { ok: false; error: string } | { ok: true; needsWitness: boolean };
+
+const requireNonEmptyStrings = (
+  d: Record<string, unknown>,
+  fields: readonly string[]
+): string | null => {
+  for (const f of fields) {
+    const v = d[f];
+    if (typeof v !== 'string' || v.trim() === '') return `missing-${f}`;
+  }
+  return null;
+};
+
+const validateCsRecordPayload = (d: Record<string, unknown>): CsRecordValidation => {
+  const action = d.action;
+  if (typeof action !== 'string' || !CS_ACTIONS.has(action))
+    return { ok: false, error: 'invalid-action' };
+
+  const missing = requireNonEmptyStrings(d, CS_REQUIRED_FIELDS);
+  if (missing) return { ok: false, error: missing };
+
+  const quantity = d.quantity;
+  if (typeof quantity !== 'number' || !Number.isFinite(quantity))
+    return { ok: false, error: 'invalid-quantity' };
+  if (action !== 'transfer' && action !== 'inventory' && quantity <= 0)
+    return { ok: false, error: 'invalid-quantity' };
+
+  // Destruction may not be recorded on one person's say-so. Without this the
+  // channel accepted action:'waste' with no witness at all, and the record still
+  // read back as witness-verified.
+  const needsWitness = WITNESS_REQUIRED_ACTIONS.includes(action as CsAction);
+  if (needsWitness) {
+    const missingWitness = requireNonEmptyStrings(d, ['witnessId', 'witnessName']);
+    if (missingWitness) return { ok: false, error: missingWitness };
+    // The payload is renderer-controlled, so an exact comparison lets "vet-1"
+    // and "vet-1 " through as two different people.
+    //
+    // Comparison and storage deliberately differ, and the asymmetry costs
+    // something worth naming. Identity is decided case-insensitively, so a
+    // veterinarian cannot witness for themselves by changing case. Storage only
+    // trims: these ids come from an external identity system that may well
+    // treat case as significant, and lowercasing on the way to disk would
+    // corrupt the identifier used to match a real person. The consequence is
+    // that "Vet-1" and "vet-1" count as one person for this check while being
+    // stored as written, which is the safer direction to be wrong in.
+    d.witnessId = String(d.witnessId).trim();
+    d.veterinarianId = String(d.veterinarianId).trim();
+    d.witnessName = String(d.witnessName).trim();
+    if (sameIdentity(d.witnessId, d.veterinarianId))
+      return { ok: false, error: 'witness-must-differ' };
+  }
+
+  return { ok: true, needsWitness };
+};
 
 export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): void => {
   const registry = createIpcRegistry({
@@ -374,40 +455,50 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     if (typeof data !== 'object' || data === null || Array.isArray(data))
       return { ok: false, error: 'invalid-data' };
     const d = data as Record<string, unknown>;
-    const action = d.action;
-    const CS_ACTIONS = ['dispense', 'administer', 'receive', 'waste', 'transfer', 'inventory'];
-    if (typeof action !== 'string' || !CS_ACTIONS.includes(action))
-      return { ok: false, error: 'invalid-action' };
-    for (const f of [
-      'drugName',
-      'drugClass',
-      'lotNumber',
-      'unit',
-      'veterinarianId',
-      'veterinarianName',
-    ]) {
-      const v = d[f];
-      if (typeof v !== 'string' || v.trim() === '') return { ok: false, error: `missing-${f}` };
+
+    const validation = validateCsRecordPayload(d);
+    if (!validation.ok) return { ok: false, error: validation.error };
+
+    // The verification flag is derived here from an actual PIN check and never
+    // taken from the payload: a renderer must not be able to assert that a
+    // witness was verified.
+    const witnessPinVerified =
+      validation.needsWitness &&
+      services.dualWitnessLog !== null &&
+      typeof d.witnessPin === 'string' &&
+      services.dualWitnessLog.verifyWitnessPin(d.witnessId as string, d.witnessPin);
+
+    // The PIN proves an ACCOUNT, not a name. A caller could submit a valid
+    // id + PIN alongside any witnessName it liked, and that arbitrary name is
+    // what the compliance CSV would then present in its Witness column. Once
+    // verification succeeds, the account's own name is what gets recorded.
+    if (witnessPinVerified) {
+      const account = services.dualWitnessLog?.getWitnessAccount(d.witnessId as string);
+      if (account) d.witnessName = account.name;
     }
-    const quantity = d.quantity;
-    if (typeof quantity !== 'number' || !Number.isFinite(quantity))
-      return { ok: false, error: 'invalid-quantity' };
-    if (action !== 'transfer' && action !== 'inventory' && quantity <= 0)
-      return { ok: false, error: 'invalid-quantity' };
+
+    // The PIN is a credential, not part of the record: it must not be persisted
+    // into the logbook or echoed back to the caller.
+    const rest = Object.fromEntries(Object.entries(d).filter(([k]) => k !== 'witnessPin'));
     // record() throws when the transaction did not reach the disk. Reporting
     // ok:true there is how a full disk or a locked file produced a green
     // confirmation for a dispense that was never written down.
     let tx: CsTransaction;
     try {
-      tx = services.controlledSubstanceLog.record(
-        data as Parameters<ControlledSubstanceLogbook['record']>[0]
-      );
+      tx = services.controlledSubstanceLog.record({
+        ...(rest as Parameters<ControlledSubstanceLogbook['record']>[0]),
+        witnessPinVerified,
+      });
     } catch (error) {
       services.logger.error('cs_record_failed', { error });
       return { ok: false, error: 'cs-write-failed' };
     }
-    services.logger.info('cs_recorded', { id: tx.id, drugName: tx.drugName });
-    return { ok: true, transaction: tx };
+    services.logger.info('cs_recorded', {
+      id: tx.id,
+      drugName: tx.drugName,
+      witnessPinVerified,
+    });
+    return { ok: true, transaction: tx, witnessPinVerified };
   });
 
   registry.handle('yc:cs-export', async (_event, args) => {
@@ -424,6 +515,27 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     const entry = args[0];
     if (typeof entry !== 'object' || entry === null || Array.isArray(entry))
       return { ok: false, error: 'invalid-entry' };
+
+    // Controlled-substance entries are reserved for the main process's own
+    // record path and may not be minted by a renderer.
+    //
+    // Without this, the witness cross-check is bypassable through a legitimate
+    // channel: a caller appends a correctly signed 'controlled-substance' entry
+    // naming an existing transaction with witnessPinVerified: true, edits that
+    // transaction's auditEntryId on disk to match, and the destruction reads as
+    // PIN-verified with no witness ever authenticating. The entry is genuinely
+    // signed by this app's key, so every downstream signature check passes.
+    const e = entry as Record<string, unknown>;
+    if (
+      e.resourceType === CS_RESOURCE_TYPE ||
+      (typeof e.action === 'string' && e.action.startsWith('cs:'))
+    ) {
+      services.logger.warn('audit_append_rejected', {
+        action: e.action,
+        resourceType: e.resourceType,
+      });
+      return { ok: false, error: 'reserved-resource-type' };
+    }
     // append() throws when the entry did not reach the disk. An audit entry that
     // exists only in this process is not an audit entry, so the caller has to be
     // told rather than shown a generic handler failure.

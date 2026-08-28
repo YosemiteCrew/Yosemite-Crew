@@ -1,6 +1,7 @@
 'use strict';
 
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import type { AuditLog, AuditEntry } from './audit-log';
 import type { ControlledSubstanceLogbook, CsTransaction } from './controlled-substance';
 
 export interface WasteEvent {
@@ -28,12 +29,28 @@ export interface DualWitnessLog {
   ) => WasteEvent;
   verifyWitnessPin: (witnessId: string, pin: string) => boolean;
   getWasteEvents: (drugName?: string) => WasteEvent[];
+  /** Waste events whose witness proved their identity. Never inferred. */
+  getVerifiedWasteEvents: (drugName?: string) => WasteEvent[];
   getWasteByWitness: (witnessId: string) => WasteEvent[];
   setWitnessPin: (witnessId: string, witnessName: string, pin: string) => void;
+  hasWitness: (witnessId: string) => boolean;
+  /**
+   * The enrolled account for an id, so a caller's claimed witness name can be
+   * replaced with the canonical one. A PIN proves an account, never a name.
+   */
+  getWitnessAccount: (witnessId: string) => { id: string; name: string } | null;
 }
 
 interface DualWitnessDeps {
   logbook: ControlledSubstanceLogbook;
+  /**
+   * The signed side of the record. The logbook file is not HMAC-protected, so
+   * its `witnessPinVerified` flag can be edited on disk; the audit entry
+   * carrying the same flag cannot be, without invalidating its signature.
+   * Verification is read from there. Omitting this means nothing can be proved
+   * witness-verified, which is the correct answer rather than a lenient one.
+   */
+  auditLog?: AuditLog;
   now?: () => number;
   generateId?: () => string;
 }
@@ -62,9 +79,12 @@ const verifyPinHash = (pin: string, stored: string): boolean => {
   return expected.length === actual.length && timingSafeEqual(expected, actual);
 };
 
-// A persisted waste transaction read back from the controlled-substance logbook
-// is, by definition, one that passed dual-witness verification at record time.
-const txToWasteEvent = (tx: CsTransaction): WasteEvent => ({
+// A waste transaction read back from the logbook reports what was actually
+// verified when it was recorded. The previous version hardcoded
+// `witnessPinVerified: true`, so a destruction recorded with no witness at all
+// read back as witness-verified and was counted as a witnessed waste event in
+// the PMP dialog: an affirmative false compliance statement on the normal path.
+const txToWasteEvent = (tx: CsTransaction, witnessPinVerified: boolean): WasteEvent => ({
   id: tx.id,
   timestamp: tx.timestamp,
   drugName: tx.drugName,
@@ -76,7 +96,7 @@ const txToWasteEvent = (tx: CsTransaction): WasteEvent => ({
   veterinarianName: tx.veterinarianName,
   witnessId: tx.witnessId || '',
   witnessName: tx.witnessName || '',
-  witnessPinVerified: true,
+  witnessPinVerified,
   reason: tx.notes || '',
   csTransactionId: tx.id,
 });
@@ -142,28 +162,88 @@ export const createDualWitnessLog = (deps: DualWitnessDeps): DualWitnessLog => {
       veterinarianName: input.veterinarianName,
       witnessId: input.witnessId,
       witnessName: input.witnessName,
+      witnessPinVerified: true,
     });
 
     return buildEvent(pinVerified, csTx.id);
   };
 
+  /**
+   * Reads verification from the signed audit entry, not from the logbook file.
+   * Editing `controlled-substance-log.jsonl` to set witnessPinVerified: true
+   * leaves the audit entry untouched, so the two disagree and this returns
+   * false - where trusting the logbook value would have reported the forged
+   * record as witness-verified in the PMP dialog.
+   *
+   * What this CANNOT do, and what it therefore depends on: a signature only
+   * proves this app signed the entry, never that a witness authenticated.
+   * Anyone able to make the app sign an attestation can produce one that
+   * satisfies every check below. The real control is that the app must never
+   * sign `witnessPinVerified: true` for a verification it did not perform,
+   * which is why `yc:audit-append` refuses controlled-substance entries and
+   * leaves the record path as the only writer. Weaken that and these checks
+   * become decoration.
+   *
+   * What the checks below do add is that an entry cannot be repurposed: it must
+   * name this transaction and this witness, so a genuine attestation belonging
+   * to another record is useless to a forger.
+   */
+  const verifiedFromAuditTrail = (): ((tx: CsTransaction) => boolean) => {
+    if (!deps.auditLog) return () => false;
+    const auditLog = deps.auditLog;
+    const byId = new Map<string, AuditEntry>();
+    for (const entry of auditLog.query({ resourceType: 'controlled-substance' })) {
+      byId.set(entry.id, entry);
+    }
+    return (tx) => {
+      const entry = byId.get(tx.auditEntryId);
+      if (!entry) return false;
+      // `isAuditEntry` only checks id and action, so a malformed or tampered row
+      // can reach here with no details at all. Dereferencing it would throw and
+      // take the whole PMP dialog down instead of reporting one record as
+      // unverified.
+      const details = entry.details;
+      if (typeof details !== 'object' || details === null) return false;
+      // The entry must be the one for THIS transaction, so a forged flag cannot
+      // borrow a genuinely verified entry belonging to another record.
+      if (details.csTransactionId !== tx.id) return false;
+      // ...and it must name the same witness. Swapping only the logbook's
+      // witnessId leaves the signed entry valid, which would otherwise let
+      // getWasteByWitness() report a different person as the verified witness.
+      if ((details.witnessId ?? '') !== (tx.witnessId ?? '')) return false;
+      if (details.witnessPinVerified !== true) return false;
+      return auditLog.verify(entry);
+    };
+  };
+
   const getWasteEvents = (drugName?: string): WasteEvent[] => {
     const txs = drugName ? deps.logbook.getByDrug(drugName) : deps.logbook.getTransactions();
-    return txs.filter((tx) => tx.action === 'waste').map(txToWasteEvent);
+    const isVerified = verifiedFromAuditTrail();
+    return txs.filter((tx) => tx.action === 'waste').map((tx) => txToWasteEvent(tx, isVerified(tx)));
   };
+
+  const getVerifiedWasteEvents = (drugName?: string): WasteEvent[] =>
+    getWasteEvents(drugName).filter((e) => e.witnessPinVerified);
 
   const getWasteByWitness = (witnessId: string): WasteEvent[] => {
     const txs = deps.logbook.getTransactions();
+    const isVerified = verifiedFromAuditTrail();
     return txs
       .filter((tx) => tx.action === 'waste' && tx.witnessId === witnessId)
-      .map(txToWasteEvent);
+      .map((tx) => txToWasteEvent(tx, isVerified(tx)));
   };
 
   return {
     recordWaste,
     verifyWitnessPin,
     getWasteEvents,
+    getVerifiedWasteEvents,
     getWasteByWitness,
     setWitnessPin,
+    hasWitness: (witnessId: string): boolean => witnesses.has(witnessId),
+    getWitnessAccount: (witnessId: string): { id: string; name: string } | null => {
+      const account = witnesses.get(witnessId);
+      return account ? { id: account.id, name: account.name } : null;
+    },
   };
 };

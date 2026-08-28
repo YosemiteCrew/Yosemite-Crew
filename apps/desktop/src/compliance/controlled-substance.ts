@@ -22,9 +22,17 @@ export interface CsTransaction {
   veterinarianName: string;
   witnessId?: string;
   witnessName?: string;
+  // Whether the witness actually proved their identity at record time. Persisted
+  // rather than inferred: a waste event read back from disk carries what was
+  // verified when it happened, never an assumption that it must have been.
+  witnessPinVerified?: boolean;
   notes?: string;
   auditEntryId: string;
 }
+
+// DEA actions that may not be recorded on one person's say-so. Destruction is
+// the case that matters here: it removes stock from the register permanently.
+export const WITNESS_REQUIRED_ACTIONS: readonly CsAction[] = ['waste'];
 
 /**
  * Thrown when a controlled-substance transaction could not be persisted. The
@@ -146,6 +154,11 @@ export const createControlledSubstanceLogbook = (
         patientId: input.patientId,
         veterinarianId: input.veterinarianId,
         witnessId: input.witnessId,
+        // Signed alongside the rest of the entry. The logbook file itself is not
+        // HMAC-protected, so without this a flag flipped from false to true on
+        // disk would read back as a witness-verified destruction with the audit
+        // chain still verifying cleanly.
+        witnessPinVerified: input.witnessPinVerified === true,
       },
     });
 

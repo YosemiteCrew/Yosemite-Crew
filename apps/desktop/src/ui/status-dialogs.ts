@@ -69,6 +69,17 @@ export interface StatusDialogService {
 export const createStatusDialogService = (deps: StatusDialogDeps): StatusDialogService => {
   const { dialog } = deps;
 
+  // Waste is only "witnessed" when a second person actually proved who they
+  // were. Counting every destruction as witnessed was an affirmative false
+  // compliance statement, so unverified destructions are now called out.
+  const wasteCounts = (): string => {
+    const events = deps.dualWitnessLog?.getWasteEvents() ?? [];
+    const verified = events.filter((e) => e.witnessPinVerified).length;
+    const unverified = events.length - verified;
+    const line = `Witness-verified waste events: ${verified}`;
+    return unverified > 0 ? `${line}\nWaste events WITHOUT a verified witness: ${unverified}` : line;
+  };
+
   // A daily log or biennial report built from a register that lost records is
   // an understated compliance document with nothing on its face to say so. Any
   // output derived from the register carries the warning.
@@ -228,7 +239,7 @@ export const createStatusDialogService = (deps: StatusDialogDeps): StatusDialogS
           `Records pending export: ${deps.pmpService?.getPending().length ?? 0}\n` +
           `Marked exported: ${deps.pmpService?.getSubmitted().length ?? 0}\n` +
           `Marked failed: ${deps.pmpService?.getFailed().length ?? 0}\n` +
-          `Witnessed waste events: ${deps.dualWitnessLog?.getWasteEvents().length ?? 0}\n` +
+          `${wasteCounts()}\n` +
           `Unsynced offline mutations: ${deps.offlineAuditTrail?.getUnsyncedCount() ?? 0}`
       );
     },
