@@ -51,7 +51,7 @@
     "firebase-admin": "^13.6.0",
     "google-auth-library": "^10.9.1",
     "helmet": "^8.3.0",
-    "ioredis": "^5.11.1",
+    "ioredis": "^6.0.0",
     "jsonwebtoken": "9.0.3",
     "jwks-rsa": "^4.1.0",
     "moment": "2.30.1",
