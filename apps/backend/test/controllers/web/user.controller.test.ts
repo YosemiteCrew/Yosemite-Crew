@@ -472,12 +472,22 @@ describe("UserController", () => {
     });
 
     /*
-     * Exactly one name is malformed, not the intentional no-body retry. The
-     * creation path has always rejected it; the repeat path must not read it as
-     * "no names supplied" and answer 200 to a rename that never happened.
+     * Naming the fields at all commits to supplying both. Only their complete
+     * absence is the intentional no-body retry - and `trimmedString` collapses
+     * "", whitespace and non-strings to undefined, so without checking the raw
+     * body an explicitly blank pair would be indistinguishable from an absent
+     * one and answer 200 to a rename it silently refused. Creation has always
+     * rejected every one of these.
      */
-    it.each([{ firstName: "OnlyFirst" }, { lastName: "OnlyLast" }])(
-      "rejects a half-supplied name: %o",
+    it.each([
+      { firstName: "OnlyFirst" },
+      { lastName: "OnlyLast" },
+      { firstName: "", lastName: "" },
+      { firstName: "   ", lastName: "   " },
+      { firstName: 42, lastName: true },
+      { firstName: null, lastName: null },
+    ])(
+      "rejects a name the body offers but does not supply: %o",
       async (body) => {
         (UserService.getById as jest.Mock).mockResolvedValue({
           id: "user-123",

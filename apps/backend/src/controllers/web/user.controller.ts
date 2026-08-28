@@ -71,6 +71,34 @@ function resolveProvisioningProfile(req: AuthenticatedRequest): {
   };
 }
 
+/**
+ * Whether the request's names can be acted on.
+ *
+ * Two shapes are acceptable: both names resolve, or the request never mentioned
+ * them. The second is the legitimate repeat call - once `pendingSignUp` is gone
+ * the client posts no body, and the session carries no profile attributes.
+ *
+ * Everything else is malformed and gets a 400, which is what the creation path
+ * has always done. Naming the fields at all is a commitment to supply both:
+ * `trimmedString` collapses `""`, whitespace and non-strings to `undefined`, so
+ * without this an explicitly blank pair would be indistinguishable from an
+ * absent one, and the repeat path would answer 200 to a rename it silently
+ * refused.
+ */
+function namesAreUsable(
+  req: AuthenticatedRequest,
+  profile: { firstName?: string; lastName?: string },
+): boolean {
+  if (profile.firstName && profile.lastName) {
+    return true;
+  }
+  if (profile.firstName || profile.lastName) {
+    return false;
+  }
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  return !("firstName" in body || "lastName" in body);
+}
+
 type AuthServiceForSync = NonNullable<ReturnType<typeof getAuthService>>;
 
 /**
@@ -269,16 +297,7 @@ export const UserController = {
 
       const profile = resolveProvisioningProfile(authRequest);
 
-      /*
-       * A repeat call may legitimately carry no names at all: once
-       * `pendingSignUp` is gone the client posts no body, and the session
-       * carries no profile attributes either. Carrying exactly one name is not
-       * that - it is a malformed request, which `UserService.create` rejects on
-       * the creation path. Reject it here too, rather than letting the repeat
-       * path read it as "no names supplied" and answer 200 to a rename that
-       * never happened.
-       */
-      if (Boolean(profile.firstName) !== Boolean(profile.lastName)) {
+      if (!namesAreUsable(authRequest, profile)) {
         return res
           .status(400)
           .json({ message: "Both first and last name are required." });
