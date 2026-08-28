@@ -97,6 +97,12 @@ interface GenericSelectBottomSheetProps {
   snapPoints?: [string, string];
   hasSearch?: boolean;
   emptyMessage?: string;
+  /**
+   * Optional control rendered under `emptyMessage`. Exists so an empty list
+   * that is empty because the LOOKUP FAILED can offer a way out: without it a
+   * failed lookup is a dead end in any sheet whose field is required.
+   */
+  emptyAction?: {label: string; onPress: () => void};
   customContent?: React.ReactNode;
   mode?: 'select' | 'confirm'; // 'select' = auto-close on select, 'confirm' = show save/cancel buttons
   maxListHeight?: number;
@@ -114,6 +120,7 @@ export const GenericSelectBottomSheet = ({
   snapPoints = ['90%', '95%'],
   hasSearch = true,
   emptyMessage = 'No items available',
+  emptyAction,
   customContent,
   mode = 'confirm',
   maxListHeight = 400,
@@ -155,6 +162,16 @@ export const GenericSelectBottomSheet = ({
   const renderEmptyList = () => (
     <View style={styles.emptyContainer}>
       <Text style={styles.emptyText}>{emptyMessage}</Text>
+      {emptyAction ? (
+        <PressableOpacity
+          testID="select-sheet-empty-action"
+          accessibilityRole="button"
+          accessibilityLabel={emptyAction.label}
+          onPress={emptyAction.onPress}
+          style={styles.emptyAction}>
+          <Text style={styles.emptyActionLabel}>{emptyAction.label}</Text>
+        </PressableOpacity>
+      ) : null}
     </View>
   );
 
@@ -371,6 +388,18 @@ const createStyles = (theme: any, maxListHeight: number, bottomInset: number) =>
     emptyText: {
       ...theme.typography.body,
       color: theme.colors.textSecondary,
+      textAlign: 'center',
+    },
+    emptyAction: {
+      minHeight: 44,
+      justifyContent: 'center',
+      paddingHorizontal: theme.spacing['5'],
+      marginTop: theme.spacing['3'],
+    },
+    emptyActionLabel: {
+      ...theme.typography.button,
+      fontSize: 15,
+      color: theme.colors.blueText,
       textAlign: 'center',
     },
     listWrapper: {
