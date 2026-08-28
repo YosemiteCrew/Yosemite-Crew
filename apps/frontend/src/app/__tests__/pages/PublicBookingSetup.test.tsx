@@ -324,12 +324,37 @@ describe('PublicBookingSetup', () => {
       expect(screen.queryByRole('button', { name: /Copy/ })).not.toBeInTheDocument();
     });
 
-    it('shows the reserved slug without a copy button while the page is not live', async () => {
-      getConfigMock.mockResolvedValue(config({ slug: 'alpenblick-animal-clinic' }));
+    it('says the page is closed while it has not been opened', async () => {
+      getConfigMock.mockResolvedValue(
+        config({ slug: 'alpenblick-animal-clinic', publicBookingEnabled: false })
+      );
       await goToBranding();
 
       expect(screen.getByText('alpenblick-animal-clinic')).toBeInTheDocument();
-      expect(screen.getByText(/not live yet, so there is no link to share/)).toBeInTheDocument();
+      expect(screen.getByText(/Your booking page is closed/)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Copy/ })).not.toBeInTheDocument();
+    });
+
+    it('does not claim a live page is closed just because no address is configured', async () => {
+      // The state that shipped wrong: `publicBookingEnabled` true with
+      // `publicUrl` null, because PUBLIC_BOOKING_BASE_URL is unset for the
+      // environment. The page IS reachable and taking bookings; saying it is not
+      // live is the same untruth this screen exists to remove, pointing the
+      // other way.
+      getConfigMock.mockResolvedValue(
+        config({
+          slug: 'alpenblick-animal-clinic',
+          publicBookingEnabled: true,
+          publicUrl: null,
+        })
+      );
+      await goToBranding();
+
+      expect(screen.getByText(/Your booking page is open/)).toBeInTheDocument();
+      expect(screen.getByText(/No public web address is configured/)).toBeInTheDocument();
+      expect(screen.queryByText(/is closed/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/not live/)).not.toBeInTheDocument();
+      // Still nothing to copy, because there is still no address.
       expect(screen.queryByRole('button', { name: /Copy/ })).not.toBeInTheDocument();
     });
 

@@ -243,14 +243,34 @@ const BookingServicesStep = ({
  *
  * `publicUrl` is only ever a value the API sent. Nothing here builds one.
  */
+/**
+ * What to say about an address we cannot show a link for.
+ *
+ * Three states, not two. Whether the page is REACHABLE is
+ * `publicBookingEnabled`; whether we can show a LINK to it additionally needs
+ * `PUBLIC_BOOKING_BASE_URL` configured for the environment. Collapsing those
+ * told a practice whose page was live and taking bookings that it "is not live
+ * yet" - the same species of untruth this screen was rewritten to remove, only
+ * pointing the other way.
+ */
+const describeAddress = (slug: string | null, publicBookingEnabled: boolean): string => {
+  if (!slug) return 'Save your setup and we will reserve a booking address for your practice.';
+  if (publicBookingEnabled) {
+    return 'Your booking page is open and pet parents can use it. No public web address is configured for this environment yet, so there is no link to copy here - ask whoever administers this environment to set one.';
+  }
+  return 'Your booking page is closed, so there is no link to share. We have reserved this address for you and will use it when you open the page.';
+};
+
 const BookingAddress = ({
   slug,
   publicUrl,
+  publicBookingEnabled,
   copied,
   onCopy,
 }: {
   slug: string | null;
   publicUrl: string | null;
+  publicBookingEnabled: boolean;
   copied: boolean;
   onCopy: (url: string) => void;
 }) => {
@@ -293,9 +313,7 @@ const BookingAddress = ({
         </span>
       </div>
       <span className="text-[11.5px] text-[var(--ink-faint)]">
-        {slug
-          ? 'Your booking page is not live yet, so there is no link to share. We have reserved this address for you and will use it when the page opens.'
-          : 'Save your setup and we will reserve a booking address for your practice.'}
+        {describeAddress(slug, publicBookingEnabled)}
       </span>
     </div>
   );
@@ -312,6 +330,7 @@ type BrandingStepProps = {
   onReplyToChange: (value: string) => void;
   slug: string | null;
   publicUrl: string | null;
+  publicBookingEnabled: boolean;
   copied: boolean;
   onCopy: (url: string) => void;
   onReplaceLogo: () => void;
@@ -335,6 +354,7 @@ const BookingBrandingStep = ({
   onReplyToChange,
   slug,
   publicUrl,
+  publicBookingEnabled,
   copied,
   onCopy,
   onReplaceLogo,
@@ -416,7 +436,13 @@ const BookingBrandingStep = ({
         </div>
       </div>
 
-      <BookingAddress slug={slug} publicUrl={publicUrl} copied={copied} onCopy={onCopy} />
+      <BookingAddress
+        slug={slug}
+        publicUrl={publicUrl}
+        publicBookingEnabled={publicBookingEnabled}
+        copied={copied}
+        onCopy={onCopy}
+      />
 
       <div className="flex items-center justify-between gap-3 px-3.5 py-3 rounded-[14px] border border-[var(--divider)] bg-[var(--inset)]">
         <span className="text-[12.5px] text-[var(--ink-body)]">
@@ -702,6 +728,7 @@ const PublicBookingSetup = () => {
             onReplyToChange={setReplyTo}
             slug={config?.slug ?? null}
             publicUrl={config?.publicUrl ?? null}
+            publicBookingEnabled={config?.publicBookingEnabled ?? false}
             copied={copied}
             onCopy={handleCopy}
             onReplaceLogo={handleReplaceLogo}

@@ -447,3 +447,41 @@ export const BrandingPublished: Story = {
     },
   },
 };
+
+export const BrandingOpenWithoutAddress: Story = {
+  name: 'Step 2 - open, but no address configured',
+  beforeEach: () =>
+    seed({
+      config: config({
+        configured: true,
+        slug: 'avenger-park-veterinary',
+        publicBookingEnabled: true,
+        // Reachable, but this environment has no PUBLIC_BOOKING_BASE_URL, so the
+        // API can offer no link.
+        publicUrl: null,
+      }),
+    }),
+  play: async ({ canvas }) => {
+    await goToBranding(document.body);
+
+    await expect(await canvas.findByText(/Your booking page is open/)).toBeInTheDocument();
+    await expect(canvas.getByText(/No public web address is configured/)).toBeInTheDocument();
+
+    // The bug this story exists to prevent coming back.
+    await expect(canvas.queryByText(/is closed/)).not.toBeInTheDocument();
+    await expect(canvas.queryByText(/not live/)).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: 'Copy' })).not.toBeInTheDocument();
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The state that shipped wrong. Whether the page is REACHABLE is `publicBookingEnabled`; ' +
+          'whether a LINK can be shown additionally needs an address configured for the ' +
+          'environment. The first version branched only on the link, so a practice whose page was ' +
+          'live and taking bookings was told it "is not live yet" - the same species of untruth ' +
+          'this screen was rewritten to remove, pointing the other way.',
+      },
+    },
+  },
+};
