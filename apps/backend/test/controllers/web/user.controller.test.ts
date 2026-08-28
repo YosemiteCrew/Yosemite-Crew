@@ -15,6 +15,7 @@ jest.mock("../../../src/utils/logger");
 
 const mockUpdateUserName = jest.fn();
 const mockSetUserRole = jest.fn();
+const mockRemoveUserRole = jest.fn();
 let mockResolveCanonicalUserIdImpl = jest.fn(async (value: string) => value);
 function mockResolveCanonicalUserId(value: string) {
   return mockResolveCanonicalUserIdImpl(value);
@@ -22,6 +23,7 @@ function mockResolveCanonicalUserId(value: string) {
 let mockAuthService: {
   updateUserName: typeof mockUpdateUserName;
   setUserRole: typeof mockSetUserRole;
+  removeUserRole: typeof mockRemoveUserRole;
 } | null = null;
 jest.mock("@yosemite-crew/auth", () => ({
   getAuthService: () => mockAuthService,
@@ -101,6 +103,7 @@ describe("UserController", () => {
       mockAuthService = {
         updateUserName: mockUpdateUserName,
         setUserRole: mockSetUserRole,
+        removeUserRole: mockRemoveUserRole,
       };
       const mockUser = { id: "user-123" };
       (UserService.create as jest.Mock).mockResolvedValue(mockUser);
@@ -136,6 +139,7 @@ describe("UserController", () => {
       mockAuthService = {
         updateUserName: mockUpdateUserName,
         setUserRole: mockSetUserRole,
+        removeUserRole: mockRemoveUserRole,
       };
       (UserService.create as jest.Mock).mockResolvedValue({ id: "user-123" });
 
@@ -175,6 +179,7 @@ describe("UserController", () => {
         mockAuthService = {
           updateUserName: mockUpdateUserName,
           setUserRole: mockSetUserRole,
+          removeUserRole: mockRemoveUserRole,
         };
         (UserService.create as jest.Mock).mockResolvedValue({ id: "user-123" });
 
@@ -205,6 +210,7 @@ describe("UserController", () => {
       mockAuthService = {
         updateUserName: mockUpdateUserName,
         setUserRole: mockSetUserRole,
+        removeUserRole: mockRemoveUserRole,
       };
       (UserService.create as jest.Mock).mockResolvedValue({ id: "user-123" });
 
@@ -220,10 +226,66 @@ describe("UserController", () => {
       expect(mockSetUserRole).toHaveBeenCalledWith("user-123", expected);
     });
 
+    /*
+     * setUserRole ADDS a role. Without clearing the previous one the account
+     * holds both, and /v1/auth/me answers with whichever the role list returns
+     * first - so a correction reports 200 and changes nothing observable.
+     */
+    it("clears the other self-assignable role before setting the new one", async () => {
+      mockAuthService = {
+        updateUserName: mockUpdateUserName,
+        setUserRole: mockSetUserRole,
+        removeUserRole: mockRemoveUserRole,
+      };
+      (UserService.create as jest.Mock).mockResolvedValue({ id: "user-123" });
+
+      const req = createMockReq({
+        ...validAuthReq,
+        body: { role: "developer" },
+      });
+      await UserController.create(req, mockRes as Response);
+
+      expect(mockRemoveUserRole).toHaveBeenCalledWith("user-123", "member");
+      // Never the role being set - that would race its own addition.
+      expect(mockRemoveUserRole).not.toHaveBeenCalledWith(
+        "user-123",
+        "developer",
+      );
+      expect(mockSetUserRole).toHaveBeenCalledWith("user-123", "developer");
+    });
+
+    /*
+     * Only the self-assignable roles are cleared. Stripping everything would
+     * revoke superadmin from an admin who did nothing but re-provision a name,
+     * and this endpoint must not revoke a role it cannot grant.
+     */
+    it("leaves roles it cannot grant alone", async () => {
+      mockAuthService = {
+        updateUserName: mockUpdateUserName,
+        setUserRole: mockSetUserRole,
+        removeUserRole: mockRemoveUserRole,
+      };
+      (UserService.create as jest.Mock).mockResolvedValue({ id: "user-123" });
+
+      const req = createMockReq({
+        ...validAuthReq,
+        body: { role: "member" },
+      });
+      await UserController.create(req, mockRes as Response);
+
+      expect(mockRemoveUserRole).toHaveBeenCalledTimes(1);
+      expect(mockRemoveUserRole).toHaveBeenCalledWith("user-123", "developer");
+      expect(mockRemoveUserRole).not.toHaveBeenCalledWith(
+        "user-123",
+        "superadmin",
+      );
+    });
+
     it("never blocks creation on an auth provider sync failure", async () => {
       mockAuthService = {
         updateUserName: jest.fn().mockRejectedValue(new Error("provider down")),
         setUserRole: mockSetUserRole,
+        removeUserRole: mockRemoveUserRole,
       };
       (UserService.create as jest.Mock).mockResolvedValue({ id: "user-123" });
 
@@ -296,6 +358,7 @@ describe("UserController", () => {
       mockAuthService = {
         updateUserName: mockUpdateUserName,
         setUserRole: mockSetUserRole,
+        removeUserRole: mockRemoveUserRole,
       };
       const existing = { id: "user-123", email: "test@example.com" };
       (UserService.create as jest.Mock).mockRejectedValue(
@@ -324,6 +387,7 @@ describe("UserController", () => {
       mockAuthService = {
         updateUserName: mockUpdateUserName,
         setUserRole: mockSetUserRole,
+        removeUserRole: mockRemoveUserRole,
       };
       (UserService.create as jest.Mock).mockRejectedValue(
         new UserServiceError(
