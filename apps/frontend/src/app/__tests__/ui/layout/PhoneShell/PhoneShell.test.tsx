@@ -186,4 +186,54 @@ describe('PhoneShell', () => {
     view.rerender(<PhoneShell />);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
+
+  /*
+   * The portal was served the PIMS tab bar: Home/Schedule/Patients/Chat all
+   * point at clinic routes, so a developer on a phone got a business menu and
+   * could reach API keys or plugins only through the More sheet. The desktop
+   * sidebar has always swapped appRoutes for devRoutes on this prefix.
+   */
+  it('serves the developer tab bar inside the portal, not the clinic one', () => {
+    setViewport(true);
+    setOrg();
+    mockUsePathname.mockReturnValue('/developers/home');
+
+    render(<PhoneShell />);
+
+    expect(screen.getByRole('button', { name: /Plugins/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Docs/ })).toBeInTheDocument();
+    // Home is the active tab on /developers/home, so the bar is tracking the
+    // portal's own routes rather than a clinic prefix.
+    expect(screen.getByRole('button', { name: /Home/ })).toHaveAttribute('aria-current', 'page');
+
+    fireEvent.click(screen.getByRole('button', { name: /API Keys/ }));
+    expect(mockPush).toHaveBeenCalledWith('/developers/api-keys');
+
+    // The clinic destinations are gone.
+    expect(screen.queryByRole('button', { name: /Schedule/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Chat/ })).not.toBeInTheDocument();
+  });
+
+  it('keeps the clinic tab bar outside the portal', () => {
+    setViewport(true);
+    setOrg();
+    mockUsePathname.mockReturnValue('/appointments');
+
+    render(<PhoneShell />);
+
+    expect(screen.getByRole('button', { name: /Schedule/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /API Keys/ })).not.toBeInTheDocument();
+  });
+
+  // The org chip named a clinic the portal has nothing to do with, and tapping
+  // it navigated out to /organizations.
+  it('drops the org switcher from the portal header', () => {
+    setViewport(true);
+    setOrg();
+    mockUsePathname.mockReturnValue('/developers/home');
+
+    render(<PhoneShell />);
+
+    expect(screen.queryByRole('button', { name: 'Switch organization' })).not.toBeInTheDocument();
+  });
 });

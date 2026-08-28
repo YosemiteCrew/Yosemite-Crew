@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { IoCaretDown, IoSearchOutline } from 'react-icons/io5';
 
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
@@ -17,9 +17,18 @@ import NotificationsBell from '@/app/ui/layout/Notifications/NotificationsBell';
  * a search icon-button that opens the universal search palette, and the
  * notifications bell. Reuses the existing org data and search store — no new
  * data or handlers are invented.
+ *
+ * The org switcher is suppressed inside the developer portal. The portal is not
+ * org-scoped, so the chip named a clinic the page has nothing to do with, and
+ * tapping it left the portal for `/organizations`. The desktop header has always
+ * hidden it on this prefix (`UserHeader`'s `!isDev`); the phone header was the
+ * one shell that still showed it. Falls back to the brand mark, which is what
+ * an account with no org already sees.
  */
 const PhoneHeader = () => {
   const router = useRouter();
+  const pathname = usePathname();
+  const isDevPortal = pathname?.startsWith('/developers') ?? false;
   const primaryOrg = usePrimaryOrg();
   const openUniversalSearch = useUniversalSearchStore((s) => s.open);
 
@@ -30,7 +39,7 @@ const PhoneHeader = () => {
 
   return (
     <header className="yc-phone-header">
-      {primaryOrg ? (
+      {primaryOrg && !isDevPortal ? (
         <button
           type="button"
           className="yc-phone-org"
