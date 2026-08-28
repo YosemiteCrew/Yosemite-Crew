@@ -138,10 +138,21 @@ async function reconcileNames(
     });
   } catch (nameError) {
     /*
-     * `updateName` pushes the name to the auth provider BEFORE the database
-     * write, unguarded, so a provider outage would fail a request whose entire
-     * purpose is to be repeatable - while the sync below stays best-effort for
-     * exactly that reason. Serving the stored row keeps the endpoint available.
+     * A rejected name is the caller's problem, not an outage: `updateName`
+     * raises UserServiceError for a name the service will not accept, and
+     * creation rejects the same payload outright. Swallowing it would answer
+     * 200 to a rename that was refused, and let the sync push the refused name
+     * into the provider anyway.
+     */
+    if (nameError instanceof UserServiceError) {
+      throw nameError;
+    }
+
+    /*
+     * Anything else is infrastructure. `updateName` pushes the name to the auth
+     * provider BEFORE its database write, unguarded, so a provider outage would
+     * fail a request whose entire purpose is to be repeatable - while the sync
+     * beside it stays best-effort for exactly that reason.
      *
      * Both stores are deliberately left untouched rather than forcing the
      * database write through on its own: that would put the two out of step,
@@ -153,6 +164,52 @@ async function reconcileNames(
       nameError,
     );
     return stored!;
+  }
+}
+
+/**
+ * Create the application user, or adopt the one a concurrent caller just made.
+ *
+ * The caller has already established that no row existed a moment ago, so this
+ * is the creation path. The 409 recovery covers only the narrow race: someone
+ * inserted between that lookup and this write.
+ */
+async function createOrAdopt(
+  userId: string,
+  email: string,
+  profile: { firstName?: string; lastName?: string },
+): Promise<{
+  user: Awaited<ReturnType<typeof UserService.create>>;
+  created: boolean;
+}> {
+  try {
+    return {
+      user: await UserService.create({
+        id: userId,
+        email,
+        firstName: profile.firstName!,
+        lastName: profile.lastName!,
+      }),
+      created: true,
+    };
+  } catch (error: unknown) {
+    if (!(error instanceof UserServiceError) || error.statusCode !== 409) {
+      throw error;
+    }
+
+    /*
+     * A 409 matches on id OR email, so it does not prove the row is this
+     * caller's. When nothing comes back for this id the row belongs to someone
+     * else and the conflict stands, rather than handing over their record.
+     */
+    const winner = await UserService.getById(userId);
+    if (!winner) {
+      throw error;
+    }
+    return {
+      user: await reconcileNames(userId, winner, profile),
+      created: false,
+    };
   }
 }
 
@@ -257,41 +314,12 @@ export const UserController = {
           .json({ message: "This account has been deleted." });
       }
 
-      let user: Awaited<ReturnType<typeof UserService.create>>;
-      let created = false;
-
-      if (provisioned) {
-        user = await reconcileNames(userId, provisioned, profile);
-      } else {
-        try {
-          user = await UserService.create({
-            id: userId,
-            email: email,
-            firstName: profile.firstName!,
-            lastName: profile.lastName!,
-          });
-          created = true;
-        } catch (error: unknown) {
-          const raced =
-            error instanceof UserServiceError && error.statusCode === 409;
-          if (!raced) {
-            throw error;
+      const { user, created } = provisioned
+        ? {
+            user: await reconcileNames(userId, provisioned, profile),
+            created: false,
           }
-
-          /*
-           * Lost a race: the lookup above found nothing, but someone inserted
-           * between it and this write. A 409 matches on id OR email, so it does
-           * not prove the row is this caller's - when nothing comes back for
-           * this id the row is someone else's and the conflict stands, rather
-           * than handing over another user's record.
-           */
-          const winner = await UserService.getById(userId);
-          if (!winner) {
-            throw error;
-          }
-          user = await reconcileNames(userId, winner, profile);
-        }
-      }
+        : await createOrAdopt(userId, email, profile);
 
       await syncProfileToAuthProvider(userId, profile);
 

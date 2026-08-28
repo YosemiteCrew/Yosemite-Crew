@@ -470,6 +470,37 @@ describe("UserController", () => {
       expect(mockRes.status).toHaveBeenCalledWith(200);
     });
 
+    /*
+     * A rejected name is the caller's problem, not an outage. Swallowing it
+     * would answer 200 to a rename the service refused, and let the sync push
+     * the refused name into the provider anyway - while creation rejects the
+     * same payload outright.
+     */
+    it("propagates a rejected name instead of reporting success", async () => {
+      mockAuthService = {
+        updateUserName: mockUpdateUserName,
+        setUserRole: mockSetUserRole,
+        removeUserRole: mockRemoveUserRole,
+      };
+      (UserService.getById as jest.Mock).mockResolvedValue({ id: "user-123" });
+      (UserService.updateName as jest.Mock).mockRejectedValue(
+        new UserServiceError("First name is invalid.", 400),
+      );
+
+      const req = createMockReq({
+        ...validAuthReq,
+        body: { firstName: "$bad", lastName: "Name" },
+      });
+      await UserController.create(req, mockRes as Response);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        message: "First name is invalid.",
+      });
+      // The refused name must not reach the provider either.
+      expect(mockUpdateUserName).not.toHaveBeenCalled();
+    });
+
     it("never blocks creation on an auth provider sync failure", async () => {
       mockAuthService = {
         updateUserName: jest.fn().mockRejectedValue(new Error("provider down")),
