@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { createJsonlStore } from '../src/compliance/durable-log';
+import { assertSafeFilePath, createJsonlStore } from '../src/compliance/durable-log';
 import { createMemoryFs, type MemoryFs } from './helpers/memory-fs';
 
 interface Rec {
@@ -358,5 +358,54 @@ describe('createJsonlStore', () => {
     });
     const quarantined = store.health().quarantinePath!;
     expect(Number(quarantined.split('.corrupt-')[1])).toBeGreaterThan(1_600_000_000_000);
+  });
+
+  describe('path containment', () => {
+    test.each([
+      ['a relative traversal', '../../../etc/passwd'],
+      ['a traversal that re-enters', 'subdir/../../etc/passwd'],
+      ['a leading current-directory traversal', './../../sensitive'],
+    ])('refuses a file name that is %s', (_label, fileName) => {
+      expect(() => makeStore({ fileName })).toThrow(/resolves outside the log directory/);
+    });
+
+    // The store's sidecars are built by concatenation rather than through
+    // containedPath, so the write itself is the only place that can hold this.
+    // Built with template strings, not path.join: joining normalises the
+    // traversal away, which is precisely why the guard reads raw segments.
+    test.each([
+      ['a trailing traversal segment', `${DIR}/../escaped.jsonl`],
+      ['a traversal in the middle', `${DIR}/nested/../../escaped.jsonl`],
+      ['a Windows-separated traversal', `${DIR}\\..\\escaped.jsonl`],
+    ])('refuses a write to a path with %s', (_label, filePath) => {
+      expect(() => assertSafeFilePath(filePath)).toThrow(/escapes its directory/);
+    });
+
+    // The guard must not reject the absolute paths the store legitimately
+    // writes: containedPath returns one whenever dirPath is absolute, which it
+    // is in the packaged app.
+    test('accepts the absolute paths the store actually writes', () => {
+      const store = makeStore();
+      store.append({ id: 'a', value: 1 });
+
+      const written = [...mem.files.keys()];
+      expect(written).toContain(LOG);
+      for (const filePath of written) {
+        expect(path.isAbsolute(filePath)).toBe(true);
+        expect(() => assertSafeFilePath(filePath)).not.toThrow();
+      }
+    });
+
+    test('accepts the concatenated sidecar paths', () => {
+      for (const suffix of [
+        '.tmp',
+        '.state.json',
+        '.corrupt-1700000000000',
+        '.torn-1700000000000',
+        '.migrating',
+      ]) {
+        expect(() => assertSafeFilePath(`${LOG}${suffix}`)).not.toThrow();
+      }
+    });
   });
 });

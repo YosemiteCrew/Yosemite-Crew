@@ -133,11 +133,40 @@ export const containedPath = (dirPath: string, name: string): string => {
 };
 
 /**
+ * Refuses a path that walks out of the directory it is written under.
+ *
+ * `containedPath` covers the names callers hand in, but the sidecars this
+ * module writes are built by concatenation instead - `${filePath}.tmp`,
+ * `.corrupt-<ts>`, `.torn-<ts>`, `.migrating` - and never pass back through it.
+ * Their safety currently rests on `filePath` being contained and the suffix
+ * being inert, which is true but is not enforced anywhere. Checking at the
+ * open enforces it for every route into a write.
+ *
+ * An absolute path is not rejected: `containedPath` returns one whenever the
+ * configured data directory is absolute, which it is in the packaged app.
+ * Only a `..` segment means the write is leaving the directory it was built
+ * under.
+ *
+ * The raw path is inspected rather than a normalised one, because normalising
+ * is what erases the evidence: `path.normalize` collapses `<dir>/../escaped`
+ * to a clean sibling path with no `..` left to find. Combined with
+ * `containedPath` on the base, refusing a parent segment here is what makes
+ * every write land inside the log directory.
+ */
+export const assertSafeFilePath = (filePath: string): void => {
+  const segments = filePath.split(/[\\/]+/);
+  if (segments.includes('..')) {
+    throw new Error(`refusing to write "${filePath}": the path escapes its directory`);
+  }
+};
+
+/**
  * Writes `data` to `filePath` and returns only once the bytes are on the
  * platter. A short write is an error: silently persisting half a record is the
  * failure mode this module exists to remove.
  */
 const writeDurably = (fsq: DurableLogFs, filePath: string, data: string, flags: string): void => {
+  assertSafeFilePath(filePath);
   const fd = fsq.openSync(filePath, flags, 0o600);
   try {
     const written = fsq.writeSync(fd, data);
@@ -225,9 +254,7 @@ export const createJsonlStore = <T>(opts: JsonlStoreOptions<T>): JsonlStore<T> =
   const now = opts.now || (() => Date.now());
   const filePath = containedPath(opts.dirPath, opts.fileName);
   const statePath = containedPath(opts.dirPath, `${opts.fileName}.state.json`);
-  const legacyPath = opts.legacyFileName
-    ? containedPath(opts.dirPath, opts.legacyFileName)
-    : null;
+  const legacyPath = opts.legacyFileName ? containedPath(opts.dirPath, opts.legacyFileName) : null;
 
   let records: T[] | null = null;
   let endsWithNewline = true;
@@ -271,7 +298,11 @@ export const createJsonlStore = <T>(opts: JsonlStoreOptions<T>): JsonlStore<T> =
    * health() keeps reporting the break after a restart, and the log is never
    * presented as an intact history again.
    */
-  const preserveDamaged = (raw: string, reason: string, priorState: WatermarkFile): string | null => {
+  const preserveDamaged = (
+    raw: string,
+    reason: string,
+    priorState: WatermarkFile
+  ): string | null => {
     // The damaged line is deliberately left in the live log, so every launch
     // re-detects it. Copying the whole compliance log each time would grow
     // without bound and eventually fill the volume, which would itself start
@@ -408,7 +439,8 @@ export const createJsonlStore = <T>(opts: JsonlStoreOptions<T>): JsonlStore<T> =
     if (marker !== '' && !loaded.some((r) => opts.watermarkOf(r) === marker)) {
       reasons.push('the last recorded entry is missing: the log has been replaced');
     }
-    if (tornTail !== null) reasons.push('the final record was written incompletely and was discarded');
+    if (tornTail !== null)
+      reasons.push('the final record was written incompletely and was discarded');
     if (watermarkStale) reasons.push(watermarkStale);
     return [...new Set(reasons)];
   };
