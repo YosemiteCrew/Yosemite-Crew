@@ -81,6 +81,12 @@ describe("UserController", () => {
     (UserService.getById as jest.Mock).mockReset();
     (UserService.updateName as jest.Mock).mockReset();
     (UserService.deleteById as jest.Mock).mockReset();
+    // Same reason for the provider mocks: a mockRejectedValue set in one test
+    // stayed live for every later one, so a test asserting a failure downstream
+    // was silently failing upstream instead and passing for the wrong reason.
+    mockUpdateUserName.mockReset();
+    mockSetUserRole.mockReset();
+    mockRemoveUserRole.mockReset();
     mockRes = createMockRes();
     mockAuthService = null;
     mockResolveCanonicalUserIdImpl = jest.fn(async (value: string) => value);
@@ -386,7 +392,15 @@ describe("UserController", () => {
      * whose whole point is to be repeatable. Serve the stored row instead -
      * both stores untouched, so nothing is left half-applied.
      */
-    it("stays available when the name reconciliation fails", async () => {
+    /*
+     * updateName writes the provider before the database and is not atomic
+     * across the two, so a failure between them leaves the provider holding a
+     * name the database never took - and updateName no-ops once the database
+     * matches, so nothing later repairs it. A 200 over the stored row would
+     * make that permanent and invisible. Failing is safe: the row already
+     * exists, so nothing is stranded, and the retry re-runs the same write.
+     */
+    it("fails the request when the name write fails, rather than reporting success", async () => {
       mockAuthService = {
         updateUserName: mockUpdateUserName,
         setUserRole: mockSetUserRole,
@@ -395,7 +409,7 @@ describe("UserController", () => {
       const existing = { id: "user-123", firstName: "Old", lastName: "Name" };
       (UserService.getById as jest.Mock).mockResolvedValue(existing);
       (UserService.updateName as jest.Mock).mockRejectedValue(
-        new Error("metadata provider unavailable"),
+        new Error("write failed midway"),
       );
 
       const req = createMockReq({
@@ -404,9 +418,57 @@ describe("UserController", () => {
       });
       await UserController.create(req, mockRes as Response);
 
+      expect(mockRes.status).toHaveBeenCalledWith(500);
+      expect(mockRes.json).not.toHaveBeenCalledWith(existing);
+    });
+
+    /*
+     * The half-applied role replacement. Nothing else can repair it:
+     * provisionPendingSignUpUser clears pendingSignUp on any 2xx, so a later
+     * call carries no role and never re-enters this path. It has to reach the
+     * client while the client still holds the role to retry with.
+     */
+    it("fails the request when the stale role cannot be revoked", async () => {
+      mockAuthService = {
+        updateUserName: mockUpdateUserName,
+        setUserRole: mockSetUserRole,
+        removeUserRole: mockRemoveUserRole.mockRejectedValue(
+          new Error("provider unavailable"),
+        ),
+      };
+      (UserService.create as jest.Mock).mockResolvedValue({ id: "user-123" });
+
+      const req = createMockReq({
+        ...validAuthReq,
+        body: { role: "developer" },
+      });
+      await UserController.create(req, mockRes as Response);
+
+      expect(mockSetUserRole).toHaveBeenCalledWith("user-123", "developer");
+      expect(mockRes.status).toHaveBeenCalledWith(500);
+    });
+
+    // The other half: a failure BEFORE anything changed stays absorbed, so a
+    // provider hiccup does not fail a request that had nothing to correct.
+    it("still absorbs a failure that changed nothing", async () => {
+      mockAuthService = {
+        updateUserName: mockUpdateUserName,
+        setUserRole: mockSetUserRole.mockRejectedValue(
+          new Error("provider unavailable"),
+        ),
+        removeUserRole: mockRemoveUserRole,
+      };
+      (UserService.create as jest.Mock).mockResolvedValue({ id: "user-123" });
+
+      const req = createMockReq({
+        ...validAuthReq,
+        body: { role: "developer" },
+      });
+      await UserController.create(req, mockRes as Response);
+
+      expect(mockRemoveUserRole).not.toHaveBeenCalled();
       expect(logger.warn).toHaveBeenCalled();
-      expect(mockRes.status).toHaveBeenCalledWith(200);
-      expect(mockRes.json).toHaveBeenCalledWith(existing);
+      expect(mockRes.status).toHaveBeenCalledWith(201);
     });
 
     /*

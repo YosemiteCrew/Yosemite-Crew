@@ -74,6 +74,21 @@ function resolveProvisioningProfile(req: AuthenticatedRequest): {
 type AuthServiceForSync = NonNullable<ReturnType<typeof getAuthService>>;
 
 /**
+ * A role replacement that got halfway: the new role is granted, the old one is
+ * still attached.
+ *
+ * Distinct from every other provider failure because it is the only one that
+ * leaves state changed. The sync absorbs the rest; this one has to reach the
+ * client so it retries while it still holds the role to re-apply.
+ */
+class RoleReplacementIncomplete extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = "RoleReplacementIncomplete";
+  }
+}
+
+/**
  * Move the account onto `role`, clearing the one it replaces.
  *
  * `setUserRole` ADDS - it does not replace - so correcting `member` to
@@ -92,20 +107,35 @@ async function applyRole(
   role: string,
 ): Promise<void> {
   /*
-   * Grant before revoking, never the other way round. The whole sync is
-   * best-effort - the caller logs a provider failure and still answers 2xx, so
-   * the client accepts it and does not retry. Removing first and then failing
-   * would leave the account with NO role behind a successful response, which
-   * is worse than the problem this fixes. Failing after the grant leaves it
-   * holding both, which is exactly the append-only state this replaced:
-   * recoverable, and repaired by the next call.
+   * Grant before revoking. A failure here has changed nothing, so the caller's
+   * best-effort catch can absorb it; revoking first and then failing would
+   * leave the account with no role at all behind a 2xx.
    */
   await authService.setUserRole(userId, role);
+
   const replaced = [...SELF_ASSIGNABLE_ROLES].filter(
     (candidate) => candidate !== role,
   );
-  for (const candidate of replaced) {
-    await authService.removeUserRole(userId, candidate);
+  try {
+    for (const candidate of replaced) {
+      await authService.removeUserRole(userId, candidate);
+    }
+  } catch (removalError) {
+    /*
+     * Past the point of no change: the account now holds both roles, and
+     * `/v1/auth/me` answers with whichever the list returns first, so the
+     * correction may be invisible.
+     *
+     * Nothing else repairs this. `provisionPendingSignUpUser` clears
+     * `pendingSignUp` on any 2xx, so a later provisioning call carries no role
+     * and never reaches this code - a 200 here would make the half-applied
+     * state permanent. Marked so the sync rethrows instead of absorbing it,
+     * leaving the client to retry while it still holds the role.
+     */
+    throw new RoleReplacementIncomplete(
+      `Granted ${role} but could not revoke the role it replaces`,
+      { cause: removalError },
+    );
   }
 }
 
@@ -130,41 +160,22 @@ async function reconcileNames(
   if (!profile.firstName || !profile.lastName) {
     return stored!;
   }
-  try {
-    return await UserService.updateName({
-      userId,
-      firstName: profile.firstName,
-      lastName: profile.lastName,
-    });
-  } catch (nameError) {
-    /*
-     * A rejected name is the caller's problem, not an outage: `updateName`
-     * raises UserServiceError for a name the service will not accept, and
-     * creation rejects the same payload outright. Swallowing it would answer
-     * 200 to a rename that was refused, and let the sync push the refused name
-     * into the provider anyway.
-     */
-    if (nameError instanceof UserServiceError) {
-      throw nameError;
-    }
-
-    /*
-     * Anything else is infrastructure. `updateName` pushes the name to the auth
-     * provider BEFORE its database write, unguarded, so a provider outage would
-     * fail a request whose entire purpose is to be repeatable - while the sync
-     * beside it stays best-effort for exactly that reason.
-     *
-     * Both stores are deliberately left untouched rather than forcing the
-     * database write through on its own: that would put the two out of step,
-     * and `updateName` no-ops once the database matches, so no later call could
-     * repair the provider side. Unchanged is recoverable; half-applied is not.
-     */
-    logger.warn(
-      "Could not reconcile stored names during provisioning",
-      nameError,
-    );
-    return stored!;
-  }
+  /*
+   * Failures propagate. `updateName` writes the auth provider BEFORE the
+   * database and is not atomic across the two, so a failure between them leaves
+   * the provider holding a name the database never took - and `updateName`
+   * no-ops once the database matches, so no later call repairs it. Answering
+   * 200 over the stored row would make that divergence permanent and invisible.
+   *
+   * Failing is safe here in a way it is not on the creation path: the row this
+   * reconciles already exists, so a 500 strands nothing. The client retries,
+   * and every retry re-runs the same idempotent write.
+   */
+  return UserService.updateName({
+    userId,
+    firstName: profile.firstName,
+    lastName: profile.lastName,
+  });
 }
 
 /**
@@ -234,6 +245,12 @@ async function syncProfileToAuthProvider(
       await applyRole(authService, userId, profile.role);
     }
   } catch (syncError) {
+    // The one failure that has already changed state. Absorbing it would make a
+    // half-applied replacement permanent, since the client clears its pending
+    // role on any 2xx and never sends it again.
+    if (syncError instanceof RoleReplacementIncomplete) {
+      throw syncError;
+    }
     logger.warn("Auth provider profile sync failed", syncError);
   }
 }
