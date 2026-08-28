@@ -48,7 +48,7 @@ const CreateBodySchema = z.object({
   fractionalShortening: z.number().min(0).max(100).optional(),
   ejectionFraction: z.number().min(0).max(100).optional(),
   acvimClass: AcvimClassEnum.optional(),
-  findings: z.record(z.unknown()).optional(),
+  findings: z.record(z.string(), z.unknown()).optional(),
   diagnoses: z.array(z.string().max(300)).optional(),
   notes: z.string().max(3000).optional(),
 });

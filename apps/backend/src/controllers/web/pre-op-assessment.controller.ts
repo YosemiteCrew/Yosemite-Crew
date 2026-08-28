@@ -55,7 +55,7 @@ export const PreOpAssessmentController = {
   create: async (req: Request, res: Response) => {
     const parsed = CreatePreOpSchema.safeParse(req.body);
     if (!parsed.success)
-      return res.status(400).json({ error: parsed.error.errors });
+      return res.status(400).json({ error: parsed.error.issues });
 
     const assessment = await PreOpAssessmentService.create({
       organisationId: req.params.organisationId,
@@ -75,7 +75,7 @@ export const PreOpAssessmentController = {
   list: async (req: Request, res: Response) => {
     const parsed = ListQuerySchema.safeParse(req.query);
     if (!parsed.success)
-      return res.status(400).json({ error: parsed.error.errors });
+      return res.status(400).json({ error: parsed.error.issues });
 
     const results = await PreOpAssessmentService.list({
       organisationId: req.params.organisationId,
@@ -87,7 +87,7 @@ export const PreOpAssessmentController = {
   update: async (req: Request, res: Response) => {
     const parsed = UpdatePreOpSchema.safeParse(req.body);
     if (!parsed.success)
-      return res.status(400).json({ error: parsed.error.errors });
+      return res.status(400).json({ error: parsed.error.issues });
 
     const assessment = await PreOpAssessmentService.update(
       req.params.assessmentId,

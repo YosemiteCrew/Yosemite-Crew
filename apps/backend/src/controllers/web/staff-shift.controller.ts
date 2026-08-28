@@ -45,7 +45,7 @@ export const StaffShiftController = {
   create: async (req: Request, res: Response) => {
     const parsed = CreateSchema.safeParse(req.body);
     if (!parsed.success)
-      return res.status(400).json({ errors: parsed.error.errors });
+      return res.status(400).json({ errors: parsed.error.issues });
     try {
       const shift = await StaffShiftService.schedule({
         organisationId: req.params.organisationId,
@@ -95,7 +95,7 @@ export const StaffShiftController = {
   update: async (req: Request, res: Response) => {
     const parsed = UpdateSchema.safeParse(req.body);
     if (!parsed.success)
-      return res.status(400).json({ errors: parsed.error.errors });
+      return res.status(400).json({ errors: parsed.error.issues });
     try {
       const shift = await StaffShiftService.update(
         req.params.shiftId,

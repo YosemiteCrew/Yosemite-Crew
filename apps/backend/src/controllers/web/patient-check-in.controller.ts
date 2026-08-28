@@ -50,7 +50,7 @@ export const PatientCheckInController = {
   create: async (req: Request, res: Response) => {
     const parsed = CreateSchema.safeParse(req.body);
     if (!parsed.success)
-      return res.status(400).json({ error: parsed.error.errors });
+      return res.status(400).json({ error: parsed.error.issues });
 
     const result = await PatientCheckInService.create({
       organisationId: req.params.organisationId,
@@ -70,7 +70,7 @@ export const PatientCheckInController = {
   list: async (req: Request, res: Response) => {
     const parsed = ListQuerySchema.safeParse(req.query);
     if (!parsed.success)
-      return res.status(400).json({ error: parsed.error.errors });
+      return res.status(400).json({ error: parsed.error.issues });
 
     const results = await PatientCheckInService.list({
       organisationId: req.params.organisationId,
@@ -114,7 +114,7 @@ export const PatientCheckInController = {
   assignRoom: async (req: Request, res: Response) => {
     const parsed = AssignRoomSchema.safeParse(req.body);
     if (!parsed.success)
-      return res.status(400).json({ error: parsed.error.errors });
+      return res.status(400).json({ error: parsed.error.issues });
 
     const result = await PatientCheckInService.assignRoom(
       req.params.checkInId,

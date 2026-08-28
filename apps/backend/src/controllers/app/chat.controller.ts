@@ -61,7 +61,7 @@ const shareEntitySchema = z.object({
   ]),
   entityId: z.string().min(1),
   title: z.string().trim().min(1).optional(),
-  snapshot: z.record(z.unknown()).optional(),
+  snapshot: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const ChatController = {

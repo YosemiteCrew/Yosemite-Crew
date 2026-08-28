@@ -53,7 +53,7 @@ const createResponse = () => ({
 });
 
 const validBody = {
-  serviceIds: ["3f6b1a2c-1111-2222-3333-444455556666"],
+  serviceIds: ["3f6b1a2c-1111-4222-8333-444455556666"],
   bookingWindowDays: 28,
   bufferMinutes: 10,
   autoConfirm: false,

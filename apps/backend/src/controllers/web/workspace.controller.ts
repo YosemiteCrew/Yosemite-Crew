@@ -52,24 +52,24 @@ const treatmentItemBodySchema = z.object({
   appointmentId: z.string().trim().min(1).nullable().optional(),
   productId: z.string().trim().min(1).optional(),
   productVersion: z.number().int().nullable().optional(),
-  productSnapshot: z.record(z.unknown()).optional(),
+  productSnapshot: z.record(z.string(), z.unknown()).optional(),
   servicePackageKind: z.string().trim().min(1).optional(),
   quantity: z.number().int().positive().optional(),
-  priceSnapshot: z.record(z.unknown()).optional(),
+  priceSnapshot: z.record(z.string(), z.unknown()).optional(),
   billingStatus: z.string().trim().min(1).optional(),
   invoiceRowId: z.string().trim().min(1).nullable().optional(),
   lockState: z
-    .union([z.record(z.unknown()), z.string()])
+    .union([z.record(z.string(), z.unknown()), z.string()])
     .nullable()
     .optional(),
 });
 
 const treatmentItemCreateBodySchema = treatmentItemBodySchema.extend({
   productId: z.string().trim().min(1),
-  productSnapshot: z.record(z.unknown()),
+  productSnapshot: z.record(z.string(), z.unknown()),
   servicePackageKind: z.string().trim().min(1),
   quantity: z.number().int().positive(),
-  priceSnapshot: z.record(z.unknown()),
+  priceSnapshot: z.record(z.string(), z.unknown()),
 });
 
 const handleError = (error: unknown, res: Response) => {

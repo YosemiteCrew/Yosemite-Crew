@@ -108,7 +108,7 @@ describe("booking-page.service", () => {
       ["has space", "space"],
       ["x".repeat(64), "too long"],
       ["12345", "all digits"],
-      ["3f6b1a2c-1111-2222-3333-444455556666", "uuid shaped"],
+      ["3f6b1a2c-1111-4222-8333-444455556666", "uuid shaped"],
       ["xn--mnchen", "punycode prefix"],
       ["admin", "reserved"],
       ["api", "reserved routing segment"],
