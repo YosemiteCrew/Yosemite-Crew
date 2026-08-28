@@ -615,9 +615,18 @@ describe("WorkspaceController", () => {
     );
 
     expect(status).toHaveBeenCalledWith(400);
+    // The wording is zod's, and zod 4 rephrased it from "Required". The
+    // contract this guards is the envelope - status, message, and one issue
+    // naming the offending path - so the text is matched loosely rather than
+    // re-pinned to a string the library owns and may reword again.
     expect(json).toHaveBeenCalledWith({
       message: "Invalid workspace request.",
-      issues: [{ path: "companionId", message: "Required" }],
+      issues: [
+        {
+          path: "companionId",
+          message: expect.stringMatching(/expected string/i),
+        },
+      ],
     });
     expect(WorkspaceService.getCompanionMedicalRecords).not.toHaveBeenCalled();
   });

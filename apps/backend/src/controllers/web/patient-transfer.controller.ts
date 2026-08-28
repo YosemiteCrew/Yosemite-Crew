@@ -44,7 +44,7 @@ export const PatientTransferController = {
   create: async (req: Request, res: Response) => {
     const parsed = CreateTransferSchema.safeParse(req.body);
     if (!parsed.success)
-      return res.status(400).json({ error: parsed.error.errors });
+      return res.status(400).json({ error: parsed.error.issues });
 
     const transfer = await PatientTransferService.create({
       organisationId: req.params.organisationId,
@@ -64,7 +64,7 @@ export const PatientTransferController = {
   list: async (req: Request, res: Response) => {
     const parsed = ListQuerySchema.safeParse(req.query);
     if (!parsed.success)
-      return res.status(400).json({ error: parsed.error.errors });
+      return res.status(400).json({ error: parsed.error.issues });
 
     const results = await PatientTransferService.list({
       organisationId: req.params.organisationId,
@@ -76,7 +76,7 @@ export const PatientTransferController = {
   update: async (req: Request, res: Response) => {
     const parsed = UpdateTransferSchema.safeParse(req.body);
     if (!parsed.success)
-      return res.status(400).json({ error: parsed.error.errors });
+      return res.status(400).json({ error: parsed.error.issues });
 
     const transfer = await PatientTransferService.update(
       req.params.transferId,

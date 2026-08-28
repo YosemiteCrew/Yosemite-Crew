@@ -79,8 +79,8 @@ export const templateFieldDefinitionSchema = z.object({
       }),
     )
     .optional(),
-  rules: z.record(z.unknown()).optional(),
-  visibilityConditions: z.record(z.unknown()).optional(),
+  rules: z.record(z.string(), z.unknown()).optional(),
+  visibilityConditions: z.record(z.string(), z.unknown()).optional(),
   source: templateFieldSourceSchema.optional(),
 });
 
@@ -96,7 +96,11 @@ export const templateSchemaSnapshotSchema = z.object({
   sections: z.array(templateSectionSchema).default([]),
 });
 
-export const templateConfigSchema = z.record(z.unknown()).default({});
+// No `.default({})`: every use site applies `.optional()`, so under zod 3 the
+// default was unreachable. zod 4 resolves `.default().optional()` the other way
+// round and materialises `{}` for an absent key, which on the update path would
+// write an empty object over a stored snapshot the caller never mentioned.
+export const templateConfigSchema = z.record(z.string(), z.unknown());
 
 const templateContractKindSchema = z.enum([
   "SOAP_NOTE",
@@ -152,7 +156,7 @@ export const createTemplateSchema = z
     name: z.string().trim().min(1),
     description: z.string().trim().min(1).optional(),
     scope: z.nativeEnum(TemplateScope).default("ORGANISATION"),
-    rules: z.record(z.unknown()).optional(),
+    rules: z.record(z.string(), z.unknown()).optional(),
     schemaSnapshot: templateSchemaSnapshotSchema,
     renderConfigSnapshot: templateConfigSchema.optional(),
     validationSnapshot: templateConfigSchema.optional(),
@@ -196,7 +200,7 @@ export const updateTemplateSchema = z.object({
   ownership: z.nativeEnum(TemplateOwnershipType).optional(),
   scope: z.nativeEnum(TemplateScope).optional(),
   status: z.nativeEnum(TemplateStatus).optional(),
-  rules: z.record(z.unknown()).nullable().optional(),
+  rules: z.record(z.string(), z.unknown()).nullable().optional(),
   schemaSnapshot: templateSchemaSnapshotSchema.optional(),
   renderConfigSnapshot: templateConfigSchema.optional(),
   validationSnapshot: templateConfigSchema.optional(),
@@ -209,16 +213,16 @@ export const createTemplateInstanceSchema = z.object({
   appointmentId: z.string().trim().min(1).optional(),
   caseId: z.string().trim().min(1).optional(),
   encounterId: z.string().trim().min(1).optional(),
-  data: z.record(z.unknown()).default({}),
+  data: z.record(z.string(), z.unknown()).default({}),
 });
 
 export const updateTemplateInstanceSchema = z.object({
-  data: z.record(z.unknown()).optional(),
+  data: z.record(z.string(), z.unknown()).optional(),
   status: z.nativeEnum(TemplateInstanceStatus).optional(),
   signedBy: z.string().trim().min(1).optional().nullable(),
   signedAt: z.coerce.date().optional().nullable(),
   generatedPdfUrl: z.string().trim().min(1).optional().nullable(),
-  generatedPdf: z.record(z.unknown()).optional().nullable(),
+  generatedPdf: z.record(z.string(), z.unknown()).optional().nullable(),
 });
 
 export const updateTemplateCatalogLinksSchema = z.object({

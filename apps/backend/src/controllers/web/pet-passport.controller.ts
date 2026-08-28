@@ -177,8 +177,11 @@ const passportHandler =
         body = parsed.data;
       }
       return await config.run({
-        params: params.data as z.output<P>,
-        body,
+        params: params.data,
+        // `body` is declared `unknown` because it stays unset when the handler
+        // declares no body schema, so it still needs the cast that params no
+        // longer does.
+        body: body as z.output<B>,
         req: typedReq,
         res,
       });

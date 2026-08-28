@@ -41,7 +41,7 @@ const resolveUserId = (req: Request): string | undefined =>
 const CreateAppointmentSubmissionSchema = z.object({
   toolId: z.string().min(1),
   companionId: z.string().min(1),
-  answers: z.record(z.unknown()),
+  answers: z.record(z.string(), z.unknown()),
   taskId: z.string().min(1).optional(),
   summary: z.string().optional(),
 });

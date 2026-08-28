@@ -133,7 +133,7 @@ export const createClinicalHandlers = (errorClass: ServiceErrorClass) => {
         const parsedParams = config.params.safeParse(req.params);
         if (!parsedParams.success)
           return res.status(400).json({ message: "Invalid route parameters" });
-        const params = parsedParams.data as z.output<P>;
+        const params = parsedParams.data;
         const userId = (req as OrgRequest).userId ?? undefined;
 
         let result: unknown;
@@ -148,7 +148,7 @@ export const createClinicalHandlers = (errorClass: ServiceErrorClass) => {
             });
           result = await config.run({
             params,
-            input: parsedInput.data as z.output<I>,
+            input: parsedInput.data,
             userId,
           });
         } else {

@@ -62,7 +62,7 @@ export const AppointmentReminderLogController = {
   record: async (req: Request, res: Response) => {
     const parsed = RecordSchema.safeParse(req.body);
     if (!parsed.success)
-      return res.status(400).json({ error: parsed.error.errors });
+      return res.status(400).json({ error: parsed.error.issues });
 
     const log = await AppointmentReminderLogService.record({
       organisationId: req.params.organisationId,
@@ -74,7 +74,7 @@ export const AppointmentReminderLogController = {
   updateOutcome: async (req: Request, res: Response) => {
     const parsed = UpdateOutcomeSchema.safeParse(req.body);
     if (!parsed.success)
-      return res.status(400).json({ error: parsed.error.errors });
+      return res.status(400).json({ error: parsed.error.issues });
 
     const log = await AppointmentReminderLogService.updateOutcome(
       req.params.logId,
@@ -96,7 +96,7 @@ export const AppointmentReminderLogController = {
   listForClient: async (req: Request, res: Response) => {
     const parsed = ListByClientQuerySchema.safeParse(req.query);
     if (!parsed.success)
-      return res.status(400).json({ error: parsed.error.errors });
+      return res.status(400).json({ error: parsed.error.issues });
 
     const logs = await AppointmentReminderLogService.listForClient(
       req.params.clientId,

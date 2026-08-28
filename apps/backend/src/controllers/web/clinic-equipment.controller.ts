@@ -72,7 +72,7 @@ export const ClinicEquipmentController = {
   create: async (req: Request, res: Response) => {
     const parsed = CreateEquipmentSchema.safeParse(req.body);
     if (!parsed.success)
-      return res.status(400).json({ error: parsed.error.errors });
+      return res.status(400).json({ error: parsed.error.issues });
 
     const equipment = await ClinicEquipmentService.create({
       organisationId: req.params.organisationId,
@@ -92,7 +92,7 @@ export const ClinicEquipmentController = {
   list: async (req: Request, res: Response) => {
     const parsed = ListQuerySchema.safeParse(req.query);
     if (!parsed.success)
-      return res.status(400).json({ error: parsed.error.errors });
+      return res.status(400).json({ error: parsed.error.issues });
 
     const results = await ClinicEquipmentService.list({
       organisationId: req.params.organisationId,
@@ -104,7 +104,7 @@ export const ClinicEquipmentController = {
   update: async (req: Request, res: Response) => {
     const parsed = CreateEquipmentSchema.partial().safeParse(req.body);
     if (!parsed.success)
-      return res.status(400).json({ error: parsed.error.errors });
+      return res.status(400).json({ error: parsed.error.issues });
 
     const equipment = await ClinicEquipmentService.update(
       req.params.equipmentId,
@@ -125,7 +125,7 @@ export const ClinicEquipmentController = {
   addMaintenanceLog: async (req: Request, res: Response) => {
     const parsed = AddMaintenanceLogSchema.safeParse(req.body);
     if (!parsed.success)
-      return res.status(400).json({ error: parsed.error.errors });
+      return res.status(400).json({ error: parsed.error.issues });
 
     const log = await ClinicEquipmentService.addMaintenanceLog(
       req.params.equipmentId,

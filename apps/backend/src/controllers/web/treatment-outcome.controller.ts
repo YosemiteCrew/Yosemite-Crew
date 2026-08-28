@@ -58,7 +58,7 @@ export const TreatmentOutcomeController = {
   record: async (req: Request, res: Response) => {
     const parsed = RecordSchema.safeParse(req.body);
     if (!parsed.success)
-      return res.status(400).json({ errors: parsed.error.errors });
+      return res.status(400).json({ errors: parsed.error.issues });
     try {
       const outcome = await TreatmentOutcomeService.record({
         organisationId: req.params.organisationId,
@@ -107,7 +107,7 @@ export const TreatmentOutcomeController = {
   update: async (req: Request, res: Response) => {
     const parsed = UpdateSchema.safeParse(req.body);
     if (!parsed.success)
-      return res.status(400).json({ errors: parsed.error.errors });
+      return res.status(400).json({ errors: parsed.error.issues });
     try {
       const outcome = await TreatmentOutcomeService.update(
         req.params.outcomeId,

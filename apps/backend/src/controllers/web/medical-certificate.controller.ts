@@ -55,7 +55,7 @@ export const MedicalCertificateController = {
   create: async (req: Request, res: Response) => {
     const parsed = CreateSchema.safeParse(req.body);
     if (!parsed.success)
-      return res.status(400).json({ errors: parsed.error.errors });
+      return res.status(400).json({ errors: parsed.error.issues });
     try {
       const cert = await MedicalCertificateService.create({
         organisationId: req.params.organisationId,
@@ -101,7 +101,7 @@ export const MedicalCertificateController = {
   issue: async (req: Request, res: Response) => {
     const parsed = IssueSchema.safeParse(req.body);
     if (!parsed.success)
-      return res.status(400).json({ errors: parsed.error.errors });
+      return res.status(400).json({ errors: parsed.error.issues });
     try {
       const cert = await MedicalCertificateService.issue(
         req.params.certId,
@@ -122,7 +122,7 @@ export const MedicalCertificateController = {
   revoke: async (req: Request, res: Response) => {
     const parsed = RevokeSchema.safeParse(req.body);
     if (!parsed.success)
-      return res.status(400).json({ errors: parsed.error.errors });
+      return res.status(400).json({ errors: parsed.error.issues });
     try {
       const cert = await MedicalCertificateService.revoke(
         req.params.certId,
