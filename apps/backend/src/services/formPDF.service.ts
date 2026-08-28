@@ -6,6 +6,7 @@ import {
   type CachedPromise,
 } from "src/utils/cached-promise-cache";
 import {
+  assertDocumentPdfTemplatePath,
   resolveDocumentPdfTemplate,
   type DocumentPdfTemplateKind,
 } from "src/services/document-pdf-template-registry.service";
@@ -243,8 +244,12 @@ const TEMPLATE_CACHE_TTL_MS = 60 * 60 * 1000;
 const TEMPLATE_CACHE_MAX_ENTRIES = 16;
 const templateCache = new Map<string, CachedPromise<string>>();
 
-const readTemplate = (templatePath: string): Promise<string> =>
-  addCachedPromise(
+const readTemplate = (templatePath: string): Promise<string> => {
+  // Checked before the cache rather than inside the loader, so a path that
+  // resolves outside the template directory never occupies a cache slot.
+  assertDocumentPdfTemplatePath(templatePath);
+
+  return addCachedPromise(
     templateCache,
     templatePath,
     TEMPLATE_CACHE_TTL_MS,
@@ -254,6 +259,7 @@ const readTemplate = (templatePath: string): Promise<string> =>
       pruneIntervalMs: TEMPLATE_CACHE_TTL_MS,
     },
   );
+};
 
 export const clearPdfTemplateCache = (): void => {
   templateCache.clear();
