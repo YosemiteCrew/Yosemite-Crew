@@ -409,6 +409,67 @@ describe("UserController", () => {
       expect(mockRes.json).toHaveBeenCalledWith(existing);
     });
 
+    /*
+     * Exactly one name is malformed, not the intentional no-body retry. The
+     * creation path has always rejected it; the repeat path must not read it as
+     * "no names supplied" and answer 200 to a rename that never happened.
+     */
+    it.each([{ firstName: "OnlyFirst" }, { lastName: "OnlyLast" }])(
+      "rejects a half-supplied name: %o",
+      async (body) => {
+        (UserService.getById as jest.Mock).mockResolvedValue({
+          id: "user-123",
+        });
+
+        const req = createMockReq({
+          userId: "user-123",
+          email: "test@example.com",
+          body,
+        });
+        await UserController.create(req, mockRes as Response);
+
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(UserService.updateName).not.toHaveBeenCalled();
+        expect(UserService.create).not.toHaveBeenCalled();
+      },
+    );
+
+    /*
+     * deleteById is a soft delete - isActive goes false and the row stays, while
+     * the profile, availability and organisation records around it are really
+     * gone. Answering 200 here would report success over a hollow identity.
+     */
+    it("refuses to provision over a deleted account", async () => {
+      (UserService.getById as jest.Mock).mockResolvedValue({
+        id: "user-123",
+        isActive: false,
+      });
+
+      const req = createMockReq(validAuthReq);
+      await UserController.create(req, mockRes as Response);
+
+      expect(mockRes.status).toHaveBeenCalledWith(409);
+      expect(UserService.create).not.toHaveBeenCalled();
+      expect(UserService.updateName).not.toHaveBeenCalled();
+      expect(mockSetUserRole).not.toHaveBeenCalled();
+    });
+
+    it("provisions normally for an active account", async () => {
+      mockAuthService = {
+        updateUserName: mockUpdateUserName,
+        setUserRole: mockSetUserRole,
+        removeUserRole: mockRemoveUserRole,
+      };
+      const active = { id: "user-123", isActive: true };
+      (UserService.getById as jest.Mock).mockResolvedValue(active);
+      (UserService.updateName as jest.Mock).mockResolvedValue(active);
+
+      const req = createMockReq(validAuthReq);
+      await UserController.create(req, mockRes as Response);
+
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+    });
+
     it("never blocks creation on an auth provider sync failure", async () => {
       mockAuthService = {
         updateUserName: jest.fn().mockRejectedValue(new Error("provider down")),

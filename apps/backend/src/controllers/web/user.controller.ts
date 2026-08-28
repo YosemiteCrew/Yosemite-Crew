@@ -196,6 +196,21 @@ export const UserController = {
       const profile = resolveProvisioningProfile(authRequest);
 
       /*
+       * A repeat call may legitimately carry no names at all: once
+       * `pendingSignUp` is gone the client posts no body, and the session
+       * carries no profile attributes either. Carrying exactly one name is not
+       * that - it is a malformed request, which `UserService.create` rejects on
+       * the creation path. Reject it here too, rather than letting the repeat
+       * path read it as "no names supplied" and answer 200 to a rename that
+       * never happened.
+       */
+      if (Boolean(profile.firstName) !== Boolean(profile.lastName)) {
+        return res
+          .status(400)
+          .json({ message: "Both first and last name are required." });
+      }
+
+      /*
        * Provisioning is idempotent, and the client already relies on that -
        * a verification link reopened in a new tab runs this a second time.
        * It was not: `UserService.create` throws 409 for an existing user and
@@ -221,6 +236,26 @@ export const UserController = {
        * would never run.
        */
       const provisioned = await UserService.getById(userId);
+
+      /*
+       * `deleteById` is a soft delete: it sets `isActive: false` and keeps the
+       * row, while genuinely removing the profile, availability and
+       * organisation records around it. `getById` does not filter on that flag,
+       * so treating any returned row as provisioned would answer 200 for an
+       * account that was deleted - reporting success over a hollow identity and
+       * quietly resurrecting nothing. Creation cannot repair it either: the row
+       * still occupies the id and email. Refuse, as it did before this path
+       * existed; reactivation is a separate decision about what to restore.
+       */
+      // Explicitly false, not merely falsy: refuse only when the row positively
+      // says deleted. `isActive` is non-nullable in the schema, so an absent
+      // value means something unexpected upstream - and locking a real account
+      // out of provisioning is the worse way to be wrong about it.
+      if (provisioned?.isActive === false) {
+        return res
+          .status(409)
+          .json({ message: "This account has been deleted." });
+      }
 
       let user: Awaited<ReturnType<typeof UserService.create>>;
       let created = false;
