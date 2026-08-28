@@ -130,11 +130,30 @@ async function reconcileNames(
   if (!profile.firstName || !profile.lastName) {
     return stored!;
   }
-  return UserService.updateName({
-    userId,
-    firstName: profile.firstName,
-    lastName: profile.lastName,
-  });
+  try {
+    return await UserService.updateName({
+      userId,
+      firstName: profile.firstName,
+      lastName: profile.lastName,
+    });
+  } catch (nameError) {
+    /*
+     * `updateName` pushes the name to the auth provider BEFORE the database
+     * write, unguarded, so a provider outage would fail a request whose entire
+     * purpose is to be repeatable - while the sync below stays best-effort for
+     * exactly that reason. Serving the stored row keeps the endpoint available.
+     *
+     * Both stores are deliberately left untouched rather than forcing the
+     * database write through on its own: that would put the two out of step,
+     * and `updateName` no-ops once the database matches, so no later call could
+     * repair the provider side. Unchanged is recoverable; half-applied is not.
+     */
+    logger.warn(
+      "Could not reconcile stored names during provisioning",
+      nameError,
+    );
+    return stored!;
+  }
 }
 
 // Best-effort profile sync to the auth provider so /v1/auth/me can serve

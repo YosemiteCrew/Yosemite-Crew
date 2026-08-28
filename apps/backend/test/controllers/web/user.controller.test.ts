@@ -380,6 +380,35 @@ describe("UserController", () => {
       expect(mockRes.json).toHaveBeenCalledWith(renamed);
     });
 
+    /*
+     * updateName pushes the name to the auth provider before its database
+     * write and does not guard it, so a provider outage would fail a request
+     * whose whole point is to be repeatable. Serve the stored row instead -
+     * both stores untouched, so nothing is left half-applied.
+     */
+    it("stays available when the name reconciliation fails", async () => {
+      mockAuthService = {
+        updateUserName: mockUpdateUserName,
+        setUserRole: mockSetUserRole,
+        removeUserRole: mockRemoveUserRole,
+      };
+      const existing = { id: "user-123", firstName: "Old", lastName: "Name" };
+      (UserService.getById as jest.Mock).mockResolvedValue(existing);
+      (UserService.updateName as jest.Mock).mockRejectedValue(
+        new Error("metadata provider unavailable"),
+      );
+
+      const req = createMockReq({
+        ...validAuthReq,
+        body: { firstName: "New", lastName: "Name" },
+      });
+      await UserController.create(req, mockRes as Response);
+
+      expect(logger.warn).toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(existing);
+    });
+
     it("never blocks creation on an auth provider sync failure", async () => {
       mockAuthService = {
         updateUserName: jest.fn().mockRejectedValue(new Error("provider down")),
