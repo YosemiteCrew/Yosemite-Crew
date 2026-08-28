@@ -502,6 +502,51 @@ describe("UserController", () => {
      * no-body retry, which posts nothing precisely because it has nothing to
      * say, would push those stale claims over the current record.
      */
+    /*
+     * A residual token can carry `given_name` without `family_name` - the
+     * verifier maps the two claims independently. The no-body retry asks for no
+     * rename at all, and its session names are ignored for an existing account,
+     * so refusing it over a lopsided token it never referred to would break the
+     * exact idempotency this endpoint exists to provide.
+     */
+    it.each([
+      ["only a session first name", { firstName: "John" }],
+      ["only a session last name", { lastName: "Doe" }],
+    ])("serves the no-body retry with %s", async (_label, sessionNames) => {
+      const existing = { id: "user-123" };
+      (UserService.getById as jest.Mock).mockResolvedValue(existing);
+
+      const req = createMockReq({
+        userId: "user-123",
+        email: "test@example.com",
+        ...sessionNames,
+      });
+      await UserController.create(req, mockRes as Response);
+
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(existing);
+      expect(UserService.updateName).not.toHaveBeenCalled();
+    });
+
+    // Creation still needs both: `UserService.create` requires them, so a
+    // one-sided pair cannot become a row.
+    it.each([
+      ["only a session first name", { firstName: "John" }],
+      ["only a session last name", { lastName: "Doe" }],
+    ])("refuses to CREATE from %s", async (_label, sessionNames) => {
+      (UserService.getById as jest.Mock).mockResolvedValue(null);
+
+      const req = createMockReq({
+        userId: "user-123",
+        email: "test@example.com",
+        ...sessionNames,
+      });
+      await UserController.create(req, mockRes as Response);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(UserService.create).not.toHaveBeenCalled();
+    });
+
     it("leaves stored names alone when the body omits them, even though the session carries them", async () => {
       const existing = { id: "user-123", firstName: "Jane", lastName: "Roe" };
       (UserService.getById as jest.Mock).mockResolvedValue(existing);

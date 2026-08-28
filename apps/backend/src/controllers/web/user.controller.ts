@@ -98,33 +98,47 @@ function suppliedNames(req: AuthenticatedRequest): {
 }
 
 /**
- * Whether the request's names can be acted on.
+ * Whether the names the BODY offers can be acted on.
  *
- * A body that mentions either name must supply both, itself. The session
- * fallback is for a body that says nothing about names at all - the legitimate
- * repeat call, where `pendingSignUp` is gone so the client posts no body.
+ * A body that mentions either name must supply both, itself. Half a name in
+ * the body silently completed from the session is an ambiguous request
+ * answered with a guess: the caller asked to set one name, and the stored
+ * value it gets paired with may be exactly what they meant to replace. Every
+ * client sends both names or neither, so nothing legitimate is refused.
  *
- * Judged on the raw body rather than the resolved profile. Half a name in the
- * body silently completed from the session is an ambiguous request answered
- * with a guess: the caller asked to set one name, and the stored value it gets
- * paired with may be exactly what they meant to replace. Every client sends
- * both names or neither, so nothing legitimate is refused by insisting on it.
- *
- * The raw body also has to be read because `trimmedString` collapses `""`,
+ * The raw body has to be read because `trimmedString` collapses `""`,
  * whitespace and non-strings to `undefined` - without that an explicitly blank
  * pair is indistinguishable from an absent one, and the repeat path would
  * answer 200 to a rename it had silently refused.
+ *
+ * A body that says nothing about names is not judged here at all: that is the
+ * legitimate repeat call, and whether it can proceed depends on whether the
+ * account already exists - which is not known yet.
  */
-function namesAreUsable(
-  req: AuthenticatedRequest,
-  profile: { firstName?: string; lastName?: string },
-): boolean {
+function bodyNamesAreUsable(req: AuthenticatedRequest): boolean {
   const body = (req.body ?? {}) as Record<string, unknown>;
-  if ("firstName" in body || "lastName" in body) {
-    return Boolean(
-      trimmedString(body.firstName) && trimmedString(body.lastName),
-    );
+  if (!("firstName" in body || "lastName" in body)) {
+    return true;
   }
+  return Boolean(trimmedString(body.firstName) && trimmedString(body.lastName));
+}
+
+/**
+ * Whether a NEW account can be created from these names.
+ *
+ * Applies to creation only. `UserService.create` requires both names, so a
+ * one-sided pair has to be refused - but refusing it before the account is
+ * looked up is what made the idempotent retry fail: under the cutover grace
+ * window a residual token can carry `given_name` without `family_name`
+ * (`legacy-token-verifier.ts` maps the two claims independently), so the
+ * no-body retry - which asks for no rename at all, and whose names are ignored
+ * for an existing account - was answered 400 for a lopsided token it never
+ * referred to.
+ */
+function creationNamesAreUsable(profile: {
+  firstName?: string;
+  lastName?: string;
+}): boolean {
   return Boolean(profile.firstName) === Boolean(profile.lastName);
 }
 
@@ -332,7 +346,7 @@ export const UserController = {
 
       const profile = resolveProvisioningProfile(authRequest);
 
-      if (!namesAreUsable(authRequest, profile)) {
+      if (!bodyNamesAreUsable(authRequest)) {
         return res
           .status(400)
           .json({ message: "Both first and last name are required." });
@@ -394,6 +408,16 @@ export const UserController = {
        * reconcile them.
        */
       const names = provisioned ? suppliedNames(authRequest) : profile;
+
+      // Only creation needs a complete pair, and only now is it known that this
+      // is a creation. `UserService.create` would reject a one-sided pair
+      // anyway; this answers with the endpoint's own message rather than the
+      // service's field-level one.
+      if (!provisioned && !creationNamesAreUsable(profile)) {
+        return res
+          .status(400)
+          .json({ message: "Both first and last name are required." });
+      }
 
       const { user, created } = provisioned
         ? {
