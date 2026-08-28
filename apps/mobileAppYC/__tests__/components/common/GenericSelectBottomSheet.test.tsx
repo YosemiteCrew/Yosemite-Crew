@@ -406,6 +406,34 @@ describe('GenericSelectBottomSheet', () => {
       expect(screen.getByText(defaultProps.emptyMessage)).toBeTruthy();
     });
 
+    // An empty list can be empty because the LOOKUP FAILED, which in a sheet
+    // whose field is required is otherwise a dead end.
+    it('renders an optional action under the empty message', () => {
+      const onPress = jest.fn();
+      render(
+        <GenericSelectBottomSheet
+          {...defaultProps}
+          items={[]}
+          emptyAction={{label: 'Try Again', onPress}}
+          ref={ref}
+        />,
+      );
+      openSheet();
+
+      expect(screen.getByText('Try Again')).toBeTruthy();
+      fireEvent.press(screen.getByTestId('select-sheet-empty-action'));
+      expect(onPress).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders no action when none is supplied', () => {
+      render(
+        <GenericSelectBottomSheet {...defaultProps} items={[]} ref={ref} />,
+      );
+      openSheet();
+
+      expect(screen.queryByTestId('select-sheet-empty-action')).toBeNull();
+    });
+
     it('uses the default empty message when none is provided', () => {
       render(
         <GenericSelectBottomSheet

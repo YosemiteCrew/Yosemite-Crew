@@ -124,6 +124,85 @@ describe('BreedBottomSheet', () => {
     );
   });
 
+  // The gap this closes: the picker could SAY the lookup failed but offered no
+  // way to run it again, and breed is required, so that state dead-ended
+  // companion creation.
+  it('offers a retry when the lookup failed', () => {
+    const onRetry = jest.fn();
+    render(
+      <BreedBottomSheet
+        breeds={[]}
+        loadFailed
+        onRetry={onRetry}
+        selectedBreed={null}
+        onSave={mockOnSave}
+      />,
+    );
+
+    const {emptyAction} = mockGenericSelectBottomSheet.mock.calls.at(-1)[0];
+    expect(emptyAction).toEqual({
+      label: 'common.try_again',
+      onPress: onRetry,
+    });
+
+    emptyAction.onPress();
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  // A species that genuinely has no breeds is not something a retry can fix,
+  // and offering one there would be a lie.
+  it('offers no retry when the species simply has no breeds', () => {
+    render(
+      <BreedBottomSheet
+        breeds={[]}
+        onRetry={jest.fn()}
+        selectedBreed={null}
+        onSave={mockOnSave}
+      />,
+    );
+
+    expect(mockGenericSelectBottomSheet).toHaveBeenCalledWith(
+      expect.objectContaining({emptyAction: undefined}),
+    );
+  });
+
+  it('offers no retry when no handler is supplied', () => {
+    render(
+      <BreedBottomSheet
+        breeds={[]}
+        loadFailed
+        selectedBreed={null}
+        onSave={mockOnSave}
+      />,
+    );
+
+    expect(mockGenericSelectBottomSheet).toHaveBeenCalledWith(
+      expect.objectContaining({emptyAction: undefined}),
+    );
+  });
+
+  it('reports loading rather than failure while a lookup is in flight', () => {
+    render(
+      <BreedBottomSheet
+        breeds={[]}
+        loadFailed
+        loading
+        onRetry={jest.fn()}
+        selectedBreed={null}
+        onSave={mockOnSave}
+      />,
+    );
+
+    // Loading outranks the stale failure, and the retry is withheld so a slow
+    // lookup cannot be fired twice by an impatient tap.
+    expect(mockGenericSelectBottomSheet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        emptyMessage: 'common.loading',
+        emptyAction: undefined,
+      }),
+    );
+  });
+
   it('transforms the breeds prop into items for the child', () => {
     render(
       <BreedBottomSheet
