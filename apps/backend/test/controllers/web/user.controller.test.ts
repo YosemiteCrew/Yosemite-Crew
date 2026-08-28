@@ -281,6 +281,93 @@ describe("UserController", () => {
       );
     });
 
+    /*
+     * The sync is best-effort: a provider failure is logged and the request
+     * still answers 2xx, so the client accepts it and never retries. Revoking
+     * first and then failing would strip the account's only role behind a
+     * success. Granting first means a failure leaves both roles - the state
+     * this replaced, and repaired by the next call.
+     */
+    it("grants the new role before revoking the old one", async () => {
+      const order: string[] = [];
+      mockAuthService = {
+        updateUserName: mockUpdateUserName,
+        setUserRole: mockSetUserRole.mockImplementation(async () => {
+          order.push("set");
+        }),
+        removeUserRole: mockRemoveUserRole.mockImplementation(async () => {
+          order.push("remove");
+        }),
+      };
+      (UserService.create as jest.Mock).mockResolvedValue({ id: "user-123" });
+
+      const req = createMockReq({
+        ...validAuthReq,
+        body: { role: "developer" },
+      });
+      await UserController.create(req, mockRes as Response);
+
+      expect(order).toEqual(["set", "remove"]);
+    });
+
+    it("keeps the old role when granting the new one fails", async () => {
+      mockAuthService = {
+        updateUserName: mockUpdateUserName,
+        setUserRole: mockSetUserRole.mockRejectedValue(
+          new Error("provider down"),
+        ),
+        removeUserRole: mockRemoveUserRole,
+      };
+      (UserService.create as jest.Mock).mockResolvedValue({ id: "user-123" });
+
+      const req = createMockReq({
+        ...validAuthReq,
+        body: { role: "developer" },
+      });
+      await UserController.create(req, mockRes as Response);
+
+      // Nothing was revoked, so the account still has whatever it had.
+      expect(mockRemoveUserRole).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(201);
+    });
+
+    /*
+     * The sync writes the submitted names to the auth provider on this path
+     * too, so the database has to take them as well - otherwise /v1/auth/me
+     * and /fhir/v1/user/:id disagree about the name with nothing to repair it.
+     */
+    it("updates stored names on a repeat call, not just provider metadata", async () => {
+      mockAuthService = {
+        updateUserName: mockUpdateUserName,
+        setUserRole: mockSetUserRole,
+        removeUserRole: mockRemoveUserRole,
+      };
+      const renamed = { id: "user-123", firstName: "New", lastName: "Name" };
+      (UserService.create as jest.Mock).mockRejectedValue(
+        new UserServiceError(
+          "User with the same id or email already exists.",
+          409,
+        ),
+      );
+      (UserService.getById as jest.Mock).mockResolvedValue({ id: "user-123" });
+      (UserService.updateName as jest.Mock).mockResolvedValue(renamed);
+
+      const req = createMockReq({
+        ...validAuthReq,
+        body: { firstName: "New", lastName: "Name" },
+      });
+      await UserController.create(req, mockRes as Response);
+
+      expect(UserService.updateName).toHaveBeenCalledWith({
+        userId: "user-123",
+        firstName: "New",
+        lastName: "Name",
+      });
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(renamed);
+    });
+
     it("never blocks creation on an auth provider sync failure", async () => {
       mockAuthService = {
         updateUserName: jest.fn().mockRejectedValue(new Error("provider down")),
@@ -368,6 +455,9 @@ describe("UserController", () => {
         ),
       );
       (UserService.getById as jest.Mock).mockResolvedValue(existing);
+      // The repeat path pushes the submitted names through the service so the
+      // database and the provider cannot drift apart; unchanged names no-op.
+      (UserService.updateName as jest.Mock).mockResolvedValue(existing);
 
       const req = createMockReq({
         ...validAuthReq,

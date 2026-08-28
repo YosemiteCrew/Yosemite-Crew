@@ -91,13 +91,22 @@ async function applyRole(
   userId: string,
   role: string,
 ): Promise<void> {
+  /*
+   * Grant before revoking, never the other way round. The whole sync is
+   * best-effort - the caller logs a provider failure and still answers 2xx, so
+   * the client accepts it and does not retry. Removing first and then failing
+   * would leave the account with NO role behind a successful response, which
+   * is worse than the problem this fixes. Failing after the grant leaves it
+   * holding both, which is exactly the append-only state this replaced:
+   * recoverable, and repaired by the next call.
+   */
+  await authService.setUserRole(userId, role);
   const replaced = [...SELF_ASSIGNABLE_ROLES].filter(
     (candidate) => candidate !== role,
   );
   for (const candidate of replaced) {
     await authService.removeUserRole(userId, candidate);
   }
-  await authService.setUserRole(userId, role);
 }
 
 // Best-effort profile sync to the auth provider so /v1/auth/me can serve
@@ -179,7 +188,24 @@ export const UserController = {
           throw error;
         }
 
-        user = existing;
+        /*
+         * The sync below writes the submitted names into the auth provider
+         * whichever path got here, so the database has to accept them too.
+         * Returning the stored row untouched while pushing new names to the
+         * provider is how `/v1/auth/me` and `/fhir/v1/user/:id` end up
+         * disagreeing about someone's name, with no route back: updateName
+         * no-ops once the database already matches, so nothing later repairs
+         * the divergence. Idempotent by the same token - unchanged names cost
+         * a read.
+         */
+        user =
+          profile.firstName && profile.lastName
+            ? await UserService.updateName({
+                userId,
+                firstName: profile.firstName,
+                lastName: profile.lastName,
+              })
+            : existing;
         created = false;
       }
 
