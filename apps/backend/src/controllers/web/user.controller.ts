@@ -22,6 +22,24 @@ type UpdateUserNameRequest = Request<
 const trimmedString = (value: unknown): string | undefined =>
   typeof value === "string" && value.trim() ? value.trim() : undefined;
 
+/**
+ * The roles a caller is allowed to claim for itself while provisioning.
+ *
+ * `POST /fhir/v1/user` is guarded by `requireWebAuth` alone, and the role is
+ * read from the request body, so whatever passes this check is a role any
+ * signed-up account can hand itself. The previous check was a shape test
+ * (`/^[a-z_-]{1,40}$/i`) that accepted any word - `superadmin` included, which
+ * `requireSuperAdmin` turns into read and write over every business on the
+ * platform. A shape is not a permission; this is an allow-list for that reason.
+ *
+ * These two are what the sign-up form actually sends: `developer` for a
+ * developer sign-up, and `member` for everyone else. Anything else is dropped
+ * rather than refused, which is how an unparseable role has always been
+ * treated - by this point the account already exists in the auth provider, so
+ * failing the request would strand it with no application user behind it.
+ */
+const SELF_ASSIGNABLE_ROLES = new Set(["developer", "member"]);
+
 // Names/role come from the signup form (request body) with the session as
 // fallback; the session token no longer carries profile attributes.
 function resolveProvisioningProfile(req: AuthenticatedRequest): {
@@ -30,11 +48,26 @@ function resolveProvisioningProfile(req: AuthenticatedRequest): {
   role?: string;
 } {
   const body = (req.body ?? {}) as Record<string, unknown>;
-  const role = trimmedString(body.role);
+  const requestedRole = trimmedString(body.role)?.toLowerCase();
+  const role =
+    requestedRole && SELF_ASSIGNABLE_ROLES.has(requestedRole)
+      ? requestedRole
+      : undefined;
+
+  // Worth a line in the log: a request naming a role it cannot have is either a
+  // client sending something the form never offers, or someone reaching for a
+  // privilege. Bounded and passed as a field, never concatenated into the
+  // message, so a crafted value cannot forge log structure.
+  if (requestedRole && !role) {
+    logger.warn("Provisioning requested a role that is not self-assignable", {
+      requestedRole: requestedRole.slice(0, 40),
+    });
+  }
+
   return {
     firstName: trimmedString(body.firstName) ?? req.firstName,
     lastName: trimmedString(body.lastName) ?? req.lastName,
-    role: role && /^[a-z_-]{1,40}$/i.test(role) ? role : undefined,
+    role,
   };
 }
 

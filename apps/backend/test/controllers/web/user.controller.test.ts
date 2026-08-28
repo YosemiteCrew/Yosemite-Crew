@@ -161,6 +161,65 @@ describe("UserController", () => {
       expect(mockSetUserRole).not.toHaveBeenCalled();
     });
 
+    /*
+     * The route is behind `requireWebAuth` and nothing else, so a role the body
+     * can name is a role any signed-up account can grant itself. `superadmin`
+     * is the one that matters: `requireSuperAdmin` reads exactly these roles and
+     * opens `/super-admin/businesses` across every tenant. The old shape check
+     * accepted it. Names must still sync, so the request is served - only the
+     * role is dropped.
+     */
+    it.each(["superadmin", "SuperAdmin", "  superadmin  ", "owner", "admin"])(
+      "never grants a role the sign-up form cannot ask for: %s",
+      async (role) => {
+        mockAuthService = {
+          updateUserName: mockUpdateUserName,
+          setUserRole: mockSetUserRole,
+        };
+        (UserService.create as jest.Mock).mockResolvedValue({ id: "user-123" });
+
+        const req = createMockReq({
+          userId: "user-123",
+          email: "test@example.com",
+          firstName: "SessionFirst",
+          lastName: "SessionLast",
+          body: { role },
+        });
+        await UserController.create(req, mockRes as Response);
+
+        expect(mockSetUserRole).not.toHaveBeenCalled();
+        expect(mockUpdateUserName).toHaveBeenCalled();
+        expect(mockRes.status).toHaveBeenCalledWith(201);
+      },
+    );
+
+    // The other half of the allow-list: the two roles sign-up does send still
+    // reach the provider, case- and padding-insensitively, or a developer
+    // sign-up silently produces an account the portal will not admit.
+    it.each([
+      ["developer", "developer"],
+      ["Developer", "developer"],
+      ["  developer  ", "developer"],
+      ["member", "member"],
+    ])("still grants %s as %s", async (role, expected) => {
+      mockAuthService = {
+        updateUserName: mockUpdateUserName,
+        setUserRole: mockSetUserRole,
+      };
+      (UserService.create as jest.Mock).mockResolvedValue({ id: "user-123" });
+
+      const req = createMockReq({
+        userId: "user-123",
+        email: "test@example.com",
+        firstName: "SessionFirst",
+        lastName: "SessionLast",
+        body: { role },
+      });
+      await UserController.create(req, mockRes as Response);
+
+      expect(mockSetUserRole).toHaveBeenCalledWith("user-123", expected);
+    });
+
     it("never blocks creation on an auth provider sync failure", async () => {
       mockAuthService = {
         updateUserName: jest.fn().mockRejectedValue(new Error("provider down")),
