@@ -15,7 +15,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist",
-    "test": "node --test \"dist/src/**/*.test.js\"",
+    "test": "pnpm run build && node --test \"dist/src/**/*.test.js\"",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {

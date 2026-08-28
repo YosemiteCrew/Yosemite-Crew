@@ -494,20 +494,94 @@ describe("UserController", () => {
 
     // The session fallback still applies when the body says nothing about
     // names - the repeat call the client actually makes.
-    it("still uses session names when the body omits them entirely", async () => {
-      const existing = { id: "user-123" };
+    /*
+     * The session fallback is for CREATION, not for an account that already
+     * exists. Under the cutover grace window the session names come from a
+     * residual token's `given_name`/`family_name` claims, so a token issued
+     * before the user renamed themselves still carries the old pair - and the
+     * no-body retry, which posts nothing precisely because it has nothing to
+     * say, would push those stale claims over the current record.
+     */
+    it("leaves stored names alone when the body omits them, even though the session carries them", async () => {
+      const existing = { id: "user-123", firstName: "Jane", lastName: "Roe" };
       (UserService.getById as jest.Mock).mockResolvedValue(existing);
-      (UserService.updateName as jest.Mock).mockResolvedValue(existing);
 
       const req = createMockReq(validAuthReq);
       await UserController.create(req, mockRes as Response);
 
+      expect(UserService.updateName).not.toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(existing);
+    });
+
+    // The provider sync has to take the same pair the database did; pushing
+    // session names it declined to store is the divergence `/v1/auth/me` and
+    // `/fhir/v1/user/:id` then report differently, with nothing to repair it.
+    it("does not push session names to the provider for an existing account", async () => {
+      mockAuthService = {
+        updateUserName: mockUpdateUserName,
+        setUserRole: mockSetUserRole,
+        removeUserRole: mockRemoveUserRole,
+      };
+      (UserService.getById as jest.Mock).mockResolvedValue({ id: "user-123" });
+
+      const req = createMockReq(validAuthReq);
+      await UserController.create(req, mockRes as Response);
+
+      expect(mockUpdateUserName).not.toHaveBeenCalled();
+    });
+
+    it("updates names on a repeat call when the body supplies both", async () => {
+      mockAuthService = {
+        updateUserName: mockUpdateUserName,
+        setUserRole: mockSetUserRole,
+        removeUserRole: mockRemoveUserRole,
+      };
+      const existing = { id: "user-123" };
+      (UserService.getById as jest.Mock).mockResolvedValue(existing);
+      (UserService.updateName as jest.Mock).mockResolvedValue(existing);
+
+      const req = createMockReq({
+        ...validAuthReq,
+        body: { firstName: "Ada", lastName: "Lovelace" },
+      });
+      await UserController.create(req, mockRes as Response);
+
       expect(UserService.updateName).toHaveBeenCalledWith({
         userId: "user-123",
+        firstName: "Ada",
+        lastName: "Lovelace",
+      });
+      expect(mockUpdateUserName).toHaveBeenCalledWith("user-123", {
+        firstName: "Ada",
+        lastName: "Lovelace",
+      });
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+    });
+
+    // Creation is the one place the fallback belongs: there is no stored name
+    // to overwrite, and refusing here would block a legitimate sign-up.
+    it("still uses session names when creating a new account", async () => {
+      mockAuthService = {
+        updateUserName: mockUpdateUserName,
+        setUserRole: mockSetUserRole,
+        removeUserRole: mockRemoveUserRole,
+      };
+      const created = { id: "user-123" };
+      (UserService.getById as jest.Mock).mockResolvedValue(null);
+      (UserService.create as jest.Mock).mockResolvedValue(created);
+
+      const req = createMockReq(validAuthReq);
+      await UserController.create(req, mockRes as Response);
+
+      expect(UserService.create).toHaveBeenCalledWith(
+        expect.objectContaining({ firstName: "John", lastName: "Doe" }),
+      );
+      expect(mockUpdateUserName).toHaveBeenCalledWith("user-123", {
         firstName: "John",
         lastName: "Doe",
       });
-      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.status).toHaveBeenCalledWith(201);
     });
 
     /*

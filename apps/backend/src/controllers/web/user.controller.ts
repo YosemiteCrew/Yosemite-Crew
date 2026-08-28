@@ -72,6 +72,32 @@ function resolveProvisioningProfile(req: AuthenticatedRequest): {
 }
 
 /**
+ * The names this request actually SUPPLIED, ignoring the session fallback.
+ *
+ * The fallback in `resolveProvisioningProfile` exists so first-time creation
+ * can proceed from session attributes when the body carries nothing. Applying
+ * it to an account that already exists is a different act: it overwrites a
+ * stored name with one the request never asked to change.
+ *
+ * That is not hypothetical. Under the cutover grace window
+ * (`AUTH_LEGACY_TOKEN_GRACE=true`) `legacy-token-verifier.ts` fills these from
+ * the `given_name`/`family_name` claims of a residual token. A token issued
+ * before the user renamed themselves still carries the old pair, so the
+ * no-body idempotent retry - which posts nothing precisely because it has
+ * nothing to say - would push those stale claims over the current record.
+ */
+function suppliedNames(req: AuthenticatedRequest): {
+  firstName?: string;
+  lastName?: string;
+} {
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  return {
+    firstName: trimmedString(body.firstName),
+    lastName: trimmedString(body.lastName),
+  };
+}
+
+/**
  * Whether the request's names can be acted on.
  *
  * A body that mentions either name must supply both, itself. The session
@@ -359,14 +385,24 @@ export const UserController = {
           .json({ message: "This account has been deleted." });
       }
 
+      /*
+       * An existing account is reconciled against what the request SUPPLIED,
+       * a new one against the profile including its session fallback. The
+       * database write and the provider sync take the same pair either way -
+       * letting them diverge is what leaves `/v1/auth/me` and
+       * `/fhir/v1/user/:id` reporting different names with nothing to
+       * reconcile them.
+       */
+      const names = provisioned ? suppliedNames(authRequest) : profile;
+
       const { user, created } = provisioned
         ? {
-            user: await reconcileNames(userId, provisioned, profile),
+            user: await reconcileNames(userId, provisioned, names),
             created: false,
           }
         : await createOrAdopt(userId, email, profile);
 
-      await syncProfileToAuthProvider(userId, profile);
+      await syncProfileToAuthProvider(userId, { ...names, role: profile.role });
 
       res.status(created ? 201 : 200).json(user);
     } catch (error: unknown) {
