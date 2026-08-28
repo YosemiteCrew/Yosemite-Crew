@@ -20,7 +20,7 @@
   },
   "devDependencies": {
     "@docusaurus/tsconfig": "^3.10.2",
-    "baseline-browser-mapping": "^2.11.12",
+    "baseline-browser-mapping": "^2.11.17",
     "typescript": "~5.6.3"
   }
 }
