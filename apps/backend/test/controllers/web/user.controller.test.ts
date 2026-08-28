@@ -328,28 +328,6 @@ describe("UserController", () => {
       expect(order).toEqual(["set", "remove"]);
     });
 
-    it("keeps the old role when granting the new one fails", async () => {
-      mockAuthService = {
-        updateUserName: mockUpdateUserName,
-        setUserRole: mockSetUserRole.mockRejectedValue(
-          new Error("provider down"),
-        ),
-        removeUserRole: mockRemoveUserRole,
-      };
-      (UserService.create as jest.Mock).mockResolvedValue({ id: "user-123" });
-
-      const req = createMockReq({
-        ...validAuthReq,
-        body: { role: "developer" },
-      });
-      await UserController.create(req, mockRes as Response);
-
-      // Nothing was revoked, so the account still has whatever it had.
-      expect(mockRemoveUserRole).not.toHaveBeenCalled();
-      expect(logger.warn).toHaveBeenCalled();
-      expect(mockRes.status).toHaveBeenCalledWith(201);
-    });
-
     /*
      * The sync writes the submitted names to the auth provider on this path
      * too, so the database has to take them as well - otherwise /v1/auth/me
@@ -448,9 +426,13 @@ describe("UserController", () => {
       expect(mockRes.status).toHaveBeenCalledWith(500);
     });
 
-    // The other half: a failure BEFORE anything changed stays absorbed, so a
-    // provider hiccup does not fail a request that had nothing to correct.
-    it("still absorbs a failure that changed nothing", async () => {
+    /*
+     * A failed GRANT is half-applied too. setUserRole is three provider calls -
+     * create the role, attach it, write the metadata - so a rejection can leave
+     * the role already attached with only the metadata outstanding. Treating it
+     * as "nothing changed" is what left both roles on the account.
+     */
+    it("fails the request when granting the role fails", async () => {
       mockAuthService = {
         updateUserName: mockUpdateUserName,
         setUserRole: mockSetUserRole.mockRejectedValue(
@@ -467,8 +449,52 @@ describe("UserController", () => {
       await UserController.create(req, mockRes as Response);
 
       expect(mockRemoveUserRole).not.toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(500);
+    });
+
+    // A name-sync failure carries no such hazard - one provider call, nothing
+    // half-applied - so it stays absorbed and provisioning still succeeds.
+    it("still absorbs a name sync failure", async () => {
+      mockAuthService = {
+        updateUserName: mockUpdateUserName.mockRejectedValue(
+          new Error("provider unavailable"),
+        ),
+        setUserRole: mockSetUserRole,
+        removeUserRole: mockRemoveUserRole,
+      };
+      (UserService.create as jest.Mock).mockResolvedValue({ id: "user-123" });
+
+      const req = createMockReq(validAuthReq);
+      await UserController.create(req, mockRes as Response);
+
       expect(logger.warn).toHaveBeenCalled();
       expect(mockRes.status).toHaveBeenCalledWith(201);
+    });
+
+    /*
+     * Both names resolve, one from the body and one from the session fallback.
+     * Creation accepts exactly this input, so the repeat path has to as well -
+     * rejecting it would make the repeat call stricter than the first.
+     */
+    it("accepts a body name completed by the session fallback", async () => {
+      const existing = { id: "user-123" };
+      (UserService.getById as jest.Mock).mockResolvedValue(existing);
+      (UserService.updateName as jest.Mock).mockResolvedValue(existing);
+
+      const req = createMockReq({
+        userId: "user-123",
+        email: "test@example.com",
+        lastName: "SessionLast",
+        body: { firstName: "BodyFirst" },
+      });
+      await UserController.create(req, mockRes as Response);
+
+      expect(UserService.updateName).toHaveBeenCalledWith({
+        userId: "user-123",
+        firstName: "BodyFirst",
+        lastName: "SessionLast",
+      });
+      expect(mockRes.status).toHaveBeenCalledWith(200);
     });
 
     /*

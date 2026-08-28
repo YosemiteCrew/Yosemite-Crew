@@ -74,16 +74,20 @@ function resolveProvisioningProfile(req: AuthenticatedRequest): {
 /**
  * Whether the request's names can be acted on.
  *
- * Two shapes are acceptable: both names resolve, or the request never mentioned
- * them. The second is the legitimate repeat call - once `pendingSignUp` is gone
- * the client posts no body, and the session carries no profile attributes.
+ * Two shapes are acceptable: both names RESOLVE - from the body, the session
+ * fallback, or one of each - or the request never mentioned them at all. The
+ * second is the legitimate repeat call: once `pendingSignUp` is gone the client
+ * posts no body, and the session carries no profile attributes either.
  *
- * Everything else is malformed and gets a 400, which is what the creation path
- * has always done. Naming the fields at all is a commitment to supply both:
- * `trimmedString` collapses `""`, whitespace and non-strings to `undefined`, so
- * without this an explicitly blank pair would be indistinguishable from an
- * absent one, and the repeat path would answer 200 to a rename it silently
- * refused.
+ * Resolution is what matters, not where each half came from. A body naming only
+ * `firstName` over a session that supplies `lastName` is complete, and creation
+ * accepts exactly the same input - the two paths have to agree or the repeat
+ * call rejects requests the first one allowed.
+ *
+ * The raw body still has to be consulted, because `trimmedString` collapses
+ * `""`, whitespace and non-strings to `undefined`: without it an explicitly
+ * blank pair is indistinguishable from an absent one, and the repeat path would
+ * answer 200 to a rename it had silently refused.
  */
 function namesAreUsable(
   req: AuthenticatedRequest,
@@ -134,35 +138,34 @@ async function applyRole(
   userId: string,
   role: string,
 ): Promise<void> {
-  /*
-   * Grant before revoking. A failure here has changed nothing, so the caller's
-   * best-effort catch can absorb it; revoking first and then failing would
-   * leave the account with no role at all behind a 2xx.
-   */
-  await authService.setUserRole(userId, role);
-
   const replaced = [...SELF_ASSIGNABLE_ROLES].filter(
     (candidate) => candidate !== role,
   );
+
   try {
+    // Grant before revoking: failing the other way round would leave the
+    // account with no role at all.
+    await authService.setUserRole(userId, role);
     for (const candidate of replaced) {
       await authService.removeUserRole(userId, candidate);
     }
-  } catch (removalError) {
+  } catch (roleError) {
     /*
-     * Past the point of no change: the account now holds both roles, and
-     * `/v1/auth/me` answers with whichever the list returns first, so the
-     * correction may be invisible.
+     * Every failure in here is treated as half-applied, including one from the
+     * grant. `setUserRole` is itself three provider calls - create the role,
+     * attach it, write the metadata - so a rejection does not mean nothing
+     * changed: the role can already be attached with only the metadata write
+     * outstanding. Assuming otherwise is what left both roles on the account.
      *
-     * Nothing else repairs this. `provisionPendingSignUpUser` clears
+     * And nothing else repairs it. `provisionPendingSignUpUser` clears
      * `pendingSignUp` on any 2xx, so a later provisioning call carries no role
-     * and never reaches this code - a 200 here would make the half-applied
-     * state permanent. Marked so the sync rethrows instead of absorbing it,
-     * leaving the client to retry while it still holds the role.
+     * and never reaches this code at all. A 2xx here makes whatever state the
+     * provider is in permanent, so the failure has to reach the client while it
+     * still holds the role to retry with.
      */
     throw new RoleReplacementIncomplete(
-      `Granted ${role} but could not revoke the role it replaces`,
-      { cause: removalError },
+      `Could not settle the account on ${role}`,
+      { cause: roleError },
     );
   }
 }
