@@ -266,17 +266,96 @@ describe("UserController", () => {
       expect(UserService.create).not.toHaveBeenCalled();
     });
 
-    it("should return specific status code if UserServiceError is thrown", async () => {
+    /*
+     * A 409 matches on id OR email. When no row comes back for THIS id the
+     * conflict was on the email, so the row belongs to someone else - serving
+     * it would hand this caller another user's record. Still a 409.
+     */
+    it("still returns 409 when the conflicting row is not this user's", async () => {
       // Now using the real class which the controller also uses
       (UserService.create as jest.Mock).mockRejectedValue(
         new UserServiceError("Conflict", 409),
       );
+      (UserService.getById as jest.Mock).mockResolvedValue(null);
 
       const req = createMockReq(validAuthReq);
       await UserController.create(req, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(409);
       expect(mockRes.json).toHaveBeenCalledWith({ message: "Conflict" });
+      expect(mockSetUserRole).not.toHaveBeenCalled();
+    });
+
+    /*
+     * The point of making this idempotent: an account provisioned before the
+     * role was sent, or with the wrong one, had no way back - the 409 returned
+     * before the sync ran, so the role was whatever the first call happened to
+     * set. A repeat call now corrects it.
+     */
+    it("syncs the role on a repeat call and returns the existing user", async () => {
+      mockAuthService = {
+        updateUserName: mockUpdateUserName,
+        setUserRole: mockSetUserRole,
+      };
+      const existing = { id: "user-123", email: "test@example.com" };
+      (UserService.create as jest.Mock).mockRejectedValue(
+        new UserServiceError(
+          "User with the same id or email already exists.",
+          409,
+        ),
+      );
+      (UserService.getById as jest.Mock).mockResolvedValue(existing);
+
+      const req = createMockReq({
+        ...validAuthReq,
+        body: { role: "developer" },
+      });
+      await UserController.create(req, mockRes as Response);
+
+      expect(mockSetUserRole).toHaveBeenCalledWith("user-123", "developer");
+      // 200, not 201: nothing was created this time.
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(existing);
+    });
+
+    // The allow-list is what makes the repeat call safe, so it has to hold on
+    // this path too - not only on first provisioning.
+    it("still refuses a privileged role on a repeat call", async () => {
+      mockAuthService = {
+        updateUserName: mockUpdateUserName,
+        setUserRole: mockSetUserRole,
+      };
+      (UserService.create as jest.Mock).mockRejectedValue(
+        new UserServiceError(
+          "User with the same id or email already exists.",
+          409,
+        ),
+      );
+      (UserService.getById as jest.Mock).mockResolvedValue({ id: "user-123" });
+
+      const req = createMockReq({
+        ...validAuthReq,
+        body: { role: "superadmin" },
+      });
+      await UserController.create(req, mockRes as Response);
+
+      expect(mockSetUserRole).not.toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+    });
+
+    // A non-409 UserServiceError is not "already provisioned" and must not be
+    // rewritten into a success.
+    it("passes a non-409 UserServiceError straight through", async () => {
+      (UserService.create as jest.Mock).mockRejectedValue(
+        new UserServiceError("Invalid user id", 400),
+      );
+
+      const req = createMockReq(validAuthReq);
+      await UserController.create(req, mockRes as Response);
+
+      expect(UserService.getById).not.toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith({ message: "Invalid user id" });
     });
 
     it("should return 500 and log error on generic exception", async () => {

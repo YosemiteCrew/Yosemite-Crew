@@ -110,16 +110,53 @@ export const UserController = {
 
       const profile = resolveProvisioningProfile(authRequest);
 
-      const user = await UserService.create({
-        id: userId,
-        email: email,
-        firstName: profile.firstName!,
-        lastName: profile.lastName!,
-      });
+      /*
+       * Provisioning is idempotent, and the client already relies on that -
+       * a verification link reopened in a new tab runs this a second time.
+       * It was not: `UserService.create` throws 409 for an existing user and
+       * the catch below returned before the profile sync, so the role reached
+       * the auth provider on the FIRST call and never again. An account whose
+       * role was wrong at sign-up - or absent, from a sign-up that predates the
+       * role being sent - had no way to be corrected, and a developer sign-up
+       * that lost its provisioning call stayed locked out of the portal for good.
+       *
+       * Safe to sync on a repeat call only because the role is now an
+       * allow-list of `developer` and `member`: neither grants anything
+       * server-side (the developer routes authorise on org permissions, not on
+       * this role), so a caller re-asserting one gains no privilege. It would
+       * not have been safe against the old shape check.
+       */
+      let user: Awaited<ReturnType<typeof UserService.create>>;
+      let created = true;
+      try {
+        user = await UserService.create({
+          id: userId,
+          email: email,
+          firstName: profile.firstName!,
+          lastName: profile.lastName!,
+        });
+      } catch (error: unknown) {
+        const alreadyProvisioned =
+          error instanceof UserServiceError && error.statusCode === 409;
+        if (!alreadyProvisioned) {
+          throw error;
+        }
+
+        const existing = await UserService.getById(userId);
+        // A 409 means a row matched on id OR email. If it matched on email
+        // alone the row belongs to a different id, and serving it here would
+        // hand this caller another user's record - rethrow instead.
+        if (!existing) {
+          throw error;
+        }
+
+        user = existing;
+        created = false;
+      }
 
       await syncProfileToAuthProvider(userId, profile);
 
-      res.status(201).json(user);
+      res.status(created ? 201 : 200).json(user);
     } catch (error: unknown) {
       if (error instanceof UserServiceError) {
         res.status(error.statusCode).json({ message: error.message });
