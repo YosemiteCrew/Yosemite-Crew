@@ -70,10 +70,12 @@ describe("document-pdf-template-registry service", () => {
       );
     });
 
-    it("rejects the template directory itself", () => {
+    // Refused, but not as an escape - it lands on the root, so the reason it
+    // gives has to say that rather than claim the path went outside.
+    it("rejects the template directory itself, and says why", () => {
       expect(() =>
         assertDocumentPdfTemplatePath(DOCUMENT_PDF_TEMPLATE_DIRECTORY),
-      ).toThrow(/resolves outside the PDF template directory/);
+      ).toThrow(/is the PDF template directory, not a file inside it/);
     });
   });
 });

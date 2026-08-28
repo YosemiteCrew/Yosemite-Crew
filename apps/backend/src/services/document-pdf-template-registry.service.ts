@@ -31,11 +31,15 @@ export const assertDocumentPdfTemplatePath = (templatePath: string): void => {
   const resolved = path.resolve(root, templatePath);
   const relative = path.relative(root, resolved);
 
-  if (
-    relative === "" ||
-    relative.startsWith("..") ||
-    path.isAbsolute(relative)
-  ) {
+  // The directory itself is refused too, but it is not an escape - it lands
+  // exactly on the root - so it says so rather than claiming otherwise.
+  if (relative === "") {
+    throw new Error(
+      `refusing to read "${templatePath}": it is the PDF template directory, not a file inside it`,
+    );
+  }
+
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
     throw new Error(
       `refusing to read "${templatePath}": it resolves outside the PDF template directory`,
     );
