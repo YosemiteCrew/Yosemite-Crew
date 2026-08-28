@@ -41,6 +41,10 @@ export class AuthService {
     await this.provider.setUserRole?.(appUserId, role);
   }
 
+  async removeUserRole(appUserId: string, role: string): Promise<void> {
+    await this.provider.removeUserRole?.(appUserId, role);
+  }
+
   async deleteUser(appUserId: string): Promise<void> {
     await this.provider.deleteUser?.(appUserId);
   }

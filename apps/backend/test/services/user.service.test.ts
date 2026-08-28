@@ -54,6 +54,7 @@ jest.mock("src/services/user-organization.service", () => ({
   },
 }));
 
+import { Prisma } from "@prisma/client";
 import { UserService, UserServiceError } from "src/services/user.service";
 
 describe("UserService", () => {
@@ -123,6 +124,51 @@ describe("UserService", () => {
       message: "User with the same id or email already exists.",
       statusCode: 409,
     });
+  });
+
+  /*
+   * The duplicate check above is a read, so two first-time provisioning calls
+   * can both pass it before either insert lands - two verification tabs, or the
+   * client's own retry. `userId` and `email` are unique, so the loser gets a
+   * P2002 from the insert. Same conflict as the read found, so it has to
+   * surface the same way, or provisioning 500s on an account that now exists.
+   */
+  it("maps a concurrent insert conflict to the same 409", async () => {
+    mockPrisma.user.findFirst.mockResolvedValue(null);
+    const conflict = new Prisma.PrismaClientKnownRequestError(
+      "Unique constraint failed",
+      { code: "P2002", clientVersion: "5.22.0" },
+    );
+    mockPrisma.user.create.mockRejectedValue(conflict);
+
+    await expect(
+      UserService.create({
+        id: "user-321",
+        email: "person@example.com",
+        firstName: "First",
+        lastName: "Last",
+        isActive: true,
+      }),
+    ).rejects.toMatchObject({
+      message: "User with the same id or email already exists.",
+      statusCode: 409,
+    });
+  });
+
+  it("rethrows a non-conflict database error untouched", async () => {
+    mockPrisma.user.findFirst.mockResolvedValue(null);
+    const boom = new Error("connection lost");
+    mockPrisma.user.create.mockRejectedValue(boom);
+
+    await expect(
+      UserService.create({
+        id: "user-321",
+        email: "person@example.com",
+        firstName: "First",
+        lastName: "Last",
+        isActive: true,
+      }),
+    ).rejects.toBe(boom);
   });
 
   it("returns the existing user by id", async () => {

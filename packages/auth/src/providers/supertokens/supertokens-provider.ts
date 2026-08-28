@@ -210,6 +210,19 @@ export class SuperTokensAuthProvider implements AuthProvider {
     await UserMetadata.updateUserMetadata(appUserId, { role });
   }
 
+  /**
+   * Takes one role off the user. Paired with `setUserRole`, which ADDS: a
+   * caller correcting a role has to drop the previous one itself, or the user
+   * ends up holding both and `/v1/auth/me` answers with whichever the role
+   * list happens to return first.
+   *
+   * Removing a role the user does not have is a no-op, not an error, so the
+   * caller need not read the current roles first.
+   */
+  async removeUserRole(appUserId: string, role: string): Promise<void> {
+    await UserRoles.removeUserRole(DEFAULT_TENANT_ID, appUserId, role);
+  }
+
   async deleteUser(appUserId: string): Promise<void> {
     await SuperTokens.deleteUser(appUserId);
   }
