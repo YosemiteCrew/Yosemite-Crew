@@ -42,8 +42,34 @@ router.get("/me", requireAnyAuth, async (req, res: Response, next) => {
     const sessionRoles = (session.roles ?? []).map((role) =>
       role.trim().toLowerCase(),
     );
+    /*
+     * Roles are looked up under `appUserId` - the same key they are WRITTEN
+     * under, and the same one the metadata read below uses.
+     *
+     * This read was the odd one out: `providerUserId` is the RECIPE user id,
+     * and `setUserRole`/`removeUserRole` have only ever written under
+     * `appUserId`. The two coincide for an ordinary account, so the mismatch
+     * was invisible - but not for the two cases this codebase actually
+     * creates:
+     *
+     * - A relinked legacy account. `config/auth-hooks.ts` remaps `appUserId`
+     *   to the legacy id, so a role correction lands under that key while this
+     *   read looked somewhere nothing was ever written. Provisioning answered
+     *   200, the client cleared `pendingSignUp`, and the correction was
+     *   invisible and unrepeatable.
+     * - A linked account. `AccountLinking` is enabled (MultiFactorAuth needs
+     *   it), so the recipe user id can differ from the primary one, and
+     *   SuperTokens keys roles on the primary - which is what `appUserId`
+     *   carries.
+     *
+     * Reading under the write's key is therefore correct or unchanged in every
+     * case, never worse. Note `middlewares/super-admin.ts` still carries the
+     * old expression; it is an authorisation check, and moving it would widen
+     * what that check can find, so it wants its own security review rather
+     * than a ride-along here.
+     */
     const lookupRoles = await authServiceForRouter.getUserRoles(
-      session.providerUserId ?? session.appUserId,
+      session.appUserId,
     );
     const normalizedLookupRoles = lookupRoles.map((role) =>
       role.trim().toLowerCase(),

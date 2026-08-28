@@ -166,7 +166,9 @@ describe("auth.router", () => {
       emailVerified: true,
       role: "superadmin",
     });
-    expect(mockGetUserRoles).toHaveBeenCalledWith("st-user-1");
+    // Looked up under appUserId - the key roles are written under - not the
+    // recipe user id the session also carries.
+    expect(mockGetUserRoles).toHaveBeenCalledWith("u1");
   });
 
   describe("GET /me role resolution", () => {
@@ -248,6 +250,28 @@ describe("auth.router", () => {
 
       const res = await meFor(sessionWith([]));
 
+      expect(res.body).toMatchObject({ role: "developer" });
+    });
+
+    /*
+     * The write side (`setUserRole`/`removeUserRole`) keys on `appUserId`, so
+     * the read has to as well. They coincide for an ordinary account, which is
+     * what hid this: a relinked legacy account has `appUserId` remapped by
+     * `auth-hooks.ts`, and a linked account has a recipe id distinct from the
+     * primary one SuperTokens keys roles on. Reading under `providerUserId`
+     * looked somewhere the correction was never written.
+     */
+    it("looks roles up under the id they are written under, not the recipe id", async () => {
+      mockGetUserRoles.mockResolvedValueOnce(["developer"]);
+
+      const res = await meFor({
+        appUserId: "legacy-app-id",
+        providerUserId: "st-recipe-id",
+        roles: ["member"],
+      });
+
+      expect(mockGetUserRoles).toHaveBeenCalledWith("legacy-app-id");
+      expect(mockGetUserRoles).not.toHaveBeenCalledWith("st-recipe-id");
       expect(res.body).toMatchObject({ role: "developer" });
     });
 
