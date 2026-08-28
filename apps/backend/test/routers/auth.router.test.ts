@@ -8,12 +8,15 @@ const requireAnyAuth = jest.fn(
 );
 const mockSignOut = jest.fn();
 const mockGetUserRoles = jest.fn();
+const mockGetUserMetadata = jest.fn();
 let mockService: {
   signOut: typeof mockSignOut;
   getUserRoles: typeof mockGetUserRoles;
+  getUserMetadata: typeof mockGetUserMetadata;
 } | null = {
   signOut: mockSignOut,
   getUserRoles: mockGetUserRoles,
+  getUserMetadata: mockGetUserMetadata,
 };
 
 jest.mock("@yosemite-crew/auth", () => ({
@@ -94,7 +97,17 @@ const makeRes = () => {
 describe("auth.router", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockService = { signOut: mockSignOut, getUserRoles: mockGetUserRoles };
+    // `clearAllMocks` drops calls but keeps implementations, so a resolved
+    // value set by one test would leak into the next. Reset and re-establish
+    // the neutral default explicitly.
+    mockGetUserRoles.mockReset();
+    mockGetUserMetadata.mockReset();
+    mockGetUserMetadata.mockResolvedValue({});
+    mockService = {
+      signOut: mockSignOut,
+      getUserRoles: mockGetUserRoles,
+      getUserMetadata: mockGetUserMetadata,
+    };
   });
 
   it("exposes the normalized /me and /logout routes", () => {
@@ -154,6 +167,97 @@ describe("auth.router", () => {
       role: "superadmin",
     });
     expect(mockGetUserRoles).toHaveBeenCalledWith("st-user-1");
+  });
+
+  describe("GET /me role resolution", () => {
+    const meHandler = () =>
+      handlerFor("/me", "get") as (
+        req: Request,
+        res: Response,
+      ) => Promise<void>;
+
+    const meFor = async (session: Record<string, unknown>) => {
+      const res = makeRes();
+      await meHandler()(
+        { authSession: session } as unknown as Request,
+        res as unknown as Response,
+      );
+      return res;
+    };
+
+    const sessionWith = (roles: string[]) => ({
+      appUserId: "u1",
+      providerUserId: "st-user-1",
+      authProfile: "pims_web",
+      loginMethod: "emailpassword",
+      email: "vet@clinic.test",
+      roles,
+    });
+
+    /*
+     * The defect this PR exists to fix, seen from the read side: provisioning
+     * moves the account to `developer` in the role store, but the live session's
+     * access token still carries the `member` it was issued with. Preferring the
+     * claim kept the portal routing on the stale value.
+     */
+    it("prefers a corrected role from the store over a stale session claim", async () => {
+      mockGetUserRoles.mockResolvedValueOnce(["developer"]);
+
+      const res = await meFor(sessionWith(["member"]));
+
+      expect(res.body).toMatchObject({ role: "developer" });
+    });
+
+    it("reflects a revoked role without waiting for the token to refresh", async () => {
+      mockGetUserRoles.mockResolvedValueOnce(["member"]);
+
+      const res = await meFor(sessionWith(["superadmin"]));
+
+      expect(res.body).toMatchObject({ role: "member" });
+    });
+
+    it("still prefers superadmin when the store returns it among others", async () => {
+      mockGetUserRoles.mockResolvedValueOnce(["member", "superadmin"]);
+
+      const res = await meFor(sessionWith([]));
+
+      expect(res.body).toMatchObject({ role: "superadmin" });
+    });
+
+    it("normalizes case and surrounding whitespace from the store", async () => {
+      mockGetUserRoles.mockResolvedValueOnce(["  Developer  "]);
+
+      const res = await meFor(sessionWith(["member"]));
+
+      expect(res.body).toMatchObject({ role: "developer" });
+    });
+
+    // An empty lookup is what a provider that cannot answer looks like;
+    // the token's copy beats serving no role at all.
+    it("falls back to the session claim when the store returns nothing", async () => {
+      mockGetUserRoles.mockResolvedValueOnce([]);
+
+      const res = await meFor(sessionWith(["member"]));
+
+      expect(res.body).toMatchObject({ role: "member" });
+    });
+
+    it("falls back to provider metadata when neither source has a role", async () => {
+      mockGetUserRoles.mockResolvedValueOnce([]);
+      mockGetUserMetadata.mockResolvedValueOnce({ role: "developer" });
+
+      const res = await meFor(sessionWith([]));
+
+      expect(res.body).toMatchObject({ role: "developer" });
+    });
+
+    it("reports no role when no source has one", async () => {
+      mockGetUserRoles.mockResolvedValueOnce([]);
+
+      const res = await meFor(sessionWith([]));
+
+      expect(res.body).toMatchObject({ role: undefined });
+    });
   });
 
   it("revokes the session on POST /logout", async () => {

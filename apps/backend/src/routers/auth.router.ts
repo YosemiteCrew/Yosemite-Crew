@@ -48,8 +48,27 @@ router.get("/me", requireAnyAuth, async (req, res: Response, next) => {
     const normalizedLookupRoles = lookupRoles.map((role) =>
       role.trim().toLowerCase(),
     );
+    /*
+     * The role store wins over the session claim, not the other way round.
+     *
+     * `st-role` is a copy of the roles taken when the access token was issued;
+     * the store is where a role change lands. Reading the claim first meant a
+     * correction was invisible for the life of the token: provisioning could
+     * move an account from `member` to `developer`, answer 200, and `/me` would
+     * keep serving `member` until the token refreshed or the user signed in
+     * again - so the account stayed routed to the wrong portal with nothing to
+     * show the correction had happened. Role REVOCATION had the same lag, which
+     * is the more serious direction.
+     *
+     * The lookup is not an added cost: it was already awaited above and its
+     * result discarded whenever the claim was non-empty.
+     *
+     * The claim stays the fallback for an empty lookup, which is what a
+     * provider that cannot answer looks like - degrading to the token's copy
+     * beats answering with no role at all.
+     */
     const resolvedRoles =
-      sessionRoles.length > 0 ? sessionRoles : normalizedLookupRoles;
+      normalizedLookupRoles.length > 0 ? normalizedLookupRoles : sessionRoles;
 
     let metadata: Record<string, unknown> = {};
     try {
