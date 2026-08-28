@@ -15,7 +15,8 @@ const OnlineBooking = () => (
             Set up your public booking page
           </span>
           <span className="block text-[12px] text-[var(--ink-muted)]">
-            Choose bookable services, availability and branding, then share a public link.
+            Choose bookable services, availability and branding. Your public link opens when the
+            booking page goes live.
           </span>
         </span>
       </div>

@@ -107,10 +107,13 @@ const OtpModal = ({
 
     const signedInRole =
       typeof useAuthStore.getState === 'function' ? useAuthStore.getState().role : role;
+    /* No `isDeveloper` here: a developer sign-up carries role 'developer' through
+       pendingSignUp, so the role already says where to land. Passing the form
+       flag instead used to route a non-developer to /developers/home, which the
+       route guard then rejected. */
     const nextRoute = await resolvePostAuthRedirect({
       fallbackRole: signedInRole,
       redirectPath,
-      isDeveloper,
     });
     router.push(nextRoute);
   };

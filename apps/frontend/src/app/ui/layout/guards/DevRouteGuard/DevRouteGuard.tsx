@@ -1,8 +1,9 @@
 'use client';
-import React, { useEffect } from 'react';
+import React from 'react';
 import { redirect, usePathname } from 'next/navigation';
 import { getStorageItem } from '@/app/lib/browserStorage';
 import { useAuthStore } from '@/app/stores/authStore';
+import NotADeveloperState from './NotADeveloperState';
 
 const isLocalDeveloperFallbackEnabled = () => {
   if (process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD !== 'true') return false;
@@ -14,6 +15,14 @@ const isLocalDeveloperFallbackEnabled = () => {
 
 /**
  * Blocks access to developer routes unless authenticated with developer role.
+ *
+ * A signed-in non-developer is shown NotADeveloperState rather than being signed
+ * out. Signing them out was worse in both directions: it destroyed a perfectly
+ * good session for the rest of the app just because the user opened a
+ * `/developers/*` URL, and because the redirect that followed landed on the
+ * developer sign-in page, a successful sign-in with the same account looped
+ * straight back here. The visible result was a sign-in form that appeared to
+ * reject valid credentials without ever saying why.
  */
 const DevRouteGuard = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
@@ -25,32 +34,19 @@ const DevRouteGuard = ({ children }: { children: React.ReactNode }) => {
     isLocalDeveloperFallbackEnabled() && getStorageItem('session', 'devAuth') === 'true';
   const isDevRole = role === 'developer' || devFlag;
   const isAuthenticated = status === 'authenticated' || status === 'signin-authenticated';
-  // Derived during render: non-dev paths always pass; dev paths need an
-  // authenticated developer. While auth status is pending nothing renders.
-  const allowed = !isPending && (!isDevPath || (isAuthenticated && isDevRole));
 
-  useEffect(() => {
-    // Wait for auth status to be determined
-    if (isPending) return;
+  // Nothing renders until auth status is known - neither the children nor the
+  // rejection, since both would be a guess.
+  if (isPending) return null;
 
-    // Authenticated but not a developer - sign out and redirect
-    if (isDevPath && isAuthenticated && !isDevRole) {
-      authStore.signout();
-    }
-  }, [isPending, isDevPath, isAuthenticated, isDevRole, authStore]);
+  // Non-developer routes are none of this guard's business.
+  if (!isDevPath) return <>{children}</>;
 
-  // Only redirect once the session is actually cleared. For an authenticated
-  // non-developer the effect above calls signout() first, which flips status to
-  // 'unauthenticated' and lands us here on the next render — redirecting eagerly
-  // during this render would throw before that signout effect ever commits,
-  // leaving the user logged in while bounced to the developer sign-in page.
-  if (!isPending && isDevPath && status === 'unauthenticated') {
-    redirect('/developers/signin');
+  if (isAuthenticated) {
+    return isDevRole ? <>{children}</> : <NotADeveloperState onSignOut={authStore.signout} />;
   }
 
-  if (!allowed) return null;
-
-  return <>{children}</>;
+  redirect('/developers/signin');
 };
 
 export default DevRouteGuard;

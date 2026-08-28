@@ -49,6 +49,11 @@ const OnlineBooking = dynamic(
   () => import('@/app/features/organization/pages/Organization/Sections/OnlineBooking'),
   { loading: () => <OrganizationSectionSkeleton /> }
 );
+
+const BookingRequests = dynamic(
+  () => import('@/app/features/organization/pages/Organization/Sections/BookingRequests'),
+  { loading: () => <OrganizationSectionSkeleton /> }
+);
 const DeleteOrg = dynamic(
   () => import('@/app/features/organization/pages/Organization/Sections/DeleteOrg'),
   { loading: () => <OrganizationSectionSkeleton /> }
@@ -108,6 +113,7 @@ export const Organization = () => {
           <Documents />
           <DocumentESigning />
           <OnlineBooking />
+          <BookingRequests />
         </>
       )}
     </div>

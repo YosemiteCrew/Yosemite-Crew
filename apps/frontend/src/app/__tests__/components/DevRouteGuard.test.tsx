@@ -65,7 +65,7 @@ describe('DevRouteGuard', () => {
     expect(mockRedirect).toHaveBeenCalledWith('/developers/signin');
   });
 
-  it('signs out first (without redirecting) when authenticated without developer role', () => {
+  it('keeps the session and explains itself when authenticated without developer role', () => {
     const signout = jest.fn();
     mockUseAuthStore.mockImplementation(() => ({
       status: 'authenticated',
@@ -73,30 +73,20 @@ describe('DevRouteGuard', () => {
       signout,
     }));
 
-    const { queryByText, rerender } = render(
+    const { queryByText, getByText } = render(
       <DevRouteGuard>
         <div>child</div>
       </DevRouteGuard>
     );
 
-    // signout is triggered, but we must not redirect while still authenticated —
-    // doing so would throw before the signout effect commits and strand the session.
-    expect(signout).toHaveBeenCalled();
+    /* The session survives. Signing the user out here used to destroy a valid
+       session for the whole app just because a `/developers/*` URL was opened,
+       and the redirect that followed sent them to a sign-in that could only
+       fail the same way - which read as "valid credentials rejected". */
+    expect(signout).not.toHaveBeenCalled();
     expect(mockRedirect).not.toHaveBeenCalled();
     expect(queryByText('child')).not.toBeInTheDocument();
-
-    // Once signout clears the session, the guard redirects on the next render.
-    mockUseAuthStore.mockImplementation(() => ({
-      status: 'unauthenticated',
-      role: null,
-      signout,
-    }));
-    rerender(
-      <DevRouteGuard>
-        <div>child</div>
-      </DevRouteGuard>
-    );
-    expect(mockRedirect).toHaveBeenCalledWith('/developers/signin');
+    expect(getByText(/isn.t a developer account/i)).toBeInTheDocument();
   });
 
   it('only trusts devAuth on localhost when the local bypass flag is enabled', () => {
@@ -128,25 +118,17 @@ describe('DevRouteGuard', () => {
       signout,
     }));
 
-    const { rerender } = render(
+    const { getByText, queryByText } = render(
       <DevRouteGuard>
         <div>child</div>
       </DevRouteGuard>
     );
 
-    expect(signout).toHaveBeenCalled();
+    // The bypass flag is inert off localhost, so this is an ordinary
+    // non-developer: blocked, told why, session intact.
+    expect(queryByText('child')).not.toBeInTheDocument();
+    expect(getByText(/isn.t a developer account/i)).toBeInTheDocument();
+    expect(signout).not.toHaveBeenCalled();
     expect(mockRedirect).not.toHaveBeenCalled();
-
-    mockUseAuthStore.mockImplementation(() => ({
-      status: 'unauthenticated',
-      role: null,
-      signout,
-    }));
-    rerender(
-      <DevRouteGuard>
-        <div>child</div>
-      </DevRouteGuard>
-    );
-    expect(mockRedirect).toHaveBeenCalledWith('/developers/signin');
   });
 });
