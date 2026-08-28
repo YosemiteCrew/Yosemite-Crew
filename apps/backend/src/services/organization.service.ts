@@ -1141,7 +1141,13 @@ export const OrganizationService = {
         description: spec.description ?? undefined,
         services: services
           .filter((srv) => srv.specialityId === spec.id)
-          .map(({ specialityId: _specialityId, ...srv }) => srv),
+          .map((srv) => ({
+            id: srv.id,
+            name: srv.name,
+            description: srv.description,
+            durationMinutes: srv.durationMinutes,
+            serviceType: srv.serviceType,
+          })),
       }));
 
       const distanceInMeters =
