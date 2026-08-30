@@ -1120,8 +1120,18 @@ html[data-theme='dark'] {
   --status-no-show-text: #f0a36c;
   --status-no-show-border: rgba(249, 115, 22, 0.5);
   --status-danger-bg: rgba(234, 55, 41, 0.18);
-  --status-danger-text: #f2938a;
+  --danger-text: #f2938a;
   --status-danger-border: rgba(242, 147, 138, 0.42);
+  /* The missing third. Every other status family here declares bg, border AND
+     text; danger declared only two, so --status-danger-text fell through to the
+     @theme light value #a6271d and painted light-red ink on dark surfaces -
+     1.73:1 on --screen. That reaches StatusPill variant="danger",
+     DispensaryTable's pills (via --color-pill-danger-text) and the public
+     passport's expired badge.
+     It went unnoticed because .yc-warmbone carried a private copy that happened
+     to declare the token, so the one page anybody looked at in dark mode looked
+     right. Narrowing that copy (#2578) is what exposed this. */
+  --status-danger-text: #f2938a;
 }
 
 /* Native control theming + flip transition, scoped to the marketing surface. */
@@ -1740,17 +1750,44 @@ input[type='number'] {
 }
 
 /* ============================================================
-   Warm-bone theme (scoped) — Pet Passport, wallet & share surfaces.
-   Self-contained token layer for the PR #1675 warm-bone redesign
-   (subset of the design-system site-theme). Applies only inside
-   `.yc-warmbone`; dark mode flips via `data-wb-theme="dark"`.
+   Warm-bone theme (scoped) - the public Pet Passport surface.
+
+   This block used to be a self-contained copy of ~40 global tokens that applied
+   on EVERY load of the passport. That copy caused two shipped defects, both
+   silently, and both because it drifted from the component that reads it (#2578):
+
+     1. It declared --danger-* while PublicPassportView reads --status-danger-*.
+        One prefix apart. The "expired" badge kept the light ink on the espresso
+        card at 1.89:1 while the "valid" badge - which happens to read
+        --status-completed-*, a name the copy did declare - rendered fine.
+     2. It redeclared --ink-faint, which SHADOWED body:has([data-yc-app]), the
+        scope whose whole job is making faint ink readable on bone surfaces. The
+        passport was the one page that scope could not reach.
+
+   It is now keyed on DISAGREEMENT. The page has its own light/dark control, so
+   the only thing it genuinely needs that the global system cannot give it is a
+   theme that differs from the root. When the two agree - which is every load
+   until the reader touches the toggle - this declares nothing at all, the page
+   reads the same tokens as the rest of the app, and neither failure above is
+   reachable.
+
+   That also makes the no-flash behaviour structural rather than maintained: with
+   no data-wb-theme, no override matches, so the first paint is simply the root
+   theme the pre-paint script already resolved.
+
+   What survives is 2x26 values that still have to agree with the global set.
+   `warmboneTokenClosure.test.ts` is what stops them drifting again.
    ============================================================ */
 .yc-warmbone {
+  background: var(--page);
+  color: var(--ink-body);
+}
+
+/* Root is dark, the reader asked this page to be light. */
+html[data-theme='dark'] .yc-warmbone[data-wb-theme='light'] {
   --page: #efe8dc;
-  --band: #e8e0d2;
   --inset: #eae2d5;
   --screen: #f7f3ec;
-  --screen-2: #f1ebe1;
   --hairline: #e5dccf;
   --divider: #d6d1cd;
   --hairline-soft: rgba(29, 28, 27, 0.09);
@@ -1758,65 +1795,31 @@ input[type='number'] {
   --ink-body: #302f2e;
   --ink-muted: #5c5956;
   --ink-soft: #423f3c;
-  /* #66635f, not #8f8984. This class carries a private copy of the bone ink
-     ramp, and that copy SHADOWS the body:has([data-yc-app]) scope which exists
-     precisely to make faint ink readable on bone surfaces - so the passport
-     was the one page the scope could not reach. #8f8984 measures 3.12:1 on
-     this card, at sizes down to 10.5px; #66635f clears AA. Same value the
-     scoped rule and [data-yc-surface='light'] already use. */
   --ink-faint: #66635f;
-  --ink-faint2: #66635f;
-  --blue-text: #257bed;
+  --blue-text: var(--color-accent-deep);
   --blue-soft: #e6f2ff;
   --success: #008f5d;
-  --danger-text: #c2261a;
-  --danger-bg: rgba(234, 55, 41, 0.09);
-  --danger-border: rgba(234, 55, 41, 0.32);
   --avatar-amber-bg: #fef3e9;
-  --dl-btn: #1d1c1b;
-  --dl-btn-text: #ffffff;
   --status-completed-bg: #f0fdf4;
   --status-completed-text: #166534;
   --status-completed-border: #64c487;
-  --status-upcoming-border: #007cf5;
-  --sh03: rgba(29, 28, 27, 0.03);
-  --sh05: rgba(29, 28, 27, 0.05);
-  --sh08: rgba(29, 28, 27, 0.08);
-  --sh10: rgba(29, 28, 27, 0.1);
-  --sh16: rgba(29, 28, 27, 0.16);
-  --glass-93: rgba(239, 232, 220, 0.93);
-  --pbg: #efe8dc;
-  --pfg: #1d1c1b;
-  --pml: #6b6763;
-  --phl: rgba(29, 28, 27, 0.12);
-  background: var(--page);
-  color: var(--ink-body);
-  /* The danger trio in the LIGHT scope as well, and for the mirror of the
-     reason it was added to the dark one. This page has its own toggle, so a
-     reader whose OS is dark can switch just this passport to light - at which
-     point the dark block stops applying and, without these, --status-danger-*
-     falls back to the ROOT dark values (#f2938a on an 18% tint) on a light
-     #f7f3ec card: the EXPIRED label at ~2.04:1 and its icon at ~1.59:1.
-     One local toggle must not be able to mix root-dark status tokens with a
-     local-light surface. */
   --status-danger-bg: rgba(234, 55, 41, 0.09);
   --status-danger-text: #a6271d;
   --status-danger-border: rgba(234, 55, 41, 0.32);
+  --status-upcoming-border: #007cf5;
+  --sh03: rgba(29, 28, 27, 0.03);
+  --sh05: rgba(29, 28, 27, 0.05);
+  --sh10: rgba(29, 28, 27, 0.1);
+  --glass-93: rgba(239, 232, 220, 0.93);
 }
-/* Two selectors, and the second is what removes the flash. The component only
-   sets data-wb-theme once the reader uses the page's own toggle, so on the
-   server-rendered first paint the attribute is absent - and the pre-paint script
-   has already put data-theme on <html>. Following the root attribute here means
-   a reader whose phone is dark gets a dark passport in the FIRST paint rather
-   than a bright one that flips after hydration. The :not() keeps a local
-   light override winning over a dark root. */
-html[data-theme='dark'] .yc-warmbone:not([data-wb-theme='light']),
-.yc-warmbone[data-wb-theme='dark'] {
+
+/* Root is light (or unresolved - the pre-paint script can throw in private
+   mode), and the reader asked this page to be dark. :not() rather than
+   [data-theme='light'] so the attribute simply being absent still counts. */
+html:not([data-theme='dark']) .yc-warmbone[data-wb-theme='dark'] {
   --page: #201c18;
-  --band: #2a2216;
   --inset: #302820;
   --screen: #2f271e;
-  --screen-2: #221d17;
   --hairline: #40362b;
   --divider: #3a3128;
   --hairline-soft: rgba(255, 255, 255, 0.09);
@@ -1825,42 +1828,23 @@ html[data-theme='dark'] .yc-warmbone:not([data-wb-theme='light']),
   --ink-muted: #a89e90;
   --ink-soft: #cabfb0;
   --ink-faint: #9d9285;
-  --ink-faint2: #998f82;
-  --blue-text: var(--color-blue-text);
+  --blue-text: var(--color-accent-dark);
   --blue-soft: rgba(143, 182, 245, 0.16);
   --success: #2bbd86;
-  --danger-text: #f2938a;
-  --danger-bg: rgba(234, 55, 41, 0.18);
-  --danger-border: rgba(242, 147, 138, 0.42);
   --avatar-amber-bg: rgba(233, 170, 120, 0.17);
-  --dl-btn: #f7f3ec;
-  --dl-btn-text: #201c18;
   --status-completed-bg: rgba(74, 205, 155, 0.16);
   --status-completed-text: #74d0a2;
   --status-completed-border: rgba(74, 205, 155, 0.55);
-  /* The danger trio, aliased onto the --danger-* values a few lines above.
-     Their absence was not cosmetic. PublicPassportView draws BOTH vaccination
-     badges from the --status-* family: "valid" reads --status-completed-*,
-     which this block redefines, and "expired" reads --status-danger-*, which it
-     did not - so the expired badge kept the :root LIGHT ink (#a6271d) on the
-     espresso card. Measured in a browser: valid 5.77:1, expired 1.89:1. On a
-     page this component describes as "read as proof of cover by travel and
-     boarding staff", that is the failure inverted - "valid" legible, "expired"
-     all but invisible.
-     Aliases, not new literals: the correct dark values were already in this
-     block under the --danger-* spelling, one prefix away from the tokens the
-     component actually reads. */
-  --status-danger-bg: var(--danger-bg);
-  --status-danger-text: var(--danger-text);
-  --status-danger-border: var(--danger-border);
+  --status-danger-bg: rgba(234, 55, 41, 0.18);
+  --status-danger-text: #f2938a;
+  --status-danger-border: rgba(242, 147, 138, 0.42);
   --status-upcoming-border: rgba(103, 160, 239, 0.6);
   --sh03: rgba(0, 0, 0, 0.14);
   --sh05: rgba(0, 0, 0, 0.2);
-  --sh08: rgba(0, 0, 0, 0.3);
   --sh10: rgba(0, 0, 0, 0.34);
-  --sh16: rgba(0, 0, 0, 0.44);
   --glass-93: rgba(34, 29, 23, 0.92);
 }
+
 .yc-serif {
   font-family: var(--font-newsreader), 'Newsreader', Georgia, serif;
 }

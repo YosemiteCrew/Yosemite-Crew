@@ -28,8 +28,13 @@ test('an unknown booking slug renders a plain unavailable page', async ({ page }
     page.getByRole('heading', { name: /this booking page is not available/i })
   ).toBeVisible({ timeout: 30_000 });
 
-  const body = (await page.locator('body').textContent()) ?? '';
-  expect(body).not.toMatch(/stack|prisma|postgres|at Object\./i);
+  // innerText, not textContent. textContent returns the raw DOM text of every
+  // descendant INCLUDING <script>, so it swept up Next's RSC payload - which
+  // legitimately serialises React owner stacks as "stack":[] and tripped this
+  // regex on a page showing nothing of the sort. innerText is the rendered text,
+  // which is what this assertion has always been about: what a visitor can read.
+  const visibleText = await page.locator('body').innerText();
+  expect(visibleText).not.toMatch(/stack|prisma|postgres|at Object\./i);
 });
 
 test('the public booking page is served under a nonce CSP, not unsafe-inline', async ({ page }) => {
