@@ -536,7 +536,16 @@ const TestQueueSection = ({
       </div>
     )}
     {!readOnly && (
-      <div className="flex justify-end">
+      <div className="flex flex-col items-end gap-3">
+        {/* Beside the button, not only at the top of the section. The order is
+            placed from here, several screens below the section heading, so an
+            error rendered up there is off-screen at the moment it appears and
+            the click reads as having done nothing at all. */}
+        {s.error ? (
+          <p role="alert" className="text-body-4 text-text-error">
+            {s.error}
+          </p>
+        ) : null}
         <Primary
           text={s.creatingOrder ? 'Creating Lab Order…' : 'Create Lab Order'}
           icon={<IoFlaskOutline aria-hidden="true" />}

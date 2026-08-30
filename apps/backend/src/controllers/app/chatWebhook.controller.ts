@@ -37,9 +37,12 @@ export const scanMessageAttachments = async (
     const result = await scanAttachmentUrl(url);
     if (!result.clean) {
       // The message id arrives in the webhook payload; strip line breaks so it
-      // cannot forge additional log lines.
+      // cannot forge additional log lines. Two constraints on the form: no
+      // quantifier, and an empty replacement. CodeQL's js/log-injection barrier
+      // rejects [\n\r]+ and any non-empty replacement, and then silently keeps
+      // reporting the sink.
       logger.warn(
-        `Unsafe chat attachment on message ${messageId.replace(/[\n\r]+/g, " ")} (${result.threat}); deleting message`,
+        `Unsafe chat attachment on message ${messageId.replace(/[\n\r]/g, "")} (${result.threat}); deleting message`,
       );
       try {
         const client = StreamChat.getInstance(STREAM_KEY, STREAM_SECRET);

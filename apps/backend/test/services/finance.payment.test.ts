@@ -14,8 +14,10 @@ jest.mock("stripe", () => ({
 
 jest.mock("src/config/prisma", () => ({
   prisma: {
+    $transaction: jest.fn(),
     invoice: {
       findUnique: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
       findFirst: jest.fn(),
       update: jest.fn(),
       updateMany: jest.fn(),
@@ -56,6 +58,12 @@ jest.mock("src/config/prisma", () => ({
 describe("FinancePaymentService", () => {
   beforeEach(() => {
     jest.resetAllMocks();
+    // recordInvoicePayment now writes the attempt, the Payment and the invoice
+    // inside one interactive transaction. Run the callback against the same
+    // mocks so these assertions are about the real sequence, not a stub.
+    (prisma.$transaction as jest.Mock).mockImplementation(
+      (fn: (tx: unknown) => unknown) => fn(prisma),
+    );
     (prisma.payment.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.creditNote.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.paymentAttempt.findMany as jest.Mock).mockResolvedValue([]);
@@ -105,6 +113,168 @@ describe("FinancePaymentService", () => {
       }),
     );
     expect(attempt.id).toBe("pa_1");
+  });
+
+  it("treats a redelivered partial payment as a replay instead of throwing", async () => {
+    // The ALREADY_PAID guard upstream only fires once the invoice is PAID, and a
+    // deposit or part payment never sets that. So a redelivered partial payment
+    // reaches the Payment insert and dies on Payment.paymentAttemptId, uncaught,
+    // which answers non-2xx and buys an endless Stripe retry.
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_replay",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      depositCollectedAmount: 0,
+    });
+    (prisma.payment.findMany as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ amount: 25 }]);
+    (prisma.paymentAttempt.update as jest.Mock).mockResolvedValueOnce({
+      id: "pa_replay",
+    });
+    (prisma.payment.create as jest.Mock).mockRejectedValueOnce({
+      code: "P2002",
+    });
+    (prisma.payment.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "pay_already",
+      amount: 25,
+      status: "SUCCEEDED",
+    });
+    (prisma.invoice.findUniqueOrThrow as jest.Mock).mockResolvedValueOnce({
+      id: "inv_replay",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      depositCollectedAmount: 0,
+    });
+
+    const result = await FinancePaymentService.recordInvoicePayment(
+      "inv_replay",
+      {
+        provider: "STRIPE",
+        amount: 25,
+        settlementChannel: "STRIPE",
+        currency: "usd",
+        providerPaymentId: "pi_replay",
+        paymentAttemptId: "pa_replay",
+        receivedAt: new Date("2026-06-18T10:00:00.000Z"),
+      },
+    );
+
+    expect(result.payment?.id).toBe("pay_already");
+    // Nothing new was applied. Re-applying would double-count the money against
+    // the invoice, which is why this returns before updateInvoiceAfterPayment.
+    expect(result.appliedAmount).toBe(0);
+    expect(prisma.invoice.update).not.toHaveBeenCalled();
+  });
+
+  it("flags a delivery that arrives after the balance is already closed", async () => {
+    // Stripe redelivers whenever it does not receive a 2xx. If the balance is
+    // already closed the early return does no work, and without saying so the
+    // caller reads it as a fresh success and notifies the pet parent again.
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_closed",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      depositCollectedAmount: 0,
+    });
+    (prisma.payment.findMany as jest.Mock).mockResolvedValueOnce([
+      { amount: 100 },
+    ]);
+
+    const result = await FinancePaymentService.recordInvoicePayment(
+      "inv_closed",
+      {
+        provider: "STRIPE",
+        amount: 100,
+        settlementChannel: "STRIPE",
+        currency: "usd",
+        receivedAt: new Date("2026-06-18T10:00:00.000Z"),
+      },
+    );
+
+    expect(result.appliedAmount).toBe(0);
+    expect(result.replayed).toBe(true);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("writes the attempt, the payment and the invoice in one transaction", async () => {
+    // This is what makes the replay guard sound. Without it a delivery can die
+    // between the Payment insert and the invoice update, and no later delivery
+    // can tell that apart from a clean replay, because nothing records which of
+    // the steps ran.
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_atomic",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      depositCollectedAmount: 0,
+    });
+    (prisma.payment.findMany as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ amount: 100 }]);
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_atomic",
+    });
+    (prisma.payment.create as jest.Mock).mockResolvedValueOnce({
+      id: "pay_atomic",
+      amount: 100,
+      status: "SUCCEEDED",
+    });
+    (prisma.invoice.update as jest.Mock).mockResolvedValueOnce({
+      id: "inv_atomic",
+      totalAmount: 100,
+      currency: "usd",
+      status: "PAID",
+      depositCollectedAmount: 0,
+    });
+
+    await FinancePaymentService.recordInvoicePayment("inv_atomic", {
+      provider: "STRIPE",
+      amount: 100,
+      settlementChannel: "STRIPE",
+      currency: "usd",
+      receivedAt: new Date("2026-06-18T10:00:00.000Z"),
+    });
+
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(prisma.payment.create).toHaveBeenCalled();
+    expect(prisma.invoice.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "PAID" }),
+      }),
+    );
+  });
+
+  it("rethrows a Payment insert failure that is not a unique violation", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_boom",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      depositCollectedAmount: 0,
+    });
+    (prisma.payment.findMany as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ amount: 25 }]);
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_boom",
+    });
+    (prisma.payment.create as jest.Mock).mockRejectedValueOnce(
+      new Error("connection reset"),
+    );
+
+    await expect(
+      FinancePaymentService.recordInvoicePayment("inv_boom", {
+        provider: "STRIPE",
+        amount: 25,
+        settlementChannel: "STRIPE",
+        currency: "usd",
+        receivedAt: new Date("2026-06-18T10:00:00.000Z"),
+      }),
+    ).rejects.toThrow("connection reset");
   });
 
   it("records a partial payment without closing the invoice", async () => {
