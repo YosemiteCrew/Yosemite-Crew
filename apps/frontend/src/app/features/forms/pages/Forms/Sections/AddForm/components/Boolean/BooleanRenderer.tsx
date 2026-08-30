@@ -15,7 +15,11 @@ const BooleanRenderer: React.FC<{
       checked={!!value}
       onChange={(e) => onChange(e.target.checked)}
       disabled={readOnly}
-      className="size-5 accent-blue-text"
+      /* `shrink-0`: the row is a flex line and the label is the flexible sibling,
+         so without it the CHECKBOX gave up its width once the label stopped
+         fitting - measured 8.9px wide against its full 20px height in a 260px
+         column, which is most of a phone form. The text wraps instead. */
+      className="size-5 shrink-0 accent-blue-text"
     />
     <label htmlFor={field.id} className="font-satoshi text-black-text text-[16px] font-medium">
       {field.label}

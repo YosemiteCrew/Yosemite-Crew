@@ -49,10 +49,10 @@ const meta = {
           '**`readOnly` maps to `disabled`.** Unlike `TextRenderer`, which ignores the flag and ' +
           'stays editable in the preview drawer, this control genuinely refuses input - through ' +
           'the label as well as the box.\n\n' +
-          '**The box is squashed by a long label.** `size-5` sits in a flex row with no ' +
-          '`shrink-0`, so in a narrow column the checkbox loses width to the text and renders ' +
-          'as a ~9x20px sliver rather than a 20px square. The `Long label in a narrow column` ' +
-          'story pins that measurement rather than asserting the square it should be.',
+          '**The box holds its size against a long label.** `size-5` sits in a flex row where the ' +
+          'label is the flexible sibling, so it needs `shrink-0` - without it the checkbox lost ' +
+          'width to the text and rendered as an 8.9x20px sliver in a 260px column. The `Long ' +
+          'label in a narrow column` story measures it.',
       },
     },
   },
@@ -132,14 +132,12 @@ export const LongLabel: Story = {
     const box = canvas.getByRole('checkbox', { name: LONG_LABEL });
     const rect = box.getBoundingClientRect();
 
-    /* Pinning current, wrong behaviour. The row is a plain flex line and the box
-       carries no `shrink-0`, so once the label's longest word stops fitting, the
-       checkbox - not the text - gives up its width: it measures ~9px wide against
-       its full 20px height and stops being square. Height is the half that still
-       holds. If someone adds `shrink-0` (they should), this flips to
-       width === height === 20 and the story is the thing that tells them. */
+    /* The row is a flex line and the label is the flexible sibling, so without
+       `shrink-0` the CHECKBOX gave up its width once the label stopped fitting:
+       it measured 8.9px against its full 20px height in this 260px column, which
+       is most of a phone form. It stays square now, and the text wraps. */
     await expect(Math.round(rect.height)).toBe(20);
-    await expect(rect.width).toBeLessThan(rect.height);
+    await expect(Math.round(rect.width)).toBe(20);
 
     // The text wraps instead of pushing the row wider than its column.
     const labelRect = canvas.getByText(LONG_LABEL).getBoundingClientRect();
