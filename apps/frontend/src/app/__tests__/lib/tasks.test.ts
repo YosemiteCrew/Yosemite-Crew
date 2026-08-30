@@ -200,8 +200,16 @@ describe('getTaskQuickDetails', () => {
     const details = getTaskQuickDetails(task);
     // "Additional notes" is no longer a row of its own; instructions are one field.
     expect(details).toHaveLength(2);
+    // 'Health' is not a taxonomy code, so it passes through unchanged.
     expect(details[0]).toEqual({ label: 'Category', value: 'Health' });
     expect(details[1]).toEqual({ label: 'Instructions (optional)', value: 'Test desc' });
+  });
+
+  it('shows a canonical category code as its label, matching the desktop table', () => {
+    /* The card and the popover render this value directly. Left raw, the same
+       task read "MEDICATION" on a phone and "Medication" in the desktop row. */
+    const details = getTaskQuickDetails({ category: 'MEDICATION' } as Task);
+    expect(details[0]).toEqual({ label: 'Category', value: 'Medication' });
   });
 
   it('surfaces additionalNotes as the instructions when no description is set', () => {
