@@ -87,6 +87,32 @@ describe('DeveloperDocs reader', () => {
   /* The pill and the copyable sample are separate strings, so they can drift.
      They did: the pill was corrected to /pms while the curl still posted to the
      collection root, which no route serves. Assert the sample itself. */
+  /* Three ways this sample was wrong even after the route was corrected:
+     the org is read from an Organization PARTICIPANT (x-org-id is only the
+     permission middleware's input, and fromFHIRAppointment falls back to
+     'unknown-org' which 404s); the submitted status is discarded because
+     createAppointmentFromPms calls createAppointment(dto, 'UPCOMING'); and the
+     host must not be pinned to one environment when the session is issued for
+     whichever origin NEXT_PUBLIC_BASE_URL names. */
+  it('gives a sample that would actually be accepted', () => {
+    const { container } = render(<DeveloperDocs />);
+    const text = container.textContent ?? '';
+
+    expect(text).toContain('Organization/<practice-id>');
+    expect(text).toContain('"status": "UPCOMING"');
+    expect(text).not.toContain('"status": "proposed"');
+    expect(text).not.toContain('devapi.yosemitecrew.com');
+  });
+
+  /* The endpoint needs a practice membership and appointments:edit:any. There is
+     no developer role in the permission model, so the portal's own audience
+     cannot call it - saying so is the difference between a reference and a
+     misdirection. */
+  it('says plainly that a developer-only account cannot call the org-scoped routes', () => {
+    const { container } = render(<DeveloperDocs />);
+    expect(container.textContent).toMatch(/practice surface, not a developer one/i);
+  });
+
   it('gives a curl sample that targets a route that exists', () => {
     const { container } = render(<DeveloperDocs />);
     const text = container.textContent ?? '';
@@ -151,7 +177,7 @@ describe('DeveloperDocs reader', () => {
     // At the initial state both code buttons read "Copy"; [1] is the RESPONSE panel.
     fireEvent.click(screen.getAllByRole('button', { name: 'Copy' })[1]);
     await waitFor(() =>
-      expect(writeText).toHaveBeenCalledWith(expect.stringContaining('proposed'))
+      expect(writeText).toHaveBeenCalledWith(expect.stringContaining('UPCOMING'))
     );
   });
 

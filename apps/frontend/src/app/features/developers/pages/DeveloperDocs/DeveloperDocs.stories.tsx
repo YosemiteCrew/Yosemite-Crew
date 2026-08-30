@@ -84,10 +84,10 @@ export const Appointments: Story = {
 
     // Seven nav items across two sections, all present before any filtering, and
     // the highlight sits on the one the article is showing.
-    await expect(canvasElement.querySelectorAll('.DocsNavItem')).toHaveLength(7);
+    await expect(canvasElement.querySelectorAll('.DocsNavItem')).toHaveLength(5);
     await expect(canvas.getByText('Getting started')).toBeInTheDocument();
     await expect(canvas.getByText('Guides')).toBeInTheDocument();
-    await expect(canvas.getByRole('button', { name: 'Appointments API' })).toHaveAttribute(
+    await expect(canvas.getByRole('button', { name: 'Appointments' })).toHaveAttribute(
       'aria-current',
       'page'
     );
@@ -132,9 +132,7 @@ export const NavEmpty: Story = {
        above the "No matches" line and still satisfy a check for the line alone. */
     await expect(canvas.queryByText('Getting started')).not.toBeInTheDocument();
     await expect(canvas.queryByText('Guides')).not.toBeInTheDocument();
-    await expect(
-      canvas.queryByRole('button', { name: 'Appointments API' })
-    ).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: 'Appointments' })).not.toBeInTheDocument();
     await expect(canvas.queryByRole('button', { name: 'Overview' })).not.toBeInTheDocument();
 
     // The GitHub link is outside the branch and survives - the only navigation
@@ -162,19 +160,22 @@ export const NavFiltered: Story = {
   name: 'Search matching one section',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.type(searchBox(canvasElement), 'api');
+    await userEvent.type(searchBox(canvasElement), 'companion');
 
-    /* "Appointments API" and "Patients API" match; the Guides section filters to
-       zero items and is dropped whole, heading included. That second rule is the
-       one worth seeing - a section can disappear while its sibling stays. */
+    /* Only Companions matches; the Guides section filters to zero items and is
+       dropped whole, heading included. That second rule is the one worth seeing
+       - a section can disappear while its sibling stays.
+       Deliberately not 'api': search now covers each article's category, title
+       and summary rather than its rail label alone, so 'api' matches every page
+       and would demonstrate nothing about sections. */
     await waitFor(() => {
       expect(canvas.queryByText('Guides')).not.toBeInTheDocument();
     });
     await expect(canvas.getByText('Getting started')).toBeInTheDocument();
-    await expect(canvasElement.querySelectorAll('.DocsNavItem')).toHaveLength(2);
+    await expect(canvasElement.querySelectorAll('.DocsNavItem')).toHaveLength(1);
     await expect(
       [...canvasElement.querySelectorAll('.DocsNavItem')].map((item) => item.textContent)
-    ).toEqual(['Appointments API', 'Patients API']);
+    ).toEqual(['Companions']);
     await expect(canvas.queryByRole('button', { name: 'Overview' })).not.toBeInTheDocument();
     await expect(canvas.queryByText('No matches')).not.toBeInTheDocument();
   },

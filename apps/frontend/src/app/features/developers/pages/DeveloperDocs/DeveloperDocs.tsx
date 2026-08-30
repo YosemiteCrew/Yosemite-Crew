@@ -67,7 +67,7 @@ const ARTICLES: Record<string, Article> = {
     version: 'v1',
     title: 'Authentication',
     summary:
-      'Requests are authorised with the signed-in session, and organisation-scoped routes read the practice from an x-org-id header. API keys created in this portal are not yet accepted by any endpoint: the key-authentication middleware exists but is not mounted on a route, so a key will not authenticate a request today. Create keys if you want them ready; build against a session until key auth ships.',
+      'Requests are authorised with the signed-in session, and organisation-scoped routes read the practice from an x-org-id header. Two limits worth knowing before you start. API keys created in this portal are not yet accepted anywhere: the key-authentication middleware exists but is mounted on no route. And a developer-only account has no practice membership and no role in the permission model, so organisation-scoped routes answer 400 or 403 for it. Today the API is reachable with a session belonging to a practice member; a developer account can browse this reference but cannot yet call the org-scoped surfaces it describes.',
   },
   appointments: {
     category: 'APIs',
@@ -101,26 +101,36 @@ const ARTICLES: Record<string, Article> = {
  * This block used to POST to `https://api.yosemitecrew.com/v2/appointments`
  * with `Authorization: Bearer $YC_KEY`. There is no /v2 - the mounted prefixes
  * are /fhir, /v1, /public and /ap - and no route accepts an API key, so anyone
- * following it got a 404 from an endpoint this page badged STABLE. The signed-in
- * session is how the API is actually reached today.
+ * following it got a 404 from an endpoint this page badged STABLE.
+ *
+ * Three details that are easy to get wrong even after fixing the path, and that
+ * a first correction here did get wrong:
+ * - the org comes from an `Organization/...` PARTICIPANT, not from `x-org-id`.
+ *   `fromFHIRAppointment` falls back to `unknown-org`, which 404s. The header is
+ *   read by the permission middleware only.
+ * - the submitted `status` is ignored: `createAppointmentFromPms` calls
+ *   `createAppointment(dto, "UPCOMING")`, so a response can never echo
+ *   `proposed`.
+ * - the host is not hardcoded, because the session is issued for whichever
+ *   origin `NEXT_PUBLIC_BASE_URL` names.
  */
 const CURL_SAMPLE = String.raw`curl -X POST \
-  https://devapi.yosemitecrew.com/fhir/v1/appointment/pms \
+  "$YC_API_BASE"/fhir/v1/appointment/pms \
   -H "Content-Type: application/json" \
   -H "x-org-id: $YC_ORG_ID" \
   --cookie "$YC_SESSION" \
   -d '{
     "resourceType": "Appointment",
-    "status": "proposed",
     "start": "2026-07-17T10:30:00+02:00",
     "participant": [
+      { "actor": { "reference": "Organization/<practice-id>" } },
       { "actor": { "reference": "Patient/<companion-id>" } }
     ]
   }'`;
 
 const RESPONSE_SAMPLE = `{
   "message": "Appointment created",
-  "data": { "resourceType": "Appointment", "status": "proposed" }
+  "data": { "resourceType": "Appointment", "status": "UPCOMING" }
 }`;
 
 const copyText = async (value: string): Promise<boolean> => {
@@ -274,14 +284,24 @@ const DeveloperDocs = () => {
                       <span className="DocsEndpointScope">appointments:edit:any</span>
                     </div>
                     <p className="DocsArticleText">
-                      Authorised by the signed-in session, scoped to the practice named in{' '}
-                      <code className="DocsInlineCode">x-org-id</code>, and gated on{' '}
-                      <code className="DocsInlineCode">appointments:edit:any</code>. The body is a
-                      FHIR R4 Appointment. There is no route at the collection root - the practice
-                      surface is <code className="DocsInlineCode">/pms</code> and the mobile one is{' '}
-                      <code className="DocsInlineCode">/mobile</code>. The generated OpenAPI
-                      reference in the full documentation is the authority here, because it is
-                      produced from the routes themselves rather than written by hand.
+                      <strong>This is a practice surface, not a developer one.</strong> It needs an
+                      active practice membership and{' '}
+                      <code className="DocsInlineCode">appointments:edit:any</code>, and a
+                      developer-only account holds neither - there is no developer role in the
+                      permission model, so signing up through the developer door grants no
+                      organisation access. Calling it with a developer session returns 400 or 403.
+                      It is documented because it is the shape the API takes, not because you can
+                      call it today.
+                    </p>
+                    <p className="DocsArticleText">
+                      The body is a FHIR R4 Appointment, and the practice is read from an{' '}
+                      <code className="DocsInlineCode">Organization</code> participant rather than
+                      from <code className="DocsInlineCode">x-org-id</code>, which the permission
+                      middleware reads separately. There is no route at the collection root - the
+                      practice surface is <code className="DocsInlineCode">/pms</code> and the
+                      mobile one is <code className="DocsInlineCode">/mobile</code>. The submitted{' '}
+                      <code className="DocsInlineCode">status</code> is ignored; a created
+                      appointment is stored as <code className="DocsInlineCode">UPCOMING</code>.
                     </p>
                     <div className="DocsNote">
                       <IoBulbOutline
