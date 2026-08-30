@@ -134,31 +134,67 @@ jobs:
       #
       # Read through the compare API rather than a checkout: this workflow runs as
       # pull_request_target and must never fetch the pull request's code.
-      # Only real dev-to-main promotions. A `main-direct` pull request is the
-      # documented escape hatch for a change that must land before the pending
-      # back-merge, and `exit 0` in the step above ends that STEP, not the job -
-      # so without this condition the hatch failed here on AHEAD > 0, precisely
-      # in the emergency it exists for.
+      # Publishes `promotion-guard/dev-contains-main` on EVERY pull request into
+      # main, including the ones it does not apply to.
+      #
+      # Publishing only on failure, or only from the push job, breaks whichever
+      # way the context is configured: made required, a freshly opened or
+      # synchronized promotion would wait forever for a status no pull-request
+      # event ever writes; left optional, a failure posted later cannot block a
+      # merge. So a non-promotion and an exempt `main-direct` pull request both
+      # get an explicit pass here rather than silence.
       - name: dev must contain main
-        if: >-
-          steps.retarget.outputs.retargeted != 'true'
-          && github.event.pull_request.head.ref == 'dev'
-          && !contains(github.event.pull_request.labels.*.name, 'main-direct')
+        if: steps.retarget.outputs.retargeted != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BASE_REPO: ${{ github.repository }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
         run: |
           set -euo pipefail
 
-          # `dev...main` describes main RELATIVE TO dev, so ahead_by counts the
+          post() { # post <state> <description>
+            gh api -X POST "repos/${BASE_REPO}/statuses/${HEAD_SHA}" \
+              -f state="$1" \
+              -f context="promotion-guard/dev-contains-main" \
+              -f description="$2" >/dev/null
+          }
+
+          # The escape hatch and non-promotions are not subject to the ancestry
+          # rule, but still need the context so a required check can settle.
+          if [[ "${HEAD_REF}" != "dev" ]]; then
+            post success "not a dev-to-main promotion"
+            echo "Head is '${HEAD_REF}', not dev - ancestry rule does not apply."
+            exit 0
+          fi
+          if [[ ",${LABELS}," == *",main-direct,"* ]]; then
+            post success "main-direct: exempt"
+            echo "main-direct label present - exempt from the ancestry rule."
+            exit 0
+          fi
+
+          # Resolve to immutable SHAs before comparing.
+          #
+          # Comparing the branch NAMES and then reading a head separately lets the
+          # two disagree: dev can move between the comparison and the status, and
+          # a result computed for one tree gets attached to another. Everything
+          # below is about two fixed commits.
+          DEV_SHA="$(gh api "repos/${BASE_REPO}/commits/dev" --jq '.sha')"
+          MAIN_SHA="$(gh api "repos/${BASE_REPO}/commits/main" --jq '.sha')"
+
+          # `<dev>...<main>` describes main RELATIVE TO dev, so ahead_by counts the
           # commits main holds that dev does not.
-          AHEAD="$(gh api "repos/${BASE_REPO}/compare/dev...main" --jq '.ahead_by')"
+          AHEAD="$(gh api "repos/${BASE_REPO}/compare/${DEV_SHA}...${MAIN_SHA}" --jq '.ahead_by')"
+          echo "dev ${DEV_SHA:0:9} vs main ${MAIN_SHA:0:9}: ahead_by=${AHEAD}"
 
           if [[ "${AHEAD}" -gt 0 ]]; then
+            post failure "dev is missing ${AHEAD} commit(s) that are on main"
             echo "::error::dev is missing ${AHEAD} commit(s) that are on main, so this promotion would leave them behind. Merge the open back-merge pull request (back-merge.yml opens one on every push to main) into dev first, then re-run this check."
             exit 1
           fi
 
+          post success "dev contains main"
           echo "dev contains main - nothing would be left behind."
 
   # The other half of the snapshot problem above: when main moves, walk the open
@@ -181,7 +217,13 @@ jobs:
         run: |
           set -euo pipefail
 
-          AHEAD="$(gh api "repos/${BASE_REPO}/compare/dev...main" --jq '.ahead_by')"
+          # Immutable SHAs, for the same reason as the guard job: comparing branch
+          # names and then reading heads separately lets a result computed for one
+          # tree be attached to another.
+          DEV_SHA="$(gh api "repos/${BASE_REPO}/commits/dev" --jq '.sha')"
+          MAIN_SHA="$(gh api "repos/${BASE_REPO}/commits/main" --jq '.sha')"
+          AHEAD="$(gh api "repos/${BASE_REPO}/compare/${DEV_SHA}...${MAIN_SHA}" --jq '.ahead_by')"
+          echo "dev ${DEV_SHA:0:9} vs main ${MAIN_SHA:0:9}: ahead_by=${AHEAD}"
 
           if [[ "${AHEAD}" -gt 0 ]]; then
             STATE=failure
@@ -205,6 +247,9 @@ jobs:
             exit 0
           fi
 
+          # A promotion whose head moves after this listing gets its status from the
+          # pull-request path, which publishes on every synchronize - so a stale
+          # head here is superseded rather than left as the last word.
           while read -r NUMBER SHA; do
             [[ -z "${NUMBER}" ]] && continue
             echo "PR #${NUMBER} (${SHA}) -> ${STATE}"
