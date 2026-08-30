@@ -237,9 +237,7 @@ const ensureCodeExists = async (code: string, type: "SPECIES" | "BREED") => {
   if (!entry) {
     // The code is caller-supplied; strip line breaks so it cannot forge
     // additional log lines.
-    logger.warn(
-      `Invalid ${type} code provided: ${code.replace(/[\n\r]+/g, " ")}`,
-    );
+    logger.warn(`Invalid ${type} code provided: ${code.replace(/\n|\r/g, "")}`);
     throw new CompanionServiceError(`Invalid ${type.toLowerCase()} code.`, 400);
   }
 };
