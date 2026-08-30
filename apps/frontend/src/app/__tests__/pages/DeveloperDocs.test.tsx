@@ -51,9 +51,9 @@ describe('DeveloperDocs reader', () => {
     expect(openLink).toHaveAttribute('target', '_blank');
     expect(screen.getByRole('link', { name: /Edit on GitHub/i })).toBeInTheDocument();
 
-    expect(screen.getByRole('heading', { name: 'Create an appointment' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Appointments' })).toBeInTheDocument();
     expect(screen.getByText('POST')).toBeInTheDocument();
-    expect(screen.getByText('/v2/appointments')).toBeInTheDocument();
+    expect(screen.getByText('/fhir/v1/appointment/pms')).toBeInTheDocument();
     expect(screen.getByText('REQUEST · cURL')).toBeInTheDocument();
     expect(screen.getByText('RESPONSE · 201')).toBeInTheDocument();
   });
@@ -68,12 +68,43 @@ describe('DeveloperDocs reader', () => {
     expect(screen.getByText(/This reference is seed content/)).toBeInTheDocument();
   });
 
+  /*
+   * These pages documented an API that did not exist: POST /v2/appointments
+   * behind `Authorization: Bearer $YC_KEY`, badged "v2 - STABLE", plus a
+   * Webhooks page. The mounted prefixes are /fhir, /v1, /public and /ap, no
+   * route accepts an API key, and there is no WebhookSubscription model - so a
+   * developer following the sample got a 404 from a documented stable endpoint.
+   */
+  it('does not document surfaces the API does not serve', () => {
+    const { container } = render(<DeveloperDocs />);
+    const text = container.textContent ?? '';
+
+    expect(text).not.toContain('/v2/');
+    expect(text).not.toContain('Bearer $YC_KEY');
+    expect(screen.queryByRole('button', { name: 'Webhooks' })).not.toBeInTheDocument();
+  });
+
+  /* The pill and the copyable sample are separate strings, so they can drift.
+     They did: the pill was corrected to /pms while the curl still posted to the
+     collection root, which no route serves. Assert the sample itself. */
+  it('gives a curl sample that targets a route that exists', () => {
+    const { container } = render(<DeveloperDocs />);
+    const text = container.textContent ?? '';
+    expect(text).toContain('/fhir/v1/appointment/pms');
+    expect(text).not.toMatch(/appointment\s+\\/);
+  });
+
+  it('shows the appointment route the API actually serves', () => {
+    render(<DeveloperDocs />);
+    expect(screen.getByText('/fhir/v1/appointment/pms')).toBeInTheDocument();
+  });
+
   it('filters the navigation and shows a no-matches message', () => {
     render(<DeveloperDocs />);
     const search = screen.getByRole('searchbox', { name: 'Search docs' });
 
-    fireEvent.change(search, { target: { value: 'webhook' } });
-    expect(screen.getByRole('button', { name: 'Webhooks' })).toBeInTheDocument();
+    fireEvent.change(search, { target: { value: 'companion' } });
+    expect(screen.getByRole('button', { name: 'Companions' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Overview' })).not.toBeInTheDocument();
 
     fireEvent.change(search, { target: { value: 'zzz' } });
@@ -88,7 +119,7 @@ describe('DeveloperDocs reader', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Copy page/i }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument());
-    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('Create an appointment'));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('Appointments'));
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Copy' })[0]);
     await waitFor(() => expect(writeText).toHaveBeenCalledTimes(2));

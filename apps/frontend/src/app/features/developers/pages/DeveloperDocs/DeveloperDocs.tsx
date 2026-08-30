@@ -19,23 +19,28 @@ const GITHUB_EDIT_URL = 'https://github.com/YosemiteCrew/Yosemite-Crew/tree/dev/
 type NavItem = { id: string; label: string };
 type NavSection = { heading: string; items: NavItem[] };
 
+/*
+ * Only surfaces that exist are listed.
+ *
+ * A "Webhooks" page used to sit here describing signed event deliveries and a
+ * signing secret. There is no WebhookSubscription model in the schema and no
+ * route that delivers one, so the page documented a feature that had never
+ * been built. Removed rather than relabelled: a developer does not need a
+ * roadmap entry in an API reference.
+ */
 const NAV: NavSection[] = [
   {
     heading: 'Getting started',
     items: [
       { id: 'overview', label: 'Overview' },
       { id: 'authentication', label: 'Authentication' },
-      { id: 'appointments', label: 'Appointments API' },
-      { id: 'patients', label: 'Patients API' },
-      { id: 'webhooks', label: 'Webhooks' },
+      { id: 'appointments', label: 'Appointments' },
+      { id: 'companions', label: 'Companions' },
     ],
   },
   {
     heading: 'Guides',
-    items: [
-      { id: 'plugin', label: 'Build a plugin' },
-      { id: 'fhir', label: 'FHIR resources' },
-    ],
+    items: [{ id: 'fhir', label: 'FHIR resources' }],
   },
 ];
 
@@ -51,50 +56,34 @@ const ARTICLES: Record<string, Article> = {
   overview: {
     category: 'Getting started',
     crumb: 'Overview',
-    version: 'v2 · STABLE',
+    version: 'v1',
     title: 'Overview',
     summary:
-      'The Yosemite Crew API lets integrations read and write clinical data over a FHIR R4 surface. Start with authentication, then explore the Appointments and Patients resources.',
+      'The Yosemite Crew API is a FHIR R4 surface served under /fhir/v1, alongside a set of application endpoints under /v1. Requests are authorised with the session your account already holds. The complete generated reference, including every route and payload, is in the full documentation.',
   },
   authentication: {
     category: 'Getting started',
     crumb: 'Authentication',
-    version: 'v2 · STABLE',
+    version: 'v1',
     title: 'Authentication',
     summary:
-      'Requests are authorized with a scoped bearer key. Create a key in the developer portal and send it as an Authorization header on every request.',
+      'Requests are authorised with the signed-in session, and organisation-scoped routes read the practice from an x-org-id header. API keys created in this portal are not yet accepted by any endpoint: the key-authentication middleware exists but is not mounted on a route, so a key will not authenticate a request today. Create keys if you want them ready; build against a session until key auth ships.',
   },
   appointments: {
     category: 'APIs',
     crumb: 'Appointments',
-    version: 'v2 · STABLE',
-    title: 'Create an appointment',
+    version: 'v1',
+    title: 'Appointments',
     summary:
-      "Creates a booking request in the clinic's schedule. The request lands in the clinic's Appointments board and follows the same confirmation flow as the public booking page.",
+      "Appointments are FHIR R4 Appointment resources under /fhir/v1/appointment. Practice writes go to /pms and mobile ones to /mobile; there is no route at the collection root. Writes land in the clinic's schedule and read back from the same router.",
   },
-  patients: {
+  companions: {
     category: 'APIs',
-    crumb: 'Patients',
-    version: 'v2 · STABLE',
-    title: 'Patients API',
+    crumb: 'Companions',
+    version: 'v1',
+    title: 'Companions',
     summary:
-      'Read and write patient records as FHIR R4 Patient resources. Anything written here reads back identically from the FHIR endpoint.',
-  },
-  webhooks: {
-    category: 'Getting started',
-    crumb: 'Webhooks',
-    version: 'v2 · STABLE',
-    title: 'Webhooks',
-    summary:
-      'Subscribe to platform events and receive signed deliveries at your endpoint. Verify the signature with your signing secret before acting on a payload.',
-  },
-  plugin: {
-    category: 'Guides',
-    crumb: 'Build a plugin',
-    version: 'GUIDE',
-    title: 'Build a plugin',
-    summary:
-      'Package your integration as a plugin so clinics can install it in a few clicks. This guide walks through scaffolding, scopes, and submission.',
+      'Animals are companions, served under /fhir/v1/companion and mapped to FHIR R4 Patient resources. If you are looking for a "patients" endpoint, this is it - the platform is multi-species, so the domain word is companion.',
   },
   fhir: {
     category: 'Guides',
@@ -102,24 +91,36 @@ const ARTICLES: Record<string, Article> = {
     version: 'GUIDE',
     title: 'FHIR resources',
     summary:
-      'Every clinical object on the platform maps to a FHIR R4 resource. This reference lists the supported resources and their compatibility notes.',
+      'Clinical objects map to FHIR R4 resources under /fhir/v1. The generated OpenAPI reference in the full documentation lists the routes that exist today, which is the list worth trusting.',
   },
 };
 
+/*
+ * A sample that works if pasted.
+ *
+ * This block used to POST to `https://api.yosemitecrew.com/v2/appointments`
+ * with `Authorization: Bearer $YC_KEY`. There is no /v2 - the mounted prefixes
+ * are /fhir, /v1, /public and /ap - and no route accepts an API key, so anyone
+ * following it got a 404 from an endpoint this page badged STABLE. The signed-in
+ * session is how the API is actually reached today.
+ */
 const CURL_SAMPLE = String.raw`curl -X POST \
-  https://api.yosemitecrew.com/v2/appointments \
-  -H "Authorization: Bearer $YC_KEY" \
+  https://devapi.yosemitecrew.com/fhir/v1/appointment/pms \
+  -H "Content-Type: application/json" \
+  -H "x-org-id: $YC_ORG_ID" \
+  --cookie "$YC_SESSION" \
   -d '{
-    "patient": "Patient/pat_poppy_812",
-    "serviceType": "wellness",
+    "resourceType": "Appointment",
+    "status": "proposed",
     "start": "2026-07-17T10:30:00+02:00",
-    "comment": "Ear recheck + ALP"
+    "participant": [
+      { "actor": { "reference": "Patient/<companion-id>" } }
+    ]
   }'`;
 
 const RESPONSE_SAMPLE = `{
-  "resourceType": "Appointment",
-  "id": "apt_9k2f",
-  "status": "proposed"
+  "message": "Appointment created",
+  "data": { "resourceType": "Appointment", "status": "proposed" }
 }`;
 
 const copyText = async (value: string): Promise<boolean> => {
@@ -254,16 +255,18 @@ const DeveloperDocs = () => {
                   <>
                     <div className="DocsEndpoint">
                       <span className="DocsMethod">POST</span>
-                      <span className="DocsEndpointPath">/v2/appointments</span>
-                      <span className="DocsEndpointScope">Scope: appointments:write</span>
+                      <span className="DocsEndpointPath">/fhir/v1/appointment/pms</span>
+                      <span className="DocsEndpointScope">appointments:edit:any</span>
                     </div>
                     <p className="DocsArticleText">
-                      <strong>Required fields</strong> —{' '}
-                      <code className="DocsInlineCode">patient</code> (FHIR reference),{' '}
-                      <code className="DocsInlineCode">serviceType</code>, and{' '}
-                      <code className="DocsInlineCode">start</code>. Omit{' '}
-                      <code className="DocsInlineCode">practitioner</code> to let the clinic assign
-                      one.
+                      Authorised by the signed-in session, scoped to the practice named in{' '}
+                      <code className="DocsInlineCode">x-org-id</code>, and gated on{' '}
+                      <code className="DocsInlineCode">appointments:edit:any</code>. The body is a
+                      FHIR R4 Appointment. There is no route at the collection root - the practice
+                      surface is <code className="DocsInlineCode">/pms</code> and the mobile one is{' '}
+                      <code className="DocsInlineCode">/mobile</code>. The generated OpenAPI
+                      reference in the full documentation is the authority here, because it is
+                      produced from the routes themselves rather than written by hand.
                     </p>
                     <div className="DocsNote">
                       <IoBulbOutline
