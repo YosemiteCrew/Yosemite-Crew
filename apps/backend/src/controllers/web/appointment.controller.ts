@@ -132,13 +132,12 @@ export const AppointmentController = {
     try {
       const { appointmentId } = req.params;
       // The id is caller-supplied; strip line breaks so it cannot forge
-      // additional log lines. Keep this exact /\n|\r/g form with an empty
-      // replacement: CodeQL's js/log-injection barrier rejects quantifiers such
-      // as [\n\r]+ and any non-empty replacement, and silently keeps reporting
-      // the sink.
+      // additional log lines. Two constraints on the form: no quantifier, and an
+      // empty replacement. CodeQL's js/log-injection barrier rejects [\n\r]+ and
+      // any non-empty replacement, and then silently keeps reporting the sink.
       logger.info(
         "Accepting appointment with ID:",
-        appointmentId.replace(/\n|\r/g, ""),
+        appointmentId.replace(/[\n\r]/g, ""),
       );
       const dto = req.body as AppointmentRequestDTO; // partial FHIR update fields
 
