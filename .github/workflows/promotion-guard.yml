@@ -236,7 +236,13 @@ jobs:
 
           # Only dev-headed promotions. A main-direct pull request is exempt for
           # the same reason it is exempt in the guard job above.
-          PRS="$(gh pr list --repo "${BASE_REPO}" --base main --state open \
+          # `--head dev` filters SERVER-side. Without it `gh pr list` returns its
+          # default 30 items and the dev filter below runs on whatever came back,
+          # so with more than 30 pull requests open against main the promotion can
+          # be missed entirely - and a missed promotion keeps its earlier success
+          # while dev goes stale, which is the exact failure this job exists to
+          # prevent.
+          PRS="$(gh pr list --repo "${BASE_REPO}" --base main --head dev --state open \
                    --json number,headRefName,headRefOid,labels \
                    --jq '.[] | select(.headRefName == "dev")
                              | select([.labels[].name] | index("main-direct") | not)
