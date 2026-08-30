@@ -104,6 +104,30 @@ router.get("/me", requireAnyAuth, async (req, res: Response, next) => {
       // of truth for identity.
     }
 
+    const metadataRole =
+      typeof metadata.role === "string" ? metadata.role : undefined;
+
+    /*
+     * The full set, because one account can legitimately hold several roles
+     * and `role` below can only answer with one of them.
+     *
+     * A user who is both a clinic member and a platform developer is a
+     * supported combination, and collapsing to `resolvedRoles[0]` made which
+     * one the client saw depend on the order the role store happened to
+     * return - so the same account could be routed to the practice or to the
+     * developer portal on different sign-ins. Callers that need to ask "does
+     * this account hold role X" read this; `role` stays for the single-role
+     * display callers that predate it.
+     *
+     * Metadata is the same last resort the single `role` falls back to, so the
+     * two fields cannot disagree about an account the role store cannot answer
+     * for.
+     */
+    let effectiveRoles: string[] = resolvedRoles;
+    if (effectiveRoles.length === 0 && metadataRole) {
+      effectiveRoles = [metadataRole];
+    }
+
     res.json({
       userId: session.appUserId,
       authProfile: session.authProfile,
@@ -124,25 +148,8 @@ router.get("/me", requireAnyAuth, async (req, res: Response, next) => {
       role:
         resolvedRoles.find((role: string) => role === "superadmin") ??
         resolvedRoles[0] ??
-        (typeof metadata.role === "string" ? metadata.role : undefined),
-      /*
-       * The full set, because one account can legitimately hold several roles
-       * and `role` above can only answer with one of them.
-       *
-       * A user who is both a clinic member and a platform developer is a
-       * supported combination, and collapsing to `resolvedRoles[0]` made which
-       * one the client saw depend on the order the role store happened to
-       * return - so the same account could be routed to the practice or to the
-       * developer portal on different sign-ins. Callers that need to ask "does
-       * this account hold role X" read this; `role` stays for the single-role
-       * display callers that predate it.
-       */
-      roles:
-        resolvedRoles.length > 0
-          ? resolvedRoles
-          : typeof metadata.role === "string"
-            ? [metadata.role]
-            : [],
+        metadataRole,
+      roles: effectiveRoles,
     });
   } catch (err) {
     next(err);
