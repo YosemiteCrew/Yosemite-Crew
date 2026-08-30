@@ -61,10 +61,9 @@ import {usePreferences} from '@/features/preferences/PreferencesContext';
 import {convertWeight} from '@/shared/utils/measurementSystem';
 import {getFreshStoredTokens} from '@/features/auth/sessionManager';
 import {neuterTerm} from '@/features/companion/utils/neuterTerm';
+import {useBreedOptions} from '@/features/companion/hooks/useBreedOptions';
 import {
-  fetchBreedCodeEntries,
   fetchSpeciesCodeEntries,
-  type BreedCodeEntry,
   type SpeciesCodeEntry,
 } from '@/features/companion/services/codeEntriesService';
 
@@ -167,11 +166,6 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
   const speciesByCategoryRef = useRef<
     Partial<Record<CompanionCategory, SpeciesCodeEntry>>
   >({});
-  const [breedOptions, setBreedOptions] = useState<Breed[]>([]);
-  // An empty picker caused by a failed lookup used to look identical to a
-  // species that genuinely has no breeds. Breed is required, so that dead end
-  // blocked companion creation entirely with nothing explaining why.
-  const [breedLoadFailed, setBreedLoadFailed] = useState(false);
 
   // Track which bottom sheet is currently open
   const openBottomSheetRef = useRef<'breed' | 'bloodGroup' | 'country' | null>(
@@ -347,68 +341,31 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
     };
   }, [getValues, setValue]);
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      if (!category) {
-        setBreedOptions([]);
-        setBreedLoadFailed(false);
-        setValue('speciesCode', null, {shouldValidate: false});
-        setValue('breed', null, {shouldValidate: false});
-        setValue('breedCode', null, {shouldValidate: false});
-        return;
-      }
+  const {breedOptions, breedLoadFailed, breedLoading, retryBreeds} =
+    useBreedOptions({
+      category,
+      speciesQueryFor: cat => CATEGORY_TO_SPECIES_QUERY[cat],
+      speciesLabelFor: cat => CATEGORY_TO_SPECIES_LABEL[cat],
+      speciesCodeFor: cat => speciesByCategoryRef.current[cat]?.code,
+    });
 
-      setValue(
-        'speciesCode',
-        speciesByCategoryRef.current[category]?.code ?? null,
-        {
-          shouldValidate: false,
-        },
-      );
+  // The hook owns the lookup; this effect owns only the form resets that must
+  // happen when the category changes.
+  useEffect(() => {
+    if (!category) {
+      setValue('speciesCode', null, {shouldValidate: false});
       setValue('breed', null, {shouldValidate: false});
       setValue('breedCode', null, {shouldValidate: false});
+      return;
+    }
 
-      try {
-        const tokens = await getFreshStoredTokens();
-        if (!tokens?.accessToken) {
-          if (mounted) {
-            setBreedLoadFailed(true);
-          }
-          return;
-        }
-        const entries = await fetchBreedCodeEntries(
-          CATEGORY_TO_SPECIES_QUERY[category],
-          tokens.accessToken,
-        );
-        if (!mounted) {
-          return;
-        }
-
-        const mappedBreeds: Breed[] = entries.map(
-          (entry: BreedCodeEntry, index: number) => ({
-            speciesId: index + 1,
-            speciesName: CATEGORY_TO_SPECIES_LABEL[category],
-            breedId: index + 1,
-            breedName: entry.display,
-            speciesCode:
-              entry.meta?.speciesCode ??
-              speciesByCategoryRef.current[category]?.code,
-            breedCode: entry.code,
-          }),
-        );
-        setBreedOptions(mappedBreeds);
-        setBreedLoadFailed(false);
-      } catch (error) {
-        setBreedOptions([]);
-        setBreedLoadFailed(true);
-        console.warn('[Companion] Unable to load breed code entries', error);
-      }
-    })();
-
-    return () => {
-      mounted = false;
-    };
+    setValue(
+      'speciesCode',
+      speciesByCategoryRef.current[category]?.code ?? null,
+      {shouldValidate: false},
+    );
+    setValue('breed', null, {shouldValidate: false});
+    setValue('breedCode', null, {shouldValidate: false});
   }, [category, setValue]);
 
   // Handle Android back button
@@ -1227,6 +1184,8 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
         ref={breedSheetRef}
         breeds={breedOptions}
         loadFailed={breedLoadFailed}
+        loading={breedLoading}
+        onRetry={retryBreeds}
         selectedBreed={breed}
         onSave={handleBreedSave}
       />

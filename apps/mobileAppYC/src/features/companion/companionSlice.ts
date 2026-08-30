@@ -13,6 +13,8 @@ const initialState: CompanionState = {
   selectedCompanionId: null,
   loading: false,
   error: null,
+  hasLoaded: false,
+  loadError: null,
 };
 
 export const companionSlice = createSlice({
@@ -49,15 +51,24 @@ export const companionSlice = createSlice({
       .addCase(fetchCompanions.pending, state => {
         state.loading = true;
         state.error = null;
+        // Clear the previous failure so a retry does not keep rendering the
+        // error it is in the middle of retrying.
+        state.loadError = null;
       })
       .addCase(fetchCompanions.fulfilled, (state, action) => {
         state.loading = false;
         state.companions = action.payload;
         state.error = null;
+        state.hasLoaded = true;
+        state.loadError = null;
       })
       .addCase(fetchCompanions.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload ?? 'Failed to fetch companions';
+        const message = action.payload ?? 'Failed to fetch companions';
+        state.error = message;
+        // Recorded separately from `hasLoaded` so an empty list after a failed
+        // fetch is not mistaken for a brand new account.
+        state.loadError = message;
       })
 
       .addCase(updateCompanionProfile.pending, state => {

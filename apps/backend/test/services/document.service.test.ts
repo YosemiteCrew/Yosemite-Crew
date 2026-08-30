@@ -67,8 +67,8 @@ const mockedAuditTrail = jest.mocked(AuditTrailService);
 const uuidPatientId = "550e8400-e29b-41d4-a716-446655440000";
 const uuidParentId = "3fa85f64-5717-4562-b3fc-2c963f66afa6";
 const uuidOrganisationId = "d2719f61-98a5-4cb8-9a5c-36ec4d1c2d1a";
-const uuidAppointmentId = "11111111-2222-3333-4444-555555555555";
-const uuidDocumentId = "22222222-3333-4444-5555-666666666666";
+const uuidAppointmentId = "11111111-2222-4333-8444-555555555555";
+const uuidDocumentId = "22222222-3333-4444-8555-666666666666";
 const now = new Date("2026-06-17T00:00:00.000Z");
 
 const baseRow = {
@@ -332,7 +332,7 @@ describe("DocumentService", () => {
     it("returns nothing when the appointment's patient is not the parent's", async () => {
       mockedPrisma.appointment.findUnique.mockResolvedValue({
         organisationId: uuidOrganisationId,
-        patient: { id: "11112222-3333-4444-5555-666677778888" },
+        patient: { id: "11112222-3333-4444-8555-666677778888" },
       } as any);
 
       const result = await DocumentService.listForAppointmentParent({

@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {AppState, DeviceEventEmitter, type AppStateStatus} from 'react-native';
 import SuperTokens from 'supertokens-react-native';
-import {Buffer} from 'node:buffer';
 
 import {
   PENDING_PROFILE_STORAGE_KEY,
@@ -18,6 +17,7 @@ import {
   fetchProfileStatus,
   type ParentProfileSummary,
 } from '@/features/account/services/profileService';
+import {decodeJwtExpiration} from '@/features/auth/utils/jwt';
 import {mergeUserWithParentProfile} from '@/features/auth/utils/parentProfileMapper';
 
 import type {AuthProvider, NormalizedAuthTokens, User} from './types';
@@ -27,34 +27,12 @@ const USER_KEY = '@user_data';
 export const DEMO_API_MODE_KEY = '@demo_api_mode';
 
 export const REFRESH_BUFFER_MS = 2 * 60 * 1000; // 2 minutes
-const DEFAULT_REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours fallback
+// SuperTokens' core issues access tokens with a one hour lifetime by default,
+// so a fallback longer than that schedules the refresh after the token is
+// already dead. This only fires when the expiry could not be read at all.
+const DEFAULT_REFRESH_INTERVAL_MS = 50 * 60 * 1000; // 50 minutes fallback
 const MAX_REFRESH_DELAY_MS = 12 * 60 * 60 * 1000; // 12 hours clamp
 const MIN_APPSTATE_REFRESH_MS = 60 * 1000; // 1 minute
-
-const decodeJwtExpiration = (token?: string): number | undefined => {
-  if (!token) {
-    return undefined;
-  }
-
-  try {
-    const [, payloadSegment] = token.split('.');
-    if (!payloadSegment) {
-      return undefined;
-    }
-
-    const normalized = payloadSegment.replaceAll('-', '+').replaceAll('_', '/');
-    const padded = normalized.padEnd(
-      normalized.length + ((4 - (normalized.length % 4)) % 4),
-      '=',
-    );
-    const decoded = Buffer.from(padded, 'base64').toString('utf8');
-    const payload = JSON.parse(decoded) as {exp?: number};
-    return typeof payload.exp === 'number' ? payload.exp * 1000 : undefined;
-  } catch (error) {
-    console.warn('Failed to decode JWT expiration', error);
-    return undefined;
-  }
-};
 
 export const resolveExpiration = (tokens: {
   expiresAt?: number;
@@ -76,10 +54,35 @@ export const isTokenExpired = (
   bufferMs: number = REFRESH_BUFFER_MS,
 ): boolean => {
   if (!expiresAt) {
+    // An unknown expiry is not proof of death. The ~25 call sites that use this
+    // to bail out early would sign out every user whose stored token predates
+    // an expiry being recorded, so they keep the benefit of the doubt. The
+    // refresh decision does not - see `shouldAttemptRefresh`.
     return false;
   }
 
   return expiresAt - bufferMs <= Date.now();
+};
+
+/**
+ * Whether a stored token has to go through SuperTokens before it can be handed
+ * to a caller.
+ *
+ * Unlike `isTokenExpired` this treats an unknown expiry as "refresh it". An
+ * expiry we cannot read is exactly the state that let dead credentials reach
+ * the network and surface as raw 401s, and refreshing is the cheap, safe answer
+ * - a session that is still alive comes back renewed, and one that is not is
+ * caught by the checks in `getFreshStoredTokens`.
+ */
+export const shouldAttemptRefresh = (
+  expiresAt?: number | null,
+  bufferMs: number = REFRESH_BUFFER_MS,
+): boolean => {
+  if (!expiresAt) {
+    return true;
+  }
+
+  return isTokenExpired(expiresAt, bufferMs);
 };
 
 const parseLegacyTokens = (raw: string | null): StoredAuthTokens | null => {
@@ -493,7 +496,9 @@ export const getFreshStoredTokens =
       storedTokens.userId ?? '',
     );
 
-    if (!isTokenExpired(normalized.expiresAt)) {
+    const knownExpired = isTokenExpired(normalized.expiresAt);
+
+    if (!shouldAttemptRefresh(normalized.expiresAt)) {
       return normalized;
     }
 
@@ -517,17 +522,34 @@ export const getFreshStoredTokens =
       // the screen showed a raw "Request failed with status code 401" instead
       // of the friendly copy this file already has.
       //
-      // Identity, not expiry, is the reliable test. A refresh that handed back
-      // the byte-identical token achieved nothing, and that holds whether or
-      // not the token is a parseable JWT. Expiry is only a secondary check, and
-      // deliberately not `!refreshedExpiry` - an unparseable expiry means we
-      // cannot tell, and locking every such user out is worse than the bug.
+      // Identity, not expiry, is the reliable test - but only for a token we
+      // already knew was dead. A refresh that handed back the byte-identical
+      // token achieved nothing, so a known-expired token is still expired.
+      //
+      // When we got here because the expiry was UNREADABLE rather than past,
+      // an unchanged token proves nothing: the session may simply have been
+      // fine. Nulling there would sign out every user whose token is not a
+      // parseable JWT, which is worse than the bug this guards.
       const unchanged = accessToken === storedTokens.accessToken;
-      if (unchanged || isTokenExpired(refreshedExpiry)) {
+      if (knownExpired && unchanged) {
         console.warn(
           '[Auth] Refresh did not renew the session; treating it as ended',
         );
         return null;
+      }
+
+      if (isTokenExpired(refreshedExpiry)) {
+        console.warn(
+          '[Auth] Refresh returned an already expired token; treating the session as ended',
+        );
+        return null;
+      }
+
+      if (unchanged) {
+        console.warn(
+          '[Auth] Token expiry could not be read and the refresh returned the same token; using it as-is',
+        );
+        return normalized;
       }
 
       const refreshed: StoredAuthTokens = {

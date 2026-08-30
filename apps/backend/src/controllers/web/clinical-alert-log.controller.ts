@@ -46,7 +46,7 @@ export const ClinicalAlertLogController = {
   trigger: async (req: Request, res: Response) => {
     const parsed = TriggerSchema.safeParse(req.body);
     if (!parsed.success)
-      return res.status(400).json({ error: parsed.error.errors });
+      return res.status(400).json({ error: parsed.error.issues });
 
     const alert = await ClinicalAlertLogService.trigger({
       organisationId: req.params.organisationId,
@@ -66,7 +66,7 @@ export const ClinicalAlertLogController = {
   list: async (req: Request, res: Response) => {
     const parsed = ListQuerySchema.safeParse(req.query);
     if (!parsed.success)
-      return res.status(400).json({ error: parsed.error.errors });
+      return res.status(400).json({ error: parsed.error.issues });
 
     const alerts = await ClinicalAlertLogService.list({
       organisationId: req.params.organisationId,
@@ -78,7 +78,7 @@ export const ClinicalAlertLogController = {
   acknowledge: async (req: Request, res: Response) => {
     const parsed = AcknowledgeSchema.safeParse(req.body);
     if (!parsed.success)
-      return res.status(400).json({ error: parsed.error.errors });
+      return res.status(400).json({ error: parsed.error.issues });
 
     const alert = await ClinicalAlertLogService.acknowledge(
       req.params.alertId,

@@ -308,6 +308,27 @@ describe("AppointmentController", () => {
       expect(statusMock).toHaveBeenCalledWith(200);
     });
 
+    it("strips line breaks from the appointment id before logging it", async () => {
+      req.params = { appointmentId: "a1\r\nforged line" };
+      req.body = { status: "booked" };
+      mockedAppointmentService.approveRequestedFromPms.mockResolvedValue(
+        {} as any,
+      );
+
+      await AppointmentController.acceptRequested(req as any, res as Response);
+
+      const logged = mockedLogger.info.mock.calls.flat().join(" ");
+      expect(logged).toContain("a1forged line");
+      expect(logged).not.toContain("\n");
+      expect(logged).not.toContain("\r");
+      // The raw params object must never be logged: it is caller-controlled
+      // and carries the unsanitised id.
+      expect(mockedLogger.info).not.toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ appointmentId: expect.anything() }),
+      );
+    });
+
     it("should handle error", async () => {
       mockedAppointmentService.approveRequestedFromPms.mockRejectedValue(
         new Error("Fail"),

@@ -26,12 +26,14 @@ const HoursField = ({
   value,
   onChange,
   onCommit,
+  disabled = false,
 }: {
   id: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
   onCommit: () => void;
+  disabled?: boolean;
 }) => (
   <span className="flex flex-col gap-1">
     <label htmlFor={id} className="yc-settings-hours-label">
@@ -40,6 +42,7 @@ const HoursField = ({
     <span className="yc-settings-hours-field">
       <input
         id={id}
+        disabled={disabled}
         type="number"
         inputMode="numeric"
         min={MIN_LOCK_HOURS}
@@ -62,7 +65,7 @@ const HoursField = ({
  * its clinical workspace stays editable before it locks to read-only. Consumed
  * by `isPastLockWindow` in the appointment workspace.
  */
-const AppointmentLockWindowPreference = () => {
+const AppointmentLockWindowPreference = ({ readOnly = false }: { readOnly?: boolean }) => {
   const { notify } = useNotify();
   const saved = useAppointmentLockWindow();
   const primaryOrg = useOrgStore((s) => s.getPrimaryOrg());
@@ -151,6 +154,7 @@ const AppointmentLockWindowPreference = () => {
           value={outpatient}
           onChange={setOutpatient}
           onCommit={commit}
+          disabled={readOnly}
         />
         <HoursField
           id="lock-window-inpatient"
@@ -158,6 +162,7 @@ const AppointmentLockWindowPreference = () => {
           value={inpatient}
           onChange={setInpatient}
           onCommit={commit}
+          disabled={readOnly}
         />
       </span>
     </PreferenceRow>

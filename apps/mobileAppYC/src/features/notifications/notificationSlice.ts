@@ -1,5 +1,9 @@
 import {createSlice, type PayloadAction} from '@reduxjs/toolkit';
-import type {Notification, NotificationsState, NotificationCategory} from './types';
+import type {
+  Notification,
+  NotificationsState,
+  NotificationCategory,
+} from './types';
 import {
   fetchNotificationsForCompanion,
   createNotification,
@@ -10,12 +14,21 @@ import {
   clearAllNotifications,
 } from './thunks';
 
+import {
+  markCollectionFailed,
+  markCollectionHydrated,
+  markCollectionPending,
+} from '@/shared/store/collectionLoadState';
+
 const initialState: NotificationsState = {
   items: [],
   loading: false,
   error: null,
   unreadCount: 0,
   hydratedCompanions: {},
+  failedCompanions: {},
+  activeRequests: {},
+  lastLoadedAt: {},
   lastFetchTimestamp: undefined,
   filter: 'all',
   sortBy: 'new',
@@ -41,7 +54,9 @@ export const notificationSlice = createSlice({
     },
     injectMockNotifications(state, action: PayloadAction<Notification[]>) {
       state.items = action.payload;
-      state.unreadCount = action.payload.filter(n => n.status === 'unread').length;
+      state.unreadCount = action.payload.filter(
+        n => n.status === 'unread',
+      ).length;
     },
     addNotificationToList(state, action: PayloadAction<Notification>) {
       state.items.unshift(action.payload);
@@ -53,14 +68,24 @@ export const notificationSlice = createSlice({
   extraReducers: builder => {
     builder
       // Fetch notifications
-      .addCase(fetchNotificationsForCompanion.pending, state => {
+      .addCase(fetchNotificationsForCompanion.pending, (state, action) => {
         state.loading = true;
         state.error = null;
+        markCollectionPending(
+          state,
+          action.meta?.arg?.companionId,
+          action.meta?.requestId,
+        );
       })
       .addCase(fetchNotificationsForCompanion.fulfilled, (state, action) => {
         state.loading = false;
         state.items = action.payload.notifications;
-        state.hydratedCompanions[action.payload.companionId] = true;
+        markCollectionHydrated(
+          state,
+          action.payload.companionId,
+          Date.now(),
+          action.meta?.requestId,
+        );
         state.lastFetchTimestamp = Date.now();
         state.unreadCount = action.payload.notifications.filter(
           n => n.status === 'unread',
@@ -70,6 +95,12 @@ export const notificationSlice = createSlice({
       .addCase(fetchNotificationsForCompanion.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload ?? 'Failed to fetch notifications';
+        markCollectionFailed(
+          state,
+          action.meta?.arg?.companionId,
+          action.payload,
+          action.meta?.requestId,
+        );
       })
 
       // Create notification
@@ -95,7 +126,9 @@ export const notificationSlice = createSlice({
         state.error = null;
       })
       .addCase(markNotificationAsRead.fulfilled, (state, action) => {
-        const notification = state.items.find(n => n.id === action.payload.notificationId);
+        const notification = state.items.find(
+          n => n.id === action.payload.notificationId,
+        );
         if (notification?.status === 'unread') {
           notification.status = 'read';
           state.unreadCount = Math.max(0, state.unreadCount - 1);
@@ -126,7 +159,9 @@ export const notificationSlice = createSlice({
         state.error = null;
       })
       .addCase(deleteNotification.fulfilled, (state, action) => {
-        const index = state.items.findIndex(n => n.id === action.payload.notificationId);
+        const index = state.items.findIndex(
+          n => n.id === action.payload.notificationId,
+        );
         if (index !== -1) {
           const notification = state.items[index];
           if (notification.status === 'unread') {
@@ -144,7 +179,9 @@ export const notificationSlice = createSlice({
         state.error = null;
       })
       .addCase(archiveNotification.fulfilled, (state, action) => {
-        const notification = state.items.find(n => n.id === action.payload.notificationId);
+        const notification = state.items.find(
+          n => n.id === action.payload.notificationId,
+        );
         if (notification) {
           if (notification.status === 'unread') {
             state.unreadCount = Math.max(0, state.unreadCount - 1);

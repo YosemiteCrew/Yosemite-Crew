@@ -1150,5 +1150,97 @@ describe("OrganizationService", () => {
       expect(result.meta.total).toBe(1);
       expect(result.data[0].specialitiesWithServices).toHaveLength(1);
     });
+
+    // /getNearby is UNAUTHENTICATED - organization.router.ts mounts it behind
+    // attachSessionIfPresent, which never rejects. The speciality and service
+    // rows used to be spread whole into the response, publishing a practice's
+    // internal discount ceiling and naming its department heads to anyone who
+    // could guess a latitude and longitude.
+    it("publishes no internal commercial or staff fields to an anonymous caller", async () => {
+      (prisma.organization.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          id: "org-1",
+          name: "Clinic",
+          address: { latitude: 10, longitude: 20, city: "City" },
+        },
+      ]);
+      (prisma.speciality.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: "spec-1", name: "Dentistry", description: "Teeth" },
+      ]);
+      (prisma.service.findMany as jest.Mock).mockResolvedValueOnce([
+        {
+          id: "svc-1",
+          name: "Scale and polish",
+          description: null,
+          durationMinutes: 30,
+          serviceType: "PROCEDURE",
+          specialityId: "spec-1",
+        },
+      ]);
+
+      const result =
+        await OrganizationService.listNearbyForAppointmentsPaginated(
+          10,
+          20,
+          500,
+          1,
+          10,
+        );
+
+      // Assert on the SELECT, not only the output. A future `include` would
+      // reintroduce the leak while the shaped output still looked clean.
+      const specArgs = (prisma.speciality.findMany as jest.Mock).mock
+        .calls[0][0];
+      expect(specArgs.select).toBeDefined();
+      for (const field of [
+        "headUserId",
+        "memberUserIds",
+        "headName",
+        "headProfilePicUrl",
+      ]) {
+        expect(specArgs.select).not.toHaveProperty(field);
+      }
+
+      const svcArgs = (prisma.service.findMany as jest.Mock).mock.calls[0][0];
+      expect(svcArgs.select).toBeDefined();
+      expect(svcArgs.select).not.toHaveProperty("cost");
+      expect(svcArgs.select).not.toHaveProperty("maxDiscount");
+
+      const payload = JSON.stringify(result);
+      for (const leak of [
+        "maxDiscount",
+        "headUserId",
+        "memberUserIds",
+        "headProfilePicUrl",
+        "specialityId",
+      ]) {
+        expect(payload).not.toContain(leak);
+      }
+    });
+
+    // The widen-the-net fallback is intentional, but it used to carry neither
+    // isVerified nor isActive, so it surfaced practices the primary query
+    // deliberately excludes.
+    it("keeps the verified and active guards on the widen-the-net fallback", async () => {
+      (prisma.organization.findMany as jest.Mock)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+      (prisma.speciality.findMany as jest.Mock).mockResolvedValueOnce([]);
+      (prisma.service.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      await OrganizationService.listNearbyForAppointmentsPaginated(
+        0,
+        0,
+        500,
+        1,
+        10,
+      );
+
+      const fallbackArgs = (prisma.organization.findMany as jest.Mock).mock
+        .calls[1][0];
+      expect(fallbackArgs.where).toEqual(
+        expect.objectContaining({ isVerified: true, isActive: true }),
+      );
+    });
   });
 });

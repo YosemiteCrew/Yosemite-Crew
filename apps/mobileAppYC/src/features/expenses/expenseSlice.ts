@@ -10,15 +10,28 @@ import {
   updateExternalExpense,
 } from './thunks';
 
+import {
+  markCollectionFailed,
+  markCollectionHydrated,
+  markCollectionPending,
+} from '@/shared/store/collectionLoadState';
+
 const initialState: ExpensesState = {
   items: [],
   loading: false,
   error: null,
   summaries: {},
   hydratedCompanions: {},
+  failedCompanions: {},
+  activeRequests: {},
+  lastLoadedAt: {},
+  summaryFailedCompanions: {},
 };
 
-const buildSummary = (expenses: Expense[], override?: ExpenseSummary): ExpenseSummary => {
+const buildSummary = (
+  expenses: Expense[],
+  override?: ExpenseSummary,
+): ExpenseSummary => {
   const totals = expenses.reduce(
     (acc, expense) => {
       acc.total += expense.amount;
@@ -60,7 +73,10 @@ const recalculateSummary = (
     return;
   }
 
-  state.summaries[companionId] = buildSummary(expenses, summaryOverride ?? undefined);
+  state.summaries[companionId] = buildSummary(
+    expenses,
+    summaryOverride ?? undefined,
+  );
 };
 
 const expensesSlice = createSlice({
@@ -71,9 +87,14 @@ const expensesSlice = createSlice({
       state.error = null;
     },
     resetExpensesState: () => initialState,
-    injectMockExpenses: (state, action: PayloadAction<{companionId: string; expenses: Expense[]}>) => {
+    injectMockExpenses: (
+      state,
+      action: PayloadAction<{companionId: string; expenses: Expense[]}>,
+    ) => {
       const {companionId, expenses} = action.payload;
-      state.items = state.items.filter(item => item.companionId !== companionId);
+      state.items = state.items.filter(
+        item => item.companionId !== companionId,
+      );
       state.items.push(...expenses);
       recalculateSummary(state, companionId);
       state.hydratedCompanions[companionId] = true;
@@ -81,22 +102,40 @@ const expensesSlice = createSlice({
   },
   extraReducers: builder => {
     builder
-      .addCase(fetchExpensesForCompanion.pending, state => {
+      .addCase(fetchExpensesForCompanion.pending, (state, action) => {
         state.loading = true;
         state.error = null;
+        markCollectionPending(
+          state,
+          action.meta?.arg?.companionId,
+          action.meta?.requestId,
+        );
       })
       .addCase(fetchExpensesForCompanion.fulfilled, (state, action) => {
         state.loading = false;
         const {companionId, expenses, summary} = action.payload;
 
-        state.items = state.items.filter(item => item.companionId !== companionId);
+        state.items = state.items.filter(
+          item => item.companionId !== companionId,
+        );
         state.items.push(...expenses);
         recalculateSummary(state, companionId, summary);
-        state.hydratedCompanions[companionId] = true;
+        markCollectionHydrated(
+          state,
+          companionId,
+          Date.now(),
+          action.meta?.requestId,
+        );
       })
       .addCase(fetchExpensesForCompanion.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload ?? 'Unable to fetch expenses';
+        markCollectionFailed(
+          state,
+          action.meta?.arg?.companionId,
+          action.payload,
+          action.meta?.requestId,
+        );
       })
       .addCase(addExternalExpense.pending, state => {
         state.loading = true;
@@ -118,7 +157,9 @@ const expensesSlice = createSlice({
       .addCase(updateExternalExpense.fulfilled, (state, action) => {
         state.loading = false;
         const updatedExpense = action.payload;
-        const index = state.items.findIndex(item => item.id === updatedExpense.id);
+        const index = state.items.findIndex(
+          item => item.id === updatedExpense.id,
+        );
         if (index !== -1) {
           state.items[index] = updatedExpense;
         }
@@ -170,17 +211,50 @@ const expensesSlice = createSlice({
         }
         recalculateSummary(state, expense.companionId);
       })
+      // fetchExpenseSummary marks the companion hydrated, and Home's readiness
+      // gate waits on that flag. It previously had ONLY a fulfilled reducer, so
+      // a rejected summary wrote no failure anywhere: hydration stayed false,
+      // the gate never saw a failure to settle on, and the opaque Home loader
+      // sat there until its 12s timeout. That is the exact symptom this branch
+      // set out to remove, surviving in the one thunk that had no error path.
+      .addCase(fetchExpenseSummary.pending, (state, action) => {
+        const companionId = action.meta?.arg?.companionId;
+        if (companionId) {
+          state.summaryFailedCompanions = state.summaryFailedCompanions ?? {};
+          delete state.summaryFailedCompanions[companionId];
+        }
+      })
       .addCase(fetchExpenseSummary.fulfilled, (state, action) => {
         const {companionId, summary} = action.payload;
         state.summaries[companionId] = {
           ...summary,
           lastUpdated: new Date().toISOString(),
         };
-        state.hydratedCompanions[companionId] = true;
+        markCollectionHydrated(
+          state,
+          companionId,
+          Date.now(),
+          action.meta?.requestId,
+        );
+        state.summaryFailedCompanions = state.summaryFailedCompanions ?? {};
+        delete state.summaryFailedCompanions[companionId];
+      })
+      .addCase(fetchExpenseSummary.rejected, (state, action) => {
+        const message = action.payload ?? 'Unable to fetch expense summary';
+        state.error = message;
+        // Deliberately NOT markCollectionFailed: that entry drives the expense
+        // LIST screen, whose retry re-fetches the list. A summary failure is a
+        // different fact with a different retry.
+        const companionId = action.meta?.arg?.companionId;
+        if (companionId) {
+          state.summaryFailedCompanions = state.summaryFailedCompanions ?? {};
+          state.summaryFailedCompanions[companionId] = message;
+        }
       });
   },
 });
 
-export const {clearExpenseError, resetExpensesState, injectMockExpenses} = expensesSlice.actions;
+export const {clearExpenseError, resetExpensesState, injectMockExpenses} =
+  expensesSlice.actions;
 
 export default expensesSlice.reducer;

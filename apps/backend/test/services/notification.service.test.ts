@@ -90,6 +90,22 @@ describe("NotificationService", () => {
       expect(res).toEqual({ token: "valid-token", success: true });
     });
 
+    it("strips line breaks from the token prefix before logging it", async () => {
+      mockSend.mockResolvedValueOnce("msg-id");
+
+      // The token is caller-supplied and only type-checked, so the six
+      // characters that reach the log are attacker-chosen.
+      await NotificationService.sendToDevice("ab\r\ncd-rest-of-token", payload);
+
+      const logged = (logger.info as jest.Mock).mock.calls
+        .flat()
+        .filter((c): c is string => typeof c === "string")
+        .join(" ");
+      expect(logged).toContain("abcd");
+      expect(logged).not.toContain("\n");
+      expect(logged).not.toContain("\r");
+    });
+
     it("uses default empty object for data if not provided", async () => {
       mockSend.mockResolvedValueOnce("msg-id");
       await NotificationService.sendToDevice("token", payload);

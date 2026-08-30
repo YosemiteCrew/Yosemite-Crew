@@ -42,14 +42,59 @@ router.get("/me", requireAnyAuth, async (req, res: Response, next) => {
     const sessionRoles = (session.roles ?? []).map((role) =>
       role.trim().toLowerCase(),
     );
+    /*
+     * Roles are looked up under `appUserId` - the same key they are WRITTEN
+     * under, and the same one the metadata read below uses.
+     *
+     * This read was the odd one out: `providerUserId` is the RECIPE user id,
+     * and `setUserRole`/`removeUserRole` have only ever written under
+     * `appUserId`. The two coincide for an ordinary account, so the mismatch
+     * was invisible - but not for the two cases this codebase actually
+     * creates:
+     *
+     * - A relinked legacy account. `config/auth-hooks.ts` remaps `appUserId`
+     *   to the legacy id, so a role correction lands under that key while this
+     *   read looked somewhere nothing was ever written. Provisioning answered
+     *   200, the client cleared `pendingSignUp`, and the correction was
+     *   invisible and unrepeatable.
+     * - A linked account. `AccountLinking` is enabled (MultiFactorAuth needs
+     *   it), so the recipe user id can differ from the primary one, and
+     *   SuperTokens keys roles on the primary - which is what `appUserId`
+     *   carries.
+     *
+     * Reading under the write's key is therefore correct or unchanged in every
+     * case, never worse. Note `middlewares/super-admin.ts` still carries the
+     * old expression; it is an authorisation check, and moving it would widen
+     * what that check can find, so it wants its own security review rather
+     * than a ride-along here.
+     */
     const lookupRoles = await authServiceForRouter.getUserRoles(
-      session.providerUserId ?? session.appUserId,
+      session.appUserId,
     );
     const normalizedLookupRoles = lookupRoles.map((role) =>
       role.trim().toLowerCase(),
     );
+    /*
+     * The role store wins over the session claim, not the other way round.
+     *
+     * `st-role` is a copy of the roles taken when the access token was issued;
+     * the store is where a role change lands. Reading the claim first meant a
+     * correction was invisible for the life of the token: provisioning could
+     * move an account from `member` to `developer`, answer 200, and `/me` would
+     * keep serving `member` until the token refreshed or the user signed in
+     * again - so the account stayed routed to the wrong portal with nothing to
+     * show the correction had happened. Role REVOCATION had the same lag, which
+     * is the more serious direction.
+     *
+     * The lookup is not an added cost: it was already awaited above and its
+     * result discarded whenever the claim was non-empty.
+     *
+     * The claim stays the fallback for an empty lookup, which is what a
+     * provider that cannot answer looks like - degrading to the token's copy
+     * beats answering with no role at all.
+     */
     const resolvedRoles =
-      sessionRoles.length > 0 ? sessionRoles : normalizedLookupRoles;
+      normalizedLookupRoles.length > 0 ? normalizedLookupRoles : sessionRoles;
 
     let metadata: Record<string, unknown> = {};
     try {

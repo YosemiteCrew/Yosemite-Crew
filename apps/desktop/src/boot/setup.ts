@@ -147,6 +147,7 @@ export const setupCompliance = async (deps: ComplianceDeps): Promise<ComplianceS
     });
     const dualWitnessLog = createDualWitnessLog({
       logbook: controlledSubstanceLog,
+      auditLog,
     });
     const pmpService = createPmpSubmissionService();
     const csExport = createCsDailyExport({

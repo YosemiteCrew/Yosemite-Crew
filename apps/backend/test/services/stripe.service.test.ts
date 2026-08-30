@@ -1480,6 +1480,43 @@ describe("StripeService", () => {
       );
       expect(NotificationService.sendToUser).toHaveBeenCalled();
     });
+
+    it("does not notify the parent again when the checkout session is replayed", async () => {
+      // Stripe redelivers whenever it does not receive a 2xx, including when the
+      // response was simply lost. A replay settles nothing new, so telling the
+      // pet parent their payment succeeded a second time is wrong.
+      (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: "inv_replay",
+        paymentCollectionMethod: "PAYMENT_LINK",
+        appointmentId: "appt_1",
+        parentId: "par_1",
+        totalAmount: 10,
+        currency: "usd",
+      });
+      (
+        FinancePaymentService.handleInvoiceCheckoutSessionCompleted as jest.Mock
+      ).mockResolvedValueOnce({
+        action: "PAID",
+        replayed: true,
+        invoice: {
+          id: "inv_replay",
+          parentId: "par_1",
+          totalAmount: 10,
+          currency: "usd",
+        },
+      });
+
+      await StripeService._handleInvoiceCheckout({
+        id: "cs_replay",
+        payment_status: "paid",
+        metadata: { invoiceId: "inv_replay" },
+      } as any);
+
+      expect(
+        FinancePaymentService.handleInvoiceCheckoutSessionCompleted,
+      ).toHaveBeenCalled();
+      expect(NotificationService.sendToUser).not.toHaveBeenCalled();
+    });
   });
 
   describe("getAccountStatus missing organisation", () => {

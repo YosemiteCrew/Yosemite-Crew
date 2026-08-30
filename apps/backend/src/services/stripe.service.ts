@@ -1068,6 +1068,13 @@ export const StripeService = {
       return;
     }
 
+    // A replay settles nothing new. Stripe redelivers whenever it does not get a
+    // 2xx, including when the response was simply lost, so without this the pet
+    // parent is told again that the same payment succeeded.
+    if (result.replayed) {
+      return;
+    }
+
     await NotificationService.sendToUser(
       result.invoice.parentId,
       NotificationTemplates.Payment.PAYMENT_SUCCESS(

@@ -32,7 +32,7 @@ const CreateBodySchema = z.object({
   consciousnessLevel: ConsciousnessLevelEnum.optional(),
   gaitScore: GaitScoreEnum.optional(),
   cranialNerveFindings: z.string().max(3000).optional(),
-  spinalReflexGrades: z.record(SpinalReflexGradeEnum).optional(),
+  spinalReflexGrades: z.record(z.string(), SpinalReflexGradeEnum).optional(),
   deepPainPresent: z.boolean().optional(),
   proprioceptionIntact: z.boolean().optional(),
   seizureHistory: z.boolean().optional(),

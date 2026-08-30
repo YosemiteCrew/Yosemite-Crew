@@ -5,16 +5,11 @@
 // the component stays i18n-agnostic and reusable across features.
 
 import React, {useMemo} from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native';
+import {View, Text, type StyleProp, type ViewStyle} from 'react-native';
 
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
+import {createStateBlockStyles} from '@/shared/styles/stateBlockStyles';
 import type {Theme} from '@/theme';
 
 export interface EmptyStateProps {
@@ -65,48 +60,4 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
 };
 
 const createStyles = (theme: Theme) =>
-  StyleSheet.create({
-    container: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: theme.spacing['5'],
-    },
-    ring: {
-      width: 104,
-      height: 104,
-      borderRadius: theme.borderRadius.pill,
-      backgroundColor: theme.colors.blueSoft,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: theme.spacing['5'],
-    },
-    title: {
-      ...theme.typography.emptyStateTitle,
-      color: theme.colors.ink,
-      textAlign: 'center',
-    },
-    description: {
-      ...theme.typography.bodySmall,
-      fontSize: 14.5,
-      color: theme.colors.inkMuted,
-      textAlign: 'center',
-      marginTop: theme.spacing['2'],
-    },
-    cta: {
-      minHeight: 54,
-      alignSelf: 'center',
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: theme.spacing['2'],
-      borderRadius: theme.borderRadius.pill,
-      backgroundColor: theme.colors.cta,
-      paddingHorizontal: theme.spacing['7'],
-      marginTop: theme.spacing['6'],
-    },
-    ctaLabel: {
-      ...theme.typography.button,
-      fontSize: 16.5,
-      color: theme.colors.ctaText,
-    },
-  });
+  createStateBlockStyles(theme, {ringColor: theme.colors.blueSoft});

@@ -41,7 +41,11 @@ jest.mock('../src/ui/theming', () => ({
 }));
 
 import { registerIpc, type IpcServices } from '../src/core/ipc-handlers';
+import { createDualWitnessLog } from '../src/compliance/dual-witness';
+import { CsWriteError } from '../src/compliance/controlled-substance';
+import { AuditWriteError } from '../src/compliance/audit-log';
 import { getDesktopConfig } from '../src/core/navigation-policy';
+import { IPC_CHANNELS, validateIpcRequest } from '../src/core/ipc';
 import { BUILTIN_ACTIONS } from '../src/ui/command-palette';
 
 const event = { senderFrame: { url: 'https://yosemitecrew.com/dashboard' } };
@@ -183,8 +187,11 @@ const makeServices = (overrides: Partial<IpcServices> = {}): IpcServices => {
     keyboardShortcutManager: {} as never,
     auditLog: { append: () => ({ id: 'a', action: 'act' }) } as never,
     controlledSubstanceLog: {
-      record: () => ({ id: 't', drugName: 'd' }),
+      record: (tx: Record<string, unknown>) => ({ id: 't', drugName: 'd', ...tx }),
     } as never,
+    dualWitnessLog: createDualWitnessLog({
+      logbook: { record: () => ({ id: 't' }) } as never,
+    }),
     csExport: {
       exportDailyLog: () => ({ rowCount: 1, filePath: '/x' }),
     } as never,
@@ -411,6 +418,269 @@ describe('ipc-handlers — happy paths', () => {
       ok: false,
       error: 'invalid-quantity',
     });
+  });
+
+  describe('cs-record witness enforcement for waste', () => {
+    const waste = {
+      action: 'waste',
+      drugName: 'Ketamine',
+      drugClass: 'CIII',
+      lotNumber: 'L1',
+      quantity: 3,
+      unit: 'mL',
+      veterinarianId: 'vet-1',
+      veterinarianName: 'Dr. X',
+    };
+
+    test('rejects a destruction with no witness', async () => {
+      const call = register(makeServices());
+      // The channel used to accept this and record it as witness-verified.
+      expect(await call('yc:cs-record', waste)).toEqual({ ok: false, error: 'missing-witnessId' });
+      expect(await call('yc:cs-record', { ...waste, witnessId: 'nurse-1' })).toEqual({
+        ok: false,
+        error: 'missing-witnessName',
+      });
+      expect(
+        await call('yc:cs-record', { ...waste, witnessId: '  ', witnessName: 'Nurse Jane' })
+      ).toEqual({ ok: false, error: 'missing-witnessId' });
+    });
+
+    test('rejects the veterinarian witnessing their own destruction', async () => {
+      const call = register(makeServices());
+      expect(
+        await call('yc:cs-record', {
+          ...waste,
+          witnessId: 'vet-1',
+          witnessName: 'Dr. X',
+        })
+      ).toEqual({ ok: false, error: 'witness-must-differ' });
+    });
+
+    test('rejects a self-witness disguised by whitespace or case', async () => {
+      const call = register(makeServices());
+      // The payload is renderer-controlled, so an exact string comparison let
+      // "vet-1" witness for "vet-1 ".
+      for (const witnessId of ['vet-1 ', ' vet-1', 'VET-1', ' Vet-1 ']) {
+        expect(
+          await call('yc:cs-record', { ...waste, witnessId, witnessName: 'Dr. X' })
+        ).toEqual({ ok: false, error: 'witness-must-differ' });
+      }
+    });
+
+    test('stores ids trimmed but not case-folded, while comparing case-insensitively', async () => {
+      const call = register(makeServices());
+      // Case is significant to an external identity system, so it survives to
+      // disk; it is ignored only when deciding whether two ids are one person.
+      const result = (await call('yc:cs-record', {
+        ...waste,
+        witnessId: '  Nurse-1  ',
+        witnessName: 'Nurse Jane',
+      })) as { ok: boolean; transaction: Record<string, unknown> };
+      expect(result.ok).toBe(true);
+      expect(result.transaction.witnessId).toBe('Nurse-1');
+
+      expect(
+        await call('yc:cs-record', { ...waste, witnessId: 'VET-1 ', witnessName: 'Dr. X' })
+      ).toEqual({ ok: false, error: 'witness-must-differ' });
+    });
+
+    test('persists trimmed witness ids', async () => {
+      const call = register(makeServices());
+      const result = (await call('yc:cs-record', {
+        ...waste,
+        witnessId: '  nurse-1  ',
+        witnessName: '  Nurse Jane  ',
+      })) as { ok: boolean; transaction: Record<string, unknown> };
+
+      expect(result.ok).toBe(true);
+      expect(result.transaction.witnessId).toBe('nurse-1');
+      expect(result.transaction.witnessName).toBe('Nurse Jane');
+    });
+
+    test('records an unverified witness as unverified, not as verified', async () => {
+      const services = makeServices();
+      const call = register(services);
+      const result = (await call('yc:cs-record', {
+        ...waste,
+        witnessId: 'nurse-1',
+        witnessName: 'Nurse Jane',
+      })) as { ok: boolean; witnessPinVerified: boolean; transaction: { witnessPinVerified: boolean } };
+
+      expect(result.ok).toBe(true);
+      expect(result.witnessPinVerified).toBe(false);
+      expect(result.transaction.witnessPinVerified).toBe(false);
+    });
+
+    test('a correct witness PIN produces a genuinely verified record', async () => {
+      const services = makeServices();
+      const call = register(services);
+      services.dualWitnessLog!.setWitnessPin('nurse-1', 'Nurse Jane', '1234');
+
+      const result = (await call('yc:cs-record', {
+        ...waste,
+        witnessId: 'nurse-1',
+        witnessName: 'Nurse Jane',
+        witnessPin: '1234',
+      })) as { witnessPinVerified: boolean; transaction: Record<string, unknown> };
+
+      expect(result.witnessPinVerified).toBe(true);
+      expect(result.transaction.witnessPinVerified).toBe(true);
+      // The PIN itself is never persisted onto the transaction.
+      expect(result.transaction.witnessPin).toBeUndefined();
+    });
+
+    test('a wrong witness PIN is not verification', async () => {
+      const services = makeServices();
+      const call = register(services);
+      services.dualWitnessLog!.setWitnessPin('nurse-1', 'Nurse Jane', '1234');
+
+      const result = (await call('yc:cs-record', {
+        ...waste,
+        witnessId: 'nurse-1',
+        witnessName: 'Nurse Jane',
+        witnessPin: '9999',
+      })) as { witnessPinVerified: boolean };
+      expect(result.witnessPinVerified).toBe(false);
+    });
+
+    test('the renderer cannot assert that a witness was verified', async () => {
+      const services = makeServices();
+      const call = register(services);
+      const result = (await call('yc:cs-record', {
+        ...waste,
+        witnessId: 'nurse-1',
+        witnessName: 'Nurse Jane',
+        witnessPinVerified: true,
+      })) as { witnessPinVerified: boolean; transaction: { witnessPinVerified: boolean } };
+
+      expect(result.witnessPinVerified).toBe(false);
+      expect(result.transaction.witnessPinVerified).toBe(false);
+    });
+
+    test('actions that do not need a witness are unaffected', async () => {
+      const call = register(makeServices());
+      const result = (await call('yc:cs-record', {
+        ...waste,
+        action: 'dispense',
+      })) as { ok: boolean; witnessPinVerified: boolean };
+      expect(result.ok).toBe(true);
+      expect(result.witnessPinVerified).toBe(false);
+    });
+  });
+
+  test('witness enrolment is not reachable over IPC', () => {
+    // An enrolment channel any renderer can call is not a dual-witness control:
+    // one person could enrol a witness with a PIN of their choosing and use it
+    // immediately, manufacturing witnessPinVerified: true on their own. Until
+    // enrolment is tied to an authenticated second identity it is not exposed,
+    // and an unknown channel is rejected before any handler runs.
+    expect(IPC_CHANNELS).not.toContain('yc:cs-set-witness-pin');
+    expect(
+      validateIpcRequest(
+        event,
+        'yc:cs-set-witness-pin',
+        [{ witnessId: 'n1', witnessName: 'Jane', pin: '1234' }],
+        getDesktopConfig({}),
+        tmp
+      )
+    ).toEqual({ ok: false, reason: 'unknown-channel' });
+  });
+
+  test('audit-append refuses to mint controlled-substance entries', async () => {
+    const services = makeServices();
+    const call = register(services);
+
+    // THE ATTACK this closes: a renderer appends a correctly signed
+    // controlled-substance entry naming an existing transaction with
+    // witnessPinVerified: true, then edits that transaction's auditEntryId on
+    // disk to match. The entry is signed by this app's own key, so every
+    // downstream signature check passes and an unwitnessed destruction reads as
+    // PIN-verified. The record path is the only way such entries get written.
+    for (const entry of [
+      { action: 'x', resourceType: 'controlled-substance', details: { witnessPinVerified: true } },
+      { action: 'cs:waste', resourceType: 'patient', details: {} },
+      { action: 'cs:dispense', resourceType: 'controlled-substance', details: {} },
+    ]) {
+      expect(await call('yc:audit-append', entry)).toEqual({
+        ok: false,
+        error: 'reserved-resource-type',
+      });
+    }
+    expect(services.logger.warn).toHaveBeenCalledWith('audit_append_rejected', expect.anything());
+
+    // Ordinary entries are unaffected.
+    expect(await call('yc:audit-append', { action: 'patient:update', resourceType: 'patient' })).toMatchObject({ ok: true });
+  });
+
+  test('a verified witness is recorded under the enrolled account name', async () => {
+    const services = makeServices();
+    const call = register(services);
+    services.dualWitnessLog!.setWitnessPin('nurse-1', 'Nurse Jane Doe', '1234');
+
+    // A valid id + PIN proves the ACCOUNT. The caller may still supply any name
+    // it likes, and that name is what the compliance CSV would show.
+    const result = (await call('yc:cs-record', {
+      action: 'waste',
+      drugName: 'Ketamine',
+      drugClass: 'CIII',
+      lotNumber: 'L1',
+      quantity: 3,
+      unit: 'mL',
+      veterinarianId: 'vet-1',
+      veterinarianName: 'Dr. X',
+      witnessId: 'nurse-1',
+      witnessName: 'Someone Else Entirely',
+      witnessPin: '1234',
+    })) as { witnessPinVerified: boolean; transaction: Record<string, unknown> };
+
+    expect(result.witnessPinVerified).toBe(true);
+    expect(result.transaction.witnessName).toBe('Nurse Jane Doe');
+  });
+
+  test('audit-append reports a failed write instead of confirming the entry', async () => {
+    const services = makeServices();
+    services.auditLog = {
+      append: () => {
+        throw new AuditWriteError('ENOSPC: no space left on device');
+      },
+    } as never;
+    const call = register(services);
+
+    // An audit entry that reached no disk is not an audit entry; the caller has
+    // to be told, and with a specific reason rather than a generic failure.
+    expect(await call('yc:audit-append', { action: 'patient:update' })).toEqual({
+      ok: false,
+      error: 'audit-write-failed',
+    });
+    expect(services.logger.error).toHaveBeenCalledWith('audit_append_failed', expect.anything());
+    expect(services.logger.info).not.toHaveBeenCalledWith('audit_appended', expect.anything());
+  });
+
+  test('cs-record reports a failed write instead of confirming the dispense', async () => {
+    const services = makeServices();
+    services.controlledSubstanceLog = {
+      record: () => {
+        throw new CsWriteError('ENOSPC: no space left on device');
+      },
+    } as never;
+    const call = register(services);
+
+    // A dispense that never reached the disk must not come back as ok:true with
+    // a transaction the caller can show as confirmation.
+    expect(
+      await call('yc:cs-record', {
+        action: 'dispense',
+        drugName: 'Ketamine',
+        drugClass: 'CIII',
+        lotNumber: 'L1',
+        quantity: 5,
+        unit: 'mL',
+        veterinarianId: 'v1',
+        veterinarianName: 'Dr. X',
+      })
+    ).toEqual({ ok: false, error: 'cs-write-failed' });
+    expect(services.logger.error).toHaveBeenCalledWith('cs_record_failed', expect.anything());
+    expect(services.logger.info).not.toHaveBeenCalledWith('cs_recorded', expect.anything());
   });
 
   test('tab + window + misc handlers', async () => {

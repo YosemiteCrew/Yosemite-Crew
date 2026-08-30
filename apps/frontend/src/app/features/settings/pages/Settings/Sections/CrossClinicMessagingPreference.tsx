@@ -13,7 +13,7 @@ import { PreferenceRow } from './PreferenceGroup';
  * versa. Both clinics must have it enabled for a conversation to start. Turning it
  * off removes the clinic from the cross-clinic directory.
  */
-const CrossClinicMessagingPreference = () => {
+const CrossClinicMessagingPreference = ({ readOnly = false }: { readOnly?: boolean }) => {
   const { notify } = useNotify();
   const primaryOrg = useOrgStore((s) => s.getPrimaryOrg());
   const stored = primaryOrg?.crossOrgMessagingEnabled;
@@ -57,7 +57,7 @@ const CrossClinicMessagingPreference = () => {
           role="switch"
           aria-checked={enabled}
           aria-label="Cross-clinic messaging"
-          disabled={saving || !primaryOrg?._id}
+          disabled={readOnly || saving || !primaryOrg?._id}
           onClick={handleToggle}
           className={clsx(
             'relative inline-flex h-6 w-10 shrink-0 items-center rounded-full transition-colors disabled:opacity-50',

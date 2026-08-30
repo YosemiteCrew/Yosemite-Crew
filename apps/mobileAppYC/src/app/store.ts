@@ -130,6 +130,48 @@ const migrateV6ToV7 = (state: any) => {
   }
 };
 
+const migrateV7ToV8 = (state: any) => {
+  console.log(
+    '[Redux Persist] Migrating from v7 to v8 - adding list load-failure state',
+  );
+  // These slices gained a `failedCompanions` map so a failed list fetch stops
+  // rendering as the new-user empty state. All of them are persisted, so state
+  // written by an older build arrives without the key and the first fetch after
+  // an upgrade would write through undefined.
+  for (const key of ['tasks', 'appointments', 'expenses', 'notifications']) {
+    if (state[key]) {
+      state[key].hydratedCompanions = state[key].hydratedCompanions ?? {};
+      state[key].failedCompanions = state[key].failedCompanions ?? {};
+      state[key].activeRequests = state[key].activeRequests ?? {};
+    }
+  }
+  if (state.companion) {
+    state.companion.hasLoaded = state.companion.hasLoaded ?? false;
+    state.companion.loadError = state.companion.loadError ?? null;
+  }
+};
+
+const migrateV8ToV9 = (state: any) => {
+  console.log(
+    '[Redux Persist] Migrating from v8 to v9 - adding list staleness tracking',
+  );
+  // `activeRequests` discards rejections superseded by a newer success;
+  // `lastLoadedAt` lets a stale list say how old it is. Both live on persisted
+  // slices, so state written before them rehydrates without the keys.
+  for (const key of ['tasks', 'appointments', 'expenses', 'notifications']) {
+    if (state[key]) {
+      state[key].activeRequests = state[key].activeRequests ?? {};
+      state[key].lastLoadedAt = state[key].lastLoadedAt ?? {};
+    }
+  }
+  if (state.expenses) {
+    // Summary failures live apart from list failures: they retry different
+    // fetches, so one entry cannot serve both.
+    state.expenses.summaryFailedCompanions =
+      state.expenses.summaryFailedCompanions ?? {};
+  }
+};
+
 // Keyed by the persisted version a state is migrating FROM.
 const MIGRATIONS_BY_FROM_VERSION: Record<number, (state: any) => void> = {
   1: migrateV1ToV2,
@@ -138,11 +180,15 @@ const MIGRATIONS_BY_FROM_VERSION: Record<number, (state: any) => void> = {
   4: migrateV4ToV5,
   5: migrateV5ToV6,
   6: migrateV6ToV7,
+  7: migrateV7ToV8,
+  8: migrateV8ToV9,
 };
+
+const PERSIST_VERSION = 9;
 
 const persistConfig = {
   key: 'root',
-  version: 7,
+  version: PERSIST_VERSION,
   storage: storageForPersist,
   whitelist: [
     'auth',
@@ -160,12 +206,19 @@ const persistConfig = {
     'preferences',
   ],
   migrate: (state: any) => {
-    console.log(
-      '[Redux Persist] Migrating state from version',
-      state?._persist?.version,
-    );
-    const migrateStep = MIGRATIONS_BY_FROM_VERSION[state?._persist?.version];
-    migrateStep?.(state);
+    const from = state?._persist?.version;
+    console.log('[Redux Persist] Migrating state from version', from);
+
+    // Run EVERY step from the persisted version up to the current one. This
+    // used to apply a single step, so a user two or more versions behind kept
+    // whatever shape they had and skipped the rest - the later a migration was
+    // added, the fewer users it reached.
+    if (typeof from === 'number') {
+      for (let version = from; version < PERSIST_VERSION; version += 1) {
+        MIGRATIONS_BY_FROM_VERSION[version]?.(state);
+      }
+    }
+
     return Promise.resolve(state);
   },
 };

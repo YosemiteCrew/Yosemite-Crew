@@ -5,6 +5,10 @@ import type { Organisation } from '@yosemite-crew/types';
 import type { ServiceRevamp, SpecialityRevamp } from '@/app/features/organization/types/revamp';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
+import {
+  bookingPageApi,
+  type BookingPageConfig,
+} from '@/app/features/onboarding/services/bookingPageApiService';
 import PublicBookingSetup from './PublicBookingSetup';
 
 const ORG_ID = 'org-storybook-avenger-park';
@@ -60,6 +64,21 @@ const SERVICES: ServiceRevamp[] = [
   service({ id: 'svc-5', code: 'GP-099', name: 'Retired nail trim', status: 'ARCHIVED' }),
 ];
 
+const config = (over: Partial<BookingPageConfig> = {}): BookingPageConfig => ({
+  organisationId: ORG_ID,
+  configured: false,
+  slug: null,
+  publicBookingEnabled: false,
+  publicUrl: null,
+  serviceIds: [],
+  bookingWindowDays: 28,
+  bufferMinutes: 10,
+  autoConfirm: false,
+  welcomeMessage: null,
+  replyToEmail: null,
+  ...over,
+});
+
 const SPECIALITY: SpecialityRevamp = {
   id: SPECIALITY_ID,
   name: 'General Practice',
@@ -74,9 +93,25 @@ const SPECIALITY: SpecialityRevamp = {
  * holds a speciality for this organisation, so seeding one keeps the mount off
  * the network with no service stub - the page under review is the real one.
  */
-const seed = (options: { services?: ServiceRevamp[]; imageURL?: string } = {}) => {
+const seed = (
+  options: {
+    services?: ServiceRevamp[];
+    imageURL?: string;
+    config?: BookingPageConfig;
+  } = {}
+) => {
   const previousOrg = useOrgStore.getState();
   const previousCatalog = useRevampCatalogStore.getState();
+  const previousGetConfig = bookingPageApi.getConfig;
+  const previousSaveConfig = bookingPageApi.saveConfig;
+
+  // The page reads its address from the API and never derives one, so a story
+  // has to supply the payload it would have received. Stubbing here keeps the
+  // preview iframe off the network and makes the unpublished/published split an
+  // explicit choice per story rather than a network accident.
+  const stubbed = options.config ?? config();
+  bookingPageApi.getConfig = async () => stubbed;
+  bookingPageApi.saveConfig = async () => stubbed;
 
   useOrgStore.setState({
     orgsById: { [ORG_ID]: { ...ORG, imageURL: options.imageURL } },
@@ -87,11 +122,17 @@ const seed = (options: { services?: ServiceRevamp[]; imageURL?: string } = {}) =
   useRevampCatalogStore.setState({
     services: options.services ?? SERVICES,
     specialities: [SPECIALITY],
+    // The page fans out to `loadSpecialityCatalog` for each speciality. Marking
+    // this one already loaded makes that call return at its first line, so the
+    // preview iframe stays off the network with the seeded services intact.
+    loadedSpecialityIds: [`${SPECIALITY_ID}:active`],
   });
 
   return () => {
     useOrgStore.setState(previousOrg);
     useRevampCatalogStore.setState(previousCatalog);
+    bookingPageApi.getConfig = previousGetConfig;
+    bookingPageApi.saveConfig = previousSaveConfig;
   };
 };
 
@@ -111,14 +152,13 @@ const meta = {
       description: {
         component:
           'The two-pane online-booking setup card. Step 1 is what a reviewer sees by default; ' +
-          'step 2 - the whole **Branding & review** pane - only exists after Continue, and had ' +
-          'never been drawn anywhere.\n\n' +
-          'That is where all of the assumed-scope risk lives: the logo row with its Replace ' +
-          'action (not wired up), the welcome message, the confirmation-email reply-to, the live ' +
-          'preview card of the public booking page, and the public URL whose slug is derived from ' +
-          'the clinic name rather than stored anywhere. The amber `FIELDS ASSUMED · confirm with ' +
-          'product` pill in the page header is the standing warning that these fields are a ' +
-          'proposal, and step 2 is the half of the flow it is really about.\n\n' +
+          'step 2 - the whole **Branding & review** pane - only exists after Continue.\n\n' +
+          'Step 2 is where the booking address lives, and its three states are the thing to ' +
+          'review. The page never derives an address: it renders whatever `publicUrl` the API ' +
+          'sent, and the API sends null until the practice is genuinely reachable. So an ' +
+          'unpublished practice sees its reserved slug and a plain statement that there is no ' +
+          'link to share, with no Copy button, and only a live page gets a copyable URL. The ' +
+          'logo Replace action is still an unwired notify().\n\n' +
           'Selection is derived, not mirrored: every bookable service starts selected because ' +
           '`selected` falls back to the full id set until the user toggles something, so there is ' +
           'no effect syncing a checkbox list to the catalog.\n\n' +
@@ -139,8 +179,8 @@ export const ServicesStep: Story = {
   name: 'Step 1 - services & availability',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText('FIELDS ASSUMED · confirm with product')).toBeInTheDocument();
     await expect(canvas.getByText('of 2 · Services & availability')).toBeInTheDocument();
+    await expect(canvas.queryByText(/FIELDS ASSUMED/)).not.toBeInTheDocument();
 
     // Three of the five catalog rows: archived and non-bookable are filtered out.
     const rows = canvas.getAllByRole('button', { pressed: true });
@@ -151,12 +191,9 @@ export const ServicesStep: Story = {
     await expect(canvas.queryByText('Full mouth radiograph')).not.toBeInTheDocument();
     await expect(canvas.queryByText('Retired nail trim')).not.toBeInTheDocument();
 
-    await expect(canvas.getByRole('combobox', { name: 'Bookable window' })).toHaveValue(
-      'Up to 4 weeks ahead'
-    );
-    await expect(canvas.getByRole('combobox', { name: 'Buffer between visits' })).toHaveValue(
-      '10 minutes'
-    );
+    // The selects carry the number the API stores, not the label.
+    await expect(canvas.getByRole('combobox', { name: 'Bookable window' })).toHaveValue('28');
+    await expect(canvas.getByRole('combobox', { name: 'Buffer between visits' })).toHaveValue('10');
     await expect(canvas.getByRole('switch', { name: 'Requests need confirmation' })).toBeChecked();
 
     // The two selects share one `grid-cols-1 sm:grid-cols-2` row: two tracks and
@@ -234,11 +271,11 @@ export const BrandingStep: Story = {
     await expect(canvas.getByText('Avenger Park Veterinary')).toBeInTheDocument();
     await expect(canvas.getByText('Choose a service')).toBeInTheDocument();
 
-    // Slug is computed from the org name at render time - nothing stores it.
-    await expect(
-      canvas.getByText('book.yosemitecrew.com/avenger-park-veterinary')
-    ).toBeInTheDocument();
-    await expect(canvas.getByRole('button', { name: 'Copy' })).toBeInTheDocument();
+    // Unpublished: no address has been allocated yet, and nothing offers to copy
+    // one. This is the state that used to render a dead book.yosemitecrew.com URL.
+    await expect(canvas.getByText('Reserved when you save')).toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: 'Copy' })).not.toBeInTheDocument();
+    await expect(canvasElement.textContent).not.toContain('book.yosemitecrew.com');
 
     // Fields left, preview right, side by side from `md` up - two children on
     // one row, which is what the phone story below reverses.
@@ -333,7 +370,7 @@ export const ServicesStepEmpty: Story = {
         story:
           'What a clinic sees before any service is marked bookable. The empty state is a single ' +
           'line of copy pointing at Organization → Specialities, and nothing stops Continue: the ' +
-          'branding pane and the Go live button are reachable with zero services attached, so the ' +
+          'branding pane and the save button are reachable with zero services attached, so the ' +
           'guard that should exist here does not.',
       },
     },
@@ -362,9 +399,7 @@ export const BrandingOnPhone: Story = {
     );
     await expect(within(preview).getByText('Preview')).toBeInTheDocument();
     await expect(within(preview).getByText('Avenger Park Veterinary')).toBeInTheDocument();
-    await expect(
-      canvas.getByText('book.yosemitecrew.com/avenger-park-veterinary')
-    ).toBeInTheDocument();
+    await expect(canvas.getByText('Reserved when you save')).toBeInTheDocument();
   },
   parameters: {
     docs: {
@@ -373,6 +408,79 @@ export const BrandingOnPhone: Story = {
           'Step 2 at 375px. The `md:w-60` preview loses its fixed width and goes full-bleed under ' +
           'the three fields, which is the one place the preview stops reading as a phone-sized ' +
           'mock of the public page and starts reading as another card in the form.',
+      },
+    },
+  },
+};
+
+export const BrandingPublished: Story = {
+  name: 'Step 2 - published practice',
+  beforeEach: () =>
+    seed({
+      config: config({
+        slug: 'avenger-park-veterinary',
+        publicBookingEnabled: true,
+        publicUrl: 'https://dev.yosemitecrew.com/book/avenger-park-veterinary',
+        welcomeMessage: 'Book a visit for your companion at Avenger Park Veterinary.',
+      }),
+    }),
+  play: async ({ canvasElement }) => {
+    await goToBranding(canvasElement);
+    const canvas = within(canvasElement);
+
+    // The one state where an address is offered for copying: the API said the
+    // page is live, so the link is safe to paste onto a website.
+    await expect(
+      canvas.getByText('https://dev.yosemitecrew.com/book/avenger-park-veterinary')
+    ).toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: 'Copy' })).toBeInTheDocument();
+    await expect(canvas.getByText(/Safe to share on your website/)).toBeInTheDocument();
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The published state, and the only one with a Copy button. Compare it with the default ' +
+          'step 2 story: the difference between them is entirely driven by `publicUrl` coming ' +
+          'back non-null from the API, never by anything the page computes.',
+      },
+    },
+  },
+};
+
+export const BrandingOpenWithoutAddress: Story = {
+  name: 'Step 2 - open, but no address configured',
+  beforeEach: () =>
+    seed({
+      config: config({
+        configured: true,
+        slug: 'avenger-park-veterinary',
+        publicBookingEnabled: true,
+        // Reachable, but this environment has no PUBLIC_BOOKING_BASE_URL, so the
+        // API can offer no link.
+        publicUrl: null,
+      }),
+    }),
+  play: async ({ canvas }) => {
+    await goToBranding(document.body);
+
+    await expect(await canvas.findByText(/Your booking page is open/)).toBeInTheDocument();
+    await expect(canvas.getByText(/No public web address is configured/)).toBeInTheDocument();
+
+    // The bug this story exists to prevent coming back.
+    await expect(canvas.queryByText(/is closed/)).not.toBeInTheDocument();
+    await expect(canvas.queryByText(/not live/)).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: 'Copy' })).not.toBeInTheDocument();
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The state that shipped wrong. Whether the page is REACHABLE is `publicBookingEnabled`; ' +
+          'whether a LINK can be shown additionally needs an address configured for the ' +
+          'environment. The first version branched only on the link, so a practice whose page was ' +
+          'live and taking bookings was told it "is not live yet" - the same species of untruth ' +
+          'this screen was rewritten to remove, pointing the other way.',
       },
     },
   },

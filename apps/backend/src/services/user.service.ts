@@ -1,4 +1,5 @@
 import isEmail from "validator/lib/isEmail.js";
+import { Prisma } from "@prisma/client";
 import { User } from "@yosemite-crew/types";
 import { getAuthService } from "@yosemite-crew/auth";
 import { OrganizationService } from "./organization.service";
@@ -184,24 +185,45 @@ export const UserService = {
       );
     }
 
-    const user = await prisma.user.create({
-      data: {
-        userId: attributes.userId,
-        email: attributes.email,
-        firstName: payload.firstName,
-        lastName: payload.lastName,
-        isActive: attributes.isActive,
-      },
-      select: {
-        userId: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        isActive: true,
-      },
-    });
+    try {
+      const user = await prisma.user.create({
+        data: {
+          userId: attributes.userId,
+          email: attributes.email,
+          firstName: payload.firstName,
+          lastName: payload.lastName,
+          isActive: attributes.isActive,
+        },
+        select: {
+          userId: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          isActive: true,
+        },
+      });
 
-    return toUserDomain(user);
+      return toUserDomain(user);
+    } catch (error) {
+      /*
+       * The check above is a read, so two first-time provisioning calls can
+       * both pass it before either insert lands - two verification tabs, or
+       * the client's own retry. `userId` and `email` are both unique, so the
+       * loser gets a raw P2002 here rather than the 409 the caller expects,
+       * and provisioning fails with a 500 on an account that now exists.
+       * Same conflict, same answer.
+       */
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        throw new UserServiceError(
+          "User with the same id or email already exists.",
+          409,
+        );
+      }
+      throw error;
+    }
   },
 
   async getById(id: unknown): Promise<UserDomain | null> {

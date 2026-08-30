@@ -69,7 +69,10 @@
     "view_companions_description": "Revisa tus mascotas y su información",
     "schedule_appointment": "Programar Cita",
     "schedule_description": "Reserva una cita veterinaria para tu mascota",
-    "sign_out": "Cerrar Sesión"
+    "sign_out": "Cerrar Sesión",
+    "home_appointments_load_failed": "No se pudieron cargar las citas",
+    "home_expenses_load_failed": "No se pudieron cargar los gastos",
+    "home_load_failed_action": "Toca para intentarlo de nuevo."
   },
   "companions": {
     "no_companions_title": "Aún no hay mascotas",
@@ -146,7 +149,16 @@
     "no": "No",
     "on": "Activado",
     "off": "Desactivado",
-    "sign_out": "Cerrar Sesión"
+    "sign_out": "Cerrar Sesión",
+    "load_failed_title": "No pudimos cargar esto",
+    "load_failed_message": "Algo salió mal por nuestra parte. Comprueba tu conexión e inténtalo de nuevo.",
+    "load_failed_offline": "Parece que no tienes conexión. Vuelve a conectarte e inténtalo de nuevo.",
+    "stale_title": "Mostrando información anterior",
+    "stale_updated_just_now": "Actualizado ahora mismo",
+    "stale_updated_minutes": "Actualizado hace {{count}} min",
+    "stale_updated_hours": "Actualizado hace {{count}} h",
+    "stale_updated_days": "Actualizado hace {{count}} d",
+    "stale_updated_unknown": "No se pudo actualizar"
   },
   "validation": {
     "email_required": "El correo electrónico es requerido",

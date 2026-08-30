@@ -16,7 +16,7 @@ import { resolveVerifiedUserId } from "src/utils/request";
 import logger from "src/utils/logger";
 
 const actionBodySchema = z.object({
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
   reason: z.string().trim().min(1).optional(),
 });
 

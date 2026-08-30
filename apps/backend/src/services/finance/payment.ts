@@ -323,11 +323,19 @@ const applyCheckoutSessionTaxToInvoice = async (
   });
 };
 
+// The writer half of the client, so a caller inside an interactive transaction
+// can pass its `tx` and have these writes commit or roll back with the rest.
+type PaymentTxClient = Omit<
+  typeof prisma,
+  "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
+>;
+
 const createPaymentAttempt = async (
   invoiceId: string,
   input: PaymentAttemptInput,
+  client: PaymentTxClient = prisma,
 ) =>
-  prisma.paymentAttempt.create({
+  client.paymentAttempt.create({
     data: {
       invoiceId,
       provider: input.provider,
@@ -356,9 +364,17 @@ const updateInvoiceAfterPayment = async (params: {
   balance: number;
   receivedAt: Date;
   input: InvoicePaymentInput;
+  client?: PaymentTxClient;
 }) => {
-  const { invoice, invoiceId, appliedAmount, balance, receivedAt, input } =
-    params;
+  const {
+    invoice,
+    invoiceId,
+    appliedAmount,
+    balance,
+    receivedAt,
+    input,
+    client = prisma,
+  } = params;
   const isDepositPayment =
     input.collectionMode === "DEPOSIT_THEN_SETTLE" ||
     input.settlementChannel === "DEPOSIT" ||
@@ -378,7 +394,7 @@ const updateInvoiceAfterPayment = async (params: {
   }
 
   if (appliedAmount >= balance) {
-    const settledInvoice = await prisma.invoice.update({
+    const settledInvoice = await client.invoice.update({
       where: { id: invoiceId },
       data: {
         status: "PAID",
@@ -392,12 +408,17 @@ const updateInvoiceAfterPayment = async (params: {
           : {}),
       },
     });
-    await markInvoiceTreatmentItemsSettled(invoice, invoiceId, receivedAt);
+    await markInvoiceTreatmentItemsSettled(
+      invoice,
+      invoiceId,
+      receivedAt,
+      client,
+    );
     return settledInvoice;
   }
 
   if (isDepositPayment) {
-    return prisma.invoice.update({
+    return client.invoice.update({
       where: { id: invoiceId },
       data: {
         depositCollectedAmount: nextDepositCollectedAmount,
@@ -903,6 +924,13 @@ const cancelOpenCheckoutSessionAttempts = async (invoiceId: string) => {
 
 // Reuse the latest open PaymentIntent attempt when it still matches the
 // outstanding balance; otherwise cancel it so a fresh intent can be issued.
+// Same shape as the helpers in stripe.service.ts and invoice.service.ts.
+const isUniqueConstraintViolation = (error: unknown): boolean =>
+  !!error &&
+  typeof error === "object" &&
+  "code" in error &&
+  (error as { code?: string }).code === "P2002";
+
 const reuseOrCancelExistingPaymentIntentAttempt = async (
   invoiceId: string,
   invoice: {
@@ -1790,6 +1818,10 @@ export const FinancePaymentService = {
         balanceAfterPayment: 0,
         paidToDate: paid,
         appliedAmount: 0,
+        // Nothing was applied, so this is not a fresh success either. A caller
+        // that notifies the pet parent must not fire for a redelivery that
+        // arrives after the balance is already closed.
+        replayed: true,
       };
     }
 
@@ -1805,64 +1837,131 @@ export const FinancePaymentService = {
     const receivedAt = input.receivedAt ?? new Date();
     const isPartial = appliedAmount < balance || paid > 0;
 
-    const paymentAttempt = input.paymentAttemptId
-      ? await prisma.paymentAttempt.update({
-          where: { id: input.paymentAttemptId },
+    // The attempt write, the Payment insert and the invoice update move
+    // together or not at all.
+    //
+    // They used to be three sequential awaits, which is what made every replay
+    // guard here unsound: a P2002 on Payment.paymentAttemptId proved the payment
+    // row existed and nothing else, so a delivery that died between the insert
+    // and the invoice update left a covered invoice that was never marked PAID,
+    // and a deposit whose collected amount never moved. No amount of reasoning
+    // on the recovery path can distinguish that from a clean replay, because the
+    // database does not record which of the three steps ran.
+    //
+    // FinanceEventService.recordEvent stays outside deliberately: it closes over
+    // the module-level client, so calling it in here would run on a second
+    // connection against rows this transaction still holds.
+    let settled;
+    try {
+      settled = await prisma.$transaction(async (tx) => {
+        const paymentAttempt = input.paymentAttemptId
+          ? await tx.paymentAttempt.update({
+              where: { id: input.paymentAttemptId },
+              data: {
+                provider: input.provider,
+                settlementChannel: input.settlementChannel ?? null,
+                providerPaymentIntentId: input.providerPaymentId ?? null,
+                status: "SUCCEEDED",
+                amountRequested: requestedAmount,
+                amountCaptured: appliedAmount,
+                amountApplied: appliedAmount,
+                currency: input.currency ?? invoice.currency,
+                collectionMode: input.collectionMode ?? null,
+                isOffline: input.provider === "MANUAL",
+                isPartial,
+                rawProviderPayload: input.rawProviderPayload ?? undefined,
+              },
+            })
+          : await createPaymentAttempt(
+              invoiceId,
+              {
+                provider: input.provider,
+                status: "SUCCEEDED",
+                settlementChannel: input.settlementChannel ?? null,
+                amountRequested: requestedAmount,
+                amountCaptured: appliedAmount,
+                amountApplied: appliedAmount,
+                currency: input.currency ?? invoice.currency,
+                collectionMode: input.collectionMode ?? null,
+                providerPaymentIntentId: input.providerPaymentId ?? null,
+                isOffline: input.provider === "MANUAL",
+                isPartial,
+                rawProviderPayload: input.rawProviderPayload ?? null,
+              },
+              tx,
+            );
+
+        const payment = await tx.payment.create({
           data: {
+            invoiceId,
+            paymentAttemptId: paymentAttempt.id,
             provider: input.provider,
             settlementChannel: input.settlementChannel ?? null,
-            providerPaymentIntentId: input.providerPaymentId ?? null,
-            status: "SUCCEEDED",
-            amountRequested: requestedAmount,
-            amountCaptured: appliedAmount,
-            amountApplied: appliedAmount,
-            currency: input.currency ?? invoice.currency,
             collectionMode: input.collectionMode ?? null,
-            isOffline: input.provider === "MANUAL",
-            isPartial,
+            providerPaymentId: input.providerPaymentId ?? null,
+            amount: appliedAmount,
+            currency: input.currency ?? invoice.currency,
+            status: "SUCCEEDED",
+            paidAt: receivedAt,
+            receiptUrl: input.reference ?? undefined,
             rawProviderPayload: input.rawProviderPayload ?? undefined,
           },
-        })
-      : await createPaymentAttempt(invoiceId, {
-          provider: input.provider,
-          status: "SUCCEEDED",
-          settlementChannel: input.settlementChannel ?? null,
-          amountRequested: requestedAmount,
-          amountCaptured: appliedAmount,
-          amountApplied: appliedAmount,
-          currency: input.currency ?? invoice.currency,
-          collectionMode: input.collectionMode ?? null,
-          providerPaymentIntentId: input.providerPaymentId ?? null,
-          isOffline: input.provider === "MANUAL",
-          isPartial,
-          rawProviderPayload: input.rawProviderPayload ?? null,
         });
 
-    const payment = await prisma.payment.create({
-      data: {
-        invoiceId,
-        paymentAttemptId: paymentAttempt.id,
-        provider: input.provider,
-        settlementChannel: input.settlementChannel ?? null,
-        collectionMode: input.collectionMode ?? null,
-        providerPaymentId: input.providerPaymentId ?? null,
-        amount: appliedAmount,
-        currency: input.currency ?? invoice.currency,
-        status: "SUCCEEDED",
-        paidAt: receivedAt,
-        receiptUrl: input.reference ?? undefined,
-        rawProviderPayload: input.rawProviderPayload ?? undefined,
-      },
-    });
+        const updatedInvoice = await updateInvoiceAfterPayment({
+          invoice,
+          invoiceId,
+          appliedAmount,
+          balance,
+          receivedAt,
+          input,
+          client: tx,
+        });
 
-    const updatedInvoice = await updateInvoiceAfterPayment({
-      invoice,
-      invoiceId,
-      appliedAmount,
-      balance,
-      receivedAt,
-      input,
-    });
+        return { paymentAttempt, payment, updatedInvoice };
+      });
+    } catch (error) {
+      if (!isUniqueConstraintViolation(error) || !input.paymentAttemptId) {
+        throw error;
+      }
+
+      // A Payment already exists for this attempt, so the event is a redelivery.
+      // Because the block above is atomic, that row existing now genuinely does
+      // imply the invoice moved with it, which is what makes simply returning
+      // what is recorded a safe answer rather than an assumption.
+      const existingPayment = await prisma.payment.findUnique({
+        where: { paymentAttemptId: input.paymentAttemptId },
+      });
+      if (!existingPayment) throw error;
+
+      const currentInvoice = await prisma.invoice.findUniqueOrThrow({
+        where: { id: invoiceId },
+      });
+      const replaySummary = await getOutstandingBalance(
+        invoiceId,
+        currentInvoice.totalAmount,
+        currentInvoice.depositCollectedAmount ?? 0,
+      );
+
+      logger.info(
+        `Payment for attempt ${input.paymentAttemptId.replace(/[\n\r]+/g, " ")} was already recorded; treating this delivery as a replay`,
+      );
+
+      return {
+        invoice: currentInvoice,
+        paymentAttempt: null,
+        payment: existingPayment,
+        balanceAfterPayment: replaySummary.balance,
+        paidToDate: replaySummary.paid,
+        // Nothing new was applied, so a caller accumulating this must not count
+        // the same money twice, and one that notifies the pet parent must not
+        // tell them twice that the same payment succeeded.
+        appliedAmount: 0,
+        replayed: true,
+      };
+    }
+
+    const { paymentAttempt, payment, updatedInvoice } = settled;
 
     await FinanceEventService.recordEvent({
       organisationId: invoice.organisationId ?? null,
@@ -1895,6 +1994,7 @@ export const FinancePaymentService = {
       balanceAfterPayment: summary.balance,
       paidToDate: summary.paid,
       appliedAmount,
+      replayed: false,
     };
   },
 

@@ -17,7 +17,14 @@ const normalizeRole = (role?: string | null) =>
     .trim()
     .toLowerCase();
 
-const isDeveloperRole = (role?: string | null) => normalizeRole(role) === 'developer';
+/**
+ * The one definition of "this role is a developer role".
+ *
+ * Exported so callers that need the same question answered - SignIn, deciding
+ * whether the developer form matched the account - cannot drift into a second,
+ * subtly different normalization.
+ */
+export const isDeveloperRole = (role?: string | null) => normalizeRole(role) === 'developer';
 const isOwnerRole = (role?: string | null) => normalizeRole(role) === 'owner';
 
 // Only same-origin, absolute-path destinations are safe post-auth targets;
@@ -54,7 +61,6 @@ export const sanitizeNextPath = (value: string | null): string | undefined => {
 type ResolvePostAuthRedirectOptions = {
   fallbackRole?: string | null;
   redirectPath?: string;
-  isDeveloper?: boolean;
 };
 
 type ResolveOrgScopedRedirectOptions = {
@@ -115,13 +121,17 @@ export const resolveOrgScopedRedirect = async ({
 export const resolvePostAuthRedirect = async ({
   fallbackRole,
   redirectPath,
-  isDeveloper = false,
 }: ResolvePostAuthRedirectOptions): Promise<string> => {
   if (redirectPath) {
     return redirectPath;
   }
 
-  if (isDeveloper || isDeveloperRole(fallbackRole)) {
+  /* The role decides this, and only the role. This used to also accept an
+     `isDeveloper` flag meaning "submitted the developer sign-in form", which is
+     true even for an account with no developer role - so it routed those users
+     to a page DevRouteGuard immediately rejects. Callers that care about the
+     mismatch check the role themselves; see SignIn. */
+  if (isDeveloperRole(fallbackRole)) {
     return '/developers/home';
   }
 

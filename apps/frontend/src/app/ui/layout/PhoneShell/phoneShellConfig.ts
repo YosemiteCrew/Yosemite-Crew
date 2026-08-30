@@ -1,6 +1,7 @@
 import type { IconType } from 'react-icons';
 import { PERMISSIONS, type Permission } from '@/app/lib/permissions';
 import {
+  IoBook,
   IoBookOutline,
   IoBusinessOutline,
   IoCalendar,
@@ -10,11 +11,15 @@ import {
   IoCheckmarkDoneOutline,
   IoCodeSlashOutline,
   IoCubeOutline,
+  IoExtensionPuzzle,
+  IoExtensionPuzzleOutline,
   IoEllipsisHorizontalCircle,
   IoEllipsisHorizontalCircleOutline,
   IoGitNetworkOutline,
   IoGrid,
   IoGridOutline,
+  IoKey,
+  IoKeyOutline,
   IoPaw,
   IoPawOutline,
   IoSettingsOutline,
@@ -27,7 +32,16 @@ import {
  * nothing here invents a destination that does not already exist in the app.
  */
 
-export type PhoneTabKey = 'home' | 'schedule' | 'patients' | 'chat' | 'more';
+export type PhoneTabKey =
+  | 'home'
+  | 'schedule'
+  | 'patients'
+  | 'chat'
+  | 'more'
+  | 'dev-home'
+  | 'dev-api-keys'
+  | 'dev-plugins'
+  | 'dev-docs';
 
 export type PhoneTabConfig = {
   key: PhoneTabKey;
@@ -101,6 +115,87 @@ export const PHONE_TABS: PhoneTabConfig[] = [
       '/settings',
       '/developers',
     ],
+  },
+];
+
+/**
+ * The developer portal's own bottom bar.
+ *
+ * `PHONE_TABS` is the PIMS set - Home/Schedule/Patients/Chat all point at clinic
+ * routes - and the portal was rendering it, so a developer on a phone got a
+ * business menu and no way to reach API keys or plugins except through More.
+ * The desktop sidebar has always swapped `appRoutes` for `devRoutes` on this
+ * same prefix; this is that switch, for the shell the phone actually shows.
+ *
+ * Deliberately no `routeName`: those exist so a tab can reuse the sidebar's
+ * ORG permission gate, and the portal is not org-scoped - `usePhoneNavGate`
+ * already short-circuits `isRouteEnabled` to true inside `/developers`. Giving
+ * these tabs an org route name would gate the portal on clinic membership.
+ *
+ * Website Builder is intentionally absent: the portal itself tells a phone
+ * visitor it is desktop-only, so a tab leading there would be a dead end.
+ */
+export const DEV_PHONE_TABS: PhoneTabConfig[] = [
+  {
+    key: 'dev-home',
+    label: 'Home',
+    icon: IoGridOutline,
+    activeIcon: IoGrid,
+    href: '/developers/home',
+    activePrefixes: ['/developers/home'],
+  },
+  {
+    key: 'dev-api-keys',
+    label: 'API Keys',
+    icon: IoKeyOutline,
+    activeIcon: IoKey,
+    href: '/developers/api-keys',
+    activePrefixes: ['/developers/api-keys'],
+  },
+  {
+    key: 'dev-plugins',
+    label: 'Plugins',
+    icon: IoExtensionPuzzleOutline,
+    activeIcon: IoExtensionPuzzle,
+    href: '/developers/plugins',
+    activePrefixes: ['/developers/plugins'],
+  },
+  {
+    key: 'dev-docs',
+    label: 'Docs',
+    icon: IoBookOutline,
+    activeIcon: IoBook,
+    href: '/developers/documentation',
+    activePrefixes: ['/developers/documentation'],
+  },
+  {
+    key: 'more',
+    label: 'More',
+    icon: IoEllipsisHorizontalCircleOutline,
+    activeIcon: IoEllipsisHorizontalCircle,
+    isMore: true,
+    activePrefixes: ['/developers/billing', '/developers/website-builder', '/developers/settings'],
+  },
+];
+
+/**
+ * What the More sheet offers inside the portal. The business sections
+ * (Tasks, Finance, Inventory...) are clinic routes and do not belong here;
+ * these are the developer destinations the bottom bar has no room for.
+ */
+export const DEV_PHONE_MORE_LINKS: MoreLinkConfig[] = [
+  { key: 'dev-billing', label: 'Billing', href: '/developers/billing', icon: IoWalletOutline },
+  {
+    key: 'dev-website-builder',
+    label: 'Website builder',
+    href: '/developers/website-builder',
+    icon: IoBusinessOutline,
+  },
+  {
+    key: 'dev-settings',
+    label: 'Settings',
+    href: '/developers/settings',
+    icon: IoSettingsOutline,
   },
 ];
 

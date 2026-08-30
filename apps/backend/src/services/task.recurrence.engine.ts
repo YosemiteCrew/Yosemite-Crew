@@ -48,7 +48,20 @@ const computeNextDueAt = (
         });
         return interval.next().toDate();
       } catch (error) {
-        console.error("Invalid cron expression:", cronExpression, error);
+        // The expression is caller-supplied; strip line breaks so it cannot
+        // forge additional log lines. Two constraints on the form: no quantifier,
+        // and an empty replacement, or CodeQL's log-injection barrier does not
+        // fire. String() matters: the task controllers spread req.body straight
+        // through, so a stored cronExpression need not be a string, and a bare
+        // .replace() would throw here inside the catch and abort the whole
+        // engine run. `error` needs no strip: cron fields are
+        // whitespace-delimited, so cron-parser's "got value" echo is always a
+        // single field and can never contain a break.
+        console.error(
+          "Invalid cron expression:",
+          String(cronExpression).replace(/[\n\r]/g, ""),
+          error,
+        );
         return null;
       }
     default:

@@ -22,6 +22,7 @@ import {sha256} from 'js-sha256';
 import {API_CONFIG, PASSWORDLESS_AUTH_CONFIG} from '@/config/variables';
 import type {ProfileStatus} from '@/features/account/services/profileService';
 import type {User, AuthTokens} from '@/features/auth/context/AuthContext';
+import {decodeJwtExpiration} from '@/features/auth/utils/jwt';
 import {mergeUserWithParentProfile} from '@/features/auth/utils/parentProfileMapper';
 import {syncAuthUser} from '@/features/auth/services/authUserService';
 import {
@@ -711,6 +712,9 @@ export const signInWithSocialProvider = async (
     const completeTokens: AuthTokens = {
       idToken: accessToken,
       accessToken,
+      // Same reason as the OTP path: an expiry left undefined reads as
+      // "never expires" downstream, so record it here at the source.
+      expiresAt: decodeJwtExpiration(accessToken),
       userId: exchange.userId,
       provider: 'supertokens',
     };

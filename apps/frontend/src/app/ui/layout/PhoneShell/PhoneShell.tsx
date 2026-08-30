@@ -18,6 +18,8 @@ import {
   PHONE_MORE_SECTIONS,
   PHONE_PRIMARY_ACTION_EVENT,
   PHONE_TABS,
+  DEV_PHONE_TABS,
+  DEV_PHONE_MORE_LINKS,
   resolveFabAction,
   type FabAction,
   type PhonePrimaryActionDetail,
@@ -46,7 +48,7 @@ const PhoneShell = () => {
   const { signOut } = useSignOut();
   const { canAny } = usePermissions();
   const [moreOpen, setMoreOpen] = useState(false);
-  const { pathname, isRouteEnabled, isActive, navigate } = usePhoneNavGate();
+  const { pathname, isDevPortal, isRouteEnabled, isActive, navigate } = usePhoneNavGate();
   const chatUnread = usePhoneShellStore((s) => s.chatUnread);
 
   // Mirrors the desktop avatar-menu logout: sign out, then land on the sign-in
@@ -72,7 +74,12 @@ const PhoneShell = () => {
 
   if (!isPhone) return null;
 
-  const tabItems: PhoneTabItem[] = PHONE_TABS.map((tab) => ({
+  // The portal gets its own bar. Without this the phone shell served the PIMS
+  // tabs inside `/developers`, so the developer portal's navigation was four
+  // clinic routes and its own pages were reachable only through More.
+  const tabs = isDevPortal ? DEV_PHONE_TABS : PHONE_TABS;
+
+  const tabItems: PhoneTabItem[] = tabs.map((tab) => ({
     key: tab.key,
     label: tab.label,
     icon: tab.icon,
@@ -93,14 +100,16 @@ const PhoneShell = () => {
       ? candidateFab
       : null;
 
-  const moreSections: PhoneMoreSection[] = PHONE_MORE_SECTIONS.map((section) => ({
-    key: section.key,
-    label: section.label,
-    context: section.context,
-    href: section.href,
-    icon: section.icon,
-    disabled: !isRouteEnabled(section.routeName),
-  }));
+  const moreSections: PhoneMoreSection[] = (isDevPortal ? [] : PHONE_MORE_SECTIONS).map(
+    (section) => ({
+      key: section.key,
+      label: section.label,
+      context: section.context,
+      href: section.href,
+      icon: section.icon,
+      disabled: !isRouteEnabled(section.routeName),
+    })
+  );
 
   return (
     <>
@@ -116,7 +125,7 @@ const PhoneShell = () => {
         open={moreOpen}
         onClose={() => setMoreOpen(false)}
         sections={moreSections}
-        links={PHONE_MORE_LINKS}
+        links={isDevPortal ? DEV_PHONE_MORE_LINKS : PHONE_MORE_LINKS}
         onNavigate={navigate}
         onSignOut={handleSignOut}
       />

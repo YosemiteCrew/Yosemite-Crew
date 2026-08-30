@@ -328,7 +328,23 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
   it('surfaces a hook error message', () => {
     renderStep({ error: 'IDEXX request failed' });
 
-    expect(screen.getByText('IDEXX request failed')).toBeInTheDocument();
+    // Twice on purpose: once at the top of the IDEXX section, and once beside
+    // the Create Lab Order button. The order is placed from the Test Queue,
+    // several screens below the heading, so the top copy alone is off-screen at
+    // the moment it appears and the click reads as having done nothing.
+    expect(screen.getAllByText('IDEXX request failed')).toHaveLength(2);
+  });
+
+  it('shows the failure next to the Create Lab Order button', () => {
+    renderStep({ error: 'Companion not found.' });
+
+    const button = screen.getByRole('button', { name: /create lab order/i });
+    const alert = screen.getByRole('alert');
+
+    expect(alert).toHaveTextContent('Companion not found.');
+    // Same container as the button, so it cannot render off-screen away from
+    // the action that failed.
+    expect(button.parentElement).toContainElement(alert);
   });
 
   it('removes a queued test through the hook action', () => {

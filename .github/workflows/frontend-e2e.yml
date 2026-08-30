@@ -229,10 +229,23 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm --filter frontend exec playwright install --with-deps chromium firefox
 
+      # Both authenticated specs run here and nowhere else. The public job runs
+      # an explicit two-file list, so a spec that needs a session has no other
+      # home: adding it to `e2e/` alone would mean it never executes.
+      # public-booking-setup.spec.ts follows the same credential-artefact rules
+      # as auth-flow.spec.ts (trace/screenshot/video off in-file, and the
+      # PLAYWRIGHT_NO_COPY_PROMPT above), which is why it is safe in this job.
       - name: Run authenticated Playwright flow
         env:
           E2E_WEB_SERVER_COMMAND: pnpm exec next start -p 3001 -H 127.0.0.1
-        run: pnpm --filter frontend exec playwright test e2e/auth-flow.spec.ts
+        # Specs are named rather than globbed: everything in this job runs with
+        # YC_E2E_* in scope, so adding one is a deliberate act, not something a
+        # new file in e2e/ does by existing.
+        run: |
+          pnpm --filter frontend exec playwright test \
+            e2e/auth-flow.spec.ts \
+            e2e/developer-portal.spec.ts \
+            e2e/public-booking-setup.spec.ts
 
       # This job's artifacts are deliberately NOT uploaded.
       #
@@ -250,8 +263,8 @@ jobs:
       #
       # The job log still carries the assertion, the stack and the step output,
       # which is what a CI failure is normally triaged from. Reproduce locally
-      # with `pnpm --filter frontend exec playwright test e2e/auth-flow.spec.ts`
-      # to get a trace, using your own credentials.
+      # with `pnpm --filter frontend exec playwright test e2e/auth-flow.spec.ts
+      # e2e/developer-portal.spec.ts` to get a trace, using your own credentials.
       #
       # Only restore uploads here if the spec stops handling a real secret (for
       # example a provider-mocked sign-in). The public smoke job keeps its

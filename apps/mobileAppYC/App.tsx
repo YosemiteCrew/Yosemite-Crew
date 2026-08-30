@@ -204,11 +204,20 @@ function mobileConfigReducer(
   }
 }
 
-const noop = () => {};
-console.log = noop;
-console.info = noop;
-console.debug = noop;
-console.trace = noop;
+// Silence chatty logs in RELEASE builds only.
+//
+// This block used to run unconditionally at module scope, so Debug builds were
+// just as mute as the store binary. That is why the token-expiry failure this
+// release fixes left no trace anywhere: decodeJwtExpiration warned on every
+// call and nobody ever saw it. `console.warn` and `console.error` are left
+// alone in both configurations - they are how a failure reports itself.
+if (!__DEV__) {
+  const noop = () => {};
+  console.log = noop;
+  console.info = noop;
+  console.debug = noop;
+  console.trace = noop;
+}
 
 const PERSIST_GATE_LOADING = <CustomSplashScreen onAnimationEnd={() => {}} />;
 

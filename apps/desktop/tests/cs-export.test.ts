@@ -222,4 +222,38 @@ describe('createCsDailyExport', () => {
       expect(path.isAbsolute(relativePath)).toBe(false);
     });
   });
+
+  test('the CSV states whether a witness was verified', () => {
+    const logbook = makeLogbook();
+    const now = Date.now();
+    const waste = {
+      action: 'waste' as const,
+      drugName: 'Ketamine',
+      drugClass: 'CIII',
+      unit: 'ml',
+      quantity: 1,
+      veterinarianId: 'vet-1',
+      veterinarianName: 'Dr. Smith',
+      witnessId: 'nurse-1',
+      witnessName: 'Nurse Jane',
+    };
+    logbook.record({ ...waste, lotNumber: 'L-VERIFIED', witnessPinVerified: true });
+    logbook.record({ ...waste, lotNumber: 'L-UNVERIFIED' });
+
+    const exportDir = path.join(rootDir, `exports-verified-${testCounter}`);
+    const svc = createCsDailyExport({ logbook, exportDir, now: () => now });
+    const result = svc.exportDailyLog(new Date(now));
+    const content = fs.readFileSync(result!.filePath, 'utf8');
+    const lines = content.split('\n');
+
+    // Without this column the two rows are indistinguishable to a reader: a
+    // destruction nobody witnessed presents exactly like one that was.
+    expect(lines[0]).toContain('Witness Verified');
+    const verified = lines.find((l) => l.includes('L-VERIFIED'))!;
+    const unverified = lines.find((l) => l.includes('L-UNVERIFIED'))!;
+    expect(verified).toContain('"yes"');
+    expect(unverified).toContain('"no"');
+    // Both still name the claimed witness; only the status distinguishes them.
+    expect(unverified).toContain('Nurse Jane');
+  });
 });

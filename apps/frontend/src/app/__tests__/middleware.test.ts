@@ -144,6 +144,11 @@ describe('middleware', () => {
     '/payment-status',
     '/developers/signin',
     '/developers/signup',
+    // The public booking page and its confirmation step. Both collect or carry
+    // personal data from a signed-out visitor, so neither may inherit the
+    // `unsafe-inline` policy the marketing routes carry.
+    '/book/park-veterinary',
+    '/book/park-veterinary/confirm',
   ])('serves %s with a nonce CSP instead of unsafe-inline scripts', (pathname) => {
     const response = middleware(createRequest(pathname)) as ReturnType<typeof createResponse>;
     const nextOptions = mockNext.mock.calls[0][0];

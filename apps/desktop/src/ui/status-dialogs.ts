@@ -69,6 +69,29 @@ export interface StatusDialogService {
 export const createStatusDialogService = (deps: StatusDialogDeps): StatusDialogService => {
   const { dialog } = deps;
 
+  // Waste is only "witnessed" when a second person actually proved who they
+  // were. Counting every destruction as witnessed was an affirmative false
+  // compliance statement, so unverified destructions are now called out.
+  const wasteCounts = (): string => {
+    const events = deps.dualWitnessLog?.getWasteEvents() ?? [];
+    const verified = events.filter((e) => e.witnessPinVerified).length;
+    const unverified = events.length - verified;
+    const line = `Witness-verified waste events: ${verified}`;
+    return unverified > 0 ? `${line}\nWaste events WITHOUT a verified witness: ${unverified}` : line;
+  };
+
+  // A daily log or biennial report built from a register that lost records is
+  // an understated compliance document with nothing on its face to say so. Any
+  // output derived from the register carries the warning.
+  const registerWarning = (): string => {
+    const integrity = deps.controlledSubstanceLog?.getIntegrity();
+    if (!integrity || integrity.ok) return '';
+    const preserved = integrity.quarantinePath
+      ? `\nDamaged register preserved at: ${integrity.quarantinePath}`
+      : '';
+    return `\n\nWARNING: the controlled-substance register is not intact, so this output may be incomplete.\n${integrity.reason}${preserved}`;
+  };
+
   const infoDialog = (message: string, detail: string): void => {
     void dialog.showMessageBox({
       type: 'info',
@@ -86,9 +109,23 @@ export const createStatusDialogService = (deps: StatusDialogDeps): StatusDialogS
       }
       const { valid, tampered } = deps.auditLog.verifyAll();
       const chainIntact = deps.auditLog.verifyChain();
+      const integrity = deps.auditLog.getIntegrity();
+      // Without the stored key every historical entry fails its signature check.
+      // Reporting that as "Tampered" is indistinguishable from real tampering
+      // and sends the practice looking for a breach that did not happen.
+      const signatureLines =
+        integrity.signingKey === 'session-only'
+          ? 'Signatures: CANNOT BE CHECKED (signing key unreadable)'
+          : `Valid signatures: ${valid}\nTampered: ${tampered}`;
+      // "Hash chain intact: yes" over a log that lost records is an affirmative
+      // false compliance statement, so say what is wrong when anything is.
+      const problem = integrity.ok ? '' : `\n\nProblem detected: ${integrity.reason}`;
+      const quarantine = integrity.quarantinePath
+        ? `\nDamaged log preserved at: ${integrity.quarantinePath}`
+        : '';
       infoDialog(
         'Audit Trail Integrity',
-        `Total entries: ${deps.auditLog.size()}\nValid signatures: ${valid}\nTampered: ${tampered}\nHash chain intact: ${chainIntact ? 'yes' : 'NO'}`
+        `Total entries: ${deps.auditLog.size()}\n${signatureLines}\nHash chain intact: ${chainIntact ? 'yes' : 'NO'}${problem}${quarantine}`
       );
     },
 
@@ -101,13 +138,13 @@ export const createStatusDialogService = (deps: StatusDialogDeps): StatusDialogS
       if (!result) {
         infoDialog(
           'Controlled-Substance Export',
-          'No controlled-substance transactions to export for today.'
+          `No controlled-substance transactions to export for today.${registerWarning()}`
         );
         return;
       }
       infoDialog(
         'Controlled-Substance Export',
-        `Exported ${result.rowCount} row(s) to:\n${result.filePath}`
+        `Exported ${result.rowCount} row(s) to:\n${result.filePath}${registerWarning()}`
       );
     },
 
@@ -186,6 +223,8 @@ export const createStatusDialogService = (deps: StatusDialogDeps): StatusDialogS
           path: result,
           format: selectedFormat.name,
         });
+        const warning = registerWarning();
+        if (warning) infoDialog('DEA Report', `Saved to:\n${result}${warning}`);
       } catch (error) {
         deps.logger.error('dea_report_save_failed', { error });
         dialog.showErrorBox('DEA Report', 'Failed to save the report.');
@@ -200,7 +239,7 @@ export const createStatusDialogService = (deps: StatusDialogDeps): StatusDialogS
           `Records pending export: ${deps.pmpService?.getPending().length ?? 0}\n` +
           `Marked exported: ${deps.pmpService?.getSubmitted().length ?? 0}\n` +
           `Marked failed: ${deps.pmpService?.getFailed().length ?? 0}\n` +
-          `Witnessed waste events: ${deps.dualWitnessLog?.getWasteEvents().length ?? 0}\n` +
+          `${wasteCounts()}\n` +
           `Unsynced offline mutations: ${deps.offlineAuditTrail?.getUnsyncedCount() ?? 0}`
       );
     },

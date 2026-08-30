@@ -22,5 +22,7 @@ export interface AuthProvider {
 
   setUserRole?(appUserId: string, role: string): Promise<void>;
 
+  removeUserRole?(appUserId: string, role: string): Promise<void>;
+
   deleteUser?(appUserId: string): Promise<void>;
 }

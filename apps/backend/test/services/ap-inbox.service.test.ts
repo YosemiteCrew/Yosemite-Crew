@@ -1066,3 +1066,42 @@ describe("handleCreate / handleAnnounce", () => {
     expect(prismaMock.aPActivity.update).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("unhandled activity type", () => {
+  beforeEach(resetAll);
+
+  it("strips line breaks from the type before logging it", async () => {
+    const logger = jest.requireMock("src/utils/logger").default as {
+      info: jest.Mock;
+    };
+
+    await dispatch({
+      id: "urn:unhandled:1",
+      type: "Ping\r\nFAKE LOG LINE",
+      actor: "https://remote.example/actor",
+    });
+
+    const call = logger.info.mock.calls.find(
+      (c: unknown[]) =>
+        typeof c[0] === "string" && c[0].includes("Unhandled activity type"),
+    );
+    expect(call).toBeDefined();
+    const message = call![0] as string;
+    expect(message).toContain("PingFAKE LOG LINE");
+    expect(message).not.toContain("\n");
+    expect(message).not.toContain("\r");
+  });
+
+  it("does not throw when a peer sends a non-string type", async () => {
+    // The body is parsed JSON cast to AnyActivity, so `type` is not really
+    // guaranteed to be a string. Interpolation tolerated that; a bare
+    // .replace() would not.
+    await expect(
+      dispatch({
+        id: "urn:unhandled:2",
+        type: { nested: "object" } as unknown as string,
+        actor: "https://remote.example/actor",
+      }),
+    ).resolves.toBeUndefined();
+  });
+});
