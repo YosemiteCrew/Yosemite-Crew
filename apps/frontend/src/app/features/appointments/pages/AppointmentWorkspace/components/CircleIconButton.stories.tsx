@@ -262,8 +262,8 @@ export const TooltipSides: Story = {
     <div className="flex items-center gap-32">
       {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
         <CircleIconButton
-          {...args}
           key={side}
+          {...args}
           icon={<IoPrintOutline size={18} aria-hidden="true" />}
           label={side}
           tooltipSide={side}
