@@ -50,7 +50,11 @@ const PassportClient = ({ id }: PassportClientProps) => {
     <main
       id="main-content"
       tabIndex={-1}
-      data-wb-theme={theme}
+      // Only stamped once the reader uses this page's own toggle. Left absent,
+      // the CSS follows html[data-theme], which the pre-paint script sets before
+      // first paint - so a dark phone gets a dark passport immediately instead
+      // of a bright one that flips after hydration.
+      data-wb-theme={override ?? undefined}
       className="yc-warmbone flex min-h-screen w-full flex-col items-center px-4 py-10"
     >
       <button

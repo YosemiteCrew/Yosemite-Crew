@@ -1791,7 +1791,26 @@ input[type='number'] {
   --phl: rgba(29, 28, 27, 0.12);
   background: var(--page);
   color: var(--ink-body);
+  /* The danger trio in the LIGHT scope as well, and for the mirror of the
+     reason it was added to the dark one. This page has its own toggle, so a
+     reader whose OS is dark can switch just this passport to light - at which
+     point the dark block stops applying and, without these, --status-danger-*
+     falls back to the ROOT dark values (#f2938a on an 18% tint) on a light
+     #f7f3ec card: the EXPIRED label at ~2.04:1 and its icon at ~1.59:1.
+     One local toggle must not be able to mix root-dark status tokens with a
+     local-light surface. */
+  --status-danger-bg: rgba(234, 55, 41, 0.09);
+  --status-danger-text: #a6271d;
+  --status-danger-border: rgba(234, 55, 41, 0.32);
 }
+/* Two selectors, and the second is what removes the flash. The component only
+   sets data-wb-theme once the reader uses the page's own toggle, so on the
+   server-rendered first paint the attribute is absent - and the pre-paint script
+   has already put data-theme on <html>. Following the root attribute here means
+   a reader whose phone is dark gets a dark passport in the FIRST paint rather
+   than a bright one that flips after hydration. The :not() keeps a local
+   light override winning over a dark root. */
+html[data-theme='dark'] .yc-warmbone:not([data-wb-theme='light']),
 .yc-warmbone[data-wb-theme='dark'] {
   --page: #201c18;
   --band: #2a2216;
@@ -2086,6 +2105,17 @@ body:has([data-yc-app]) {
      and --blue-text aliases it so the two cannot drift apart again. */
   --color-blue-text: var(--color-accent-deep);
   --blue-text: var(--color-blue-text);
+
+  /* Surfaces, not only inks. `bg-card-bg` reads --color-card-bg, which was left
+     inheriting the dark #221d17 while the text sitting on it was pinned light -
+     the companion card's medium/low alert labels landed at 2.40:1. A
+     fixed-light surface has to pin the fills its children sit on, not just the
+     text colours. Each alias is re-declared here rather than only --screen-2,
+     because an alias declared at :root computes THERE and descendants inherit
+     the already-substituted value. */
+  --screen-2: #f1ebe1;
+  --color-neutral-100: var(--screen-2);
+  --color-card-bg: var(--color-neutral-100);
 }
 
 html[data-theme='dark'] body:has([data-yc-app]) {
