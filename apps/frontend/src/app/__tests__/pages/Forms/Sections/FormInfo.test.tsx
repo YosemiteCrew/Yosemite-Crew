@@ -285,7 +285,14 @@ describe('FormInfo', () => {
     expect(screen.getByText('Tasks')).toBeInTheDocument();
     expect(screen.queryByText('Form preview')).not.toBeInTheDocument();
     expect(screen.getByText('Record vitals')).toBeInTheDocument();
-    expect(screen.getByText(/Care ·/)).toBeInTheDocument();
+    /* The block carries only a category - no recurrence, reminder or duration -
+       so the caption is the category alone. It used to read "Care ·": the summary
+       joined category and repeat unconditionally while guarding the other two, so
+       a block authored without a recurrence field ended on a dangling middot.
+       Asserted as an exact string, and for the absence of a trailing separator,
+       because /Care ·/ passed happily on the broken output. */
+    expect(screen.getByText('Care')).toBeInTheDocument();
+    expect(screen.queryByText(/Care\s*·\s*$/)).not.toBeInTheDocument();
     expect(screen.getByText('Watch appetite and hydration')).toBeInTheDocument();
   });
 });
