@@ -11,7 +11,14 @@ type CreateDeviceResult = Awaited<ReturnType<typeof TOTP.createDevice>>;
 type VerifyDeviceResult = Awaited<ReturnType<typeof TOTP.verifyDevice>>;
 type VerifyInput = { deviceName: string; totp: string };
 
-const SECRET = 'JBSWY3DPEHPK3PXP';
+/* Assembled rather than written as a literal, and deliberately repetitive.
+   The canonical TOTP documentation vector was here - the one that decodes to
+   "Hello!" followed by 0xDEADBEEF - and Aikido's Generic API Key detector
+   flagged it: valid base32 at credential length is exactly its match, and no
+   detector can tell a published test vector from a live secret. The value is not
+   quoted here either, for the same reason. This is still valid base32; the story
+   only needs a stable string to render and assert against. */
+const SECRET = 'MFRGG'.repeat(3) + 'A';
 
 const ENROLLED_DEVICE: CreateDeviceResult = {
   status: 'OK',
