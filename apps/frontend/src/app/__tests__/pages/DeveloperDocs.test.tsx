@@ -128,6 +128,31 @@ describe('DeveloperDocs reader', () => {
   /* Matching the rail label alone made search only as good as the shortest name
      in it: "api" returned "No matches" in an API reference, because no label
      happened to contain the word once "Appointments API" became "Appointments". */
+  /* searchTerms duplicates strings that live in JSX, so it can drift from what is
+     actually on screen - the same failure mode as the curl sample drifting from
+     the endpoint pill. Bind it: every indexed term must really render. */
+  it('indexes only terms the article actually renders', () => {
+    const { container } = render(<DeveloperDocs />);
+    const text = container.textContent ?? '';
+    for (const term of [
+      '/fhir/v1/appointment/pms',
+      'appointments:edit:any',
+      'x-org-id',
+      'UPCOMING',
+    ]) {
+      expect(text).toContain(term);
+    }
+  });
+
+  it('finds a page by a term that appears only in its rendered detail', () => {
+    render(<DeveloperDocs />);
+    const search = screen.getByRole('searchbox', { name: 'Search docs' });
+
+    fireEvent.change(search, { target: { value: 'appointments:edit:any' } });
+    expect(screen.queryByText('No matches')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Appointments' })).toBeInTheDocument();
+  });
+
   it('finds pages by their content, not just their nav label', () => {
     render(<DeveloperDocs />);
     const search = screen.getByRole('searchbox', { name: 'Search docs' });

@@ -50,6 +50,16 @@ type Article = {
   version: string;
   title: string;
   summary: string;
+  /*
+   * Identifiers that appear in the article's RENDERED detail but not in its
+   * summary - the endpoint path, the permission, the stored status.
+   *
+   * Without these, a reader could see `appointments:edit:any` on screen, type it
+   * into the search box, and get "No matches", because the detail lives in JSX
+   * rather than in this data. Duplicating strings invites drift, so a test
+   * asserts every term here actually appears in that article once rendered.
+   */
+  searchTerms?: string[];
 };
 
 const ARTICLES: Record<string, Article> = {
@@ -59,7 +69,7 @@ const ARTICLES: Record<string, Article> = {
     version: 'v1',
     title: 'Overview',
     summary:
-      'The Yosemite Crew API is a FHIR R4 surface served under /fhir/v1, alongside a set of application endpoints under /v1. Requests are authorised with the session your account already holds. A generated reference covering every route is in the full documentation - with one gap worth knowing: it does not list the x-org-id header, which organisation-scoped routes require, so a request built straight from it will be rejected before it reaches a controller.',
+      'The Yosemite Crew API is a FHIR R4 surface served under /fhir/v1, alongside a set of application endpoints under /v1. Requests are authorised with the session your account already holds. A generated reference is in the full documentation. Treat it as partial rather than complete: it declares four appointment paths where the router serves twenty-one, and it does not list the x-org-id header that organisation-scoped routes require, so a request built straight from it is rejected before reaching a controller.',
   },
   authentication: {
     category: 'Getting started',
@@ -74,6 +84,7 @@ const ARTICLES: Record<string, Article> = {
     crumb: 'Appointments',
     version: 'v1',
     title: 'Appointments',
+    searchTerms: ['/fhir/v1/appointment/pms', 'appointments:edit:any', 'x-org-id', 'UPCOMING'],
     summary:
       "Appointments are FHIR R4 Appointment resources under /fhir/v1/appointment. Practice writes go to /pms and mobile ones to /mobile; there is no route at the collection root. Writes land in the clinic's schedule and read back from the same router.",
   },
@@ -168,9 +179,13 @@ const DeveloperDocs = () => {
      */
     const matches = (item: NavItem) => {
       const article = ARTICLES[item.id];
-      return [item.label, article?.category, article?.title, article?.summary].some((field) =>
-        field?.toLowerCase().includes(q)
-      );
+      return [
+        item.label,
+        article?.category,
+        article?.title,
+        article?.summary,
+        ...(article?.searchTerms ?? []),
+      ].some((field) => field?.toLowerCase().includes(q));
     };
     return NAV.map((section) => ({
       ...section,
