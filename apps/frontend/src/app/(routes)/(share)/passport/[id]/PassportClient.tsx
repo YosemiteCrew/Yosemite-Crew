@@ -2,30 +2,31 @@
 
 import { useEffect, useState } from 'react';
 import { IoMoonOutline, IoSunnyOutline } from 'react-icons/io5';
+import { useTheme, type Theme } from '@/app/ui/theme';
 import PublicPassportView from './PublicPassportView';
 import { getPublicPassport } from '@/app/features/petPassport/services/petPassport.service';
 import type { PetPassportDTO } from '@yosemite-crew/types';
 
 type PassportClientProps = { id: string };
 type LoadState = 'loading' | 'ready' | 'unavailable';
-type Theme = 'light' | 'dark';
 
 const PassportClient = ({ id }: PassportClientProps) => {
   const [passport, setPassport] = useState<PetPassportDTO | null>(null);
   const [state, setState] = useState<LoadState>('loading');
-  // Starts from the theme the reader already chose, not always light. The
-  // pre-paint script in (share)/layout.tsx resolves that onto <html> before
-  // first paint, so reading it here has no flash. Kept as local state because
-  // this page also has its own toggle - the two now agree on the initial value
-  // instead of the page ignoring the phone.
-  //
-  // A lazy initialiser: on the server there is no document, and calling it on
-  // every render would re-read the DOM for a value only the first render uses.
-  const [theme, setTheme] = useState<Theme>(() =>
-    typeof document !== 'undefined' && document.documentElement.dataset.theme === 'dark'
-      ? 'dark'
-      : 'light'
-  );
+  // The reader's resolved theme, read through useSyncExternalStore rather than
+  // off the DOM in a state initialiser. That earlier version was a hydration
+  // bug: the server has no `document`, so it rendered light and emitted the moon
+  // icon, while the client initialised dark - a mismatched tree React 19 has to
+  // throw away and regenerate. `useTheme` exists for exactly this and supplies a
+  // server snapshot, so both passes agree.
+  const { theme: resolvedTheme } = useTheme();
+
+  // The page keeps its own sun/moon control, so the reader can flip just this
+  // passport without changing their preference everywhere. null means "no local
+  // override yet - follow the phone", which is why this starts from the theme
+  // rather than from a hardcoded 'light'.
+  const [override, setOverride] = useState<Theme | null>(null);
+  const theme: Theme = override ?? resolvedTheme;
 
   useEffect(() => {
     let active = true;
@@ -43,7 +44,7 @@ const PassportClient = ({ id }: PassportClientProps) => {
     };
   }, [id]);
 
-  const toggleTheme = () => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  const toggleTheme = () => setOverride(theme === 'dark' ? 'light' : 'dark');
 
   return (
     <main

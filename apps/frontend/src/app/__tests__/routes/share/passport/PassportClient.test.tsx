@@ -1,12 +1,14 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import PassportClient from '@/app/(routes)/(share)/passport/[id]/PassportClient';
+import { useTheme } from '@/app/ui/theme';
 import { getPublicPassport } from '@/app/features/petPassport/services/petPassport.service';
 import type { PetPassportDTO } from '@yosemite-crew/types';
 
 jest.mock('@/app/features/petPassport/services/petPassport.service', () => ({
   getPublicPassport: jest.fn(),
 }));
+jest.mock('@/app/ui/theme', () => ({ useTheme: jest.fn() }));
 jest.mock('@/app/(routes)/(share)/passport/[id]/PublicPassportView', () => ({
   __esModule: true,
   default: ({ passport }: { passport: PetPassportDTO }) => (
@@ -15,8 +17,12 @@ jest.mock('@/app/(routes)/(share)/passport/[id]/PublicPassportView', () => ({
 }));
 
 const mockedFetch = getPublicPassport as jest.Mock;
+const mockedUseTheme = useTheme as jest.Mock;
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockedUseTheme.mockReturnValue({ theme: 'light' });
+});
 
 describe('PassportClient (public pet passport page)', () => {
   it('renders the passport on success', async () => {
@@ -32,20 +38,26 @@ describe('PassportClient (public pet passport page)', () => {
     expect(await screen.findByText('This passport could not be found.')).toBeInTheDocument();
   });
 
-  it('opens in the theme the reader already chose, not always light', async () => {
-    // The page has its own sun/moon toggle, but it used to hardcode 'light' on
-    // mount, so a reader whose phone is dark got a full-brightness passport and
-    // had to press the button every time. (share)/layout.tsx now resolves the
-    // theme onto <html> before paint; this seeds from it.
-    document.documentElement.dataset.theme = 'dark';
-    try {
-      mockedFetch.mockResolvedValue({ identity: { id: 'p1', name: 'Poppy' } });
-      render(<PassportClient id="p1" />);
-      await screen.findByTestId('passport');
-      expect(screen.getByRole('main')).toHaveAttribute('data-wb-theme', 'dark');
-    } finally {
-      delete document.documentElement.dataset.theme;
-    }
+  it('takes the theme from the shared store, not from the DOM', async () => {
+    // The contract, and the regression it guards. Reading
+    // document.documentElement in a state initialiser makes the server render
+    // light (no `document` there) and the client hydrate dark - a mismatch React
+    // 19 repairs by discarding the tree. `useTheme` is the repo's
+    // useSyncExternalStore wrapper and supplies a server snapshot, so both
+    // passes agree.
+    //
+    // Asserting THROUGH the mocked hook is what gives this test teeth: an
+    // implementation that reads the DOM instead would ignore the mock and keep
+    // rendering light. A renderToString+hydrateRoot test cannot show this in
+    // jsdom, where `document` exists during the server pass too, so both passes
+    // would agree and the test would pass against the bug.
+    mockedUseTheme.mockReturnValue({ theme: 'dark' });
+    mockedFetch.mockResolvedValue({ identity: { id: 'p1', name: 'Poppy' } });
+
+    render(<PassportClient id="p1" />);
+    await screen.findByTestId('passport');
+
+    expect(screen.getByRole('main')).toHaveAttribute('data-wb-theme', 'dark');
   });
 
   it('toggles between light and dark warm-bone themes', async () => {

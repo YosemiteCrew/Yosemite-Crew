@@ -2079,7 +2079,13 @@ body:has([data-yc-app]) {
      carried this pin and still rendered pale blue on white. A fixed-light
      surface needs its ACCENTS fixed too, not only its greys. */
   --color-text-brand: var(--color-accent-deep);
-  --blue-text: var(--color-accent-deep);
+  /* BOTH spellings. globals.css already warns that this token is written two
+     ways; pinning only --blue-text left `text-blue-text` resolving to the
+     inherited dark #8fb6f5, so a child could still paint the 2.06:1 pale blue
+     this pin exists to remove. --color-blue-text is the one the utility reads,
+     and --blue-text aliases it so the two cannot drift apart again. */
+  --color-blue-text: var(--color-accent-deep);
+  --blue-text: var(--color-blue-text);
 }
 
 html[data-theme='dark'] body:has([data-yc-app]) {
