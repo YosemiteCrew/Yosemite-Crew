@@ -1875,17 +1875,25 @@ export const FinancePaymentService = {
       // Payment.paymentAttemptId, uncaught, which answers non-2xx and buys an
       // endless Stripe retry of an event that can never succeed.
       //
-      // Returning what is already recorded is the whole fix. Deliberately NOT
-      // falling through to updateInvoiceAfterPayment: the amount was applied by
-      // the delivery that won, and applying it again would double-count the
-      // payment against the invoice.
+      // Deliberately NOT falling through to updateInvoiceAfterPayment with this
+      // delivery's amount: the money was applied by the delivery that won, and
+      // applying it again would double-count it against the invoice.
       const existingPayment = await prisma.payment.findUnique({
         where: { paymentAttemptId: paymentAttempt.id },
       });
       if (!existingPayment) throw error;
 
+      // A P2002 proves the Payment row exists, and nothing more. No transaction
+      // wraps the insert and the invoice update that follows it, so the delivery
+      // that won may have died in between and left the invoice unsettled.
+      // Acknowledging without checking would end the retries that were its only
+      // remaining chance to finish.
+      //
+      // So re-derive the position from what is actually recorded. Reading the
+      // successful payments means the balance already accounts for the winner's.
       const currentInvoice = await prisma.invoice.findUniqueOrThrow({
         where: { id: invoiceId },
+        include: { payments: { where: { status: "SUCCEEDED" } } },
       });
       const settled = await getOutstandingBalance(
         invoiceId,
@@ -1893,16 +1901,42 @@ export const FinancePaymentService = {
         currentInvoice.depositCollectedAmount ?? 0,
       );
 
+      const needsSettling =
+        settled.balance <= 0 && currentInvoice.status !== "PAID";
+      if (needsSettling) {
+        logger.warn(
+          `Invoice ${invoiceId} is covered but was not marked PAID; the delivery that recorded the payment did not finish. Settling it now.`,
+        );
+        await prisma.invoice.update({
+          where: { id: invoiceId },
+          data: {
+            status: "PAID",
+            paidAt: receivedAt,
+            visitBillingStage: "SETTLED",
+          },
+        });
+        await markInvoiceTreatmentItemsSettled(
+          currentInvoice,
+          invoiceId,
+          receivedAt,
+        );
+      }
+
       logger.info(
         `Payment for attempt ${paymentAttempt.id} was already recorded; treating this delivery as a replay`,
       );
 
       return {
-        invoice: currentInvoice,
+        invoice: needsSettling
+          ? await prisma.invoice.findUniqueOrThrow({ where: { id: invoiceId } })
+          : currentInvoice,
         paymentAttempt,
         payment: existingPayment,
         balanceAfterPayment: settled.balance,
         paidToDate: settled.paid,
+        // A caller that notifies the pet parent must not tell them twice that
+        // the same payment succeeded.
+        replayed: true,
         // Nothing new was applied. A caller that adds this to a running total
         // must not count the same money twice.
         appliedAmount: 0,
@@ -1949,6 +1983,7 @@ export const FinancePaymentService = {
       balanceAfterPayment: summary.balance,
       paidToDate: summary.paid,
       appliedAmount,
+      replayed: false,
     };
   },
 

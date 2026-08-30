@@ -161,6 +161,72 @@ describe("FinancePaymentService", () => {
     expect(prisma.invoice.update).not.toHaveBeenCalled();
   });
 
+  it("settles an invoice the winning delivery paid for but never marked PAID", async () => {
+    // A P2002 proves only that the Payment row exists. No transaction wraps the
+    // insert and the invoice update, so the delivery that won can die in
+    // between. Acknowledging the replay without checking would end the retries
+    // that were the last chance to finish the job.
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_halfdone",
+      totalAmount: 100,
+      currency: "usd",
+      status: "AWAITING_PAYMENT",
+      depositCollectedAmount: 0,
+    });
+    (prisma.payment.findMany as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ amount: 100 }])
+      .mockResolvedValueOnce([{ amount: 100 }]);
+    (prisma.paymentAttempt.create as jest.Mock).mockResolvedValueOnce({
+      id: "pa_halfdone",
+    });
+    (prisma.payment.create as jest.Mock).mockRejectedValueOnce({
+      code: "P2002",
+    });
+    (prisma.payment.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "pay_winner",
+      amount: 100,
+      status: "SUCCEEDED",
+    });
+    (prisma.invoice.findUniqueOrThrow as jest.Mock)
+      .mockResolvedValueOnce({
+        id: "inv_halfdone",
+        totalAmount: 100,
+        currency: "usd",
+        status: "AWAITING_PAYMENT",
+        depositCollectedAmount: 0,
+        payments: [{ amount: 100, status: "SUCCEEDED" }],
+      })
+      .mockResolvedValueOnce({
+        id: "inv_halfdone",
+        totalAmount: 100,
+        currency: "usd",
+        status: "PAID",
+        depositCollectedAmount: 0,
+      });
+
+    const result = await FinancePaymentService.recordInvoicePayment(
+      "inv_halfdone",
+      {
+        provider: "STRIPE",
+        amount: 100,
+        settlementChannel: "STRIPE",
+        currency: "usd",
+        providerPaymentId: "pi_halfdone",
+        receivedAt: new Date("2026-06-18T10:00:00.000Z"),
+      },
+    );
+
+    expect(prisma.invoice.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "inv_halfdone" },
+        data: expect.objectContaining({ status: "PAID" }),
+      }),
+    );
+    expect(result.replayed).toBe(true);
+    expect(result.appliedAmount).toBe(0);
+  });
+
   it("rethrows a Payment insert failure that is not a unique violation", async () => {
     (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
       id: "inv_boom",
