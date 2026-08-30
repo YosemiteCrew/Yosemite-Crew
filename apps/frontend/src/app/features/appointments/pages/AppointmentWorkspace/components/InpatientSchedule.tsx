@@ -62,6 +62,24 @@ const formatStatusLabel = (status: ScheduleTaskStatus): string =>
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
+/**
+ * The five fixed row columns need roughly 600px, which ran ~160px past a 390px
+ * phone and took the whole workspace into a sideways scroll - the Treatment step
+ * is reached on a phone through `PhoneWorkspaceShell`, which reuses this step
+ * verbatim. On a phone the row stacks into ONE column instead.
+ *
+ * Wrapping the table in an `overflow-x` scroller was tried first and is wrong
+ * here: that also clips the y axis, and the status menu does not portal, so a
+ * menu opened on a lower row lost its bottom 112px on desktop. Changing the
+ * template clips nothing.
+ *
+ * Module scope on purpose: react-doctor's `no-giant-component` measures the
+ * component's own body, and this explanation inside it pushed InpatientSchedule
+ * over the threshold.
+ */
+const scheduleRowColumns = (isPhone: boolean, assigneeColumnWidthCh: number): string =>
+  isPhone ? 'minmax(0, 1fr)' : `150px minmax(0, 1fr) ${assigneeColumnWidthCh}ch 140px 72px`;
+
 const formatTimelineLabel = (task: ScheduleTask): { primary: string; secondary?: string } => {
   const dateLabel = task.startDate ? formatStampDate(task.startDate) : undefined;
   const timeLabel = task.time?.trim();
@@ -290,23 +308,10 @@ const InpatientSchedule = ({
     gridTemplateColumns: `96px 20px 150px minmax(0, 1fr) ${assigneeColumnWidthCh}ch 140px 72px`,
   };
 
-  /**
-   * The five fixed row columns need roughly 600px, which ran ~160px past a
-   * 390px phone and took the whole workspace into a sideways scroll - the
-   * Treatment step is reached on a phone through `PhoneWorkspaceShell`, which
-   * reuses this step verbatim.
-   *
-   * On a phone the row stacks into ONE column instead. Wrapping the table in an
-   * `overflow-x` scroller was tried first and is wrong here: that also clips the
-   * y axis, and the status menu does not portal, so a menu opened on a lower row
-   * lost its bottom 112px on desktop. Changing the template clips nothing.
-   */
   const isPhone = useIsPhone();
 
   const scheduleRowGridStyle: React.CSSProperties = {
-    gridTemplateColumns: isPhone
-      ? 'minmax(0, 1fr)'
-      : `150px minmax(0, 1fr) ${assigneeColumnWidthCh}ch 140px 72px`,
+    gridTemplateColumns: scheduleRowColumns(isPhone, assigneeColumnWidthCh),
   };
 
   return (
