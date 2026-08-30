@@ -17,9 +17,16 @@ on:
     # waiting forever on a status instead of getting the actionable error.
     types: [opened, reopened, synchronize, edited, labeled, unlabeled]
     branches: [main]
+  # A pull_request_target check is a snapshot of the moment it ran. It re-runs
+  # when the HEAD moves (`synchronize`) but never when the BASE does, so a
+  # promotion that passed the ancestry check below stays green after main
+  # advances - and can then merge while dev is missing the newer main commit,
+  # which is the state the check exists to refuse. Re-evaluate on main pushes.
+  push:
+    branches: [main]
 
 concurrency:
-  group: promotion-guard-${{ github.event.pull_request.number }}
+  group: promotion-guard-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
 # pull_request_target runs against the BASE repository, so it must never check
@@ -28,10 +35,12 @@ concurrency:
 permissions:
   contents: read
   pull-requests: write
+  statuses: write
 
 jobs:
   guard:
     name: Only dev may merge into main
+    if: github.event_name == 'pull_request_target'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -125,8 +134,16 @@ jobs:
       #
       # Read through the compare API rather than a checkout: this workflow runs as
       # pull_request_target and must never fetch the pull request's code.
+      # Only real dev-to-main promotions. A `main-direct` pull request is the
+      # documented escape hatch for a change that must land before the pending
+      # back-merge, and `exit 0` in the step above ends that STEP, not the job -
+      # so without this condition the hatch failed here on AHEAD > 0, precisely
+      # in the emergency it exists for.
       - name: dev must contain main
-        if: steps.retarget.outputs.retargeted != 'true'
+        if: >-
+          steps.retarget.outputs.retargeted != 'true'
+          && github.event.pull_request.head.ref == 'dev'
+          && !contains(github.event.pull_request.labels.*.name, 'main-direct')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BASE_REPO: ${{ github.repository }}
@@ -143,3 +160,56 @@ jobs:
           fi
 
           echo "dev contains main - nothing would be left behind."
+
+  # The other half of the snapshot problem above: when main moves, walk the open
+  # dev-to-main promotions and restate the ancestry result as a commit status on
+  # each one's head. A promotion that was green before the push goes red here
+  # until the back-merge lands, instead of staying green on stale information.
+  #
+  # Mark `promotion-guard/dev-contains-main` required on main's ruleset for this
+  # to block rather than merely report.
+  recheck:
+    name: Re-check open promotions when main moves
+    if: github.event_name == 'push' && github.repository_owner == 'YosemiteCrew'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Restate dev-contains-main on every open promotion
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          AHEAD="$(gh api "repos/${BASE_REPO}/compare/dev...main" --jq '.ahead_by')"
+
+          if [[ "${AHEAD}" -gt 0 ]]; then
+            STATE=failure
+            DESC="dev is missing ${AHEAD} commit(s) that are on main"
+          else
+            STATE=success
+            DESC="dev contains main"
+          fi
+          echo "${DESC}"
+
+          # Only dev-headed promotions. A main-direct pull request is exempt for
+          # the same reason it is exempt in the guard job above.
+          PRS="$(gh pr list --repo "${BASE_REPO}" --base main --state open \
+                   --json number,headRefName,headRefOid,labels \
+                   --jq '.[] | select(.headRefName == "dev")
+                             | select([.labels[].name] | index("main-direct") | not)
+                             | "\(.number) \(.headRefOid)"')"
+
+          if [[ -z "${PRS}" ]]; then
+            echo "No open dev-to-main promotion to restate."
+            exit 0
+          fi
+
+          while read -r NUMBER SHA; do
+            [[ -z "${NUMBER}" ]] && continue
+            echo "PR #${NUMBER} (${SHA}) -> ${STATE}"
+            gh api -X POST "repos/${BASE_REPO}/statuses/${SHA}" \
+              -f state="${STATE}" \
+              -f context="promotion-guard/dev-contains-main" \
+              -f description="${DESC}" >/dev/null
+          done <<< "${PRS}"
