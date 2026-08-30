@@ -1,6 +1,6 @@
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import { FormField } from '@/app/features/forms/types/forms';
-import React, { useMemo } from 'react';
+import React, { useId, useMemo } from 'react';
 
 const DropdownRenderer: React.FC<{
   field: FormField & { type: 'dropdown' | 'radio' | 'checkbox' };
@@ -14,6 +14,11 @@ const DropdownRenderer: React.FC<{
 
   const options = useMemo(() => field.options ?? [], [field.options]);
   const hasValidOptions = options?.length > 0;
+  /* Names the group in the radio/checkbox branches. Generated rather than derived
+     from `field.id` because two renderers mounted for the same field would then
+     emit the same DOM id and aria-labelledby would resolve to whichever came
+     first - the trap the shared radio `name` already has. */
+  const labelId = useId();
 
   if (!hasValidOptions) {
     return null;
@@ -38,8 +43,15 @@ const DropdownRenderer: React.FC<{
 
     return (
       <div className="flex flex-col gap-2">
-        <div className="font-satoshi text-black-text text-[16px] font-medium">{field.label}</div>
-        <div className="flex flex-col gap-2">
+        <div id={labelId} className="font-satoshi text-black-text text-[16px] font-medium">
+          {field.label}
+        </div>
+        {/* The question is a plain div, so without a group role a screen reader
+            reads loose checkboxes and never announces what is being asked - the
+            composed aria-label on each input was carrying the whole question by
+            itself. role + aria-labelledby adds the grouping without a fieldset,
+            which would change the layout this label div already owns. */}
+        <div role="group" aria-labelledby={labelId} className="flex flex-col gap-2">
           {options.map((opt) => (
             <label
               key={opt.value}
@@ -65,8 +77,13 @@ const DropdownRenderer: React.FC<{
     const selected = typeof displayValue === 'string' ? displayValue : '';
     return (
       <div className="flex flex-col gap-2">
-        <div className="font-satoshi text-black-text text-[16px] font-medium">{field.label}</div>
-        <div className="flex flex-col gap-2">
+        <div id={labelId} className="font-satoshi text-black-text text-[16px] font-medium">
+          {field.label}
+        </div>
+        {/* Same reason as the checkbox branch, and a shared `name` is not a
+            substitute: it makes the radios exclusive but announces nothing, so
+            the group was read as loose radios with no question attached. */}
+        <div role="radiogroup" aria-labelledby={labelId} className="flex flex-col gap-2">
           {options.map((opt) => (
             <label
               key={opt.value}

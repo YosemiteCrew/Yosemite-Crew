@@ -68,10 +68,11 @@ const meta = {
           '**`field.id` survives only as the control `name`.** `FormInput` generates its own ' +
           '`useId` for `id`/`htmlFor`, so `inname={field.id}` is the single thread tying this ' +
           'input back to its schema row.\n\n' +
-          '**The authored placeholder never arrives.** `DateBuilder` offers the author a ' +
-          'Placeholder box, but nothing forwards `field.placeholder` here and `FormInput` takes ' +
-          'no `placeholder` prop, so the rendered input carries no placeholder attribute at all. ' +
-          '`Empty, awaiting a date` pins that rather than assuming it is wired.\n\n' +
+          '**There is no placeholder, and nothing asks for one.** This input carries no ' +
+          'placeholder attribute: `FormInput` takes no `placeholder` prop, and a native ' +
+          '`<input type="date">` would ignore the attribute anyway. `DateBuilder` used to offer ' +
+          'the author a Placeholder box regardless, and that box is gone. `Empty, awaiting a ' +
+          'date` pins the empty half so a future re-wiring has to be deliberate.\n\n' +
           "**No story clicks the read-only input.** `FormInput`'s own click handler calls " +
           '`showPicker()` after the guard runs, and `showPicker()` on an immutable control ' +
           'throws `InvalidStateError`. The picker stays shut because the browser refuses it, not ' +
@@ -105,9 +106,11 @@ export const Empty: Story = {
        an easy tidy-up - would look identical and detach the answer from its field. */
     await expect(input).toHaveAttribute('name', 'date_of_birth');
 
-    /* Pinning current behaviour: DateBuilder collects a placeholder, nothing
-       forwards it, and FormInput has no placeholder prop. If someone wires it up,
-       this line is what tells them the two halves finally meet. */
+    /* No placeholder reaches the DOM, and none is meant to: FormInput has no
+       placeholder prop and a date input ignores the attribute. DateBuilder stopped
+       collecting one for exactly that reason - this line is what makes a future
+       attempt to forward `field.placeholder` announce itself instead of landing
+       as another control the author fills in for nothing. */
     await expect(input).not.toHaveAttribute('placeholder');
 
     /* Editable means in the tab order. `tabIndex` is left undefined here, and the

@@ -88,11 +88,13 @@ const meta = {
           'vanishes from the form. Read-only comes either from the `readOnly` prop (the preview ' +
           'drawer) or from `meta.readonly` on the field (inventory- and task-block-owned values), ' +
           'and the two are OR-ed.\n\n' +
-          '**Neither group control is a group.** The field label is a plain `div`, not a ' +
-          '`fieldset`/`legend`, so the only thing tying an option to its question for a screen ' +
-          'reader is the composed `aria-label` on each input: "<field label>: <option label>". ' +
-          'Radios do share a `name` (the field id), so exclusivity is real - but two renderers ' +
-          'mounted for the same field id would silently join one radio group.\n\n' +
+          '**Both group controls are groups, without a `fieldset`.** The field label stays a ' +
+          'plain `div` so the layout is unchanged, but it now names a `role="radiogroup"` / ' +
+          '`role="group"` wrapper via `aria-labelledby`, so the question is announced once for ' +
+          'the group instead of only inside each option. The composed `aria-label` on every ' +
+          'input - "<field label>: <option label>" - is still there. Radios also share a `name` ' +
+          '(the field id), so exclusivity is real - but two renderers mounted for the same field ' +
+          'id would silently join one radio group.\n\n' +
           '**Read-only is not enforced the same way in all three.** Checkbox and radio inputs get ' +
           '`disabled`; the select does not - `isReadOnly` only guards the `onChange` call, so a ' +
           'preview select still opens, still visibly moves, and just never reports. That is drawn ' +
@@ -157,12 +159,15 @@ export const RadioGroup: Story = {
       await expect(radio).toHaveAttribute('name', 'temperament');
     }
 
-    /* There is no fieldset and no role="radiogroup", so nothing announces the
-       question itself. Each input carries the question in its own accessible
-       name instead; shortening that to the option label alone would leave a
-       screen reader user hearing "Relaxed" with no idea what is being asked. */
-    await expect(canvasElement.querySelector('fieldset')).toBeNull();
-    await expect(canvas.queryByRole('radiogroup')).not.toBeInTheDocument();
+    /* The question is announced for the group, not only inside each option. It
+       is a role="radiogroup" named by the visible label rather than a fieldset,
+       because a fieldset/legend would change the layout the label div owns. The
+       per-input names stay: shortening those to the option label alone would
+       leave anyone landing on a single radio hearing "Relaxed" with no idea
+       what is being asked. */
+    await expect(canvas.getByRole('radiogroup', { name: 'Temperament' })).toContainElement(
+      radios[0]
+    );
     await expect(canvas.getByRole('radio', { name: 'Temperament: Relaxed' })).toBeChecked();
     await expect(canvas.getByRole('radio', { name: 'Temperament: Nervous' })).not.toBeChecked();
 
@@ -178,6 +183,10 @@ export const CheckboxGroupFromAScalar: Story = {
   args: { field: CHECKBOX_FIELD, value: 'lameness' },
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
+
+    // Same grouping as the radio branch, as a plain role="group" named by the
+    // visible question - so the set is announced once, not once per option.
+    await expect(canvas.getByRole('group', { name: 'Observed signs' })).toBeInTheDocument();
 
     /* The branch this component exists to handle. A checkbox field can be handed
        a bare string - a field switched from single to multiple choice after

@@ -643,17 +643,16 @@ export const Emergency: Story = {
     const checkbox = panel.getByRole('checkbox');
     await expect(checkbox).not.toBeChecked();
 
-    /* The accessible name and the visible label disagree: the input carries
-       `aria-label="Confirm this is an emergency"` while the text beside it reads
-       "I confirm this is an emergency." Speech control cannot act on the visible
-       words (WCAG 2.5.3), and the aria-label also overrides the <label> the
-       component bothers to wire up with `useId`. */
-    await expect(checkbox).toHaveAccessibleName('Confirm this is an emergency');
+    /* The accessible name is the visible sentence, because the component names the
+       input through its <label> and carries no `aria-label` to override it. An
+       aria-label here would fail WCAG 2.5.3: speech control could not act on the
+       words the reader can actually see. */
+    await expect(checkbox).toHaveAccessibleName('I confirm this is an emergency.');
     const label = panel.getByText('I confirm this is an emergency.');
     await expect(label).toHaveAttribute('for', checkbox.id);
 
-    // Clicking the visible label still toggles it, which is what makes the
-    // mismatch invisible to a mouse user.
+    // The `useId` pairing is what names the box AND what makes the sentence a hit
+    // target, so clicking the words has to toggle it.
     await userEvent.click(label);
     await expect(checkbox).toBeChecked();
     await userEvent.click(checkbox);

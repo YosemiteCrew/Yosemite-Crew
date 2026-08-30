@@ -279,7 +279,7 @@ export const Empty: Story = {
     await expect(canvas.getByText('No services or packages added yet.')).toBeInTheDocument();
     // The headings belong to the populated branch, so they go with the rows.
     await expect(canvasElement.querySelector('.yc-table-head')).toBeNull();
-    // Adding stays available even with nothing in the list.
+    // Adding stays available even with nothing in the list, as long as the encounter is editable.
     await expect(
       canvas.getByRole('searchbox', { name: 'Search for services and packages' })
     ).toBeInTheDocument();
@@ -288,8 +288,40 @@ export const Empty: Story = {
     docs: {
       description: {
         story:
-          'The empty list. The search bar sits outside the container and is never gated on ' +
-          '`readOnly`, because locking is per item (billed) rather than per section.',
+          'The empty list. The search bar sits outside the container and survives an empty list, ' +
+          'because being billed locks a row rather than the section - but it still goes with ' +
+          '`readOnly`, which is its own story.',
+      },
+    },
+  },
+};
+
+export const ReadOnlyHidesSearch: Story = {
+  name: 'View-only (search block removed)',
+  args: { readOnly: true },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    /* The whole search row is behind `!readOnly`, so it is absent rather than
+       disabled - a rendered dropdown row calls `onAddItem` straight through, so a
+       view-only encounter could otherwise still gain billable line items. */
+    await expect(
+      canvas.queryByRole('searchbox', { name: 'Search for services and packages' })
+    ).toBeNull();
+    await expect(args.onAddItem).not.toHaveBeenCalled();
+
+    // The rows themselves stay readable: quantities render as text, not as inputs.
+    await expect(canvas.getByText(`1. ${SERVICE.name}`)).toBeInTheDocument();
+    await expect(canvas.queryByRole('spinbutton')).toBeNull();
+    // Viewing a package breakdown is not an edit, so the toggle survives.
+    await expect(canvas.getAllByRole('button', { name: /breakdown$/ })).toHaveLength(2);
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'A view-only encounter. The search drops entirely rather than dimming, so there is no ' +
+          'affordance offering an add that must not happen, and the quantity boxes fall back to ' +
+          'plain text. Read affordances - the breakdown toggle and the copy button - stay.',
       },
     },
   },
@@ -298,40 +330,23 @@ export const Empty: Story = {
 export const Phone: Story = {
   name: 'Phone: the shared grid collapses',
   globals: { viewport: { value: 'mobile', isRotated: false } },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('button', { name: `View ${WELLNESS} breakdown` }));
-    expect(await canvas.findByText('Breakdown')).toBeInTheDocument();
-
-    /* `ROW_GRID` only sets its five tracks at `sm:` (640px), so below that both the
-       parent rows and the breakdown rows are a single stacked column - and the
-       headings row is `hidden sm:block` entirely. The alignment the breakdown
-       relies on does not exist here, which is why the components read as a plain
-       list at this width. */
-    const componentRow = canvas.getByText('Physical examination').parentElement as HTMLElement;
-    /* Still a grid, but a one-track one. `grid-template-columns` resolves to the
-       USED track sizes on a laid-out grid container, so the single implicit column
-       reports a pixel width ('193px' at this viewport) rather than the `none` the
-       cascade holds - `none` comes back only from an element that is not a grid at
-       all, which is a different failure and an invisible one. Asserting `display`
-       first is what keeps the one-track count from passing on such an element. */
-    await expect(getComputedStyle(componentRow).display).toBe('grid');
-    const rowTracks = tracks(componentRow);
-    await expect(rowTracks).toHaveLength(1);
-    await expect(rowTracks[0]).toMatch(/^\d+(\.\d+)?px$/);
-    await expect(componentRow.children).toHaveLength(5);
-    // The headings row is `hidden sm:block`, so there is nothing to align against.
-    const headings = canvasElement.querySelector('.yc-table-head') as HTMLElement;
-    await expect(getComputedStyle(headings.parentElement as HTMLElement).display).toBe('none');
-  },
   parameters: {
+    chromatic: { viewports: [375] },
     docs: {
       description: {
         story:
-          'At 375px the Instructions and Amount cells still render (they are `hidden sm:block` on ' +
-          'the headings but not on the breakdown rows), so each component stacks its own name, ' +
-          'quantity and amount. Worth a look: it is a different reading order from the desktop ' +
-          'table, not a narrower version of it.',
+          'Below `sm` (640px) `ROW_GRID` never sets its five tracks, so the parent rows and the ' +
+          'breakdown rows are a single stacked column and the headings row is `hidden sm:block` ' +
+          'entirely - the alignment the breakdown relies on does not exist, which is why the ' +
+          'components read as a plain list at this width.\n\n' +
+          'Deliberately no play function. `sm:` is a VIEWPORT media query, and the viewport global ' +
+          'is applied by the Storybook manager resizing the preview iframe - a runner that loads ' +
+          '`iframe.html` directly renders this at panel width, where the query still matches and ' +
+          'the grid keeps all five tracks. A decorator cannot stand in either, because a narrow ' +
+          'CONTAINER does not change what a viewport media query matches. Asserting the collapse ' +
+          'here would fail for a reason that has nothing to do with the component, so the ' +
+          'breakpoint is covered by the Chromatic viewport above and the desktop track assertions ' +
+          'live in the stories that can actually measure them.',
       },
     },
   },

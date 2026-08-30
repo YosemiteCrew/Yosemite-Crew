@@ -135,7 +135,7 @@ const meta = {
           'rather than by field order, so a block authored by an older builder still summarises. ' +
           'Every block collapses to two lines: the title (or `Task N` when the title was never ' +
           'keyed) and a middot-joined caption of category, repeat, reminder and duration, with ' +
-          'the last two dropped when the author left them empty.',
+          'any of the four dropped when the author left it empty.',
       },
     },
   },
@@ -228,20 +228,18 @@ export const MinimalBlock: Story = {
     const canvas = within(canvasElement);
     const [item] = canvas.getAllByRole('listitem');
 
-    /* Reminder and duration are dropped when unset, but the category/repeat pair is
-       joined unconditionally - so a block with no repeat field at all ends on a
-       dangling middot. Pinned deliberately: this is the current rendering, and the
-       assertion is what will catch it changing (see the notes on this story). */
-    await expect(metaLine(item)).toBe('Care ·');
+    /* Every segment is dropped when unset, separators included - a block with no repeat
+       field at all ends on the category, not on a dangling "Care ·". */
+    await expect(metaLine(item)).toBe('Care');
     await expect(canvas.queryByText(/day/)).toBeNull();
   },
   parameters: {
     docs: {
       description: {
         story:
-          'A block the author only half-filled. The trailing middot is what the component ' +
-          'currently renders: the category and repeat segments are joined before either is known ' +
-          'to exist, while the reminder and duration segments are guarded.',
+          'A block the author only half-filled. Only the segments that exist are printed, and ' +
+          'the middots are separators between them rather than suffixes on each - so a missing ' +
+          'repeat, reminder and duration leave the caption reading just the category.',
       },
     },
   },

@@ -138,38 +138,42 @@ const ServicesPackagesEditor = ({
   return (
     <div className="flex flex-col gap-3">
       {/* Search row sits above the floating container (matches the other steps);
-          results surface as a dropdown on type. Locking is now per-item (billed),
-          so adding new items always stays available. */}
-      <div className="relative flex justify-end">
-        <div ref={searchRef} className="relative w-full sm:max-w-90">
-          <Search
-            value={search}
-            setSearch={setSearch}
-            placeholder="Search for services, packages..."
-            label="Search for services and packages"
-            className="w-full! bg-(--whitebg) transition-colors"
-          />
-          <SearchResultsDropdown
-            anchorRef={searchRef}
-            open={matches.length > 0}
-            onClose={() => setSearch('')}
-          >
-            <ul>
-              {matches.map((item) => (
-                <WorkspaceSearchResultRow
-                  key={item.refId}
-                  name={item.name}
-                  badge={<ItemTag kind={item.kind} />}
-                  onSelect={() => {
-                    onAddItem(item);
-                    setSearch('');
-                  }}
-                />
-              ))}
-            </ul>
-          </SearchResultsDropdown>
+          results surface as a dropdown on type. Billed items lock per row, so adding
+          stays available on a live encounter - but a view-only encounter must not gain
+          billable line items, and selecting a result goes straight to `onAddItem`. The
+          whole row goes with `readOnly`, same as PrescriptionEditor. */}
+      {!readOnly && (
+        <div className="relative flex justify-end">
+          <div ref={searchRef} className="relative w-full sm:max-w-90">
+            <Search
+              value={search}
+              setSearch={setSearch}
+              placeholder="Search for services, packages..."
+              label="Search for services and packages"
+              className="w-full! bg-(--whitebg) transition-colors"
+            />
+            <SearchResultsDropdown
+              anchorRef={searchRef}
+              open={matches.length > 0}
+              onClose={() => setSearch('')}
+            >
+              <ul>
+                {matches.map((item) => (
+                  <WorkspaceSearchResultRow
+                    key={item.refId}
+                    name={item.name}
+                    badge={<ItemTag kind={item.kind} />}
+                    onSelect={() => {
+                      onAddItem(item);
+                      setSearch('');
+                    }}
+                  />
+                ))}
+              </ul>
+            </SearchResultsDropdown>
+          </div>
         </div>
-      </div>
+      )}
 
       <SectionContainer
         title="Additional services & packages"
