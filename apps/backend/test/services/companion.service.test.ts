@@ -242,6 +242,37 @@ describe("CompanionService", () => {
     );
   });
 
+  it("strips line breaks from an invalid species code before logging it", async () => {
+    const logger = (await import("src/utils/logger")).default;
+    (logger.warn as jest.Mock).mockClear();
+    // jest.clearAllMocks() does not drain mockResolvedValueOnce queues, so
+    // reset the two mocks this case depends on rather than inheriting a
+    // leftover from an earlier test.
+    mockedPrisma.parentPatient.findFirst.mockReset();
+    mockedPrisma.codeEntry.findFirst.mockReset();
+    mockedPrisma.parentPatient.findFirst.mockResolvedValue(null);
+    // No matching code entry: drives ensureCodeExists down the invalid branch.
+    mockedPrisma.codeEntry.findFirst.mockResolvedValue(null);
+
+    try {
+      await expect(
+        CompanionService.create(
+          { ...companionPayload, speciesCode: "dog\r\nforged line" },
+          { parentId: "parent-1", organisationId: "org-1" },
+        ),
+      ).rejects.toEqual(expect.objectContaining({ statusCode: 400 }));
+
+      const logged = (logger.warn as jest.Mock).mock.calls.flat().join(" ");
+      expect(logged).toContain("dogforged line");
+      expect(logged).not.toContain("\n");
+      expect(logged).not.toContain("\r");
+    } finally {
+      // Leave both mocks pristine so the persistent values above cannot leak.
+      mockedPrisma.parentPatient.findFirst.mockReset();
+      mockedPrisma.codeEntry.findFirst.mockReset();
+    }
+  });
+
   it("rolls back the patient record when parent linking fails", async () => {
     mockedPrisma.parentPatient.findFirst.mockResolvedValueOnce(null);
     mockedPrisma.codeEntry.findFirst.mockResolvedValueOnce({ id: "species-1" });

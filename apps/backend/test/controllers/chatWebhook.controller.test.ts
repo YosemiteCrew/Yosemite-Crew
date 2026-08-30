@@ -128,11 +128,12 @@ describe("scanMessageAttachments", () => {
     mockScan.mockResolvedValue({ clean: false, threat: "bad" });
     await scanMessageAttachments({
       type: "message.new",
-      message: { id: "m1\nforged line", attachments: [{ asset_url: "u" }] },
+      message: { id: "m1\r\nforged line", attachments: [{ asset_url: "u" }] },
     });
     expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn.mock.calls[0][0]).toContain("m1 forged line");
+    expect(warn.mock.calls[0][0]).toContain("m1forged line");
     expect(warn.mock.calls[0][0]).not.toContain("\n");
+    expect(warn.mock.calls[0][0]).not.toContain("\r");
     warn.mockRestore();
   });
 
