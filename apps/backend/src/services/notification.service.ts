@@ -102,6 +102,15 @@ const buildFcmMessage = (
   return msg;
 };
 
+/**
+ * A log-safe prefix of a device token. The token is caller-supplied and only
+ * type-checked, so the six characters that reach the log are attacker-chosen.
+ * Keep the /\n|\r/g form with an empty replacement: a quantifier such as
+ * [\n\r]+ or a non-empty replacement is not a CodeQL log-injection barrier.
+ */
+const tokenPrefix = (token: string): string =>
+  token.slice(0, 6).replace(/\n|\r/g, "");
+
 export const NotificationService = {
   /**
    * Send a push notification to a single device token.
@@ -125,14 +134,14 @@ export const NotificationService = {
     try {
       const response = await admin.messaging().send(message, options?.dryRun);
       logger.info(
-        `Notification sent to token ${token.slice(0, 6)}…: ${response}`,
+        `Notification sent to token ${tokenPrefix(token)}…: ${response}`,
       );
       return { token, success: true };
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : "Unknown FCM error";
       logger.error(
-        `Failed to send notification to token ${token.slice(0, 6)}…: ${message}`,
+        `Failed to send notification to token ${tokenPrefix(token)}…: ${message}`,
       );
 
       // If token is invalid, ask DeviceTokenService to remove/disable it
@@ -150,7 +159,7 @@ export const NotificationService = {
           await DeviceTokenService.removeToken(token);
         } catch (cleanupError) {
           logger.warn(
-            `Failed to clean up invalid token ${token.slice(0, 6)}… : ${
+            `Failed to clean up invalid token ${tokenPrefix(token)}… : ${
               cleanupError instanceof Error
                 ? cleanupError.message
                 : "Unknown error"

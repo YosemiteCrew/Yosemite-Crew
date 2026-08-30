@@ -229,9 +229,16 @@ async function runInboundHandler(
     case "Announce":
       return handleAnnounce(targetOrgId, activity);
     default:
-      logger.info(`[AP inbox] Unhandled activity type: ${activity.type}`, {
-        actor: activity.actor,
-      });
+      // The type is an unvalidated string from a federated peer, so strip line
+      // breaks before it reaches the message. Keep the /\n|\r/g form with an
+      // empty replacement: a quantifier such as [\n\r]+ or a non-empty
+      // replacement is not a CodeQL log-injection barrier. String() guards the
+      // cast at the top of this file, since the body is parsed JSON and a peer
+      // can send a non-string here.
+      logger.info(
+        `[AP inbox] Unhandled activity type: ${String(activity.type).replace(/\n|\r/g, "")}`,
+        { actor: activity.actor },
+      );
   }
 }
 
