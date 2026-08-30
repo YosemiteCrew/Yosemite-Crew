@@ -469,45 +469,49 @@ export const LongAnalyteNames: Story = {
 export const Phone: Story = {
   name: 'Phone (375)',
   globals: { viewport: { value: 'mobile', isRotated: false } },
+  /* The width is pinned here as well as through the viewport global. The global
+     is applied by the Storybook manager resizing the preview iframe, so a runner
+     that loads `iframe.html` directly renders this at panel width - where a 536px
+     grid fits and the scroll assertion below is false for the wrong reason. This
+     one CAN be framed, unlike a `sm:`-gated layout: the overflow is driven by the
+     grid's own `min-width` against its container, not by a media query. */
+  decorators: [
+    (Story) => (
+      <div className="w-[375px]">
+        <Story />
+      </div>
+    ),
+  ],
   play: async ({ canvasElement }) => {
     const header = headerOf(canvasElement);
     const panel = panelOf(canvasElement);
     const rows = rowsOf(canvasElement);
 
     expectHeadRecipeApplied(header);
-    // The template does not respond to width: still four fixed-ish tracks at 375.
+    // The template does not respond to width - still four tracks, at every size.
     expectFourColumns(header);
     expect(rows).toHaveLength(6);
     for (const row of rows) {
       expectFourColumns(row);
     }
 
-    /* The first track is pinned at the FLOOR of its `minmax()` here - the opposite of
-       the laptop story, where the same track is wider than 160. That is what makes
-       the table wider than the card it lives in. */
-    const widths = tracks(header).map((track) => Number.parseFloat(track));
-    expect(widths).toEqual([160, 120, 120, 100]);
+    /* The table is wider than the card by design: 160 + 120 + 120 + 100 plus three
+       gaps cannot render under 536px, and this panel sits in a ~309px column on a
+       phone. What changed is that it is now SCROLLABLE rather than spilling - the
+       panel carries `overflow-x: auto` and the grid a `min-width`, so the Meter
+       column is reachable instead of hanging off the side of its own card. */
+    expect(getComputedStyle(panel).overflowX).toBe('auto');
+    expect(panel.scrollWidth).toBeGreaterThan(panel.clientWidth);
 
-    /* 160 + 120 + 120 + 100 plus three gaps against roughly 309px of content box.
-       Measured from the resolved tracks rather than from `scrollWidth`, which is only
-       loosely specified for an `overflow: visible` box. */
-    const gap = Number.parseFloat(getComputedStyle(header).columnGap);
-    const total = widths.reduce((sum, width) => sum + width, 0) + gap * 3;
-    expect(total).toBeGreaterThan(header.clientWidth + 150);
-
-    // Not merely wider on paper: the Meter cell's right edge is outside the card.
-    const lastCell = rows[0].children[3] as HTMLElement;
-    expect(lastCell.getBoundingClientRect().right).toBeGreaterThan(
-      panel.getBoundingClientRect().right
+    /* The scroll lives on the PANEL, not on the page. A container that failed to
+       clip would look identical here and take the whole history screen sideways
+       with it, which is the regression this pins. */
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(
+      document.documentElement.clientWidth
     );
 
-    // ...and nothing can scroll it: the panel is plain `overflow: visible`, with no
-    // `overflow-x: auto` wrapper anywhere between it and the card.
-    expect(getComputedStyle(panel).overflowX).toBe('visible');
-    expect(getComputedStyle(header).overflowX).toBe('visible');
-
-    // Rows overflow by the same amount, so the columns stay aligned while they run
-    // off-screen together, and the content is unchanged from the laptop render.
+    // Rows scroll with the header, so the columns stay aligned while they move,
+    // and the content is unchanged from the laptop render.
     expect(tracks(rows[0])).toEqual(tracks(header));
     expect([...rows[0].children].map((cell) => cell.textContent)).toEqual([
       'Haematocrit',
@@ -521,11 +525,16 @@ export const Phone: Story = {
       description: {
         story:
           'The phone record renders this same panel - `variant="phone"` changes the timeline ' +
-          'chrome around it, not the expanded content. The four tracks are unconditional, so at ' +
-          '375 the table is about 536px wide inside a ~309px column and simply spills; there is ' +
-          'no `overflow-x` container, so it cannot be scrolled to either. A reviewer should ' +
-          'decide between a scroll container and a stacked form here, and note that Reference and ' +
-          'Meter are the 220px that are worth the least.',
+          'chrome around it, not the expanded content. The four tracks are unconditional, so the ' +
+          'table cannot render under 536px inside a ~309px column. It scrolls inside its own card ' +
+          'rather than spilling: nothing is dropped, because a lab panel is read by comparing a ' +
+          'value against its reference interval and hiding either column on a phone would defeat ' +
+          'it.\n\nThe track widths are deliberately NOT asserted here. The viewport global is ' +
+          'applied by the Storybook manager resizing the preview iframe, so a runner that loads ' +
+          '`iframe.html` directly renders this at panel width and the `minmax()` floor resolves ' +
+          'differently - an absolute assertion would fail for a reason that has nothing to do ' +
+          'with the component. The scroll containment holds at either width, so that is what is ' +
+          'measured.',
       },
     },
   },

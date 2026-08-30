@@ -88,10 +88,12 @@ const meta = {
           'vanishes from the form. Read-only comes either from the `readOnly` prop (the preview ' +
           'drawer) or from `meta.readonly` on the field (inventory- and task-block-owned values), ' +
           'and the two are OR-ed.\n\n' +
-          '**Both group controls are groups, without a `fieldset`.** The field label stays a ' +
-          'plain `div` so the layout is unchanged, but it now names a `role="radiogroup"` / ' +
-          '`role="group"` wrapper via `aria-labelledby`, so the question is announced once for ' +
-          'the group instead of only inside each option. The composed `aria-label` on every ' +
+          '**Both group controls are real `fieldset`/`legend` pairs.** The house rule is no ARIA ' +
+          'role where a native element exists, so the question is a `<legend>` and the wrapper a ' +
+          '`<fieldset>` with its user-agent border, margin and padding reset - the layout is ' +
+          'unchanged and the question is announced once for the group instead of only inside ' +
+          'each option. Note the implicit role is `group`, not `radiogroup`. The composed ' +
+          '`aria-label` on every ' +
           'input - "<field label>: <option label>" - is still there. Radios also share a `name` ' +
           '(the field id), so exclusivity is real - but two renderers mounted for the same field ' +
           'id would silently join one radio group.\n\n' +
@@ -159,15 +161,14 @@ export const RadioGroup: Story = {
       await expect(radio).toHaveAttribute('name', 'temperament');
     }
 
-    /* The question is announced for the group, not only inside each option. It
-       is a role="radiogroup" named by the visible label rather than a fieldset,
-       because a fieldset/legend would change the layout the label div owns. The
+    /* The question is announced for the group, not only inside each option. It is
+       a real <fieldset>/<legend>, so the implicit role is `group` rather than
+       `radiogroup` - the house rule is no ARIA role where a native element
+       exists, and the legend is what attaches the question to the controls. The
        per-input names stay: shortening those to the option label alone would
-       leave anyone landing on a single radio hearing "Relaxed" with no idea
-       what is being asked. */
-    await expect(canvas.getByRole('radiogroup', { name: 'Temperament' })).toContainElement(
-      radios[0]
-    );
+       leave anyone landing on a single radio hearing "Relaxed" with no idea what
+       is being asked. */
+    await expect(canvas.getByRole('group', { name: 'Temperament' })).toContainElement(radios[0]);
     await expect(canvas.getByRole('radio', { name: 'Temperament: Relaxed' })).toBeChecked();
     await expect(canvas.getByRole('radio', { name: 'Temperament: Nervous' })).not.toBeChecked();
 
