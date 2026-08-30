@@ -461,6 +461,363 @@ const useSlots = (slug: string, serviceId: string | null, date: string) => {
   };
 };
 
+/**
+ * The four sections of the form, each its own component.
+ *
+ * `BookClient` was a 420-line component and React Doctor was right that it had
+ * stopped being readable in one pass - the same reason `SlotPicker` and
+ * `renderStatus` were pulled out before it. Each of these takes only what it
+ * renders, so what a section depends on is visible in its signature.
+ */
+
+const ServiceFieldset = ({
+  services,
+  serviceId,
+  onSelect,
+}: {
+  services: PublicService[];
+  serviceId: string | null;
+  onSelect: (id: string) => void;
+}) => (
+  <fieldset>
+    <legend className={EYEBROW}>Service</legend>
+    <div className="grid gap-3 sm:grid-cols-2">
+      {services.map((service: PublicService) => (
+        <label
+          key={service.id}
+          htmlFor={`service-${service.id}`}
+          className="flex cursor-pointer items-start gap-3 rounded-xl border-[1.5px] border-[var(--ink-6b)] bg-[var(--field-bg)] p-4 transition-[border-color,background-color,box-shadow] duration-150 ease-out hover:border-[var(--ink)] hover:bg-[var(--screen-2)] has-[:checked]:border-[var(--blue-strong)] has-[:checked]:bg-[var(--blue-soft)] has-[:focus-visible]:border-[var(--color-input-border-active)] has-[:focus-visible]:shadow-[0_0_0_3px_var(--glow-b26)]"
+        >
+          {/* The input, the dot and the content are DIRECT SIBLINGS, and
+                that is the whole trick: peer-checked: compiles to
+                `.peer:checked ~ &`, a following-sibling combinator, so it
+                cannot reach a descendant of a sibling. sr-only is
+                position:absolute, so it is out of flow and never becomes a
+                flex item.
+                size-px! because input[type=radio]{width:18px;height:18px}
+                is unlayered and beats sr-only's layered 1px.
+                aria-label is gone: with an explicit htmlFor/id pair the
+                name already comes from the label's subtree, and the
+                attribute was subtracting the duration from it. */}
+          <input
+            id={`service-${service.id}`}
+            type="radio"
+            name="service"
+            className="peer sr-only size-px!"
+            value={service.id}
+            checked={serviceId === service.id}
+            onChange={() => onSelect(service.id)}
+          />
+          <span
+            aria-hidden="true"
+            className="mt-1 flex size-5 shrink-0 rounded-full border-[1.5px] border-[var(--ink-6b)] bg-[var(--screen)] transition-[background-color,border-color] duration-150 ease-out before:m-auto before:size-2 before:scale-0 before:rounded-full before:bg-[var(--white-text)] before:transition-transform before:duration-150 before:content-[''] peer-checked:border-[var(--blue-strong)] peer-checked:bg-[var(--blue-strong)] peer-checked:before:scale-100 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--color-input-border-active)]"
+          />
+          {/* --ink-body, not --ink-muted. Muted ink measures 4.04:1 on
+                the selected row's wash in dark - the row is the one place
+                on the card where the ground changes under the meta text,
+                and it is the row the reader is most likely to read. The
+                name still separates by weight, size and --ink. */}
+          <span className="min-w-0 flex-1">
+            <span className="block text-body-4-emphasis text-[var(--ink)]">{service.name}</span>
+            <span className="mt-1 block text-caption-1 tabular-nums text-[var(--ink-body)]">
+              {service.durationMinutes} min
+            </span>
+            {/* Fetched today and thrown away, which is exactly why these
+                  rows looked so empty: the only thing each had to say was
+                  "30 min". */}
+            {service.description ? (
+              <span className="mt-1 line-clamp-2 block text-caption-1 text-[var(--ink-body)]">
+                {service.description}
+              </span>
+            ) : null}
+          </span>
+        </label>
+      ))}
+    </div>
+  </fieldset>
+);
+
+const DayAndTime = ({
+  date,
+  minDate,
+  maxDate,
+  bookingWindowDays,
+  quickDays,
+  onDateChange,
+  slotsLoading,
+  slots,
+  slotsError,
+  selectedTime,
+  onSelectTime,
+  slotGroupRef,
+}: {
+  date: string;
+  minDate: string;
+  maxDate: string;
+  bookingWindowDays: number;
+  quickDays: string[];
+  onDateChange: (iso: string) => void;
+  slotsLoading: boolean;
+  slots: PublicSlot[] | null;
+  slotsError: string | null;
+  selectedTime: string | null;
+  onSelectTime: (startTime: string) => void;
+  slotGroupRef: React.RefObject<HTMLDivElement | null>;
+}) => (
+  <section>
+    <h2 className={EYEBROW}>Day and time</h2>
+
+    <div className="flex flex-col gap-2">
+      {/* An htmlFor/id pair, not a wrapping label: getByLabelText matches
+            the label's whole recursive textContent, so the hint has to sit
+            outside it or it would leak into the accessible name. */}
+      <label htmlFor="book-day" className="text-caption-1 text-[var(--ink-body)]">
+        Preferred day
+      </label>
+      {/* Stays a native date input. The test reads .min and .max off the
+            DOM node, and react-datepicker exposes neither. */}
+      <input
+        id="book-day"
+        type="date"
+        className={`${FIELD} tabular-nums`}
+        value={date}
+        min={minDate}
+        max={maxDate}
+        aria-describedby="book-day-hint"
+        onChange={(event) => onDateChange(event.target.value)}
+      />
+      <p id="book-day-hint" className={META_TEXT}>
+        {formatLongDay(date)} · you can book up to {bookingWindowDays} days ahead.
+      </p>
+    </div>
+
+    {/* The near-term case, which is most of them, without going near the
+          browser's own calendar widget. */}
+    <div className="scrollbar-hidden -mx-1 mt-3 mb-6 flex gap-2 overflow-x-auto px-1 pb-1">
+      {quickDays.map((iso, index) => (
+        <button
+          key={iso}
+          type="button"
+          aria-pressed={date === iso}
+          onClick={() => onDateChange(iso)}
+          className="min-h-11 shrink-0 rounded-full border-[1.5px] border-[var(--ink-6b)] bg-[var(--field-bg)] px-4 text-caption-1 text-[var(--ink)] transition-[background-color,border-color,color,transform] duration-150 ease-out hover:border-[var(--blue-strong)] hover:bg-[var(--blue-soft)] hover:text-[var(--blue-text)] active:translate-y-px aria-pressed:border-[var(--blue-strong)] aria-pressed:bg-[var(--blue-strong)] aria-pressed:text-[var(--white-text)]"
+        >
+          {quickDayLabel(index, iso)}
+        </button>
+      ))}
+    </div>
+
+    <SlotPicker
+      loading={slotsLoading}
+      error={slotsError}
+      slots={slots}
+      selectedTime={selectedTime}
+      onSelect={onSelectTime}
+      groupRef={slotGroupRef}
+    />
+  </section>
+);
+
+const DetailsFieldset = ({
+  form,
+  setField,
+}: {
+  form: FormValues;
+  setField: <K extends keyof FormValues>(key: K, value: FormValues[K]) => void;
+}) => (
+  <fieldset>
+    <legend className={EYEBROW}>Your details</legend>
+    {/* One line under the eyebrow, never an asterisk inside a label -
+          getByLabelText matches the label's full text. */}
+    <p id="required-note" className="mb-4 text-caption-1 text-[var(--ink-muted)]">
+      Everything here is needed unless it says optional.
+    </p>
+    <div className="flex flex-col gap-5 sm:grid sm:grid-cols-2 sm:gap-x-6 sm:gap-y-5">
+      <div>
+        <label htmlFor="book-name" className={FIELD_LABEL}>
+          Your name
+        </label>
+        {/* autoComplete on every field that has a token. There were none
+              before, so no browser offered a stranger their own details. */}
+        <input
+          id="book-name"
+          className={FIELD}
+          required
+          maxLength={120}
+          autoComplete="name"
+          aria-describedby="required-note"
+          value={form.ownerName}
+          onChange={(event) => setField('ownerName', event.target.value)}
+        />
+      </div>
+
+      <div>
+        <label htmlFor="book-email" className={FIELD_LABEL}>
+          Email
+        </label>
+        <input
+          id="book-email"
+          className={FIELD}
+          type="email"
+          required
+          maxLength={254}
+          autoComplete="email"
+          inputMode="email"
+          spellCheck={false}
+          placeholder="you@example.com"
+          aria-describedby="required-note"
+          value={form.ownerEmail}
+          onChange={(event) => setField('ownerEmail', event.target.value)}
+        />
+      </div>
+
+      <div className="sm:col-span-2">
+        <label htmlFor="book-phone" className={FIELD_LABEL}>
+          Phone (optional)
+        </label>
+        <input
+          id="book-phone"
+          className={FIELD}
+          type="tel"
+          maxLength={40}
+          autoComplete="tel"
+          inputMode="tel"
+          placeholder="+49 30 1234567"
+          value={form.ownerPhone}
+          onChange={(event) => setField('ownerPhone', event.target.value)}
+        />
+      </div>
+
+      <div>
+        <label htmlFor="book-pet" className={FIELD_LABEL}>
+          Pet name
+        </label>
+        <input
+          id="book-pet"
+          className={FIELD}
+          required
+          maxLength={120}
+          autoComplete="off"
+          placeholder="Rex"
+          aria-describedby="required-note"
+          value={form.petName}
+          onChange={(event) => setField('petName', event.target.value)}
+        />
+      </div>
+
+      <div>
+        <label htmlFor="book-species" className={FIELD_LABEL}>
+          Species
+        </label>
+        <input
+          id="book-species"
+          className={FIELD}
+          required
+          maxLength={60}
+          autoComplete="off"
+          placeholder="Dog, cat, rabbit…"
+          aria-describedby="required-note"
+          value={form.petSpecies}
+          onChange={(event) => setField('petSpecies', event.target.value)}
+        />
+      </div>
+
+      <div className="sm:col-span-2">
+        <label htmlFor="book-concern" className={FIELD_LABEL}>
+          What is the visit for? (optional)
+        </label>
+        <textarea
+          id="book-concern"
+          className={FIELD}
+          rows={4}
+          maxLength={1000}
+          placeholder="Limping on the back left leg since Tuesday"
+          value={form.concern}
+          onChange={(event) => setField('concern', event.target.value)}
+        />
+      </div>
+    </div>
+  </fieldset>
+);
+
+const CheckAndSend = ({
+  practiceName,
+  consent,
+  setField,
+  submitError,
+  statusLine,
+  canSubmit,
+  submitting,
+}: {
+  practiceName: string;
+  consent: boolean;
+  setField: <K extends keyof FormValues>(key: K, value: FormValues[K]) => void;
+  submitError: string | null;
+  statusLine: string;
+  canSubmit: boolean;
+  submitting: boolean;
+}) => (
+  <section>
+    <h2 className={EYEBROW}>Check and send</h2>
+    <div className="flex flex-col gap-4">
+      <label className="flex cursor-pointer items-start gap-3">
+        {/* size-6! = 24px, clearing the target-size floor on the control
+              itself. The ! is required: input[type=checkbox]{width:20px}
+              is unlayered and non-important, so a plain size-6 in
+              @layer utilities loses to it.
+              shrink-0 because this is a flex item beside a two-line
+              sentence - it used to compress into an oval on a narrow
+              viewport, and it is the one control that gates submission.
+              Appearance, radius, fill and tick already come from
+              globals.css and flip correctly; do not restyle them. */}
+        <input
+          type="checkbox"
+          className="size-6! shrink-0"
+          checked={consent}
+          onChange={(event) => setField('consent', event.target.checked)}
+        />
+        <span className="text-caption-1 text-[var(--ink-body)]">
+          I agree that {practiceName} may store these details to handle my booking request. They are
+          deleted 30 days after the requested date.
+        </span>
+      </label>
+
+      {submitError ? <Callout role="alert">{submitError}</Callout> : null}
+
+      <p id="submit-state" className={META_TEXT}>
+        {statusLine}
+      </p>
+
+      {/* disabled:opacity-50 is gone. It composited fill and label
+            against the page - 2.75:1 for the surface and 3.05:1 for the
+            label - for the whole session, because first paint has neither
+            a time nor consent. The replacement is 5.07:1 boundary and
+            5.41:1 label, and "Sending" no longer looks identical to
+            "you can't press this yet".
+            NOT --color-surface-disabled: it is a fixed literal with no
+            dark override, so it would strand this button as a pale bone
+            slab on the espresso page. --inset flips. */}
+      <button
+        type="submit"
+        disabled={!canSubmit}
+        aria-describedby="submit-state"
+        className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border-[1.5px] border-transparent bg-[var(--cta)] px-6 text-body-4-emphasis text-[var(--cta-text)] shadow-[0_8px_22px_var(--sh16)] transition-[background-color,box-shadow,transform] duration-150 ease-out enabled:hover:bg-[var(--cta-hover)] enabled:active:translate-y-px enabled:active:shadow-[0_2px_8px_var(--sh12)] disabled:cursor-not-allowed disabled:border-[var(--ink-6b)] disabled:bg-[var(--inset)] disabled:text-[var(--ink-muted)] disabled:shadow-none"
+      >
+        {submitting ? (
+          <>
+            <Spinner />
+            Sending…
+          </>
+        ) : (
+          'Request this time'
+        )}
+      </button>
+
+      <p className={META_TEXT}>Your details are only used to handle this request.</p>
+    </div>
+  </section>
+);
+
 const BookClient = ({ slug }: { slug: string }) => {
   const view = usePractice(slug);
   // Needed before the guard below, because the default service feeds `useSlots`
@@ -470,7 +827,9 @@ const BookClient = ({ slug }: { slug: string }) => {
   // Derived, not stored: the practice's first service is the default until the
   // reader picks another, so nothing has to write it when the practice loads.
   const [serviceOverride, setServiceOverride] = useState<string | null>(null);
-  const [date, setDate] = useState(todayIso());
+  // The function, not its result: passing `todayIso()` re-derives today's date
+  // on every render and throws the value away.
+  const [date, setDate] = useState(todayIso);
   const serviceId = serviceOverride ?? loaded?.services[0]?.id ?? null;
 
   const [startTime, setStartTime] = useState<string | null>(null);
@@ -590,291 +949,38 @@ const BookClient = ({ slug }: { slug: string }) => {
         ) : null}
 
         <form className="flex flex-col gap-8 px-5 pb-6 sm:px-8 sm:pb-8" onSubmit={handleSubmit}>
-          <fieldset>
-            <legend className={EYEBROW}>Service</legend>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {practice.services.map((service: PublicService) => (
-                <label
-                  key={service.id}
-                  htmlFor={`service-${service.id}`}
-                  className="flex cursor-pointer items-start gap-3 rounded-xl border-[1.5px] border-[var(--ink-6b)] bg-[var(--field-bg)] px-4 py-4 transition-[border-color,background-color,box-shadow] duration-150 ease-out hover:border-[var(--ink)] hover:bg-[var(--screen-2)] has-[:checked]:border-[var(--blue-strong)] has-[:checked]:bg-[var(--blue-soft)] has-[:focus-visible]:border-[var(--color-input-border-active)] has-[:focus-visible]:shadow-[0_0_0_3px_var(--glow-b26)]"
-                >
-                  {/* The input, the dot and the content are DIRECT SIBLINGS, and
-                      that is the whole trick: peer-checked: compiles to
-                      `.peer:checked ~ &`, a following-sibling combinator, so it
-                      cannot reach a descendant of a sibling. sr-only is
-                      position:absolute, so it is out of flow and never becomes a
-                      flex item.
-                      size-px! because input[type=radio]{width:18px;height:18px}
-                      is unlayered and beats sr-only's layered 1px.
-                      aria-label is gone: with an explicit htmlFor/id pair the
-                      name already comes from the label's subtree, and the
-                      attribute was subtracting the duration from it. */}
-                  <input
-                    id={`service-${service.id}`}
-                    type="radio"
-                    name="service"
-                    className="peer sr-only size-px!"
-                    value={service.id}
-                    checked={serviceId === service.id}
-                    onChange={() => setServiceOverride(service.id)}
-                  />
-                  <span
-                    aria-hidden="true"
-                    className="mt-1 flex size-5 shrink-0 rounded-full border-[1.5px] border-[var(--ink-6b)] bg-[var(--screen)] transition-[background-color,border-color] duration-150 ease-out before:m-auto before:size-2 before:scale-0 before:rounded-full before:bg-[var(--white-text)] before:transition-transform before:duration-150 before:content-[''] peer-checked:border-[var(--blue-strong)] peer-checked:bg-[var(--blue-strong)] peer-checked:before:scale-100 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--color-input-border-active)]"
-                  />
-                  {/* --ink-body, not --ink-muted. Muted ink measures 4.04:1 on
-                      the selected row's wash in dark - the row is the one place
-                      on the card where the ground changes under the meta text,
-                      and it is the row the reader is most likely to read. The
-                      name still separates by weight, size and --ink. */}
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-body-4-emphasis text-[var(--ink)]">
-                      {service.name}
-                    </span>
-                    <span className="mt-1 block text-caption-1 tabular-nums text-[var(--ink-body)]">
-                      {service.durationMinutes} min
-                    </span>
-                    {/* Fetched today and thrown away, which is exactly why these
-                        rows looked so empty: the only thing each had to say was
-                        "30 min". */}
-                    {service.description ? (
-                      <span className="mt-1 line-clamp-2 block text-caption-1 text-[var(--ink-body)]">
-                        {service.description}
-                      </span>
-                    ) : null}
-                  </span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
+          <ServiceFieldset
+            services={practice.services}
+            serviceId={serviceId}
+            onSelect={setServiceOverride}
+          />
 
-          <section>
-            <h2 className={EYEBROW}>Day and time</h2>
+          <DayAndTime
+            date={date}
+            minDate={todayIso()}
+            maxDate={maxDate}
+            bookingWindowDays={practice.bookingWindowDays}
+            quickDays={quickDays}
+            onDateChange={setDate}
+            slotsLoading={slotsLoading}
+            slots={slots}
+            slotsError={slotsError}
+            selectedTime={selectedTime}
+            onSelectTime={setStartTime}
+            slotGroupRef={slotGroupRef}
+          />
 
-            <div className="flex flex-col gap-2">
-              {/* An htmlFor/id pair, not a wrapping label: getByLabelText matches
-                  the label's whole recursive textContent, so the hint has to sit
-                  outside it or it would leak into the accessible name. */}
-              <label htmlFor="book-day" className="text-caption-1 text-[var(--ink-body)]">
-                Preferred day
-              </label>
-              {/* Stays a native date input. The test reads .min and .max off the
-                  DOM node, and react-datepicker exposes neither. */}
-              <input
-                id="book-day"
-                type="date"
-                className={`${FIELD} tabular-nums`}
-                value={date}
-                min={todayIso()}
-                max={maxDate}
-                aria-describedby="book-day-hint"
-                onChange={(event) => setDate(event.target.value)}
-              />
-              <p id="book-day-hint" className={META_TEXT}>
-                {formatLongDay(date)} · you can book up to {practice.bookingWindowDays} days ahead.
-              </p>
-            </div>
+          <DetailsFieldset form={form} setField={setField} />
 
-            {/* The near-term case, which is most of them, without going near the
-                browser's own calendar widget. */}
-            <div className="scrollbar-hidden -mx-1 mt-3 mb-6 flex gap-2 overflow-x-auto px-1 pb-1">
-              {quickDays.map((iso, index) => (
-                <button
-                  key={iso}
-                  type="button"
-                  aria-pressed={date === iso}
-                  onClick={() => setDate(iso)}
-                  className="min-h-11 shrink-0 rounded-full border-[1.5px] border-[var(--ink-6b)] bg-[var(--field-bg)] px-4 text-caption-1 text-[var(--ink)] transition-[background-color,border-color,color,transform] duration-150 ease-out hover:border-[var(--blue-strong)] hover:bg-[var(--blue-soft)] hover:text-[var(--blue-text)] active:translate-y-px aria-pressed:border-[var(--blue-strong)] aria-pressed:bg-[var(--blue-strong)] aria-pressed:text-[var(--white-text)]"
-                >
-                  {quickDayLabel(index, iso)}
-                </button>
-              ))}
-            </div>
-
-            <SlotPicker
-              loading={slotsLoading}
-              error={slotsError}
-              slots={slots}
-              selectedTime={selectedTime}
-              onSelect={setStartTime}
-              groupRef={slotGroupRef}
-            />
-          </section>
-
-          <fieldset>
-            <legend className={EYEBROW}>Your details</legend>
-            {/* One line under the eyebrow, never an asterisk inside a label -
-                getByLabelText matches the label's full text. */}
-            <p id="required-note" className="mb-4 text-caption-1 text-[var(--ink-muted)]">
-              Everything here is needed unless it says optional.
-            </p>
-            <div className="flex flex-col gap-5 sm:grid sm:grid-cols-2 sm:gap-x-6 sm:gap-y-5">
-              <div>
-                <label htmlFor="book-name" className={FIELD_LABEL}>
-                  Your name
-                </label>
-                {/* autoComplete on every field that has a token. There were none
-                    before, so no browser offered a stranger their own details. */}
-                <input
-                  id="book-name"
-                  className={FIELD}
-                  required
-                  maxLength={120}
-                  autoComplete="name"
-                  aria-describedby="required-note"
-                  value={form.ownerName}
-                  onChange={(event) => setField('ownerName', event.target.value)}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="book-email" className={FIELD_LABEL}>
-                  Email
-                </label>
-                <input
-                  id="book-email"
-                  className={FIELD}
-                  type="email"
-                  required
-                  maxLength={254}
-                  autoComplete="email"
-                  inputMode="email"
-                  spellCheck={false}
-                  placeholder="you@example.com"
-                  aria-describedby="required-note"
-                  value={form.ownerEmail}
-                  onChange={(event) => setField('ownerEmail', event.target.value)}
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <label htmlFor="book-phone" className={FIELD_LABEL}>
-                  Phone (optional)
-                </label>
-                <input
-                  id="book-phone"
-                  className={FIELD}
-                  type="tel"
-                  maxLength={40}
-                  autoComplete="tel"
-                  inputMode="tel"
-                  placeholder="+49 30 1234567"
-                  value={form.ownerPhone}
-                  onChange={(event) => setField('ownerPhone', event.target.value)}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="book-pet" className={FIELD_LABEL}>
-                  Pet name
-                </label>
-                <input
-                  id="book-pet"
-                  className={FIELD}
-                  required
-                  maxLength={120}
-                  autoComplete="off"
-                  placeholder="Rex"
-                  aria-describedby="required-note"
-                  value={form.petName}
-                  onChange={(event) => setField('petName', event.target.value)}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="book-species" className={FIELD_LABEL}>
-                  Species
-                </label>
-                <input
-                  id="book-species"
-                  className={FIELD}
-                  required
-                  maxLength={60}
-                  autoComplete="off"
-                  placeholder="Dog, cat, rabbit…"
-                  aria-describedby="required-note"
-                  value={form.petSpecies}
-                  onChange={(event) => setField('petSpecies', event.target.value)}
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <label htmlFor="book-concern" className={FIELD_LABEL}>
-                  What is the visit for? (optional)
-                </label>
-                <textarea
-                  id="book-concern"
-                  className={FIELD}
-                  rows={4}
-                  maxLength={1000}
-                  placeholder="Limping on the back left leg since Tuesday"
-                  value={form.concern}
-                  onChange={(event) => setField('concern', event.target.value)}
-                />
-              </div>
-            </div>
-          </fieldset>
-
-          <section>
-            <h2 className={EYEBROW}>Check and send</h2>
-            <div className="flex flex-col gap-4">
-              <label className="flex cursor-pointer items-start gap-3">
-                {/* size-6! = 24px, clearing the target-size floor on the control
-                    itself. The ! is required: input[type=checkbox]{width:20px}
-                    is unlayered and non-important, so a plain size-6 in
-                    @layer utilities loses to it.
-                    shrink-0 because this is a flex item beside a two-line
-                    sentence - it used to compress into an oval on a narrow
-                    viewport, and it is the one control that gates submission.
-                    Appearance, radius, fill and tick already come from
-                    globals.css and flip correctly; do not restyle them. */}
-                <input
-                  type="checkbox"
-                  className="size-6! shrink-0"
-                  checked={form.consent}
-                  onChange={(event) => setField('consent', event.target.checked)}
-                />
-                <span className="text-caption-1 text-[var(--ink-body)]">
-                  I agree that {practice.name} may store these details to handle my booking request.
-                  They are deleted 30 days after the requested date.
-                </span>
-              </label>
-
-              {submitError ? <Callout role="alert">{submitError}</Callout> : null}
-
-              <p id="submit-state" className={META_TEXT}>
-                {blockedReason ?? summaryLine}
-              </p>
-
-              {/* disabled:opacity-50 is gone. It composited fill and label
-                  against the page - 2.75:1 for the surface and 3.05:1 for the
-                  label - for the whole session, because first paint has neither
-                  a time nor consent. The replacement is 5.07:1 boundary and
-                  5.41:1 label, and "Sending" no longer looks identical to
-                  "you can't press this yet".
-                  NOT --color-surface-disabled: it is a fixed literal with no
-                  dark override, so it would strand this button as a pale bone
-                  slab on the espresso page. --inset flips. */}
-              <button
-                type="submit"
-                disabled={!canSubmit}
-                aria-describedby="submit-state"
-                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border-[1.5px] border-transparent bg-[var(--cta)] px-6 text-body-4-emphasis text-[var(--cta-text)] shadow-[0_8px_22px_var(--sh16)] transition-[background-color,box-shadow,transform] duration-150 ease-out enabled:hover:bg-[var(--cta-hover)] enabled:active:translate-y-px enabled:active:shadow-[0_2px_8px_var(--sh12)] disabled:cursor-not-allowed disabled:border-[var(--ink-6b)] disabled:bg-[var(--inset)] disabled:text-[var(--ink-muted)] disabled:shadow-none"
-              >
-                {submitting ? (
-                  <>
-                    <Spinner />
-                    Sending…
-                  </>
-                ) : (
-                  'Request this time'
-                )}
-              </button>
-
-              <p className={META_TEXT}>Your details are only used to handle this request.</p>
-            </div>
-          </section>
+          <CheckAndSend
+            practiceName={practice.name}
+            consent={form.consent}
+            setField={setField}
+            submitError={submitError}
+            statusLine={blockedReason ?? summaryLine}
+            canSubmit={canSubmit}
+            submitting={submitting}
+          />
         </form>
       </Card>
       <BookFooter />
