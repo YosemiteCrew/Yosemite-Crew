@@ -194,6 +194,7 @@ describe("AppointmentPrismaController", () => {
 
   it("creates PMS appointments with payment options", async () => {
     req.query = { createPayment: "1", paymentCollectionMethod: "clinic" };
+    (req as any).organisationId = "org_a";
     req.body = { resourceType: "Appointment" } as any;
     mockedService.createAppointmentFromPms.mockResolvedValue({
       id: "appt_2",
@@ -207,6 +208,72 @@ describe("AppointmentPrismaController", () => {
       "clinic",
     );
     expect(res.status).toHaveBeenCalledWith(201);
+  });
+
+  /*
+   * `withOrgPermissions()` proves membership of the org the REQUEST names
+   * (x-org-id / query / params). The appointment is persisted under the org its
+   * BODY names, via the FHIR Organization participant. Those were unconnected:
+   * a caller authorised at org A could write an appointment - plus its invoice
+   * and an ACTIVE PatientOrganisation link - into org B.
+   */
+  describe("binds the write to the authorised organisation", () => {
+    const bodyNaming = (orgId: string) =>
+      ({
+        resourceType: "Appointment",
+        participant: [{ actor: { reference: `Organization/${orgId}` } }],
+      }) as any;
+
+    it("refuses a body naming a different organisation", async () => {
+      (req as any).organisationId = "org_a";
+      req.body = bodyNaming("org_b");
+
+      await AppointmentController.createFromPms(req as any, res as any);
+
+      expect(mockedService.createAppointmentFromPms).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(403);
+    });
+
+    it("allows the body when it names the authorised organisation", async () => {
+      (req as any).organisationId = "org_a";
+      req.body = bodyNaming("org_a");
+      mockedService.createAppointmentFromPms.mockResolvedValue({
+        id: "appt_3",
+      } as any);
+
+      await AppointmentController.createFromPms(req as any, res as any);
+
+      expect(mockedService.createAppointmentFromPms).toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(201);
+    });
+
+    /* The real client sends the same org in both places - x-org-id from the
+       axios interceptor and Organization/<primaryOrgId> in the body - so this
+       is the path it takes, and the guard must not disturb it. */
+    it("refuses when no organisation is authorised at all", async () => {
+      req.body = bodyNaming("org_b");
+
+      await AppointmentController.createFromPms(req as any, res as any);
+
+      expect(mockedService.createAppointmentFromPms).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
+
+    /* A body naming no organisation is left to the service, which already
+       rejects it. Inventing a tenant for an ambiguous request is not this
+       guard's job. */
+    it("passes a body that names no organisation straight through", async () => {
+      (req as any).organisationId = "org_a";
+      req.body = { resourceType: "Appointment" } as any;
+      mockedService.createAppointmentFromPms.mockResolvedValue({
+        id: "appt_4",
+      } as any);
+
+      await AppointmentController.createFromPms(req as any, res as any);
+
+      expect(mockedService.createAppointmentFromPms).toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(201);
+    });
   });
 
   it("accepts and rejects requested appointments", async () => {
