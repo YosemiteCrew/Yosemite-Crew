@@ -32,6 +32,22 @@ describe('PassportClient (public pet passport page)', () => {
     expect(await screen.findByText('This passport could not be found.')).toBeInTheDocument();
   });
 
+  it('opens in the theme the reader already chose, not always light', async () => {
+    // The page has its own sun/moon toggle, but it used to hardcode 'light' on
+    // mount, so a reader whose phone is dark got a full-brightness passport and
+    // had to press the button every time. (share)/layout.tsx now resolves the
+    // theme onto <html> before paint; this seeds from it.
+    document.documentElement.dataset.theme = 'dark';
+    try {
+      mockedFetch.mockResolvedValue({ identity: { id: 'p1', name: 'Poppy' } });
+      render(<PassportClient id="p1" />);
+      await screen.findByTestId('passport');
+      expect(screen.getByRole('main')).toHaveAttribute('data-wb-theme', 'dark');
+    } finally {
+      delete document.documentElement.dataset.theme;
+    }
+  });
+
   it('toggles between light and dark warm-bone themes', async () => {
     mockedFetch.mockResolvedValue({ identity: { id: 'p1', name: 'Poppy' } });
     render(<PassportClient id="p1" />);

@@ -1758,8 +1758,14 @@ input[type='number'] {
   --ink-body: #302f2e;
   --ink-muted: #5c5956;
   --ink-soft: #423f3c;
-  --ink-faint: #8f8984;
-  --ink-faint2: #a9a39e;
+  /* #66635f, not #8f8984. This class carries a private copy of the bone ink
+     ramp, and that copy SHADOWS the body:has([data-yc-app]) scope which exists
+     precisely to make faint ink readable on bone surfaces - so the passport
+     was the one page the scope could not reach. #8f8984 measures 3.12:1 on
+     this card, at sizes down to 10.5px; #66635f clears AA. Same value the
+     scoped rule and [data-yc-surface='light'] already use. */
+  --ink-faint: #66635f;
+  --ink-faint2: #66635f;
   --blue-text: #257bed;
   --blue-soft: #e6f2ff;
   --success: #008f5d;
@@ -1813,6 +1819,21 @@ input[type='number'] {
   --status-completed-bg: rgba(74, 205, 155, 0.16);
   --status-completed-text: #74d0a2;
   --status-completed-border: rgba(74, 205, 155, 0.55);
+  /* The danger trio, aliased onto the --danger-* values a few lines above.
+     Their absence was not cosmetic. PublicPassportView draws BOTH vaccination
+     badges from the --status-* family: "valid" reads --status-completed-*,
+     which this block redefines, and "expired" reads --status-danger-*, which it
+     did not - so the expired badge kept the :root LIGHT ink (#a6271d) on the
+     espresso card. Measured in a browser: valid 5.77:1, expired 1.89:1. On a
+     page this component describes as "read as proof of cover by travel and
+     boarding staff", that is the failure inverted - "valid" legible, "expired"
+     all but invisible.
+     Aliases, not new literals: the correct dark values were already in this
+     block under the --danger-* spelling, one prefix away from the tokens the
+     component actually reads. */
+  --status-danger-bg: var(--danger-bg);
+  --status-danger-text: var(--danger-text);
+  --status-danger-border: var(--danger-border);
   --status-upcoming-border: rgba(103, 160, 239, 0.6);
   --sh03: rgba(0, 0, 0, 0.14);
   --sh05: rgba(0, 0, 0, 0.2);
@@ -2049,6 +2070,16 @@ body:has([data-yc-app]) {
   --color-grey-bg: var(--ink-faint);
   --black-grey: var(--ink-faint);
   --black-grey-Text: var(--ink-faint);
+
+  /* The brand ink, pinned with the rest. It was the one accent this block
+     missed, and the omission is visible: --color-text-brand flips to #8fb6f5
+     in dark, which on these deliberately-white cards measures 2.06:1.
+     Two surfaces hit it today - the pet passport's "Next due" lines, and the
+     three mailto/report links in AccessibilityReportClient, which already
+     carried this pin and still rendered pale blue on white. A fixed-light
+     surface needs its ACCENTS fixed too, not only its greys. */
+  --color-text-brand: var(--color-accent-deep);
+  --blue-text: var(--color-accent-deep);
 }
 
 html[data-theme='dark'] body:has([data-yc-app]) {

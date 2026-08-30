@@ -13,7 +13,19 @@ type Theme = 'light' | 'dark';
 const PassportClient = ({ id }: PassportClientProps) => {
   const [passport, setPassport] = useState<PetPassportDTO | null>(null);
   const [state, setState] = useState<LoadState>('loading');
-  const [theme, setTheme] = useState<Theme>('light');
+  // Starts from the theme the reader already chose, not always light. The
+  // pre-paint script in (share)/layout.tsx resolves that onto <html> before
+  // first paint, so reading it here has no flash. Kept as local state because
+  // this page also has its own toggle - the two now agree on the initial value
+  // instead of the page ignoring the phone.
+  //
+  // A lazy initialiser: on the server there is no document, and calling it on
+  // every render would re-read the DOM for a value only the first render uses.
+  const [theme, setTheme] = useState<Theme>(() =>
+    typeof document !== 'undefined' && document.documentElement.dataset.theme === 'dark'
+      ? 'dark'
+      : 'light'
+  );
 
   useEffect(() => {
     let active = true;
