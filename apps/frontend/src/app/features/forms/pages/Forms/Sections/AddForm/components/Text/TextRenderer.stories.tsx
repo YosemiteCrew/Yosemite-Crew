@@ -192,3 +192,21 @@ export const Phone: Story = {
     );
   },
 };
+
+export const ReadOnly: Story = {
+  name: 'Read-only: the box refuses input',
+  args: { value: LONG_ANSWER, readOnly: true },
+  play: async ({ args, canvasElement }) => {
+    const textarea = within(canvasElement).getByRole('textbox', { name: 'History' });
+
+    /* `FormRenderer` passes `readOnly` to every runtime renderer, but the map
+       casts each through `as any`, so a renderer that does not declare the prop
+       drops it with no type error. This one did, and a read-only form - the
+       preview drawer, or a submitted form opened for reading - kept a fully
+       editable textarea whose typing still fired `onChange`. */
+    await expect(textarea).toHaveAttribute('readonly');
+    await userEvent.type(textarea, 'edited');
+    await expect(args.onChange).not.toHaveBeenCalled();
+    await expect((textarea as HTMLTextAreaElement).value).toBe(LONG_ANSWER);
+  },
+};
