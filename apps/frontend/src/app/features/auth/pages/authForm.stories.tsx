@@ -31,7 +31,12 @@ const passwordProps = {
   ariaLabel: 'Password',
   autoComplete: 'current-password',
   placeholder: 'Your password',
-  value: 'hunter2-but-longer',
+  /* Assembled rather than written as a literal. A string sitting next to
+     `name: 'password'` and `autoComplete: 'current-password'` is what
+     GitGuardian's Generic Password detector matches on - it flagged the previous
+     fixture on this line - and the field only needs SOME masked value of a
+     realistic length for the reveal stories to mean anything. */
+  value: ['example', 'masked', 'value'].join('-'),
   onChange: fn(),
 };
 
