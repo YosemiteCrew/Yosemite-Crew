@@ -59,7 +59,7 @@ const ARTICLES: Record<string, Article> = {
     version: 'v1',
     title: 'Overview',
     summary:
-      'The Yosemite Crew API is a FHIR R4 surface served under /fhir/v1, alongside a set of application endpoints under /v1. Requests are authorised with the session your account already holds. The complete generated reference, including every route and payload, is in the full documentation.',
+      'The Yosemite Crew API is a FHIR R4 surface served under /fhir/v1, alongside a set of application endpoints under /v1. Requests are authorised with the session your account already holds. A generated reference covering every route is in the full documentation - with one gap worth knowing: it does not list the x-org-id header, which organisation-scoped routes require, so a request built straight from it will be rejected before it reaches a controller.',
   },
   authentication: {
     category: 'Getting started',
@@ -91,7 +91,7 @@ const ARTICLES: Record<string, Article> = {
     version: 'GUIDE',
     title: 'FHIR resources',
     summary:
-      'Clinical objects map to FHIR R4 resources under /fhir/v1. The generated OpenAPI reference in the full documentation lists the routes that exist today, which is the list worth trusting.',
+      'Clinical objects map to FHIR R4 resources under /fhir/v1. The generated OpenAPI reference in the full documentation lists the routes. It was generated once and committed rather than rebuilt, so treat it as a good map and the routers as the territory.',
   },
 };
 
