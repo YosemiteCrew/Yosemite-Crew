@@ -66,7 +66,15 @@ jobs:
     # fail this job on every bot PR. The PR-title gate above still runs, so the
     # conventional type(scope) contract is enforced on the squash-merge subject;
     # only the generated body lines are exempt.
-    if: ${{ !(github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'dev') && !(github.event.pull_request.base.ref == 'dev' && github.event.pull_request.head.ref == 'main') && github.event.pull_request.user.login != 'dependabot[bot]' }}
+    #
+    # Aikido's autofix bot fails the same way for the same reason: every PR it
+    # opens carries `fix(hardening): update dependencies`, and `hardening` is not
+    # in scope-enum. #2543 failed exactly that way. Repairing the commit is not
+    # available either - it would mean force-pushing a branch the bot owns. The
+    # exemption is by author rather than a scope-enum entry because adding
+    # `hardening` there would also widen what the PR-title gate accepts, and the
+    # title is the part that lands on dev.
+    if: ${{ !(github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'dev') && !(github.event.pull_request.base.ref == 'dev' && github.event.pull_request.head.ref == 'main') && !contains(fromJSON('["dependabot[bot]", "aikido-autofix[bot]"]'), github.event.pull_request.user.login) }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
