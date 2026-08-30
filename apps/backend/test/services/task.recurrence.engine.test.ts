@@ -69,6 +69,26 @@ describe("TaskRecurrenceEngine invalid cron logging", () => {
     expect(prismaMock.task.create).not.toHaveBeenCalled();
   });
 
+  it("does not abort the run when a stored cron expression is not a string", async () => {
+    // The task controllers spread req.body straight through, so an
+    // authenticated caller can persist a non-string cronExpression. A bare
+    // .replace() would throw inside the catch and kill the whole run, leaving
+    // every later master unprocessed on every future run.
+    const poisoned = master({
+      evil: "object",
+    } as unknown as string) as ReturnType<typeof master>;
+    poisoned.id = "task-poisoned";
+    const healthy = master("0 0 * * *");
+
+    prismaMock.task.findMany.mockResolvedValue([poisoned, healthy]);
+
+    await expect(TaskRecurrenceEngine.run()).resolves.toBeUndefined();
+
+    expect(errorSpy).toHaveBeenCalled();
+    // The healthy master was still processed after the poisoned one.
+    expect(prismaMock.task.create).toHaveBeenCalled();
+  });
+
   it("leaves a valid cron expression alone and generates children", async () => {
     prismaMock.task.findMany.mockResolvedValue([master("0 0 * * *")]);
 
