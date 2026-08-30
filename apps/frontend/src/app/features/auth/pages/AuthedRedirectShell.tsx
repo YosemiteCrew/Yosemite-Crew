@@ -13,6 +13,7 @@ import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
 export default function AuthedRedirectShell({ children }: Readonly<{ children: ReactNode }>) {
   const status = useAuthStore((s) => s.status);
   const role = useAuthStore((s) => s.role);
+  const roles = useAuthStore((s) => s.roles);
   const isAuthenticated = status === 'authenticated';
   const [route, setRoute] = useState<string | null>(null);
 
@@ -31,13 +32,13 @@ export default function AuthedRedirectShell({ children }: Readonly<{ children: R
   useEffect(() => {
     if (!isAuthenticated) return;
     let cancelled = false;
-    void resolvePostAuthRedirect({ fallbackRole: role }).then((nextRoute) => {
+    void resolvePostAuthRedirect({ fallbackRole: role, roles }).then((nextRoute) => {
       if (!cancelled) setRoute(nextRoute);
     });
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, role]);
+  }, [isAuthenticated, role, roles]);
 
   if (route) {
     redirect(route);

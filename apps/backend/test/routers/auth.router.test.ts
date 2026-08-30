@@ -202,6 +202,48 @@ describe("auth.router", () => {
      * access token still carries the `member` it was issued with. Preferring the
      * claim kept the portal routing on the stale value.
      */
+    /*
+     * `role` can only answer with one of the roles an account holds, and which
+     * one depends on the order the role store returns. Callers deciding what an
+     * account may reach need the whole set, so the response carries both.
+     */
+    it("returns every role the account holds, not just the one `role` names", async () => {
+      mockGetUserRoles.mockResolvedValueOnce(["member", "developer"]);
+
+      const res = await meFor(sessionWith([]));
+
+      expect(res.body).toMatchObject({ roles: ["member", "developer"] });
+    });
+
+    it("keeps `roles` in step with a role corrected in the store", async () => {
+      mockGetUserRoles.mockResolvedValueOnce(["developer"]);
+
+      const res = await meFor(sessionWith(["member"]));
+
+      expect(res.body).toMatchObject({
+        role: "developer",
+        roles: ["developer"],
+      });
+    });
+
+    it("falls back to the metadata role when neither source lists any", async () => {
+      mockGetUserRoles.mockResolvedValueOnce([]);
+      mockGetUserMetadata.mockResolvedValueOnce({ role: "developer" });
+
+      const res = await meFor(sessionWith([]));
+
+      expect(res.body).toMatchObject({ roles: ["developer"] });
+    });
+
+    it("answers with an empty role set rather than omitting it", async () => {
+      mockGetUserRoles.mockResolvedValueOnce([]);
+      mockGetUserMetadata.mockResolvedValueOnce({});
+
+      const res = await meFor(sessionWith([]));
+
+      expect(res.body).toMatchObject({ roles: [] });
+    });
+
     it("prefers a corrected role from the store over a stale session claim", async () => {
       mockGetUserRoles.mockResolvedValueOnce(["developer"]);
 

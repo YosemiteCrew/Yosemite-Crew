@@ -15,7 +15,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { getEmailValidationError, normalizeEmail } from '@/app/lib/validators';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import {
-  isDeveloperRole,
+  hasDeveloperRole,
+  resolveHeldRoles,
   resolvePostAuthRedirect,
   sanitizeNextPath,
 } from '@/app/lib/postAuthRedirect';
@@ -139,7 +140,7 @@ const SignInForm = ({
     isDeveloperDefault ? 'developer' : 'business'
   );
   const isDeveloper = accountType === 'developer';
-  const { signIn, resendCode, role } = useAuthStore();
+  const { signIn, resendCode, role, roles } = useAuthStore();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
@@ -199,15 +200,18 @@ const SignInForm = ({
       resetSidebarPreference();
       // Set devAuth flag BEFORE redirect so DevRouteGuard can read it
       setStorageItem('session', 'devAuth', isDeveloper ? 'true' : 'false');
-      const signedInRole =
-        typeof useAuthStore.getState === 'function' ? useAuthStore.getState().role : role;
+      /* One snapshot, so the role and the role set cannot come from two
+         different reads of the store. */
+      const store = typeof useAuthStore.getState === 'function' ? useAuthStore.getState() : null;
+      const signedInRole = store ? store.role : role;
+      const signedInRoles = resolveHeldRoles(store ? store.roles : roles, signedInRole);
 
       /* Signing in through the developer form does not make an account a
          developer account. Say so, rather than routing on into the portal and
          letting DevRouteGuard bounce them - from the outside that was
          indistinguishable from a rejected password. The session stays valid;
          the account simply belongs elsewhere. */
-      if (isDeveloper && !isDeveloperRole(signedInRole)) {
+      if (isDeveloper && !hasDeveloperRole(signedInRoles)) {
         showErrorTost({
           message:
             'That account is not registered as a developer account. Create a developer account to use the portal.',
@@ -226,6 +230,7 @@ const SignInForm = ({
 
       const nextRoute = await resolvePostAuthRedirect({
         fallbackRole: signedInRole,
+        roles: signedInRoles,
         redirectPath: effectiveRedirectPath,
       });
       router.replace(nextRoute);
