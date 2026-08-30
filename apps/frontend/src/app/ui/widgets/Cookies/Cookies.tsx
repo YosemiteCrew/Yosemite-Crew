@@ -41,8 +41,16 @@ const Cookies = () => {
   if (!showCookiePopup) return null;
 
   return (
-    <aside aria-label="Cookie consent" className="fixed left-20 bottom-32.5 z-9999">
-      <div className="bg-neutral-0 rounded-2xl max-w-75 p-3 z-22 border border-card-border">
+    /* Phone (< 768px) docks the card to the bottom with even 16px gutters, clear
+       of the 72px PhoneShell tab bar and the home indicator. The desktop
+       placement - offset from the left edge so the illustration below it reads
+       as part of the page - only fits once there is room for both, so it comes
+       back at `md`. */
+    <aside
+      aria-label="Cookie consent"
+      className="fixed inset-x-4 bottom-[calc(84px+env(safe-area-inset-bottom,0px))] z-9999 md:inset-x-auto md:left-20 md:bottom-32.5"
+    >
+      <div className="bg-neutral-0 rounded-2xl p-3 z-22 border border-card-border md:max-w-75">
         <div className="flex flex-col gap-2">
           <div className="text-body-4-emphasis text-text-primary">
             Yosemite Crew uses one consent cookie and optional product analytics after you opt in.
@@ -59,7 +67,11 @@ const Cookies = () => {
         </div>
       </div>
 
-      <div className="absolute -bottom-62.5 left-15 pointer-events-none z-25">
+      {/* The illustration is hung 250px BELOW the card, which on a phone puts it
+          off the bottom of the screen and across the tab bar's Home/Schedule
+          labels. It is decoration (`aria-hidden`), so the phone simply drops
+          it rather than shrinking it into the same collision. */}
+      <div className="hidden md:block absolute -bottom-62.5 left-15 pointer-events-none z-25">
         <Image
           src={MEDIA_SOURCES.cookies.cookie}
           alt=""
@@ -68,7 +80,7 @@ const Cookies = () => {
           height={314}
         />
       </div>
-      <div className="absolute -bottom-37.5 left-11.25 -z-25">
+      <div className="hidden md:block absolute -bottom-37.5 left-11.25 -z-25">
         <Image
           src={MEDIA_SOURCES.cookies.background}
           alt=""
