@@ -152,7 +152,6 @@
       "strnum": "2.4.2",
       "websocket-driver": "0.7.5",
       "playwright-core": "1.61.1",
-      "raw-body@3": "4.0.0",
       "react-native>jest-environment-node": "^30.4.1",
       "engine.io": "6.6.7",
       "dompurify": "3.4.14",
