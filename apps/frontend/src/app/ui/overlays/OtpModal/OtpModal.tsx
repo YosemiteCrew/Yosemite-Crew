@@ -105,9 +105,11 @@ const OtpModal = ({
       logger.warn('Backend user provisioning did not complete; continuing signed in.');
     }
 
-    const storeAvailable = typeof useAuthStore.getState === 'function';
-    const signedInRole = storeAvailable ? useAuthStore.getState().role : role;
-    const signedInRoles = storeAvailable ? useAuthStore.getState().roles : undefined;
+    /* One snapshot, so the role and the role set cannot come from two
+       different reads of the store. */
+    const store = typeof useAuthStore.getState === 'function' ? useAuthStore.getState() : null;
+    const signedInRole = store ? store.role : role;
+    const signedInRoles = store ? store.roles : undefined;
     /* No `isDeveloper` here: a developer sign-up carries role 'developer' through
        pendingSignUp, so the role already says where to land. Passing the form
        flag instead used to route a non-developer to /developers/home, which the
