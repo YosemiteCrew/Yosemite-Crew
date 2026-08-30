@@ -128,10 +128,31 @@ const handleError = createOrgErrorHandler(
 
 type PassportHandler = (req: Request, res: Response) => Promise<Response>;
 
-type HandlerConfig<P extends z.ZodTypeAny, B extends z.ZodTypeAny> = {
-  params: P;
+/*
+ * The generics name the parsed OUTPUT types, not the schema types.
+ *
+ * Taking schemas as `extends z.ZodTypeAny` erased them: `z.ZodTypeAny` is
+ * `ZodType<any, ...>`, so `z.output<T>` collapses to `any`, and every value
+ * derived from a parse - the params, the body, whatever `run` builds from
+ * them - was silently untyped. Naming the outputs and accepting
+ * `z.ZodType<Out>` keeps the inference the call sites already provide, so no
+ * handler has to annotate anything.
+ */
+/**
+ * A schema whose parsed OUTPUT is `Out`, whatever shape it accepts as input.
+ *
+ * The Input parameter is load-bearing: `z.ZodType<Out>` defaults Input to
+ * `unknown` in zod 4 but naming it keeps the intent explicit, and pinning it
+ * to `Out` would reject any schema carrying a transform - the aftercare
+ * `completed` filter arrives as a string and parses to a boolean, so its
+ * input and output differ by design.
+ */
+type SchemaFor<Out> = z.ZodType<Out, unknown>;
+
+type HandlerConfig<POut, BOut> = {
+  params: SchemaFor<POut>;
   /** Body schema. Handlers without one never look at `req.body`. */
-  body?: B;
+  body?: SchemaFor<BOut>;
   /** Set when an absent body is equivalent to an empty one. */
   bodyDefaultsToEmpty?: boolean;
   /**
@@ -141,8 +162,8 @@ type HandlerConfig<P extends z.ZodTypeAny, B extends z.ZodTypeAny> = {
   parentScope?: boolean;
   fallback: string;
   run: (ctx: {
-    params: z.output<P>;
-    body: z.output<B>;
+    params: POut;
+    body: BOut;
     req: OrgRequest;
     res: Response;
   }) => Promise<Response>;
@@ -154,8 +175,8 @@ type HandlerConfig<P extends z.ZodTypeAny, B extends z.ZodTypeAny> = {
  * (400 "Invalid request body") and the service-error mapping.
  */
 const passportHandler =
-  <P extends z.ZodTypeAny, B extends z.ZodTypeAny = z.ZodUndefined>(
-    config: HandlerConfig<P, B>,
+  <POut, BOut = undefined>(
+    config: HandlerConfig<POut, BOut>,
   ): PassportHandler =>
   async (req: Request, res: Response): Promise<Response> => {
     try {
@@ -165,7 +186,7 @@ const passportHandler =
       if (!params.success) {
         return res.status(400).json({ message: "Invalid route parameters" });
       }
-      let body: unknown;
+      let body: BOut | undefined;
       if (config.body) {
         const source: unknown = config.bodyDefaultsToEmpty
           ? (req.body ?? {})
@@ -178,10 +199,9 @@ const passportHandler =
       }
       return await config.run({
         params: params.data,
-        // `body` is declared `unknown` because it stays unset when the handler
-        // declares no body schema, so it still needs the cast that params no
-        // longer does.
-        body: body as z.output<B>,
+        // `body` stays undefined when the handler declares no body schema, and
+        // that is exactly the case where `run` never reads it.
+        body: body as BOut,
         req: typedReq,
         res,
       });
