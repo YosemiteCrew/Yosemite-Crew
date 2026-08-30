@@ -113,3 +113,33 @@ jobs:
           fi
 
           echo "Head branch is dev - promotion allowed."
+
+      # dev must CONTAIN main before dev can be promoted into it again.
+      #
+      # Promotion merges dev into main, so anything sitting on main that dev does
+      # not have is not carried by the next promotion - it is simply left behind,
+      # and the promotion diff makes it look like a deletion. back-merge.yml opens
+      # a pull request to prevent exactly this, but opening one enforces nothing:
+      # on 2026-08-30 back-merge #2568 sat unmerged and dev was missing a commit
+      # that main had while a promotion was being prepared on top of it.
+      #
+      # Read through the compare API rather than a checkout: this workflow runs as
+      # pull_request_target and must never fetch the pull request's code.
+      - name: dev must contain main
+        if: steps.retarget.outputs.retargeted != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          # `dev...main` describes main RELATIVE TO dev, so ahead_by counts the
+          # commits main holds that dev does not.
+          AHEAD="$(gh api "repos/${BASE_REPO}/compare/dev...main" --jq '.ahead_by')"
+
+          if [[ "${AHEAD}" -gt 0 ]]; then
+            echo "::error::dev is missing ${AHEAD} commit(s) that are on main, so this promotion would leave them behind. Merge the open back-merge pull request (back-merge.yml opens one on every push to main) into dev first, then re-run this check."
+            exit 1
+          fi
+
+          echo "dev contains main - nothing would be left behind."

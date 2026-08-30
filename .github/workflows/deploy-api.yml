@@ -155,11 +155,19 @@ jobs:
             echo "repo=/home/ubuntu/Yosemite-Crew"          >> "$GITHUB_OUTPUT"
             echo "pm2=yosemite-backend"                     >> "$GITHUB_OUTPUT"
             echo "default_ref=main"                         >> "$GITHUB_OUTPUT"
+            # Production runs only what has reached main. `default_ref` alone
+            # does not achieve that: `ref` is a free-text input that overrides
+            # it, and the environment's branch policy governs which branch the
+            # workflow runs from, not the ref the box checks out.
+            echo "promotion_branch=main"                    >> "$GITHUB_OUTPUT"
           else
             echo "host=63.179.216.42"                       >> "$GITHUB_OUTPUT"
             echo "repo=/home/ubuntu/fix/Yosemite-Crew"      >> "$GITHUB_OUTPUT"
             echo "pm2=1"                                    >> "$GITHUB_OUTPUT"
             echo "default_ref=dev"                          >> "$GITHUB_OUTPUT"
+            # Deliberately empty: dev is where work arrives before promotion, so
+            # constraining it would defeat the point of having a dev host.
+            echo "promotion_branch="                        >> "$GITHUB_OUTPUT"
           fi
           echo "ref=${INPUT_REF:-}" >> "$GITHUB_OUTPUT"
 
@@ -170,6 +178,7 @@ jobs:
           HOST: ${{ steps.target.outputs.host }}
           REPO: ${{ steps.target.outputs.repo }}
           PM2_TARGET: ${{ steps.target.outputs.pm2 }}
+          PROMOTION_BRANCH: ${{ steps.target.outputs.promotion_branch }}
           REF: ${{ steps.target.outputs.ref }}
           DEFAULT_REF: ${{ steps.target.outputs.default_ref }}
           # Passed as an env var rather than interpolated into the script below.
@@ -207,7 +216,7 @@ jobs:
 
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
             -o ServerAliveInterval=30 "ubuntu@$HOST" \
-            "chmod +x /tmp/yc-deploy/api-deploy.sh && /tmp/yc-deploy/api-deploy.sh '$REPO' '$PM2_TARGET' '$TARGET_REF'"
+            "chmod +x /tmp/yc-deploy/api-deploy.sh && REQUIRE_PROMOTED_FROM='$PROMOTION_BRANCH' /tmp/yc-deploy/api-deploy.sh '$REPO' '$PM2_TARGET' '$TARGET_REF'"
 
       - name: Verify from outside
         shell: bash
