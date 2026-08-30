@@ -94,6 +94,12 @@ const DropdownRenderer: React.FC<{
       <LabelDropdown
         placeholder={field.label || ''}
         defaultOption={displayValue ?? ''}
+        /* Guarding only `onSelect` was not enough: LabelDropdown holds its own
+           selected label, so a read-only field still opened and still moved its
+           visible answer while onChange never fired - the preview then showed a
+           value the record did not contain. The radio and checkbox branches
+           below already disable their inputs; this makes the select match. */
+        disabled={isReadOnly}
         onSelect={(option) => !isReadOnly && onChange(option.value)}
         options={options.map((opt) => ({
           label: opt.label,

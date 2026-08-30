@@ -225,36 +225,30 @@ export const ReadOnlyFromTheField: Story = {
   },
 };
 
-export const ReadOnlySelectStillMoves: Story = {
-  name: 'A read-only select still moves',
+export const ReadOnlySelectIsLocked: Story = {
+  name: 'A read-only select does not open',
   args: { field: SELECT_FIELD, value: 'ideal', readOnly: true },
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
-
-    /* Unlike the checkbox and radio branches, the select gets no `disabled` and
-       no `aria-disabled`. `isReadOnly` is only consulted inside `onSelect`, so
-       the trigger opens, the option list is live, and the chosen label is
-       written into LabelDropdown's own state. */
     const trigger = canvas.getByRole('button', { name: 'Body condition score: Ideal (4-5)' });
-    await expect(trigger).not.toBeDisabled();
-    await expect(trigger).not.toHaveAttribute('aria-disabled');
 
-    await userEvent.click(trigger);
-    const over = await within(globalThis.document.body).findByRole('button', {
-      name: 'Over (6-9)',
-    });
-    await userEvent.click(over);
+    /* Guarding only `onSelect` was not enough here. LabelDropdown holds its own
+       selected label on purpose - so a click always moves it even when a
+       controlled parent never echoes the value back - which meant a read-only
+       select opened, accepted a click and displayed an answer the record did not
+       contain, while onChange never fired. The checkbox and radio branches
+       already disabled their inputs; the select now matches. */
+    await expect(trigger).toBeDisabled();
 
-    // Nothing was reported...
+    await userEvent.click(trigger, { pointerEventsCheck: 0 });
+    await expect(
+      within(globalThis.document.body).queryByRole('button', { name: 'Over (6-9)' })
+    ).toBeNull();
     await expect(args.onChange).not.toHaveBeenCalled();
-    // ...but the control now says "Over (6-9)" anyway. A preview drawer showing
-    // a saved form will display an answer the record does not contain, and there
-    // is no way back to the real value short of remounting.
-    await waitFor(async () => {
-      await expect(
-        canvas.getByRole('button', { name: 'Body condition score: Over (6-9)' })
-      ).toBeInTheDocument();
-    });
+    // And it still shows the real answer.
+    await expect(
+      canvas.getByRole('button', { name: 'Body condition score: Ideal (4-5)' })
+    ).toBeInTheDocument();
   },
 };
 
