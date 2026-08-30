@@ -269,27 +269,26 @@ export const Phone: Story = {
   globals: { viewport: { value: 'mobile', isRotated: false } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const back = canvas.getByRole('button', { name: 'Back' });
-    const inClinic = canvas.getByRole('button', { name: 'In clinic' });
 
-    /* The footer is a single `flex-wrap` row with no breakpoint of its own, so
-       the only thing that says whether it wrapped is geometry. Bounding rects,
-       not `getComputedStyle()`: these are bordered pills, whose content box
-       reads narrower than the drawn control and would not compare cleanly. */
-    await expect(back.getBoundingClientRect().top).toBeGreaterThan(
-      inClinic.getBoundingClientRect().bottom
-    );
+    /* Geometry is deliberately NOT asserted here. Both things worth checking at
+       this width - the footer wrapping, and the row dropping from four tracks to
+       three so the time ranges get their own line - are gated on `sm:`, which is
+       a VIEWPORT media query. The viewport global is applied by the Storybook
+       manager resizing the preview iframe, so a runner that loads `iframe.html`
+       directly renders the DESKTOP layout and either passes for the wrong reason
+       or fails for one. A decorator cannot stand in: a narrow container does not
+       change what a viewport query matches.
 
-    // The week itself does not change shape - still seven rows on four tracks,
-    // so the time ranges are what get squeezed at this width.
+       This story previously asserted four tracks, which is the desktop shape -
+       it read as green while describing the opposite of what a phone gets. What
+       is left holds at any width, and the phone layout is covered by the
+       Chromatic viewport below. */
     await expect(canvas.getAllByRole('checkbox')).toHaveLength(7);
-    const row = canvas
-      .getByRole('checkbox', { name: 'Enable availability for Monday' })
-      .closest('.grid') as HTMLElement;
-    await expect(row.children).toHaveLength(4);
-    await expect(getComputedStyle(row).gridTemplateColumns.trim().split(/\s+/)).toHaveLength(4);
+    await expect(canvas.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: 'In clinic' })).toBeInTheDocument();
   },
   parameters: {
+    chromatic: { viewports: [375] },
     docs: {
       description: {
         story:

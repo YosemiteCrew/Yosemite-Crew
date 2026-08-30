@@ -52,8 +52,8 @@ const meta = {
           'The authoring side of a signature field - the `signature` entry in the builder map in ' +
           '`Build.tsx`, drawn in the right-hand editor when a signature row is selected on the ' +
           'builder canvas.\n\n' +
-          '**One control, and that is the whole surface.** `DateBuilder` and `InputBuilder` add a ' +
-          'Placeholder box and `DropdownBuilder` an option list; a signature has nothing to ' +
+          '**One control, and that is the whole surface.** `InputBuilder` adds a Placeholder box ' +
+          'and `DropdownBuilder` an option list; a signature has nothing to ' +
           'prompt with and nothing to choose from, so the label is the only thing an author can ' +
           'set. A second box appearing here would be a regression rather than a feature, and the ' +
           '`EmptyLabel` story counts them for that reason.\n\n' +
@@ -89,8 +89,9 @@ export const EmptyLabel: Story = {
     await expect(label).toHaveValue('');
 
     /* One control, and only one. A signature field has no placeholder and no
-       options, so unlike DateBuilder this editor must never grow a second box -
-       an extra input here would be collecting copy that no renderer can show. */
+       options, so unlike InputBuilder this editor must never grow a second box -
+       an extra input here would be collecting copy that no renderer can show,
+       which is exactly why DateBuilder's own Placeholder box was removed. */
     await expect(canvas.getAllByRole('textbox')).toHaveLength(1);
 
     /* Plain text, not some signature-flavoured input type. The author is naming

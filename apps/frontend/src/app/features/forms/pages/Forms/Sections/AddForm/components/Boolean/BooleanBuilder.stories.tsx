@@ -52,8 +52,8 @@ const meta = {
           'The authoring side of a yes/no field - what the right-hand editor shows when a ' +
           '`boolean` row is selected on the builder canvas.\n\n' +
           '**It is deliberately one control.** Its siblings in `builderComponentMap` offer more: ' +
-          '`DateBuilder` and `InputBuilder` add a Placeholder box, `DropdownBuilder` adds an ' +
-          'option list. A checkbox has nowhere to put placeholder text, so the label is the only ' +
+          '`InputBuilder` adds a Placeholder box, `DropdownBuilder` adds an option list. A ' +
+          'checkbox has nowhere to put placeholder text, so the label is the only ' +
           'thing an author can set here, and a second box appearing would be a regression rather ' +
           'than a feature.\n\n' +
           '**It emits the whole field, not the label.** `onChange({ ...field, label })` is what ' +
