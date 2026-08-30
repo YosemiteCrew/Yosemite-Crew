@@ -22,7 +22,6 @@ permissions:
   contents: read
 
 env:
-  NODE_VERSION: '20'
   # Per-app merged-coverage floors.
   #
   # frontend carries the exact gate that frontend-quality's type-check-and-test

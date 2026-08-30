@@ -95,7 +95,7 @@ overrides:
   inline-style-parser@<=0.2.9: 0.2.9
   nodemailer: 9.0.5
   immer: 11.1.15
-  nanoid@3: 3.3.18
+  nanoid@3: 5.1.16
   tar: 7.5.22
   tar-fs@<=3.1.3: 3.1.3
   fast-uri: 4.1.3
@@ -7997,7 +7997,7 @@ packages:
       react: '*'
       react-native: '*'
     dependencies:
-      nanoid: 3.3.18
+      nanoid: 5.1.16
       react: 19.1.4
       react-native: 0.81.6(patch_hash=m4qqoly5dlwssem2g7gghw2o44)(@babel/core@7.29.7)(@react-native-community/cli@20.0.2)(@react-native/metro-config@0.81.6)(@types/react@19.2.18)(react@19.1.4)
     dev: false
@@ -11134,7 +11134,7 @@ packages:
       '@react-navigation/routers': 7.6.4
       escape-string-regexp: 4.0.0
       fast-deep-equal: 3.1.3
-      nanoid: 3.3.18
+      nanoid: 5.1.16
       query-string: 7.1.3
       react: 19.1.4
       react-is: 19.2.8
@@ -11221,7 +11221,7 @@ packages:
       '@react-navigation/core': 7.21.12(react@19.1.4)
       escape-string-regexp: 4.0.0
       fast-deep-equal: 3.1.3
-      nanoid: 3.3.18
+      nanoid: 5.1.16
       react: 19.1.4
       react-native: 0.81.6(patch_hash=m4qqoly5dlwssem2g7gghw2o44)(@babel/core@7.29.7)(@react-native-community/cli@20.0.2)(@react-native/metro-config@0.81.6)(@types/react@19.2.18)(react@19.1.4)
       standard-navigation: 0.0.8(react@19.1.4)
@@ -11231,7 +11231,7 @@ packages:
   /@react-navigation/routers@7.6.4:
     resolution: {integrity: sha512-GI7eJm8/KsZUQaYcXvEExikKurRZRgEsSzyZ7faENfi65yqJBCXjDMwyN1pF6pNW1MoLH1ErDwDivFxY6BzD3w==}
     dependencies:
-      nanoid: 3.3.18
+      nanoid: 5.1.16
     dev: false
 
   /@react-types/shared@3.36.1(react@19.2.4):
@@ -24179,9 +24179,9 @@ packages:
     dev: true
     optional: true
 
-  /nanoid@3.3.18:
-    resolution: {integrity: sha512-DTg4MJbGMWkfi6VZFdNt2/caMbQy4Ou+Op/hJQvGEWcnVfoA1QA+xzRKAzw9jD6+GVOOeYr/mIcuDSdug6F6+w==}
-    engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
+  /nanoid@5.1.16:
+    resolution: {integrity: sha512-kVrnsrJqMR8+oLJnGEmSWw9BivK5mt7H3FZatVRjrc5wGqFYuBxX1yG7+A7Gi5AefkX6t/oCkizcQgpu0cY1dQ==}
+    engines: {node: ^18 || >=20}
     hasBin: true
 
   /napi-postinstall@0.3.4:
@@ -26006,7 +26006,7 @@ packages:
     resolution: {integrity: sha512-u82N74LFzG8ca+dD8puPnplTXoGH4fTPpVGuIbt36G3qvNlkvfD0lEAZSxaly3KX8TS/L1A1gsCEmvKmBcVbkQ==}
     engines: {node: ^10 || ^12 || >=14}
     dependencies:
-      nanoid: 3.3.18
+      nanoid: 5.1.16
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
@@ -29165,7 +29165,7 @@ packages:
       lodash.mergewith: 4.6.2
       lodash.throttle: 4.1.1
       lodash.uniqby: 4.7.0
-      nanoid: 3.3.18
+      nanoid: 5.1.16
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
       react-dropzone: 14.4.1(react@19.2.4)
