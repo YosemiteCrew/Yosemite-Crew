@@ -60,10 +60,17 @@ const CONFIRMATION_VALID_HOURS = 48;
 /**
  * How long a request may be stored.
  *
- * Thirty days after the requested appointment, or after submission for one that
- * is never confirmed. Long enough for a practice to work through its queue and
- * for a no-show to be explicable; short enough that a stranger's contact details
- * do not sit in a veterinary database indefinitely because nobody deleted them.
+ * Thirty days after the REQUESTED APPOINTMENT, for every request - including one
+ * that is never confirmed. Long enough for a practice to work through its queue
+ * and for a no-show to be explicable; short enough that a stranger's contact
+ * details do not sit in a veterinary database indefinitely because nobody
+ * deleted them.
+ *
+ * Measured from the requested date rather than from submission, which is what
+ * the requester is told when they consent: "They are deleted 30 days after the
+ * requested date" (BookClient.tsx). The schema and its migration say the same.
+ * Changing the basis to submission would be a change to a promise already made
+ * to a member of the public, not an implementation detail.
  */
 const RETENTION_DAYS = 30;
 
@@ -358,9 +365,20 @@ const buildConfirmationUrl = (slug: string, token: string): string | null => {
 /**
  * How many unconfirmed requests one email address may hold against one practice.
  *
- * The per-IP limiter on the route caps volume from a single source; this caps
- * the damage from a distributed one, because the practice's inbox is the real
- * target. Only PENDING rows count, so confirming genuinely frees the budget.
+ * A soft guard against someone submitting the same request repeatedly, not an
+ * anti-abuse control - do not reason about abuse from this number.
+ *
+ * It is not one for two reasons. `normalizeEmail` below only trims and
+ * lowercases, so `a+1@x.com` and `a+2@x.com` are separate keys with separate
+ * budgets that deliver to one mailbox; and the key includes the practice, so
+ * every published practice grants the same address another three. The binding
+ * control on this route is the per-IP write budget in
+ * `booking-page-public.router.ts`.
+ *
+ * Nor is a pending row visible to the practice: the practice is notified only
+ * from `confirm`, which needs the token mailed to the requester, and the queue
+ * read filters PENDING out. Only PENDING rows count here, so confirming frees
+ * the budget.
  */
 const MAX_PENDING_PER_EMAIL = 3;
 
