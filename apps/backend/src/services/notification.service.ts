@@ -105,11 +105,11 @@ const buildFcmMessage = (
 /**
  * A log-safe prefix of a device token. The token is caller-supplied and only
  * type-checked, so the six characters that reach the log are attacker-chosen.
- * Keep the /\n|\r/g form with an empty replacement: a quantifier such as
+ * Two constraints on the form: no quantifier, and an empty replacement.
  * [\n\r]+ or a non-empty replacement is not a CodeQL log-injection barrier.
  */
 const tokenPrefix = (token: string): string =>
-  token.slice(0, 6).replace(/\n|\r/g, "");
+  token.slice(0, 6).replace(/[\n\r]/g, "");
 
 export const NotificationService = {
   /**

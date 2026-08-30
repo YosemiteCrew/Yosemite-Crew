@@ -49,14 +49,14 @@ const computeNextDueAt = (
         return interval.next().toDate();
       } catch (error) {
         // The expression is caller-supplied; strip line breaks so it cannot
-        // forge additional log lines. Keep the /\n|\r/g form with an empty
-        // replacement: a quantifier or a non-empty replacement is not a CodeQL
-        // log-injection barrier. `error` needs no strip: cron fields are
+        // forge additional log lines. Two constraints on the form: no quantifier,
+        // and an empty replacement, or CodeQL's log-injection barrier does not
+        // fire. `error` needs no strip: cron fields are
         // whitespace-delimited, so cron-parser's "got value" echo is always a
         // single field and can never contain a break.
         console.error(
           "Invalid cron expression:",
-          cronExpression.replace(/\n|\r/g, ""),
+          cronExpression.replace(/[\n\r]/g, ""),
           error,
         );
         return null;
