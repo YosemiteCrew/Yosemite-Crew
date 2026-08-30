@@ -903,6 +903,13 @@ const cancelOpenCheckoutSessionAttempts = async (invoiceId: string) => {
 
 // Reuse the latest open PaymentIntent attempt when it still matches the
 // outstanding balance; otherwise cancel it so a fresh intent can be issued.
+// Same shape as the helpers in stripe.service.ts and invoice.service.ts.
+const isUniqueConstraintViolation = (error: unknown): boolean =>
+  !!error &&
+  typeof error === "object" &&
+  "code" in error &&
+  (error as { code?: string }).code === "P2002";
+
 const reuseOrCancelExistingPaymentIntentAttempt = async (
   invoiceId: string,
   invoice: {
@@ -1838,22 +1845,69 @@ export const FinancePaymentService = {
           rawProviderPayload: input.rawProviderPayload ?? null,
         });
 
-    const payment = await prisma.payment.create({
-      data: {
+    let payment;
+    try {
+      payment = await prisma.payment.create({
+        data: {
+          invoiceId,
+          paymentAttemptId: paymentAttempt.id,
+          provider: input.provider,
+          settlementChannel: input.settlementChannel ?? null,
+          collectionMode: input.collectionMode ?? null,
+          providerPaymentId: input.providerPaymentId ?? null,
+          amount: appliedAmount,
+          currency: input.currency ?? invoice.currency,
+          status: "SUCCEEDED",
+          paidAt: receivedAt,
+          receiptUrl: input.reference ?? undefined,
+          rawProviderPayload: input.rawProviderPayload ?? undefined,
+        },
+      });
+    } catch (error) {
+      if (!isUniqueConstraintViolation(error)) throw error;
+
+      // This attempt already carries a Payment, so the event is a redelivery.
+      //
+      // The ALREADY_PAID guard upstream only fires once the invoice is PAID, and
+      // a deposit or part payment never sets that: updateInvoiceAfterPayment
+      // only marks PAID when the applied amount covers the whole balance. So a
+      // redelivered partial payment reached this insert and died on
+      // Payment.paymentAttemptId, uncaught, which answers non-2xx and buys an
+      // endless Stripe retry of an event that can never succeed.
+      //
+      // Returning what is already recorded is the whole fix. Deliberately NOT
+      // falling through to updateInvoiceAfterPayment: the amount was applied by
+      // the delivery that won, and applying it again would double-count the
+      // payment against the invoice.
+      const existingPayment = await prisma.payment.findUnique({
+        where: { paymentAttemptId: paymentAttempt.id },
+      });
+      if (!existingPayment) throw error;
+
+      const currentInvoice = await prisma.invoice.findUniqueOrThrow({
+        where: { id: invoiceId },
+      });
+      const settled = await getOutstandingBalance(
         invoiceId,
-        paymentAttemptId: paymentAttempt.id,
-        provider: input.provider,
-        settlementChannel: input.settlementChannel ?? null,
-        collectionMode: input.collectionMode ?? null,
-        providerPaymentId: input.providerPaymentId ?? null,
-        amount: appliedAmount,
-        currency: input.currency ?? invoice.currency,
-        status: "SUCCEEDED",
-        paidAt: receivedAt,
-        receiptUrl: input.reference ?? undefined,
-        rawProviderPayload: input.rawProviderPayload ?? undefined,
-      },
-    });
+        currentInvoice.totalAmount,
+        currentInvoice.depositCollectedAmount ?? 0,
+      );
+
+      logger.info(
+        `Payment for attempt ${paymentAttempt.id} was already recorded; treating this delivery as a replay`,
+      );
+
+      return {
+        invoice: currentInvoice,
+        paymentAttempt,
+        payment: existingPayment,
+        balanceAfterPayment: settled.balance,
+        paidToDate: settled.paid,
+        // Nothing new was applied. A caller that adds this to a running total
+        // must not count the same money twice.
+        appliedAmount: 0,
+      };
+    }
 
     const updatedInvoice = await updateInvoiceAfterPayment({
       invoice,
