@@ -18,22 +18,21 @@ import {
   Callout,
   CheckIcon,
   ClockIcon,
+  IconDisc,
+  Skeleton,
+  Spinner,
+  WarnIcon,
+} from './bookingChrome';
+import {
   EYEBROW,
   FIELD,
   FIELD_LABEL,
-  IconDisc,
   META_TEXT,
   PILL,
   SLOT_GRID,
-  Skeleton,
   STATE_BODY,
-  Spinner,
-  WarnIcon,
-  describeBlock,
-  formatLongDay,
-  groupByDayPart,
-  quickDayLabel,
-} from './bookingChrome';
+} from './bookingStyles';
+import { describeBlock, formatLongDay, groupByDayPart, quickDayLabel } from './bookingFormat';
 
 /**
  * The page a pet owner sees at `/book/<slug>`.

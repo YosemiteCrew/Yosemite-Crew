@@ -11,19 +11,18 @@ jest.mock('next/link', () => ({
   ),
 }));
 
+import { BookFooter, BookShell } from '@/app/(routes)/(book)/book/[slug]/bookingChrome';
 import {
-  BookFooter,
-  BookShell,
   describeBlock,
   formatLongDay,
   formatShortDay,
   groupByDayPart,
   quickDayLabel,
-} from '@/app/(routes)/(book)/book/[slug]/bookingChrome';
+} from '@/app/(routes)/(book)/book/[slug]/bookingFormat';
 
 const slot = (startTime: string) => ({ startTime, endTime: startTime });
 
-describe('bookingChrome formatters', () => {
+describe('bookingFormat helpers', () => {
   // Pinned to en-GB and UTC in the source precisely so these strings are the
   // same here, in CI, and in a reader's browser whatever their locale.
   it('writes a short day for a chip and a long one for the hint', () => {

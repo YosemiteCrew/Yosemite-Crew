@@ -8,11 +8,11 @@ import {
   BookShell,
   CheckIcon,
   IconDisc,
-  STATE_BODY,
   Skeleton,
   StateCard,
   WarnIcon,
 } from '../bookingChrome';
+import { STATE_BODY } from '../bookingStyles';
 
 /**
  * Where the emailed confirmation link lands.
