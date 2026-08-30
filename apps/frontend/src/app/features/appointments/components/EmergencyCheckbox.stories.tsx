@@ -4,7 +4,6 @@ import { expect, fn, userEvent, within } from 'storybook/test';
 
 import EmergencyCheckbox from './EmergencyCheckbox';
 
-const ARIA_NAME = 'Confirm this is an emergency';
 const VISIBLE_TEXT = 'I confirm this is an emergency.';
 
 /**
@@ -40,15 +39,15 @@ const meta = {
           'The emergency confirmation on the booking form. It is fully controlled - it holds no ' +
           'state of its own and reports the value it is moving TO (`onChange(!checked)`), so the ' +
           'form never has to invert anything.\n\n' +
-          'Its accessibility is split across two attributes and they do not say the same thing. ' +
-          'The input carries `aria-label="' +
-          ARIA_NAME +
-          '"`, which wins the accessible name outright, while the sentence beside it reads "' +
+          'Its accessible name comes from the `<label>` itself, so it is exactly the sentence on ' +
+          'screen: "' +
           VISIBLE_TEXT +
-          '" and is bound only by `htmlFor` against a `useId` value. Two things can therefore ' +
-          'break in silence: a screen reader user and a sighted user can be told different ' +
-          'things, and if the generated id ever stops reaching the label the sentence becomes ' +
-          'dead text that no longer toggles the box. The stories below pin both.',
+          '". Nothing may reintroduce an `aria-label` here - it would win the name outright and ' +
+          'leave a voice control user reading the sentence aloud unable to activate the box ' +
+          '(WCAG 2.5.3, label in name). That makes the `htmlFor`/`useId` pairing the only thing ' +
+          'naming the input as well as the only thing making the sentence clickable: if the ' +
+          'generated id ever stops reaching the label, the box loses its name AND the sentence ' +
+          'becomes dead text. The stories below pin both.',
       },
     },
   },
@@ -66,10 +65,12 @@ export const Unchecked: Story = {
   name: 'Unchecked',
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
-    /* Queried by ROLE and name rather than by the sentence: this is the assertion
-       that would catch the `aria-label` being dropped or reworded, which no
-       visual review and no snapshot would ever show. */
-    const input = canvas.getByRole('checkbox', { name: ARIA_NAME });
+    /* Queried by ROLE and name rather than by the sentence, and the name asserted
+       outright: this is what catches an `aria-label` being added back or the label
+       being reworded away from the visible text, which no visual review and no
+       snapshot would ever show. */
+    const input = canvas.getByRole('checkbox', { name: VISIBLE_TEXT });
+    await expect(input).toHaveAccessibleName(VISIBLE_TEXT);
     await expect(input).not.toBeChecked();
 
     await userEvent.click(input);
@@ -83,7 +84,7 @@ export const Checked: Story = {
   name: 'Checked',
   args: { checked: true },
   play: async ({ args, canvasElement }) => {
-    const input = within(canvasElement).getByRole('checkbox', { name: ARIA_NAME });
+    const input = within(canvasElement).getByRole('checkbox', { name: VISIBLE_TEXT });
     await expect(input).toBeChecked();
 
     await userEvent.click(input);
@@ -99,7 +100,7 @@ export const LabelActivatesTheBox: Story = {
   name: 'The sentence is the hit target too',
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
-    const input = canvas.getByRole('checkbox', { name: ARIA_NAME });
+    const input = canvas.getByRole('checkbox', { name: VISIBLE_TEXT });
     const label = canvas.getByText(VISIBLE_TEXT);
 
     /* `useId` produces something like ":r3:" - never assert the value, only that
@@ -119,7 +120,7 @@ export const Controlled: Story = {
   name: 'Round trip through the form',
   render: (args) => <ControlledEmergencyCheckbox {...args} />,
   play: async ({ args, canvasElement }) => {
-    const input = within(canvasElement).getByRole('checkbox', { name: ARIA_NAME });
+    const input = within(canvasElement).getByRole('checkbox', { name: VISIBLE_TEXT });
 
     await userEvent.click(input);
     await expect(input).toBeChecked();

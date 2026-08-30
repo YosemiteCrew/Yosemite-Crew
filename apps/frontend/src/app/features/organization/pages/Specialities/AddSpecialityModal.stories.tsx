@@ -107,14 +107,20 @@ export const Empty: Story = {
     await expect(cancel.tagName).toBe('BUTTON');
     await expect(add.tagName).toBe('BUTTON');
 
-    /* Recorded, not endorsed: CenterModal takes `ariaLabel`/`ariaLabelledBy` and
-       ModalHeader takes `titleId`, and this dialog wires up neither - so the
-       visible "Add speciality" heading does not name the dialog for a screen
-       reader. Wiring titleId through is the fix, and it will trip this line. */
-    const dialog = globalThis.document.querySelector('dialog.yc-modal-dialog[open]');
-    await expect(dialog).not.toBeNull();
+    /* The heading is inside the dialog, which is not the same as naming it: the
+       name comes from `aria-labelledby` on the <dialog>, and without it a screen
+       reader announces an unnamed dialog. Queried by name so the assertion fails
+       if the id linkage breaks rather than only if the attribute disappears. */
+    const dialog = await within(globalThis.document.body).findByRole('dialog', {
+      name: 'Add speciality',
+    });
+    await expect(dialog).toHaveAttribute('aria-labelledby', 'add-speciality-modal-title');
+    await expect(panel.getByRole('heading', { name: 'Add speciality' })).toHaveAttribute(
+      'id',
+      'add-speciality-modal-title'
+    );
+    // Pointed at the real heading, not a second copy of the string to drift from it.
     await expect(dialog).not.toHaveAttribute('aria-label');
-    await expect(dialog).not.toHaveAttribute('aria-labelledby');
   },
 };
 
