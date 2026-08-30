@@ -169,6 +169,52 @@ fi
 check "leaves the checkout untouched when the ref cannot be resolved" \
   "$BEFORE" "$(git -C "$CLONE" rev-parse HEAD)"
 
+# ---------------------------------------------------------------------------
+# 4. The promotion guard.
+#
+# What this prevents actually happened. On 2026-08-30 the production box was put
+# on `ce855cf9d` at 11:42Z and `fd60d539d` at 11:47Z - both commits that existed
+# only on `dev`, while `main` still pointed at `7f92970d8`. The promotion that
+# carried them merged at 12:08Z, twenty minutes after they were already serving
+# production traffic.
+#
+# No merge rule was broken to do it. `TARGET_REF="${REF:-$DEFAULT_REF}"` lets a
+# free-text `ref` input override the `main` default, and the environment's branch
+# policy only constrains which branch the workflow runs FROM.
+# ---------------------------------------------------------------------------
+REMOTE="$(setup_remote)"
+CLONE="$(setup_clone "$REMOTE")"
+
+# `main` at the first commit; `dev` then moves ahead of it.
+BASE="$(git_quiet -C "$CLONE" rev-parse HEAD)"
+git_quiet -C "$CLONE" push --quiet origin "$BASE:refs/heads/main"
+AHEAD="$(advance_dev "$REMOTE")"
+BEFORE="$(git -C "$CLONE" rev-parse HEAD)"
+
+if deploy_git_sync "$CLONE" dev main >/dev/null 2>&1; then
+  no "refuses a dev-only commit when main is required" "returned success"
+else
+  ok "refuses a dev-only commit when main is required"
+fi
+check "leaves the checkout untouched when the ref is unpromoted" \
+  "$BEFORE" "$(git -C "$CLONE" rev-parse HEAD)"
+
+# The same commit is fine once it reaches main - this is the promotion itself.
+git_quiet -C "$CLONE" push --quiet origin "$AHEAD:refs/heads/main"
+check "accepts the same commit once it is on main" \
+  "$(git -C "$CLONE" rev-parse --short "$AHEAD")" \
+  "$(deploy_git_sync "$CLONE" dev main 2>/dev/null || echo SYNC_FAILED)"
+
+# Rollback to an OLDER main commit stays allowed: it is an ancestor.
+check "allows a rollback to an earlier main commit" \
+  "$(git -C "$CLONE" rev-parse --short "$BASE")" \
+  "$(deploy_git_sync "$CLONE" "$BASE" main 2>/dev/null || echo SYNC_FAILED)"
+
+# With no promotion branch the guard is inert, which is how dev deploys work.
+check "is inert when no promotion branch is given" \
+  "$(git -C "$CLONE" rev-parse --short "$AHEAD")" \
+  "$(deploy_git_sync "$CLONE" dev 2>/dev/null || echo SYNC_FAILED)"
+
 echo
 echo "  $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
