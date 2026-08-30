@@ -80,23 +80,21 @@ export const Appointments: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    await expect(
-      canvas.getByRole('heading', { name: 'Create an appointment' })
-    ).toBeInTheDocument();
+    await expect(canvas.getByRole('heading', { name: 'Appointments' })).toBeInTheDocument();
 
     // Seven nav items across two sections, all present before any filtering, and
     // the highlight sits on the one the article is showing.
-    await expect(canvasElement.querySelectorAll('.DocsNavItem')).toHaveLength(7);
+    await expect(canvasElement.querySelectorAll('.DocsNavItem')).toHaveLength(5);
     await expect(canvas.getByText('Getting started')).toBeInTheDocument();
     await expect(canvas.getByText('Guides')).toBeInTheDocument();
-    await expect(canvas.getByRole('button', { name: 'Appointments API' })).toHaveAttribute(
+    await expect(canvas.getByRole('button', { name: 'Appointments' })).toHaveAttribute(
       'aria-current',
       'page'
     );
 
     // The appointments-only furniture: endpoint strip plus both code panels.
     await expect(canvas.getByText('POST')).toBeInTheDocument();
-    await expect(canvas.getByText('/v2/appointments')).toBeInTheDocument();
+    await expect(canvas.getByText('/fhir/v1/appointment/pms')).toBeInTheDocument();
     await expect(canvas.getByText('REQUEST · cURL')).toBeInTheDocument();
     await expect(canvas.getByText('RESPONSE · 201')).toBeInTheDocument();
     await expect(canvasElement.querySelectorAll('pre')).toHaveLength(2);
@@ -134,9 +132,7 @@ export const NavEmpty: Story = {
        above the "No matches" line and still satisfy a check for the line alone. */
     await expect(canvas.queryByText('Getting started')).not.toBeInTheDocument();
     await expect(canvas.queryByText('Guides')).not.toBeInTheDocument();
-    await expect(
-      canvas.queryByRole('button', { name: 'Appointments API' })
-    ).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: 'Appointments' })).not.toBeInTheDocument();
     await expect(canvas.queryByRole('button', { name: 'Overview' })).not.toBeInTheDocument();
 
     // The GitHub link is outside the branch and survives - the only navigation
@@ -146,9 +142,7 @@ export const NavEmpty: Story = {
     /* The article does not react to the search at all. Whatever was open stays
        open behind an empty rail, which is what makes this state recoverable
        without a reload. */
-    await expect(
-      canvas.getByRole('heading', { name: 'Create an appointment' })
-    ).toBeInTheDocument();
+    await expect(canvas.getByRole('heading', { name: 'Appointments' })).toBeInTheDocument();
   },
   parameters: {
     docs: {
@@ -166,19 +160,22 @@ export const NavFiltered: Story = {
   name: 'Search matching one section',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.type(searchBox(canvasElement), 'api');
+    await userEvent.type(searchBox(canvasElement), 'companion');
 
-    /* "Appointments API" and "Patients API" match; the Guides section filters to
-       zero items and is dropped whole, heading included. That second rule is the
-       one worth seeing - a section can disappear while its sibling stays. */
+    /* Only Companions matches; the Guides section filters to zero items and is
+       dropped whole, heading included. That second rule is the one worth seeing
+       - a section can disappear while its sibling stays.
+       Deliberately not 'api': search now covers each article's category, title
+       and summary rather than its rail label alone, so 'api' matches every page
+       and would demonstrate nothing about sections. */
     await waitFor(() => {
       expect(canvas.queryByText('Guides')).not.toBeInTheDocument();
     });
     await expect(canvas.getByText('Getting started')).toBeInTheDocument();
-    await expect(canvasElement.querySelectorAll('.DocsNavItem')).toHaveLength(2);
+    await expect(canvasElement.querySelectorAll('.DocsNavItem')).toHaveLength(1);
     await expect(
       [...canvasElement.querySelectorAll('.DocsNavItem')].map((item) => item.textContent)
-    ).toEqual(['Appointments API', 'Patients API']);
+    ).toEqual(['Companions']);
     await expect(canvas.queryByRole('button', { name: 'Overview' })).not.toBeInTheDocument();
     await expect(canvas.queryByText('No matches')).not.toBeInTheDocument();
   },
@@ -198,9 +195,9 @@ export const SeedContentArticle: Story = {
   name: 'Non-appointments article (seed content)',
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('button', { name: 'Webhooks' }));
+    await userEvent.click(canvas.getByRole('button', { name: 'Companions' }));
 
-    const heading = await canvas.findByRole('heading', { name: 'Webhooks' });
+    const heading = await canvas.findByRole('heading', { name: 'Companions' });
     await expect(heading).toBeInTheDocument();
     await expect(
       canvas.getByText(
@@ -209,20 +206,20 @@ export const SeedContentArticle: Story = {
     ).toBeInTheDocument();
 
     /* Everything appointments-specific unmounts together: the endpoint strip, the
-       required-fields paragraph, the FHIR note and BOTH code panels. Six of the
-       seven articles land here, so this - not the appointments page - is the
-       layout a reader most often sees. */
+       required-fields paragraph, the FHIR note and BOTH code panels. Most
+       articles land here, so this - not the appointments page - is the layout a
+       reader most often sees. */
     await expect(canvas.queryByText('POST')).not.toBeInTheDocument();
     await expect(canvas.queryByText('REQUEST · cURL')).not.toBeInTheDocument();
     await expect(canvasElement.querySelectorAll('pre')).toHaveLength(0);
 
     /* The breadcrumb does follow the selection, and it is read off its own element
-       rather than by text: "Getting started" and "Webhooks" both also exist as nav
+       rather than by text: "Getting started" and "Companions" both also exist as nav
        labels, so a text query would match the rail and pass with the crumb stale. */
     const crumb = canvasElement.querySelector('.DocsBreadcrumb');
     if (!crumb) throw new Error('The breadcrumb did not render.');
-    await expect(crumb.textContent).toBe('Docs / Getting started / Webhooks');
-    await expect(canvas.getByText('v2 · STABLE')).toBeInTheDocument();
+    await expect(crumb.textContent).toBe('Docs / APIs / Companions');
+    await expect(canvas.getByText('v1')).toBeInTheDocument();
   },
   parameters: {
     docs: {
