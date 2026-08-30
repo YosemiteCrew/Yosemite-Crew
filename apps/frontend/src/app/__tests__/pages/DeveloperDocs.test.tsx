@@ -99,6 +99,23 @@ describe('DeveloperDocs reader', () => {
     expect(screen.getByText('/fhir/v1/appointment/pms')).toBeInTheDocument();
   });
 
+  /* Matching the rail label alone made search only as good as the shortest name
+     in it: "api" returned "No matches" in an API reference, because no label
+     happened to contain the word once "Appointments API" became "Appointments". */
+  it('finds pages by their content, not just their nav label', () => {
+    render(<DeveloperDocs />);
+    const search = screen.getByRole('searchbox', { name: 'Search docs' });
+
+    fireEvent.change(search, { target: { value: 'api' } });
+    expect(screen.queryByText('No matches')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Appointments' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Companions' })).toBeInTheDocument();
+
+    // A term that appears only in an article body, never in a label.
+    fireEvent.change(search, { target: { value: 'multi-species' } });
+    expect(screen.getByRole('button', { name: 'Companions' })).toBeInTheDocument();
+  });
+
   it('filters the navigation and shows a no-matches message', () => {
     render(<DeveloperDocs />);
     const search = screen.getByRole('searchbox', { name: 'Search docs' });

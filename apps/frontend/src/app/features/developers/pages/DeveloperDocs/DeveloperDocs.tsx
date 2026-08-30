@@ -147,9 +147,24 @@ const DeveloperDocs = () => {
   const filteredNav = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return NAV;
+    /*
+     * Search the article, not just the rail label.
+     *
+     * Matching labels alone made the search only as good as the shortest name
+     * in the rail. "api" - the first thing anyone types in an API reference -
+     * returned "No matches" the moment the labels stopped happening to contain
+     * the word, and the same held for any term a reader knows from the content
+     * rather than from the navigation.
+     */
+    const matches = (item: NavItem) => {
+      const article = ARTICLES[item.id];
+      return [item.label, article?.category, article?.title, article?.summary].some((field) =>
+        field?.toLowerCase().includes(q)
+      );
+    };
     return NAV.map((section) => ({
       ...section,
-      items: section.items.filter((item) => item.label.toLowerCase().includes(q)),
+      items: section.items.filter(matches),
     })).filter((section) => section.items.length > 0);
   }, [query]);
 
