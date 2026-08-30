@@ -132,7 +132,10 @@ export const AppointmentController = {
     try {
       const { appointmentId } = req.params;
       // The id is caller-supplied; strip line breaks so it cannot forge
-      // additional log lines.
+      // additional log lines. Keep this exact /\n|\r/g form with an empty
+      // replacement: CodeQL's js/log-injection barrier rejects quantifiers such
+      // as [\n\r]+ and any non-empty replacement, and silently keeps reporting
+      // the sink.
       logger.info(
         "Accepting appointment with ID:",
         appointmentId.replace(/\n|\r/g, ""),

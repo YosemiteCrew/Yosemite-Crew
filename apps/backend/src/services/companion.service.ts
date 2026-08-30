@@ -236,7 +236,10 @@ const ensureCodeExists = async (code: string, type: "SPECIES" | "BREED") => {
 
   if (!entry) {
     // The code is caller-supplied; strip line breaks so it cannot forge
-    // additional log lines.
+    // additional log lines. Keep this exact /\n|\r/g form with an empty
+    // replacement: CodeQL's js/log-injection barrier rejects quantifiers such as
+    // [\n\r]+ and any non-empty replacement, and silently keeps reporting the
+    // sink.
     logger.warn(`Invalid ${type} code provided: ${code.replace(/\n|\r/g, "")}`);
     throw new CompanionServiceError(`Invalid ${type.toLowerCase()} code.`, 400);
   }
