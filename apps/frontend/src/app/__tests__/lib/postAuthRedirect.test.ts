@@ -1,4 +1,9 @@
-import { resolvePostAuthRedirect, sanitizeNextPath } from '@/app/lib/postAuthRedirect';
+import {
+  hasDeveloperRole,
+  resolveHeldRoles,
+  resolvePostAuthRedirect,
+  sanitizeNextPath,
+} from '@/app/lib/postAuthRedirect';
 import { loadOrgs } from '@/app/features/organization/services/orgService';
 import { loadProfiles } from '@/app/features/organization/services/profileService';
 import { loadAvailability } from '@/app/features/organization/services/availabilityService';
@@ -57,6 +62,7 @@ jest.mock('@/app/lib/defaultOpenScreen', () => ({
   resolveDefaultOpenScreenRoute: jest.fn((role?: string | null) =>
     String(role ?? '').toLowerCase() === 'owner' ? '/dashboard' : '/appointments'
   ),
+  resolveDefaultOpenScreenRouteForProfile: jest.fn(() => '/appointments'),
 }));
 
 jest.mock('@/app/lib/orgOnboarding', () => ({
@@ -70,6 +76,9 @@ jest.mock('@/app/lib/teamOnboarding', () => ({
 describe('resolvePostAuthRedirect', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // sessionStorage survives clearAllMocks, so a `devAuth` set by one case
+    // would silently decide the next one.
+    globalThis.sessionStorage.clear();
     (loadOrgs as jest.Mock).mockResolvedValue(undefined);
     (loadProfiles as jest.Mock).mockResolvedValue(undefined);
     (loadAvailability as jest.Mock).mockResolvedValue(undefined);
@@ -137,6 +146,94 @@ describe('resolvePostAuthRedirect', () => {
       '/appointments'
     );
   });
+
+  // One account can hold both the practice and the developer role. Before this,
+  // holding `developer` returned before any organization was loaded, so the
+  // practice was unreachable for exactly the accounts that had both.
+  describe('accounts holding both a practice role and the developer role', () => {
+    const withPractice = () => {
+      (useOrgStore.getState as jest.Mock).mockReturnValue({
+        membershipsByOrgId: { 'org-1': { roleDisplay: 'Member' } },
+        orgIds: ['org-1'],
+        orgsById: { 'org-1': { _id: 'org-1', isVerified: true, type: 'clinic' } },
+        primaryOrgId: 'org-1',
+      });
+    };
+
+    it('routes to the practice when the developer door was not used', async () => {
+      withPractice();
+      await expect(
+        resolvePostAuthRedirect({ fallbackRole: 'member', roles: ['member', 'developer'] })
+      ).resolves.toBe('/appointments');
+    });
+
+    it('routes the same account to the portal when the developer door was used', async () => {
+      withPractice();
+      globalThis.sessionStorage.setItem('devAuth', 'true');
+      await expect(
+        resolvePostAuthRedirect({ fallbackRole: 'member', roles: ['member', 'developer'] })
+      ).resolves.toBe('/developers/home');
+    });
+
+    // `role` is whichever one the role store happened to return first, so the
+    // practice role arriving there must not hide the developer membership.
+    it('honours the developer door even when the single role reads as the practice one', async () => {
+      withPractice();
+      globalThis.sessionStorage.setItem('devAuth', 'true');
+      await expect(
+        resolvePostAuthRedirect({ fallbackRole: 'member', roles: ['developer', 'member'] })
+      ).resolves.toBe('/developers/home');
+    });
+
+    it('keeps sending a developer with no practice to the portal', async () => {
+      await expect(
+        resolvePostAuthRedirect({ fallbackRole: 'developer', roles: ['developer'] })
+      ).resolves.toBe('/developers/home');
+    });
+
+    it('sends a developer with no practice to the portal when orgs fail to load', async () => {
+      (loadOrgs as jest.Mock).mockRejectedValue(new Error('network'));
+      await expect(
+        resolvePostAuthRedirect({ fallbackRole: 'developer', roles: ['developer'] })
+      ).resolves.toBe('/developers/home');
+    });
+
+    // Using the developer form is not itself an entitlement.
+    it('does not divert a practice-only account that used the developer door', async () => {
+      withPractice();
+      globalThis.sessionStorage.setItem('devAuth', 'true');
+      await expect(
+        resolvePostAuthRedirect({ fallbackRole: 'member', roles: ['member'] })
+      ).resolves.toBe('/appointments');
+    });
+
+    it('falls back to the single role when no role list is supplied', async () => {
+      withPractice();
+      globalThis.sessionStorage.setItem('devAuth', 'true');
+      await expect(resolvePostAuthRedirect({ fallbackRole: 'developer' })).resolves.toBe(
+        '/developers/home'
+      );
+    });
+  });
+});
+
+describe('hasDeveloperRole', () => {
+  it.each([
+    [['developer'], true],
+    [['member', 'developer'], true],
+    [['Developer'], true],
+    [['  developer  '], true],
+    [['member'], false],
+    [['member', 'owner'], false],
+    [[], false],
+  ])('reads %j as %s', (roles, expected) => {
+    expect(hasDeveloperRole(roles as string[])).toBe(expected);
+  });
+
+  it('treats a missing role set as not a developer', () => {
+    expect(hasDeveloperRole(undefined)).toBe(false);
+    expect(hasDeveloperRole(null)).toBe(false);
+  });
 });
 
 describe('sanitizeNextPath', () => {
@@ -164,5 +261,30 @@ describe('sanitizeNextPath', () => {
     [null],
   ])('drops the off-origin destination %j', (input) => {
     expect(sanitizeNextPath(input as string | null)).toBeUndefined();
+  });
+});
+
+describe('resolveHeldRoles', () => {
+  it('uses the role list when the API supplied one', () => {
+    expect(resolveHeldRoles(['member', 'developer'], 'member')).toEqual(['member', 'developer']);
+  });
+
+  /* An empty list is what a session stored before the API served `roles` looks
+     like. Reading it as "holds nothing" told real developers they were not
+     developers, so it has to fall back rather than answer no. */
+  it('falls back to the single role when the list is empty', () => {
+    expect(resolveHeldRoles([], 'developer')).toEqual(['developer']);
+    expect(resolveHeldRoles(undefined, 'developer')).toEqual(['developer']);
+    expect(resolveHeldRoles(null, 'developer')).toEqual(['developer']);
+  });
+
+  it('drops blanks and falls back when nothing named survives', () => {
+    expect(resolveHeldRoles([null, undefined], 'developer')).toEqual(['developer']);
+    expect(resolveHeldRoles([null, 'developer'], 'member')).toEqual(['developer']);
+  });
+
+  it('answers with nothing when neither source names a role', () => {
+    expect(resolveHeldRoles([], null)).toEqual([]);
+    expect(resolveHeldRoles(undefined, undefined)).toEqual([]);
   });
 });

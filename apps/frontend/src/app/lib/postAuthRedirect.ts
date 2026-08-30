@@ -11,6 +11,7 @@ import { computeOrgOnboardingStep } from '@/app/lib/orgOnboarding';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useUserProfileStore } from '@/app/stores/profileStore';
 import { useAvailabilityStore } from '@/app/stores/availabilityStore';
+import { getStorageItem } from '@/app/lib/browserStorage';
 
 const normalizeRole = (role?: string | null) =>
   String(role ?? '')
@@ -26,6 +27,49 @@ const normalizeRole = (role?: string | null) =>
  */
 export const isDeveloperRole = (role?: string | null) => normalizeRole(role) === 'developer';
 const isOwnerRole = (role?: string | null) => normalizeRole(role) === 'owner';
+
+/**
+ * True when ANY role the account holds is the developer role.
+ *
+ * One account can be both a practice member and a platform developer, so
+ * "is this a developer" is a question about the whole set, not about the one
+ * role `/v1/auth/me` happens to surface as `role`.
+ */
+export const hasDeveloperRole = (roles?: readonly (string | null | undefined)[] | null) =>
+  (roles ?? []).some((role) => isDeveloperRole(role));
+
+/**
+ * The role set to reason about, given both what the API sent and the single
+ * role callers already had.
+ *
+ * `roles` is empty for a session stored before the API served it, and for a
+ * sign-up whose provisioning call has not landed yet. Treating that emptiness
+ * as "holds nothing" told real developers they were not developers, so an
+ * empty list always falls back to the one role that is known rather than
+ * answering no.
+ */
+export const resolveHeldRoles = (
+  roles?: readonly (string | null | undefined)[] | null,
+  singleRole?: string | null
+): readonly string[] => {
+  // A list of only blanks is the same as no list: fall back rather than
+  // reporting that the account holds a role with no name.
+  const named = (roles ?? []).filter((role): role is string => typeof role === 'string');
+  if (named.length > 0) return named;
+  return singleRole ? [singleRole] : [];
+};
+
+/**
+ * Whether this session was started from the developer sign-in or sign-up form.
+ *
+ * `devAuth` is already written at every authentication entry point for
+ * `DevRouteGuard`, so it is the existing record of which door was used rather
+ * than a second source of truth invented here. Absent (a fresh tab, or a
+ * session restored by the shell) reads as "not the developer door", which
+ * sends dual-role accounts to their practice - the safer default, because a
+ * developer with no practice is still routed to the portal below.
+ */
+const enteredThroughDeveloperDoor = () => getStorageItem('session', 'devAuth') === 'true';
 
 // Only same-origin, absolute-path destinations are safe post-auth targets;
 // anything else (external URLs, protocol-relative //host) is dropped.
@@ -60,6 +104,12 @@ export const sanitizeNextPath = (value: string | null): string | undefined => {
 
 type ResolvePostAuthRedirectOptions = {
   fallbackRole?: string | null;
+  /**
+   * Every role the account holds. Supplied by callers that read the auth
+   * store; `fallbackRole` alone is used when it is absent, which is the
+   * single-role behaviour that predates dual-role accounts.
+   */
+  roles?: readonly string[] | null;
   redirectPath?: string;
 };
 
@@ -120,18 +170,33 @@ export const resolveOrgScopedRedirect = async ({
 
 export const resolvePostAuthRedirect = async ({
   fallbackRole,
+  roles,
   redirectPath,
 }: ResolvePostAuthRedirectOptions): Promise<string> => {
   if (redirectPath) {
     return redirectPath;
   }
 
-  /* The role decides this, and only the role. This used to also accept an
-     `isDeveloper` flag meaning "submitted the developer sign-in form", which is
-     true even for an account with no developer role - so it routed those users
-     to a page DevRouteGuard immediately rejects. Callers that care about the
-     mismatch check the role themselves; see SignIn. */
-  if (isDeveloperRole(fallbackRole)) {
+  const heldRoles = resolveHeldRoles(roles, fallbackRole);
+  const isDeveloper = hasDeveloperRole(heldRoles);
+
+  /*
+   * Holding the developer role no longer means the developer portal is the
+   * only place this account can go.
+   *
+   * The role used to short-circuit here unconditionally, which made the two
+   * memberships mutually exclusive in practice: an account that was both a
+   * practice member and a developer could never reach its practice, because
+   * this returned before any organization was ever loaded. The portal is the
+   * destination when the person actually asked for it by using the developer
+   * door; otherwise the account is routed by its practice membership like any
+   * other, and a developer with no practice still lands in the portal below.
+   *
+   * Coming through the developer door WITHOUT the role deliberately does not
+   * land here - SignIn reports that mismatch rather than routing on into a
+   * page DevRouteGuard would immediately reject.
+   */
+  if (isDeveloper && enteredThroughDeveloperDoor()) {
     return '/developers/home';
   }
 
@@ -139,7 +204,7 @@ export const resolvePostAuthRedirect = async ({
   try {
     await loadOrgs({ silent: true });
   } catch {
-    return resolveDefaultOpenScreenRoute(fallbackRole);
+    return isDeveloper ? '/developers/home' : resolveDefaultOpenScreenRoute(fallbackRole);
   }
 
   const { orgIds, primaryOrgId } = useOrgStore.getState();
@@ -154,7 +219,9 @@ export const resolvePostAuthRedirect = async ({
     } catch {
       // Ignore invite fetch failures — fall through to create-org
     }
-    return '/create-org';
+    /* A developer with no practice has nothing to create yet, so the portal is
+       their home rather than the practice-onboarding wizard. */
+    return isDeveloper ? '/developers/home' : '/create-org';
   }
 
   // No primary org selected → org selection page (invited user with multiple orgs)

@@ -84,6 +84,8 @@ type AuthMeResponse = {
   email?: string | null;
   emailVerified?: boolean;
   role?: string | null;
+  /** Every role the account holds. `role` is only ever one of these. */
+  roles?: string[] | null;
 };
 
 type UserProfileResponse = {
@@ -98,6 +100,11 @@ export type AuthStore = {
   loading: boolean;
   error: string | null;
   role: string | null;
+  /**
+   * Every role the account holds, so callers can ask "is this also a
+   * developer" without `role` having to pick a winner. Empty when signed out.
+   */
+  roles: string[];
   mfaChallenge: MfaChallenge | null;
   pendingSignUp: PendingSignUp | null;
   signUp: (
@@ -199,11 +206,22 @@ const syncAuthenticatedState = async (
 ): Promise<AuthUser> => {
   const me = await fetchMe();
   const user = toAuthUser(me);
+  const pendingRole = get().pendingSignUp?.role ?? null;
+  const singleRole = me.role ?? pendingRole ?? null;
+  /*
+   * Prefer the full list the API now sends. An older API that only answers
+   * with `role`, or a sign-up whose provisioning call has not landed yet,
+   * degrades to the one role we do know rather than to no roles at all -
+   * which would read as "holds nothing" and route the account as if it had
+   * no developer access.
+   */
+  const roles = me.roles ?? (singleRole ? [singleRole] : []);
   set({
     user,
     loading: false,
     error: null,
-    role: me.role ?? get().pendingSignUp?.role ?? null,
+    role: singleRole,
+    roles,
     status,
     mfaChallenge: null,
   });
@@ -246,6 +264,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   loading: false,
   error: null,
   role: null,
+  roles: [],
   mfaChallenge: null,
   // Seeded from storage so a verification link opened in a new tab still knows
   // the name and role to provision with.
@@ -330,6 +349,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         error: message,
         user: null,
         role: null,
+        roles: [],
         status: 'unauthenticated',
         attributes: null,
       });
@@ -353,6 +373,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         error: failure.message,
         user: null,
         role: null,
+        roles: [],
         status: 'unauthenticated',
         attributes: null,
       });
@@ -464,6 +485,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           status: 'unauthenticated',
           attributes: null,
           role: null,
+          roles: [],
         });
         return null;
       }
@@ -578,6 +600,7 @@ const resetAuthState = (set: (partial: Partial<AuthStore>) => void) => {
     status: 'unauthenticated',
     user: null,
     role: null,
+    roles: [],
     error: null,
     attributes: null,
     loading: false,

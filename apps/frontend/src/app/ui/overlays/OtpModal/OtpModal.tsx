@@ -105,14 +105,18 @@ const OtpModal = ({
       logger.warn('Backend user provisioning did not complete; continuing signed in.');
     }
 
-    const signedInRole =
-      typeof useAuthStore.getState === 'function' ? useAuthStore.getState().role : role;
+    const storeAvailable = typeof useAuthStore.getState === 'function';
+    const signedInRole = storeAvailable ? useAuthStore.getState().role : role;
+    const signedInRoles = storeAvailable ? useAuthStore.getState().roles : undefined;
     /* No `isDeveloper` here: a developer sign-up carries role 'developer' through
        pendingSignUp, so the role already says where to land. Passing the form
        flag instead used to route a non-developer to /developers/home, which the
-       route guard then rejected. */
+       route guard then rejected. The full role set goes with it so an account
+       that is both a practice member and a developer is not collapsed to
+       whichever single role `/v1/auth/me` happened to surface. */
     const nextRoute = await resolvePostAuthRedirect({
       fallbackRole: signedInRole,
+      roles: signedInRoles,
       redirectPath,
     });
     router.push(nextRoute);
