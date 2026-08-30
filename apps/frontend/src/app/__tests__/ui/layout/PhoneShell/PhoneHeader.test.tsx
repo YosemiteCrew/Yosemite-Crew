@@ -7,9 +7,11 @@ import { useUniversalSearchStore } from '@/app/stores/universalSearchStore';
 import { startRouteLoader } from '@/app/lib/routeLoader';
 
 const mockPush = jest.fn();
+let mockPathname = '/dashboard';
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
+  usePathname: () => mockPathname,
 }));
 
 jest.mock('next/image', () => {
@@ -29,6 +31,7 @@ const mockUsePrimaryOrg = usePrimaryOrg as unknown as jest.Mock;
 describe('PhoneHeader', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockPathname = '/dashboard';
     useUniversalSearchStore.getState().close();
   });
 
@@ -72,5 +75,45 @@ describe('PhoneHeader', () => {
     // Search + bell remain available.
     expect(screen.getByRole('button', { name: 'Search' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Notifications' })).toBeInTheDocument();
+  });
+
+  /*
+   * The portal is not org-scoped, so the chip named a clinic the page has
+   * nothing to do with, and tapping it navigated out of the portal entirely.
+   * Desktop has always hidden it here; the phone header was the shell that
+   * still showed it.
+   */
+  it.each([['/developers/home'], ['/developers/api-keys'], ['/developers/settings']])(
+    'hides the org switcher inside the developer portal (%s)',
+    (pathname) => {
+      mockPathname = pathname;
+      mockUsePrimaryOrg.mockReturnValue({
+        _id: 'org-1',
+        name: 'Groomer sample shop',
+        imageURL: null,
+        isVerified: true,
+      });
+
+      render(<PhoneHeader />);
+
+      expect(screen.queryByRole('button', { name: 'Switch organization' })).not.toBeInTheDocument();
+      expect(screen.queryByText('Groomer sample shop')).not.toBeInTheDocument();
+      // Falls back to the brand mark, which is what an account with no org sees.
+      expect(screen.getByText('Yosemite Crew')).toBeInTheDocument();
+    }
+  );
+
+  it('still shows the org switcher outside the portal for an org member', () => {
+    mockPathname = '/appointments';
+    mockUsePrimaryOrg.mockReturnValue({
+      _id: 'org-1',
+      name: 'Groomer sample shop',
+      imageURL: null,
+      isVerified: true,
+    });
+
+    render(<PhoneHeader />);
+
+    expect(screen.getByRole('button', { name: 'Switch organization' })).toBeInTheDocument();
   });
 });

@@ -66,37 +66,52 @@ export const coerceDateFields = (
 
 type SuccessStatus = 200 | 201 | 204;
 
-type BaseConfig<P extends z.ZodTypeAny> = {
-  params: P;
+/*
+ * The generics name the parsed OUTPUT types, not the schema types.
+ *
+ * Taking schemas as `extends z.ZodTypeAny` erased them: `z.ZodTypeAny` is
+ * `ZodType<any, ...>`, so `z.output<T>` collapses to `any`, and everything
+ * derived from a parse - the params, the payload, and `run`'s return - was
+ * silently untyped. Naming the outputs and accepting `z.ZodType<Out>` keeps
+ * the inference the call sites already provide.
+ */
+/**
+ * A schema whose parsed OUTPUT is `Out`, whatever shape it accepts as input.
+ *
+ * The Input parameter is load-bearing: `z.ZodType<Out>` defaults Input to
+ * `unknown` in zod 4 but naming it keeps the intent explicit, and pinning it
+ * to `Out` would reject any schema carrying a transform - the aftercare
+ * `completed` filter arrives as a string and parses to a boolean, so its
+ * input and output differ by design.
+ */
+type SchemaFor<Out> = z.ZodType<Out, unknown>;
+
+type BaseConfig<POut> = {
+  params: SchemaFor<POut>;
   status?: SuccessStatus;
   fallback: string;
 };
 
-type ParamsOnlyConfig<P extends z.ZodTypeAny> = BaseConfig<P> & {
-  run: (ctx: { params: z.output<P>; userId: string | undefined }) => unknown;
+type ParamsOnlyConfig<POut> = BaseConfig<POut> & {
+  run: (ctx: { params: POut; userId: string | undefined }) => unknown;
 };
 
-type PayloadConfig<
-  P extends z.ZodTypeAny,
-  I extends z.ZodTypeAny,
-> = BaseConfig<P> & {
+type PayloadConfig<POut, IOut> = BaseConfig<POut> & {
   invalidInputMessage?: string;
   run: (ctx: {
-    params: z.output<P>;
-    input: z.output<I>;
+    params: POut;
+    input: IOut;
     userId: string | undefined;
   }) => unknown;
 };
 
-type WithBodyConfig<
-  P extends z.ZodTypeAny,
-  I extends z.ZodTypeAny,
-> = PayloadConfig<P, I> & { body: I };
+type WithBodyConfig<POut, IOut> = PayloadConfig<POut, IOut> & {
+  body: SchemaFor<IOut>;
+};
 
-type WithQueryConfig<
-  P extends z.ZodTypeAny,
-  I extends z.ZodTypeAny,
-> = PayloadConfig<P, I> & { query: I };
+type WithQueryConfig<POut, IOut> = PayloadConfig<POut, IOut> & {
+  query: SchemaFor<IOut>;
+};
 
 /**
  * Builds the error handler and request handler factory shared by the clinical
@@ -116,17 +131,18 @@ export const createClinicalHandlers = (errorClass: ServiceErrorClass) => {
     return res.status(500).json({ message: fallback });
   };
 
-  function handler<P extends z.ZodTypeAny, I extends z.ZodTypeAny>(
-    config: WithBodyConfig<P, I>,
+  function handler<POut, IOut>(
+    config: WithBodyConfig<POut, IOut>,
   ): ClinicalHandler;
-  function handler<P extends z.ZodTypeAny, I extends z.ZodTypeAny>(
-    config: WithQueryConfig<P, I>,
+  function handler<POut, IOut>(
+    config: WithQueryConfig<POut, IOut>,
   ): ClinicalHandler;
-  function handler<P extends z.ZodTypeAny>(
-    config: ParamsOnlyConfig<P>,
-  ): ClinicalHandler;
-  function handler<P extends z.ZodTypeAny, I extends z.ZodTypeAny>(
-    config: ParamsOnlyConfig<P> | WithBodyConfig<P, I> | WithQueryConfig<P, I>,
+  function handler<POut>(config: ParamsOnlyConfig<POut>): ClinicalHandler;
+  function handler<POut, IOut>(
+    config:
+      | ParamsOnlyConfig<POut>
+      | WithBodyConfig<POut, IOut>
+      | WithQueryConfig<POut, IOut>,
   ): ClinicalHandler {
     return async (req: Request, res: Response): Promise<Response> => {
       try {
