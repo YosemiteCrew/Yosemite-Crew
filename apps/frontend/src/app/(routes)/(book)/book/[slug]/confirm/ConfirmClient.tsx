@@ -3,6 +3,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { confirmBookingRequest } from '@/app/features/publicBooking/services/publicBooking.service';
+import {
+  BookFooter,
+  BookShell,
+  CheckIcon,
+  IconDisc,
+  STATE_BODY,
+  Skeleton,
+  StateCard,
+  WarnIcon,
+} from '../bookingChrome';
 
 /**
  * Where the emailed confirmation link lands.
@@ -11,6 +21,10 @@ import { confirmBookingRequest } from '@/app/features/publicBooking/services/pub
  * scanners fetch URLs to preview them, so a GET that confirmed on arrival would
  * confirm requests nobody clicked - which is exactly the property the email step
  * exists to establish. The page reads the token from the query and posts it once.
+ *
+ * It shares `bookingChrome` with the booking page. It used to pick its own
+ * width and padding (520/p-6 against 560/p-5), so the column visibly jumped
+ * when a reader followed the link out of their inbox.
  */
 
 type State = 'confirming' | 'confirmed' | 'invalid';
@@ -43,38 +57,69 @@ const ConfirmClient = () => {
   }, [token]);
 
   return (
-    <main
-      id="main-content"
-      tabIndex={-1}
-      className="mx-auto flex min-h-screen w-full max-w-[520px] flex-col justify-center gap-3 p-6"
-    >
+    <BookShell>
       {state === 'confirming' ? (
-        <p className="text-[14px] text-[var(--ink-muted)]">Confirming your request…</p>
+        <div className="rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] p-5 yc-card-elevated sm:p-8">
+          <p className="sr-only" role="status">
+            Confirming your request…
+          </p>
+          <div className="flex flex-col items-center gap-4">
+            <Skeleton className="size-11 rounded-full" />
+            <Skeleton className="h-6 w-1/2 rounded-xl" />
+            <Skeleton className="h-4 w-3/4 rounded-xl" />
+          </div>
+        </div>
       ) : null}
 
       {state === 'confirmed' ? (
-        <>
-          <h1 className="text-[20px] font-bold text-[var(--ink)]">Request confirmed</h1>
-          <p className="text-[14px] text-[var(--ink-body)]">
-            {practiceName || 'The practice'} can now see your request and will contact you to
-            arrange the appointment.
-          </p>
-          <p className="text-[13px] text-[var(--ink-faint)]">
+        <StateCard
+          headingLevel="h1"
+          heading="Request confirmed"
+          icon={
+            <IconDisc tone="success">
+              <CheckIcon />
+            </IconDisc>
+          }
+        >
+          {/* Two whole sentences rather than one with a placeholder spliced into
+              it. The fallback used to render the literal "The practice can now
+              see your request", which reads to a pet owner like the page has
+              lost track of who they booked with. */}
+          {practiceName ? (
+            <p className={STATE_BODY}>
+              {practiceName} can now see your request and will contact you to arrange the
+              appointment.
+            </p>
+          ) : (
+            <p className={STATE_BODY}>
+              Your request is confirmed. The practice will contact you to arrange the appointment.
+            </p>
+          )}
+          <p className="w-full rounded-xl bg-[var(--inset)] px-4 py-3 text-caption-1 text-[var(--ink-body)]">
             Nothing is booked yet, and the time you asked for is not being held.
           </p>
-        </>
+        </StateCard>
       ) : null}
 
       {state === 'invalid' ? (
-        <>
-          <h1 className="text-[20px] font-bold text-[var(--ink)]">This link is not valid</h1>
-          <p className="text-[14px] text-[var(--ink-body)]">
+        <StateCard
+          headingLevel="h1"
+          heading="This link is not valid"
+          icon={
+            <IconDisc tone="warn">
+              <WarnIcon />
+            </IconDisc>
+          }
+        >
+          <p className={STATE_BODY}>
             It may have already been used, or it may have expired. Confirmation links last 48 hours.
             Please submit your request again, or contact the practice directly.
           </p>
-        </>
+        </StateCard>
       ) : null}
-    </main>
+
+      <BookFooter />
+    </BookShell>
   );
 };
 

@@ -144,6 +144,32 @@ textarea:focus-visible {
   outline: none;
 }
 
+/* The comment above is true of text fields and FALSE of the two controls below.
+   input[type=checkbox] is drawn with appearance:none and a static !important
+   border, and input[type=radio] gets accent-color and nothing else; neither has
+   a :focus-visible rule anywhere in this file. So the rule above suppressed the
+   global ring on two controls that had no replacement for it, and a keyboard
+   user got no indication at all - including on the consent checkbox that gates
+   a public booking submission.
+   An attribute selector is (0,2,1) against the (0,1,1) above, so this wins on
+   specificity regardless of source order. */
+input[type='checkbox']:focus-visible,
+input[type='radio']:focus-visible {
+  outline: 2px solid var(--color-input-border-active);
+  outline-offset: 2px;
+}
+
+/* In forced-colors mode the user agent overrides author border-color, so every
+   focus:border-* indicator in this app produces no visible change at all.
+   `outline` is the one property the forced-colors palette preserves. There is
+   no other forced-colors block in this file. */
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: 2px solid Highlight !important;
+    outline-offset: 2px;
+  }
+}
+
 /* The rich-text editor's contenteditable is the focus surface; its wrapping
    SectionContainer turns its border blue on focus-within instead, so suppress
    the global focus ring here to avoid an inner box on top of that border. */

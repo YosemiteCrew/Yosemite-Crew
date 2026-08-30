@@ -365,6 +365,121 @@ describe('BookClient', () => {
     expect(getSlotsMock.mock.calls[1][1]).toBe('svc-2');
   });
 
+  it('offers the next few days as chips so most readers never open the calendar', async () => {
+    await renderPage();
+    await waitFor(() => screen.getByRole('button', { name: '09:00' }));
+
+    const tomorrow = screen.getByRole('button', { name: 'Tomorrow' });
+    expect(screen.getByRole('button', { name: 'Today' })).toHaveAttribute('aria-pressed', 'true');
+    expect(tomorrow).toHaveAttribute('aria-pressed', 'false');
+
+    await act(async () => {
+      fireEvent.click(tomorrow);
+    });
+
+    // A different day means a fresh availability lookup, same as the date input.
+    await waitFor(() => expect(getSlotsMock).toHaveBeenCalledTimes(2));
+    expect(getSlotsMock.mock.calls[1][2]).not.toBe(getSlotsMock.mock.calls[0][2]);
+  });
+
+  it('heads the day parts only when a day actually spans more than one', async () => {
+    getSlotsMock.mockResolvedValue({
+      date: '2026-09-01',
+      serviceId: 'svc-1',
+      durationMinutes: 30,
+      windows: [
+        { startTime: '09:00', endTime: '09:30' },
+        { startTime: '14:00', endTime: '14:30' },
+      ],
+    });
+    await renderPage();
+
+    // Both headings are in the tree for the group labels; only these are shown.
+    await waitFor(() => expect(screen.getByRole('button', { name: '14:00' })).toBeInTheDocument());
+    expect(screen.getByRole('heading', { name: 'Morning' })).not.toHaveClass('sr-only');
+    expect(screen.getByRole('heading', { name: 'Afternoon' })).not.toHaveClass('sr-only');
+  });
+
+  it('hides a lone day-part heading rather than captioning one grid', async () => {
+    await renderPage();
+    await waitFor(() => screen.getByRole('button', { name: '09:00' }));
+
+    // The default fixture is 09:00 and 10:00 - one part, so the heading stays
+    // for assistive technology and disappears for everyone else.
+    expect(screen.getByRole('heading', { name: 'Morning' })).toHaveClass('sr-only');
+  });
+
+  it('shows what a service is when the practice has said', async () => {
+    getPracticeMock.mockResolvedValue({
+      kind: 'practice',
+      practice: practice({
+        services: [
+          {
+            id: 'svc-1',
+            name: 'Wellness consultation',
+            description: 'Nose-to-tail exam and a plan for the year.',
+            durationMinutes: 30,
+          },
+        ],
+      }),
+    });
+    await renderPage();
+
+    // Fetched and thrown away before this change, which is why the rows had
+    // nothing to say but "30 min".
+    expect(screen.getByText('Nose-to-tail exam and a plan for the year.')).toBeInTheDocument();
+  });
+
+  it('names the missing precondition, then recaps the choice', async () => {
+    await renderPage();
+    await waitFor(() => screen.getByRole('button', { name: '09:00' }));
+
+    expect(screen.getByText(/Choose a time above/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '09:00' }));
+    expect(screen.getByText(/Tick the box above/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('checkbox'));
+    // A compound line, never a bare service name: a second element whose exact
+    // direct text is 'Wellness consultation' would break the singular
+    // getByText in the first test.
+    expect(screen.getByText(/Wellness consultation . 30 min .* 09:00/)).toBeInTheDocument();
+
+    await act(async () => {});
+  });
+
+  it('announces the wait for times as a status, never as an alert', async () => {
+    let settle: (value: unknown) => void = () => {};
+    getSlotsMock.mockReturnValue(
+      new Promise((resolve) => {
+        settle = resolve;
+      })
+    );
+    await renderPage();
+
+    expect(screen.getByRole('status')).toHaveTextContent('Checking availability');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    await act(async () => {
+      settle({ date: '2026-09-01', serviceId: 'svc-1', durationMinutes: 30, windows: [] });
+    });
+  });
+
+  it('moves focus to the confirmation instead of dropping it on the body', async () => {
+    await renderPage();
+    await waitFor(() => screen.getByRole('button', { name: '09:00' }));
+
+    fillForm();
+    fireEvent.click(screen.getByRole('button', { name: '09:00' }));
+    fireEvent.click(screen.getByRole('checkbox'));
+    await submitForm();
+
+    // The form unmounts on success. Without this the reader is left on <body>
+    // with nothing announcing that the request went.
+    const heading = screen.getByRole('heading', { name: 'Check your email' });
+    expect(heading.closest('[tabindex="-1"]')).toBe(document.activeElement);
+  });
+
   it('tolerates a practice with no city', async () => {
     getPracticeMock.mockResolvedValue({
       kind: 'practice',
