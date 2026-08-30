@@ -394,19 +394,26 @@ describe('BookClient', () => {
     });
     await renderPage();
 
-    // Both headings are in the tree for the group labels; only these are shown.
+    // The heading sits inside the group's <legend>, and it is the legend that
+    // carries the visibility, so that is what to assert on.
     await waitFor(() => expect(screen.getByRole('button', { name: '14:00' })).toBeInTheDocument());
-    expect(screen.getByRole('heading', { name: 'Morning' })).not.toHaveClass('sr-only');
-    expect(screen.getByRole('heading', { name: 'Afternoon' })).not.toHaveClass('sr-only');
+    expect(screen.getByRole('heading', { name: 'Morning' }).closest('legend')).not.toHaveClass(
+      'sr-only'
+    );
+    expect(screen.getByRole('heading', { name: 'Afternoon' }).closest('legend')).not.toHaveClass(
+      'sr-only'
+    );
   });
 
   it('hides a lone day-part heading rather than captioning one grid', async () => {
     await renderPage();
     await waitFor(() => screen.getByRole('button', { name: '09:00' }));
 
-    // The default fixture is 09:00 and 10:00 - one part, so the heading stays
-    // for assistive technology and disappears for everyone else.
-    expect(screen.getByRole('heading', { name: 'Morning' })).toHaveClass('sr-only');
+    // The default fixture is 09:00 and 10:00 - one part, so the group keeps its
+    // name for assistive technology and the caption disappears for everyone else.
+    expect(screen.getByRole('heading', { name: 'Morning' }).closest('legend')).toHaveClass(
+      'sr-only'
+    );
   });
 
   it('shows what a service is when the practice has said', async () => {

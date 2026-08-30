@@ -138,9 +138,10 @@ const SlotPicker = ({
               <Skeleton key={index} className="h-11 rounded-full" />
             ))}
           </div>
-          <p className="sr-only" role="status">
-            Checking availability…
-          </p>
+          {/* <output>, not a p with role="status" - it carries that role
+              implicitly, and Sonar's S6819 asks for the element over the ARIA
+              attribute. Precedent: AccessibilityReportClient and InvoiceTable. */}
+          <output className="sr-only">Checking availability…</output>
         </>
       );
     }
@@ -158,27 +159,28 @@ const SlotPicker = ({
     }
 
     const groups = groupByDayPart(slots);
-    // A lone "MORNING" heading over a morning-only day is noise, so it stays
-    // sr-only and the role=group keeps its label either way.
+    // A lone "MORNING" heading over a morning-only day is noise, so its legend
+    // goes sr-only; the group keeps its accessible name either way.
     const manyGroups = groups.length > 1;
 
     return groups.map((group) => (
-      <div
-        key={group.key}
-        role="group"
-        aria-labelledby={`part-${group.key}`}
-        className="mb-4 last:mb-0"
-      >
-        <h3
-          id={`part-${group.key}`}
-          className={
-            manyGroups
-              ? 'mb-2 text-caption-2 font-bold uppercase tracking-[0.1em] text-[var(--ink-muted)]'
-              : 'sr-only'
-          }
-        >
-          {group.label}
-        </h3>
+      // A fieldset, not a div with role="group": these are related controls
+      // inside a form, which is what the element is for, and Sonar's S6819 asks
+      // for the element over the role. The h3 sits INSIDE the legend - legend
+      // takes heading content - so the group keeps its accessible name and a
+      // reader can still jump between day parts by heading.
+      <fieldset key={group.key} className="mb-4 last:mb-0">
+        <legend className={manyGroups ? 'mb-2' : 'sr-only'}>
+          <h3
+            className={
+              manyGroups
+                ? 'text-caption-2 font-bold uppercase tracking-[0.1em] text-[var(--ink-muted)]'
+                : ''
+            }
+          >
+            {group.label}
+          </h3>
+        </legend>
         <div className={SLOT_GRID}>
           {group.slots.map((slot) => (
             // The button's entire text is the bare startTime. No end time, no
@@ -195,7 +197,7 @@ const SlotPicker = ({
             </button>
           ))}
         </div>
-      </div>
+      </fieldset>
     ));
   };
 
@@ -244,9 +246,7 @@ const PendingOrUnavailable = ({ status }: { status: 'loading' | 'unavailable' })
       {/* A skeleton of the page that is coming, not the word "Loading" on an
           empty screen. Nothing asserts that string. */}
       <Card className="p-5 sm:p-8" aria-busy="true">
-        <p className="sr-only" role="status">
-          Loading this practice’s booking page
-        </p>
+        <output className="sr-only">Loading this practice’s booking page</output>
         <div className="flex items-start gap-3">
           <Skeleton className="size-11 shrink-0 rounded-xl" />
           <div className="flex-1">

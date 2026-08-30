@@ -60,9 +60,7 @@ const ConfirmClient = () => {
     <BookShell>
       {state === 'confirming' ? (
         <div className="rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] p-5 yc-card-elevated sm:p-8">
-          <p className="sr-only" role="status">
-            Confirming your request…
-          </p>
+          <output className="sr-only">Confirming your request…</output>
           <div className="flex flex-col items-center gap-4">
             <Skeleton className="size-11 rounded-full" />
             <Skeleton className="h-6 w-1/2 rounded-xl" />
