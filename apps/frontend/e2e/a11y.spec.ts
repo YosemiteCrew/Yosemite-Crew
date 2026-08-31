@@ -215,6 +215,13 @@ const stubPublicApi = async (page: Page) => {
   );
 };
 
+/**
+ * The warm-bone surface in each theme, read back off the element to prove a
+ * toggle actually repainted rather than only updating React state.
+ */
+const WARM_BONE_LIGHT_SCREEN = '#f7f3ec';
+const WARM_BONE_DARK_SCREEN = '#2f271e';
+
 for (const theme of ['light', 'dark'] as const) {
   test.describe(`Shared public pages — accessibility, ${theme} (WCAG 2.1 AA incl. contrast)`, () => {
     test.use({ colorScheme: theme });
@@ -229,6 +236,44 @@ for (const theme of ['light', 'dark'] as const) {
       await page.waitForLoadState('networkidle').catch(() => {});
       // The content floor: the passport rendered, not its not-found state.
       await expect(page.getByText('Luna')).toBeVisible();
+      await expect(page.getByText(/expired/i).first()).toBeVisible();
+
+      const results = await runAxeWithContrast(page);
+      expect(results.violations).toEqual([]);
+    });
+
+    test(`the passport survives its own theme toggle in ${theme}`, async ({ page }) => {
+      // The branch the other test cannot reach. #2578 keyed the warm-bone
+      // overrides on DISAGREEMENT: they apply only when the reader has pushed
+      // this page away from the root theme. Setting the OS scheme alone always
+      // leaves the two in agreement, so both new selectors - and every token
+      // inside them - stay unexercised, and a broken one would leave the suite
+      // green.
+      await page.goto('/passport/e2e-a11y');
+      await page.waitForLoadState('networkidle').catch(() => {});
+      await expect(page.getByText('Luna')).toBeVisible();
+
+      // Before the toggle the attribute is absent: the page follows the root.
+      const main = page.locator('main.yc-warmbone');
+      await expect(main).not.toHaveAttribute('data-wb-theme', /.*/);
+
+      await page.getByRole('button', { name: /toggle light or dark theme/i }).click();
+
+      // Now it disagrees with the root, which is the only state that activates
+      // the overrides.
+      await expect(main).toHaveAttribute('data-wb-theme', theme === 'dark' ? 'light' : 'dark');
+
+      // The attribute alone proves only that React updated its state. If either
+      // disagreement selector is broken or renamed, the attribute still flips,
+      // the override simply never applies, and the page sits in the perfectly
+      // valid root theme - where axe passes and the regression goes unseen.
+      // Verified by renaming both selectors: the attribute assertion stayed
+      // green. So assert the PALETTE repainted, which is what they exist to do.
+      const surface = await main.evaluate((el) =>
+        getComputedStyle(el).getPropertyValue('--screen').trim()
+      );
+      expect(surface).toBe(theme === 'dark' ? WARM_BONE_LIGHT_SCREEN : WARM_BONE_DARK_SCREEN);
+
       await expect(page.getByText(/expired/i).first()).toBeVisible();
 
       const results = await runAxeWithContrast(page);

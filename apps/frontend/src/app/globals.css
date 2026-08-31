@@ -1120,7 +1120,6 @@ html[data-theme='dark'] {
   --status-no-show-text: #f0a36c;
   --status-no-show-border: rgba(249, 115, 22, 0.5);
   --status-danger-bg: rgba(234, 55, 41, 0.18);
-  --danger-text: #f2938a;
   --status-danger-border: rgba(242, 147, 138, 0.42);
   /* The missing third. Every other status family here declares bg, border AND
      text; danger declared only two, so --status-danger-text fell through to the
@@ -1131,7 +1130,7 @@ html[data-theme='dark'] {
      It went unnoticed because .yc-warmbone carried a private copy that happened
      to declare the token, so the one page anybody looked at in dark mode looked
      right. Narrowing that copy (#2578) is what exposed this. */
-  --status-danger-text: #f2938a;
+  --status-danger-text: var(--danger-text);
 }
 
 /* Native control theming + flip transition, scoped to the marketing surface. */

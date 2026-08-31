@@ -111,6 +111,19 @@ describe('warm-bone overrides cover what the passport reads', () => {
     expect(Object.keys(base)).toEqual([]);
   });
 
+  it('scopes each override so it cannot apply when the themes agree', () => {
+    // Colour cannot catch this one. Drop the :not() from the dark override and
+    // it also applies under a dark root - where it paints the same dark values,
+    // so every rendered pixel is identical and no contrast test can see it.
+    // What comes back is defect 2's mechanism: the copy declaring tokens in the
+    // agreeing state, shadowing body:has([data-yc-app]) again. So it is asserted
+    // structurally, which is the only place it is visible.
+    expect(LIGHT_OVERRIDE).toContain("html[data-theme='dark']");
+    expect(DARK_OVERRIDE).toContain("html:not([data-theme='dark'])");
+    expect(CSS).toContain(DARK_OVERRIDE);
+    expect(CSS).toContain(LIGHT_OVERRIDE);
+  });
+
   it('aliases only to tokens that do not themselves flip', () => {
     // An override may alias a global token ONLY if that token resolves the same
     // under either root - otherwise the alias re-imports the very theme the
