@@ -75,6 +75,9 @@ const NON_HUMAN_PAYLOAD = CONTRIBUTOR_PAYLOAD.filter(
    the network entirely while the cache is inside its 5 minute TTL and already holds
    a Discord string. Seeding both keys is therefore the whole of "the stats
    resolved", with no request to intercept. */
+const GITHUB_API_HOST = 'api.github.com';
+const CONTRIBUTORS_PATH = '/contributors';
+const COMMUNITY_API_PATH = '/api/community/';
 const STATS_CACHE_KEY = 'yc_marketing_stats_v2';
 const STATS_TS_KEY = 'yc_marketing_stats_ts_v2';
 
@@ -126,7 +129,20 @@ const withAboutData =
     const originalFetch = globalThis.fetch;
     globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      if (url.includes('api.github.com') && url.includes('/contributors')) {
+      /*
+       * Matched on the parsed host and path, not on substrings of the whole URL.
+       * `url.includes('api.github.com')` is also true of
+       * `https://evil.example/?next=api.github.com`, which is the shape CodeQL
+       * flags as js/incomplete-url-substring-sanitization. The base only exists so
+       * a relative same-origin path still parses.
+       */
+      let parsed: URL | null = null;
+      try {
+        parsed = new URL(url, 'http://localhost');
+      } catch {
+        parsed = null;
+      }
+      if (parsed?.hostname === GITHUB_API_HOST && parsed.pathname.endsWith(CONTRIBUTORS_PATH)) {
         // A promise that never settles leaves the hook on its initial `null`, which
         // is the loading branch - there is no separate loading flag to set.
         if (contributors === 'pending') return new Promise<Response>(() => {});
@@ -135,7 +151,7 @@ const withAboutData =
       // The stats hook talks to same-origin route handlers, which do not exist in
       // Storybook. Answering them here keeps the failure deliberate rather than
       // leaving it to whatever the dev server returns for an unknown path.
-      if (url.includes('/api/community/')) {
+      if (parsed?.pathname.startsWith(COMMUNITY_API_PATH)) {
         return Promise.resolve(new Response('upstream unavailable', { status: 503 }));
       }
       return originalFetch.call(globalThis, input, init);
