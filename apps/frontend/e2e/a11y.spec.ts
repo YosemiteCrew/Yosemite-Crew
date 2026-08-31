@@ -235,6 +235,32 @@ for (const theme of ['light', 'dark'] as const) {
       expect(results.violations).toEqual([]);
     });
 
+    test(`the passport survives its own theme toggle in ${theme}`, async ({ page }) => {
+      // The branch the other test cannot reach. #2578 keyed the warm-bone
+      // overrides on DISAGREEMENT: they apply only when the reader has pushed
+      // this page away from the root theme. Setting the OS scheme alone always
+      // leaves the two in agreement, so both new selectors - and every token
+      // inside them - stay unexercised, and a broken one would leave the suite
+      // green.
+      await page.goto('/passport/e2e-a11y');
+      await page.waitForLoadState('networkidle').catch(() => {});
+      await expect(page.getByText('Luna')).toBeVisible();
+
+      // Before the toggle the attribute is absent: the page follows the root.
+      const main = page.locator('main.yc-warmbone');
+      await expect(main).not.toHaveAttribute('data-wb-theme', /.*/);
+
+      await page.getByRole('button', { name: /toggle light or dark theme/i }).click();
+
+      // Now it disagrees with the root, which is the only state that activates
+      // the overrides.
+      await expect(main).toHaveAttribute('data-wb-theme', theme === 'dark' ? 'light' : 'dark');
+      await expect(page.getByText(/expired/i).first()).toBeVisible();
+
+      const results = await runAxeWithContrast(page);
+      expect(results.violations).toEqual([]);
+    });
+
     test(`the shared companion card has no axe violations in ${theme}`, async ({ page }) => {
       await page.goto('/card/e2e-a11y');
       await page.waitForLoadState('networkidle').catch(() => {});
