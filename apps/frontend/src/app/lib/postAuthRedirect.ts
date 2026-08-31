@@ -48,6 +48,18 @@ export const hasDeveloperRole = (roles?: readonly (string | null | undefined)[] 
  * empty list always falls back to the one role that is known rather than
  * answering no.
  */
+/**
+ * True when the developer role is the ONLY role this account holds.
+ *
+ * `hasDeveloperRole` answers "does this account have developer access", which
+ * is the right question when deciding whether the portal is reachable at all.
+ * It is the wrong question for a fallback that has to choose a destination
+ * without being told which product the person asked for: a dual-role account
+ * answers yes to it and still belongs in its practice.
+ */
+const holdsOnlyDeveloperRole = (roles: readonly string[]) =>
+  roles.length > 0 && roles.every(isDeveloperRole);
+
 export const resolveHeldRoles = (
   roles?: readonly (string | null | undefined)[] | null,
   singleRole?: string | null
@@ -204,7 +216,21 @@ export const resolvePostAuthRedirect = async ({
   try {
     await loadOrgs({ silent: true });
   } catch {
-    return isDeveloper ? '/developers/home' : resolveDefaultOpenScreenRoute(fallbackRole);
+    /*
+     * A transient org load failure carries no information about which product
+     * the person asked for, so it must not change where they land.
+     *
+     * Execution only reaches here when the developer door was NOT used - the
+     * check above returns first when it was - so a dual-role account that
+     * signed in at the practice door is on its way to its practice. Keying
+     * this on `isDeveloper` sent it to the portal instead, undoing the very
+     * routing the door check exists to provide, and it did so only when the
+     * network happened to fail. Only an account whose sole role is developer
+     * has nowhere else to land.
+     */
+    return holdsOnlyDeveloperRole(heldRoles)
+      ? '/developers/home'
+      : resolveDefaultOpenScreenRoute(fallbackRole);
   }
 
   const { orgIds, primaryOrgId } = useOrgStore.getState();

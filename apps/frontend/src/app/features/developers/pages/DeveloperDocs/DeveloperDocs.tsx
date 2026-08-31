@@ -124,6 +124,16 @@ const ARTICLES: Record<string, Article> = {
  *   `proposed`.
  * - the host is not hardcoded, because the session is issued for whichever
  *   origin `NEXT_PUBLIC_BASE_URL` names.
+ * - the COMPANION'S PARENT is required, as a `RelatedPerson/...` participant.
+ *   `fromFHIRAppointment` (packages/types/src/appointment.ts) reads the parent
+ *   from that reference and falls back to `unknown-owner` without it;
+ *   `createAppointment` then hands that literal to
+ *   `assertParentManagesCompanion` and the write is refused. A sample missing
+ *   it fails just as reliably as the /v2 path did, only later and with a less
+ *   obvious message.
+ * - `end`, `minutesDuration` and `serviceType` are read too: `endTime` falls
+ *   back to "now" and `durationMinutes` to 0 when they are absent, so the
+ *   appointment lands at a time nobody asked for.
  */
 const CURL_SAMPLE = String.raw`curl -X POST \
   "$YC_API_BASE"/fhir/v1/appointment/pms \
@@ -133,9 +143,24 @@ const CURL_SAMPLE = String.raw`curl -X POST \
   -d '{
     "resourceType": "Appointment",
     "start": "2026-07-17T10:30:00+02:00",
+    "end": "2026-07-17T11:00:00+02:00",
+    "minutesDuration": 30,
+    "serviceType": [
+      {
+        "coding": [
+          {
+            "system": "http://example.org/appointment-types",
+            "code": "<appointment-type-id>",
+            "display": "Wellness exam"
+          }
+        ],
+        "text": "Wellness exam"
+      }
+    ],
     "participant": [
       { "actor": { "reference": "Organization/<practice-id>" } },
-      { "actor": { "reference": "Patient/<companion-id>" } }
+      { "actor": { "reference": "Patient/<companion-id>" } },
+      { "actor": { "reference": "RelatedPerson/<parent-id>" } }
     ]
   }'`;
 

@@ -426,7 +426,10 @@ const usePractice = (slug: string): PracticeView => {
 const useSlots = (slug: string, serviceId: string | null, date: string) => {
   const [result, setResult] = useState<SlotsResult | null>(null);
 
-  const key = serviceId ? `${serviceId}|${date}` : null;
+  // `date` is "" whenever the reader clears the native date input. There is no
+  // such day to ask for, so this holds the previous result instead of fetching
+  // slots for an empty string and rendering whatever the API makes of it.
+  const key = serviceId && date ? `${serviceId}|${date}` : null;
 
   useEffect(() => {
     if (!serviceId || !key) return;
@@ -586,8 +589,17 @@ const DayAndTime = ({
         aria-describedby="book-day-hint"
         onChange={(event) => onDateChange(event.target.value)}
       />
+      {/*
+        A native date input can be cleared, and the change handler stores the ""
+        it fires with. `formatLongDay("")` builds `new Date("T00:00:00Z")`, which
+        is an Invalid Date, and Intl throws `RangeError: Invalid time value` on
+        it - mid-render, on a public page, so clearing the field took the whole
+        booking form down. The day is dropped from the hint until one is chosen
+        again rather than formatted.
+      */}
       <p id="book-day-hint" className={META_TEXT}>
-        {formatLongDay(date)} · you can book up to {bookingWindowDays} days ahead.
+        {date ? `${formatLongDay(date)} · ` : null}you can book up to {bookingWindowDays} days
+        ahead.
       </p>
     </div>
 
@@ -916,9 +928,11 @@ const BookClient = ({ slug }: { slug: string }) => {
   // the test's getByText for the service name is singular - it would throw
   // "found multiple elements". Any recap renders "{name} · {n} min", never the
   // bare name.
-  const summaryLine = chosen
-    ? `${chosen.name} · ${chosen.durationMinutes} min · ${formatLongDay(date)} · ${selectedTime}`
-    : '';
+  // `date` guarded for the same reason as the hint above: formatting "" throws.
+  const summaryLine =
+    chosen && date
+      ? `${chosen.name} · ${chosen.durationMinutes} min · ${formatLongDay(date)} · ${selectedTime}`
+      : '';
 
   // Five days at most, clamped to the practice's booking window, so a 3-day
   // window renders three chips. Pure state, no fetch of its own.
