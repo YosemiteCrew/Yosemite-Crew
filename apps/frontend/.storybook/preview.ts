@@ -1,6 +1,17 @@
 import type { Preview } from '@storybook/react';
 import React from 'react';
 import '../src/app/globals.css';
+import { installOfflineGuard } from './offline-guard';
+
+/**
+ * Installed here, at preview module scope, rather than from a decorator or a
+ * `beforeAll`: it has to be in place before the first story module is imported,
+ * because the stories that stub the network capture the primitives at THEIR
+ * module scope and restore what they captured. Installed first, the guard is
+ * what they capture and put back; installed later, their cleanup would quietly
+ * uninstall it for every story after them.
+ */
+installOfflineGuard();
 
 /**
  * Newsreader and Satoshi both resolve from `globals.css` @font-face rules served
