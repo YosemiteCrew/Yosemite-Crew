@@ -84,7 +84,7 @@
     "@yosemite-crew/types": "workspace:^",
     "chromatic": "^18.2.0",
     "eslint": "^9",
-    "eslint-config-next": "16.3.1",
+    "eslint-config-next": "16.3.2",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-sonarjs": "^4.2.0",
     "fast-check": "^4.9.0",
