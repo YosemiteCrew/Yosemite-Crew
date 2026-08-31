@@ -394,6 +394,41 @@ describe('appointmentWorkspaceStore', () => {
     ).toBeUndefined();
   });
 
+  it('refuses to add, update or remove services on a discharged encounter', () => {
+    seed();
+    getStore().addLineItem(APPT, {
+      refId: 's1',
+      kind: 'SERVICE',
+      name: 'X-ray',
+      qty: 1,
+      unitPriceCents: 5000,
+      amountCents: 5000,
+    });
+    const existing = getStore().getEncounter(APPT)!.services.at(-1)!;
+
+    getStore().markDischarged(APPT, new Date().toISOString());
+    expect(getStore().getEncounter(APPT)?.viewOnly).toBe(true);
+
+    /* The editor already hides its search and locks its rows when `readOnly` is
+       passed, but that is a UI gate on one call site. A discharged encounter must
+       not gain, lose or re-price billable services through the action itself -
+       otherwise any future caller reaching past the editor reopens the hole. */
+    getStore().addLineItem(APPT, {
+      refId: 's2',
+      kind: 'SERVICE',
+      name: 'Ultrasound',
+      qty: 1,
+      unitPriceCents: 9000,
+      amountCents: 9000,
+    });
+    getStore().updateLineItem(APPT, existing.id, { qty: 99 });
+    getStore().removeLineItem(APPT, existing.id);
+
+    const services = getStore().getEncounter(APPT)!.services;
+    expect(services.map((s) => s.name)).toEqual(['X-ray']);
+    expect(services[0].qty).toBe(1);
+  });
+
   it('does not create local schedule rows when adding line items', () => {
     // The task store is the single source of truth for schedule tasks — adding a
     // line item must NOT push a local-only schedule row (which would duplicate the
