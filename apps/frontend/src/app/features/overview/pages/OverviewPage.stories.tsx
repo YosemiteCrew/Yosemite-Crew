@@ -78,9 +78,30 @@ const buildContributors = (count: number) =>
   Array.from({ length: count }, (_, index) => ({ login: `contributor-${index}` }));
 
 const SUMMARY_HOST = 'raw.githubusercontent.com';
-const REPO_URL = 'https://api.github.com/repos/YosemiteCrew/Yosemite-Crew';
+const REPO_HOST = 'api.github.com';
+const REPO_PATH = '/repos/YosemiteCrew/Yosemite-Crew';
 const CONTRIBUTORS_PATH = '/contributors';
 const STATUS_HOST = 'api.openstatus.dev';
+
+/*
+ * Route the stub on the parsed host, never on a substring of the whole URL.
+ * `url.includes('api.github.com')` is also true of
+ * `https://evil.example/?next=api.github.com`, so a substring test decides which
+ * fixture answers a request using text an attacker could put anywhere in it. The
+ * stub only ever sees URLs this story controls, but the shape is the one CodeQL
+ * flags as js/incomplete-url-substring-sanitization and it is not worth carrying
+ * in a file that exists to be copied.
+ *
+ * The base is only there so a relative same-origin path still parses; every URL
+ * matched below is absolute.
+ */
+const parseUrl = (url: string): URL | null => {
+  try {
+    return new URL(url, 'http://localhost');
+  } catch {
+    return null;
+  }
+};
 
 const jsonResponse = (body: unknown) =>
   new Response(JSON.stringify(body), {
@@ -111,25 +132,28 @@ const withGithubStats = (fixture: StatsFixture | 'never-resolves') => () => {
 
   globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
+    const parsed = parseUrl(url);
 
-    if (url.includes(STATUS_HOST)) {
+    if (parsed?.hostname === STATUS_HOST) {
       return Promise.resolve(jsonResponse({ status: 'operational' }));
     }
 
-    // The summary URL carries a `?t=` cache-buster, so match on the host.
-    const isStatsRequest = url.includes(SUMMARY_HOST) || url.startsWith(REPO_URL);
-    if (!isStatsRequest) {
+    // The summary URL carries a `?t=` cache-buster, which is why the host is
+    // matched rather than the full URL.
+    const isSummaryRequest = parsed?.hostname === SUMMARY_HOST;
+    const isRepoRequest = parsed?.hostname === REPO_HOST && parsed.pathname.startsWith(REPO_PATH);
+    if (!isSummaryRequest && !isRepoRequest) {
       return original.call(globalThis, input, init);
     }
 
     if (fixture === 'never-resolves') {
       return new Promise<Response>(() => {});
     }
-    if (url.includes(SUMMARY_HOST)) {
+    if (isSummaryRequest) {
       return Promise.resolve(jsonResponse(buildSummary(fixture.dailyClones)));
     }
-    // Checked before the repo URL: the contributors endpoint is a path under it.
-    if (url.includes(CONTRIBUTORS_PATH)) {
+    // Checked before the repo root: the contributors endpoint is a path under it.
+    if (parsed?.pathname.endsWith(CONTRIBUTORS_PATH)) {
       return Promise.resolve(jsonResponse(buildContributors(fixture.contributors)));
     }
     return Promise.resolve(jsonResponse({ stargazers_count: fixture.stargazers }));
