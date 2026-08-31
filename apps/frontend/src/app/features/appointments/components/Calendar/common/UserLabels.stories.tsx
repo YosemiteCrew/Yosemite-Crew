@@ -151,9 +151,20 @@ const meta = {
   decorators: [
     /* The labels have no ground of their own - in the planner they sit on the
        --screen-2 band that CalendarTeamNamesRow paints. Rendering them on the bare
-       preview canvas would hide every contrast problem the header actually has. */
+       preview canvas would hide every contrast problem the header actually has.
+
+       The band also SCROLLS, which is not decoration either. This grid is `min-w-max`
+       on a 170px-per-column track and CalendarTeamNamesRow is `min-w-max` around it,
+       because the header has to stay in lockstep with the appointment columns beneath
+       it - it is built to be wider than the screen and to scroll with the planner.
+       A band that only painted the colour let that overrun escape onto the document,
+       so a width sweep read the deliberate design as a phone-layout bug. maxWidth
+       keeps the band inside whatever canvas it is given; the overrun scrolls. */
     (Story) => (
-      <div data-band="" style={{ width: 520, background: 'var(--screen-2)' }}>
+      <div
+        data-band=""
+        style={{ width: 520, maxWidth: '100%', overflowX: 'auto', background: 'var(--screen-2)' }}
+      >
         <Story />
       </div>
     ),

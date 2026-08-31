@@ -313,6 +313,58 @@ export const Editable: Story = {
   },
 };
 
+export const NarrowFrame: Story = {
+  name: 'Editable in a 320px frame',
+  args: { editable: true, additionalDiscount: 7.5, onRemoveItem: fn() },
+  decorators: [
+    /* A container, not a viewport. The scroller is `overflow-x-auto` on a plain div,
+       so what it does or does not clip is decided by its own box - which means this
+       reproduces at the 1280px width the runner actually loads. Pinning the `mobile`
+       viewport global would not: that global is applied by the manager and is inert
+       when a runner loads iframe.html directly. */
+    (Story) => (
+      <div data-frame="" style={{ width: 320 }}>
+        <Story />
+      </div>
+    ),
+  ],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const frame = canvasElement.querySelector('[data-frame]') as HTMLElement;
+    const table = canvas.getByRole('table');
+
+    // The table really is wider than the frame - otherwise nothing below is tested.
+    await expect(table.getBoundingClientRect().width).toBeGreaterThan(
+      frame.getBoundingClientRect().width
+    );
+
+    /* The header's `sr-only` Actions label is `position: absolute`, and an absolutely
+       positioned box is clipped only by a scroll container that sits in its
+       containing-block chain. While this scroller was unpositioned the label's
+       offsetParent was the BODY, so it sat at the table's full 780px and dragged the
+       DOCUMENT to 780px on a 390px phone - measured - while the table itself stayed
+       neatly contained.
+
+       offsetParent, not geometry, because geometry cannot see a clip: the label
+       reports the same 795px right edge whether the scroller crops it or not, which
+       is the whole reason a 1px hidden element got to scroll the page sideways
+       without anyone noticing. For an absolutely positioned box, "my offsetParent is
+       the scroller" IS the statement "the scroller clips me". */
+    const scroller = table.parentElement as HTMLElement;
+    await expect(canvas.getByText('Actions').offsetParent).toBe(scroller);
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'The nine-column editable table in a box far narrower than itself. The table is ' +
+          'meant to overrun and scroll; what must not happen is anything reaching past the ' +
+          'scroller, which is why the wrapper is `relative`.',
+      },
+    },
+  },
+};
+
 export const SingleRow: Story = {
   name: 'One row',
   args: { items: [ITEMS[0]] },

@@ -454,7 +454,14 @@ const PatientDetailsColumn = ({
       <span className="text-body-4 text-text-secondary">Alerts (optional)</span>
       <fieldset
         className="grid items-center gap-2"
-        style={{ gridTemplateColumns: '1fr 160px 48px' }}
+        /* minmax(0, 1fr), not a bare 1fr. A bare `1fr` has an `auto` MIN track sizing
+           function, which switches on the grid item's automatic minimum size - so this
+           column could never go below the min-content of a FormInput, and an <input>
+           carries the browser's default `size` intrinsic width (~168px). Label + 160 +
+           48 + gaps therefore floored at 392px and pushed the phone sheet 18px past a
+           390px screen instead of squeezing the label, which is what the layout reads
+           as it should do. Zeroing the min lets the label take whatever is left. */
+        style={{ gridTemplateColumns: 'minmax(0, 1fr) 160px 48px' }}
       >
         <legend className="sr-only">Add alert</legend>
         <FormInput
@@ -697,7 +704,14 @@ const ClientDetailsColumn = ({
       <span className="text-body-4 text-text-secondary">Alerts (optional)</span>
       <fieldset
         className="grid items-center gap-2"
-        style={{ gridTemplateColumns: '1fr 160px 48px' }}
+        /* minmax(0, 1fr), not a bare 1fr. A bare `1fr` has an `auto` MIN track sizing
+           function, which switches on the grid item's automatic minimum size - so this
+           column could never go below the min-content of a FormInput, and an <input>
+           carries the browser's default `size` intrinsic width (~168px). Label + 160 +
+           48 + gaps therefore floored at 392px and pushed the phone sheet 18px past a
+           390px screen instead of squeezing the label, which is what the layout reads
+           as it should do. Zeroing the min lets the label take whatever is left. */
+        style={{ gridTemplateColumns: 'minmax(0, 1fr) 160px 48px' }}
       >
         <legend className="sr-only">Add client alert</legend>
         <FormInput
