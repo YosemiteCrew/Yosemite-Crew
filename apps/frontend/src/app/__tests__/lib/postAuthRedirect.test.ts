@@ -198,6 +198,26 @@ describe('resolvePostAuthRedirect', () => {
       ).resolves.toBe('/developers/home');
     });
 
+    /* The failure fallback used to key on "holds the developer role" alone, so
+       a dual-role account that signed in at the PRACTICE door was diverted to
+       the portal the moment loadOrgs had a bad minute. A transient network
+       failure is not a statement about which product the person asked for. */
+    it('keeps a dual-role account on its practice when orgs fail to load', async () => {
+      (loadOrgs as jest.Mock).mockRejectedValue(new Error('network'));
+      await expect(
+        resolvePostAuthRedirect({ fallbackRole: 'member', roles: ['member', 'developer'] })
+      ).resolves.toBe('/appointments');
+    });
+
+    /* The same failure, for someone who did ask for the portal, still lands there. */
+    it('sends a dual-role account to the portal on failure when it used the developer door', async () => {
+      (loadOrgs as jest.Mock).mockRejectedValue(new Error('network'));
+      globalThis.sessionStorage.setItem('devAuth', 'true');
+      await expect(
+        resolvePostAuthRedirect({ fallbackRole: 'member', roles: ['member', 'developer'] })
+      ).resolves.toBe('/developers/home');
+    });
+
     // Using the developer form is not itself an entitlement.
     it('does not divert a practice-only account that used the developer door', async () => {
       withPractice();

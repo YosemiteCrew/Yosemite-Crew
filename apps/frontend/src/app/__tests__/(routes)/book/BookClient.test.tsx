@@ -145,6 +145,33 @@ describe('BookClient', () => {
     expect(input.max).not.toBe('');
   });
 
+  /*
+   * A native date input has a clear affordance, and clearing it fires onChange
+   * with "". That reached `formatLongDay("")`, which builds
+   * `new Date("T00:00:00Z")` - an Invalid Date - and Intl throws
+   * `RangeError: Invalid time value` formatting it. The throw happened during
+   * render of a PUBLIC page, so clearing the field took the whole booking form
+   * down rather than asking for another date.
+   */
+  it('survives the reader clearing the preferred day', async () => {
+    await renderPage();
+    await waitFor(() => screen.getByRole('button', { name: '09:00' }));
+
+    const slotCallsBefore = getSlotsMock.mock.calls.length;
+
+    expect(() =>
+      fireEvent.change(screen.getByLabelText('Preferred day'), { target: { value: '' } })
+    ).not.toThrow();
+
+    // The form is still standing and still says how far ahead you can book.
+    expect(screen.getByLabelText('Preferred day')).toBeInTheDocument();
+    expect(screen.getByText(/you can book up to/)).toBeInTheDocument();
+
+    // And no request went out for a day that does not exist.
+    await waitFor(() => expect(getSlotsMock.mock.calls.length).toBe(slotCallsBefore));
+    expect(getSlotsMock).not.toHaveBeenCalledWith(expect.anything(), expect.anything(), '');
+  });
+
   it('reports a slot loading failure without pretending there are no times', async () => {
     getSlotsMock.mockRejectedValue(
       new PublicBookingRequestError('Date outside the booking window', 400)

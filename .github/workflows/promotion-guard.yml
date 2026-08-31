@@ -143,8 +143,16 @@ jobs:
       # event ever writes; left optional, a failure posted later cannot block a
       # merge. So a non-promotion and an exempt `main-direct` pull request both
       # get an explicit pass here rather than silence.
+      # `always()` is load-bearing, not decoration. Without it this step is
+      # skipped whenever "Check the head branch" above exits 1, which is exactly
+      # the disallowed pull request this context is supposed to settle for. Made
+      # required on main's ruleset, such a pull request would then sit forever on
+      # a `promotion-guard/dev-contains-main` status that no event will ever
+      # write, instead of showing the actionable rejection the step above already
+      # produced. The retarget guard is kept: a bot pull request that was moved to
+      # dev is no longer a pull request into main and needs no status at all.
       - name: dev must contain main
-        if: steps.retarget.outputs.retargeted != 'true'
+        if: always() && steps.retarget.outputs.retargeted != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BASE_REPO: ${{ github.repository }}

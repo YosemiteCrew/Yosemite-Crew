@@ -61,18 +61,64 @@ type AdmitBody = {
  * `tx.appointment.create`. It is a different source from the one
  * `withOrgPermissions()` authorises, which is why the two must be compared.
  */
+const ORGANIZATION_REFERENCE_PREFIX = "Organization/";
+
+/**
+ * One organisation id, in one spelling.
+ *
+ * `withOrgPermissions()` normalizes whitespace and nothing else - see
+ * `normalizeOrgId` in middlewares/rbac.ts - so `x-org-id: Organization/org_a`
+ * reaches this controller as `"Organization/org_a"`, while the body reference
+ * naming that same organisation resolves to `"org_a"`. Comparing the two
+ * strictly answered 403 to a caller writing to the tenant it was authorised
+ * for, which is the guard refusing valid work rather than catching an escape.
+ * Both sides go through here before they meet.
+ */
+const bareOrganisationId = (value: string): string => {
+  const trimmed = value.trim();
+  return trimmed.startsWith(ORGANIZATION_REFERENCE_PREFIX)
+    ? trimmed.slice(ORGANIZATION_REFERENCE_PREFIX.length).trim()
+    : trimmed;
+};
+
+/**
+ * The subset of an appointment body this tenant guard reads, and no more.
+ *
+ * Deliberately narrow: the service validates the full payload, and a second
+ * definition of a valid appointment here would drift from that one. What the
+ * guard cannot afford is to GUESS. `req.body` is `unknown` at runtime whatever
+ * the handler's TypeScript annotation claims, and every shape the old manual
+ * traversal failed to understand produced `undefined` - indistinguishable from
+ * "this body names no organisation", which is the branch that lets a write
+ * through with no tenant comparison at all. Parsing turns that silence into a
+ * refusal.
+ *
+ * `participant` is `nullish` because a body genuinely may not carry one, and
+ * the service rejects that downstream on its own terms. A participant list
+ * that is PRESENT but malformed is a different thing and is refused here.
+ */
+const tenantGuardBodySchema = z.object({
+  participant: z
+    .array(
+      z.object({
+        actor: z.object({ reference: z.string().nullish() }).nullish(),
+      }),
+    )
+    .nullish(),
+});
+
+type TenantGuardBody = z.infer<typeof tenantGuardBodySchema>;
+
 const resolveBodyOrganisationId = (
-  body: AppointmentRequestDTO | undefined,
+  body: TenantGuardBody,
 ): string | undefined => {
-  const participants = body?.participant;
-  if (!Array.isArray(participants)) return undefined;
-  for (const participant of participants) {
-    const reference = participant?.actor?.reference;
+  for (const participant of body.participant ?? []) {
+    const reference = participant.actor?.reference;
     if (
       typeof reference === "string" &&
-      reference.startsWith("Organization/")
+      reference.startsWith(ORGANIZATION_REFERENCE_PREFIX)
     ) {
-      const id = reference.slice("Organization/".length).trim();
+      const id = bareOrganisationId(reference);
       if (id) return id;
     }
   }
@@ -209,10 +255,23 @@ export const AppointmentController = {
         return res.status(400).json({ message: "Missing organisationId" });
       }
 
-      const bodyOrganisationId = resolveBodyOrganisationId(req.body);
+      // safeParse, not parse: `parseError` in the shared helper has no ZodError
+      // branch, so a thrown ZodError would leave here as a 500 carrying the
+      // serialised issue list. A body this guard cannot read is a bad request.
+      const parsedBody = tenantGuardBodySchema.safeParse(req.body);
+      if (!parsedBody.success) {
+        logger.warn(
+          "Rejected an appointment whose participant list could not be read",
+        );
+        return res.status(400).json({
+          message: "The appointment participants are malformed.",
+        });
+      }
+
+      const bodyOrganisationId = resolveBodyOrganisationId(parsedBody.data);
       if (
         bodyOrganisationId &&
-        bodyOrganisationId !== authorisedOrganisationId
+        bodyOrganisationId !== bareOrganisationId(authorisedOrganisationId)
       ) {
         logger.warn(
           "Rejected an appointment naming an organisation the caller is not authorised for",

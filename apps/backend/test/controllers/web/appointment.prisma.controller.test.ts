@@ -259,6 +259,68 @@ describe("AppointmentPrismaController", () => {
       expect(res.status).toHaveBeenCalledWith(400);
     });
 
+    /* `withOrgPermissions()` normalizes whitespace and nothing else, so a
+       caller sending `x-org-id: Organization/org_a` arrives here with the
+       prefix still attached while the body reference for that same practice
+       resolves to the bare `org_a`. Comparing the two spellings strictly
+       answered 403 to a caller writing to its OWN tenant, which is the guard
+       breaking valid work rather than catching an escape. */
+    it("accepts an authorised id that still carries its FHIR prefix", async () => {
+      (req as any).organisationId = "Organization/org_a";
+      req.body = bodyNaming("org_a");
+      mockedService.createAppointmentFromPms.mockResolvedValue({
+        id: "appt_5",
+      } as any);
+
+      await AppointmentController.createFromPms(req as any, res as any);
+
+      expect(mockedService.createAppointmentFromPms).toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(201);
+    });
+
+    /* Both sides prefixed is the same question asked the other way round. */
+    it("still refuses a different organisation when both carry the prefix", async () => {
+      (req as any).organisationId = "Organization/org_a";
+      req.body = bodyNaming("org_b");
+
+      await AppointmentController.createFromPms(req as any, res as any);
+
+      expect(mockedService.createAppointmentFromPms).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(403);
+    });
+
+    /* The annotation on `req.body` is erased at runtime, so a participant list
+       that is not a list of participants used to read as `undefined` - which is
+       indistinguishable from "names no organisation", the branch that lets the
+       write through with no comparison at all. It is now refused instead. */
+    it("refuses a participant list it cannot read rather than skipping the guard", async () => {
+      (req as any).organisationId = "org_a";
+      req.body = {
+        resourceType: "Appointment",
+        participant: [{ actor: { reference: 42 } }],
+      } as any;
+
+      await AppointmentController.createFromPms(req as any, res as any);
+
+      expect(mockedService.createAppointmentFromPms).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
+
+    /* A body carrying no participant key at all is a legitimate absence, not a
+       malformed one: the service rejects it on its own terms. */
+    it("does not treat an absent participant list as malformed", async () => {
+      (req as any).organisationId = "org_a";
+      req.body = { resourceType: "Appointment", participant: null } as any;
+      mockedService.createAppointmentFromPms.mockResolvedValue({
+        id: "appt_6",
+      } as any);
+
+      await AppointmentController.createFromPms(req as any, res as any);
+
+      expect(mockedService.createAppointmentFromPms).toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(201);
+    });
+
     /* A body naming no organisation is left to the service, which already
        rejects it. Inventing a tenant for an ambiguous request is not this
        guard's job. */
