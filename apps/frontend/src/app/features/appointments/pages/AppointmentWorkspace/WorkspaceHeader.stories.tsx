@@ -77,15 +77,32 @@ const meta = {
           '666px of pills in a 276px box with the third cut mid-word. With few pills the fade ' +
           'falls on empty background and costs nothing, and the two cases look nothing alike.\n\n' +
           'The stories assert the tooltip bubble has its text, not merely that a hover ' +
-          'happened - an empty bubble would pass the weaker check.',
+          'happened - an empty bubble would pass the weaker check.\n\n' +
+          'This row is the **desktop branch**. `AppointmentWorkspace` calls `useIsPhone()` ' +
+          '(`max-width: 767px`) and returns `PhoneWorkspaceShell` instead below that, so ' +
+          'WorkspaceHeader never renders on a phone and a phone-width screenshot of it is ' +
+          'not a bug report. Measured down to a 620px canvas, the row itself fits with room ' +
+          'to spare; what does not fit at that width is the `Admit` + hospitalize + Quick ' +
+          'Actions cluster, which is `shrink-0` by design and needs 429px on its own.',
       },
     },
   },
   tags: ['autodocs'],
   decorators: [
+    /* The frame carries the floor this row actually has. `AppointmentWorkspace` calls
+       `useIsPhone()` at `max-width: 767px` and returns `PhoneWorkspaceShell` instead,
+       so WorkspaceHeader has no phone rendering to get wrong - and measured at 620,
+       660, 700 and 768px canvases it overflows at none of them. Below that the Admit
+       + hospitalize + Quick Actions cluster is `shrink-0` at 429px and simply will not
+       go, which is why a 390px sweep read this desktop row as a broken phone layout.
+       min-w states the floor without capping anything (a 1280px canvas is unchanged),
+       and the scroller keeps a narrower preview from dragging the document sideways
+       rather than pretending the row fits. */
     (Story) => (
-      <div className="p-6">
-        <Story />
+      <div className="w-full overflow-x-auto">
+        <div className="min-w-[620px] p-6">
+          <Story />
+        </div>
       </div>
     ),
   ],
@@ -167,8 +184,13 @@ export const OverflowingAlerts: Story = {
   name: 'Alert strip overflowing (fade)',
   args: { alerts: MANY_ALERTS },
   decorators: [
+    /* `w-full max-w-[900px]`, not a bare `w-[900px]`. The number is here to constrain
+       the strip so the fade has something to hide, and a max-width does that at every
+       canvas; a fixed 900 also dragged the preview document 534px wide on a 390px
+       sweep, which reads as a layout bug in a component that does not render at 390
+       at all. Narrower canvases now overflow the strip harder, which is the point. */
     (Story) => (
-      <div className="w-[900px] p-6">
+      <div className="w-full max-w-[900px]">
         <Story />
       </div>
     ),
@@ -178,6 +200,12 @@ export const OverflowingAlerts: Story = {
     const strip = canvas.getByTestId('workspace-alert-strip');
     await expect(strip).toBeInTheDocument();
     await expect(within(strip).getByText('Bite risk')).toBeInTheDocument();
+
+    /* The strip really is overflowing, which nothing here asserted before - and the
+       fade is `mask-image`, so a strip that happened to fit would show no difference
+       a screenshot could catch. Without this the story could quietly stop being about
+       overflow the next time the frame around it moved. */
+    await expect(strip.scrollWidth).toBeGreaterThan(strip.clientWidth);
     // The "+" stays reachable at the end of the scrolling strip.
     await expect(within(strip).getByRole('button', { name: 'Add alert' })).toBeInTheDocument();
   },

@@ -133,8 +133,15 @@ const PackageBreakdownTable = ({
   const additionalDiscountAmt = (afterItemDiscounts * additionalDiscount) / 100;
   const totalCost = afterItemDiscounts - additionalDiscountAmt;
 
+  // `relative` on the scroller is load-bearing, not decoration. The editable header
+  // carries an `sr-only` span, which is `position: absolute` with no offsets. An
+  // absolutely positioned box is only clipped by a scroll container that sits in its
+  // containing-block chain, and a bare `overflow-x-auto` div is not positioned - so
+  // the span escaped this scroller, landed at the table's full 780px width and dragged
+  // the whole DOCUMENT to 780px on a 390px phone. The table was contained the entire
+  // time; one 1px hidden label was scrolling the page sideways.
   return (
-    <div className="w-full overflow-x-auto -mx-1 px-1">
+    <div className="relative w-full overflow-x-auto -mx-1 px-1">
       <table className="min-w-full text-body-4 text-text-primary border-separate border-spacing-0">
         <colgroup>
           <col className="w-8" />

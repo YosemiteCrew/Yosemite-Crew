@@ -18,8 +18,13 @@ const GENERIC_ROWS = [
 
 const PlannerSkeleton = () => (
   <div className="flex flex-col gap-3 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-4! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-4! lg:pb-3!">
-    {/* Title row */}
-    <div className="flex items-center justify-between gap-4">
+    {/* Title row. `flex-wrap` is the phone case, not a nicety: the subtitle bar is a
+        fixed w-72 and the three action bars are a nested flex row that will not shrink
+        below its own 264px, so on a 390px screen the row needed 568px and pushed the
+        whole page sideways - while the route it stands in for (planner: appointments,
+        tasks, the workspace) is one every phone visit loads first. Wrapping puts the
+        action bars on a second line instead. */}
+    <div className="flex flex-wrap items-center justify-between gap-4">
       <div className="flex flex-col gap-2">
         <div className={`h-7 w-44 ${shimmer}`} />
         <div className={`h-4 w-72 ${shimmer}`} />
