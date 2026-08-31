@@ -17,6 +17,13 @@ type DropdownProps = {
   icon?: React.ReactNode;
   portal?: boolean;
   noOptionsMessage?: string;
+  /**
+   * Locks the control. Needed because `internalSelected` is deliberately the
+   * source of truth for the visible label (see the comment on it), so a caller
+   * that merely ignores `onSelect` still gets a trigger that opens and a label
+   * that moves - showing an answer the record does not contain.
+   */
+  disabled?: boolean;
 };
 
 const TERMINOLOGY_LOCK_SELECTOR = "[data-terminology-lock='true']";
@@ -192,6 +199,7 @@ const LabelDropdown = ({
   icon,
   portal = true,
   noOptionsMessage,
+  disabled = false,
 }: DropdownProps) => {
   const [internalSelected, setInternalSelected] = useState<DropdownOption | null>(() =>
     findDropdownOption(options, defaultOption)
@@ -290,8 +298,10 @@ const LabelDropdown = ({
       <div className="w-full relative" ref={attachDropdownRef}>
         <button
           type="button"
+          disabled={disabled}
           className={triggerClassName(open, Boolean(error || hasError))}
           onClick={() => {
+            if (disabled) return;
             if (!open) {
               openDropdown();
             }
@@ -300,7 +310,7 @@ const LabelDropdown = ({
           aria-expanded={open}
           aria-controls={open ? listboxId : undefined}
           aria-haspopup="listbox"
-          onKeyDown={handleKeyDown}
+          onKeyDown={disabled ? undefined : handleKeyDown}
         >
           <DropdownTriggerContent
             open={open}

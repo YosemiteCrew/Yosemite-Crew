@@ -71,6 +71,7 @@ const VerifyEmail = () => {
       }
       const route = await resolvePostAuthRedirect({
         fallbackRole: useAuthStore.getState().role,
+        roles: useAuthStore.getState().roles,
       });
       router.replace(route);
     } catch {

@@ -72,10 +72,15 @@ describe('ConfirmClient', () => {
     expect(screen.getByText(/48\s*hours/)).toBeInTheDocument();
   });
 
-  it('falls back when the API returns no practice name', async () => {
+  it('writes a whole sentence when the API returns no practice name', async () => {
     confirmMock.mockResolvedValue({ practiceName: '', slug: null });
     await renderPage();
 
-    expect(screen.getByText(/The practice can now see your request/)).toBeInTheDocument();
+    // Not a placeholder spliced into the named sentence. "The practice can now
+    // see your request" reads to a pet owner like the page has lost track of
+    // who they booked with.
+    expect(
+      screen.getByText(/Your request is confirmed\. The practice will contact you/)
+    ).toBeInTheDocument();
   });
 });

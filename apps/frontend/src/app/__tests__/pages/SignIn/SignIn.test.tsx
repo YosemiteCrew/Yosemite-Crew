@@ -42,6 +42,25 @@ jest.mock('@/app/lib/postAuthRedirect', () => ({
     String(role ?? '')
       .trim()
       .toLowerCase() === 'developer',
+  /* Same reasoning as above, for the whole role set: the component asks these
+     two whether the signed-in account holds the developer role among however
+     many it has. Stubs would answer "no" for every account and the mismatch
+     tests would pass without exercising anything. */
+  hasDeveloperRole: (roles?: readonly (string | null | undefined)[] | null) =>
+    (roles ?? []).some(
+      (role) =>
+        String(role ?? '')
+          .trim()
+          .toLowerCase() === 'developer'
+    ),
+  resolveHeldRoles: (
+    roles?: readonly (string | null | undefined)[] | null,
+    singleRole?: string | null
+  ) => {
+    const named = (roles ?? []).filter((role): role is string => typeof role === 'string');
+    if (named.length > 0) return named;
+    return singleRole ? [singleRole] : [];
+  },
 }));
 
 // Mock the shared marketing foundation (AuthShell / AuthBrandContent) so its
@@ -334,6 +353,9 @@ describe('SignIn Page', () => {
     expect(mockSignIn).toHaveBeenCalledWith('test@example.com', 'pass123');
     expect(resolvePostAuthRedirect).toHaveBeenCalledWith({
       fallbackRole: undefined,
+      // The whole role set goes with the single role, so an account holding
+      // both a practice role and the developer one is not collapsed to one.
+      roles: [],
       redirectPath: undefined,
     });
     expect(mockRouterReplace).toHaveBeenCalledWith('/create-org');
@@ -359,6 +381,9 @@ describe('SignIn Page', () => {
     expect(mockSessionStorage.setItem).toHaveBeenCalledWith('devAuth', 'true');
     expect(resolvePostAuthRedirect).toHaveBeenCalledWith({
       fallbackRole: undefined,
+      // The whole role set goes with the single role, so an account holding
+      // both a practice role and the developer one is not collapsed to one.
+      roles: [],
       redirectPath: undefined,
     });
   });

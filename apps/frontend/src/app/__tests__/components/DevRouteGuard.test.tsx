@@ -65,6 +65,52 @@ describe('DevRouteGuard', () => {
     expect(mockRedirect).toHaveBeenCalledWith('/developers/signin');
   });
 
+  // An account can hold the practice role and the developer role at once. The
+  // guard used to compare only `role`, which is whichever single role
+  // `/v1/auth/me` surfaced, so a dual-role account was shown the rejection
+  // screen on a portal it is entitled to.
+  describe('accounts holding more than one role', () => {
+    const renderGuard = (state: Record<string, unknown>) => {
+      mockUseAuthStore.mockImplementation(
+        () => ({ status: 'authenticated', signout: jest.fn(), ...state }) as any
+      );
+      return render(
+        <DevRouteGuard>
+          <div>child</div>
+        </DevRouteGuard>
+      );
+    };
+
+    it('admits an account whose developer role is not the one surfaced as `role`', () => {
+      const { getByText } = renderGuard({ role: 'member', roles: ['member', 'developer'] });
+      expect(getByText('child')).toBeInTheDocument();
+    });
+
+    it('admits it regardless of the order the role store returns', () => {
+      const { getByText } = renderGuard({ role: 'member', roles: ['developer', 'member'] });
+      expect(getByText('child')).toBeInTheDocument();
+    });
+
+    it('still rejects an account that holds no developer role', () => {
+      const { queryByText, getByText } = renderGuard({
+        role: 'member',
+        roles: ['member', 'owner'],
+      });
+      expect(queryByText('child')).not.toBeInTheDocument();
+      expect(getByText(/isn.t a developer account/i)).toBeInTheDocument();
+    });
+
+    it('falls back to the single role when the API sent no role list', () => {
+      const { getByText } = renderGuard({ role: 'developer', roles: [] });
+      expect(getByText('child')).toBeInTheDocument();
+    });
+
+    it('normalises casing and padding before deciding', () => {
+      const { getByText } = renderGuard({ role: 'member', roles: ['member', '  Developer  '] });
+      expect(getByText('child')).toBeInTheDocument();
+    });
+  });
+
   it('keeps the session and explains itself when authenticated without developer role', () => {
     const signout = jest.fn();
     mockUseAuthStore.mockImplementation(() => ({

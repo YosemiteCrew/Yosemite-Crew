@@ -19,23 +19,28 @@ const GITHUB_EDIT_URL = 'https://github.com/YosemiteCrew/Yosemite-Crew/tree/dev/
 type NavItem = { id: string; label: string };
 type NavSection = { heading: string; items: NavItem[] };
 
+/*
+ * Only surfaces that exist are listed.
+ *
+ * A "Webhooks" page used to sit here describing signed event deliveries and a
+ * signing secret. There is no WebhookSubscription model in the schema and no
+ * route that delivers one, so the page documented a feature that had never
+ * been built. Removed rather than relabelled: a developer does not need a
+ * roadmap entry in an API reference.
+ */
 const NAV: NavSection[] = [
   {
     heading: 'Getting started',
     items: [
       { id: 'overview', label: 'Overview' },
       { id: 'authentication', label: 'Authentication' },
-      { id: 'appointments', label: 'Appointments API' },
-      { id: 'patients', label: 'Patients API' },
-      { id: 'webhooks', label: 'Webhooks' },
+      { id: 'appointments', label: 'Appointments' },
+      { id: 'companions', label: 'Companions' },
     ],
   },
   {
     heading: 'Guides',
-    items: [
-      { id: 'plugin', label: 'Build a plugin' },
-      { id: 'fhir', label: 'FHIR resources' },
-    ],
+    items: [{ id: 'fhir', label: 'FHIR resources' }],
   },
 ];
 
@@ -45,56 +50,51 @@ type Article = {
   version: string;
   title: string;
   summary: string;
+  /*
+   * Identifiers that appear in the article's RENDERED detail but not in its
+   * summary - the endpoint path, the permission, the stored status.
+   *
+   * Without these, a reader could see `appointments:edit:any` on screen, type it
+   * into the search box, and get "No matches", because the detail lives in JSX
+   * rather than in this data. Duplicating strings invites drift, so a test
+   * asserts every term here actually appears in that article once rendered.
+   */
+  searchTerms?: string[];
 };
 
 const ARTICLES: Record<string, Article> = {
   overview: {
     category: 'Getting started',
     crumb: 'Overview',
-    version: 'v2 · STABLE',
+    version: 'v1',
     title: 'Overview',
     summary:
-      'The Yosemite Crew API lets integrations read and write clinical data over a FHIR R4 surface. Start with authentication, then explore the Appointments and Patients resources.',
+      'The Yosemite Crew API is a FHIR R4 surface served under /fhir/v1, alongside a set of application endpoints under /v1. Requests are authorised with the session your account already holds. A generated reference is in the full documentation. Treat it as partial rather than complete: it declares four appointment paths where the router serves twenty-one, and it does not list the x-org-id header that organisation-scoped routes require, so a request built straight from it is rejected before reaching a controller.',
   },
   authentication: {
     category: 'Getting started',
     crumb: 'Authentication',
-    version: 'v2 · STABLE',
+    version: 'v1',
     title: 'Authentication',
     summary:
-      'Requests are authorized with a scoped bearer key. Create a key in the developer portal and send it as an Authorization header on every request.',
+      'Requests are authorised with the signed-in session, and organisation-scoped routes read the practice from an x-org-id header. Two limits worth knowing before you start. API keys created in this portal are not yet accepted anywhere: the key-authentication middleware exists but is mounted on no route. And a developer-only account has no practice membership and no role in the permission model, so organisation-scoped routes answer 400 or 403 for it. Today the API is reachable with a session belonging to a practice member; a developer account can browse this reference but cannot yet call the org-scoped surfaces it describes.',
   },
   appointments: {
     category: 'APIs',
     crumb: 'Appointments',
-    version: 'v2 · STABLE',
-    title: 'Create an appointment',
+    version: 'v1',
+    title: 'Appointments',
+    searchTerms: ['/fhir/v1/appointment/pms', 'appointments:edit:any', 'x-org-id', 'UPCOMING'],
     summary:
-      "Creates a booking request in the clinic's schedule. The request lands in the clinic's Appointments board and follows the same confirmation flow as the public booking page.",
+      "Appointments are FHIR R4 Appointment resources under /fhir/v1/appointment. Practice writes go to /pms and mobile ones to /mobile; there is no route at the collection root. Writes land in the clinic's schedule and read back from the same router.",
   },
-  patients: {
+  companions: {
     category: 'APIs',
-    crumb: 'Patients',
-    version: 'v2 · STABLE',
-    title: 'Patients API',
+    crumb: 'Companions',
+    version: 'v1',
+    title: 'Companions',
     summary:
-      'Read and write patient records as FHIR R4 Patient resources. Anything written here reads back identically from the FHIR endpoint.',
-  },
-  webhooks: {
-    category: 'Getting started',
-    crumb: 'Webhooks',
-    version: 'v2 · STABLE',
-    title: 'Webhooks',
-    summary:
-      'Subscribe to platform events and receive signed deliveries at your endpoint. Verify the signature with your signing secret before acting on a payload.',
-  },
-  plugin: {
-    category: 'Guides',
-    crumb: 'Build a plugin',
-    version: 'GUIDE',
-    title: 'Build a plugin',
-    summary:
-      'Package your integration as a plugin so clinics can install it in a few clicks. This guide walks through scaffolding, scopes, and submission.',
+      'Animals are companions, served under /fhir/v1/companion and mapped to FHIR R4 Patient resources. If you are looking for a "patients" endpoint, this is it - the platform is multi-species, so the domain word is companion.',
   },
   fhir: {
     category: 'Guides',
@@ -102,24 +102,71 @@ const ARTICLES: Record<string, Article> = {
     version: 'GUIDE',
     title: 'FHIR resources',
     summary:
-      'Every clinical object on the platform maps to a FHIR R4 resource. This reference lists the supported resources and their compatibility notes.',
+      'Clinical objects map to FHIR R4 resources under /fhir/v1. The generated OpenAPI reference in the full documentation lists the routes. It was generated once and committed rather than rebuilt, so treat it as a good map and the routers as the territory.',
   },
 };
 
+/*
+ * A sample that works if pasted.
+ *
+ * This block used to POST to `https://api.yosemitecrew.com/v2/appointments`
+ * with `Authorization: Bearer $YC_KEY`. There is no /v2 - the mounted prefixes
+ * are /fhir, /v1, /public and /ap - and no route accepts an API key, so anyone
+ * following it got a 404 from an endpoint this page badged STABLE.
+ *
+ * Three details that are easy to get wrong even after fixing the path, and that
+ * a first correction here did get wrong:
+ * - the org comes from an `Organization/...` PARTICIPANT, not from `x-org-id`.
+ *   `fromFHIRAppointment` falls back to `unknown-org`, which 404s. The header is
+ *   read by the permission middleware only.
+ * - the submitted `status` is ignored: `createAppointmentFromPms` calls
+ *   `createAppointment(dto, "UPCOMING")`, so a response can never echo
+ *   `proposed`.
+ * - the host is not hardcoded, because the session is issued for whichever
+ *   origin `NEXT_PUBLIC_BASE_URL` names.
+ * - the COMPANION'S PARENT is required, as a `RelatedPerson/...` participant.
+ *   `fromFHIRAppointment` (packages/types/src/appointment.ts) reads the parent
+ *   from that reference and falls back to `unknown-owner` without it;
+ *   `createAppointment` then hands that literal to
+ *   `assertParentManagesCompanion` and the write is refused. A sample missing
+ *   it fails just as reliably as the /v2 path did, only later and with a less
+ *   obvious message.
+ * - `end`, `minutesDuration` and `serviceType` are read too: `endTime` falls
+ *   back to "now" and `durationMinutes` to 0 when they are absent, so the
+ *   appointment lands at a time nobody asked for.
+ */
 const CURL_SAMPLE = String.raw`curl -X POST \
-  https://api.yosemitecrew.com/v2/appointments \
-  -H "Authorization: Bearer $YC_KEY" \
+  "$YC_API_BASE"/fhir/v1/appointment/pms \
+  -H "Content-Type: application/json" \
+  -H "x-org-id: $YC_ORG_ID" \
+  --cookie "$YC_SESSION" \
   -d '{
-    "patient": "Patient/pat_poppy_812",
-    "serviceType": "wellness",
+    "resourceType": "Appointment",
     "start": "2026-07-17T10:30:00+02:00",
-    "comment": "Ear recheck + ALP"
+    "end": "2026-07-17T11:00:00+02:00",
+    "minutesDuration": 30,
+    "serviceType": [
+      {
+        "coding": [
+          {
+            "system": "http://example.org/appointment-types",
+            "code": "<appointment-type-id>",
+            "display": "Wellness exam"
+          }
+        ],
+        "text": "Wellness exam"
+      }
+    ],
+    "participant": [
+      { "actor": { "reference": "Organization/<practice-id>" } },
+      { "actor": { "reference": "Patient/<companion-id>" } },
+      { "actor": { "reference": "RelatedPerson/<parent-id>" } }
+    ]
   }'`;
 
 const RESPONSE_SAMPLE = `{
-  "resourceType": "Appointment",
-  "id": "apt_9k2f",
-  "status": "proposed"
+  "message": "Appointment created",
+  "data": { "resourceType": "Appointment", "status": "UPCOMING" }
 }`;
 
 const copyText = async (value: string): Promise<boolean> => {
@@ -146,9 +193,28 @@ const DeveloperDocs = () => {
   const filteredNav = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return NAV;
+    /*
+     * Search the article, not just the rail label.
+     *
+     * Matching labels alone made the search only as good as the shortest name
+     * in the rail. "api" - the first thing anyone types in an API reference -
+     * returned "No matches" the moment the labels stopped happening to contain
+     * the word, and the same held for any term a reader knows from the content
+     * rather than from the navigation.
+     */
+    const matches = (item: NavItem) => {
+      const article = ARTICLES[item.id];
+      return [
+        item.label,
+        article?.category,
+        article?.title,
+        article?.summary,
+        ...(article?.searchTerms ?? []),
+      ].some((field) => field?.toLowerCase().includes(q));
+    };
     return NAV.map((section) => ({
       ...section,
-      items: section.items.filter((item) => item.label.toLowerCase().includes(q)),
+      items: section.items.filter(matches),
     })).filter((section) => section.items.length > 0);
   }, [query]);
 
@@ -254,16 +320,28 @@ const DeveloperDocs = () => {
                   <>
                     <div className="DocsEndpoint">
                       <span className="DocsMethod">POST</span>
-                      <span className="DocsEndpointPath">/v2/appointments</span>
-                      <span className="DocsEndpointScope">Scope: appointments:write</span>
+                      <span className="DocsEndpointPath">/fhir/v1/appointment/pms</span>
+                      <span className="DocsEndpointScope">appointments:edit:any</span>
                     </div>
                     <p className="DocsArticleText">
-                      <strong>Required fields</strong> —{' '}
-                      <code className="DocsInlineCode">patient</code> (FHIR reference),{' '}
-                      <code className="DocsInlineCode">serviceType</code>, and{' '}
-                      <code className="DocsInlineCode">start</code>. Omit{' '}
-                      <code className="DocsInlineCode">practitioner</code> to let the clinic assign
-                      one.
+                      <strong>This is a practice surface, not a developer one.</strong> It needs an
+                      active practice membership and{' '}
+                      <code className="DocsInlineCode">appointments:edit:any</code>, and a
+                      developer-only account holds neither - there is no developer role in the
+                      permission model, so signing up through the developer door grants no
+                      organisation access. Calling it with a developer session returns 400 or 403.
+                      It is documented because it is the shape the API takes, not because you can
+                      call it today.
+                    </p>
+                    <p className="DocsArticleText">
+                      The body is a FHIR R4 Appointment, and the practice is read from an{' '}
+                      <code className="DocsInlineCode">Organization</code> participant rather than
+                      from <code className="DocsInlineCode">x-org-id</code>, which the permission
+                      middleware reads separately. There is no route at the collection root - the
+                      practice surface is <code className="DocsInlineCode">/pms</code> and the
+                      mobile one is <code className="DocsInlineCode">/mobile</code>. The submitted{' '}
+                      <code className="DocsInlineCode">status</code> is ignored; a created
+                      appointment is stored as <code className="DocsInlineCode">UPCOMING</code>.
                     </p>
                     <div className="DocsNote">
                       <IoBulbOutline

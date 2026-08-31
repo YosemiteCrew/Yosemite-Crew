@@ -138,12 +138,19 @@ const Availability: React.FC<AvailabilityProps> = ({
 
   // Table-style row: toggle | day name | ranges | actions, separated by a hairline
   // rule inside one card. The row being edited lifts onto the soft warm wash.
+  //
+  // The four columns need 40 + 96 + 208 (two 100px time chips and their gap) +
+  // 64 (two 28px circles) plus gaps and padding - about 500px, which ran the Add
+  // and Duplicate buttons clean off a 390px screen. They are the only way to add
+  // a second range or copy a day, so on a phone the row was not merely clipped,
+  // it was unusable. Below `sm` the ranges drop to their own line underneath and
+  // the actions stay on the first one, next to the day they act on.
   const renderDayRow = (day: string) => {
     const { enabled, intervals } = availability[day];
     return (
       <div
         key={day}
-        className="grid break-inside-avoid grid-cols-[40px_96px_1fr_auto] items-center gap-3.5 border-t px-6 py-3 transition-colors focus-within:bg-[var(--surface-soft)]"
+        className="grid break-inside-avoid grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-x-3.5 gap-y-2.5 border-t px-4 py-3 transition-colors focus-within:bg-[var(--surface-soft)] sm:grid-cols-[40px_96px_minmax(0,1fr)_auto] sm:gap-3.5 sm:px-6"
         style={{ borderTopColor: 'var(--hairline)' }}
       >
         <DayToggle
@@ -163,7 +170,7 @@ const Availability: React.FC<AvailabilityProps> = ({
         </span>
 
         {enabled ? (
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="col-start-2 col-end-4 row-start-2 flex flex-wrap items-center gap-2 sm:col-auto sm:row-auto">
             {intervals.map((interval: Interval, i: number) => {
               const endOptions = getEndOptions(interval.start);
               return (
@@ -205,12 +212,18 @@ const Availability: React.FC<AvailabilityProps> = ({
             })}
           </div>
         ) : (
-          <span className="text-[12.5px]" style={{ color: 'var(--ink-faint)' }}>
+          /* A closed day has no ranges and no actions, so it does not need the
+             second line the ranges take - it sits on the first one, in the
+             column the action circles would have used. */
+          <span
+            className="col-start-3 row-start-1 justify-self-end text-[12.5px] sm:col-auto sm:row-auto sm:justify-self-auto"
+            style={{ color: 'var(--ink-faint)' }}
+          >
             Day off
           </span>
         )}
 
-        <div className="flex items-center gap-2">
+        <div className="col-start-3 row-start-1 flex items-center justify-end gap-2 sm:col-auto sm:row-auto">
           {enabled && !readOnly && (
             <>
               <CircleAction label={`Add range for ${day}`} onClick={() => addInterval(day)}>

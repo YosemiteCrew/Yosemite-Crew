@@ -7,6 +7,11 @@ import Secondary from '@/app/ui/primitives/Buttons/Secondary';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useNotify } from '@/app/hooks/useNotify';
 
+/* The <dialog> is what a screen reader announces, and the visible heading does not
+   name it on its own - without wiring this id through, the dialog is announced
+   unnamed. */
+const TITLE_ID = 'add-speciality-modal-title';
+
 type AddSpecialityModalProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
@@ -59,8 +64,13 @@ const AddSpecialityModal = ({
   };
 
   return (
-    <CenterModal showModal={showModal} setShowModal={setShowModal} onClose={handleClose}>
-      <ModalHeader title="Add speciality" onClose={handleClose} />
+    <CenterModal
+      showModal={showModal}
+      setShowModal={setShowModal}
+      onClose={handleClose}
+      ariaLabelledBy={TITLE_ID}
+    >
+      <ModalHeader title="Add speciality" onClose={handleClose} titleId={TITLE_ID} />
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         <FormInput
           intype="text"

@@ -72,7 +72,11 @@ say "checkout $GIT_REF"
 # parent ref breaking the whole fetch, and a qualified `origin/dev` being sent to
 # the remote as a branch name - are covered by tests/git-sync.test.sh against a
 # real remote, rather than only being found on a live box.
-deploy_git_sync "$REPO_DIR" "$GIT_REF"
+#
+# REQUIRE_PROMOTED_FROM names the branch a commit must have reached before this
+# host will run it. Set for production, empty for dev - dev is where things are
+# meant to arrive first.
+deploy_git_sync "$REPO_DIR" "$GIT_REF" "${REQUIRE_PROMOTED_FROM:-}"
 
 say "install"
 pnpm install --frozen-lockfile

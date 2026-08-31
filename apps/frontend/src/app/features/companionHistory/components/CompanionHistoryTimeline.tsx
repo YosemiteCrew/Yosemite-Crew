@@ -639,6 +639,19 @@ const getLabResults = (entry: HistoryEntry): DetailPair[] => {
   });
 };
 
+/**
+ * Four columns at 160 + 120 + 120 + 100 plus three 12px gaps: the grid cannot
+ * render narrower than 536px, which is 179px past a 390px phone. Left in the
+ * page flow it pushed the whole history screen into a horizontal scroll and
+ * carried the Meter column off the side of its own card.
+ *
+ * The columns are kept and the TABLE scrolls instead, inside its card. Nothing
+ * is dropped - a lab panel is read by comparing a value against its reference
+ * interval, so hiding either column on a phone would defeat the panel - and the
+ * page itself stops moving sideways.
+ */
+const RESULTS_GRID = 'grid grid-cols-[minmax(160px,1fr)_120px_120px_100px] gap-3 min-w-[536px]';
+
 export const StructuredResultsPanel = ({
   entry,
   results,
@@ -646,8 +659,8 @@ export const StructuredResultsPanel = ({
   entry: HistoryEntry;
   results: DetailPair[];
 }) => (
-  <div className="mt-3 rounded-2xl border border-card-border px-4 py-3">
-    <div className="yc-table-head yc-table-head--static grid grid-cols-[minmax(160px,1fr)_120px_120px_100px] gap-3 px-0!">
+  <div className="mt-3 overflow-x-auto rounded-2xl border border-card-border px-4 py-3">
+    <div className={`yc-table-head yc-table-head--static ${RESULTS_GRID} px-0!`}>
       <span>Test</span>
       <span>Value</span>
       <span>Reference</span>
@@ -656,7 +669,7 @@ export const StructuredResultsPanel = ({
     {results.map((result) => (
       <div
         key={`${entry.id}-${result.label}`}
-        className="grid grid-cols-[minmax(160px,1fr)_120px_120px_100px] gap-3 py-1.5"
+        className={`${RESULTS_GRID} py-1.5`}
         style={TABLE_DATA_STYLE}
       >
         <span className="font-bold text-neutral-900">{result.label}</span>

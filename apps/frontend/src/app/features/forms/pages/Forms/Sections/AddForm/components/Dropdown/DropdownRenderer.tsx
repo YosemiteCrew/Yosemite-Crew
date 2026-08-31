@@ -14,6 +14,10 @@ const DropdownRenderer: React.FC<{
 
   const options = useMemo(() => field.options ?? [], [field.options]);
   const hasValidOptions = options?.length > 0;
+  /* Names the group in the radio/checkbox branches. Generated rather than derived
+     from `field.id` because two renderers mounted for the same field would then
+     emit the same DOM id and aria-labelledby would resolve to whichever came
+     first - the trap the shared radio `name` already has. */
 
   if (!hasValidOptions) {
     return null;
@@ -37,8 +41,16 @@ const DropdownRenderer: React.FC<{
     };
 
     return (
-      <div className="flex flex-col gap-2">
-        <div className="font-satoshi text-black-text text-[16px] font-medium">{field.label}</div>
+      <fieldset className="m-0 min-w-0 border-0 p-0">
+        {/* A real <fieldset>/<legend>, not a div with role="group": the house rule is
+           no ARIA role where a native element exists, and a legend is what actually
+           attaches the question to the controls. Without the grouping a screen reader
+           reads loose inputs and never announces what is being asked - the composed
+           aria-label on each input was carrying the whole question by itself. The UA
+           border, margin and padding are reset so the layout is unchanged. */}
+        <legend className="mb-2 float-none p-0 font-satoshi text-black-text text-[16px] font-medium">
+          {field.label}
+        </legend>
         <div className="flex flex-col gap-2">
           {options.map((opt) => (
             <label
@@ -57,15 +69,23 @@ const DropdownRenderer: React.FC<{
             </label>
           ))}
         </div>
-      </div>
+      </fieldset>
     );
   }
 
   if (field.type === 'radio') {
     const selected = typeof displayValue === 'string' ? displayValue : '';
     return (
-      <div className="flex flex-col gap-2">
-        <div className="font-satoshi text-black-text text-[16px] font-medium">{field.label}</div>
+      <fieldset className="m-0 min-w-0 border-0 p-0">
+        {/* A real <fieldset>/<legend>, not a div with role="group": the house rule is
+           no ARIA role where a native element exists, and a legend is what actually
+           attaches the question to the controls. Without the grouping a screen reader
+           reads loose radios and never announces what is being asked - the composed
+           aria-label on each input was carrying the whole question by itself. The UA
+           border, margin and padding are reset so the layout is unchanged. */}
+        <legend className="mb-2 float-none p-0 font-satoshi text-black-text text-[16px] font-medium">
+          {field.label}
+        </legend>
         <div className="flex flex-col gap-2">
           {options.map((opt) => (
             <label
@@ -85,7 +105,7 @@ const DropdownRenderer: React.FC<{
             </label>
           ))}
         </div>
-      </div>
+      </fieldset>
     );
   }
 
@@ -94,6 +114,12 @@ const DropdownRenderer: React.FC<{
       <LabelDropdown
         placeholder={field.label || ''}
         defaultOption={displayValue ?? ''}
+        /* Guarding only `onSelect` was not enough: LabelDropdown holds its own
+           selected label, so a read-only field still opened and still moved its
+           visible answer while onChange never fired - the preview then showed a
+           value the record did not contain. The radio and checkbox branches
+           below already disable their inputs; this makes the select match. */
+        disabled={isReadOnly}
         onSelect={(option) => !isReadOnly && onChange(option.value)}
         options={options.map((opt) => ({
           label: opt.label,

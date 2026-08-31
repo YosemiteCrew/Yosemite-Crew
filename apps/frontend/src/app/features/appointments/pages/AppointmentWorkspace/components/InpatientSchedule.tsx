@@ -11,6 +11,7 @@ import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContai
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
+import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
 import { getAppointmentStatusTone, getStatusStyle } from '@/app/config/statusConfig';
 import type { ScheduleTask, ScheduleTaskStatus } from '@/app/features/appointments/types/workspace';
 import type { TemplateLike } from '@yosemite-crew/types';
@@ -60,6 +61,24 @@ const formatStatusLabel = (status: ScheduleTaskStatus): string =>
   STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+/**
+ * The five fixed row columns need roughly 600px, which ran ~160px past a 390px
+ * phone and took the whole workspace into a sideways scroll - the Treatment step
+ * is reached on a phone through `PhoneWorkspaceShell`, which reuses this step
+ * verbatim. On a phone the row stacks into ONE column instead.
+ *
+ * Wrapping the table in an `overflow-x` scroller was tried first and is wrong
+ * here: that also clips the y axis, and the status menu does not portal, so a
+ * menu opened on a lower row lost its bottom 112px on desktop. Changing the
+ * template clips nothing.
+ *
+ * Module scope on purpose: react-doctor's `no-giant-component` measures the
+ * component's own body, and this explanation inside it pushed InpatientSchedule
+ * over the threshold.
+ */
+const scheduleRowColumns = (isPhone: boolean, assigneeColumnWidthCh: number): string =>
+  isPhone ? 'minmax(0, 1fr)' : `150px minmax(0, 1fr) ${assigneeColumnWidthCh}ch 140px 72px`;
 
 const formatTimelineLabel = (task: ScheduleTask): { primary: string; secondary?: string } => {
   const dateLabel = task.startDate ? formatStampDate(task.startDate) : undefined;
@@ -289,8 +308,10 @@ const InpatientSchedule = ({
     gridTemplateColumns: `96px 20px 150px minmax(0, 1fr) ${assigneeColumnWidthCh}ch 140px 72px`,
   };
 
+  const isPhone = useIsPhone();
+
   const scheduleRowGridStyle: React.CSSProperties = {
-    gridTemplateColumns: `150px minmax(0, 1fr) ${assigneeColumnWidthCh}ch 140px 72px`,
+    gridTemplateColumns: scheduleRowColumns(isPhone, assigneeColumnWidthCh),
   };
 
   return (
@@ -383,7 +404,7 @@ const InpatientSchedule = ({
           return (
             <li
               key={task.id}
-              className="grid grid-cols-[96px_20px_1fr] items-center gap-4 lg:gap-6"
+              className="grid grid-cols-[56px_16px_minmax(0,1fr)] items-center gap-3 sm:grid-cols-[96px_20px_1fr] sm:gap-4 lg:gap-6"
             >
               {/* Timeline column: keep the time text centered against the row body. */}
               {(() => {

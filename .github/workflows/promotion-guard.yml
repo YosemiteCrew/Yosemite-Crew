@@ -17,9 +17,16 @@ on:
     # waiting forever on a status instead of getting the actionable error.
     types: [opened, reopened, synchronize, edited, labeled, unlabeled]
     branches: [main]
+  # A pull_request_target check is a snapshot of the moment it ran. It re-runs
+  # when the HEAD moves (`synchronize`) but never when the BASE does, so a
+  # promotion that passed the ancestry check below stays green after main
+  # advances - and can then merge while dev is missing the newer main commit,
+  # which is the state the check exists to refuse. Re-evaluate on main pushes.
+  push:
+    branches: [main]
 
 concurrency:
-  group: promotion-guard-${{ github.event.pull_request.number }}
+  group: promotion-guard-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
 # pull_request_target runs against the BASE repository, so it must never check
@@ -28,10 +35,12 @@ concurrency:
 permissions:
   contents: read
   pull-requests: write
+  statuses: write
 
 jobs:
   guard:
     name: Only dev may merge into main
+    if: github.event_name == 'pull_request_target'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -113,3 +122,153 @@ jobs:
           fi
 
           echo "Head branch is dev - promotion allowed."
+
+      # dev must CONTAIN main before dev can be promoted into it again.
+      #
+      # Promotion merges dev into main, so anything sitting on main that dev does
+      # not have is not carried by the next promotion - it is simply left behind,
+      # and the promotion diff makes it look like a deletion. back-merge.yml opens
+      # a pull request to prevent exactly this, but opening one enforces nothing:
+      # on 2026-08-30 back-merge #2568 sat unmerged and dev was missing a commit
+      # that main had while a promotion was being prepared on top of it.
+      #
+      # Read through the compare API rather than a checkout: this workflow runs as
+      # pull_request_target and must never fetch the pull request's code.
+      # Publishes `promotion-guard/dev-contains-main` on EVERY pull request into
+      # main, including the ones it does not apply to.
+      #
+      # Publishing only on failure, or only from the push job, breaks whichever
+      # way the context is configured: made required, a freshly opened or
+      # synchronized promotion would wait forever for a status no pull-request
+      # event ever writes; left optional, a failure posted later cannot block a
+      # merge. So a non-promotion and an exempt `main-direct` pull request both
+      # get an explicit pass here rather than silence.
+      # `always()` is load-bearing, not decoration. Without it this step is
+      # skipped whenever "Check the head branch" above exits 1, which is exactly
+      # the disallowed pull request this context is supposed to settle for. Made
+      # required on main's ruleset, such a pull request would then sit forever on
+      # a `promotion-guard/dev-contains-main` status that no event will ever
+      # write, instead of showing the actionable rejection the step above already
+      # produced. The retarget guard is kept: a bot pull request that was moved to
+      # dev is no longer a pull request into main and needs no status at all.
+      - name: dev must contain main
+        if: always() && steps.retarget.outputs.retargeted != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_REPO: ${{ github.repository }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          set -euo pipefail
+
+          post() { # post <state> <description>
+            gh api -X POST "repos/${BASE_REPO}/statuses/${HEAD_SHA}" \
+              -f state="$1" \
+              -f context="promotion-guard/dev-contains-main" \
+              -f description="$2" >/dev/null
+          }
+
+          # The escape hatch and non-promotions are not subject to the ancestry
+          # rule, but still need the context so a required check can settle.
+          if [[ "${HEAD_REF}" != "dev" ]]; then
+            post success "not a dev-to-main promotion"
+            echo "Head is '${HEAD_REF}', not dev - ancestry rule does not apply."
+            exit 0
+          fi
+          if [[ ",${LABELS}," == *",main-direct,"* ]]; then
+            post success "main-direct: exempt"
+            echo "main-direct label present - exempt from the ancestry rule."
+            exit 0
+          fi
+
+          # Resolve to immutable SHAs before comparing.
+          #
+          # Comparing the branch NAMES and then reading a head separately lets the
+          # two disagree: dev can move between the comparison and the status, and
+          # a result computed for one tree gets attached to another. Everything
+          # below is about two fixed commits.
+          DEV_SHA="$(gh api "repos/${BASE_REPO}/commits/dev" --jq '.sha')"
+          MAIN_SHA="$(gh api "repos/${BASE_REPO}/commits/main" --jq '.sha')"
+
+          # `<dev>...<main>` describes main RELATIVE TO dev, so ahead_by counts the
+          # commits main holds that dev does not.
+          AHEAD="$(gh api "repos/${BASE_REPO}/compare/${DEV_SHA}...${MAIN_SHA}" --jq '.ahead_by')"
+          echo "dev ${DEV_SHA:0:9} vs main ${MAIN_SHA:0:9}: ahead_by=${AHEAD}"
+
+          if [[ "${AHEAD}" -gt 0 ]]; then
+            post failure "dev is missing ${AHEAD} commit(s) that are on main"
+            echo "::error::dev is missing ${AHEAD} commit(s) that are on main, so this promotion would leave them behind. Merge the open back-merge pull request (back-merge.yml opens one on every push to main) into dev first, then re-run this check."
+            exit 1
+          fi
+
+          post success "dev contains main"
+          echo "dev contains main - nothing would be left behind."
+
+  # The other half of the snapshot problem above: when main moves, walk the open
+  # dev-to-main promotions and restate the ancestry result as a commit status on
+  # each one's head. A promotion that was green before the push goes red here
+  # until the back-merge lands, instead of staying green on stale information.
+  #
+  # Mark `promotion-guard/dev-contains-main` required on main's ruleset for this
+  # to block rather than merely report.
+  recheck:
+    name: Re-check open promotions when main moves
+    if: github.event_name == 'push' && github.repository_owner == 'YosemiteCrew'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Restate dev-contains-main on every open promotion
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          # Immutable SHAs, for the same reason as the guard job: comparing branch
+          # names and then reading heads separately lets a result computed for one
+          # tree be attached to another.
+          DEV_SHA="$(gh api "repos/${BASE_REPO}/commits/dev" --jq '.sha')"
+          MAIN_SHA="$(gh api "repos/${BASE_REPO}/commits/main" --jq '.sha')"
+          AHEAD="$(gh api "repos/${BASE_REPO}/compare/${DEV_SHA}...${MAIN_SHA}" --jq '.ahead_by')"
+          echo "dev ${DEV_SHA:0:9} vs main ${MAIN_SHA:0:9}: ahead_by=${AHEAD}"
+
+          if [[ "${AHEAD}" -gt 0 ]]; then
+            STATE=failure
+            DESC="dev is missing ${AHEAD} commit(s) that are on main"
+          else
+            STATE=success
+            DESC="dev contains main"
+          fi
+          echo "${DESC}"
+
+          # Only dev-headed promotions. A main-direct pull request is exempt for
+          # the same reason it is exempt in the guard job above.
+          # `--head dev` filters SERVER-side. Without it `gh pr list` returns its
+          # default 30 items and the dev filter below runs on whatever came back,
+          # so with more than 30 pull requests open against main the promotion can
+          # be missed entirely - and a missed promotion keeps its earlier success
+          # while dev goes stale, which is the exact failure this job exists to
+          # prevent.
+          PRS="$(gh pr list --repo "${BASE_REPO}" --base main --head dev --state open \
+                   --json number,headRefName,headRefOid,labels \
+                   --jq '.[] | select(.headRefName == "dev")
+                             | select([.labels[].name] | index("main-direct") | not)
+                             | "\(.number) \(.headRefOid)"')"
+
+          if [[ -z "${PRS}" ]]; then
+            echo "No open dev-to-main promotion to restate."
+            exit 0
+          fi
+
+          # A promotion whose head moves after this listing gets its status from the
+          # pull-request path, which publishes on every synchronize - so a stale
+          # head here is superseded rather than left as the last word.
+          while read -r NUMBER SHA; do
+            [[ -z "${NUMBER}" ]] && continue
+            echo "PR #${NUMBER} (${SHA}) -> ${STATE}"
+            gh api -X POST "repos/${BASE_REPO}/statuses/${SHA}" \
+              -f state="${STATE}" \
+              -f context="promotion-guard/dev-contains-main" \
+              -f description="${DESC}" >/dev/null
+          done <<< "${PRS}"

@@ -51,7 +51,17 @@ const CompanionIdCard = ({ card }: CompanionIdCardProps) => {
     : undefined;
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-card-border bg-white p-5">
+    // data-yc-surface="light" for the same reason as PetPassportView: this card
+    // is a literal `bg-white` - --color-white is documented as intentionally
+    // never re-pointed - while its text-text-primary / text-text-secondary inks
+    // are theme tokens that flip. Until (share) got a layout the pairing was
+    // unreachable, because /card never resolved a dark theme at all; giving the
+    // group a layout is exactly what makes it reachable, so the pin ships with
+    // it rather than after it.
+    <div
+      data-yc-surface="light"
+      className="flex flex-col gap-4 rounded-2xl border border-card-border bg-white p-5"
+    >
       <div className="flex items-center gap-3">
         <Image
           alt={identity.name}

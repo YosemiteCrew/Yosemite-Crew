@@ -1,6 +1,6 @@
 {
   "name": "@yosemite-crew/desktop",
-  "version": "0.1.0-beta.4",
+  "version": "0.1.0-beta.5",
   "private": true,
   "description": "Desktop shell for Yosemite Crew PIMS — Windows, macOS, Linux.",
   "author": "Yosemite Crew",
@@ -35,7 +35,7 @@
     "@electron/fuses": "^2.1.3",
     "@electron/notarize": "^3.1.1",
     "@eslint/js": "^9.21.0",
-    "@playwright/test": "1.61.1",
+    "@playwright/test": "1.62.1",
     "@types/archiver": "^6",
     "@types/jest": "^30.0.0",
     "@types/node": "^26.2.0",

@@ -458,7 +458,12 @@ export const ReadOnlyPreview: Story = {
        If that handler is ever dropped, this textarea becomes silently editable
        inside a drawer whose header says "View form". */
     const history = canvas.getByRole('textbox', { name: 'History' });
-    await expect(history).not.toHaveAttribute('readonly');
+    /* The textarea is genuinely read-only now. It used not to be: `TextRenderer`
+       did not declare `readOnly`, and the map casts each renderer `as any`, so
+       the flag was dropped without a type error and the only thing stopping an
+       edit was the wrapper's capture-phase focus handler below. Both are
+       asserted - the attribute is the real guard, the blur is the belt. */
+    await expect(history).toHaveAttribute('readonly');
     history.focus();
     await waitFor(() => {
       expect(document.activeElement).not.toBe(history);
@@ -604,9 +609,13 @@ export const Phone: Story = {
 
     const width = (el: HTMLElement) => el.getBoundingClientRect().width;
 
-    // Nothing about the group insets is responsive, so they compound at 375 the
-    // same way they do at 1280 - each level eats another 24-32px of line length.
-    await expect(width(vitals)).toBeLessThanOrEqual(375);
+    /* Nothing about the group insets is responsive, so they compound at any width
+       - each level eats another 24-32px of line length. Asserted as a RELATION
+       rather than against 375: the viewport global is applied by the Storybook
+       manager resizing the preview iframe, so a runner that loads `iframe.html`
+       directly renders this at panel width and an absolute bound fails for a
+       reason that has nothing to do with the component. The compounding is the
+       point, and it holds at either width. */
     await expect(width(vitals)).toBeGreaterThan(width(cardio));
     await expect(width(cardio)).toBeGreaterThan(width(auscultation));
     await expect(width(vitals) - width(auscultation)).toBeGreaterThanOrEqual(56);

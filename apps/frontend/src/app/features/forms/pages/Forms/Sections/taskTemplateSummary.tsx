@@ -34,6 +34,20 @@ export const TaskTemplateSummary = ({ schema }: { schema: FormField[] }) => {
         ) as (FormField & { options?: { label: string; value: string }[] }) | undefined;
         const duration = taskBlockValue(block, 'durationDays');
         const instructions = taskBlockValue(block, 'additionalNotes');
+        /* Every segment is joined through filter(Boolean): category and repeat used to be
+           joined unconditionally, so a block authored without a recurrence field ended on a
+           dangling middot - "Care ·" - and one without a category would have led with one. */
+        const caption = [
+          labelForOption(categoryField?.options ?? [], taskBlockValue(block, 'category')),
+          labelForOption(repeatField?.options ?? [], taskBlockValue(block, 'recurrence.type')),
+          labelForOption(
+            reminderField?.options ?? [],
+            taskBlockValue(block, 'reminderOffsetMinutes')
+          ),
+          duration && `${duration} day${duration === '1' ? '' : 's'}`,
+        ]
+          .filter(Boolean)
+          .join(' · ');
 
         return (
           <li
@@ -43,14 +57,7 @@ export const TaskTemplateSummary = ({ schema }: { schema: FormField[] }) => {
             <span className="text-body-3-emphasis text-text-primary">
               {taskBlockValue(block, 'name') || `Task ${index + 1}`}
             </span>
-            <span className="text-caption-1 text-text-secondary">
-              {labelForOption(categoryField?.options ?? [], taskBlockValue(block, 'category'))} ·{' '}
-              {labelForOption(repeatField?.options ?? [], taskBlockValue(block, 'recurrence.type'))}
-              {reminderField &&
-                taskBlockValue(block, 'reminderOffsetMinutes') &&
-                ` · ${labelForOption(reminderField.options ?? [], taskBlockValue(block, 'reminderOffsetMinutes'))}`}
-              {duration && ` · ${duration} day${duration === '1' ? '' : 's'}`}
-            </span>
+            <span className="text-caption-1 text-text-secondary">{caption}</span>
             {instructions && (
               <span className="text-caption-1 text-text-secondary">{instructions}</span>
             )}

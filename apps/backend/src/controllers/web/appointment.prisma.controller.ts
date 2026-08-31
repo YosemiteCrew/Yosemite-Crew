@@ -51,6 +51,80 @@ type AdmitBody = {
  * resource-scoped routes that is the appointment's own organisation, not
  * whatever the URL named, so it is the only value safe to filter on.
  */
+/**
+ * The organisation the request BODY names, via its FHIR `Organization`
+ * participant.
+ *
+ * This is the value the write is actually persisted under:
+ * `fromFHIRAppointment` (packages/types/src/appointment.ts) reads the same
+ * participant into `organisationId`, and that is what reaches
+ * `tx.appointment.create`. It is a different source from the one
+ * `withOrgPermissions()` authorises, which is why the two must be compared.
+ */
+const ORGANIZATION_REFERENCE_PREFIX = "Organization/";
+
+/**
+ * One organisation id, in one spelling.
+ *
+ * `withOrgPermissions()` normalizes whitespace and nothing else - see
+ * `normalizeOrgId` in middlewares/rbac.ts - so `x-org-id: Organization/org_a`
+ * reaches this controller as `"Organization/org_a"`, while the body reference
+ * naming that same organisation resolves to `"org_a"`. Comparing the two
+ * strictly answered 403 to a caller writing to the tenant it was authorised
+ * for, which is the guard refusing valid work rather than catching an escape.
+ * Both sides go through here before they meet.
+ */
+const bareOrganisationId = (value: string): string => {
+  const trimmed = value.trim();
+  return trimmed.startsWith(ORGANIZATION_REFERENCE_PREFIX)
+    ? trimmed.slice(ORGANIZATION_REFERENCE_PREFIX.length).trim()
+    : trimmed;
+};
+
+/**
+ * The subset of an appointment body this tenant guard reads, and no more.
+ *
+ * Deliberately narrow: the service validates the full payload, and a second
+ * definition of a valid appointment here would drift from that one. What the
+ * guard cannot afford is to GUESS. `req.body` is `unknown` at runtime whatever
+ * the handler's TypeScript annotation claims, and every shape the old manual
+ * traversal failed to understand produced `undefined` - indistinguishable from
+ * "this body names no organisation", which is the branch that lets a write
+ * through with no tenant comparison at all. Parsing turns that silence into a
+ * refusal.
+ *
+ * `participant` is `nullish` because a body genuinely may not carry one, and
+ * the service rejects that downstream on its own terms. A participant list
+ * that is PRESENT but malformed is a different thing and is refused here.
+ */
+const tenantGuardBodySchema = z.object({
+  participant: z
+    .array(
+      z.object({
+        actor: z.object({ reference: z.string().nullish() }).nullish(),
+      }),
+    )
+    .nullish(),
+});
+
+type TenantGuardBody = z.infer<typeof tenantGuardBodySchema>;
+
+const resolveBodyOrganisationId = (
+  body: TenantGuardBody,
+): string | undefined => {
+  for (const participant of body.participant ?? []) {
+    const reference = participant.actor?.reference;
+    if (
+      typeof reference === "string" &&
+      reference.startsWith(ORGANIZATION_REFERENCE_PREFIX)
+    ) {
+      const id = bareOrganisationId(reference);
+      if (id) return id;
+    }
+  }
+  return undefined;
+};
+
 const resolveAuthorizedOrganisationId = (req: Request): string | undefined => {
   const orgReq = req as OrgRequest;
   const organisationId = orgReq.organisationId ?? orgReq.params?.organisationId;
@@ -151,6 +225,63 @@ export const AppointmentController = {
     res: Response,
   ) => {
     try {
+      /*
+       * Bind the write to the organisation the caller is authorised for.
+       *
+       * `withOrgPermissions()` proves membership of the org the REQUEST NAMES -
+       * params, `x-org-id`, or query. The appointment is persisted under the org
+       * its BODY names, read from the FHIR `Organization` participant. Those were
+       * two unconnected sources: a caller with `appointments:edit:any` at org A
+       * could send `x-org-id: A` to pass the gate and `Organization/B` in the
+       * body, and the appointment was written to B.
+       *
+       * That is not only a stray row. The same body org drives the invoice
+       * `bootstrapForAppointment` opens and the ACTIVE `PatientOrganisation`
+       * link `linkByParent` creates, which is what grants a practice ongoing
+       * access to a companion's records.
+       *
+       * `withResourceOrgPermissions` (middlewares/rbac.ts) exists for exactly
+       * this hazard and its comment describes it, but it derives the tenant from
+       * an existing record - and a create has no record yet. So the comparison
+       * belongs here, alongside the four sibling handlers in this file that
+       * already call `resolveAuthorizedOrganisationId`.
+       *
+       * A body that names no organisation is left alone: the service already
+       * rejects it downstream, and inventing a tenant for an ambiguous request
+       * is not this guard's job.
+       */
+      const authorisedOrganisationId = resolveAuthorizedOrganisationId(req);
+      if (!authorisedOrganisationId) {
+        return res.status(400).json({ message: "Missing organisationId" });
+      }
+
+      // safeParse, not parse: `parseError` in the shared helper has no ZodError
+      // branch, so a thrown ZodError would leave here as a 500 carrying the
+      // serialised issue list. A body this guard cannot read is a bad request.
+      const parsedBody = tenantGuardBodySchema.safeParse(req.body);
+      if (!parsedBody.success) {
+        logger.warn(
+          "Rejected an appointment whose participant list could not be read",
+        );
+        return res.status(400).json({
+          message: "The appointment participants are malformed.",
+        });
+      }
+
+      const bodyOrganisationId = resolveBodyOrganisationId(parsedBody.data);
+      if (
+        bodyOrganisationId &&
+        bodyOrganisationId !== bareOrganisationId(authorisedOrganisationId)
+      ) {
+        logger.warn(
+          "Rejected an appointment naming an organisation the caller is not authorised for",
+        );
+        return res.status(403).json({
+          message:
+            "The appointment names a different organisation from the one this request is authorised for.",
+        });
+      }
+
       const { createPayment, paymentCollectionMethod } = req.query;
       const shouldCreatePayment =
         createPayment === "true" || createPayment === "1";

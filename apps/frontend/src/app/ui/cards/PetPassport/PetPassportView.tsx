@@ -87,7 +87,19 @@ const PetPassportView = ({ passport }: PetPassportViewProps) => {
   const species = SPECIES_LABEL[identity.species] ?? 'Other';
 
   return (
-    <div className="flex flex-col gap-5 rounded-2xl border border-card-border bg-white p-5">
+    // data-yc-surface="light" is load-bearing, not decorative. This card is a
+    // literal `bg-white` - globals.css documents --color-white as
+    // "intentionally NOT re-pointed", so it stays pure white in dark mode -
+    // while every ink inside it is a theme token that DOES flip. Measured in a
+    // browser before this pin: all 58 text nodes in the card failed AA in dark,
+    // the worst at 1.34:1, which is cream text on white. Passport numbers,
+    // microchip numbers and vaccination dates, unreadable.
+    // The pin is exactly what /payment-status and /accessibility/report use for
+    // the same reason: a surface that is fixed light needs its inks fixed too.
+    <div
+      data-yc-surface="light"
+      className="flex flex-col gap-5 rounded-2xl border border-card-border bg-white p-5"
+    >
       <div className="flex items-center gap-3">
         <Image
           alt={identity.name}
