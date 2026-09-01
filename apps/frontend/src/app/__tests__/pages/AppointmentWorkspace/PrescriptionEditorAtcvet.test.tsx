@@ -25,7 +25,10 @@ const DOXY = {
 
 const onAddItem = jest.fn();
 
-const renderEditor = (readOnly = false) =>
+const renderEditor = (
+  readOnly = false,
+  extra: Partial<React.ComponentProps<typeof PrescriptionEditor>> = {}
+) =>
   render(
     <PrescriptionEditor
       items={[]}
@@ -36,6 +39,7 @@ const renderEditor = (readOnly = false) =>
       onUpdateItem={jest.fn()}
       onRemoveItem={jest.fn()}
       onPrint={jest.fn()}
+      {...extra}
     />
   );
 
@@ -87,6 +91,33 @@ describe('PrescriptionEditor ATCvet substances', () => {
     });
   });
 
+  it('keeps the newer page when an older request completes last', async () => {
+    // A resolves after B. Without a cancellation guard A republishes under its own
+    // query, and the render guard then hides B's valid results as well.
+    let resolveFirst: (items: unknown[]) => void = () => {};
+    suggestMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveFirst = resolve;
+        })
+    );
+    suggestMock.mockResolvedValueOnce([{ ...DOXY, atcCode: 'QJ01AA01', label: 'demeclocycline' }]);
+
+    renderEditor();
+    type('doxy');
+    type('demec');
+    await waitFor(() => expect(screen.getByText('demeclocycline')).toBeInTheDocument());
+
+    await act(async () => {
+      resolveFirst([DOXY]);
+      await Promise.resolve();
+    });
+
+    // B's page survives; A's late completion is discarded entirely.
+    expect(screen.getByText('demeclocycline')).toBeInTheDocument();
+    expect(screen.queryByText('doxycycline')).not.toBeInTheDocument();
+  });
+
   it('clears results immediately when the query drops below the minimum', async () => {
     renderEditor();
     type('doxy');
@@ -119,6 +150,71 @@ describe('PrescriptionEditor ATCvet substances', () => {
     expect(screen.queryByText('doxycycline')).not.toBeInTheDocument();
   });
 
+  it('passes the patient species so other species vaccines are not offered', async () => {
+    renderEditor(false, { companionSpecies: 'SA' });
+    // Flushed inside act: the lookup resolves and publishes a page, and an
+    // unflushed update lands after the test and fails the suite on a warning.
+    await act(async () => {
+      type('vacc');
+      await Promise.resolve();
+    });
+    expect(suggestMock).toHaveBeenCalledWith({ q: 'vacc', limit: 10, species: 'SA' });
+  });
+
+  it('omits the species filter when the patient species is unknown', async () => {
+    renderEditor();
+    await act(async () => {
+      type('vacc');
+      await Promise.resolve();
+    });
+    expect(suggestMock).toHaveBeenCalledWith({ q: 'vacc', limit: 10 });
+  });
+
+  it('locks fulfillment on a classification-only line, but not on stock', () => {
+    const { unmount } = renderEditor(false, {
+      items: [
+        {
+          id: 'p1',
+          medicineName: 'doxycycline',
+          atcCode: 'QJ01AA02',
+          fulfillment: 'PRESCRIPTION_ONLY',
+        },
+      ],
+    });
+    // Nothing to dispense against, so in-house must not be selectable.
+    expect(screen.getByLabelText('Fulfillment')).toBeDisabled();
+    unmount();
+
+    renderEditor(false, {
+      items: [
+        {
+          id: 'p2',
+          medicineName: 'doxycycline',
+          atcCode: 'QJ01AA02',
+          sku: 'DOX-1',
+          fulfillment: 'IN_HOUSE',
+        },
+      ],
+    });
+    // Same code, but backed by real stock: the clinician keeps the choice.
+    expect(screen.getByLabelText('Fulfillment')).not.toBeDisabled();
+  });
+
+  it('clears results and logs when the lookup fails', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    suggestMock.mockRejectedValueOnce(new Error('offline'));
+
+    renderEditor();
+    await act(async () => {
+      type('doxy');
+      await Promise.resolve();
+    });
+
+    expect(errorSpy).toHaveBeenCalled();
+    expect(screen.queryByText('doxycycline')).not.toBeInTheDocument();
+    errorSpy.mockRestore();
+  });
+
   it('does not search below the minimum length', () => {
     renderEditor();
     type('do');
@@ -134,39 +230,5 @@ describe('PrescriptionEditor ATCvet substances', () => {
       })
     ).not.toBeInTheDocument();
     expect(suggestMock).not.toHaveBeenCalled();
-  });
-
-  it('ignores a stale response that lands after a newer query', async () => {
-    let resolveFirst: (items: unknown[]) => void = () => {};
-    suggestMock.mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          resolveFirst = resolve;
-        })
-    );
-    suggestMock.mockResolvedValueOnce([{ ...DOXY, atcCode: 'QJ01AA01', label: 'demeclocycline' }]);
-
-    renderEditor();
-    type('doxy');
-    type('demec');
-    await waitFor(() => expect(screen.getByText('demeclocycline')).toBeInTheDocument());
-
-    await act(async () => {
-      resolveFirst([DOXY]);
-      await Promise.resolve();
-    });
-    expect(screen.queryByText('doxycycline')).not.toBeInTheDocument();
-  });
-
-  it('clears results and logs when the lookup fails', async () => {
-    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    suggestMock.mockRejectedValueOnce(new Error('offline'));
-
-    renderEditor();
-    type('doxy');
-
-    await waitFor(() => expect(errorSpy).toHaveBeenCalled());
-    expect(screen.queryByText('doxycycline')).not.toBeInTheDocument();
-    errorSpy.mockRestore();
   });
 });

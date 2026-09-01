@@ -1600,6 +1600,7 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
           encounterId={appointment.encounterId}
           authorId={actor.id}
           encounter={operationalEncounter}
+          companionSpecies={companion.species}
           ensureEncounterId={ensureEncounterId}
           onOpenInvoice={() => handleStepChange('INVOICE')}
         />

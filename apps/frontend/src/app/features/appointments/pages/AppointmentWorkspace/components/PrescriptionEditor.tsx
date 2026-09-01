@@ -41,6 +41,12 @@ type PrescriptionEditorProps = {
   catalogItems?: Omit<PrescriptionItem, 'id'>[];
   templateItems?: PrescriptionTemplateOption[];
   readOnly: boolean;
+  /**
+   * Patient species, forwarded to the ATCvet search. Immunologicals are the only
+   * species-specific codes, so this keeps a small-animal patient from being
+   * offered farm or avian vaccines; every general substance still appears.
+   */
+  companionSpecies?: string;
   deleteLocked?: boolean;
   onAddItem: (item: Omit<PrescriptionItem, 'id'>) => void;
   onApplyTemplate?: (template: PrescriptionTemplateOption) => void;
@@ -79,6 +85,13 @@ const toOptions = (values: string[], current?: string): DropdownOption[] => {
   const merged = trimmed && !values.includes(trimmed) ? [trimmed, ...values] : values;
   return merged.map((value) => ({ label: value, value }));
 };
+
+/**
+ * A line that came from the ATCvet classification rather than the practice's own
+ * stock: coded, but with nothing to dispense against.
+ */
+const isClassificationOnly = (item: PrescriptionItem) =>
+  Boolean(item.atcCode) && !item.inventoryItemId && !item.sku;
 
 /**
  * Compact fulfillment pill dropdown (In-house fulfilled / Prescription only),
@@ -278,7 +291,11 @@ const PrescriptionRow = ({
           )}
           <FulfillmentDropdown
             value={item.fulfillment}
-            disabled={rowReadOnly}
+            // A line picked from the classification has no inventory item, SKU or
+            // batch behind it, so "in-house" would finalize into a dispense request
+            // against stock that does not exist. Such a line stays prescription-only
+            // until it is linked to real stock.
+            disabled={rowReadOnly || isClassificationOnly(item)}
             onChange={(fulfillment) => onUpdateItem(item.id, { fulfillment })}
           />
           {isBilled ? null : (
@@ -410,7 +427,7 @@ const ATCVET_LIMIT = 10;
  * smaller page than the inventory match: this is the fallback below the
  * practice's own catalogue, not the primary way to prescribe.
  */
-const useAtcvetSuggestions = (query: string, readOnly: boolean) => {
+const useAtcvetSuggestions = (query: string, readOnly: boolean, species?: string) => {
   // Results are stored WITH the query that produced them, and rendered only
   // while that query is still what is typed. That makes both staleness rules
   // structural rather than bookkeeping: a page for an older query is never
@@ -427,16 +444,32 @@ const useAtcvetSuggestions = (query: string, readOnly: boolean) => {
 
   useEffect(() => {
     if (skip) return;
+    // Cancelled on cleanup so a request whose query has already been superseded
+    // cannot publish its page. Keying the page by query alone was not enough: a
+    // slow earlier request completing last would overwrite the newer page, and
+    // the render guard would then hide BOTH - the older page for not matching,
+    // and the newer one because it had been replaced.
+    let cancelled = false;
+    const publish = (items: MedicationSuggestion[]) => {
+      if (!cancelled) setPage({ query: trimmed, items });
+    };
     const timer = setTimeout(() => {
-      suggestMedications({ q: trimmed, limit: ATCVET_LIMIT })
-        .then((items) => setPage({ query: trimmed, items }))
+      suggestMedications({
+        q: trimmed,
+        limit: ATCVET_LIMIT,
+        ...(species ? { species } : {}),
+      })
+        .then(publish)
         .catch((error) => {
           console.error('Unable to suggest medications:', error);
-          setPage({ query: trimmed, items: [] });
+          publish([]);
         });
     }, ATCVET_DEBOUNCE_MS);
-    return () => clearTimeout(timer);
-  }, [trimmed, skip]);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [trimmed, skip, species]);
 
   return skip || page.query !== trimmed ? EMPTY_SUGGESTIONS : page.items;
 };
@@ -447,6 +480,7 @@ const PrescriptionEditor = ({
   templateItems = EMPTY_TEMPLATE_ITEMS,
   readOnly,
   deleteLocked = readOnly,
+  companionSpecies,
   onAddItem,
   onApplyTemplate,
   onUpdateItem,
@@ -455,7 +489,7 @@ const PrescriptionEditor = ({
 }: PrescriptionEditorProps) => {
   const [search, setSearch] = useState('');
   const searchRef = React.useRef<HTMLDivElement>(null);
-  const substances = useAtcvetSuggestions(search, readOnly);
+  const substances = useAtcvetSuggestions(search, readOnly, companionSpecies);
 
   const matches = useMemo(() => {
     const query = search.trim().toLowerCase();

@@ -56,6 +56,15 @@ const LEVEL_BY_LENGTH: Record<number, number> = {
 };
 const PARENT_LENGTH: Record<number, number> = { 4: 2, 5: 4, 6: 5, 8: 6 };
 
+/**
+ * Guards on retirement. The published index has held ~8,300 codes for years and a
+ * yearly release adds and withdraws a handful, so an extract far below this size,
+ * or far smaller than what is already loaded, is a truncated file rather than a
+ * genuine contraction of the classification.
+ */
+const MINIMUM_RELEASE_SIZE = 5000;
+const MAXIMUM_RELEASE_SHRINKAGE = 0.1;
+
 /** The grammar the whole file obeys; anything else is a malformed row, not a code. */
 const CODE_PATTERN = /^Q[A-Z](\d{2}([A-Z]([A-Z](\d{2})?)?)?)?$/;
 
@@ -235,18 +244,35 @@ export const main = async () => {
     written += batch.length;
   }
 
-  // A newer yearly release can withdraw a code. Rows absent from this extract are
-  // deactivated rather than deleted: a prescription or formulary row may already
-  // reference one, and a dangling code with no entry is worse than a retired one
-  // that can still be displayed.
-  const retired = await prisma.codeEntry.updateMany({
-    where: {
-      system: "ATCVET",
-      active: true,
-      code: { notIn: plan.entries.map((entry) => entry.code) },
-    },
-    data: { active: false },
+  // Retirement is only safe against a COMPLETE release. Run against a partial or
+  // largely-rejected file, "deactivate everything absent" would switch off most of
+  // the vocabulary and take medication search down - a far worse outcome than
+  // leaving a withdrawn code active for one cycle. So the extract must look like a
+  // full release before anything is retired.
+  const active = await prisma.codeEntry.count({
+    where: { system: "ATCVET", active: true },
   });
+  const shrinkage = active === 0 ? 0 : 1 - plan.entries.length / active;
+  const retirementIsSafe =
+    plan.entries.length >= MINIMUM_RELEASE_SIZE &&
+    shrinkage <= MAXIMUM_RELEASE_SHRINKAGE;
+
+  if (!retirementIsSafe && active > 0) {
+    console.log(
+      `SKIP retirement: extract holds ${plan.entries.length} codes against ${active} active (${Math.round(shrinkage * 100)}% smaller). Re-run with a complete release to retire withdrawn codes.`,
+    );
+  }
+
+  const retired = retirementIsSafe
+    ? await prisma.codeEntry.updateMany({
+        where: {
+          system: "ATCVET",
+          active: true,
+          code: { notIn: plan.entries.map((entry) => entry.code) },
+        },
+        data: { active: false },
+      })
+    : { count: 0 };
 
   const edgeResult = await prisma.codeRelationship.createMany({
     data: plan.edges.map((edge) => ({

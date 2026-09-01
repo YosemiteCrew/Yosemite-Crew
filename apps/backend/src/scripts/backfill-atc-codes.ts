@@ -51,7 +51,10 @@ export const normalise = (value: string): string =>
  */
 export const stripPresentation = (value: string): string =>
   normalise(value)
-    .replace(/\s+\d+(\s*\.\d+)?\s*(mg|g|ml|mcg|iu|%|kg|mg\/ml|mg\/kg)\b.*$/, "")
+    // `normalise` has already turned "1%" into "1", so the unit must be optional
+    // here: with it required, "Hydrocortisone 1% cream" kept "1 cream" and
+    // matched no substance.
+    .replace(/\s+\d+(\s*\.\d+)?(\s*(mg|g|ml|mcg|iu|kg))?\b.*$/, "")
     .replace(
       /\s+(tablet|tablets|capsule|capsules|injection|suspension|solution|cream|ointment|drops|pack|spray|powder|paste)s?\b.*$/,
       "",

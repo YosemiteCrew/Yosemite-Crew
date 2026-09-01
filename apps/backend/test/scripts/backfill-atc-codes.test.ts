@@ -42,6 +42,15 @@ describe("stripPresentation", () => {
     );
   });
 
+  it("strips a percentage strength, which normalise has already unpunctuated", () => {
+    // "Hydrocortisone 1% cream" normalises to "hydrocortisone 1 cream"; if the
+    // unit is required the strength survives and the drug matches nothing.
+    expect(stripPresentation("Hydrocortisone 1% cream")).toBe("hydrocortisone");
+    expect(stripPresentation("Enrofloxacin 2.5 % Injection")).toBe(
+      "enrofloxacin",
+    );
+  });
+
   it("keeps a leading number, which belongs to the name", () => {
     // "5-fluorouracil" is a substance; stripping its number would break it.
     expect(stripPresentation("5-Fluorouracil")).toBe("5 fluorouracil");

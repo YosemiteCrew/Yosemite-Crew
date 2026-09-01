@@ -1,12 +1,13 @@
 jest.mock("src/config/prisma", () => ({
   prisma: {
-    codeEntry: { upsert: jest.fn() },
+    codeEntry: { upsert: jest.fn(), count: jest.fn(), updateMany: jest.fn() },
     codeRelationship: { createMany: jest.fn() },
     $transaction: jest.fn(),
     $disconnect: jest.fn(),
   },
 }));
 
+import fs from "node:fs";
 import {
   main,
   parentOf,
@@ -145,6 +146,50 @@ describe("main", () => {
 
   beforeEach(() => {
     argv = process.argv;
+    log = jest.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  it("refuses to retire against an extract that is not a full release", async () => {
+    // A truncated file must never deactivate the vocabulary: switching most of
+    // ATCvet off takes medication search down, which is far worse than leaving
+    // a withdrawn code active for one release cycle.
+    const { prisma } = jest.requireMock("src/config/prisma") as {
+      prisma: {
+        codeEntry: { count: jest.Mock; updateMany: jest.Mock };
+        codeRelationship: { createMany: jest.Mock };
+        $transaction: jest.Mock;
+      };
+    };
+    prisma.codeEntry.count.mockResolvedValue(8315);
+    prisma.codeEntry.updateMany.mockResolvedValue({ count: 0 });
+    prisma.codeRelationship.createMany.mockResolvedValue({ count: 0 });
+    prisma.$transaction.mockResolvedValue([]);
+
+    jest
+      .spyOn(fs, "existsSync")
+      .mockReturnValue(true as unknown as ReturnType<typeof fs.existsSync>);
+    jest.spyOn(fs, "readFileSync").mockReturnValue(
+      JSON.stringify({
+        source: "WHO CC",
+        dataset: "ATCvet index",
+        release: "2026",
+        entries: [{ code: "QJ01AA02", name: "doxycycline" }],
+      }) as unknown as ReturnType<typeof fs.readFileSync>,
+    );
+
+    process.argv = [
+      "node",
+      "import-atcvet-index.ts",
+      "data/partial.json",
+      "--apply",
+    ];
+    await main();
+
+    expect(prisma.codeEntry.updateMany).not.toHaveBeenCalled();
+    expect(log.mock.calls.map((c) => String(c[0])).join("\n")).toMatch(
+      /SKIP retirement/,
+    );
+    jest.restoreAllMocks();
     log = jest.spyOn(console, "log").mockImplementation(() => {});
   });
 
