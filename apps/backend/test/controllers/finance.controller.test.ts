@@ -551,6 +551,7 @@ describe("FinanceController", () => {
           },
         ],
       },
+      organisationId: "org_1",
     } as unknown as Request;
     const res = {
       status: jest.fn().mockReturnThis(),
@@ -867,6 +868,7 @@ describe("FinanceController", () => {
 
     const req = {
       query: { organisationId: "org_1" },
+      organisationId: "org_1",
     } as unknown as Request;
     const res = {
       status: jest.fn().mockReturnThis(),
@@ -907,6 +909,7 @@ describe("FinanceController", () => {
         providerSubscriptionId: "sub_1",
         quantity: 3,
       },
+      organisationId: "org_1",
     } as unknown as Request;
     const res = {
       status: jest.fn().mockReturnThis(),
@@ -936,6 +939,7 @@ describe("FinanceController", () => {
         subscriptionId: "sub_1",
         featureKey: "appointments",
       },
+      organisationId: "org_1",
     } as unknown as Request;
     const res = {
       status: jest.fn().mockReturnThis(),

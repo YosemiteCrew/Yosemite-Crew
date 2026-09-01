@@ -9,6 +9,7 @@ import { type OrganizationMongo } from "src/models/organization";
 import { prisma } from "src/config/prisma";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import type { AuthenticatedRequest } from "src/middlewares/auth";
+import { resolveAuthorizedOrganisationId } from "src/middlewares/authorized-organisation";
 
 type OrganisationType = OrganizationMongo["type"];
 
@@ -320,9 +321,16 @@ export const CompanionOrganisationController = {
         });
       }
 
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        payload.organisationId,
+      );
+      if (!organisationId) return;
+
       const updated = await CompanionOrganisationService.acceptInvite({
         token: payload.token,
-        organisationId: payload.organisationId,
+        organisationId,
       });
 
       return res.status(200).json(updated);
@@ -344,9 +352,16 @@ export const CompanionOrganisationController = {
         });
       }
 
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        payload.organisationId,
+      );
+      if (!organisationId) return;
+
       await CompanionOrganisationService.rejectInvite({
         token: payload.token,
-        organisationId: payload.organisationId,
+        organisationId,
       });
 
       return res.status(200).json({ message: "Invite rejected successfully." });
