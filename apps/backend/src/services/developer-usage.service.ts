@@ -83,8 +83,11 @@ export const DeveloperUsageService = {
           data: { lastReportedAt: new Date() },
         });
       } catch (err) {
+        // The billing period and the Stripe customer are enough to find the
+        // row again; the owner's user id identifies a person and does not
+        // belong in a log line.
         logger.error("Failed to report API usage to Stripe", {
-          ownerUserId,
+          stripeCustomerId: customerId,
           billingPeriod,
           err,
         });

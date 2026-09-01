@@ -14,6 +14,11 @@ jest.mock("../../src/config/prisma", () => ({
       update: jest.fn(),
       updateMany: jest.fn(),
     },
+    $executeRaw: jest.fn(),
+    // `issue` counts and inserts inside one transaction so the active-key
+    // ceiling cannot be raced. Running the callback against the same mocked
+    // client keeps the assertions below about `developerApiKey.*` unchanged.
+    $transaction: jest.fn(),
   },
 }));
 
@@ -26,12 +31,18 @@ const mockPrisma = prisma as unknown as {
     update: jest.Mock;
     updateMany: jest.Mock;
   };
+  $executeRaw: jest.Mock;
+  $transaction: jest.Mock;
 };
 
 describe("DeveloperApiKeyService", () => {
   beforeEach(() => {
-    mockPrisma.developerApiKey.count.mockResolvedValue(0);
     jest.clearAllMocks();
+    mockPrisma.developerApiKey.count.mockResolvedValue(0);
+    mockPrisma.$executeRaw.mockResolvedValue(1);
+    mockPrisma.$transaction.mockImplementation(
+      (run: (tx: unknown) => unknown) => run(prisma),
+    );
     process.env.DEVELOPER_API_KEY_PEPPER = "test-pepper";
   });
 
@@ -107,6 +118,52 @@ describe("DeveloperApiKeyService", () => {
       });
 
       expect(issued.apiKey).toMatch(/^yc_test_/);
+    });
+
+    it("refuses a 26th active key", async () => {
+      mockPrisma.developerApiKey.count.mockResolvedValue(25);
+
+      await expect(
+        DeveloperApiKeyService.issue({
+          ownerUserId: "user-1",
+          name: "n",
+          createdBy: "user-1",
+        }),
+      ).rejects.toMatchObject({ statusCode: 429 });
+      expect(mockPrisma.developerApiKey.create).not.toHaveBeenCalled();
+    });
+
+    it("counts and inserts inside one transaction, behind a per-owner lock", async () => {
+      // Without this the ceiling is advisory only: two concurrent requests can
+      // each read the same sub-limit count and both insert.
+      mockPrisma.developerApiKey.create.mockResolvedValue({
+        id: "k",
+        name: "n",
+        prefix: "yc_live_x",
+        last4: "abcd",
+        scopes: [],
+        environment: "live",
+      });
+
+      await DeveloperApiKeyService.issue({
+        ownerUserId: "user-1",
+        name: "n",
+        createdBy: "user-1",
+      });
+
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.$executeRaw).toHaveBeenCalledTimes(1);
+      const [strings, lockKey] = mockPrisma.$executeRaw.mock.calls[0];
+      expect(strings.join("")).toContain("pg_advisory_xact_lock");
+      expect(lockKey).toBe("developer-api-key:user-1");
+      expect(mockPrisma.$executeRaw.mock.invocationCallOrder[0]).toBeLessThan(
+        mockPrisma.developerApiKey.count.mock.invocationCallOrder[0],
+      );
+      expect(
+        mockPrisma.developerApiKey.count.mock.invocationCallOrder[0],
+      ).toBeLessThan(
+        mockPrisma.developerApiKey.create.mock.invocationCallOrder[0],
+      );
     });
 
     it.each([

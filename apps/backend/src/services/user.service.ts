@@ -4,6 +4,7 @@ import { User } from "@yosemite-crew/types";
 import { getAuthService } from "@yosemite-crew/auth";
 import { OrganizationService } from "./organization.service";
 import { UserOrganizationService } from "./user-organization.service";
+import { DeveloperBillingService } from "./developer-billing.service";
 import { prisma } from "src/config/prisma";
 
 const SUPERTOKENS_PROVIDER = "supertokens";
@@ -298,6 +299,18 @@ export const UserService = {
     for (const mapping of mappings) {
       await UserOrganizationService.deleteById(mapping.id);
     }
+
+    // The developer's API keys, subscription and usage counters are keyed on
+    // the user, not on an organisation, so removing organisation memberships
+    // above leaves them behind. The subscription in particular keeps billing:
+    // cancel it before the account stops existing.
+    await DeveloperBillingService.cancelForOwner(resolvedUserId);
+    await prisma.developerApiKey.deleteMany({
+      where: { ownerUserId: resolvedUserId },
+    });
+    await prisma.developerApiUsage.deleteMany({
+      where: { ownerUserId: resolvedUserId },
+    });
 
     await Promise.all([
       prisma.userProfile.deleteMany({ where: { userId: resolvedUserId } }),

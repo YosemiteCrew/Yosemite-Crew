@@ -248,10 +248,14 @@ describe("DeveloperUsageService", () => {
       expect(mockLoggerError).toHaveBeenCalledWith(
         "Failed to report API usage to Stripe",
         expect.objectContaining({
-          ownerUserId: "org-1",
+          stripeCustomerId: "cus_abc",
           billingPeriod: "2026-06",
           err: boom,
         }),
+      );
+      // The owner's user id identifies a person and must stay out of the log.
+      expect(mockLoggerError.mock.calls[0][1]).not.toHaveProperty(
+        "ownerUserId",
       );
       // update should NOT have been called after the throw
       expect(mockPrisma.developerApiUsage.update).not.toHaveBeenCalled();

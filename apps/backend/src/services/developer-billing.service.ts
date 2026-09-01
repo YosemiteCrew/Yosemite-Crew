@@ -61,7 +61,19 @@ async function handleCheckoutCompleted(
    * shipped.
    */
   const ownerId = session.metadata?.ownerUserId;
-  if (!ownerId) return;
+  if (!ownerId) {
+    // Silence would strand a developer who is being charged with no row to
+    // manage the subscription from, so say so loudly enough to act on. Both
+    // databases held zero subscriptions when this shipped, so this is a
+    // tripwire rather than an expected path.
+    if (session.metadata?.organisationId) {
+      logger.error(
+        "Ignored a checkout session that predates the developer re-key: it carries organisationId and no ownerUserId, so the subscription it completes has no owner to record",
+        { eventId: event.id, sessionId: session.id },
+      );
+    }
+    return;
+  }
 
   const subId =
     typeof session.subscription === "string"
@@ -201,6 +213,45 @@ export const DeveloperBillingService = {
         updatedAt: null,
       }
     );
+  },
+
+  /**
+   * Cancel and forget a developer's own subscription.
+   *
+   * Called when the account itself goes away. Before the re-key the row hung
+   * off an organisation, so deleting a person left it alone; now it is theirs,
+   * and deleting them without this would sign them out while Stripe kept
+   * renewing and charging the card behind it.
+   *
+   * Cancels immediately rather than at period end - the account is gone, so
+   * there is nobody left to use the remaining days - and deletes the row either
+   * way. A Stripe failure is logged and swallowed: the caller is mid-deletion
+   * and must not be left half-finished, and a stranded Stripe subscription is
+   * recoverable from the dashboard while a half-deleted account is not.
+   */
+  async cancelForOwner(ownerUserId: string): Promise<void> {
+    if (!ownerUserId.trim()) return;
+
+    const record = await prisma.developerSubscription.findUnique({
+      where: { ownerUserId },
+      select: { stripeSubscriptionId: true },
+    });
+    if (!record) return;
+
+    if (record.stripeSubscriptionId) {
+      try {
+        await getStripeClient().subscriptions.cancel(
+          record.stripeSubscriptionId,
+        );
+      } catch (err) {
+        logger.error(
+          "Failed to cancel a developer subscription during account deletion; cancel it in Stripe by hand",
+          { stripeSubscriptionId: record.stripeSubscriptionId, err },
+        );
+      }
+    }
+
+    await prisma.developerSubscription.deleteMany({ where: { ownerUserId } });
   },
 
   async getOrCreateCustomer(ownerUserId: string): Promise<string> {

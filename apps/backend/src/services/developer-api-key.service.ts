@@ -123,30 +123,42 @@ export const DeveloperApiKeyService = {
      * to be stated explicitly rather than lost.
      *
      * Counts ACTIVE keys only, so revoking frees the budget.
+     *
+     * The count and the insert run inside one transaction behind a per-owner
+     * advisory lock. Read Committed alone would let concurrent requests each
+     * read the same sub-limit count and then all insert, so the ceiling would
+     * only hold when requests happen not to overlap. The lock is taken on a
+     * hash of the owner id, so it serialises one developer's key creation
+     * without touching anyone else's, and is released when the transaction
+     * ends either way.
      */
-    const activeKeys = await prisma.developerApiKey.count({
-      where: { ownerUserId, status: DeveloperApiKeyStatus.active },
-    });
-    if (activeKeys >= MAX_ACTIVE_KEYS_PER_OWNER) {
-      throw new DeveloperApiKeyServiceError(
-        `Active API key limit reached (${MAX_ACTIVE_KEYS_PER_OWNER}). Revoke a key before creating another.`,
-        429,
-      );
-    }
-
     const generated = generateApiKey(environment);
-    const record = await prisma.developerApiKey.create({
-      data: {
-        ownerUserId,
-        name,
-        createdBy,
-        scopes,
-        environment,
-        prefix: generated.prefix,
-        hashedKey: generated.hashedKey,
-        last4: generated.last4,
-        expiresAt: input.expiresAt ?? null,
-      },
+    const record = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`developer-api-key:${ownerUserId}`}))`;
+
+      const activeKeys = await tx.developerApiKey.count({
+        where: { ownerUserId, status: DeveloperApiKeyStatus.active },
+      });
+      if (activeKeys >= MAX_ACTIVE_KEYS_PER_OWNER) {
+        throw new DeveloperApiKeyServiceError(
+          `Active API key limit reached (${MAX_ACTIVE_KEYS_PER_OWNER}). Revoke a key before creating another.`,
+          429,
+        );
+      }
+
+      return tx.developerApiKey.create({
+        data: {
+          ownerUserId,
+          name,
+          createdBy,
+          scopes,
+          environment,
+          prefix: generated.prefix,
+          hashedKey: generated.hashedKey,
+          last4: generated.last4,
+          expiresAt: input.expiresAt ?? null,
+        },
+      });
     });
 
     return {

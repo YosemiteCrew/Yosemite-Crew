@@ -3,6 +3,7 @@ import {
   DeveloperBillingServiceError,
 } from "../../src/services/developer-billing.service";
 import { prisma } from "../../src/config/prisma";
+import logger from "../../src/utils/logger";
 
 jest.mock("../../src/config/prisma", () => ({
   prisma: {
@@ -11,8 +12,14 @@ jest.mock("../../src/config/prisma", () => ({
       findFirst: jest.fn(),
       upsert: jest.fn(),
       update: jest.fn(),
+      deleteMany: jest.fn(),
     },
   },
+}));
+
+jest.mock("../../src/utils/logger", () => ({
+  __esModule: true,
+  default: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
 }));
 
 jest.mock("stripe", () => {
@@ -20,6 +27,7 @@ jest.mock("stripe", () => {
   const mockCheckoutSessionsCreate = jest.fn();
   const mockBillingPortalCreate = jest.fn();
   const mockSubscriptionsRetrieve = jest.fn();
+  const mockSubscriptionsCancel = jest.fn();
   const mockWebhooksConstructEvent = jest.fn();
   const mockMeterEventsCreate = jest.fn();
 
@@ -27,7 +35,10 @@ jest.mock("stripe", () => {
     customers: { create: mockCustomersCreate },
     checkout: { sessions: { create: mockCheckoutSessionsCreate } },
     billingPortal: { sessions: { create: mockBillingPortalCreate } },
-    subscriptions: { retrieve: mockSubscriptionsRetrieve },
+    subscriptions: {
+      retrieve: mockSubscriptionsRetrieve,
+      cancel: mockSubscriptionsCancel,
+    },
     billing: { meterEvents: { create: mockMeterEventsCreate } },
     webhooks: { constructEvent: mockWebhooksConstructEvent },
   }));
@@ -41,6 +52,7 @@ const mockPrisma = prisma as unknown as {
     findFirst: jest.Mock;
     upsert: jest.Mock;
     update: jest.Mock;
+    deleteMany: jest.Mock;
   };
 };
 
@@ -55,6 +67,68 @@ describe("DeveloperBillingService", () => {
     process.env.STRIPE_SECRET_KEY = "sk_test_key";
     process.env.STRIPE_DEV_METERED_PRICE_ID = "price_metered_abc";
     process.env.STRIPE_DEV_WEBHOOK_SECRET = "whsec_test";
+  });
+
+  describe("cancelForOwner", () => {
+    it("cancels the live Stripe subscription and removes the row", async () => {
+      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
+        stripeSubscriptionId: "sub_live_1",
+      });
+
+      await DeveloperBillingService.cancelForOwner("user-1");
+
+      expect(getStripeInstance().subscriptions.cancel).toHaveBeenCalledWith(
+        "sub_live_1",
+      );
+      expect(mockPrisma.developerSubscription.deleteMany).toHaveBeenCalledWith({
+        where: { ownerUserId: "user-1" },
+      });
+    });
+
+    it("removes a row that never reached Stripe without calling Stripe", async () => {
+      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
+        stripeSubscriptionId: null,
+      });
+
+      await DeveloperBillingService.cancelForOwner("user-1");
+
+      expect(getStripeInstance().subscriptions.cancel).not.toHaveBeenCalled();
+      expect(mockPrisma.developerSubscription.deleteMany).toHaveBeenCalled();
+    });
+
+    it("still deletes the row when Stripe rejects the cancellation", async () => {
+      // Deletion is already in flight; a Stripe outage must not leave the
+      // account half-removed. The error is logged for manual cleanup.
+      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
+        stripeSubscriptionId: "sub_live_1",
+      });
+      getStripeInstance().subscriptions.cancel.mockRejectedValueOnce(
+        new Error("stripe down"),
+      );
+
+      await expect(
+        DeveloperBillingService.cancelForOwner("user-1"),
+      ).resolves.toBeUndefined();
+      expect(mockPrisma.developerSubscription.deleteMany).toHaveBeenCalled();
+    });
+
+    it("does nothing when the owner has no subscription", async () => {
+      mockPrisma.developerSubscription.findUnique.mockResolvedValue(null);
+
+      await DeveloperBillingService.cancelForOwner("user-1");
+
+      expect(
+        mockPrisma.developerSubscription.deleteMany,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("ignores a blank owner id", async () => {
+      await DeveloperBillingService.cancelForOwner("   ");
+
+      expect(
+        mockPrisma.developerSubscription.findUnique,
+      ).not.toHaveBeenCalled();
+    });
   });
 
   describe("getSubscription", () => {
@@ -347,6 +421,49 @@ describe("DeveloperBillingService", () => {
       } as never);
 
       expect(mockPrisma.developerSubscription.upsert).not.toHaveBeenCalled();
+    });
+
+    it("logs a checkout session that predates the re-key instead of ignoring it silently", async () => {
+      // Such a session carries organisationId and no ownerUserId. Writing the
+      // org id into an owner column would hide the row from the developer who
+      // paid, so it is skipped - but a paying developer with no record must be
+      // visible, not silent.
+      await DeveloperBillingService.handleWebhookEvent({
+        id: "evt_legacy",
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            id: "cs_legacy",
+            mode: "subscription",
+            subscription: "sub_legacy",
+            metadata: { organisationId: "org-1" },
+          },
+        },
+      } as never);
+
+      expect(mockPrisma.developerSubscription.upsert).not.toHaveBeenCalled();
+      expect(jest.mocked(logger.error)).toHaveBeenCalledWith(
+        expect.stringContaining("predates the developer re-key"),
+        { eventId: "evt_legacy", sessionId: "cs_legacy" },
+      );
+    });
+
+    it("skips a subscription checkout with no organisation metadata quietly", async () => {
+      await DeveloperBillingService.handleWebhookEvent({
+        id: "evt_blank",
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            id: "cs_blank",
+            mode: "subscription",
+            subscription: "sub_blank",
+            metadata: {},
+          },
+        },
+      } as never);
+
+      expect(mockPrisma.developerSubscription.upsert).not.toHaveBeenCalled();
+      expect(jest.mocked(logger.error)).not.toHaveBeenCalled();
     });
 
     it("updates the record on customer.subscription.updated", async () => {
