@@ -86,18 +86,34 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
     >
       {isPhone ? (
         activeInvoice && (
-          <InvoicePhoneRecord
-            titleId={titleId}
-            invoice={activeInvoice}
-            appointment={appointment}
-            currency={currency}
-            statusLabel={invoiceStatusLabel}
-            statusTone={invoiceStatusTone}
-            payerName={payerName}
-            payerEmail={payerEmail}
-            onClose={() => setShowModal(false)}
-            onOpenAppointment={goToAppointmentFinance}
-          />
+          <div className="flex flex-col gap-4">
+            <InvoicePhoneRecord
+              titleId={titleId}
+              invoice={activeInvoice}
+              appointment={appointment}
+              currency={currency}
+              statusLabel={invoiceStatusLabel}
+              statusTone={invoiceStatusTone}
+              payerName={payerName}
+              payerEmail={payerEmail}
+              onClose={() => setShowModal(false)}
+              onOpenAppointment={goToAppointmentFinance}
+            />
+            {/*
+              InvoicePhoneRecord neither takes nor renders credit notes, so
+              without this the ledger and its actions would exist on desktop
+              only and a phone user could not see, issue or void one.
+            */}
+            <InvoiceCreditNotes
+              creditNotes={activeInvoice.creditNotes}
+              totalAmount={activeInvoice.totalAmount ?? 0}
+              status={activeInvoice.status}
+              currency={currency}
+              busy={creditNotes.busy}
+              error={creditNotes.error}
+              onAction={creditNotes.run}
+            />
+          </div>
         )
       ) : (
         <div className="flex flex-col flex-auto min-h-0 gap-4">
@@ -130,6 +146,7 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
                   <InvoiceCreditNotes
                     creditNotes={activeInvoice.creditNotes}
                     totalAmount={activeInvoice.totalAmount ?? 0}
+                    status={activeInvoice.status}
                     currency={currency}
                     busy={creditNotes.busy}
                     error={creditNotes.error}

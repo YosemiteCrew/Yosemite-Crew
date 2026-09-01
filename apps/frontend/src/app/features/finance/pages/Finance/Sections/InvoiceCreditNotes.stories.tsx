@@ -88,6 +88,7 @@ const meta = {
   args: {
     creditNotes: [note('cn-1', 'CN-0001', 40, 'ISSUED', 'Goodwill on the delayed dental')],
     totalAmount: 199.97,
+    status: 'AWAITING_PAYMENT',
     currency: 'GBP',
     busy: false,
     error: null,
@@ -204,5 +205,20 @@ export const WithoutEditPermission: Story = {
     await expect(
       canvas.queryByRole('button', { name: /Void credit note CN-0001/i })
     ).not.toBeInTheDocument();
+  },
+};
+
+export const CancelledInvoice: Story = {
+  name: 'Cancelled invoice - ledger readable, no issuing',
+  args: { status: 'CANCELLED' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // The service rejects CANCELLED and REFUNDED with a 409 whatever the
+    // balance, so offering the form would only invite a failing request.
+    await expect(canvas.queryByLabelText('Amount')).not.toBeInTheDocument();
+    await expect(
+      canvas.getByText('A cancelled invoice cannot take a credit note.')
+    ).toBeInTheDocument();
+    await expect(canvas.getByText('CN-0001')).toBeInTheDocument();
   },
 };

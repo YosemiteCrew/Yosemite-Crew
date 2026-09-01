@@ -1,5 +1,6 @@
 import type { CreditNote } from '@yosemite-crew/types';
 import { postData } from '@/app/services/axios';
+import { currencySymbol } from '@/app/lib/money';
 
 /**
  * Credit notes live on the invoice router, which is mounted at `/fhir/v1/invoice`
@@ -77,18 +78,53 @@ export const voidCreditNote = async (
 };
 
 /**
+ * Round to cents exactly the way the backend's `roundMoney` does
+ * (`apps/backend/src/services/finance/pricing.ts`).
+ *
+ * Not cosmetic. Without it the raw subtraction leaves float dust - a total of
+ * 10.01 against an issued 0.05 gives 9.959999999999999 - which the UI displays
+ * as "9.96" while rejecting an entered 9.96 as over the cap, refusing the exact
+ * figure it just advertised. The server, which rounds, would have accepted it.
+ */
+const roundMoney = (value: number): number => Math.round((value + Number.EPSILON) * 100) / 100;
+
+/**
  * What is still creditable on an invoice.
  *
  * Mirrors the cap in `InvoiceService.issueCreditNote`: the total minus every
- * credit note currently ISSUED. Voided notes do not count, which is why the
- * filter is on status rather than simply summing the list.
+ * credit note currently ISSUED, rounded to cents the same way. Voided notes do
+ * not count, which is why the filter is on status rather than simply summing
+ * the list.
  */
 export const remainingCreditable = (
   totalAmount: number,
   creditNotes: readonly CreditNote[] | undefined
 ): number => {
-  const issued = (creditNotes ?? [])
-    .filter((note) => note.status === 'ISSUED')
-    .reduce((sum, note) => sum + note.amount, 0);
-  return Math.max(0, totalAmount - issued);
+  const issued = roundMoney(
+    (creditNotes ?? [])
+      .filter((note) => note.status === 'ISSUED')
+      .reduce((sum, note) => sum + note.amount, 0)
+  );
+  return Math.max(0, roundMoney(totalAmount - issued));
 };
+
+/**
+ * Whether the invoice's status lets it take a credit note at all.
+ *
+ * `InvoiceService.issueCreditNote` rejects CANCELLED and REFUNDED with a 409
+ * regardless of the balance, so offering the form on one of those would invite
+ * a request that can only fail.
+ */
+export const acceptsCreditNotes = (status: string | undefined): boolean =>
+  status !== 'CANCELLED' && status !== 'REFUNDED';
+
+/**
+ * The cap, to the penny.
+ *
+ * `formatMoney` runs at `maximumFractionDigits: 0`, which is right for the
+ * ledger rows beside the rest of the invoice panel but wrong for this one
+ * figure: a remaining 159.97 advertised as "160" invites the user to type 160
+ * and take a 409 back from the service, whose own cap is exact.
+ */
+export const formatCap = (amount: number, currency: string) =>
+  `${currencySymbol(currency)}${amount.toFixed(2)}`;

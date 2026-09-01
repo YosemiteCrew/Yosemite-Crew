@@ -37,6 +37,7 @@ type RenderOptions = {
   currency?: string;
   busy?: boolean;
   error?: string | null;
+  status?: string;
 };
 
 const renderSection = (options: RenderOptions = {}) => {
@@ -45,6 +46,7 @@ const renderSection = (options: RenderOptions = {}) => {
     <InvoiceCreditNotes
       creditNotes={options.creditNotes}
       totalAmount={options.totalAmount ?? 200}
+      status={options.status ?? 'AWAITING_PAYMENT'}
       currency={options.currency ?? 'USD'}
       busy={options.busy ?? false}
       error={options.error ?? null}
@@ -295,5 +297,37 @@ describe('InvoiceCreditNotes', () => {
         'Up to $200.00 can still be credited. Issuing one cancels any open payment link on this invoice, because it would still charge the old amount.'
       )
     ).toBeInTheDocument();
+  });
+
+  it.each(['CANCELLED', 'REFUNDED'])(
+    'offers no issue form on a %s invoice, which the service would reject',
+    (status) => {
+      renderSection({ status, totalAmount: 200 });
+
+      expect(screen.queryByLabelText('Amount')).not.toBeInTheDocument();
+      expect(
+        screen.getByText(`A ${status.toLowerCase()} invoice cannot take a credit note.`)
+      ).toBeInTheDocument();
+      // The ledger itself stays readable - only the writing controls go.
+      expect(screen.getByText(/Nothing has been credited/i)).toBeInTheDocument();
+    }
+  );
+
+  it('accepts an amount exactly equal to the advertised cap', async () => {
+    // 10.01 minus an issued 0.05 is 9.959999999999999 unrounded. The cap is
+    // shown as 9.96, so entering 9.96 must be accepted - without rounding the
+    // remainder the form refuses the very figure it advertises.
+    const { onAction } = renderSection({
+      totalAmount: 10.01,
+      creditNotes: [makeNote({ id: 'cn-1', amount: 0.05, status: 'ISSUED' })],
+    });
+
+    expect(screen.getByText(/Up to \$9\.96 can still be credited/)).toBeInTheDocument();
+
+    await userEvent.type(screen.getByLabelText('Amount'), '9.96');
+    await userEvent.click(screen.getByRole('button', { name: /Issue a credit note/i }));
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(onAction).toHaveBeenCalledWith({ type: 'issue', amount: 9.96, reason: undefined });
   });
 });

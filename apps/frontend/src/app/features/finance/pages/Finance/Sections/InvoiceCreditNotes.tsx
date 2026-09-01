@@ -4,7 +4,10 @@ import type { CreditNote } from '@yosemite-crew/types';
 import { formatMoney } from '@/app/lib/money';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
-import { remainingCreditable } from '@/app/features/finance/services/creditNoteService';
+import {
+  acceptsCreditNotes,
+  remainingCreditable,
+} from '@/app/features/finance/services/creditNoteService';
 import CreditNoteLedger, {
   isIssued,
 } from '@/app/features/finance/pages/Finance/Sections/CreditNoteLedger';
@@ -16,6 +19,8 @@ export type CreditNoteAction =
 type InvoiceCreditNotesProps = {
   creditNotes: CreditNote[] | undefined;
   totalAmount: number;
+  /** The invoice's status: CANCELLED and REFUNDED cannot take a credit note. */
+  status: string | undefined;
   currency: string;
   /** True while a credit note is being issued or voided, so actions lock. */
   busy: boolean;
@@ -36,6 +41,7 @@ type InvoiceCreditNotesProps = {
 const InvoiceCreditNotes = ({
   creditNotes,
   totalAmount,
+  status,
   currency,
   busy,
   error,
@@ -50,6 +56,7 @@ const InvoiceCreditNotes = ({
     [issuedNotes]
   );
   const remaining = remainingCreditable(totalAmount, notes);
+  const creditable = acceptsCreditNotes(status);
   const message = formError ?? error;
 
   return (
@@ -76,7 +83,7 @@ const InvoiceCreditNotes = ({
         )}
 
         <PermissionGate allOf={[PERMISSIONS.BILLING_EDIT_ANY]}>
-          {remaining > 0 ? (
+          {creditable && remaining > 0 && (
             <CreditNoteIssueForm
               remaining={remaining}
               currency={currency}
@@ -85,9 +92,15 @@ const InvoiceCreditNotes = ({
               onInvalid={setFormError}
               onValid={() => setFormError(null)}
             />
-          ) : (
+          )}
+          {creditable && remaining <= 0 && (
             <p className="text-[12px] text-[var(--ink-muted)] border-t border-t-card-border pt-3!">
               This invoice is fully credited.
+            </p>
+          )}
+          {!creditable && (
+            <p className="text-[12px] text-[var(--ink-muted)] border-t border-t-card-border pt-3!">
+              {`A ${String(status).toLowerCase()} invoice cannot take a credit note.`}
             </p>
           )}
         </PermissionGate>

@@ -1,20 +1,9 @@
 'use client';
 import React, { useState } from 'react';
-import { currencySymbol } from '@/app/lib/money';
 import { Secondary } from '@/app/ui/primitives/Buttons';
+import { formatCap } from '@/app/features/finance/services/creditNoteService';
 
-/**
- * The cap, to the penny.
- *
- * `formatMoney` runs at `maximumFractionDigits: 0`, which is right for the
- * ledger rows beside the rest of the invoice panel but wrong for this one
- * figure: a remaining 159.97 advertised as "160" invites the user to type 160
- * and take a 409 back from the service, whose own cap is exact.
- */
-export const formatCap = (amount: number, currency: string) =>
-  `${currencySymbol(currency)}${amount.toFixed(2)}`;
-
-export type CreditNoteDraft = { amount: number; reason?: string };
+type CreditNoteDraft = { amount: number; reason?: string };
 
 type CreditNoteIssueFormProps = {
   remaining: number;
