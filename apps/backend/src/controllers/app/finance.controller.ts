@@ -26,6 +26,7 @@ import {
 } from "src/services/appointment.prisma.service";
 import logger from "src/utils/logger";
 import { OrgRequest } from "src/middlewares/rbac";
+import { resolveAuthorizedOrganisationId } from "src/middlewares/authorized-organisation";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { resolveVerifiedUserId } from "src/utils/request";
 
@@ -392,6 +393,13 @@ export const FinanceController = {
         return res.status(400).json({ message: "Invalid request body" });
       }
 
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        body.data.organisationId,
+      );
+      if (!organisationId) return;
+
       const items = body.data.items.map((item) => ({
         ...item,
         description: item.description ?? item.name,
@@ -401,7 +409,7 @@ export const FinanceController = {
         appointmentId: body.data.appointmentId,
         parentId: body.data.parentId,
         patientId: body.data.patientId,
-        organisationId: body.data.organisationId,
+        organisationId,
         paymentCollectionMethod: body.data.paymentCollectionMethod as
           "PAYMENT_INTENT" | "PAYMENT_LINK" | "PAYMENT_AT_CLINIC",
         items,
@@ -884,9 +892,15 @@ export const FinanceController = {
         return res.status(400).json({ message: "Invalid request query" });
       }
 
-      const current = await FinanceSubscriptionService.getCurrentSubscription(
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
         query.data.organisationId,
       );
+      if (!organisationId) return;
+
+      const current =
+        await FinanceSubscriptionService.getCurrentSubscription(organisationId);
 
       return res.status(200).json(toFinanceSuccess(current));
     } catch (error) {
@@ -902,8 +916,15 @@ export const FinanceController = {
         return res.status(400).json({ message: "Invalid request body" });
       }
 
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
+        body.data.organisationId,
+      );
+      if (!organisationId) return;
+
       const subscription = await FinanceSubscriptionService.upsertSubscription({
-        orgId: body.data.organisationId,
+        orgId: organisationId,
         planCode: body.data.planCode,
         provider: body.data.provider,
         providerSubscriptionId: body.data.providerSubscriptionId,
@@ -924,8 +945,15 @@ export const FinanceController = {
         return res.status(400).json({ message: "Invalid request query" });
       }
 
-      const snapshots = await FinanceSubscriptionService.listUsageSnapshots(
+      const organisationId = resolveAuthorizedOrganisationId(
+        req,
+        res,
         query.data.organisationId,
+      );
+      if (!organisationId) return;
+
+      const snapshots = await FinanceSubscriptionService.listUsageSnapshots(
+        organisationId,
         {
           subscriptionId: query.data.subscriptionId ?? null,
           featureKey: query.data.featureKey ?? null,
