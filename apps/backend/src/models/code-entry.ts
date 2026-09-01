@@ -1,4 +1,5 @@
-export type CodeSystem = "YOSEMITECODE" | "IDEXX" | "SNOMED" | "VENOM";
+export type CodeSystem =
+  "YOSEMITECODE" | "IDEXX" | "SNOMED" | "VENOM" | "ATCVET";
 export type CodeType =
   | "SPECIES"
   | "BREED"

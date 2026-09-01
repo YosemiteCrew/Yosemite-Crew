@@ -171,6 +171,7 @@ enum CodeSystem {
   IDEXX
   SNOMED
   VENOM
+  ATCVET
 }
 
 enum CodeType {
@@ -184,6 +185,14 @@ enum CodeType {
   // relationship parents. Kept out of CLINICAL_TERM so clinical autocomplete does not
   // start offering category headings as if they were diagnoses.
   CLINICAL_CATEGORY
+  // An ATCvet substance: the fifth level of the code, the thing that is actually
+  // prescribed ("QJ01AA02 doxycycline").
+  MEDICATION
+  // The four grouping levels above a substance (anatomical main group through
+  // chemical subgroup). Held apart from MEDICATION for the same reason
+  // CLINICAL_CATEGORY is held apart from CLINICAL_TERM: prescribing autocomplete
+  // must offer substances, never the headings they sit under.
+  MEDICATION_CATEGORY
   OTHER
 }
 
