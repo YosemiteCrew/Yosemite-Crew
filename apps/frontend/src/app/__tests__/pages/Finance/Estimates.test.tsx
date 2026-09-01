@@ -234,8 +234,8 @@ describe('Finance > Estimates page', () => {
     await userEvent.click(row);
 
     expect(detailHeading('Bruno')).toBeInTheDocument();
-    // The detail's totals group, which only the open estimate renders.
-    expect(screen.getByRole('group', { name: 'Estimate totals' })).toBeInTheDocument();
+    // The detail's totals list, which only the open estimate renders.
+    expect(document.querySelector('dl[aria-label="Estimate totals"]')).toBeInTheDocument();
     expect(screen.getByText('Dental clean')).toBeInTheDocument();
   });
 

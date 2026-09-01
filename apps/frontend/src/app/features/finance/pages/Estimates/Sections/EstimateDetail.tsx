@@ -26,12 +26,21 @@ type EstimateDetailProps = {
   error: string | null;
 };
 
+/**
+ * One totals row as a description-list pair.
+ *
+ * `<dl>`/`<dt>`/`<dd>` rather than a div with `role="group"`: these are label
+ * and value pairs, which is exactly what a description list is for, so the
+ * semantics come from the markup instead of an ARIA role bolted onto a div
+ * (Sonar S6819). It also stops "Tax" here being indistinguishable from the
+ * "Tax" column header on the lines table above.
+ */
 const summaryRow = (label: string, value: string, emphasis = false) => (
-  <div className="flex items-center justify-between gap-4">
-    <span className="text-body-4 text-text-secondary">{label}</span>
-    <span className={emphasis ? 'text-body-2 text-text-primary' : 'text-body-3 text-text-primary'}>
+  <div className="flex items-center justify-between gap-4" key={label}>
+    <dt className="text-body-4 text-text-secondary">{label}</dt>
+    <dd className={emphasis ? 'text-body-2 text-text-primary' : 'text-body-3 text-text-primary'}>
       {value}
-    </span>
+    </dd>
   </div>
 );
 
@@ -81,15 +90,14 @@ const EstimateDetail = ({
 
         <EstimateLineItems estimate={estimate} />
 
-        <div
+        <dl
           className="flex flex-col gap-2 border-t border-t-card-border pt-4!"
-          role="group"
           aria-label="Estimate totals"
         >
           {summaryRow('Subtotal', formatMoneyPrecise(estimate.subtotal, estimate.currency))}
           {summaryRow('Tax', formatMoneyPrecise(estimate.taxAmount, estimate.currency))}
           {summaryRow('Total', formatMoneyPrecise(estimate.total, estimate.currency), true)}
-        </div>
+        </dl>
 
         {estimate.notes ? (
           <p className="text-body-4 text-text-secondary whitespace-pre-line">{estimate.notes}</p>

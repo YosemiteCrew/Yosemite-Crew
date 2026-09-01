@@ -269,8 +269,10 @@ describe('EstimateDetail', () => {
    * line-items table above and an unscoped query matches both.
    */
   const summaryValue = (label: string): string => {
-    const totals = screen.getByRole('group', { name: 'Estimate totals' });
-    const value = within(totals).getByText(label).nextElementSibling;
+    // Anchored on the <dt>, so "Tax" here is never confused with the "Tax"
+    // column header on the lines table above.
+    const term = screen.getAllByText(label).find((node) => node.tagName === 'DT');
+    const value = term?.nextElementSibling;
     if (!value) throw new Error(`Expected a value beside the "${label}" summary label.`);
     return value.textContent ?? '';
   };
