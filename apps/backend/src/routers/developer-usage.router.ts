@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { requireWebAuth } from "src/middlewares/auth";
+import { requireActiveAccount } from "src/middlewares/require-active-account";
 import { DeveloperUsageController } from "../controllers/web/developer-usage.controller";
 
 const developerUsageRouter = Router();
@@ -21,6 +22,7 @@ const developerUsageRouter = Router();
 developerUsageRouter.get(
   "/",
   requireWebAuth,
+  requireActiveAccount(),
   DeveloperUsageController.getUsage,
 );
 

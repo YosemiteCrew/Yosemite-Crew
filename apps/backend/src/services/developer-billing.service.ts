@@ -81,6 +81,21 @@ async function handleCheckoutCompleted(
       : (session.subscription?.id ?? null);
   if (!subId) return;
 
+  // Expiring open sessions at deletion is best-effort - Stripe can be down, and
+  // a session created in the same instant can slip past it. Refuse here too, so
+  // a completed checkout can never resurrect billing for a deleted account.
+  const owner = await prisma.user.findFirst({
+    where: { userId: ownerId },
+    select: { isActive: true },
+  });
+  if (!owner?.isActive) {
+    logger.error(
+      "Ignored a completed checkout session for an account that is no longer active; refund and cancel it in Stripe by hand",
+      { eventId: event.id, sessionId: session.id, subscriptionId: subId },
+    );
+    return;
+  }
+
   const stripe = getStripeClient();
   const sub = await stripe.subscriptions.retrieve(subId, {
     expand: ["items.data.price"],
@@ -228,13 +243,21 @@ export const DeveloperBillingService = {
    * way. A Stripe failure is logged and swallowed: the caller is mid-deletion
    * and must not be left half-finished, and a stranded Stripe subscription is
    * recoverable from the dashboard while a half-deleted account is not.
+   *
+   * An unfinished checkout is the other half of this. Between
+   * `getOrCreateCustomer` and completion the row holds a customer and a null
+   * `stripeSubscriptionId`, so cancelling the subscription is a no-op while the
+   * hosted Checkout page stays live. Completing it later fires
+   * `checkout.session.completed`, whose metadata still names this owner, and a
+   * fresh subscription would be recreated for a deleted account. Any open
+   * session on the customer is expired first.
    */
   async cancelForOwner(ownerUserId: string): Promise<void> {
     if (!ownerUserId.trim()) return;
 
     const record = await prisma.developerSubscription.findUnique({
       where: { ownerUserId },
-      select: { stripeSubscriptionId: true },
+      select: { stripeSubscriptionId: true, stripeCustomerId: true },
     });
     if (!record) return;
 
@@ -247,6 +270,25 @@ export const DeveloperBillingService = {
         logger.error(
           "Failed to cancel a developer subscription during account deletion; cancel it in Stripe by hand",
           { stripeSubscriptionId: record.stripeSubscriptionId, err },
+        );
+      }
+    }
+
+    if (record.stripeCustomerId) {
+      try {
+        const stripe = getStripeClient();
+        const open = await stripe.checkout.sessions.list({
+          customer: record.stripeCustomerId,
+          status: "open",
+          limit: 100,
+        });
+        for (const session of open.data) {
+          await stripe.checkout.sessions.expire(session.id);
+        }
+      } catch (err) {
+        logger.error(
+          "Failed to expire open checkout sessions during account deletion; expire them in Stripe by hand",
+          { stripeCustomerId: record.stripeCustomerId, err },
         );
       }
     }

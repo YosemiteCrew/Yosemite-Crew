@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { DeveloperBillingController } from "../controllers/web/developer-billing.controller";
 import { requireWebAuth } from "src/middlewares/auth";
+import { requireActiveAccount } from "src/middlewares/require-active-account";
 
 const router = Router();
 
@@ -29,14 +30,25 @@ const router = Router();
  * `app.ts`.
  */
 
-router.get("/", requireWebAuth, DeveloperBillingController.getSubscription);
+router.get(
+  "/",
+  requireWebAuth,
+  requireActiveAccount(),
+  DeveloperBillingController.getSubscription,
+);
 
 router.post(
   "/checkout",
   requireWebAuth,
+  requireActiveAccount(),
   DeveloperBillingController.createCheckout,
 );
 
-router.post("/portal", requireWebAuth, DeveloperBillingController.createPortal);
+router.post(
+  "/portal",
+  requireWebAuth,
+  requireActiveAccount(),
+  DeveloperBillingController.createPortal,
+);
 
 export default router;

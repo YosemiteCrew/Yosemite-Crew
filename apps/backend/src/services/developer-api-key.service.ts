@@ -136,8 +136,17 @@ export const DeveloperApiKeyService = {
     const record = await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`developer-api-key:${ownerUserId}`}))`;
 
+      // `verify` refuses a key past `expiresAt` and nothing ever moves it out
+      // of `active`, so counting those would block an owner from issuing a
+      // usable replacement while holding 25 credentials that authenticate
+      // nothing. The ceiling is on live credentials, so match what `verify`
+      // will actually accept.
       const activeKeys = await tx.developerApiKey.count({
-        where: { ownerUserId, status: DeveloperApiKeyStatus.active },
+        where: {
+          ownerUserId,
+          status: DeveloperApiKeyStatus.active,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        },
       });
       if (activeKeys >= MAX_ACTIVE_KEYS_PER_OWNER) {
         throw new DeveloperApiKeyServiceError(
@@ -210,8 +219,9 @@ export const DeveloperApiKeyService = {
     }
   },
 
-  // Authenticates a presented secret. Returns the org + scopes context, or null
-  // for any unknown / revoked / expired key (callers translate null to 401).
+  // Authenticates a presented secret. Returns the owner + scopes context, or
+  // null for any unknown / revoked / expired key, or one whose owner account is
+  // no longer active (callers translate null to 401).
   async verify(plaintextKey: string): Promise<VerifiedApiKey | null> {
     if (typeof plaintextKey !== "string" || !plaintextKey.startsWith("yc_")) {
       return null;
@@ -223,6 +233,17 @@ export const DeveloperApiKeyService = {
       return null;
     }
     if (record.expiresAt && record.expiresAt.getTime() <= Date.now()) {
+      return null;
+    }
+
+    // A deleted account is soft-deleted and its session is not revoked, so the
+    // key it minted stays syntactically valid. The data API must not keep
+    // answering for an owner who no longer exists.
+    const owner = await prisma.user.findFirst({
+      where: { userId: record.ownerUserId },
+      select: { isActive: true },
+    });
+    if (!owner?.isActive) {
       return null;
     }
 

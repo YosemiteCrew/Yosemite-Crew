@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { DeveloperApiKeyController } from "../controllers/web/developer-api-key.controller";
 import { requireWebAuth } from "src/middlewares/auth";
+import { requireActiveAccount } from "src/middlewares/require-active-account";
 
 const router = Router();
 
@@ -14,6 +15,11 @@ const router = Router();
  * signup creates no UserOrganization row, so the middleware answered 400 before
  * any handler ran (issue #2551).
  *
+ * `requireActiveAccount()` sits alongside it because the soft delete leaves the
+ * session valid: an org-gated route is covered incidentally, since deletion
+ * removes the memberships `withOrgPermissions()` needs, but a user-scoped route
+ * has no such cover and would otherwise let a deleted account mint credentials.
+ *
  * A reviewer will want to add a `developer` role check back. Do not: the role is
  * self-assignable. `SELF_ASSIGNABLE_ROLES` in `user.controller.ts` lets a caller
  * claim `developer` by posting it to `POST /fhir/v1/user`, so gating on it would
@@ -21,11 +27,22 @@ const router = Router();
  * the authority, and ownership is enforced in the query.
  */
 
-router.post("/", requireWebAuth, DeveloperApiKeyController.createApiKey);
-router.get("/", requireWebAuth, DeveloperApiKeyController.listApiKeys);
+router.post(
+  "/",
+  requireWebAuth,
+  requireActiveAccount(),
+  DeveloperApiKeyController.createApiKey,
+);
+router.get(
+  "/",
+  requireWebAuth,
+  requireActiveAccount(),
+  DeveloperApiKeyController.listApiKeys,
+);
 router.delete(
   "/:keyId",
   requireWebAuth,
+  requireActiveAccount(),
   DeveloperApiKeyController.revokeApiKey,
 );
 

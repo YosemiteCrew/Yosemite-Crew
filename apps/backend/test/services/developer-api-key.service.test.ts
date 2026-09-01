@@ -14,6 +14,9 @@ jest.mock("../../src/config/prisma", () => ({
       update: jest.fn(),
       updateMany: jest.fn(),
     },
+    user: {
+      findFirst: jest.fn(),
+    },
     $executeRaw: jest.fn(),
     // `issue` counts and inserts inside one transaction so the active-key
     // ceiling cannot be raced. Running the callback against the same mocked
@@ -31,6 +34,9 @@ const mockPrisma = prisma as unknown as {
     update: jest.Mock;
     updateMany: jest.Mock;
   };
+  user: {
+    findFirst: jest.Mock;
+  };
   $executeRaw: jest.Mock;
   $transaction: jest.Mock;
 };
@@ -40,6 +46,9 @@ describe("DeveloperApiKeyService", () => {
     jest.clearAllMocks();
     mockPrisma.developerApiKey.count.mockResolvedValue(0);
     mockPrisma.$executeRaw.mockResolvedValue(1);
+    // `verify` refuses a key whose owner has been deleted; default to a live
+    // account so the existing cases exercise the paths they were written for.
+    mockPrisma.user.findFirst.mockResolvedValue({ isActive: true });
     mockPrisma.$transaction.mockImplementation(
       (run: (tx: unknown) => unknown) => run(prisma),
     );
@@ -131,6 +140,31 @@ describe("DeveloperApiKeyService", () => {
         }),
       ).rejects.toMatchObject({ statusCode: 429 });
       expect(mockPrisma.developerApiKey.create).not.toHaveBeenCalled();
+    });
+
+    it("excludes expired keys from the ceiling", async () => {
+      // 25 keys that verify() would reject as expired must not block a usable
+      // replacement, so the count carries the expiry predicate.
+      mockPrisma.developerApiKey.create.mockResolvedValue({
+        id: "k",
+        name: "n",
+        prefix: "yc_live_x",
+        last4: "abcd",
+        scopes: [],
+        environment: "live",
+      });
+
+      await DeveloperApiKeyService.issue({
+        ownerUserId: "user-1",
+        name: "n",
+        createdBy: "user-1",
+      });
+
+      const where = mockPrisma.developerApiKey.count.mock.calls[0][0].where;
+      expect(where.OR).toEqual([
+        { expiresAt: null },
+        { expiresAt: { gt: expect.any(Date) } },
+      ]);
     });
 
     it("counts and inserts inside one transaction, behind a per-owner lock", async () => {
@@ -331,6 +365,42 @@ describe("DeveloperApiKeyService", () => {
         environment: "live",
       });
       expect(mockPrisma.developerApiKey.update).toHaveBeenCalled();
+    });
+
+    it("refuses a key whose owner account has been deleted", async () => {
+      // Deletion is a soft delete and does not revoke the session, so the key
+      // stays syntactically valid. The data API must stop answering for it.
+      mockPrisma.developerApiKey.findUnique.mockResolvedValue({
+        id: "k1",
+        ownerUserId: "user-gone",
+        status: "active",
+        expiresAt: null,
+        scopes: [],
+        environment: "live",
+        lastUsedAt: new Date(),
+      });
+      mockPrisma.user.findFirst.mockResolvedValue({ isActive: false });
+
+      await expect(
+        DeveloperApiKeyService.verify("yc_live_whatever"),
+      ).resolves.toBeNull();
+    });
+
+    it("refuses a key whose owner row no longer exists", async () => {
+      mockPrisma.developerApiKey.findUnique.mockResolvedValue({
+        id: "k1",
+        ownerUserId: "user-gone",
+        status: "active",
+        expiresAt: null,
+        scopes: [],
+        environment: "live",
+        lastUsedAt: new Date(),
+      });
+      mockPrisma.user.findFirst.mockResolvedValue(null);
+
+      await expect(
+        DeveloperApiKeyService.verify("yc_live_whatever"),
+      ).resolves.toBeNull();
     });
 
     it("does not refresh a fresh lastUsedAt", async () => {

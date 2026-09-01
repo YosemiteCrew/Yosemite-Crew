@@ -14,6 +14,9 @@ jest.mock("../../src/config/prisma", () => ({
       update: jest.fn(),
       deleteMany: jest.fn(),
     },
+    user: {
+      findFirst: jest.fn(),
+    },
   },
 }));
 
@@ -28,12 +31,20 @@ jest.mock("stripe", () => {
   const mockBillingPortalCreate = jest.fn();
   const mockSubscriptionsRetrieve = jest.fn();
   const mockSubscriptionsCancel = jest.fn();
+  const mockCheckoutSessionsList = jest.fn();
+  const mockCheckoutSessionsExpire = jest.fn();
   const mockWebhooksConstructEvent = jest.fn();
   const mockMeterEventsCreate = jest.fn();
 
   const MockStripe = jest.fn().mockImplementation(() => ({
     customers: { create: mockCustomersCreate },
-    checkout: { sessions: { create: mockCheckoutSessionsCreate } },
+    checkout: {
+      sessions: {
+        create: mockCheckoutSessionsCreate,
+        list: mockCheckoutSessionsList,
+        expire: mockCheckoutSessionsExpire,
+      },
+    },
     billingPortal: { sessions: { create: mockBillingPortalCreate } },
     subscriptions: {
       retrieve: mockSubscriptionsRetrieve,
@@ -54,6 +65,9 @@ const mockPrisma = prisma as unknown as {
     update: jest.Mock;
     deleteMany: jest.Mock;
   };
+  user: {
+    findFirst: jest.Mock;
+  };
 };
 
 const getStripeInstance = () => {
@@ -64,6 +78,9 @@ const getStripeInstance = () => {
 describe("DeveloperBillingService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    getStripeInstance().checkout.sessions.list.mockResolvedValue({ data: [] });
+    // A completed checkout is refused for a deleted account; default to live.
+    mockPrisma.user.findFirst.mockResolvedValue({ isActive: true });
     process.env.STRIPE_SECRET_KEY = "sk_test_key";
     process.env.STRIPE_DEV_METERED_PRICE_ID = "price_metered_abc";
     process.env.STRIPE_DEV_WEBHOOK_SECRET = "whsec_test";
@@ -83,6 +100,46 @@ describe("DeveloperBillingService", () => {
       expect(mockPrisma.developerSubscription.deleteMany).toHaveBeenCalledWith({
         where: { ownerUserId: "user-1" },
       });
+    });
+
+    it("expires open checkout sessions so a later completion cannot resurrect billing", async () => {
+      // Between getOrCreateCustomer and completion the row holds a customer and
+      // a null subscription id, so cancelling the subscription is a no-op while
+      // the hosted Checkout page stays live.
+      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
+        stripeSubscriptionId: null,
+        stripeCustomerId: "cus_1",
+      });
+      const stripe = getStripeInstance();
+      stripe.checkout.sessions.list.mockResolvedValue({
+        data: [{ id: "cs_1" }, { id: "cs_2" }],
+      });
+
+      await DeveloperBillingService.cancelForOwner("user-1");
+
+      expect(stripe.checkout.sessions.list).toHaveBeenCalledWith({
+        customer: "cus_1",
+        status: "open",
+        limit: 100,
+      });
+      expect(stripe.checkout.sessions.expire).toHaveBeenCalledWith("cs_1");
+      expect(stripe.checkout.sessions.expire).toHaveBeenCalledWith("cs_2");
+      expect(mockPrisma.developerSubscription.deleteMany).toHaveBeenCalled();
+    });
+
+    it("still deletes the row when expiring sessions fails", async () => {
+      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
+        stripeSubscriptionId: null,
+        stripeCustomerId: "cus_1",
+      });
+      getStripeInstance().checkout.sessions.list.mockRejectedValueOnce(
+        new Error("stripe down"),
+      );
+
+      await expect(
+        DeveloperBillingService.cancelForOwner("user-1"),
+      ).resolves.toBeUndefined();
+      expect(mockPrisma.developerSubscription.deleteMany).toHaveBeenCalled();
     });
 
     it("removes a row that never reached Stripe without calling Stripe", async () => {
@@ -421,6 +478,31 @@ describe("DeveloperBillingService", () => {
       } as never);
 
       expect(mockPrisma.developerSubscription.upsert).not.toHaveBeenCalled();
+    });
+
+    it("refuses a completed checkout for an account that is no longer active", async () => {
+      // Expiring sessions at deletion is best-effort; this is the backstop that
+      // makes resurrection impossible rather than unlikely.
+      mockPrisma.user.findFirst.mockResolvedValue({ isActive: false });
+
+      await DeveloperBillingService.handleWebhookEvent({
+        id: "evt_dead",
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            id: "cs_dead",
+            mode: "subscription",
+            subscription: "sub_dead",
+            metadata: { ownerUserId: "user-gone" },
+          },
+        },
+      } as never);
+
+      expect(mockPrisma.developerSubscription.upsert).not.toHaveBeenCalled();
+      expect(jest.mocked(logger.error)).toHaveBeenCalledWith(
+        expect.stringContaining("no longer active"),
+        expect.objectContaining({ sessionId: "cs_dead" }),
+      );
     });
 
     it("logs a checkout session that predates the re-key instead of ignoring it silently", async () => {
