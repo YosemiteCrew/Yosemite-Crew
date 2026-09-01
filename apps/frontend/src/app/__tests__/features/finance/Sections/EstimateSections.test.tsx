@@ -250,25 +250,57 @@ describe('EstimateDetail', () => {
   const actionButton = (action: EstimateAction) =>
     screen.queryByRole('button', { name: ARIA_LABELS[action] });
 
-  const lineRow = (description: string): HTMLElement => closestRow(screen.getByText(description));
+  /**
+   * One line of the estimate. The detail renders its lines through the shared
+   * TableHead recipe over a CSS grid, matching InvoiceBilledItems, so a line is
+   * a grid row rather than a <tr> - the cells are its direct children.
+   */
+  const lineRow = (description: string): HTMLElement => {
+    const row = screen.getByText(description).closest('div[style*="grid-template-columns"]');
+    if (!row) throw new Error(`No estimate line row found for "${description}".`);
+    return row as HTMLElement;
+  };
 
+  const lineCells = (description: string): HTMLElement[] =>
+    Array.from(lineRow(description).children) as HTMLElement[];
+
+  /**
+   * Scoped to the totals group, because "Tax" is also a column header on the
+   * line-items table above and an unscoped query matches both.
+   */
   const summaryValue = (label: string): string => {
-    const value = screen.getByText(label, { selector: 'span' }).nextElementSibling;
+    const totals = screen.getByRole('group', { name: 'Estimate totals' });
+    const value = within(totals).getByText(label).nextElementSibling;
     if (!value) throw new Error(`Expected a value beside the "${label}" summary label.`);
     return value.textContent ?? '';
   };
 
+  it('says so when an estimate has no lines at all', () => {
+    renderDetail({ estimate: makeEstimate({ items: [] }) });
+
+    expect(screen.getByText('This estimate has no lines.')).toBeInTheDocument();
+  });
+
+  it('omits the notes line when an item carries none', () => {
+    renderDetail();
+
+    // Consultation has no notes; Vaccination does. The notes span must exist
+    // for one and not the other, rather than rendering an empty element.
+    expect(lineCells('Consultation')[0].querySelectorAll('span')).toHaveLength(1);
+    expect(lineCells('Vaccination')[0].querySelectorAll('span').length).toBeGreaterThan(1);
+  });
+
   it('renders every line item with its description, quantity, unit price, tax and line total', () => {
     renderDetail();
 
-    const consultation = within(lineRow('Consultation')).getAllByRole('cell');
+    const consultation = lineCells('Consultation');
     expect(consultation[0]).toHaveTextContent('Consultation');
     expect(consultation[1]).toHaveTextContent('2');
     expect(consultation[2]).toHaveTextContent('$40.00');
     expect(consultation[3]).toHaveTextContent('20%');
     expect(consultation[4]).toHaveTextContent('$80.00');
 
-    const vaccination = within(lineRow('Vaccination')).getAllByRole('cell');
+    const vaccination = lineCells('Vaccination');
     expect(vaccination[0]).toHaveTextContent('Vaccination');
     expect(vaccination[0]).toHaveTextContent('Annual booster');
     expect(vaccination[1]).toHaveTextContent('1');

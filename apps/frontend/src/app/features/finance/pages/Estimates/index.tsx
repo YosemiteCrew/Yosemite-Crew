@@ -11,6 +11,7 @@ import { useNotify } from '@/app/hooks/useNotify';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useCompanionStore } from '@/app/stores/companionStore';
 import { loadCompanionsForPrimaryOrg } from '@/app/features/companions/services/companionService';
+import { loadInvoicesForOrgPrimaryOrg } from '@/app/features/billing/services/invoiceService';
 import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
 import InvoiceStatusFilterPills from '@/app/features/finance/pages/Finance/Sections/InvoiceStatusFilterPills';
 import { useEstimates } from '@/app/features/finance/hooks/useEstimates';
@@ -121,6 +122,16 @@ const EstimatesContent = () => {
     try {
       const updated = await runAction(action, primaryOrgId, activeEstimate.id);
       upsert(updated);
+      if (action === 'convert') {
+        // Converting mints a new Invoice. The user normally arrives here from
+        // Finance, so the invoice store already holds an entry for this
+        // organisation and useLoadInvoicesForPrimaryOrg will skip loading -
+        // which leaves the new invoice absent and the "View the invoice" deep
+        // link unable to find it until a full reload. Force the refetch.
+        loadInvoicesForOrgPrimaryOrg({ force: true, silent: true }).catch((err: unknown) => {
+          console.error('Failed to refresh invoices after converting an estimate:', err);
+        });
+      }
       // A status change can move the estimate out of the active filter, in which
       // case `upsert` drops it and there is no longer a row to keep selected.
       if (statusFilter && updated.status !== statusFilter) setActiveEstimateId(null);

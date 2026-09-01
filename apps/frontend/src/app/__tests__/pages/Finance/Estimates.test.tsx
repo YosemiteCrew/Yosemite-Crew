@@ -75,6 +75,11 @@ jest.mock('@/app/features/companions/services/companionService', () => ({
   loadCompanionsForPrimaryOrg: (...args: unknown[]) => mockLoadCompanions(...args),
 }));
 
+const mockLoadInvoices = jest.fn().mockResolvedValue(undefined);
+jest.mock('@/app/features/billing/services/invoiceService', () => ({
+  loadInvoicesForOrgPrimaryOrg: (...args: unknown[]) => mockLoadInvoices(...args),
+}));
+
 // Mock the transport, not the hook, so the page's real load/merge/error paths run.
 const mockEstimateService = {
   listEstimates: jest.fn(),
@@ -229,7 +234,8 @@ describe('Finance > Estimates page', () => {
     await userEvent.click(row);
 
     expect(detailHeading('Bruno')).toBeInTheDocument();
-    expect(screen.getByText('Estimate line items')).toBeInTheDocument();
+    // The detail's totals group, which only the open estimate renders.
+    expect(screen.getByRole('group', { name: 'Estimate totals' })).toBeInTheDocument();
     expect(screen.getByText('Dental clean')).toBeInTheDocument();
   });
 
@@ -401,6 +407,60 @@ describe('Finance > Estimates page', () => {
     expect(screen.getByText('No estimate currently has this status.')).toBeInTheDocument();
     expect(detailHeading('Bruno')).not.toBeInTheDocument();
     expect(mockEstimateService.listEstimates).toHaveBeenCalledTimes(2);
+
+    // Converting mints an Invoice. The invoice store already holds an entry for
+    // this organisation, so useLoadInvoicesForPrimaryOrg would skip loading and
+    // the "View the invoice" link would point at a row the store has never
+    // seen. Only a forced refetch fixes that.
+    await waitFor(() =>
+      expect(mockLoadInvoices).toHaveBeenCalledWith({ force: true, silent: true })
+    );
+  });
+
+  it('still reports success when the post-convert invoice refetch fails', async () => {
+    mockEstimateService.listEstimates.mockResolvedValue([buildEstimate({ status: 'APPROVED' })]);
+    mockEstimateService.convertEstimate.mockResolvedValue(
+      buildEstimate({ status: 'CONVERTED', convertedToInvoiceId: 'inv-1' })
+    );
+    mockLoadInvoices.mockRejectedValueOnce(new Error('network down'));
+    // The page logs the refetch failure; the shared setup turns console.error
+    // into a thrown assertion, so it is silenced for this one case.
+    const logged = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    render(<ProtectedEstimates />);
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Open the estimate for Bruno' })
+    );
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Convert this estimate to an invoice' })
+    );
+
+    // The conversion itself succeeded, so the user is told so - a failed
+    // background refresh must not be reported as a failed conversion.
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith(
+        'success',
+        expect.objectContaining({ title: 'Invoice created' })
+      )
+    );
+    await waitFor(() => expect(logged).toHaveBeenCalled());
+    logged.mockRestore();
+  });
+
+  it('does not refetch invoices for a non-converting action', async () => {
+    mockEstimateService.listEstimates.mockResolvedValue([buildEstimate({ status: 'DRAFT' })]);
+    mockEstimateService.approveEstimate.mockResolvedValue(buildEstimate({ status: 'APPROVED' }));
+
+    render(<ProtectedEstimates />);
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Open the estimate for Bruno' })
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Approve this estimate' }));
+
+    await waitFor(() =>
+      expect(mockEstimateService.approveEstimate).toHaveBeenCalledWith('org-1', 'est-1')
+    );
+    expect(mockLoadInvoices).not.toHaveBeenCalled();
   });
 
   it('closes the detail when the status filter changes', async () => {

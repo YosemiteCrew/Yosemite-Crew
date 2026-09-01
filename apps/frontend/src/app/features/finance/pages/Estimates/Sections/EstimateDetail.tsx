@@ -6,6 +6,7 @@ import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import EstimateStatusBadge from '@/app/features/finance/pages/Estimates/Sections/EstimateStatusBadge';
+import EstimateLineItems from '@/app/features/finance/pages/Estimates/Sections/EstimateLineItems';
 import {
   canApprove,
   canConvert,
@@ -78,56 +79,13 @@ const EstimateDetail = ({
           </p>
         )}
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-140 border-collapse">
-            <caption className="sr-only">Estimate line items</caption>
-            <thead>
-              <tr className="border-b border-b-card-border">
-                <th scope="col" className="text-left text-body-4 text-text-secondary py-2!">
-                  Description
-                </th>
-                <th scope="col" className="text-right text-body-4 text-text-secondary py-2!">
-                  Qty
-                </th>
-                <th scope="col" className="text-right text-body-4 text-text-secondary py-2!">
-                  Unit price
-                </th>
-                <th scope="col" className="text-right text-body-4 text-text-secondary py-2!">
-                  Tax
-                </th>
-                <th scope="col" className="text-right text-body-4 text-text-secondary py-2!">
-                  Line total
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {estimate.items.map((item) => (
-                <tr key={item.id} className="border-b border-b-card-border last:border-b-0">
-                  <td className="py-2! text-body-3 text-text-primary">
-                    {item.description}
-                    {item.notes ? (
-                      <span className="block text-body-4 text-text-secondary">{item.notes}</span>
-                    ) : null}
-                  </td>
-                  <td className="py-2! text-body-3 text-text-primary text-right">
-                    {item.quantity}
-                  </td>
-                  <td className="py-2! text-body-3 text-text-primary text-right">
-                    {formatMoneyPrecise(item.unitPrice, estimate.currency)}
-                  </td>
-                  <td className="py-2! text-body-3 text-text-primary text-right">
-                    {item.taxRate}%
-                  </td>
-                  <td className="py-2! text-body-3 text-text-primary text-right">
-                    {formatMoneyPrecise(item.lineTotal, estimate.currency)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <EstimateLineItems estimate={estimate} />
 
-        <div className="flex flex-col gap-2 border-t border-t-card-border pt-4!">
+        <div
+          className="flex flex-col gap-2 border-t border-t-card-border pt-4!"
+          role="group"
+          aria-label="Estimate totals"
+        >
           {summaryRow('Subtotal', formatMoneyPrecise(estimate.subtotal, estimate.currency))}
           {summaryRow('Tax', formatMoneyPrecise(estimate.taxAmount, estimate.currency))}
           {summaryRow('Total', formatMoneyPrecise(estimate.total, estimate.currency), true)}
