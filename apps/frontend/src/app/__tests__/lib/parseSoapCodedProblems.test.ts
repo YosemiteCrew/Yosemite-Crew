@@ -54,6 +54,37 @@ describe('parseSoapCodedProblems', () => {
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
   });
 
+  it('keeps valid codings, drops malformed ones, and caps them per term', () => {
+    const parsed = parseSoapCodedProblems({
+      plan: [
+        {
+          ycCode: 'YC-1',
+          label: 'Dental scale',
+          codings: [
+            { system: 'VENOM', code: '891', equivalence: 'EQUIVALENT' },
+            { system: 'SNOMED', code: '' },
+            { system: '', code: '123' },
+            'not-an-object',
+            null,
+            ...Array.from({ length: 12 }, (_, i) => ({ system: 'X', code: `c${i}` })),
+          ],
+        },
+      ],
+    });
+    const codings = parsed?.plan?.[0].codings ?? [];
+    expect(codings).toHaveLength(8);
+    expect(codings[0]).toEqual({ system: 'VENOM', code: '891', equivalence: 'EQUIVALENT' });
+    // A coding without an equivalence keeps the key absent rather than undefined.
+    expect(codings[1]).toEqual({ system: 'X', code: 'c0' });
+  });
+
+  it('omits codings entirely when none are valid', () => {
+    const parsed = parseSoapCodedProblems({
+      plan: [{ ycCode: 'YC-1', label: 'L', codings: ['junk'] }],
+    });
+    expect(parsed?.plan?.[0]).not.toHaveProperty('codings');
+  });
+
   it('caps a section at 50 terms', () => {
     const flood = Array.from({ length: 80 }, (_, index) => ({
       ycCode: `YC-${index}`,

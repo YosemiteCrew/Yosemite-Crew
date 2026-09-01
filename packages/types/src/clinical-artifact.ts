@@ -56,6 +56,17 @@ export const SOAP_CODED_SECTIONS = ['subjective', 'objective', 'assessment', 'pl
 
 export type SoapCodedSection = (typeof SOAP_CODED_SECTIONS)[number];
 
+/**
+ * A crosswalk recorded alongside a pick. Stored so the note shows the same
+ * codes the clinician saw when choosing, even if the mapping table later
+ * changes; the FHIR export still projects live from CodeMapping.
+ */
+export type SoapCodedTermCoding = {
+  system: string;
+  code: string;
+  equivalence?: string;
+};
+
 export type SoapCodedTerm = {
   /** Yosemite vocabulary code, e.g. YC-005416. */
   ycCode: string;
@@ -63,12 +74,17 @@ export type SoapCodedTerm = {
   label: string;
   /** VeNom-style domain the term belongs to, when known (e.g. Diagnosis). */
   domain?: string;
+  /** Cross-vocabulary codes shown at pick time (VeNom/SNOMED). */
+  codings?: SoapCodedTermCoding[];
 };
 
 export type SoapCodedProblems = Partial<Record<SoapCodedSection, SoapCodedTerm[]>>;
 
 /** Bound per section so a malformed or hostile payload cannot balloon the JSON column. */
 const MAX_CODED_TERMS_PER_SECTION = 50;
+
+/** Bounded like the section cap: a term has one crosswalk per system, not a list. */
+const MAX_CODINGS_PER_TERM = 8;
 
 const parseSoapCodedTerm = (value: unknown): SoapCodedTerm | null => {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
@@ -78,7 +94,29 @@ const parseSoapCodedTerm = (value: unknown): SoapCodedTerm | null => {
   if (!ycCode || !label) return null;
   const domain =
     typeof entry.domain === 'string' && entry.domain.trim() ? entry.domain.trim() : undefined;
-  return domain === undefined ? { ycCode, label } : { ycCode, label, domain };
+  const codings = Array.isArray(entry.codings)
+    ? entry.codings
+        .map((value) => {
+          if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+          const coding = value as Record<string, unknown>;
+          const system = typeof coding.system === 'string' ? coding.system.trim() : '';
+          const code = typeof coding.code === 'string' ? coding.code.trim() : '';
+          if (!system || !code) return null;
+          const equivalence =
+            typeof coding.equivalence === 'string' && coding.equivalence.trim()
+              ? coding.equivalence.trim()
+              : undefined;
+          return equivalence === undefined ? { system, code } : { system, code, equivalence };
+        })
+        .filter((coding): coding is SoapCodedTermCoding => coding !== null)
+        .slice(0, MAX_CODINGS_PER_TERM)
+    : [];
+  return {
+    ycCode,
+    label,
+    ...(domain === undefined ? {} : { domain }),
+    ...(codings.length > 0 ? { codings } : {}),
+  };
 };
 
 /** One section's raw payload → valid terms: drops malformed entries, dedups by code, caps the count. */

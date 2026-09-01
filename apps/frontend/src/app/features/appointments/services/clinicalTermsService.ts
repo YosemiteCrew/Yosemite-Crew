@@ -4,6 +4,14 @@ import { getData } from '@/app/services/axios';
 export type ClinicalTermDomain =
   'ReasonForVisit' | 'PresentingComplaint' | 'DiagnosticTest' | 'Diagnosis' | 'Procedure';
 
+/** A crosswalk to another vocabulary, as the backend resolved it for this term. */
+export type ClinicalTermCoding = {
+  system: 'VENOM' | 'SNOMED' | 'IDEXX' | 'YOSEMITECODE';
+  code: string;
+  display?: string;
+  equivalence: string;
+};
+
 export type ClinicalTermSuggestion = {
   ycCode: string;
   label: string;
@@ -11,6 +19,8 @@ export type ClinicalTermSuggestion = {
   species: string[];
   synonyms: string[];
   source?: string;
+  /** VeNom/SNOMED equivalents, strongest per system; absent for unmapped terms. */
+  codings?: ClinicalTermCoding[];
 };
 
 /**
