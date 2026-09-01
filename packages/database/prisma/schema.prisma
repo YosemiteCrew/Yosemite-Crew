@@ -3379,6 +3379,9 @@ model InventoryItem {
   attachments             Json?
   attributes              Json                  @default("{}")
   genericName             String?
+  /// ATCvet substance code for medicine items, when one could be matched
+  /// unambiguously. Stock that is not a medicine simply has none.
+  atcCode                 String?
   strength                String?
   dosageForm              String?
   routeOfAdministration   String?
@@ -3411,6 +3414,7 @@ model InventoryItem {
   @@index([organisationId, businessType])
   @@index([organisationId, status])
   @@index([organisationId, vendorId])
+  @@index([atcCode])
 }
 
 model InventoryBatch {
@@ -5841,6 +5845,10 @@ model DrugFormulary {
   organisationId String
   drugName       String
   genericName    String?
+  /// ATCvet substance code (CodeEntry.system = ATCVET, type = MEDICATION).
+  /// Nullable and never guessed: an unmatched or ambiguous drug stays uncoded
+  /// rather than being filed under the wrong therapeutic class.
+  atcCode        String?
   category       FormularyCategory @default(OTHER)
   manufacturer   String?
   concentration  String?
@@ -5854,6 +5862,7 @@ model DrugFormulary {
 
   @@index([organisationId, isActive])
   @@index([organisationId, category])
+  @@index([atcCode])
   @@map("DrugFormulary")
 }
 

@@ -20,6 +20,7 @@
     "seed:template-library": "tsx src/scripts/seed-template-library.ts",
     "check:wallet": "tsx src/scripts/check-wallet-config.ts",
     "import:venom-designations": "tsx src/scripts/import-venom-designations.ts",
+    "backfill:atc-codes": "tsx src/scripts/backfill-atc-codes.ts",
     "import:atcvet-index": "tsx src/scripts/import-atcvet-index.ts",
     "import:venom-hierarchy": "tsx src/scripts/import-venom-hierarchy.ts"
   },
