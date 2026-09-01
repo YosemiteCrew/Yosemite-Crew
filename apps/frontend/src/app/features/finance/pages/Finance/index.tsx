@@ -177,6 +177,7 @@ const Finance = () => {
                   setActiveStatus={setActiveStatus}
                   className="flex-wrap justify-end"
                 />
+                <Secondary href="/finance/estimates" text="Estimates" ariaLabel="View estimates" />
                 <Secondary
                   href="/finance/discounts"
                   text="Discounts"

@@ -21,3 +21,19 @@ export const currencySymbol = (currency: string): string => {
     return currency;
   }
 };
+
+/**
+ * Money with its minor units kept, e.g. 45.5 GBP -> "£45.50".
+ *
+ * `formatMoney` above rounds to whole units, which is right for the dashboard
+ * tiles it was written for but wrong anywhere a figure has to reconcile with
+ * another figure - an estimate line against its total, or an estimate against
+ * the invoice it converts into.
+ */
+export const formatMoneyPrecise = (amount: number, currency: string) =>
+  new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);

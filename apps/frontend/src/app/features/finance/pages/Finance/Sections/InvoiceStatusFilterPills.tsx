@@ -11,6 +11,8 @@ type InvoiceStatusFilterPillsProps = {
   /** Kept for caller compatibility; geometry now comes from the shared StatusPill primitive. */
   size?: 'sm' | 'md';
   className?: string;
+  /** Overridden by the estimates list, which filters estimates rather than invoices. */
+  ariaLabel?: string;
 };
 
 const getStatusPillTokens = (option: StatusOption): StatusPillTokens => ({
@@ -55,11 +57,12 @@ const InvoiceStatusFilterPills = ({
   setActiveStatus,
   size = 'sm',
   className,
+  ariaLabel = 'Filter invoices by status',
 }: InvoiceStatusFilterPillsProps) => (
   <div /* NOSONAR: styled flex pill group; native <fieldset> defaults (block layout, border, required legend) break the pill design */
     className={clsx('flex items-center gap-2', className)}
     role="group"
-    aria-label="Filter invoices by status"
+    aria-label={ariaLabel}
   >
     {options.map((option) => {
       const isActive = option.key === activeStatus;
