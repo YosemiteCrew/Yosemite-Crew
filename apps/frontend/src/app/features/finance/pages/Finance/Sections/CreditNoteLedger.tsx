@@ -1,5 +1,5 @@
 'use client';
-import React from 'react';
+import React, { useState } from 'react';
 import type { CreditNote } from '@yosemite-crew/types';
 import { formatMoney } from '@/app/lib/money';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
@@ -21,8 +21,14 @@ type CreditNoteLedgerProps = {
  * A voided note is struck through and keeps its row - removing it would hide
  * that a credit was raised and reversed, which is exactly the history a
  * practice needs when reconciling. Only an issued note offers a Void control.
+ *
+ * Voiding asks first. It cannot be undone from here, it moves money back onto
+ * what the client owes, and the control is a compact button sitting inches from
+ * the amount - a single mis-click should not be enough.
  */
 const CreditNoteLedger = ({ notes, currency, busy, onVoid }: CreditNoteLedgerProps) => {
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+
   if (notes.length === 0) {
     return (
       <p className="text-[13px] text-[var(--ink-muted)]">
@@ -53,13 +59,35 @@ const CreditNoteLedger = ({ notes, currency, busy, onVoid }: CreditNoteLedgerPro
             </span>
             {isIssued(note) && (
               <PermissionGate allOf={[PERMISSIONS.BILLING_EDIT_ANY]}>
-                <Secondary
-                  text="Void"
-                  size="compact"
-                  isDisabled={busy}
-                  onClick={() => onVoid(note.id)}
-                  ariaLabel={`Void credit note ${note.creditNoteNumber}`}
-                />
+                {confirmingId === note.id ? (
+                  <span className="flex items-center gap-2">
+                    <Secondary
+                      text="Confirm void"
+                      size="compact"
+                      isDisabled={busy}
+                      onClick={() => {
+                        setConfirmingId(null);
+                        onVoid(note.id);
+                      }}
+                      ariaLabel={`Confirm voiding credit note ${note.creditNoteNumber}`}
+                    />
+                    <Secondary
+                      text="Cancel"
+                      size="compact"
+                      isDisabled={busy}
+                      onClick={() => setConfirmingId(null)}
+                      ariaLabel={`Keep credit note ${note.creditNoteNumber}`}
+                    />
+                  </span>
+                ) : (
+                  <Secondary
+                    text="Void"
+                    size="compact"
+                    isDisabled={busy}
+                    onClick={() => setConfirmingId(note.id)}
+                    ariaLabel={`Void credit note ${note.creditNoteNumber}`}
+                  />
+                )}
               </PermissionGate>
             )}
           </span>

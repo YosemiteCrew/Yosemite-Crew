@@ -38,22 +38,25 @@ type RenderOptions = {
   busy?: boolean;
   error?: string | null;
   status?: string;
+  issuedToken?: number;
 };
 
 const renderSection = (options: RenderOptions = {}) => {
   const onAction = jest.fn();
-  render(
+  const element = (opts: RenderOptions) => (
     <InvoiceCreditNotes
-      creditNotes={options.creditNotes}
-      totalAmount={options.totalAmount ?? 200}
-      status={options.status ?? 'AWAITING_PAYMENT'}
-      currency={options.currency ?? 'USD'}
-      busy={options.busy ?? false}
-      error={options.error ?? null}
+      creditNotes={opts.creditNotes}
+      totalAmount={opts.totalAmount ?? 200}
+      status={opts.status ?? 'AWAITING_PAYMENT'}
+      currency={opts.currency ?? 'USD'}
+      busy={opts.busy ?? false}
+      error={opts.error ?? null}
+      issuedToken={opts.issuedToken ?? 0}
       onAction={onAction}
     />
   );
-  return { onAction };
+  const view = render(element(options));
+  return { onAction, rerender: (next: RenderOptions) => view.rerender(element(next)) };
 };
 
 const amountField = () => screen.getByLabelText('Amount');
@@ -153,7 +156,7 @@ describe('InvoiceCreditNotes', () => {
     expect(screen.queryByText('Credited')).not.toBeInTheDocument();
   });
 
-  it('issues a credit note with the typed amount and trimmed reason, then clears the fields', async () => {
+  it('issues a credit note with the typed amount and trimmed reason', async () => {
     const { onAction } = renderSection({ totalAmount: 200 });
 
     await userEvent.type(amountField(), '75');
@@ -166,8 +169,38 @@ describe('InvoiceCreditNotes', () => {
       amount: 75,
       reason: 'Goodwill gesture',
     });
+  });
+
+  it('keeps the draft while the request is in flight and clears it only on success', async () => {
+    const { rerender } = renderSection({ totalAmount: 200, issuedToken: 0 });
+
+    await userEvent.type(amountField(), '75');
+    await userEvent.type(reasonField(), 'Goodwill gesture');
+    await userEvent.click(issueButton());
+
+    // Still on screen: the server has not accepted anything yet, and clearing
+    // now would lose both fields on a rejection.
+    expect(amountField()).toHaveValue(75);
+    expect(reasonField()).toHaveValue('Goodwill gesture');
+
+    rerender({ totalAmount: 200, issuedToken: 1 });
+
     expect(amountField()).toHaveValue(null);
     expect(reasonField()).toHaveValue('');
+  });
+
+  it('keeps the draft when the server rejects the credit note', async () => {
+    const { rerender } = renderSection({ totalAmount: 200, issuedToken: 0 });
+
+    await userEvent.type(amountField(), '75');
+    await userEvent.click(issueButton());
+
+    // The token does not advance on a failure, so the amount survives for a
+    // retry rather than having to be retyped from the error message.
+    rerender({ totalAmount: 200, issuedToken: 0, error: 'Invoice cannot accept credit notes.' });
+
+    expect(amountField()).toHaveValue(75);
+    expect(screen.getByRole('alert')).toHaveTextContent('Invoice cannot accept credit notes.');
   });
 
   it('sends no reason when the field is blank', async () => {
@@ -251,14 +284,33 @@ describe('InvoiceCreditNotes', () => {
     expect(screen.queryByText(/cancels any open payment link/)).not.toBeInTheDocument();
   });
 
-  it('voids a credit note by id', async () => {
+  it('asks before voiding, and voids by id once confirmed', async () => {
     const { onAction } = renderSection({
       creditNotes: [makeNote({ id: 'cn-7', creditNoteNumber: 'CN-0007', amount: 40 })],
     });
 
     await userEvent.click(screen.getByRole('button', { name: 'Void credit note CN-0007' }));
 
+    // Voiding cannot be undone here and moves money back onto what the client
+    // owes, so the first click only arms it.
+    expect(onAction).not.toHaveBeenCalled();
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Confirm voiding credit note CN-0007' })
+    );
     expect(onAction).toHaveBeenCalledWith({ type: 'void', creditNoteId: 'cn-7' });
+  });
+
+  it('lets the user back out of a void', async () => {
+    const { onAction } = renderSection({
+      creditNotes: [makeNote({ id: 'cn-7', creditNoteNumber: 'CN-0007', amount: 40 })],
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Void credit note CN-0007' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Keep credit note CN-0007' }));
+
+    expect(onAction).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Void credit note CN-0007' })).toBeInTheDocument();
   });
 
   it('disables the actions while busy', () => {

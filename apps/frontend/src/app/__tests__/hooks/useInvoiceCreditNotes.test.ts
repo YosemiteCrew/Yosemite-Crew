@@ -280,4 +280,58 @@ describe('useInvoiceCreditNotes', () => {
       text: 'The credit note no longer reduces this invoice.',
     });
   });
+
+  it('discards a late result once the open invoice has changed', async () => {
+    // Invoice A's request is still in flight when the user closes it and opens
+    // invoice B on the same hook instance. Without scoping, A's failure would
+    // surface as an error on B, and A's credit note would be merged into B.
+    let rejectA: (reason: unknown) => void = () => {};
+    creditNoteServiceMock.issueCreditNote.mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        rejectA = reject;
+      })
+    );
+
+    const { result, rerender } = renderHook(({ invoice }) => useInvoiceCreditNotes(invoice), {
+      initialProps: { invoice: invoiceFixture({ id: 'inv-a' }) },
+    });
+
+    act(() => {
+      result.current.run({ type: 'issue', amount: 10 });
+    });
+    expect(result.current.busy).toBe(true);
+
+    rerender({ invoice: invoiceFixture({ id: 'inv-b' }) });
+    act(() => {
+      result.current.run({ type: 'issue', amount: 20 });
+    });
+
+    await act(async () => {
+      rejectA(new Error('A failed'));
+      await Promise.resolve();
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(notifyMock).not.toHaveBeenCalledWith('error', expect.anything());
+  });
+
+  it('bumps issuedToken on an accepted issue but not on a void', async () => {
+    creditNoteServiceMock.issueCreditNote.mockResolvedValue(creditNote());
+    creditNoteServiceMock.voidCreditNote.mockResolvedValue(creditNote({ status: 'VOIDED' }));
+
+    const { result } = renderHook(() => useInvoiceCreditNotes(invoiceFixture()));
+    expect(result.current.issuedToken).toBe(0);
+
+    act(() => {
+      result.current.run({ type: 'issue', amount: 10 });
+    });
+    await waitFor(() => expect(result.current.issuedToken).toBe(1));
+
+    act(() => {
+      result.current.run({ type: 'void', creditNoteId: 'cn-1' });
+    });
+    await waitFor(() => expect(result.current.busy).toBe(false));
+    // A void must not clear a half-typed issue draft.
+    expect(result.current.issuedToken).toBe(1);
+  });
 });

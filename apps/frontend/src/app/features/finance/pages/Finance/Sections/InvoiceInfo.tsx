@@ -110,6 +110,7 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
               status={activeInvoice.status}
               currency={currency}
               busy={creditNotes.busy}
+              issuedToken={creditNotes.issuedToken}
               error={creditNotes.error}
               onAction={creditNotes.run}
             />
@@ -149,6 +150,7 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
                     status={activeInvoice.status}
                     currency={currency}
                     busy={creditNotes.busy}
+                    issuedToken={creditNotes.issuedToken}
                     error={creditNotes.error}
                     onAction={creditNotes.run}
                   />

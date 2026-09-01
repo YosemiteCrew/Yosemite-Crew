@@ -9,6 +9,14 @@ type CreditNoteIssueFormProps = {
   remaining: number;
   currency: string;
   busy: boolean;
+  /**
+   * Increments each time the server accepts a credit note. The draft is only
+   * cleared on that edge - clearing on submit loses the user's amount and
+   * reason on any rejection or dropped connection, and they would have to
+   * reconstruct both from the error message. A counter rather than a boolean
+   * so a second successful issue also clears.
+   */
+  issuedToken: number;
   onIssue: (draft: CreditNoteDraft) => void;
   /** Raised when the draft is refused before any request goes out. */
   onInvalid: (message: string) => void;
@@ -30,12 +38,23 @@ const CreditNoteIssueForm = ({
   remaining,
   currency,
   busy,
+  issuedToken,
   onIssue,
   onInvalid,
   onValid,
 }: CreditNoteIssueFormProps) => {
   const [amountInput, setAmountInput] = useState('');
   const [reasonInput, setReasonInput] = useState('');
+
+  // Render-phase reset on the success edge, the pattern useOrganisationDiscountCap
+  // uses: clearing inside the submit handler would discard the draft before the
+  // server had accepted it.
+  const [prevIssuedToken, setPrevIssuedToken] = useState(issuedToken);
+  if (prevIssuedToken !== issuedToken) {
+    setPrevIssuedToken(issuedToken);
+    setAmountInput('');
+    setReasonInput('');
+  }
 
   const handleIssue = () => {
     const amount = Number(amountInput.trim());
@@ -51,8 +70,6 @@ const CreditNoteIssueForm = ({
     }
     onValid();
     onIssue({ amount, reason: reasonInput.trim() || undefined });
-    setAmountInput('');
-    setReasonInput('');
   };
 
   return (

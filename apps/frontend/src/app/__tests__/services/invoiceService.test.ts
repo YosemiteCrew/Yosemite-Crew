@@ -1504,5 +1504,52 @@ describe('invoiceService', () => {
       expect(invoices[0].creditNotes).toEqual([creditNote]);
       expect(invoices[1].creditNotes).toBeUndefined();
     });
+
+    it('unwraps the nested single-invoice payload', async () => {
+      // InvoiceService.getById replies { organistion, invoice } - the
+      // misspelling is the API's - and the finance envelope wraps that pair, so
+      // the invoice sits one level down. Reading fields straight off the pair
+      // produced an invoice with no id at all, and it is the only read that
+      // carries settlementSummary.
+      const settlementSummary = { invoiceTotal: 100, credited: 25, balance: 75 };
+      (getData as jest.Mock).mockResolvedValue({
+        data: {
+          data: {
+            organistion: { name: 'Avenger Park', address: '', image: '', placesId: '' },
+            invoice: {
+              id: 'inv-nested',
+              status: 'AWAITING_PAYMENT',
+              totalAmount: 100,
+              creditNotes: [creditNote],
+              settlementSummary,
+            },
+          },
+          meta: null,
+          error: null,
+        },
+      });
+
+      const invoice = await getFinanceInvoiceById('inv-nested');
+
+      expect(invoice.id).toBe('inv-nested');
+      expect(invoice.totalAmount).toBe(100);
+      expect(invoice.creditNotes).toEqual([creditNote]);
+      expect(invoice.settlementSummary).toEqual(settlementSummary);
+    });
+
+    it('still reads a flat single-invoice payload', async () => {
+      (getData as jest.Mock).mockResolvedValue({
+        data: {
+          data: { id: 'inv-flat', status: 'PENDING', totalAmount: 42 },
+          meta: null,
+          error: null,
+        },
+      });
+
+      const invoice = await getFinanceInvoiceById('inv-flat');
+
+      expect(invoice.id).toBe('inv-flat');
+      expect(invoice.totalAmount).toBe(42);
+    });
   });
 });

@@ -89,6 +89,7 @@ const meta = {
     creditNotes: [note('cn-1', 'CN-0001', 40, 'ISSUED', 'Goodwill on the delayed dental')],
     totalAmount: 199.97,
     status: 'AWAITING_PAYMENT',
+    issuedToken: 0,
     currency: 'GBP',
     busy: false,
     error: null,

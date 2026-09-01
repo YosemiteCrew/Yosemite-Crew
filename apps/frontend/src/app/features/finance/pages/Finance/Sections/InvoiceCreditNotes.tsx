@@ -25,6 +25,8 @@ type InvoiceCreditNotesProps = {
   /** True while a credit note is being issued or voided, so actions lock. */
   busy: boolean;
   error: string | null;
+  /** Bumped when the server accepts a credit note, so the form clears then. */
+  issuedToken: number;
   onAction: (action: CreditNoteAction) => void;
 };
 
@@ -45,6 +47,7 @@ const InvoiceCreditNotes = ({
   currency,
   busy,
   error,
+  issuedToken,
   onAction,
 }: InvoiceCreditNotesProps) => {
   const [formError, setFormError] = useState<string | null>(null);
@@ -88,6 +91,7 @@ const InvoiceCreditNotes = ({
               remaining={remaining}
               currency={currency}
               busy={busy}
+              issuedToken={issuedToken}
               onIssue={(draft) => onAction({ type: 'issue', ...draft })}
               onInvalid={setFormError}
               onValid={() => setFormError(null)}

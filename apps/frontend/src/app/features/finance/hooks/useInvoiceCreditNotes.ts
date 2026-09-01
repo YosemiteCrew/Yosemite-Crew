@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { CreditNote, Invoice } from '@yosemite-crew/types';
 import { useInvoiceStore } from '@/app/stores/invoiceStore';
 import { useNotify } from '@/app/hooks/useNotify';
@@ -13,6 +13,8 @@ import type { CreditNoteAction } from '@/app/features/finance/pages/Finance/Sect
 export type UseInvoiceCreditNotes = {
   busy: boolean;
   error: string | null;
+  /** Bumped on each accepted credit note, so the form knows when to clear. */
+  issuedToken: number;
   run: (action: CreditNoteAction) => void;
 };
 
@@ -44,10 +46,17 @@ export const useInvoiceCreditNotes = (invoice: Invoice | null): UseInvoiceCredit
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // The invoice the in-flight request belongs to. A user can close invoice A
+  // while its request is pending and open invoice B on the same hook instance;
+  // without this the late result would merge into, and error against, B.
+  const inFlightInvoiceId = useRef<string | null>(null);
+  const [issuedToken, setIssuedToken] = useState(0);
+
   const run = useCallback(
     (action: CreditNoteAction) => {
       if (!invoice?.id) return;
       const invoiceId = invoice.id;
+      inFlightInvoiceId.current = invoiceId;
       setBusy(true);
       setError(null);
 
@@ -58,7 +67,9 @@ export const useInvoiceCreditNotes = (invoice: Invoice | null): UseInvoiceCredit
 
       request
         .then((creditNote) => {
+          if (inFlightInvoiceId.current !== invoiceId) return;
           upsertInvoice(mergeCreditNote(invoice, creditNote));
+          if (action.type === 'issue') setIssuedToken((token) => token + 1);
           notify('success', {
             title: action.type === 'issue' ? 'Credit note issued' : 'Credit note voided',
             text:
@@ -68,6 +79,7 @@ export const useInvoiceCreditNotes = (invoice: Invoice | null): UseInvoiceCredit
           });
         })
         .catch((err: unknown) => {
+          if (inFlightInvoiceId.current !== invoiceId) return;
           const message = getCreditNoteErrorMessage(
             err,
             action.type === 'issue'
@@ -77,10 +89,13 @@ export const useInvoiceCreditNotes = (invoice: Invoice | null): UseInvoiceCredit
           setError(message);
           notify('error', { title: 'Credit note not saved', text: message });
         })
-        .finally(() => setBusy(false));
+        .finally(() => {
+          if (inFlightInvoiceId.current !== invoiceId) return;
+          setBusy(false);
+        });
     },
     [invoice, upsertInvoice, notify]
   );
 
-  return { busy, error, run };
+  return { busy, error, issuedToken, run };
 };

@@ -194,10 +194,30 @@ const reverseAppointmentReadyForBillingViaAppointmentRoute = async (
   return unwrapFinanceData(res.data);
 };
 
+/**
+ * The single-invoice read nests its payload.
+ *
+ * `InvoiceService.getById` returns `{ organistion, invoice }` (the misspelling
+ * is the API's), and the finance envelope wraps that whole object - so
+ * `unwrapFinanceData` yields the pair, not the invoice. Reading fields straight
+ * off it produced an invoice with no id and a zero total, and it is the only
+ * read that carries `settlementSummary`, so the nesting has to be undone here.
+ *
+ * A real invoice never has an `invoice` property of its own, which is what
+ * makes that key a safe discriminator.
+ */
+const unwrapNestedInvoice = (value: any): any => {
+  if (value && typeof value === 'object' && typeof value.invoice === 'object' && value.invoice) {
+    return value.invoice;
+  }
+  return value;
+};
+
 const normalizeFinanceInvoice = (
-  invoice: any,
+  payload: any,
   fallbackOrganisationId?: string
 ): NormalizedFinanceInvoice => {
+  const invoice = unwrapNestedInvoice(payload);
   if (invoice?.resourceType === 'Invoice') {
     return normalizeInvoiceForFrontend(invoice, fallbackOrganisationId);
   }
