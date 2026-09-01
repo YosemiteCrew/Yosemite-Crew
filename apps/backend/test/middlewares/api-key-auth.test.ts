@@ -31,7 +31,7 @@ const buildReq = (headers: Record<string, string> = {}): Request =>
 
 const verifiedKey = {
   id: "k",
-  organisationId: "org-9",
+  ownerUserId: "org-9",
   scopes: ["x"],
   environment: "live",
 };
@@ -63,7 +63,7 @@ describe("authorizeApiKey", () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it("binds the org and calls next for a valid Bearer key", async () => {
+  it("binds the key owner as the request user and calls next", async () => {
     verifyMock.mockResolvedValue(verifiedKey);
     const req = buildReq({ authorization: "Bearer yc_live_good" });
     const res = buildRes();
@@ -71,9 +71,13 @@ describe("authorizeApiKey", () => {
     await authorizeApiKey(req, res, next);
 
     expect(verifyMock).toHaveBeenCalledWith("yc_live_good");
-    expect((req as unknown as { organisationId: string }).organisationId).toBe(
-      "org-9",
-    );
+    /* The key identifies a PERSON. It sets `userId`, the field a session sets,
+       and deliberately leaves `organisationId` unset - a key carrying a baked-in
+       tenant could never stop reaching a former employer. */
+    expect((req as unknown as { userId: string }).userId).toBe("org-9");
+    expect(
+      (req as unknown as { organisationId?: string }).organisationId,
+    ).toBeUndefined();
     expect(next).toHaveBeenCalled();
   });
 
@@ -118,7 +122,7 @@ describe("authorizeApiKey", () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it("calls incrementAndCheck with the organisationId", async () => {
+  it("calls incrementAndCheck with the ownerUserId", async () => {
     verifyMock.mockResolvedValue(verifiedKey);
     const res = buildRes();
     await authorizeApiKey(

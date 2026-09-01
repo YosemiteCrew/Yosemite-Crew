@@ -1682,7 +1682,7 @@ model OrganizationUsageCounter {
 /// Only the SHA-256 hash is stored; the plaintext secret is shown once at creation.
 model DeveloperApiKey {
   id             String                    @id @default(uuid())
-  organisationId String
+  ownerUserId    String
   name           String
   prefix         String                    @unique
   hashedKey      String                    @unique
@@ -1697,7 +1697,7 @@ model DeveloperApiKey {
   createdAt      DateTime                  @default(now())
   updatedAt      DateTime                  @updatedAt
 
-  @@index([organisationId])
+  @@index([ownerUserId])
   @@index([status])
   @@map("DeveloperApiKeys")
 }
@@ -1714,7 +1714,7 @@ enum DeveloperApiKeyStatus {
 
 model DeveloperSubscription {
   id                       String                      @id @default(uuid())
-  organisationId           String                      @unique
+  ownerUserId              String                      @unique
   plan                     DeveloperPlanTier           @default(free)
   status                   DeveloperSubscriptionStatus @default(active)
   stripeCustomerId         String?
@@ -1750,14 +1750,14 @@ enum DeveloperSubscriptionStatus {
 // Free tier quota enforcement uses this; Pro tier batches here before reporting to Stripe meters.
 model DeveloperApiUsage {
   id             String    @id @default(uuid())
-  organisationId String
+  ownerUserId    String
   billingPeriod  String
   callCount      Int       @default(0)
   lastReportedAt DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  @@unique([organisationId, billingPeriod])
+  @@unique([ownerUserId, billingPeriod])
   @@index([billingPeriod])
   @@map("DeveloperApiUsage")
 }

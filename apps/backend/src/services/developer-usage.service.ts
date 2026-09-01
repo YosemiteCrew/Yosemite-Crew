@@ -18,20 +18,20 @@ export const DeveloperUsageService = {
   // Increments call count atomically and checks quota.
   // Returns { allowed: boolean, callCount: number } — caller should 429 when !allowed.
   async incrementAndCheck(
-    organisationId: string,
+    ownerUserId: string,
   ): Promise<{ allowed: boolean; callCount: number }> {
     const period = currentBillingPeriod();
 
     const record = await prisma.developerApiUsage.upsert({
       where: {
-        organisationId_billingPeriod: { organisationId, billingPeriod: period },
+        ownerUserId_billingPeriod: { ownerUserId, billingPeriod: period },
       },
-      create: { organisationId, billingPeriod: period, callCount: 1 },
+      create: { ownerUserId, billingPeriod: period, callCount: 1 },
       update: { callCount: { increment: 1 } },
     });
 
     const sub = await prisma.developerSubscription.findUnique({
-      where: { organisationId },
+      where: { ownerUserId },
       select: { plan: true, stripeCustomerId: true },
     });
 
@@ -44,7 +44,7 @@ export const DeveloperUsageService = {
     if (plan === "pro" && sub?.stripeCustomerId) {
       DeveloperUsageService.reportToStripe(
         sub.stripeCustomerId,
-        organisationId,
+        ownerUserId,
         period,
         record.callCount,
       );
@@ -62,7 +62,7 @@ export const DeveloperUsageService = {
   // call is ever reported twice.
   reportToStripe(
     customerId: string,
-    organisationId: string,
+    ownerUserId: string,
     billingPeriod: string,
     callSequence: number,
   ): void {
@@ -71,20 +71,23 @@ export const DeveloperUsageService = {
         await DeveloperBillingService.reportUsage(
           customerId,
           CALLS_PER_REQUEST,
-          `dev-api-${organisationId}-${billingPeriod}-${callSequence}`,
+          `dev-api-${ownerUserId}-${billingPeriod}-${callSequence}`,
         );
         await prisma.developerApiUsage.update({
           where: {
-            organisationId_billingPeriod: {
-              organisationId,
+            ownerUserId_billingPeriod: {
+              ownerUserId,
               billingPeriod,
             },
           },
           data: { lastReportedAt: new Date() },
         });
       } catch (err) {
+        // The billing period and the Stripe customer are enough to find the
+        // row again; the owner's user id identifies a person and does not
+        // belong in a log line.
         logger.error("Failed to report API usage to Stripe", {
-          organisationId,
+          stripeCustomerId: customerId,
           billingPeriod,
           err,
         });
@@ -94,7 +97,7 @@ export const DeveloperUsageService = {
 
   // Returns usage for a given org and period (defaults to current month).
   async getUsage(
-    organisationId: string,
+    ownerUserId: string,
     billingPeriod?: string,
   ): Promise<{
     billingPeriod: string;
@@ -106,15 +109,15 @@ export const DeveloperUsageService = {
     const [record, sub] = await Promise.all([
       prisma.developerApiUsage.findUnique({
         where: {
-          organisationId_billingPeriod: {
-            organisationId,
+          ownerUserId_billingPeriod: {
+            ownerUserId,
             billingPeriod: period,
           },
         },
         select: { callCount: true },
       }),
       prisma.developerSubscription.findUnique({
-        where: { organisationId },
+        where: { ownerUserId },
         select: { plan: true },
       }),
     ]);

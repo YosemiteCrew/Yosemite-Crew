@@ -49,14 +49,52 @@ async function handleCheckoutCompleted(
   session: Stripe.Checkout.Session,
 ): Promise<void> {
   if (session.mode !== "subscription") return;
-  const orgId = session.metadata?.organisationId;
-  if (!orgId) return;
+  /*
+   * Read `ownerUserId` only, with no fall back to `organisationId`.
+   *
+   * A checkout session created before this re-key carries
+   * `metadata.organisationId`, and that value is an Organization id. Reading it
+   * into `ownerUserId` would write a row keyed on a tenant id in a column that
+   * means "a person", permanently invisible to the developer who actually paid.
+   * Ignoring such a session is the correct outcome, and no such session exists:
+   * both databases held zero subscriptions with a live Stripe id when this
+   * shipped.
+   */
+  const ownerId = session.metadata?.ownerUserId;
+  if (!ownerId) {
+    // Silence would strand a developer who is being charged with no row to
+    // manage the subscription from, so say so loudly enough to act on. Both
+    // databases held zero subscriptions when this shipped, so this is a
+    // tripwire rather than an expected path.
+    if (session.metadata?.organisationId) {
+      logger.error(
+        "Ignored a checkout session that predates the developer re-key: it carries organisationId and no ownerUserId, so the subscription it completes has no owner to record",
+        { eventId: event.id, sessionId: session.id },
+      );
+    }
+    return;
+  }
 
   const subId =
     typeof session.subscription === "string"
       ? session.subscription
       : (session.subscription?.id ?? null);
   if (!subId) return;
+
+  // Expiring open sessions at deletion is best-effort - Stripe can be down, and
+  // a session created in the same instant can slip past it. Refuse here too, so
+  // a completed checkout can never resurrect billing for a deleted account.
+  const owner = await prisma.user.findFirst({
+    where: { userId: ownerId },
+    select: { isActive: true },
+  });
+  if (!owner?.isActive) {
+    logger.error(
+      "Ignored a completed checkout session for an account that is no longer active; refund and cancel it in Stripe by hand",
+      { eventId: event.id, sessionId: session.id, subscriptionId: subId },
+    );
+    return;
+  }
 
   const stripe = getStripeClient();
   const sub = await stripe.subscriptions.retrieve(subId, {
@@ -67,9 +105,9 @@ async function handleCheckoutCompleted(
   const priceId = item?.price?.id ?? null;
 
   await prisma.developerSubscription.upsert({
-    where: { organisationId: orgId },
+    where: { ownerUserId: ownerId },
     create: {
-      organisationId: orgId,
+      ownerUserId: ownerId,
       stripeCustomerId:
         typeof sub.customer === "string" ? sub.customer : sub.customer.id,
       stripeSubscriptionId: sub.id,
@@ -157,15 +195,15 @@ async function handleSubscriptionDeleted(
 }
 
 export const DeveloperBillingService = {
-  async getSubscription(organisationId: string) {
-    if (!organisationId.trim()) {
-      throw new DeveloperBillingServiceError("organisationId is required", 400);
+  async getSubscription(ownerUserId: string) {
+    if (!ownerUserId.trim()) {
+      throw new DeveloperBillingServiceError("ownerUserId is required", 400);
     }
     const record = await prisma.developerSubscription.findUnique({
-      where: { organisationId },
+      where: { ownerUserId },
       select: {
         id: true,
-        organisationId: true,
+        ownerUserId: true,
         plan: true,
         status: true,
         stripeSubscriptionItemId: true,
@@ -179,7 +217,7 @@ export const DeveloperBillingService = {
     return (
       record ?? {
         id: null,
-        organisationId,
+        ownerUserId,
         plan: "free" as DeveloperPlanTier,
         status: "active" as DeveloperSubscriptionStatus,
         stripeSubscriptionItemId: null,
@@ -192,21 +230,87 @@ export const DeveloperBillingService = {
     );
   },
 
-  async getOrCreateCustomer(organisationId: string): Promise<string> {
+  /**
+   * Cancel and forget a developer's own subscription.
+   *
+   * Called when the account itself goes away. Before the re-key the row hung
+   * off an organisation, so deleting a person left it alone; now it is theirs,
+   * and deleting them without this would sign them out while Stripe kept
+   * renewing and charging the card behind it.
+   *
+   * Cancels immediately rather than at period end - the account is gone, so
+   * there is nobody left to use the remaining days - and deletes the row either
+   * way. A Stripe failure is logged and swallowed: the caller is mid-deletion
+   * and must not be left half-finished, and a stranded Stripe subscription is
+   * recoverable from the dashboard while a half-deleted account is not.
+   *
+   * An unfinished checkout is the other half of this. Between
+   * `getOrCreateCustomer` and completion the row holds a customer and a null
+   * `stripeSubscriptionId`, so cancelling the subscription is a no-op while the
+   * hosted Checkout page stays live. Completing it later fires
+   * `checkout.session.completed`, whose metadata still names this owner, and a
+   * fresh subscription would be recreated for a deleted account. Any open
+   * session on the customer is expired first.
+   */
+  async cancelForOwner(ownerUserId: string): Promise<void> {
+    if (!ownerUserId.trim()) return;
+
+    const record = await prisma.developerSubscription.findUnique({
+      where: { ownerUserId },
+      select: { stripeSubscriptionId: true, stripeCustomerId: true },
+    });
+    if (!record) return;
+
+    if (record.stripeSubscriptionId) {
+      try {
+        await getStripeClient().subscriptions.cancel(
+          record.stripeSubscriptionId,
+        );
+      } catch (err) {
+        logger.error(
+          "Failed to cancel a developer subscription during account deletion; cancel it in Stripe by hand",
+          { stripeSubscriptionId: record.stripeSubscriptionId, err },
+        );
+      }
+    }
+
+    if (record.stripeCustomerId) {
+      try {
+        const stripe = getStripeClient();
+        const open = await stripe.checkout.sessions.list({
+          customer: record.stripeCustomerId,
+          status: "open",
+          limit: 100,
+        });
+        for (const session of open.data) {
+          await stripe.checkout.sessions.expire(session.id);
+        }
+      } catch (err) {
+        logger.error(
+          "Failed to expire open checkout sessions during account deletion; expire them in Stripe by hand",
+          { stripeCustomerId: record.stripeCustomerId, err },
+        );
+      }
+    }
+
+    await prisma.developerSubscription.deleteMany({ where: { ownerUserId } });
+  },
+
+  async getOrCreateCustomer(ownerUserId: string): Promise<string> {
     const existing = await prisma.developerSubscription.findUnique({
-      where: { organisationId },
+      where: { ownerUserId },
       select: { stripeCustomerId: true },
     });
     if (existing?.stripeCustomerId) return existing.stripeCustomerId;
 
     const stripe = getStripeClient();
     const customer = await stripe.customers.create({
-      metadata: { organisationId, source: "developer_portal" },
+      metadata: { ownerUserId, source: "developer_portal" },
     });
 
     await prisma.developerSubscription.upsert({
-      where: { organisationId },
-      create: { organisationId, stripeCustomerId: customer.id },
+      where: { ownerUserId },
+      create: { ownerUserId, stripeCustomerId: customer.id },
       update: { stripeCustomerId: customer.id },
     });
 
@@ -214,17 +318,17 @@ export const DeveloperBillingService = {
   },
 
   async createCheckoutSession(input: {
-    organisationId: string;
+    ownerUserId: string;
     successUrl: string;
     cancelUrl: string;
   }): Promise<string> {
-    const { organisationId, successUrl, cancelUrl } = input;
-    if (!organisationId.trim()) {
-      throw new DeveloperBillingServiceError("organisationId is required", 400);
+    const { ownerUserId, successUrl, cancelUrl } = input;
+    if (!ownerUserId.trim()) {
+      throw new DeveloperBillingServiceError("ownerUserId is required", 400);
     }
 
     const customerId =
-      await DeveloperBillingService.getOrCreateCustomer(organisationId);
+      await DeveloperBillingService.getOrCreateCustomer(ownerUserId);
     const priceId = resolveMeteredPriceId();
     const stripe = getStripeClient();
 
@@ -234,7 +338,7 @@ export const DeveloperBillingService = {
       line_items: [{ price: priceId }],
       success_url: successUrl,
       cancel_url: cancelUrl,
-      metadata: { organisationId, source: "developer_portal" },
+      metadata: { ownerUserId, source: "developer_portal" },
     });
 
     if (!session.url) {
@@ -247,16 +351,16 @@ export const DeveloperBillingService = {
   },
 
   async createPortalSession(input: {
-    organisationId: string;
+    ownerUserId: string;
     returnUrl: string;
   }): Promise<string> {
-    const { organisationId, returnUrl } = input;
-    if (!organisationId.trim()) {
-      throw new DeveloperBillingServiceError("organisationId is required", 400);
+    const { ownerUserId, returnUrl } = input;
+    if (!ownerUserId.trim()) {
+      throw new DeveloperBillingServiceError("ownerUserId is required", 400);
     }
 
     const record = await prisma.developerSubscription.findUnique({
-      where: { organisationId },
+      where: { ownerUserId },
       select: { stripeCustomerId: true },
     });
 

@@ -31,7 +31,7 @@ export type IssuedApiKey = {
 
 export type VerifiedApiKey = {
   id: string;
-  organisationId: string;
+  ownerUserId: string;
   scopes: string[];
   environment: DeveloperApiKeyEnvironment;
 };
@@ -94,19 +94,18 @@ const requireNonEmpty = (value: unknown, field: string): string => {
   return value.trim();
 };
 
+const MAX_ACTIVE_KEYS_PER_OWNER = 25;
+
 export const DeveloperApiKeyService = {
   async issue(input: {
-    organisationId: string;
+    ownerUserId: string;
     name: string;
     createdBy: string;
     scopes?: string[];
     environment?: DeveloperApiKeyEnvironment;
     expiresAt?: Date | null;
   }): Promise<IssuedApiKey> {
-    const organisationId = requireNonEmpty(
-      input.organisationId,
-      "organisationId",
-    );
+    const ownerUserId = requireNonEmpty(input.ownerUserId, "ownerUserId");
     const name = requireNonEmpty(input.name, "name");
     const createdBy = requireNonEmpty(input.createdBy, "createdBy");
     const environment = input.environment ?? DeveloperApiKeyEnvironment.live;
@@ -114,19 +113,62 @@ export const DeveloperApiKeyService = {
       requireNonEmpty(scope, "scope"),
     );
 
+    /*
+     * Bound the number of live credentials one developer can hold.
+     *
+     * Issuing used to require `integrations:edit:any`, which only OWNER and
+     * ADMIN carry. Scoping these routes to the developer removes that gate by
+     * design - the resource is theirs - but it also means any account with a web
+     * session can mint keys, so the ceiling that role incidentally provided has
+     * to be stated explicitly rather than lost.
+     *
+     * Counts ACTIVE keys only, so revoking frees the budget.
+     *
+     * The count and the insert run inside one transaction behind a per-owner
+     * advisory lock. Read Committed alone would let concurrent requests each
+     * read the same sub-limit count and then all insert, so the ceiling would
+     * only hold when requests happen not to overlap. The lock is taken on a
+     * hash of the owner id, so it serialises one developer's key creation
+     * without touching anyone else's, and is released when the transaction
+     * ends either way.
+     */
     const generated = generateApiKey(environment);
-    const record = await prisma.developerApiKey.create({
-      data: {
-        organisationId,
-        name,
-        createdBy,
-        scopes,
-        environment,
-        prefix: generated.prefix,
-        hashedKey: generated.hashedKey,
-        last4: generated.last4,
-        expiresAt: input.expiresAt ?? null,
-      },
+    const lockKey = `developer-api-key:${ownerUserId}`;
+    const record = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+
+      // `verify` refuses a key past `expiresAt` and nothing ever moves it out
+      // of `active`, so counting those would block an owner from issuing a
+      // usable replacement while holding 25 credentials that authenticate
+      // nothing. The ceiling is on live credentials, so match what `verify`
+      // will actually accept.
+      const activeKeys = await tx.developerApiKey.count({
+        where: {
+          ownerUserId,
+          status: DeveloperApiKeyStatus.active,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        },
+      });
+      if (activeKeys >= MAX_ACTIVE_KEYS_PER_OWNER) {
+        throw new DeveloperApiKeyServiceError(
+          `Active API key limit reached (${MAX_ACTIVE_KEYS_PER_OWNER}). Revoke a key before creating another.`,
+          429,
+        );
+      }
+
+      return tx.developerApiKey.create({
+        data: {
+          ownerUserId,
+          name,
+          createdBy,
+          scopes,
+          environment,
+          prefix: generated.prefix,
+          hashedKey: generated.hashedKey,
+          last4: generated.last4,
+          expiresAt: input.expiresAt ?? null,
+        },
+      });
     });
 
     return {
@@ -140,10 +182,10 @@ export const DeveloperApiKeyService = {
     };
   },
 
-  async list(organisationId: string) {
-    const orgId = requireNonEmpty(organisationId, "organisationId");
+  async list(ownerUserId: string) {
+    const ownerId = requireNonEmpty(ownerUserId, "ownerUserId");
     return prisma.developerApiKey.findMany({
-      where: { organisationId: orgId },
+      where: { ownerUserId: ownerId },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
@@ -161,20 +203,14 @@ export const DeveloperApiKeyService = {
     });
   },
 
-  async revoke(input: {
-    organisationId: string;
-    keyId: string;
-  }): Promise<void> {
-    const organisationId = requireNonEmpty(
-      input.organisationId,
-      "organisationId",
-    );
+  async revoke(input: { ownerUserId: string; keyId: string }): Promise<void> {
+    const ownerUserId = requireNonEmpty(input.ownerUserId, "ownerUserId");
     const keyId = requireNonEmpty(input.keyId, "keyId");
 
     const result = await prisma.developerApiKey.updateMany({
       where: {
         id: keyId,
-        organisationId,
+        ownerUserId,
         status: DeveloperApiKeyStatus.active,
       },
       data: { status: DeveloperApiKeyStatus.revoked, revokedAt: new Date() },
@@ -184,8 +220,9 @@ export const DeveloperApiKeyService = {
     }
   },
 
-  // Authenticates a presented secret. Returns the org + scopes context, or null
-  // for any unknown / revoked / expired key (callers translate null to 401).
+  // Authenticates a presented secret. Returns the owner + scopes context, or
+  // null for any unknown / revoked / expired key, or one whose owner account is
+  // no longer active (callers translate null to 401).
   async verify(plaintextKey: string): Promise<VerifiedApiKey | null> {
     if (typeof plaintextKey !== "string" || !plaintextKey.startsWith("yc_")) {
       return null;
@@ -197,6 +234,17 @@ export const DeveloperApiKeyService = {
       return null;
     }
     if (record.expiresAt && record.expiresAt.getTime() <= Date.now()) {
+      return null;
+    }
+
+    // A deleted account is soft-deleted and its session is not revoked, so the
+    // key it minted stays syntactically valid. The data API must not keep
+    // answering for an owner who no longer exists.
+    const owner = await prisma.user.findFirst({
+      where: { userId: record.ownerUserId },
+      select: { isActive: true },
+    });
+    if (!owner?.isActive) {
       return null;
     }
 
@@ -212,7 +260,7 @@ export const DeveloperApiKeyService = {
 
     return {
       id: record.id,
-      organisationId: record.organisationId,
+      ownerUserId: record.ownerUserId,
       scopes: record.scopes,
       environment: record.environment,
     };
