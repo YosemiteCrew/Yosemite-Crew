@@ -6,6 +6,7 @@ import {
   CodeServiceError,
 } from "../../../src/services/code.service";
 import { ClinicalTermsService } from "../../../src/services/clinical-terms.service";
+import { AtcvetService } from "../../../src/services/atcvet.service";
 import logger from "../../../src/utils/logger";
 
 jest.mock("../../../src/config/prisma", () => ({ prisma: {} }));
@@ -23,6 +24,12 @@ jest.mock("../../../src/services/code.service", () => {
     },
   };
 });
+
+jest.mock("../../../src/services/atcvet.service", () => ({
+  AtcvetService: {
+    suggestMedications: jest.fn(),
+  },
+}));
 
 jest.mock("../../../src/services/clinical-terms.service", () => ({
   ClinicalTermsService: {
@@ -282,6 +289,67 @@ describe("CodeController", () => {
       expect(res.json).toHaveBeenCalledWith({
         message: "Failed to list code mappings.",
       });
+    });
+  });
+
+  describe("suggestMedications", () => {
+    const mockedAtcvetService = AtcvetService as jest.Mocked<
+      typeof AtcvetService
+    >;
+
+    it("parses a full query and returns the suggestions under items", async () => {
+      const items = [{ atcCode: "QJ01AA02", label: "doxycycline" }];
+      mockedAtcvetService.suggestMedications.mockResolvedValue(items as never);
+
+      const req = buildRequest({
+        q: "  doxy  ",
+        group: "qj",
+        species: "SA",
+        limit: "10",
+      });
+
+      await CodeController.suggestMedications(req, res);
+
+      // The group is normalised to the upper-case form the codes use.
+      expect(mockedAtcvetService.suggestMedications).toHaveBeenCalledWith({
+        q: "doxy",
+        group: "QJ",
+        species: "SA",
+        limit: 10,
+      });
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ items });
+    });
+
+    it("rejects a group that is not an ATCvet main group", async () => {
+      await CodeController.suggestMedications(
+        buildRequest({ group: "J01" }),
+        res,
+      );
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(mockedAtcvetService.suggestMedications).not.toHaveBeenCalled();
+    });
+
+    it("rejects a limit beyond the page cap", async () => {
+      await CodeController.suggestMedications(
+        buildRequest({ limit: "500" }),
+        res,
+      );
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(mockedAtcvetService.suggestMedications).not.toHaveBeenCalled();
+    });
+
+    it("returns 500 and logs when the service throws", async () => {
+      mockedAtcvetService.suggestMedications.mockRejectedValue(
+        new Error("boom") as never,
+      );
+
+      await CodeController.suggestMedications(buildRequest({ q: "doxy" }), res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(logger.error).toHaveBeenCalled();
     });
   });
 

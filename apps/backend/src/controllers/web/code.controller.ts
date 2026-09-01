@@ -7,6 +7,7 @@ import {
   type ClinicalSpecies,
 } from "src/services/clinical-terms.service";
 import { z } from "zod";
+import { AtcvetService } from "src/services/atcvet.service";
 
 const parseBoolean = (value: unknown): boolean | undefined => {
   if (value === undefined) return undefined;
@@ -23,6 +24,27 @@ const ClinicalSpeciesSchema = z.enum([
   "EQUINE",
   "AVIAN",
 ]);
+
+const MedicationsSuggestQuerySchema = z.object({
+  q: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => value || undefined),
+  // The anatomical main group, e.g. QJ. Two characters, Q plus a letter.
+  group: z
+    .string()
+    .trim()
+    .regex(/^[Qq][A-Za-z]$/, "Invalid ATCvet group.")
+    .optional()
+    .transform((value) => value?.toUpperCase()),
+  species: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => value || undefined),
+  limit: z.coerce.number().int().min(1).max(50).optional(),
+});
 
 const TermsSuggestQuerySchema = z.object({
   q: z
@@ -112,6 +134,31 @@ export const CodeController = {
       }
       logger.error("Failed to list code mappings", error);
       return res.status(500).json({ message: "Failed to list code mappings." });
+    }
+  },
+
+  async suggestMedications(req: Request, res: Response) {
+    try {
+      const queryResult = MedicationsSuggestQuerySchema.safeParse(req.query);
+
+      if (!queryResult.success) {
+        return res.status(400).json({
+          message: "Invalid medication suggestion query.",
+          error: queryResult.error.flatten(),
+        });
+      }
+
+      const items = await AtcvetService.suggestMedications(queryResult.data);
+
+      return res.status(200).json({ items });
+    } catch (error) {
+      if (error instanceof CodeServiceError) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
+      logger.error("Failed to suggest medications", error);
+      return res
+        .status(500)
+        .json({ message: "Failed to suggest medications." });
     }
   },
 

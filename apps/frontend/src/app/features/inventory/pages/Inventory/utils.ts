@@ -342,6 +342,9 @@ export const mapApiItemToInventoryItem = (apiItem: InventoryApiItem): InventoryI
     },
     classification: {
       genericName: toStringSafe(apiItem.genericName ?? attributes.genericName),
+      // Without this the backfilled code is dropped on the way in, so an
+      // in-house prescription stays uncoded however well the rest is wired.
+      atcCode: toStringSafe(apiItem.atcCode ?? attributes.atcCode) || undefined,
       form: toStringSafe(apiItem.dosageForm ?? attributes.form),
       unitofMeasure: normalizeStringOrArray(
         apiItem.unitOfMeasure ?? attributes.unitofMeasure ?? attributes.unitOfMeasure

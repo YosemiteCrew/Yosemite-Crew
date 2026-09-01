@@ -19,6 +19,9 @@ jest.mock("src/config/prisma", () => ({
     codeEntry: {
       findMany: jest.fn(),
     },
+    codeMapping: {
+      findMany: jest.fn(),
+    },
     $queryRaw: jest.fn(),
   },
 }));
@@ -27,6 +30,8 @@ describe("ClinicalTermsService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.READ_FROM_POSTGRES = "false";
+    // Default: no crosswalks. Tests that assert on them override this.
+    (prisma.codeMapping.findMany as jest.Mock).mockResolvedValue([]);
   });
 
   describe("parseConcepts", () => {
@@ -286,8 +291,70 @@ describe("ClinicalTermsService", () => {
           species: ["SA"],
           synonyms: ["Emesis", "Vomiting"],
           source: "VeNom",
+          codings: [],
         },
       ]);
+    });
+
+    it("attaches the strongest usable crosswalk per system in one batched query", async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([
+        { code: "YC-1", display: "Vomiting", synonyms: [], meta: {} },
+        { code: "YC-2", display: "Gastritis", synonyms: [], meta: {} },
+      ]);
+      (prisma.codeMapping.findMany as jest.Mock).mockResolvedValue([
+        {
+          sourceCode: "YC-1",
+          targetSystem: "VENOM",
+          targetCode: "weak",
+          targetDisplay: null,
+          equivalence: "INEXACT",
+        },
+        {
+          sourceCode: "YC-1",
+          targetSystem: "VENOM",
+          targetCode: "strong",
+          targetDisplay: "V",
+          equivalence: "EQUAL",
+        },
+        {
+          sourceCode: "YC-1",
+          targetSystem: "SNOMED",
+          targetCode: "s1",
+          targetDisplay: null,
+          equivalence: "NARROWER",
+        },
+      ]);
+
+      const result = await ClinicalTermsService.suggestTerms({ q: "v" });
+
+      // One query for the whole page, over the deduped code set.
+      expect(prisma.codeMapping.findMany).toHaveBeenCalledTimes(1);
+      const where = (prisma.codeMapping.findMany as jest.Mock).mock.calls[0][0]
+        .where;
+      expect(where.sourceCode).toEqual({ in: ["YC-1", "YC-2"] });
+      expect(where.active).toBe(true);
+      // The export's usable-equivalence gate is applied here too, so the picker
+      // never advertises a crosswalk the export would refuse to emit.
+      expect(where.equivalence.in).not.toContain("UNMATCHED");
+      expect(where.equivalence.in).not.toContain("DISJOINT");
+
+      expect(result[0].codings).toEqual([
+        { system: "VENOM", code: "strong", display: "V", equivalence: "EQUAL" },
+        {
+          system: "SNOMED",
+          code: "s1",
+          display: undefined,
+          equivalence: "NARROWER",
+        },
+      ]);
+      // A term with no mapping rows carries an empty list, never undefined.
+      expect(result[1].codings).toEqual([]);
+    });
+
+    it("makes no crosswalk query when the page is empty", async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([]);
+      await ClinicalTermsService.suggestTerms({ q: "zzz" });
+      expect(prisma.codeMapping.findMany).not.toHaveBeenCalled();
     });
   });
 

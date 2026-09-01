@@ -164,6 +164,48 @@ describe("clinicalArtifactFhirMapper", () => {
     expect(input.assessment).toEqual({ diagnosis: "Flu" });
   });
 
+  it("exports the ATCvet coding a coded prescription line carries", () => {
+    // The mapper previously hardcoded a 'PRESCRIPTION' concept, so a coded
+    // prescription left the system uncoded no matter what the client sent.
+    const coded = {
+      ...prescriptionRecord,
+      prescription: {
+        ...prescriptionRecord.prescription,
+        medications: [
+          {
+            medication: "doxycycline",
+            metadata: { atcCode: "QJ01AA02" },
+          },
+        ],
+      },
+    };
+
+    const resource =
+      clinicalArtifactFhirMapper.prescriptionToMedicationRequest(coded);
+
+    expect(resource.medicationCodeableConcept?.coding).toEqual([
+      {
+        system: "http://www.whocc.no/atcvet",
+        code: "QJ01AA02",
+        display: "doxycycline",
+      },
+    ]);
+    expect(resource.medicationCodeableConcept?.text).toBe("doxycycline");
+  });
+
+  it("keeps the generic concept when no line carries a code", () => {
+    const resource =
+      clinicalArtifactFhirMapper.prescriptionToMedicationRequest(
+        prescriptionRecord,
+      );
+    // An uncoded prescription must not gain an invented coding.
+    expect(
+      resource.medicationCodeableConcept?.coding?.some(
+        (coding) => coding.system === "http://www.whocc.no/atcvet",
+      ),
+    ).toBeFalsy();
+  });
+
   it("maps prescriptions to and from MedicationRequest", () => {
     const resource =
       clinicalArtifactFhirMapper.prescriptionToMedicationRequest(

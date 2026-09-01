@@ -217,6 +217,9 @@ const VITALS_EXT = {
   notes: 'https://yosemitecrew.com/fhir/StructureDefinition/vital-record-notes',
 };
 
+/** WHO CC's registered system URI for the veterinary ATC classification. */
+const ATCVET_SYSTEM_URI = 'http://www.whocc.no/atcvet';
+
 const PRESCRIPTION_EXT = {
   medications: 'https://yosemitecrew.com/fhir/StructureDefinition/prescription-medications',
   instructions: 'https://yosemitecrew.com/fhir/StructureDefinition/prescription-instructions',
@@ -786,6 +789,7 @@ export const savePrescriptionArtifact = async (
     metadata: {
       brand: prescription.brand,
       genericName: prescription.genericName,
+      atcCode: prescription.atcCode,
       sku: prescription.sku,
       strengthUnit: prescription.strengthUnit,
       dose: prescription.dose,
@@ -807,7 +811,22 @@ export const savePrescriptionArtifact = async (
     // the inventory dispense). 'active' here would dispense on every plain save.
     status: 'draft',
     intent: 'order',
-    medicationCodeableConcept: { text: prescription.medicineName },
+    medicationCodeableConcept: {
+      text: prescription.medicineName,
+      // A coded prescription is readable outside Yosemite Crew; an uncoded one
+      // carries text only rather than a placeholder coding.
+      ...(prescription.atcCode
+        ? {
+            coding: [
+              {
+                system: ATCVET_SYSTEM_URI,
+                code: prescription.atcCode,
+                display: prescription.medicineName,
+              },
+            ],
+          }
+        : {}),
+    },
     medicationReference: { display: prescription.medicineName },
     subject: { display: 'Patient' },
     encounter:
@@ -887,6 +906,13 @@ const prescriptionFromMedicationRequest = (
       'Medication',
     brand: str('brand'),
     genericName: str('genericName'),
+    // Prefer the stored line, then the FHIR coding: a prescription written
+    // elsewhere may only carry the coding.
+    atcCode:
+      str('atcCode') ??
+      resource.medicationCodeableConcept?.coding?.find(
+        (coding) => coding.system === ATCVET_SYSTEM_URI
+      )?.code,
     sku: str('sku', 'inventoryItemSku'),
     strength: str('strength'),
     strengthUnit: str('strengthUnit'),

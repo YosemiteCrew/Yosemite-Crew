@@ -254,6 +254,13 @@ export type PrescriptionItem = {
   brand?: string;
   /** Generic / composition name from inventory (e.g. "Paracetamol 650"). */
   genericName?: string;
+  /**
+   * ATCvet substance code. Inherited from the inventory item when prescribing
+   * from stock, or set directly when the clinician picks a substance from the
+   * classification. Exported as a FHIR coding so the prescription is readable
+   * outside Yosemite Crew.
+   */
+  atcCode?: string;
   /** Inventory SKU, shown as a small reference chip. */
   sku?: string;
   /** Concentration value from inventory (e.g. "650"). */
