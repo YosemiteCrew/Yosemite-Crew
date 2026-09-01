@@ -63,11 +63,12 @@ const meta = {
           'matching the cap in `InvoiceService.issueCreditNote`, so the common mistake produces ' +
           'a message here instead of a 409. A VOIDED note stops counting against the cap, which ' +
           'is why the sum filters on status rather than adding up the whole list.\n\n' +
-          'Issuing a credit note cancels every PaymentAttempt on the invoice that is not already ' +
-          'SUCCEEDED or CANCELED. That is deliberate on the backend - an outstanding Stripe ' +
-          'checkout link still names the old amount and would collect the full sum - and it is ' +
-          'why the copy warns about open payment links rather than staying silent about a side ' +
-          'effect the user cannot see.\n\n' +
+          'Issuing a credit note marks every PaymentAttempt on the invoice CANCELED locally, but ' +
+          'it does NOT expire the session at Stripe - `issueCreditNote` never calls the ' +
+          '`cancelOpenCheckoutSessionAttempts` path that does. A link already sent to the client ' +
+          'therefore keeps working and would charge the pre-credit amount. The copy says exactly ' +
+          'that rather than promising a cancellation that does not happen; the backend gap is ' +
+          'tracked in #2598.\n\n' +
           'Known gap: the Outstanding figure in the summary panel above does not yet respond to ' +
           'a credit note, because the finance list endpoint does not return `settlementSummary`. ' +
           'Tracked in #2595.',
@@ -221,5 +222,22 @@ export const CancelledInvoice: Story = {
       canvas.getByText('A cancelled invoice cannot take a credit note.')
     ).toBeInTheDocument();
     await expect(canvas.getByText('CN-0001')).toBeInTheDocument();
+  },
+};
+
+export const VoidConfirmation: Story = {
+  name: 'Voiding asks first',
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: /Void credit note CN-0001/i }));
+
+    // Voiding cannot be undone here and puts money back onto what the client
+    // owes, so the first click only arms it.
+    await expect(
+      canvas.getByRole('button', { name: /Confirm voiding credit note CN-0001/i })
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByRole('button', { name: /Keep credit note CN-0001/i })
+    ).toBeInTheDocument();
   },
 };

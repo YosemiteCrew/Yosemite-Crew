@@ -22,6 +22,11 @@ jest.mock('@/app/stores/invoiceStore', () => ({
     selector({ upsertInvoice: invoiceStoreMock.upsertInvoice }),
 }));
 
+const getFinanceInvoiceByIdMock = jest.fn().mockResolvedValue({});
+jest.mock('@/app/features/billing/services/invoiceService', () => ({
+  getFinanceInvoiceById: (...args: unknown[]) => getFinanceInvoiceByIdMock(...args),
+}));
+
 const notifyMock = jest.fn();
 jest.mock('@/app/hooks/useNotify', () => ({
   useNotify: () => ({ notify: notifyMock }),
@@ -197,7 +202,9 @@ describe('useInvoiceCreditNotes', () => {
     const { result } = renderHook(() => useInvoiceCreditNotes(invoiceFixture()));
 
     act(() => result.current.run({ type: 'issue', amount: 25 }));
-    await waitFor(() => expect(result.current.error).toBe('Nope.'));
+    await waitFor(() =>
+      expect(result.current.error).toBe('Nope. Check the ledger below before retrying.')
+    );
 
     const pending = deferred<CreditNote>();
     creditNoteServiceMock.issueCreditNote.mockReturnValue(pending.promise);
@@ -220,12 +227,14 @@ describe('useInvoiceCreditNotes', () => {
     act(() => result.current.run({ type: 'issue', amount: 500 }));
 
     await waitFor(() =>
-      expect(result.current.error).toBe('Credit note amount exceeds invoice remaining amount')
+      expect(result.current.error).toBe(
+        'Credit note amount exceeds invoice remaining amount Check the ledger below before retrying.'
+      )
     );
     expect(result.current.busy).toBe(false);
     expect(invoiceStoreMock.upsertInvoice).not.toHaveBeenCalled();
     expect(notifyMock).toHaveBeenCalledWith('error', {
-      title: 'Credit note not saved',
+      title: 'Credit note not confirmed',
       text: 'Credit note amount exceeds invoice remaining amount',
     });
   });
@@ -236,7 +245,11 @@ describe('useInvoiceCreditNotes', () => {
 
     act(() => result.current.run({ type: 'issue', amount: 25 }));
 
-    await waitFor(() => expect(result.current.error).toBe('The credit note could not be issued.'));
+    await waitFor(() =>
+      expect(result.current.error).toBe(
+        'The credit note could not be issued. Check the ledger below before retrying.'
+      )
+    );
   });
 
   it('falls back to void-specific copy when the failure carries no message', async () => {
@@ -247,9 +260,13 @@ describe('useInvoiceCreditNotes', () => {
 
     act(() => result.current.run({ type: 'void', creditNoteId: 'cn-1' }));
 
-    await waitFor(() => expect(result.current.error).toBe('The credit note could not be voided.'));
+    await waitFor(() =>
+      expect(result.current.error).toBe(
+        'The credit note could not be voided. Check the ledger below before retrying.'
+      )
+    );
     expect(notifyMock).toHaveBeenCalledWith('error', {
-      title: 'Credit note not saved',
+      title: 'Credit note not confirmed',
       text: 'The credit note could not be voided.',
     });
   });
@@ -385,5 +402,22 @@ describe('useInvoiceCreditNotes', () => {
 
     // The message described invoice A and must not sit on invoice B's panel.
     expect(result.current.error).toBeNull();
+  });
+
+  it('re-reads the invoice after a failure instead of claiming nothing was saved', async () => {
+    // issueCreditNote creates the note and then records a FinanceEvent, and the
+    // two are not in one transaction - so a failure in the second returns a 500
+    // over a note that exists. Saying "not saved" would invite a retry that
+    // mints a second one.
+    creditNoteServiceMock.issueCreditNote.mockRejectedValueOnce(new Error('event write failed'));
+
+    const { result } = renderHook(() => useInvoiceCreditNotes(invoiceFixture({ id: 'inv-1' })));
+    act(() => result.current.run({ type: 'issue', amount: 10 }));
+
+    await waitFor(() => expect(getFinanceInvoiceByIdMock).toHaveBeenCalledWith('inv-1'));
+    expect(notifyMock).toHaveBeenCalledWith(
+      'error',
+      expect.objectContaining({ title: 'Credit note not confirmed' })
+    );
   });
 });

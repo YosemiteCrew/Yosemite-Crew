@@ -128,3 +128,6 @@ export const acceptsCreditNotes = (status: string | undefined): boolean =>
  */
 export const formatCap = (amount: number, currency: string) =>
   `${currencySymbol(currency)}${amount.toFixed(2)}`;
+
+/** An ISSUED note is the only kind that still reduces the invoice. */
+export const isIssued = (note: CreditNote) => note.status === 'ISSUED';

@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CreditNote, Invoice } from '@yosemite-crew/types';
 import { useInvoiceStore } from '@/app/stores/invoiceStore';
+import { getFinanceInvoiceById } from '@/app/features/billing/services/invoiceService';
 import { useNotify } from '@/app/hooks/useNotify';
 import {
   getCreditNoteErrorMessage,
@@ -110,8 +111,19 @@ export const useInvoiceCreditNotes = (invoice: Invoice | null): UseInvoiceCredit
               ? 'The credit note could not be issued.'
               : 'The credit note could not be voided.'
           );
-          setError(message);
-          notify('error', { title: 'Credit note not saved', text: message });
+          // A failure does not prove nothing was written. issueCreditNote
+          // creates the note and then records a FinanceEvent, and those two are
+          // not in one transaction - so a failure in the second returns a 500
+          // over a note that exists. Telling the user it was not saved would
+          // invite a retry that mints a second one. Re-read the invoice so the
+          // ledger shows what is actually there, and say only that it could not
+          // be confirmed.
+          setError(`${message} Check the ledger below before retrying.`);
+          notify('error', { title: 'Credit note not confirmed', text: message });
+          getFinanceInvoiceById(requestInvoiceId).catch(() => {
+            // The re-read is a best effort; the message above already tells the
+            // user not to trust the ledger blindly.
+          });
         })
         .finally(() => {
           if (displayedInvoiceId.current !== requestInvoiceId) return;

@@ -341,12 +341,16 @@ describe('InvoiceCreditNotes', () => {
     expect(screen.queryByText('Invoice cannot accept credit notes.')).not.toBeInTheDocument();
   });
 
-  it('warns that issuing cancels an open payment link while crediting is still possible', () => {
+  it('does not claim a sent payment link is cancelled, because it is not', () => {
+    // issueCreditNote only flips the local PaymentAttempt to CANCELED. It never
+    // calls the provider-expiry path, so the Stripe URL keeps working and would
+    // charge the pre-credit amount. Filed as its own issue; the copy must not
+    // promise otherwise in the meantime.
     renderSection({ totalAmount: 200 });
 
     expect(
       screen.getByText(
-        'Up to $200.00 can still be credited. Issuing one cancels any open payment link on this invoice, because it would still charge the old amount.'
+        'Up to $200.00 can still be credited. Any pending payment attempt on this invoice is marked cancelled, but a payment link already sent to the client keeps working and would charge the pre-credit amount - send a new one.'
       )
     ).toBeInTheDocument();
   });

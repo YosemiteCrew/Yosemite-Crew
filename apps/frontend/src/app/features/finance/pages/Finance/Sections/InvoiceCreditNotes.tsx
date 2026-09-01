@@ -6,11 +6,10 @@ import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import {
   acceptsCreditNotes,
+  isIssued,
   remainingCreditable,
 } from '@/app/features/finance/services/creditNoteService';
-import CreditNoteLedger, {
-  isIssued,
-} from '@/app/features/finance/pages/Finance/Sections/CreditNoteLedger';
+import CreditNoteLedger from '@/app/features/finance/pages/Finance/Sections/CreditNoteLedger';
 import CreditNoteIssueForm from '@/app/features/finance/pages/Finance/Sections/CreditNoteIssueForm';
 
 export type CreditNoteAction =

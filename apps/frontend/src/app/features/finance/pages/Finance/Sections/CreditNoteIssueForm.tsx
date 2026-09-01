@@ -114,7 +114,7 @@ const CreditNoteIssueForm = ({
         />
       </div>
       <p className="text-[12px] text-[var(--ink-muted)]">
-        {`Up to ${formatCap(remaining, currency)} can still be credited. Issuing one cancels any open payment link on this invoice, because it would still charge the old amount.`}
+        {`Up to ${formatCap(remaining, currency)} can still be credited. Any pending payment attempt on this invoice is marked cancelled, but a payment link already sent to the client keeps working and would charge the pre-credit amount - send a new one.`}
       </p>
     </div>
   );

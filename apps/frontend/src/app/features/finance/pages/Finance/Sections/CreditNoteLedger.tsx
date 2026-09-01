@@ -5,8 +5,7 @@ import { formatMoney } from '@/app/lib/money';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { Secondary } from '@/app/ui/primitives/Buttons';
-
-export const isIssued = (note: CreditNote) => note.status === 'ISSUED';
+import { isIssued } from '@/app/features/finance/services/creditNoteService';
 
 type CreditNoteLedgerProps = {
   notes: CreditNote[];
