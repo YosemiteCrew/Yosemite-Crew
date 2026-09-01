@@ -10,7 +10,7 @@ import DevRouteGuard from '@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard';
 import './DeveloperPlugins.css';
 import '@/app/features/organizations/styles/Organizations.css';
 
-type PluginStatus = 'installed' | 'in-review';
+type PluginStatus = 'sample';
 
 type PluginCard = {
   id: string;
@@ -20,39 +20,46 @@ type PluginCard = {
   badge: string;
   status: PluginStatus;
   author: string;
-  action: string;
 };
 
+/*
+ * Illustrations of the kind of integration the catalog is for, not a catalog.
+ *
+ * These cards used to carry adoption figures - "Installed · 412 clinics" and
+ * "Installed · 1,208 clinics" - against IDEXX and MSD, two real companies, plus
+ * a named author and version for a third. Nothing counts installs, because
+ * there is no plugin model in the schema and no plugin endpoint in the backend.
+ * A "coming soon" line at the top of the page does not neutralise a specific
+ * claim about a named third party further down it, so the claims are gone
+ * rather than merely disclaimed.
+ */
 const PLUGINS: PluginCard[] = [
   {
-    id: 'idexx-lab-bridge',
-    title: 'IDEXX lab bridge',
-    description: 'Order and result IDEXX lab work inside the appointment workspace.',
+    id: 'lab-bridge',
+    title: 'Lab result bridge',
+    description: 'Order lab work and read results inside the appointment workspace.',
     icon: 'ion:flask-outline',
-    badge: 'Installed · 412 clinics',
-    status: 'installed',
-    author: 'by Yosemite Crew · v2.3',
-    action: 'Manage',
+    badge: 'Sample',
+    status: 'sample',
+    author: 'Example of a diagnostics integration',
   },
   {
-    id: 'msd-vet-manual',
-    title: 'MSD Vet Manual',
-    description: 'Reference the veterinary manual from the workspace side rail.',
+    id: 'clinical-reference',
+    title: 'Clinical reference',
+    description: 'Read a veterinary reference from the workspace side rail.',
     icon: 'ion:book-outline',
-    badge: 'Installed · 1,208 clinics',
-    status: 'installed',
-    author: 'by Yosemite Crew · v1.8',
-    action: 'Manage',
+    badge: 'Sample',
+    status: 'sample',
+    author: 'Example of a reference integration',
   },
   {
-    id: 'anesthesia-monitor-sync',
-    title: 'Anesthesia monitor sync',
-    description: 'Your submission. It streams Mindray vitals into the workspace.',
+    id: 'monitor-sync',
+    title: 'Monitor sync',
+    description: 'Stream vitals from theatre monitors into the workspace.',
     icon: 'ion:pulse-outline',
-    badge: 'In review',
-    status: 'in-review',
-    author: 'by Jonas Timm · v0.4.1',
-    action: 'Review status',
+    badge: 'Sample',
+    status: 'sample',
+    author: 'Example of a device integration',
   },
 ];
 
@@ -84,7 +91,8 @@ const DeveloperPlugins = () => {
         </div>
 
         <p className="dev-plugins-preview text-caption-2">
-          Preview · the plugin catalog and submission flow are coming soon.
+          Preview · the plugin catalog and submission flow are coming soon. The cards below are
+          illustrations, not installed integrations.
         </p>
 
         <section className="DevPlugins">
@@ -103,7 +111,6 @@ const DeveloperPlugins = () => {
                 <p className="dev-plugin-card-desc">{plugin.description}</p>
                 <div className="dev-plugin-card-foot">
                   <span className="dev-plugin-card-author">{plugin.author}</span>
-                  <span className="dev-plugin-card-action">{plugin.action}</span>
                 </div>
               </div>
             ))}
