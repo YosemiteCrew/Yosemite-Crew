@@ -344,6 +344,8 @@ export interface CreateInventoryItemInput {
   attributes?: InventoryAttributeMap;
 
   genericName?: string;
+  /** ATCvet substance code, set by the backfill; read-only to clients today. */
+  atcCode?: string;
   strength?: string;
   dosageForm?: string;
   routeOfAdministration?: string;
@@ -392,6 +394,7 @@ export interface UpdateInventoryItemInput {
   attributes?: InventoryAttributeMap;
 
   genericName?: string | null;
+  atcCode?: string | null;
   strength?: string | null;
   dosageForm?: string | null;
   routeOfAdministration?: string | null;

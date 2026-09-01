@@ -63,7 +63,7 @@ describe('PrescriptionEditor ATCvet substances', () => {
     renderEditor();
     type('doxy');
 
-    expect(suggestMock).toHaveBeenCalledWith({ q: 'doxy', limit: 5 });
+    expect(suggestMock).toHaveBeenCalledWith({ q: 'doxy', limit: 10 });
     await waitFor(() => expect(screen.getByText('doxycycline')).toBeInTheDocument());
     // The path is what makes the substance interpretable at a glance.
     expect(
@@ -102,6 +102,20 @@ describe('PrescriptionEditor ATCvet substances', () => {
       jest.advanceTimersByTime(10);
     });
 
+    expect(screen.queryByText('doxycycline')).not.toBeInTheDocument();
+  });
+
+  it('drops the previous page as soon as the query changes', async () => {
+    renderEditor();
+    type('doxy');
+    await waitFor(() => expect(screen.getByText('doxycycline')).toBeInTheDocument());
+
+    // A new query must not leave the old substances on screen while it debounces.
+    suggestMock.mockResolvedValue([{ ...DOXY, atcCode: 'QJ01AA01', label: 'demeclocycline' }]);
+    fireEvent.change(
+      screen.getByRole('searchbox', { name: /Search medicines or prescription templates/i }),
+      { target: { value: 'demec' } }
+    );
     expect(screen.queryByText('doxycycline')).not.toBeInTheDocument();
   });
 

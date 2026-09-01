@@ -778,12 +778,55 @@ const compositionToSoapNoteInput = (
   metadata: parseFlexibleJson(getExtensionValue(resource.extension, SOAP_METADATA_EXTENSION_URL)),
 });
 
+/** WHO CC's registered system URI for the veterinary ATC classification. */
+const ATCVET_SYSTEM_URI = 'http://www.whocc.no/atcvet';
+
+/**
+ * Rebuilds the medication concept from the stored lines. The first line carrying
+ * an ATCvet code names the medication; a prescription written without one keeps
+ * the generic placeholder rather than inventing a coding.
+ */
+const prescriptionMedicationConcept = (record: PrescriptionRecord) => {
+  const medications = record.prescription.medications;
+  if (!Array.isArray(medications)) return undefined;
+  for (const line of medications) {
+    if (typeof line !== 'object' || line === null) continue;
+    const entry = line as Record<string, unknown>;
+    const metadata =
+      typeof entry.metadata === 'object' && entry.metadata !== null
+        ? (entry.metadata as Record<string, unknown>)
+        : {};
+    const atcCode =
+      typeof entry.atcCode === 'string'
+        ? entry.atcCode
+        : typeof metadata.atcCode === 'string'
+          ? metadata.atcCode
+          : undefined;
+    if (!atcCode?.trim()) continue;
+    const display =
+      typeof entry.medication === 'string'
+        ? entry.medication
+        : typeof entry.medicineName === 'string'
+          ? entry.medicineName
+          : undefined;
+    return {
+      text: display,
+      coding: [{ system: ATCVET_SYSTEM_URI, code: atcCode.trim(), display }],
+    };
+  }
+  return undefined;
+};
+
 const prescriptionToMedicationRequest = (record: PrescriptionRecord): MedicationRequest => ({
   resourceType: 'MedicationRequest',
   id: record.artifact.id,
   status: toTaskStatus(record.artifact.status),
   intent: 'order',
-  medicationCodeableConcept: toCodeableConcept('PRESCRIPTION', 'Prescription'),
+  // The medication the prescription is for, coded when the clinician picked a
+  // classified substance. A hardcoded 'PRESCRIPTION' concept here discarded the
+  // ATCvet coding the client sent, leaving every exported prescription uncoded.
+  medicationCodeableConcept:
+    prescriptionMedicationConcept(record) ?? toCodeableConcept('PRESCRIPTION', 'Prescription'),
   medicationReference: { reference: `MedicationRequest/${record.artifact.id}` },
   subject: requiredPatientReference(record.artifact),
   encounter: toReference(clinicalContextReference(record.artifact)),

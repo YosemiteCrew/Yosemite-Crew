@@ -56,7 +56,9 @@ fs.writeFileSync(
       dataset: "ATCvet index",
       // Stamped from the filename rather than invented, so provenance on every
       // imported row names the release it actually came from.
-      release: /(\d{4})/.exec(source)?.[1] ?? "unknown",
+      // From the FILENAME only: a path like ~/archive/2019/2026 index.xlsx would
+      // otherwise be stamped with the directory's year.
+      release: /(\d{4})/.exec(source.split("/").pop() ?? "")?.[1] ?? "unknown",
       convertedFrom: source.split("/").pop(),
       entries,
     },

@@ -54,6 +54,8 @@ type InventoryItemDetails<ItemType = string> = {
   description?: string;
   imageUrl?: string;
   genericName?: string;
+  /** ATCvet substance code, set by the backfill. Read-only in the UI. */
+  atcCode?: string;
   strength?: string;
   dosageForm?: string;
   routeOfAdministration?: string;
@@ -496,6 +498,8 @@ export const SafetyClassificationOptions: string[] = [
 
 export type ClassificationValues = {
   genericName?: string;
+  /** ATCvet substance code, set by the backfill. Read-only in the UI. */
+  atcCode?: string;
   form?: string;
   unitofMeasure?: string | string[];
   species?: string | string[];
@@ -644,6 +648,8 @@ export type BatchValues = {
 export interface InventoryItem {
   id?: string;
   organisationId?: string;
+  /** ATCvet substance code, set by the backfill. Read-only in the UI. */
+  atcCode?: string;
   businessType?: BusinessType;
   currency?: string;
   stockHealth?: StockHealthStatus;

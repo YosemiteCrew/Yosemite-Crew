@@ -395,9 +395,14 @@ const PrescriptionRow = ({
   );
 };
 
+/** Stable empty array, so an unchanged "no results" does not re-render consumers. */
+const EMPTY_SUGGESTIONS: MedicationSuggestion[] = [];
+
 const ATCVET_MIN_QUERY = 3;
 const ATCVET_DEBOUNCE_MS = 250;
-const ATCVET_LIMIT = 5;
+// Enough to show a substance's several therapeutic codes (ibuprofen has three)
+// without the classification burying the practice's own catalogue above it.
+const ATCVET_LIMIT = 10;
 
 /**
  * ATCvet substances for the medicine search box, so a clinician can prescribe a
@@ -406,36 +411,34 @@ const ATCVET_LIMIT = 5;
  * practice's own catalogue, not the primary way to prescribe.
  */
 const useAtcvetSuggestions = (query: string, readOnly: boolean) => {
-  const [items, setItems] = useState<MedicationSuggestion[]>([]);
-  const requestSeq = React.useRef(0);
+  // Results are stored WITH the query that produced them, and rendered only
+  // while that query is still what is typed. That makes both staleness rules
+  // structural rather than bookkeeping: a page for an older query is never
+  // shown, whether it arrives late or is simply left over from the last
+  // keystroke - and nothing has to be cleared synchronously as the query
+  // changes, which React forbids inside an effect.
+  const [page, setPage] = useState<{ query: string; items: MedicationSuggestion[] }>({
+    query: '',
+    items: [],
+  });
+
+  const trimmed = query.trim();
+  const skip = readOnly || trimmed.length < ATCVET_MIN_QUERY;
 
   useEffect(() => {
-    const trimmed = query.trim();
-    const skip = readOnly || trimmed.length < ATCVET_MIN_QUERY;
-    const requestId = requestSeq.current + 1;
-    requestSeq.current = requestId;
-    const timer = setTimeout(
-      () => {
-        if (skip) {
-          setItems([]);
-          return;
-        }
-        suggestMedications({ q: trimmed, limit: ATCVET_LIMIT })
-          .then((results) => {
-            if (requestSeq.current === requestId) setItems(results);
-          })
-          .catch((error) => {
-            console.error('Unable to suggest medications:', error);
-            if (requestSeq.current === requestId) setItems([]);
-          });
-      },
-      // Clearing is immediate; only a real lookup waits out the debounce.
-      skip ? 0 : ATCVET_DEBOUNCE_MS
-    );
+    if (skip) return;
+    const timer = setTimeout(() => {
+      suggestMedications({ q: trimmed, limit: ATCVET_LIMIT })
+        .then((items) => setPage({ query: trimmed, items }))
+        .catch((error) => {
+          console.error('Unable to suggest medications:', error);
+          setPage({ query: trimmed, items: [] });
+        });
+    }, ATCVET_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [query, readOnly]);
+  }, [trimmed, skip]);
 
-  return items;
+  return skip || page.query !== trimmed ? EMPTY_SUGGESTIONS : page.items;
 };
 
 const PrescriptionEditor = ({

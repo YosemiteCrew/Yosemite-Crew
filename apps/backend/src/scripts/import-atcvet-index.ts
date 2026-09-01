@@ -235,6 +235,19 @@ export const main = async () => {
     written += batch.length;
   }
 
+  // A newer yearly release can withdraw a code. Rows absent from this extract are
+  // deactivated rather than deleted: a prescription or formulary row may already
+  // reference one, and a dangling code with no entry is worse than a retired one
+  // that can still be displayed.
+  const retired = await prisma.codeEntry.updateMany({
+    where: {
+      system: "ATCVET",
+      active: true,
+      code: { notIn: plan.entries.map((entry) => entry.code) },
+    },
+    data: { active: false },
+  });
+
   const edgeResult = await prisma.codeRelationship.createMany({
     data: plan.edges.map((edge) => ({
       system: "ATCVET" as const,
@@ -246,7 +259,7 @@ export const main = async () => {
   });
 
   console.log(
-    `upserted ${written} codes and added ${edgeResult.count} edges (${plan.edges.length - edgeResult.count} already present)`,
+    `upserted ${written} codes, retired ${retired.count} withdrawn, added ${edgeResult.count} edges (${plan.edges.length - edgeResult.count} already present)`,
   );
 };
 

@@ -7,6 +7,8 @@ export type CodeType =
   | "TEST"
   | "CLINICAL_TERM"
   | "CLINICAL_CATEGORY"
+  | "MEDICATION"
+  | "MEDICATION_CATEGORY"
   | "OTHER";
 
 export interface CodeEntryMongo {

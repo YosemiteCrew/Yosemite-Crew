@@ -135,20 +135,21 @@ describe("planBackfill", () => {
     });
   });
 
-  it("only considers rows that are still uncoded, and stock that is medicine", async () => {
+  it("only considers rows that are still uncoded, and stock ATCvet can classify", async () => {
     await planBackfill();
 
     expect(formularyFind).toHaveBeenCalledWith(
       expect.objectContaining({ where: { atcCode: null } }),
     );
-    expect(inventoryFind).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          atcCode: null,
-          category: { contains: "medic", mode: "insensitive" },
-        }),
-      }),
+    const where = inventoryFind.mock.calls[0][0].where;
+    expect(where.atcCode).toBeNull();
+    // Vaccines are their own inventory category and are exactly the QI codes
+    // carrying species, so a "medic"-only filter silently skipped all of them.
+    const categories = where.OR.map(
+      (clause: { category: { contains: string } }) => clause.category.contains,
     );
+    expect(categories).toContain("medic");
+    expect(categories).toContain("vaccin");
   });
 });
 

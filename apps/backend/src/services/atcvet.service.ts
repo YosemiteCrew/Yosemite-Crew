@@ -65,20 +65,35 @@ export const buildMedicationQuery = ({
   const contains = `%${escapeLike(term)}%`;
   const prefix = `${escapeLike(term)}%`;
 
+  // Search the SAME expression the trigram index is built on
+  // (code_entry_search_text(display, synonyms)); querying e."display" directly
+  // cannot use that index, so every keystroke would scan the table the index was
+  // added to avoid. The code is matched separately - it is not in the indexed
+  // text, and a prefix match on a short code column is cheap.
   const search = term
-    ? Prisma.sql`AND (e."display" ILIKE ${contains} ESCAPE '\\' OR e."code" ILIKE ${prefix} ESCAPE '\\')`
+    ? Prisma.sql`AND (
+        code_entry_search_text(e."display", e."synonyms") ILIKE ${contains} ESCAPE '\\'
+        OR e."code" ILIKE ${prefix} ESCAPE '\\'
+      )`
     : Prisma.empty;
 
   const groupFilter = group
     ? Prisma.sql`AND e."meta"->>'atcGroup' = ${group.trim().toUpperCase()}`
     : Prisma.empty;
 
-  // A substance with no species meta applies to every species; only rows that
-  // name a different species are excluded.
+  // A substance with no species meta applies to every species, so it stays in a
+  // filtered search. Immunologicals are the exception: they are species-specific
+  // by construction, and QI20 ("immunologicals for other species") carries no
+  // species precisely because we refuse to guess which. Letting it through on
+  // "no species means all species" would offer a cat clinic a vaccine for an
+  // animal nobody has identified.
   const speciesFilter = species
     ? Prisma.sql`AND (
-        jsonb_typeof(e."meta"->'species') IS DISTINCT FROM 'array'
-        OR e."meta"->'species' @> ${JSON.stringify([species])}::jsonb
+        e."meta"->'species' @> ${JSON.stringify([species])}::jsonb
+        OR (
+          jsonb_typeof(e."meta"->'species') IS DISTINCT FROM 'array'
+          AND e."meta"->>'atcGroup' IS DISTINCT FROM 'QI'
+        )
       )`
     : Prisma.empty;
 

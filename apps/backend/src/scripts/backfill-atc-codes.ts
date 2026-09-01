@@ -58,6 +58,12 @@ export const stripPresentation = (value: string): string =>
     )
     .trim();
 
+/**
+ * Inventory categories ATCvet can classify. Matched as substrings so a practice's
+ * "Medicines" or "Vaccines (canine)" is covered without an exact-name list.
+ */
+export const CODEABLE_CATEGORIES = ["medic", "vaccin", "drug", "pharma"];
+
 export const planBackfill = async (): Promise<{
   formulary: Outcome[];
   inventory: Outcome[];
@@ -123,10 +129,15 @@ export const planBackfill = async (): Promise<{
     select: { id: true, drugName: true, genericName: true },
   });
   const inventoryRows = await prisma.inventoryItem.findMany({
-    // Only medicine stock: coding a lead or a shampoo as a drug is noise.
+    // Stock that ATCvet can classify. Vaccines matter as much as drugs here -
+    // they are the QI codes, the only ones carrying species - and "Vaccine" is
+    // its own inventory category, so matching on "medic" alone silently skipped
+    // every one of them. Non-clinical stock (leads, shampoo) still has no code.
     where: {
       atcCode: null,
-      category: { contains: "medic", mode: "insensitive" },
+      OR: CODEABLE_CATEGORIES.map((category) => ({
+        category: { contains: category, mode: "insensitive" as const },
+      })),
     },
     select: { id: true, name: true, genericName: true },
   });
