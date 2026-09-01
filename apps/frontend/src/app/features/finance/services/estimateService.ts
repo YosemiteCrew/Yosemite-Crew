@@ -8,6 +8,33 @@ import type {
 const estimatesPath = (organisationId: string) =>
   `/v1/pms/organisation/${organisationId}/estimates`;
 
+const stringsIn = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
+
+/**
+ * Render a zod `flatten()` as one readable sentence.
+ *
+ * Returns null when there is nothing to say, so the caller can fall through to
+ * its own fallback rather than showing an empty string.
+ */
+const flattenedZodMessage = (body: unknown): string | null => {
+  if (typeof body !== 'object' || body === null) return null;
+  const flatten = body as { formErrors?: unknown; fieldErrors?: Record<string, unknown> };
+  const fieldErrors = Object.entries(flatten.fieldErrors ?? {}).flatMap(([field, messages]) =>
+    stringsIn(messages).map((message) => `${field}: ${message}`)
+  );
+  const all = [...stringsIn(flatten.formErrors), ...fieldErrors];
+  return all.length > 0 ? all.join('. ') : null;
+};
+
+/** The error body the controller replied with, whatever shape it took. */
+const errorBody = (error: unknown): unknown => {
+  const data = (error as { response?: { data?: unknown } } | null)?.response?.data;
+  if (typeof data !== 'object' || data === null) return undefined;
+  const body = data as { error?: unknown; message?: unknown };
+  return body.error ?? body.message;
+};
+
 /**
  * Human-readable message from an estimate API error.
  *
@@ -19,31 +46,12 @@ const estimatesPath = (organisationId: string) =>
  * Object]" in front of the user.
  */
 export const getEstimateErrorMessage = (error: unknown, fallback: string): string => {
-  const data = (error as { response?: { data?: unknown } } | null)?.response?.data;
-  if (typeof data === 'object' && data !== null) {
-    const body =
-      (data as { error?: unknown; message?: unknown }).error ??
-      (data as { message?: unknown }).message;
+  const body = errorBody(error);
+  if (typeof body === 'string' && body.trim()) return body.trim();
 
-    if (typeof body === 'string' && body.trim()) return body.trim();
+  const flattened = flattenedZodMessage(body);
+  if (flattened) return flattened;
 
-    if (typeof body === 'object' && body !== null) {
-      const flatten = body as {
-        formErrors?: unknown;
-        fieldErrors?: Record<string, unknown>;
-      };
-      const formErrors = Array.isArray(flatten.formErrors)
-        ? flatten.formErrors.filter((m): m is string => typeof m === 'string')
-        : [];
-      const fieldErrors = Object.entries(flatten.fieldErrors ?? {}).flatMap(([field, messages]) =>
-        Array.isArray(messages)
-          ? messages.filter((m): m is string => typeof m === 'string').map((m) => `${field}: ${m}`)
-          : []
-      );
-      const all = [...formErrors, ...fieldErrors];
-      if (all.length > 0) return all.join('. ');
-    }
-  }
   if (error instanceof Error && error.message.trim()) return error.message.trim();
   return fallback;
 };
