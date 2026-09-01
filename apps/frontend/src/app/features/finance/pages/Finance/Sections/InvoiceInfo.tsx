@@ -18,6 +18,8 @@ import InvoiceSummaryPanel from '@/app/features/finance/pages/Finance/Sections/I
 import InvoiceBilledTo from '@/app/features/finance/pages/Finance/Sections/InvoiceBilledTo';
 import InvoicePaymentLedger from '@/app/features/finance/pages/Finance/Sections/InvoicePaymentLedger';
 import InvoicePhoneRecord from '@/app/features/finance/pages/Finance/Sections/InvoicePhoneRecord';
+import InvoiceCreditNotes from '@/app/features/finance/pages/Finance/Sections/InvoiceCreditNotes';
+import { useInvoiceCreditNotes } from '@/app/features/finance/hooks/useInvoiceCreditNotes';
 
 type InvoiceInfoProps = {
   showModal: boolean;
@@ -27,6 +29,7 @@ type InvoiceInfoProps = {
 
 const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProps) => {
   const appointments = useAppointmentsForPrimaryOrg();
+  const creditNotes = useInvoiceCreditNotes(activeInvoice);
   const currency = useCurrencyForPrimaryOrg();
   const router = useRouter();
   const isPhone = useIsPhone();
@@ -83,18 +86,35 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
     >
       {isPhone ? (
         activeInvoice && (
-          <InvoicePhoneRecord
-            titleId={titleId}
-            invoice={activeInvoice}
-            appointment={appointment}
-            currency={currency}
-            statusLabel={invoiceStatusLabel}
-            statusTone={invoiceStatusTone}
-            payerName={payerName}
-            payerEmail={payerEmail}
-            onClose={() => setShowModal(false)}
-            onOpenAppointment={goToAppointmentFinance}
-          />
+          <div className="flex flex-col gap-4">
+            <InvoicePhoneRecord
+              titleId={titleId}
+              invoice={activeInvoice}
+              appointment={appointment}
+              currency={currency}
+              statusLabel={invoiceStatusLabel}
+              statusTone={invoiceStatusTone}
+              payerName={payerName}
+              payerEmail={payerEmail}
+              onClose={() => setShowModal(false)}
+              onOpenAppointment={goToAppointmentFinance}
+            />
+            {/*
+              InvoicePhoneRecord neither takes nor renders credit notes, so
+              without this the ledger and its actions would exist on desktop
+              only and a phone user could not see, issue or void one.
+            */}
+            <InvoiceCreditNotes
+              creditNotes={activeInvoice.creditNotes}
+              totalAmount={activeInvoice.totalAmount ?? 0}
+              status={activeInvoice.status}
+              currency={currency}
+              busy={creditNotes.busy}
+              issuedToken={creditNotes.issuedToken}
+              error={creditNotes.error}
+              onAction={creditNotes.run}
+            />
+          </div>
         )
       ) : (
         <div className="flex flex-col flex-auto min-h-0 gap-4">
@@ -124,6 +144,16 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
                 </div>
                 <div className="flex flex-col gap-5">
                   <InvoiceSummaryPanel invoice={activeInvoice} currency={currency} />
+                  <InvoiceCreditNotes
+                    creditNotes={activeInvoice.creditNotes}
+                    totalAmount={activeInvoice.totalAmount ?? 0}
+                    status={activeInvoice.status}
+                    currency={currency}
+                    busy={creditNotes.busy}
+                    issuedToken={creditNotes.issuedToken}
+                    error={creditNotes.error}
+                    onAction={creditNotes.run}
+                  />
                   <InvoiceBilledTo parentId={parentId} appointment={appointment} />
                 </div>
               </div>
