@@ -58,6 +58,11 @@ jest.mock('@/app/stores/orgStore', () => ({
   useOrgStore: (selector: any) => selector(mockOrgState),
 }));
 
+const mockSearchState = { query: '' };
+jest.mock('@/app/stores/searchStore', () => ({
+  useSearchStore: (selector: any) => selector(mockSearchState),
+}));
+
 const mockCompanionState: {
   companionsById: Record<string, { id: string; name: string }>;
   companionsIdsByOrgId: Record<string, string[]>;
@@ -148,11 +153,13 @@ const filterPill = (label: string) => screen.getByRole('button', { name: label }
 beforeEach(() => {
   jest.clearAllMocks();
   mockOrgState.primaryOrgId = 'org-1';
+  mockSearchState.query = '';
   mockCompanionState.companionsById = {
     c1: { id: 'c1', name: 'Bruno' },
     c2: { id: 'c2', name: '' },
+    'pet-2': { id: 'pet-2', name: 'Mango' },
   };
-  mockCompanionState.companionsIdsByOrgId = { 'org-1': ['c1', 'c2'] };
+  mockCompanionState.companionsIdsByOrgId = { 'org-1': ['c1', 'c2', 'pet-2'] };
   mockLoadCompanions.mockResolvedValue(undefined);
   mockEstimateService.listEstimates.mockResolvedValue([buildEstimate()]);
 });
@@ -334,7 +341,6 @@ describe('Finance > Estimates page', () => {
     await waitFor(() =>
       expect(mockEstimateService.createEstimate).toHaveBeenCalledWith('org-1', {
         patientId: 'c2',
-        currency: 'USD',
         notes: undefined,
         validUntil: undefined,
         items: [{ description: 'Dental clean', quantity: 1, unitPrice: 50, taxRate: 0 }],
@@ -475,26 +481,27 @@ describe('Finance > Estimates page', () => {
     await waitFor(() => expect(detailHeading('Bruno')).not.toBeInTheDocument());
   });
 
-  it('loads companions when the organisation has none cached, and logs a failure', async () => {
+  it('surfaces a companion-loading failure and blocks creation until it is fixed', async () => {
     mockCompanionState.companionsById = {};
     mockCompanionState.companionsIdsByOrgId = {};
     mockLoadCompanions.mockRejectedValue(new Error('companions unavailable'));
-    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
 
     render(<ProtectedEstimates />);
 
     await waitFor(() => expect(mockLoadCompanions).toHaveBeenCalledTimes(1));
+    // Visible, not console-only: without companions the picker is empty, so
+    // "New estimate" would open a dialog that can only tell the user to choose
+    // a companion that is not there.
     await waitFor(() =>
-      expect(consoleError).toHaveBeenCalledWith(
-        'Failed to load companions for the estimates page:',
-        expect.any(Error)
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Companions could not be loaded, so a new estimate cannot be started.'
       )
     );
+    expect(screen.getByRole('button', { name: 'Create a new estimate' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Retry loading companions' })).toBeInTheDocument();
     expect(
       await screen.findByRole('button', { name: 'Open the estimate for Unknown companion' })
     ).toBeInTheDocument();
-
-    consoleError.mockRestore();
   });
 
   it('does not reload companions that are already cached', async () => {
@@ -543,5 +550,33 @@ describe('Finance > Estimates status filters', () => {
     await waitFor(() =>
       expect(mockEstimateService.listEstimates).toHaveBeenLastCalledWith('org-1', undefined)
     );
+  });
+
+  it('filters the list by the shared header search', async () => {
+    mockSearchState.query = 'bruno';
+    mockEstimateService.listEstimates.mockResolvedValue([
+      buildEstimate({ id: 'est-1' }),
+      buildEstimate({ id: 'est-2', patientId: 'pet-2' }),
+    ]);
+
+    render(<ProtectedEstimates />);
+
+    // The finance header stays visible on this route and already writes to the
+    // search store, so the control looked functional while doing nothing.
+    await screen.findByRole('button', { name: 'Open the estimate for Bruno' });
+    expect(
+      screen.queryByRole('button', { name: 'Open the estimate for Mango' })
+    ).not.toBeInTheDocument();
+    mockSearchState.query = '';
+  });
+
+  it('says so when a search matches nothing', async () => {
+    mockSearchState.query = 'zzzz';
+    mockEstimateService.listEstimates.mockResolvedValue([buildEstimate({ id: 'est-1' })]);
+
+    render(<ProtectedEstimates />);
+
+    expect(await screen.findByText('No estimate matches that search.')).toBeInTheDocument();
+    mockSearchState.query = '';
   });
 });

@@ -287,4 +287,24 @@ describe('useEstimates', () => {
       expect(ids(result.current.estimates)).toEqual(['est-1']);
     });
   });
+
+  it('discards an upsert for a different organisation', async () => {
+    // A create or lifecycle response can land after the user has switched
+    // organisation. The list refetch is keyed on organisationId and discarded,
+    // but the merge is not, so without this guard an estimate belonging to the
+    // previous organisation appears in the new one's list.
+    estimateServiceMock.listEstimates.mockResolvedValue([]);
+    const { result } = renderHook(() => useEstimates('org-1'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => {
+      result.current.upsert(makeEstimate('est-other', 'DRAFT', { organisationId: 'org-2' }));
+    });
+    expect(result.current.estimates).toHaveLength(0);
+
+    act(() => {
+      result.current.upsert(makeEstimate('est-mine', 'DRAFT', { organisationId: 'org-1' }));
+    });
+    expect(result.current.estimates.map((e) => e.id)).toEqual(['est-mine']);
+  });
 });

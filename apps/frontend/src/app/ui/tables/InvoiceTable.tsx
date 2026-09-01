@@ -24,6 +24,7 @@ import { getInvoiceItemNames, getInvoiceStatusTone } from '@/app/ui/tables/table
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { getAppointmentCompanion, getAppointmentCompanionPhotoUrl } from '@/app/lib/appointments';
 import { getAvatarPalette } from '@/app/features/companions/pages/Companions/companionsDirectory';
+import { useCompanionStore } from '@/app/stores/companionStore';
 
 const buildAppointmentSubtitle = (
   typeName: string | undefined,
@@ -137,6 +138,8 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     router.push(`/appointments?${params.toString()}`);
   };
 
+  const companionsById = useCompanionStore((state) => state.companionsById);
+
   const getCompanionName = useMemo(
     () => (appointmentId: string | undefined) =>
       getCompanionNameFromAppointments(appointments, appointmentId),
@@ -150,7 +153,15 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
   );
 
   const renderParent = (item: Invoice, foldMeta: boolean) => {
-    const companionName = getCompanionName(item.appointmentId);
+    // An invoice converted from an estimate carries patientId and no
+    // appointmentId (deliberately - the estimate service has no route to one),
+    // so the appointment lookup yields nothing and the row would read "-" for a
+    // patient that is perfectly well known. Fall back to the companion store.
+    const companionFromPatient = item.patientId ? companionsById[item.patientId] : undefined;
+    const companionName =
+      getCompanionName(item.appointmentId) === '-' && companionFromPatient?.name
+        ? companionFromPatient.name
+        : getCompanionName(item.appointmentId);
     const parentName = getParentName(item.appointmentId);
     let ownerAndCompanion = '-';
     if (parentName !== '-' && companionName !== '-') {

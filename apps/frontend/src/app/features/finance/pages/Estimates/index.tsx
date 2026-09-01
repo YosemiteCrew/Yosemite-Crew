@@ -9,6 +9,7 @@ import { PERMISSIONS } from '@/app/lib/permissions';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { useNotify } from '@/app/hooks/useNotify';
 import { useOrgStore } from '@/app/stores/orgStore';
+import { useSearchStore } from '@/app/stores/searchStore';
 import { useCompanionStore } from '@/app/stores/companionStore';
 import { loadCompanionsForPrimaryOrg } from '@/app/features/companions/services/companionService';
 import { loadInvoicesForOrgPrimaryOrg } from '@/app/features/billing/services/invoiceService';
@@ -44,6 +45,22 @@ const ACTION_LABELS: Record<EstimateAction, { title: string; text: string }> = {
   convert: { title: 'Invoice created', text: 'The estimate has been converted to an invoice.' },
 };
 
+/**
+ * Why the list is empty, which is three different situations: a search that
+ * matched nothing, a status filter with no members, or an organisation with no
+ * estimates at all. Extracted rather than nested in the JSX - Sonar S3358
+ * rejects a nested ternary, and the branches read better named.
+ */
+const emptyListMessage = (
+  hasQuery: boolean,
+  hasAnyEstimate: boolean,
+  activeStatus: string
+): string => {
+  if (hasQuery && hasAnyEstimate) return 'No estimate matches that search.';
+  if (activeStatus !== 'all') return 'No estimate currently has this status.';
+  return 'Create an estimate to quote a treatment plan before it is invoiced.';
+};
+
 const runAction = (
   action: EstimateAction,
   organisationId: string,
@@ -66,6 +83,7 @@ const EstimatesContent = () => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const currency = useCurrencyForPrimaryOrg();
 
+  const query = useSearchStore((s) => s.query);
   const [activeStatus, setActiveStatus] = useState('all');
   const statusFilter: EstimateStatus | undefined =
     activeStatus === 'all' ? undefined : (activeStatus as EstimateStatus);
@@ -82,6 +100,8 @@ const EstimatesContent = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [companionsError, setCompanionsError] = useState<string | null>(null);
+  const [companionsReloadToken, setCompanionsReloadToken] = useState(0);
 
   const companionsById = useCompanionStore((s) => s.companionsById);
   const companionsIdsByOrgId = useCompanionStore((s) => s.companionsIdsByOrgId);
@@ -92,10 +112,14 @@ const EstimatesContent = () => {
   useEffect(() => {
     if (!primaryOrgId) return;
     if ((companionsIdsByOrgId[primaryOrgId] ?? []).length > 0) return;
-    loadCompanionsForPrimaryOrg().catch((err: unknown) => {
-      console.error('Failed to load companions for the estimates page:', err);
+    // Surfaced, not just logged: without companions the picker is empty, so
+    // "New estimate" leads to a dialog that can only tell the user to choose a
+    // companion that is not there. The reset lives in the retry handler rather
+    // than here - a synchronous setState inside an effect cascades renders.
+    loadCompanionsForPrimaryOrg().catch(() => {
+      setCompanionsError('Companions could not be loaded, so a new estimate cannot be started.');
     });
-  }, [primaryOrgId, companionsIdsByOrgId]);
+  }, [primaryOrgId, companionsIdsByOrgId, companionsReloadToken]);
 
   const companions = useMemo(() => {
     if (!primaryOrgId) return [];
@@ -110,9 +134,20 @@ const EstimatesContent = () => {
     [companionsById]
   );
 
+  // The shared finance header stays visible on this route and already writes to
+  // the search store, so the control looked functional while doing nothing.
+  // Matching on the companion name is what a user typing there would expect.
+  const visibleEstimates = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return estimates;
+    return estimates.filter((estimate) =>
+      companionName(estimate.patientId).toLowerCase().includes(needle)
+    );
+  }, [estimates, query, companionName]);
+
   const activeEstimate = useMemo(
-    () => estimates.find((estimate) => estimate.id === activeEstimateId) ?? null,
-    [estimates, activeEstimateId]
+    () => visibleEstimates.find((estimate) => estimate.id === activeEstimateId) ?? null,
+    [visibleEstimates, activeEstimateId]
   );
 
   const handleAction = async (action: EstimateAction) => {
@@ -175,6 +210,7 @@ const EstimatesContent = () => {
           <PermissionGate allOf={[PERMISSIONS.BILLING_EDIT_ANY]}>
             <Primary
               text="New estimate"
+              isDisabled={companions.length === 0}
               onClick={() => {
                 setCreateError(null);
                 setCreateOpen(true);
@@ -185,15 +221,40 @@ const EstimatesContent = () => {
         </div>
       </div>
 
-      <InvoiceStatusFilterPills
-        options={EstimateStatusFilters}
-        activeStatus={activeStatus}
-        setActiveStatus={(value) => {
-          setActiveStatus(value);
-          setActiveEstimateId(null);
-        }}
-        ariaLabel="Filter estimates by status"
-      />
+      {/*
+        Seven non-shrinking pills exceed a phone's width. PhoneInvoiceList wraps
+        its own filter row in a horizontal scroller for the same reason; without
+        one the page itself scrolls sideways and the later statuses are hard to
+        reach.
+      */}
+      <div className="overflow-x-auto scrollbar-hidden -mx-1 px-1">
+        <InvoiceStatusFilterPills
+          options={EstimateStatusFilters}
+          activeStatus={activeStatus}
+          setActiveStatus={(value) => {
+            setActiveStatus(value);
+            setActiveEstimateId(null);
+          }}
+          ariaLabel="Filter estimates by status"
+          className="w-max"
+        />
+      </div>
+
+      {companionsError && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-danger-100 p-3!">
+          <p role="alert" className="text-body-4 text-text-error">
+            {companionsError}
+          </p>
+          <Secondary
+            text="Retry"
+            onClick={() => {
+              setCompanionsError(null);
+              setCompanionsReloadToken((token) => token + 1);
+            }}
+            ariaLabel="Retry loading companions"
+          />
+        </div>
+      )}
 
       {loading && (
         <div className="h-40 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />
@@ -208,21 +269,19 @@ const EstimatesContent = () => {
         </div>
       )}
 
-      {!loading && !error && estimates.length === 0 && (
+      {!loading && !error && visibleEstimates.length === 0 && (
         <div className="border border-card-border rounded-2xl px-6! py-10! text-center">
           <p className="text-body-3 text-text-primary">No estimates yet</p>
           <p className="text-body-4 text-text-secondary">
-            {activeStatus === 'all'
-              ? 'Create an estimate to quote a treatment plan before it is invoiced.'
-              : 'No estimate currently has this status.'}
+            {emptyListMessage(Boolean(query.trim()), estimates.length > 0, activeStatus)}
           </p>
         </div>
       )}
 
-      {!loading && !error && estimates.length > 0 && (
+      {!loading && !error && visibleEstimates.length > 0 && (
         <div className="flex flex-col gap-6">
           <EstimateList
-            estimates={estimates}
+            estimates={visibleEstimates}
             activeEstimateId={activeEstimateId}
             onSelect={(estimate) => {
               setActiveEstimateId(estimate.id);

@@ -97,3 +97,23 @@ describe('currencySymbol', () => {
     formatToParts.mockRestore();
   });
 });
+
+describe('formatMoneyPrecise currency precision', () => {
+  it('uses each currency its own minor unit rather than a fixed two digits', () => {
+    // JPY has no minor unit and KWD has three. Pinning two digits displayed a
+    // different amount from the one stored - KWD 1.234 as 1.23.
+    expect(formatMoneyPrecise(1234, 'JPY')).not.toContain('.');
+    expect(formatMoneyPrecise(1.234, 'KWD')).toContain('1.234');
+    expect(formatMoneyPrecise(45.5, 'GBP')).toBe('£45.50');
+  });
+
+  it('falls back instead of throwing on a code that is not a currency', () => {
+    // CreateEstimateSchema only checks the code's length, so "123" is an
+    // API-valid estimate. Intl throws a RangeError on it, and this helper runs
+    // on every line and total with no error boundary above it - one such record
+    // would blank the screen.
+    expect(() => formatMoneyPrecise(9.5, '123')).not.toThrow();
+    expect(formatMoneyPrecise(9.5, '123')).toBe('123 9.50');
+    expect(formatMoneyPrecise(9.5, 'ZZ')).toBe('ZZ 9.50');
+  });
+});

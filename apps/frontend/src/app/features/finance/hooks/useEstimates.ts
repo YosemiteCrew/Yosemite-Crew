@@ -61,6 +61,11 @@ export const useEstimates = (organisationId?: string, status?: EstimateStatus): 
 
   const upsert = useCallback(
     (estimate: Estimate) => {
+      // A create or lifecycle response can land after the user has switched
+      // organisation. The list refetch is keyed on organisationId and so is
+      // discarded, but this merge is not - without the guard an estimate from
+      // the previous organisation is inserted into the new one's list.
+      if (organisationId && estimate.organisationId !== organisationId) return;
       setEstimates((current) => {
         const index = current.findIndex((row) => row.id === estimate.id);
         // A lifecycle action changes the status, which can move the estimate out
@@ -76,7 +81,7 @@ export const useEstimates = (organisationId?: string, status?: EstimateStatus): 
         return next;
       });
     },
-    [status]
+    [status, organisationId]
   );
 
   const reload = useCallback(() => setReloadToken((token) => token + 1), []);

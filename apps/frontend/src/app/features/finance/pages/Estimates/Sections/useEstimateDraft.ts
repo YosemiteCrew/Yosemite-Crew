@@ -26,7 +26,7 @@ export type EstimateDraft = {
   totals: EstimateTotals;
   formError: string | null;
   /** Validate and, if the draft is sound, hand the payload to `onSubmit`. */
-  submit: (onSubmit: (input: CreateEstimateInput) => void, currency: string) => void;
+  submit: (onSubmit: (input: CreateEstimateInput) => void) => void;
 };
 
 /**
@@ -73,7 +73,19 @@ export const useEstimateDraft = (): EstimateDraft => {
       current.length === 1 ? current : current.filter((line) => line.key !== key)
     );
 
-  const submit = (onSubmit: (input: CreateEstimateInput) => void, currency: string) => {
+  /**
+   * The currency is deliberately NOT sent.
+   *
+   * `useCurrencyForPrimaryOrg` reads `subscription.currency`, and the
+   * production path builds subscriptions through `normalizeSubscription`, which
+   * never populates it - so it always answers USD. Persisting that would stamp
+   * USD on every estimate for a non-USD clinic, override the API's own default,
+   * and then be copied onto the converted invoice. Omitting it lets the server
+   * decide, which is the only side that knows. The dialog still previews in the
+   * currency the rest of Finance displays; the saved estimate carries the
+   * server's, and the detail view renders that.
+   */
+  const submit = (onSubmit: (input: CreateEstimateInput) => void) => {
     const validation = validateDraft(patientId, lines);
     if (!validation.ok) {
       setFormError(validation.message);
@@ -82,7 +94,6 @@ export const useEstimateDraft = (): EstimateDraft => {
     setFormError(null);
     onSubmit({
       patientId,
-      currency,
       notes: notes.trim() || undefined,
       // The API takes an ISO datetime; a date input yields yyyy-mm-dd only.
       validUntil: validUntil ? new Date(`${validUntil}T00:00:00.000Z`).toISOString() : undefined,

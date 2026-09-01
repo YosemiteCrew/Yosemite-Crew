@@ -45,12 +45,27 @@ const CreateEstimateDialog = ({
   const draft = useEstimateDraft();
   const message = draft.formError ?? error;
 
+  /**
+   * ModalBase also closes on Escape and on an outside click, and those paths do
+   * not consult the disabled Cancel button. A create request cannot be
+   * cancelled, so dismissing mid-flight can let one succeed invisibly and a
+   * retry mint a second estimate. Swallowing the state change while saving
+   * closes every route out.
+   */
+  const setOpenUnlessSaving: React.Dispatch<React.SetStateAction<boolean>> = (value) => {
+    if (saving) return;
+    setOpen(value);
+  };
+
   return (
     <CenterModal
       showModal={open}
-      setShowModal={setOpen}
+      setShowModal={setOpenUnlessSaving}
       ariaLabel="Create an estimate"
-      containerClassName="sm:w-[min(780px,92vw)]!"
+      // Capped and scrollable: the user can add unlimited lines, and the dialog
+      // locks body scroll, so an unbounded height puts the totals and the
+      // submit button off-screen with no way to reach them.
+      containerClassName="sm:w-[min(780px,92vw)]! max-h-[90vh] overflow-y-auto"
     >
       <div className="flex flex-col gap-4 p-6!">
         <h2 className="text-heading-4 text-text-primary">New estimate</h2>
@@ -85,13 +100,13 @@ const CreateEstimateDialog = ({
           <Secondary
             text="Cancel"
             isDisabled={saving}
-            onClick={() => setOpen(false)}
+            onClick={() => setOpenUnlessSaving(false)}
             ariaLabel="Cancel creating this estimate"
           />
           <Primary
             text={saving ? 'Creating...' : 'Create estimate'}
             isDisabled={saving}
-            onClick={() => draft.submit(onSubmit, currency)}
+            onClick={() => draft.submit(onSubmit)}
             ariaLabel="Create this estimate"
           />
         </div>

@@ -292,7 +292,6 @@ describe('CreateEstimateDialog', () => {
 
     expect(onSubmit).toHaveBeenCalledWith({
       patientId: 'c2',
-      currency: 'USD',
       notes: 'Pre-op quote',
       validUntil: '2026-12-31T00:00:00.000Z',
       items: [
@@ -356,5 +355,16 @@ describe('CreateEstimateDialog', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Cancel creating this estimate' }));
 
     expect(setOpen).toHaveBeenCalledWith(false);
+  });
+
+  it('refuses every dismissal route while a create is in flight', async () => {
+    const { setOpen } = setup({ saving: true });
+
+    // ModalBase also closes on Escape and on an outside click, and neither
+    // consults the disabled Cancel button. A create cannot be cancelled, so a
+    // dismissal mid-flight can let one succeed invisibly and a retry mint a
+    // second estimate.
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel creating this estimate' }));
+    expect(setOpen).not.toHaveBeenCalled();
   });
 });
