@@ -1,5 +1,5 @@
 'use client';
-import React, { useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Icon } from '@/app/ui/icons/Icon';
 
@@ -8,6 +8,9 @@ import { useAuthStore } from '@/app/stores/authStore';
 import DevRouteGuard from '@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard';
 import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
 import PhoneDevHome from '@/app/features/developers/pages/DeveloperPortalHome/PhoneDevHome';
+import { listApiKeys } from '@/app/services/developerApiKeys';
+import { getUsage } from '@/app/services/developerUsage';
+import { logger } from '@/app/lib/logger';
 
 import './DeveloperPortalHome.css';
 import '@/app/features/organizations/styles/Organizations.css';
@@ -17,13 +20,6 @@ type QuickLink = {
   href: string;
   icon: string;
   external?: boolean;
-};
-
-export type ActivityEntry = {
-  method: string;
-  path: string;
-  status: string;
-  ok: boolean;
 };
 
 const QUICK_LINKS: QuickLink[] = [
@@ -42,13 +38,6 @@ const QUICK_LINKS: QuickLink[] = [
   },
 ];
 
-const RECENT_ACTIVITY: ActivityEntry[] = [
-  { method: 'POST', path: '/fhir/Appointment', status: '201', ok: true },
-  { method: 'GET', path: '/fhir/Patient?name=poppy', status: '200', ok: true },
-  { method: 'GET', path: '/fhir/Observation/vt-882', status: '200', ok: true },
-  { method: 'POST', path: '/fhir/DocumentReference', status: '422', ok: false },
-];
-
 const DeveloperPortalHome = () => {
   const { attributes } = useAuthStore();
   const isPhone = useIsPhone();
@@ -60,11 +49,57 @@ const DeveloperPortalHome = () => {
     return 'Developer';
   }, [attributes?.email, attributes?.family_name, attributes?.given_name]);
 
+  /*
+   * The two numbers on this card are read, not asserted.
+   *
+   * They used to be literals - a "Requests · 24h" of 4,218 and a four-row
+   * activity feed - on a portal where the Billing page next door reads the same
+   * account and correctly shows 0. Anything shown here now comes from the same
+   * endpoints Billing and API Keys use, and shows a dash when it cannot be read.
+   */
+  const [activeKeyCount, setActiveKeyCount] = useState<number | null>(null);
+  const [callCount, setCallCount] = useState<number | null>(null);
+
+  const loadStatus = useCallback(async () => {
+    const [keysResult, usageResult] = await Promise.allSettled([listApiKeys(), getUsage()]);
+
+    if (keysResult.status === 'fulfilled') {
+      setActiveKeyCount(keysResult.value.filter((key) => key.status === 'active').length);
+    } else {
+      logger.error(
+        'Failed to load developer API keys for the portal status card',
+        keysResult.reason
+      );
+    }
+
+    if (usageResult.status === 'fulfilled') {
+      setCallCount(usageResult.value.callCount);
+    } else {
+      logger.error(
+        'Failed to load developer API usage for the portal status card',
+        usageResult.reason
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    // Wrapped rather than called directly: the hooks lint cannot see through the
+    // useCallback to prove the setStates all happen after an await, and flags a
+    // bare `loadStatus()` as a synchronous state write. Same shape as
+    // DeveloperBilling's mount effect.
+    const run = async () => {
+      await loadStatus();
+    };
+    run();
+  }, [loadStatus]);
+
+  const formatCount = (value: number | null) => (value === null ? '—' : value.toLocaleString());
+
   if (isPhone) {
     return (
       <DevRouteGuard>
         <div className="OperationsWrapper">
-          <PhoneDevHome displayName={displayName} recentActivity={RECENT_ACTIVITY} />
+          <PhoneDevHome displayName={displayName} />
         </div>
       </DevRouteGuard>
     );
@@ -118,12 +153,14 @@ const DeveloperPortalHome = () => {
                   </strong>
                 </li>
                 <li>
-                  <span className="dev-status-label">Environment</span>
-                  <strong className="dev-status-value">Sandbox</strong>
+                  <span className="dev-status-label">Active API keys</span>
+                  <strong className="dev-status-value dev-tabular">
+                    {formatCount(activeKeyCount)}
+                  </strong>
                 </li>
                 <li>
-                  <span className="dev-status-label">Requests · 24h</span>
-                  <strong className="dev-status-value dev-tabular">4,218</strong>
+                  <span className="dev-status-label">API calls this period</span>
+                  <strong className="dev-status-value dev-tabular">{formatCount(callCount)}</strong>
                 </li>
                 <li>
                   <span className="dev-status-label">Next step</span>
@@ -175,53 +212,26 @@ const DeveloperPortalHome = () => {
               </div>
             </div>
 
+            {/*
+              The "Your plugin" and "Recent activity" cards were removed rather
+              than emptied. Both described capabilities the platform does not
+              have: there is no plugin model in the schema and no request log,
+              so neither could ever be populated. An empty state would still
+              claim the feature exists.
+            */}
             <div className="dev-portal-card">
               <div className="dev-card-head">
-                <h2 className="dev-card-title">Your plugin</h2>
-                <span className="dev-status-badge in-review text-caption-3">In review</span>
-              </div>
-              <div className="dev-plugin-row">
-                <span className="dev-plugin-icon" aria-hidden="true">
-                  <Icon icon="ion:pulse-outline" width={18} height={18} />
-                </span>
-                <span className="dev-plugin-titles">
-                  <span className="dev-plugin-name">Anesthesia monitor sync</span>
-                  <span className="dev-plugin-meta text-caption-2 text-text-tertiary">
-                    v0.4.1 · submitted 04 Jul
-                  </span>
-                </span>
+                <h2 className="dev-card-title">Your API keys</h2>
+                <span className="dev-card-pill secondary text-caption-3">Access</span>
               </div>
               <p className="dev-plugin-desc">
-                Streams vitals from Mindray monitors into the appointment workspace.
+                {activeKeyCount === 0
+                  ? 'You have no active keys yet. Create one to authenticate an integration.'
+                  : 'Create, review and revoke the keys your integrations authenticate with.'}
               </p>
-              <Link href="/developers/plugins" className="dev-card-action">
-                Review status
+              <Link href="/developers/api-keys" className="dev-card-action">
+                {activeKeyCount === 0 ? 'Create an API key' : 'Manage API keys'}
                 <Icon icon="ion:arrow-forward" width={14} height={14} aria-hidden="true" />
-              </Link>
-            </div>
-
-            <div className="dev-portal-card">
-              <div className="dev-card-head">
-                <h2 className="dev-card-title">Recent activity</h2>
-                <span className="dev-card-pill secondary text-caption-3">Sandbox</span>
-              </div>
-              <ul className="dev-activity">
-                {RECENT_ACTIVITY.map((entry) => (
-                  <li key={`${entry.method}-${entry.path}`}>
-                    <span className="dev-req-path">
-                      {entry.method} {entry.path}
-                    </span>
-                    <span className={`dev-req-status dev-tabular ${entry.ok ? 'ok' : 'err'}`}>
-                      {entry.status}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <Link
-                href="/developers/api-keys"
-                className="dev-activity-foot text-caption-2 text-text-tertiary"
-              >
-                Full request log in API keys →
               </Link>
             </div>
           </div>
