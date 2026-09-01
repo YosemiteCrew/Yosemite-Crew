@@ -13,6 +13,8 @@ import { prisma } from "src/config/prisma";
  * Crew - see the third-party data notice in License.txt. It is not sublicensed to
  * users of this repository, who need their own licence to use ATCvet data.
  *
+ * Rollout steps (deploy does NOT run this): docs/guide/atcvet-rollout.md.
+ *
  * Regenerate data/atcvet_index.json from a new yearly release with
  * scripts/convert-atcvet-xlsx.mjs, or point elsewhere via ATCVET_INDEX_PATH.
  * Paths are relative to the backend working directory.
