@@ -98,10 +98,10 @@ const EstimatesContent = () => {
 
   const companions = useMemo(() => {
     if (!primaryOrgId) return [];
-    return (companionsIdsByOrgId[primaryOrgId] ?? [])
-      .map((id) => companionsById[id])
-      .filter(Boolean)
-      .map((companion) => ({ id: companion.id, name: companion.name || 'Unnamed companion' }));
+    return (companionsIdsByOrgId[primaryOrgId] ?? []).flatMap((id) => {
+      const companion = companionsById[id];
+      return companion ? [{ id: companion.id, name: companion.name || 'Unnamed companion' }] : [];
+    });
   }, [primaryOrgId, companionsById, companionsIdsByOrgId]);
 
   const companionName = useCallback(

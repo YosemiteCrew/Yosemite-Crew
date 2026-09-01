@@ -2,6 +2,7 @@
 import React from 'react';
 import clsx from 'clsx';
 import { formatMoneyPrecise } from '@/app/lib/money';
+import { formatDisplayDate } from '@/app/lib/date';
 import EstimateStatusBadge from '@/app/features/finance/pages/Estimates/Sections/EstimateStatusBadge';
 import type { Estimate } from '@/app/features/finance/types/estimate';
 
@@ -13,11 +14,13 @@ type EstimateListProps = {
   companionName: (patientId: string) => string;
 };
 
-const formatDate = (value: string | null): string => {
-  if (!value) return '-';
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? '-' : parsed.toLocaleDateString();
-};
+/**
+ * Dates go through the shared helper rather than `toLocaleDateString`, which
+ * resolves against whatever locale and time zone the renderer happens to be in.
+ * On a server-rendered route that differs between server and client and
+ * produces a hydration mismatch.
+ */
+const formatDate = (value: string | null): string => formatDisplayDate(value ?? undefined, '-');
 
 /**
  * The estimates list. A table on desktop and stacked cards on phone, matching

@@ -1,10 +1,7 @@
 import type { Metadata } from 'next';
+
 export const metadata: Metadata = { title: 'Estimates — Yosemite Crew' };
-import React from 'react';
-import ProtectedEstimates from '@/app/features/finance/pages/Estimates';
 
-const page = () => {
-  return <ProtectedEstimates />;
-};
-
-export default page;
+// Re-exported rather than wrapped: the route adds no behaviour of its own, so a
+// local component that only returns the screen is indirection without intent.
+export { default } from '@/app/features/finance/pages/Estimates';

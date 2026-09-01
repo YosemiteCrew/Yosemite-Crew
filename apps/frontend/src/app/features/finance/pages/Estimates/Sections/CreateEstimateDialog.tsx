@@ -1,12 +1,18 @@
 'use client';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { formatMoneyPrecise } from '@/app/lib/money';
+import { computeEstimateTotals } from '@/app/features/finance/pages/Estimates/Sections/estimateTotals';
+import EstimateLineRow from '@/app/features/finance/pages/Estimates/Sections/EstimateLineRow';
 import {
-  computeEstimateTotals,
-  computeLineTotal,
-} from '@/app/features/finance/pages/Estimates/Sections/estimateTotals';
+  emptyLine,
+  fieldClass,
+  inputClass,
+  toNumber,
+  validateDraft,
+  type DraftLine,
+} from '@/app/features/finance/pages/Estimates/Sections/estimateDraft';
 import type { CreateEstimateInput } from '@/app/features/finance/types/estimate';
 
 export type CompanionChoice = { id: string; name: string };
@@ -21,72 +27,39 @@ type CreateEstimateDialogProps = {
   onSubmit: (input: CreateEstimateInput) => void;
 };
 
-type DraftLine = {
-  key: string;
-  description: string;
-  quantity: string;
-  unitPrice: string;
-  taxRate: string;
-};
+const LineColumnHeaders = () => (
+  <div
+    className="hidden sm:grid grid-cols-[minmax(0,1fr)_4.5rem_6rem_4.5rem_auto_auto] items-end gap-2 text-caption-2 text-text-tertiary"
+    aria-hidden="true"
+  >
+    <span>Description</span>
+    <span>Qty</span>
+    <span>Unit price</span>
+    <span>Tax %</span>
+    <span className="min-w-20 text-right">Line total</span>
+    <span />
+  </div>
+);
 
-const emptyLine = (key: string): DraftLine => ({
-  key,
-  description: '',
-  quantity: '1',
-  unitPrice: '',
-  taxRate: '0',
-});
+type TotalsRowProps = { label: string; value: string; emphasis?: boolean };
 
-/** A blank or unparseable numeric field reads as 0 rather than NaN. */
-const toNumber = (raw: string): number => {
-  const parsed = Number(raw.trim());
-  return Number.isFinite(parsed) ? parsed : 0;
-};
-
-const inputClass =
-  'min-w-0 flex-1 bg-transparent px-3 py-2 text-body-4 text-text-primary outline-none';
-const fieldClass =
-  'flex items-stretch overflow-hidden rounded-2xl border border-input-border-default focus-within:border-input-border-active';
+const TotalsRow = ({ label, value, emphasis = false }: TotalsRowProps) => (
+  <div className="flex items-center justify-between">
+    <span className="text-body-4 text-text-secondary">{label}</span>
+    <span className={emphasis ? 'text-body-2 text-text-primary' : 'text-body-3 text-text-primary'}>
+      {value}
+    </span>
+  </div>
+);
 
 /**
- * Validate a draft the way the backend's zod schema does, so the user is told
- * what is wrong before a request is sent rather than reading a flattened zod
- * error afterwards. `items.min(1)`, `description.min(1)`, `quantity.positive()`
- * and `unitPrice.min(0)` all come from CreateEstimateSchema.
+ * The estimate editor.
+ *
+ * Totals come from `computeEstimateTotals`, which mirrors the backend's
+ * `computeTotals` exactly, so the figure previewed here is the figure that is
+ * saved. Validation mirrors the controller's zod schema for the same reason:
+ * the user learns what is wrong before a request goes out.
  */
-export const validateDraft = (
-  patientId: string,
-  lines: DraftLine[]
-): { ok: true } | { ok: false; message: string } => {
-  if (!patientId) return { ok: false, message: 'Choose a companion for this estimate.' };
-  if (lines.length === 0) return { ok: false, message: 'Add at least one line.' };
-  for (const line of lines) {
-    if (!line.description.trim()) {
-      return { ok: false, message: 'Every line needs a description.' };
-    }
-    if (toNumber(line.quantity) <= 0) {
-      return {
-        ok: false,
-        message: `Quantity for "${line.description.trim()}" must be above zero.`,
-      };
-    }
-    if (toNumber(line.unitPrice) < 0) {
-      return {
-        ok: false,
-        message: `Unit price for "${line.description.trim()}" cannot be negative.`,
-      };
-    }
-    const taxRate = toNumber(line.taxRate);
-    if (taxRate < 0 || taxRate > 100) {
-      return {
-        ok: false,
-        message: `Tax for "${line.description.trim()}" must be between 0 and 100.`,
-      };
-    }
-  }
-  return { ok: true };
-};
-
 const CreateEstimateDialog = ({
   open,
   setOpen,
@@ -100,8 +73,12 @@ const CreateEstimateDialog = ({
   const [notes, setNotes] = useState('');
   const [validUntil, setValidUntil] = useState('');
   const [lines, setLines] = useState<DraftLine[]>([emptyLine('line-0')]);
-  const [nextKey, setNextKey] = useState(1);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // A counter, not state: it only ever feeds the next React key, is never
+  // rendered, and as state every increment would re-render the dialog for
+  // nothing.
+  const nextKey = useRef(1);
 
   const totals = useMemo(
     () =>
@@ -120,8 +97,8 @@ const CreateEstimateDialog = ({
     setLines((current) => current.map((line) => (line.key === key ? { ...line, ...patch } : line)));
 
   const addLine = () => {
-    setLines((current) => [...current, emptyLine(`line-${nextKey}`)]);
-    setNextKey((key) => key + 1);
+    setLines((current) => [...current, emptyLine(`line-${nextKey.current}`)]);
+    nextKey.current += 1;
   };
 
   const removeLine = (key: string) =>
@@ -205,123 +182,17 @@ const CreateEstimateDialog = ({
 
         <div className="flex flex-col gap-2">
           <span className="text-caption-2 font-bold text-text-tertiary">Lines</span>
-          {/*
-            Column headers, desktop only. The per-field labels below are visible on
-            phone and screen-reader-only from sm up, so every field is named at
-            every width - placeholders alone would leave the numeric boxes
-            unidentifiable the moment a value is typed into them.
-          */}
-          <div
-            className="hidden sm:grid grid-cols-[minmax(0,1fr)_4.5rem_6rem_4.5rem_auto_auto] items-end gap-2 text-caption-2 text-text-tertiary"
-            aria-hidden="true"
-          >
-            <span>Description</span>
-            <span>Qty</span>
-            <span>Unit price</span>
-            <span>Tax %</span>
-            <span className="min-w-20 text-right">Line total</span>
-            <span />
-          </div>
+          <LineColumnHeaders />
           {lines.map((line, index) => (
-            <div
+            <EstimateLineRow
               key={line.key}
-              className="grid grid-cols-[1fr_auto] sm:grid-cols-[minmax(0,1fr)_4.5rem_6rem_4.5rem_auto_auto] items-end gap-2"
-            >
-              <div className="flex flex-col gap-1 col-span-2 sm:col-span-1 min-w-0">
-                <label
-                  htmlFor={`${line.key}-description`}
-                  className="text-caption-2 text-text-tertiary sm:sr-only"
-                >
-                  {`Line ${index + 1} description`}
-                </label>
-                <span className={fieldClass}>
-                  <input
-                    id={`${line.key}-description`}
-                    type="text"
-                    value={line.description}
-                    placeholder="Description"
-                    onChange={(e) => updateLine(line.key, { description: e.target.value })}
-                    className={inputClass}
-                  />
-                </span>
-              </div>
-              <div className="flex flex-col gap-1 min-w-0">
-                <label
-                  htmlFor={`${line.key}-quantity`}
-                  className="text-caption-2 text-text-tertiary sm:sr-only"
-                >
-                  {`Line ${index + 1} quantity`}
-                </label>
-                <span className={fieldClass}>
-                  <input
-                    id={`${line.key}-quantity`}
-                    type="number"
-                    inputMode="decimal"
-                    min={0}
-                    value={line.quantity}
-                    placeholder="Qty"
-                    onChange={(e) => updateLine(line.key, { quantity: e.target.value })}
-                    className={inputClass}
-                  />
-                </span>
-              </div>
-              <div className="flex flex-col gap-1 min-w-0">
-                <label
-                  htmlFor={`${line.key}-unit-price`}
-                  className="text-caption-2 text-text-tertiary sm:sr-only"
-                >
-                  {`Line ${index + 1} unit price`}
-                </label>
-                <span className={fieldClass}>
-                  <input
-                    id={`${line.key}-unit-price`}
-                    type="number"
-                    inputMode="decimal"
-                    min={0}
-                    value={line.unitPrice}
-                    placeholder="Price"
-                    onChange={(e) => updateLine(line.key, { unitPrice: e.target.value })}
-                    className={inputClass}
-                  />
-                </span>
-              </div>
-              <div className="flex flex-col gap-1 min-w-0">
-                <label
-                  htmlFor={`${line.key}-tax-rate`}
-                  className="text-caption-2 text-text-tertiary sm:sr-only"
-                >
-                  {`Line ${index + 1} tax percent`}
-                </label>
-                <span className={fieldClass}>
-                  <input
-                    id={`${line.key}-tax-rate`}
-                    type="number"
-                    inputMode="decimal"
-                    min={0}
-                    max={100}
-                    value={line.taxRate}
-                    placeholder="Tax %"
-                    onChange={(e) => updateLine(line.key, { taxRate: e.target.value })}
-                    className={inputClass}
-                  />
-                </span>
-              </div>
-              <span className="text-body-4 text-text-secondary min-w-20 text-right pb-2! tabular-nums">
-                {formatMoneyPrecise(
-                  computeLineTotal(toNumber(line.quantity), toNumber(line.unitPrice)),
-                  currency
-                )}
-              </span>
-              <button
-                type="button"
-                onClick={() => removeLine(line.key)}
-                disabled={lines.length === 1}
-                aria-label={`Remove line ${index + 1}`}
-                className="text-body-4 text-text-secondary hover:text-text-primary disabled:opacity-40 pb-2!"
-              >
-                Remove
-              </button>
-            </div>
+              line={line}
+              index={index}
+              currency={currency}
+              canRemove={lines.length > 1}
+              onChange={updateLine}
+              onRemove={removeLine}
+            />
           ))}
           <div>
             <Secondary text="Add line" onClick={addLine} ariaLabel="Add another estimate line" />
@@ -344,24 +215,9 @@ const CreateEstimateDialog = ({
         </div>
 
         <div className="flex flex-col gap-2 border-t border-t-card-border pt-3!">
-          <div className="flex items-center justify-between">
-            <span className="text-body-4 text-text-secondary">Subtotal</span>
-            <span className="text-body-3 text-text-primary">
-              {formatMoneyPrecise(totals.subtotal, currency)}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-body-4 text-text-secondary">Tax</span>
-            <span className="text-body-3 text-text-primary">
-              {formatMoneyPrecise(totals.taxAmount, currency)}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-body-4 text-text-secondary">Total</span>
-            <span className="text-body-2 text-text-primary">
-              {formatMoneyPrecise(totals.total, currency)}
-            </span>
-          </div>
+          <TotalsRow label="Subtotal" value={formatMoneyPrecise(totals.subtotal, currency)} />
+          <TotalsRow label="Tax" value={formatMoneyPrecise(totals.taxAmount, currency)} />
+          <TotalsRow label="Total" value={formatMoneyPrecise(totals.total, currency)} emphasis />
         </div>
 
         {(formError ?? error) ? (

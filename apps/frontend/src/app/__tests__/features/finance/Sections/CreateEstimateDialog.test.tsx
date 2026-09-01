@@ -29,9 +29,8 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
   ),
 }));
 
-import CreateEstimateDialog, {
-  validateDraft,
-} from '@/app/features/finance/pages/Estimates/Sections/CreateEstimateDialog';
+import CreateEstimateDialog from '@/app/features/finance/pages/Estimates/Sections/CreateEstimateDialog';
+import { validateDraft } from '@/app/features/finance/pages/Estimates/Sections/estimateDraft';
 import type { CreateEstimateInput } from '@/app/features/finance/types/estimate';
 
 /** The dialog's internal draft-line shape, which `validateDraft` takes. */
