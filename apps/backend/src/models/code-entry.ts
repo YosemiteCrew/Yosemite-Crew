@@ -1,4 +1,5 @@
-export type CodeSystem = "YOSEMITECODE" | "IDEXX" | "SNOMED" | "VENOM";
+export type CodeSystem =
+  "YOSEMITECODE" | "IDEXX" | "SNOMED" | "VENOM" | "ATCVET";
 export type CodeType =
   | "SPECIES"
   | "BREED"
@@ -6,6 +7,8 @@ export type CodeType =
   | "TEST"
   | "CLINICAL_TERM"
   | "CLINICAL_CATEGORY"
+  | "MEDICATION"
+  | "MEDICATION_CATEGORY"
   | "OTHER";
 
 export interface CodeEntryMongo {

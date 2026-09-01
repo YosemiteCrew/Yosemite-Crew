@@ -53,6 +53,18 @@ describe('inventoryToPrescriptionItem', () => {
     expect(result.priceCents).toBe(6000);
   });
 
+  it('carries the stock item ATCvet code onto the prescription line', () => {
+    // Prescribing from the practice's own catalogue must be coded exactly as
+    // picking the substance from the classification would be; without this the
+    // backfill's work never reaches a prescription.
+    const result = inventoryToPrescriptionItem(buildInventoryItem({ atcCode: 'QJ01AA02' }));
+    expect(result.atcCode).toBe('QJ01AA02');
+  });
+
+  it('leaves the code absent for stock that was never matched', () => {
+    expect(inventoryToPrescriptionItem(buildInventoryItem()).atcCode).toBeUndefined();
+  });
+
   it('leaves controlled/prescription flags undefined when not set', () => {
     const item = buildInventoryItem({
       classification: { strength: '5', unitofMeasure: 'mL', form: 'Liquid' },

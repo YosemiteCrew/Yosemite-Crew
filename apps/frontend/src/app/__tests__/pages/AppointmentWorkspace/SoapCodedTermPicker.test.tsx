@@ -90,6 +90,77 @@ describe('SoapCodedTermPicker', () => {
     expect(onChange).toHaveBeenCalledWith([{ ycCode: 'YC-001111', label: 'Diarrhoea' }]);
   });
 
+  it('shows each vocabulary crosswalk in the dropdown and carries them onto the pick', async () => {
+    const onChange = jest.fn();
+    suggestMock.mockResolvedValue([
+      {
+        ...VOMITING,
+        codings: [
+          { system: 'VENOM', code: '21868', equivalence: 'EQUIVALENT' },
+          { system: 'SNOMED', code: '422400008', equivalence: 'NARROWER' },
+        ],
+      },
+    ]);
+    render(<SoapCodedTermPicker sectionLabel="Subjective" selected={[]} onChange={onChange} />);
+
+    typeQuery('vom');
+    // The row states both crosswalks, and marks the inexact one as narrower so a
+    // broader/narrower match is never read as the same concept.
+    await waitFor(() => expect(screen.getByText(/VeNom 21868/)).toBeInTheDocument());
+    expect(screen.getByText(/SNOMED 422400008 \(narrower\)/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Vomiting'));
+    expect(onChange).toHaveBeenCalledWith([
+      expect.objectContaining({
+        ycCode: 'YC-005423',
+        codings: [
+          { system: 'VENOM', code: '21868', equivalence: 'EQUIVALENT' },
+          { system: 'SNOMED', code: '422400008', equivalence: 'NARROWER' },
+        ],
+      }),
+    ]);
+  });
+
+  it('falls back to the raw system name for an unknown vocabulary', () => {
+    render(
+      <SoapCodedTermPicker
+        sectionLabel="Plan"
+        selected={[{ ycCode: 'YC-1', label: 'X', codings: [{ system: 'LOINC', code: '1234-5' }] }]}
+        onChange={jest.fn()}
+      />
+    );
+    // No short label is known for LOINC, so the system name is shown verbatim
+    // rather than dropped — an unlabelled code is worse than an unstyled one.
+    expect(screen.getByText('LOINC 1234-5')).toBeInTheDocument();
+  });
+
+  it('renders crosswalk badges on a selected chip', () => {
+    render(
+      <SoapCodedTermPicker
+        sectionLabel="Assessment"
+        selected={[
+          {
+            ycCode: 'YC-1',
+            label: 'Gastritis',
+            codings: [{ system: 'VENOM', code: '891', equivalence: 'EQUIVALENT' }],
+          },
+        ]}
+        onChange={jest.fn()}
+      />
+    );
+    expect(screen.getByText('VeNom 891')).toBeInTheDocument();
+  });
+
+  it('omits the codings key entirely for an unmapped term', async () => {
+    const onChange = jest.fn();
+    suggestMock.mockResolvedValue([{ ...VOMITING, codings: [] }]);
+    render(<SoapCodedTermPicker sectionLabel="Subjective" selected={[]} onChange={onChange} />);
+    typeQuery('vom');
+    await waitFor(() => expect(screen.getByText('Vomiting')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Vomiting'));
+    expect(onChange.mock.calls[0][0][0]).not.toHaveProperty('codings');
+  });
+
   it('does not query below the minimum length', () => {
     render(<SoapCodedTermPicker sectionLabel="Plan" selected={[]} onChange={jest.fn()} />);
     typeQuery('v');

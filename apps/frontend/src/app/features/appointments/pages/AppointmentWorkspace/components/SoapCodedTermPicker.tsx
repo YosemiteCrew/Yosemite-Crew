@@ -10,6 +10,45 @@ import {
   type ClinicalTermSuggestion,
 } from '@/app/features/appointments/services/clinicalTermsService';
 
+/** Short vocabulary labels; the picker has no room for full system URIs. */
+const SYSTEM_LABEL: Record<string, string> = {
+  VENOM: 'VeNom',
+  SNOMED: 'SNOMED',
+  IDEXX: 'IDEXX',
+  YOSEMITECODE: 'YC',
+};
+
+/**
+ * An equivalence that is not exact is stated, never hidden: a vet reading
+ * "SNOMED 422400008" should know at a glance whether that is the same concept
+ * or a broader/narrower one.
+ */
+const INEXACT_EQUIVALENCES = new Set([
+  'NARROWER',
+  'SPECIALIZES',
+  'WIDER',
+  'SUBSUMES',
+  'RELATEDTO',
+  'INEXACT',
+]);
+
+const codingLabel = (coding: { system: string; code: string; equivalence?: string }) => {
+  const system = SYSTEM_LABEL[coding.system] ?? coding.system;
+  const qualifier =
+    coding.equivalence && INEXACT_EQUIVALENCES.has(coding.equivalence.toUpperCase())
+      ? ` (${coding.equivalence.toLowerCase()})`
+      : '';
+  return `${system} ${coding.code}${qualifier}`;
+};
+
+/** YC code, then each vocabulary crosswalk, then the synonym that matched. */
+const buildOrigin = (suggestion: ClinicalTermSuggestion, synonym: string | undefined): string => {
+  const parts: string[] = [suggestion.ycCode];
+  for (const coding of suggestion.codings ?? []) parts.push(codingLabel(coding));
+  if (synonym) parts.push(`matches “${synonym}”`);
+  return parts.join(' · ');
+};
+
 const MIN_QUERY_LENGTH = 2;
 const SUGGEST_DEBOUNCE_MS = 250;
 const SUGGEST_LIMIT = 8;
@@ -91,6 +130,15 @@ const SoapCodedTermPicker = ({
         ycCode: suggestion.ycCode,
         label: suggestion.label,
         ...(suggestion.domain ? { domain: suggestion.domain } : {}),
+        ...(suggestion.codings?.length
+          ? {
+              codings: suggestion.codings.map((coding) => ({
+                system: coding.system,
+                code: coding.code,
+                equivalence: coding.equivalence,
+              })),
+            }
+          : {}),
       },
     ]);
     setQuery('');
@@ -113,6 +161,14 @@ const SoapCodedTermPicker = ({
             >
               <span>{term.label}</span>
               <span className="font-normal text-text-tertiary">{term.ycCode}</span>
+              {term.codings?.map((coding) => (
+                <span
+                  key={`${coding.system}-${coding.code}`}
+                  className="rounded-full bg-neutral-0 px-1.5 py-0.5 text-caption-2 font-normal text-text-secondary"
+                >
+                  {codingLabel(coding)}
+                </span>
+              ))}
               <button
                 type="button"
                 aria-label={`Remove ${term.label}`}
@@ -146,9 +202,7 @@ const SoapCodedTermPicker = ({
                 <WorkspaceSearchResultRow
                   key={suggestion.ycCode}
                   name={suggestion.label}
-                  origin={
-                    synonym ? `${suggestion.ycCode} · matches “${synonym}”` : suggestion.ycCode
-                  }
+                  origin={buildOrigin(suggestion, synonym)}
                   disabled={alreadyAdded}
                   disabledReason={alreadyAdded ? 'Added' : undefined}
                   onSelect={() => addTerm(suggestion)}

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   IoChevronDownOutline,
   IoCopyOutline,
@@ -11,6 +11,10 @@ import SearchResultsDropdown from '@/app/features/appointments/pages/Appointment
 import WorkspaceSearchResultRow from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceSearchResultRow';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
 import Search from '@/app/ui/inputs/Search';
+import {
+  suggestMedications,
+  type MedicationSuggestion,
+} from '@/app/features/appointments/services/clinicalTermsService';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import type { DropdownOption } from '@/app/hooks/useDropdown';
@@ -37,6 +41,12 @@ type PrescriptionEditorProps = {
   catalogItems?: Omit<PrescriptionItem, 'id'>[];
   templateItems?: PrescriptionTemplateOption[];
   readOnly: boolean;
+  /**
+   * Patient species, forwarded to the ATCvet search. Immunologicals are the only
+   * species-specific codes, so this keeps a small-animal patient from being
+   * offered farm or avian vaccines; every general substance still appears.
+   */
+  companionSpecies?: string;
   deleteLocked?: boolean;
   onAddItem: (item: Omit<PrescriptionItem, 'id'>) => void;
   onApplyTemplate?: (template: PrescriptionTemplateOption) => void;
@@ -75,6 +85,13 @@ const toOptions = (values: string[], current?: string): DropdownOption[] => {
   const merged = trimmed && !values.includes(trimmed) ? [trimmed, ...values] : values;
   return merged.map((value) => ({ label: value, value }));
 };
+
+/**
+ * A line that came from the ATCvet classification rather than the practice's own
+ * stock: coded, but with nothing to dispense against.
+ */
+const isClassificationOnly = (item: PrescriptionItem) =>
+  Boolean(item.atcCode) && !item.inventoryItemId && !item.sku;
 
 /**
  * Compact fulfillment pill dropdown (In-house fulfilled / Prescription only),
@@ -274,7 +291,11 @@ const PrescriptionRow = ({
           )}
           <FulfillmentDropdown
             value={item.fulfillment}
-            disabled={rowReadOnly}
+            // A line picked from the classification has no inventory item, SKU or
+            // batch behind it, so "in-house" would finalize into a dispense request
+            // against stock that does not exist. Such a line stays prescription-only
+            // until it is linked to real stock.
+            disabled={rowReadOnly || isClassificationOnly(item)}
             onChange={(fulfillment) => onUpdateItem(item.id, { fulfillment })}
           />
           {isBilled ? null : (
@@ -391,12 +412,75 @@ const PrescriptionRow = ({
   );
 };
 
+/** Stable empty array, so an unchanged "no results" does not re-render consumers. */
+const EMPTY_SUGGESTIONS: MedicationSuggestion[] = [];
+
+const ATCVET_MIN_QUERY = 3;
+const ATCVET_DEBOUNCE_MS = 250;
+// Enough to show a substance's several therapeutic codes (ibuprofen has three)
+// without the classification burying the practice's own catalogue above it.
+const ATCVET_LIMIT = 10;
+
+/**
+ * ATCvet substances for the medicine search box, so a clinician can prescribe a
+ * substance the practice does not stock. Deliberately a longer minimum and a
+ * smaller page than the inventory match: this is the fallback below the
+ * practice's own catalogue, not the primary way to prescribe.
+ */
+const useAtcvetSuggestions = (query: string, readOnly: boolean, species?: string) => {
+  // Results are stored WITH the query that produced them, and rendered only
+  // while that query is still what is typed. That makes both staleness rules
+  // structural rather than bookkeeping: a page for an older query is never
+  // shown, whether it arrives late or is simply left over from the last
+  // keystroke - and nothing has to be cleared synchronously as the query
+  // changes, which React forbids inside an effect.
+  const [page, setPage] = useState<{ query: string; items: MedicationSuggestion[] }>({
+    query: '',
+    items: [],
+  });
+
+  const trimmed = query.trim();
+  const skip = readOnly || trimmed.length < ATCVET_MIN_QUERY;
+
+  useEffect(() => {
+    if (skip) return;
+    // Cancelled on cleanup so a request whose query has already been superseded
+    // cannot publish its page. Keying the page by query alone was not enough: a
+    // slow earlier request completing last would overwrite the newer page, and
+    // the render guard would then hide BOTH - the older page for not matching,
+    // and the newer one because it had been replaced.
+    let cancelled = false;
+    const publish = (items: MedicationSuggestion[]) => {
+      if (!cancelled) setPage({ query: trimmed, items });
+    };
+    const timer = setTimeout(() => {
+      suggestMedications({
+        q: trimmed,
+        limit: ATCVET_LIMIT,
+        ...(species ? { species } : {}),
+      })
+        .then(publish)
+        .catch((error) => {
+          console.error('Unable to suggest medications:', error);
+          publish([]);
+        });
+    }, ATCVET_DEBOUNCE_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [trimmed, skip, species]);
+
+  return skip || page.query !== trimmed ? EMPTY_SUGGESTIONS : page.items;
+};
+
 const PrescriptionEditor = ({
   items,
   catalogItems = EMPTY_CATALOG_ITEMS,
   templateItems = EMPTY_TEMPLATE_ITEMS,
   readOnly,
   deleteLocked = readOnly,
+  companionSpecies,
   onAddItem,
   onApplyTemplate,
   onUpdateItem,
@@ -405,6 +489,7 @@ const PrescriptionEditor = ({
 }: PrescriptionEditorProps) => {
   const [search, setSearch] = useState('');
   const searchRef = React.useRef<HTMLDivElement>(null);
+  const substances = useAtcvetSuggestions(search, readOnly, companionSpecies);
 
   const matches = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -424,7 +509,8 @@ const PrescriptionEditor = ({
     return templateItems.filter((template) => template.name.toLowerCase().includes(query));
   }, [search, templateItems]);
 
-  const hasSearchMatches = matches.length > 0 || templateMatches.length > 0;
+  const hasSearchMatches =
+    matches.length > 0 || templateMatches.length > 0 || substances.length > 0;
 
   return (
     <div className="flex flex-col gap-3">
@@ -481,6 +567,41 @@ const PrescriptionEditor = ({
                     }
                     onSelect={() => {
                       onAddItem(item);
+                      setSearch('');
+                    }}
+                  />
+                ))}
+                {substances.map((substance) => (
+                  <WorkspaceSearchResultRow
+                    key={substance.atcCode}
+                    name={substance.label}
+                    badge={
+                      <span className="rounded-2xl bg-neutral-100 px-2 py-0.5 text-caption-2 font-medium text-text-secondary">
+                        ATCvet
+                      </span>
+                    }
+                    // The class path is what makes a substance interpretable:
+                    // "doxycycline" alone does not say systemic antibacterial.
+                    origin={[
+                      substance.atcCode,
+                      ...substance.path.slice(1).map((level) => level.label),
+                    ].join(' · ')}
+                    meta={
+                      substance.antibacterial ? (
+                        <span className="rounded-2xl bg-warning-100 px-2 py-0.5 text-caption-2 font-medium text-text-secondary">
+                          Antibacterial
+                        </span>
+                      ) : undefined
+                    }
+                    onSelect={() => {
+                      onAddItem({
+                        medicineName: substance.label,
+                        atcCode: substance.atcCode,
+                        // A substance picked from the classification is not
+                        // stock, so it cannot be dispensed in-house: it is
+                        // written for the owner to have filled elsewhere.
+                        fulfillment: 'PRESCRIPTION_ONLY',
+                      });
                       setSearch('');
                     }}
                   />

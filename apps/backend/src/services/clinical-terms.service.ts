@@ -75,6 +75,14 @@ type ClinicalTermMeta = {
   codes?: ClinicalConcept["codes"];
 };
 
+/** A usable crosswalk to another vocabulary, shown beside the term as it is picked. */
+export type ClinicalTermCoding = {
+  system: CodeSystem;
+  code: string;
+  display?: string;
+  equivalence: MappingEquivalence;
+};
+
 export type ClinicalTermSuggestion = {
   ycCode: string;
   label: string;
@@ -82,6 +90,13 @@ export type ClinicalTermSuggestion = {
   species: ClinicalSpecies[];
   synonyms: string[];
   source?: string;
+  /**
+   * VeNom/SNOMED crosswalks for this term, strongest equivalence per system.
+   * Read from CodeMapping — the same table and the same usable-equivalence gate
+   * the FHIR export uses — so what a clinician sees while picking is exactly
+   * what the record will carry.
+   */
+  codings: ClinicalTermCoding[];
 };
 
 const EXTERNAL_CODE_SYSTEM_MAP: Record<string, CodeSystem> = {
@@ -193,6 +208,9 @@ const toSuggestion = (entry: {
       : [],
     synonyms: toUniqueStrings(normalizeSynonyms(entry.synonyms)),
     source: typeof meta.source === "string" ? meta.source : undefined,
+    // Filled in by suggestTerms from CodeMapping; empty for callers that build a
+    // suggestion without the crosswalk lookup.
+    codings: [],
   };
 };
 
@@ -307,6 +325,88 @@ export const buildSuggestionQuery = (
   `;
 };
 
+/**
+ * Equivalences that assert a usable counterpart, mirroring the export gate: a
+ * term shown with a SNOMED code in the picker must be a term that actually
+ * exports with that SNOMED code.
+ */
+const USABLE_SUGGESTION_EQUIVALENCES: MappingEquivalence[] = [
+  "RELATEDTO",
+  "EQUIVALENT",
+  "EQUAL",
+  "WIDER",
+  "SUBSUMES",
+  "NARROWER",
+  "SPECIALIZES",
+  "INEXACT",
+];
+
+/** Strongest first, so one system contributes its best crosswalk only. */
+const SUGGESTION_EQUIVALENCE_RANK: MappingEquivalence[] = [
+  "EQUAL",
+  "EQUIVALENT",
+  "NARROWER",
+  "SPECIALIZES",
+  "WIDER",
+  "SUBSUMES",
+  "RELATEDTO",
+  "INEXACT",
+];
+
+/**
+ * One batched query for the whole result page, keyed by YC code. Never one
+ * query per suggestion: this runs on every keystroke past the debounce.
+ */
+const crossCodesFor = async (
+  ycCodes: string[],
+): Promise<Map<string, ClinicalTermCoding[]>> => {
+  const wanted = [...new Set(ycCodes)];
+  const result = new Map<string, ClinicalTermCoding[]>();
+  if (wanted.length === 0) return result;
+
+  const rows = await prisma.codeMapping.findMany({
+    where: {
+      sourceSystem: "YOSEMITECODE",
+      sourceCode: { in: wanted },
+      active: true,
+      equivalence: { in: USABLE_SUGGESTION_EQUIVALENCES },
+    },
+    select: {
+      sourceCode: true,
+      targetSystem: true,
+      targetCode: true,
+      targetDisplay: true,
+      equivalence: true,
+    },
+    // Deterministic before ranking, so equal-strength rows resolve the same way
+    // on every keystroke rather than flickering between codes.
+    orderBy: { targetCode: "asc" },
+  });
+
+  const rank = (equivalence: MappingEquivalence) => {
+    const index = SUGGESTION_EQUIVALENCE_RANK.indexOf(equivalence);
+    return index === -1 ? SUGGESTION_EQUIVALENCE_RANK.length : index;
+  };
+
+  for (const row of rows) {
+    const held = result.get(row.sourceCode) ?? [];
+    const existing = held.find((coding) => coding.system === row.targetSystem);
+    const candidate: ClinicalTermCoding = {
+      system: row.targetSystem,
+      code: row.targetCode,
+      display: row.targetDisplay ?? undefined,
+      equivalence: row.equivalence,
+    };
+    if (!existing) {
+      held.push(candidate);
+    } else if (rank(row.equivalence) < rank(existing.equivalence)) {
+      held.splice(held.indexOf(existing), 1, candidate);
+    }
+    result.set(row.sourceCode, held);
+  }
+  return result;
+};
+
 export const ClinicalTermsService = {
   parseConcepts(raw: unknown) {
     return ClinicalConceptListSchema.parse(raw);
@@ -355,6 +455,13 @@ export const ClinicalTermsService = {
     const rows = await prisma.$queryRaw<ClinicalTermRow[]>(
       buildSuggestionQuery(params),
     );
-    return rows.map((row) => toSuggestion(row));
+    const suggestions = rows.map((row) => toSuggestion(row));
+    const codings = await crossCodesFor(
+      suggestions.map((suggestion) => suggestion.ycCode),
+    );
+    return suggestions.map((suggestion) => ({
+      ...suggestion,
+      codings: codings.get(suggestion.ycCode) ?? [],
+    }));
   },
 };

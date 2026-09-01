@@ -652,6 +652,38 @@ describe('workspaceClinicalService', () => {
     expect(summary.dischargeSavedByName).not.toBe('user-1');
   });
 
+  it('emits an ATCvet coding on a coded prescription and none on an uncoded one', async () => {
+    postDataMock.mockResolvedValue({ data: { resourceType: 'MedicationRequest', id: 'rx-1' } });
+
+    const base = {
+      medicineName: 'doxycycline',
+      fulfillment: 'PRESCRIPTION_ONLY' as const,
+    };
+    await savePrescriptionArtifact(
+      { organisationId: 'org-1', appointmentId: 'appt-1' },
+      { ...base, atcCode: 'QJ01AA02' }
+    );
+    const [, coded] = postDataMock.mock.calls[0] as [
+      string,
+      { medicationCodeableConcept?: { text?: string; coding?: Array<Record<string, string>> } },
+    ];
+    expect(coded.medicationCodeableConcept?.coding).toEqual([
+      {
+        system: 'http://www.whocc.no/atcvet',
+        code: 'QJ01AA02',
+        display: 'doxycycline',
+      },
+    ]);
+
+    // An uncoded prescription carries text only rather than a placeholder coding.
+    await savePrescriptionArtifact({ organisationId: 'org-1', appointmentId: 'appt-1' }, base);
+    const [, uncoded] = postDataMock.mock.calls[1] as [
+      string,
+      { medicationCodeableConcept?: { coding?: unknown } },
+    ];
+    expect(uncoded.medicationCodeableConcept?.coding).toBeUndefined();
+  });
+
   it('saves prescriptions as a FHIR MedicationRequest with appointment context', async () => {
     postDataMock.mockResolvedValueOnce({
       data: { resourceType: 'MedicationRequest', id: 'rx-1' },

@@ -75,6 +75,9 @@ export const backfillPrescriptionFromInventory = (
     ...item,
     brand: fill(item.brand, fromInv.brand),
     genericName: fill(item.genericName, fromInv.genericName),
+    // The stock item's ATCvet code, so prescribing from the practice's own
+    // catalogue is coded exactly as picking the substance directly would be.
+    atcCode: fill(item.atcCode, fromInv.atcCode),
     sku: fill(item.sku, fromInv.sku),
     strength: fill(item.strength, fromInv.strength),
     strengthUnit: fill(item.strengthUnit, fromInv.strengthUnit),
@@ -211,6 +214,7 @@ export const inventoryToPrescriptionItem = (item: InventoryItem): Omit<Prescript
     medicineName: basicInfo.name,
     brand: cleanString(basicInfo.brand ?? classification.brand),
     genericName: cleanString(classification.genericName),
+    atcCode: cleanString(item.atcCode),
     sku: cleanString(item.sku),
     strength,
     strengthUnit,
