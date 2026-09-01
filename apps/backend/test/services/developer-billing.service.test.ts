@@ -61,7 +61,7 @@ describe("DeveloperBillingService", () => {
     it("returns the record when found", async () => {
       const record = {
         id: "sub-1",
-        organisationId: "org-1",
+        ownerUserId: "org-1",
         plan: "pro",
         status: "active",
         stripeSubscriptionItemId: "si_x",
@@ -83,7 +83,7 @@ describe("DeveloperBillingService", () => {
       expect(result.id).toBeNull();
     });
 
-    it("throws 400 on empty organisationId", async () => {
+    it("throws 400 on empty ownerUserId", async () => {
       await expect(
         DeveloperBillingService.getSubscription(""),
       ).rejects.toBeInstanceOf(DeveloperBillingServiceError);
@@ -111,7 +111,7 @@ describe("DeveloperBillingService", () => {
       expect(id).toBe("cus_new");
       expect(mockPrisma.developerSubscription.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { organisationId: "org-1" },
+          where: { ownerUserId: "org-1" },
           create: expect.objectContaining({ stripeCustomerId: "cus_new" }),
         }),
       );
@@ -129,7 +129,7 @@ describe("DeveloperBillingService", () => {
       });
 
       const url = await DeveloperBillingService.createCheckoutSession({
-        organisationId: "org-1",
+        ownerUserId: "org-1",
         successUrl: "https://app.com/success",
         cancelUrl: "https://app.com/cancel",
       });
@@ -144,10 +144,10 @@ describe("DeveloperBillingService", () => {
       );
     });
 
-    it("throws 400 on empty organisationId", async () => {
+    it("throws 400 on empty ownerUserId", async () => {
       await expect(
         DeveloperBillingService.createCheckoutSession({
-          organisationId: "",
+          ownerUserId: "",
           successUrl: "https://app.com/success",
           cancelUrl: "https://app.com/cancel",
         }),
@@ -163,7 +163,7 @@ describe("DeveloperBillingService", () => {
 
       await expect(
         DeveloperBillingService.createCheckoutSession({
-          organisationId: "org-1",
+          ownerUserId: "org-1",
           successUrl: "https://app.com/success",
           cancelUrl: "https://app.com/cancel",
         }),
@@ -178,7 +178,7 @@ describe("DeveloperBillingService", () => {
 
       await expect(
         DeveloperBillingService.createCheckoutSession({
-          organisationId: "org-1",
+          ownerUserId: "org-1",
           successUrl: "https://app.com/success",
           cancelUrl: "https://app.com/cancel",
         }),
@@ -197,7 +197,7 @@ describe("DeveloperBillingService", () => {
       });
 
       const url = await DeveloperBillingService.createPortalSession({
-        organisationId: "org-1",
+        ownerUserId: "org-1",
         returnUrl: "https://app.com/billing",
       });
 
@@ -209,16 +209,16 @@ describe("DeveloperBillingService", () => {
 
       await expect(
         DeveloperBillingService.createPortalSession({
-          organisationId: "org-1",
+          ownerUserId: "org-1",
           returnUrl: "https://app.com/billing",
         }),
       ).rejects.toMatchObject({ statusCode: 404 });
     });
 
-    it("throws 400 on empty organisationId", async () => {
+    it("throws 400 on empty ownerUserId", async () => {
       await expect(
         DeveloperBillingService.createPortalSession({
-          organisationId: "",
+          ownerUserId: "",
           returnUrl: "https://app.com/billing",
         }),
       ).rejects.toBeInstanceOf(DeveloperBillingServiceError);
@@ -322,14 +322,14 @@ describe("DeveloperBillingService", () => {
           object: {
             mode: "subscription",
             subscription: "sub_123",
-            metadata: { organisationId: "org-1" },
+            metadata: { ownerUserId: "org-1" },
           },
         },
       } as never);
 
       expect(mockPrisma.developerSubscription.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { organisationId: "org-1" },
+          where: { ownerUserId: "org-1" },
           create: expect.objectContaining({
             plan: "pro",
             stripeSubscriptionId: "sub_123",
@@ -434,7 +434,7 @@ describe("DeveloperBillingService", () => {
           object: {
             mode: "subscription",
             subscription: { id: "sub_123" },
-            metadata: { organisationId: "org-1" },
+            metadata: { ownerUserId: "org-1" },
           },
         },
       } as never);
@@ -461,7 +461,7 @@ describe("DeveloperBillingService", () => {
           object: {
             mode: "subscription",
             subscription: "sub_123",
-            metadata: { organisationId: "org-1" },
+            metadata: { ownerUserId: "org-1" },
           },
         },
       } as never);
@@ -481,14 +481,14 @@ describe("DeveloperBillingService", () => {
           object: {
             mode: "subscription",
             subscription: null,
-            metadata: { organisationId: "org-1" },
+            metadata: { ownerUserId: "org-1" },
           },
         },
       } as never);
       expect(mockPrisma.developerSubscription.upsert).not.toHaveBeenCalled();
     });
 
-    it("skips checkout.session.completed when organisationId metadata is missing", async () => {
+    it("skips checkout.session.completed when ownerUserId metadata is missing", async () => {
       await DeveloperBillingService.handleWebhookEvent({
         id: "evt_11",
         type: "checkout.session.completed",
@@ -518,7 +518,7 @@ describe("DeveloperBillingService", () => {
           object: {
             mode: "subscription",
             subscription: "sub_123",
-            metadata: { organisationId: "org-1" },
+            metadata: { ownerUserId: "org-1" },
           },
         },
       } as never);
@@ -663,7 +663,7 @@ describe("DeveloperBillingService — module-isolated Stripe init", () => {
 
     await expect(
       IsolatedBillingService.createCheckoutSession({
-        organisationId: "o",
+        ownerUserId: "o",
         successUrl: "https://a.com",
         cancelUrl: "https://b.com",
       }),

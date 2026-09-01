@@ -31,7 +31,7 @@ export type IssuedApiKey = {
 
 export type VerifiedApiKey = {
   id: string;
-  organisationId: string;
+  ownerUserId: string;
   scopes: string[];
   environment: DeveloperApiKeyEnvironment;
 };
@@ -94,19 +94,18 @@ const requireNonEmpty = (value: unknown, field: string): string => {
   return value.trim();
 };
 
+const MAX_ACTIVE_KEYS_PER_OWNER = 25;
+
 export const DeveloperApiKeyService = {
   async issue(input: {
-    organisationId: string;
+    ownerUserId: string;
     name: string;
     createdBy: string;
     scopes?: string[];
     environment?: DeveloperApiKeyEnvironment;
     expiresAt?: Date | null;
   }): Promise<IssuedApiKey> {
-    const organisationId = requireNonEmpty(
-      input.organisationId,
-      "organisationId",
-    );
+    const ownerUserId = requireNonEmpty(input.ownerUserId, "ownerUserId");
     const name = requireNonEmpty(input.name, "name");
     const createdBy = requireNonEmpty(input.createdBy, "createdBy");
     const environment = input.environment ?? DeveloperApiKeyEnvironment.live;
@@ -114,10 +113,31 @@ export const DeveloperApiKeyService = {
       requireNonEmpty(scope, "scope"),
     );
 
+    /*
+     * Bound the number of live credentials one developer can hold.
+     *
+     * Issuing used to require `integrations:edit:any`, which only OWNER and
+     * ADMIN carry. Scoping these routes to the developer removes that gate by
+     * design - the resource is theirs - but it also means any account with a web
+     * session can mint keys, so the ceiling that role incidentally provided has
+     * to be stated explicitly rather than lost.
+     *
+     * Counts ACTIVE keys only, so revoking frees the budget.
+     */
+    const activeKeys = await prisma.developerApiKey.count({
+      where: { ownerUserId, status: DeveloperApiKeyStatus.active },
+    });
+    if (activeKeys >= MAX_ACTIVE_KEYS_PER_OWNER) {
+      throw new DeveloperApiKeyServiceError(
+        `Active API key limit reached (${MAX_ACTIVE_KEYS_PER_OWNER}). Revoke a key before creating another.`,
+        429,
+      );
+    }
+
     const generated = generateApiKey(environment);
     const record = await prisma.developerApiKey.create({
       data: {
-        organisationId,
+        ownerUserId,
         name,
         createdBy,
         scopes,
@@ -140,10 +160,10 @@ export const DeveloperApiKeyService = {
     };
   },
 
-  async list(organisationId: string) {
-    const orgId = requireNonEmpty(organisationId, "organisationId");
+  async list(ownerUserId: string) {
+    const ownerId = requireNonEmpty(ownerUserId, "ownerUserId");
     return prisma.developerApiKey.findMany({
-      where: { organisationId: orgId },
+      where: { ownerUserId: ownerId },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
@@ -161,20 +181,14 @@ export const DeveloperApiKeyService = {
     });
   },
 
-  async revoke(input: {
-    organisationId: string;
-    keyId: string;
-  }): Promise<void> {
-    const organisationId = requireNonEmpty(
-      input.organisationId,
-      "organisationId",
-    );
+  async revoke(input: { ownerUserId: string; keyId: string }): Promise<void> {
+    const ownerUserId = requireNonEmpty(input.ownerUserId, "ownerUserId");
     const keyId = requireNonEmpty(input.keyId, "keyId");
 
     const result = await prisma.developerApiKey.updateMany({
       where: {
         id: keyId,
-        organisationId,
+        ownerUserId,
         status: DeveloperApiKeyStatus.active,
       },
       data: { status: DeveloperApiKeyStatus.revoked, revokedAt: new Date() },
@@ -212,7 +226,7 @@ export const DeveloperApiKeyService = {
 
     return {
       id: record.id,
-      organisationId: record.organisationId,
+      ownerUserId: record.ownerUserId,
       scopes: record.scopes,
       environment: record.environment,
     };

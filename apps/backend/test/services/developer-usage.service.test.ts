@@ -222,8 +222,8 @@ describe("DeveloperUsageService", () => {
       expect(mockPrisma.developerApiUsage.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: {
-            organisationId_billingPeriod: {
-              organisationId: "org-1",
+            ownerUserId_billingPeriod: {
+              ownerUserId: "org-1",
               billingPeriod: "2026-06",
             },
           },
@@ -248,7 +248,7 @@ describe("DeveloperUsageService", () => {
       expect(mockLoggerError).toHaveBeenCalledWith(
         "Failed to report API usage to Stripe",
         expect.objectContaining({
-          organisationId: "org-1",
+          ownerUserId: "org-1",
           billingPeriod: "2026-06",
           err: boom,
         }),

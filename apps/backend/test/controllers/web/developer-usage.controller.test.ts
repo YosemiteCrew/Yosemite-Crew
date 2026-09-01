@@ -21,11 +21,11 @@ const buildRes = (): Response => {
 };
 
 const buildReq = (
-  organisationId?: string,
+  userId?: string,
   query: Record<string, string> = {},
 ): Request =>
   ({
-    organisationId,
+    userId,
     query,
   }) as unknown as Request;
 
@@ -36,10 +36,10 @@ describe("DeveloperUsageController.getUsage", () => {
     jest.clearAllMocks();
   });
 
-  it("400 when organisationId is missing", async () => {
+  it("401 when no user is verified", async () => {
     const res = buildRes();
     await DeveloperUsageController.getUsage(buildReq(undefined), res);
-    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.status).toHaveBeenCalledWith(401);
     expect(usageMock).not.toHaveBeenCalled();
   });
 

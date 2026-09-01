@@ -19,7 +19,6 @@ const formattedPeriod = `${new Date(PERIOD_START).toLocaleDateString()} – ${ne
 
 const subscription = (overrides: Partial<DeveloperSubscription> = {}): DeveloperSubscription => ({
   id: 'sub_storybook',
-  organisationId: 'org-storybook',
   plan: 'pro',
   status: 'active',
   stripeSubscriptionItemId: 'si_storybook',

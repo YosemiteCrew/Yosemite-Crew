@@ -7,6 +7,7 @@ import { prisma } from "../../src/config/prisma";
 jest.mock("../../src/config/prisma", () => ({
   prisma: {
     developerApiKey: {
+      count: jest.fn(),
       create: jest.fn(),
       findMany: jest.fn(),
       findUnique: jest.fn(),
@@ -18,6 +19,7 @@ jest.mock("../../src/config/prisma", () => ({
 
 const mockPrisma = prisma as unknown as {
   developerApiKey: {
+    count: jest.Mock;
     create: jest.Mock;
     findMany: jest.Mock;
     findUnique: jest.Mock;
@@ -28,6 +30,7 @@ const mockPrisma = prisma as unknown as {
 
 describe("DeveloperApiKeyService", () => {
   beforeEach(() => {
+    mockPrisma.developerApiKey.count.mockResolvedValue(0);
     jest.clearAllMocks();
     process.env.DEVELOPER_API_KEY_PEPPER = "test-pepper";
   });
@@ -46,7 +49,7 @@ describe("DeveloperApiKeyService", () => {
       );
 
       const issued = await DeveloperApiKeyService.issue({
-        organisationId: "org-1",
+        ownerUserId: "org-1",
         name: "CI key",
         createdBy: "user-1",
         scopes: ["appointments:read"],
@@ -74,7 +77,7 @@ describe("DeveloperApiKeyService", () => {
       });
 
       await DeveloperApiKeyService.issue({
-        organisationId: "org-1",
+        ownerUserId: "org-1",
         name: "n",
         createdBy: "u",
       });
@@ -97,7 +100,7 @@ describe("DeveloperApiKeyService", () => {
       });
 
       const issued = await DeveloperApiKeyService.issue({
-        organisationId: "org-1",
+        ownerUserId: "org-1",
         name: "n",
         createdBy: "u",
         environment: "test" as never,
@@ -107,9 +110,9 @@ describe("DeveloperApiKeyService", () => {
     });
 
     it.each([
-      ["organisationId", { organisationId: "", name: "n", createdBy: "u" }],
-      ["name", { organisationId: "o", name: "  ", createdBy: "u" }],
-      ["createdBy", { organisationId: "o", name: "n", createdBy: "" }],
+      ["ownerUserId", { ownerUserId: "", name: "n", createdBy: "u" }],
+      ["name", { ownerUserId: "o", name: "  ", createdBy: "u" }],
+      ["createdBy", { ownerUserId: "o", name: "n", createdBy: "" }],
     ])("rejects an empty %s", async (_field, input) => {
       await expect(
         DeveloperApiKeyService.issue(input as never),
@@ -125,7 +128,7 @@ describe("DeveloperApiKeyService", () => {
 
       expect(result).toEqual([{ id: "k1" }]);
       const arg = mockPrisma.developerApiKey.findMany.mock.calls[0][0];
-      expect(arg.where).toEqual({ organisationId: "org-1" });
+      expect(arg.where).toEqual({ ownerUserId: "org-1" });
       expect(arg.orderBy).toEqual({ createdAt: "desc" });
       expect(arg.select.hashedKey).toBeUndefined();
     });
@@ -141,13 +144,13 @@ describe("DeveloperApiKeyService", () => {
     it("revokes an active key scoped to the org", async () => {
       mockPrisma.developerApiKey.updateMany.mockResolvedValue({ count: 1 });
       await expect(
-        DeveloperApiKeyService.revoke({ organisationId: "o", keyId: "k" }),
+        DeveloperApiKeyService.revoke({ ownerUserId: "o", keyId: "k" }),
       ).resolves.toBeUndefined();
       expect(mockPrisma.developerApiKey.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
             id: "k",
-            organisationId: "o",
+            ownerUserId: "o",
             status: "active",
           }),
         }),
@@ -157,7 +160,7 @@ describe("DeveloperApiKeyService", () => {
     it("throws 404 when nothing matched", async () => {
       mockPrisma.developerApiKey.updateMany.mockResolvedValue({ count: 0 });
       await expect(
-        DeveloperApiKeyService.revoke({ organisationId: "o", keyId: "k" }),
+        DeveloperApiKeyService.revoke({ ownerUserId: "o", keyId: "k" }),
       ).rejects.toMatchObject({ statusCode: 404 });
     });
   });
@@ -204,7 +207,7 @@ describe("DeveloperApiKeyService", () => {
 
       await expect(
         DeveloperApiKeyService.issue({
-          organisationId: "org-1",
+          ownerUserId: "org-1",
           name: "k",
           createdBy: "user-1",
         }),
@@ -216,7 +219,7 @@ describe("DeveloperApiKeyService", () => {
   describe("verify", () => {
     const activeRecord = {
       id: "key-1",
-      organisationId: "org-1",
+      ownerUserId: "org-1",
       scopes: ["a"],
       environment: "live",
       status: "active",
@@ -266,7 +269,7 @@ describe("DeveloperApiKeyService", () => {
       const result = await DeveloperApiKeyService.verify("yc_live_x");
       expect(result).toEqual({
         id: "key-1",
-        organisationId: "org-1",
+        ownerUserId: "org-1",
         scopes: ["a"],
         environment: "live",
       });

@@ -49,8 +49,19 @@ async function handleCheckoutCompleted(
   session: Stripe.Checkout.Session,
 ): Promise<void> {
   if (session.mode !== "subscription") return;
-  const orgId = session.metadata?.organisationId;
-  if (!orgId) return;
+  /*
+   * Read `ownerUserId` only, with no fall back to `organisationId`.
+   *
+   * A checkout session created before this re-key carries
+   * `metadata.organisationId`, and that value is an Organization id. Reading it
+   * into `ownerUserId` would write a row keyed on a tenant id in a column that
+   * means "a person", permanently invisible to the developer who actually paid.
+   * Ignoring such a session is the correct outcome, and no such session exists:
+   * both databases held zero subscriptions with a live Stripe id when this
+   * shipped.
+   */
+  const ownerId = session.metadata?.ownerUserId;
+  if (!ownerId) return;
 
   const subId =
     typeof session.subscription === "string"
@@ -67,9 +78,9 @@ async function handleCheckoutCompleted(
   const priceId = item?.price?.id ?? null;
 
   await prisma.developerSubscription.upsert({
-    where: { organisationId: orgId },
+    where: { ownerUserId: ownerId },
     create: {
-      organisationId: orgId,
+      ownerUserId: ownerId,
       stripeCustomerId:
         typeof sub.customer === "string" ? sub.customer : sub.customer.id,
       stripeSubscriptionId: sub.id,
@@ -157,15 +168,15 @@ async function handleSubscriptionDeleted(
 }
 
 export const DeveloperBillingService = {
-  async getSubscription(organisationId: string) {
-    if (!organisationId.trim()) {
-      throw new DeveloperBillingServiceError("organisationId is required", 400);
+  async getSubscription(ownerUserId: string) {
+    if (!ownerUserId.trim()) {
+      throw new DeveloperBillingServiceError("ownerUserId is required", 400);
     }
     const record = await prisma.developerSubscription.findUnique({
-      where: { organisationId },
+      where: { ownerUserId },
       select: {
         id: true,
-        organisationId: true,
+        ownerUserId: true,
         plan: true,
         status: true,
         stripeSubscriptionItemId: true,
@@ -179,7 +190,7 @@ export const DeveloperBillingService = {
     return (
       record ?? {
         id: null,
-        organisationId,
+        ownerUserId,
         plan: "free" as DeveloperPlanTier,
         status: "active" as DeveloperSubscriptionStatus,
         stripeSubscriptionItemId: null,
@@ -192,21 +203,21 @@ export const DeveloperBillingService = {
     );
   },
 
-  async getOrCreateCustomer(organisationId: string): Promise<string> {
+  async getOrCreateCustomer(ownerUserId: string): Promise<string> {
     const existing = await prisma.developerSubscription.findUnique({
-      where: { organisationId },
+      where: { ownerUserId },
       select: { stripeCustomerId: true },
     });
     if (existing?.stripeCustomerId) return existing.stripeCustomerId;
 
     const stripe = getStripeClient();
     const customer = await stripe.customers.create({
-      metadata: { organisationId, source: "developer_portal" },
+      metadata: { ownerUserId, source: "developer_portal" },
     });
 
     await prisma.developerSubscription.upsert({
-      where: { organisationId },
-      create: { organisationId, stripeCustomerId: customer.id },
+      where: { ownerUserId },
+      create: { ownerUserId, stripeCustomerId: customer.id },
       update: { stripeCustomerId: customer.id },
     });
 
@@ -214,17 +225,17 @@ export const DeveloperBillingService = {
   },
 
   async createCheckoutSession(input: {
-    organisationId: string;
+    ownerUserId: string;
     successUrl: string;
     cancelUrl: string;
   }): Promise<string> {
-    const { organisationId, successUrl, cancelUrl } = input;
-    if (!organisationId.trim()) {
-      throw new DeveloperBillingServiceError("organisationId is required", 400);
+    const { ownerUserId, successUrl, cancelUrl } = input;
+    if (!ownerUserId.trim()) {
+      throw new DeveloperBillingServiceError("ownerUserId is required", 400);
     }
 
     const customerId =
-      await DeveloperBillingService.getOrCreateCustomer(organisationId);
+      await DeveloperBillingService.getOrCreateCustomer(ownerUserId);
     const priceId = resolveMeteredPriceId();
     const stripe = getStripeClient();
 
@@ -234,7 +245,7 @@ export const DeveloperBillingService = {
       line_items: [{ price: priceId }],
       success_url: successUrl,
       cancel_url: cancelUrl,
-      metadata: { organisationId, source: "developer_portal" },
+      metadata: { ownerUserId, source: "developer_portal" },
     });
 
     if (!session.url) {
@@ -247,16 +258,16 @@ export const DeveloperBillingService = {
   },
 
   async createPortalSession(input: {
-    organisationId: string;
+    ownerUserId: string;
     returnUrl: string;
   }): Promise<string> {
-    const { organisationId, returnUrl } = input;
-    if (!organisationId.trim()) {
-      throw new DeveloperBillingServiceError("organisationId is required", 400);
+    const { ownerUserId, returnUrl } = input;
+    if (!ownerUserId.trim()) {
+      throw new DeveloperBillingServiceError("ownerUserId is required", 400);
     }
 
     const record = await prisma.developerSubscription.findUnique({
-      where: { organisationId },
+      where: { ownerUserId },
       select: { stripeCustomerId: true },
     });
 
