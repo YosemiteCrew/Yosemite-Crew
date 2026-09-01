@@ -6,6 +6,7 @@ import EstimateLineRow from '@/app/features/finance/pages/Estimates/Sections/Est
 import {
   fieldClass,
   inputClass,
+  todayIsoDate,
   type DraftLine,
 } from '@/app/features/finance/pages/Estimates/Sections/estimateDraft';
 import type { EstimateTotals } from '@/app/features/finance/pages/Estimates/Sections/estimateTotals';
@@ -56,6 +57,9 @@ export const EstimateHeaderFields = ({
         <input
           id="estimate-valid-until"
           type="date"
+          // A lapsed quote would still be sendable, approvable and convertible,
+          // because nothing derives EXPIRED from this date.
+          min={todayIsoDate()}
           value={validUntil}
           onChange={(e) => setValidUntil(e.target.value)}
           className={inputClass}

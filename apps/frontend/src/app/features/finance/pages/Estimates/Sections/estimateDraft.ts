@@ -30,14 +30,28 @@ export const toNumber = (raw: string): number => {
 
 export type DraftValidation = { ok: true } | { ok: false; message: string };
 
+/** Today as yyyy-mm-dd, for the date input's `min` and for validation. */
+export const todayIsoDate = (now: Date = new Date()): string => now.toISOString().slice(0, 10);
+
 /**
  * Validate a draft the way the backend's zod schema does, so the user is told
  * what is wrong before a request is sent rather than reading a flattened zod
  * error afterwards. `items.min(1)`, `description.min(1)`, `quantity.positive()`
  * and `unitPrice.min(0)` all come from CreateEstimateSchema.
  */
-export const validateDraft = (patientId: string, lines: DraftLine[]): DraftValidation => {
+export const validateDraft = (
+  patientId: string,
+  lines: DraftLine[],
+  validUntil = '',
+  today: string = todayIsoDate()
+): DraftValidation => {
   if (!patientId) return { ok: false, message: 'Choose a companion for this estimate.' };
+  // Nothing derives EXPIRED from validUntil - not the service, not a job - so a
+  // quote dated in the past stays a DRAFT that can still be sent, approved and
+  // converted. Refusing it at creation is the only place it is caught.
+  if (validUntil && validUntil < today) {
+    return { ok: false, message: 'The validity date cannot be in the past.' };
+  }
   if (lines.length === 0) return { ok: false, message: 'Add at least one line.' };
   for (const line of lines) {
     const described = line.description.trim();

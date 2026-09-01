@@ -186,6 +186,13 @@ const EstimatesContent = () => {
     setCreateError(null);
     try {
       const created = await createEstimate(primaryOrgId, input);
+      // A new estimate is always DRAFT. Under any other status filter `upsert`
+      // correctly refuses it, so selecting the id and reporting success would
+      // leave an unchanged list with nothing selected. Move to the filter the
+      // new estimate actually lives under first.
+      if (statusFilter && created.status !== statusFilter) {
+        setActiveStatus(created.status);
+      }
       upsert(created);
       setActiveEstimateId(created.id);
       setCreateOpen(false);

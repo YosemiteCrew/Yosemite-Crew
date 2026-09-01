@@ -86,7 +86,7 @@ export const useEstimateDraft = (): EstimateDraft => {
    * server's, and the detail view renders that.
    */
   const submit = (onSubmit: (input: CreateEstimateInput) => void) => {
-    const validation = validateDraft(patientId, lines);
+    const validation = validateDraft(patientId, lines, validUntil);
     if (!validation.ok) {
       setFormError(validation.message);
       return;

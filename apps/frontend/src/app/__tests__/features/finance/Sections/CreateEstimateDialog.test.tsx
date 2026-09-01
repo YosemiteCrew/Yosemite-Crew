@@ -367,4 +367,27 @@ describe('CreateEstimateDialog', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Cancel creating this estimate' }));
     expect(setOpen).not.toHaveBeenCalled();
   });
+
+  it('refuses a validity date that has already passed', () => {
+    // Nothing derives EXPIRED from validUntil, so a lapsed quote stays a DRAFT
+    // that can still be sent, approved and converted. Creation is the only
+    // place it is caught.
+    expect(validateDraft('pat-1', [draftLine()], '2020-01-01', '2026-09-01')).toEqual({
+      ok: false,
+      message: 'The validity date cannot be in the past.',
+    });
+  });
+
+  it('accepts today and any future validity date', () => {
+    expect(validateDraft('pat-1', [draftLine()], '2026-09-01', '2026-09-01').ok).toBe(true);
+    expect(validateDraft('pat-1', [draftLine()], '2027-01-01', '2026-09-01').ok).toBe(true);
+    expect(validateDraft('pat-1', [draftLine()], '', '2026-09-01').ok).toBe(true);
+  });
+
+  it('does not offer a past date in the picker', () => {
+    setup();
+
+    // Belt and braces with the validation above: the input itself refuses one.
+    expect(screen.getByLabelText('Valid until (optional)')).toHaveAttribute('min');
+  });
 });

@@ -579,4 +579,37 @@ describe('Finance > Estimates status filters', () => {
     expect(await screen.findByText('No estimate matches that search.')).toBeInTheDocument();
     mockSearchState.query = '';
   });
+
+  it("moves to the new estimate's filter after creating under another status", async () => {
+    mockEstimateService.listEstimates.mockResolvedValue([buildEstimate({ status: 'APPROVED' })]);
+    mockEstimateService.createEstimate.mockResolvedValue(
+      buildEstimate({ id: 'est-new', status: 'DRAFT' })
+    );
+
+    render(<ProtectedEstimates />);
+    await screen.findByRole('button', { name: 'Open the estimate for Bruno' });
+    await userEvent.click(filterPill('Approved'));
+    await waitFor(() =>
+      expect(mockEstimateService.listEstimates).toHaveBeenLastCalledWith('org-1', {
+        status: 'APPROVED',
+      })
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Create a new estimate' }));
+    const dialog = screen.getByRole('dialog', { name: 'Create an estimate' });
+    await userEvent.selectOptions(within(dialog).getByLabelText('Companion'), 'c1');
+    await userEvent.type(within(dialog).getByLabelText('Line 1 description'), 'Dental clean');
+    await userEvent.clear(within(dialog).getByLabelText('Line 1 unit price'));
+    await userEvent.type(within(dialog).getByLabelText('Line 1 unit price'), '50');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Create this estimate' }));
+
+    // A new estimate is always DRAFT, so under the Approved filter it would be
+    // refused by upsert and the success toast would sit above an unchanged
+    // list. The page moves to the filter the estimate actually lives under.
+    await waitFor(() =>
+      expect(mockEstimateService.listEstimates).toHaveBeenLastCalledWith('org-1', {
+        status: 'DRAFT',
+      })
+    );
+  });
 });
