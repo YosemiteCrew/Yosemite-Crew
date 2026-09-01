@@ -1,3 +1,17 @@
+/*
+ * These routes are scoped to the DEVELOPER, not to a practice.
+ *
+ * They were gated on `withOrgPermissions()` and keyed on an organisation, which
+ * the portal's own audience never has: signing up through the developer door
+ * grants the `developer` role and nothing else, there is no developer entry in
+ * the RBAC role model, and no UserOrganization row is created. Every request
+ * from such an account failed on the org middleware before reaching a handler.
+ * See issue #2551.
+ *
+ * The caller's own verified id is the owner. `resolveVerifiedUserId` reads only
+ * the session (`utils/request.ts` deliberately dropped its `x-user-id` header
+ * fallback), so the owner cannot be spoofed by a header the way an org could be.
+ */
 import { Request, Response } from "express";
 import { z } from "zod";
 import { DeveloperApiKeyEnvironment } from "@prisma/client";
@@ -6,7 +20,6 @@ import {
   DeveloperApiKeyServiceError,
 } from "../../services/developer-api-key.service";
 import logger from "../../utils/logger";
-import type { OrgRequest } from "src/middlewares/rbac";
 import { resolveVerifiedUserId } from "src/utils/request";
 
 const CreateApiKeySchema = z.object({
@@ -15,9 +28,6 @@ const CreateApiKeySchema = z.object({
   environment: z.nativeEnum(DeveloperApiKeyEnvironment).optional(),
   expiresAt: z.string().datetime().optional(),
 });
-
-const getOrgId = (req: Request): string | undefined =>
-  (req as OrgRequest).organisationId;
 
 const handleError = (
   res: Response,
@@ -34,12 +44,8 @@ const handleError = (
 export const DeveloperApiKeyController = {
   createApiKey: async (req: Request, res: Response): Promise<Response> => {
     try {
-      const organisationId = getOrgId(req);
-      if (!organisationId) {
-        return res.status(400).json({ message: "Missing organisationId" });
-      }
-      const createdBy = resolveVerifiedUserId(req);
-      if (!createdBy) {
+      const ownerUserId = resolveVerifiedUserId(req);
+      if (!ownerUserId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
 
@@ -52,9 +58,9 @@ export const DeveloperApiKeyController = {
 
       const { name, scopes, environment, expiresAt } = parsed.data;
       const issued = await DeveloperApiKeyService.issue({
-        organisationId,
+        ownerUserId,
         name,
-        createdBy,
+        createdBy: ownerUserId,
         scopes,
         environment,
         expiresAt: expiresAt ? new Date(expiresAt) : null,
@@ -67,11 +73,11 @@ export const DeveloperApiKeyController = {
 
   listApiKeys: async (req: Request, res: Response): Promise<Response> => {
     try {
-      const organisationId = getOrgId(req);
-      if (!organisationId) {
-        return res.status(400).json({ message: "Missing organisationId" });
+      const ownerUserId = resolveVerifiedUserId(req);
+      if (!ownerUserId) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
-      const keys = await DeveloperApiKeyService.list(organisationId);
+      const keys = await DeveloperApiKeyService.list(ownerUserId);
       return res.status(200).json({ data: keys });
     } catch (error) {
       return handleError(res, error, "list");
@@ -80,12 +86,12 @@ export const DeveloperApiKeyController = {
 
   revokeApiKey: async (req: Request, res: Response): Promise<Response> => {
     try {
-      const organisationId = getOrgId(req);
-      if (!organisationId) {
-        return res.status(400).json({ message: "Missing organisationId" });
+      const ownerUserId = resolveVerifiedUserId(req);
+      if (!ownerUserId) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
       await DeveloperApiKeyService.revoke({
-        organisationId,
+        ownerUserId,
         keyId: req.params.keyId,
       });
       return res.status(204).send();

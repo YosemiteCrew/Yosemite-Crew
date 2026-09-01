@@ -45,7 +45,6 @@ const buildRes = (): Response => {
 
 const buildReq = (
   over: {
-    organisationId?: string;
     userId?: string;
     body?: unknown;
     params?: Record<string, string>;
@@ -55,35 +54,22 @@ const buildReq = (
     body: over.body ?? {},
     params: over.params ?? {},
     headers: {},
-    organisationId: over.organisationId,
     userId: over.userId,
   }) as unknown as Request;
 
 describe("DeveloperApiKeyController.createApiKey", () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it("400 without an organisationId", async () => {
+  it("401 without a verified user", async () => {
     const res = buildRes();
-    await DeveloperApiKeyController.createApiKey(
-      buildReq({ userId: "u" }),
-      res,
-    );
-    expect(res.status).toHaveBeenCalledWith(400);
-  });
-
-  it("401 without a user", async () => {
-    const res = buildRes();
-    await DeveloperApiKeyController.createApiKey(
-      buildReq({ organisationId: "o" }),
-      res,
-    );
+    await DeveloperApiKeyController.createApiKey(buildReq({}), res);
     expect(res.status).toHaveBeenCalledWith(401);
   });
 
   it("400 on an invalid body", async () => {
     const res = buildRes();
     await DeveloperApiKeyController.createApiKey(
-      buildReq({ organisationId: "o", userId: "u", body: { name: "" } }),
+      buildReq({ userId: "u", body: { name: "" } }),
       res,
     );
     expect(res.status).toHaveBeenCalledWith(400);
@@ -95,7 +81,6 @@ describe("DeveloperApiKeyController.createApiKey", () => {
     const res = buildRes();
     await DeveloperApiKeyController.createApiKey(
       buildReq({
-        organisationId: "o",
         userId: "u",
         body: { name: "CI", scopes: ["x"] },
       }),
@@ -103,7 +88,6 @@ describe("DeveloperApiKeyController.createApiKey", () => {
     );
     expect(svc.issue).toHaveBeenCalledWith(
       expect.objectContaining({
-        organisationId: "o",
         name: "CI",
         createdBy: "u",
         expiresAt: null,
@@ -117,7 +101,6 @@ describe("DeveloperApiKeyController.createApiKey", () => {
     const res = buildRes();
     await DeveloperApiKeyController.createApiKey(
       buildReq({
-        organisationId: "o",
         userId: "u",
         body: { name: "CI", expiresAt: "2027-01-01T00:00:00.000Z" },
       }),
@@ -130,7 +113,7 @@ describe("DeveloperApiKeyController.createApiKey", () => {
     svc.issue.mockRejectedValue(new DeveloperApiKeyServiceError("bad", 400));
     const res = buildRes();
     await DeveloperApiKeyController.createApiKey(
-      buildReq({ organisationId: "o", userId: "u", body: { name: "CI" } }),
+      buildReq({ userId: "u", body: { name: "CI" } }),
       res,
     );
     expect(res.status).toHaveBeenCalledWith(400);
@@ -140,39 +123,83 @@ describe("DeveloperApiKeyController.createApiKey", () => {
     svc.issue.mockRejectedValue(new Error("boom"));
     const res = buildRes();
     await DeveloperApiKeyController.createApiKey(
-      buildReq({ organisationId: "o", userId: "u", body: { name: "CI" } }),
+      buildReq({ userId: "u", body: { name: "CI" } }),
       res,
     );
     expect(res.status).toHaveBeenCalledWith(500);
   });
 });
 
+/*
+ * The regression that IS issue #2551.
+ *
+ * These routes were gated on `withOrgPermissions()` and keyed on an
+ * organisation. A developer who signs up through the developer door never gets
+ * one - provisioning grants the `developer` role and nothing else, and there is
+ * no developer entry in the RBAC role model - so every request from the
+ * portal's own audience failed before reaching a handler.
+ *
+ * A request carrying a session and NO organisation must now succeed.
+ */
+describe("a developer account with no organisation", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("can issue a key", async () => {
+    svc.issue.mockResolvedValue({ id: "k", apiKey: "yc_live_x" });
+    const res = buildRes();
+    await DeveloperApiKeyController.createApiKey(
+      buildReq({ userId: "dev-1", body: { name: "CI" } }),
+      res,
+    );
+    expect(svc.issue).toHaveBeenCalledWith(
+      expect.objectContaining({ ownerUserId: "dev-1", createdBy: "dev-1" }),
+    );
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+
+  it("can list its own keys, scoped to itself", async () => {
+    svc.list.mockResolvedValue([]);
+    const res = buildRes();
+    await DeveloperApiKeyController.listApiKeys(
+      buildReq({ userId: "dev-1" }),
+      res,
+    );
+    expect(svc.list).toHaveBeenCalledWith("dev-1");
+  });
+
+  /* The owner comes from the session, never from anything the caller can set,
+     so one developer cannot read or revoke another's keys by naming them. */
+  it("ignores an owner supplied in the body", async () => {
+    svc.list.mockResolvedValue([]);
+    const res = buildRes();
+    await DeveloperApiKeyController.listApiKeys(
+      buildReq({ userId: "dev-1", body: { ownerUserId: "dev-2" } }),
+      res,
+    );
+    expect(svc.list).toHaveBeenCalledWith("dev-1");
+  });
+});
+
 describe("DeveloperApiKeyController.listApiKeys", () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it("400 without an org", async () => {
+  it("401 without a verified user", async () => {
     const res = buildRes();
-    await DeveloperApiKeyController.listApiKeys(buildReq(), res);
-    expect(res.status).toHaveBeenCalledWith(400);
+    await DeveloperApiKeyController.listApiKeys(buildReq({}), res);
+    expect(res.status).toHaveBeenCalledWith(401);
   });
 
   it("200 wrapping the keys in data", async () => {
     svc.list.mockResolvedValue([{ id: "k" }]);
     const res = buildRes();
-    await DeveloperApiKeyController.listApiKeys(
-      buildReq({ organisationId: "o" }),
-      res,
-    );
+    await DeveloperApiKeyController.listApiKeys(buildReq({ userId: "u" }), res);
     expect(res.json).toHaveBeenCalledWith({ data: [{ id: "k" }] });
   });
 
   it("500 on error", async () => {
     svc.list.mockRejectedValue(new Error("x"));
     const res = buildRes();
-    await DeveloperApiKeyController.listApiKeys(
-      buildReq({ organisationId: "o" }),
-      res,
-    );
+    await DeveloperApiKeyController.listApiKeys(buildReq({ userId: "u" }), res);
     expect(res.status).toHaveBeenCalledWith(500);
   });
 });
@@ -180,24 +207,24 @@ describe("DeveloperApiKeyController.listApiKeys", () => {
 describe("DeveloperApiKeyController.revokeApiKey", () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it("400 without an org", async () => {
+  it("401 without a verified user", async () => {
     const res = buildRes();
     await DeveloperApiKeyController.revokeApiKey(
       buildReq({ params: { keyId: "k" } }),
       res,
     );
-    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.status).toHaveBeenCalledWith(401);
   });
 
   it("204 on success", async () => {
     svc.revoke.mockResolvedValue(undefined);
     const res = buildRes();
     await DeveloperApiKeyController.revokeApiKey(
-      buildReq({ organisationId: "o", params: { keyId: "k" } }),
+      buildReq({ userId: "u", params: { keyId: "k" } }),
       res,
     );
     expect(svc.revoke).toHaveBeenCalledWith({
-      organisationId: "o",
+      ownerUserId: "u",
       keyId: "k",
     });
     expect(res.status).toHaveBeenCalledWith(204);
@@ -207,7 +234,7 @@ describe("DeveloperApiKeyController.revokeApiKey", () => {
     svc.revoke.mockRejectedValue(new DeveloperApiKeyServiceError("nf", 404));
     const res = buildRes();
     await DeveloperApiKeyController.revokeApiKey(
-      buildReq({ organisationId: "o", params: { keyId: "k" } }),
+      buildReq({ userId: "u", params: { keyId: "k" } }),
       res,
     );
     expect(res.status).toHaveBeenCalledWith(404);

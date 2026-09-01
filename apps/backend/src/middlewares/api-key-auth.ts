@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import type { OrgRequest } from "src/middlewares/rbac";
+import type { AuthenticatedRequest } from "src/middlewares/auth";
 import {
   DeveloperApiKeyService,
   type VerifiedApiKey,
@@ -18,10 +18,28 @@ const extractApiKey = (req: Request): string | undefined => {
   return req.header("x-api-key")?.trim() || undefined;
 };
 
-// Authenticates a request with a developer API key (Authorization: Bearer yc_...
-// or X-API-Key). On success the request is bound to the key's organisation so the
-// existing org-scoped RBAC applies; agents and servers use this path, never a
-// browser session.
+/*
+ * Authenticates a request with a developer API key (`Authorization: Bearer yc_…`
+ * or `X-API-Key`). Agents and servers use this path, never a browser session.
+ *
+ * A key identifies a PERSON, not a practice. It binds `userId`, the same field a
+ * session sets, so anything downstream that already reads the caller's identity
+ * works unchanged.
+ *
+ * The previous comment claimed the request was bound to the key's organisation
+ * "so the existing org-scoped RBAC applies". That composition could not run:
+ * this set only `organisationId` and never `userId`, while `withOrgPermissions()`
+ * requires both and answers 400 without the second. Nothing noticed because the
+ * middleware is mounted on no route.
+ *
+ * To scope a public route to a practice, compose `authorizeApiKey` with
+ * `withOrgPermissions()` and `requirePermission(...)`: the organisation arrives
+ * in `x-org-id` or the path exactly as it does for a browser session, and
+ * `withOrgPermissions()` checks it against the owner's live `active: true`
+ * membership on every request. That is what makes an offboarded key holder stop
+ * reaching their former employer, which a key carrying a baked-in organisation
+ * could never do.
+ */
 export const authorizeApiKey = async (
   req: Request,
   res: Response,
@@ -38,7 +56,7 @@ export const authorizeApiKey = async (
   }
 
   const usage = await DeveloperUsageService.incrementAndCheck(
-    verified.organisationId,
+    verified.ownerUserId,
   );
   if (!usage.allowed) {
     return res.status(429).json({
@@ -47,7 +65,7 @@ export const authorizeApiKey = async (
   }
 
   (req as ApiKeyRequest).apiKey = verified;
-  (req as OrgRequest).organisationId = verified.organisationId;
+  (req as AuthenticatedRequest).userId = verified.ownerUserId;
   return next();
 };
 

@@ -62,7 +62,6 @@ const seedDeveloper = () => {
 
 const subscription = (plan: DeveloperPlanTier, status: DeveloperSubscriptionStatus) => ({
   id: plan === 'free' ? null : 'sub_123',
-  organisationId: 'org-storybook',
   plan,
   status,
   stripeSubscriptionItemId: plan === 'free' ? null : 'si_123',

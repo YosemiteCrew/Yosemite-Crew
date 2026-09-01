@@ -1,14 +1,25 @@
+/*
+ * These routes are scoped to the DEVELOPER, not to a practice.
+ *
+ * They were gated on `withOrgPermissions()` and keyed on an organisation, which
+ * the portal's own audience never has: signing up through the developer door
+ * grants the `developer` role and nothing else, there is no developer entry in
+ * the RBAC role model, and no UserOrganization row is created. Every request
+ * from such an account failed on the org middleware before reaching a handler.
+ * See issue #2551.
+ *
+ * The caller's own verified id is the owner. `resolveVerifiedUserId` reads only
+ * the session (`utils/request.ts` deliberately dropped its `x-user-id` header
+ * fallback), so the owner cannot be spoofed by a header the way an org could be.
+ */
 import type { Request, Response } from "express";
 import { z } from "zod";
 import logger from "../../utils/logger";
-import type { OrgRequest } from "src/middlewares/rbac";
+import { resolveVerifiedUserId } from "src/utils/request";
 import {
   DeveloperBillingService,
   DeveloperBillingServiceError,
 } from "../../services/developer-billing.service";
-
-const getOrgId = (req: Request): string | undefined =>
-  (req as OrgRequest).organisationId;
 
 const CheckoutSchema = z.object({
   successUrl: z.string().url(),
@@ -30,14 +41,13 @@ const handleError = (err: unknown, res: Response): void => {
 
 export const DeveloperBillingController = {
   getSubscription: async (req: Request, res: Response): Promise<void> => {
-    const organisationId = getOrgId(req);
-    if (!organisationId) {
-      res.status(400).json({ error: "organisationId is required" });
+    const ownerUserId = resolveVerifiedUserId(req);
+    if (!ownerUserId) {
+      res.status(401).json({ error: "Unauthorized" });
       return;
     }
     try {
-      const data =
-        await DeveloperBillingService.getSubscription(organisationId);
+      const data = await DeveloperBillingService.getSubscription(ownerUserId);
       res.json({ data });
     } catch (err) {
       handleError(err, res);
@@ -45,9 +55,9 @@ export const DeveloperBillingController = {
   },
 
   createCheckout: async (req: Request, res: Response): Promise<void> => {
-    const organisationId = getOrgId(req);
-    if (!organisationId) {
-      res.status(400).json({ error: "organisationId is required" });
+    const ownerUserId = resolveVerifiedUserId(req);
+    if (!ownerUserId) {
+      res.status(401).json({ error: "Unauthorized" });
       return;
     }
     const parsed = CheckoutSchema.safeParse(req.body);
@@ -60,7 +70,7 @@ export const DeveloperBillingController = {
     }
     try {
       const url = await DeveloperBillingService.createCheckoutSession({
-        organisationId,
+        ownerUserId,
         ...parsed.data,
       });
       res.status(201).json({ data: { url } });
@@ -70,9 +80,9 @@ export const DeveloperBillingController = {
   },
 
   createPortal: async (req: Request, res: Response): Promise<void> => {
-    const organisationId = getOrgId(req);
-    if (!organisationId) {
-      res.status(400).json({ error: "organisationId is required" });
+    const ownerUserId = resolveVerifiedUserId(req);
+    if (!ownerUserId) {
+      res.status(401).json({ error: "Unauthorized" });
       return;
     }
     const parsed = PortalSchema.safeParse(req.body);
@@ -82,7 +92,7 @@ export const DeveloperBillingController = {
     }
     try {
       const url = await DeveloperBillingService.createPortalSession({
-        organisationId,
+        ownerUserId,
         returnUrl: parsed.data.returnUrl,
       });
       res.status(201).json({ data: { url } });
