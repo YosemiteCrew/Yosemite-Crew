@@ -3,8 +3,27 @@ import { Request, Response } from "express";
 
 import { OrgRequest } from "./rbac";
 
-const stripOrganisationPrefix = (value?: string) =>
-  value?.replace(/^Organization\//, "");
+const ORGANIZATION_REFERENCE_PREFIX = "Organization/";
+
+/**
+ * Reduce either form of an organisation identifier to the bare id.
+ *
+ * `withOrgPermissions` authorizes both: its membership lookup matches
+ * `organizationReference` against the raw value AND against
+ * `Organization/<value>`, so a caller sending `x-org-id: Organization/org-1`
+ * passes and `req.organisationId` keeps the prefixed form. Normalising only the
+ * client's value would then compare `org-1` against `Organization/org-1` and
+ * refuse a caller authorized for exactly that organisation - and the prefixed
+ * form would be the one written to an `organisationId` column. Both sides go
+ * through here, and the bare id is what is returned.
+ */
+const bareOrganisationId = (value?: string) => {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+  return trimmed.startsWith(ORGANIZATION_REFERENCE_PREFIX)
+    ? trimmed.slice(ORGANIZATION_REFERENCE_PREFIX.length).trim() || undefined
+    : trimmed;
+};
 
 /**
  * Resolve the organisation the RBAC layer actually authorized for this request.
@@ -26,14 +45,14 @@ export const resolveAuthorizedOrganisationId = (
   res: Response,
   provided?: string,
 ): string | undefined => {
-  const authorized = (req as OrgRequest).organisationId;
+  const authorized = bareOrganisationId((req as OrgRequest).organisationId);
 
   if (!authorized) {
     res.status(400).json({ message: "Organisation identifier is required." });
     return undefined;
   }
 
-  const requested = stripOrganisationPrefix(provided);
+  const requested = bareOrganisationId(provided);
   if (requested && requested !== authorized) {
     res.status(403).json({
       message: "Organisation does not match the authorized organisation.",
