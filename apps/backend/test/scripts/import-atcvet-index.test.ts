@@ -8,6 +8,7 @@ jest.mock("src/config/prisma", () => ({
 }));
 
 import {
+  main,
   parentOf,
   planImport,
   speciesFor,
@@ -135,5 +136,30 @@ describe("planImport", () => {
     expect(substance?.species).toEqual(["SA"]);
     // The QI root itself has no species: it covers every animal.
     expect(plan.entries.find((e) => e.code === "QI")?.species).toEqual([]);
+  });
+});
+
+describe("main", () => {
+  let log: jest.SpyInstance;
+  let argv: string[];
+
+  beforeEach(() => {
+    argv = process.argv;
+    log = jest.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    process.argv = argv;
+    log.mockRestore();
+  });
+
+  it("refuses a path outside the working tree", async () => {
+    process.argv = ["node", "import-atcvet-index.ts", "../../etc/passwd.json"];
+    await expect(main()).rejects.toThrow("Invalid file path");
+  });
+
+  it("refuses an absolute path", async () => {
+    process.argv = ["node", "import-atcvet-index.ts", "/etc/passwd.json"];
+    await expect(main()).rejects.toThrow("Invalid file path");
   });
 });

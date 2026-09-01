@@ -411,11 +411,12 @@ const useAtcvetSuggestions = (query: string, readOnly: boolean) => {
 
   useEffect(() => {
     const trimmed = query.trim();
+    const skip = readOnly || trimmed.length < ATCVET_MIN_QUERY;
     const requestId = requestSeq.current + 1;
     requestSeq.current = requestId;
     const timer = setTimeout(
       () => {
-        if (readOnly || trimmed.length < ATCVET_MIN_QUERY) {
+        if (skip) {
           setItems([]);
           return;
         }
@@ -428,7 +429,8 @@ const useAtcvetSuggestions = (query: string, readOnly: boolean) => {
             if (requestSeq.current === requestId) setItems([]);
           });
       },
-      readOnly || query.trim().length < ATCVET_MIN_QUERY ? 0 : ATCVET_DEBOUNCE_MS
+      // Clearing is immediate; only a real lookup waits out the debounce.
+      skip ? 0 : ATCVET_DEBOUNCE_MS
     );
     return () => clearTimeout(timer);
   }, [query, readOnly]);

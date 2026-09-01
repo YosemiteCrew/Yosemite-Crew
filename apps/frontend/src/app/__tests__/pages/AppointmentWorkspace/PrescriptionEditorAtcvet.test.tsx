@@ -87,6 +87,24 @@ describe('PrescriptionEditor ATCvet substances', () => {
     });
   });
 
+  it('clears results immediately when the query drops below the minimum', async () => {
+    renderEditor();
+    type('doxy');
+    await waitFor(() => expect(screen.getByText('doxycycline')).toBeInTheDocument());
+
+    // Deleting back to a too-short query must not leave a stale substance on
+    // screen for the length of the debounce.
+    fireEvent.change(
+      screen.getByRole('searchbox', { name: /Search medicines or prescription templates/i }),
+      { target: { value: 'do' } }
+    );
+    act(() => {
+      jest.advanceTimersByTime(10);
+    });
+
+    expect(screen.queryByText('doxycycline')).not.toBeInTheDocument();
+  });
+
   it('does not search below the minimum length', () => {
     renderEditor();
     type('do');

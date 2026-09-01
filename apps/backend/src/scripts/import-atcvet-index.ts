@@ -15,6 +15,7 @@ import { prisma } from "src/config/prisma";
  *
  * Regenerate data/atcvet_index.json from a new yearly release with
  * scripts/convert-atcvet-xlsx.mjs, or point elsewhere via ATCVET_INDEX_PATH.
+ * Paths are relative to the backend working directory.
  */
 export type AtcvetExtract = {
   source: string;
@@ -144,6 +145,18 @@ export const planImport = (extract: AtcvetExtract): ImportPlan => {
   return { entries, edges, skipped };
 };
 
+/**
+ * Repo-relative paths only, as in the VeNom importers: the script reads whatever
+ * it is pointed at, so it should not be pointed outside the working tree.
+ * Checked before any filesystem call, so a rejected path is not even probed for
+ * existence.
+ */
+const assertReadablePath = (filePath: string): void => {
+  if (filePath.includes("..") || path.isAbsolute(filePath)) {
+    throw new Error("Invalid file path");
+  }
+};
+
 const readExtract = (filePath: string): AtcvetExtract =>
   JSON.parse(fs.readFileSync(path.resolve(filePath), "utf-8"));
 
@@ -153,6 +166,7 @@ export const main = async () => {
     process.env.ATCVET_INDEX_PATH ??
     "data/atcvet_index.json";
   const apply = process.argv.includes("--apply");
+  assertReadablePath(filePath);
 
   if (!fs.existsSync(path.resolve(filePath))) {
     console.log(
