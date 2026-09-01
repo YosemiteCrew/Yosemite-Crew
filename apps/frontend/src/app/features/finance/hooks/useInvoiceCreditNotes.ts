@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CreditNote, Invoice } from '@yosemite-crew/types';
 import { useInvoiceStore } from '@/app/stores/invoiceStore';
 import { useNotify } from '@/app/hooks/useNotify';
@@ -46,28 +46,52 @@ export const useInvoiceCreditNotes = (invoice: Invoice | null): UseInvoiceCredit
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // The invoice the in-flight request belongs to. A user can close invoice A
-  // while its request is pending and open invoice B on the same hook instance;
-  // without this the late result would merge into, and error against, B.
-  const inFlightInvoiceId = useRef<string | null>(null);
   const [issuedToken, setIssuedToken] = useState(0);
+  const invoiceId = invoice?.id ?? null;
+
+  /**
+   * The invoice currently on screen, readable from a promise callback.
+   *
+   * A request started for invoice A can resolve after the user has closed A
+   * and opened B on the same hook instance. Comparing the request's invoice
+   * against this is what keeps A's result off B's panel. Tracking only the
+   * last REQUESTED invoice is not enough: switching invoice without starting a
+   * new request would leave the old value in place and A's result would still
+   * match.
+   *
+   * Updated in an effect rather than during render - the repo lints against
+   * touching a ref while rendering.
+   */
+  const displayedInvoiceId = useRef<string | null>(invoiceId);
+  useEffect(() => {
+    displayedInvoiceId.current = invoiceId;
+  }, [invoiceId]);
+
+  // Render-phase reset, the pattern useOrganisationDiscountCap uses: A's error
+  // and spinner belong to a panel the user has closed, so they must not carry
+  // over to B. State only - no ref is touched here.
+  const [prevInvoiceId, setPrevInvoiceId] = useState(invoiceId);
+  if (prevInvoiceId !== invoiceId) {
+    setPrevInvoiceId(invoiceId);
+    setBusy(false);
+    setError(null);
+  }
 
   const run = useCallback(
     (action: CreditNoteAction) => {
       if (!invoice?.id) return;
-      const invoiceId = invoice.id;
-      inFlightInvoiceId.current = invoiceId;
+      const requestInvoiceId = invoice.id;
       setBusy(true);
       setError(null);
 
       const request =
         action.type === 'issue'
-          ? issueCreditNote(invoiceId, { amount: action.amount, reason: action.reason })
-          : voidCreditNote(invoiceId, action.creditNoteId);
+          ? issueCreditNote(requestInvoiceId, { amount: action.amount, reason: action.reason })
+          : voidCreditNote(requestInvoiceId, action.creditNoteId);
 
       request
         .then((creditNote) => {
-          if (inFlightInvoiceId.current !== invoiceId) return;
+          if (displayedInvoiceId.current !== requestInvoiceId) return;
           upsertInvoice(mergeCreditNote(invoice, creditNote));
           if (action.type === 'issue') setIssuedToken((token) => token + 1);
           notify('success', {
@@ -79,7 +103,7 @@ export const useInvoiceCreditNotes = (invoice: Invoice | null): UseInvoiceCredit
           });
         })
         .catch((err: unknown) => {
-          if (inFlightInvoiceId.current !== invoiceId) return;
+          if (displayedInvoiceId.current !== requestInvoiceId) return;
           const message = getCreditNoteErrorMessage(
             err,
             action.type === 'issue'
@@ -90,7 +114,7 @@ export const useInvoiceCreditNotes = (invoice: Invoice | null): UseInvoiceCredit
           notify('error', { title: 'Credit note not saved', text: message });
         })
         .finally(() => {
-          if (inFlightInvoiceId.current !== invoiceId) return;
+          if (displayedInvoiceId.current !== requestInvoiceId) return;
           setBusy(false);
         });
     },

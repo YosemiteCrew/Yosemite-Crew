@@ -334,4 +334,56 @@ describe('useInvoiceCreditNotes', () => {
     // A void must not clear a half-typed issue draft.
     expect(result.current.issuedToken).toBe(1);
   });
+
+  it('drops a late result when the invoice changes with no new request', async () => {
+    // The earlier guard only caught a SECOND action superseding the first. If
+    // the user simply closes invoice A and opens invoice B, no new request sets
+    // the token, so A's late result still matched and landed on B.
+    let rejectA: (reason: unknown) => void = () => {};
+    creditNoteServiceMock.issueCreditNote.mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        rejectA = reject;
+      })
+    );
+
+    const { result, rerender } = renderHook(({ invoice }) => useInvoiceCreditNotes(invoice), {
+      initialProps: { invoice: invoiceFixture({ id: 'inv-a' }) },
+    });
+
+    act(() => {
+      result.current.run({ type: 'issue', amount: 10 });
+    });
+    expect(result.current.busy).toBe(true);
+
+    // Switch invoice. No new action is started.
+    rerender({ invoice: invoiceFixture({ id: 'inv-b' }) });
+    // A's spinner belonged to a panel that is now closed.
+    expect(result.current.busy).toBe(false);
+
+    await act(async () => {
+      rejectA(new Error('A failed'));
+      await Promise.resolve();
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(notifyMock).not.toHaveBeenCalledWith('error', expect.anything());
+  });
+
+  it('clears a stale error when the invoice changes', async () => {
+    creditNoteServiceMock.issueCreditNote.mockRejectedValueOnce(new Error('nope'));
+
+    const { result, rerender } = renderHook(({ invoice }) => useInvoiceCreditNotes(invoice), {
+      initialProps: { invoice: invoiceFixture({ id: 'inv-a' }) },
+    });
+
+    act(() => {
+      result.current.run({ type: 'issue', amount: 10 });
+    });
+    await waitFor(() => expect(result.current.error).not.toBeNull());
+
+    rerender({ invoice: invoiceFixture({ id: 'inv-b' }) });
+
+    // The message described invoice A and must not sit on invoice B's panel.
+    expect(result.current.error).toBeNull();
+  });
 });
