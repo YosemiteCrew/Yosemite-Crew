@@ -240,7 +240,7 @@ describe("FinanceController", () => {
     });
 
     it("creates a draft invoice and defaults item description to name", async () => {
-      setReq({ body: validBody });
+      setReq({ body: validBody, organisationId: "org-1" });
       mockedInvoiceService.createDraftForAppointment.mockResolvedValueOnce({
         id: "inv-1",
       } as never);
@@ -266,8 +266,36 @@ describe("FinanceController", () => {
       });
     });
 
-    it("maps InvoiceServiceError to its status code", async () => {
+    it("refuses a body naming an organisation other than the authorized one", async () => {
+      // withOrgPermissions stops at the first identifier it finds, so a caller
+      // who sends `x-org-id` for their own organisation is authorized against
+      // that one while the body names another. The invoice must not be created.
+      setReq({
+        body: { ...validBody, organisationId: "org-victim" },
+        organisationId: "org-1",
+      });
+
+      await run(FinanceController.createInvoice);
+
+      expect(
+        mockedInvoiceService.createDraftForAppointment,
+      ).not.toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(403);
+    });
+
+    it("requires an authorized organisation on the request", async () => {
       setReq({ body: validBody });
+
+      await run(FinanceController.createInvoice);
+
+      expect(
+        mockedInvoiceService.createDraftForAppointment,
+      ).not.toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(400);
+    });
+
+    it("maps InvoiceServiceError to its status code", async () => {
+      setReq({ body: validBody, organisationId: "org-1" });
       mockedInvoiceService.createDraftForAppointment.mockRejectedValueOnce(
         new InvoiceServiceError("Appointment not found", 404) as never,
       );
@@ -281,7 +309,7 @@ describe("FinanceController", () => {
     });
 
     it("maps unknown errors to 500", async () => {
-      setReq({ body: validBody });
+      setReq({ body: validBody, organisationId: "org-1" });
       mockedInvoiceService.createDraftForAppointment.mockRejectedValueOnce(
         new Error("boom") as never,
       );
@@ -1311,7 +1339,10 @@ describe("FinanceController", () => {
     });
 
     it("returns the current subscription", async () => {
-      setReq({ query: { organisationId: "org-1" } });
+      setReq({
+        query: { organisationId: "org-1" },
+        organisationId: "org-1",
+      });
       mockedSubscriptionService.getCurrentSubscription.mockResolvedValueOnce({
         id: "sub-1",
       } as never);
@@ -1324,8 +1355,25 @@ describe("FinanceController", () => {
       expect(statusMock).toHaveBeenCalledWith(200);
     });
 
+    it("refuses a query naming an organisation other than the authorized one", async () => {
+      setReq({
+        query: { organisationId: "org-victim" },
+        organisationId: "org-1",
+      });
+
+      await run(FinanceController.getCurrentSubscription);
+
+      expect(
+        mockedSubscriptionService.getCurrentSubscription,
+      ).not.toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(403);
+    });
+
     it("returns 500 on failure", async () => {
-      setReq({ query: { organisationId: "org-1" } });
+      setReq({
+        query: { organisationId: "org-1" },
+        organisationId: "org-1",
+      });
       mockedSubscriptionService.getCurrentSubscription.mockRejectedValueOnce(
         new Error("boom") as never,
       );
@@ -1354,7 +1402,7 @@ describe("FinanceController", () => {
     });
 
     it("upserts the subscription", async () => {
-      setReq({ body: validBody });
+      setReq({ body: validBody, organisationId: "org-1" });
       mockedSubscriptionService.upsertSubscription.mockResolvedValueOnce({
         id: "sub-1",
       } as never);
@@ -1373,8 +1421,22 @@ describe("FinanceController", () => {
       expect(statusMock).toHaveBeenCalledWith(201);
     });
 
+    it("refuses a body naming an organisation other than the authorized one", async () => {
+      setReq({
+        body: { ...validBody, organisationId: "org-victim" },
+        organisationId: "org-1",
+      });
+
+      await run(FinanceController.upsertSubscription);
+
+      expect(
+        mockedSubscriptionService.upsertSubscription,
+      ).not.toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(403);
+    });
+
     it("returns 500 on failure", async () => {
-      setReq({ body: validBody });
+      setReq({ body: validBody, organisationId: "org-1" });
       mockedSubscriptionService.upsertSubscription.mockRejectedValueOnce(
         new Error("boom") as never,
       );
@@ -1395,7 +1457,10 @@ describe("FinanceController", () => {
     });
 
     it("lists snapshots with null defaults when optional filters are omitted", async () => {
-      setReq({ query: { organisationId: "org-1" } });
+      setReq({
+        query: { organisationId: "org-1" },
+        organisationId: "org-1",
+      });
       mockedSubscriptionService.listUsageSnapshots.mockResolvedValueOnce(
         [] as never,
       );
@@ -1416,6 +1481,7 @@ describe("FinanceController", () => {
           subscriptionId: "sub-1",
           featureKey: "seats",
         },
+        organisationId: "org-1",
       });
       mockedSubscriptionService.listUsageSnapshots.mockResolvedValueOnce(
         [] as never,
@@ -1430,8 +1496,25 @@ describe("FinanceController", () => {
       expect(statusMock).toHaveBeenCalledWith(200);
     });
 
+    it("refuses a query naming an organisation other than the authorized one", async () => {
+      setReq({
+        query: { organisationId: "org-victim" },
+        organisationId: "org-1",
+      });
+
+      await run(FinanceController.getUsageSnapshots);
+
+      expect(
+        mockedSubscriptionService.listUsageSnapshots,
+      ).not.toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(403);
+    });
+
     it("returns 500 on failure", async () => {
-      setReq({ query: { organisationId: "org-1" } });
+      setReq({
+        query: { organisationId: "org-1" },
+        organisationId: "org-1",
+      });
       mockedSubscriptionService.listUsageSnapshots.mockRejectedValueOnce(
         new Error("boom") as never,
       );

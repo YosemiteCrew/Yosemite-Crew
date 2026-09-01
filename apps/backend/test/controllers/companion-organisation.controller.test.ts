@@ -503,6 +503,7 @@ describe("CompanionOrganisationController", () => {
 
     it("should accept invite on success", async () => {
       req.body = { token: "t1", organisationId: "o1" };
+      (req as unknown as { organisationId?: string }).organisationId = "o1";
       (
         CompanionOrganisationService.acceptInvite as jest.Mock
       ).mockResolvedValue("acc_data");
@@ -512,6 +513,7 @@ describe("CompanionOrganisationController", () => {
 
     it("should handle errors in acceptInvite", async () => {
       req.body = { token: "t1", organisationId: "o1" };
+      (req as unknown as { organisationId?: string }).organisationId = "o1";
       (
         CompanionOrganisationService.acceptInvite as jest.Mock
       ).mockRejectedValue(new Error("Test error"));
@@ -527,12 +529,14 @@ describe("CompanionOrganisationController", () => {
 
     it("should reject invite on success", async () => {
       req.body = { token: "t1", organisationId: "o1" };
+      (req as unknown as { organisationId?: string }).organisationId = "o1";
       await CompanionOrganisationController.rejectInvite(req, res);
       expect(res.status).toHaveBeenCalledWith(200);
     });
 
     it("should handle errors in rejectInvite", async () => {
       req.body = { token: "t1", organisationId: "o1" };
+      (req as unknown as { organisationId?: string }).organisationId = "o1";
       (
         CompanionOrganisationService.rejectInvite as jest.Mock
       ).mockRejectedValue(new Error("Test error"));

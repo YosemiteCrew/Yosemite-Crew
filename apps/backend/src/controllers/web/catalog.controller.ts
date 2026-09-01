@@ -8,7 +8,7 @@ import {
   CatalogServiceError,
   type CatalogProductUpsertInput,
 } from "src/services/catalog.service";
-import type { OrgRequest } from "src/middlewares/rbac";
+import { resolveAuthorizedOrganisationId } from "src/middlewares/authorized-organisation";
 import {
   calendarPrefillBaseSchema,
   parseTristateFlag,
@@ -241,41 +241,6 @@ const handleError = (res: Response, error: unknown, defaultMessage: string) => {
 
   logger.error(defaultMessage, error);
   return res.status(500).json({ message: defaultMessage });
-};
-
-const stripOrganisationPrefix = (value?: string) =>
-  value?.replace(/^Organization\//, "");
-
-/**
- * Resolve the organisation the RBAC layer actually authorized for this request.
- *
- * Client-supplied organisation identifiers (query, body, FHIR Parameters) are
- * only ever used to detect a mismatch: `withOrgPermissions` may have authorized
- * a different organisation than the one named in the payload, so honouring the
- * payload would let a caller act outside the organisation they were checked
- * against. Responds and returns `undefined` when the request cannot proceed.
- */
-const resolveAuthorizedOrganisationId = (
-  req: Request,
-  res: Response,
-  provided?: string,
-): string | undefined => {
-  const authorized = (req as OrgRequest).organisationId;
-
-  if (!authorized) {
-    res.status(400).json({ message: "Organisation identifier is required." });
-    return undefined;
-  }
-
-  const requested = stripOrganisationPrefix(provided);
-  if (requested && requested !== authorized) {
-    res.status(403).json({
-      message: "Organisation does not match the authorized organisation.",
-    });
-    return undefined;
-  }
-
-  return authorized;
 };
 
 const parseKinds = (value?: string) => {

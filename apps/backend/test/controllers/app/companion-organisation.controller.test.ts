@@ -668,6 +668,7 @@ describe("CompanionOrganisationController", () => {
 
     it("should success (200)", async () => {
       req.body = { token: "t1", organisationId: "o1" };
+      (req as unknown as { organisationId?: string }).organisationId = "o1";
       mockedCompanionService.acceptInvite.mockResolvedValue({} as any);
 
       await CompanionOrganisationController.acceptInvite(
@@ -677,8 +678,37 @@ describe("CompanionOrganisationController", () => {
       expect(statusMock).toHaveBeenCalledWith(200);
     });
 
+    it("refuses a body naming an organisation other than the authorized one", async () => {
+      // The invite token is a bearer secret, but the organisation the link is
+      // stamped with must be the one withOrgPermissions authorized, not one
+      // the caller names in the body.
+      req.body = { token: "t1", organisationId: "o-other" };
+      (req as unknown as { organisationId?: string }).organisationId = "o1";
+
+      await CompanionOrganisationController.acceptInvite(
+        req as Request,
+        res as Response,
+      );
+
+      expect(mockedCompanionService.acceptInvite).not.toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(403);
+    });
+
+    it("requires an authorized organisation on the request", async () => {
+      req.body = { token: "t1", organisationId: "o1" };
+
+      await CompanionOrganisationController.acceptInvite(
+        req as Request,
+        res as Response,
+      );
+
+      expect(mockedCompanionService.acceptInvite).not.toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(400);
+    });
+
     it("should handle service error", async () => {
       req.body = { token: "t1", organisationId: "o1" };
+      (req as unknown as { organisationId?: string }).organisationId = "o1";
       mockServiceError("acceptInvite", 400);
       await CompanionOrganisationController.acceptInvite(
         req as Request,
@@ -689,6 +719,7 @@ describe("CompanionOrganisationController", () => {
 
     it("should handle generic error", async () => {
       req.body = { token: "t1", organisationId: "o1" };
+      (req as unknown as { organisationId?: string }).organisationId = "o1";
       mockGenericError("acceptInvite");
       await CompanionOrganisationController.acceptInvite(
         req as Request,
@@ -710,6 +741,7 @@ describe("CompanionOrganisationController", () => {
 
     it("should success (200)", async () => {
       req.body = { token: "t1", organisationId: "o1" };
+      (req as unknown as { organisationId?: string }).organisationId = "o1";
       mockedCompanionService.rejectInvite.mockResolvedValue({} as any);
 
       await CompanionOrganisationController.rejectInvite(
@@ -719,8 +751,37 @@ describe("CompanionOrganisationController", () => {
       expect(statusMock).toHaveBeenCalledWith(200);
     });
 
+    it("refuses a body naming an organisation other than the authorized one", async () => {
+      // The invite token is a bearer secret, but the organisation the link is
+      // stamped with must be the one withOrgPermissions authorized, not one
+      // the caller names in the body.
+      req.body = { token: "t1", organisationId: "o-other" };
+      (req as unknown as { organisationId?: string }).organisationId = "o1";
+
+      await CompanionOrganisationController.rejectInvite(
+        req as Request,
+        res as Response,
+      );
+
+      expect(mockedCompanionService.rejectInvite).not.toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(403);
+    });
+
+    it("requires an authorized organisation on the request", async () => {
+      req.body = { token: "t1", organisationId: "o1" };
+
+      await CompanionOrganisationController.rejectInvite(
+        req as Request,
+        res as Response,
+      );
+
+      expect(mockedCompanionService.rejectInvite).not.toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(400);
+    });
+
     it("should handle service error", async () => {
       req.body = { token: "t1", organisationId: "o1" };
+      (req as unknown as { organisationId?: string }).organisationId = "o1";
       // mocking explicit reject since rejectInvite in controller does check for service error
       mockServiceError("rejectInvite", 404);
       await CompanionOrganisationController.rejectInvite(
@@ -732,6 +793,7 @@ describe("CompanionOrganisationController", () => {
 
     it("should handle generic error", async () => {
       req.body = { token: "t1", organisationId: "o1" };
+      (req as unknown as { organisationId?: string }).organisationId = "o1";
       mockGenericError("rejectInvite");
       await CompanionOrganisationController.rejectInvite(
         req as Request,
