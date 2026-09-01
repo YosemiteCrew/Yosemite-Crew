@@ -158,10 +158,11 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     // so the appointment lookup yields nothing and the row would read "-" for a
     // patient that is perfectly well known. Fall back to the companion store.
     const companionFromPatient = item.patientId ? companionsById[item.patientId] : undefined;
+    const companionFromAppointment = getCompanionName(item.appointmentId);
     const companionName =
-      getCompanionName(item.appointmentId) === '-' && companionFromPatient?.name
+      companionFromAppointment === '-' && companionFromPatient?.name
         ? companionFromPatient.name
-        : getCompanionName(item.appointmentId);
+        : companionFromAppointment;
     const parentName = getParentName(item.appointmentId);
     let ownerAndCompanion = '-';
     if (parentName !== '-' && companionName !== '-') {
