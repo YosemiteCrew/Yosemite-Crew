@@ -133,8 +133,9 @@ export const DeveloperApiKeyService = {
      * ends either way.
      */
     const generated = generateApiKey(environment);
+    const lockKey = `developer-api-key:${ownerUserId}`;
     const record = await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`developer-api-key:${ownerUserId}`}))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
 
       // `verify` refuses a key past `expiresAt` and nothing ever moves it out
       // of `active`, so counting those would block an owner from issuing a
