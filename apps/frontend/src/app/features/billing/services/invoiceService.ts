@@ -250,6 +250,13 @@ const normalizeFinanceInvoice = (
     renderedDocumentId: invoice?.renderedDocumentId,
     invoiceDocumentId: invoice?.invoiceDocumentId,
     payments: invoice?.payments,
+    // The backend returns creditNotes on every invoice read and settlementSummary
+    // on the single-invoice read. Both were being dropped here, which left the
+    // credit ledger invisible and made getInvoiceOutstanding's preferred branch
+    // (settlementSummary.balance) unreachable, so it always fell back to
+    // total-minus-deposit. See #2595 for the list-endpoint half of that.
+    creditNotes: Array.isArray(invoice?.creditNotes) ? invoice.creditNotes : undefined,
+    settlementSummary: invoice?.settlementSummary,
     metadata: invoice?.metadata,
     paidAt: invoice?.paidAt ? new Date(invoice.paidAt) : undefined,
     createdAt,

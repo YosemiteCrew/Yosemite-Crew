@@ -18,6 +18,8 @@ import InvoiceSummaryPanel from '@/app/features/finance/pages/Finance/Sections/I
 import InvoiceBilledTo from '@/app/features/finance/pages/Finance/Sections/InvoiceBilledTo';
 import InvoicePaymentLedger from '@/app/features/finance/pages/Finance/Sections/InvoicePaymentLedger';
 import InvoicePhoneRecord from '@/app/features/finance/pages/Finance/Sections/InvoicePhoneRecord';
+import InvoiceCreditNotes from '@/app/features/finance/pages/Finance/Sections/InvoiceCreditNotes';
+import { useInvoiceCreditNotes } from '@/app/features/finance/hooks/useInvoiceCreditNotes';
 
 type InvoiceInfoProps = {
   showModal: boolean;
@@ -27,6 +29,7 @@ type InvoiceInfoProps = {
 
 const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProps) => {
   const appointments = useAppointmentsForPrimaryOrg();
+  const creditNotes = useInvoiceCreditNotes(activeInvoice);
   const currency = useCurrencyForPrimaryOrg();
   const router = useRouter();
   const isPhone = useIsPhone();
@@ -124,6 +127,14 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
                 </div>
                 <div className="flex flex-col gap-5">
                   <InvoiceSummaryPanel invoice={activeInvoice} currency={currency} />
+                  <InvoiceCreditNotes
+                    creditNotes={activeInvoice.creditNotes}
+                    totalAmount={activeInvoice.totalAmount ?? 0}
+                    currency={currency}
+                    busy={creditNotes.busy}
+                    error={creditNotes.error}
+                    onAction={creditNotes.run}
+                  />
                   <InvoiceBilledTo parentId={parentId} appointment={appointment} />
                 </div>
               </div>
