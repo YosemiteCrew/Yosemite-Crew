@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   IoChevronDownOutline,
   IoCopyOutline,
@@ -11,6 +11,10 @@ import SearchResultsDropdown from '@/app/features/appointments/pages/Appointment
 import WorkspaceSearchResultRow from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceSearchResultRow';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
 import Search from '@/app/ui/inputs/Search';
+import {
+  suggestMedications,
+  type MedicationSuggestion,
+} from '@/app/features/appointments/services/clinicalTermsService';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import type { DropdownOption } from '@/app/hooks/useDropdown';
@@ -391,6 +395,47 @@ const PrescriptionRow = ({
   );
 };
 
+const ATCVET_MIN_QUERY = 3;
+const ATCVET_DEBOUNCE_MS = 250;
+const ATCVET_LIMIT = 5;
+
+/**
+ * ATCvet substances for the medicine search box, so a clinician can prescribe a
+ * substance the practice does not stock. Deliberately a longer minimum and a
+ * smaller page than the inventory match: this is the fallback below the
+ * practice's own catalogue, not the primary way to prescribe.
+ */
+const useAtcvetSuggestions = (query: string, readOnly: boolean) => {
+  const [items, setItems] = useState<MedicationSuggestion[]>([]);
+  const requestSeq = React.useRef(0);
+
+  useEffect(() => {
+    const trimmed = query.trim();
+    const requestId = requestSeq.current + 1;
+    requestSeq.current = requestId;
+    const timer = setTimeout(
+      () => {
+        if (readOnly || trimmed.length < ATCVET_MIN_QUERY) {
+          setItems([]);
+          return;
+        }
+        suggestMedications({ q: trimmed, limit: ATCVET_LIMIT })
+          .then((results) => {
+            if (requestSeq.current === requestId) setItems(results);
+          })
+          .catch((error) => {
+            console.error('Unable to suggest medications:', error);
+            if (requestSeq.current === requestId) setItems([]);
+          });
+      },
+      readOnly || query.trim().length < ATCVET_MIN_QUERY ? 0 : ATCVET_DEBOUNCE_MS
+    );
+    return () => clearTimeout(timer);
+  }, [query, readOnly]);
+
+  return items;
+};
+
 const PrescriptionEditor = ({
   items,
   catalogItems = EMPTY_CATALOG_ITEMS,
@@ -405,6 +450,7 @@ const PrescriptionEditor = ({
 }: PrescriptionEditorProps) => {
   const [search, setSearch] = useState('');
   const searchRef = React.useRef<HTMLDivElement>(null);
+  const substances = useAtcvetSuggestions(search, readOnly);
 
   const matches = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -424,7 +470,8 @@ const PrescriptionEditor = ({
     return templateItems.filter((template) => template.name.toLowerCase().includes(query));
   }, [search, templateItems]);
 
-  const hasSearchMatches = matches.length > 0 || templateMatches.length > 0;
+  const hasSearchMatches =
+    matches.length > 0 || templateMatches.length > 0 || substances.length > 0;
 
   return (
     <div className="flex flex-col gap-3">
@@ -481,6 +528,41 @@ const PrescriptionEditor = ({
                     }
                     onSelect={() => {
                       onAddItem(item);
+                      setSearch('');
+                    }}
+                  />
+                ))}
+                {substances.map((substance) => (
+                  <WorkspaceSearchResultRow
+                    key={substance.atcCode}
+                    name={substance.label}
+                    badge={
+                      <span className="rounded-2xl bg-neutral-100 px-2 py-0.5 text-caption-2 font-medium text-text-secondary">
+                        ATCvet
+                      </span>
+                    }
+                    // The class path is what makes a substance interpretable:
+                    // "doxycycline" alone does not say systemic antibacterial.
+                    origin={[
+                      substance.atcCode,
+                      ...substance.path.slice(1).map((level) => level.label),
+                    ].join(' · ')}
+                    meta={
+                      substance.antibacterial ? (
+                        <span className="rounded-2xl bg-warning-100 px-2 py-0.5 text-caption-2 font-medium text-text-secondary">
+                          Antibacterial
+                        </span>
+                      ) : undefined
+                    }
+                    onSelect={() => {
+                      onAddItem({
+                        medicineName: substance.label,
+                        atcCode: substance.atcCode,
+                        // A substance picked from the classification is not
+                        // stock, so it cannot be dispensed in-house: it is
+                        // written for the owner to have filled elsewhere.
+                        fulfillment: 'PRESCRIPTION_ONLY',
+                      });
                       setSearch('');
                     }}
                   />

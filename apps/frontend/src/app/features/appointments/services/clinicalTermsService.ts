@@ -42,3 +42,34 @@ export const suggestClinicalTerms = async (params: {
   );
   return res.data.items ?? [];
 };
+
+/** One ATCvet substance, with the classification levels above it for context. */
+export type MedicationSuggestion = {
+  atcCode: string;
+  label: string;
+  path: Array<{ code: string; label: string }>;
+  species: string[];
+  /** True for QJ01 systemic antibacterials — what stewardship reporting counts. */
+  antibacterial: boolean;
+};
+
+/**
+ * Ranked substances from the ATCvet classification
+ * (`GET /v1/codes/medications/suggest`). Only substances are returned; the
+ * grouping levels above them are never prescribable.
+ */
+export const suggestMedications = async (params: {
+  q: string;
+  group?: string;
+  species?: string;
+  limit?: number;
+}): Promise<MedicationSuggestion[]> => {
+  const search = new URLSearchParams({ q: params.q });
+  if (params.group) search.set('group', params.group);
+  if (params.species) search.set('species', params.species);
+  if (params.limit) search.set('limit', String(params.limit));
+  const res = await getData<{ items?: MedicationSuggestion[] }>(
+    `/v1/codes/medications/suggest?${search.toString()}`
+  );
+  return res.data.items ?? [];
+};
