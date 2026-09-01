@@ -132,15 +132,37 @@ const Finance = () => {
       <MobileSearchBar placeholder="Search invoices" />
       <PermissionGate allOf={[PERMISSIONS.BILLING_VIEW_ANY]} fallback={<Fallback />}>
         {isPhone ? (
-          <PhoneInvoiceList
-            filteredList={filteredList}
-            statusOptions={InvoiceStatusFilters}
-            activeStatus={activeStatus}
-            setActiveStatus={setActiveStatus}
-            metrics={financeMetrics}
-            currency={currency}
-            onViewInvoice={openInvoice}
-          />
+          <div className="flex flex-col gap-3">
+            {/*
+              The desktop header's Estimates and Discounts links live in the
+              !isPhone branch. Without a phone equivalent there is no route to
+              /finance/estimates anywhere in the app on a phone, so the screen
+              would only be reachable by typing the URL.
+            */}
+            <div className="flex items-center justify-end gap-2">
+              <Secondary
+                href="/finance/estimates"
+                text="Estimates"
+                size="compact"
+                ariaLabel="View estimates"
+              />
+              <Secondary
+                href="/finance/discounts"
+                text="Discounts"
+                size="compact"
+                ariaLabel="Manage discounts"
+              />
+            </div>
+            <PhoneInvoiceList
+              filteredList={filteredList}
+              statusOptions={InvoiceStatusFilters}
+              activeStatus={activeStatus}
+              setActiveStatus={setActiveStatus}
+              metrics={financeMetrics}
+              currency={currency}
+              onViewInvoice={openInvoice}
+            />
+          </div>
         ) : (
           <div className={wrapperClassName}>
             <div className="flex items-center justify-between w-full flex-wrap gap-2">
@@ -177,6 +199,7 @@ const Finance = () => {
                   setActiveStatus={setActiveStatus}
                   className="flex-wrap justify-end"
                 />
+                <Secondary href="/finance/estimates" text="Estimates" ariaLabel="View estimates" />
                 <Secondary
                   href="/finance/discounts"
                   text="Discounts"
