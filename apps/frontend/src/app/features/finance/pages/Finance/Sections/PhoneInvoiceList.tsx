@@ -20,6 +20,7 @@ import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { getAppointmentCompanion, getAppointmentCompanionPhotoUrl } from '@/app/lib/appointments';
 import InvoiceStatusFilterPills from '@/app/features/finance/pages/Finance/Sections/InvoiceStatusFilterPills';
 import StatusPill from '@/app/ui/primitives/StatusPill/StatusPill';
+import { useCompanionStore } from '@/app/stores/companionStore';
 
 type PhoneInvoiceListProps = {
   filteredList: Invoice[];
@@ -146,20 +147,30 @@ const PhoneInvoiceList = ({
   onViewInvoice,
 }: PhoneInvoiceListProps) => {
   const appointments = useAppointmentsForPrimaryOrg();
+  const companionsById = useCompanionStore((state) => state.companionsById);
 
   const cards = useMemo(
     () =>
       filteredList.map((invoice) => {
         const appointment = getAppointmentByIdFromList(appointments, invoice.appointmentId);
         const parentName = getParentNameFromAppointments(appointments, invoice.appointmentId);
-        const companionName = getCompanionNameFromAppointments(appointments, invoice.appointmentId);
+        // An invoice converted from an estimate carries patientId and no
+        // appointmentId, so the appointment lookup finds nothing and the card
+        // would read "Unlinked invoice" for a perfectly well known patient.
+        const fromAppointments = getCompanionNameFromAppointments(
+          appointments,
+          invoice.appointmentId
+        );
+        const fromPatient = invoice.patientId ? companionsById[invoice.patientId]?.name : undefined;
+        const companionName =
+          fromAppointments === '-' && fromPatient ? fromPatient : fromAppointments;
         return {
           invoice,
           appointment,
           ownerAndCompanion: buildOwnerAndCompanion(parentName, companionName),
         };
       }),
-    [filteredList, appointments]
+    [filteredList, appointments, companionsById]
   );
 
   return (
