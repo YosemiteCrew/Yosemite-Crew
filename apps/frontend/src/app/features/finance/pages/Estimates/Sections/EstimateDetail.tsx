@@ -63,7 +63,7 @@ const EstimateDetail = ({
         {estimate.convertedToInvoiceId ? (
           <Link
             href={`/finance?invoiceId=${estimate.convertedToInvoiceId}`}
-            className="text-body-4 text-text-link underline underline-offset-2"
+            className="text-body-4 text-blue-text underline underline-offset-2"
           >
             View the invoice
           </Link>
