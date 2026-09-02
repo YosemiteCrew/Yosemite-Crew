@@ -56,7 +56,7 @@ export const estimateController = {
     const { organisationId } = req.params;
     const parsed = CreateEstimateSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.flatten() });
+      res.status(400).json({ error: z.flattenError(parsed.error) });
       return;
     }
     const { validUntil, ...rest } = parsed.data;
@@ -105,7 +105,7 @@ export const estimateController = {
     const { organisationId, estimateId } = req.params;
     const parsed = UpdateEstimateSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.flatten() });
+      res.status(400).json({ error: z.flattenError(parsed.error) });
       return;
     }
     const { validUntil, ...rest } = parsed.data;
@@ -148,7 +148,7 @@ export const estimateController = {
     }
     const parsed = ApproveDeclineSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.flatten() });
+      res.status(400).json({ error: z.flattenError(parsed.error) });
       return;
     }
     try {
@@ -167,7 +167,7 @@ export const estimateController = {
   convert: async (req: Request, res: Response) => {
     const params = ConvertParamsSchema.safeParse(req.params);
     if (!params.success) {
-      res.status(400).json({ error: params.error.flatten() });
+      res.status(400).json({ error: z.flattenError(params.error) });
       return;
     }
     const { organisationId, estimateId } = params.data;
@@ -198,7 +198,7 @@ export const estimateController = {
     }
     const parsed = ApproveDeclineSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.flatten() });
+      res.status(400).json({ error: z.flattenError(parsed.error) });
       return;
     }
     try {
