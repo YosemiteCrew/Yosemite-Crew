@@ -1861,16 +1861,17 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/companion/org/{orgId}':
+  '/fhir/v1/companion/org/{id}':
     post:
       tags:
         - FHIR
-      summary: 'POST /fhir/v1/companion/org/{orgId}'
+      summary: 'POST /fhir/v1/companion/org/{id}'
       operationId: post_fhir_v1_companion_org_orgId
       security:
         - BearerAuth: []
       parameters:
-        - name: orgId
+        - name: id
+          description: Identifies the organisation.
           in: path
           required: true
           schema:
@@ -1921,7 +1922,6 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/companion/org/{id}':
     get:
       tags:
         - FHIR
@@ -1931,6 +1931,7 @@ paths:
         - BearerAuth: []
       parameters:
         - name: id
+          description: Identifies the organisation.
           in: path
           required: true
           schema:
@@ -1981,6 +1982,7 @@ paths:
         - BearerAuth: []
       parameters:
         - name: id
+          description: Identifies the organisation.
           in: path
           required: true
           schema:
@@ -2629,16 +2631,17 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/document/mobile/{companionId}':
+  '/v1/document/mobile/{id}':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/document/mobile/{companionId}'
+      summary: 'POST /v1/document/mobile/{id}'
       operationId: post_v1_document_mobile_companionId
       security:
         - BearerAuth: []
       parameters:
-        - name: companionId
+        - name: id
+          description: Identifies the companion whose documents are listed or added to.
           in: path
           required: true
           schema:
@@ -2659,12 +2662,35 @@ paths:
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/document/mobile/{companionId}'
+      summary: 'GET /v1/document/mobile/{id}'
       operationId: get_v1_document_mobile_companionId
       security:
         - BearerAuth: []
       parameters:
-        - name: companionId
+        - name: id
+          description: Identifies the companion whose documents are listed or added to.
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+    delete:
+      tags:
+        - 'Non-FHIR'
+      summary: 'DELETE /v1/document/mobile/{id}'
+      operationId: delete_v1_document_mobile_documentId
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          description: Identifies the document being removed.
           in: path
           required: true
           schema:
@@ -2840,28 +2866,6 @@ paths:
                 properties:
                   message:
                     type: string
-  '/v1/document/mobile/{documentId}':
-    delete:
-      tags:
-        - 'Non-FHIR'
-      summary: 'DELETE /v1/document/mobile/{documentId}'
-      operationId: delete_v1_document_mobile_documentId
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: documentId
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        200:
-          description: Response
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
   '/v1/document/search/{companionId}':
     get:
       tags:
@@ -7192,16 +7196,17 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/speciality/{organisationId}':
+  '/fhir/v1/speciality/{id}':
     get:
       tags:
         - FHIR
-      summary: 'GET /fhir/v1/speciality/{organisationId}'
+      summary: 'GET /fhir/v1/speciality/{id}'
       operationId: get_fhir_v1_speciality_organisationId
       security:
         - BearerAuth: []
       parameters:
-        - name: organisationId
+        - name: id
+          description: Identifies the organisation whose specialities are listed.
           in: path
           required: true
           schema:
@@ -7234,7 +7239,6 @@ paths:
                 properties:
                   message:
                     type: string
-  '/fhir/v1/speciality/{id}':
     put:
       tags:
         - FHIR
@@ -7244,6 +7248,7 @@ paths:
         - BearerAuth: []
       parameters:
         - name: id
+          description: Identifies the speciality being updated.
           in: path
           required: true
           schema:
@@ -7365,16 +7370,17 @@ paths:
                 properties:
                   error:
                     type: string
-  '/v1/stripe/payment-intent/{appointmentId}':
+  '/v1/stripe/payment-intent/{id}':
     post:
       tags:
         - 'Non-FHIR'
-      summary: 'POST /v1/stripe/payment-intent/{appointmentId}'
+      summary: 'POST /v1/stripe/payment-intent/{id}'
       operationId: post_v1_stripe_payment_intent_appointmentId
       security:
         - BearerAuth: []
       parameters:
-        - name: appointmentId
+        - name: id
+          description: Identifies the appointment the payment intent is created for.
           in: path
           required: true
           schema:
@@ -7400,16 +7406,16 @@ paths:
                     type: string
                   message:
                     type: string
-  '/v1/stripe/payment-intent/{paymentIntentId}':
     get:
       tags:
         - 'Non-FHIR'
-      summary: 'GET /v1/stripe/payment-intent/{paymentIntentId}'
+      summary: 'GET /v1/stripe/payment-intent/{id}'
       operationId: get_v1_stripe_payment_intent_paymentIntentId
       security:
         - BearerAuth: []
       parameters:
-        - name: paymentIntentId
+        - name: id
+          description: Identifies the payment intent being read.
           in: path
           required: true
           schema:
