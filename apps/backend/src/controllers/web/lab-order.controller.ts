@@ -157,24 +157,37 @@ export const LabOrderController = {
       const queryString = (value: unknown): string | undefined =>
         typeof value === "string" && value.trim() ? value : undefined;
 
-      /** Rejects NaN and Infinity, so a junk `?limit=abc` falls back to the
-       *  service's own default rather than reaching it as an unusable number. */
-      const queryNumber = (value: unknown): number | undefined => {
-        if (typeof value !== "string" || !value.trim()) return undefined;
-        const parsed = Number(value);
-        return Number.isFinite(parsed) ? parsed : undefined;
+      /**
+       * Pagination has to be a positive integer, not merely a finite number.
+       * `skip`/`take` reach Prisma, which rejects a fractional value, so
+       * `?limit=2.5` turned into a 500 instead of falling back to the default -
+       * the service's own `> 0` guard passes a fraction straight through.
+       * Applied to the body too: `{ limit: 2.5 }` is a number and would have
+       * taken the same path.
+       */
+      const paginationValue = (value: unknown): number | undefined => {
+        const parsed =
+          typeof value === "number"
+            ? value
+            : typeof value === "string" && value.trim()
+              ? Number(value)
+              : Number.NaN;
+        return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : undefined;
       };
 
       const query =
         typeof body?.query === "string"
           ? body.query
           : queryString(search.query);
-      const limit =
-        typeof body?.limit === "number"
-          ? body.limit
-          : queryNumber(search.limit);
-      const page =
-        typeof body?.page === "number" ? body.page : queryNumber(search.page);
+      /* The body stays strict about type - a POST sending `limit: "10"` is
+         malformed and is dropped, which an existing test pins - but both paths
+         share the same integer requirement. */
+      const limit = paginationValue(
+        typeof body?.limit === "number" ? body.limit : search.limit,
+      );
+      const page = paginationValue(
+        typeof body?.page === "number" ? body.page : search.page,
+      );
 
       /* POST sends codes as an array; a GET sends a comma-separated string, and
          express hands back an array when the param is repeated. */

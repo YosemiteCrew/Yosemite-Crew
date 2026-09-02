@@ -259,6 +259,56 @@ describe("LabOrderController", () => {
       );
     });
 
+    it("rejects fractional pagination rather than passing it to Prisma", async () => {
+      /* skip/take reach Prisma, which requires integers, so ?limit=2.5 turned
+         into a 500 instead of falling back to the default. The service's own
+         `> 0` guard passes a fraction straight through. */
+      req.body = {};
+      req.query = { limit: "2.5", page: "1.5" };
+      (mockedLabOrderService.listProviderTests as any).mockResolvedValue({
+        tests: [],
+      } as any);
+
+      await LabOrderController.listProviderTests(req as Request, res);
+
+      expect(mockedLabOrderService.listProviderTests).toHaveBeenCalledWith(
+        "idexx",
+        expect.objectContaining({ limit: undefined, page: undefined }),
+      );
+    });
+
+    it("applies the same integer requirement to a body", async () => {
+      // `{ limit: 2.5 }` is a number, so the strict body path would otherwise
+      // have handed Prisma the same fraction.
+      req.body = { limit: 2.5, page: 0 };
+      req.query = {};
+      (mockedLabOrderService.listProviderTests as any).mockResolvedValue({
+        tests: [],
+      } as any);
+
+      await LabOrderController.listProviderTests(req as Request, res);
+
+      expect(mockedLabOrderService.listProviderTests).toHaveBeenCalledWith(
+        "idexx",
+        expect.objectContaining({ limit: undefined, page: undefined }),
+      );
+    });
+
+    it("still accepts whole-number pagination from either source", async () => {
+      req.body = {};
+      req.query = { limit: "25", page: "2" };
+      (mockedLabOrderService.listProviderTests as any).mockResolvedValue({
+        tests: [],
+      } as any);
+
+      await LabOrderController.listProviderTests(req as Request, res);
+
+      expect(mockedLabOrderService.listProviderTests).toHaveBeenCalledWith(
+        "idexx",
+        expect.objectContaining({ limit: 25, page: 2 }),
+      );
+    });
+
     it("accepts codes as a comma-separated string on a GET", async () => {
       req.body = {};
       req.query = { codes: "A, B ,,C" };
