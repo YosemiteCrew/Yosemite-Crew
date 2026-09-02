@@ -2091,10 +2091,11 @@ export const InvoiceService = {
     // which ignores every recorded payment and every credit note, and
     // overstates what each part-paid invoice still owes (#2595).
     const details = await loadInvoiceFinancialDetailsMany(docs);
-    return docs.map((d) => ({
-      ...toInvoiceRecord(d),
-      ...(details.get(d.id) ?? {}),
-    }));
+    return docs.map((d) => {
+      const record = toInvoiceRecord(d);
+      const settlement = details.get(d.id);
+      return settlement ? { ...record, ...settlement } : record;
+    });
   },
 
   async listForParent(parentId: string, organisationId: string | null) {
