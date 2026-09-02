@@ -2789,7 +2789,9 @@ describe("FinancePaymentService", () => {
     };
     __setFinanceStripeClientForTests(stripeClient);
     (stripeClient.checkout.sessions.expire as jest.Mock).mockRejectedValueOnce(
-      new Error("session already expired"),
+      Object.assign(new Error("session already expired"), {
+        type: "StripeInvalidRequestError",
+      }),
     );
     (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
       id: "inv_expire_fail",
@@ -5145,6 +5147,75 @@ describe("cancelOpenCheckoutSessionAttempts", () => {
           invoiceId: "inv_paid",
           status: { notIn: ["CANCELED", "FAILED", "SUCCEEDED"] },
         }),
+      }),
+    );
+  });
+
+  it("proceeds when Stripe says the session is already closed", async () => {
+    // A session Stripe has already expired, or one the client completed, cannot
+    // collect anything further - there is nothing left to expire, so the caller
+    // is free to continue.
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (stripeClient.checkout.sessions.expire as jest.Mock).mockRejectedValueOnce(
+      Object.assign(new Error("No such session state"), {
+        type: "StripeInvalidRequestError",
+      }),
+    );
+    (prisma.paymentAttempt.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        id: "pa_1",
+        providerCheckoutSessionId: "cs_closed",
+        rawProviderPayload: null,
+      },
+    ]);
+    (prisma.paymentAttempt.updateMany as jest.Mock).mockResolvedValueOnce({
+      count: 1,
+    });
+
+    await expect(
+      cancelOpenCheckoutSessionAttempts("inv_closed"),
+    ).resolves.toBeUndefined();
+    expect(prisma.paymentAttempt.updateMany).toHaveBeenCalled();
+  });
+
+  it("aborts when the session's state is unknown after a provider failure", async () => {
+    // A network fault, a 5xx or a rate limit leaves the link very likely still
+    // live. Swallowing would let the caller reduce what is owed and cancel the
+    // local attempt while the client's link still charges the old amount -
+    // the exact case this expiry exists to prevent (#2598).
+    const stripeClient = {
+      checkout: { sessions: { create: jest.fn(), expire: jest.fn() } },
+      paymentIntents: { create: jest.fn(), retrieve: jest.fn() },
+      refunds: { create: jest.fn() },
+    };
+    __setFinanceStripeClientForTests(stripeClient);
+    (stripeClient.checkout.sessions.expire as jest.Mock).mockRejectedValueOnce(
+      Object.assign(new Error("rate limited"), {
+        type: "StripeRateLimitError",
+      }),
+    );
+    (prisma.paymentAttempt.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        id: "pa_1",
+        providerCheckoutSessionId: "cs_live",
+        rawProviderPayload: null,
+      },
+    ]);
+
+    await expect(
+      cancelOpenCheckoutSessionAttempts("inv_unknown"),
+    ).rejects.toThrow("rate limited");
+    // Nothing local was written for THIS invoice, so the caller aborts before
+    // issuing anything. Scoped to the invoice: updateMany carries calls from
+    // the other cases in this file.
+    expect(prisma.paymentAttempt.updateMany).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ invoiceId: "inv_unknown" }),
       }),
     );
   });
