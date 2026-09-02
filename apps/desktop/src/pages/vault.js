@@ -61,6 +61,12 @@
   };
 
   const loadStats = function () {
+    /*
+     * Reset to the neutral state before asking. `.badge` on its own is the green
+     * completed treatment, so leaving it alone would render a GREEN "checking…"
+     * on every load - and keep it green indefinitely if the request fails.
+     */
+    badgeEncryption(undefined);
     yc.vaultStats().then(function (res) {
       if (!res?.ok || !res.stats) return;
       const stats = res.stats;
@@ -94,10 +100,19 @@
       return;
     }
     if (encryptionAvailable === false) {
-      encBadge.textContent = 'Not encrypted';
+      /*
+       * "Encryption unavailable", not "Not encrypted". This describes the
+       * keychain's CURRENT capability, which is the only thing the flag knows.
+       * Documents stored while the keychain was available stay encrypted on
+       * disk - losing access blocks new writes, it does not decrypt anything -
+       * so calling the vault "not encrypted" would misstate the files already
+       * in it, which is the same class of false claim this badge is here to
+       * stop making.
+       */
+      encBadge.textContent = 'Encryption unavailable';
       encBadge.className = 'badge badge-warn';
       encBadge.title =
-        'The OS keychain is unavailable, so the vault cannot encrypt and will refuse to store documents.';
+        'The OS keychain is unavailable, so the vault cannot store new documents. Documents saved earlier remain encrypted on disk.';
       return;
     }
     // Unknown: say so rather than guessing either way.
