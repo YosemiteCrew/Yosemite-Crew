@@ -71,7 +71,10 @@ describe('Dropdown Component', () => {
   it('renders correctly with placeholder', () => {
     render(<Dropdown placeholder="Select Item" value="" onChange={mockOnChange} />);
 
+    // The label above keeps the caller's string; the trigger shows an
+    // instruction rather than an empty box, and never repeats the label.
     expect(screen.getByText('Select Item')).toBeInTheDocument();
+    expect(screen.getByText('Select an option')).toBeInTheDocument();
     expect(screen.queryByTestId('IoChevronDown')).toBeInTheDocument();
   });
 
