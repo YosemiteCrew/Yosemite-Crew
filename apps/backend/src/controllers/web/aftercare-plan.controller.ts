@@ -21,7 +21,7 @@ const AftercareTypeEnum = z.enum([
 ]);
 
 const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
+  patientId: z.uuid(),
   type: AftercareTypeEnum,
   provider: z.string().max(200).optional(),
   estimatedCost: z.number().min(0).optional(),
@@ -31,7 +31,7 @@ const CreateBodySchema = z.object({
   urnsRequested: z.number().int().min(0).optional(),
   instructions: z.string().max(3000).optional(),
   certificateNumber: z.string().max(100).optional(),
-  completedAt: z.string().datetime().optional(),
+  completedAt: z.iso.datetime().optional(),
   notes: z.string().max(3000).optional(),
 });
 
@@ -41,7 +41,7 @@ const UpdateBodySchema = CreateBodySchema.omit({
 }).partial();
 
 const ListQuerySchema = z.object({
-  patientId: z.string().uuid().optional(),
+  patientId: z.uuid().optional(),
   type: AftercareTypeEnum.optional(),
   completed: z.string().optional().transform(parseOptionalBooleanFlag),
 });

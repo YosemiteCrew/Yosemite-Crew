@@ -21,7 +21,7 @@ const ClaimStatusEnum = z.enum([
 ]);
 
 const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
+  patientId: z.uuid(),
   invoiceId: z.string().optional(),
   encounterId: z.string().optional(),
   insurerName: z.string().min(1).max(200),
@@ -50,7 +50,7 @@ const UpdateStatusBodySchema = z.object({
 });
 
 const ListQuerySchema = z.object({
-  patientId: z.string().uuid().optional(),
+  patientId: z.uuid().optional(),
   status: ClaimStatusEnum.optional(),
   invoiceId: z.string().optional(),
 });

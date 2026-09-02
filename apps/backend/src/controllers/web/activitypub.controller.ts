@@ -106,7 +106,7 @@ const PatientSummarySchema = z.object({
 });
 
 const SendReferralBodySchema = z.object({
-  toActorUri: z.string().url().max(512),
+  toActorUri: z.url().max(512),
   patientSummary: PatientSummarySchema,
   urgency: ReferralUrgencySchema.optional(),
   clinicalContext: z.string().max(5000).optional(),

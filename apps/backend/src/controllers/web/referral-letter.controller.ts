@@ -18,11 +18,11 @@ const ReferralStatusEnum = z.enum([
 ]);
 
 const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
+  patientId: z.uuid(),
   encounterId: z.string().optional(),
   specialistName: z.string().max(200).optional(),
   specialistClinic: z.string().max(200).optional(),
-  specialistEmail: z.string().email().optional(),
+  specialistEmail: z.email().optional(),
   reasonForReferral: z.string().min(1).max(5000),
   historySummary: z.string().max(5000).optional(),
   examFindings: z.string().max(5000).optional(),
@@ -33,7 +33,7 @@ const CreateBodySchema = z.object({
 const UpdateBodySchema = z.object({
   specialistName: z.string().max(200).optional(),
   specialistClinic: z.string().max(200).optional(),
-  specialistEmail: z.string().email().optional(),
+  specialistEmail: z.email().optional(),
   reasonForReferral: z.string().min(1).max(5000).optional(),
   historySummary: z.string().max(5000).optional(),
   examFindings: z.string().max(5000).optional(),
@@ -42,7 +42,7 @@ const UpdateBodySchema = z.object({
 });
 
 const ListQuerySchema = z.object({
-  patientId: z.string().uuid().optional(),
+  patientId: z.uuid().optional(),
   status: ReferralStatusEnum.optional(),
 });
 

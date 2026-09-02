@@ -34,10 +34,10 @@ const PlanFieldsSchema = z.object({
   tapeApplication: z.boolean().optional(),
   precautions: z.string().max(2000).optional(),
   homeExercises: z.string().max(5000).optional(),
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional(),
-  lastSessionAt: z.string().datetime().optional(),
-  nextSessionAt: z.string().datetime().optional(),
+  startDate: z.iso.datetime().optional(),
+  endDate: z.iso.datetime().optional(),
+  lastSessionAt: z.iso.datetime().optional(),
+  nextSessionAt: z.iso.datetime().optional(),
   therapist: z.string().max(300).optional(),
   status: StatusEnum.optional(),
   notes: z.string().max(2000).optional(),
@@ -45,10 +45,10 @@ const PlanFieldsSchema = z.object({
 
 const CreateBodySchema = patientScopeBody
   .extend({ surgicalProcedureId: uuid().optional() })
-  .merge(
+  .extend(
     PlanFieldsSchema.omit({ lastSessionAt: true, status: true }).required({
       diagnosis: true,
-    }),
+    }).shape,
   );
 
 const ListQuerySchema = patientScopeQuery.extend({

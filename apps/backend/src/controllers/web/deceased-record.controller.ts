@@ -29,7 +29,7 @@ const BodyDispositionEnum = z.enum([
  * record is first written, and every field is optional on update.
  */
 const DeceasedRecordFieldsSchema = z.object({
-  deceasedAt: z.string().datetime(),
+  deceasedAt: z.iso.datetime(),
   causeOfDeathType: CauseOfDeathEnum,
   causeOfDeathDetail: z.string().optional(),
   bodyWeightKg: z.number().positive().optional(),
@@ -37,14 +37,14 @@ const DeceasedRecordFieldsSchema = z.object({
   necropsyRequested: z.boolean().optional(),
   necropsyFacility: z.string().optional(),
   bodyDisposition: BodyDispositionEnum.optional(),
-  ownerNotifiedAt: z.string().datetime().optional(),
+  ownerNotifiedAt: z.iso.datetime().optional(),
   certifiedBy: z.string().optional(),
   notes: z.string().optional(),
 });
 
 const CreateDeceasedRecordSchema = z
   .object({ patientId: z.string() })
-  .merge(DeceasedRecordFieldsSchema);
+  .extend(DeceasedRecordFieldsSchema.shape);
 
 const UpdateDeceasedRecordSchema = DeceasedRecordFieldsSchema.partial();
 

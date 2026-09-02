@@ -27,19 +27,19 @@ const ImagingStatusEnum = z.enum([
 ]);
 
 const RecordBodySchema = z.object({
-  patientId: z.string().uuid(),
-  encounterId: z.string().uuid().optional(),
+  patientId: z.uuid(),
+  encounterId: z.uuid().optional(),
   imagingType: ImagingTypeEnum,
   bodyRegion: z.string().max(200).optional(),
   indication: z.string().max(1000).optional(),
-  takenAt: z.string().datetime(),
+  takenAt: z.iso.datetime(),
   takenBy: z.string().max(200).optional(),
   interpretedBy: z.string().max(200).optional(),
-  interpretedAt: z.string().datetime().optional(),
+  interpretedAt: z.iso.datetime().optional(),
   findings: z.string().max(5000).optional(),
   impression: z.string().max(2000).optional(),
   followUpRequired: z.boolean().optional(),
-  documentId: z.string().uuid().optional(),
+  documentId: z.uuid().optional(),
 });
 
 const ReviewBodySchema = z.object({
@@ -57,7 +57,7 @@ const UpdateBodySchema = z.object({
   findings: z.string().max(5000).optional(),
   impression: z.string().max(2000).optional(),
   followUpRequired: z.boolean().optional(),
-  documentId: z.string().uuid().optional(),
+  documentId: z.uuid().optional(),
   status: ImagingStatusEnum.optional(),
 });
 
