@@ -9,6 +9,7 @@ jest.mock("src/config/prisma", () => ({
 
 import fs from "node:fs";
 import {
+  isAntibacterial,
   main,
   parentOf,
   planImport,
@@ -48,6 +49,28 @@ describe("speciesFor", () => {
   it("assigns no species outside QI, where levels are therapeutic", () => {
     // QJ01AA02 is doxycycline for any species; claiming one would be wrong.
     expect(speciesFor("QJ01AA02")).toEqual([]);
+  });
+});
+
+describe("isAntibacterial", () => {
+  it("covers both groups ATCvet names ANTIBACTERIALS", () => {
+    // QJ01 systemic and QJ51 intramammary. Intramammary products treat mastitis
+    // and are a large share of dairy antibiotic use; counting only QJ01 would
+    // under-report exactly the population stewardship surveillance watches.
+    expect(isAntibacterial("QJ01AA02")).toBe(true); // doxycycline, systemic
+    expect(isAntibacterial("QJ51CR02")).toBe(true); // amoxicillin, intramammary
+  });
+
+  it("excludes the broader antiinfective groups", () => {
+    // QG01/QG51 are "antiinfectives and antiseptics" - wider than antibacterials,
+    // so flagging them would over-report instead.
+    expect(isAntibacterial("QG51AA03")).toBe(false);
+    expect(isAntibacterial("QG01AA01")).toBe(false);
+  });
+
+  it("excludes unrelated groups", () => {
+    expect(isAntibacterial("QA01AA01")).toBe(false);
+    expect(isAntibacterial("QJ02AC02")).toBe(false); // antimycotic, not antibacterial
   });
 });
 
