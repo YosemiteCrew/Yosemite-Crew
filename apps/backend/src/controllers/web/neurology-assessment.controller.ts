@@ -26,9 +26,9 @@ const SpinalReflexGradeEnum = z.enum([
 ]);
 
 const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
-  encounterId: z.string().uuid().optional(),
-  assessedAt: z.string().datetime(),
+  patientId: z.uuid(),
+  encounterId: z.uuid().optional(),
+  assessedAt: z.iso.datetime(),
   consciousnessLevel: ConsciousnessLevelEnum.optional(),
   gaitScore: GaitScoreEnum.optional(),
   cranialNerveFindings: z.string().max(3000).optional(),

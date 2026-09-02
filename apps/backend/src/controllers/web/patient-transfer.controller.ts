@@ -17,10 +17,7 @@ const CreateTransferSchema = z.object({
   receivingFacility: z.string(),
   receivingVetName: z.string().optional(),
   receivingVetContact: z.string().optional(),
-  transferredAt: z
-    .string()
-    .datetime()
-    .transform((v) => new Date(v)),
+  transferredAt: z.iso.datetime().transform((v) => new Date(v)),
   transferredBy: z.string().optional(),
   chiefComplaint: z.string().optional(),
   currentDiagnoses: z.string().optional(),

@@ -46,7 +46,7 @@ const roundTripsToSameDay = (value: string): boolean => {
 };
 
 const ClinicalDateSchema = z
-  .union([z.string().date(), z.string().datetime({ offset: true })])
+  .union([z.iso.date(), z.iso.datetime({ offset: true })])
   .refine(roundTripsToSameDay, {
     message: "Must be a real ISO-8601 date or datetime",
   });

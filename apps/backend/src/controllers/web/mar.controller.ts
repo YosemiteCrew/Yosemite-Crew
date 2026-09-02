@@ -17,17 +17,17 @@ const MARStatusEnum = z.enum([
 ]);
 
 const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
-  encounterId: z.string().uuid().optional(),
-  prescriptionId: z.string().uuid().optional(),
+  patientId: z.uuid(),
+  encounterId: z.uuid().optional(),
+  prescriptionId: z.uuid().optional(),
   medicationName: z.string().min(1).max(200),
   dose: z.string().min(1).max(100),
   route: z.string().min(1).max(100),
-  scheduledAt: z.string().datetime(),
+  scheduledAt: z.iso.datetime(),
 });
 
 const AdministerBodySchema = z.object({
-  administeredAt: z.string().datetime().optional(),
+  administeredAt: z.iso.datetime().optional(),
   notes: z.string().max(2000).optional(),
 });
 
@@ -37,8 +37,8 @@ const HoldBodySchema = z.object({
 
 const ListQuerySchema = patientScopeQuery.extend({
   status: MARStatusEnum.optional(),
-  from: z.string().datetime().optional(),
-  to: z.string().datetime().optional(),
+  from: z.iso.datetime().optional(),
+  to: z.iso.datetime().optional(),
 });
 
 const EntryParamsSchema = orgParams.extend({ marEntryId: uuid() });

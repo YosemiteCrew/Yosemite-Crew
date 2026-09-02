@@ -41,9 +41,9 @@ const EyeFindingSchema = z.object({
 });
 
 const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
-  encounterId: z.string().uuid().optional(),
-  examinedAt: z.string().datetime(),
+  patientId: z.uuid(),
+  encounterId: z.uuid().optional(),
+  examinedAt: z.iso.datetime(),
   visionLeft: VisionStatusEnum.optional(),
   visionRight: VisionStatusEnum.optional(),
   menaceLeft: z.boolean().optional(),

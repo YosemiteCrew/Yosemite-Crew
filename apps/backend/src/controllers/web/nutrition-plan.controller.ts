@@ -29,11 +29,11 @@ const PlanFieldsSchema = z.object({
   waterIntake: z.string().max(200).optional(),
   restrictions: z.string().max(2000).optional(),
   indication: z.string().max(1000).optional(),
-  reviewDate: z.string().datetime().optional(),
+  reviewDate: z.iso.datetime().optional(),
   notes: z.string().max(2000).optional(),
 });
 
-const CreateBodySchema = patientScopeBody.merge(PlanFieldsSchema);
+const CreateBodySchema = patientScopeBody.extend(PlanFieldsSchema.shape);
 
 const UpdateBodySchema = PlanFieldsSchema.partial().extend({
   status: StatusEnum.optional(),

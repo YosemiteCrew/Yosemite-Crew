@@ -16,8 +16,8 @@ import { getParentAddressForAuthUser } from "src/utils/location";
 // as `{"not": null}` survives mongoSanitize and would otherwise match an arbitrary org.
 const organisationSearchSchema = z.object({
   placeId: z.string().min(1).optional(),
-  lat: z.number().finite().optional(),
-  lng: z.number().finite().optional(),
+  lat: z.number().optional(),
+  lng: z.number().optional(),
   name: z.string().min(1).optional(),
   addressLine: z.string().min(1).optional(),
 });

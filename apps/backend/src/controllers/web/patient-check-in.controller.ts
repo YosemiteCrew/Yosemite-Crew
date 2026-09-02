@@ -22,10 +22,7 @@ const CreateSchema = z.object({
   patientId: z.string(),
   clientId: z.string(),
   appointmentId: z.string().optional(),
-  arrivedAt: z
-    .string()
-    .datetime()
-    .transform((v) => new Date(v)),
+  arrivedAt: z.iso.datetime().transform((v) => new Date(v)),
   triagePriority: TriagePriorityEnum.optional(),
   triageNote: z.string().optional(),
   checkedInBy: z.string().optional(),
@@ -35,8 +32,7 @@ const CreateSchema = z.object({
 const ListQuerySchema = z.object({
   patientId: z.string().optional(),
   status: StatusEnum.optional(),
-  date: z
-    .string()
+  date: z.iso
     .datetime()
     .transform((v) => new Date(v))
     .optional(),

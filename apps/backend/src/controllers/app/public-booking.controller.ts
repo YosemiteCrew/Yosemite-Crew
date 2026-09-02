@@ -34,11 +34,11 @@ const timeOfDay = z
  * submission carrying a megabyte of text into either.
  */
 const RequestSchema = z.object({
-  serviceId: z.string().uuid(),
+  serviceId: z.uuid(),
   date: isoDate,
   startTime: timeOfDay,
   ownerName: z.string().trim().min(1).max(120),
-  ownerEmail: z.string().trim().email().max(254),
+  ownerEmail: z.string().trim().pipe(z.email().max(254)),
   ownerPhone: z.string().trim().max(40).optional().nullable(),
   petName: z.string().trim().min(1).max(120),
   petSpecies: z.string().trim().min(1).max(60),
@@ -52,7 +52,7 @@ const RequestSchema = z.object({
 });
 
 const SlotsQuerySchema = z.object({
-  serviceId: z.string().uuid(),
+  serviceId: z.uuid(),
   date: isoDate,
 });
 

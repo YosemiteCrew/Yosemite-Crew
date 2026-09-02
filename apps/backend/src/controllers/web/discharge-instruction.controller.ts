@@ -13,14 +13,14 @@ import {
 const DischargeStatusEnum = z.enum(["DRAFT", "SENT", "ACKNOWLEDGED"]);
 
 const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
-  encounterId: z.string().uuid().optional(),
+  patientId: z.uuid(),
+  encounterId: z.uuid().optional(),
   medicationSchedule: z.string().max(5000).optional(),
   dietaryNotes: z.string().max(2000).optional(),
   activityNotes: z.string().max(2000).optional(),
   woundCareNotes: z.string().max(2000).optional(),
   warningSigns: z.string().max(2000).optional(),
-  followUpDate: z.string().datetime().optional(),
+  followUpDate: z.iso.datetime().optional(),
   followUpNotes: z.string().max(2000).optional(),
   emergencyContact: z.string().max(500).optional(),
   additionalNotes: z.string().max(5000).optional(),

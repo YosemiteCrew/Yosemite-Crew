@@ -20,8 +20,8 @@ const NoteTypeEnum = z.enum([
 ]);
 
 const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
-  encounterId: z.string().uuid().optional(),
+  patientId: z.uuid(),
+  encounterId: z.uuid().optional(),
   noteType: NoteTypeEnum,
   subjectiveFindings: z.string().max(10000).optional(),
   objectiveFindings: z.string().max(10000).optional(),

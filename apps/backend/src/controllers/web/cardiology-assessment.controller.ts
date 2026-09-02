@@ -33,9 +33,9 @@ const MurmurGradeEnum = z.enum([
 const AcvimClassEnum = z.enum(["A", "B1", "B2", "C", "D"]);
 
 const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
-  encounterId: z.string().uuid().optional(),
-  assessedAt: z.string().datetime(),
+  patientId: z.uuid(),
+  encounterId: z.uuid().optional(),
+  assessedAt: z.iso.datetime(),
   heartRate: z.number().int().min(1).max(500).optional(),
   heartRhythm: HeartRhythmEnum.optional(),
   murmurGrade: MurmurGradeEnum.optional(),

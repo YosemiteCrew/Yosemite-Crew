@@ -25,7 +25,7 @@ const UpdateChecklistSchema = z.object({
   status: StatusEnum.optional(),
   conductedBy: z.string().optional(),
   notes: z.string().optional(),
-  completedAt: z.string().datetime().optional(),
+  completedAt: z.iso.datetime().optional(),
 });
 
 const CheckItemSchema = z.object({

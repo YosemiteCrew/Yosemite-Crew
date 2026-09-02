@@ -36,9 +36,9 @@ const DnaTestSchema = z.object({
 });
 
 const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
-  encounterId: z.string().uuid().optional(),
-  screenedAt: z.string().datetime(),
+  patientId: z.uuid(),
+  encounterId: z.uuid().optional(),
+  screenedAt: z.iso.datetime(),
   laboratoryName: z.string().max(200).optional(),
   dnaTests: z.array(DnaTestSchema).optional(),
   ofa_hips: OrthoRatingEnum.optional(),
@@ -47,7 +47,7 @@ const CreateBodySchema = z.object({
   ofa_cardiac: z.string().max(200).optional(),
   ofa_eyes: z.string().max(200).optional(),
   certificateNumber: z.string().max(100).optional(),
-  certificationExpiry: z.string().datetime().optional(),
+  certificationExpiry: z.iso.datetime().optional(),
   notes: z.string().max(3000).optional(),
 });
 

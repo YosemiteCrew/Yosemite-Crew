@@ -29,24 +29,24 @@ const PainInterventionEnum = z.enum([
 ]);
 
 const RecordBodySchema = z.object({
-  patientId: z.string().uuid(),
-  encounterId: z.string().uuid().optional(),
+  patientId: z.uuid(),
+  encounterId: z.uuid().optional(),
   painScale: PainScaleEnum,
   painScore: z.number().int().min(0).max(10),
   rawScore: z.string().max(50).optional(),
   behaviouralSigns: z.string().max(1000).optional(),
   vocalisation: z.boolean().optional(),
   posture: z.string().max(500).optional(),
-  assessedAt: z.string().datetime(),
+  assessedAt: z.iso.datetime(),
   interventionType: PainInterventionEnum.optional(),
   interventionDetail: z.string().max(1000).optional(),
-  reassessAt: z.string().datetime().optional(),
+  reassessAt: z.iso.datetime().optional(),
   notes: z.string().max(2000).optional(),
 });
 
 const ListQuerySchema = patientScopeQuery.extend({
-  from: z.string().datetime().optional(),
-  to: z.string().datetime().optional(),
+  from: z.iso.datetime().optional(),
+  to: z.iso.datetime().optional(),
 });
 
 const AssessmentParamsSchema = orgParams.extend({ assessmentId: uuid() });

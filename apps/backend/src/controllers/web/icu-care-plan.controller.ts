@@ -35,13 +35,13 @@ const CareFieldsSchema = z.object({
   alertThresholds: z.string().max(2000).optional(),
   primaryVet: z.string().max(300).optional(),
   nursePrimary: z.string().max(300).optional(),
-  anticipatedDischarge: z.string().datetime().optional(),
+  anticipatedDischarge: z.iso.datetime().optional(),
   notes: z.string().max(2000).optional(),
 });
 
 const CreateBodySchema = patientScopeBody
-  .extend({ admittedAt: z.string().datetime() })
-  .merge(CareFieldsSchema);
+  .extend({ admittedAt: z.iso.datetime() })
+  .extend(CareFieldsSchema.shape);
 
 const DischargeBodySchema = z.object({
   status: DischargeStatusEnum,
@@ -49,7 +49,7 @@ const DischargeBodySchema = z.object({
 });
 
 const ListQuerySchema = z.object({
-  patientId: z.string().uuid().optional(),
+  patientId: z.uuid().optional(),
   status: IcuStatusEnum.optional(),
 });
 

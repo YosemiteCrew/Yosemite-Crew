@@ -46,8 +46,8 @@ const DiscrepancySchema = z.object({
 });
 
 const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
-  encounterId: z.string().uuid().optional(),
+  patientId: z.uuid(),
+  encounterId: z.uuid().optional(),
   homeMedications: z.array(HomeMedSchema),
   hospitalOrders: z.array(HospitalOrderSchema),
   discrepancies: z.array(DiscrepancySchema).optional(),

@@ -22,14 +22,14 @@ const EstimateItemSchema = z.object({
 const CreateEstimateSchema = z.object({
   patientId: z.string(),
   encounterId: z.string().optional(),
-  validUntil: z.string().datetime().optional(),
+  validUntil: z.iso.datetime().optional(),
   currency: z.string().length(3).optional(),
   notes: z.string().optional(),
   items: z.array(EstimateItemSchema).min(1),
 });
 
 const UpdateEstimateSchema = z.object({
-  validUntil: z.string().datetime().optional(),
+  validUntil: z.iso.datetime().optional(),
   currency: z.string().length(3).optional(),
   notes: z.string().optional(),
   items: z.array(EstimateItemSchema).optional(),

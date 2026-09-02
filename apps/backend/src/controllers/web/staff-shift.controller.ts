@@ -16,9 +16,9 @@ const ShiftStatusEnum = z.enum([
 const CreateSchema = z.object({
   staffId: z.string().min(1),
   role: z.string().min(1),
-  shiftDate: z.string().datetime(),
-  startTime: z.string().datetime(),
-  endTime: z.string().datetime(),
+  shiftDate: z.iso.datetime(),
+  startTime: z.iso.datetime(),
+  endTime: z.iso.datetime(),
   breakMinutes: z.number().int().min(0).optional(),
   notes: z.string().optional(),
   createdBy: z.string().optional(),
@@ -26,9 +26,9 @@ const CreateSchema = z.object({
 
 const UpdateSchema = z.object({
   role: z.string().min(1).optional(),
-  shiftDate: z.string().datetime().optional(),
-  startTime: z.string().datetime().optional(),
-  endTime: z.string().datetime().optional(),
+  shiftDate: z.iso.datetime().optional(),
+  startTime: z.iso.datetime().optional(),
+  endTime: z.iso.datetime().optional(),
   breakMinutes: z.number().int().min(0).optional(),
   notes: z.string().optional(),
   updatedBy: z.string().optional(),

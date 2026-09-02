@@ -163,7 +163,7 @@ const specialityMutationSchema = z.object({
   name: z.string().trim().min(1).optional(),
   headUserId: z.string().trim().min(1).nullable().optional(),
   headName: z.string().trim().min(1).nullable().optional(),
-  headProfilePicUrl: z.string().trim().url().nullable().optional(),
+  headProfilePicUrl: z.string().trim().pipe(z.url()).nullable().optional(),
   teamMemberIds: z.array(z.string().trim().min(1)).optional(),
 });
 

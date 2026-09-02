@@ -31,13 +31,13 @@ const PathologyStatusEnum = z.enum([
 ]);
 
 const CreateBodySchema = z.object({
-  patientId: z.string().uuid(),
-  encounterId: z.string().uuid().optional(),
+  patientId: z.uuid(),
+  encounterId: z.uuid().optional(),
   pathologyType: PathologyTypeEnum,
   sampleType: z.string().min(1).max(300),
   anatomicSite: z.string().min(1).max(500),
-  collectedAt: z.string().datetime(),
-  submittedAt: z.string().datetime().optional(),
+  collectedAt: z.iso.datetime(),
+  submittedAt: z.iso.datetime().optional(),
   labName: z.string().max(300).optional(),
   labRefNumber: z.string().max(200).optional(),
   clinicalHistory: z.string().max(3000).optional(),
@@ -59,7 +59,7 @@ const ReviewBodySchema = z.object({
 });
 
 const UpdateBodySchema = z.object({
-  submittedAt: z.string().datetime().optional(),
+  submittedAt: z.iso.datetime().optional(),
   labName: z.string().max(300).optional(),
   labRefNumber: z.string().max(200).optional(),
   clinicalHistory: z.string().max(3000).optional(),

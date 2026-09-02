@@ -28,20 +28,14 @@ const StartSchema = z.object({
   reason: ReasonEnum.optional(),
   level: LevelEnum.optional(),
   unitId: z.string().optional(),
-  startedAt: z
-    .string()
-    .datetime()
-    .transform((v) => new Date(v)),
+  startedAt: z.iso.datetime().transform((v) => new Date(v)),
   initiatedBy: z.string().optional(),
   ppe: z.array(z.string()).optional(),
   notes: z.string().optional(),
 });
 
 const EndSchema = z.object({
-  endedAt: z
-    .string()
-    .datetime()
-    .transform((v) => new Date(v)),
+  endedAt: z.iso.datetime().transform((v) => new Date(v)),
   endedBy: z.string().optional(),
   notes: z.string().optional(),
 });

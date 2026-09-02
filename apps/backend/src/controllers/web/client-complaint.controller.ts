@@ -29,7 +29,7 @@ const CreateComplaintSchema = z.object({
   category: CategoryEnum.optional(),
   summary: z.string().min(1),
   description: z.string().optional(),
-  reportedAt: z.string().datetime().optional(),
+  reportedAt: z.iso.datetime().optional(),
   reportedBy: z.string().optional(),
   assignedTo: z.string().optional(),
 });
@@ -40,7 +40,7 @@ const UpdateComplaintSchema = z.object({
   summary: z.string().min(1).optional(),
   description: z.string().optional(),
   assignedTo: z.string().optional(),
-  resolvedAt: z.string().datetime().optional(),
+  resolvedAt: z.iso.datetime().optional(),
   resolutionNotes: z.string().optional(),
 });
 
