@@ -371,39 +371,39 @@ describe('RoomInfo modal', () => {
     expect(screen.getAllByLabelText('Units')).toHaveLength(2);
 
     // Distributing 3 across two unit rows gives 2 + 1.
-    fireEvent.change(screen.getByLabelText('Total Units'), { target: { value: '3' } });
+    fireEvent.change(screen.getByLabelText('Total units'), { target: { value: '3' } });
     const counts = screen
       .getAllByLabelText('Units')
       .map((input) => (input as HTMLInputElement).value);
     expect(counts).toEqual(['2', '1']);
 
     // NaN input clamps the total to 0.
-    fireEvent.change(screen.getByLabelText('Total Units'), { target: { value: 'abc' } });
+    fireEvent.change(screen.getByLabelText('Total units'), { target: { value: 'abc' } });
     expect(
       screen.getAllByLabelText('Units').map((input) => (input as HTMLInputElement).value)
     ).toEqual(['0', '0']);
 
     // Per-unit count edits (including NaN) feed back into the total.
     fireEvent.change(screen.getAllByLabelText('Units')[0], { target: { value: '4' } });
-    expect((screen.getByLabelText('Total Units') as HTMLInputElement).value).toBe('4');
+    expect((screen.getByLabelText('Total units') as HTMLInputElement).value).toBe('4');
     fireEvent.change(screen.getAllByLabelText('Units')[0], { target: { value: 'x' } });
-    expect((screen.getByLabelText('Total Units') as HTMLInputElement).value).toBe('0');
+    expect((screen.getByLabelText('Total units') as HTMLInputElement).value).toBe('0');
   });
 
   it('clears units when switching to a room type that cannot hold them', () => {
     render(<RoomInfo showModal setShowModal={jest.fn()} activeRoom={activeRoom} canEditRoom />);
 
     fireEvent.click(screen.getByLabelText('Edit room'));
-    fireEvent.click(screen.getByLabelText('Room Type option CONSULTATION'));
+    fireEvent.click(screen.getByLabelText('Room type option CONSULTATION'));
 
-    expect(screen.queryByLabelText('Total Units')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Total units')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Add unit type')).not.toBeInTheDocument();
     expect(
       screen.getByText('Select ICU, Inpatient, Isolation, or Boarding to configure unit types.')
     ).toBeInTheDocument();
 
     // Switching back restores unit support with an empty unit list.
-    fireEvent.click(screen.getByLabelText('Room Type option ICU'));
+    fireEvent.click(screen.getByLabelText('Room type option ICU'));
     expect(screen.getByText('No unit types configured.')).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText('Add unit type'));
     expect(screen.getAllByLabelText('Units')).toHaveLength(1);

@@ -183,7 +183,7 @@ describe('TotalBillContainer', () => {
     // Remaining deposit = max(0, 15000 − 9000) = 6000 ($60).
     renderBill(baseItem, { depositCents: 15000, withdrawDeposit: true });
 
-    const remainingRow = screen.getByText('Remaining Deposit').closest('div');
+    const remainingRow = screen.getByText('Remaining deposit').closest('div');
     expect(remainingRow).toHaveTextContent('$60');
   });
 

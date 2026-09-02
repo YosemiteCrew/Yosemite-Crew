@@ -76,7 +76,7 @@ const SpecialitiesRevamp = () => {
         <Primary
           href="#"
           icon={<span>+</span>}
-          text="Add speciality"
+          text="New speciality"
           onClick={(e) => {
             e.preventDefault();
             setAddModalOpen(true);
@@ -102,7 +102,7 @@ const SpecialitiesRevamp = () => {
               <Primary
                 href="#"
                 icon={<span>+</span>}
-                text="Add speciality"
+                text="New speciality"
                 onClick={(e) => {
                   e.preventDefault();
                   setAddModalOpen(true);

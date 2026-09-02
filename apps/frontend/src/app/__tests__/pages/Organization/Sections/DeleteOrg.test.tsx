@@ -58,15 +58,16 @@ describe('DeleteOrg section', () => {
   it('renders the danger-zone card with description and delete trigger', () => {
     render(<DeleteOrg />);
 
-    expect(screen.getByText('Delete organization')).toBeInTheDocument();
+    expect(screen.getByText('Delete organization', { selector: 'div' })).toBeInTheDocument();
     expect(screen.getByText('Removes the clinic and revokes all team access')).toBeInTheDocument();
-    expect(screen.getByText('Delete…')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Delete organization' })).toBeInTheDocument();
+    expect(screen.queryByText('Delete…')).not.toBeInTheDocument();
   });
 
   it('opens the confirmation modal with the org-specific copy', () => {
     render(<DeleteOrg />);
 
-    fireEvent.click(screen.getByText('Delete…'));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete organization' }));
 
     expect(
       screen.getByText('Are you sure you want to delete this organization?')
@@ -77,7 +78,7 @@ describe('DeleteOrg section', () => {
   it('opens modal and deletes when email is provided', async () => {
     render(<DeleteOrg />);
 
-    fireEvent.click(screen.getByText('Delete…'));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete organization' }));
     fireEvent.change(screen.getByLabelText('Enter email address'), {
       target: { value: 'owner@example.com' },
     });

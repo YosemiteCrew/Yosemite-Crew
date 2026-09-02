@@ -1458,7 +1458,7 @@ describe('TreatmentStep', () => {
       />
     );
 
-    // The bottom "Print Labels" button shares the label-print handler.
+    // The bottom "Print labels" button shares the label-print handler.
     const buttons = screen.getAllByRole('button', { name: /print labels/i });
     fireEvent.click(buttons[buttons.length - 1]);
     await waitFor(() => expect(fetchPrescriptionLabelPdf).toHaveBeenCalledWith(ORG, 'rx-1'));

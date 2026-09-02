@@ -5,24 +5,32 @@ import AppointmentEstimatePanel from '@/app/features/appointments/components/App
 describe('AppointmentEstimatePanel', () => {
   it('shows cost and discount when provided', () => {
     render(<AppointmentEstimatePanel cost={100} maxDiscount={20} />);
-    expect(screen.getAllByText('$ 100.00')).toHaveLength(2);
+    expect(screen.getAllByText('$100.00')).toHaveLength(2);
     expect(screen.getByText('$20.00')).toBeInTheDocument();
   });
 
   it('uses cost as the estimate without subtracting max discount', () => {
     render(<AppointmentEstimatePanel cost={100} maxDiscount={20} />);
-    expect(screen.getAllByText('$ 100.00')).toHaveLength(2);
+    expect(screen.getAllByText('$100.00')).toHaveLength(2);
   });
 
   it('keeps estimate at cost when discount exceeds cost', () => {
     render(<AppointmentEstimatePanel cost={10} maxDiscount={50} />);
-    expect(screen.getAllByText('$ 10.00')).toHaveLength(2);
+    expect(screen.getAllByText('$10.00')).toHaveLength(2);
   });
 
-  it('shows dashes when cost and discount are zero', () => {
+  it('shows an em dash for cost, discount and estimate when nothing is costed', () => {
     render(<AppointmentEstimatePanel cost={0} maxDiscount={0} />);
-    const dashes = screen.getAllByText('-');
-    expect(dashes).toHaveLength(2);
+    expect(screen.getAllByText('—')).toHaveLength(3);
+    // The estimate slot is a dash too, never a "$ 00.00" placeholder.
+    expect(screen.queryByText(/\$/)).not.toBeInTheDocument();
+  });
+
+  it('formats money with no space after the sign', () => {
+    render(<AppointmentEstimatePanel cost={143} maxDiscount={5} />);
+    expect(screen.getAllByText('$143.00')).toHaveLength(2);
+    expect(screen.getByText('$5.00')).toBeInTheDocument();
+    expect(screen.queryByText(/\$ /)).not.toBeInTheDocument();
   });
 
   it('defaults currency to USD', () => {
@@ -37,7 +45,7 @@ describe('AppointmentEstimatePanel', () => {
 
   it('handles string cost and discount values', () => {
     render(<AppointmentEstimatePanel cost="75.50" maxDiscount="15.50" />);
-    expect(screen.getAllByText('$ 75.50')).toHaveLength(2);
+    expect(screen.getAllByText('$75.50')).toHaveLength(2);
     expect(screen.getByText('$15.50')).toBeInTheDocument();
   });
 

@@ -63,7 +63,7 @@ jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
         onClick={() =>
           onSelect({
             value:
-              placeholder === 'Room Type'
+              placeholder === 'Room type'
                 ? 'INPATIENT'
                 : placeholder === 'Days'
                   ? 'SUN'
@@ -75,7 +75,7 @@ jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
       >
         {placeholder}
       </button>
-      {placeholder === 'Room Type' && (
+      {placeholder === 'Room type' && (
         <button
           type="button"
           aria-label="select-consultation"
@@ -101,7 +101,7 @@ jest.mock('@/app/ui/inputs/MultiSelectDropdown', () => ({
             ? ['CANINE', 'FELINE']
             : placeholder === 'Speciality (optional)'
               ? ['spec-1']
-              : placeholder === 'Assigned Staff (optional)'
+              : placeholder === 'Assigned staff (optional)'
                 ? ['staff-1']
                 : placeholder === 'Equipment'
                   ? ['Oxygen']
@@ -178,7 +178,7 @@ describe('AddRoom', () => {
   it('shows validation errors', () => {
     render(<AddRoom showModal setShowModal={jest.fn()} />);
 
-    fireEvent.click(screen.getByText('Add room'));
+    fireEvent.click(screen.getByRole('button', { name: 'New room' }));
 
     expect(screen.getByText('Name is required')).toBeInTheDocument();
   });
@@ -195,8 +195,8 @@ describe('AddRoom', () => {
     fireEvent.change(screen.getByLabelText('Room code'), {
       target: { value: 'RA-01' },
     });
-    fireEvent.click(screen.getByText('Room Type'));
-    fireEvent.click(screen.getByText('Add room'));
+    fireEvent.click(screen.getByText('Room type'));
+    fireEvent.click(screen.getByRole('button', { name: 'New room' }));
 
     await waitFor(() => {
       expect(roomService.createRoom).toHaveBeenCalled();
@@ -219,7 +219,7 @@ describe('AddRoom', () => {
     fireEvent.change(screen.getByLabelText('Name'), {
       target: { value: 'Room B' },
     });
-    fireEvent.click(screen.getByText('Add room'));
+    fireEvent.click(screen.getByRole('button', { name: 'New room' }));
 
     expect(screen.getByText('Room type is required')).toBeInTheDocument();
     expect(roomService.createRoom).not.toHaveBeenCalled();
@@ -233,8 +233,8 @@ describe('AddRoom', () => {
     fireEvent.change(screen.getByLabelText('Name'), {
       target: { value: 'Consultation Room' },
     });
-    fireEvent.click(screen.getByText('Room Type'));
-    fireEvent.click(screen.getByText('Add room'));
+    fireEvent.click(screen.getByText('Room type'));
+    fireEvent.click(screen.getByRole('button', { name: 'New room' }));
 
     await waitFor(() => {
       expect(roomService.createRoom).toHaveBeenCalledWith(
@@ -261,8 +261,8 @@ describe('AddRoom', () => {
       target: { value: 'MRI Scanner' },
     });
     fireEvent.click(screen.getByLabelText('Add custom equipment'));
-    fireEvent.click(screen.getByText('Room Type'));
-    fireEvent.click(screen.getByText('Add room'));
+    fireEvent.click(screen.getByText('Room type'));
+    fireEvent.click(screen.getByRole('button', { name: 'New room' }));
 
     await waitFor(() => {
       expect(roomService.createRoom).toHaveBeenCalledWith(
@@ -284,12 +284,12 @@ describe('AddRoom', () => {
     fireEvent.change(screen.getByLabelText('Room code'), {
       target: { value: 'WA-01' },
     });
-    fireEvent.click(screen.getByText('Room Type'));
+    fireEvent.click(screen.getByText('Room type'));
     fireEvent.click(screen.getByLabelText('Add unit type'));
     fireEvent.change(screen.getByLabelText('Units'), {
       target: { value: '2' },
     });
-    fireEvent.click(screen.getByText('Add room'));
+    fireEvent.click(screen.getByRole('button', { name: 'New room' }));
 
     await waitFor(() => {
       expect(roomService.createRoom).toHaveBeenCalledWith(
@@ -313,8 +313,8 @@ describe('AddRoom', () => {
       target: { value: 'SW-01' },
     });
     fireEvent.click(screen.getByLabelText('Species'));
-    fireEvent.click(screen.getByText('Room Type'));
-    fireEvent.click(screen.getByText('Add room'));
+    fireEvent.click(screen.getByText('Room type'));
+    fireEvent.click(screen.getByRole('button', { name: 'New room' }));
 
     await waitFor(() => {
       expect(roomService.createRoom).toHaveBeenCalledWith(
@@ -335,19 +335,19 @@ describe('AddRoom', () => {
     fireEvent.change(screen.getByLabelText('Name'), {
       target: { value: 'ICU A' },
     });
-    fireEvent.click(screen.getByText('Room Type'));
+    fireEvent.click(screen.getByText('Room type'));
     fireEvent.click(screen.getByLabelText('Toggle room availability'));
     fireEvent.change(screen.getByLabelText('Start time'), { target: { value: '08:30' } });
     fireEvent.change(screen.getByLabelText('End time'), { target: { value: '18:45' } });
     fireEvent.click(screen.getByText('Days'));
     fireEvent.click(screen.getByLabelText('Speciality (optional)'));
-    fireEvent.click(screen.getByLabelText('Assigned Staff (optional)'));
+    fireEvent.click(screen.getByLabelText('Assigned staff (optional)'));
     fireEvent.click(screen.getByLabelText('Equipment'));
     fireEvent.click(screen.getByLabelText('Add unit type'));
     fireEvent.change(screen.getAllByLabelText('Name')[1], { target: { value: 'Large ward' } });
     fireEvent.click(screen.getByText('Size'));
     fireEvent.change(screen.getByLabelText('Units'), { target: { value: '3' } });
-    fireEvent.click(screen.getByText('Add room'));
+    fireEvent.click(screen.getByRole('button', { name: 'New room' }));
 
     await waitFor(() => {
       expect(roomService.createRoom).toHaveBeenCalledWith(
@@ -373,13 +373,13 @@ describe('AddRoom', () => {
     fireEvent.change(screen.getByLabelText('Name'), {
       target: { value: 'Dirty room' },
     });
-    fireEvent.click(screen.getByText('close-Adding new room'));
+    fireEvent.click(screen.getByText('close-New room'));
     expect(screen.getByText('Discard changes?')).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('Keep editing'));
     expect(setShowModal).not.toHaveBeenCalledWith(false);
 
-    fireEvent.click(screen.getByText('close-Adding new room'));
+    fireEvent.click(screen.getByText('close-New room'));
     fireEvent.click(screen.getByText('Discard'));
     expect(setShowModal).toHaveBeenCalledWith(false);
   });
@@ -393,8 +393,8 @@ describe('AddRoom', () => {
     fireEvent.change(screen.getByLabelText('Name'), {
       target: { value: 'Failure room' },
     });
-    fireEvent.click(screen.getByText('Room Type'));
-    fireEvent.click(screen.getByText('Add room'));
+    fireEvent.click(screen.getByText('Room type'));
+    fireEvent.click(screen.getByRole('button', { name: 'New room' }));
 
     await waitFor(() => {
       expect(roomService.createRoom).toHaveBeenCalledWith(
@@ -407,7 +407,7 @@ describe('AddRoom', () => {
     const setShowModal = jest.fn();
     render(<AddRoom showModal setShowModal={setShowModal} />);
 
-    fireEvent.click(screen.getByText('close-Adding new room'));
+    fireEvent.click(screen.getByText('close-New room'));
 
     expect(screen.queryByText('Discard changes?')).not.toBeInTheDocument();
     expect(setShowModal).toHaveBeenCalledWith(false);
@@ -440,7 +440,7 @@ describe('AddRoom', () => {
     render(<AddRoom showModal setShowModal={jest.fn()} />);
 
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Eq room' } });
-    fireEvent.click(screen.getByText('Room Type'));
+    fireEvent.click(screen.getByText('Room type'));
     fireEvent.change(screen.getByLabelText('Add equipment name'), {
       target: { value: 'Ventilator' },
     });
@@ -449,7 +449,7 @@ describe('AddRoom', () => {
       target: { value: 'Ventilator' },
     });
     fireEvent.click(screen.getByLabelText('Add custom equipment'));
-    fireEvent.click(screen.getByText('Add room'));
+    fireEvent.click(screen.getByRole('button', { name: 'New room' }));
 
     await waitFor(() => {
       expect(roomService.createRoom).toHaveBeenCalled();
@@ -464,14 +464,14 @@ describe('AddRoom', () => {
     render(<AddRoom showModal setShowModal={jest.fn()} />);
 
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Ward' } });
-    fireEvent.click(screen.getByText('Room Type'));
+    fireEvent.click(screen.getByText('Room type'));
     // Changing total units with no drafts hits the early-return path.
-    fireEvent.change(screen.getByLabelText('Total Units'), { target: { value: '4' } });
+    fireEvent.change(screen.getByLabelText('Total units'), { target: { value: '4' } });
     fireEvent.click(screen.getByLabelText('Add unit type'));
     fireEvent.click(screen.getByLabelText('Add unit type'));
     // Distribute 3 units across 2 drafts -> [2, 1].
-    fireEvent.change(screen.getByLabelText('Total Units'), { target: { value: '3' } });
-    fireEvent.click(screen.getByText('Add room'));
+    fireEvent.change(screen.getByLabelText('Total units'), { target: { value: '3' } });
+    fireEvent.click(screen.getByRole('button', { name: 'New room' }));
 
     await waitFor(() => {
       expect(roomService.createRoom).toHaveBeenCalled();
@@ -487,13 +487,13 @@ describe('AddRoom', () => {
     render(<AddRoom showModal setShowModal={jest.fn()} />);
 
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Kennel' } });
-    fireEvent.click(screen.getByText('Room Type'));
+    fireEvent.click(screen.getByText('Room type'));
     fireEvent.click(screen.getByLabelText('Add unit type'));
     fireEvent.click(screen.getByLabelText('Add unit type'));
 
     const unitCountInputs = screen.getAllByLabelText('Units');
     fireEvent.change(unitCountInputs[0], { target: { value: '5' } });
-    fireEvent.click(screen.getByText('Add room'));
+    fireEvent.click(screen.getByRole('button', { name: 'New room' }));
 
     await waitFor(() => {
       expect(roomService.createRoom).toHaveBeenCalled();
@@ -509,10 +509,10 @@ describe('AddRoom', () => {
     render(<AddRoom showModal setShowModal={jest.fn()} />);
 
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Flex room' } });
-    fireEvent.click(screen.getByText('Room Type'));
+    fireEvent.click(screen.getByText('Room type'));
     fireEvent.click(screen.getByLabelText('Add unit type'));
     fireEvent.click(screen.getByLabelText('select-consultation'));
-    fireEvent.click(screen.getByText('Add room'));
+    fireEvent.click(screen.getByRole('button', { name: 'New room' }));
 
     await waitFor(() => {
       expect(roomService.createRoom).toHaveBeenCalled();
@@ -531,10 +531,10 @@ describe('AddRoom', () => {
     render(<AddRoom showModal setShowModal={jest.fn()} />);
 
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Fallback room' } });
-    fireEvent.click(screen.getByText('Room Type'));
-    fireEvent.click(screen.getByLabelText('Assigned Staff (optional)'));
+    fireEvent.click(screen.getByText('Room type'));
+    fireEvent.click(screen.getByLabelText('Assigned staff (optional)'));
     fireEvent.click(screen.getByLabelText('Speciality (optional)'));
-    fireEvent.click(screen.getByText('Add room'));
+    fireEvent.click(screen.getByRole('button', { name: 'New room' }));
 
     await waitFor(() => {
       expect(roomService.createRoom).toHaveBeenCalled();
@@ -554,8 +554,8 @@ describe('AddRoom', () => {
     render(<AddRoom showModal setShowModal={jest.fn()} />);
 
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'No refs room' } });
-    fireEvent.click(screen.getByText('Room Type'));
-    fireEvent.click(screen.getByText('Add room'));
+    fireEvent.click(screen.getByText('Room type'));
+    fireEvent.click(screen.getByRole('button', { name: 'New room' }));
 
     await waitFor(() => {
       expect(roomService.createRoom).toHaveBeenCalledWith(

@@ -324,7 +324,7 @@ const PendingTestConfirmation = ({ s }: { s: UseLabTestsReturn }) => {
       <div className="flex items-center gap-2">
         <Secondary text="Cancel" onClick={s.cancelPendingTest} />
         <Primary
-          text="Add to Queue"
+          text="Add to queue"
           icon={<IoCheckmarkOutline aria-hidden="true" />}
           onClick={s.confirmPendingTest}
         />
@@ -376,7 +376,7 @@ const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
       <FormInput
         intype="date"
         inname="lab-specimen-date"
-        inlabel="Collection Date"
+        inlabel="Collection date"
         value={s.specimenCollectionDate}
         onChange={(e) => s.setSpecimenCollectionDate(e.target.value)}
       />
@@ -455,7 +455,7 @@ const OrderBuilderSection = ({ s, readOnly }: { s: UseLabTestsReturn; readOnly: 
       {isInHouse && !readOnly && (
         <div className="flex flex-wrap justify-end gap-3">
           <Secondary
-            text={s.companionInCensus ? 'Added to Census' : 'Add to Census'}
+            text={s.companionInCensus ? 'Added to census' : 'Add to census'}
             icon={<IoCheckmarkOutline aria-hidden="true" />}
             onClick={s.handleAddToCensus}
             isDisabled={s.updatingCensus || !s.selectedIvls || s.companionInCensus}

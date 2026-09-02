@@ -1,4 +1,5 @@
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { formatDisplayDate } from '@/app/lib/date';
 import type { CompanionAlertSummary, CompanionCardDTO } from '@yosemite-crew/types';
@@ -63,12 +64,19 @@ const CompanionIdCard = ({ card }: CompanionIdCardProps) => {
       className="flex flex-col gap-4 rounded-2xl border border-card-border bg-white p-5"
     >
       <div className="flex items-center gap-3">
-        <Image
+        <AvatarImage
           alt={identity.name}
           src={getSafeImageUrl(identity.photoUrl, identity.type as ImageType)}
-          height={56}
-          width={56}
+          size={56}
           className="size-14 rounded-full object-cover"
+          fallback={
+            <CompanionAvatar
+              name={identity.name}
+              size={56}
+              textClassName="text-[24px]"
+              alt={identity.name}
+            />
+          }
         />
         <div className="flex flex-col">
           <span className="text-body-3-emphasis text-text-primary">{identity.name}</span>

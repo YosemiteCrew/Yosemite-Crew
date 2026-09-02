@@ -1,5 +1,6 @@
 import React from 'react';
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 import { Appointment, Invoice } from '@yosemite-crew/types';
 import { IoDownloadOutline, IoOpenOutline } from 'react-icons/io5';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
@@ -64,12 +65,19 @@ const InvoiceDetailHeader = ({
       onClose={onClose}
       icon={
         <span className="flex size-10 shrink-0 overflow-hidden rounded-full bg-card-hover">
-          <Image
+          <AvatarImage
             src={avatarSrc}
             alt=""
-            width={40}
-            height={40}
+            size={40}
             className="size-10 rounded-full object-cover"
+            fallback={
+              <CompanionAvatar
+                name={companion?.name}
+                seed={companion?.id}
+                size={40}
+                textClassName="text-[18px]"
+              />
+            }
           />
         </span>
       }

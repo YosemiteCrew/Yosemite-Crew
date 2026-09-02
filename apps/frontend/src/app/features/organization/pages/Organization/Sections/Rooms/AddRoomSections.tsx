@@ -59,7 +59,7 @@ export const BasicDetailsSection = ({
         />
         <div className="sm:col-span-2">
           <LabelDropdown
-            placeholder="Room Type"
+            placeholder="Room type"
             onSelect={(option) => onRoomTypeChange(option.value as OrganisationRoom['type'])}
             defaultOption={formData.type}
             options={RoomsTypes}
@@ -144,7 +144,7 @@ export const AvailabilitySection = ({
             intype="number"
             inname="totalUnits"
             value={String(formData.availability.totalUnits)}
-            inlabel="Total Units"
+            inlabel="Total units"
             onChange={(event) => {
               const parsed = Number(event.target.value);
               onAvailabilityChange({ totalUnits: Number.isNaN(parsed) ? 0 : Math.max(0, parsed) });
@@ -157,7 +157,7 @@ export const AvailabilitySection = ({
         )}
         <div className="sm:col-span-2">
           <MultiSelectDropdown
-            placeholder="Assigned Staff (optional)"
+            placeholder="Assigned staff (optional)"
             value={formData.assignedStaffs || []}
             onChange={(value) => onChange({ assignedStaffs: value })}
             options={teamOptions}

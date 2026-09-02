@@ -1,13 +1,14 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 
+// A plain <img> that forwards `onError`, so the dead-photo path is reachable.
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: ({ alt, src }: any) => (
-    <span data-testid="companion-photo" data-alt={alt} data-src={src} />
+  default: ({ alt, src, onError }: any) => (
+    <img data-testid="companion-photo" alt={alt} src={src} onError={onError} />
   ),
 }));
 
@@ -28,9 +29,26 @@ describe('CompanionAvatar', () => {
     );
 
     const photo = screen.getByTestId('companion-photo');
-    expect(photo).toHaveAttribute('data-src', 'safe:https://cdn.example.com/rex.png');
-    expect(photo).toHaveAttribute('data-alt', 'Rex');
+    expect(photo).toHaveAttribute('src', 'safe:https://cdn.example.com/rex.png');
+    expect(photo).toHaveAttribute('alt', 'Rex');
     expect(screen.queryByText('R')).not.toBeInTheDocument();
+  });
+
+  // Design rule: the initials fallback is mandatory, never an empty circle. A
+  // photo URL that stopped resolving (a deleted S3 object) must degrade to the
+  // monogram disc rather than leave a blank circle in the row.
+  it('swaps to the monogram when the photo fails to load', () => {
+    render(
+      <CompanionAvatar photoUrl="https://cdn.example.com/gone.png" name="Rex" size={48} alt="Rex" />
+    );
+    expect(screen.queryByText('R')).not.toBeInTheDocument();
+
+    fireEvent.error(screen.getByTestId('companion-photo'));
+
+    expect(screen.queryByTestId('companion-photo')).not.toBeInTheDocument();
+    // Same disc as the no-photo branch: decorative initials plus the sr-only name.
+    expect(screen.getByText('R')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByText('Rex')).toHaveClass('sr-only');
   });
 
   // Bug 38: a companion with no photo must not be given a stock species picture,

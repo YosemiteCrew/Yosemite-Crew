@@ -1,6 +1,6 @@
 'use client';
 import React from 'react';
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
 import { IoTimeOutline } from 'react-icons/io5';
 import { useAuthStore } from '@/app/stores/authStore';
 import { usePrimaryOrgWithMembership } from '@/app/hooks/useOrgSelectors';
@@ -54,23 +54,26 @@ const Personal = ({ onEditProfile, onEditHours }: PersonalProps) => {
     .join(' · ');
 
   const availabilitySummary = summarizeAvailability(availabilities);
+  const initialsDisc = (
+    <span className="flex size-[54px] flex-none items-center justify-center rounded-full bg-[var(--avatar-violet-bg)] text-[18px] font-bold text-[var(--avatar-violet-ink)]">
+      {initialsFrom(firstName, lastName)}
+    </span>
+  );
 
   return (
     <div className="bg-[var(--screen)] border border-[var(--hairline)] rounded-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] px-5! py-[18px]! flex flex-col gap-[14px]">
       <div className="text-[14.5px] font-bold text-[var(--ink)]">Personal</div>
       <div className="flex items-center gap-[14px]">
         {isHttpsAvatar(avatarUrl) ? (
-          <Image
+          <AvatarImage
             src={avatarUrl}
             alt={name}
-            width={54}
-            height={54}
+            size={54}
             className="size-[54px] rounded-full object-cover flex-none"
+            fallback={initialsDisc}
           />
         ) : (
-          <span className="flex size-[54px] flex-none items-center justify-center rounded-full bg-[var(--avatar-violet-bg)] text-[18px] font-bold text-[var(--avatar-violet-ink)]">
-            {initialsFrom(firstName, lastName)}
-          </span>
+          initialsDisc
         )}
         <span className="flex-1 min-w-0">
           <span className="block text-[14.5px] font-bold text-[var(--ink)] truncate">{name}</span>

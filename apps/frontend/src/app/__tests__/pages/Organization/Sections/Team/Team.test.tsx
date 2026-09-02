@@ -86,6 +86,29 @@ describe('Team section', () => {
     expect(screen.getByText('Vet tech')).toBeInTheDocument();
   });
 
+  // Design rule: the initials fallback is mandatory, never an empty circle. A
+  // member photo whose URL stopped resolving must degrade to the initials disc.
+  it('swaps a dead photo for the initials disc', () => {
+    useTeamMock.mockReturnValue([
+      {
+        _id: 'team-1',
+        name: 'Elif Kaya',
+        role: 'TECHNICIAN',
+        status: 'Available',
+        image: 'https://example.com/gone.png',
+      },
+    ]);
+    const { container } = render(<Team isVerified={true} />);
+    const photo = container.querySelector('img') as HTMLImageElement;
+    expect(photo).toBeInTheDocument();
+    expect(screen.queryByText('EK')).not.toBeInTheDocument();
+
+    fireEvent.error(photo);
+
+    expect(container.querySelector('img')).not.toBeInTheDocument();
+    expect(screen.getByText('EK')).toBeInTheDocument();
+  });
+
   it('falls back to placeholder labels when member fields are missing', () => {
     useTeamMock.mockReturnValue([{ _id: 'team-1' }]);
     render(<Team isVerified={true} />);

@@ -519,7 +519,7 @@ const PrescriptionEditor = ({
       <div className="relative z-50 flex items-center justify-end gap-3">
         <CircleIconButton
           icon={<IoPrintOutline aria-hidden="true" />}
-          label="Print Labels"
+          label="Print labels"
           onClick={onPrint}
         />
         {!readOnly && (

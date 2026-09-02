@@ -1,5 +1,6 @@
 import React from 'react';
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 import { IoChevronForwardOutline } from 'react-icons/io5';
 import { getSafeImageUrl, type ImageType } from '@/app/lib/urls';
 import type { EncounterMode } from '@/app/features/appointments/types/workspace';
@@ -37,12 +38,12 @@ const RoundAvatar = ({
   photoUrl?: string;
   speciesType?: string;
 }) => (
-  <Image
+  <AvatarImage
     src={getSafeImageUrl(photoUrl, resolveImageType(speciesType))}
     alt={name}
-    width={64}
-    height={64}
+    size={64}
     className="size-16 shrink-0 rounded-full object-cover"
+    fallback={<CompanionAvatar name={name} size={64} textClassName="text-[28px]" alt={name} />}
   />
 );
 
@@ -55,7 +56,7 @@ const DetailRow = ({ label, value }: CompanionDetail) => (
 
 /**
  * White companion card on the in-progress band. Round 64px avatar + a 3-column
- * grid of label/value rows. The right rail carries the "View Details" pill (→
+ * grid of label/value rows. The right rail carries the "View details" pill (→
  * companion overview) and the encounter mode pill.
  */
 const CompanionContextCard = ({
@@ -80,7 +81,7 @@ const CompanionContextCard = ({
           onClick={onViewDetails}
           className="flex h-8 w-34 items-center justify-end gap-1 rounded-2xl border border-neutral-700 bg-neutral-0 px-4 text-[14px] font-medium leading-[120%] text-neutral-700 shadow-[0_1px_10px_0_rgba(169,163,158,0.10)] transition-colors duration-150 hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
         >
-          View Details
+          View details
           <IoChevronForwardOutline size={16} aria-hidden="true" />
         </button>
       ) : (

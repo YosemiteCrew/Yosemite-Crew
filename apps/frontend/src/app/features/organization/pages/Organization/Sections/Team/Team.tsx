@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Image from 'next/image';
+import AvatarImage from '@/app/ui/avatars/AvatarImage';
 import { IoEllipsisHorizontal, IoPersonAddOutline } from 'react-icons/io5';
 import AddTeam from '@/app/features/organization/pages/Organization/Sections/Team/AddTeam';
 import TeamInfo from '@/app/features/organization/pages/Organization/Sections/Team/TeamInfo';
@@ -37,23 +37,24 @@ const employmentLabel = (team: TeamProp): string => {
 };
 
 const TeamAvatar = ({ team }: { team: TeamProp }) => {
-  if (team.image) {
-    return (
-      <Image
-        src={getSafeImageUrl(team.image, 'person')}
-        alt=""
-        height={30}
-        width={30}
-        className="size-[30px] flex-none rounded-full object-cover"
-      />
-    );
-  }
-  return (
+  const initials = (
     <span
       className={`flex size-[30px] flex-none items-center justify-center rounded-full text-[10.5px] font-bold ${avatarAccentFor(team._id || team.name || '')}`}
     >
       {initialsOf(team.name)}
     </span>
+  );
+  if (!team.image) return initials;
+  // A photo whose URL stopped resolving degrades to the same initials disc,
+  // never an empty circle.
+  return (
+    <AvatarImage
+      src={getSafeImageUrl(team.image, 'person')}
+      alt=""
+      size={30}
+      className="size-[30px] flex-none rounded-full object-cover"
+      fallback={initials}
+    />
   );
 };
 
