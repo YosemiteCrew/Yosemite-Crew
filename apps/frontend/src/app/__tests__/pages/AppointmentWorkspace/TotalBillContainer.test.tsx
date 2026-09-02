@@ -70,6 +70,24 @@ const renderBill = (
 const overallDiscountInput = () => screen.getByLabelText('Overall discount percent');
 
 describe('TotalBillContainer', () => {
+  it('carries the billed item name as a tooltip, since the column clips it', () => {
+    /* On dev this column renders 150px of text in an 88px box, so
+       "Anal Gland Expression" shows as "Anal Gland...". It is what the client
+       is being charged for, so the full name has to stay reachable. */
+    const { view } = renderBill({
+      ...baseItem,
+      id: 'line-long',
+      name: 'Anal Gland Expression',
+    });
+    /* The name also appears in the remove button's label, and the panel heading
+       is itself a truncating span, so find the cell by both class and text. */
+    const cell = [...view.container.querySelectorAll('span.truncate')].find(
+      (node) => node.textContent === 'Anal Gland Expression'
+    );
+    expect(cell).toBeDefined();
+    expect(cell).toHaveAttribute('title', 'Anal Gland Expression');
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
